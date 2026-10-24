@@ -2,8 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reportSource, reportSourceList} from '../dist/src/report-sources.js';
 import {reportPlatforms} from '../dist/src/report-metrics.js';
-import {nativeMetricExamples, normalizeNativeRow, reportRange} from '../dist/src/report-native.js';
+import {
+  missingNativeMetrics,
+  nativeDailyPlatforms,
+  nativeMetricExamples,
+  normalizeNativeRow,
+  reportRange,
+} from '../dist/src/report-native.js';
 import {reportRange as periodRange} from '../dist/src/report-periods.js';
+import {nativeDetailPlatforms} from '../dist/src/overview-native-detail.js';
+import {sourceRequestModel} from '../dist/src/report-request-estimate.js';
 
 // ARC-04 stage F: one report source per reporting platform; src/report-native.ts normalizes through them.
 
@@ -27,6 +35,73 @@ test('every reporting platform has exactly one report source, in the platforms o
       ['snapchat', 'stats'],
     ],
   );
+});
+
+// ARC-04 stage F: NativeCampaignReports.collectSource and the request estimate named these platforms in lists; the
+// sources declare them now, and these are the lists they replaced, unchanged.
+test('the collector and the request estimate read their platform facts from the report sources, unchanged', () => {
+  const declaring = fact => reportSourceList.filter(s => s[fact] !== undefined).map(s => [s.platform, s[fact]]);
+  assert.deepEqual(declaring('accountLookup'), [
+    ['apple', false],
+    ['ga4', false],
+    ['gsc', false],
+  ]);
+  assert.deepEqual(declaring('nativeDetail'), [
+    ['microsoft', true],
+    ['apple', true],
+    ['reddit', true],
+  ]);
+  assert.deepEqual(
+    reportSourceList
+      .filter(s => s.nativeDetail)
+      .map(s => s.platform)
+      .sort(),
+    [...nativeDetailPlatforms].sort(),
+  );
+  assert.deepEqual(declaring('nativeMetricCheck'), [
+    ['x', false],
+    ['apple', false],
+  ]);
+  assert.deepEqual(declaring('nullNativeMetrics'), [['ga4', true]]);
+  assert.deepEqual(declaring('versionHeader'), [['linkedin', 'LinkedIn-Version']]);
+  assert.deepEqual(nativeDailyPlatforms, ['google', 'meta']);
+  for (const source of reportSourceList) assert.equal(typeof source.collect, 'function', source.platform);
+  // The request model the bootstrap publishes, as the estimate's table and lookup list had it.
+  const requests = {google: 1, meta: 1, tiktok: 3, snapchat: 2, linkedin: 1, x: 2, microsoft: 2, apple: 2, reddit: 2};
+  Object.assign(requests, {ga4: 3, gsc: 1});
+  for (const [platform, minimum] of Object.entries(requests)) {
+    const lookups = ['ga4', 'gsc', 'apple'].includes(platform) ? 0 : 1;
+    assert.deepEqual(
+      sourceRequestModel(platform),
+      {
+        account_lookups: lookups,
+        account_verification_after_periods: lookups,
+        minimum_requests_per_period: minimum,
+        native_daily_segmentation: ['google', 'meta'].includes(platform),
+      },
+      platform,
+    );
+  }
+  for (const platform of ['unknown', 'constructor', '__proto__'])
+    assert.deepEqual(sourceRequestModel(platform), {
+      account_lookups: 1,
+      account_verification_after_periods: 1,
+      minimum_requests_per_period: 1,
+      native_daily_segmentation: false,
+    });
+});
+
+test('requested native metrics are checked against returned rows except where a source declares its own shapes', () => {
+  const rows = [{metrics: {native_any_clicks: 1}, native: {}}];
+  for (const platform of ['x', 'apple']) assert.deepEqual(missingNativeMetrics(platform, ['VIDEO'], rows), []);
+  for (const platform of ['google', 'meta', 'tiktok', 'snapchat', 'linkedin', 'microsoft', 'reddit', 'ga4', 'gsc'])
+    assert.deepEqual(missingNativeMetrics(platform, ['video_views'], rows), ['video_views'], platform);
+  // GA4 keeps an access-restricted (null) metric as a null native metric; other sources drop a null.
+  const ga4 = normalizeNativeRow('ga4', {campaign_id: '1', campaign_name: 'one', sessions: '4', purchaseRevenue: null});
+  assert.equal(ga4.metrics.native_ga4_purchaseRevenue, null);
+  assert.equal(ga4.metrics.native_ga4_sessions, 4);
+  const reddit = normalizeNativeRow('reddit', {campaign_id: '1', SPEND: '1000000', VIDEO_STARTED: null});
+  assert.equal(Object.hasOwn(reddit.metrics, 'native_reddit_VIDEO_STARTED'), false);
 });
 
 test('a platform without a report source is refused for its missing identifier, never read from an inherited name', () => {

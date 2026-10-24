@@ -22,6 +22,10 @@ export const redditReportSource: ReportSource = {
     'CONVERSION_PURCHASE_TOTAL_ITEMS',
     'CONVERSION_PURCHASE_TOTAL_VALUE',
   ],
+  // RPT-07: its own account report collects the ad group and ad levels.
+  nativeDetail: true,
+  // The report and the campaign inventory.
+  minimumRequestsPerPeriod: 2,
   /**
    * One account report over the UTC period by campaign (RPT-07: by campaign and ad group, or ad, for the detailed
    * levels), the account's campaigns for names and objectives, and for the detailed levels its ad group and ad lists.

@@ -15,6 +15,10 @@ import {
 export const xReportSource: ReportSource = {
   platform: 'x',
   nativeMetricExamples: ['VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'],
+  // X analytics rows carry metric groups in their own shape, so requested metrics are not checked against them.
+  nativeMetricCheck: false,
+  // The campaign inventory and the active entities; the analytics requests are planned from them at run time.
+  minimumRequestsPerPeriod: 2,
   /**
    * The account's campaign inventory, the campaigns X reports as active (RPT-03), their line item objectives (RPT-07)
    * and the bounded analytics of those campaigns, each kept with the checkpoint so a resumed run asks X the same.

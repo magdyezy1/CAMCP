@@ -16,6 +16,12 @@ export const ga4ReportSource: ReportSource = {
     'ecommercePurchases',
     'purchaseRevenue',
   ],
+  // The collection reads the property itself (its currency and time zone).
+  accountLookup: false,
+  // GA4 marks access-restricted metrics null; the null is kept as the native metric.
+  nullNativeMetrics: true,
+  // The property, the metric report and the name report.
+  minimumRequestsPerPeriod: 3,
   /**
    * The property (its currency and time zone), then two bounded runReport collections: metrics by session campaign ID
    * (aggregated by GA4 itself) and sessions by campaign ID and name for the labels, with GA4's quality metadata.

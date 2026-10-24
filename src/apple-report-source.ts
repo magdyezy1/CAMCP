@@ -10,6 +10,14 @@ const appleOrigin = 'https://api.ads.apple.com';
 export const appleReportSource: ReportSource = {
   platform: 'apple',
   nativeMetricExamples: [],
+  // The collection reads the ad account itself (its currency; Apple reports in UTC).
+  accountLookup: false,
+  // RPT-07: its own reports collect the ad group and ad levels.
+  nativeDetail: true,
+  // Apple report rows nest their metrics in their own shape, so requested metrics are not checked against them.
+  nativeMetricCheck: false,
+  // The account and the report.
+  minimumRequestsPerPeriod: 2,
   /**
    * The ad account (its currency; Apple reports in UTC), then one bounded campaign report page, or for the RPT-07 ad
    * group and ad levels one bounded report page and the account's own records for exact parents.

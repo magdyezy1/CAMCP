@@ -15,6 +15,7 @@ export const googleReportSource: ReportSource = {
   nativeMetricContainer: 'metrics',
   // Requested native metrics may name GAQL metric fields (`metrics.all_conversions`).
   nativeMetricName: /^metrics\.[a-z][a-z0-9_]{0,80}$/,
+  minimumRequestsPerPeriod: 1,
   // RPT-03: one request segmented by `segments.date`.
   daily: {day: native => native?.segments?.date},
   /** One GAQL campaign query over the period, with the requested native metrics (and the date segment when daily). */
@@ -77,6 +78,9 @@ const searchConsoleRowLimit = 10000;
 export const searchConsoleReportSource: ReportSource = {
   platform: 'gsc',
   nativeMetricExamples: [],
+  // The site is the source: no account is read before collection.
+  accountLookup: false,
+  minimumRequestsPerPeriod: 1,
   /** One final-data page report of the site (Search Console reports in Pacific time), bounded to the row limit. */
   async collect(c) {
     c.timezone = 'America/Los_Angeles';

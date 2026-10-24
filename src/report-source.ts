@@ -142,12 +142,26 @@ export interface ReportSource {
   readonly accountLookup?: false;
   /** Whether the source's own reports collect its ad group and ad levels (RPT-07: Microsoft, Reddit, Apple). */
   readonly nativeDetail?: true;
+  /**
+   * False when requested native metrics are not checked against the returned rows (RPT-04): X and Apple Ads rows carry
+   * their metrics in their own shapes, so a missing field is not reported there.
+   */
+  readonly nativeMetricCheck?: false;
+  /** True when a native null is kept as a null metric (GA4 marks access-restricted metrics null) instead of dropped. */
+  readonly nullNativeMetrics?: true;
+  /** The request header whose value names the API version in lineage (LinkedIn-Version); else the path's version. */
+  readonly versionHeader?: string;
+  /**
+   * RPT-03: the fewest data requests one period of a campaign-level source needs, beyond the account lookup (the
+   * request estimate made before any egress; pages beyond the first, retries and polls are not counted).
+   */
+  readonly minimumRequestsPerPeriod: number;
   /** One natively day-segmented request split by day (RPT-03: Google Ads, Meta). */
   readonly daily?: DailySegmentation;
   /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */
   requestHeaders?(): Record<string, string>;
   /** Collects one period of the source's native report into `collection`. */
-  collect?(collection: ReportCollection): Promise<void>;
+  collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */
   normalize(raw: JsonObject, row: ReportRowReader): ReportSourceRow;
 }

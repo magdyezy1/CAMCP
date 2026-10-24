@@ -26,6 +26,8 @@ export const tiktokReportSource: ReportSource = {
     'total_purchase_value',
   ],
   nativeMetricContainer: 'metrics',
+  // The report, the campaign inventory and the ad group optimization events (RPT-04).
+  minimumRequestsPerPeriod: 3,
   /**
    * One BASIC auction campaign report over the period, the campaign inventory for objectives, and the ad group
    * optimization events (RPT-04), read once per source and job.

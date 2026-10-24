@@ -5,10 +5,10 @@ import {MirrorError} from './errors.js';
 import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './account-metadata.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
-import {nativeDetailPlatforms, nativeDetailResult} from './overview-native-detail.js';
+import {nativeDetailResult} from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
-import type {AccountLookupCache, ReportCollection, ReportSourceRow} from './report-source.js';
+import type {AccountLookupCache, ReportCollection, ReportSource, ReportSourceRow} from './report-source.js';
 import {reportRange} from './report-periods.js';
 
 /** Native metrics the Overview suggests per platform, from each platform's report source (ARC-04 stage F). */
@@ -84,7 +84,7 @@ function nativeActionPaths(data: unknown, prefix: string, out: Set<string>, dept
  * platform's metrics container, or an action array of that name. `clicks` is not returned by `inline_link_clicks`.
  */
 export function missingNativeMetrics(platform: string, requested: string[], rows: JsonObject[]): string[] {
-  if (!rows.length || ['x', 'apple'].includes(platform)) return [];
+  if (!rows.length || reportSource(platform)?.nativeMetricCheck === false) return [];
   const prefix = 'native_' + platform + '_',
     container = nativeMetricContainers[platform],
     produced = new Set<string>();
@@ -106,6 +106,7 @@ function numericNative(
   depth = 0,
 ): JsonObject {
   if (depth > 4) return output;
+  const keepNull = reportSource(platform)?.nullNativeMetrics === true;
   for (const [k, v] of Object.entries(data)) {
     const key = (prefix ? prefix + '_' : '') + k;
     const s = snake(k);
@@ -116,8 +117,7 @@ function numericNative(
         if (a && typeof a === 'object' && typeof a.action_type === 'string')
           output['native_' + platform + '_' + (key + '_' + a.action_type).replace(/[^a-zA-Z0-9_]/g, '_')] =
             metricNumber(a.value);
-    } else if (platform === 'ga4' && v === null)
-      output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = null;
+    } else if (keepNull && v === null) output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = null;
     else if (typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)))
       output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = metricNumber(v);
   }
@@ -167,7 +167,8 @@ export const nativeDailyPlatforms: readonly string[] = reportSourceList
   .map(source => source.platform);
 export const nativeDailySegmentation = (source: JsonObject) =>
   nativeDailyPlatforms.includes(source.platform) && overviewSourceLevel(source).id === 'campaign';
-const accountLookupPlatforms = (platform: string) => !['ga4', 'gsc', 'apple'].includes(platform);
+/** Whether a platform's account is read before collection (a source declares `accountLookup: false` otherwise). */
+const accountLookupPlatforms = (platform: string) => reportSource(platform)?.accountLookup !== false;
 export class NativeCampaignReports {
   constructor(readonly service: MirrorService) {}
   /** RPT-02: a period whose last day has not ended in the source time zone is partial and marked `open_window`. */
@@ -264,206 +265,218 @@ export class NativeCampaignReports {
     const p = source.platform,
       entityLevel = overviewSourceLevel(source),
       platform = reportPlatforms[p],
-      // The platform's report source (ARC-04 stage F): its facts, and its collection once it has moved there.
+      // The platform's report source (ARC-04 stage F): its facts and its collection.
       reports = reportSource(p);
-    if (!platform) bad('Unsupported reporting platform.');
-    const account = String(source.account_id),
+    if (!platform || !reports) bad('Unsupported reporting platform.');
+    const gateway = platform!.gateway,
+      account = String(source.account_id),
       connection = String(source.connection_id),
       range = reportRange(dates),
       extra = source.native_metrics ?? [];
-    if (
-      !Array.isArray(extra) ||
-      extra.length > 30 ||
-      extra.some(
-        x => typeof x !== 'string' || !(/^[A-Za-z][A-Za-z0-9_]{0,90}$/.test(x) || !!reports?.nativeMetricName?.test(x)),
-      )
-    )
-      bad('Native metrics must be provider field names (at most 30).');
-    this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
-    const lineage: JsonObject[] = [];
-    let quality: JsonObject = {version: 1, pages_collected: true, measurement_complete: null};
-    const run = async (plan: CompiledRequest, aggregate = true, stage = 'campaign_report') => {
-      try {
-        const out = (await this.service.runPlan(
-          plan,
-          {connection_id: connection, aggregate_pages: aggregate, max_pages: 25},
-          actor,
-        )) as JsonObject;
-        if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
-          throw new MirrorError(
-            'REPORT_RESPONSE_INVALID',
-            'The reporting request did not return provider data.',
-            {},
-            502,
-          );
-        if (out.truncated)
-          throw new MirrorError(
-            'INCOMPLETE_REPORT',
-            'Report reached a pagination limit. Split the date range or accounts.',
-          );
-        const d = out.data;
-        if (d?.error || (d?.code !== undefined && Number(d.code) !== 0) || d?.request_status === 'ERROR')
-          throw new MirrorError('PROVIDER_REPORT_FAILED', 'The provider rejected this report.', {upstream: d}, 502);
-        lineage.push({
-          stage,
-          method: plan.method,
-          path: plan.path,
-          origin: plan.origin ?? null,
-          api_version:
-            plan.headers?.['LinkedIn-Version'] ??
-            plan.path.match(/\/(v?\d+(?:\.\d+)?(?:beta)?)(?:\/|$)/)?.[1] ??
-            'native',
-          query_fingerprint: fingerprint({method: plan.method, path: plan.path, query: plan.query, body: plan.body}),
-          response_fingerprint: fingerprint(d),
-          captured_at: Date.now(),
-        });
-        return d as JsonObject;
-      } catch (e) {
-        if (e instanceof MirrorError)
-          throw new MirrorError(
-            e.code,
-            e.message,
-            {...e.details, report_request: {stage, method: plan.method, path: plan.path}},
-            e.status,
-            e.retryable,
-          );
-        throw e;
-      }
-    };
-    const plan = (path: string, query: JsonObject = {}, body?: JsonObject, origin?: string): CompiledRequest => ({
-      gateway: platform!.gateway,
-      accountId: account,
-      action: 'AMCP_CAMPAIGN_REPORT',
-      method: body ? 'POST' : 'GET',
-      path,
-      query,
-      body,
-      origin,
-      // The source's own request headers (LinkedIn's versioning headers, ARC-04 stage F); none by default.
-      headers: reports?.requestHeaders?.() ?? {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      evidence: 'Native campaign report, bounded account scope',
-      warnings: [],
-    });
-    let metadata: JsonObject = {},
-      currency: string | null = null,
-      timezone: string | null = null,
-      raw: JsonObject[] = [],
-      warnings: string[] = [],
-      attribution = 'provider configured',
-      resultDefinition = 'unknown',
-      complete = true,
-      collectionComplete = true;
-    // Source-specific context fields returned with the result (for example X campaigns with no reported activity).
-    const context: JsonObject = {};
-    // RPT-02 scope limits: what a source covers by design. They are disclosed, not counted as incompleteness.
-    const scopeLimitations: string[] = [];
-    if (accountLookupPlatforms(p)) {
-      let d: JsonObject;
-      if (lookup?.data) {
-        d = lookup.data;
-        lineage.push({...lookup.lineage, cached: true});
-      } else {
-        d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
-        if (lookup) Object.assign(lookup, {data: d, lineage: lineage.at(-1)});
-      }
-      metadata = accountMetadata(platform!.gateway, d);
-      currency = accountCurrency(platform!.gateway, d);
-      timezone = accountTimezone(platform!.gateway, d);
-    }
-    // RPT-07: Microsoft, Reddit and Apple detail levels reuse their native report paths below.
+    if (!nativeMetricNames(extra, reports!)) bad('Native metrics must be provider field names (at most 30).');
+    this.service.store.resolveConnection(actor, gateway, account, connection);
+    const lineage: JsonObject[] = [],
+      {run, plan} = reportReadPath(this.service, actor, gateway, account, connection, reports!, lineage);
+    // RPT-07: the detail levels of a source with native detail (Microsoft, Reddit, Apple) reuse its own reports.
     const detail = entityLevel.id === 'campaign' ? undefined : entityLevel.id;
-    if (detail && !nativeDetailPlatforms.includes(p))
-      return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone, lookup);
-    const detailRounding: Record<string, number> = {};
-    let detailRows: {rows: JsonObject[]; parents: Record<string, JsonObject>} | undefined;
-    if (reports?.collect) {
-      // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
-      const collection: ReportCollection = {
-        source,
-        account,
-        connection,
-        range,
-        extra,
-        segment,
-        detail,
-        checkpoint,
-        save,
-        lookup,
-        actor,
-        store: this.service.store,
-        lineage,
-        run,
-        plan,
-        attributionProfile: () => campaignAttributionProfile(source),
-        metadata,
-        currency,
-        timezone,
-        raw,
-        warnings,
-        attribution,
-        resultDefinition,
-        complete,
-        collectionComplete,
-        context,
-        scopeLimitations,
-        quality,
-        detailRows,
-        detailRounding,
-      };
-      await reports.collect(collection);
-      ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
-        collection);
-      detailRows = collection.detailRows;
-    }
-    if (raw.length > 10000)
+    // One period's collection state: the account lookup sets the account facts, then the source collects into it.
+    const c: ReportCollection = {
+      source,
+      account,
+      connection,
+      range,
+      extra,
+      segment,
+      detail,
+      checkpoint,
+      save,
+      lookup,
+      actor,
+      store: this.service.store,
+      lineage,
+      run,
+      plan,
+      attributionProfile: () => campaignAttributionProfile(source),
+      metadata: {},
+      currency: null,
+      timezone: null,
+      raw: [],
+      warnings: [],
+      attribution: 'provider configured',
+      resultDefinition: 'unknown',
+      complete: true,
+      collectionComplete: true,
+      // Source-specific context fields returned with the result (for example X campaigns with no reported activity).
+      context: {},
+      // RPT-02 scope limits: what a source covers by design. They are disclosed, not counted as incompleteness.
+      scopeLimitations: [],
+      quality: {version: 1, pages_collected: true, measurement_complete: null},
+      detailRows: undefined,
+      detailRounding: {},
+    };
+    if (accountLookupPlatforms(p)) await lookupAccount(c, gateway, run);
+    if (detail && !reports!.nativeDetail)
+      return collectDetailedOverview(this.service, source, range, actor, c.metadata, c.currency, c.timezone, lookup);
+    // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
+    await reports!.collect(c);
+    if (c.raw.length > 10000)
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
-    this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
+    this.service.store.resolveConnection(actor, gateway, account, connection);
     if (detail)
-      return nativeDetailResult(source, detailRows!, raw, {
+      return nativeDetailResult(source, c.detailRows!, c.raw, {
         lineage,
-        metadata,
-        currency,
-        timezone,
+        metadata: c.metadata,
+        currency: c.currency,
+        timezone: c.timezone,
         range,
-        providerComplete: complete,
-        resultDefinition,
-        warnings,
-        context,
-        rounding: detailRounding,
+        providerComplete: c.complete,
+        resultDefinition: c.resultDefinition,
+        warnings: c.warnings,
+        context: c.context,
+        rounding: c.detailRounding,
       });
-    const rows = raw.map(r => normalizeNativeRow(p, r));
-    for (const name of missingNativeMetrics(p, extra, rows))
-      warnings.push(
-        'Requested native metric ' +
-          name +
-          ' was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.',
-      );
-    return {
-      contract_version: reportContractVersion,
-      quality: scopeLimitations.length ? {...quality, scope_limitations: scopeLimitations} : quality,
-      lineage,
-      query_fingerprint: fingerprint(lineage.map(l => l.query_fingerprint)),
-      rows,
-      account_name: metadata.name ?? metadata.displayName ?? null,
-      date_range: range,
-      metadata,
-      currency,
-      timezone,
-      complete,
-      collection_complete: collectionComplete,
-      ...context,
-      ...(scopeLimitations.length ? {scope_limitations: scopeLimitations} : {}),
-      attribution,
-      result_definition: resultDefinition,
-      warnings,
-      source_kind: platform!.kind,
-      captured_at: Date.now(),
-    };
+    return campaignResult(p, platform!.kind, c);
   }
+}
+/** RPT-04: requested native metrics are provider field names (or the source's own metric paths), at most 30. */
+function nativeMetricNames(extra: unknown, reports: ReportSource): boolean {
+  return (
+    Array.isArray(extra) &&
+    extra.length <= 30 &&
+    !extra.some(
+      x => typeof x !== 'string' || !(/^[A-Za-z][A-Za-z0-9_]{0,90}$/.test(x) || !!reports.nativeMetricName?.test(x)),
+    )
+  );
+}
+/**
+ * The read path of one source's report requests. `run` reads a request through MirrorService.runPlan and returns its
+ * provider data: a dry run, an unsuccessful or truncated read, or a provider error envelope is refused, every refusal
+ * names the request, and each read's lineage is recorded. `plan` builds the source's read-only report requests.
+ */
+function reportReadPath(
+  service: MirrorService,
+  actor: Actor,
+  gateway: string,
+  account: string,
+  connection: string,
+  reports: ReportSource,
+  lineage: JsonObject[],
+): Pick<ReportCollection, 'run' | 'plan'> {
+  const run = async (plan: CompiledRequest, aggregate = true, stage = 'campaign_report') => {
+    try {
+      const out = (await service.runPlan(
+        plan,
+        {connection_id: connection, aggregate_pages: aggregate, max_pages: 25},
+        actor,
+      )) as JsonObject;
+      if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
+        throw new MirrorError(
+          'REPORT_RESPONSE_INVALID',
+          'The reporting request did not return provider data.',
+          {},
+          502,
+        );
+      if (out.truncated)
+        throw new MirrorError(
+          'INCOMPLETE_REPORT',
+          'Report reached a pagination limit. Split the date range or accounts.',
+        );
+      const d = out.data;
+      if (d?.error || (d?.code !== undefined && Number(d.code) !== 0) || d?.request_status === 'ERROR')
+        throw new MirrorError('PROVIDER_REPORT_FAILED', 'The provider rejected this report.', {upstream: d}, 502);
+      lineage.push({
+        stage,
+        method: plan.method,
+        path: plan.path,
+        origin: plan.origin ?? null,
+        api_version:
+          (reports.versionHeader ? plan.headers?.[reports.versionHeader] : undefined) ??
+          plan.path.match(/\/(v?\d+(?:\.\d+)?(?:beta)?)(?:\/|$)/)?.[1] ??
+          'native',
+        query_fingerprint: fingerprint({method: plan.method, path: plan.path, query: plan.query, body: plan.body}),
+        response_fingerprint: fingerprint(d),
+        captured_at: Date.now(),
+      });
+      return d as JsonObject;
+    } catch (e) {
+      if (e instanceof MirrorError)
+        throw new MirrorError(
+          e.code,
+          e.message,
+          {...e.details, report_request: {stage, method: plan.method, path: plan.path}},
+          e.status,
+          e.retryable,
+        );
+      throw e;
+    }
+  };
+  const plan = (path: string, query: JsonObject = {}, body?: JsonObject, origin?: string): CompiledRequest => ({
+    gateway,
+    accountId: account,
+    action: 'AMCP_CAMPAIGN_REPORT',
+    method: body ? 'POST' : 'GET',
+    path,
+    query,
+    body,
+    origin,
+    // The source's own request headers (LinkedIn's versioning headers, ARC-04 stage F); none by default.
+    headers: reports.requestHeaders?.() ?? {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    evidence: 'Native campaign report, bounded account scope',
+    warnings: [],
+  });
+  return {run, plan};
+}
+/**
+ * RPT-03: the account read before collection, once per source and job: later periods reuse the job's first read
+ * (lineage marks it `cached`). It sets the collection's account metadata, currency and time zone.
+ */
+async function lookupAccount(c: ReportCollection, gateway: string, run: ReportCollection['run']) {
+  let d: JsonObject;
+  if (c.lookup?.data) {
+    d = c.lookup.data;
+    c.lineage.push({...c.lookup.lineage, cached: true});
+  } else {
+    d = await run(accountPlan(gateway, c.account), false, 'account_lookup');
+    if (c.lookup) Object.assign(c.lookup, {data: d, lineage: c.lineage.at(-1)});
+  }
+  c.metadata = accountMetadata(gateway, d);
+  c.currency = accountCurrency(gateway, d);
+  c.timezone = accountTimezone(gateway, d);
+}
+/** One collected campaign-level period: the normalized rows, the missing-metric warnings and the source's state. */
+function campaignResult(p: string, kind: string, c: ReportCollection): JsonObject {
+  const rows = c.raw.map(r => normalizeNativeRow(p, r));
+  for (const name of missingNativeMetrics(p, c.extra, rows))
+    c.warnings.push(
+      'Requested native metric ' +
+        name +
+        ' was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.',
+    );
+  return {
+    contract_version: reportContractVersion,
+    quality: c.scopeLimitations.length ? {...c.quality, scope_limitations: c.scopeLimitations} : c.quality,
+    lineage: c.lineage,
+    query_fingerprint: fingerprint(c.lineage.map(l => l.query_fingerprint)),
+    rows,
+    account_name: c.metadata.name ?? c.metadata.displayName ?? null,
+    date_range: c.range,
+    metadata: c.metadata,
+    currency: c.currency,
+    timezone: c.timezone,
+    complete: c.complete,
+    collection_complete: c.collectionComplete,
+    ...c.context,
+    ...(c.scopeLimitations.length ? {scope_limitations: c.scopeLimitations} : {}),
+    attribution: c.attribution,
+    result_definition: c.resultDefinition,
+    warnings: c.warnings,
+    source_kind: kind,
+    captured_at: Date.now(),
+  };
 }
 const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);
 const eachDay = (range: {since: string; until: string}) => {

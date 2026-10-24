@@ -23,7 +23,10 @@ export const linkedinReportSource: ReportSource = {
     'conversionValueInLocalCurrency',
     'oneClickLeads',
   ],
+  minimumRequestsPerPeriod: 1,
   requestHeaders: () => ({'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'}),
+  // LinkedIn versions its API by header, not by path, so lineage names that header's value.
+  versionHeader: 'LinkedIn-Version',
   /**
    * One complete campaign analytics response over the UTC period, after the account identity and currency checks,
    * then the reported campaigns' current names and objectives (RPT-07), read once per campaign and job.

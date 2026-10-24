@@ -19,6 +19,7 @@ export const metaReportSource: ReportSource = {
     'video_p100_watched_actions',
     'cost_per_action_type',
   ],
+  minimumRequestsPerPeriod: 1,
   // RPT-03: one request with time_increment=1; a row that names its last day must end on the day it starts.
   daily: {
     day: native => native?.date_start,

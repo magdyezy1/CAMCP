@@ -15,6 +15,8 @@ export const snapchatReportSource: ReportSource = {
     'total_installs',
   ],
   nativeMetricContainer: 'stats',
+  // The stats and the campaign inventory.
+  minimumRequestsPerPeriod: 2,
   /**
    * One account stats read by campaign over the account-local period, with the default windows or a campaign-level
    * attribution profile (RPT-04), then the account's campaigns for names and objectives.

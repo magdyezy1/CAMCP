@@ -31,6 +31,10 @@ export const microsoftReportSource: ReportSource = {
     'PhoneCalls',
     'ImpressionSharePercent',
   ],
+  // RPT-07: its own report job collects the ad group and ad levels.
+  nativeDetail: true,
+  // The submission and the first poll.
+  minimumRequestsPerPeriod: 2,
   /**
    * One Summary performance report job (campaign, or RPT-07 ad group and ad) in the account time zone: submitted once
    * as the reporting pipeline's provider job (RPT-06), then polled and downloaded in bounded pages.
