@@ -11,10 +11,11 @@ import {isProviderModule, providerRegistries} from '../tools/architecture-map.mj
 // ARC-01 phase B, the gateway checks: the write-shape stage (src/write-shape.ts) and the state stage
 // (src/write-state.ts) named each provider where its own rules ran. Those rules are now its adapter's
 // (`checks`, src/<provider>-adapter.ts); the stages keep every generic rule, their order and their refusals, and ask
-// the provider at the points they named it. Reddit's write contract and state check joined them in wave 4c: its family
-// reads pages with its own leaf (src/reddit-paging.ts), not src/pagination.ts, which consults the hooks. Meta's first
-// write checks stay in the write-shape stage (tests/meta-version.test.mjs reads every string literal of a Meta module
-// as a name AMCP may send).
+// the provider at the points they named it. The two remainders joined them in wave 4c: Reddit's write contract and
+// state check (its family reads pages with its own leaf, src/reddit-paging.ts, not src/pagination.ts, which consults
+// the hooks) and Meta's first write checks (src/meta-write-shape.ts; tests/meta-version.test.mjs reads every string
+// literal of a Meta module as a name AMCP may send, and accepts the removed field they refuse only because the stage
+// refuses it).
 
 const plan = (gateway, method, path, fields = {}) => ({
   gateway,
@@ -53,7 +54,7 @@ const declared = hooks => {
   ];
 };
 
-test('the write stages name only their documented remainders and import no other provider module', () => {
+test('the write stages name no provider and import no provider module', () => {
   const facts = file => {
     const source = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
     return {
@@ -64,7 +65,7 @@ test('the write stages name only their documented remainders and import no other
     };
   };
   assert.deepEqual(facts('src/write-shape.ts'), {
-    literals: ['meta_native_action'],
+    literals: [],
     imports: [],
   });
   assert.deepEqual(facts('src/write-state.ts'), {
@@ -126,12 +127,37 @@ test('Reddit’s write contract and state check are its adapter’s, and its fam
   }
 });
 
+test('Meta’s first write checks are its adapter’s, asked before the generic checks', async () => {
+  // ARC-01 (wave 4c): they stayed in the write-shape stage because they name a field v26.0 removed only to refuse it
+  // (tests/meta-version.test.mjs now reads their module and checks that refusal).
+  const {metaWriteShapeBefore} = await import('../dist/src/meta-write-shape.js');
+  const before = providerHooks('meta_native_action').checks.shape.before;
+  assert.equal(before, metaWriteShapeBefore);
+  const ad = (body, fields = {}) =>
+    plan('meta_native_action', 'POST', '/v26.0/act_123/ads', {action: 'meta_ad_create', body, ...fields});
+  assert.doesNotThrow(() => before(ad({creative: {creative_id: '42'}}), {creative: {creative_id: '42'}}));
+  for (const creative of [{name: 'inline'}, '{"creative_id":"0"}', {creative_id: 42}, 'not json'])
+    refusal(() => before(ad({creative}), {creative}), 'WRITE_CONTRACT_UNAVAILABLE', /names an existing creative/);
+  refusal(
+    () => before(ad({budget_schedule_specs: []}), {budget_schedule_specs: []}),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /budget_schedules/,
+  );
+  // Through the stage they still come before its query check, as they did when the stage named Meta.
+  refusal(
+    () => assertWriteShape(ad({status: 'PAUSED', creative: {name: 'inline'}}, {query: {fields: 'id'}})),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /names an existing creative/,
+  );
+});
+
 test('the reviewed write gateways are the registry’s, in the review’s order, and each declares its own checks', () => {
   assert.deepEqual([...writeContractGateways], [...reviewedWriteGateways]);
   assert.equal(new Set(reviewedWriteGateways).size, reviewedWriteGateways.length);
   for (const gateway of reviewedWriteGateways) assert.ok(providerOf(gateway), gateway + ' has an adapter');
   assert.deepEqual(Object.fromEntries(reviewedWriteGateways.map(g => [g, declared(providerHooks(g))])), {
-    meta_native_action: ['request', 'shape.after', 'state.target'],
+    // Its first write checks, before the generic ones, joined its checks in wave 4c (src/meta-write-shape.ts).
+    meta_native_action: ['request', 'shape.before', 'shape.after', 'state.target'],
     tiktok_native_action: ['shape.after', 'state.complete', 'state.target'],
     snapchat_native_action: ['shape.before', 'shape.after', 'state.target'],
     google_ads_native_action: ['request', 'shape.after', 'state.envelope', 'state.target'],

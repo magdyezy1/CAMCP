@@ -31,6 +31,7 @@ import {
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
 import {buildMetaWebsiteRecipe, metaWebsiteRecipes} from './meta-website-recipes.js';
+import {metaWriteShapeBefore} from './meta-write-shape.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -161,6 +162,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
       validateMetaV26(plan);
     },
     shape: Object.freeze({
+      // Writes and campaigns (wave 4c): a creative's own contract, no budget schedules and no inline creatives, before
+      // the generic checks (src/meta-write-shape.ts).
+      before: metaWriteShapeBefore,
       // Campaigns start paused. Ad sets and ads may start active under a parent the review reads as paused
       // (paused-parents.ts, the owner's decision of 2026-09-29).
       after(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {

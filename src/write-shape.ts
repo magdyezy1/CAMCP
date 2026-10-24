@@ -6,7 +6,6 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
 import {withheldWriteProgramId, withheldWriteReason} from './withheld-writes.js';
 import {assertNoMethodOverride, object, fail} from './write-common.js';
-import {validateMetaCreative} from './creative-validation.js';
 import {providerOf, reviewedWriteGateways} from './provider-adapters.js';
 import {providerHooks} from './provider-hooks.js';
 
@@ -94,10 +93,9 @@ function assertReviewedShape(plan: CompiledRequest) {
 function assertGatewayShape(plan: CompiledRequest): void {
   const body = object(plan.body),
     shape = providerHooks(plan.gateway)?.checks?.shape;
+  // The provider's checks before the generic ones (Snapchat's creative paths; Meta's creative, budget schedule and
+  // inline creative checks, src/meta-write-shape.ts).
   shape?.before?.(plan, body);
-  // Meta's own first checks stay here: they name budget_schedule_specs, a field v26.0 removed, only to refuse it, and
-  // tests/meta-version.test.mjs reads every string literal of a Meta module as a name AMCP may send.
-  if (plan.gateway === 'meta_native_action') metaShapeBefore(plan, body);
   // A reviewed write carries body fields only, but for its provider's qualified concurrency parameter.
   const concurrency = shape?.queryParameter;
   if (Object.keys(plan.query).some(k => k !== concurrency))
@@ -113,45 +111,6 @@ function assertGatewayShape(plan: CompiledRequest): void {
   if (plan.method === 'GET' || plan.method === 'HEAD')
     fail('WRITE_CONTRACT_UNAVAILABLE', 'Side-effecting GET/HEAD actions are not qualified for execution.');
   shape?.after?.(plan, body, expectState);
-}
-/** Meta's write shape before the generic checks: a creative's own contract, and no budget schedules or inline creatives. */
-function metaShapeBefore(plan: CompiledRequest, body: JsonObject) {
-  const route = plan.path,
-    method = plan.method;
-  if (route.endsWith('/adcreatives')) validateMetaCreative(body, route);
-  if (body.budget_schedule_specs !== undefined)
-    fail(
-      'WRITE_CONTRACT_UNAVAILABLE',
-      "Schedule budget increases with meta_campaign_id_budget_schedules_create or meta_ad_set_id_budget_schedules_create (/{id}/budget_schedules), whose review checks the spending policy, the caps and Meta's limits.",
-      {field: 'budget_schedule_specs'},
-    );
-  if (
-    method === 'POST' &&
-    (/^\/v[^/]+\/act_[^/]+\/ads$/.test(route) || ['meta_ad_id_update', 'meta_ad_update'].includes(plan.action)) &&
-    body.creative !== undefined
-  ) {
-    // An inline creative would skip the creative contract's field list and its Page and Instagram identity checks.
-    let creative = body.creative;
-    if (typeof creative === 'string')
-      try {
-        creative = JSON.parse(creative);
-      } catch {
-        creative = undefined;
-      }
-    if (
-      !creative ||
-      typeof creative !== 'object' ||
-      Array.isArray(creative) ||
-      Object.keys(creative).join() !== 'creative_id' ||
-      typeof creative.creative_id !== 'string' ||
-      !/^[1-9][0-9]{0,31}$/.test(creative.creative_id)
-    )
-      fail(
-        'WRITE_CONTRACT_UNAVAILABLE',
-        'A reviewed ad names an existing creative as {creative_id}. Create the creative first with meta_ad_account_id_adcreatives_create, whose review checks its Page, Instagram account and fields.',
-        {field: 'creative'},
-      );
-  }
 }
 
 /** Refuses a new serving entity whose `key` is not one of `values` (an explicit paused or draft state). */

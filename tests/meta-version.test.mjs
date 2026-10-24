@@ -12,6 +12,7 @@ import {
 } from '../dist/src/meta-version.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Introspection} from '../dist/src/introspection.js';
+import {assertWriteShape} from '../dist/src/write-shape.js';
 import {metaSdkTag, metaVersion} from '../tools/meta-sdk.mjs';
 
 /**
@@ -106,8 +107,47 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
   // execution_options list: Meta's Ad Rules "Execution Spec" page (read 2026-09-30) documents it for every rule action.
   // Only the rule module may send that name, inside execution_spec.
   const otherEdge = {time_start: 'src/meta-budget-schedules.ts', execution_options: 'src/meta-ad-rules.ts'};
+  // Meta's first write-shape checks moved from the write-shape stage, which this scan never read, to a Meta module it
+  // reads (src/meta-write-shape.ts, ARC-01 wave 4c). They name the removed budget_schedule_specs only to refuse it: the
+  // stage refuses every Meta write that carries it, checked below, so that module alone may name it. Every other removed
+  // name, and every other literal of that module, is checked as before.
+  const refusedOnly = {budget_schedule_specs: 'src/meta-write-shape.ts'};
+  const specs = [{time_start: 1900000000, time_end: 1900021600, budget_value: 100, budget_value_type: 'ABSOLUTE'}];
+  for (const [name, where] of Object.entries(refusedOnly)) {
+    assert.ok(sent.get(name)?.has(where), where + ' names ' + name);
+    for (const [action, path, body] of [
+      [
+        'meta_ad_account_id_campaigns_create',
+        '/v26.0/act_123/campaigns',
+        {name: 'C', objective: 'OUTCOME_SALES', status: 'PAUSED', is_adset_budget_sharing_enabled: false},
+      ],
+      ['meta_ad_account_id_adsets_create', '/v26.0/act_123/adsets', {name: 'S', campaign_id: '111', status: 'PAUSED'}],
+    ])
+      assert.throws(
+        () =>
+          assertWriteShape({
+            gateway,
+            accountId: '123',
+            action,
+            method: 'POST',
+            path,
+            query: {},
+            headers: {},
+            body: {...body, [name]: specs},
+            readOnly: false,
+            destructive: false,
+            requiresConfirmation: true,
+            evidence: 'synthetic',
+            warnings: [],
+          }),
+        e => e.code === 'WRITE_CONTRACT_UNAVAILABLE' && e.details.field === name,
+        action,
+      );
+  }
   const sentAsRemoved = name =>
-    sent.has(name) && !(otherEdge[name] && [...sent.get(name)].every(where => where === otherEdge[name]));
+    sent.has(name) &&
+    !(otherEdge[name] && [...sent.get(name)].every(where => where === otherEdge[name])) &&
+    !(refusedOnly[name] && [...sent.get(name)].every(where => where === refusedOnly[name]));
   // Removed enum values belong to removed fields (cost_bidding_mode, budget_source, attribution counting), so the
   // field and parameter names cover them.
   const removed = [

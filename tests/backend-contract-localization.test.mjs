@@ -180,8 +180,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts (which keeps
   // the catalog's own): four more files with reasons, the same reasons. ARC-01 (wave 4c) adds Reddit's page step, whose
   // five refusals moved with it from src/reddit-adapter.ts (src/reddit-paging.ts: one more file with reasons, the same
-  // reasons).
-  assert.equal(files.length, 674);
+  // reasons), and Meta's first write-shape checks (src/meta-write-shape.ts, whose refusals this inventory never owned in
+  // src/write-shape.ts either).
+  assert.equal(files.length, 675);
   assert.equal(selected.filter(row => row.messages.size).length, 258);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
