@@ -1,4 +1,5 @@
-import type {ReportSource} from './report-source.js';
+import {googleAdsCustomers} from './google-version.js';
+import {reportList, type ReportSource} from './report-source.js';
 
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
 export const googleReportSource: ReportSource = {
@@ -12,6 +13,43 @@ export const googleReportSource: ReportSource = {
     'metrics.view_through_conversions',
   ],
   nativeMetricContainer: 'metrics',
+  // Requested native metrics may name GAQL metric fields (`metrics.all_conversions`).
+  nativeMetricName: /^metrics\.[a-z][a-z0-9_]{0,80}$/,
+  // RPT-03: one request segmented by `segments.date`.
+  daily: {day: native => native?.segments?.date},
+  /** One GAQL campaign query over the period, with the requested native metrics (and the date segment when daily). */
+  async collect(c) {
+    const fields = [
+      ...new Set([
+        'campaign.id',
+        'campaign.name',
+        'campaign.status',
+        'campaign.advertising_channel_type',
+        'customer.currency_code',
+        'metrics.cost_micros',
+        'metrics.impressions',
+        'metrics.clicks',
+        'metrics.conversions',
+        'metrics.conversions_value',
+        ...(c.segment === 'daily' ? ['segments.date'] : []),
+        ...c.extra,
+      ]),
+    ];
+    c.raw = reportList(
+      (
+        await c.run(
+          c.plan(
+            googleAdsCustomers + c.account + '/googleAds:search',
+            {},
+            {
+              query: `SELECT ${fields.join(', ')} FROM campaign WHERE segments.date BETWEEN '${c.range.since}' AND '${c.range.until}'`,
+            },
+          ),
+        )
+      ).results ?? [],
+    );
+    c.resultDefinition = 'Google primary conversions (conversions column; interaction date)';
+  },
   normalize(raw, {value}) {
     const m = raw.metrics ?? {};
     return {

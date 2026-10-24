@@ -23,12 +23,11 @@ import {
 import {assertWritesNotPaused} from './owner-operations.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
-import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {metaWindowsOrdered} from './meta-attribution-windows.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
-import {detailParentsUnavailableWarning, optionalReadRefused, type DetailParentCache} from './overview-parents.js';
+import {detailParentsUnavailableWarning, optionalReadRefused} from './overview-parents.js';
 import {
   appleDetail,
   microsoftDetail,
@@ -40,7 +39,7 @@ import {
 } from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
-import type {ReportSourceRow} from './report-source.js';
+import {reportList, type AccountLookupCache, type ReportCollection, type ReportSourceRow} from './report-source.js';
 import {reportRange} from './report-periods.js';
 import {
   assertMicrosoftWindowClosed,
@@ -69,11 +68,7 @@ const tiktokAuctionOnlyWarning =
  */
 export const redditValueUnitWarning =
   'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.';
-const list = (v: unknown): JsonObject[] => {
-  if (!Array.isArray(v) || v.some(x => !x || typeof x !== 'object' || Array.isArray(x)))
-    throw new MirrorError('REPORT_SHAPE_CHANGED', 'The provider returned an unexpected report collection.', {}, 502);
-  return v;
-};
+const list = reportList;
 const value = (v: unknown, divisor = 1) => {
   const n = metricNumber(v);
   return n === null ? null : n / divisor;
@@ -204,26 +199,8 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     native: raw,
   };
 }
-/**
- * RPT-03: one account lookup per source per job. Later periods reuse the first read (lineage marks it `cached`), and
- * `verifyAccount` re-reads once after collection so a currency or time-zone change during a long run is still caught.
- */
-export interface AccountLookupCache {
-  data?: JsonObject;
-  lineage?: JsonObject;
-  /**
-   * RPT-04: TikTok ad group optimization events per campaign, read once per source per job like the account lookup
-   * (not once per period). `unavailable` records a non-retryable failure of this optional read.
-   */
-  tiktokEvents?: {events: Record<string, string[]>; lineage?: JsonObject; unavailable?: boolean};
-  /**
-   * RPT-07: current LinkedIn campaign names and objectives by URN, read once per source per job for the URNs reported
-   * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
-   */
-  linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
-  /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
-  detailParents?: DetailParentCache;
-}
+// The per-source per-job lookup cache is part of the report source contract (src/report-source.ts, ARC-04 stage F).
+export type {AccountLookupCache};
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
 export const linkedinCampaignsUnavailableWarning =
   'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
@@ -261,10 +238,11 @@ export class NativeCampaignReports {
   ): Promise<JsonObject[]> {
     if (!nativeDailySegmentation(source)) bad('This source does not support native daily segmentation.');
     const result = await this.collectSource(source, dates, actor, {}, () => {}, lookup, 'daily'),
-      days = new Map<string, JsonObject[]>();
+      days = new Map<string, JsonObject[]>(),
+      daily = reportSource(source.platform)?.daily;
     for (const day of eachDay(result.date_range)) days.set(day, []);
     for (const row of result.rows) {
-      const day = source.platform === 'google' ? row.native?.segments?.date : row.native?.date_start;
+      const day = daily ? daily.day(row.native) : row.native?.date_start;
       if (
         typeof day !== 'string' ||
         !days.has(day) ||
@@ -333,7 +311,9 @@ export class NativeCampaignReports {
   ): Promise<JsonObject> {
     const p = source.platform,
       entityLevel = overviewSourceLevel(source),
-      platform = reportPlatforms[p];
+      platform = reportPlatforms[p],
+      // The platform's report source (ARC-04 stage F): its facts, and its collection once it has moved there.
+      reports = reportSource(p);
     if (!platform) bad('Unsupported reporting platform.');
     const account = String(source.account_id),
       connection = String(source.connection_id),
@@ -343,9 +323,7 @@ export class NativeCampaignReports {
       !Array.isArray(extra) ||
       extra.length > 30 ||
       extra.some(
-        x =>
-          typeof x !== 'string' ||
-          !(/^[A-Za-z][A-Za-z0-9_]{0,90}$/.test(x) || (p === 'google' && /^metrics\.[a-z][a-z0-9_]{0,80}$/.test(x))),
+        x => typeof x !== 'string' || !(/^[A-Za-z][A-Za-z0-9_]{0,90}$/.test(x) || !!reports?.nativeMetricName?.test(x)),
       )
     )
       bad('Native metrics must be provider field names (at most 30).');
@@ -449,37 +427,44 @@ export class NativeCampaignReports {
       return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone, lookup);
     const detailRounding: Record<string, number> = {};
     let detailRows: {rows: JsonObject[]; parents: Record<string, JsonObject>} | undefined;
-    if (p === 'google') {
-      const fields = [
-        ...new Set([
-          'campaign.id',
-          'campaign.name',
-          'campaign.status',
-          'campaign.advertising_channel_type',
-          'customer.currency_code',
-          'metrics.cost_micros',
-          'metrics.impressions',
-          'metrics.clicks',
-          'metrics.conversions',
-          'metrics.conversions_value',
-          ...(segment === 'daily' ? ['segments.date'] : []),
-          ...extra,
-        ]),
-      ];
-      raw = list(
-        (
-          await run(
-            plan(
-              googleAdsCustomers + account + '/googleAds:search',
-              {},
-              {
-                query: `SELECT ${fields.join(', ')} FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`,
-              },
-            ),
-          )
-        ).results ?? [],
-      );
-      resultDefinition = 'Google primary conversions (conversions column; interaction date)';
+    if (reports?.collect) {
+      // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
+      const collection: ReportCollection = {
+        source,
+        account,
+        connection,
+        range,
+        extra,
+        segment,
+        detail,
+        checkpoint,
+        save,
+        lookup,
+        actor,
+        store: this.service.store,
+        lineage,
+        run,
+        plan,
+        attributionProfile: () => campaignAttributionProfile(source),
+        metadata,
+        currency,
+        timezone,
+        raw,
+        warnings,
+        attribution,
+        resultDefinition,
+        complete,
+        collectionComplete,
+        context,
+        scopeLimitations,
+        quality,
+        detailRows,
+        detailRounding,
+      };
+      await reports.collect(collection);
+      ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
+        collection);
+      detailRows = collection.detailRows;
     } else if (p === 'meta') {
       // RPT-04: an optional campaign-level attribution profile uses the detailed preset's explicit windows.
       const profile = campaignAttributionProfile(source),
