@@ -16,10 +16,13 @@
 //
 // The review's targets (2026-10-08 engineering review, DOC-03): about 25,000 words of current documentation and a
 // duplicate-line share under 5%. The word budget counts the current pages of the owner and operator tiers, the pages
-// their readers read to do their work; the deep engineering guides and the references consulted on demand are reported
-// as a second total, recorded in the baseline, which may only fall unless an increase is recorded with its reason. That
-// split is an engineering approach recorded in docs/DECISIONS.md (2026-10-24), not an owner decision, so the owner can
-// revisit it. budgetProblems() enforces the budget, the duplicate-line share and the reference total.
+// their readers read to do their work. Every other maintained page is a reference page: the engineering tier's guides
+// and references, and the owner and operator references consulted on demand (the workflow and task detail). They are
+// reported as a second total, in those two parts, and the total is recorded in the baseline: it may only fall unless
+// an increase is recorded with its reason, so a page cannot leave the budget for the reference set, and the reference
+// set cannot grow, without a recorded reason. That split is an engineering approach recorded in docs/DECISIONS.md
+// (2026-10-24), not an owner decision, so the owner can revisit it. budgetProblems() enforces the budget, the
+// duplicate-line share and the recorded reference total.
 // Usage: node tools/docs-lint.mjs [--write [--allow-increase=<reason>]]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -119,7 +122,13 @@ export function measure(root = process.cwd()) {
   for (const [file, text] of texts)
     for (const line of longLines(text)) owners.set(line, [...(owners.get(line) ?? []), file]);
   const counts = {},
-    tiers = {budget_words: 0, reference_words: 0, unclassified_words: 0};
+    tiers = {
+      budget_words: 0,
+      reference_words: 0,
+      operator_reference_words: 0,
+      engineering_words: 0,
+      unclassified_words: 0,
+    };
   let words = 0,
     lines = 0,
     duplicates = 0;
@@ -138,6 +147,9 @@ export function measure(root = process.cwd()) {
     lines += long.length;
     duplicates += repeated.length;
     tiers[budgeted(page) ? 'budget_words' : referenced(page) ? 'reference_words' : 'unclassified_words'] += n;
+    // The reference total in two parts: the engineering tier (its guides, references and current pages) and the
+    // reference pages of the owner and operator tiers, consulted on demand.
+    if (referenced(page)) tiers[page.tier === 'engineering' ? 'engineering_words' : 'operator_reference_words'] += n;
   }
   return {
     counts,
@@ -207,7 +219,7 @@ export function budgetProblems(root = process.cwd(), baseline = readBaseline(roo
   const recorded = baseline.totals?.reference_words;
   if (recorded !== undefined && s.reference_words > recorded)
     problems.push(
-      'the reference and engineering pages hold ' +
+      'the reference pages (engineering, and the owner and operator references) hold ' +
         s.reference_words +
         ' words, above the ' +
         recorded +
@@ -259,7 +271,7 @@ export function writeBaseline(root = process.cwd(), reason) {
   const increase = [...raised, ...totalRaised];
   const data = {
     meaning:
-      'DOC-03 documentation freeze: per maintained page, the headings naming a batch, the commit references, the long lines repeated on another maintained page and the literal package counts that it already held; each count may only fall, and a page not listed must have none. totals.reference_words is the size of the reference and engineering pages, outside the owner and operator word budget; it may only fall unless an increase is recorded with its reason (node tools/docs-lint.mjs, run by npm run docs:index:check).',
+      'DOC-03 documentation freeze: per maintained page, the headings naming a batch, the commit references, the long lines repeated on another maintained page and the literal package counts that it already held; each count may only fall, and a page not listed must have none. totals.reference_words is the size of the reference pages (the engineering tier, and the owner and operator references), outside the word budget of the owner and operator current pages; it may only fall unless an increase is recorded with its reason (node tools/docs-lint.mjs, run by npm run docs:index:check).',
     increases: [...(previous.increases ?? []), ...(increase.length && !first ? [{reason, raised: increase}] : [])],
     totals: {reference_words: totals.reference_words},
     pages: Object.fromEntries(
@@ -291,11 +303,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       s.budget_words +
       ' words (budget ' +
       targets.words +
-      '); reference and engineering pages: ' +
+      '). Reference pages: ' +
       s.reference_words +
-      ' words (recorded ' +
+      ' words, of which engineering ' +
+      s.engineering_words +
+      ' and the owner and operator references ' +
+      s.operator_reference_words +
+      ' (recorded ' +
       (readBaseline(root).totals?.reference_words ?? 'not yet') +
-      ', may only fall); duplicate-line share ' +
+      ', may only fall). Duplicate-line share ' +
       (s.duplicate_share * 100).toFixed(1) +
       '% (target under ' +
       targets.duplicate_share * 100 +

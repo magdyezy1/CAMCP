@@ -152,9 +152,7 @@ How AMCP is built and checked, for whoever changes it.
 
 ### Status, reviews and policies
 
-- [Accessibility report](review/ACCESSIBILITY.md)
 - [AMCP architecture](review/ARCHITECTURE.md)
-- [AMCP product implementation and qualification — 1 October 2026](review/IMPLEMENTATION-2026-10-01.md)
 - [AMCP threat model](review/THREAT-MODEL.md)
 - [Closed findings](review/FINDINGS-CLOSED.md)
 - [Findings register](review/FINDINGS.md)
@@ -422,6 +420,7 @@ its consolidation moved it here.
 | — | [Operations runbook notes of the October 2026 deliveries](records/OPERATIONS-NOTES-2026-10.md) |
 | — | [Workflow guide batch notes of the October 2026 deliveries](records/PRODUCT-WORKFLOWS-BATCH-NOTES-2026-10.md) |
 | — | [Progress log](records/PROGRESS.md) |
+| — | [Accessibility report](review/ACCESSIBILITY.md) |
 | 2026-10-01 | [Source-bound native budget drafts — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION-PLANS.md) |
 | 2026-10-01 | [Constrained campaign allocation proposals — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION.md) |
 | 2026-10-01 | [Arabic account workflows and current-form isolation — 1 October 2026](records/DELIVERY-2026-10-01-ARABIC-ACCOUNT-WORKFLOWS.md) |
@@ -449,6 +448,7 @@ its consolidation moved it here.
 | 2026-10-01 | [Workbook report operations — 1 October 2026](records/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md) |
 | 2026-10-01 | [Workbook schedule operations — 1 October 2026](records/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md) |
 | 2026-10-01 | [AMCP product implementation and qualification: batch history — 1 October 2026](records/IMPLEMENTATION-2026-10-01-BATCH-HISTORY.md) |
+| 2026-10-01 | [AMCP product implementation and qualification — 1 October 2026](review/IMPLEMENTATION-2026-10-01.md) |
 | 2026-10-02 | [Arabic account explanations and GTM findings — 2 October 2026](records/DELIVERY-2026-10-02-ACCOUNT-EXPLANATIONS.md) |
 | 2026-10-02 | [Scoped audit history and Activity navigation — 2 October 2026](records/DELIVERY-2026-10-02-AUDIT-HISTORY.md) |
 | 2026-10-02 | [Supplier CSV column mapping for Commerce — 2 October 2026](records/DELIVERY-2026-10-02-CATALOG-MAPPING.md) |
