@@ -1192,6 +1192,10 @@ export function checkWebLocales(root = process.cwd()) {
   // Authored discovery and lifecycle sentences are display copy. Request fields and enum values are excluded.
   for (const file of [
     'src/campaign-recipes.ts',
+    // ARC-04 (wave 4c): the Meta, Google Search and Microsoft Search recipes left campaign-recipes.ts with their builders.
+    'src/meta-website-recipes.ts',
+    'src/google-search-recipes.ts',
+    'src/microsoft-search-recipe.ts',
     'src/snapchat-traffic-recipe.ts',
     // CMP-07: the guided packs defined in their own modules.
     'src/tiktok-launch-recipes.ts',

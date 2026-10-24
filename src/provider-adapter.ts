@@ -468,6 +468,8 @@ export interface ProviderHooks {
   readonly scope?: ScopeHooks;
   readonly checks?: GatewayChecks;
   readonly review?: ReviewProjections;
+  /** Its guided campaign recipes (wave 4c, writes and campaigns). */
+  readonly campaign?: CampaignHooks;
 }
 
 export interface ProviderAdapter {
@@ -518,4 +520,31 @@ export interface ProviderGrantFacts {
   grantSource: 'token_response' | 'permissions_endpoint' | 'requested_access_type' | 'none';
   /** Whether readiness has one exact, scoped account read for this gateway (src/account-metadata.ts accountPlan). */
   accountReadContract: boolean;
+}
+
+// ---- Writes and campaigns (ARC-01 phase B and ARC-04, wave 4c) ----
+
+/**
+ * A guided campaign recipe a provider offers (ARC-04: campaignRecipe became a table of per-recipe builders). The recipe
+ * catalog (src/campaign-recipes.ts) lists the definitions in its provider order and keeps the checks every brief passes
+ * before a builder runs: the recipe exists, the brief is an object with every required input, and it names the plan,
+ * the account, the login and an ISO currency.
+ */
+export interface CampaignRecipe {
+  readonly definition: RecipeDefinition;
+  /** The campaign plan of a brief that passed the catalog's checks; refuses an input the recipe cannot use. */
+  build(brief: JsonObject): JsonObject;
+}
+/** A recipe's catalog entry: id, name, platform, required inputs and their alternatives, optional inputs, description. */
+export type RecipeDefinition = JsonObject & {
+  id: string;
+  name: string;
+  platform: string;
+  required: string[];
+  description: string;
+};
+/** A provider's campaign hooks (ARC-01 phase B, wave 4c). */
+export interface CampaignHooks {
+  /** Its guided recipes, in the order the recipe catalog lists them. */
+  readonly recipes?: readonly CampaignRecipe[];
 }

@@ -26,6 +26,13 @@ import {errorObject, errorToken} from './provider-error-core.js';
 import {normalizeAccount} from './account-id.js';
 import {authorizeSnapCatalogComparisonRead, snapCompareMarker} from './snapchat-catalog-reads.js';
 import {snapchatOrganizationPixels, snapchatScopedResource} from './snapchat-scope.js';
+// Writes and campaigns (wave 4c).
+import {
+  buildSnapchatLeadRecipe,
+  buildSnapchatTrafficRecipe,
+  snapchatLeadRecipe,
+  snapchatTrafficRecipe,
+} from './snapchat-traffic-recipe.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -393,5 +400,12 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     deadline: (plan: CompiledRequest) => (plan.readOnly && plan.method === 'GET' ? plan.snapUpdateDeadline : undefined),
     reportData: (plan: CompiledRequest) => /\/stats$/.test(plan.path),
     errors: Object.freeze({code: (body: unknown) => errorToken(errorObject(body).error_code)}),
+  }),
+  // Writes and campaigns (wave 4c): the guided traffic and lead recipes.
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      Object.freeze({definition: snapchatTrafficRecipe, build: buildSnapchatTrafficRecipe}),
+      Object.freeze({definition: snapchatLeadRecipe, build: buildSnapchatLeadRecipe}),
+    ]),
   }),
 });

@@ -15,6 +15,8 @@ import {
 } from './microsoft-native.js';
 import type {TransportResult} from './transport.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
+// Writes and campaigns (wave 4c).
+import {buildMicrosoftSearchRecipe, microsoftSearchRecipe} from './microsoft-search-recipe.js';
 
 /**
  * Microsoft's resource scope, after the account path: the mandatory CustomerAccountId header confines Campaign
@@ -122,5 +124,9 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
     },
     // Report submission creates a provider job: one attempt.
     singleAttempt: (plan: CompiledRequest) => plan.action === 'SubmitGenerateReport',
+  }),
+  // Writes and campaigns (wave 4c): the guided Search recipe (CMP-03).
+  campaign: Object.freeze({
+    recipes: Object.freeze([Object.freeze({definition: microsoftSearchRecipe, build: buildMicrosoftSearchRecipe})]),
   }),
 });

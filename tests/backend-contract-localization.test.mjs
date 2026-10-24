@@ -176,8 +176,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // guidance and Settings sentences, the metric aggregation words and the one-step plural); no owned reason changes.
   // Its review fixes add the other three reviewer sign-in sentences the server can return (server/web-store.ts) and
   // reword an uncertain write (one message added, the remedy replaced): 11,513 entries.
-  assert.equal(files.length, 669);
-  assert.equal(selected.filter(row => row.messages.size).length, 253);
+  // ARC-04 (wave 4c) splits campaignRecipe into per-recipe builders: src/recipe-steps.ts and the Meta, Google Search
+  // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts (which keeps
+  // the catalog's own): four more files with reasons, the same reasons.
+  assert.equal(files.length, 673);
+  assert.equal(selected.filter(row => row.messages.size).length, 257);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

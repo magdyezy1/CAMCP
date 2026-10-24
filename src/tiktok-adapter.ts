@@ -59,6 +59,8 @@ import {
   tiktokReportPage,
   tiktokReportRowKey,
 } from './tiktok-report-pagination.js';
+// Writes and campaigns (wave 4c).
+import {buildTiktokLaunchRecipe, tiktokConversionRecipe, tiktokTrafficRecipe} from './tiktok-launch-recipes.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -427,5 +429,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     reportData: (plan: CompiledRequest) => /\/report\/integrated\/get\/$/.test(plan.path),
     failedResult: (data: JsonObject) => data.code !== undefined && data.code !== 0,
     errors: Object.freeze({code: (body: unknown) => errorInteger(errorObject(body).code)}),
+  }),
+  // Writes and campaigns (wave 4c): the guided traffic and conversion packs (CMP-07).
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      Object.freeze({definition: tiktokTrafficRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, false)}),
+      Object.freeze({definition: tiktokConversionRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true)}),
+    ]),
   }),
 });

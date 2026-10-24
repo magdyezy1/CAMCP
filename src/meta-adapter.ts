@@ -29,6 +29,8 @@ import {
   providerReference,
 } from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+// Writes and campaigns (wave 4c).
+import {buildMetaWebsiteRecipe, metaWebsiteRecipes} from './meta-website-recipes.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -274,5 +276,13 @@ export const metaHooks: ProviderHooks = Object.freeze({
       code: (body: unknown) => errorInteger(errorObject(errorObject(body).error).code),
       classify: classifyMetaError,
     }),
+  }),
+  // Writes and campaigns (wave 4c): the guided website recipes.
+  campaign: Object.freeze({
+    recipes: Object.freeze(
+      metaWebsiteRecipes.map(definition =>
+        Object.freeze({definition, build: (b: JsonObject) => buildMetaWebsiteRecipe(definition.id, b)}),
+      ),
+    ),
   }),
 });

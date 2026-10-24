@@ -22,6 +22,8 @@ import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+// Writes and campaigns (wave 4c).
+import {buildLinkedinLeadRecipe, linkedinLeadRecipe} from './linkedin-lead-recipe.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -301,5 +303,9 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
           ? {...base, code: 'PROVIDER_VERSION_UNSUPPORTED', layer: 'api_version', retryable: false, documented: true}
           : undefined,
     }),
+  }),
+  // Writes and campaigns (wave 4c): the guided lead generation recipe.
+  campaign: Object.freeze({
+    recipes: Object.freeze([Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe})]),
   }),
 });

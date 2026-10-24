@@ -29,6 +29,9 @@ import {googleJson, validateGoogleRequest} from './google-contracts.js';
 import {googleAdsCustomers} from './google-version.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+// Writes and campaigns (wave 4c).
+import {buildGoogleSearchRecipe, googleSearchRecipes} from './google-search-recipes.js';
+import {buildGooglePmaxRecipe, googlePmaxRecipe} from './google-pmax-recipe.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -543,5 +546,14 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     sessionHeaders: (plan: CompiledRequest) =>
       plan.path.startsWith('/resumable/upload/') ? ['x-goog-upload-url', 'x-goog-upload-chunk-granularity'] : [],
     errors: Object.freeze({code: googleErrorCode, classify: classifyGoogleError}),
+  }),
+  // Writes and campaigns (wave 4c): the guided Search recipes, then Performance Max (CMP-07).
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      ...googleSearchRecipes.map(definition =>
+        Object.freeze({definition, build: (b: JsonObject) => buildGoogleSearchRecipe(definition.id, b)}),
+      ),
+      Object.freeze({definition: googlePmaxRecipe, build: buildGooglePmaxRecipe}),
+    ]),
   }),
 });
