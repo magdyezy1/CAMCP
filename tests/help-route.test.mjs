@@ -1,7 +1,8 @@
 // DOC-03 (owner instruction of 2026-10-24: "DOCS AND HELP ARE MEMBERS ONLY"): the owner guide is shown on the website at
 // /help to signed-in members only. Before it, the website had no help page and no link to documentation. These checks
-// run the real website: a member's /help carries the guide in both languages; a visitor who is not signed in and a test
-// account get the workspace shell without it (the shell sends them to sign-in or Home); the answer is never cached and
+// run the real website: a member's /help carries the guide in both languages; a visitor who is not signed in, a test
+// account and a member who must first set up two-step verification get the workspace shell without it (the shell sends
+// them to sign-in, Home or Account); the answer is never cached and
 // is keyed by the session cookie; the strict security headers are those of every page; and the guide is in no public
 // asset, robots entry or public page.
 import test from 'node:test';
@@ -15,6 +16,7 @@ import {createHttpApp} from '../dist/server/http-app.js';
 import {createPublicAssets, robotsTxt} from '../dist/server/public-assets.js';
 import {helpPath} from '../dist/server/help-routes.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
+import {AccountSecurity, totp} from '../dist/server/account-security.js';
 import {WebStore} from '../dist/server/web-store.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
@@ -47,6 +49,10 @@ async function site() {
   return {
     member: cookie(accounts.session(member)),
     reviewer: cookie(accounts.session(reviewer)),
+    store,
+    web,
+    accounts,
+    cookie,
     get: (route, headers = {}) => fetch(base + route, {headers, redirect: 'manual'}),
     async close() {
       const closed = new Promise(resolve => listener.close(resolve));
@@ -103,6 +109,42 @@ test('a visitor who is not signed in, or a test account, gets the shell without 
       assert.ok(!page.includes(english) && !page.includes(arabic), who + ' receives no part of the guide');
       assert.ok(!page.includes('help-guide-language'), who);
     }
+  } finally {
+    await s.close();
+  }
+});
+
+// A member who must first set up two-step verification (SEC-06: the workspace requires it and the grace period is
+// over) reaches only the sign-in, account and enrollment routes, so their /help is the shell alone, like every
+// workspace page; the same member gets the guide while the policy is off.
+test('a member who must first set up two-step verification gets the shell without the guide', async () => {
+  const s = await site();
+  try {
+    const security = new AccountSecurity(s.accounts),
+      owner = s.accounts.newUser('Owner', 'owner@example.test', null, true),
+      colleague = s.accounts.newUser('Colleague', 'colleague@example.test', null, true);
+    s.store.db
+      .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(String(owner.tenant_id), String(colleague.id), 'operator', Date.now());
+    const member = s.cookie(s.accounts.session(colleague, owner.tenant_id));
+    assert.ok((await (await s.get('/help', {cookie: member})).text()).includes(english), 'policy off: the guide');
+    const req = session => ({
+      headers: {origin: s.web.origin, cookie: s.web.cookie(session.id), 'x-amcp-csrf': session.csrf},
+      socket: {remoteAddress: '127.0.0.1'},
+    });
+    const first = s.accounts.session(owner),
+      setup = security.beginMfa(req(first)),
+      {session: enrolled} = security.enableMfa(req(first), {ticket: setup.ticket, code: totp(setup.secret)});
+    security.saveSecurityPolicy(req(enrolled), {require_mfa: 'everyone', grace_days: 0});
+    const response = await s.get('/help', {cookie: member}),
+      page = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.ok(page.includes('<div id="help-guide" class="help-guide" data-help-unavailable hidden></div>'));
+    assert.ok(!page.includes(english) && !page.includes(arabic), 'no part of the guide before enrollment');
+    // The owner, who uses two-step verification, still reads the guide.
+    const ownerPage = await (await s.get('/help', {cookie: s.cookie(enrolled)})).text();
+    assert.ok(ownerPage.includes(english) && ownerPage.includes(arabic));
   } finally {
     await s.close();
   }
