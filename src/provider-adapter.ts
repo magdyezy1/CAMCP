@@ -347,6 +347,12 @@ export interface ScopeHooks {
   observe?(plan: CompiledRequest, connection: Connection, account: string, data: unknown, store: Store): void;
   /** Learns ownership of what a verified, successful creation made; never from caller-supplied data. */
   observeCreated?(plan: CompiledRequest, connection: Connection, account: string, data: JsonObject, store: Store): void;
+  /**
+   * Wave 4c (transport and catalog): the resource a RESOURCE_SCOPE_REQUIRED refusal's path names whose ownership
+   * observation, once lapsed, MirrorService may renew from the account's own list (Snapchat's scoped entities, F-70);
+   * undefined for any other path.
+   */
+  lapsedResource?(path: string): string | undefined;
 }
 
 /** Refuses a new serving entity whose `key` is not one of `values`: the write-shape stage's paused-creation rule. */

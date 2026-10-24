@@ -2,21 +2,20 @@ import {reportJob} from './report-jobs.js';
 import type {ReportJobPage} from './report-job.js';
 import {connectionDiagnosticKind, connectionDiagnostics, redactConnectionInput} from './connection-diagnostics.js';
 import {connectionDisconnectKind, connectionDisconnect} from './connection-disconnect.js';
-import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
-import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
-import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
 import {nativeAuthority} from './native-authority.js';
-import {
-  placeActionReadKind,
-  validatePlaceActionRead,
-  placeActionReadResult,
-  runPlaceActionDiscovery,
-} from './google-place-action-discovery.js';
 import {campaignPreflight} from './campaign-preflight.js';
-import {inspectGoogleRecipeGoals} from './google-goal-inspection.js';
-import {microsoftLocationLookup} from './microsoft-locations.js';
-import {searchMetaAdLibrary} from './meta-ad-library.js';
-import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
+import {
+  assetUsageReader,
+  campaignProviderSteps,
+  connectStore,
+  nativeReadSteps,
+  providerInputRedactors,
+  providerWorkflow,
+  type DispatchStage,
+  type WooCommerceRequest,
+  type WorkflowContext,
+} from './provider-workflows.js';
+import {providerHooks} from './provider-hooks.js';
 import {assertNotPersonalDataRead, withoutPeople} from './personal-data.js';
 import {reviewedFamilies} from './reviewed-families.js';
 /** Requests that carry people: their arguments are scrubbed from the error audit (src/personal-data.ts). */
@@ -24,10 +23,7 @@ let personalActions: ReadonlySet<string> | undefined;
 const personalDataActions = () =>
   (personalActions ??= new Set(reviewedFamilies().flatMap(f => f.personalData?.actions ?? [])));
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
-import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids.js';
-import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
-import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {withEffects, workflowOutcome, writeErrorOutcome} from './workflow-outcomes.js';
 import {actionArgumentCheck} from './first-party-contracts.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
@@ -53,15 +49,13 @@ import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
-import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {connectorReadOnly, errorResult, MirrorError, readOnlyDeployment, untrustedProviderContent} from './errors.js';
 import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
 import {currentRequestId} from './request-context.js';
 import {runWithQuotaPurpose} from './provider-quota.js';
 import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
-import {legacyLimitDisclosure} from './google-legacy.js';
-import {ScopeGuard, snapchatScopedResource} from './scope.js';
+import {ScopeGuard} from './scope.js';
 import {DelegatedNativeCompiler, delegatedParameterMatches} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
@@ -71,9 +65,6 @@ import {projectResponse} from './projection.js';
 import {WriteReviewService, providerJobWriteTool, readOnlyWriteTool, writeTool} from './write-review.js';
 import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
-import {validateAppleResponse} from './apple-native.js';
-import {projectRedditAccountHistory, redditAccountHistoryRead} from './reddit-extensions.js';
-import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool} from './campaign-runner.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
@@ -96,33 +87,20 @@ import {ContractMemory, evidenceForm} from './contract-evidence.js';
 import {accountKind, accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
 import {readinessContract} from './readiness.js';
 import {assertGatewayOffered, gatewayOffered} from './provider-offering.js';
-import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
-import {
-  dv360TargetingSearchRoute,
-  validateDV360TargetingSearch,
-  runDV360TargetingSearch,
-} from './dv360-targeting-search.js';
-import {xAudienceEstimateRoute, validateXAudienceEstimate, runXAudienceEstimate} from './x-audience-estimate.js';
-import {metaAssetUsage} from './meta-asset-usage.js';
-import {googleImageUsage} from './google-image-usage.js';
-import {snapchatAssetUsage} from './snapchat-asset-usage.js';
 import {creativeAssetView} from './creative-library.js';
-import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
-import {connectWooCommerce} from './woocommerce-connection.js';
 import {sameLogin} from './connection-authority.js';
 import {accessSetView, assetsWithinAccess} from './access-sets.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * What the audit record of a refused tool call keeps of its arguments (ARC-04 stage D): each redactor in turn removes
  * what must not be retained, in this order: the people of a request that carries them (src/personal-data.ts), the
- * links and cursors of a Meta existing-post read, private links of a Business Profile place action, the OAuth code and
- * state of a connection diagnostic, and reporting credentials. A tool whose arguments hold something else that must not
- * be kept adds its redactor here.
+ * providers' own (src/provider-workflows.ts: the links and cursors of a Meta existing-post read, private links of a
+ * Business Profile place action), the OAuth code and state of a connection diagnostic, and reporting credentials. A
+ * tool whose arguments hold something else that must not be kept adds its redactor here, or its provider's there.
  */
 export const auditInputRedactors: readonly ((tool: string, input: JsonObject) => JsonObject)[] = Object.freeze([
   (tool: string, input: JsonObject) => withoutPeople(tool, input, personalDataActions()),
-  redactMetaPostInput,
-  redactPlaceActionInput,
+  ...providerInputRedactors,
   redactConnectionInput,
   (_tool: string, input: JsonObject) => redactReportingRecord(input),
 ]);
@@ -344,7 +322,17 @@ export class MirrorService {
   }
   /** Website administrator setup only; provider requests use the same guarded WooCommerce GET transport. */
   connectWooCommerce(actor: Actor, input: unknown, signal?: AbortSignal) {
-    return connectWooCommerce(this.store, actor, input, {request: this.wooCommerceRequest, signal});
+    return connectStore(this.store, actor, input, {request: this.wooCommerceRequest, signal});
+  }
+  /** What the providers' steps are given (src/provider-workflows.ts): the service's own parts, read when called. */
+  private workflowContext(): WorkflowContext {
+    return {
+      store: this.store,
+      registry: this.registry,
+      transport: this.transport,
+      credentials: this.credentials,
+      fetcher: this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
+    };
   }
   /**
    * One tool call. An ownership observation lasts five minutes (F-70); when a read, or a write's prepare or inspect,
@@ -375,9 +363,10 @@ export class MirrorService {
   /** Whether the refused resource was observed through this connection and the observation merely expired. A resource
    * never observed, or whose observations re-provisioning cleared, is not renewed automatically. */
   private ownershipLapsed(actor: Actor, details: JsonObject, read: JsonObject): boolean {
+    // The resource the refusal's path names, where its provider renews lapsed observations (Snapchat's scope hooks).
     const resource =
-      details.gateway === 'snapchat_native_action' && typeof details.path === 'string'
-        ? snapchatScopedResource(details.path)
+      typeof details.path === 'string'
+        ? providerHooks(details.gateway)?.scope?.lapsedResource?.(details.path)
         : undefined;
     if (!resource) return false;
     try {
@@ -441,20 +430,9 @@ export class MirrorService {
             (a, i) => validateProviderRequest(this, a, i),
             (a, steps) => campaignPreflight(this, a, steps),
             (g, op) => this.registry.acceptsArgument(g, 'account_id', op),
-            (a, scope, current) =>
-              inspectGoogleRecipeGoals(this.store, this.registry, this.transport, this.credentials, a, scope, current),
-            (a, lookup) =>
-              microsoftLocationLookup(
-                {
-                  store: this.store,
-                  registry: this.registry,
-                  transport: this.transport,
-                  credentials: this.credentials,
-                  fetcher: this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
-                },
-                a,
-                lookup,
-              ),
+            // The runner's provider steps (src/provider-workflows.ts): Google's recipe goals, Microsoft's locations.
+            (a, scope, current) => campaignProviderSteps.goals(this.workflowContext(), a, scope, current),
+            (a, lookup) => campaignProviderSteps.locations(this.workflowContext(), a, lookup),
           ).handle(input, actor),
           requestId,
           start,
@@ -749,12 +727,10 @@ export class MirrorService {
     call: (t: string, a: JsonObject, u: Actor) => Promise<JsonObject>,
   ) {
     const asset = creativeAssetView(this.store, actor, input.asset_id),
-      kind = usageKind(asset);
-    if (kind === 'google_image_links')
-      return googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input);
-    if (kind === 'snapchat_top_snap')
-      return snapchatAssetUsage(this.store, this.registry, this.transport, this.credentials, actor, input);
-    if (kind === 'meta_scalar_references') return metaAssetUsage(this.store, call, actor, input);
+      // The provider's reader of this usage kind (src/provider-workflows.ts: Google's image links, Snapchat's Top
+      // Snaps, Meta's scalar references).
+      reader = assetUsageReader(usageKind(asset));
+    if (reader) return reader(this.workflowContext(), actor, input, call);
     throw unqualifiedUsage(asset);
   }
   /** The state of an execute's idempotency claim after the call (MCP-07): none when nothing was claimed or it was released. */
@@ -1064,7 +1040,8 @@ export class MirrorService {
     assertProviderActionAvailable(plan);
     assertNotPersonalDataRead(plan);
     // Checked before any request: result_ids reads an account list, whose path establishes ownership (Snapchat S3).
-    const wantedIds = snapchatResultIds(plan, input);
+    // The providers' steps of a native read are src/provider-workflows.ts's, at the points where this read named them.
+    const wantedIds = nativeReadSteps.wanted(plan, input);
     if (input.connection_id && input.connectionId && input.connection_id !== input.connectionId)
       throw new MirrorError(
         'CONFLICTING_PARAMETER',
@@ -1073,24 +1050,13 @@ export class MirrorService {
         403,
       );
     plan = applyExecutionRisk(plan);
-    validateGoogleGeneration(plan);
-    validateDV360TargetingSearch(plan);
-    validateSnapchatByIds(plan);
-    validateXAudienceEstimate(plan);
-    if (xAudienceEstimateRoute(plan)) {
-      if (input.aggregate_pages || input.paginate || input.allPages)
-        throw new MirrorError(
-          'INVALID_X_AUDIENCE_ESTIMATE',
-          'An audience range is not paginated or additive. Request one complete criteria set.',
-        );
-      plan = {...plan, xAudienceDeadline: performance.now() + 60000};
-    }
-    validatePlaceActionRead(plan, input);
+    // Each provider's request checks: Google's draft generation, DV360's targeting search, Snapchat's by-ID reads, X's
+    // audience estimate (one complete read with its deadline), Business Profile's place-action discovery.
+    plan = nativeReadSteps.prepare(plan, input);
     // ARC-04 stage F: an asynchronous report job's read refuses arguments it does not take (src/report-jobs.ts).
     const job = reportJob(plan.gateway);
     if (job?.admit) plan = job.admit(plan, input);
-    if (googleGenerationKind(plan) && (input.aggregate_pages || input.paginate || input.allPages))
-      throw new MirrorError('INVALID_ARGUMENT', 'Google generation is one bounded request, not a paginated query.');
+    nativeReadSteps.admitted(plan, input);
     if (input.dry_run === true || (!plan.readOnly && input.dry_run !== false)) {
       // Access limited to a client access set prepares nothing for an account outside it, not even a dry run (SEC-08).
       if (actor.accessSetId !== undefined && plan.accountId)
@@ -1125,7 +1091,7 @@ export class MirrorService {
       throw new MirrorError('ACCOUNT_REQUIRED', 'Specify an account_id for this connection.');
     const scope = new ScopeGuard(this.registry, this.store),
       scopedId = scope.authorize(plan, connection);
-    if (placeActionReadKind(plan) && !plan.accountId) plan = {...plan, accountId: scopedId};
+    plan = nativeReadSteps.scoped(plan, scopedId);
     const credentials = await this.credentials.get(connection);
     this.store.appendAudit(actor.tenantId, requestId, {
       event: 'request_started',
@@ -1160,20 +1126,12 @@ export class MirrorService {
         const active = this.store.resolveConnection(actor, p.gateway, p.accountId, current.id);
         const activeAccount = scope.authorize(p, active);
         reportAccess(p);
-        checkSnapchatByIdsResult(p, data, activeAccount);
-        if ((xAudienceEstimateRoute(p) || p.action === 'AMCP_X_AUDIENCE_REFERENCE') && status !== 200)
-          throw new MirrorError(
-            'X_AUDIENCE_RESPONSE_INVALID',
-            'X did not return HTTP 200 for this bounded estimate read.',
-            {},
-            502,
-          );
+        nativeReadSteps.received(p, data, status, activeAccount);
         this.delegatedCompiler.validateResponse(p, data, status);
-        validateAppleResponse(p, data);
-        // PRV-07: who changed a Reddit account is personal data; it never leaves this function.
-        if (redditAccountHistoryRead(p)) return projectRedditAccountHistory(data);
-        if (p.gateway === microsoftGateway) validateMicrosoftResponse(p, result);
-        if (placeActionReadKind(p)) return placeActionReadResult(p, data, status);
+        // The providers' response contracts, and the data a provider's read returns instead of the page (Reddit's
+        // account history without people, PRV-07; Business Profile's place actions).
+        const provided = nativeReadSteps.page(p, result);
+        if (provided) return provided.data;
         // ARC-04 stage F: a page of an asynchronous report job's read is the job's (src/report-jobs.ts): its status or
         // result with what it retains, before the scope observes the page, or a downloaded report after it does.
         const pageJob = reportJob(p.gateway),
@@ -1198,24 +1156,21 @@ export class MirrorService {
         return exactIntegerScope.getStore()?.active ? (result.exactData ?? data) : data;
       };
       // A report job's read runs as its job reads it (TikTok and Criteo: an output fenced by two status reads; Meta:
-      // bounded result pages). A job answers only its own gateway's reads, so at most one runner applies to a plan.
-      const jobRead = xAudienceEstimateRoute(plan) ? undefined : job?.read?.(plan, fetchPage, input);
-      const result = xAudienceEstimateRoute(plan)
-        ? await runXAudienceEstimate(plan, fetchPage)
+      // bounded result pages). A job answers only its own gateway's reads, so at most one runner applies to a plan:
+      // a read its provider runs before any job (X's audience estimate), the job's, then one its provider runs when
+      // no job does (Business Profile's place actions, DV360's targeting search).
+      const first = nativeReadSteps.first(plan, fetchPage),
+        jobRead = first ? undefined : job?.read?.(plan, fetchPage, input),
+        own = first || jobRead ? undefined : nativeReadSteps.own(plan, fetchPage, input, connection.id);
+      const result = first
+        ? await first
         : jobRead
           ? await jobRead
-          : placeActionReadKind(plan)
-            ? await runPlaceActionDiscovery(plan, fetchPage, connection.id)
-            : dv360TargetingSearchRoute(plan)
-              ? await runDV360TargetingSearch(
-                  plan,
-                  fetchPage,
-                  !!(input.aggregate_pages || input.paginate || input.allPages),
-                  Number(input.max_pages ?? 25),
-                )
-              : wantedIds || input.aggregate_pages || input.paginate || input.allPages
-                ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
-                : {data: await fetchPage(plan), pages: 1, truncated: false};
+          : own
+            ? await own
+            : wantedIds || input.aggregate_pages || input.paginate || input.allPages
+              ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
+              : {data: await fetchPage(plan), pages: 1, truncated: false};
       // A capped aggregation continues from the first page it did not read (MCP-04), never from a merged page's cursor.
       const continuation = 'continuation' in result ? result.continuation : undefined;
       if ('continuation' in result) delete result.continuation;
@@ -1232,11 +1187,11 @@ export class MirrorService {
               },
             })
           : undefined,
-        legacyLimit = legacyLimitDisclosure(plan, result.data, input, call => {
+        legacyLimit = nativeReadSteps.disclosed(plan, result.data, input, call => {
           this.registry.validate(plan.gateway, call, this.options);
           return this.compiler.compile(plan.gateway, call, this.options);
         });
-      const kept = wantedIds ? keepResultIds(result.data, wantedIds, result.pages, result.truncated) : undefined;
+      const kept = wantedIds ? nativeReadSteps.keep(result.data, wantedIds, result.pages, result.truncated) : undefined;
       if (kept) result.data = kept.data;
       const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;
       const projected = projectResponse(
@@ -1262,7 +1217,7 @@ export class MirrorService {
           },
         };
       }
-      const generation = googleGenerationResult(plan, result.data);
+      const generation = nativeReadSteps.produced(plan, result.data);
       // Secrets in provider URLs (paging links, permalinks) never reach the caller; other provider text stays verbatim.
       const scrubbed = redactUrlSecrets(projected.data, signedLinkFields);
       const outcome = {
@@ -1298,7 +1253,7 @@ export class MirrorService {
       });
       return outcome;
     } catch (e) {
-      if (placeActionReadKind(plan)) e = placeActionSafeError(e);
+      e = nativeReadSteps.safeError(plan, e);
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'request_failed',
         ...accessSetAudit(actor),
@@ -1316,31 +1271,22 @@ export class MirrorService {
     actor: Actor,
     requestId: string,
   ): Promise<unknown> {
-    if (gateway === 'commerce_native_action' && operation === 'woocommerce_list_stores')
-      return wooCommerceStoreDiscovery(this.store, actor, args);
-    if (gateway === 'adjust_native_action' && adjustReportingKind(operation, args.action))
-      return adjustReporting(this.store, this.transport, this.credentials, operation, args, actor, requestId);
-    if (measurementConnectionSyncKind(gateway, operation, args.action))
-      return syncMeasurementConnection(
-        this.store,
-        this.transport,
-        this.credentials,
-        gateway,
-        operation,
-        args,
-        actor,
-        requestId,
-      );
-    if (businessConnectionSyncKind(gateway, operation, args.action))
-      return syncBusinessConnection(this.store, this.transport, this.credentials, args, actor, requestId);
+    // A provider workflow answers its tool's operation at its stage among these steps (src/provider-workflows.ts):
+    // before the connection disconnect and diagnostics (WooCommerce's store listing, Adjust's reporting, GA4's, Search
+    // Console's and Business Profile's sync), after them (Meta's Ad Library and existing posts), or after the Drive
+    // inspection and the platform upload (Tag Manager's diagnostics).
+    const workflow = (stage: DispatchStage) => {
+      const answer = providerWorkflow(stage, gateway, operation, args.action);
+      return answer && (() => answer.run(this.workflowContext(), {gateway, operation, args, actor, requestId}));
+    };
+    const beforeConnection = workflow('before_connection');
+    if (beforeConnection) return beforeConnection();
     if (connectionDisconnectKind(gateway, operation, args.action))
       return connectionDisconnect(this.store, gateway, operation, args, actor);
     if (connectionDiagnosticKind(gateway, operation, args.action))
       return connectionDiagnostics(this.store, gateway, operation, args, actor, this.policy.allowWrites);
-    if (gateway === 'amcp_native_action' && operation === 'search_ads_library')
-      return searchMetaAdLibrary(this.registry, this.store, this.transport, this.credentials, args, actor, requestId);
-    if (gateway === 'amcp_native_action' && operation === 'fetch_meta_existing_posts')
-      return fetchMetaExistingPosts(this.store, this.transport, this.credentials, args, actor, requestId);
+    const afterConnection = workflow('after_connection');
+    if (afterConnection) return afterConnection();
     if (gateway === 'amcp_native_action' && operation === 'inspect_google_drive_media') {
       this.store.assertActorActive(actor);
       return inspectDrive(args.link, this.mediaFetcher, actor.tenantId);
@@ -1380,8 +1326,8 @@ export class MirrorService {
       const media = workflowMediaInput(args);
       return args.dry_run === false ? mediaNext(await this.media().call(media, actor)) : mediaPreview(media);
     }
-    if (gateway === 'gtm_native_action' && gtmDiagnosticOperations.has(operation))
-      return gtmDiagnostics(this.store, this.registry, this.transport, this.credentials, operation, args, actor);
+    const afterMedia = workflow('after_media');
+    if (afterMedia) return afterMedia();
     if (this.delegatedCompiler.isNativeOperation(gateway, operation))
       return this.runPlan(
         this.delegatedCompiler.compile(gateway, {operation, arguments: args}),

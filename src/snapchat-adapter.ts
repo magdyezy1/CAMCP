@@ -359,6 +359,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     },
     observe: observeSnapchat,
     observeCreated: observeSnapchatCreated,
+    // Wave 4c (transport and catalog): a lapsed observation of a scoped entity is renewed from the account's list.
+    lapsedResource: snapchatScopedResource,
   }),
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => !!snapchatPlanningRoute(p),
