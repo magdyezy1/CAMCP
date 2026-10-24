@@ -36,6 +36,7 @@ import type {ReviewStateContext} from './provider-adapter.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
 import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
 import {metaStateReads} from './meta-state-reads.js';
+import {metaCreativeImpact} from './meta-creative-features.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -306,5 +307,7 @@ export const metaHooks: ProviderHooks = Object.freeze({
       }),
     }),
     parentChecks: metaAdSetAudienceChoice,
+    // A creative's shop destination and creative feature choices (src/write-impact.ts).
+    impact: (plan: CompiledRequest) => metaCreativeImpact(plan),
   }),
 });

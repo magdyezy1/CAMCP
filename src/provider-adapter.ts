@@ -635,6 +635,18 @@ export interface WriteReviewHooks {
   prerequisites?(plan: CompiledRequest, values: unknown[], reads: CompiledRequest[]): void;
   /** After the paused-parent check (Meta's ad set audience choice, X's paused line item); refuses. */
   parentChecks?(plan: CompiledRequest, values: unknown[]): void;
+  // The review's disclosures (src/write-effects.ts, src/write-impact.ts), after a family's own.
+  /** Whether a write makes a change live for everyone once executed (Tag Manager, Search Console, Business Profile). */
+  publishesLive?(plan: CompiledRequest): boolean;
+  /** How many records a write lists where one request writes several (Snapchat's record lists); undefined for one. */
+  recordCount?(body: JsonObject, kind: string): number | undefined;
+  /** A write the provider documents as a deletion on a route that is not one (TikTok's status update to DELETE). */
+  deletes?(plan: CompiledRequest): boolean;
+  /**
+   * What a write changes beyond its target (Snapchat's creative edits and segment replacements, Meta's creative
+   * choices), or undefined; refuses a replacement that would reset what it omits.
+   */
+  impact?(plan: CompiledRequest, state: unknown[]): JsonObject | undefined;
   // The review's preparation and execution (prepareReview, submit).
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
   shownRequest?(plan: CompiledRequest): unknown;

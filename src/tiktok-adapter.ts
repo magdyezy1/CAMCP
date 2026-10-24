@@ -446,6 +446,13 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
   // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are
   // checked against the state, in that order, after every read.
   writes: Object.freeze({
+    // A status update to DELETE deletes, though its route is an update (src/write-effects.ts).
+    deletes: (plan: CompiledRequest) =>
+      /\/status\/update\/$/.test(plan.path) &&
+      !!plan.body &&
+      typeof plan.body === 'object' &&
+      !Array.isArray(plan.body) &&
+      (plan.body as JsonObject).operation_status === 'DELETE',
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
     snapshots: tiktokStateReads,
     morePages: tiktokInstantFormFollowUps,

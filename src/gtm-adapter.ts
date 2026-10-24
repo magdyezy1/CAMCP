@@ -46,7 +46,12 @@ export const gtmHooks: ProviderHooks = Object.freeze({
   }),
   // Writes and campaigns (wave 4c): its parts of the reviewed write lifecycle (src/write-review.ts): the Tag Manager
   // permission a write needs, and the workspace fingerprint a route takes from the state read.
-  writes: Object.freeze({writePermission: assertMeasurementScopes, concurrency: gtmConcurrency}),
+  writes: Object.freeze({
+    writePermission: assertMeasurementScopes,
+    concurrency: gtmConcurrency,
+    // A container version's publish takes effect for everyone at once (src/write-effects.ts).
+    publishesLive: (plan: CompiledRequest) => plan.method === 'POST' && /:publish$/.test(plan.path),
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.prepareReview (src/write-review.ts).

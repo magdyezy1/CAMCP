@@ -102,5 +102,10 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
   }),
   // Writes and campaigns (wave 4c): a review shows and returns a place action's request with its links made safe
   // (src/write-review.ts).
-  writes: Object.freeze({shownRequest: placeActionSafe}),
+  writes: Object.freeze({
+    shownRequest: placeActionSafe,
+    // A place action link is live for everyone once written (src/write-effects.ts).
+    publishesLive: (plan: CompiledRequest) =>
+      ['POST', 'PATCH'].includes(plan.method) && /\/placeActionLinks(?:\/[^/]+)?$/.test(plan.path),
+  }),
 });

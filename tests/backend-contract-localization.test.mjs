@@ -186,7 +186,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // signature): one more file, the same files with reasons and the same reasons. Its state reads move the Google Ads,
   // TikTok, Meta and Snapchat branches of src/write-snapshots.ts to four provider modules (src/google-state-reads.ts and
   // its three siblings), whose refusals this inventory never owned in src/write-snapshots.ts either: four more files.
-  assert.equal(files.length, 680);
+  // Its disclosures move Snapchat's creative replacement check from src/write-impact.ts, which owns no other reason, to
+  // src/snapchat-write-impact.ts with its four reasons: one more file, the same files with reasons and reasons.
+  assert.equal(files.length, 681);
   assert.equal(selected.filter(row => row.messages.size).length, 258);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

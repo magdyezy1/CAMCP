@@ -96,5 +96,9 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
       /^\/webmasters\/v3\/sites\//.test(plan.path),
   }),
   // Writes and campaigns (wave 4c): a review's write needs the Search Console write permission (src/write-review.ts).
-  writes: Object.freeze({writePermission: assertMeasurementScopes}),
+  writes: Object.freeze({
+    writePermission: assertMeasurementScopes,
+    // A sitemap submission takes effect for everyone at once (src/write-effects.ts).
+    publishesLive: (plan: CompiledRequest) => plan.method === 'PUT' && plan.path.includes('/sitemaps/'),
+  }),
 });

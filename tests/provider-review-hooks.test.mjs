@@ -81,17 +81,19 @@ test('each provider declares exactly the review hooks of the parts the review na
   );
   assert.deepEqual(declared, {
     google_ads_native_action: ['prerequisites', 'snapshots'],
-    google_business_native_action: ['shownRequest'],
-    meta_native_action: ['ownState', 'parentChecks', 'snapshots'],
-    tiktok_native_action: ['morePages', 'prerequisites', 'snapshots'],
+    google_business_native_action: ['publishesLive', 'shownRequest'],
+    meta_native_action: ['impact', 'ownState', 'parentChecks', 'snapshots'],
+    tiktok_native_action: ['deletes', 'morePages', 'prerequisites', 'snapshots'],
     snapchat_native_action: [
       'accountPath',
       'accountSnapshots',
       'affectedAds',
       'dependentReads',
+      'impact',
       'observeState',
       'ownedReferences',
       'prerequisites',
+      'recordCount',
       'snapshots',
     ],
     x_ads_native_action: ['accountPath', 'parentChecks', 'snapshots'],
@@ -101,8 +103,8 @@ test('each provider declares exactly the review hooks of the parts the review na
     apple_ads_native_action: ['prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
     reddit_native_action: ['writeScopes'],
     ga4_native_action: ['writePermission'],
-    gtm_native_action: ['concurrency', 'writePermission'],
-    google_search_console_native_action: ['writePermission'],
+    gtm_native_action: ['concurrency', 'publishesLive', 'writePermission'],
+    google_search_console_native_action: ['publishesLive', 'writePermission'],
   });
   for (const hooks of registeredProviderHooks)
     for (const part of [hooks.writes, hooks.writes?.ownState])
@@ -347,4 +349,63 @@ test('the state reads ask each provider where the stage named it, and keep only 
     },
   );
   assert.deepEqual(stateRead(plan('meta_native_action', 'POST', '/v26.0/987', {headers}), '/x').headers, {});
+});
+
+test('the disclosures ask the provider after the family: what publishes live, how many records, what deletes, the impact', async () => {
+  for (const file of ['src/write-effects.ts', 'src/write-impact.ts']) {
+    const source = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+    assert.deepEqual(
+      [...source.matchAll(/['"]([a-z0-9_]+_native_action)['"]/g)].map(m => m[1]),
+      [],
+      file,
+    );
+  }
+  const {writeEffects, effectReasons} = await import('../dist/src/write-effects.js');
+  const {writeImpact} = await import('../dist/src/write-impact.js');
+  const {metaCreativeImpact} = await import('../dist/src/meta-creative-features.js');
+  const {snapchatWriteImpact} = await import('../dist/src/snapchat-write-impact.js');
+  assert.equal(writes('snapchat_native_action').impact, snapchatWriteImpact);
+  // A provider's live publish, and the same route on another provider publishes nothing.
+  const publish = plan('gtm_native_action', 'POST', '/tagmanager/v2/accounts/1/containers/2/versions/3:publish');
+  assert.deepEqual(writeEffects(publish, []), {
+    destructive: false,
+    irreversible: false,
+    publishes_live: true,
+    stops_delivery: false,
+  });
+  assert.equal(writeEffects({...publish, gateway: 'meta_native_action'}, []), undefined);
+  assert.equal(
+    writeEffects(plan('google_search_console_native_action', 'PUT', '/webmasters/v3/sites/x/sitemaps/y'), [])
+      ?.publishes_live,
+    true,
+  );
+  assert.equal(
+    writeEffects(plan('google_business_native_action', 'PATCH', '/v1/locations/1/placeActionLinks/2'), [])
+      ?.publishes_live,
+    true,
+  );
+  // TikTok's status update to DELETE deletes, as a boolean effect; another status update does not.
+  const status = body => plan('tiktok_native_action', 'POST', '/v1.3/campaign/status/update/', {body});
+  assert.deepEqual(writeEffects(status({operation_status: 'DELETE'}), [])?.destructive, true);
+  assert.equal(writeEffects(status({operation_status: 'ENABLE'}), []), undefined);
+  // A Snapchat record list names its count instead of one target.
+  const list = plan('snapchat_native_action', 'DELETE', '/v1/adaccounts/123/campaigns', {
+    destructive: true,
+    body: {campaigns: [{id: 'a'}, {id: 'b'}]},
+  });
+  assert.match(effectReasons(list, [], writeEffects(list, []))[0].reason, /^This deletes or removes 2 resources/);
+  // The impact: a Snapchat creative edit lists its creatives for the review's affected-ads read; Meta's is its module's.
+  const edit = plan('snapchat_native_action', 'PATCH', '/v1/adaccounts/123/creatives/cr1', {body: [{op: 'replace'}]});
+  assert.deepEqual(
+    [writeImpact(edit, [], false, 'c')?.provider, writeImpact(edit, [], false, 'c')?.affected_creative_ids],
+    ['snapchat', ['cr1']],
+  );
+  const creative = plan('meta_native_action', 'POST', '/v26.0/act_123/adcreatives', {
+    body: {name: 'C', destination_spec: {destination_type: 'WEBSITE_AND_SHOP_OPT_OUT'}},
+  });
+  assert.deepEqual(writeImpact(creative, [], false, 'c'), metaCreativeImpact(creative));
+  assert.equal(
+    writeImpact(plan('x_ads_native_action', 'PUT', '/12/accounts/123/line_items/1'), [], false, 'c'),
+    undefined,
+  );
 });

@@ -37,6 +37,7 @@ import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-a
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {snapchatAffectedAdsDisclosure} from './snapchat-affected-ad-pages.js';
 import {snapchatAccountStateReads, snapchatStateReads} from './snapchat-state-reads.js';
+import {snapchatWriteImpact} from './snapchat-write-impact.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -425,5 +426,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     prerequisites: (plan: CompiledRequest, values: unknown[]) => snapAdCreativePrerequisites(plan, values),
     ownedReferences: assertSnapCreativeReferences,
     affectedAds: snapchatAffectedAdsDisclosure,
+    // A request writes a list of records, and a creative edit or segment replacement changes more than its target.
+    recordCount: (body: JsonObject, kind: string) => (Array.isArray(body[kind]) ? body[kind].length : undefined),
+    impact: snapchatWriteImpact,
   }),
 });
