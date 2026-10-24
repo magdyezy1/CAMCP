@@ -1,11 +1,4 @@
 import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
-import {
-  xCampaignObjectives,
-  xCampaignReport,
-  xObjectivesMixedWarning,
-  xObjectivesUnavailableWarning,
-} from './x-campaign-report.js';
-import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
@@ -20,7 +13,6 @@ import {
 } from './provider-jobs.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
-import {zonedMidnight} from './workflows.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {detailParentsUnavailableWarning, optionalReadRefused} from './overview-parents.js';
 import {
@@ -456,89 +448,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'x') {
-      if (!timezone) bad('X account timezone is required.');
-      const inventory =
-        checkpoint.x_inventory ??
-        list((await run(plan('/12/accounts/' + account + '/campaigns', {count: 1000, with_deleted: true}))).data ?? []);
-      const start = zonedMidnight(range.since, timezone!),
-        end = zonedMidnight(nextDay(range.until), timezone!),
-        mode = xActiveEntitiesMode();
-      // RPT-03: the inventory names campaigns; X active entities decide which campaigns and windows are requested.
-      let active = xActiveSet(checkpoint.x_active),
-        fallback = checkpoint.x_active_fallback === true;
-      if (mode !== 'off' && !active && !fallback)
-        try {
-          active = await xActiveEntities(start, end, q =>
-            run(plan('/12/stats/accounts/' + account + '/active_entities', q), false, 'active_entities'),
-          );
-        } catch (e) {
-          // A rejected read keeps the bounded inventory path (fails closed above 100 requests); a malformed or
-          // partial response is never narrowed and fails the source.
-          if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
-          fallback = true;
-        }
-      if (fallback)
-        warnings.push(
-          'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
-        );
-      // RPT-07: objectives come from the account's line items (one bounded read, kept with the checkpoint so a resumed
-      // run uses the same answer). A refused or oversized read keeps objectives unknown with a warning.
-      let objectives: JsonObject | undefined = checkpoint.x_objectives;
-      if (!objectives)
-        try {
-          objectives = xCampaignObjectives(
-            inventory,
-            list(
-              (
-                await run(
-                  plan('/12/accounts/' + account + '/line_items', {count: 1000, with_deleted: true}),
-                  true,
-                  'line_item_objectives',
-                )
-              ).data ?? [],
-            ),
-          );
-        } catch (e) {
-          // Only a provider refusal (HTTP 400/403/404) or a line item collection above the page bound
-          // (INCOMPLETE_REPORT) keeps objectives unknown. A malformed line item, a retryable failure, or a removed
-          // connection, changed login or scope refusal fails the source, as for the LinkedIn campaign metadata read.
-          if (!(e instanceof MirrorError && e.code === 'INCOMPLETE_REPORT' && !e.retryable) && !optionalReadRefused(e))
-            throw e;
-          objectives = {unavailable: true, campaigns: {}};
-        }
-      if (objectives.unavailable) warnings.push(xObjectivesUnavailableWarning);
-      else if (Object.values(objectives.campaigns ?? {}).includes(null)) warnings.push(xObjectivesMixedWarning);
-      const state = {
-        x_inventory: inventory,
-        ...(active ? {x_active: active} : {}),
-        ...(fallback ? {x_active_fallback: true} : {}),
-        x_objectives: objectives,
-      };
-      if (
-        !checkpoint.x_inventory ||
-        (active && !checkpoint.x_active) ||
-        (fallback && !checkpoint.x_active_fallback) ||
-        !checkpoint.x_objectives
-      )
-        save(state);
-      const report = await xCampaignReport(
-        inventory,
-        start,
-        end,
-        extra,
-        q => run(plan('/12/stats/accounts/' + account, q), false),
-        {
-          checkpoint: checkpoint.x_report,
-          save: x_report => save({...state, x_report}),
-          ...(active ? {active, windows: mode === 'on'} : {}),
-        },
-      );
-      raw = report.rows.map(row => ({...row, objective: objectives!.campaigns?.[row.id] ?? row.objective}));
-      complete = report.complete;
-      collectionComplete = report.complete;
-      context.no_activity_count = report.no_activity_count;
-      warnings.push(...report.warnings);
     } else if (p === 'microsoft') {
       // RPT-04 (owner policy P6): report days follow the account time zone. A checkpoint from an earlier London-zone
       // run keeps its own zone, so a resumed report is never re-labelled.
