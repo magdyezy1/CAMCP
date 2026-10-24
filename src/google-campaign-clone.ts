@@ -1,0 +1,232 @@
+import {MirrorError} from './errors.js';
+import type {Actor, JsonObject} from './types.js';
+import {obj, type ToolCall} from './workspace-core.js';
+import {pick, read, type Step} from './campaign-clone-core.js';
+
+// Google Search's campaign clone, its adapter's `campaign.clone` (ARC-01 phase B, wave 4c: moved verbatim from
+// src/campaign-clone.ts, which keeps the checks every clone passes and the spec's changes).
+// Google Search: the shapes the Google Search recipe creates (campaign-recipes.ts).
+const googleBidding: Record<string, string> = {
+  MANUAL_CPC: 'manualCpc',
+  MAXIMIZE_CONVERSIONS: 'maximizeConversions',
+  MAXIMIZE_CONVERSION_VALUE: 'maximizeConversionValue',
+  TARGET_SPEND: 'targetSpend',
+};
+// An ad text asset's other fields (performance label, policy summary) are Google's output (google-ads-v25.json).
+const textFields = ['text', 'pinnedField'];
+const snakeKeys = (v: unknown): unknown =>
+  Array.isArray(v)
+    ? v.map(snakeKeys)
+    : obj(v)
+      ? Object.fromEntries(
+          Object.entries(v).map(([k, x]) => [k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()), snakeKeys(x)]),
+        )
+      : v;
+export async function googleClone(call: ToolCall, actor: Actor, input: JsonObject) {
+  const account = String(input.account_id).replace(/-/g, ''),
+    id = String(input.source.campaign_id);
+  if (!/^\d+$/.test(id))
+    throw new MirrorError('INVALID_ARGUMENT', 'source.campaign_id is the numeric Google campaign ID.', {
+      field: 'source.campaign_id',
+    });
+  const campaignName = 'customers/' + account + '/campaigns/' + id;
+  const search = async (query: string) => {
+    const d = await read(call, actor, 'google_ads_native_action', {
+      action: 'google_ads_v23_google_ads_search',
+      connection_id: input.connection_id,
+      account_id: input.account_id,
+      payload: {query},
+      aggregate_pages: true,
+    });
+    return (obj(d) && Array.isArray(d.results) ? d.results : []) as JsonObject[];
+  };
+  const where = " WHERE campaign.resource_name = '" + campaignName + "'";
+  const [source] = await search(
+    'SELECT campaign.resource_name, campaign.name, campaign.advertising_channel_type, campaign.bidding_strategy_type, campaign.contains_eu_political_advertising, campaign.network_settings.target_google_search, campaign.network_settings.target_search_network, campaign.network_settings.target_content_network, campaign.network_settings.target_partner_search_network, campaign.maximize_conversions.target_cpa_micros, campaign.maximize_conversion_value.target_roas, campaign.target_spend.cpc_bid_ceiling_micros, campaign_budget.amount_micros, campaign_budget.delivery_method, campaign_budget.explicitly_shared FROM campaign' +
+      where,
+  );
+  const c = source?.campaign as JsonObject | undefined;
+  if (!c)
+    throw new MirrorError('CLONE_SOURCE_NOT_FOUND', 'Campaign ' + id + ' is not in this customer.', {
+      field: 'source.campaign_id',
+    });
+  if (c.advertisingChannelType !== 'SEARCH')
+    throw new MirrorError(
+      'CLONE_UNSUPPORTED',
+      'AMCP clones Google Search campaigns; this one is ' + c.advertisingChannelType + '.',
+      {
+        field: 'source.campaign_id',
+      },
+    );
+  const bidding = googleBidding[String(c.biddingStrategyType)];
+  if (!bidding)
+    throw new MirrorError(
+      'CLONE_UNSUPPORTED',
+      'AMCP clones manual CPC, maximize conversions, maximize conversion value and maximize clicks bidding; this campaign uses ' +
+        c.biddingStrategyType +
+        '.',
+      {field: 'source.campaign_id', supported: Object.keys(googleBidding)},
+    );
+  const budget = (source!.campaignBudget ?? {}) as JsonObject;
+  const criteria = await search(
+    'SELECT campaign_criterion.type, campaign_criterion.negative, campaign_criterion.location.geo_target_constant, campaign_criterion.language.language_constant, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion' +
+      where +
+      " AND campaign_criterion.status != 'REMOVED'",
+  );
+  const groups = await search(
+    'SELECT ad_group.resource_name, ad_group.name, ad_group.type, ad_group.cpc_bid_micros, ad_group.status FROM ad_group' +
+      where +
+      " AND ad_group.status != 'REMOVED'",
+  );
+  const keywords = await search(
+    'SELECT ad_group_criterion.ad_group, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative, ad_group_criterion.cpc_bid_micros, ad_group_criterion.status FROM ad_group_criterion' +
+      where +
+      " AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'",
+  );
+  const ads = await search(
+    'SELECT ad_group_ad.ad_group, ad_group_ad.status, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_search_ad.path1, ad_group_ad.ad.responsive_search_ad.path2 FROM ad_group_ad' +
+      where +
+      " AND ad_group_ad.status != 'REMOVED' AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'",
+  );
+  const response = '/data/results/0/resourceName',
+    ref = (sid: string) => ({$ref: sid + '#' + response});
+  const step = (sid: string, action: string, operations: JsonObject[], depends: string[] = []): Step => ({
+    id: sid,
+    kind: 'write',
+    gateway: 'google_ads_native_action',
+    connection_id: input.connection_id,
+    account_id: input.account_id,
+    arguments: {action, payload: {operations}},
+    depends_on: depends,
+  });
+  const network = snakeKeys(c.networkSettings ?? {}) as JsonObject,
+    strategy = snakeKeys((c as JsonObject)[bidding] ?? {}) as JsonObject;
+  const steps: Step[] = [
+    step('budget', 'google_ads_v23_campaign_budget_mutate_campaign_budgets', [
+      {
+        create: {
+          name: input.name + ' budget',
+          amount_micros: budget.amountMicros,
+          delivery_method: budget.deliveryMethod ?? 'STANDARD',
+          explicitly_shared: false,
+        },
+      },
+    ]),
+    step(
+      'campaign',
+      'google_ads_v23_campaign_mutate_campaigns',
+      [
+        {
+          create: {
+            name: input.name,
+            status: 'PAUSED',
+            advertising_channel_type: 'SEARCH',
+            campaign_budget: ref('budget'),
+            [bidding.replace(/[A-Z]/g, ch => '_' + ch.toLowerCase())]: strategy,
+            network_settings: network,
+            contains_eu_political_advertising: c.containsEuPoliticalAdvertising,
+          },
+        },
+      ],
+      ['budget'],
+    ),
+  ];
+  const notCopied: JsonObject[] = [],
+    skipped = new Set<string>();
+  if (budget.explicitlyShared)
+    notCopied.push({entity: 'budget', fields: ['explicitly_shared (the copy has its own budget of the same amount)']});
+  const targeting = criteria.flatMap((r): JsonObject[] => {
+    const k = r.campaignCriterion as JsonObject;
+    if (k.type === 'LOCATION')
+      return [
+        {
+          create: {
+            campaign: ref('campaign'),
+            location: {geo_target_constant: k.location?.geoTargetConstant},
+            ...(k.negative ? {negative: true} : {}),
+          },
+        },
+      ];
+    if (k.type === 'LANGUAGE')
+      return [{create: {campaign: ref('campaign'), language: {language_constant: k.language?.languageConstant}}}];
+    if (k.type === 'KEYWORD' && k.negative)
+      return [
+        {
+          create: {
+            campaign: ref('campaign'),
+            negative: true,
+            keyword: {text: k.keyword?.text, match_type: k.keyword?.matchType},
+          },
+        },
+      ];
+    skipped.add(String(k.type) + (k.negative ? ' (negative)' : '') + ' criteria');
+    return [];
+  });
+  if (skipped.size) notCopied.push({entity: 'targeting', fields: [...skipped]});
+  if (targeting.length)
+    steps.push(
+      step('targeting', 'google_ads_v23_campaign_criterion_mutate_campaign_criteria', targeting, ['campaign']),
+    );
+  groups.forEach((g, i) => {
+    const group = g.adGroup as JsonObject,
+      sid = 'adgroup_' + (i + 1);
+    steps.push(
+      step(
+        sid,
+        'google_ads_v23_ad_group_mutate_ad_groups',
+        [
+          {
+            create: {
+              name: group.name,
+              campaign: ref('campaign'),
+              status: group.status,
+              type: group.type,
+              ...(group.cpcBidMicros !== undefined ? {cpc_bid_micros: String(group.cpcBidMicros)} : {}),
+            },
+          },
+        ],
+        ['campaign'],
+      ),
+    );
+    const kws = keywords
+      .map(k => k.adGroupCriterion as JsonObject)
+      .filter(k => k.adGroup === group.resourceName)
+      .map(k => ({
+        create: {
+          ad_group: ref(sid),
+          ...(k.negative ? {negative: true} : {status: k.status}),
+          keyword: {text: k.keyword?.text, match_type: k.keyword?.matchType},
+          ...(k.cpcBidMicros !== undefined && !k.negative ? {cpc_bid_micros: String(k.cpcBidMicros)} : {}),
+        },
+      }));
+    if (kws.length)
+      steps.push(step(sid + '_keywords', 'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria', kws, [sid]));
+    const rsas = ads
+      .map(a => a.adGroupAd as JsonObject)
+      .filter(a => a.adGroup === group.resourceName)
+      .map(a => ({
+        create: {
+          ad_group: ref(sid),
+          status: a.status,
+          ad: {
+            responsive_search_ad: {
+              ...pick(a.ad?.responsiveSearchAd ?? {}, ['path1', 'path2']),
+              ...Object.fromEntries(
+                (['headlines', 'descriptions'] as const).map(k => [
+                  k,
+                  ((a.ad?.responsiveSearchAd?.[k] ?? []) as JsonObject[]).map(t => snakeKeys(pick(t, textFields))),
+                ]),
+              ),
+            },
+            final_urls: a.ad?.finalUrls ?? [],
+          },
+        },
+      }));
+    if (rsas.length) steps.push(step(sid + '_ads', 'google_ads_v23_ad_group_ad_mutate_ad_group_ads', rsas, [sid]));
+  });
+  return {
+    steps,
+    notCopied,
+    source: {campaign_id: id, ad_groups: groups.length, keywords: keywords.length, ads: ads.length},
+  };
+}

@@ -22,6 +22,8 @@ import type {Actor} from './types.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {VendorRoute} from './delegated-native.js';
+// Writes and campaigns (wave 4c): the native calls a campaign clone reads its source through.
+import type {ToolCall} from './workspace-core.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -558,6 +560,28 @@ export type RecipeDefinition = JsonObject & {
 export interface CampaignHooks {
   /** Its guided recipes, in the order the recipe catalog lists them. */
   readonly recipes?: readonly CampaignRecipe[];
+  /** Its campaign clone (src/campaign-clone.ts, which keeps the checks every clone passes and the spec's changes). */
+  readonly clone?: CampaignClone;
+}
+/** What a provider's clone reads and builds (src/campaign-clone.ts clonePlan, after its source and name checks). */
+export interface CampaignClone {
+  /**
+   * The steps of a plan that recreates the source campaign under the new name, read through `call` (the ordinary
+   * account-scoped native reads), with the fields it did not copy and what the source holds; refuses a source it
+   * cannot clone.
+   */
+  build(call: ToolCall, actor: Actor, input: JsonObject): Promise<ClonedCampaign>;
+  /**
+   * The one all-or-nothing build a clone becomes unless the caller asks for step-by-step (`atomic: false`), which
+   * also lifts the 50-step plan limit (Google's atomic build, src/campaign-runner.ts); without it a clone is steps.
+   */
+  allOrNothing?(steps: JsonObject[], accountId: unknown): JsonObject;
+}
+/** A clone's plan steps, the source fields not copied (by step), and what the source holds. */
+export interface ClonedCampaign {
+  steps: JsonObject[];
+  notCopied: JsonObject[];
+  source: JsonObject;
 }
 
 /** A state read of a path of the write's account, built as the review builds every state read (src/write-snapshots.ts). */

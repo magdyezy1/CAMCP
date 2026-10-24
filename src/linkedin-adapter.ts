@@ -24,6 +24,7 @@ import {errorInteger, errorObject, errorToken, providerReference} from './provid
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
 import {buildLinkedinLeadRecipe, linkedinLeadRecipe} from './linkedin-lead-recipe.js';
+import {linkedinClone} from './linkedin-campaign-clone.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -307,6 +308,8 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
   // Writes and campaigns (wave 4c): the guided lead generation recipe.
   campaign: Object.freeze({
     recipes: Object.freeze([Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe})]),
+    // A campaign group, its campaigns and their creatives, read and recreated paused (src/campaign-clone.ts).
+    clone: Object.freeze({build: linkedinClone}),
   }),
   // A create on an ad account reads the account (src/write-snapshots.ts).
   writes: Object.freeze({accountPath: /^\/rest\/adAccounts\/[^/]+/}),

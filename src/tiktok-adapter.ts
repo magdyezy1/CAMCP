@@ -66,6 +66,7 @@ import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {tiktokStateReads} from './tiktok-state-reads.js';
+import {tiktokClone} from './tiktok-campaign-clone.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -441,6 +442,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       Object.freeze({definition: tiktokTrafficRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, false)}),
       Object.freeze({definition: tiktokConversionRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true)}),
     ]),
+    // A campaign, its ad groups and their ads, read and recreated disabled (src/campaign-clone.ts).
+    clone: Object.freeze({build: tiktokClone}),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
   // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are

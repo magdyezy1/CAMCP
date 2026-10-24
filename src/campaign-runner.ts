@@ -25,7 +25,9 @@ import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {MirrorError, errorRemedy} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
-import {applyCloneChanges, assertCloneGateway, clonePlan, composeGoogleBuild} from './campaign-clone.js';
+import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
+// A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`).
+import {providerHooks} from './provider-hooks.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
@@ -1776,20 +1778,22 @@ export class CampaignRunner {
       }
     }
     const source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
-      changed = applyCloneChanges(source.steps, input.changes);
-    if (changed.steps.length > 50 && (input.gateway !== 'google_ads_native_action' || input.atomic === false))
+      changed = applyCloneChanges(source.steps, input.changes),
+      allOrNothing = providerHooks(input.gateway)?.campaign?.clone?.allOrNothing;
+    if (changed.steps.length > 50 && (!allOrNothing || input.atomic === false))
       bad(
         'The clone has ' + changed.steps.length + ' steps; a plan holds at most 50. Leave some out with changes.drop.',
         'CLONE_SOURCE_TOO_LARGE',
         {field: 'changes.drop', steps: changed.steps.slice(0, 100).map(s => s.id)},
       );
-    // A Google clone is one all-or-nothing build unless the caller asks for step-by-step (atomic: false).
-    const atomic = input.gateway === 'google_ads_native_action' && input.atomic !== false;
+    // A Google clone is one all-or-nothing build unless the caller asks for step-by-step (atomic: false): its provider
+    // declares the build.
+    const atomic = !!allOrNothing && input.atomic !== false;
     const create = {
       action: 'create',
       name: input.name,
       brief: input.brief ?? 'Clone of campaign ' + source.source.campaign_id + '.',
-      steps: atomic ? [composeGoogleBuild(changed.steps, String(input.account_id).replace(/-/g, ''))] : changed.steps,
+      steps: atomic ? [allOrNothing!(changed.steps, input.account_id)] : changed.steps,
       ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
       detail: 'full',
     };

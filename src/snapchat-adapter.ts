@@ -38,6 +38,7 @@ import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {snapchatAffectedAdsDisclosure} from './snapchat-affected-ad-pages.js';
 import {snapchatAccountStateReads, snapchatStateReads} from './snapchat-state-reads.js';
 import {snapchatWriteImpact} from './snapchat-write-impact.js';
+import {snapchatClone} from './snapchat-campaign-clone.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -412,6 +413,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
       Object.freeze({definition: snapchatTrafficRecipe, build: buildSnapchatTrafficRecipe}),
       Object.freeze({definition: snapchatLeadRecipe, build: buildSnapchatLeadRecipe}),
     ]),
+    // A campaign, its ad squads and their ads, read and recreated paused (src/campaign-clone.ts).
+    clone: Object.freeze({build: snapchatClone}),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): ScopeGuard learns ownership from each of its state
   // reads; an ad's lead form is read after its creative, and its creatives' prerequisites are checked after every read;

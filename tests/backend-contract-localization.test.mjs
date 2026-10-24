@@ -188,8 +188,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // its three siblings), whose refusals this inventory never owned in src/write-snapshots.ts either: four more files.
   // Its disclosures move Snapchat's creative replacement check from src/write-impact.ts, which owns no other reason, to
   // src/snapchat-write-impact.ts with its four reasons: one more file, the same files with reasons and reasons.
-  assert.equal(files.length, 681);
-  assert.equal(selected.filter(row => row.messages.size).length, 258);
+  // Its campaign clones move each provider's clone builder from src/campaign-clone.ts to src/<provider>-campaign-clone.ts
+  // and the shared source read to src/campaign-clone-core.ts, their reasons with their code: five more files, four of
+  // them with reasons (src/campaign-clone.ts keeps the gateway and input refusals), and the same reasons.
+  assert.equal(files.length, 686);
+  assert.equal(selected.filter(row => row.messages.size).length, 262);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
