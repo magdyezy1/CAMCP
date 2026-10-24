@@ -110,6 +110,18 @@ export interface ReviewOperations {
 }
 
 /**
+ * A creation field whose value names a budget but moves no money (ARC-01 phase B: a branch of src/spend-effects.ts):
+ * the spending field-name match reads a POST to `path` whose body carries exactly `value` in `field` at its top level
+ * without that field. Any other value, another method or path, or the field anywhere else still names a budget.
+ */
+export interface SpendNeutralCreation {
+  /** The creation's path; never global or sticky, so it keeps no position between requests. */
+  readonly path: RegExp;
+  readonly field: string;
+  readonly value: unknown;
+}
+
+/**
  * A provider's read classification (ARC-01 phase B): its documented exceptions to the generic read rules of
  * src/execution-risk.ts, which keeps every rule and decides. A request classified as a read still passes ScopeGuard and
  * every review rule.
@@ -516,6 +528,8 @@ export interface ProviderAdapter {
    * (Reddit: its writes change targeting, serving and shared lists), src/preflight.ts spendConfirmationError.
    */
   readonly everyWriteConfirmsSpend?: true;
+  /** A creation field that names a budget but moves no money (Meta's unshared ad set budgets), src/spend-effects.ts. */
+  readonly spendNeutralCreation?: SpendNeutralCreation;
   readonly paging?: PagingFacts;
   /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
   readonly executionOptions?: true;

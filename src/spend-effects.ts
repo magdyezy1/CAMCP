@@ -1,5 +1,6 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
+import {providerOf} from './provider-adapters.js';
 
 /**
  * Structural spending and delivery effects of reviewed edits, decided from the request shape rather than its text.
@@ -110,21 +111,22 @@ export function changedFieldNames(plan: CompiledRequest): string[] {
 }
 
 /**
- * A new Meta campaign's top-level is_adset_budget_sharing_enabled: false names a budget but moves no money: each ad set
- * spends only its own budget, as every campaign did before Graph API v24.0 made the choice explicit (CMP-01). The
- * request is read without that one field; true (Meta may move budget between ad sets), any other value, an update of
- * an existing campaign, or the field anywhere else still counts as a spending field.
+ * A creation whose provider documents a field that names a budget but moves no money (`spendNeutralCreation`: a new
+ * Meta campaign's top-level is_adset_budget_sharing_enabled: false, each ad set spending only its own budget, CMP-01)
+ * is read without that one field; any other value (Meta's true may move budget between ad sets), an update of an
+ * existing campaign, or the field anywhere else still counts as a spending field.
  */
 function withoutUnsharedBudgets(plan: CompiledRequest): CompiledRequest {
+  const neutral = providerOf(plan.gateway)?.spendNeutralCreation;
   if (
-    plan.gateway !== 'meta_native_action' ||
+    !neutral ||
     plan.method !== 'POST' ||
-    !/^\/v[^/]+\/act_[^/]+\/campaigns$/.test(plan.path) ||
+    !neutral.path.test(plan.path) ||
     !object(plan.body) ||
-    plan.body.is_adset_budget_sharing_enabled !== false
+    plan.body[neutral.field] !== neutral.value
   )
     return plan;
-  const {is_adset_budget_sharing_enabled: _unshared, ...body} = plan.body;
+  const {[neutral.field]: _unshared, ...body} = plan.body;
   return {...plan, body};
 }
 

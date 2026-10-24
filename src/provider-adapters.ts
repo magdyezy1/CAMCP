@@ -220,15 +220,24 @@ function googleMutateOperations(plan: CompiledRequest): {operation: string; enti
   };
 }
 /**
- * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts and
- * src/preflight.ts), by provider ID, each moved unchanged and frozen here; each adapter takes its ID's entry.
- * tests/provider-review-stages.test.mjs compares every stage with its branch as it was.
+ * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts,
+ * src/preflight.ts and src/spend-effects.ts), by provider ID, each moved unchanged and frozen here; each adapter takes
+ * its ID's entry. tests/provider-review-stages.test.mjs compares every stage with its branch as it was.
  */
 const reviewStageFacts: Readonly<
-  Record<string, Pick<ProviderAdapter, 'reviewOperations' | 'everyWriteConfirmsSpend'>>
+  Record<string, Pick<ProviderAdapter, 'reviewOperations' | 'everyWriteConfirmsSpend' | 'spendNeutralCreation'>>
 > = {
   google: {reviewOperations: Object.freeze({summarize: googleMutateOperations})},
   reddit: {everyWriteConfirmsSpend: true},
+  // A new Meta campaign's top-level is_adset_budget_sharing_enabled: false names a budget but moves no money: each ad
+  // set spends only its own budget, as every campaign did before Graph API v24.0 made the choice explicit (CMP-01).
+  meta: {
+    spendNeutralCreation: Object.freeze({
+      path: Object.freeze(/^\/v[^/]+\/act_[^/]+\/campaigns$/),
+      field: 'is_adset_budget_sharing_enabled',
+      value: false,
+    }),
+  },
 };
 
 // The account fields, references and path patterns ScopeGuard compares (ARC-01 phase B: they were tables in

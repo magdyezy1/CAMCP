@@ -8,7 +8,7 @@ import {familyOf} from '../dist/src/reviewed-families.js';
 import {providerAdapters} from '../dist/src/provider-adapters.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
 import {spendConfirmationError} from '../dist/src/preflight.js';
-import {deliveryEditFields, namesSpendField, numericStatusPaths} from '../dist/src/spend-effects.js';
+import {changedFieldNames, deliveryEditFields, namesSpendField, numericStatusPaths} from '../dist/src/spend-effects.js';
 
 // ARC-01 phase B, the review's summary and spending stages: what each shared stage decided for one provider by name is
 // now that provider adapter's fact (src/provider-adapters.ts), and each stage asks the adapter of the request's
@@ -247,6 +247,97 @@ test('every write needs the spending confirmation it needed before: every ledger
   assert.ok(reasons.get('Spend-affecting writes need spend_change_confirmed=true.') > 0);
 });
 
+/** spend-effects.ts before the move: namesSpendField and Meta's unshared budgets, transcribed as they were written. */
+const spendWords = /budget|bid|spend/i,
+  activeStatusKeys = new Set([
+    'status',
+    'intendedstatus',
+    'intended_status',
+    'entity_status',
+    'entitystatus',
+    'operation_status',
+  ]),
+  activeValues = new Set(['ACTIVE', 'ENABLE', 'ENABLED', 'ENTITY_STATUS_ACTIVE']);
+function copiedWithoutUnsharedBudgets(plan) {
+  if (
+    plan.gateway !== 'meta_native_action' ||
+    plan.method !== 'POST' ||
+    !/^\/v[^/]+\/act_[^/]+\/campaigns$/.test(plan.path) ||
+    !object(plan.body) ||
+    plan.body.is_adset_budget_sharing_enabled !== false
+  )
+    return plan;
+  const {is_adset_budget_sharing_enabled: _unshared, ...body} = plan.body;
+  return {...plan, body};
+}
+function copiedNamesSpendField(plan) {
+  if (changedFieldNames(copiedWithoutUnsharedBudgets(plan)).some(name => spendWords.test(name))) return true;
+  const active = (v, depth) => {
+    if (depth > 64) return false;
+    if (Array.isArray(v)) return v.some(x => active(x, depth + 1));
+    if (!object(v)) return false;
+    return Object.entries(v).some(
+      ([k, x]) =>
+        (activeStatusKeys.has(k.toLowerCase()) && typeof x === 'string' && activeValues.has(x.toUpperCase())) ||
+        active(x, depth + 1),
+    );
+  };
+  return active({query: plan.query, body: plan.body}, 0);
+}
+
+test('the spending field-name match reads every write as before: every ledger route and each unshared budget', () => {
+  // The field is the only name of a budget in most of these bodies, so a request read with it or without it differs.
+  const field = 'is_adset_budget_sharing_enabled',
+    bodies = [
+      {},
+      {name: 'Spring'},
+      {name: 'Spring', [field]: false},
+      {name: 'Spring', [field]: true},
+      {name: 'Spring', [field]: 'false'},
+      {name: 'Spring', [field]: 0},
+      {name: 'Spring', [field]: null},
+      {name: 'Spring', [field]: false, daily_budget: 100},
+      {name: 'Spring', [field]: false, status: 'ACTIVE'},
+      {campaign: {[field]: false}},
+      [{[field]: false}],
+      {[field]: false, special_ad_categories: []},
+    ];
+  const plans = ledgerPlans(bodies);
+  for (const body of bodies)
+    for (const [gateway, method, path] of [
+      ['meta_native_action', 'POST', '/v26.0/act_1/campaigns'],
+      ['meta_native_action', 'POST', '/v25.0/act_1/campaigns'],
+      ['meta_native_action', 'POST', '/v26.0/act_1/adsets'],
+      ['meta_native_action', 'POST', '/v26.0/act_1/campaigns/2'],
+      ['meta_native_action', 'POST', '/v26.0/1/campaigns'],
+      ['meta_native_action', 'PUT', '/v26.0/act_1/campaigns'],
+      ['meta_native_action', 'POST', 'v26.0/act_1/campaigns'],
+      ['tiktok_native_action', 'POST', '/v26.0/act_1/campaigns'],
+      [undefined, 'POST', '/v26.0/act_1/campaigns'],
+    ])
+      plans.push(plan(gateway, method, path, 'meta_campaigns_create', {body}));
+  const outcomes = new Set();
+  for (const p of plans) {
+    const expected = run(() => copiedNamesSpendField(p));
+    assert.deepEqual(
+      run(() => namesSpendField(p)),
+      expected,
+      JSON.stringify([p.gateway, p.method, p.path, p.action, p.body]),
+    );
+    if (p.gateway === 'meta_native_action' && p.path === '/v26.0/act_1/campaigns' && p.method === 'POST')
+      outcomes.add(JSON.stringify([p.body?.[field], expected.result]));
+  }
+  // A new campaign's unshared budgets name no budget; every other value of the field still does.
+  for (const seen of [
+    [false, false],
+    [true, true],
+    ['false', true],
+    [0, true],
+    [null, true],
+  ])
+    assert.ok(outcomes.has(JSON.stringify(seen)), JSON.stringify(seen));
+});
+
 test('the review stage facts are frozen facts of their adapters, and the stages name no gateway', () => {
   assert.deepEqual(
     providerAdapters.filter(a => a.reviewOperations).map(a => a.gateway),
@@ -257,7 +348,16 @@ test('the review stage facts are frozen facts of their adapters, and the stages 
     providerAdapters.filter(a => a.everyWriteConfirmsSpend).map(a => [a.gateway, a.everyWriteConfirmsSpend]),
     [['reddit_native_action', true]],
   );
+  const neutral = providerAdapters.filter(a => a.spendNeutralCreation);
+  assert.deepEqual(
+    neutral.map(a => [a.gateway, a.spendNeutralCreation.field, a.spendNeutralCreation.value]),
+    [['meta_native_action', 'is_adset_budget_sharing_enabled', false]],
+  );
+  for (const a of neutral) {
+    assert.ok(Object.isFrozen(a.spendNeutralCreation) && Object.isFrozen(a.spendNeutralCreation.path), a.id);
+    assert.ok(!a.spendNeutralCreation.path.global && !a.spendNeutralCreation.path.sticky, a.id);
+  }
   // The regression this guards: a provider branch back in a shared review stage (each module named one provider).
-  for (const file of ['src/review-summary.ts', 'src/preflight.ts'])
+  for (const file of ['src/review-summary.ts', 'src/preflight.ts', 'src/spend-effects.ts'])
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /_native_action/, file);
 });
