@@ -7,9 +7,9 @@ import {googleAdsCustomers, googleAdsPath} from './google-version.js';
 
 /**
  * Discover every status beneath each directly accessible root, without granting account access. Google Ads' asset
- * discovery step (its adapter's `discovery`, ARC-01 phase B) and the website's Google reauthorization
- * (server/google-reauthorization.ts) both read the hierarchy here; it moved from server/google-account-discovery.ts,
- * which re-exports it.
+ * discovery step and its renewal step (its website login steps, src/google-ads-login.ts, ARC-01 phase B), which the
+ * website's Google reauthorization (server/google-reauthorization.ts) runs, both read the hierarchy here; it moved
+ * from server/google-account-discovery.ts, which re-exports it.
  */
 export async function googleAccountDiscovery(
   transport: NativeTransport,
@@ -201,5 +201,29 @@ export async function googleAccountDiscovery(
           diagnostics: failures,
         }
       : {}),
+  };
+}
+
+/**
+ * The read that verifies one selected Google Ads account the hierarchy listed but did not read (a client beneath a
+ * manager), before a renewal replaces a working login: its customer, currency, time zone and status. The renewal sends
+ * it with the manager route discovery recorded for the account (its login customer).
+ */
+export function googleSelectedAccountRead(gateway: string, id: string): CompiledRequest {
+  return {
+    gateway,
+    action: 'AMCP_GOOGLE_SELECTED_VERIFICATION',
+    method: 'POST',
+    path: googleAdsCustomers + id + '/googleAds:search',
+    query: {},
+    body: {
+      query: 'SELECT customer.id, customer.currency_code, customer.time_zone, customer.status FROM customer',
+    },
+    headers: {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    evidence: 'SELECTED_ACCOUNT_VERIFICATION',
+    warnings: [],
   };
 }

@@ -82,6 +82,14 @@ export const targets = Object.freeze({
   // ARC-04: the WooCommerce store setup, split into staged steps; its outcome per call (the requests go through the
   // caller's own request function, which the suites' fixtures answer).
   'dist/src/woocommerce-connection.js': {functions: ['connectWooCommerce']},
+  // ARC-01 phase B, the website's server modules, whose provider facts moved into the registries: the Google renewal
+  // (its reads go through NativeTransport, recorded above), Facebook sign-in (SocialSignIn.json is its one fetch: each
+  // request and answer), the composition root's startup checks (each refusal and started runtime) and Commerce's store
+  // sources.
+  'dist/server/google-reauthorization.js': {functions: ['reauthorizeGoogleConnection', 'googleAuthorizationInfo']},
+  'dist/server/social-signin.js': {classes: {SocialSignIn: ['start', 'identity', 'json']}},
+  'dist/server/runtime.js': {functions: ['createRuntime']},
+  'dist/src/woocommerce-source.js': {functions: ['wooCommerceSources']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([

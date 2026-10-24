@@ -10,14 +10,16 @@ import type {CompiledRequest, Connection, Credentials, JsonObject} from './types
 import type {NativeTransport, TransportResult} from './transport.js';
 
 /**
- * A provider's steps of the website's logins: its OAuth flow (server/platform-oauth.ts) and the reads that list what a
- * login reaches (server/asset-discovery.ts).
+ * A provider's steps of the website's logins: its OAuth flow (server/platform-oauth.ts), the reads that list what a
+ * login reaches (server/asset-discovery.ts) and the reads of a renewal that verifies a login's selected accounts
+ * before it replaces the login (server/google-reauthorization.ts).
  */
 export interface ProviderLogin {
   /** The gateway of the provider adapter these steps belong to. */
   readonly gateway: string;
   readonly oauth?: OAuthSteps;
   readonly discovery?: AssetDiscoveryHooks;
+  readonly renewal?: RenewalSteps;
 }
 
 // The website's OAuth flows: PlatformOAuth (server/platform-oauth.ts) keeps the configuration check, the state, the
@@ -281,4 +283,26 @@ export interface AssetDiscoveryHooks {
   nextLink?(next: URL, original: URL, cursor: string): void;
   /** The offset of the next page of a listing that pages by start and count (LinkedIn), or undefined at its end. */
   nextStart?(data: JsonObject, rows: readonly unknown[]): number | undefined;
+}
+
+// The renewal of a saved login that verifies every account it selected before a fresh authorization replaces its
+// credentials (server/google-reauthorization.ts, Google Ads): the stage keeps the administrator, revision, scope,
+// offline-access and identity checks, the login check before and after every read, the refusals, the refresh lock and
+// the saved connection; a provider supplies the reads.
+
+/** A provider's renewal reads: what a fresh authorization reaches, and the read that verifies one selected account. */
+export interface RenewalSteps {
+  /**
+   * The accounts a fresh authorization reaches, the reads of its asset discovery (Google Ads: every account beneath
+   * each directly accessible root, with its manager route), sent through the stage's transport with `check` before
+   * and after each request.
+   */
+  accounts(
+    transport: NativeTransport,
+    connection: Connection,
+    credentials: Credentials,
+    check: () => void,
+  ): Promise<AssetGroup>;
+  /** The read of one selected account the listing did not verify; the stage sends it through its recorded route. */
+  selectedAccountRead(gateway: string, account: string): CompiledRequest;
 }

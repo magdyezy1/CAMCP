@@ -1,6 +1,6 @@
 import type {DiscoveryContext, ProviderLogin} from './provider-login.js';
 import type {Credentials} from './types.js';
-import {googleAccountDiscovery} from './google-account-discovery.js';
+import {googleAccountDiscovery, googleSelectedAccountRead} from './google-account-discovery.js';
 import {googleOAuth} from './google-oauth.js';
 
 /**
@@ -8,7 +8,8 @@ import {googleOAuth} from './google-oauth.js';
  * (src/google-oauth.ts); a first authorization's state also binds the OAuth client, which a renewal compares, and the
  * login keeps the deployment's developer token. Discovery: every account beneath each directly accessible root, each
  * with its manager route (src/google-account-discovery.ts), read through the stage's transport with the stage's login
- * check.
+ * check. Renewal (server/google-reauthorization.ts): the same hierarchy, then the read of each selected account the
+ * hierarchy did not verify.
  */
 export const googleAdsLogin: ProviderLogin = Object.freeze({
   gateway: 'google_ads_native_action',
@@ -25,4 +26,5 @@ export const googleAdsLogin: ProviderLogin = Object.freeze({
     kind: (_kind: string, c: DiscoveryContext) =>
       googleAccountDiscovery(c.transport, c.connection, c.credentials, c.check),
   }),
+  renewal: Object.freeze({accounts: googleAccountDiscovery, selectedAccountRead: googleSelectedAccountRead}),
 });
