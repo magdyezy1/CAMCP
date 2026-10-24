@@ -1,9 +1,18 @@
-import type {DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
+import type {
+  DiscoveryContext,
+  OAuthContext,
+  OAuthTokenRequest,
+  ProviderLogin,
+  WorkspaceAsset,
+} from './provider-login.js';
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 
 /**
- * TikTok's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery: the advertisers the
+ * TikTok's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). OAuth: TikTok for Business's
+ * authorization page names the app with app_id, takes its callback in the parameter its developer portal shows
+ * (AMCP_TIKTOK_REDIRECT_PARAMETER, redirect_uri by default) and has no response type; its auth_code is exchanged as JSON
+ * with the app's secret, and the token is the result's data once its code says it succeeded. Discovery: the advertisers the
  * authorization reaches (a read with the app's credentials), and the pixels or identities of the selected advertisers,
  * which must fit one page.
  */
@@ -56,5 +65,28 @@ async function tiktokDiscovery(kind: string, c: DiscoveryContext): Promise<Works
 
 export const tiktokLogin: ProviderLogin = Object.freeze({
   gateway: 'tiktok_native_action',
+  oauth: Object.freeze({
+    authorize: 'https://ads.tiktok.com/marketing_api/auth',
+    token: 'https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
+    clientParameter: 'app_id',
+    redirectParameter(env: NodeJS.ProcessEnv) {
+      const parameter = env.AMCP_TIKTOK_REDIRECT_PARAMETER ?? 'redirect_uri';
+      if (!['redirect_uri', 'redirect_url'].includes(parameter))
+        throw new MirrorError('CONFIG_ERROR', 'TikTok redirect parameter must match the developer portal URL.');
+      return parameter;
+    },
+    noResponseType: true,
+    codeParameter: 'auth_code',
+    tokenRequest: (request: OAuthTokenRequest, c: OAuthContext & {readonly code: string}) => ({
+      ...request,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({app_id: c.clientId, secret: c.clientSecret, auth_code: c.code}),
+    }),
+    tokenResult(result: JsonObject) {
+      if (result.code !== 0 || !result.data)
+        throw new MirrorError('OAUTH_EXCHANGE_FAILED', 'TikTok rejected the authorization code.', {}, 502);
+      return result.data;
+    },
+  } as const),
   discovery: Object.freeze({kind: tiktokDiscovery}),
 });

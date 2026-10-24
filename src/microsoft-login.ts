@@ -1,10 +1,12 @@
-import type {DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
-import type {JsonObject} from './types.js';
+import type {DiscoveryContext, OAuthTokenRequest, ProviderLogin, WorkspaceAsset} from './provider-login.js';
+import type {Credentials, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {microsoftCustomerOrigin, microsoftGateway} from './microsoft-native.js';
+import {microsoftCustomerOrigin, microsoftGateway, microsoftScope} from './microsoft-native.js';
 
 /**
- * Microsoft Advertising's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery: the
+ * Microsoft Advertising's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). OAuth: the
+ * Microsoft identity platform's endpoints; the platform needs the deployment's developer token, its token request asks
+ * for the Advertising scope with offline access, and its login must be renewable, with a lifetime. Discovery: the
  * authenticated user, whose name names the login (CON-05), and the accounts it can reach, 100 per page in ID order,
  * each with its parent customer; the two Customer Management reads are the only Microsoft requests sent without a
  * selected account (its wire profile's headers, src/microsoft-adapter.ts).
@@ -83,5 +85,24 @@ async function microsoftDiscovery(kind: string, c: DiscoveryContext): Promise<Wo
 
 export const microsoftLogin: ProviderLogin = Object.freeze({
   gateway: microsoftGateway,
+  oauth: Object.freeze({
+    authorize: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    token: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    requiredSetting: 'AMCP_MICROSOFT_DEVELOPER_TOKEN',
+    tokenRequest(request: OAuthTokenRequest) {
+      (request.body as URLSearchParams).set('scope', microsoftScope + ' offline_access');
+      return request;
+    },
+    credentials(credentials: Credentials, {env, expires}: {env: NodeJS.ProcessEnv; expires: number | undefined}) {
+      credentials.developerToken = env.AMCP_MICROSOFT_DEVELOPER_TOKEN;
+      if (!credentials.refreshToken || !expires)
+        throw new MirrorError(
+          'OAUTH_RESPONSE_INVALID',
+          'Microsoft authorization must return offline access and a valid lifetime. Reconnect with offline_access.',
+          {},
+          502,
+        );
+    },
+  }),
   discovery: Object.freeze({kind: microsoftDiscovery}),
 });

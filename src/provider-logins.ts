@@ -17,9 +17,10 @@ import {googleBusinessLogin} from './google-business-login.js';
 import {redditLogin} from './reddit-login.js';
 
 /**
- * The provider login registry (ARC-01 phase B, the server discovery configurations): each provider's steps of the
- * website's logins, its asset discovery (src/<provider>-login.ts), by gateway, in the order of the website platforms
- * (server/platform-oauth.ts). Only the website's server consults it (server/asset-discovery.ts), so the reviewed-write
+ * The provider login registry (ARC-01 phase B, the server discovery and OAuth configurations): each provider's steps
+ * of the website's logins, its OAuth flow steps and its asset discovery (src/<provider>-login.ts), by gateway, in the
+ * order of the website platforms (server/platform-oauth.ts). Only the website's server consults it
+ * (server/platform-oauth.ts, server/asset-discovery.ts), so the reviewed-write
  * path, which loads the provider hooks (src/provider-hooks.ts), never loads these steps. No provider module imports
  * it; the architecture ratchet (tools/architecture-map.mjs) counts it with the providers.
  */
@@ -45,13 +46,18 @@ export const registeredProviderLogins: readonly ProviderLogin[] = Object.freeze(
 const byGateway = new Map<string, ProviderLogin>();
 for (const login of registeredProviderLogins) {
   // Load-time checks, like the hooks registry's: a provider's login steps are one frozen declaration of an adapter's
-  // gateway, and its discovery has one entry point.
+  // gateway, its OAuth steps name its endpoints and either both or neither of its own start and completion, and its
+  // discovery has one entry point.
   if (!providerOf(login.gateway))
     throw new Error('Provider login steps name no provider adapter: ' + login.gateway + '.');
   if (byGateway.has(login.gateway)) throw new Error('Two provider login steps name ' + login.gateway + '.');
-  for (const part of [login, login.discovery])
+  for (const part of [login, login.oauth, login.discovery])
     if (part && !Object.isFrozen(part))
       throw new Error('Provider login steps of ' + login.gateway + ' are not frozen.');
+  if (!login.oauth || typeof login.oauth.authorize !== 'string' || typeof login.oauth.token !== 'string')
+    throw new Error('The OAuth steps of ' + login.gateway + ' need its authorization and token endpoints.');
+  if (!login.oauth.begin !== !login.oauth.complete)
+    throw new Error('The OAuth steps of ' + login.gateway + ' need both or neither of begin and complete.');
   if (login.discovery && !login.discovery.kind === !login.discovery.all)
     throw new Error('The discovery of ' + login.gateway + ' needs exactly one of kind and all.');
   byGateway.set(login.gateway, login);

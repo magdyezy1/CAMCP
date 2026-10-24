@@ -1,12 +1,13 @@
 import type {DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
 import {MirrorError} from './errors.js';
 import {collectMeasurementAssets} from './google-measurement-assets.js';
+import {googleOAuth} from './google-oauth.js';
 
 /**
  * Google Analytics 4's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery: the
  * login's properties, with the collector the MCP sync_assets workflow uses, and the data streams of the selected
- * properties with their type and web measurement ID. It authorizes with the shared Google OAuth client and no step
- * of its own.
+ * properties with their type and web measurement ID. It authorizes with Google's OAuth steps (src/google-oauth.ts), by
+ * default with the shared Google client.
  */
 async function ga4Discovery(kind: string, c: DiscoveryContext): Promise<WorkspaceAsset[]> {
   if (kind === 'properties')
@@ -53,5 +54,6 @@ async function ga4Discovery(kind: string, c: DiscoveryContext): Promise<Workspac
 
 export const ga4Login: ProviderLogin = Object.freeze({
   gateway: 'ga4_native_action',
+  oauth: googleOAuth,
   discovery: Object.freeze({kind: ga4Discovery}),
 });

@@ -1,12 +1,13 @@
 import type {DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {googleOAuth} from './google-oauth.js';
 
 /**
  * The website login steps of Google's file platforms (ARC-01 phase B; registered in src/provider-logins.ts): Google
  * Sheets, a report destination, and Google Drive, a private media source. Neither is an advertising account, and both
- * authorize with the shared Google OAuth client without a step of their own. Discovery: the spreadsheets a login may
- * edit, and Drive's media files and folders.
+ * authorize with Google's OAuth steps (src/google-oauth.ts), by default with the shared Google client. Discovery: the
+ * spreadsheets a login may edit, and Drive's media files and folders.
  */
 
 /**
@@ -87,9 +88,11 @@ async function driveDiscovery(kind: string, c: DiscoveryContext): Promise<Worksp
 
 export const googleSheetsLogin: ProviderLogin = Object.freeze({
   gateway: 'google_sheets_native_action',
+  oauth: googleOAuth,
   discovery: Object.freeze({kind: sheetsDiscovery}),
 });
 export const googleDriveLogin: ProviderLogin = Object.freeze({
   gateway: 'google_drive_native_action',
+  oauth: googleOAuth,
   discovery: Object.freeze({kind: driveDiscovery}),
 });

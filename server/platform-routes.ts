@@ -81,7 +81,8 @@ export function platformRoutes({
         tenantId: tenant,
         gateway: p.gateway,
         accounts: [],
-        ...(p.id === 'reddit' ? {userAgent: oauth.redditUserAgent()} : {}),
+        // What the provider's logins keep on their connection (Reddit's User-Agent: src/reddit-login.ts).
+        ...oauth.connectionFields(p),
         defaultWriteAccess: allowWrites,
         label: result.label,
         enabled: false,
@@ -213,7 +214,8 @@ export function platformRoutes({
         tenantId: tenant,
         gateway: p.gateway,
         accounts: [],
-        ...(p.id === 'reddit' ? {userAgent: oauth.redditUserAgent()} : {}),
+        // What the provider's logins keep on their connection (Reddit's User-Agent: src/reddit-login.ts).
+        ...oauth.connectionFields(p),
         defaultWriteAccess: p.reviewedWrites !== false && allowWrites && pending.requestedWriteAccess === true,
         label: result.label,
         enabled: false,

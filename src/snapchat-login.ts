@@ -4,7 +4,7 @@ import type {JsonObject} from './types.js';
 /**
  * Snapchat's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery: the organizations
  * the login reaches, and each one's ad accounts, public profiles, pixels, apps or catalogs. Its authorization is
- * OAuth 2.0 with the authorization code, without a step of its own.
+ * OAuth 2.0 with the authorization code at Snap's own endpoints, without a step of its own.
  */
 async function snapchatDiscovery(kind: string, c: DiscoveryContext): Promise<WorkspaceAsset[]> {
   const assets: WorkspaceAsset[] = [];
@@ -34,5 +34,9 @@ async function snapchatDiscovery(kind: string, c: DiscoveryContext): Promise<Wor
 
 export const snapchatLogin: ProviderLogin = Object.freeze({
   gateway: 'snapchat_native_action',
+  oauth: Object.freeze({
+    authorize: 'https://accounts.snapchat.com/login/oauth2/authorize',
+    token: 'https://accounts.snapchat.com/login/oauth2/access_token',
+  }),
   discovery: Object.freeze({kind: snapchatDiscovery}),
 });

@@ -1,12 +1,14 @@
 import type {AssetGroup, DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
 import {MirrorError} from './errors.js';
 import {collectBusinessAssets, type BusinessAsset} from './google-business-assets.js';
+import {googleOAuth} from './google-oauth.js';
 
 /**
  * Business Profile's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery (CON-06):
  * one bounded pass lists the business accounts and, unless only accounts are asked for, their locations, with the
- * collector the MCP sync_assets workflow uses. Neither listing grants access. It authorizes with the shared Google
- * OAuth client once the owner declares the project's API approval (src/app-credentials.ts), without a step of its own.
+ * collector the MCP sync_assets workflow uses. Neither listing grants access. It authorizes with Google's OAuth steps
+ * (src/google-oauth.ts), with the shared Google client once the owner declares the project's API approval
+ * (src/app-credentials.ts).
  */
 async function businessDiscovery(selected: readonly string[], c: DiscoveryContext): Promise<AssetGroup[]> {
   const groups: AssetGroup[] = [],
@@ -43,5 +45,6 @@ async function businessDiscovery(selected: readonly string[], c: DiscoveryContex
 
 export const googleBusinessLogin: ProviderLogin = Object.freeze({
   gateway: 'google_business_native_action',
+  oauth: googleOAuth,
   discovery: Object.freeze({all: businessDiscovery}),
 });

@@ -6,8 +6,8 @@ import {linkedinVersion} from './linkedin-version.js';
 /**
  * LinkedIn's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery: the accounts the
  * authenticated member can use, with the member's role on each; its requests carry the reviewed LinkedIn-Version and
- * Rest.li 2.0, and its listings page by start and count. Its authorization is OAuth 2.0 with the authorization code,
- * without a step of its own.
+ * Rest.li 2.0, and its listings page by start and count. Its authorization is OAuth 2.0 with the authorization code at
+ * LinkedIn's own endpoints, without a step of its own (its token response states the login's lifetime).
  */
 
 /** LinkedIn accounts named by their own read in one sync; the rest (rare) keep their ID as their name. */
@@ -70,6 +70,10 @@ function linkedinNextStart(data: JsonObject, rows: readonly unknown[]): number |
 
 export const linkedinLogin: ProviderLogin = Object.freeze({
   gateway: 'linkedin_native_action',
+  oauth: Object.freeze({
+    authorize: 'https://www.linkedin.com/oauth/v2/authorization',
+    token: 'https://www.linkedin.com/oauth/v2/accessToken',
+  }),
   discovery: Object.freeze({
     kind: linkedinDiscovery,
     headers: () => ({'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'}),

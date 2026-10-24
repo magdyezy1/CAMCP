@@ -8,7 +8,9 @@ import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 // for its website login module (src/<provider>-login.ts), and Google Ads' hierarchy discovery left
 // server/google-account-discovery.ts (now its re-export) for src/google-account-discovery.ts. Their 37 reasons moved with
 // them out of this inventory into the backend one (tests/backend-contract-localization.test.mjs, whose owned reasons
-// are unchanged): the stage keeps 20, its own, and the total below fell from 259 to 222.
+// are unchanged): the stage keeps 20, its own, and the total below fell from 259 to 222. Its OAuth flow steps then left
+// server/platform-oauth.ts for the same login modules: their 11 reasons (X's OAuth 1.0a, TikTok's, Meta's, Reddit's,
+// Microsoft's and Apple's refusals) moved with them, the flow keeps 13, and the total fell to 211.
 const counts = {
   'server/account-routes.ts': 4,
   'server/account-security.ts': 45,
@@ -18,7 +20,7 @@ const counts = {
   'server/http-app.ts': 6,
   'server/media-source-routes.ts': 5,
   'server/password-hashes.ts': 1,
-  'server/platform-oauth.ts': 24,
+  'server/platform-oauth.ts': 13,
   'server/social-signin.ts': 21,
   'server/user-accounts.ts': 32,
   'server/web-store.ts': 14,
@@ -86,7 +88,7 @@ test('all selected website sources have exact authored diagnostic coverage with 
   assert.deepEqual(Object.keys(counts).sort(), [...websiteFailureSources].sort());
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 222);
+  assert.equal(owned.size, 211);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

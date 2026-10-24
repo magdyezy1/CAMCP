@@ -1,10 +1,11 @@
 import type {DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
 import {MirrorError} from './errors.js';
+import {googleOAuth} from './google-oauth.js';
 
 /**
  * Google Tag Manager's website login steps (ARC-01 phase B; registered in src/provider-logins.ts). Discovery: the
  * login's Tag Manager accounts, and the containers of the selected accounts with their public and Google tag IDs. It
- * authorizes with the shared Google OAuth client and no step of its own.
+ * authorizes with Google's OAuth steps (src/google-oauth.ts), by default with the shared Google client.
  */
 async function gtmDiscovery(kind: string, c: DiscoveryContext): Promise<WorkspaceAsset[]> {
   if (kind === 'tag_accounts') {
@@ -55,5 +56,6 @@ async function gtmDiscovery(kind: string, c: DiscoveryContext): Promise<Workspac
 
 export const gtmLogin: ProviderLogin = Object.freeze({
   gateway: 'gtm_native_action',
+  oauth: googleOAuth,
   discovery: Object.freeze({kind: gtmDiscovery}),
 });
