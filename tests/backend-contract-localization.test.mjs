@@ -180,9 +180,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the refusals of its requests, and the shared collection helpers into the report source contract
   // (src/report-source.ts): files with reasons are added, the reasons are the same (the contract; then the LinkedIn
   // report source, with LinkedIn's account and currency refusals; the Microsoft one, with its report job refusals; the
-  // Reddit one, with its detail-name refusal; the GA4 one, with its row-limit refusal).
-  assert.equal(files.length, 669);
-  assert.equal(selected.filter(row => row.messages.size).length, 258);
+  // Reddit one, with its detail-name refusal; the GA4 one, with its row-limit refusal). ARC-01 (reporting) moves the
+  // report table every export uses from src/google-sheets.ts into src/report-table.ts with its three refusals: one
+  // file more, with reasons, and the same reasons.
+  assert.equal(files.length, 670);
+  assert.equal(selected.filter(row => row.messages.size).length, 259);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

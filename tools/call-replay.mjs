@@ -85,15 +85,12 @@ export const targets = Object.freeze({
   },
   'dist/src/adjust-reporting.js': {functions: ['adjustReporting', 'adjustReportingKind']},
   'dist/src/google-sheets.js': {
-    functions: [
-      'reportTable',
-      'exportCsv',
-      'assertReportExportable',
-      'sheetsPresentationRequests',
-      'deliveryProjection',
-    ],
+    functions: ['sheetsPresentationRequests', 'deliveryProjection'],
     classes: {GoogleSheetsExports: ['write', 'checkDelivery', 'releaseDestination', 'create', 'bind']},
   },
+  // The report table left google-sheets.js for this shared module (ARC-01), which google-sheets.js re-exports; a
+  // recording made before names them dist/src/google-sheets.js#... (compare with --ignore for both).
+  'dist/src/report-table.js': {functions: ['reportTable', 'exportCsv', 'assertReportExportable']},
   'dist/src/report-presets.js': {functions: ['reportPreset', 'validatePresetRows']},
   'dist/src/decision-reporting.js': {classes: {DecisionReporting: ['handle', 'collectGuided']}},
   'dist/src/report-resource-scope.js': {functions: ['reportingResourceAccount', 'reportingResourceAccounts']},

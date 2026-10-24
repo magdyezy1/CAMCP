@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {Writable} from 'node:stream';
 import {setImmediate} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
-import {reportTable} from './google-sheets.js';
+import {reportTable} from './report-table.js';
 import {reportEvidence, exportSourceStatus} from './report-quality.js';
 import {reportPack, presentationStyle} from './report-packs.js';
 import type {JsonObject} from './types.js';
