@@ -1280,7 +1280,7 @@ and review code they never call.
 **Website composition and markup (WEB-07).** A page's lazily loaded scripts are its registry entry's `assets`. Scripts
 extend the shell through `AMCP` (`web/routes.js`): `AMCP.routes.register(path, {render})` gives a workspace page its
 body (one per page; a second is refused; Live portfolio, Measurement and Commerce register theirs from their own
-modules, see [website feature loading](OPERATIONS.md#website-feature-loading)), `AMCP.routes.extend(path, part,
+modules, see [website feature loading](operations/OPERATING-CONTROLS.md#website-feature-loading)), `AMCP.routes.extend(path, part,
 {order})` adds a part after the page in a declared order (the owner's Settings sections at 10, account access at 20;
 account security on `/account`), and
 `AMCP.hooks.beforeRender`/`afterRender` run around every render (test-account scope). Nothing reassigns `render`,
@@ -1638,7 +1638,7 @@ response counts, means, approximate median/p95 buckets and omitted measurements.
 and supports keyboard access. A successful response may contain a blocked/pending/failed workflow. Handler
 time excludes timing storage and response delivery; it does not measure end-to-end network latency.
 Current in-flight calls appear in a later health refresh. Empty intervals and unavailable evidence stay explicit.
-See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](records/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+See [operating details](operations/OPERATING-CONTROLS.md#owner-tool-timings) and [delivery evidence](records/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
 
 ### Owner Settings sections
 
@@ -1656,7 +1656,7 @@ body fields without revealing body text. Current login/account access remains re
 Known credential fields in legacy definitions and run previews are masked; the existing configuration
 redaction flag identifies changed projections. Fresh unsafe definitions and queued collection are refused.
 Stored originals retain their own bytes and revision. See
-[operating limits](OPERATIONS.md#encoded-native-reporting-definitions) and
+[operating limits](operations/OPERATING-CONTROLS.md#encoded-native-reporting-definitions) and
 [delivery evidence](records/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
 
 ### Compare an import before saving its changes

@@ -17,7 +17,7 @@ steps. The owner decides; the operator runs the technical steps.
   ([the settings to record](../DEPLOY-RAILWAY.md#railway-service-settings-owner-record-d1)).
 - **Turn off Cloudflare's automatic Web Analytics.** The site's security policy blocks the script it injects anyway.
 - **Backups.** Turn on Railway's scheduled volume backups, keep an encrypted copy outside Railway, and run one restore
-  drill to learn how long a recovery takes ([restore drill](../OPERATIONS.md#restore-drill)). Keep backups for a
+  drill to learn how long a recovery takes ([restore drill](ERASURE-AND-RETENTION.md#restore-drill)). Keep backups for a
   limited time, for example 35 days, and keep the master key in a password manager or secret store: without it, the
   backups and the saved logins cannot be opened.
 - **After the next release, set the visitor address source** so that rate limits count each visitor separately
@@ -35,12 +35,12 @@ steps. The owner decides; the operator runs the technical steps.
 
 - **Every 30 days:** read TikTok's developer changelog by hand, since TikTok blocks automated reads, and run the
   documentation watch over the other platforms' public pages; it lists the manual checks that are due
-  ([provider lifecycle](../OPERATIONS.md#provider-lifecycle)).
+  ([provider lifecycle](PROVIDER-LIFECYCLE.md#provider-lifecycle)).
 - **Every 90 days:** confirm again the platform approvals the owner declared; the
   [provider access register](../PROVIDER-ACCESS.md) marks a declaration stale after 90 days.
 - **Before 1 April 2027:** renew the expiry date of the site's security contact file.
 - **Once, before relying on Meta caps in the account currency:** check AMCP's copy of Meta's currency table against
-  Meta's Currencies page ([provider lifecycle](../OPERATIONS.md#provider-lifecycle)).
+  Meta's Currencies page ([provider lifecycle](PROVIDER-LIFECYCLE.md#provider-lifecycle)).
 
 ## Platform apps and approvals
 

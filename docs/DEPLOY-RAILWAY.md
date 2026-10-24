@@ -89,7 +89,7 @@ The administrator password opens the "Owner sign-in" entry on `/login`. `GET /ap
 
 Generate the encryption key locally using `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Put it directly in Railway variables and a password manager. Do not commit it. Preserve this key across deployments: changing it makes existing credentials unreadable. Do not copy your local test database or previously shared provider tokens into this deployment.
 
-The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` checks that the database answers and commits one small write, that its volume has room and is persistent, that media expiry is current, and that the offline help completes through a real MCP client and server in memory. It answers `status: up` (200), `degraded` (200: write contention, low or ephemeral storage, stale media expiry, or unknown storage in production) or `unavailable` (503: a failed read or write, full storage, or MCP), naming only each check's state; a result lasts ten seconds. Railway uses it only at deploy time, so point an external uptime monitor at it every minute (see [health and diagnostics](OPERATIONS.md#health-and-diagnostics)). Every refused or failed `/mcp` request writes one JSON log line (`mcp_refused` or `mcp_failed`, with status, code, origin and a coarse body-size class such as `1-16KiB`, never the token or the body). Inspect write readiness through the authenticated workspace health operation. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
+The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` checks that the database answers and commits one small write, that its volume has room and is persistent, that media expiry is current, and that the offline help completes through a real MCP client and server in memory. It answers `status: up` (200), `degraded` (200: write contention, low or ephemeral storage, stale media expiry, or unknown storage in production) or `unavailable` (503: a failed read or write, full storage, or MCP), naming only each check's state; a result lasts ten seconds. Railway uses it only at deploy time, so point an external uptime monitor at it every minute (see [health and diagnostics](operations/HEALTH.md#health-and-diagnostics)). Every refused or failed `/mcp` request writes one JSON log line (`mcp_refused` or `mcp_failed`, with status, code, origin and a coarse body-size class such as `1-16KiB`, never the token or the body). Inspect write readiness through the authenticated workspace health operation. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
 
 Successful HTTP startup emits one JSON `http_listening` event at `level: info` on
 stdout, with the actual bound `host`/`port` and configured `public_origin`. A bind
@@ -300,7 +300,7 @@ AMCP refuses to start with any other value. Google Ads has no such setting: its 
 
 The embedded report worker uses the same volume. Do not create a second Railway service expecting to share this volume. To run a separately supervised worker on another supported host, disable the embedded one using `AMCP_RUN_WORKER=false` and provision a shared local database deliberately.
 
-Enable Railway's scheduled backups for the service volume; they restore to a new volume. For an off-host copy, back up with `npm run admin -- backup /tmp/amcp-backup.amcp` (outside the `/data` volume: in production a destination on the database's volume is refused), which writes an encrypted archive under `MIRROR_MASTER_KEY` and verifies it; copy it off the service, delete the local copy, and keep the encryption key separately. Check a copy with `npm run admin -- backup-verify <file>`. See [backups that complete and the restore drill](OPERATIONS.md#restore-drill). Exercise a restore before depending on the deployment. Database backups contain sensitive account data and encrypted credentials. Never commit them.
+Enable Railway's scheduled backups for the service volume; they restore to a new volume. For an off-host copy, back up with `npm run admin -- backup /tmp/amcp-backup.amcp` (outside the `/data` volume: in production a destination on the database's volume is refused), which writes an encrypted archive under `MIRROR_MASTER_KEY` and verifies it; copy it off the service, delete the local copy, and keep the encryption key separately. Check a copy with `npm run admin -- backup-verify <file>`. See [backups that complete and the restore drill](operations/ERASURE-AND-RETENTION.md#restore-drill). Exercise a restore before depending on the deployment. Database backups contain sensitive account data and encrypted credentials. Never commit them.
 
 ### Client addresses for rate limits
 
@@ -375,7 +375,7 @@ and only for a build that ran the check rather than reusing it from the build ca
 3. **Keep.** Store the record and excerpt with the release record outside the repository (qualification records stay
    local, D25), starting with the revision deployed on 2026-10-18 (its
    [deployment record](records/DEPLOYMENT-2026-10-18.md) names it). The base image digest in the record is the value
-   to pin in the Dockerfile ([operations](OPERATIONS.md#qualification-records),
+   to pin in the Dockerfile ([operations](operations/QUALIFICATION.md#qualification-records),
    [what the 2026-10-18 deployment taught](#what-the-2026-10-18-deployment-taught)).
 
 Before pushing a change that touches how tests find files, run them the way the container build does:
@@ -383,7 +383,7 @@ Before pushing a change that touches how tests find files, run them the way the 
 installed dependencies and runs `npm run check` there (`-- --test tests/<name>.test.mjs` runs the build and the named
 tests only). A test that passes in the checkout but needs `.git`, an ignored file or a path outside the release scope
 fails there instead of in Railway's build. The build runs as root, so tests spawn the admin CLI only through
-`tests/admin-cli.ts`, which passes `--allow-root` ([operations](OPERATIONS.md#qualification-records), "Tests run as
+`tests/admin-cli.ts`, which passes `--allow-root` ([operations](operations/QUALIFICATION.md#qualification-records), "Tests run as
 root").
 
 Startup, sign-in, MCP, restart and revocation smoke on Linux needs a non-production Railway environment with its own
@@ -479,7 +479,7 @@ hashes compiled tests as their own `dist/tests` component, so a test-only change
 equal; schema 1 records stay readable but never match a schema 2 runtime. `/versionz` also reports `toolchain` (Node
 version, first FFmpeg version line, OS ID and version, each strictly validated or `unavailable`) and
 `public_asset_version`. Compare a deployment with a local qualification record using
-`npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>` ([operations](OPERATIONS.md#qualification-records)).
+`npm run check:public-website -- --origin https://amcp.shop --expect-record <record.json>` ([operations](operations/QUALIFICATION.md#qualification-records)).
 Railway project/service/branch, exact deployed backend/image and the earlier Arabic gap remain
 unverified; a missing route or record alone does not explain a deployment failure.
 

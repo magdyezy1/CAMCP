@@ -66,7 +66,10 @@ The current pages for whoever deploys, configures, accepts and runs AMCP: what i
 
 ### Operating tasks
 
+- [Backup and recovery](operations/BACKUP-AND-RECOVERY.md)
 - [Owner tasks and their steps](operations/OWNER-TASKS.md)
+- [Schema migrations and rollback](operations/MIGRATIONS.md)
+- [Secret rotation](operations/SECRET-ROTATION.md)
 
 ### Acceptance runbooks
 
@@ -93,6 +96,18 @@ Detail operators consult on demand: the workflow and platform guides, the accept
 - [Reporting Overview](REPORTING-OVERVIEW.md)
 - [Reviewed write operations](WRITE-OPERATIONS.md)
 - [Workspace operations](WORKSPACE-OPERATIONS.md)
+
+### Operating tasks
+
+- [Account erasure, retention and the restore drill](operations/ERASURE-AND-RETENTION.md)
+- [Accounts, reporting and operating controls](operations/OPERATING-CONTROLS.md)
+- [Configuration](operations/CONFIGURATION.md)
+- [Database storage and media staging](operations/STORAGE.md)
+- [Health and diagnostics](operations/HEALTH.md)
+- [HTTP deployment and service keys](operations/HTTP-DEPLOYMENT.md)
+- [Provider lifecycle](operations/PROVIDER-LIFECYCLE.md)
+- [Qualification records](operations/QUALIFICATION.md)
+- [Workers, schedules and provider pacing](operations/WORKERS.md)
 
 ### Acceptance runbooks
 
@@ -388,6 +403,7 @@ its consolidation moved it here.
 |---|---|
 | — | [Write coverage: batch history](records/COVERAGE-BATCH-HISTORY.md) |
 | — | [Design, accessibility and UX-copy review — October 2026](records/DESIGN-REVIEW-2026-10.md) |
+| — | [Operations runbook notes of the October 2026 deliveries](records/OPERATIONS-NOTES-2026-10.md) |
 | — | [Progress log](records/PROGRESS.md) |
 | 2026-10-01 | [Source-bound native budget drafts — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION-PLANS.md) |
 | 2026-10-01 | [Constrained campaign allocation proposals — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION.md) |
