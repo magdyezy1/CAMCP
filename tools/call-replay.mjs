@@ -83,6 +83,12 @@ export const targets = Object.freeze({
   // The offline-upload rehearsal of a reviewed write's inspection (ARC-01 phase B: its routes became the conversion
   // families' personal-data facts).
   'dist/src/offline-upload-rehearsal.js': {functions: ['offlineUploadRehearsal']},
+  // The one-line summary of a reviewed write, its spending confirmation and the structural spend effects (ARC-01
+  // phase B: Google Ads' operations, Reddit's confirmed writes and Meta's unshared campaign budgets left them for
+  // their adapters' facts).
+  'dist/src/review-summary.js': {functions: ['reviewSummary']},
+  'dist/src/preflight.js': {functions: ['spendConfirmationError']},
+  'dist/src/spend-effects.js': {functions: ['namesSpendField', 'deliveryEditFields', 'deliveryStops']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -113,6 +119,11 @@ export const replayable = Object.freeze([
   'dist/server/platform-oauth.js#selectionKind',
   'dist/server/platform-oauth.js#selectableKinds',
   'dist/src/reviewed-routes.js#reviewedWriteFamily',
+  'dist/src/review-summary.js#reviewSummary',
+  'dist/src/preflight.js#spendConfirmationError',
+  'dist/src/spend-effects.js#namesSpendField',
+  'dist/src/spend-effects.js#deliveryEditFields',
+  'dist/src/spend-effects.js#deliveryStops',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
