@@ -1245,7 +1245,11 @@ canonical name (the navigation label, owner decision D27), group, former names, 
 sign-in may return to it. Tab title, breadcrumb, heading, command palette, client routing, sign-in returns and
 test-account scope read it; `tools/check-routes.mjs` (part of `check-web`) fails when the navigation in
 `web/index.html`, the lazily loaded page assets or the server's shell pages drift from it. The palette finds a page by
-its navigation name, its former names ("Media library", "MCP connectors", …) and their Arabic translations. The access
+its navigation name, its former names ("Media library", "MCP connectors", …) and their Arabic translations. **Help**
+(`/help`, DOC-03) has no sidebar link: the shell footer and the palette open it for signed-in members, and the server
+(`server/help-routes.ts`) adds the owner guide to that page only for a signed-in member, as escaped HTML that
+`tools/help-pages.mjs` builds from `docs/owner/` and `docs/owner/ar/` (`npm run docs:index:check` fails when it is
+stale); a signed-out visitor goes to sign-in, and the page is never cached or listed for crawlers. The access
 line combines the person's role with the deployment switch; the sidebar workspace card switches workspaces in place
 (private state is reset); a failed shell action stays as an inline alert until the next action. Hand-off links only
 preselect, they never read a provider or save: `/campaigns?recipe=&profile_id=&connection_id=&account_id=

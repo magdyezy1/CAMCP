@@ -216,6 +216,8 @@ test('every route dependency is local, shipped, and initialized once, including 
     '/schedules',
     '/settings',
     '/account',
+    // DOC-03: the members-only Help page's own module.
+    '/help',
   ];
   const all = Promise.all(paths.map(path => f.load(path)));
   const finished = new Set();

@@ -16,6 +16,7 @@ import {linkProblems, markdownLinks, readMoves, writeStubs} from './docs-links.m
 import {lintProblems} from './docs-lint.mjs';
 import {packageStatusTable, tableFile} from './package-status.mjs';
 import {docFacts} from './doc-facts.mjs';
+import {helpGuideProblems} from './help-pages.mjs';
 
 const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
   target = path.join(docs, 'README.md');
@@ -315,6 +316,8 @@ for (const problem of status.problems) problems.push('package status: ' + proble
 // DOC-01: the current pages' generated facts (tools/doc-facts.mjs), checked or written with the index. It needs dist/.
 const facts = docFacts(root, {write: !process.argv.includes('--check')});
 for (const problem of facts.problems) problems.push('documentation facts: ' + problem);
+// DOC-03: the members-only Help page's fragments (tools/help-pages.mjs) are the owner guide as it is now.
+problems.push(...helpGuideProblems(root, {write: !process.argv.includes('--check')}));
 if (problems.length) {
   console.error('Documentation index: ' + problems.join('; '));
   process.exit(1);

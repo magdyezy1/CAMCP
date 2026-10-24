@@ -2657,6 +2657,8 @@ async function runFixture(kind, site) {
             '/settings',
             '/account',
             '/activity',
+            // DOC-03: the members-only Help page, with the owner guide in both languages, at every shell width.
+            '/help',
           ];
         for (const route of publicRoutes)
           for (const locale of ['en', 'ar'])
@@ -2664,7 +2666,7 @@ async function runFixture(kind, site) {
               await renderedCase(site, kind, route, locale, width, false, undefined, appearance);
         for (const route of workspaceRoutes)
           for (const locale of ['en', 'ar'])
-            for (const width of [320, 1280])
+            for (const width of route === '/help' ? [320, 375, 768, 1280] : [320, 1280])
               await renderedCase(site, kind, route, locale, width, true, undefined, appearance);
       }
       for (const locale of ['en', 'ar']) for (const width of [375, 1280]) await versionSkewCase(site, locale, width);

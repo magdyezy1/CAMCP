@@ -1451,3 +1451,25 @@ dialog {
     display: none;
   }
 }
+/* DOC-03: the footer's links and the members-only Help page. */
+.page-footer > .footer-links {
+  display: flex;
+  gap: 16px;
+}
+.help-page li,
+.help-page th,
+.help-page td {
+  font-size: var(--type-md);
+  line-height: 1.65;
+}
+.help-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.help-page th,
+.help-page td {
+  padding: 8px;
+  text-align: start;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}

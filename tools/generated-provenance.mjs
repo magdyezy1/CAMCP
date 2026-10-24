@@ -215,6 +215,16 @@ export const generatedArtifacts = [
     check: gates.docs,
   },
   {
+    // DOC-03 (owner instruction of 2026-10-24): the owner guide as the members-only Help page shows it.
+    id: 'help_guide',
+    outputs: ['generated/help-guide.json'],
+    generator: 'tools/help-pages.mjs',
+    regenerate: 'npm run docs:index (or node tools/help-pages.mjs)',
+    inputs: ['docs/owner/*.md', 'docs/owner/ar/*.md', 'web/routes.js (the pages a guide link may open)'],
+    provenance: 'sources: the SHA-256 of every guide page the fragments were built from; its generator names itself.',
+    check: gates.docs,
+  },
+  {
     // DOC-03 (owner decision P12): the redirect stub each moved document leaves at its old address.
     id: 'docs_redirect_stubs',
     outputs: [

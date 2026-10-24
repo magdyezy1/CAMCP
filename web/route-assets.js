@@ -33,6 +33,7 @@ const pageAssetOrder = [
   'report-delivery.js',
   'owner-operations.js',
   'account-approvals.js',
+  'help.js',
 ];
 const pageAssetDependencies = {
   'creative-library.js': ['work-pages.js'],

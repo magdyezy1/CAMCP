@@ -13,8 +13,7 @@ import {
   navigationLinks,
   pageAssetPaths,
   routeProblems,
-  serverShellRoutes,
-  serverShellSource,
+  servedPages,
 } from '../tools/check-routes.mjs';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
@@ -123,16 +122,18 @@ test('the registry, navigation, page assets and server shell pages agree', () =>
     assert.equal(links.find(link => link.href === entry.path)?.label, entry.label, entry.path);
     assert.ok(entry.palette, entry.path + ' is findable');
   }
-  // Every registered page is served by the server and client-navigable (clientNavigation reads the registry).
-  const served = serverShellRoutes(fs.readFileSync(serverShellSource, 'utf8'));
+  // Every registered page is served by the server and client-navigable (clientNavigation reads the registry): the shell
+  // pages by server/page-routes.ts, the members-only Help page by server/help-routes.ts (DOC-03).
+  const served = servedPages();
   assert.deepEqual([...served].sort(), Array.from(registry, entry => entry.path).sort());
+  assert.equal(served.at(-1), '/help');
 });
 
 test('drift between the registry and its static consumers fails check-web', () => {
   const base = {
     registry: loadRouteRegistry(),
     index,
-    server: serverShellRoutes(fs.readFileSync(serverShellSource, 'utf8')),
+    server: servedPages(),
     assets: pageAssetPaths(),
   };
   const renamed = base.index.replace(
@@ -158,6 +159,37 @@ test('drift between the registry and its static consumers fails check-web', () =
   assert.match(routeProblems({...base, index: moved}).join('\n'), /\/commerce sits in group "null"/);
   const missing = base.index.replace(/<a href="\/schedules"[\s\S]*?<\/a>/, '');
   assert.match(routeProblems({...base, index: missing}).join('\n'), /\/schedules has no navigation link/);
+});
+
+// DOC-03 (owner instruction of 2026-10-24): the members-only Help page has no sidebar link; the palette finds it by its
+// name, its former names and its description in both languages, a sign-in returns to it, and a test account's scope
+// leaves it out, as the server does (it sends a test account no guide).
+test('the palette finds Help in English and Arabic; sign-in returns to it; a test account has no Help page', () => {
+  const entry = loadRouteRegistry().find(e => e.path === '/help');
+  assert.equal(entry.label, 'Help');
+  assert.ok(entry.palette && !entry.nav && !entry.public && !entry.testAccount);
+  assert.deepEqual(Array.from(entry.assets), ['help.js']);
+  assert.equal(
+    links.find(link => link.href === '/help'),
+    undefined,
+    'no sidebar link',
+  );
+  for (const locale of ['en', 'ar']) {
+    const page = shell(locale);
+    for (const query of ['Help', 'Owner guide', 'Documentation', 'guide'].map(q =>
+      locale === 'ar' ? (catalog[q] ?? q) : q,
+    )) {
+      page.context.query = query;
+      assert.equal(page.run('routeMatches(query, text => uiText(text))[0]?.path'), '/help', locale + ': ' + query);
+    }
+  }
+  const member = shell('en');
+  assert.equal(member.run("routeReturnable('/help')"), true);
+  assert.equal(member.run("routeReturnable('/help#help-en-team')"), true);
+  const reviewer = shell('en', {authenticated: true, testAccount: true});
+  assert.equal(reviewer.run("routeAvailable('/help')"), false);
+  reviewer.context.query = 'Help';
+  assert.ok(!Array.from(reviewer.run('routeMatches(query).map(e => e.path)')).includes('/help'));
 });
 
 test('sign-in returns only to a registered workspace page', () => {

@@ -542,7 +542,6 @@
   "Google video upload needs an authenticated connection.": "يتطلب رفع الفيديو إلى Google اتصالًا مصادَقًا عليه.",
   "Google will not serve requests directly against this inactive or incomplete account. AMCP can retain cancelled accounts returned by an accessible manager’s inventory, but direct reporting still depends on Google’s account restrictions. Check the account’s status in Google Ads; AMCP does not reactivate it.": "لن تخدم Google الطلبات المباشرة على هذا الحساب غير النشط أو غير المكتمل. يستطيع AMCP الاحتفاظ بالحسابات الملغاة التي يعيدها مخزون حساب مدير متاح، لكن التقارير المباشرة تبقى خاضعة لقيود Google على الحساب. تحقّق من حالة الحساب في Google Ads؛ فـ AMCP لا يعيد تنشيطه.",
   "Grant the Display & Video 360 permission when you connect the Google identity.": "امنح إذن Display & Video 360 عند ربط هوية Google.",
-  "Help": "المساعدة",
   "Heuristic evidence, not a causal estimate or performance guarantee.": "أدلة استرشادية وليست تقديرًا سببيًا أو ضمانًا للأداء.",
   "Historical factors cannot be applied: at least seven known ratios, no unknown test days and positive factors at most ten are required. No values were clipped.": "لا يمكن تطبيق العوامل التاريخية: يلزم وجود سبع نسب معلومة على الأقل، دون أيام اختبار مجهولة، وعوامل موجبة لا تتجاوز عشرة. لم تُعدّل القيم لتلائم الحدود.",
   "Historical factors fit the allocation input bounds. Inspect them before applying.": "تقع العوامل التاريخية ضمن حدود إدخال التوزيع. راجعها قبل تطبيقها.",
