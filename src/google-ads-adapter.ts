@@ -34,6 +34,7 @@ import {buildGoogleSearchRecipe, googleSearchRecipes} from './google-search-reci
 import {buildGooglePmaxRecipe, googlePmaxRecipe} from './google-pmax-recipe.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
+import {googleStateReads} from './google-state-reads.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -561,6 +562,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
   // checked against the state, in that order, before the review's paused-parent check.
   writes: Object.freeze({
+    // A mutation's state reads: its targets, the customer of a create, and each existing parent.
+    snapshots: googleStateReads,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
       validateGoogleTargetingState(plan, values);
       validateGooglePausedParents(plan, values);

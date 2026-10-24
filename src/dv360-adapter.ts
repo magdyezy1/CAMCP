@@ -97,4 +97,6 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
       if (dv360TargetingSearchRoute(plan)) dv360TargetingSearchResult(plan, data);
     },
   }),
+  // Writes and campaigns (wave 4c): a create on an advertiser reads the advertiser (src/write-snapshots.ts).
+  writes: Object.freeze({accountPath: /^\/v\d+\/advertisers\/[^/]+/}),
 });

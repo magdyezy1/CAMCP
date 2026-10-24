@@ -57,18 +57,22 @@ const refusal = (run, code, message) => {
 };
 const writes = gateway => providerHooks(gateway)?.writes;
 
-test('the review names no provider and imports no provider module', () => {
-  const source = fs.readFileSync(new URL('../src/write-review.ts', import.meta.url), 'utf8');
-  assert.deepEqual(
-    [...source.matchAll(/['"]([a-z0-9_]+_native_action)['"]/g)].map(m => m[1]),
-    [],
-  );
-  assert.deepEqual(
-    [...source.matchAll(/from '\.\/([^']+)\.js'/g)]
-      .map(m => 'src/' + m[1] + '.ts')
-      .filter(f => isProviderModule(f) && !providerRegistries.includes(f)),
-    [],
-  );
+test('the review and its state reads name no provider and import no provider module', () => {
+  for (const file of ['src/write-review.ts', 'src/write-snapshots.ts']) {
+    const source = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+    assert.deepEqual(
+      [...source.matchAll(/['"]([a-z0-9_]+_native_action)['"]/g)].map(m => m[1]),
+      [],
+      file,
+    );
+    assert.deepEqual(
+      [...source.matchAll(/from '\.\/([^']+)\.js'/g)]
+        .map(m => 'src/' + m[1] + '.ts')
+        .filter(f => isProviderModule(f) && !providerRegistries.includes(f)),
+      [],
+      file,
+    );
+  }
 });
 
 test('each provider declares exactly the review hooks of the parts the review named it for, frozen', () => {
@@ -76,12 +80,23 @@ test('each provider declares exactly the review hooks of the parts the review na
     registeredProviderHooks.filter(h => h.writes).map(h => [h.gateway, Object.keys(h.writes).sort()]),
   );
   assert.deepEqual(declared, {
-    google_ads_native_action: ['prerequisites'],
+    google_ads_native_action: ['prerequisites', 'snapshots'],
     google_business_native_action: ['shownRequest'],
-    meta_native_action: ['ownState', 'parentChecks'],
-    tiktok_native_action: ['morePages', 'prerequisites'],
-    snapchat_native_action: ['affectedAds', 'dependentReads', 'observeState', 'ownedReferences', 'prerequisites'],
-    x_ads_native_action: ['parentChecks'],
+    meta_native_action: ['ownState', 'parentChecks', 'snapshots'],
+    tiktok_native_action: ['morePages', 'prerequisites', 'snapshots'],
+    snapchat_native_action: [
+      'accountPath',
+      'accountSnapshots',
+      'affectedAds',
+      'dependentReads',
+      'observeState',
+      'ownedReferences',
+      'prerequisites',
+      'snapshots',
+    ],
+    x_ads_native_action: ['accountPath', 'parentChecks', 'snapshots'],
+    linkedin_native_action: ['accountPath'],
+    dv360_native_action: ['accountPath'],
     microsoft_ads_native_action: ['writeGrant'],
     apple_ads_native_action: ['prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
     reddit_native_action: ['writeScopes'],
@@ -256,4 +271,80 @@ test('Snapchat’s disclosure leaves the affected ads unknown on a provider fail
     requests.map(r => [r.action, r.method, r.path, r.query, r.readOnly]),
     [['AMCP_STATE_READ', 'GET', '/v1/adaccounts/123/ads', {limit: '1000'}, true]],
   );
+});
+
+test('the state reads ask each provider where the stage named it, and keep only LinkedIn’s versioning headers', () => {
+  // The account paths the stage's table held, now each provider's.
+  assert.deepEqual(
+    Object.fromEntries(
+      registeredProviderHooks.filter(h => h.writes?.accountPath).map(h => [h.gateway, String(h.writes.accountPath)]),
+    ),
+    {
+      snapchat_native_action: String(/^\/v1\/adaccounts\/[^/]+/),
+      linkedin_native_action: String(/^\/rest\/adAccounts\/[^/]+/),
+      x_ads_native_action: String(/^\/12\/accounts\/[^/]+/),
+      dv360_native_action: String(/^\/v\d+\/advertisers\/[^/]+/),
+    },
+  );
+  const base = (path, query = {}) => ({path, query});
+  // X reads its own targeting criteria only; another X write is left to the stage.
+  assert.equal(
+    writes('x_ads_native_action').snapshots(plan('x_ads_native_action', 'PUT', '/12/accounts/123/campaigns/1'), base),
+    undefined,
+  );
+  // Meta leaves a write that is neither an account-edge creation nor a node edit to the stage.
+  assert.equal(
+    writes('meta_native_action').snapshots(plan('meta_native_action', 'DELETE', '/v26.0/987/adlabels'), base),
+    undefined,
+  );
+  // Snapchat: a create outside an account reads its parent collection; on the account, the account; else the stage.
+  const snapchat = writes('snapchat_native_action');
+  assert.deepEqual(
+    snapchat.accountSnapshots(plan('snapchat_native_action', 'POST', '/v1/campaigns/c1/adsquads'), base, undefined),
+    [{path: '/v1/campaigns/c1', query: {}}],
+  );
+  assert.deepEqual(
+    snapchat.accountSnapshots(
+      plan('snapchat_native_action', 'POST', '/v1/adaccounts/123/campaigns'),
+      base,
+      '/v1/adaccounts/123',
+    ),
+    [{path: '/v1/adaccounts/123', query: {}}],
+  );
+  assert.equal(
+    snapchat.accountSnapshots(
+      plan('snapchat_native_action', 'PUT', '/v1/adaccounts/123/campaigns'),
+      base,
+      '/v1/adaccounts/123',
+    ),
+    undefined,
+  );
+  // Google Ads and TikTok refuse a write whose state they cannot read.
+  refusal(
+    () =>
+      writes('google_ads_native_action').snapshots(
+        plan('google_ads_native_action', 'POST', '/v23/customers/123/labels:mutate'),
+        base,
+      ),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /no implemented state-read contract/,
+  );
+  refusal(
+    () => writes('tiktok_native_action').snapshots(plan('tiktok_native_action', 'POST', '/v1.3/pixel/create/'), base),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /no implemented state-read contract/,
+  );
+  const headers = {
+    'LinkedIn-Version': '202509',
+    'X-Restli-Protocol-Version': '2.0.0',
+    'X-RestLi-Method': 'PARTIAL_UPDATE',
+  };
+  assert.deepEqual(
+    stateRead(plan('linkedin_native_action', 'POST', '/rest/adAccounts/123/adCampaigns/1', {headers}), '/x').headers,
+    {
+      'LinkedIn-Version': '202509',
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+  );
+  assert.deepEqual(stateRead(plan('meta_native_action', 'POST', '/v26.0/987', {headers}), '/x').headers, {});
 });

@@ -208,9 +208,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // three reviewer sign-in sentences and one uncertain-write message (its remedy replaced), none a wrapper reason.
   // ARC-04 (wave 4c) splits campaignRecipe into per-recipe builders: src/recipe-steps.ts and the Meta, Google Search
   // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts. ARC-01
-  // (wave 4c) adds src/reddit-paging.ts, src/meta-write-shape.ts and src/snapchat-affected-ad-pages.ts, without wrapper
-  // reasons.
-  assert.equal(files.length, 676);
+  // (wave 4c) adds src/reddit-paging.ts, src/meta-write-shape.ts, src/snapchat-affected-ad-pages.ts and four provider
+  // state-read modules (src/<provider>-state-reads.ts), without wrapper reasons.
+  assert.equal(files.length, 680);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11513);

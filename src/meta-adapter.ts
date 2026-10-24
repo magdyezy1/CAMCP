@@ -35,6 +35,7 @@ import {metaWriteShapeBefore} from './meta-write-shape.js';
 import type {ReviewStateContext} from './provider-adapter.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
 import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
+import {metaStateReads} from './meta-state-reads.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -296,6 +297,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
   // creative's identity sources, which Meta's module reads itself through the review's access check; an ad set's audience
   // choice is checked after the review's paused-parent check.
   writes: Object.freeze({
+    // An account-edge creation reads the account and its parent, a node edit the node (src/meta-state-reads.ts).
+    snapshots: metaStateReads,
     ownState: Object.freeze({
       claims: metaCreativeCreate,
       state: async (plan: CompiledRequest, {store, transport, credentials, actor, access}: ReviewStateContext) => ({

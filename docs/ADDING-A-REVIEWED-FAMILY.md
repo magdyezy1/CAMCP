@@ -242,7 +242,9 @@ request of a gateway rather than one family:
   after the families' own, and the provider's parts of the review itself (`writes`, wave 4c: the write scopes, grants
   and permissions a connection needs, a provider's own state reads, follow-up reads and prerequisites, the Business
   Profile URL redaction, Tag Manager's fingerprint and Snapchat's creative references and affected ads), which
-  `src/write-review.ts` consults where it named the provider. The paused-parent checks stay in the lifecycle modules;
+  `src/write-review.ts` consults where it named the provider, and the state reads of a write no family plans
+  (`snapshots`, `accountPath`, `accountSnapshots`), which `src/write-snapshots.ts` consults after the families' own.
+  The paused-parent checks stay in the lifecycle modules;
 - Apple shared budgets, which change a budget several ad accounts share: the review checks each account's write
   grant itself, for the accounts Apple's `writes` hooks name (`appleSharedBudget`);
 - compile-time path rewriting (`linkedinTrackingPlan`, `linkedinDomainPlan`) in `src/compiler.ts`.

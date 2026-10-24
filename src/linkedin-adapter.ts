@@ -308,4 +308,6 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
   campaign: Object.freeze({
     recipes: Object.freeze([Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe})]),
   }),
+  // A create on an ad account reads the account (src/write-snapshots.ts).
+  writes: Object.freeze({accountPath: /^\/rest\/adAccounts\/[^/]+/}),
 });

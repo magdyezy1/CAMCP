@@ -436,7 +436,10 @@ export interface ProviderVerificationRead extends VerificationRead {
 export interface ReviewProjections {
   /** The state a review keeps of a read, before normalization: its configuration, not its envelope; `data` by default. */
   snapshot?(read: CompiledRequest, data: JsonObject): unknown;
-  /** The write's headers a verification read keeps (LinkedIn's versioning headers); none by default. */
+  /**
+   * The write's headers its verification reads keep (LinkedIn's versioning headers); none by default. Its state reads
+   * keep the same (src/write-snapshots.ts stateRead, wave 4c).
+   */
   verificationHeaders?(plan: CompiledRequest): Record<string, string>;
   /**
    * The reads that show a write took effect, none by default. `read` builds one the way the stage builds every
@@ -557,6 +560,13 @@ export interface CampaignHooks {
   readonly recipes?: readonly CampaignRecipe[];
 }
 
+/** A state read of a path of the write's account, built as the review builds every state read (src/write-snapshots.ts). */
+export type StateReadBuilder = (
+  path: string,
+  query?: JsonObject,
+  body?: JsonObject,
+  method?: string,
+) => CompiledRequest;
 /** What the review gives a provider that reads part of a write's state itself: the review's services and access check. */
 export interface ReviewStateContext {
   readonly store: Store;
@@ -589,6 +599,24 @@ export interface WriteReviewHooks {
   writeGrant?(connection: Connection): void;
   /** The write permission the provider requires, after ScopeGuard (Search Console, GA4, Apple, Tag Manager); refuses. */
   writePermission?(plan: CompiledRequest, connection: Connection): void;
+  // The review's state reads (src/write-snapshots.ts snapshotPlans), after a family's own, in its order.
+  /**
+   * The state reads of a write no family plans, built with `read` (X's targeting criteria, Google Ads' mutations,
+   * TikTok's campaign writes, Meta's account-edge creations and node edits, Snapchat's updates and patches); undefined
+   * leaves the write to the review's generic reads. Refuses a write whose state it cannot read.
+   */
+  snapshots?(plan: CompiledRequest, read: StateReadBuilder): CompiledRequest[] | undefined;
+  /** Where a path names the write's account (Snapchat's, X's, LinkedIn's, DV360's): a create on it reads the account. */
+  readonly accountPath?: RegExp;
+  /**
+   * The reads of a create by the account its path names (undefined outside one), before the review's generic account
+   * read (Snapchat's: a create outside an account, an account create's dependencies); undefined for the generic.
+   */
+  accountSnapshots?(
+    plan: CompiledRequest,
+    read: StateReadBuilder,
+    account: string | undefined,
+  ): CompiledRequest[] | undefined;
   // The review's state (WriteReviewService.state), in its order.
   /** A write whose state is its first read and what the provider reads itself (a Meta creative's identity). */
   readonly ownState?: {

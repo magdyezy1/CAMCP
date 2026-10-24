@@ -36,6 +36,7 @@ import {
 import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {snapchatAffectedAdsDisclosure} from './snapchat-affected-ad-pages.js';
+import {snapchatAccountStateReads, snapchatStateReads} from './snapchat-state-reads.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -415,6 +416,10 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
   // reads; an ad's lead form is read after its creative, and its creatives' prerequisites are checked after every read;
   // an edited creative's references must be the account's, and the ads a creative edit changes are listed.
   writes: Object.freeze({
+    // Its updates and patches read each target; a create reads its parent collection or its account and dependencies.
+    snapshots: snapchatStateReads,
+    accountPath: /^\/v1\/adaccounts\/[^/]+/,
+    accountSnapshots: snapchatAccountStateReads,
     observeState: true as const,
     dependentReads: snapAdLeadFormFollowUps,
     prerequisites: (plan: CompiledRequest, values: unknown[]) => snapAdCreativePrerequisites(plan, values),

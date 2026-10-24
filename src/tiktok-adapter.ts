@@ -65,6 +65,7 @@ import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
+import {tiktokStateReads} from './tiktok-state-reads.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -445,6 +446,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
   // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are
   // checked against the state, in that order, after every read.
   writes: Object.freeze({
+    // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
+    snapshots: tiktokStateReads,
     morePages: tiktokInstantFormFollowUps,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
       tiktokAdgroupConversionPrerequisites(plan, values);
