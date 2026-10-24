@@ -184,9 +184,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // hierarchy's reasons left), the same reasons. Its OAuth flow steps add Google's shared steps (src/google-oauth.ts)
   // and the leaf that signs X's authorization calls (src/oauth1-authorization.ts), neither owning a reason: two more
   // files; the 11 reasons the steps took from server/platform-oauth.ts are in login modules that already own reasons.
-  // Its website server modules add the provider startup registry (src/provider-startup.ts), which owns no reason: one
-  // more file.
-  assert.equal(files.length, 690);
+  // Its website server modules add the provider startup registry (src/provider-startup.ts) and WooCommerce's website
+  // login steps (src/woocommerce-login.ts), neither owning a reason: two more files.
+  assert.equal(files.length, 691);
   assert.equal(selected.filter(row => row.messages.size).length, 264);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

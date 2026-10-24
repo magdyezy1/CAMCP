@@ -6,14 +6,16 @@
  * reviewed-write path never loads (the hooks are on that path, and the guidance coverage of
  * tools/guidance-coverage.ts holds its refusals).
  */
-import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {NativeTransport, TransportResult} from './transport.js';
+import type {Store} from './store.js';
 
 /**
  * A provider's steps of the website's logins: its OAuth flow (server/platform-oauth.ts), the reads that list what a
  * login reaches (server/asset-discovery.ts), the reads of a renewal that verifies a login's selected accounts before
  * it replaces the login (server/google-reauthorization.ts) and, when its accounts sign in to AMCP itself, the
- * endpoints of that sign-in (server/social-signin.ts).
+ * endpoints of that sign-in (server/social-signin.ts). A provider whose logins are set up with a key instead of an
+ * OAuth flow has only its keyed logins (server/platform-routes.ts).
  */
 export interface ProviderLogin {
   /** The gateway of the provider adapter these steps belong to. */
@@ -22,6 +24,16 @@ export interface ProviderLogin {
   readonly discovery?: AssetDiscoveryHooks;
   readonly renewal?: RenewalSteps;
   readonly signIn?: SignInEndpoints;
+  readonly keyed?: KeyedLogins;
+}
+
+/**
+ * Logins an administrator sets up with a provider's key on its own website page rather than through an OAuth flow
+ * (WooCommerce's store connections, which Commerce manages).
+ */
+export interface KeyedLogins {
+  /** The saved logins that page lists: the workspace's qualified connections, without credentials or provider requests. */
+  sources(store: Store, actor: Actor): JsonObject[];
 }
 
 /**

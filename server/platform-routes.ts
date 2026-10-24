@@ -4,12 +4,15 @@ import {recordAuthorized} from '../src/connection-health.js';
 import {MirrorError} from '../src/errors.js';
 import {providerLifecycle} from '../src/provider-adapters.js';
 import {providerRevocationOffer} from '../src/provider-revocation.js';
+import {providerLogin} from '../src/provider-logins.js';
 import type {Connection, JsonObject} from '../src/types.js';
-import {wooCommerceSources} from '../src/woocommerce-source.js';
 import {reauthorizeConnection} from './connection-reauthorization.js';
 import {reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {platform, platforms} from './platform-oauth.js';
-import {handler, type WebsiteSite} from './website-site.js';
+import {commerceGateway, handler, type WebsiteSite} from './website-site.js';
+
+/** Commerce's store sources are WooCommerce's keyed logins (its website login steps, src/woocommerce-login.ts). */
+const commerceLogins = providerLogin(commerceGateway)!.keyed!;
 
 /**
  * Platform logins: the platforms and their logins a person may see, an administrator starting a connection (browser
@@ -44,7 +47,7 @@ export function platformRoutes({
         })),
         authenticated: !!session,
         // Stored store connections stay listed while WooCommerce is parked, so an administrator can still remove one.
-        commerce_sources: session ? wooCommerceSources(store, session.actor).items : [],
+        commerce_sources: session ? commerceLogins.sources(store, session.actor) : [],
         // Parked providers this deployment does not offer (ARC-01, P9): Commerce hides their panels.
         providers_not_offered: providerLifecycle()
           .filter(p => !p.offered)

@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
-import {providerLogin, registeredProviderLogins} from '../dist/src/provider-logins.js';
+import {providerLogin, registeredKeyedLogins, registeredProviderLogins} from '../dist/src/provider-logins.js';
+import {Store} from '../dist/src/store.js';
+import {wooCommerceSources} from '../dist/src/woocommerce-source.js';
 import {providerById} from '../dist/src/provider-adapters.js';
 import {googleAccountDiscovery, googleSelectedAccountRead} from '../dist/src/google-account-discovery.js';
 import {googleAccountDiscovery as serverAccountDiscovery} from '../dist/server/google-account-discovery.js';
@@ -109,4 +111,56 @@ test('the composition root runs each provider’s startup checks from their regi
     [...graph].filter(([, edges]) => edges.has('src/provider-startup.ts')).map(([id]) => id),
     [file],
   );
+});
+
+test('Commerce’s store sources are WooCommerce’s keyed logins', () => {
+  const file = 'server/platform-routes.ts';
+  assert.doesNotMatch(source(file), gatewayLiteral);
+  assert.deepEqual(providerImports(file), [], 'the route module consults the provider login registry instead');
+  assert.ok(graph.get(file).has('src/provider-logins.ts'));
+  const gateway = providerById('woocommerce').gateway,
+    login = providerLogin(gateway);
+  // A keyed login is no website platform: it lists its saved sources and takes no OAuth flow or discovery.
+  assert.deepEqual(
+    registeredKeyedLogins.map(l => l.gateway),
+    [gateway],
+  );
+  assert.ok(!registeredProviderLogins.includes(login));
+  assert.deepEqual(Object.keys(login).sort(), ['gateway', 'keyed']);
+  assert.ok(Object.isFrozen(login.keyed));
+  // Its sources are the items of the store sources Commerce listed before the move.
+  const store = new Store(':memory:', Buffer.alloc(32, 29).toString('base64')),
+    actor = {tenantId: 'commerce-seam', userId: 'owner', role: 'admin'};
+  try {
+    for (const [id, enabled] of [
+      ['store-on', true],
+      ['store-off', false],
+    ])
+      store.putConnection(
+        actor,
+        {
+          id,
+          tenantId: actor.tenantId,
+          gateway,
+          accounts: ['wc_' + id],
+          label: 'Store ' + id,
+          enabled,
+          baseUrl: 'https://' + id + '.example.com',
+          apiVersion: 'wc/v3',
+          scopes: ['read'],
+          writeAccounts: [],
+          defaultWriteAccess: false,
+          isDefault: false,
+        },
+        {consumerKey: 'ck_synthetic', consumerSecret: 'cs_synthetic'},
+      );
+    const sources = login.keyed.sources(store, actor);
+    assert.deepEqual(sources, wooCommerceSources(store, actor).items);
+    assert.deepEqual(
+      sources.map(s => s.connection_id),
+      ['store-on'],
+    );
+  } finally {
+    store.close();
+  }
 });
