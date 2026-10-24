@@ -584,6 +584,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   writes: Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: googleConfirms,
+    // A long mutation's parts of 25 under one approval (src/write-groups.ts).
+    batch: googleBatch,
     // A mutation's state reads: its targets, the customer of a create, and each existing parent.
     snapshots: googleStateReads,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
@@ -614,4 +616,15 @@ function googleConfirms(
       );
     })
   );
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
+/** A mutation's operations, unless temporary resource IDs link them. */
+function googleBatch(payload: JsonObject): {key: string; items: unknown[]} | undefined {
+  if (Array.isArray(payload.operations)) {
+    // Temporary resource IDs (customers/1/campaigns/-1) link operations inside one request; they cannot be split.
+    if (/"[^"]*customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(JSON.stringify(payload.operations))) return undefined;
+    return {key: 'operations', items: payload.operations};
+  }
+  return undefined;
 }

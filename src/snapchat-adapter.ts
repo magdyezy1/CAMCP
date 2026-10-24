@@ -429,6 +429,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
   writes: Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: snapchatConfirms,
+    // A long record list's parts of 25 under one approval (src/write-groups.ts).
+    batch: snapchatBatch,
     // Its updates and patches read each target; a create reads its parent collection or its account and dependencies.
     snapshots: snapchatStateReads,
     accountPath: /^\/v1\/adaccounts\/[^/]+/,
@@ -469,4 +471,14 @@ function snapchatConfirms(
         (plan.method === 'POST' || String(r[singular].id) === String(plan.method === 'PUT' ? b[kind][i].id : last)),
     )
   );
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
+/** The one record list of an entity batch. */
+function snapchatBatch(payload: JsonObject): {key: string; items: unknown[]} | undefined {
+  const keys = ['campaigns', 'adsquads', 'ads', 'creatives', 'media', 'segments'].filter(k =>
+    Array.isArray(payload[k]),
+  );
+  if (keys.length === 1) return {key: keys[0]!, items: payload[keys[0]!]};
+  return undefined;
 }

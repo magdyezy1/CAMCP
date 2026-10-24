@@ -775,6 +775,12 @@ export interface WriteReviewHooks {
    * choices), or undefined; refuses a replacement that would reset what it omits.
    */
   impact?(plan: CompiledRequest, state: unknown[]): JsonObject | undefined;
+  // A long request's parts under one approval (src/write-groups.ts splittableBatch).
+  /**
+   * The record list a request's payload is split along into parts of 25 under one approval (Google Ads' operations,
+   * unless temporary resource IDs link them; Snapchat's one record list); undefined when it is not one AMCP splits.
+   */
+  batch?(payload: JsonObject): {key: string; items: unknown[]} | undefined;
   // The outcome of the one mutation (src/write-outcome.ts writeOutcome), after a family's own.
   /**
    * Whether a top-level response field that names errors holds none under the provider's contract (Microsoft's

@@ -80,7 +80,7 @@ test('each provider declares exactly the review hooks of the parts the review na
     registeredProviderHooks.filter(h => h.writes).map(h => [h.gateway, Object.keys(h.writes).sort()]),
   );
   assert.deepEqual(declared, {
-    google_ads_native_action: ['confirms', 'prerequisites', 'snapshots'],
+    google_ads_native_action: ['batch', 'confirms', 'prerequisites', 'snapshots'],
     google_business_native_action: ['publishesLive', 'shownRequest'],
     meta_native_action: ['confirms', 'impact', 'ownState', 'parentChecks', 'snapshots'],
     tiktok_native_action: ['confirms', 'deletes', 'morePages', 'prerequisites', 'snapshots'],
@@ -88,6 +88,7 @@ test('each provider declares exactly the review hooks of the parts the review na
       'accountPath',
       'accountSnapshots',
       'affectedAds',
+      'batch',
       'confirms',
       'dependentReads',
       'impact',
@@ -448,5 +449,39 @@ test('the outcome asks the provider for its response contract, its empty error l
   assert.deepEqual(
     writeOutcome(response({CampaignIds: ['1'], PartialErrors: [null]}), microsoft).failures.map(f => f.path),
     ['$'],
+  );
+});
+
+test('a long request is split along its provider record list: Google operations, one Snapchat list', async () => {
+  const source = fs.readFileSync(new URL('../src/write-groups.ts', import.meta.url), 'utf8');
+  assert.deepEqual(
+    [...source.matchAll(/['"]([a-z0-9_]+_native_action)['"]/g)].map(m => m[1]),
+    [],
+  );
+  const {splittableBatch, needsGroup, groupParts} = await import('../dist/src/write-groups.js');
+  const operations = Array.from({length: 30}, (_, i) => ({create: {name: 'k' + i}}));
+  assert.deepEqual(splittableBatch('google_ads_native_action', {payload: {operations}}), {
+    key: 'operations',
+    items: operations,
+  });
+  // Temporary resource IDs link the operations of one request: it is not split.
+  const linked = [{create: {resource_name: 'customers/1/campaigns/-1'}}, ...operations];
+  assert.equal(splittableBatch('google_ads_native_action', {payload: {operations: linked}}), undefined);
+  assert.equal(splittableBatch('google_ads_native_action', {payload: {ads: operations}}), undefined);
+  const ads = Array.from({length: 26}, (_, i) => ({name: 'ad' + i}));
+  assert.deepEqual(splittableBatch('snapchat_native_action', {payload: {ads}}), {key: 'ads', items: ads});
+  assert.equal(splittableBatch('snapchat_native_action', {payload: {ads, campaigns: []}}), undefined);
+  // Another provider's list, and arguments without a payload object, are never split.
+  for (const [gateway, args] of [
+    ['meta_native_action', {payload: {operations}}],
+    ['tiktok_native_action', {payload: {ads}}],
+    ['google_ads_native_action', {payload: [operations]}],
+    ['google_ads_native_action', undefined],
+  ])
+    assert.equal(splittableBatch(gateway, args), undefined, gateway);
+  assert.equal(needsGroup('snapchat_native_action', {payload: {ads}}), true);
+  assert.deepEqual(
+    groupParts('snapchat_native_action', {action: 'x', payload: {ads}}).map(p => p.payload.ads.length),
+    [25, 1],
   );
 });
