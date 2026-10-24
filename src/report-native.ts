@@ -1,5 +1,4 @@
 import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
-import {linkedinVersion} from './linkedin-version.js';
 import {
   xCampaignObjectives,
   xCampaignReport,
@@ -22,7 +21,6 @@ import {
 import {assertWritesNotPaused} from './owner-operations.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
-import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {detailParentsUnavailableWarning, optionalReadRefused} from './overview-parents.js';
 import {
@@ -57,7 +55,7 @@ const bad = (message: string) => {
 export {reportRange};
 // The warnings of a platform's collection live with its report source (ARC-04 stage F); this module keeps exporting
 // them, through the report source registry.
-export {tiktokEventsUnavailableWarning} from './report-sources.js';
+export {linkedinCampaignsUnavailableWarning, tiktokEventsUnavailableWarning} from './report-sources.js';
 /**
  * ACC-06 interim: AMCP reads Reddit's CONVERSION_PURCHASE_TOTAL_VALUE as cents (redditConversionValueDivisor) while
  * SPEND is in micros; no primary field reference or closed-week read against the Reddit UI confirms that unit yet, so a
@@ -198,9 +196,6 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
 }
 // The per-source per-job lookup cache is part of the report source contract (src/report-source.ts, ARC-04 stage F).
 export type {AccountLookupCache};
-/** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
-export const linkedinCampaignsUnavailableWarning =
-  'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
 /**
  * Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4): the report
  * sources that declare their daily segmentation, in registry order.
@@ -383,7 +378,8 @@ export class NativeCampaignReports {
       query,
       body,
       origin,
-      headers: p === 'linkedin' ? {'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'} : {},
+      // The source's own request headers (LinkedIn's versioning headers, ARC-04 stage F); none by default.
+      headers: reports?.requestHeaders?.() ?? {},
       readOnly: true,
       destructive: false,
       requiresConfirmation: false,
@@ -460,70 +456,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'linkedin') {
-      timezone = 'UTC';
-      if (String(metadata.id ?? '') !== account)
-        throw new MirrorError('REPORT_ACCOUNT_MISMATCH', 'LinkedIn returned a different or missing account ID.');
-      if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency))
-        throw new MirrorError('REPORT_CURRENCY_MISMATCH', 'LinkedIn did not return a valid native account currency.');
-      const date = (s: string) => {
-        const [year, month, day] = s.split('-').map(Number);
-        return `(year:${year},month:${month},day:${day})`;
-      };
-      const fields = [
-        ...new Set(['impressions', 'clicks', 'costInLocalCurrency', 'externalWebsiteConversions', ...extra]),
-      ];
-      if (fields.length > 18) bad('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
-      const d = await run(
-        plan('/rest/adAnalytics', {
-          q: 'analytics',
-          pivot: 'CAMPAIGN',
-          accounts: 'List(urn:li:sponsoredAccount:' + account + ')',
-          dateRange: `(start:${date(range.since)},end:${date(range.until)})`,
-          timeGranularity: 'ALL',
-          fields: ['pivotValues', 'dateRange', ...fields].join(','),
-        }),
-        false,
-      );
-      raw = linkedInCampaignPeriod(d, range);
-      // RPT-07: names and objectives of the reported campaigns, read from the account's own campaigns after the
-      // analytics response (cached per job; a later period reads only campaigns not seen before).
-      const known = lookup?.linkedinCampaigns ?? {campaigns: {}, lineage: []};
-      for (const entry of known.lineage) lineage.push({...entry, cached: true});
-      const missing = known.unavailable
-        ? []
-        : raw.map(r => String(r.pivotValues[0])).filter(urn => !Object.hasOwn(known.campaigns, urn));
-      if (missing.length)
-        try {
-          const before = lineage.length,
-            read = await linkedInCampaignMetadata(account, missing, query =>
-              run(plan('/rest/adAccounts/' + account + '/adCampaigns', query), false, 'campaign_metadata'),
-            );
-          known.lineage.push(...lineage.slice(before));
-          for (const urn of missing) known.campaigns[urn] = read.campaigns[urn] ?? {name: null, objective_type: null};
-        } catch (e) {
-          // Only a provider refusal of this optional read keeps IDs. A foreign account, malformed or partial metadata,
-          // a retryable failure, or a revoked connection, changed login or scope refusal fails the source.
-          if (!optionalReadRefused(e)) throw e;
-          known.unavailable = true;
-        }
-      if (lookup) lookup.linkedinCampaigns = known;
-      if (known.unavailable) warnings.push(linkedinCampaignsUnavailableWarning);
-      raw = raw.map(r => {
-        const campaign = known.campaigns[String(r.pivotValues[0])];
-        return {
-          ...r,
-          ...(campaign?.name ? {name: campaign.name} : {}),
-          ...(campaign?.objective_type ? {objectiveType: campaign.objective_type} : {}),
-        };
-      });
-      attribution = 'unknown';
-      resultDefinition = 'Attributed external website conversions';
-      warnings.push(
-        known.unavailable
-          ? 'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.'
-          : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
-      );
     } else if (p === 'x') {
       if (!timezone) bad('X account timezone is required.');
       const inventory =
