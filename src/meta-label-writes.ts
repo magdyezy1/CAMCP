@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
@@ -66,21 +66,8 @@ export function assertMetaLabelScope(c: Connection, write = false) {
     fail('Meta labels require ads_management to write and ads_read or ads_management to read.', 'INSUFFICIENT_SCOPE');
 }
 const targetId = (p: CompiledRequest) => p.path.split('/')[2]!;
-const base = (p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_META_LABEL_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaLabelState: undefined,
-});
+const base = (p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest =>
+  stateReadOf(p, 'AMCP_META_LABEL_READ', path, query, {metaLabelState: undefined});
 export function metaLabelSnapshots(p: CompiledRequest): CompiledRequest[] {
   const kind = metaLabelKind(p)!;
   return [

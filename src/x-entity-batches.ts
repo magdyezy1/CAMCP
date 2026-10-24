@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Batch writes of X campaigns and line items, per the X Ads API v12 Campaign Management reference (checked 2026-09-28).
@@ -381,21 +381,7 @@ export function assertXEntityBatch(p: CompiledRequest): void {
   });
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}, state?: State): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path: '/12/accounts/' + p.accountId + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    xEntityBatchState: state,
-  };
+  return stateReadOf<Read>(p, marker, '/12/accounts/' + p.accountId + path, query, {xEntityBatchState: state});
 }
 function stateOf(p: CompiledRequest): State {
   const kind = xEntityBatchKind(p)!,

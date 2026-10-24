@@ -3,7 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn engagement retargeting audiences, per LinkedIn's Engagement Retargeting and DMP Segments pages (Microsoft
@@ -264,22 +264,16 @@ export function assertLinkedInEngagementScope(c: Connection, write = false): voi
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: query as CompiledRequest['query'],
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinEngagementState: undefined,
-    linkedinEngagementPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: marker,
+      path,
+      query: query as CompiledRequest['query'],
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinEngagementState: undefined, linkedinEngagementPage: true},
+  );
 }
 const usageQuery = (token?: string) => ({
   q: 'search',

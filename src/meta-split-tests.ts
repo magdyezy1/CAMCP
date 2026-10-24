@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta split tests, Marketing API v25.0 ("Ad Study" reference, updated 2026-03-24; "Split Testing" guide, updated
@@ -158,24 +158,13 @@ export function metaSplitTestNeedsConfirmation(p: CompiledRequest): boolean {
   const k = metaSplitTestKind(p);
   return k === 'create' || (k === 'update' && body(p).end_time !== undefined);
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject, extra: Partial<Read> = {}): Read => ({
-  ...p,
-  action: marker,
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaStudyState: undefined,
-  metaStudyPage: true,
-  metaStudyId: undefined,
-  ...extra,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject, extra: Partial<Read> = {}): Read =>
+  stateReadOf<Read>(p, marker, path, query, {
+    metaStudyState: undefined,
+    metaStudyPage: true,
+    metaStudyId: undefined,
+    ...extra,
+  });
 const accountRead = (p: CompiledRequest, s: State) =>
   read(p, metaPrefix + 'act_' + account(p.accountId), {fields: 'id,business'}, {metaStudyState: s});
 const studyFields = 'id,name,description,type,start_time,end_time,canceled_time,business';

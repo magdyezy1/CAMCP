@@ -6,7 +6,7 @@ import {
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Renaming and deleting TikTok custom conversions of pixels, per API for Business v1.3 "Update a Custom Conversion",
@@ -71,21 +71,8 @@ export function assertTiktokConversionEdit(p: CompiledRequest): void {
   )
     invalid('description is text of at most 500 characters without emoji.');
 }
-const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read => ({
-  ...p,
-  action,
-  method: 'GET',
-  path,
-  query: {advertiser_id: p.accountId, ...query},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokConversionEditState: state,
-});
+const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read =>
+  stateReadOf<Read>(p, action, path, {advertiser_id: p.accountId, ...query}, {tiktokConversionEditState: state});
 const stateRead = (p: CompiledRequest, state: State) =>
   read(p, 'tiktok_pixel_list_get', tiktokPixelListPath, {page: 1, page_size: pixelPageSize}, state);
 export function tiktokConversionEditSnapshots(p: CompiledRequest): Read[] {

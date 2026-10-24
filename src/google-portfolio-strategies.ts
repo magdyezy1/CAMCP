@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -216,19 +216,14 @@ const budgetFields = [
   'period',
 ];
 function read(p: CompiledRequest, query: string): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_PORTFOLIO_READ',
     method: 'POST',
     path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 // Do not sort on RESOURCE_NAME: the v23 field reference marks it non-sortable.
 // Follow provider page tokens and compare identity-keyed projections instead.

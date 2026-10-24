@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta pixels of an ad account, Marketing API v25.0 ("Ad Account Adspixels" and "Ad Pixel" references, checked
@@ -92,21 +92,8 @@ export function authorizeMetaPixel(p: CompiledRequest, _c: Connection, selected:
     fail('ACCOUNT_SCOPE_MISMATCH', 'Select the ad account that lists this pixel.', {}, 403);
   return true;
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject, state?: State): Read => ({
-  ...p,
-  action: 'AMCP_META_PIXEL_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaPixelState: state,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject, state?: State): Read =>
+  stateReadOf<Read>(p, 'AMCP_META_PIXEL_READ', path, query, {metaPixelState: state});
 const accountRead = (p: CompiledRequest, s: State) =>
   read(p, metaPrefix + 'act_' + account(p.accountId), {fields: 'id,business'}, s);
 export function metaPixelSnapshots(p: CompiledRequest): Read[] {

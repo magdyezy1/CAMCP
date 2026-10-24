@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
 import {changedStateFields, normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
@@ -87,20 +87,7 @@ export function assertXTargetingBatch(p: CompiledRequest) {
   if (parents.size > 20) input('A review can affect at most 20 line items.');
 }
 function readPlan(p: CompiledRequest, suffix = '', query: JsonObject = {}): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_X_TARGETING_READ',
-    path: '/12/accounts/' + p.accountId + suffix,
-    method: 'GET',
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-  };
+  return stateReadOf(p, 'AMCP_X_TARGETING_READ', '/12/accounts/' + p.accountId + suffix, query);
 }
 export const xTargetingBatchSnapshots = (p: CompiledRequest): CompiledRequest[] => [
   readPlan(p),

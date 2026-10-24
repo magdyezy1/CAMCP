@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat offer disclaimers, Marketing API v1 ("Offer Disclaimers", checked 2026-09-27). Ads in regulated verticals
@@ -92,21 +92,14 @@ export function assertSnapDisclaimers(p: CompiledRequest): void {
       invalid(at + ': a DYNAMIC disclaimer takes its text from the catalog; send no disclaimer_text.');
   });
 }
-const read = (p: CompiledRequest, ids: string[]): Read => ({
-  ...p,
-  action: 'AMCP_SNAPCHAT_DISCLAIMER_READ',
-  method: 'GET',
-  path: '/v1/adaccounts/' + accountOf(p) + '/offer_disclaimers',
-  query: {limit: maxListed},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  snapDisclaimerState: {ids},
-});
+const read = (p: CompiledRequest, ids: string[]): Read =>
+  stateReadOf<Read>(
+    p,
+    'AMCP_SNAPCHAT_DISCLAIMER_READ',
+    '/v1/adaccounts/' + accountOf(p) + '/offer_disclaimers',
+    {limit: maxListed},
+    {snapDisclaimerState: {ids}},
+  );
 export function snapDisclaimerSnapshots(p: CompiledRequest): Read[] {
   return [read(p, snapDisclaimerKind(p) === 'delete' ? [p.path.split('/').at(-1)!] : [])];
 }

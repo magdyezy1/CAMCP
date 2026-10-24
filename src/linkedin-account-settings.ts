@@ -1,7 +1,7 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn ad account name and notification settings, per "Create and Manage Ad Accounts" (li-lms-2026-09, checked
@@ -113,21 +113,17 @@ export function authorizeLinkedInAccountSettings(p: CompiledRequest, c: Connecti
   assertLinkedInAccountSettingsScope(c);
   return true;
 }
-const read = (p: CompiledRequest): Read => ({
-  ...p,
-  action: 'AMCP_LINKEDIN_ACCOUNT_READ',
-  method: 'GET',
-  path: '/rest/adAccounts/' + p.accountId,
-  query: {},
-  body: undefined,
-  headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  linkedinAccountSettingsRead: true,
-});
+const read = (p: CompiledRequest): Read =>
+  readOf<Read>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_ACCOUNT_READ',
+      path: '/rest/adAccounts/' + p.accountId,
+      query: {},
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinAccountSettingsRead: true},
+  );
 export function linkedinAccountSettingsSnapshots(p: CompiledRequest): Read[] {
   return [read(p)];
 }

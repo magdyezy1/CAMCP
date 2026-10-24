@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import type {NativeReportJob} from './report-job.js';
 import {scopeKey, stable} from './security.js';
 import type {Store} from './store.js';
@@ -275,23 +275,16 @@ export function assertCriteoReportScopes(c: Connection, discovery?: Kind) {
     fail('The selected connection needs ' + required.join(', ') + '.', 'INSUFFICIENT_SCOPE');
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_CRITEO_REPORT_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    responseControls: undefined,
-    scopeContext: undefined,
-    criteoReportRead: undefined,
-    criteoReportReviewId: undefined,
-    queryArrayEncoding: 'repeat',
-  };
+  return readOf(
+    p,
+    {action: 'AMCP_CRITEO_REPORT_READ', path, query, clears: ['responseControls']},
+    {
+      scopeContext: undefined,
+      criteoReportRead: undefined,
+      criteoReportReviewId: undefined,
+      queryArrayEncoding: 'repeat',
+    },
+  );
 }
 export function criteoReportSnapshots(p: CompiledRequest) {
   const reads = [read(p, prefix + '/accounts', {limitToId: [p.accountId], pageIndex: 0, pageSize: 2})];

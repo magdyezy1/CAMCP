@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 import {sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -213,21 +213,16 @@ function read(
   key?: string,
   optional = false,
 ): CompiledRequest {
-  return {
-    ...p,
-    path: prefix + resource,
-    action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_GTM_WORKFLOW_STATE',
-    method: 'GET',
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    specialTransport: undefined,
-    responseControls: undefined,
-    gtmState: {kind, ...(key ? {key} : {})},
-  };
+  return readOf(
+    p,
+    {
+      path: prefix + resource,
+      action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_GTM_WORKFLOW_STATE',
+      query: {},
+      clears: ['specialTransport', 'responseControls'],
+    },
+    {gtmState: {kind, ...(key ? {key} : {})}},
+  );
 }
 function moved(p: CompiledRequest) {
   const w = workspaceOf(p)!;

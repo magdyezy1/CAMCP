@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {sha256, stable} from './security.js';
 import {normalizeReviewState} from './review-state-core.js';
 import type {Store} from './store.js';
@@ -134,20 +134,11 @@ export function assertCriteoCampaignScopes(c: Connection, write = false) {
     fail('The selected connection requires ' + required.join(', ') + '.', 'INSUFFICIENT_SCOPE');
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_CRITEO_CAMPAIGN_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    responseControls: undefined,
-    queryArrayEncoding: 'repeat',
-  };
+  return readOf(
+    p,
+    {action: 'AMCP_CRITEO_CAMPAIGN_READ', path, query, clears: ['responseControls']},
+    {queryArrayEncoding: 'repeat'},
+  );
 }
 export const criteoCampaignSnapshots = (p: CompiledRequest) => [
   read(p, prefix + '/accounts', {limitToId: [p.accountId], pageIndex: 0, pageSize: 2}),

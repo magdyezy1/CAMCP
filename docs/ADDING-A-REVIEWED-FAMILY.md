@@ -64,12 +64,20 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
 - `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
   modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
   registered family.
-- `stateReadOf(p, action, path, query, fields)` builds a state read from the write request `p`: `p` with the read's
-  action and a GET of `path` with `query`, without the body, headers, confirmation, response controls or special
-  transport of a write, then `fields` in order (the family's state fields reset, a query encoding). Keep a `read`
-  wrapper in the module so its call sites stay the same, for example
-  `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`.
-  The X, DV360 and Criteo families use it; a read that resets other fields keeps its own builder.
+- `readOf(p, read, fields)` builds a state read from the write request `p`: `p`, then `read.before` (a binding the
+  read replaces, such as `accountId` or `origin`, what it never carries, such as `personalData`, or state fields a
+  family sets first), the read's action, method (`GET` unless it posts a search `body`), path, query, body and headers
+  (`{}` unless the provider needs some on a read, such as LinkedIn's version headers), read-only, not destructive, no
+  confirmation, then the write-only fields it clears (`read.clears`: `responseControls` and `specialTransport` by
+  default; most Google Ads searches clear only the first) and `fields` in order (the family's state fields reset, a
+  query encoding). `stateReadOf(p, action, path, query, fields)` is its common case, a GET that clears both. Keep a
+  `read` wrapper in the module so its call sites stay the same, for example
+  `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`
+  or, for a Google Ads search, `return readOf<Read>(p, {action: 'AMCP_GOOGLE_BID_READ', method: 'POST', path, body:
+  {query}, query: {}, clears: ['responseControls']}, {googleBidState: undefined});`. Every family builds its reads
+  with them: `tests/family-reads.test.mjs` holds each layout the families had copied, compares the kit's read with it
+  key by key and in order for every combination of the fields a request may carry, and fails when a family module
+  spreads a request into a read of its own.
 - `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
   hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
   (`everyFamilyHookHasAStage`).

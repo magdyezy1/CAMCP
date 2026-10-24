@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn Audience Network publisher lists, per "Manage Audience Restrictions" of the Marketing API (li-lms-2025-10 to
@@ -130,22 +130,16 @@ export function assertLinkedInPublisherScope(c: Connection, write = false): void
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_LINKEDIN_PUBLISHER_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinPublisherState: undefined,
-    linkedinPublisherPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_PUBLISHER_READ',
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinPublisherState: undefined, linkedinPublisherPage: true},
+  );
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({
   ...read(p, '/rest/adAccounts/' + account(p)),

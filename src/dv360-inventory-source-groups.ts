@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Advertiser-owned inventory source groups on Display & Video 360 API v4, per the pinned Discovery document
@@ -201,22 +201,11 @@ export function authorizeDV360InventoryGroup(p: CompiledRequest, c: Connection, 
   return true;
 }
 
-const read = (p: CompiledRequest, path: string, query: JsonObject = {}): Read => ({
-  ...p,
-  action: 'AMCP_DV360_INVENTORY_GROUP_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: undefined,
-  dv360InventoryGroupState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject = {}): Read =>
+  stateReadOf<Read>(p, 'AMCP_DV360_INVENTORY_GROUP_READ', path, query, {
+    queryArrayEncoding: undefined,
+    dv360InventoryGroupState: undefined,
+  });
 /** One marked read of the advertiser; the reader adds the group, its assignments and the inventory sources to assign. */
 const stateRead = (p: CompiledRequest, s: State): Read => ({
   ...read(p, '/v4/advertisers/' + p.accountId),

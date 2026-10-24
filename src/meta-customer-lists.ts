@@ -11,7 +11,7 @@ import {
   type PersonalDataRecord,
   type PersonalDataSpec,
 } from './personal-data.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Meta customer lists (customer-file custom audiences) under the personal-data policy the owner approved on
@@ -152,22 +152,13 @@ export function assertMetaCustomerList(p: CompiledRequest): void {
     fail('PERSONAL_DATA_CHANGED', 'The request body is not the one AMCP built from the reviewed people.');
 }
 
-const graph = (p: CompiledRequest, path: string, fields: string, s?: State): Read => ({
-  ...p,
-  personalData: undefined,
-  metaListState: s,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query: {fields},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, fields: string, s?: State): Read =>
+  readOf<Read>(p, {
+    before: {personalData: undefined, metaListState: s},
+    action: marker,
+    path: metaPrefix + path,
+    query: {fields},
+  });
 export function metaCustomerListSnapshots(p: CompiledRequest): Read[] {
   const kind = metaCustomerListKind(p)!;
   return [

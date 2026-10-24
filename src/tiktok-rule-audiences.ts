@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * TikTok audiences by rule, per API for Business v1.3 "Create an audience by rule", "Get audience details" and the
@@ -224,21 +224,8 @@ export function assertTiktokRuleAudience(p: CompiledRequest): void {
   if (spec.exclusion_rule_set !== undefined)
     ruleSet(spec.exclusion_rule_set, b.audience_type as Type, 'rule_spec.exclusion_rule_set');
 }
-const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read => ({
-  ...p,
-  action,
-  method: 'GET',
-  path,
-  query: {advertiser_id: p.accountId, ...query},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokRuleAudienceState: state,
-});
+const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read =>
+  stateReadOf<Read>(p, action, path, {advertiser_id: p.accountId, ...query}, {tiktokRuleAudienceState: state});
 /** Website audiences read the pixels and engagement audiences the named ad groups; without event sources the advertiser is read. */
 export function tiktokRuleAudienceSnapshots(p: CompiledRequest): Read[] {
   const s = sourcesOf(p);

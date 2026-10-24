@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {failWithStatus, type StatusRefusal} from './family-kit.js';
+import {failWithStatus, readOf, type StatusRefusal} from './family-kit.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import type {Classify, ReadBuilder, ReviewedFamily, VerificationRead} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
@@ -244,21 +244,19 @@ export function assertGoogleLifecycleGoals(p: CompiledRequest) {
 }
 type Read = CompiledRequest & {googleLifecycleGoalRead?: true};
 const search = (classify: Classify, p: CompiledRequest, query: string, extra: JsonObject = {}): Read =>
-  classify({
-    ...p,
-    action: 'AMCP_STATE_READ',
-    method: 'POST',
-    path: p.path.replace(/(Goals|CampaignGoalConfigs):mutate$/, 'googleAds:search'),
-    query: {},
-    body: {query},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    ...extra,
-  });
+  classify(
+    readOf(
+      p,
+      {
+        action: 'AMCP_STATE_READ',
+        method: 'POST',
+        path: p.path.replace(/(Goals|CampaignGoalConfigs):mutate$/, 'googleAds:search'),
+        query: {},
+        body: {query},
+      },
+      {...extra},
+    ),
+  );
 const marked = {googleLifecycleGoalRead: true};
 export const isGoogleLifecycleGoalRead = (r: CompiledRequest) =>
   r.gateway === 'google_ads_native_action' && (r as Read).googleLifecycleGoalRead === true;

@@ -3,7 +3,7 @@ import {changedStateFields} from './review-state-core.js';
 import {normalGeos} from './snapchat-targeting-specs.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Targeting edits of Snapchat ad squads (PRV-06 A), per Snap's Marketing API v1 Audience Targeting and Ad Squads pages
@@ -302,21 +302,7 @@ function count(t: JsonObject): number {
 }
 
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    snapTargetingRead: true,
-  };
+  return stateReadOf<Read>(p, marker, path, query, {snapTargetingRead: true});
 }
 /** One entity of a Snapchat single-object read, or a refusal when the answer is failed, partial or another page. */
 function single(r: TransportResult, collection: string, singular: string, id: string): JsonObject {

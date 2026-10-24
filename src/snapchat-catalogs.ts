@@ -4,7 +4,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {all} from './snapchat-product-feeds.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat product catalogs, opened by the owner on 2026-09-29. Snapchat's "Dynamic Product Ads" reference (read
@@ -101,24 +101,12 @@ const read = (
   query: Record<string, string | number>,
   extra: Partial<Read> = {},
 ): Read =>
-  ({
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  stateReadOf<Read>(p, marker, path, query, {
     snapCatalogState: undefined,
     snapCatalogOrg: undefined,
     snapCatalogId: undefined,
     ...extra,
-  }) as Read;
+  });
 const accountRead = (p: CompiledRequest, state: State) =>
   read(p, '/v1/adaccounts/' + p.accountId, {}, {snapCatalogState: state});
 export function snapCatalogSnapshots(p: CompiledRequest): Read[] {

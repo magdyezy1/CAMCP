@@ -196,8 +196,12 @@ test('the X families declare themselves through the kit and no module of waves 1
   for (const file of wave) {
     const source = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /^function fail\(/m, file);
-    // The X, DV360 and Criteo families of these waves also take their state reads from the kit (stateReadOf).
-    assert.match(source, /^import \{(?:defineFamily, )?fail(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m, file);
+    // Their state reads come from the kit too (readOf, stateReadOf: tests/family-reads.test.mjs).
+    assert.match(
+      source,
+      /^import \{(?:defineFamily, )?fail(?:, readOf)?(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m,
+      file,
+    );
     if (file.startsWith('src/x-')) assert.match(source, /: ReviewedFamily = defineFamily\(\{$/m, file);
   }
 });
@@ -440,7 +444,12 @@ test('wave 4: every variant module refuses through the kit with the codes and st
   for (const file of [...kitFail, ...reexported]) {
     const source = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /^(?:export )?(?:function fail\(|const fail\b)/m, file);
-    assert.match(source, /^import \{fail\} from '\.\/family-kit\.js';$/m, file);
+    // The kit's fail, beside the kit's read builders and defineFamily where the module is a family.
+    assert.match(
+      source,
+      /^import \{(?:defineFamily, )?fail(?:, readOf)?(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m,
+      file,
+    );
     if (reexported.includes(file)) assert.match(source, /^export \{fail\};$/m, file);
   }
   const all = [

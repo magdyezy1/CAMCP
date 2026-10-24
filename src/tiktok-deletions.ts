@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Deleting TikTok saved audiences and custom identities, per API for Business v1.3 "Delete Saved Audiences", "Get details
@@ -69,21 +69,8 @@ export function assertTiktokDeletion(p: CompiledRequest): void {
   )
     invalid('saved_audience_ids lists 1–' + maxAudiences + ' different numeric saved audience IDs.');
 }
-const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read => ({
-  ...p,
-  action,
-  method: 'GET',
-  path,
-  query: {advertiser_id: p.accountId, ...query},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokDeletionState: state,
-});
+const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read =>
+  stateReadOf<Read>(p, action, path, {advertiser_id: p.accountId, ...query}, {tiktokDeletionState: state});
 function stateRead(p: CompiledRequest, state: State): Read {
   return state.kind === 'identity'
     ? read(

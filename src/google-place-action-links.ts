@@ -2,7 +2,7 @@ import {assertBusinessNotificationActor} from './google-business-notification-ki
 import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -183,20 +183,13 @@ export function assertPlaceAction(p: CompiledRequest) {
   }
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}, host = origin): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
+    before: {origin: host},
     action: 'AMCP_PLACE_ACTION_READ',
-    origin: host,
-    method: 'GET',
     path,
     query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function placeActionSnapshots(p: CompiledRequest): CompiledRequest[] {
   const id = location(p);

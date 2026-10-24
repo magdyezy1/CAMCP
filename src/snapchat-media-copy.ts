@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Snapchat media copy between ad accounts of one organization, per the Ads API "Media" reference (Copy Media, checked
@@ -75,22 +75,17 @@ export function assertSnapchatMediaCopy(p: CompiledRequest): void {
   });
 }
 function read(p: CompiledRequest, path: string, account: string): Read {
-  return {
-    ...p,
-    accountId: account,
-    action: 'AMCP_SNAPCHAT_MEDIA_COPY_READ',
-    method: 'GET',
-    path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    snapchatMediaCopyState: undefined,
-    snapchatMediaCopyPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      before: {accountId: account},
+      action: 'AMCP_SNAPCHAT_MEDIA_COPY_READ',
+      path,
+      query: {},
+      clears: ['responseControls'],
+    },
+    {snapchatMediaCopyState: undefined, snapchatMediaCopyPage: true},
+  );
 }
 export function snapchatMediaCopySnapshots(p: CompiledRequest): Read[] {
   return [{...read(p, '/v1/adaccounts/' + destination(p), destination(p)), snapchatMediaCopyState: {pairs: pairs(p)}}];

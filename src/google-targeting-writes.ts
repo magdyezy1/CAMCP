@@ -3,6 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
+import {readOf} from './family-kit.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -308,18 +309,16 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
       ')';
     if (seen.has(query)) return;
     seen.add(query);
-    reads.push({
-      ...plan,
-      action: 'AMCP_STATE_READ',
-      method: 'POST',
-      path: googleAdsCustomers + account + '/googleAds:search',
-      query: {},
-      body: {query},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      headers: {},
-    });
+    reads.push(
+      readOf(plan, {
+        action: 'AMCP_STATE_READ',
+        method: 'POST',
+        path: googleAdsCustomers + account + '/googleAds:search',
+        query: {},
+        body: {query},
+        clears: [],
+      }),
+    );
   };
   const fields = [...cfg.fields, ...cfg.types.flatMap(t => (criteria[t] ?? []).map(f => t + '.' + f))],
     targets = body.operations
@@ -327,18 +326,16 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
       .map((o: JsonObject) => o.remove ?? o.update.resource_name);
   if (targets.length) search(cfg.resource, fields, targets);
   if (body.operations.some((o: JsonObject) => o.create))
-    reads.push({
-      ...plan,
-      action: 'AMCP_STATE_READ',
-      method: 'POST',
-      path: googleAdsCustomers + account + '/googleAds:search',
-      query: {},
-      body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      headers: {},
-    });
+    reads.push(
+      readOf(plan, {
+        action: 'AMCP_STATE_READ',
+        method: 'POST',
+        path: googleAdsCustomers + account + '/googleAds:search',
+        query: {},
+        body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
+        clears: [],
+      }),
+    );
   for (const op of body.operations) {
     const r = op.create ?? op.update;
     if (!r) continue;

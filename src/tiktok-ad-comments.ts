@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Hiding and unhiding comments on an advertiser's ads (PRV-06 B), per TikTok's official Business API SDK
@@ -116,12 +116,11 @@ export function assertTiktokComments(p: CompiledRequest): void {
 }
 const listRead = (p: CompiledRequest): Read => {
   const s = scopeOf(p);
-  return {
-    ...p,
-    action: 'tiktok_comment_list_get',
-    method: 'GET',
-    path: listPath,
-    query: {
+  return stateReadOf<Read>(
+    p,
+    'tiktok_comment_list_get',
+    listPath,
+    {
       advertiser_id: p.accountId,
       search_field: s.search_field,
       search_value: s.search_value,
@@ -130,16 +129,8 @@ const listRead = (p: CompiledRequest): Read => {
       page: 1,
       page_size: pageSize,
     },
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    tiktokCommentScope: undefined,
-    tiktokCommentState: {ids: [...ids(p)].sort()},
-  };
+    {tiktokCommentScope: undefined, tiktokCommentState: {ids: [...ids(p)].sort()}},
+  );
 };
 export function tiktokCommentSnapshots(p: CompiledRequest): Read[] {
   return [listRead(p)];

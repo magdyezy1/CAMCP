@@ -1,7 +1,7 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Business Profile location attributes, per the pinned Business Information API v1 Discovery document
@@ -127,22 +127,8 @@ export function assertBusinessAttributeScope(c: Connection): void {
   if (!c.scopes.includes(oauthScope))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Business Profile with business.manage.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject, act: string, state?: State): Read => ({
-  ...p,
-  action: act,
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  businessAttributeState: state,
-  businessAttributePage: true,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject, act: string, state?: State): Read =>
+  stateReadOf<Read>(p, act, path, query, {businessAttributeState: state, businessAttributePage: true});
 const stateRead = (p: CompiledRequest, state: State) =>
   read(p, p.path, {}, 'gmb_location_ops/GET_LOCATION_ATTRIBUTES', state);
 /** The validated edit and the reads of the same location: the location, its attributes and the attributes available to it. */

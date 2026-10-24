@@ -2,7 +2,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {familyCodeError, type OneCodeRefusal, stateReadOf} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -206,20 +206,7 @@ export function assertXCreative(p: CompiledRequest) {
 export function xRead(p: CompiledRequest, suffix: string, query: JsonObject = {}): CompiledRequest {
   const account = /^\/12\/accounts\/[a-z0-9]+/.exec(p.path)?.[0];
   if (!account) fail('The X account path is invalid.');
-  return {
-    ...p,
-    path: account + suffix,
-    action: 'AMCP_X_CREATIVE_READ',
-    method: 'GET',
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-  };
+  return stateReadOf(p, 'AMCP_X_CREATIVE_READ', account + suffix, query);
 }
 /** inspect is local: these are the entry reads; account users and line items determine further reads. */
 export function xCreativeSnapshots(p: CompiledRequest): CompiledRequest[] {

@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Deleting ad images from a Meta ad account's library, Marketing API v25.0 ("Ad Image" reference, Deleting; checked
@@ -41,21 +41,14 @@ export function assertMetaImageScope(c: Connection, write = false): void {
   if (write ? !c.scopes.includes('ads_management') : !c.scopes.some(s => s === 'ads_management' || s === 'ads_read'))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Meta with ads_management to delete ad images.', {}, 403);
 }
-const read = (p: CompiledRequest, hash: string, optional = false): Read => ({
-  ...p,
-  action: 'AMCP_META_IMAGE_READ',
-  method: 'GET',
-  path: metaPrefix + 'act_' + account(p.accountId) + '/adimages',
-  query: {hashes: JSON.stringify([hash]), fields: 'hash,id,name,status,account_id,created_time'},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaImageState: {hash, optional},
-});
+const read = (p: CompiledRequest, hash: string, optional = false): Read =>
+  stateReadOf<Read>(
+    p,
+    'AMCP_META_IMAGE_READ',
+    metaPrefix + 'act_' + account(p.accountId) + '/adimages',
+    {hashes: JSON.stringify([hash]), fields: 'hash,id,name,status,account_id,created_time'},
+    {metaImageState: {hash, optional}},
+  );
 export function metaImageSnapshots(p: CompiledRequest): Read[] {
   return [read(p, hashOf(p))];
 }

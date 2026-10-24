@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * TikTok change log download tasks, per API for Business v1.3 "Create a change log download task" and "Check the status of
@@ -134,21 +134,8 @@ export function assertTiktokChangeLog(p: CompiledRequest): void {
       'Instant forms cannot be filtered by ID here: AMCP cannot read that they belong to the advertiser. Filter by object_type or operation_types instead.',
     );
 }
-const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read => ({
-  ...p,
-  action,
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokChangeLogState: state,
-});
+const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read =>
+  stateReadOf<Read>(p, action, path, query, {tiktokChangeLogState: state});
 const advertiserRead = (p: CompiledRequest, state?: State) =>
   read(
     p,

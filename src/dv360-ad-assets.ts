@@ -5,7 +5,7 @@ import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {pinnedJson} from './pinned-json.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * YouTube video ad assets of DV360 advertisers on Display & Video 360 API v4, per the pinned Discovery document (AdAsset,
@@ -92,22 +92,11 @@ export function assertDV360AdAsset(p: CompiledRequest): void {
   }
 }
 
-const read = (p: CompiledRequest, path: string, query: JsonObject): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_DV360_AD_ASSET_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: undefined,
-  dv360AdAssetState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject): CompiledRequest =>
+  stateReadOf(p, 'AMCP_DV360_AD_ASSET_READ', path, query, {
+    queryArrayEncoding: undefined,
+    dv360AdAssetState: undefined,
+  });
 /** One filtered read per video: the advertiser's ad assets of that YouTube video. */
 export function dv360AdAssetReads(p: CompiledRequest): CompiledRequest[] {
   return assets(p).map(a => ({

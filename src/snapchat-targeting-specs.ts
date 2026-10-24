@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Snapchat ad squad targeting specs, per Snap's Audience Targeting page, "Targeting Specs - Greater than 500 rows"
@@ -84,22 +84,11 @@ export function assertSnapchatSpec(p: CompiledRequest): void {
     invalid('geos includes at least one location; exclusions alone target nowhere.');
 }
 function read(p: CompiledRequest, path: string): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    snapchatSpecPage: true,
-    snapchatSpecState: undefined,
-    snapchatSpecCheck: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {action: marker, path, query: {}, clears: ['responseControls']},
+    {snapchatSpecPage: true, snapchatSpecState: undefined, snapchatSpecCheck: undefined},
+  );
 }
 export function snapchatSpecSnapshots(p: CompiledRequest): Read[] {
   return [{...read(p, '/v1/adsquads/' + squad(p)), snapchatSpecState: true}];

@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {
@@ -117,20 +117,13 @@ export function assertBusinessNotification(p: CompiledRequest) {
     );
 }
 function read(p: CompiledRequest, path: string, host: string): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
+    before: {origin: host},
     action: 'AMCP_BUSINESS_NOTIFICATION_READ',
-    origin: host,
-    method: 'GET',
     path,
     query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function businessNotificationSnapshots(p: CompiledRequest) {
   return [read(p, '/v1/' + account(p), accountOrigin), read(p, p.path, origin)];

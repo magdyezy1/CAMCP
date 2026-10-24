@@ -1,6 +1,6 @@
 import {assertDV360WriteScope} from './dv360-scope.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
 import {dv360AudienceCollections} from './dv360-audiences.js';
@@ -741,22 +741,13 @@ function stateRead(
   marker: NonNullable<CompiledRequest['dv360TargetingState']>,
   optional = false,
 ): CompiledRequest {
-  return {
-    ...p,
+  return stateReadOf(
+    p,
+    optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_DV360_TARGETING_STATE',
     path,
-    action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_DV360_TARGETING_STATE',
-    method: 'GET',
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    queryArrayEncoding: undefined,
-    dv360TargetingState: marker,
-  };
+    {},
+    {queryArrayEncoding: undefined, dv360TargetingState: marker},
+  );
 }
 function targetingRead(p: CompiledRequest, e: Edit, types: string[]): CompiledRequest {
   if (e.level === 'advertiser')

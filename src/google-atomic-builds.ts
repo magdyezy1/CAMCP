@@ -21,6 +21,7 @@ import {
   pmaxImpact,
   type PmaxOp,
 } from './google-pmax-build.js';
+import {readOf} from './family-kit.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -319,20 +320,15 @@ export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => v
   }
 }
 const search = (classify: Classify, plan: CompiledRequest, query: string): CompiledRequest =>
-  classify({
-    ...plan,
-    action: 'AMCP_STATE_READ',
-    method: 'POST',
-    path: plan.path.replace(/googleAds:mutate$/, 'googleAds:search'),
-    query: {},
-    body: {query},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-  });
+  classify(
+    readOf(plan, {
+      action: 'AMCP_STATE_READ',
+      method: 'POST',
+      path: plan.path.replace(/googleAds:mutate$/, 'googleAds:search'),
+      query: {},
+      body: {query},
+    }),
+  );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
   campaigns: 'campaign.resource_name, campaign.status, campaign.campaign_budget',

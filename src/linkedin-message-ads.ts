@@ -1,7 +1,7 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn Message Ads and Conversation Ads content, per "Message Ads API" and "Conversation Ads API" of the Marketing API
@@ -396,22 +396,17 @@ export function assertLinkedInMessageScope(c: Connection, write = false): void {
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_LINKEDIN_MESSAGE_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    linkedinMessageState: undefined,
-    linkedinMessagePage: true,
-    linkedinMessageConversation: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_MESSAGE_READ',
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+      clears: ['responseControls'],
+    },
+    {linkedinMessageState: undefined, linkedinMessagePage: true, linkedinMessageConversation: undefined},
+  );
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({
   ...read(p, '/rest/adAccounts/' + account(p)),

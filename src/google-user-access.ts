@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
@@ -138,19 +138,14 @@ function read(p: CompiledRequest, kind: keyof typeof fields): CompiledRequest {
     ' FROM ' +
     kind +
     (kind === 'customer' ? ' LIMIT 1' : '');
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_GOOGLE_ACCESS_READ',
     method: 'POST',
     path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function googleAccessSnapshots(p: CompiledRequest): CompiledRequest[] {
   return (Object.keys(fields) as (keyof typeof fields)[]).map(k => read(p, k));

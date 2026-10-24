@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
@@ -76,19 +76,14 @@ function read(p: CompiledRequest, kind: 'customer' | 'recommendation'): Compiled
           .map(n => "'" + n + "'")
           .join(', ') +
         ')';
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_RECOMMENDATION_DISMISS_READ',
     method: 'POST',
     path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function googleDismissalSnapshots(p: CompiledRequest): CompiledRequest[] {
   return [read(p, 'customer'), read(p, 'recommendation')];

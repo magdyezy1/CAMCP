@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {familyCodeError, type OneCodeRefusal, readOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -148,21 +148,13 @@ export function assertAppleEntityWrite(p: CompiledRequest): void {
     fail('endTime must follow startTime.');
 }
 function read(p: CompiledRequest, path: string, account = p.accountId!, optional = false): CompiledRequest {
-  return {
-    ...p,
-    accountId: account,
+  return readOf(p, {
+    before: {accountId: account},
     action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_APPLE_ENTITY_STATE',
-    method: 'GET',
     path,
     query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    specialTransport: undefined,
-    responseControls: undefined,
-  };
+    clears: ['specialTransport', 'responseControls'],
+  });
 }
 export function appleSharedAccounts(p: CompiledRequest, value?: unknown): string[] {
   if (appleEntityKind(p) !== 'shared_budget') return [];

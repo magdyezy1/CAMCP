@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Campaign drafts, Google Ads API v23 (pinned Discovery document: CampaignDraftService MutateCampaignDrafts and
@@ -148,20 +148,18 @@ export function assertGoogleDrafts(p: CompiledRequest): void {
 }
 const quote = (v: string[]) => v.map(n => "'" + n + "'").join(', ');
 function read(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_CAMPAIGN_DRAFT_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleDraftState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_CAMPAIGN_DRAFT_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleDraftState: undefined},
+  );
 }
 const customerQuery = 'SELECT customer.id, customer.manager FROM customer LIMIT 1';
 function context(p: CompiledRequest): Context {

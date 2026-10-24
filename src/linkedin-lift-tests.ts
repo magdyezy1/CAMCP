@@ -3,7 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn brand lift tests, per the Brand Lift Testing pages of the Marketing API (Overview, Lift Test Management API,
@@ -241,22 +241,16 @@ export function assertLinkedInLiftScope(c: Connection, write = false): void {
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: query as CompiledRequest['query'],
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinLiftState: undefined,
-    linkedinLiftPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: marker,
+      path,
+      query: query as CompiledRequest['query'],
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinLiftState: undefined, linkedinLiftPage: true},
+  );
 }
 const resumableQuery = (p: CompiledRequest) => ({
   q: 'criteria',

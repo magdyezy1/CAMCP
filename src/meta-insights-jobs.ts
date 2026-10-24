@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import type {NativeReportJob} from './report-job.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
@@ -205,20 +205,11 @@ export function assertMetaReport(p: CompiledRequest) {
     fail('Choose one attribution setting source.');
 }
 function read(p: CompiledRequest, path: string, query: JsonObject): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_META_REPORT_READ',
-    path,
-    query,
-    body: undefined,
-    method: 'GET',
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    scopeContext: undefined,
-  };
+  return readOf(
+    p,
+    {action: 'AMCP_META_REPORT_READ', path, query, clears: ['responseControls']},
+    {scopeContext: undefined},
+  );
 }
 function response(r: TransportResult): JsonObject {
   if (

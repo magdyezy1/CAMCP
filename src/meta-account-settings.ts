@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta ad account settings, Marketing API v25.0 "Ad Account" reference (Updating and Reading, checked 2026-09-27).
@@ -83,21 +83,14 @@ export function assertMetaAccountScope(c: Connection, write = false): void {
   if (write ? !c.scopes.includes('ads_management') : !c.scopes.some(s => s === 'ads_management' || s === 'ads_read'))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Meta with ads_management to change account settings.', {}, 403);
 }
-const accountRead = (p: CompiledRequest, s: State): Read => ({
-  ...p,
-  action: 'AMCP_META_ACCOUNT_READ',
-  method: 'GET',
-  path: metaPrefix + 'act_' + account(p.accountId),
-  query: {fields: 'id,name,default_dsa_payor,default_dsa_beneficiary,is_notifications_enabled,account_status'},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaAccountState: s,
-});
+const accountRead = (p: CompiledRequest, s: State): Read =>
+  stateReadOf<Read>(
+    p,
+    'AMCP_META_ACCOUNT_READ',
+    metaPrefix + 'act_' + account(p.accountId),
+    {fields: 'id,name,default_dsa_payor,default_dsa_beneficiary,is_notifications_enabled,account_status'},
+    {metaAccountState: s},
+  );
 export function metaAccountSettingsSnapshots(p: CompiledRequest): Read[] {
   return [accountRead(p, {fields: Object.keys(body(p)).sort()})];
 }

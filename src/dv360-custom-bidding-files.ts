@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Registering uploaded custom bidding scripts and rules on Display & Video 360 API v4, per the pinned Discovery document
@@ -97,21 +97,8 @@ export function assertDV360BiddingFileScope(c: Connection): void {
   if (!c.scopes.includes(oauthScope))
     fail('INSUFFICIENT_SCOPE', 'Reconnect the selected DV360 connection with display-video scope.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject): Read => ({
-  ...p,
-  action: 'AMCP_DV360_CUSTOM_BIDDING_FILE_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  dv360BiddingFileState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject): Read =>
+  stateReadOf<Read>(p, 'AMCP_DV360_CUSTOM_BIDDING_FILE_READ', path, query, {dv360BiddingFileState: undefined});
 const stateRead = (p: CompiledRequest, s: State): Read => ({
   ...read(p, '/v4/customBiddingAlgorithms/' + s.algorithmId, {advertiserId: advertiserOf(p)}),
   dv360BiddingFileState: s,

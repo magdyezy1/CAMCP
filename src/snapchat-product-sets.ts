@@ -3,7 +3,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat product sets of catalogs, Marketing API v1 (Dynamic Product Ads guide, "Product Set"; checked 2026-09-27).
@@ -205,25 +205,13 @@ const read = (
   query: Record<string, string | number>,
   extra: Partial<Read> = {},
 ): Read =>
-  ({
-    ...p,
-    action: 'AMCP_SNAPCHAT_PRODUCT_SET_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  stateReadOf<Read>(p, 'AMCP_SNAPCHAT_PRODUCT_SET_READ', path, query, {
     snapProductSetState: undefined,
     snapProductSetOrg: undefined,
     snapProductSetCatalog: undefined,
     snapProductSetId: undefined,
     ...extra,
-  }) as Read;
+  });
 const accountRead = (p: CompiledRequest, state: State) =>
   read(p, '/v1/adaccounts/' + p.accountId, {}, {snapProductSetState: state});
 export function snapProductSetSnapshots(p: CompiledRequest): Read[] {

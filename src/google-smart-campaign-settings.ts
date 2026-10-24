@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Smart campaign settings, Google Ads API v23 (pinned Discovery document: SmartCampaignSettingService.
@@ -136,25 +136,23 @@ export function assertGoogleSmart(p: CompiledRequest): void {
 }
 const quote = (v: string[]) => v.map(n => "'" + n + "'").join(', ');
 function read(p: CompiledRequest, names: string[]): Read {
-  return {
-    ...p,
-    action: 'AMCP_GOOGLE_SMART_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {
-      query:
-        'SELECT smart_campaign_setting.resource_name, smart_campaign_setting.campaign, smart_campaign_setting.phone_number.phone_number, smart_campaign_setting.phone_number.country_code, smart_campaign_setting.final_url, smart_campaign_setting.advertising_language_code, smart_campaign_setting.business_name, smart_campaign_setting.business_profile_location, smart_campaign_setting.ad_optimized_business_profile_setting.include_lead_form, campaign.status, campaign.advertising_channel_type FROM smart_campaign_setting WHERE smart_campaign_setting.resource_name IN (' +
-        quote(names) +
-        ')',
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_GOOGLE_SMART_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {
+        query:
+          'SELECT smart_campaign_setting.resource_name, smart_campaign_setting.campaign, smart_campaign_setting.phone_number.phone_number, smart_campaign_setting.phone_number.country_code, smart_campaign_setting.final_url, smart_campaign_setting.advertising_language_code, smart_campaign_setting.business_name, smart_campaign_setting.business_profile_location, smart_campaign_setting.ad_optimized_business_profile_setting.include_lead_form, campaign.status, campaign.advertising_channel_type FROM smart_campaign_setting WHERE smart_campaign_setting.resource_name IN (' +
+          quote(names) +
+          ')',
+      },
+      query: {},
+      clears: ['responseControls'],
     },
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleSmartState: undefined,
-  };
+    {googleSmartState: undefined},
+  );
 }
 const settingsOf = (p: CompiledRequest) =>
   operations(p)

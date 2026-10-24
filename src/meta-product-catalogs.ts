@@ -4,7 +4,7 @@ import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertMetaCatalogOfBusiness, assertMetaCatalogScope, optionalMetaRead} from './meta-catalogs.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Meta product catalogs themselves, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29): "Business
@@ -123,22 +123,13 @@ export function assertMetaProductCatalog(p: CompiledRequest): void {
   for (const k of ['default_image_url', 'fallback_image_url'])
     if (b[k] !== undefined && !httpsUrl(b[k])) invalid(k + ' is an HTTPS address without credentials.');
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read => ({
-  ...p,
-  metaCatalogState: undefined,
-  metaCatalogPage: page,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read =>
+  readOf<Read>(p, {
+    before: {metaCatalogState: undefined, metaCatalogPage: page},
+    action: marker,
+    path: metaPrefix + path,
+    query,
+  });
 const read = (p: CompiledRequest, s: State): Read => ({
   ...graph(p, 'act_' + account(p.accountId), {fields: 'id,business{id}'}),
   metaCatalogState: s,

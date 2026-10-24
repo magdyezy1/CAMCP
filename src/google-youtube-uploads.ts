@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * YouTube video uploads made through the Google Ads API, v23 (pinned Discovery document: YouTubeVideoUploadService
@@ -87,20 +87,18 @@ export function assertGoogleUploads(p: CompiledRequest): void {
 }
 const quote = (v: string[]) => v.map(n => "'" + n + "'").join(', ');
 function read(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_GOOGLE_YOUTUBE_UPLOAD_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleUploadState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_GOOGLE_YOUTUBE_UPLOAD_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleUploadState: undefined},
+  );
 }
 const customerQuery = 'SELECT customer.id FROM customer LIMIT 1';
 export function googleUploadSnapshots(p: CompiledRequest): Read[] {

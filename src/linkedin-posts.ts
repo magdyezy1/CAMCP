@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {failWithStatus, type StatusRefusal} from './family-kit.js';
+import {failWithStatus, readOf, type StatusRefusal} from './family-kit.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {writeClaim} from './job-repository.js';
@@ -215,20 +215,16 @@ export function authorizeLinkedInSpecial(plan: CompiledRequest, c: Connection, s
 }
 export function linkedinDSCReads(plan: CompiledRequest): CompiledRequest[] {
   const media = (plan.body as JsonObject).content.media.id;
-  const base = (path: string): CompiledRequest => ({
-    ...plan,
-    action: 'AMCP_DSC_STATE_READ',
-    path,
-    method: 'GET',
-    body: undefined,
-    query: {},
-    headers: Object.fromEntries(
-      Object.entries(plan.headers).filter(([k]) => ['LinkedIn-Version', 'X-Restli-Protocol-Version'].includes(k)),
-    ),
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-  });
+  const base = (path: string): CompiledRequest =>
+    readOf(plan, {
+      action: 'AMCP_DSC_STATE_READ',
+      path,
+      query: {},
+      headers: Object.fromEntries(
+        Object.entries(plan.headers).filter(([k]) => ['LinkedIn-Version', 'X-Restli-Protocol-Version'].includes(k)),
+      ),
+      clears: [],
+    });
   return [
     base('/rest/adAccounts/' + plan.accountId),
     base('/rest/' + (media.startsWith('urn:li:video:') ? 'videos' : 'images') + '/' + encodeURIComponent(media)),

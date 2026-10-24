@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import * as campaignBid from './google-campaign-bid-modifiers.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable} from './security.js';
@@ -216,20 +216,18 @@ export function assertGoogleBid(p: CompiledRequest) {
   }
 }
 function read(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_GOOGLE_BID_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleBidState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_GOOGLE_BID_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleBidState: undefined},
+  );
 }
 export function googleBidSnapshots(p: CompiledRequest): Read[] {
   if (campaignBid.googleCampaignBidKind(p)) return campaignBid.googleCampaignBidSnapshots(p);

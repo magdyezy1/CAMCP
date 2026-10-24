@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -144,22 +144,13 @@ export function assertMetaBrandSafety(p: CompiledRequest): void {
 export function metaBrandSafetyReads(p: CompiledRequest): CompiledRequest[] {
   const kind = metaBrandSafetyKind(p)!;
   return [
-    {
-      ...p,
-      action: 'AMCP_META_BRAND_SAFETY_READ',
-      method: 'GET',
-      path:
-        metaPrefix + 'act_' + p.accountId + '/' + (kind === 'controls' ? 'account_controls' : 'publisher_block_lists'),
-      query: kind === 'controls' ? {} : {fields: 'id,name', limit: 100},
-      body: undefined,
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      responseControls: undefined,
-      specialTransport: undefined,
-      metaBrandSafetyState: kind,
-    },
+    stateReadOf(
+      p,
+      'AMCP_META_BRAND_SAFETY_READ',
+      metaPrefix + 'act_' + p.accountId + '/' + (kind === 'controls' ? 'account_controls' : 'publisher_block_lists'),
+      kind === 'controls' ? {} : {fields: 'id,name', limit: 100},
+      {metaBrandSafetyState: kind},
+    ),
   ];
 }
 export function isMetaBrandSafetyRead(p: CompiledRequest): boolean {

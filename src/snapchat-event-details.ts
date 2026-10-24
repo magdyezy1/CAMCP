@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat event details, Marketing API v1 ("Event Details"; checked 2026-09-27). POST
@@ -194,21 +194,8 @@ export function assertSnapEvent(p: CompiledRequest): void {
     seen.add(key);
   });
 }
-const read = (p: CompiledRequest, path: string, state?: State): Read => ({
-  ...p,
-  action: 'AMCP_SNAPCHAT_EVENT_DETAILS_READ',
-  method: 'GET',
-  path,
-  query: {limit: pageSize},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  snapEventState: state,
-});
+const read = (p: CompiledRequest, path: string, state?: State): Read =>
+  stateReadOf<Read>(p, 'AMCP_SNAPCHAT_EVENT_DETAILS_READ', path, {limit: pageSize}, {snapEventState: state});
 const stateRead = (p: CompiledRequest, state: State) =>
   read(p, '/v1/adaccounts/' + p.accountId + '/event_details', state);
 export function snapEventSnapshots(p: CompiledRequest): Read[] {

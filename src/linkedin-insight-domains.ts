@@ -2,7 +2,7 @@ import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn Insight Tag domains, per "Conversion Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -188,22 +188,16 @@ export function assertLinkedInDomainScope(c: Connection, write = false): void {
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_LINKEDIN_INSIGHT_DOMAIN_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinDomainState: undefined,
-    linkedinDomainPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_INSIGHT_DOMAIN_READ',
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinDomainState: undefined, linkedinDomainPage: true},
+  );
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({
   ...read(p, '/rest/adAccounts/' + account(p)),

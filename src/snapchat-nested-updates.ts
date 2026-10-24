@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {
@@ -294,19 +294,8 @@ export function assertSnapUpdate(p: CompiledRequest) {
         if (row[field] !== undefined && !preserved.includes(field)) value(field, row[field]);
     }
 }
-const read = (p: CompiledRequest, path: string): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_SNAPCHAT_UPDATE_READ',
-  method: 'GET',
-  path,
-  query: {},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-});
+const read = (p: CompiledRequest, path: string): CompiledRequest =>
+  readOf(p, {action: 'AMCP_SNAPCHAT_UPDATE_READ', path, query: {}, clears: ['responseControls']});
 export function snapUpdateSnapshots(p: CompiledRequest) {
   return [read(p, '/v1/adaccounts/' + p.accountId)];
 }

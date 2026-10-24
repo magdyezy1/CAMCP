@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -198,22 +198,16 @@ export function assertGtmWorkspace(p: CompiledRequest): void {
     });
 }
 function read(p: CompiledRequest, path: string): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_GTM_WORKSPACE_READ',
-    path: prefix + path,
-    method: 'GET',
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    specialTransport: undefined,
-    responseControls: undefined,
-    gtmState: undefined,
-    gtmWorkspaceState: undefined,
-  };
+  return readOf(
+    p,
+    {
+      action: 'AMCP_GTM_WORKSPACE_READ',
+      path: prefix + path,
+      query: {},
+      clears: ['specialTransport', 'responseControls'],
+    },
+    {gtmState: undefined, gtmWorkspaceState: undefined},
+  );
 }
 export function gtmWorkspaceSnapshots(p: CompiledRequest): CompiledRequest[] {
   return [

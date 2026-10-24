@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Creating custom conversions in a Meta ad account, Marketing API v25.0 ("Ad Account Customconversions" reference,
@@ -146,21 +146,10 @@ export function assertMetaConversionScope(c: Connection, write = false): void {
   if (write ? !c.scopes.includes('ads_management') : !c.scopes.some(s => s === 'ads_management' || s === 'ads_read'))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Meta with ads_management to create custom conversions.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject, state?: Read['metaConversionState']): Read => ({
-  ...p,
-  action: 'AMCP_META_CONVERSION_READ',
-  method: 'GET',
-  path: metaPrefix + 'act_' + account(p.accountId) + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaConversionState: state,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject, state?: Read['metaConversionState']): Read =>
+  stateReadOf<Read>(p, 'AMCP_META_CONVERSION_READ', metaPrefix + 'act_' + account(p.accountId) + path, query, {
+    metaConversionState: state,
+  });
 const listFields = 'id,name,custom_event_type,rule,default_conversion_value,description,is_archived,pixel{id}';
 export function metaConversionSnapshots(p: CompiledRequest): Read[] {
   const b = body(p);

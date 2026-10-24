@@ -4,7 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Creatives of a Criteo Retail Media account, API 2026-07, from the pinned OpenAPI document (CreateCreative,
@@ -166,23 +166,11 @@ const read = (
   bodyOf?: JsonObject,
   extra: Partial<Read> = {},
 ): Read =>
-  ({
-    ...p,
-    action: marker,
-    method: bodyOf ? 'POST' : 'GET',
-    path,
-    query,
-    body: bodyOf,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    criteoCreativeState: undefined,
-    criteoTemplatePage: undefined,
-    ...extra,
-  }) as Read;
+  readOf<Read>(
+    p,
+    {action: marker, method: bodyOf ? 'POST' : 'GET', path, query, body: bodyOf},
+    {criteoCreativeState: undefined, criteoTemplatePage: undefined, ...extra},
+  );
 const retailerSearch = (p: CompiledRequest, retailer: string) =>
   read(
     p,

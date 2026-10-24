@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat custom conversions of a pixel, Marketing API v1 ("Custom Conversions"; checked 2026-09-27). POST
@@ -134,21 +134,8 @@ export function assertSnapConversion(p: CompiledRequest): void {
   });
 }
 export function assertSnapConversionScope(_c: Connection): void {}
-const read = (p: CompiledRequest, path: string, state: Read['snapConversionState']): Read => ({
-  ...p,
-  action: 'AMCP_SNAPCHAT_CONVERSION_READ',
-  method: 'GET',
-  path,
-  query: {limit: maxListed},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  snapConversionState: state,
-});
+const read = (p: CompiledRequest, path: string, state: Read['snapConversionState']): Read =>
+  stateReadOf<Read>(p, 'AMCP_SNAPCHAT_CONVERSION_READ', path, {limit: maxListed}, {snapConversionState: state});
 const pixelsRead = (p: CompiledRequest, state: Read['snapConversionState']) =>
   read(p, '/v1/adaccounts/' + p.accountId + '/pixels', state);
 export function snapConversionSnapshots(p: CompiledRequest): Read[] {

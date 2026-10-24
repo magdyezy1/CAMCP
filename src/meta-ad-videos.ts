@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Removing videos from a Meta ad account's video library, Marketing API ("Ad Account Advideos" reference, Deleting; read
@@ -47,20 +47,11 @@ export function assertMetaVideoScope(c: Connection, write = false): void {
   if (write ? !c.scopes.includes('ads_management') : !c.scopes.some(s => s === 'ads_management' || s === 'ads_read'))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Meta with ads_management to remove ad videos.', {}, 403);
 }
-const list = (p: CompiledRequest, edge: string, fields: string): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_META_VIDEO_READ',
-  method: 'GET',
-  path: metaPrefix + 'act_' + account(p.accountId) + edge,
-  query: {fields, limit: String(pageSize)},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const list = (p: CompiledRequest, edge: string, fields: string): CompiledRequest =>
+  stateReadOf(p, 'AMCP_META_VIDEO_READ', metaPrefix + 'act_' + account(p.accountId) + edge, {
+    fields,
+    limit: String(pageSize),
+  });
 const read = (p: CompiledRequest, creatives: boolean): Read => ({
   ...list(p, '/advideos', 'id,title,created_time,updated_time'),
   metaVideoState: {video: videoOf(p), creatives},

@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Account settings of a Google Ads customer, API v23 (pinned Discovery document: CustomerService.MutateCustomer,
@@ -170,20 +170,18 @@ export function assertGoogleCustomerSettings(p: CompiledRequest): void {
 const settingsQuery =
   'SELECT customer.id, customer.manager, customer.auto_tagging_enabled, customer.tracking_url_template, customer.final_url_suffix, customer.descriptive_name, customer.video_brand_safety_suitability, customer.call_reporting_setting.call_reporting_enabled, customer.call_reporting_setting.call_conversion_reporting_enabled, customer.call_reporting_setting.call_conversion_action FROM customer LIMIT 1';
 function read(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_GOOGLE_CUSTOMER_SETTINGS_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleCustomerSettingsState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_GOOGLE_CUSTOMER_SETTINGS_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleCustomerSettingsState: undefined},
+  );
 }
 export function googleCustomerSettingsSnapshots(p: CompiledRequest): Read[] {
   const action = writes(p)['callReportingSetting.callConversionAction'];

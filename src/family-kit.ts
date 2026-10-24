@@ -62,12 +62,67 @@ export function failWithStatus(status: number): StatusRefusal {
   return (code, message, details = {}, override = status) => fail(code, message, details, override);
 }
 
+/** The fields only a write request carries, which a family's state read clears. */
+export type WriteOnlyField = 'responseControls' | 'specialTransport';
+const writeOnlyFields: readonly WriteOnlyField[] = Object.freeze(['responseControls', 'specialTransport']);
+
+/** What a family's state read asks the provider (`readOf`); everything else is its write request's. */
+export interface FamilyRead<R extends CompiledRequest = CompiledRequest> {
+  /** The read's action: a marker the family's `isRead` recognizes, or the native read it performs. */
+  readonly action: string;
+  readonly path: string;
+  readonly query: JsonObject;
+  /** `GET`, unless the read is a search that posts `body` (a Google Ads `googleAds:search`, a Criteo search). */
+  readonly method?: string;
+  readonly body?: unknown;
+  /** `{}`, unless the provider needs request headers on a read too (LinkedIn's version headers). */
+  readonly headers?: Record<string, string>;
+  /**
+   * Fields the read sets before its own, in this order: a binding it replaces (`accountId`, `origin`), what it never
+   * carries (`personalData`), or a family's state fields that its builder had set first.
+   */
+  readonly before?: Partial<R>;
+  /**
+   * The write-only fields the read clears, in this order: both by default. A family whose reads always kept one of
+   * them names only the other (most Google Ads searches keep the special transport), or none.
+   */
+  readonly clears?: readonly WriteOnlyField[];
+}
+
 /**
- * A family's state read of its write request `p` (the review's `readsFor`), as family modules had each copied it: `p`
- * with the read's action, a GET of `path` with `query`, and without what only a write carries: no body, no headers,
- * read-only, not destructive, no confirmation, no response controls, no special transport. `fields` follow, in the
- * order the family's read set them (its state fields reset, a query encoding). A family keeps its own `read` wrapper,
- * so its call sites do not change: `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) +
+ * A family's state read of its write request `p` (the review's `readsFor`), as family modules had each built it: `p`,
+ * then `read.before`, the read's action, method, path, query, body and headers, read-only, not destructive, no
+ * confirmation, the write-only fields it clears (`read.clears`), then `fields` in the order the family set them (its
+ * state fields reset, a query encoding). For every compiled request (all of its required fields present) a family's
+ * builder and its `readOf` call give the same keys, values and key order (tests/family-reads.test.mjs). A family keeps
+ * its own `read` wrapper, so its call sites do not change: `return readOf<Read>(p, {action: 'AMCP_X_READ', method:
+ * 'POST', path, query: {}, body: {query}, clears: ['responseControls']}, {xState: undefined});`.
+ */
+export function readOf<R extends CompiledRequest = CompiledRequest>(
+  p: CompiledRequest,
+  read: FamilyRead<R>,
+  fields: Partial<R> = {},
+): R {
+  const out: CompiledRequest = {
+    ...p,
+    ...read.before,
+    action: read.action,
+    method: read.method ?? 'GET',
+    path: read.path,
+    query: read.query,
+    body: read.body,
+    headers: read.headers ?? {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+  };
+  for (const field of read.clears ?? writeOnlyFields) out[field] = undefined;
+  return {...out, ...fields} as R;
+}
+
+/**
+ * The state read most families build (`readOf` with its defaults): a GET of `path` with `query` that clears both
+ * write-only fields, then `fields`. `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) +
  * path, query, {xMediaState: undefined});`.
  */
 export function stateReadOf<R extends CompiledRequest = CompiledRequest>(
@@ -77,21 +132,7 @@ export function stateReadOf<R extends CompiledRequest = CompiledRequest>(
   query: JsonObject,
   fields: Partial<R> = {},
 ): R {
-  return {
-    ...p,
-    action,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    ...fields,
-  } as R;
+  return readOf<R>(p, {action, path, query}, fields);
 }
 
 /** The hooks of a family, by the stage that calls them (src/reviewed-family.ts documents each hook). */

@@ -15,7 +15,7 @@ import {
   type PersonalDataSpec,
   type Row,
 } from './personal-data.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Google Customer Match and offline conversions through the Data Manager API, which the owner opened on 2026-09-30
@@ -312,21 +312,15 @@ export function assertDataManagerScope(c: Connection): void {
     );
 }
 function stateRead(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    origin: undefined,
-    personalData: undefined,
+  return readOf<Read>(p, {
+    before: {origin: undefined, personalData: undefined},
     action: stateMarker,
     method: 'POST',
     path: googleAdsCustomers + customer(p) + '/googleAds:search',
     body: {query},
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 const queries = (p: CompiledRequest): string[] => {
   const s = settingsOf(p),
@@ -516,22 +510,13 @@ export function dataManagerSafeOutcome(outcome: JsonObject): JsonObject {
   };
 }
 function statusRead(p: CompiledRequest, requestId: string): Read {
-  return {
-    ...p,
-    origin: dataManagerOrigin,
-    personalData: undefined,
-    dataManagerRead: 'status',
+  return readOf<Read>(p, {
+    before: {origin: dataManagerOrigin, personalData: undefined, dataManagerRead: 'status'},
     action: statusMarker,
-    method: 'GET',
     path: '/v1/requestStatus:retrieve',
     query: {requestId},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function isDataManagerRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).dataManagerRead;

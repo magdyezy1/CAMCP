@@ -12,7 +12,7 @@ import {
   metaRefusal,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail} from './family-kit.js';
+import {fail, readOf} from './family-kit.js';
 
 /**
  * Product sets of Meta catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -180,22 +180,13 @@ export function assertMetaProductSet(p: CompiledRequest): void {
 export function assertMetaProductSetScope(c: Connection, write = false): void {
   assertMetaCatalogScope(c, write, 'Product set changes');
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read => ({
-  ...p,
-  metaProductSetState: undefined,
-  metaProductSetPage: page,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read =>
+  readOf<Read>(p, {
+    before: {metaProductSetState: undefined, metaProductSetPage: page},
+    action: marker,
+    path: metaPrefix + path,
+    query,
+  });
 const setFields = 'id,name,filter,retailer_id,product_catalog{id}',
   catalogFields = metaCatalogFields,
   adSetFields = 'id,name,status,promoted_object',

@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
@@ -78,8 +78,7 @@ export function assertGoogleCustomerLabels(p: CompiledRequest): void {
   if (new Set(targets(p)).size !== body.operations.length) fail('Each customer label must occur only once.');
 }
 function read(p: CompiledRequest): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_CUSTOMER_LABEL_READ',
     method: 'POST',
     path: googleAdsCustomers + account(p) + '/googleAds:search',
@@ -92,12 +91,8 @@ function read(p: CompiledRequest): CompiledRequest {
         ')',
     },
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function googleCustomerLabelSnapshots(p: CompiledRequest): CompiledRequest[] {
   return [read(p)];
