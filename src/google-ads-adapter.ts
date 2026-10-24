@@ -1,11 +1,14 @@
 import type {
+  CompileDraft,
+  CompileHooks,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
   StateTarget,
   WireHeaders,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Action, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts), and the verification
@@ -22,11 +25,13 @@ import {googleConfigurationObserved} from './google-configuration-writes.js';
 import {
   assertGoogleGenerationScope,
   googleGenerationKind,
+  googleGenerationPlan,
   googleGenerationResult,
   validateGoogleGeneration,
 } from './google-generation.js';
-import {googleJson, validateGoogleRequest} from './google-contracts.js';
-import {googleAdsCustomers} from './google-version.js';
+import {googleContractEvidence, googleJson, validateGoogleRequest} from './google-contracts.js';
+import {googleAdsCustomers, googleAdsRequestChange} from './google-version.js';
+import {adaptGoogleLegacy} from './google-legacy.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 
@@ -420,6 +425,49 @@ function googleVerificationVersion(plan: CompiledRequest): string | undefined {
     : undefined;
 }
 
+// Wave 4c (transport and catalog): Google Ads' part of the catalog compiler (src/compiler.ts).
+const plain = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
+/**
+ * Its legacy actions compile as the routed requests they stand for; the account sets customer_id without dashes; its
+ * required fields are checked in every mode, under their camelCase names too, except the content the Drive importer
+ * supplies after review, and a missing one names its action's version change; a request's body is the field its RPC
+ * maps; its requests carry their Discovery route evidence and the generation drafts' checks.
+ */
+const googleAdsCompile: CompileHooks = Object.freeze({
+  legacy: adaptGoogleLegacy,
+  accountValues(values: JsonObject, accountId: string) {
+    values.customer_id = accountId.replaceAll('-', '');
+  },
+  required: Object.freeze({
+    always: true as const,
+    alias: (values: JsonObject, key: string) => values[key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())],
+    // The AMCP Drive importer supplies the binary payload after review. Only its
+    // exact upload routes may omit their ordinary native content container.
+    supplied: (key: string, route: string, values: JsonObject) =>
+      ['operations', 'you_tube_video_upload'].includes(key) &&
+      /\/(?:assets:mutate|youTubeVideoUploads:create)$/.test(route) &&
+      ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'].some(k => typeof values[k] === 'string'),
+    missing(action: Action, key: string) {
+      const change = googleAdsRequestChange(action.name);
+      return new MirrorError(
+        'MISSING_PARAMETER',
+        action.name +
+          " requires request field '" +
+          key +
+          "'. Pass path values in path_params and all other native request fields in params or payload.",
+        {parameter: key, ...(change ? {version_change: change} : {})},
+      );
+    },
+  }),
+  request(draft: CompileDraft, _input: JsonObject, registry: Registry) {
+    const desc = registry.data.descriptions[draft.gateway + '/' + draft.action.name];
+    if (desc?.body_mapping && desc.body_mapping !== '*')
+      draft.body = plain(draft.body)[desc.body_mapping] ?? draft.body;
+    return undefined;
+  },
+  beforeJob: (plan: CompiledRequest) => googleGenerationPlan(googleContractEvidence(plan)),
+});
+
 /**
  * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
@@ -429,6 +477,7 @@ function googleVerificationVersion(plan: CompiledRequest): string | undefined {
  */
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
+  compile: googleAdsCompile,
   checks: Object.freeze({
     // Every reviewed write is checked against its pinned Discovery schema first.
     request: validateGoogleRequest,

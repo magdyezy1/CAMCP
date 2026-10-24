@@ -1,8 +1,16 @@
-import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} from './provider-adapter.js';
+import type {
+  CompileHooks,
+  ExpectState,
+  ProviderHooks,
+  ProviderVerificationRead,
+  StateTarget,
+} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {Registry} from './catalog.js';
 import {
   authorizeDV360TargetingSearch,
+  dv360TargetingSearchPlan,
   dv360TargetingSearchResult,
   dv360TargetingSearchRoute,
   validateDV360TargetingSearch,
@@ -20,6 +28,18 @@ const stateIds: Record<string, string> = {
 };
 
 /**
+ * Wave 4c (transport and catalog): DV360's part of the catalog compiler (src/compiler.ts). A request may name its
+ * catalog route by resource and RPC; its parameters go in the query whatever the method; the targeting search is
+ * planned as a reviewed read before the report job's controls.
+ */
+const dv360Compile: CompileHooks = Object.freeze({
+  resourceAction: (registry: Registry, input: JsonObject) =>
+    registry.data.supplemental.find(a => a.raw.resource === input.resource && a.raw.rpc === input.method),
+  queryParameters: true as const,
+  beforeJob: dv360TargetingSearchPlan,
+});
+
+/**
  * Display & Video 360's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * targeting option search, a POST the catalog marks as a write, is a reviewed read. The account read is the advertiser.
  * On the wire, the targeting search is checked before it is sent and its response after, and the advertiser asset
@@ -27,6 +47,7 @@ const stateIds: Record<string, string> = {
  */
 export const dv360Hooks: ProviderHooks = Object.freeze({
   gateway: 'dv360_native_action',
+  compile: dv360Compile,
   checks: Object.freeze({
     shape: Object.freeze({
       // A write may carry updateMask, its concurrency parameter; new campaigns, insertion orders and line items start

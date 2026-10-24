@@ -79,6 +79,8 @@ function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: str
  */
 export const microsoftHooks: ProviderHooks = Object.freeze({
   gateway: microsoftGateway,
+  // Wave 4c (transport and catalog): its requests are compiled from its own contracts, not the catalog compiler's.
+  compile: Object.freeze({own: compileMicrosoft}),
   // Its contracts decide alone: the write contract, and a state read's response contract in place of the generic
   // success check; the contract is the target check, whatever a family supplies.
   checks: Object.freeze({

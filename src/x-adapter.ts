@@ -2,7 +2,7 @@ import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} 
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
-import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-estimate.js';
+import {authorizeXAudienceEstimate, xAudienceEstimatePlan, xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
@@ -24,6 +24,8 @@ const jsonBody = (plan: CompiledRequest) =>
  */
 export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
+  // Wave 4c (transport and catalog): the audience estimate is planned as a bounded read after its report job's controls.
+  compile: Object.freeze({afterJob: xAudienceEstimatePlan}),
   checks: Object.freeze({
     shape: Object.freeze({
       // New campaigns and line items start paused; a targeting criterion follows its own contract.

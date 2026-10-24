@@ -11,7 +11,8 @@
  * profile, its part of ScopeGuard, its write-shape and state checks, the review's projections of its reads) is its
  * hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
-import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Action, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
@@ -449,6 +450,81 @@ export interface ReviewProjections {
   verificationVersion?(plan: CompiledRequest): string | undefined;
 }
 
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog compiler. The shared module
+// keeps every rule and the order of every step; a hook answers only where it named the provider before.
+
+/** A request the catalog lists without a route, adapted to the routed request it stands for (CompileHooks.legacy). */
+export interface AdaptedRequest {
+  /** The input of the routed action, compiled in its place. */
+  readonly input: JsonObject;
+  /** The action name the compiled request keeps. */
+  readonly legacyAction: string;
+  readonly evidence: string;
+  readonly warnings: readonly string[];
+  /** A default page size the adaptation applied (Google Ads' GAQL LIMIT of a list alias asked without one). */
+  readonly defaultLimit?: number;
+}
+
+/** What a provider's request rules may set on a request the compiler is building (CompileHooks.request). */
+export interface CompileDraft {
+  readonly gateway: string;
+  /** The catalog action the request is compiled from, and its route template. */
+  readonly action: Action;
+  readonly route: string;
+  method: string;
+  readonly query: JsonObject;
+  body: unknown;
+  readonly headers: Record<string, string>;
+  readOnly: boolean;
+  readonly accountId: string | undefined;
+}
+
+/** How a provider's catalog-required request fields are checked (CompileHooks.required). */
+export interface RequiredFields {
+  /** Checked in every call mode, not only under the catalogPreflight flag (Google Ads). */
+  readonly always?: true;
+  /** A route whose required fields its own plan step checks per variant instead (TikTok's preview types). */
+  unchecked?(route: string): boolean;
+  /** The value of a required field under its other name (Google Ads' camelCase names). */
+  alias?(values: JsonObject, key: string): unknown;
+  /** A required field another step supplies after review (Google Ads' Drive-imported upload content). */
+  supplied?(key: string, route: string, values: JsonObject): boolean;
+  /** The refusal of a missing required field (Google Ads names the version change of its action). */
+  missing?(action: Action, key: string): MirrorError;
+}
+
+/**
+ * A provider's part of the catalog compiler (src/compiler.ts Compiler.compile), which keeps the input guards, the
+ * catalog lookup, the alias, account, body, path, query and method rules and the order of every step.
+ */
+export interface CompileHooks {
+  /** The provider compiles its requests from its own contracts (Microsoft Advertising): the compiler returns this. */
+  own?(input: JsonObject): CompiledRequest;
+  /** An action the catalog lists without a route, as the routed request it stands for (Google Ads' legacy actions). */
+  legacy?(registry: Registry, input: JsonObject): AdaptedRequest | undefined;
+  /** The catalog action of a request that names a resource and an RPC instead of an action (DV360). */
+  resourceAction?(registry: Registry, input: JsonObject): Action | undefined;
+  /** Its `fields` lists are one comma-separated value (Meta's Graph API): joined when compared and when sent. */
+  readonly joinedFields?: true;
+  /** Request values the account sets besides its aliases (Google Ads' customer_id, Meta's act_ path ID). */
+  accountValues?(values: JsonObject, accountId: string, route: string): void;
+  readonly required?: RequiredFields;
+  /** Its parameters are sent in the query whatever the method (LinkedIn's Rest.li, DV360). */
+  readonly queryParameters?: true;
+  /**
+   * Its request rules once the query and body are formed (TikTok's advertiser and lead region, Google Ads' body
+   * mapping, LinkedIn's version, Rest.li method and method override): it may set the draft's method, body, headers,
+   * query and readOnly, and returns the plan fields that ride beside the request (TikTok's comment scope).
+   */
+  request?(draft: CompileDraft, input: JsonObject, registry: Registry): Partial<CompiledRequest> | undefined;
+  /** The query parameter that makes a request carry other requests, never a read (Meta's Graph batch). */
+  readonly batchParameter?: string;
+  /** Its plan steps before the request controls of its gateway's report job (src/report-jobs.ts). */
+  beforeJob?(plan: CompiledRequest): CompiledRequest;
+  /** Its plan steps after them. */
+  afterJob?(plan: CompiledRequest): CompiledRequest;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -461,6 +537,8 @@ export const plainGetRead = (p: CompiledRequest) =>
 export interface ProviderHooks {
   /** The gateway of the provider adapter these hooks belong to. */
   readonly gateway: string;
+  // Wave 4c (transport and catalog).
+  readonly compile?: CompileHooks;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;

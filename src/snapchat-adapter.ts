@@ -20,7 +20,7 @@ import {
   snapSegmentProjection,
   snapSegmentState,
 } from './snapchat-segments.js';
-import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
+import {snapchatPlanningPlan, snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {MirrorError} from './errors.js';
 import {errorObject, errorToken} from './provider-error-core.js';
 import {normalizeAccount} from './account-id.js';
@@ -306,6 +306,8 @@ function snapchatObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
+  // Wave 4c (transport and catalog): its targeting insight and forecast POSTs are planned as reviewed reads.
+  compile: Object.freeze({afterJob: snapchatPlanningPlan}),
   checks: Object.freeze({
     // An ad's creative references are checked before anything else (src/snapchat-ad-creatives.ts).
     shape: Object.freeze({

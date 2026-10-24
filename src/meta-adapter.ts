@@ -1,4 +1,5 @@
 import type {
+  CompileHooks,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
@@ -150,8 +151,22 @@ function metaVerification(
   ];
 }
 
+/**
+ * Wave 4c (transport and catalog): Meta's part of the catalog compiler (src/compiler.ts). Its `fields` lists are one
+ * comma-separated value; an ad account path takes the account ID without its act_ prefix (the template adds it); a
+ * Graph batch carries other requests, so it is never a read.
+ */
+const metaCompile: CompileHooks = Object.freeze({
+  joinedFields: true as const,
+  accountValues(values: JsonObject, _accountId: string, route: string) {
+    if (route.includes('act_{ad_account_id}')) values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+  },
+  batchParameter: 'batch',
+});
+
 export const metaHooks: ProviderHooks = Object.freeze({
   gateway: 'meta_native_action',
+  compile: metaCompile,
   checks: Object.freeze({
     // Meta's campaign and v26 request rules come first.
     request(plan: CompiledRequest) {

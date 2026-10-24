@@ -1,5 +1,7 @@
 import {
   plainGetRead,
+  type CompileDraft,
+  type CompileHooks,
   type ExpectState,
   type ProviderHooks,
   type ProviderVerificationRead,
@@ -52,7 +54,8 @@ import {tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.j
 import {tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js';
 import {stable} from './security.js';
 import {errorInteger, errorObject} from './provider-error-core.js';
-import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
+import {tiktokPreviewPlan, tiktokPreviewRoute, tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
+import {tiktokCommentScope} from './tiktok-ad-comments.js';
 import {
   tiktokIntegratedReport,
   tiktokReportGrain,
@@ -316,8 +319,31 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   return data.data?.list?.[0];
 }
 
+// Wave 4c (transport and catalog): TikTok's part of the catalog compiler (src/compiler.ts).
+const plain = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
+/**
+ * Each preview type's required fields are its plan step's to check (the catalog lists every variant's together); a
+ * request names its advertiser in the query or the body and may carry a lead region; a comment status update rides
+ * beside its reviewed comment list read; preview reads are planned after the report job's controls.
+ */
+const tiktokCompile: CompileHooks = Object.freeze({
+  required: Object.freeze({unchecked: (route: string) => tiktokPreviewVariantPath('tiktok_native_action', route)}),
+  request(draft: CompileDraft, input: JsonObject) {
+    if (draft.accountId) {
+      if (['GET', 'HEAD', 'DELETE'].includes(draft.method)) draft.query.advertiser_id ??= draft.accountId;
+      else if (!Array.isArray(draft.body)) draft.body = {advertiser_id: draft.accountId, ...plain(draft.body)};
+      if (input.lead_region) draft.headers['X-Lead-Region'] = input.lead_region;
+    }
+    // The comment list read a comment status update is reviewed against; it rides beside the request, never in it.
+    const commentScope = tiktokCommentScope(draft.route, input.comment_scope);
+    return commentScope ? {tiktokCommentScope: commentScope} : undefined;
+  },
+  afterJob: tiktokPreviewPlan,
+});
+
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
+  compile: tiktokCompile,
   checks: Object.freeze({
     shape: Object.freeze({after: tiktokWriteShape}),
     state: Object.freeze({
