@@ -77,6 +77,28 @@ export const targets = Object.freeze({
     classes: {PlatformOAuth: ['config', 'publicConfig', 'connectService', 'exchange']},
   },
   'dist/server/asset-discovery.js': {classes: {AssetDiscovery: ['sync', 'discoverWith']}},
+  // Writes and campaigns (ARC-01 phase B, ARC-04; wave 4c): the outputs of amcp_write and amcp_campaign, the review's
+  // access and state stages, and the campaign, recipe, spending-policy and write stages whose provider branches move to
+  // adapter hooks or whose long functions become staged steps.
+  'dist/src/write-review.js': {classes: {WriteReviewService: ['call', 'access', 'state']}},
+  'dist/src/campaign-runner.js': {classes: {CampaignRunner: ['handle']}},
+  'dist/src/campaign-recipes.js': {functions: ['campaignRecipe', 'recipeMissing', 'assertRecipeDraftCurrent']},
+  'dist/src/campaign-clone.js': {functions: ['assertCloneGateway', 'clonePlan', 'applyCloneChanges']},
+  'dist/src/campaign-activation.js': {functions: ['activationSteps', 'activationGates']},
+  'dist/src/campaign-preflight.js': {functions: ['campaignPreflight']},
+  'dist/src/spend-policy.js': {
+    functions: ['checkSpendPolicy', 'checkGroupSpendPolicy', 'policyActivates', 'unprotectedAccounts'],
+  },
+  'dist/src/google-goal-inspection.js': {functions: ['inspectGoogleRecipeGoals']},
+  'dist/src/write-effects.js': {functions: ['writeEffects', 'stateTarget', 'effectNames', 'effectReasons']},
+  'dist/src/write-impact.js': {functions: ['writeImpact']},
+  'dist/src/write-groups.js': {functions: ['splittableBatch', 'needsGroup', 'groupLimitRefusal', 'groupParts']},
+  'dist/src/write-rejection.js': {
+    functions: ['googleServiceMutate', 'googleRejectionIsNonApplied', 'nonAppliedRejection', 'rejectedError'],
+  },
+  'dist/src/write-reconciliation.js': {functions: ['findCreated', 'namedTargets']},
+  'dist/src/recipe-context.js': {functions: ['recipeDefaultFields', 'recipeObjective']},
+  'dist/src/recipe-eligibility.js': {functions: ['recipeEligibility']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -106,6 +128,16 @@ export const replayable = Object.freeze([
   'dist/src/delegated-native.js#delegatedParameterMatches',
   'dist/server/platform-oauth.js#selectionKind',
   'dist/server/platform-oauth.js#selectableKinds',
+  // Writes and campaigns (wave 4c): builders and stage helpers that read neither the clock nor the environment.
+  'dist/src/campaign-recipes.js#campaignRecipe',
+  'dist/src/campaign-recipes.js#recipeMissing',
+  'dist/src/campaign-activation.js#activationSteps',
+  'dist/src/campaign-clone.js#applyCloneChanges',
+  'dist/src/write-effects.js#writeEffects',
+  'dist/src/write-effects.js#stateTarget',
+  'dist/src/write-effects.js#effectNames',
+  'dist/src/write-effects.js#effectReasons',
+  'dist/src/write-impact.js#writeImpact',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
