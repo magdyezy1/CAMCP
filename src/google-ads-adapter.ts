@@ -32,6 +32,7 @@ import {
 import {googleContractEvidence, googleJson, validateGoogleRequest} from './google-contracts.js';
 import {googleAdsCustomers, googleAdsRequestChange} from './google-version.js';
 import {adaptGoogleLegacy} from './google-legacy.js';
+import {dataManagerActions} from './google-data-manager-routes.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 
@@ -478,6 +479,11 @@ const googleAdsCompile: CompileHooks = Object.freeze({
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
   compile: googleAdsCompile,
+  // Wave 4c (transport and catalog): Customer Match and offline conversions through the Data Manager API, documented
+  // beyond the captured catalog.
+  catalog: Object.freeze({
+    supplemental: Object.freeze({actions: dataManagerActions, requires: 'catalog' as const}),
+  }),
   checks: Object.freeze({
     // Every reviewed write is checked against its pinned Discovery schema first.
     request: validateGoogleRequest,

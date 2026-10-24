@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
+import {extendGoogleBusinessTool} from './google-business-extensions.js';
 
 /**
  * Business Profile's resource scope, after the account path: a business account's path names it, and a location's
@@ -31,6 +32,8 @@ function businessResourceScope(_plan: CompiledRequest, _c: Connection, id: strin
  */
 export const googleBusinessHooks: ProviderHooks = Object.freeze({
   gateway: 'google_business_native_action',
+  // Wave 4c (transport and catalog): its tool takes the operations AMCP adds to the captured definition.
+  catalog: Object.freeze({tools: Object.freeze({google_business_native_action: extendGoogleBusinessTool})}),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

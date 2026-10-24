@@ -1,4 +1,5 @@
 import type {
+  CatalogHooks,
   CompileHooks,
   ExpectState,
   ProviderHooks,
@@ -12,7 +13,9 @@ import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
-import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
+import {metaActionOverride, validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
+import {extendMetaPostWorkflow} from './meta-post-extensions.js';
+import {metaRuleActions} from './meta-rule-routes.js';
 import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
@@ -164,9 +167,21 @@ const metaCompile: CompileHooks = Object.freeze({
   batchParameter: 'batch',
 });
 
+/**
+ * Wave 4c (transport and catalog): Meta's part of the catalog registry (src/catalog.ts). AMCP's native workflow tool
+ * takes Meta's post workflow; its captured actions take their documented overrides; it documents rule update and
+ * delete beyond the captured catalog, which maps only creation (src/meta-ad-rules.ts).
+ */
+const metaCatalog: CatalogHooks = Object.freeze({
+  tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
+  action: metaActionOverride,
+  supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
+});
+
 export const metaHooks: ProviderHooks = Object.freeze({
   gateway: 'meta_native_action',
   compile: metaCompile,
+  catalog: metaCatalog,
   checks: Object.freeze({
     // Meta's campaign and v26 request rules come first.
     request(plan: CompiledRequest) {

@@ -3,6 +3,7 @@ import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
 import {authorizeXAudienceEstimate, xAudienceEstimatePlan, xAudienceEstimateRoute} from './x-audience-estimate.js';
+import {extendXReportTool} from './x-report-jobs.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
@@ -26,6 +27,8 @@ export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
   // Wave 4c (transport and catalog): the audience estimate is planned as a bounded read after its report job's controls.
   compile: Object.freeze({afterJob: xAudienceEstimatePlan}),
+  // Its tool takes the report job operations AMCP adds to the captured definition.
+  catalog: Object.freeze({tools: Object.freeze({x_ads_native_action: extendXReportTool})}),
   checks: Object.freeze({
     shape: Object.freeze({
       // New campaigns and line items start paused; a targeting criterion follows its own contract.

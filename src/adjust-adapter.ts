@@ -1,5 +1,6 @@
 import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest} from './types.js';
+import {extendAdjustTool} from './adjust-extensions.js';
 
 const reportPaths = [
   '/reports-service/filters_data',
@@ -22,6 +23,8 @@ const reportRead = (plan: CompiledRequest, url: URL) =>
  */
 export const adjustHooks: ProviderHooks = Object.freeze({
   gateway: 'adjust_native_action',
+  // Wave 4c (transport and catalog): its tool takes the reporting operations AMCP adds to the captured definition.
+  catalog: Object.freeze({tools: Object.freeze({adjust_native_action: extendAdjustTool})}),
   wire: Object.freeze({
     boundedReport: reportRead,
     deadline: (plan: CompiledRequest, url: URL) => (reportRead(plan, url) ? plan.adjustReportDeadline : undefined),

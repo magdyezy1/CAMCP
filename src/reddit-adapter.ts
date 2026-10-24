@@ -2,7 +2,7 @@ import type {ProviderHooks, ProviderVerificationRead, ScopeCallBuilder, ScopeCon
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {authorizeRedditPlanningRead} from './reddit-extensions.js';
+import {authorizeRedditPlanningRead, extendRedditTool} from './reddit-extensions.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** Reddit's account-agnostic reference reads, which any bound account may make. */
@@ -55,6 +55,8 @@ function observeReddit(plan: CompiledRequest, connection: Connection, id: string
  */
 export const redditHooks: ProviderHooks = Object.freeze({
   gateway: 'reddit_native_action',
+  // Wave 4c (transport and catalog): its tool takes the audience and read operations AMCP adds to the captured one.
+  catalog: Object.freeze({tools: Object.freeze({reddit_native_action: extendRedditTool})}),
   // A response's records are under data, the rest is its envelope.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),

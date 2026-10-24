@@ -100,6 +100,7 @@ function adapter(
     paging?: PagingFacts;
     executionOptions?: true;
     grant?: ProviderGrantFacts;
+    listsActions?: true;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -115,6 +116,7 @@ function adapter(
     ...(options.executionOptions ? {executionOptions: true as const} : {}),
     // The grant's scope lists stay the declared arrays, as the grant registry kept them.
     ...(options.grant ? {grant: Object.freeze({...options.grant})} : {}),
+    ...(options.listsActions ? {listsActions: true as const} : {}),
   });
 }
 
@@ -324,6 +326,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       grantSource: 'token_response',
       accountReadContract: true,
     },
+    // Its captured schema has no LIST_ACTIONS; AMCP lists its actions from the catalog (MCP-05).
+    listsActions: true,
   }),
   adapter('ga4', 'ga4_native_action', {
     account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'},

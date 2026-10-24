@@ -16,6 +16,7 @@ import {
   validateDV360TargetingSearch,
 } from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead, dv360AudienceRead} from './dv360-audiences.js';
+import {extendDV360Tool} from './dv360-extensions.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -48,6 +49,8 @@ const dv360Compile: CompileHooks = Object.freeze({
 export const dv360Hooks: ProviderHooks = Object.freeze({
   gateway: 'dv360_native_action',
   compile: dv360Compile,
+  // Wave 4c (transport and catalog): its tool takes the operations AMCP adds to the captured definition.
+  catalog: Object.freeze({tools: Object.freeze({dv360_native_action: extendDV360Tool})}),
   checks: Object.freeze({
     shape: Object.freeze({
       // A write may carry updateMask, its concurrency parameter; new campaigns, insertion orders and line items start

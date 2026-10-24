@@ -11,7 +11,7 @@
  * profile, its part of ScopeGuard, its write-shape and state checks, the review's projections of its reads) is its
  * hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
-import type {Action, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Action, Catalog, CompiledRequest, Connection, Credentials, JsonObject, ToolDefinition} from './types.js';
 import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import type {Store} from './store.js';
@@ -525,6 +525,45 @@ export interface CompileHooks {
   afterJob?(plan: CompiledRequest): CompiledRequest;
 }
 
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog registry.
+
+/** Actions a provider documents beyond the captured catalog (CatalogHooks.supplemental). */
+export interface SupplementalActions {
+  readonly actions: readonly Action[];
+  /** What the registry must hold for them to be registered: the provider's captured catalog, or its tool. */
+  readonly requires: 'catalog' | 'tool';
+}
+
+/**
+ * A provider's part of the catalog registry (src/catalog.ts Registry), which keeps how tools, schemas, catalogs and
+ * routes are built and in what order, validation, lookups, listings and help; a hook answers only where the registry
+ * named the provider before.
+ */
+export interface CatalogHooks {
+  /**
+   * AMCP's additions to captured tool definitions, by tool name: its own gateway's (X's report jobs, Reddit's,
+   * DV360's, Business Profile's and Adjust's extensions) or an AMCP tool's (Meta's post workflow in
+   * amcp_native_action). No two providers extend one tool (a load-time check).
+   */
+  readonly tools?: Readonly<Record<string, (tool: ToolDefinition) => ToolDefinition>>;
+  /** Its captured catalog's actions as AMCP reads them (Meta's documented overrides), before any version move. */
+  action?(action: Action): Action;
+  /** Its documented actions beyond the captured catalog (Meta's rule updates, Google's Data Manager, Apple's v1). */
+  readonly supplemental?: SupplementalActions;
+  /**
+   * Its tool and catalog are AMCP's own rather than captured (Microsoft Advertising), registered when the registry
+   * holds AMCP's tools; the catalog's actions are its routes.
+   */
+  own?(): {readonly tool: ToolDefinition; readonly catalog: Catalog};
+  /** Checks amcp_tool_help's arguments for its gateway, in place of the help tool's schema (Microsoft), or refuses. */
+  helpArguments?(input: JsonObject): void;
+  /**
+   * Its help, in place of the captured help (Microsoft's contracts, Apple's v1 actions); undefined leaves the request to
+   * the registry's own help. `schema` is the tool's input schema as the call's options list it.
+   */
+  help?(input: JsonObject, tool: ToolDefinition, schema: () => JsonObject): JsonObject | undefined;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -539,6 +578,7 @@ export interface ProviderHooks {
   readonly gateway: string;
   // Wave 4c (transport and catalog).
   readonly compile?: CompileHooks;
+  readonly catalog?: CatalogHooks;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;
@@ -568,6 +608,8 @@ export interface ProviderAdapter {
   readonly executionOptions?: true;
   /** Its OAuth grant (CON-02, CON-03), which src/provider-grants.ts lists and reads. */
   readonly grant?: ProviderGrantFacts;
+  /** Its captured schema lacks LIST_ACTIONS, but AMCP lists its actions from its catalog (DV360, MCP-05; wave 4c). */
+  readonly listsActions?: true;
 }
 
 /** A requirement on recorded scopes: any one of `any` is recorded, and every scope of `all` is. */
