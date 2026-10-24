@@ -243,8 +243,9 @@ Every reviewed family is registered: <!-- fact:reviewed_families -->170<!-- /fac
 request of a gateway rather than one family:
 
 - the entity writes of seven platforms (`google_entities`, `meta_entities`, `snapchat_entities`, `tiktok_entities`,
-  `x_entities`, `linkedin_entities`, `dv360_entities`: `src/reviewed-routes.ts`), which use each gateway's generic
-  reads, checks and projections;
+  `x_entities`, `linkedin_entities`, `dv360_entities`), which use each gateway's generic reads, checks and
+  projections: each provider adapter declares which writes are its entity writes (`entityWrites`,
+  `src/provider-adapters.ts`), and `src/reviewed-routes.ts` gives that route to a write no registered family claims;
 - gateway checks and projections shared by several families. The write-shape and state checks of each provider are
   its adapter's (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's request validation, the
   measurement gateways' checks, TikTok's state checks, the paused-creation rules), which `src/write-shape.ts` and

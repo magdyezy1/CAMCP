@@ -1,6 +1,7 @@
 import type {
   AccountModel,
   BodyDeletions,
+  EntityWrites,
   PagingFacts,
   ParkedReason,
   ProviderAdapter,
@@ -111,12 +112,76 @@ function adapter(
     familyPrefixes: Object.freeze([...(options.families ?? [id + '_'])]),
     ...(options.account ? {account: accountModel(id, options.account)} : {}),
     ...(options.deletions ? {deletions: bodyDeletions(options.deletions)} : {}),
+    // Its entity writes are the table below's entry for its ID (ARC-01 phase B).
+    ...(Object.hasOwn(entityWriteRoutes, id) ? {entityWrites: Object.freeze({...entityWriteRoutes[id]!})} : {}),
     ...(options.paging ? {paging: Object.freeze({...options.paging})} : {}),
     ...(options.executionOptions ? {executionOptions: true as const} : {}),
     // The grant's scope lists stay the declared arrays, as the grant registry kept them.
     ...(options.grant ? {grant: Object.freeze({...options.grant})} : {}),
   });
 }
+
+/**
+ * The generic entity writes of seven platforms (ARC-01 phase B: they were branches of src/reviewed-routes.ts), by
+ * provider ID: the creations, edits and deletions of campaigns, ad groups, ads and creatives that no registered family
+ * claims, which each gateway's generic reads, checks and projections serve. `claims` reads only the write's method,
+ * path and action. reviewedWriteFamily keeps the read-only and special-transport exclusions and the registered families
+ * first; tests/provider-entity-writes.test.mjs compares every reviewed route with the branches as they were.
+ */
+const entityWriteRoutes: Readonly<Record<string, EntityWrites>> = {
+  google: {
+    family: 'google_entities',
+    claims: p =>
+      p.method === 'POST' &&
+      /^\/v\d+\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(
+        p.path,
+      ),
+  },
+  meta: {
+    family: 'meta_entities',
+    claims: p =>
+      (p.method === 'POST' && /^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(p.path)) ||
+      (['POST', 'DELETE'].includes(p.method) && /^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(p.action)),
+  },
+  snapchat: {
+    family: 'snapchat_entities',
+    claims: p =>
+      (p.method === 'POST' &&
+        /^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|lead_generation_forms|segments)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(
+          p.path,
+        )) ||
+      (p.method === 'PUT' && /^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|segments)$/.test(p.path)) ||
+      (p.method === 'PATCH' && /^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/[^/]+$/.test(p.path)) ||
+      (p.method === 'DELETE' && /^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(p.path)),
+  },
+  // Status changes (ENABLE, DISABLE, DELETE) belong to tiktok_entity_status (src/tiktok-entity-status.ts).
+  tiktok: {
+    family: 'tiktok_entities',
+    claims: p => p.method === 'POST' && /^\/v1\.3\/(campaign|adgroup|ad)\/(create|update)\/$/.test(p.path),
+  },
+  x: {
+    family: 'x_entities',
+    claims: p =>
+      (p.method === 'POST' && /^\/12\/accounts\/[^/]+\/(campaigns|line_items|targeting_criteria)$/.test(p.path)) ||
+      (['PUT', 'DELETE'].includes(p.method) && /^\/12\/accounts\/[^/]+\/(campaigns|line_items)\/[^/]+$/.test(p.path)) ||
+      (p.method === 'DELETE' && /^\/12\/accounts\/[^/]+\/(targeting_criteria|promoted_tweets)\/[^/]+$/.test(p.path)),
+  },
+  linkedin: {
+    family: 'linkedin_entities',
+    claims: p =>
+      (p.method === 'POST' && /^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(p.path)) ||
+      (['POST', 'PUT', 'PATCH', 'DELETE'].includes(p.method) &&
+        /^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(p.path)),
+  },
+  dv360: {
+    family: 'dv360_entities',
+    claims: p =>
+      (p.method === 'POST' &&
+        /^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(p.path)) ||
+      (['PATCH', 'DELETE'].includes(p.method) &&
+        /^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(p.path)),
+  },
+};
 
 // The account fields, references and path patterns ScopeGuard compares (ARC-01 phase B: they were tables in
 // src/scope.ts), and what a bound resource is (CON-05: src/account-metadata.ts). tests/provider-account-model.test.mjs
