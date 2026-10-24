@@ -5,9 +5,8 @@ import {MirrorError} from './errors.js';
 import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './account-metadata.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
-import {detailParentsUnavailableWarning, optionalReadRefused} from './overview-parents.js';
+import {optionalReadRefused} from './overview-parents.js';
 import {
-  appleDetail,
   nativeDetailLookupLimit,
   nativeDetailLookupLimitedWarning,
   nativeDetailPlatforms,
@@ -431,99 +430,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'apple') {
-      const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
-      metadata = m.result ?? m;
-      currency = metadata.currency ?? null;
-      timezone = 'UTC';
-      if (detail) {
-        // RPT-07: one bounded ad group or ad report page, then the account's own records for exact parents.
-        const entity = detail === 'ad' ? 'ads' : 'adgroups',
-          apple = (path: string, body: JsonObject, action: string, stage?: string) =>
-            run({...plan(path, {}, body, 'https://api.ads.apple.com'), action}, false, stage);
-        const d = await apple(
-          '/v1/reports/apps/' + entity + '/query',
-          {
-            timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
-            pagination: {offset: 0, pageSize: 1000},
-            options: {},
-          },
-          'apple_ads_v1_reports_apps_' + entity,
-        );
-        raw = list(d.result?.rows ?? []);
-        const total = d.pagination?.totalResults ?? d.result?.pagination?.totalResults;
-        if (raw.length >= 1000 || (total !== undefined && Number(total) !== raw.length))
-          throw new MirrorError(
-            'INCOMPLETE_REPORT',
-            'Report reached a pagination limit. Split the date range or accounts.',
-          );
-        // Apple IDs are JSON numbers; only safe integers can be requested and matched exactly.
-        const safeId = (id: string) => /^[1-9][0-9]{0,15}$/.test(id) && Number.isSafeInteger(Number(id)),
-          lists = {campaigns: [] as JsonObject[], adGroups: [] as JsonObject[], ads: [] as JsonObject[]},
-          ids = [...new Set(raw.map(r => String(r.metadata?.id ?? '')))].filter(safeId);
-        if (ids.length > nativeDetailLookupLimit) warnings.push(nativeDetailLookupLimitedWarning);
-        const query = async (kind: 'campaigns' | 'adgroups' | 'ads', wanted: string[]) => {
-          if (!wanted.length) return [];
-          const rows = list(
-            (
-              await apple(
-                '/v1/' + kind + '/query',
-                {
-                  filters: [{field: 'id', operator: 'IN', value: wanted.map(Number)}],
-                  pagination: {offset: 0, pageSize: 1000},
-                },
-                'apple_ads_v1_' + kind + '_query',
-                'detail_parents',
-              )
-            ).result ?? [],
-          );
-          if (rows.length > wanted.length || rows.some(r => !wanted.includes(String(r.id))))
-            throw new MirrorError(
-              'REPORT_SHAPE_CHANGED',
-              'Apple returned an unrequested or repeated parent record.',
-              {},
-              502,
-            );
-          return rows;
-        };
-        const parentIds = (rows: JsonObject[], key: string) =>
-          [...new Set(rows.map(r => String(r[key] ?? '')))].filter(safeId);
-        try {
-          const wanted = ids.slice(0, nativeDetailLookupLimit);
-          if (detail === 'ad') lists.ads = await query('ads', wanted);
-          lists.adGroups = await query('adgroups', detail === 'ad' ? parentIds(lists.ads, 'adGroupId') : wanted);
-          lists.campaigns = await query('campaigns', [
-            ...new Set([...parentIds(lists.adGroups, 'campaignId'), ...parentIds(lists.ads, 'campaignId')]),
-          ]);
-        } catch (e) {
-          // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels).
-          if (!optionalReadRefused(e)) throw e;
-          lists.campaigns = lists.adGroups = lists.ads = [];
-          warnings.push(detailParentsUnavailableWarning);
-        }
-        resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
-        detailRows = appleDetail(detail, raw, lists, currency, detailRounding);
-      } else {
-        const d = await run({
-          ...plan(
-            '/v1/reports/apps/campaigns/query',
-            {},
-            {
-              timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
-              pagination: {offset: 0, pageSize: 100},
-              options: {},
-            },
-            'https://api.ads.apple.com',
-          ),
-          action: 'apple_ads_v1_reports_apps_campaigns',
-        });
-        raw = list(d.result?.rows ?? d.result ?? []);
-        resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
-        if (extra.length)
-          warnings.push(
-            'Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.',
-          );
-      }
     } else if (p === 'reddit') {
       timezone = 'UTC';
       const d = await run(
