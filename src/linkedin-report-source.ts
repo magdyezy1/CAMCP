@@ -8,6 +8,9 @@ import {invalidReportSource, type ReportSource} from './report-source.js';
 export const linkedinCampaignsUnavailableWarning =
   'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
 
+/** LinkedIn analytics report days in UTC. */
+const reportZone = 'UTC';
+
 /** LinkedIn adAnalytics rows pivoted by campaign (its URN in pivotValues); money in the account currency. */
 export const linkedinReportSource: ReportSource = {
   platform: 'linkedin',
@@ -24,6 +27,7 @@ export const linkedinReportSource: ReportSource = {
     'oneClickLeads',
   ],
   minimumRequestsPerPeriod: 1,
+  fixedTimezone: reportZone,
   requestHeaders: () => ({'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'}),
   // LinkedIn versions its API by header, not by path, so lineage names that header's value.
   versionHeader: 'LinkedIn-Version',
@@ -32,7 +36,7 @@ export const linkedinReportSource: ReportSource = {
    * then the reported campaigns' current names and objectives (RPT-07), read once per campaign and job.
    */
   async collect(c) {
-    c.timezone = 'UTC';
+    c.timezone = reportZone;
     if (String(c.metadata.id ?? '') !== c.account)
       throw new MirrorError('REPORT_ACCOUNT_MISMATCH', 'LinkedIn returned a different or missing account ID.');
     if (typeof c.currency !== 'string' || !/^[A-Z]{3}$/.test(c.currency))

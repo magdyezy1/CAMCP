@@ -6,6 +6,9 @@ import type {JsonObject} from './types.js';
 
 const appleOrigin = 'https://api.ads.apple.com';
 
+/** Apple Ads reports days in UTC. */
+const reportZone = 'UTC';
+
 /** Apple Ads v1 campaign report rows: totalMetrics with local spend; conversions are installs. */
 export const appleReportSource: ReportSource = {
   platform: 'apple',
@@ -18,6 +21,7 @@ export const appleReportSource: ReportSource = {
   nativeMetricCheck: false,
   // The account and the report.
   minimumRequestsPerPeriod: 2,
+  fixedTimezone: reportZone,
   /**
    * The ad account (its currency; Apple reports in UTC), then one bounded campaign report page, or for the RPT-07 ad
    * group and ad levels one bounded report page and the account's own records for exact parents.
@@ -26,7 +30,7 @@ export const appleReportSource: ReportSource = {
     const m = await c.run({...c.plan('/v1/ad-accounts/' + c.account), origin: appleOrigin}, false);
     c.metadata = m.result ?? m;
     c.currency = c.metadata.currency ?? null;
-    c.timezone = 'UTC';
+    c.timezone = reportZone;
     if (c.detail) {
       // RPT-07: one bounded ad group or ad report page, then the account's own records for exact parents.
       const detail = c.detail,

@@ -73,6 +73,8 @@ export const googleReportSource: ReportSource = {
 
 /** RPT-04: Search Console requests no more rows than one source may hold, so a large site keeps its top pages. */
 const searchConsoleRowLimit = 10000;
+/** Search Console reports days in Pacific time. */
+const searchConsoleZone = 'America/Los_Angeles';
 
 /** Search Console rows of searchAnalytics.query: one row per first dimension key, or the whole site. */
 export const searchConsoleReportSource: ReportSource = {
@@ -81,9 +83,10 @@ export const searchConsoleReportSource: ReportSource = {
   // The site is the source: no account is read before collection.
   accountLookup: false,
   minimumRequestsPerPeriod: 1,
+  fixedTimezone: searchConsoleZone,
   /** One final-data page report of the site (Search Console reports in Pacific time), bounded to the row limit. */
   async collect(c) {
-    c.timezone = 'America/Los_Angeles';
+    c.timezone = searchConsoleZone;
     const d = await c.run(
       c.plan(
         '/webmasters/v3/sites/' + encodeURIComponent(c.account) + '/searchAnalytics/query',

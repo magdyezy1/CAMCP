@@ -13,6 +13,9 @@ import type {JsonObject} from './types.js';
 export const redditValueUnitWarning =
   'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.';
 
+/** Reddit Ads reports days in UTC. */
+const reportZone = 'UTC';
+
 /** Reddit Ads report rows, in upper- or lower-case field names; spend in micros, conversion value in cents (ACC-06). */
 export const redditReportSource: ReportSource = {
   platform: 'reddit',
@@ -26,12 +29,13 @@ export const redditReportSource: ReportSource = {
   nativeDetail: true,
   // The report and the campaign inventory.
   minimumRequestsPerPeriod: 2,
+  fixedTimezone: reportZone,
   /**
    * One account report over the UTC period by campaign (RPT-07: by campaign and ad group, or ad, for the detailed
    * levels), the account's campaigns for names and objectives, and for the detailed levels its ad group and ad lists.
    */
   async collect(c) {
-    c.timezone = 'UTC';
+    c.timezone = reportZone;
     const d = await c.run(
       c.plan(
         '/api/v3/ad_accounts/' + c.account + '/reports',

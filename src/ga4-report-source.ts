@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
 import {ga4Quality, summarizeGA4Quality} from './report-quality.js';
 import {invalidReportSource, reportList, type ReportSource} from './report-source.js';
-import type {JsonObject} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 /** GA4 runReport rows by session campaign; conversions are key events. */
 export const ga4ReportSource: ReportSource = {
@@ -22,6 +22,25 @@ export const ga4ReportSource: ReportSource = {
   nullNativeMetrics: true,
   // The property, the metric report and the name report.
   minimumRequestsPerPeriod: 3,
+  // RPT-02: a rolling window in the account zone reads the property's own time zone.
+  timezoneRead: {
+    plan: (gateway, account): CompiledRequest => ({
+      gateway,
+      accountId: account,
+      action: 'AMCP_CAMPAIGN_REPORT',
+      method: 'GET',
+      path: '/v1beta/properties/' + account,
+      query: {},
+      origin: 'https://analyticsadmin.googleapis.com',
+      headers: {},
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      evidence: 'Reporting time zone for a rolling window, bounded property scope',
+      warnings: [],
+    }),
+    zone: data => data.timeZone ?? null,
+  },
   /**
    * The property (its currency and time zone), then two bounded runReport collections: metrics by session campaign ID
    * (aggregated by GA4 itself) and sessions by campaign ID and name for the labels, with GA4's quality metadata.

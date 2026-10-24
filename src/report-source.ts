@@ -156,6 +156,20 @@ export interface ReportSource {
    * request estimate made before any egress; pages beyond the first, retries and polls are not counted).
    */
   readonly minimumRequestsPerPeriod: number;
+  /**
+   * RPT-02: the report day boundary the source's collector fixes, independent of account metadata (LinkedIn, Apple Ads
+   * and Reddit report in UTC, Search Console in Pacific time); the account time zone otherwise.
+   */
+  readonly fixedTimezone?: string;
+  /**
+   * RPT-02: how the source's report time zone is read without collecting its report (a rolling window in the account
+   * zone): the request, when it is not the account read, and the zone of its response, when that is not the account
+   * time zone (GA4 reads its property; Microsoft maps the account zone to its report zone).
+   */
+  readonly timezoneRead?: {
+    plan?(gateway: string, account: string): CompiledRequest;
+    zone?(data: JsonObject, gateway: string): unknown;
+  };
   /** One natively day-segmented request split by day (RPT-03: Google Ads, Meta). */
   readonly daily?: DailySegmentation;
   /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */

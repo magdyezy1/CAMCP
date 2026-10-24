@@ -12,6 +12,7 @@ import {
 import {reportRange as periodRange} from '../dist/src/report-periods.js';
 import {nativeDetailPlatforms} from '../dist/src/overview-native-detail.js';
 import {sourceRequestModel} from '../dist/src/report-request-estimate.js';
+import {fixedReportTimezones, sourceReportTimezone} from '../dist/src/report-windows.js';
 
 // ARC-04 stage F: one report source per reporting platform; src/report-native.ts normalizes through them.
 
@@ -64,6 +65,25 @@ test('the collector and the request estimate read their platform facts from the 
   ]);
   assert.deepEqual(declaring('nullNativeMetrics'), [['ga4', true]]);
   assert.deepEqual(declaring('versionHeader'), [['linkedin', 'LinkedIn-Version']]);
+  // RPT-02 report day boundaries: the fixed zones of src/report-windows.ts, in its order, and the zone reads it named.
+  assert.deepEqual(declaring('fixedTimezone'), [
+    ['linkedin', 'UTC'],
+    ['apple', 'UTC'],
+    ['reddit', 'UTC'],
+    ['gsc', 'America/Los_Angeles'],
+  ]);
+  assert.deepEqual(
+    {...fixedReportTimezones},
+    {linkedin: 'UTC', apple: 'UTC', reddit: 'UTC', gsc: 'America/Los_Angeles'},
+  );
+  assert.deepEqual(Object.keys(fixedReportTimezones), ['linkedin', 'apple', 'reddit', 'gsc']);
+  assert.deepEqual(
+    reportSourceList.filter(s => s.timezoneRead).map(s => [s.platform, Object.keys(s.timezoneRead).sort()]),
+    [
+      ['microsoft', ['zone']],
+      ['ga4', ['plan', 'zone']],
+    ],
+  );
   assert.deepEqual(nativeDailyPlatforms, ['google', 'meta']);
   for (const source of reportSourceList) assert.equal(typeof source.collect, 'function', source.platform);
   // The request model the bootstrap publishes, as the estimate's table and lookup list had it.
@@ -89,6 +109,56 @@ test('the collector and the request estimate read their platform facts from the 
       minimum_requests_per_period: 1,
       native_daily_segmentation: false,
     });
+});
+
+// RPT-02 rolling windows in the account zone read one time zone before collection. The suite exercised only Meta's
+// account read; GA4's property read, Microsoft's report zone and the fixed zones are held here (ARC-04 stage F moved
+// them into the report sources).
+test('a source report time zone: GA4 reads its property, Microsoft maps its account zone, fixed zones read nothing', async () => {
+  const read = async (platform, data) => {
+    const calls = [],
+      service = {
+        store: {
+          resolveConnection: (_actor, gateway, account, connection) => calls.push([gateway, account, connection]),
+        },
+        runPlan: async (plan, options) => calls.push({plan, options}) && {success: true, data},
+      };
+    return {zone: await sourceReportTimezone(service, {platform, account_id: '123', connection_id: 'c1'}, {}), calls};
+  };
+  const ga4 = await read('ga4', {timeZone: 'Asia/Riyadh'});
+  assert.equal(ga4.zone, 'Asia/Riyadh');
+  assert.deepEqual(ga4.calls[0], ['ga4_native_action', '123', 'c1']);
+  assert.deepEqual(ga4.calls[1], {
+    plan: {
+      gateway: 'ga4_native_action',
+      accountId: '123',
+      action: 'AMCP_CAMPAIGN_REPORT',
+      method: 'GET',
+      path: '/v1beta/properties/123',
+      query: {},
+      origin: 'https://analyticsadmin.googleapis.com',
+      headers: {},
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      evidence: 'Reporting time zone for a rolling window, bounded property scope',
+      warnings: [],
+    },
+    options: {connection_id: 'c1', aggregate_pages: false, max_pages: 25},
+  });
+  const microsoft = await read('microsoft', {Account: {TimeZone: 'PacificTimeUSCanadaTijuana'}});
+  assert.equal(microsoft.zone, 'America/Los_Angeles');
+  assert.equal(microsoft.calls[1].plan.action, 'GetAccount');
+  assert.equal((await read('meta', {timezone_name: 'America/New_York'})).zone, 'America/New_York');
+  for (const [platform, zone] of Object.entries({
+    linkedin: 'UTC',
+    apple: 'UTC',
+    reddit: 'UTC',
+    gsc: 'America/Los_Angeles',
+  }))
+    assert.deepEqual(await read(platform, {}), {zone, calls: []}, platform);
+  // An unknown zone name is no zone.
+  assert.equal((await read('ga4', {timeZone: 'Not/AZone'})).zone, null);
 });
 
 test('requested native metrics are checked against returned rows except where a source declares its own shapes', () => {

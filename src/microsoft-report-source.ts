@@ -17,6 +17,7 @@ import {
   settleProviderJob,
 } from './provider-jobs.js';
 import {reportList, type ReportSource} from './report-source.js';
+import {accountTimezone} from './account-metadata.js';
 import type {JsonObject} from './types.js';
 
 /** Microsoft Advertising campaign performance report rows (decimal money in the account currency). */
@@ -35,6 +36,8 @@ export const microsoftReportSource: ReportSource = {
   nativeDetail: true,
   // The submission and the first poll.
   minimumRequestsPerPeriod: 2,
+  // RPT-04 (owner policy P6): report days follow the account time zone, as Microsoft's report zone names it.
+  timezoneRead: {zone: (data, gateway) => microsoftReportZone(accountTimezone(gateway, data)).timezone},
   /**
    * One Summary performance report job (campaign, or RPT-07 ad group and ad) in the account time zone: submitted once
    * as the reporting pipeline's provider job (RPT-06), then polled and downloaded in bounded pages.
