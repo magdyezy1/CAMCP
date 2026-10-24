@@ -38,3 +38,4 @@ export function reportSource(platform: string): ReportSource | undefined {
 // Warnings of the platforms' own collection (ARC-04 stage F), which src/report-native.ts re-exports from here.
 export {tiktokEventsUnavailableWarning} from './tiktok-report-source.js';
 export {linkedinCampaignsUnavailableWarning} from './linkedin-report-source.js';
+export {redditValueUnitWarning} from './reddit-report-source.js';
