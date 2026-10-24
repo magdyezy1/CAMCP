@@ -21,7 +21,10 @@ const counts = {
   // (Reddit's User-Agent, Microsoft's developer token and account, Amazon's client ID, Google Ads' login customer) and
   // X's OAuth 1.0a credentials to src/oauth1.ts; tests/backend-contract-localization.test.mjs keeps their Arabic.
   'src/transport.ts': 36,
-  'src/delegated-native.ts': 37,
+  // ARC-01 phase B (wave 4c, the delegated compiler): the ten refusals of GA4's property scope, Business Profile's
+  // location scope and read mask, and Reddit's report window and fields moved with their rules to those providers'
+  // adapters, unchanged; tests/backend-contract-localization.test.mjs keeps their Arabic.
+  'src/delegated-native.ts': 27,
   'src/workflows.ts': 52,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
@@ -64,7 +67,7 @@ test('core diagnostic ownership resolves runtime imports and excludes lexical sh
 test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 235);
+  assert.equal(owned.size, 225);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

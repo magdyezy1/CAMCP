@@ -18,6 +18,7 @@ import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
+import type {VendorRoute} from './delegated-native.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -564,6 +565,86 @@ export interface CatalogHooks {
   help?(input: JsonObject, tool: ToolDefinition, schema: () => JsonObject): JsonObject | undefined;
 }
 
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the delegated compiler.
+
+/** The account a delegated request names, as the generic scope rule found it (DelegatedScope.refine). */
+export interface DelegatedAccount {
+  /** The account argument, under its name or one of its aliases. */
+  readonly account: unknown;
+  /** Its ID (an `accounts/<id>` name's last segment). */
+  readonly id: string | undefined;
+  /** The account the path names, matched by the provider's account path. */
+  readonly match: RegExpMatchArray | null;
+}
+
+/** What the delegated compiler gives a provider's scope rule: the request and the compiler's own resource helpers. */
+export interface DelegatedScopeContext {
+  readonly route: VendorRoute;
+  readonly args: JsonObject;
+  readonly path: string;
+  readonly body: JsonObject;
+  /** The request's query, which a scope rule may complete (Business Profile's location filter). */
+  readonly query: JsonObject;
+  /** The ID a value names: itself, or the ID of a `<resource>/<id>` name; refuses another shape. */
+  resourceId(value: unknown, resource: string): string | undefined;
+  /** Whether two values name the same resource. */
+  sameResource(left: unknown, right: unknown, resource: string): boolean;
+  /** The one value the bags give a parameter under its names; conflicting aliases are refused. */
+  singleValue(key: string, bags: JsonObject[], extra?: string[]): unknown;
+}
+
+/**
+ * A provider's scope rule for its delegated requests, at the step where the delegated compiler named the provider:
+ * in place of the generic account rule, its account names, or after it.
+ */
+export interface DelegatedScope {
+  /** The scope in place of the account rule (GA4's property, Search Console's site). */
+  own?(context: DelegatedScopeContext): string | undefined;
+  /** Its account argument's other names and the path that names its account (Reddit's ad_account_id, /ad_accounts/). */
+  readonly account?: {readonly aliases: readonly string[]; readonly path: RegExp};
+  /** Its scope from the account the request names (Business Profile's locations), in place of the account's own. */
+  refine?(context: DelegatedScopeContext, account: DelegatedAccount): string | undefined;
+}
+
+/**
+ * A provider's part of the delegated compiler (src/delegated-native.ts DelegatedNativeCompiler), which keeps the route
+ * lookup, the version, path, query and body rules, the vendor schema checks and the order of every step.
+ */
+export interface DelegatedHooks {
+  /** Its routes in the vendor snapshot are compiled by its own entry point, never delegated (Google Ads). */
+  readonly direct?: true;
+  /** Routes it adds to the snapshot's, when the snapshot holds the schema components they use (Reddit's). */
+  readonly routes?: {readonly components: string; list(): readonly VendorRoute[]};
+  /** Other names its tool's arguments may give a native parameter (Reddit's), none otherwise. */
+  aliases?(parameter: string): readonly string[] | undefined;
+  /** The argument that carries its request body (GA4's `request`), `payload` otherwise. */
+  readonly bodyArgument?: string;
+  /** On a route without a body, its body carries query values and is not refused (GA4's report requests). */
+  readonly queryBody?: true;
+  /** Body fields its arguments may give at the top level, for an action (Search Console's URL inspection). */
+  bodyFields?(action: string): readonly string[] | undefined;
+  /** What the refusal of a missing path parameter suggests (GA4's resource names). */
+  readonly missingPathStep?: string;
+  /**
+   * A query parameter its documentation requires although the snapshot does not mark it (Business Profile's readMask
+   * of its location and lodging reads): the check of a value given for it, which refuses an unusable one.
+   */
+  requiredQuery?(operation: string, action: string, key: string): ((value: unknown) => void) | undefined;
+  /** Its unexploded array parameters are sent comma-separated (Reddit). */
+  readonly joinedArrays?: true;
+  /**
+   * Its request bodies are checked against their pinned schema (Reddit's; Criteo's documented ones): the compiler
+   * refuses an invalid body with INVALID_VENDOR_BODY, `refusal` its sentence naming the provider's schema, and `report`
+   * checks a valid report body further (Reddit's insights).
+   */
+  readonly bodySchema?: {
+    applies(route: VendorRoute): boolean;
+    readonly refusal: string;
+    report?(action: string, body: JsonObject): void;
+  };
+  readonly scope?: DelegatedScope;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -579,6 +660,7 @@ export interface ProviderHooks {
   // Wave 4c (transport and catalog).
   readonly compile?: CompileHooks;
   readonly catalog?: CatalogHooks;
+  readonly delegated?: DelegatedHooks;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;

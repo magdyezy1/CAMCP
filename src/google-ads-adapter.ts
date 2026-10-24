@@ -484,6 +484,9 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   catalog: Object.freeze({
     supplemental: Object.freeze({actions: dataManagerActions, requires: 'catalog' as const}),
   }),
+  // Its requests are compiled by its own compiler with ProtoJSON validation (src/compiler.ts): a vendor snapshot's
+  // Google Ads routes are never delegated.
+  delegated: Object.freeze({direct: true as const}),
   checks: Object.freeze({
     // Every reviewed write is checked against its pinned Discovery schema first.
     request: validateGoogleRequest,

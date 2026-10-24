@@ -1,7 +1,19 @@
-import type {ProviderHooks, ScopeContext} from './provider-adapter.js';
+import type {DelegatedHooks, ProviderHooks, ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import type {VendorRoute} from './delegated-native.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
+
+/**
+ * Wave 4c (transport and catalog): Criteo's part of the delegated compiler (src/delegated-native.ts). The bodies of its
+ * routes with documented responses are checked against the pinned campaign schemas.
+ */
+const criteoDelegated: DelegatedHooks = Object.freeze({
+  bodySchema: Object.freeze({
+    applies: (route: VendorRoute) => !!route.responseSchemas,
+    refusal: 'Request body does not satisfy the pinned Criteo campaign schema.',
+  }),
+});
 
 /**
  * Criteo's resource scope, after the account path: a preferred line item (and its targeting) is a global object path,
@@ -47,6 +59,7 @@ function observeCriteo(plan: CompiledRequest, connection: Connection, id: string
  */
 export const criteoHooks: ProviderHooks = Object.freeze({
   gateway: 'criteo_native_action',
+  delegated: criteoDelegated,
   reads: Object.freeze({
     postRead: (_plan: CompiledRequest, pathname: string) =>
       /\/(?:search|preview)$/.test(pathname) ||

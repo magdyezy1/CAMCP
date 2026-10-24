@@ -1,8 +1,65 @@
-import type {ProviderHooks, ProviderVerificationRead, ScopeCallBuilder, ScopeContext} from './provider-adapter.js';
+import type {
+  DelegatedHooks,
+  ProviderHooks,
+  ProviderVerificationRead,
+  ScopeCallBuilder,
+  ScopeContext,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {authorizeRedditPlanningRead, extendRedditTool} from './reddit-extensions.js';
+import {
+  authorizeRedditPlanningRead,
+  extendRedditTool,
+  redditAudienceRoutes,
+  redditReadRoutes,
+} from './reddit-extensions.js';
+import {assertRedditReportRules} from './reddit-report-rules.js';
+
+/** The other names Reddit's tool arguments give its native parameters. */
+const redditAliases: Record<string, string[]> = {
+  ad_account_id: ['account_id'],
+  ad_group_id: ['adgroup_id', 'adset_id'],
+  'page.size': ['page_size', 'pageSize', 'limit'],
+  'page.token': ['page_token', 'pageToken', 'after', 'cursor'],
+  query: ['q'],
+};
+/**
+ * Wave 4c (transport and catalog): Reddit's part of the delegated compiler (src/delegated-native.ts). Its audience and
+ * read routes join the vendor snapshot's when the snapshot holds the v3 schemas; its arguments take Reddit's own
+ * aliases; its unexploded arrays are comma-separated; its bodies are checked against the published v3 schemas, a
+ * report's window and fields and its breakdown rules too; its account argument may be ad_account_id, and its paths
+ * name the account under /ad_accounts/.
+ */
+const redditDelegated: DelegatedHooks = Object.freeze({
+  routes: Object.freeze({components: 'reddit-v3', list: () => [...redditAudienceRoutes, ...redditReadRoutes()]}),
+  aliases: (parameter: string) => redditAliases[parameter],
+  joinedArrays: true as const,
+  bodySchema: Object.freeze({
+    applies: () => true,
+    refusal: 'Request body does not satisfy the published Reddit API schema.',
+    report(action: string, body: JsonObject) {
+      if (action !== 'GET_INSIGHTS') return;
+      const data = body.data;
+      if (
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/.test(data.starts_at) ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/.test(data.ends_at) ||
+        Date.parse(data.starts_at) >= Date.parse(data.ends_at)
+      )
+        throw new MirrorError(
+          'INVALID_REPORT_WINDOW',
+          'Reddit reports require increasing UTC timestamps aligned to complete hours.',
+        );
+      if (data.fields.length === 0)
+        throw new MirrorError('INVALID_VENDOR_BODY', 'A Reddit report requires at least one field.');
+      // Breakdown rules Reddit enforces from 2026-12-08 (PRV-04): refused here instead of by a provider 400.
+      assertRedditReportRules(data);
+    },
+  }),
+  scope: Object.freeze({
+    account: Object.freeze({aliases: Object.freeze(['ad_account_id']), path: /\/ad_accounts\/([^/:]+)/}),
+  }),
+});
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** Reddit's account-agnostic reference reads, which any bound account may make. */
@@ -57,6 +114,7 @@ export const redditHooks: ProviderHooks = Object.freeze({
   gateway: 'reddit_native_action',
   // Wave 4c (transport and catalog): its tool takes the audience and read operations AMCP adds to the captured one.
   catalog: Object.freeze({tools: Object.freeze({reddit_native_action: extendRedditTool})}),
+  delegated: redditDelegated,
   // A response's records are under data, the rest is its envelope.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),

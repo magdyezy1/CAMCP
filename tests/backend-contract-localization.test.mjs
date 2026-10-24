@@ -176,8 +176,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // guidance and Settings sentences, the metric aggregation words and the one-step plural); no owned reason changes.
   // Its review fixes add the other three reviewer sign-in sentences the server can return (server/web-store.ts) and
   // reword an uncertain write (one message added, the remedy replaced): 11,513 entries.
+  // ARC-01 phase B, wave 4c: the delegated compiler's provider rules move GA4's two property-scope refusals and
+  // Business Profile's six location, account and read-mask refusals from src/delegated-native.ts (which keeps its
+  // others) to their adapters, and Reddit's two report refusals to its adapter, which already owns reasons: two more
+  // files with reasons, the same reasons.
   assert.equal(files.length, 669);
-  assert.equal(selected.filter(row => row.messages.size).length, 253);
+  assert.equal(selected.filter(row => row.messages.size).length, 255);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
