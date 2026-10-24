@@ -6,6 +6,7 @@ import {
   addDecimal,
   positiveDecimalIncrease,
   multiplyDecimal,
+  type PolicyDecimal,
 } from './policy-decimal.js';
 import {assertBusinessAccessPolicy} from './google-business-access.js';
 import {assertGoogleAccessPolicy} from './google-user-access.js';
@@ -945,6 +946,510 @@ export function describeExceeded(exceeded: JsonObject[]): string {
     )
     .join('; ');
 }
+/** A money amount's exact decimal: its source text where the request carried one, else its number. */
+const exact = (amount: Amount) => policyDecimal(amount.decimal ?? amount.amount);
+/**
+ * One account's spending check as its stages share it (ARC-04: checkAccountSpendPolicy was one 430-line function; its
+ * stages are the functions below, run in the same order inside one transaction, with the same refusals and findings).
+ */
+interface SpendCheck {
+  readonly store: Store;
+  readonly actor: Actor;
+  readonly plan: CompiledRequest;
+  readonly before: unknown;
+  /** The governing policy's ID: the account's own, or the workspace default. */
+  readonly id: string;
+  readonly policy: JsonObject;
+  /** Refuses under `block`; under `confirm` records the exceeded cap for the user to acknowledge. */
+  readonly breach: (e: MirrorError) => void;
+}
+/** The stored policy that governs the account, after its access-policy checks; a family may require one. */
+function governingPolicy(store: Store, actor: Actor, plan: CompiledRequest, before: unknown) {
+  const read = (key: string) =>
+    store.db
+      .prepare("SELECT data,revision FROM documents WHERE tenant_id=? AND kind='spend_policy' AND id=?")
+      .get(actor.tenantId, key) as JsonObject | undefined;
+  // An account-specific policy wins; otherwise the workspace default applies, so an account
+  // nobody configured is still covered.
+  const accountKey = spendPolicyKey(plan.gateway, plan.accountId!),
+    accountRow = read(accountKey);
+  const id = accountRow ? accountKey : workspaceDefaultPolicyId,
+    row = accountRow ?? read(workspaceDefaultPolicyId);
+  if (row) assertBusinessAccessPolicy(plan, before, JSON.parse(row.data));
+  if (row) assertGoogleAccessPolicy(plan, before, JSON.parse(row.data));
+  const needsPolicy = familyOf(plan)?.requiresSpendPolicy;
+  if (!row && (typeof needsPolicy === 'function' ? needsPolicy(plan) : !!needsPolicy))
+    throw new MirrorError(
+      'POLICY_REQUIRED',
+      'This change raises spending and needs a spending policy on the account first. An owner sets one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.',
+      {gateway: plan.gateway, account_id: plan.accountId},
+      403,
+    );
+  return {accountKey, accountRow, id, row};
+}
+/** The owner's deletion and activation switches. */
+function assertPolicyAllows({plan, before, policy, id}: SpendCheck): void {
+  // The reviewed state goes with the plan: a family may delete through what is already there (a feed whose
+  // deletion rule is on), and a body value can delete on a route the catalog calls an update (WRT-02).
+  if (policy.allow_deletion === false && applyExecutionRisk(plan, before).destructive) {
+    const field = bodyDeletion(plan);
+    throw new MirrorError(
+      'POLICY_DELETION_FORBIDDEN',
+      'The owner policy forbids resource deletion.',
+      {policy_id: id, ...(field ? {field} : {})},
+      403,
+    );
+  }
+  if (policy.allow_activation === false) {
+    if (!Object.hasOwn(activationFields, plan.gateway))
+      throw new MirrorError(
+        'POLICY_ACTIVATION_FORBIDDEN',
+        'The owner policy forbids activation and this platform has no declared activation contract, so the request cannot be shown to leave entities paused.',
+        {policy_id: id, gateway: plan.gateway},
+        403,
+      );
+    const rule =
+      plan.gateway === 'linkedin_native_action' && /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
+        ? {field: 'intendedStatus', active: ['ACTIVE']}
+        : activationFields[plan.gateway];
+    if (policyActivates(plan, before, rule))
+      throw new MirrorError(
+        'POLICY_ACTIVATION_FORBIDDEN',
+        // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.
+        'The owner policy forbids activation. Keep ' +
+          rule!.field +
+          ' paused (a new entity too, even under a paused parent), or ask the workspace owner to allow activation.',
+        {policy_id: id, field: rule!.field},
+        403,
+      );
+  }
+}
+/** The request's budget amounts and the reviewed state's, as the family or the generic scan measures them. */
+function policyAmounts({plan, before, policy, breach}: SpendCheck) {
+  let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
+  const unsupported: Unsupported[] = [],
+    strict = budgetLimitKeys.some(k => policy[k] !== undefined);
+  const familyAmounts = () => familyPolicyAmounts(plan, before, policy),
+    identity = resourceBaselines() ? (resourceIdentity[plan.gateway] ?? []) : [];
+  try {
+    campaignAmounts = familyAmounts();
+    amounts =
+      campaignAmounts?.amounts ??
+      budgets(
+        {body: plan.body, query: plan.query},
+        /budget/i.test(plan.path) ? '/budget' : '',
+        [],
+        strict,
+        0,
+        unsupported,
+        identity,
+      );
+    for (const u of campaignAmounts?.unsupported ?? [])
+      unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
+    old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before), '', [], false, 0, [], identity);
+  } catch (e) {
+    // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
+    if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
+    breach(e);
+    campaignAmounts = undefined;
+    amounts = [];
+    old = [];
+  }
+  // Rollback switch of WRT-01 stage A: the evaluator before it, where the first unmeasurable field replaced every
+  // other finding of the request. Under block both refuse; under confirm this one hides the measured amounts.
+  if (unsupportedAborts() && unsupported.length) {
+    const [first] = unsupported.splice(0);
+    breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', first!.message, {field: first!.field}));
+    campaignAmounts = undefined;
+    amounts = [];
+    old = [];
+  }
+  return {campaignAmounts, amounts, old, unsupported, strict};
+}
+/** The request's bid amounts under a bid cap; Google money that is neither a bid nor a budget is unsupported. */
+function policyBids({plan, policy}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
+  // Google money that is neither a bid nor a measured budget (a deprecated spend target) is never guessed.
+  if (plan.gateway === googleGateway && (strict || policy.max_bid_native !== undefined))
+    for (const field of namedMoney({body: plan.body, query: plan.query}, googleMoneyFields().unsupported))
+      unsupported.push({field, message: unmappedMessage});
+  const bids =
+    policy.max_bid_native !== undefined
+      ? bidAmounts(
+          {body: plan.body, query: plan.query},
+          '',
+          '',
+          [],
+          0,
+          plan.gateway === googleGateway ? googleMoneyFields().bid : [],
+        )
+      : [];
+  return bids;
+}
+/** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
+function amountBaseline(
+  plan: CompiledRequest,
+  campaignAmounts: ReturnType<typeof familyPolicyAmounts>,
+  old: Amount[],
+): (b: Amount) => {creating: boolean; candidates: string[]} {
+  const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
+  const updatesExisting =
+    ['UPDATE', 'BATCH_UPDATE', 'PARTIAL_UPDATE', 'BATCH_PARTIAL_UPDATE'].includes(restli) ||
+    /_(?:id|urn)_post$/.test(plan.action);
+  /** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
+  const baseline = (b: Amount) => {
+    const creating =
+      campaignAmounts?.creating ??
+      (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
+    // Per-resource baselines (WRT-07 Stage B): when the amount and every prior value of its field name the record
+    // they belong to, only that record's prior is its baseline, so cutting two budgets is two decreases. An identity
+    // with no matching prior has no baseline (never another record's); without identities the field name pairs them.
+    const sameField = old.filter(o => o.key === b.key),
+      identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
+      candidates = [
+        ...new Set(
+          (identified ? sameField.filter(o => o.resource === b.resource) : sameField).map(o => decimalText(exact(o))),
+        ),
+      ];
+    return {creating, candidates};
+  };
+  return baseline;
+}
+type Baseline = ReturnType<typeof amountBaseline>;
+/** Caps stated in account currency without one refuse every money change but a decrease (owner decision P5). */
+function assertCurrencyBound(
+  {store, actor, plan, before, id, policy}: SpendCheck,
+  amounts: Amount[],
+  bids: Amount[],
+  unsupported: Unsupported[],
+  baseline: Baseline,
+): void {
+  // Owner decision P5 (2026-10-11): caps stated in account currency that name no currency (saved before policies
+  // recorded one) cannot be shown to be in the account's currency, so a request with money amounts is refused until
+  // the owner saves them again with it, under confirm and block alike, before any cap is compared or anything is
+  // reserved; no acknowledgement overrides it. AMCP_LEGACY_CURRENCY_CAPS=warn is the rollback (compared as before).
+  // A request that only lowers budgets, each from its record's one current amount, is not refused (owner decision D7:
+  // decreases are always allowed): lowering a budget cannot raise spend in any currency, so an owner or operator can
+  // still cut spend in an incident. Its amounts are then compared with the caps as before. A bid, a new record, an
+  // amount without one current value or an amount AMCP cannot measure is still refused.
+  const unbound = unboundCurrencyCaps(policy),
+    lowersOnly =
+      amounts.length > 0 &&
+      !bids.length &&
+      !unsupported.length &&
+      amounts.every(b => {
+        const {creating, candidates} = baseline(b);
+        return !creating && candidates.length === 1 && compareDecimal(exact(b), policyDecimal(candidates[0]!)) <= 0;
+      });
+  if (
+    unbound.length &&
+    legacyCurrencyCapsBlock() &&
+    !lowersOnly &&
+    (amounts.length || bids.length || unsupported.length)
+  )
+    throw new MirrorError(
+      'POLICY_CURRENCY_UNSET',
+      'The owner stated these spending caps in account currency without naming the currency, so AMCP cannot tell whether this account spends in it. Nothing was sent: budget and bid changes on this account are refused until the workspace owner saves the policy again with its currency.',
+      {
+        policy_id: id,
+        gateway: plan.gateway,
+        fields: unbound,
+        account_currency: accountCurrency(store, actor.tenantId, plan, before) ?? null,
+      },
+      409,
+    );
+}
+/** Compares each budget amount with the caps and returns the request's positive increase. */
+function budgetIncrease({plan, policy, breach}: SpendCheck, amounts: Amount[], baseline: Baseline): PolicyDecimal {
+  let increase = decimalZero;
+  for (const b of amounts) {
+    const requested = exact(b);
+    const {creating, candidates} = baseline(b);
+    // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
+    // lowering one from its single current value is always allowed: it can only reduce what may be spent.
+    const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
+      totalCap = lifetime && policy.max_total_budget_native !== undefined,
+      limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
+      decrease =
+        lifetime &&
+        !creating &&
+        candidates.length === 1 &&
+        compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
+    if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
+      breach(
+        new MirrorError(
+          'POLICY_BUDGET_LIMIT',
+          lifetime
+            ? 'The requested lifetime or total amount exceeds the account policy.'
+            : 'Requested budget exceeds the account policy.',
+          {
+            field: b.path,
+            requested: b.amount,
+            requested_decimal: decimalText(requested),
+            limit,
+            units: 'native',
+            ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
+            ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
+          },
+          403,
+        ),
+      );
+    const baselineMissing =
+      !creating &&
+      candidates.length !== 1 &&
+      (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
+    if (baselineMissing)
+      breach(
+        new MirrorError(
+          'POLICY_BASELINE_REQUIRED',
+          'This budget policy requires one unambiguous current budget. Narrow the mutation to one resource.',
+          {field: b.path},
+          409,
+        ),
+      );
+    // Without one current budget, a request confirmed over the caps reserves its whole amount against the daily cap.
+    const prior =
+      creating || baselineMissing ? decimalZero : candidates.length ? policyDecimal(candidates[0]) : requested;
+    const delta = positiveDecimalIncrease(requested, prior);
+    // Cross multiplication avoids both rounded division and an epsilon that could
+    // authorize an amount genuinely above the owner's exact percentage ceiling.
+    if (
+      !creating &&
+      !baselineMissing &&
+      delta.units > 0n &&
+      policy.max_budget_increase_percent !== undefined &&
+      (prior.units === 0n ||
+        compareDecimal(
+          multiplyDecimal(delta, policyDecimal(100)),
+          multiplyDecimal(prior, policyDecimal(policy.max_budget_increase_percent)),
+        ) > 0)
+    )
+      breach(
+        new MirrorError(
+          'POLICY_INCREASE_LIMIT',
+          'The budget increase exceeds the owner’s percentage limit.',
+          {
+            field: b.path,
+            before: Number(decimalText(prior)),
+            before_decimal: decimalText(prior),
+            after: b.amount,
+            after_decimal: decimalText(requested),
+            maximum_percent: policy.max_budget_increase_percent,
+          },
+          403,
+        ),
+      );
+    increase = addDecimal(increase, delta);
+  }
+  return increase;
+}
+/** The account's currency against the caps' (WRT-07 Stage C). */
+function currencyFindings(
+  {store, actor, plan, before, policy, breach}: SpendCheck,
+  amounts: Amount[],
+  bids: Amount[],
+  unsupported: Unsupported[],
+): void {
+  // Caps bound to a currency (WRT-07 Stage C) compare only an account that spends in it. AMCP never converts
+  // between currencies: another or an unknown account currency is a finding like an exceeded cap.
+  if (typeof policy.currency === 'string' && (amounts.length || bids.length || unsupported.length)) {
+    const observed = accountCurrency(store, actor.tenantId, plan, before);
+    if (!observed) {
+      // The live account check records the currency (account-metadata.ts); it reads through a connection.
+      const account = normalizeAccount(plan.gateway, String(plan.accountId ?? '')),
+        connection = store
+          .connectionsFor(actor)
+          .find(c => c.gateway === plan.gateway && c.accounts.some(a => normalizeAccount(c.gateway, a) === account));
+      breach(
+        new MirrorError(
+          'POLICY_CURRENCY_UNKNOWN',
+          'The owner stated these caps in a currency (policy_currency), and this account’s currency is unknown, so they cannot be compared. Read the account live first (next_call).',
+          {
+            policy_currency: policy.currency,
+            ...(connection
+              ? {
+                  next_call: {
+                    tool: 'amcp_workspace',
+                    arguments: {
+                      action: 'check',
+                      connection_id: connection.id,
+                      account_id: plan.accountId,
+                      live: true,
+                    },
+                  },
+                }
+              : {}),
+          },
+          409,
+        ),
+      );
+    } else if (observed !== policy.currency)
+      breach(
+        new MirrorError(
+          'POLICY_CURRENCY_MISMATCH',
+          'The owner stated these caps in one currency (policy_currency), but this account spends in another (account_currency). AMCP never converts between currencies; the owner states caps for this account in its own currency.',
+          {policy_currency: policy.currency, account_currency: observed},
+          403,
+        ),
+      );
+  }
+}
+/** Each bid against the owner's bid cap. */
+function bidFindings({policy, breach}: SpendCheck, bids: Amount[]): void {
+  for (const b of bids)
+    if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
+      breach(
+        new MirrorError(
+          'POLICY_BID_LIMIT',
+          'The requested bid exceeds the owner’s bid cap.',
+          {
+            field: b.path,
+            requested: b.amount,
+            requested_decimal: b.decimal,
+            limit: policy.max_bid_native,
+            units: 'native',
+          },
+          403,
+        ),
+      );
+}
+/** Today's reserved increases on the account (UTC day), the earlier parts of a group review included. */
+function reservedToday(
+  {store, actor}: SpendCheck,
+  accountKey: string,
+  reserveId: string | undefined,
+  pendingIncrease: string | undefined,
+) {
+  // Keep tenant/account/day filtering in SQLite and stream only matching amounts.
+  // SQL SUM on REAL values rounds just like JS addition; lifetime history must not
+  // be loaded into JS to fix it. The surrounding IMMEDIATE transaction is unchanged.
+  const day = new Date().toISOString().slice(0, 10);
+  // Read the filtered JSON text: extracting a large integral aggregate through
+  // SQLite's INTEGER binding can throw above MAX_SAFE_INTEGER. Casting REAL to
+  // TEXT instead would lose significant digits in legacy numeric reservations.
+  const rows = store.db
+    .prepare(
+      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND json_extract(data,'$.policy_id')=? AND json_extract(data,'$.day')=? AND id<>coalesce(?,'')",
+    )
+    .iterate(actor.tenantId, accountKey, day, reserveId ?? null) as Iterable<JsonObject>;
+  let used = decimalZero;
+  for (const row of rows) {
+    const reservation = JSON.parse(row.data) as JsonObject;
+    // Legacy rows have only the numeric field. Preserve their recorded value;
+    // guessing away historical rounding could incorrectly release reserved money.
+    const legacy = policyDecimal(reservation.increase_native);
+    const amount = reservation.increase_decimal == null ? legacy : policyDecimal(reservation.increase_decimal);
+    if (Number(decimalText(amount)) !== Number(decimalText(legacy)))
+      throw new MirrorError(
+        'POLICY_AMOUNT_INVALID',
+        'The retained daily spending reservation has inconsistent amounts.',
+        {reservation_id: row.id},
+        409,
+      );
+    used = addDecimal(used, amount);
+  }
+  // Earlier parts of the same group review count as reserved (WRT-04): the group is one change for the daily cap.
+  if (pendingIncrease !== undefined) used = addDecimal(used, policyDecimal(pendingIncrease));
+  return {day, used};
+}
+/** The daily cap, the unmeasurable amounts, the cap confirmation and audit, the reservation and the result. */
+function settledCheck(
+  {store, actor, plan, id, policy, breach}: SpendCheck,
+  {
+    accountKey,
+    accountRow,
+    row,
+    enforcement,
+    exceeded,
+    unsupported,
+    increase,
+    day,
+    used,
+    reserveId,
+    capOverrideConfirmed,
+  }: {
+    accountKey: string;
+    accountRow: JsonObject | undefined;
+    row: JsonObject;
+    enforcement: string;
+    exceeded: JsonObject[];
+    unsupported: Unsupported[];
+    increase: PolicyDecimal;
+    day: string;
+    used: PolicyDecimal;
+    reserveId: string | undefined;
+    capOverrideConfirmed: boolean;
+  },
+): JsonObject {
+  const requestedDecimal = decimalText(increase),
+    usedDecimal = decimalText(used);
+  const requestedNumber = Number(requestedDecimal),
+    usedNumber = Number(usedDecimal);
+  if (
+    policy.max_daily_increase_native !== undefined &&
+    compareDecimal(addDecimal(used, increase), policyDecimal(policy.max_daily_increase_native)) > 0
+  )
+    breach(
+      new MirrorError(
+        'POLICY_DAILY_INCREASE_LIMIT',
+        'Cumulative budget increases would exceed the owner’s daily policy.',
+        {
+          day,
+          already_reserved: usedNumber,
+          already_reserved_decimal: usedDecimal,
+          requested_increase: requestedNumber,
+          requested_increase_decimal: requestedDecimal,
+          total_decimal: decimalText(addDecimal(used, increase)),
+          limit: policy.max_daily_increase_native,
+          units: 'native',
+        },
+        403,
+      ),
+    );
+  // Each money field the policy cannot measure is one finding beside those of the measured amounts, never instead of
+  // them: a protective spend cap no longer hides an over-cap budget, and the increase is still reserved below.
+  for (const u of unsupported) breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', u.message, {field: u.field}));
+  // Execute (reserveId set) goes ahead over a cap only with the user's acknowledgement, which the audit records.
+  if (exceeded.length && reserveId && !capOverrideConfirmed)
+    throw new MirrorError(
+      'CAP_CONFIRMATION_REQUIRED',
+      'This change goes beyond a spending cap the owner set: ' +
+        describeExceeded(exceeded) +
+        '. Show the user and, once they approve, execute again with cap_override_confirmed=true.',
+      {policy_id: id, exceeded},
+    );
+  if (exceeded.length && reserveId)
+    // Read back for the owner (owner health cap_overrides, WRT-05): who went over which cap, on which account.
+    store.appendAudit(actor.tenantId, reserveId, {
+      event: 'spend_cap_exceeded_with_confirmation',
+      policy_id: id,
+      exceeded,
+      actor: actor.userId,
+      actor_role: actor.role,
+      gateway: plan.gateway,
+      account_id: plan.accountId,
+    });
+  if (reserveId)
+    store.putDocument(actor.tenantId, 'spend_reservation', reserveId, {
+      policy_id: accountKey,
+      day,
+      increase_native: requestedNumber,
+      increase_decimal: requestedDecimal,
+      created_at: Date.now(),
+    });
+  return {
+    configured: true,
+    policy_id: id,
+    scope: accountRow ? 'account' : 'workspace_default',
+    policy_revision: row.revision,
+    requested_increase_native: requestedNumber,
+    requested_increase_decimal: requestedDecimal,
+    reserved_today_native: usedNumber,
+    reserved_today_decimal: usedDecimal,
+    units: 'native',
+    enforcement,
+    ...(exceeded.length ? {exceeded, cap_override_required: true, exceeded_summary: describeExceeded(exceeded)} : {}),
+  };
+}
 function checkAccountSpendPolicy(
   store: Store,
   actor: Actor,
@@ -956,26 +1461,7 @@ function checkAccountSpendPolicy(
 ): JsonObject {
   return store.transaction(() => {
     store.assertActorActive(actor);
-    const read = (key: string) =>
-      store.db
-        .prepare("SELECT data,revision FROM documents WHERE tenant_id=? AND kind='spend_policy' AND id=?")
-        .get(actor.tenantId, key) as JsonObject | undefined;
-    // An account-specific policy wins; otherwise the workspace default applies, so an account
-    // nobody configured is still covered.
-    const accountKey = spendPolicyKey(plan.gateway, plan.accountId!),
-      accountRow = read(accountKey);
-    const id = accountRow ? accountKey : workspaceDefaultPolicyId,
-      row = accountRow ?? read(workspaceDefaultPolicyId);
-    if (row) assertBusinessAccessPolicy(plan, before, JSON.parse(row.data));
-    if (row) assertGoogleAccessPolicy(plan, before, JSON.parse(row.data));
-    const needsPolicy = familyOf(plan)?.requiresSpendPolicy;
-    if (!row && (typeof needsPolicy === 'function' ? needsPolicy(plan) : !!needsPolicy))
-      throw new MirrorError(
-        'POLICY_REQUIRED',
-        'This change raises spending and needs a spending policy on the account first. An owner sets one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.',
-        {gateway: plan.gateway, account_id: plan.accountId},
-        403,
-      );
+    const {accountKey, accountRow, id, row} = governingPolicy(store, actor, plan, before);
     if (!row)
       return {
         configured: false,
@@ -991,388 +1477,29 @@ function checkAccountSpendPolicy(
       if (enforcement === 'block' || !capRules.has(e.code)) throw e;
       exceeded.push({rule: e.code, message: e.message, ...e.details});
     };
-    // The reviewed state goes with the plan: a family may delete through what is already there (a feed whose
-    // deletion rule is on), and a body value can delete on a route the catalog calls an update (WRT-02).
-    if (policy.allow_deletion === false && applyExecutionRisk(plan, before).destructive) {
-      const field = bodyDeletion(plan);
-      throw new MirrorError(
-        'POLICY_DELETION_FORBIDDEN',
-        'The owner policy forbids resource deletion.',
-        {policy_id: id, ...(field ? {field} : {})},
-        403,
-      );
-    }
-    if (policy.allow_activation === false) {
-      if (!Object.hasOwn(activationFields, plan.gateway))
-        throw new MirrorError(
-          'POLICY_ACTIVATION_FORBIDDEN',
-          'The owner policy forbids activation and this platform has no declared activation contract, so the request cannot be shown to leave entities paused.',
-          {policy_id: id, gateway: plan.gateway},
-          403,
-        );
-      const rule =
-        plan.gateway === 'linkedin_native_action' &&
-        /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
-          ? {field: 'intendedStatus', active: ['ACTIVE']}
-          : activationFields[plan.gateway];
-      if (policyActivates(plan, before, rule))
-        throw new MirrorError(
-          'POLICY_ACTIVATION_FORBIDDEN',
-          // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.
-          'The owner policy forbids activation. Keep ' +
-            rule!.field +
-            ' paused (a new entity too, even under a paused parent), or ask the workspace owner to allow activation.',
-          {policy_id: id, field: rule!.field},
-          403,
-        );
-    }
-    let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
-    const unsupported: Unsupported[] = [],
-      strict = budgetLimitKeys.some(k => policy[k] !== undefined);
-    const familyAmounts = () => familyPolicyAmounts(plan, before, policy),
-      identity = resourceBaselines() ? (resourceIdentity[plan.gateway] ?? []) : [];
-    try {
-      campaignAmounts = familyAmounts();
-      amounts =
-        campaignAmounts?.amounts ??
-        budgets(
-          {body: plan.body, query: plan.query},
-          /budget/i.test(plan.path) ? '/budget' : '',
-          [],
-          strict,
-          0,
-          unsupported,
-          identity,
-        );
-      for (const u of campaignAmounts?.unsupported ?? [])
-        unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
-      old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before), '', [], false, 0, [], identity);
-    } catch (e) {
-      // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
-      if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
-      breach(e);
-      campaignAmounts = undefined;
-      amounts = [];
-      old = [];
-    }
-    // Rollback switch of WRT-01 stage A: the evaluator before it, where the first unmeasurable field replaced every
-    // other finding of the request. Under block both refuse; under confirm this one hides the measured amounts.
-    if (unsupportedAborts() && unsupported.length) {
-      const [first] = unsupported.splice(0);
-      breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', first!.message, {field: first!.field}));
-      campaignAmounts = undefined;
-      amounts = [];
-      old = [];
-    }
-    // Google money that is neither a bid nor a measured budget (a deprecated spend target) is never guessed.
-    if (plan.gateway === googleGateway && (strict || policy.max_bid_native !== undefined))
-      for (const field of namedMoney({body: plan.body, query: plan.query}, googleMoneyFields().unsupported))
-        unsupported.push({field, message: unmappedMessage});
-    const bids =
-      policy.max_bid_native !== undefined
-        ? bidAmounts(
-            {body: plan.body, query: plan.query},
-            '',
-            '',
-            [],
-            0,
-            plan.gateway === googleGateway ? googleMoneyFields().bid : [],
-          )
-        : [];
-    const exact = (amount: Amount) => policyDecimal(amount.decimal ?? amount.amount);
-    const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
-    const updatesExisting =
-      ['UPDATE', 'BATCH_UPDATE', 'PARTIAL_UPDATE', 'BATCH_PARTIAL_UPDATE'].includes(restli) ||
-      /_(?:id|urn)_post$/.test(plan.action);
-    /** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
-    const baseline = (b: Amount) => {
-      const creating =
-        campaignAmounts?.creating ??
-        (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
-      // Per-resource baselines (WRT-07 Stage B): when the amount and every prior value of its field name the record
-      // they belong to, only that record's prior is its baseline, so cutting two budgets is two decreases. An identity
-      // with no matching prior has no baseline (never another record's); without identities the field name pairs them.
-      const sameField = old.filter(o => o.key === b.key),
-        identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
-        candidates = [
-          ...new Set(
-            (identified ? sameField.filter(o => o.resource === b.resource) : sameField).map(o => decimalText(exact(o))),
-          ),
-        ];
-      return {creating, candidates};
-    };
-    // Owner decision P5 (2026-10-11): caps stated in account currency that name no currency (saved before policies
-    // recorded one) cannot be shown to be in the account's currency, so a request with money amounts is refused until
-    // the owner saves them again with it, under confirm and block alike, before any cap is compared or anything is
-    // reserved; no acknowledgement overrides it. AMCP_LEGACY_CURRENCY_CAPS=warn is the rollback (compared as before).
-    // A request that only lowers budgets, each from its record's one current amount, is not refused (owner decision D7:
-    // decreases are always allowed): lowering a budget cannot raise spend in any currency, so an owner or operator can
-    // still cut spend in an incident. Its amounts are then compared with the caps as before. A bid, a new record, an
-    // amount without one current value or an amount AMCP cannot measure is still refused.
-    const unbound = unboundCurrencyCaps(policy),
-      lowersOnly =
-        amounts.length > 0 &&
-        !bids.length &&
-        !unsupported.length &&
-        amounts.every(b => {
-          const {creating, candidates} = baseline(b);
-          return !creating && candidates.length === 1 && compareDecimal(exact(b), policyDecimal(candidates[0]!)) <= 0;
-        });
-    if (
-      unbound.length &&
-      legacyCurrencyCapsBlock() &&
-      !lowersOnly &&
-      (amounts.length || bids.length || unsupported.length)
-    )
-      throw new MirrorError(
-        'POLICY_CURRENCY_UNSET',
-        'The owner stated these spending caps in account currency without naming the currency, so AMCP cannot tell whether this account spends in it. Nothing was sent: budget and bid changes on this account are refused until the workspace owner saves the policy again with its currency.',
-        {
-          policy_id: id,
-          gateway: plan.gateway,
-          fields: unbound,
-          account_currency: accountCurrency(store, actor.tenantId, plan, before) ?? null,
-        },
-        409,
-      );
-    let increase = decimalZero;
-    for (const b of amounts) {
-      const requested = exact(b);
-      const {creating, candidates} = baseline(b);
-      // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
-      // lowering one from its single current value is always allowed: it can only reduce what may be spent.
-      const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
-        totalCap = lifetime && policy.max_total_budget_native !== undefined,
-        limit = totalCap ? policy.max_total_budget_native : policy.max_budget_native,
-        decrease =
-          lifetime &&
-          !creating &&
-          candidates.length === 1 &&
-          compareDecimal(requested, policyDecimal(candidates[0]!)) <= 0;
-      if (limit !== undefined && !decrease && compareDecimal(requested, policyDecimal(limit)) > 0)
-        breach(
-          new MirrorError(
-            'POLICY_BUDGET_LIMIT',
-            lifetime
-              ? 'The requested lifetime or total amount exceeds the account policy.'
-              : 'Requested budget exceeds the account policy.',
-            {
-              field: b.path,
-              requested: b.amount,
-              requested_decimal: decimalText(requested),
-              limit,
-              units: 'native',
-              ...(lifetime ? {amount_kind: 'lifetime_or_total'} : {}),
-              ...(totalCap ? {limit_key: 'max_total_budget_native'} : {}),
-            },
-            403,
-          ),
-        );
-      const baselineMissing =
-        !creating &&
-        candidates.length !== 1 &&
-        (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
-      if (baselineMissing)
-        breach(
-          new MirrorError(
-            'POLICY_BASELINE_REQUIRED',
-            'This budget policy requires one unambiguous current budget. Narrow the mutation to one resource.',
-            {field: b.path},
-            409,
-          ),
-        );
-      // Without one current budget, a request confirmed over the caps reserves its whole amount against the daily cap.
-      const prior =
-        creating || baselineMissing ? decimalZero : candidates.length ? policyDecimal(candidates[0]) : requested;
-      const delta = positiveDecimalIncrease(requested, prior);
-      // Cross multiplication avoids both rounded division and an epsilon that could
-      // authorize an amount genuinely above the owner's exact percentage ceiling.
-      if (
-        !creating &&
-        !baselineMissing &&
-        delta.units > 0n &&
-        policy.max_budget_increase_percent !== undefined &&
-        (prior.units === 0n ||
-          compareDecimal(
-            multiplyDecimal(delta, policyDecimal(100)),
-            multiplyDecimal(prior, policyDecimal(policy.max_budget_increase_percent)),
-          ) > 0)
-      )
-        breach(
-          new MirrorError(
-            'POLICY_INCREASE_LIMIT',
-            'The budget increase exceeds the owner’s percentage limit.',
-            {
-              field: b.path,
-              before: Number(decimalText(prior)),
-              before_decimal: decimalText(prior),
-              after: b.amount,
-              after_decimal: decimalText(requested),
-              maximum_percent: policy.max_budget_increase_percent,
-            },
-            403,
-          ),
-        );
-      increase = addDecimal(increase, delta);
-    }
-    // Caps bound to a currency (WRT-07 Stage C) compare only an account that spends in it. AMCP never converts
-    // between currencies: another or an unknown account currency is a finding like an exceeded cap.
-    if (typeof policy.currency === 'string' && (amounts.length || bids.length || unsupported.length)) {
-      const observed = accountCurrency(store, actor.tenantId, plan, before);
-      if (!observed) {
-        // The live account check records the currency (account-metadata.ts); it reads through a connection.
-        const account = normalizeAccount(plan.gateway, String(plan.accountId ?? '')),
-          connection = store
-            .connectionsFor(actor)
-            .find(c => c.gateway === plan.gateway && c.accounts.some(a => normalizeAccount(c.gateway, a) === account));
-        breach(
-          new MirrorError(
-            'POLICY_CURRENCY_UNKNOWN',
-            'The owner stated these caps in a currency (policy_currency), and this account’s currency is unknown, so they cannot be compared. Read the account live first (next_call).',
-            {
-              policy_currency: policy.currency,
-              ...(connection
-                ? {
-                    next_call: {
-                      tool: 'amcp_workspace',
-                      arguments: {
-                        action: 'check',
-                        connection_id: connection.id,
-                        account_id: plan.accountId,
-                        live: true,
-                      },
-                    },
-                  }
-                : {}),
-            },
-            409,
-          ),
-        );
-      } else if (observed !== policy.currency)
-        breach(
-          new MirrorError(
-            'POLICY_CURRENCY_MISMATCH',
-            'The owner stated these caps in one currency (policy_currency), but this account spends in another (account_currency). AMCP never converts between currencies; the owner states caps for this account in its own currency.',
-            {policy_currency: policy.currency, account_currency: observed},
-            403,
-          ),
-        );
-    }
-    for (const b of bids)
-      if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
-        breach(
-          new MirrorError(
-            'POLICY_BID_LIMIT',
-            'The requested bid exceeds the owner’s bid cap.',
-            {
-              field: b.path,
-              requested: b.amount,
-              requested_decimal: b.decimal,
-              limit: policy.max_bid_native,
-              units: 'native',
-            },
-            403,
-          ),
-        );
-    // Keep tenant/account/day filtering in SQLite and stream only matching amounts.
-    // SQL SUM on REAL values rounds just like JS addition; lifetime history must not
-    // be loaded into JS to fix it. The surrounding IMMEDIATE transaction is unchanged.
-    const day = new Date().toISOString().slice(0, 10);
-    // Read the filtered JSON text: extracting a large integral aggregate through
-    // SQLite's INTEGER binding can throw above MAX_SAFE_INTEGER. Casting REAL to
-    // TEXT instead would lose significant digits in legacy numeric reservations.
-    const rows = store.db
-      .prepare(
-        "SELECT id,data FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND json_extract(data,'$.policy_id')=? AND json_extract(data,'$.day')=? AND id<>coalesce(?,'')",
-      )
-      .iterate(actor.tenantId, accountKey, day, reserveId ?? null) as Iterable<JsonObject>;
-    let used = decimalZero;
-    for (const row of rows) {
-      const reservation = JSON.parse(row.data) as JsonObject;
-      // Legacy rows have only the numeric field. Preserve their recorded value;
-      // guessing away historical rounding could incorrectly release reserved money.
-      const legacy = policyDecimal(reservation.increase_native);
-      const amount = reservation.increase_decimal == null ? legacy : policyDecimal(reservation.increase_decimal);
-      if (Number(decimalText(amount)) !== Number(decimalText(legacy)))
-        throw new MirrorError(
-          'POLICY_AMOUNT_INVALID',
-          'The retained daily spending reservation has inconsistent amounts.',
-          {reservation_id: row.id},
-          409,
-        );
-      used = addDecimal(used, amount);
-    }
-    // Earlier parts of the same group review count as reserved (WRT-04): the group is one change for the daily cap.
-    if (pendingIncrease !== undefined) used = addDecimal(used, policyDecimal(pendingIncrease));
-    const requestedDecimal = decimalText(increase),
-      usedDecimal = decimalText(used);
-    const requestedNumber = Number(requestedDecimal),
-      usedNumber = Number(usedDecimal);
-    if (
-      policy.max_daily_increase_native !== undefined &&
-      compareDecimal(addDecimal(used, increase), policyDecimal(policy.max_daily_increase_native)) > 0
-    )
-      breach(
-        new MirrorError(
-          'POLICY_DAILY_INCREASE_LIMIT',
-          'Cumulative budget increases would exceed the owner’s daily policy.',
-          {
-            day,
-            already_reserved: usedNumber,
-            already_reserved_decimal: usedDecimal,
-            requested_increase: requestedNumber,
-            requested_increase_decimal: requestedDecimal,
-            total_decimal: decimalText(addDecimal(used, increase)),
-            limit: policy.max_daily_increase_native,
-            units: 'native',
-          },
-          403,
-        ),
-      );
-    // Each money field the policy cannot measure is one finding beside those of the measured amounts, never instead of
-    // them: a protective spend cap no longer hides an over-cap budget, and the increase is still reserved below.
-    for (const u of unsupported) breach(new MirrorError('POLICY_AMOUNT_UNSUPPORTED', u.message, {field: u.field}));
-    // Execute (reserveId set) goes ahead over a cap only with the user's acknowledgement, which the audit records.
-    if (exceeded.length && reserveId && !capOverrideConfirmed)
-      throw new MirrorError(
-        'CAP_CONFIRMATION_REQUIRED',
-        'This change goes beyond a spending cap the owner set: ' +
-          describeExceeded(exceeded) +
-          '. Show the user and, once they approve, execute again with cap_override_confirmed=true.',
-        {policy_id: id, exceeded},
-      );
-    if (exceeded.length && reserveId)
-      // Read back for the owner (owner health cap_overrides, WRT-05): who went over which cap, on which account.
-      store.appendAudit(actor.tenantId, reserveId, {
-        event: 'spend_cap_exceeded_with_confirmation',
-        policy_id: id,
-        exceeded,
-        actor: actor.userId,
-        actor_role: actor.role,
-        gateway: plan.gateway,
-        account_id: plan.accountId,
-      });
-    if (reserveId)
-      store.putDocument(actor.tenantId, 'spend_reservation', reserveId, {
-        policy_id: accountKey,
-        day,
-        increase_native: requestedNumber,
-        increase_decimal: requestedDecimal,
-        created_at: Date.now(),
-      });
-    return {
-      configured: true,
-      policy_id: id,
-      scope: accountRow ? 'account' : 'workspace_default',
-      policy_revision: row.revision,
-      requested_increase_native: requestedNumber,
-      requested_increase_decimal: requestedDecimal,
-      reserved_today_native: usedNumber,
-      reserved_today_decimal: usedDecimal,
-      units: 'native',
+    const check: SpendCheck = {store, actor, plan, before, id, policy, breach};
+    assertPolicyAllows(check);
+    const {campaignAmounts, amounts, old, unsupported, strict} = policyAmounts(check),
+      bids = policyBids(check, unsupported, strict),
+      baseline = amountBaseline(plan, campaignAmounts, old);
+    assertCurrencyBound(check, amounts, bids, unsupported, baseline);
+    const increase = budgetIncrease(check, amounts, baseline);
+    currencyFindings(check, amounts, bids, unsupported);
+    bidFindings(check, bids);
+    const {day, used} = reservedToday(check, accountKey, reserveId, pendingIncrease);
+    return settledCheck(check, {
+      accountKey,
+      accountRow,
+      row,
       enforcement,
-      ...(exceeded.length ? {exceeded, cap_override_required: true, exceeded_summary: describeExceeded(exceeded)} : {}),
-    };
+      exceeded,
+      unsupported,
+      increase,
+      day,
+      used,
+      reserveId,
+      capOverrideConfirmed,
+    });
   });
 }
 /** Every cap the checked request exceeds, across the accounts of an Apple shared budget as well. */
