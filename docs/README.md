@@ -51,6 +51,7 @@ on a current page, a new heading naming a batch, a commit reference, a typed pac
 
 - [Deploy AMCP on Railway with Cloudflare DNS](DEPLOY-RAILWAY.md)
 - [Operations](OPERATIONS.md)
+- [Owner tasks and their steps](operations/OWNER-TASKS.md)
 - [AMCP accounts and workspace access](USER-ACCOUNTS.md)
 - [Test accounts and platform connections](TEST-ACCOUNTS.md)
 - [OAuth compatibility and hardening decisions](OAUTH-HARDENING.md)

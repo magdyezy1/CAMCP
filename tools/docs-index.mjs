@@ -27,6 +27,7 @@ const sections = [
     [
       'DEPLOY-RAILWAY.md',
       'OPERATIONS.md',
+      'operations/OWNER-TASKS.md',
       'USER-ACCOUNTS.md',
       'TEST-ACCOUNTS.md',
       'OAUTH-HARDENING.md',

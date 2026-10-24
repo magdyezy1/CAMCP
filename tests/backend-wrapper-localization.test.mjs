@@ -206,10 +206,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/snapchat-scope.ts, Snapchat's scoped paths, without wrapper reasons.
   // The design review of 2026-10 adds 24 website entries to the catalog, none a wrapper reason, and its review fixes
   // three reviewer sign-in sentences and one uncertain-write message (its remedy replaced), none a wrapper reason.
+  // DOC-03's owner guide names the members-only Help page (one entry, not a wrapper reason).
   assert.equal(files.length, 669);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11513);
+  assert.equal(Object.keys(catalog).length, 11514);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

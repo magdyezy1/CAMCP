@@ -1,76 +1,26 @@
+---
+status: current
+tier: owner
+---
+
 # What stays with you
 
-Some work needs your accounts, your dashboards or your decision, so AMCP cannot do it for you. Your operator can do
-the technical steps; each item links to how.
+Some work needs your accounts or your decision; your operator has the steps.
 
-## Soon
-
-- **Before 15 November 2026: record the Railway settings.** Write down the health check, restart, replica, draining,
-  watch-path and deploy-trigger settings shown in the Railway dashboard, and export the build log and image digest.
-  Railway changes how these settings are read on 1 December 2026
-  ([the settings to record](../DEPLOY-RAILWAY.md#railway-service-settings-owner-record-d1)).
-- **Turn off Cloudflare's automatic Web Analytics.** The site's security policy blocks the script it injects anyway.
-- **Backups.** Turn on Railway's scheduled volume backups, keep an encrypted copy outside Railway, and run one restore
-  drill to learn how long a recovery takes ([restore drill](../OPERATIONS.md#restore-drill)). Keep backups for a
-  limited time, for example 35 days, and keep the master key in a password manager or secret store: without it, the
-  backups and the saved logins cannot be opened.
-- **After the next release, set the visitor address source** so that rate limits count each visitor separately
-  ([client addresses](../DEPLOY-RAILWAY.md#client-addresses-for-rate-limits)).
-
-## After each release
-
-- **Save spending policies again** when owner health says a cap names no currency: until then such a cap blocks budget
-  and bid changes on its accounts.
-- **Sync each Google Ads login once** in Connections, when the release notes ask for it.
-- **Decide when to publish.** Pushing a release deploys the live site, so it happens only when you say so, after the
-  qualification has passed.
-
-## Regularly
-
-- **Every 30 days:** read TikTok's developer changelog yourself, since TikTok blocks automated reads, and have the
-  documentation watch run over the other platforms' public pages; it lists the manual checks that are due
-  ([provider lifecycle](../OPERATIONS.md#provider-lifecycle)).
-- **Every 90 days:** confirm again the platform approvals you declared; the
-  [provider access register](../PROVIDER-ACCESS.md) marks a declaration stale after 90 days.
-- **Before 1 April 2027:** renew the expiry date of the site's security contact file.
-- **Once, before you rely on Meta caps in your own currency:** check AMCP's copy of Meta's currency table against
-  Meta's Currencies page ([provider lifecycle](../OPERATIONS.md#provider-lifecycle)).
-
-## Platform apps and approvals
-
-- **Register each platform's app** and give its credentials to your operator, who adds them to the server
-  ([register provider apps](../DEPLOY-RAILWAY.md#3-register-provider-apps)). Until then, the platform's card in
-  Connections says *Administrator setup required*.
-- **Declare what each platform approved** for your apps, such as the Google Ads developer token level or Meta's
-  advanced access, in the [provider access register](../PROVIDER-ACCESS.md). A declaration records what you hold; it
-  never grants anything.
-- **LinkedIn Media Planning and Audience Insights, and Display & Video 360** need approvals or a user profile that only
-  LinkedIn and Google can grant ([provider programs](../acceptance/PROVIDER-PROGRAMS.md)).
+- **Platform apps.** Register each platform's app and give its credentials to your operator; until then its card says
+  *Administrator setup required*. Declare what each platform approved.
+- **Backups.** Turn on scheduled backups, keep an encrypted copy elsewhere, keep the master key in a password manager
+  and run one restore drill.
+- **Hosting.** Record the Railway settings before 15 November 2026 and turn off Cloudflare's automatic Web Analytics.
+- **Regularly.** After a release, save spending policies again when a cap names no currency, and decide when to
+  publish. Read TikTok's developer changelog every 30 days and confirm your declared approvals every 90.
 
 ## Live acceptance
 
-AMCP has been tested against simulated platforms. Proving it on real accounts needs runs that only you can authorize,
-in writing, one at a time. None has been run yet ([acceptance runbooks](../acceptance/README.md)):
-
-- a zero-spend launch on a Google Ads test account, which serves no ads and spends nothing
-  ([write acceptance](../acceptance/WRITE-ACCEPTANCE.md));
-- the AI assistants your team uses, on a staging copy of AMCP ([AI-client checks](../acceptance/CLIENT-INTEROP.md));
-- one delivery to a disposable Google Sheets file ([Sheets delivery](../acceptance/SHEETS-DELIVERY.md));
-- read checks on accounts and properties you name ([read acceptance](../acceptance/READ-ACCEPTANCE.md));
-- screen-reader sessions in English and Arabic, with testers you choose
-  ([assistive technology](../acceptance/ASSISTIVE-TECHNOLOGY.md)).
+Proving AMCP on real accounts needs runs only you can authorize: a zero-spend test launch, your AI assistants on a
+staging copy, one disposable Google Sheets delivery, read checks and screen-reader sessions. None has run yet.
 
 ## Decisions only you can make
 
-These are still open in [decisions](../DECISIONS.md):
-
-- the license for the code;
-- who runs the evaluation sessions with AI assistants, and whether an AI-client directory listing is a goal;
-- whether times in the audit history, sessions and tokens show a time zone;
-- which Adjust operations matter to you;
-- whether disconnecting a Google login should also revoke AMCP at Google, after one test with disposable logins.
-
-You decided to keep sign-up closed: new members join by invitation. If you want people to sign up on the website
-later, it needs an email provider, and each new sign-up then waits for your approval.
-
-Back to the [owner guide](README.md).
+The code's license, who runs the AI-assistant evaluations, whether audit times show a time zone, and whether
+disconnecting a Google login also revokes AMCP at Google.

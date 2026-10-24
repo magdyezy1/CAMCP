@@ -1,0 +1,55 @@
+// DOC-03: every documentation page says what it is (current, reference, record, proposal or archived) and who reads it
+// (owner, operator or engineering) in a two-line front matter block. Before it, the index placed pages by a hand list
+// and the documentation freeze told a current page from a record only by its folder.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  declaredMeta,
+  frontMatter,
+  frontMatterBlock,
+  frontMatterProblems,
+  statuses,
+  stripFrontMatter,
+  tiers,
+  withFrontMatter,
+} from '../tools/docs-front-matter.mjs';
+
+test('a page’s front matter is read, written and removed the same way', () => {
+  const page = '---\nstatus: reference\ntier: engineering\n---\n\n# Title\n\nText.\n';
+  assert.deepEqual(frontMatter(page), {data: {status: 'reference', tier: 'engineering'}, body: '# Title\n\nText.\n'});
+  assert.equal(stripFrontMatter(page), '# Title\n\nText.\n');
+  assert.equal(frontMatterBlock({tier: 'owner', status: 'current'}), '---\nstatus: current\ntier: owner\n---\n\n');
+  assert.equal(
+    withFrontMatter({status: 'current', tier: 'owner'}, page),
+    withFrontMatter({status: 'current', tier: 'owner'}, '# Title\n\nText.\n'),
+  );
+  // A page without a block is unchanged, and CRLF line ends read the same.
+  assert.deepEqual(frontMatter('# Title\n'), {data: null, body: '# Title\n'});
+  assert.deepEqual(frontMatter('---\r\nstatus: record\r\ntier: operator\r\n---\r\n\r\n# T\r\n').data, {
+    status: 'record',
+    tier: 'operator',
+  });
+  // A thematic break later in the page is not front matter.
+  assert.equal(frontMatter('# T\n\n---\n\nstatus: x\n---\n').data, null);
+});
+
+test('a page without valid front matter is named, with what is wrong', () => {
+  assert.deepEqual(statuses, ['current', 'reference', 'record', 'proposal', 'archived']);
+  assert.deepEqual(tiers, ['owner', 'operator', 'engineering']);
+  assert.deepEqual(frontMatterProblems('a.md', '---\nstatus: current\ntier: owner\n---\n\n# A\n'), []);
+  assert.deepEqual(
+    frontMatterProblems('a.md', '---\nstatus: current\ntier: operator\ngenerated: tools/docs-index.mjs\n---\n# A\n'),
+    [],
+  );
+  assert.match(frontMatterProblems('a.md', '# A\n')[0], /a\.md: no front matter/);
+  assert.match(frontMatterProblems('a.md', '---\nstatus: draft\ntier: owner\n---\n')[0], /status is one of/);
+  assert.match(frontMatterProblems('a.md', '---\nstatus: current\n---\n')[0], /tier is one of/);
+  assert.match(frontMatterProblems('a.md', '---\nstatus: current\ntier: owner\nowner: me\n---\n')[0], /unknown/);
+  assert.match(frontMatterProblems('a.md', '---\nstatus current\n---\n')[0], /not `key: value`/);
+  assert.match(
+    frontMatterProblems('a.md', '---\nstatus: current\ntier: owner\ngenerated: by hand\n---\n')[0],
+    /generated names the tool/,
+  );
+  // The repository README is GitHub's landing page: its meta data is declared, not written into it.
+  assert.deepEqual(declaredMeta['README.md'], {status: 'current', tier: 'operator'});
+});
