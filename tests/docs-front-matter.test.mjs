@@ -3,16 +3,24 @@
 // and the documentation freeze told a current page from a record only by its folder.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
   declaredMeta,
+  documentationPages,
+  documentationProblems,
   frontMatter,
   frontMatterBlock,
   frontMatterProblems,
+  pageMeta,
   statuses,
   stripFrontMatter,
   tiers,
   withFrontMatter,
 } from '../tools/docs-front-matter.mjs';
+import {readMoves} from '../tools/docs-links.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 test('a page’s front matter is read, written and removed the same way', () => {
   const page = '---\nstatus: reference\ntier: engineering\n---\n\n# Title\n\nText.\n';
@@ -52,4 +60,53 @@ test('a page without valid front matter is named, with what is wrong', () => {
   );
   // The repository README is GitHub's landing page: its meta data is declared, not written into it.
   assert.deepEqual(declaredMeta['README.md'], {status: 'current', tier: 'operator'});
+});
+
+test('every documentation page of the repository has valid front matter that agrees with its folder', () => {
+  const {moves} = readMoves('.'),
+    stubs = new Set([...moves.keys()].filter(file => file.startsWith('docs/')));
+  assert.deepEqual(documentationProblems('.', stubs), []);
+  const pages = documentationPages('.');
+  assert.equal(pages[0], 'README.md');
+  assert.ok(pages.length > 500);
+  assert.deepEqual(pageMeta('.', 'README.md'), {status: 'current', tier: 'operator'});
+  for (const file of [...stubs].filter(f => f.endsWith('.md')))
+    assert.equal(pageMeta('.', file).status, 'archived', file);
+});
+
+// A page's folder says what it may be: a dated record never passes for a current page, the archive is archived, and
+// the owner tier is the owner guide. A redirect stub is archived, and a generated page names a generator that exists.
+test('a page whose front matter its folder contradicts, a stub that is not archived or a missing generator is refused', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-front-matter-'));
+  t.after(() => removeTestDirectory(root, 'amcp-front-matter-'));
+  const write = (file, text) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
+    fs.writeFileSync(path.join(root, file), text);
+  };
+  const page = (status, tier, extra = '') => '---\nstatus: ' + status + '\ntier: ' + tier + extra + '\n---\n\n# Page\n';
+  write('README.md', '# Repo\n');
+  write('tools/make.mjs', '// a generator\n');
+  write('docs/GUIDE.md', page('current', 'operator'));
+  write('docs/GENERATED.md', page('reference', 'engineering', '\ngenerated: tools/make.mjs'));
+  write('docs/records/RECORD-2026-10-01.md', page('record', 'operator'));
+  write('docs/archive/OLD.md', page('archived', 'engineering'));
+  write('docs/owner/README.md', page('current', 'owner'));
+  write('docs/review/MOVED.md', page('archived', 'engineering'));
+  assert.deepEqual(documentationProblems(root, new Set(['docs/review/MOVED.md'])), []);
+  write('docs/records/NOW.md', page('current', 'operator'));
+  write('docs/archive/LIVE.md', page('reference', 'engineering'));
+  write('docs/owner/ops.md', page('current', 'operator'));
+  write('docs/OWNER.md', page('current', 'owner'));
+  write('docs/review/MOVED.md', page('reference', 'engineering'));
+  write('docs/LOST.md', page('reference', 'engineering', '\ngenerated: tools/gone.mjs'));
+  write('docs/BARE.md', '# No front matter\n');
+  assert.deepEqual(documentationProblems(root, new Set(['docs/review/MOVED.md'])), [
+    'docs/BARE.md: no front matter (---, status: …, tier: …, ---) at the top of the page',
+    'docs/LOST.md: its generator tools/gone.mjs does not exist',
+    'docs/OWNER.md: the owner tier is the owner guide, in docs/owner/',
+    'docs/archive/LIVE.md: a page in docs/archive/ is archived, not reference',
+    'docs/owner/ops.md: a page in docs/owner/ is for the owner tier',
+    'docs/records/NOW.md: a page in docs/records/ is record, not current',
+    'docs/review/MOVED.md: a redirect stub is archived',
+  ]);
 });
