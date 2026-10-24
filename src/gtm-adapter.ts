@@ -51,6 +51,8 @@ export const gtmHooks: ProviderHooks = Object.freeze({
     concurrency: gtmConcurrency,
     // A container version's publish takes effect for everyone at once (src/write-effects.ts).
     publishesLive: (plan: CompiledRequest) => plan.method === 'POST' && /:publish$/.test(plan.path),
+    // An outcome shows the safe configuration of the response and of its failures (src/write-outcome.ts).
+    outcomeData: gtmSafeConfiguration,
   }),
 });
 

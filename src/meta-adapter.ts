@@ -39,6 +39,7 @@ import {metaStateReads} from './meta-state-reads.js';
 import {metaCreativeImpact} from './meta-creative-features.js';
 import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './meta-recipe-activation.js';
 import {metaPreflight} from './meta-preflight.js';
+import type {MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -304,6 +305,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
   // creative's identity sources, which Meta's module reads itself through the review's access check; an ad set's audience
   // choice is checked after the review's paused-parent check.
   writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: metaConfirms,
     // An account-edge creation reads the account and its parent, a node edit the node (src/meta-state-reads.ts).
     snapshots: metaStateReads,
     ownState: Object.freeze({
@@ -317,3 +320,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
     impact: (plan: CompiledRequest) => metaCreativeImpact(plan),
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** An account-edge creation returns its ID; a node edit returns success. */
+function metaConfirms(plan: CompiledRequest, _result: TransportResult, {data: d, hasId}: MutationResponse): boolean {
+  return /^\/v[^/]+\/act_/.test(plan.path) ? hasId(d.id) : d.success === true;
+}

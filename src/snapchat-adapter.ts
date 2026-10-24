@@ -41,6 +41,7 @@ import {snapchatWriteImpact} from './snapchat-write-impact.js';
 import {snapchatClone} from './snapchat-campaign-clone.js';
 import {snapchatActivationGates, snapchatActivationSteps} from './snapchat-recipe-activation.js';
 import {snapchatPreflight} from './snapchat-preflight.js';
+import type {MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -426,6 +427,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
   // reads; an ad's lead form is read after its creative, and its creatives' prerequisites are checked after every read;
   // an edited creative's references must be the account's, and the ads a creative edit changes are listed.
   writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: snapchatConfirms,
     // Its updates and patches read each target; a create reads its parent collection or its account and dependencies.
     snapshots: snapchatStateReads,
     accountPath: /^\/v1\/adaccounts\/[^/]+/,
@@ -440,3 +443,30 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     impact: snapchatWriteImpact,
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** Every record of the request succeeded with its ID; a delete returns none. */
+function snapchatConfirms(
+  plan: CompiledRequest,
+  _result: TransportResult,
+  {data: d, body: b, segments, last, hasId}: MutationResponse,
+): boolean {
+  if (String(d.request_status).toUpperCase() !== 'SUCCESS') return false;
+  const kind = [...segments]
+      .reverse()
+      .find(k => ['campaigns', 'adsquads', 'ads', 'creatives', 'lead_generation_forms', 'segments'].includes(k))!,
+    rows = d[kind];
+  if (plan.method === 'DELETE') return Array.isArray(rows) && rows.length === 0;
+  const singular = kind === 'adsquads' ? 'adsquad' : kind.slice(0, -1),
+    expected = Array.isArray(b[kind]) ? b[kind].length : 1;
+  return (
+    Array.isArray(rows) &&
+    rows.length === expected &&
+    rows.every(
+      (r, i) =>
+        String(r.sub_request_status).toUpperCase() === 'SUCCESS' &&
+        hasId(r[singular]?.id) &&
+        (plan.method === 'POST' || String(r[singular].id) === String(plan.method === 'PUT' ? b[kind][i].id : last)),
+    )
+  );
+}

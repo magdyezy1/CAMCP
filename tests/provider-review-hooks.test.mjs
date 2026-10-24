@@ -80,14 +80,15 @@ test('each provider declares exactly the review hooks of the parts the review na
     registeredProviderHooks.filter(h => h.writes).map(h => [h.gateway, Object.keys(h.writes).sort()]),
   );
   assert.deepEqual(declared, {
-    google_ads_native_action: ['prerequisites', 'snapshots'],
+    google_ads_native_action: ['confirms', 'prerequisites', 'snapshots'],
     google_business_native_action: ['publishesLive', 'shownRequest'],
-    meta_native_action: ['impact', 'ownState', 'parentChecks', 'snapshots'],
-    tiktok_native_action: ['deletes', 'morePages', 'prerequisites', 'snapshots'],
+    meta_native_action: ['confirms', 'impact', 'ownState', 'parentChecks', 'snapshots'],
+    tiktok_native_action: ['confirms', 'deletes', 'morePages', 'prerequisites', 'snapshots'],
     snapchat_native_action: [
       'accountPath',
       'accountSnapshots',
       'affectedAds',
+      'confirms',
       'dependentReads',
       'impact',
       'observeState',
@@ -96,14 +97,14 @@ test('each provider declares exactly the review hooks of the parts the review na
       'recordCount',
       'snapshots',
     ],
-    x_ads_native_action: ['accountPath', 'parentChecks', 'snapshots'],
-    linkedin_native_action: ['accountPath'],
-    dv360_native_action: ['accountPath'],
-    microsoft_ads_native_action: ['writeGrant'],
+    x_ads_native_action: ['accountPath', 'confirms', 'parentChecks', 'snapshots'],
+    linkedin_native_action: ['accountPath', 'confirms'],
+    dv360_native_action: ['accountPath', 'confirms'],
+    microsoft_ads_native_action: ['emptyErrors', 'writeGrant'],
     apple_ads_native_action: ['prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
     reddit_native_action: ['writeScopes'],
     ga4_native_action: ['writePermission'],
-    gtm_native_action: ['concurrency', 'publishesLive', 'writePermission'],
+    gtm_native_action: ['concurrency', 'outcomeData', 'publishesLive', 'writePermission'],
     google_search_console_native_action: ['publishesLive', 'writePermission'],
   });
   for (const hooks of registeredProviderHooks)
@@ -407,5 +408,45 @@ test('the disclosures ask the provider after the family: what publishes live, ho
   assert.equal(
     writeImpact(plan('x_ads_native_action', 'PUT', '/12/accounts/123/line_items/1'), [], false, 'c'),
     undefined,
+  );
+});
+
+test('the outcome asks the provider for its response contract, its empty error lists and what it shows', async () => {
+  const source = fs.readFileSync(new URL('../src/write-outcome.ts', import.meta.url), 'utf8');
+  assert.deepEqual(
+    [...source.matchAll(/['"]([a-z0-9_]+_native_action)['"]/g)].map(m => m[1]),
+    [],
+  );
+  assert.deepEqual(
+    [...source.matchAll(/from '\.\/([^']+)\.js'/g)]
+      .map(m => 'src/' + m[1] + '.ts')
+      .filter(f => isProviderModule(f) && !providerRegistries.includes(f)),
+    [],
+  );
+  const {writeOutcome} = await import('../dist/src/write-outcome.js');
+  const {gtmSafeConfiguration} = await import('../dist/src/gtm-workflow-writes.js');
+  assert.equal(writes('gtm_native_action').outcomeData, gtmSafeConfiguration);
+  const response = (data, status = 200, headers = {}) => ({status, headers, data});
+  // Microsoft's batch PartialErrors whose slots are all null hold no error; another provider's do, and so do objects.
+  const microsoft = plan('microsoft_ads_native_action', 'POST', '/UpdateCampaigns');
+  const nullSlots = writeOutcome(response({CampaignIds: ['1'], PartialErrors: [null]}));
+  assert.equal(nullSlots.success, false);
+  assert.deepEqual(nullSlots.failures, [{path: '$.PartialErrors', value: [null]}]);
+  assert.equal(writes('microsoft_ads_native_action').emptyErrors('PartialErrors', [null, null]), true);
+  assert.equal(writes('microsoft_ads_native_action').emptyErrors('PartialErrors', [{Code: 1}]), false);
+  assert.equal(writes('microsoft_ads_native_action').emptyErrors('Errors', [null]), false);
+  // A provider's own response contract confirms its mutation; one without a contract confirms nothing.
+  const meta = plan('meta_native_action', 'POST', '/v26.0/act_123/campaigns');
+  assert.equal(writeOutcome(response({id: '42'}), meta).success, true);
+  assert.equal(writeOutcome(response({success: true}), meta).success, false);
+  const linkedin = plan('linkedin_native_action', 'POST', '/rest/adAccounts/123/adCampaigns');
+  assert.equal(writeOutcome(response(null, 201, {'x-restli-id': '7'}), linkedin).success, true);
+  assert.deepEqual(writeOutcome(response({}, 200), plan('reddit_native_action', 'POST', '/api/v3/x')).failures, [
+    {path: '$', value: 'The response does not confirm every mutation under this provider response contract.'},
+  ]);
+  // Microsoft's null slots are no failure; its synthetic route has no family contract, so only the mutation is unconfirmed.
+  assert.deepEqual(
+    writeOutcome(response({CampaignIds: ['1'], PartialErrors: [null]}), microsoft).failures.map(f => f.path),
+    ['$'],
   );
 });

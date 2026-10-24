@@ -73,7 +73,8 @@ import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {tiktokStateReads} from './tiktok-state-reads.js';
 import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
-import type {CampaignPreflightContext} from './provider-adapter.js';
+import {object} from './write-common.js';
+import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -467,6 +468,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
   // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are
   // checked against the state, in that order, after every read.
   writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: tiktokConfirms,
     // A status update to DELETE deletes, though its route is an update (src/write-effects.ts).
     deletes: (plan: CompiledRequest) =>
       /\/status\/update\/$/.test(plan.path) &&
@@ -484,3 +487,24 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     },
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** Code 0, and a create returns the one ad ID, or the created entity IDs. */
+function tiktokConfirms(
+  plan: CompiledRequest,
+  _result: TransportResult,
+  {data: d, segments, hasId}: MutationResponse,
+): boolean {
+  if (d.code !== 0) return false;
+  if (!plan.path.endsWith('/create/')) return true;
+  const kind = segments[2]!,
+    data = object(d.data);
+  if (kind === 'ad') {
+    const ids = data.ad_ids ?? [data.ad_id];
+    return Array.isArray(ids) && ids.length === 1 && typeof ids[0] === 'string' && /^\d+$/.test(ids[0]);
+  }
+  return (
+    hasId(data[kind + '_id']) ||
+    (Array.isArray(data[kind + '_ids']) && data[kind + '_ids'].length > 0 && data[kind + '_ids'].every(hasId))
+  );
+}

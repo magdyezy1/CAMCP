@@ -8,6 +8,8 @@ import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-e
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
+// Writes and campaigns (wave 4c).
+import type {MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -134,6 +136,8 @@ export const xHooks: ProviderHooks = Object.freeze({
   // review's paused-parent check (src/write-review.ts).
   // Its targeting criteria are read from their line item, and a create on an account reads the account.
   writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: xConfirms,
     parentChecks: validateXTargetingState,
     snapshots: (plan: CompiledRequest) => (xTargetingKind(plan) ? xTargetingSnapshots(plan) : undefined),
     accountPath: /^\/12\/accounts\/[^/]+/,
@@ -147,3 +151,11 @@ export const xHooks: ProviderHooks = Object.freeze({
     }),
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** A create returns its records with IDs; an edit returns its target. */
+function xConfirms(plan: CompiledRequest, _result: TransportResult, {data: d, last, hasId}: MutationResponse): boolean {
+  return Array.isArray(d.data)
+    ? plan.method === 'POST' && d.data.length > 0 && d.data.every(r => hasId(r.id))
+    : hasId(d.data?.id) && (plan.method === 'POST' || String(d.data.id) === last);
+}

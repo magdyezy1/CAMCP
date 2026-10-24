@@ -8,6 +8,8 @@ import {
   validateDV360TargetingSearch,
 } from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead, dv360AudienceRead} from './dv360-audiences.js';
+// Writes and campaigns (wave 4c).
+import type {MutationResponse} from './provider-adapter.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -98,5 +100,28 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     },
   }),
   // Writes and campaigns (wave 4c): a create on an advertiser reads the advertiser (src/write-snapshots.ts).
-  writes: Object.freeze({accountPath: /^\/v\d+\/advertisers\/[^/]+/}),
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: dv360Confirms,
+    accountPath: /^\/v\d+\/advertisers\/[^/]+/,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** A delete returns an empty object or 204; a create or edit returns its entity ID. */
+function dv360Confirms(
+  plan: CompiledRequest,
+  result: TransportResult,
+  {data: d, segments, last, hasId}: MutationResponse,
+): boolean {
+  if (plan.method === 'DELETE')
+    return (result.status === 200 && result.data !== null && Object.keys(d).length === 0) || result.status === 204;
+  const kind = plan.method === 'POST' ? last : segments.at(-2)!,
+    key: Record<string, string> = {
+      campaigns: 'campaignId',
+      insertionOrders: 'insertionOrderId',
+      lineItems: 'lineItemId',
+      creatives: 'creativeId',
+    };
+  return hasId(d[key[kind]!]) && (plan.method === 'POST' || String(d[key[kind]!]) === last);
+}

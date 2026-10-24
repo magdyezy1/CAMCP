@@ -39,6 +39,7 @@ import {googleClone} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
 import {googlePreflight} from './google-preflight.js';
+import type {MutationResponse} from './provider-adapter.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -581,6 +582,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
   // checked against the state, in that order, before the review's paused-parent check.
   writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: googleConfirms,
     // A mutation's state reads: its targets, the customer of a create, and each existing parent.
     snapshots: googleStateReads,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
@@ -589,3 +592,26 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     },
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** One result per operation, each naming its target or a new resource of the mutated collection in the account. */
+function googleConfirms(
+  plan: CompiledRequest,
+  _result: TransportResult,
+  {data: d, body: b, last}: MutationResponse,
+): boolean {
+  return (
+    Array.isArray(d.results) &&
+    d.results.length === b.operations.length &&
+    d.results.every((r: JsonObject, i: number) => {
+      const op = b.operations[i],
+        expected = op.remove ?? op.update?.resource_name ?? op.update?.resourceName;
+      return (
+        typeof r.resourceName === 'string' &&
+        (expected
+          ? r.resourceName === expected
+          : r.resourceName.startsWith('customers/' + plan.accountId + '/' + last.replace(':mutate', '') + '/'))
+      );
+    })
+  );
+}

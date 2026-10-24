@@ -30,7 +30,7 @@ import {
   linkedinActivationRecord,
   linkedinActivationSteps,
 } from './linkedin-recipe-activation.js';
-import type {CampaignPreflightContext} from './provider-adapter.js';
+import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -333,5 +333,15 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
     }),
   }),
   // A create on an ad account reads the account (src/write-snapshots.ts).
-  writes: Object.freeze({accountPath: /^\/rest\/adAccounts\/[^/]+/}),
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: linkedinConfirms,
+    accountPath: /^\/rest\/adAccounts\/[^/]+/,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** A create returns 201 with its x-restli-id; any other write 204. */
+function linkedinConfirms(_plan: CompiledRequest, result: TransportResult, {hasId}: MutationResponse): boolean {
+  return result.status === 201 ? hasId(result.headers['x-restli-id']) : result.status === 204;
+}

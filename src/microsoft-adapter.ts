@@ -135,7 +135,15 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
     activation: Object.freeze({steps: microsoftActivationSteps, gates: microsoftActivationGates}),
   }),
   // Its review needs msads.manage, after the family's scope check (src/write-review.ts).
-  writes: Object.freeze({writeGrant: microsoftWriteGrant}),
+  writes: Object.freeze({
+    writeGrant: microsoftWriteGrant,
+    // Batch errors can align with request items using null success slots: those top-level lists hold no error. The
+    // exception is exact (src/write-outcome.ts); false or objects still fail.
+    emptyErrors: (key: string, value: unknown) =>
+      (key === 'PartialErrors' || key === 'NestedPartialErrors') &&
+      Array.isArray(value) &&
+      value.every(item => item === null),
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.access (src/write-review.ts).

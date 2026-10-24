@@ -683,6 +683,18 @@ export type StateReadBuilder = (
   body?: JsonObject,
   method?: string,
 ) => CompiledRequest;
+/** A mutation's response and request as the outcome stage reads them (src/write-outcome.ts confirmedMutationResult). */
+export interface MutationResponse {
+  /** The response data, an object or empty. */
+  readonly data: JsonObject;
+  /** The request body, an object or empty. */
+  readonly body: JsonObject;
+  /** The request path's segments, and its last one. */
+  readonly segments: string[];
+  readonly last: string;
+  /** A non-empty string or a safe integer: a native ID. */
+  hasId(value: unknown): boolean;
+}
 /** What the review gives a provider that reads part of a write's state itself: the review's services and access check. */
 export interface ReviewStateContext {
   readonly store: Store;
@@ -763,6 +775,20 @@ export interface WriteReviewHooks {
    * choices), or undefined; refuses a replacement that would reset what it omits.
    */
   impact?(plan: CompiledRequest, state: unknown[]): JsonObject | undefined;
+  // The outcome of the one mutation (src/write-outcome.ts writeOutcome), after a family's own.
+  /**
+   * Whether a top-level response field that names errors holds none under the provider's contract (Microsoft's
+   * batch PartialErrors and NestedPartialErrors whose slots are all null, aligned with the request's items).
+   */
+  emptyErrors?(key: string, value: unknown): boolean;
+  /**
+   * Whether the response confirms every mutation under the provider's response contract (Meta, Google Ads, TikTok,
+   * Snapchat, LinkedIn, X, DV360), given the response and request as the stage reads them; a write of a provider
+   * without one is never confirmed.
+   */
+  confirms?(plan: CompiledRequest, result: TransportResult, response: MutationResponse): boolean;
+  /** What an outcome shows of the response data and its failures (Tag Manager's safe configuration). */
+  outcomeData?(value: unknown): unknown;
   // The review's preparation and execution (prepareReview, submit).
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
   shownRequest?(plan: CompiledRequest): unknown;
