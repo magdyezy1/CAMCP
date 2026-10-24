@@ -1,4 +1,4 @@
-import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
+import {fingerprint, reportContractVersion} from './report-quality.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
@@ -283,7 +283,6 @@ export class NativeCampaignReports {
       bad('Native metrics must be provider field names (at most 30).');
     this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
     const lineage: JsonObject[] = [];
-    const qualityPages: JsonObject[] = [];
     let quality: JsonObject = {version: 1, pages_collected: true, measurement_complete: null};
     const run = async (plan: CompiledRequest, aggregate = true, stage = 'campaign_report') => {
       try {
@@ -420,128 +419,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'ga4') {
-      metadata = await run(
-        plan('/v1beta/properties/' + account, {}, undefined, 'https://analyticsadmin.googleapis.com'),
-        false,
-      );
-      currency = metadata.currencyCode ?? null;
-      timezone = metadata.timeZone ?? null;
-      const metrics = [...new Set(['sessions', 'totalUsers', 'keyEvents', 'totalRevenue', ...extra])];
-      if (metrics.length > 10)
-        bad(
-          'GA4 allows at most 10 metrics per request. Create separate saved reports for incompatible or additional metrics.',
-        );
-      const page = async (dimensions: string[], names: string[]) => {
-        const out: {dims: string[]; metrics: JsonObject}[] = [];
-        for (let offset = 0; offset < 10000; offset += 1000) {
-          const d = await run(
-            plan(
-              '/v1beta/properties/' + account + ':runReport',
-              {},
-              {
-                dateRanges: [{startDate: range.since, endDate: range.until}],
-                dimensions: dimensions.map(name => ({name})),
-                metrics: names.map(name => ({name})),
-                offset: String(offset),
-                limit: '1000',
-                keepEmptyRows: true,
-                returnPropertyQuota: true,
-              },
-            ),
-            false,
-          );
-          qualityPages.push(ga4Quality(d.metadata ?? {}, dimensions, offset));
-          const restricted = new Set(
-            (d.metadata?.schemaRestrictionResponse?.activeMetricRestrictions ?? []).map(
-              (v: JsonObject) => v.metricName,
-            ),
-          );
-          const rows = list(d.rows ?? []);
-          out.push(
-            ...rows.map(r => ({
-              dims: list(r.dimensionValues ?? []).map(v => String(v.value ?? '')),
-              metrics: Object.fromEntries(
-                list(d.metricHeaders ?? []).map((h: JsonObject, i: number) => [
-                  String(h.name),
-                  restricted.has(h.name) ? null : (r.metricValues as JsonObject[] | undefined)?.[i]?.value,
-                ]),
-              ),
-            })),
-          );
-          if (d.metadata?.dataLossFromOtherRow || d.metadata?.subjectToThresholding) complete = false;
-          if (offset + rows.length >= Number(d.rowCount ?? rows.length)) break;
-          if (!rows.length || offset === 9000)
-            throw new MirrorError('INCOMPLETE_REPORT', 'GA4 report exceeded the row limit.');
-        }
-        return out;
-      };
-      // Metrics come from an ID-only report so GA4 aggregates them itself. One campaign ID can carry
-      // several campaign names -- a rename mid-flight, or inconsistent utm_campaign casing -- and
-      // summing those rows here would double count users and corrupt ratio metrics such as
-      // engagementRate and bounceRate. The name is resolved from a separate sessions-only report.
-      const totals = await page(['sessionCampaignId'], metrics),
-        labels = await page(['sessionCampaignId', 'sessionCampaignName'], ['sessions']);
-      const best = new Map<string, {name: string; sessions: number}>(),
-        variants = new Map<string, Set<string>>();
-      for (const row of labels) {
-        const id = row.dims[0] ?? '',
-          name = row.dims[1] ?? '',
-          sessions = Number(row.metrics.sessions ?? 0);
-        if (!variants.has(id)) variants.set(id, new Set());
-        variants.get(id)!.add(name);
-        const top = best.get(id);
-        if (!top || sessions > top.sessions) best.set(id, {name, sessions});
-      }
-      // sessionCampaignId can come from manual tagging or linked advertising integrations. (other)
-      // is GA4's cardinality overflow bucket. Neither is one campaign, so neither inherits a name.
-      const unattributed = (id: string) => !id || id === '(not set)' || id === '(other)';
-      const drifted = [...variants].filter(([id, names]) => !unattributed(id) && names.size > 1).map(([id]) => id);
-      raw = totals.map(row => {
-        const id = row.dims[0] ?? '';
-        return {
-          campaign_id: unattributed(id) ? id || '(not set)' : id,
-          campaign_name: unattributed(id) ? id || '(not set)' : (best.get(id)?.name ?? id),
-          ...row.metrics,
-        };
-      });
-      if (totals.some(row => unattributed(row.dims[0] ?? ''))) {
-        // Owner policy P6: sessions without a campaign ID limit attribution scope; they do not make GA4 incomplete.
-        // Sampling, thresholding, (other)-row data loss, restrictions and truncation still do (summarizeGA4Quality).
-        scopeLimitations.push('ga4_unattributed_sessions');
-        warnings.push(
-          'GA4 returned unassigned or aggregated session campaign IDs. Check linked advertising integrations, tagging and attribution; missing utm_id is only one possible cause.',
-        );
-      }
-      if (drifted.length)
-        warnings.push(
-          drifted.length +
-            ' GA4 campaign ID' +
-            (drifted.length === 1 ? '' : 's') +
-            ' appeared under more than one campaign name in this range (' +
-            drifted.slice(0, 5).join(', ') +
-            '). The name with the most sessions is shown; metrics were aggregated by ID at the provider.',
-        );
-      quality = summarizeGA4Quality(qualityPages);
-      if (!quality.measurement_complete) complete = false;
-      for (const row of raw) for (const metric of quality.restricted_metrics) row[metric] = null;
-      if (quality.sampled) warnings.push('GA4 sampled this report; sampling counts are retained in source quality.');
-      if (quality.restricted_metrics.length)
-        warnings.push(
-          'GA4 access restrictions make these metrics unavailable: ' + quality.restricted_metrics.join(', '),
-        );
-      if (quality.thresholded || quality.data_loss)
-        warnings.push('GA4 thresholding or high-cardinality aggregation limits this report.');
-      if (quality.empty_reasons.length)
-        warnings.push('GA4 empty response reasons: ' + quality.empty_reasons.join('; '));
-      if (quality.truncated)
-        warnings.push(
-          'GA4 left data out of this report (' +
-            quality.truncation_types.join(', ') +
-            "); the truncated dates and GA4's explanation are in source quality.",
-        );
-      resultDefinition =
-        'GA4 key events attributed to session campaign ID from manual tagging or linked advertising integrations';
     } else if (p === 'gsc') {
       timezone = 'America/Los_Angeles';
       const d = await run(
