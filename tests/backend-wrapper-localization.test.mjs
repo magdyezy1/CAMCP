@@ -210,8 +210,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts. ARC-01
   // (wave 4c) adds src/reddit-paging.ts, src/meta-write-shape.ts, src/snapchat-affected-ad-pages.ts and four provider
   // state-read modules (src/<provider>-state-reads.ts) and src/snapchat-write-impact.ts, without wrapper reasons, and
-  // the campaign clones' src/campaign-clone-core.ts and four src/<provider>-campaign-clone.ts modules.
-  assert.equal(files.length, 686);
+  // the campaign clones' src/campaign-clone-core.ts and four src/<provider>-campaign-clone.ts modules, and the guided
+  // activations' src/campaign-activation-core.ts and six src/<provider>-recipe-activation.ts modules.
+  assert.equal(files.length, 693);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11513);

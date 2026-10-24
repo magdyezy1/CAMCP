@@ -37,6 +37,7 @@ import {validateGooglePausedParents} from './google-paused-parents.js';
 import {googleStateReads} from './google-state-reads.js';
 import {googleClone} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
+import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -566,6 +567,12 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       build: googleClone,
       allOrNothing: (steps: JsonObject[], accountId: unknown) =>
         composeGoogleBuild(steps, String(accountId).replace(/-/g, '')),
+    }),
+    // A launch's campaign enabled, a conversion launch gated on its account-default goals.
+    activation: Object.freeze({
+      steps: googleActivationSteps,
+      record: googleActivationRecord,
+      gates: googleActivationGates,
     }),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are

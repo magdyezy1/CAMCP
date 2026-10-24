@@ -17,6 +17,7 @@ import type {TransportResult} from './transport.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 // Writes and campaigns (wave 4c).
 import {buildMicrosoftSearchRecipe, microsoftSearchRecipe} from './microsoft-search-recipe.js';
+import {microsoftActivationGates, microsoftActivationSteps} from './microsoft-recipe-activation.js';
 import {recordedWriteGrant} from './provider-grants.js';
 import {fail} from './write-common.js';
 
@@ -130,6 +131,8 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
   // Writes and campaigns (wave 4c): the guided Search recipe (CMP-03).
   campaign: Object.freeze({
     recipes: Object.freeze([Object.freeze({definition: microsoftSearchRecipe, build: buildMicrosoftSearchRecipe})]),
+    // A launch's campaign, ad group, keywords and ad activated in turn, gated on positive location criteria (P7).
+    activation: Object.freeze({steps: microsoftActivationSteps, gates: microsoftActivationGates}),
   }),
   // Its review needs msads.manage, after the family's scope check (src/write-review.ts).
   writes: Object.freeze({writeGrant: microsoftWriteGrant}),

@@ -25,6 +25,11 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
 // Writes and campaigns (wave 4c).
 import {buildLinkedinLeadRecipe, linkedinLeadRecipe} from './linkedin-lead-recipe.js';
 import {linkedinClone} from './linkedin-campaign-clone.js';
+import {
+  linkedinActivationGates,
+  linkedinActivationRecord,
+  linkedinActivationSteps,
+} from './linkedin-recipe-activation.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -310,6 +315,12 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
     recipes: Object.freeze([Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe})]),
     // A campaign group, its campaigns and their creatives, read and recreated paused (src/campaign-clone.ts).
     clone: Object.freeze({build: linkedinClone}),
+    // A lead launch's campaign group, campaign and creative activated in turn, gated on its lead form's state.
+    activation: Object.freeze({
+      steps: linkedinActivationSteps,
+      record: linkedinActivationRecord,
+      gates: linkedinActivationGates,
+    }),
   }),
   // A create on an ad account reads the account (src/write-snapshots.ts).
   writes: Object.freeze({accountPath: /^\/rest\/adAccounts\/[^/]+/}),

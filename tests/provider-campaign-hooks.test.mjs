@@ -10,6 +10,21 @@ import {googleClone} from '../dist/src/google-campaign-clone.js';
 import {tiktokClone} from '../dist/src/tiktok-campaign-clone.js';
 import {linkedinClone} from '../dist/src/linkedin-campaign-clone.js';
 import {composeGoogleBuild} from '../dist/src/google-atomic-builds.js';
+import {activationGates, activationPlatforms, activationSteps} from '../dist/src/campaign-activation.js';
+import {metaActivationGates, metaActivationRecord, metaActivationSteps} from '../dist/src/meta-recipe-activation.js';
+import {
+  googleActivationGates,
+  googleActivationRecord,
+  googleActivationSteps,
+} from '../dist/src/google-recipe-activation.js';
+import {snapchatActivationGates, snapchatActivationSteps} from '../dist/src/snapchat-recipe-activation.js';
+import {microsoftActivationGates, microsoftActivationSteps} from '../dist/src/microsoft-recipe-activation.js';
+import {tiktokActivationSteps} from '../dist/src/tiktok-recipe-activation.js';
+import {
+  linkedinActivationGates,
+  linkedinActivationRecord,
+  linkedinActivationSteps,
+} from '../dist/src/linkedin-recipe-activation.js';
 
 // ARC-01 phase B (wave 4c), the campaign modules: src/campaign-clone.ts named Snapchat, Google Ads, TikTok and LinkedIn
 // where it read and rebuilt each one's campaign, and src/campaign-runner.ts named Google Ads where a clone becomes one
@@ -138,4 +153,109 @@ test('a clone reads its source through the provider and groups what it did not c
   );
   assert.deepEqual(out.notCopied, [{fields: ['extra'], steps: ['campaign']}]);
   assert.deepEqual(out.source, {campaign_id: 'c1', ad_squads: 0, ads: 0});
+});
+
+test('the guided activation names no provider and imports no provider module; the runner names no platform', () => {
+  const source = read('src/campaign-activation.ts');
+  assert.deepEqual(gatewayLiterals(source), []);
+  assert.deepEqual(providerImports(source), []);
+  assert.doesNotMatch(read('src/campaign-runner.ts'), /platform === '|meta_ad_id|linkedin_lead_form_id|meta_pixel_id/);
+});
+
+test('every activation platform declares its provider activation: steps, the record its gates read, its gates', () => {
+  const declared = Object.fromEntries(
+    registeredProviderHooks.filter(h => h.campaign?.activation).map(h => [h.gateway, h.campaign.activation]),
+  );
+  assert.deepEqual(Object.keys(declared).sort(), [
+    'google_ads_native_action',
+    'linkedin_native_action',
+    'meta_native_action',
+    'microsoft_ads_native_action',
+    'snapchat_native_action',
+    'tiktok_native_action',
+  ]);
+  assert.deepEqual(activationPlatforms, ['meta', 'google', 'snapchat', 'microsoft', 'tiktok', 'linkedin']);
+  assert.deepEqual(declared.meta_native_action, {
+    steps: metaActivationSteps,
+    record: metaActivationRecord,
+    gates: metaActivationGates,
+  });
+  assert.deepEqual(declared.google_ads_native_action, {
+    steps: googleActivationSteps,
+    record: googleActivationRecord,
+    gates: googleActivationGates,
+  });
+  assert.deepEqual(declared.snapchat_native_action, {steps: snapchatActivationSteps, gates: snapchatActivationGates});
+  assert.deepEqual(declared.microsoft_ads_native_action, {
+    steps: microsoftActivationSteps,
+    gates: microsoftActivationGates,
+  });
+  assert.deepEqual(declared.tiktok_native_action, {steps: tiktokActivationSteps});
+  assert.deepEqual(declared.linkedin_native_action, {
+    steps: linkedinActivationSteps,
+    record: linkedinActivationRecord,
+    gates: linkedinActivationGates,
+  });
+  for (const activation of Object.values(declared)) assert.ok(Object.isFrozen(activation));
+});
+
+test('activation steps carry the platform gateway, and a platform without an activation is refused', async () => {
+  const scope = {connection_id: 'k', account_id: '123'};
+  const tiktok = activationSteps('tiktok', new Map([['campaign', {data: {data: {campaign_id: '77'}}}]]), scope);
+  assert.deepEqual(
+    tiktok.map(s => [s.id, s.gateway, s.connection_id, s.account_id, s.arguments.action]),
+    [['activate_campaign', 'tiktok_native_action', 'k', '123', 'tiktok_campaign_status_update']],
+  );
+  const meta = activationSteps('meta', new Map([['campaign', {data: {id: '42'}}]]), scope);
+  assert.deepEqual(meta[0].gateway, 'meta_native_action');
+  assert.deepEqual(meta[0].arguments, {
+    action: 'meta_campaign_update',
+    path_params: {campaign_id: '42'},
+    payload: {status: 'ACTIVE'},
+  });
+  // A gap in the verified results is refused by the provider's steps, naming what is missing.
+  const gap = await refusal(() => activationSteps('meta', new Map(), scope), 'ACTIVATION_UNAVAILABLE');
+  assert.deepEqual(gap.details, {missing: 'Meta campaign'});
+  // A platform without a guided activation, an inherited name included, is refused before any step is built.
+  for (const platform of ['x', 'reddit', 'constructor', '__proto__', 'toString'])
+    await refusal(() => activationSteps(platform, new Map(), scope), 'ACTIVATION_UNAVAILABLE');
+});
+
+test('the activation record keeps what the provider gates read, and a gate reads only its own platform', async () => {
+  const run = {recipe: {pixel_id: 'px', lead_form_id: 'lf', currency: 'USD'}};
+  const results = new Map([['ad', {data: {id: 'ad1'}}]]);
+  assert.deepEqual(metaActivationRecord(run, results), {meta_ad_id: 'ad1', meta_pixel_id: 'px'});
+  assert.deepEqual(linkedinActivationRecord(run, results), {linkedin_lead_form_id: 'lf'});
+  assert.deepEqual(
+    googleActivationRecord(run, results, [
+      'account_default_conversion_goals',
+      'conversion_value_configuration',
+      'reported_conversion_activity',
+    ]),
+    {conversion_goals: {currency: 'USD', include_value_settings: true, include_activity: true}},
+  );
+  assert.deepEqual(googleActivationRecord(run, results, []), {});
+  const calls = [];
+  const call = async (gateway, input) => {
+    calls.push([gateway, input.action]);
+    return {success: false, error: {code: 'UPSTREAM_ERROR'}};
+  };
+  const steps = [{id: 'activate_campaign', account_id: '123', connection_id: 'k', arguments: {}}];
+  // TikTok has no gate, and a platform without an activation reads nothing.
+  for (const platform of ['tiktok', 'x', 'constructor'])
+    assert.deepEqual(await activationGates(call, {}, {platform, meta_ad_id: '1'}, steps), []);
+  assert.deepEqual(calls, []);
+  // Meta's gates read the ad and then the pixel, through the plan's account and login; a failed read blocks.
+  const checks = await activationGates(call, {}, {platform: 'meta', meta_ad_id: 'ad1', meta_pixel_id: 'px'}, steps);
+  assert.deepEqual(calls, [
+    ['meta_native_action', 'meta_ad_get'],
+    ['meta_native_action', 'meta_pixel_id_get'],
+  ]);
+  assert.deepEqual(
+    checks.map(c => [c.gate, c.status, c.error.code]),
+    [
+      ['meta_ad_review', 'blocked', 'ACTIVATION_GATE_BLOCKED'],
+      ['meta_pixel', 'blocked', 'ACTIVATION_GATE_BLOCKED'],
+    ],
+  );
 });

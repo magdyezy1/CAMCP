@@ -190,8 +190,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/snapchat-write-impact.ts with its four reasons: one more file, the same files with reasons and reasons.
   // Its campaign clones move each provider's clone builder from src/campaign-clone.ts to src/<provider>-campaign-clone.ts
   // and the shared source read to src/campaign-clone-core.ts, their reasons with their code: five more files, four of
-  // them with reasons (src/campaign-clone.ts keeps the gateway and input refusals), and the same reasons.
-  assert.equal(files.length, 686);
+  // them with reasons (src/campaign-clone.ts keeps the gateway and input refusals), and the same reasons. Its guided
+  // activations move each platform's steps and gates from src/campaign-activation.ts to
+  // src/<provider>-recipe-activation.ts and the shared result checks to src/campaign-activation-core.ts: seven more
+  // files, the same files with reasons and the same reasons.
+  assert.equal(files.length, 693);
   assert.equal(selected.filter(row => row.messages.size).length, 262);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

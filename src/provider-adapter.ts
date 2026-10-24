@@ -562,6 +562,43 @@ export interface CampaignHooks {
   readonly recipes?: readonly CampaignRecipe[];
   /** Its campaign clone (src/campaign-clone.ts, which keeps the checks every clone passes and the spec's changes). */
   readonly clone?: CampaignClone;
+  /** Its guided activation of a completed recipe plan (src/campaign-activation.ts, src/campaign-runner.ts). */
+  readonly activation?: CampaignActivation;
+}
+/** A plan step of an activation, as src/campaign-activation.ts builds it for the plan's gateway, account and login. */
+export type ActivationStep = (id: string, description: string, args: JsonObject, depends_on?: string[]) => JsonObject;
+/** What an activation plan's read-only gates read with (src/campaign-activation.ts activationGates). */
+export interface ActivationGateContext {
+  /** The ordinary account-scoped native calls. */
+  readonly call: ToolCall;
+  readonly actor: Actor;
+  /** The plan's activation record: its platform and what the provider's `record` kept for the gates. */
+  readonly activation: JsonObject;
+  /** The activation plan's steps. */
+  readonly steps: JsonObject[];
+  /** The account and login of its first step. */
+  readonly scope: JsonObject;
+  /** Re-checks the actor between reads, as recipe_eligibility does. */
+  readonly current: () => void;
+  /** Reads the current Google conversion configuration, as recipe_eligibility does (the runner's inspector). */
+  readonly inspectConversionGoals?: (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>;
+}
+/**
+ * A provider's guided activation (CMP-03): a recipe creates its campaign paused, and activation is a separate, linked
+ * plan whose steps come from the resources the completed plan verified, in the order that keeps delivery off until
+ * the last switch. src/campaign-activation.ts keeps the platforms offered, the step builder and the refusal of a plan
+ * without one; src/campaign-runner.ts keeps the activation record and the gates' place in its preflight.
+ */
+export interface CampaignActivation {
+  /** The activation steps from the plan's verified results (step id -> result), made with `step`; refuses a gap. */
+  steps(results: ReadonlyMap<string, JsonObject>, scope: JsonObject, step: ActivationStep): JsonObject[];
+  /**
+   * What the activation record keeps for the gates beyond the plan, platform and recipe (the ad, pixel, lead form or
+   * conversion goals the gates read), from the plan, its verified results and its recipe's declared objects.
+   */
+  record?(run: JsonObject, results: ReadonlyMap<string, JsonObject>, declared: string[]): JsonObject;
+  /** The read-only gates, run as one set at the activation plan's preflight; their checks, passed or blocked. */
+  gates?(context: ActivationGateContext): Promise<JsonObject[]>;
 }
 /** What a provider's clone reads and builds (src/campaign-clone.ts clonePlan, after its source and name checks). */
 export interface CampaignClone {
