@@ -77,6 +77,37 @@ export const targets = Object.freeze({
     classes: {PlatformOAuth: ['config', 'publicConfig', 'connectService', 'exchange']},
   },
   'dist/server/asset-discovery.js': {classes: {AssetDiscovery: ['sync', 'discoverWith']}},
+  // Wave 4c (ARC-01 phase B, the catalog, compiler, delegated compiler, contracts and service concerns): the catalog
+  // registry's validation, help and lookups, and the provider steps whose call sites leave the shared modules for the
+  // provider hooks and the provider workflows registry. The steps stay in their provider modules, so both recordings
+  // see their calls.
+  'dist/src/catalog.js': {classes: {Registry: ['validate', 'help', 'unknownAction', 'acceptsArgument']}},
+  'dist/src/google-generation.js': {functions: ['validateGoogleGeneration', 'googleGenerationResult']},
+  'dist/src/dv360-targeting-search.js': {functions: ['validateDV360TargetingSearch', 'runDV360TargetingSearch']},
+  'dist/src/snapchat-by-ids.js': {functions: ['validateSnapchatByIds', 'checkSnapchatByIdsResult']},
+  'dist/src/snapchat-result-ids.js': {functions: ['snapchatResultIds', 'keepResultIds']},
+  'dist/src/x-audience-estimate.js': {functions: ['validateXAudienceEstimate', 'runXAudienceEstimate']},
+  'dist/src/google-place-action-discovery.js': {
+    functions: ['validatePlaceActionRead', 'placeActionReadResult', 'runPlaceActionDiscovery'],
+  },
+  'dist/src/google-place-action-links.js': {functions: ['placeActionSafeError', 'redactPlaceActionInput']},
+  'dist/src/apple-native.js': {functions: ['validateAppleResponse']},
+  'dist/src/microsoft-native.js': {functions: ['validateMicrosoftResponse', 'compileMicrosoft']},
+  'dist/src/reddit-extensions.js': {functions: ['projectRedditAccountHistory']},
+  'dist/src/google-legacy.js': {functions: ['legacyLimitDisclosure', 'adaptGoogleLegacy']},
+  'dist/src/woocommerce-source.js': {functions: ['wooCommerceStoreDiscovery']},
+  'dist/src/woocommerce-connection.js': {functions: ['connectWooCommerce']},
+  'dist/src/adjust-reporting.js': {functions: ['adjustReporting']},
+  'dist/src/measurement-connection-sync.js': {functions: ['syncMeasurementConnection']},
+  'dist/src/google-business-sync.js': {functions: ['syncBusinessConnection']},
+  'dist/src/meta-ad-library.js': {functions: ['searchMetaAdLibrary']},
+  'dist/src/meta-existing-posts.js': {functions: ['fetchMetaExistingPosts', 'redactMetaPostInput']},
+  'dist/src/gtm-diagnostics.js': {functions: ['gtmDiagnostics']},
+  'dist/src/google-goal-inspection.js': {functions: ['inspectGoogleRecipeGoals']},
+  'dist/src/microsoft-locations.js': {functions: ['microsoftLocationLookup']},
+  'dist/src/meta-asset-usage.js': {functions: ['metaAssetUsage']},
+  'dist/src/google-image-usage.js': {functions: ['googleImageUsage']},
+  'dist/src/snapchat-asset-usage.js': {functions: ['snapchatAssetUsage']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([

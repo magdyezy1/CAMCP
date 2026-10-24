@@ -17,6 +17,7 @@ import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} fr
 import {meterNativeRequest} from './native-request-meter.js';
 import {assertGatewayOffered} from './provider-offering.js';
 import {providerHooks} from './provider-hooks.js';
+import type {WireProfile} from './provider-adapter.js';
 // The OAuth 1.0a signature X requests carry; its X wire profile signs with it (src/x-adapter.ts).
 export {oauth1} from './oauth1.js';
 /**
@@ -230,6 +231,37 @@ export function providerRetryDelay(response: Response, gateway: string, now = Da
   if (delay === undefined && response.status === 429) delay = 30000;
   return delay === undefined ? undefined : Math.max(1000, Math.min(86400000, Math.ceil(delay)));
 }
+/**
+ * What NativeTransport.request decides for a request before its first attempt (ARC-04), read by every later stage and
+ * changed by none: the approved URL, what is sent, the budget, rate and circuit keys, the attempts and the deadline.
+ */
+interface WireRoute {
+  readonly plan: CompiledRequest;
+  readonly connection: Connection;
+  /** The provider's wire profile (ARC-01 phase B), consulted where the transport named the provider before. */
+  readonly wire: WireProfile | undefined;
+  /** The tenant's budget key for the connection's gateway. */
+  readonly key: string;
+  readonly issuerPermit: IssuerPermit | undefined;
+  readonly url: URL;
+  readonly headers: Record<string, string>;
+  readonly body: BodyInit | undefined;
+  /** When the request was ready to send, for its latency. */
+  readonly start: number;
+  readonly circuitKey: string;
+  readonly userRateKey: string;
+  readonly accountRateKey: string;
+  readonly maxAttempts: number;
+  /** A bounded report read whose bytes are checked whole and whose numbers keep their source text (Adjust). */
+  readonly adjustRead: boolean;
+  /** The monotonic deadline of a bounded read, when it is one. */
+  readonly deadline: number | undefined;
+}
+/** One attempt's timer: its abort signal, and whether the timer is the remaining deadline budget. */
+interface AttemptClock {
+  requestSignal?: AbortSignal;
+  deadlineTimer: boolean;
+}
 export class NativeTransport {
   coordination?: Store;
   /** One provider 429 against the issuer's daily counters (OPS-08); a counting failure never changes the outcome. */
@@ -325,6 +357,14 @@ export class NativeTransport {
     this.budgets.set(key, budget);
     if (waitMs) await this.sleeper(waitMs);
   }
+  /**
+   * One provider request (ARC-04: a staged wire pipeline). Its stages run in this order, each a method below: the
+   * offering gate and the provider's wire contract checks; the tenant budget; the route (the approved URL, the headers,
+   * the body, the authentication, the rate and circuit keys, the attempts and the deadline); then each attempt: its
+   * admission (cooldowns, the shared permit, the circuit), the single send, the response, or the failure. The provider's
+   * wire profile (ARC-01 phase B) answers the stages' questions about its own requests; the origin allowlist, the single
+   * send, the attempts, retries and deadlines, the rate limits, cooldowns and circuits, and every refusal stay here.
+   */
   async request(
     plan: CompiledRequest,
     connection: Connection,
@@ -341,6 +381,34 @@ export class NativeTransport {
     // its requests and responses; the allowlist, the single send, attempts, deadlines, rate limits, circuits and every
     // refusal stay here.
     const wire = providerHooks(plan.gateway)?.wire;
+    this.checkWire(plan, connection, wire);
+    this.prune();
+    const key = scopeKey(connection.tenantId, connection.gateway);
+    await this.permit(key);
+    const route = this.route(plan, connection, credentials, upload, wire, key);
+    let ownedProbe: {probing?: boolean} | undefined;
+    try {
+      for (let attempt = 0; attempt < route.maxAttempts; attempt++) {
+        // Runtime hook only: never serialize authority checks into a provider request.
+        hooks.beforeAttempt?.();
+        ownedProbe = this.admitAttempt(route, attempt) ?? ownedProbe;
+        const clock: AttemptClock = {deadlineTimer: false};
+        try {
+          // Synchronously from here to the fetch: send() awaits nothing before it (WRT-04).
+          const result = await this.receive(route, await this.send(route, clock, hooks), attempt, clock);
+          if (result) return result;
+        } catch (error) {
+          // A read that may be retried returns here after its wait; every other failure is thrown by failed().
+          await this.failed(route, error, attempt, clock);
+        }
+      }
+      throw new MirrorError('UPSTREAM_UNAVAILABLE', 'Platform request failed.');
+    } finally {
+      if (ownedProbe) ownedProbe.probing = false;
+    }
+  }
+  /** The provider's checks before its pinned wire contract, the contract itself (PRV-05) and its checks after it. */
+  private checkWire(plan: CompiledRequest, connection: Connection, wire: WireProfile | undefined) {
     wire?.validate?.(plan);
     // PRV-05: every route with a pinned request schema is checked here, the last step before anything is sent. A
     // violation is counted per gateway, writes and reads apart; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
@@ -361,9 +429,19 @@ export class NativeTransport {
     }
     enforceWireContract(plan, contract, wireMode);
     wire?.validateRoute?.(plan);
-    this.prune();
-    const key = scopeKey(connection.tenantId, connection.gateway);
-    await this.permit(key);
+  }
+  /**
+   * The route of a request, decided once before its first attempt: the issuer it draws quota from, the approved URL,
+   * the headers and body, the authentication, the rate and circuit keys, the attempts and the deadline.
+   */
+  private route(
+    plan: CompiledRequest,
+    connection: Connection,
+    credentials: Credentials,
+    upload: BinaryUpload | undefined,
+    wire: WireProfile | undefined,
+    key: string,
+  ): WireRoute {
     // The hashed app identity these credentials draw provider quota from, counted per day and workspace (OPS-08).
     const issuer = issuerKey(connection.gateway, credentials),
       issuerPermit: IssuerPermit | undefined = issuer
@@ -379,6 +457,58 @@ export class NativeTransport {
     const headers: Record<string, string> = {Accept: 'application/json', ...plan.headers};
     // A provider may require a connection header before anything else (Reddit's descriptive User-Agent).
     wire?.connectionHeaders?.(headers, connection);
+    const {body, form} = this.encodeBody(plan, connection, credentials, upload, url, wire, headers);
+    this.authenticate(plan, connection, credentials, url, wire, headers, form);
+    // Report submission creates a job even though it cannot mutate advertising configuration.
+    // Generated drafts may differ on retry and consume provider generation quota.
+    // Return a single attempt; callers explicitly decide whether to generate again.
+    const start = performance.now(),
+      circuitKey = scopeKey(key, connection.id, plan.accountId ?? '', url.origin),
+      // A provider with rate limits of its own keys them itself (X: per access token, origin and endpoint, its account
+      // limits under them); the others share the tenant's budget key.
+      userRateKey = wire?.userRateKey ? wire.userRateKey(key, url, credentials) : key,
+      // A provider throttle of one ad account (Meta 80000-series, 17/2446079, 613/1487742) cools down that account on
+      // this login only; X keeps its user/account reset-header keys.
+      accountRateKey = !plan.accountId
+        ? userRateKey
+        : wire?.userRateKey
+          ? scopeKey(userRateKey, plan.accountId)
+          : scopeKey(key, 'account-rate', connection.id, plan.accountId);
+    // A read is attempted three times unless its provider sends it once (Google's generation drafts, Microsoft's
+    // report submission); a write is always sent once.
+    const maxAttempts = plan.readOnly && wire?.singleAttempt?.(plan) !== true ? 3 : 1;
+    // A bounded report read whose bytes are checked whole and whose numbers keep their source text (Adjust).
+    const adjustRead = wire?.boundedReport?.(plan, url) === true;
+    // The monotonic deadline of a bounded read, from the plan field its provider's bounded reads carry.
+    const deadline = wire?.deadline?.(plan, url);
+    return {
+      plan,
+      connection,
+      wire,
+      key,
+      issuerPermit,
+      url,
+      headers,
+      body,
+      start,
+      circuitKey,
+      userRateKey,
+      accountRateKey,
+      maxAttempts,
+      adjustRead,
+      deadline,
+    };
+  }
+  /** The body sent: a multipart upload of the provider's contracts, a form, or JSON; the content type set with it. */
+  private encodeBody(
+    plan: CompiledRequest,
+    connection: Connection,
+    credentials: Credentials,
+    upload: BinaryUpload | undefined,
+    url: URL,
+    wire: WireProfile | undefined,
+    headers: Record<string, string>,
+  ): {body: BodyInit | undefined; form: URLSearchParams | undefined} {
     let body: BodyInit | undefined;
     let form: URLSearchParams | undefined;
     if (upload) {
@@ -442,6 +572,18 @@ export class NativeTransport {
         headers['Content-Type'] = wire?.jsonType?.(plan) ?? 'application/json';
       }
     }
+    return {body, form};
+  }
+  /** The credentials on the wire: the access token, the provider's own headers and signature; refused without any. */
+  private authenticate(
+    plan: CompiledRequest,
+    connection: Connection,
+    credentials: Credentials,
+    url: URL,
+    wire: WireProfile | undefined,
+    headers: Record<string, string>,
+    form: URLSearchParams | undefined,
+  ) {
     if (credentials.accessToken) {
       if (wire?.tokenHeader) headers[wire.tokenHeader] = credentials.accessToken;
       else headers.Authorization = 'Bearer ' + credentials.accessToken;
@@ -454,340 +596,362 @@ export class NativeTransport {
     if (credentials.apiKey && !headers.Authorization) headers.Authorization = 'Bearer ' + credentials.apiKey;
     if (!headers.Authorization && !headers['Access-Token'])
       throw new MirrorError('CREDENTIALS_REQUIRED', 'An authenticated platform connection is required.', {}, 401);
-    // Report submission creates a job even though it cannot mutate advertising configuration.
-    // Generated drafts may differ on retry and consume provider generation quota.
-    // Return a single attempt; callers explicitly decide whether to generate again.
-    const start = performance.now(),
-      circuitKey = scopeKey(key, connection.id, plan.accountId ?? '', url.origin),
-      // A provider with rate limits of its own keys them itself (X: per access token, origin and endpoint, its account
-      // limits under them); the others share the tenant's budget key.
-      userRateKey = wire?.userRateKey ? wire.userRateKey(key, url, credentials) : key,
-      // A provider throttle of one ad account (Meta 80000-series, 17/2446079, 613/1487742) cools down that account on
-      // this login only; X keeps its user/account reset-header keys.
-      accountRateKey = !plan.accountId
-        ? userRateKey
-        : wire?.userRateKey
-          ? scopeKey(userRateKey, plan.accountId)
-          : scopeKey(key, 'account-rate', connection.id, plan.accountId);
-    // A read is attempted three times unless its provider sends it once (Google's generation drafts, Microsoft's
-    // report submission); a write is always sent once.
-    const maxAttempts = plan.readOnly && wire?.singleAttempt?.(plan) !== true ? 3 : 1;
-    // A bounded report read whose bytes are checked whole and whose numbers keep their source text (Adjust).
-    const adjustRead = wire?.boundedReport?.(plan, url) === true;
-    // The monotonic deadline of a bounded read, from the plan field its provider's bounded reads carry.
-    const deadline = wire?.deadline?.(plan, url);
-    const reportDeadline = deadline !== undefined,
-      deadlineFailure = () =>
-        new MirrorError(
-          plan.linkedinTemplateDeadline !== undefined
-            ? 'LINKEDIN_TEMPLATE_LIMIT'
-            : plan.xTargetingDeadline !== undefined
-              ? 'X_TARGETING_LIMIT'
-              : plan.xAudienceDeadline !== undefined
-                ? 'X_AUDIENCE_LIMIT'
-                : plan.snapUpdateDeadline !== undefined
-                  ? 'SNAPCHAT_UPDATE_STATE_UNVERIFIED'
-                  : plan.xReportDeadline !== undefined
-                    ? 'X_REPORT_STATE_UNVERIFIED'
-                    : adjustRead
-                      ? 'ADJUST_REPORT_LIMIT'
-                      : plan.measurementSyncDeadline !== undefined
-                        ? 'ASSET_SYNC_LIMIT'
-                        : plan.tiktokReportDeadline !== undefined
-                          ? 'TIKTOK_REPORT_STATE_UNVERIFIED'
-                          : plan.criteoReportRead
-                            ? 'CRITEO_REPORT_STATE_UNVERIFIED'
-                            : 'CRITEO_CAMPAIGN_STATE_UNVERIFIED',
-          'Provider retrieval exceeded its monotonic deadline.',
-          {},
-          502,
-        );
+  }
+  /** The refusal of a bounded read past its monotonic deadline; its code names the read whose deadline it carries. */
+  private deadlineFailure({plan, adjustRead}: WireRoute) {
+    return new MirrorError(
+      plan.linkedinTemplateDeadline !== undefined
+        ? 'LINKEDIN_TEMPLATE_LIMIT'
+        : plan.xTargetingDeadline !== undefined
+          ? 'X_TARGETING_LIMIT'
+          : plan.xAudienceDeadline !== undefined
+            ? 'X_AUDIENCE_LIMIT'
+            : plan.snapUpdateDeadline !== undefined
+              ? 'SNAPCHAT_UPDATE_STATE_UNVERIFIED'
+              : plan.xReportDeadline !== undefined
+                ? 'X_REPORT_STATE_UNVERIFIED'
+                : adjustRead
+                  ? 'ADJUST_REPORT_LIMIT'
+                  : plan.measurementSyncDeadline !== undefined
+                    ? 'ASSET_SYNC_LIMIT'
+                    : plan.tiktokReportDeadline !== undefined
+                      ? 'TIKTOK_REPORT_STATE_UNVERIFIED'
+                      : plan.criteoReportRead
+                        ? 'CRITEO_REPORT_STATE_UNVERIFIED'
+                        : 'CRITEO_CAMPAIGN_STATE_UNVERIFIED',
+      'Provider retrieval exceeded its monotonic deadline.',
+      {},
+      502,
+    );
+  }
+  /** Whether a bounded read is past its deadline, by the clock or by its attempt's timer (which is then the budget). */
+  private expired({deadline}: WireRoute, {deadlineTimer, requestSignal}: AttemptClock) {
+    const reportDeadline = deadline !== undefined;
+    return (
+      reportDeadline &&
+      (!Number.isFinite(deadline) || performance.now() >= deadline! || (deadlineTimer && requestSignal?.aborted))
+    );
+  }
+  /**
+   * One attempt's admission: no cooldown of its rate keys is active, the shared provider permit, and on the first
+   * attempt the circuit (an open one refuses; one past its cooldown lets this request probe it, returned to own).
+   */
+  private admitAttempt(route: WireRoute, attempt: number): {probing?: boolean} | undefined {
+    const {plan, connection, key, issuerPermit, circuitKey, userRateKey, accountRateKey} = route;
     let ownedProbe: {probing?: boolean} | undefined;
-    try {
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        // Runtime hook only: never serialize authority checks into a provider request.
-        hooks.beforeAttempt?.();
-        for (const rateKey of new Set([userRateKey, accountRateKey])) {
-          const until = this.cooldowns.get(rateKey) ?? 0;
-          if (until > performance.now())
-            throw new MirrorError(
-              'PLATFORM_RATE_LIMIT',
-              'Provider cooldown is active; wait until the reported reset time.',
-              {retry_after_ms: Math.ceil(until - performance.now())},
-              429,
-              true,
-            );
-          this.coordination?.assertProviderCooldown(rateKey);
-        }
-        this.coordination?.providerPermit(key, undefined, issuerPermit);
-        if (attempt === 0) {
-          const circuit = this.circuits.get(circuitKey),
-            now = performance.now();
-          if (circuit && (circuit.until > now || circuit.probing))
-            throw new MirrorError(
-              'CIRCUIT_OPEN',
-              'Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',
-              {
-                retry_after_ms: Math.max(1000, Math.ceil(circuit.until - now)),
-                last_error_code: circuit.code,
-                last_http_status: circuit.status,
-              },
-              503,
-              true,
-            );
-          if (circuit?.until) {
-            circuit.probing = true;
-            ownedProbe = circuit;
-          }
-        }
-        this.metrics.requests++;
-        meterNativeRequest(plan.readOnly); // COM-02 C: per-step journal counts
-        this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'requests');
-        let requestSignal: AbortSignal | undefined,
-          deadlineTimer = false;
-        const expired = () =>
-          reportDeadline &&
-          (!Number.isFinite(deadline) || performance.now() >= deadline! || (deadlineTimer && requestSignal?.aborted));
-        try {
-          const remaining = reportDeadline ? deadline! - performance.now() : this.timeoutMs;
-          if (reportDeadline && (!Number.isFinite(remaining) || remaining <= 0)) throw deadlineFailure();
-          deadlineTimer = reportDeadline && remaining <= this.timeoutMs;
-          requestSignal = AbortSignal.timeout(
-            collectionRequestTimeout(
-              reportDeadline ? Math.max(1, Math.ceil(Math.min(this.timeoutMs, remaining))) : this.timeoutMs,
-            ),
-          );
-          // Synchronously, with no await before the fetch: everything thrown before this line sent nothing (WRT-04).
-          hooks.onDispatch?.();
-          if (!plan.readOnly) markDispatched();
-          const response = await this.fetcher(url, {
-            method: plan.method,
-            headers,
-            body,
-            redirect: 'error',
-            signal: requestSignal,
-          });
-          if (expired()) {
-            await response.body?.cancel();
-            throw deadlineFailure();
-          }
-          const retryDelay = providerRetryDelay(response, plan.gateway);
-          if (response.status === 429) {
-            this.metrics.rateLimits++;
-            this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
-            this.issuerRateLimit(issuerPermit);
-          }
-          if ((response.status === 429 || response.status === 503) && retryDelay !== undefined) {
-            // A provider may name the throttled account (X's account reset header): that account cools down.
-            const rateKey = wire?.accountThrottle?.(response) === true ? accountRateKey : userRateKey;
-            this.cooldowns.set(rateKey, performance.now() + retryDelay);
-            this.coordination?.providerCooldown(rateKey, retryDelay);
-          }
-          if ([502, 503, 504].includes(response.status) && retryDelay === undefined && attempt + 1 < maxAttempts) {
-            await response.body?.cancel();
-            this.metrics.retries++;
-            await this.sleeper(200 * 2 ** attempt);
-            continue;
-          }
-          // A write may be documented to answer without a body (Search Console site and sitemap edits, Tag Manager
-          // deletes, LinkedIn creations named by x-restli-id, Google's resumable upload session): its provider says.
-          const documentedEmpty = wire?.emptyWrite?.(plan, response) === true;
-          let bodyIntegrity: TransportResult['bodyIntegrity'];
-          // The response forms a provider documents for a read: a CSV download (TikTok report tasks), report output
-          // whose bytes are checked whole (Criteo), 64-bit IDs kept as their source text (LinkedIn lead forms).
-          const csvDownload = wire?.csv?.(plan) === true;
-          const reportOutput = wire?.reportOutput?.(plan) === true;
-          const int64 = wire?.int64?.(plan) === true;
-          let exactData: unknown;
-          const data = await this.readBody(
-            response,
-            (adjustRead && response.status === 204) ||
-              plan.method === 'HEAD' ||
-              (!plan.readOnly && (documentedEmpty || [204, 205].includes(response.status))),
-            reportOutput || adjustRead
-              ? bytes => {
-                  bodyIntegrity = {bytes: bytes.length, md5: createHash('md5').update(bytes).digest('hex')};
-                }
-              : undefined,
-            csvDownload,
-            adjustRead,
-            int64,
-            losslessReportNumbers(plan),
-            exact => (exactData = exact),
-          );
-          if (expired()) throw deadlineFailure();
-          // A provider's own request reference beside its request ID (LinkedIn's x-li-fabric).
-          const fabric = wire?.fabric?.(response),
-            taxonomy = providerErrorTaxonomyEnabled();
-          const errorDetails = (c?: ProviderErrorClass) => ({
-            upstream: redact(data),
-            http_status: response.status,
-            // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
-            ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined
-              ? {}
-              : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
-            request_id: providerRequestId(plan.gateway, response.headers, data) ?? null,
-            ...(fabric ? {provider_fabric: fabric} : {}),
-            ...(c
-              ? {
-                  layer: c.layer,
-                  ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
-                  ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
-                  ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
-                  // A version refusal names the version sent and the reviewed default (PRV-02, LinkedIn).
-                  ...(c.layer === 'api_version' && wire?.versionSent ? wire.versionSent(headers) : {}),
-                }
-              : {}),
-            ...(response.status === 403
-              ? {
-                  scope_denial:
-                    providerHttpErrorCode(403, data, response.headers.get('www-authenticate')) === 'INSUFFICIENT_SCOPE',
-                }
-              : {}),
-            // The login a refused request was sent under (Google Ads' login customer).
-            ...(wire?.sentLogin ? wire.sentLogin(headers) : {}),
-          });
-          // A documented provider throttle reported outside HTTP 429 (Meta codes at HTTP 400, a Google Ads quota body)
-          // counts as a rate limit and opens the shared cooldown at the scope the provider names. Nothing is retried
-          // here: the error carries retry_after_ms, so neither the transport nor a worker repeats it immediately.
-          const throttled = (c: ProviderErrorClass) => {
-            if (c.layer !== 'rate_limit' || c.retryAfterMs === undefined) return;
-            if (response.status !== 429) {
-              this.metrics.rateLimits++;
-              this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
-              this.issuerRateLimit(issuerPermit);
-            }
-            const rateKey = c.cooldownScope === 'account' ? accountRateKey : userRateKey;
-            this.cooldowns.set(rateKey, Math.max(this.cooldowns.get(rateKey) ?? 0, performance.now() + c.retryAfterMs));
-            this.coordination?.providerCooldown(rateKey, c.retryAfterMs);
-          };
-          const classify = (inBody: boolean) => {
-            if (!taxonomy) return undefined;
-            const c = classifyProviderError({
-              gateway: plan.gateway,
-              status: response.status,
-              headers: response.headers,
-              body: data,
-              readOnly: plan.readOnly,
-              inBody,
-              ...(retryDelay === undefined ? {} : {retryAfterMs: retryDelay}),
-            });
-            throttled(c);
-            return c;
-          };
-          if (!response.ok) {
-            const c = classify(false);
-            throw new MirrorError(
-              c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
-              'Platform returned HTTP ' + response.status,
-              errorDetails(c),
-              response.status,
-              c ? c.retryable : response.status === 429 || response.status >= 500,
-            );
-          }
-          if (data && typeof data === 'object') {
-            const d = data as JsonObject;
-            // An unsuccessful result inside a 2xx response: the generic envelopes, or the provider's own (TikTok's
-            // non-zero code, X's errors list).
-            if (wire?.failedResult?.(d) === true || d.request_status === 'ERROR' || d.error) {
-              const c = classify(true),
-                status =
-                  c?.layer === 'credential'
-                    ? 401
-                    : c?.layer === 'rate_limit'
-                      ? 429
-                      : c?.layer === 'consent'
-                        ? 403
-                        : 502;
-              throw new MirrorError(
-                c?.code ?? 'PLATFORM_ERROR',
-                'Platform reported an unsuccessful result.',
-                errorDetails(c),
-                status,
-                c?.retryable ?? false,
-              );
-            }
-          }
-          // A provider's own check of a successful response (Google's generation drafts, DV360's targeting search).
-          wire?.checkResult?.(plan, data);
-          this.circuits.delete(circuitKey);
-          this.metrics.totalLatencyMs += performance.now() - start;
-          this.coordination?.providerMetric(
-            connection.tenantId,
-            connection.gateway,
-            'latency_ms',
-            performance.now() - start,
-          );
-          return {
-            data,
-            status: response.status,
-            ...(bodyIntegrity ? {bodyIntegrity} : {}),
-            ...(exactData !== undefined ? {exactData} : {}),
-            headers: Object.fromEntries(
-              [
-                'request-id',
-                'x-request-id',
-                'x-fb-trace-id',
-                // The provider's own request references (LinkedIn) and upload session headers (Google's resumable
-                // uploads) are kept with the generic ones.
-                ...(wire?.referenceHeaders ?? []),
-                'x-restli-id',
-                'retry-after',
-                ...(wire?.sessionHeaders?.(plan) ?? []),
-              ]
-                .map(k => [k, response.headers.get(k)])
-                .filter((p): p is [string, string] => p[1] !== null),
-            ),
-          };
-        } catch (error) {
-          collectionCheckpoint();
-          // A timer limited by the remaining operation budget is terminal. Its abort is
-          // authoritative even when performance.now() is fractionally before the deadline.
-          // Shorter per-attempt timeouts may still retry within the original budget.
-          const e = expired()
-            ? deadlineFailure()
-            : error instanceof MirrorError
-              ? error
-              : new MirrorError(
-                  plan.readOnly ? 'UPSTREAM_UNAVAILABLE' : 'WRITE_OUTCOME_UNCERTAIN',
-                  plan.readOnly
-                    ? 'Platform request failed or timed out.'
-                    : 'The write response was lost. Do not retry with a new key; inspect platform state.',
-                  {},
-                  502,
-                  plan.readOnly,
-                );
-          if (plan.readOnly && e.retryable && e.details.retry_after_ms === undefined && attempt + 1 < maxAttempts) {
-            this.metrics.retries++;
-            await this.sleeper(200 * 2 ** attempt);
-            continue;
-          }
-          this.metrics.errors++;
-          this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'errors');
-          const transient =
-            e.code === 'UPSTREAM_UNAVAILABLE' ||
-            e.code === 'WRITE_OUTCOME_UNCERTAIN' ||
-            (e.code === 'UPSTREAM_ERROR' && e.status >= 500);
-          if (transient) {
-            const prior = this.circuits.get(circuitKey)?.failures ?? 0;
-            this.circuits.set(circuitKey, {
-              failures: prior + 1,
-              until: prior >= 4 ? performance.now() + 30000 : 0,
-              at: performance.now(),
-              code: e.code,
-              status: e.status,
-            });
-          } else if (e.code !== 'PLATFORM_RATE_LIMIT' && e.details.layer !== 'rate_limit')
-            // A provider throttle is governed by its cooldown: it neither counts toward nor resets the transient-failure
-            // circuit, so a burst of throttles cannot clear the failures accumulated before it (PRV-01).
-            this.circuits.delete(circuitKey);
-          throw e;
-        }
-      }
-      throw new MirrorError('UPSTREAM_UNAVAILABLE', 'Platform request failed.');
-    } finally {
-      if (ownedProbe) ownedProbe.probing = false;
+    for (const rateKey of new Set([userRateKey, accountRateKey])) {
+      const until = this.cooldowns.get(rateKey) ?? 0;
+      if (until > performance.now())
+        throw new MirrorError(
+          'PLATFORM_RATE_LIMIT',
+          'Provider cooldown is active; wait until the reported reset time.',
+          {retry_after_ms: Math.ceil(until - performance.now())},
+          429,
+          true,
+        );
+      this.coordination?.assertProviderCooldown(rateKey);
     }
+    this.coordination?.providerPermit(key, undefined, issuerPermit);
+    if (attempt === 0) {
+      const circuit = this.circuits.get(circuitKey),
+        now = performance.now();
+      if (circuit && (circuit.until > now || circuit.probing))
+        throw new MirrorError(
+          'CIRCUIT_OPEN',
+          'Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',
+          {
+            retry_after_ms: Math.max(1000, Math.ceil(circuit.until - now)),
+            last_error_code: circuit.code,
+            last_http_status: circuit.status,
+          },
+          503,
+          true,
+        );
+      if (circuit?.until) {
+        circuit.probing = true;
+        ownedProbe = circuit;
+      }
+    }
+    this.metrics.requests++;
+    meterNativeRequest(plan.readOnly); // COM-02 C: per-step journal counts
+    this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'requests');
+    return ownedProbe;
+  }
+  /** The single send: one fetch to the approved URL, never redirected, within the attempt's timeout or deadline. */
+  private async send(route: WireRoute, clock: AttemptClock, hooks: {onDispatch?: () => void}): Promise<Response> {
+    const {plan, url, headers, body, deadline} = route,
+      reportDeadline = deadline !== undefined;
+    const remaining = reportDeadline ? deadline! - performance.now() : this.timeoutMs;
+    if (reportDeadline && (!Number.isFinite(remaining) || remaining <= 0)) throw this.deadlineFailure(route);
+    clock.deadlineTimer = reportDeadline && remaining <= this.timeoutMs;
+    clock.requestSignal = AbortSignal.timeout(
+      collectionRequestTimeout(
+        reportDeadline ? Math.max(1, Math.ceil(Math.min(this.timeoutMs, remaining))) : this.timeoutMs,
+      ),
+    );
+    // Synchronously, with no await before the fetch: everything thrown before this line sent nothing (WRT-04).
+    hooks.onDispatch?.();
+    if (!plan.readOnly) markDispatched();
+    const response = await this.fetcher(url, {
+      method: plan.method,
+      headers,
+      body,
+      redirect: 'error',
+      signal: clock.requestSignal,
+    });
+    if (this.expired(route, clock)) {
+      await response.body?.cancel();
+      throw this.deadlineFailure(route);
+    }
+    return response;
+  }
+  /**
+   * A response: its throttle and cooldown, a retried 502, 503 or 504 (undefined: the next attempt), its body, the
+   * provider's refusal, or the result.
+   */
+  private async receive(
+    route: WireRoute,
+    response: Response,
+    attempt: number,
+    clock: AttemptClock,
+  ): Promise<TransportResult | undefined> {
+    const {plan, maxAttempts} = route;
+    const retryDelay = providerRetryDelay(response, plan.gateway);
+    this.throttle(route, response, retryDelay);
+    if ([502, 503, 504].includes(response.status) && retryDelay === undefined && attempt + 1 < maxAttempts) {
+      await response.body?.cancel();
+      this.metrics.retries++;
+      await this.sleeper(200 * 2 ** attempt);
+      return undefined;
+    }
+    const {data, bodyIntegrity, exactData} = await this.readResponse(route, response, clock);
+    this.refuse(route, response, data, retryDelay);
+    return this.succeeded(route, response, data, bodyIntegrity, exactData);
+  }
+  /** A 429 counts as a rate limit; a 429 or 503 with a wait cools down its rate key (the account's when X names it). */
+  private throttle(route: WireRoute, response: Response, retryDelay: number | undefined) {
+    const {connection, wire, issuerPermit, userRateKey, accountRateKey} = route;
+    if (response.status === 429) {
+      this.metrics.rateLimits++;
+      this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
+      this.issuerRateLimit(issuerPermit);
+    }
+    if ((response.status === 429 || response.status === 503) && retryDelay !== undefined) {
+      // A provider may name the throttled account (X's account reset header): that account cools down.
+      const rateKey = wire?.accountThrottle?.(response) === true ? accountRateKey : userRateKey;
+      this.cooldowns.set(rateKey, performance.now() + retryDelay);
+      this.coordination?.providerCooldown(rateKey, retryDelay);
+    }
+  }
+  /** The response body in the form the provider documents for the request, read within the size limit and deadline. */
+  private async readResponse(route: WireRoute, response: Response, clock: AttemptClock) {
+    const {plan, wire, adjustRead} = route;
+    // A write may be documented to answer without a body (Search Console site and sitemap edits, Tag Manager
+    // deletes, LinkedIn creations named by x-restli-id, Google's resumable upload session): its provider says.
+    const documentedEmpty = wire?.emptyWrite?.(plan, response) === true;
+    let bodyIntegrity: TransportResult['bodyIntegrity'];
+    // The response forms a provider documents for a read: a CSV download (TikTok report tasks), report output
+    // whose bytes are checked whole (Criteo), 64-bit IDs kept as their source text (LinkedIn lead forms).
+    const csvDownload = wire?.csv?.(plan) === true;
+    const reportOutput = wire?.reportOutput?.(plan) === true;
+    const int64 = wire?.int64?.(plan) === true;
+    let exactData: unknown;
+    const data = await this.readBody(
+      response,
+      (adjustRead && response.status === 204) ||
+        plan.method === 'HEAD' ||
+        (!plan.readOnly && (documentedEmpty || [204, 205].includes(response.status))),
+      reportOutput || adjustRead
+        ? bytes => {
+            bodyIntegrity = {bytes: bytes.length, md5: createHash('md5').update(bytes).digest('hex')};
+          }
+        : undefined,
+      csvDownload,
+      adjustRead,
+      int64,
+      losslessReportNumbers(plan),
+      exact => (exactData = exact),
+    );
+    if (this.expired(route, clock)) throw this.deadlineFailure(route);
+    return {data, bodyIntegrity, exactData};
+  }
+  /**
+   * The provider's refusal of a request: an HTTP error, or an unsuccessful result inside a 2xx response, classified by
+   * the provider error taxonomy (a documented throttle also opens its cooldown); returns when the response succeeded.
+   */
+  private refuse(route: WireRoute, response: Response, data: unknown, retryDelay: number | undefined) {
+    const {plan, connection, wire, headers, issuerPermit, userRateKey, accountRateKey} = route;
+    // A provider's own request reference beside its request ID (LinkedIn's x-li-fabric).
+    const fabric = wire?.fabric?.(response),
+      taxonomy = providerErrorTaxonomyEnabled();
+    const errorDetails = (c?: ProviderErrorClass) => ({
+      upstream: redact(data),
+      http_status: response.status,
+      // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
+      ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined
+        ? {}
+        : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
+      request_id: providerRequestId(plan.gateway, response.headers, data) ?? null,
+      ...(fabric ? {provider_fabric: fabric} : {}),
+      ...(c
+        ? {
+            layer: c.layer,
+            ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
+            ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
+            ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
+            // A version refusal names the version sent and the reviewed default (PRV-02, LinkedIn).
+            ...(c.layer === 'api_version' && wire?.versionSent ? wire.versionSent(headers) : {}),
+          }
+        : {}),
+      ...(response.status === 403
+        ? {
+            scope_denial:
+              providerHttpErrorCode(403, data, response.headers.get('www-authenticate')) === 'INSUFFICIENT_SCOPE',
+          }
+        : {}),
+      // The login a refused request was sent under (Google Ads' login customer).
+      ...(wire?.sentLogin ? wire.sentLogin(headers) : {}),
+    });
+    // A documented provider throttle reported outside HTTP 429 (Meta codes at HTTP 400, a Google Ads quota body)
+    // counts as a rate limit and opens the shared cooldown at the scope the provider names. Nothing is retried
+    // here: the error carries retry_after_ms, so neither the transport nor a worker repeats it immediately.
+    const throttled = (c: ProviderErrorClass) => {
+      if (c.layer !== 'rate_limit' || c.retryAfterMs === undefined) return;
+      if (response.status !== 429) {
+        this.metrics.rateLimits++;
+        this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'rate_limits');
+        this.issuerRateLimit(issuerPermit);
+      }
+      const rateKey = c.cooldownScope === 'account' ? accountRateKey : userRateKey;
+      this.cooldowns.set(rateKey, Math.max(this.cooldowns.get(rateKey) ?? 0, performance.now() + c.retryAfterMs));
+      this.coordination?.providerCooldown(rateKey, c.retryAfterMs);
+    };
+    const classify = (inBody: boolean) => {
+      if (!taxonomy) return undefined;
+      const c = classifyProviderError({
+        gateway: plan.gateway,
+        status: response.status,
+        headers: response.headers,
+        body: data,
+        readOnly: plan.readOnly,
+        inBody,
+        ...(retryDelay === undefined ? {} : {retryAfterMs: retryDelay}),
+      });
+      throttled(c);
+      return c;
+    };
+    if (!response.ok) {
+      const c = classify(false);
+      throw new MirrorError(
+        c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
+        'Platform returned HTTP ' + response.status,
+        errorDetails(c),
+        response.status,
+        c ? c.retryable : response.status === 429 || response.status >= 500,
+      );
+    }
+    if (data && typeof data === 'object') {
+      const d = data as JsonObject;
+      // An unsuccessful result inside a 2xx response: the generic envelopes, or the provider's own (TikTok's
+      // non-zero code, X's errors list).
+      if (wire?.failedResult?.(d) === true || d.request_status === 'ERROR' || d.error) {
+        const c = classify(true),
+          status =
+            c?.layer === 'credential' ? 401 : c?.layer === 'rate_limit' ? 429 : c?.layer === 'consent' ? 403 : 502;
+        throw new MirrorError(
+          c?.code ?? 'PLATFORM_ERROR',
+          'Platform reported an unsuccessful result.',
+          errorDetails(c),
+          status,
+          c?.retryable ?? false,
+        );
+      }
+    }
+  }
+  /** A successful response: the provider's own check of it, the circuit closed, the latency counted, the result. */
+  private succeeded(
+    route: WireRoute,
+    response: Response,
+    data: unknown,
+    bodyIntegrity: TransportResult['bodyIntegrity'],
+    exactData: unknown,
+  ): TransportResult {
+    const {plan, connection, wire, circuitKey, start} = route;
+    // A provider's own check of a successful response (Google's generation drafts, DV360's targeting search).
+    wire?.checkResult?.(plan, data);
+    this.circuits.delete(circuitKey);
+    this.metrics.totalLatencyMs += performance.now() - start;
+    this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'latency_ms', performance.now() - start);
+    return {
+      data,
+      status: response.status,
+      ...(bodyIntegrity ? {bodyIntegrity} : {}),
+      ...(exactData !== undefined ? {exactData} : {}),
+      headers: Object.fromEntries(
+        [
+          'request-id',
+          'x-request-id',
+          'x-fb-trace-id',
+          // The provider's own request references (LinkedIn) and upload session headers (Google's resumable
+          // uploads) are kept with the generic ones.
+          ...(wire?.referenceHeaders ?? []),
+          'x-restli-id',
+          'retry-after',
+          ...(wire?.sessionHeaders?.(plan) ?? []),
+        ]
+          .map(k => [k, response.headers.get(k)])
+          .filter((p): p is [string, string] => p[1] !== null),
+      ),
+    };
+  }
+  /**
+   * A failed attempt: a read whose failure may be retried waits and returns (the next attempt); every other failure
+   * is counted, updates the circuit and is thrown, past the deadline as the deadline's refusal.
+   */
+  private async failed(route: WireRoute, error: unknown, attempt: number, clock: AttemptClock): Promise<void> {
+    const {plan, connection, maxAttempts, circuitKey} = route;
+    collectionCheckpoint();
+    // A timer limited by the remaining operation budget is terminal. Its abort is
+    // authoritative even when performance.now() is fractionally before the deadline.
+    // Shorter per-attempt timeouts may still retry within the original budget.
+    const e = this.expired(route, clock)
+      ? this.deadlineFailure(route)
+      : error instanceof MirrorError
+        ? error
+        : new MirrorError(
+            plan.readOnly ? 'UPSTREAM_UNAVAILABLE' : 'WRITE_OUTCOME_UNCERTAIN',
+            plan.readOnly
+              ? 'Platform request failed or timed out.'
+              : 'The write response was lost. Do not retry with a new key; inspect platform state.',
+            {},
+            502,
+            plan.readOnly,
+          );
+    if (plan.readOnly && e.retryable && e.details.retry_after_ms === undefined && attempt + 1 < maxAttempts) {
+      this.metrics.retries++;
+      await this.sleeper(200 * 2 ** attempt);
+      return;
+    }
+    this.metrics.errors++;
+    this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'errors');
+    const transient =
+      e.code === 'UPSTREAM_UNAVAILABLE' ||
+      e.code === 'WRITE_OUTCOME_UNCERTAIN' ||
+      (e.code === 'UPSTREAM_ERROR' && e.status >= 500);
+    if (transient) {
+      const prior = this.circuits.get(circuitKey)?.failures ?? 0;
+      this.circuits.set(circuitKey, {
+        failures: prior + 1,
+        until: prior >= 4 ? performance.now() + 30000 : 0,
+        at: performance.now(),
+        code: e.code,
+        status: e.status,
+      });
+    } else if (e.code !== 'PLATFORM_RATE_LIMIT' && e.details.layer !== 'rate_limit')
+      // A provider throttle is governed by its cooldown: it neither counts toward nor resets the transient-failure
+      // circuit, so a burst of throttles cannot clear the failures accumulated before it (PRV-01).
+      this.circuits.delete(circuitKey);
+    throw e;
   }
   /** A Google-issued upload capability stays in memory and can only target Google's upload origin. */
   async uploadGoogleVideo(
