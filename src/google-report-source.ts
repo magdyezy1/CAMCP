@@ -70,10 +70,47 @@ export const googleReportSource: ReportSource = {
   },
 };
 
+/** RPT-04: Search Console requests no more rows than one source may hold, so a large site keeps its top pages. */
+const searchConsoleRowLimit = 10000;
+
 /** Search Console rows of searchAnalytics.query: one row per first dimension key, or the whole site. */
 export const searchConsoleReportSource: ReportSource = {
   platform: 'gsc',
   nativeMetricExamples: [],
+  /** One final-data page report of the site (Search Console reports in Pacific time), bounded to the row limit. */
+  async collect(c) {
+    c.timezone = 'America/Los_Angeles';
+    const d = await c.run(
+      c.plan(
+        '/webmasters/v3/sites/' + encodeURIComponent(c.account) + '/searchAnalytics/query',
+        {},
+        {
+          startDate: c.range.since,
+          endDate: c.range.until,
+          dimensions: ['page'],
+          // RPT-04: request no more rows than one source may hold, so a large site keeps its top pages.
+          rowLimit: searchConsoleRowLimit,
+          startRow: 0,
+          dataState: 'final',
+        },
+      ),
+      false,
+    );
+    c.raw = reportList(d.rows ?? []);
+    if (c.raw.length >= searchConsoleRowLimit) {
+      c.raw = c.raw.slice(0, searchConsoleRowLimit);
+      c.complete = false;
+      c.collectionComplete = false;
+      c.warnings.push(
+        'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
+      );
+    }
+    // Owner policy P6: top-row coverage with privacy omissions is the scope of this organic source, not a failure.
+    c.scopeLimitations.push('search_console_top_rows');
+    c.warnings.push(
+      'Search Console reports pages, not paid campaigns, and returns top rows with privacy omissions. This is organic context, not a reconciled advertising total.',
+    );
+  },
   normalize(raw, {field}) {
     const id = raw.keys?.[0] ?? 'site';
     return {

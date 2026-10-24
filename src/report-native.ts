@@ -8,7 +8,7 @@ import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview
 import {nativeDetailPlatforms, nativeDetailResult} from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
-import {reportList, type AccountLookupCache, type ReportCollection, type ReportSourceRow} from './report-source.js';
+import type {AccountLookupCache, ReportCollection, ReportSourceRow} from './report-source.js';
 import {reportRange} from './report-periods.js';
 
 /** Native metrics the Overview suggests per platform, from each platform's report source (ARC-04 stage F). */
@@ -27,7 +27,6 @@ export {
   redditValueUnitWarning,
   tiktokEventsUnavailableWarning,
 } from './report-sources.js';
-const list = reportList;
 const value = (v: unknown, divisor = 1) => {
   const n = metricNumber(v);
   return n === null ? null : n / divisor;
@@ -38,7 +37,6 @@ const value = (v: unknown, divisor = 1) => {
  * metrics such as `conversionsByConversionDate` or `costInLocalCurrency` are kept.
  */
 const identityKey = /(^|_)(ids?|name|urn)$/i;
-const gscRowLimit = 10000;
 const contextKeys = new Set([
   'date',
   'day',
@@ -419,38 +417,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'gsc') {
-      timezone = 'America/Los_Angeles';
-      const d = await run(
-        plan(
-          '/webmasters/v3/sites/' + encodeURIComponent(account) + '/searchAnalytics/query',
-          {},
-          {
-            startDate: range.since,
-            endDate: range.until,
-            dimensions: ['page'],
-            // RPT-04: request no more rows than one source may hold, so a large site keeps its top pages.
-            rowLimit: gscRowLimit,
-            startRow: 0,
-            dataState: 'final',
-          },
-        ),
-        false,
-      );
-      raw = list(d.rows ?? []);
-      if (raw.length >= gscRowLimit) {
-        raw = raw.slice(0, gscRowLimit);
-        complete = false;
-        collectionComplete = false;
-        warnings.push(
-          'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
-        );
-      }
-      // Owner policy P6: top-row coverage with privacy omissions is the scope of this organic source, not a failure.
-      scopeLimitations.push('search_console_top_rows');
-      warnings.push(
-        'Search Console reports pages, not paid campaigns, and returns top rows with privacy omissions. This is organic context, not a reconciled advertising total.',
-      );
     }
     if (raw.length > 10000)
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
