@@ -119,8 +119,10 @@ the captured catalog, the action ledger, `docs/CONTRACTS.md`, the tracked report
 generated guides, the architecture ratchet's baseline (`docs/review/architecture-baseline.json`), the Arabic catalog
 chunks (`web/locales/ar/`) and the website ratchets' baselines (`tools/web-markup-baseline.json`,
 `tools/web-colour-baseline.json`, `tools/web-route-bytes-baseline.json`; `check-web` and their tests compare them), the
-redirect stubs of moved documents (`docs/moved.json`) and the documentation freeze's baseline
-(`tools/docs-lint-baseline.json`; `npm run docs:index:check` compares both, DOC-03), each with its
+redirect stubs of moved documents (`docs/moved.json`), the documentation freeze's baseline
+(`tools/docs-lint-baseline.json`), the status page (`docs/STATUS.md`) and the findings register's two views
+(`docs/review/FINDINGS.md` and `FINDINGS-CLOSED.md`, from `docs/review/findings.json`; `npm run docs:index:check`
+compares them all, DOC-03), each with its
 generator, its inputs, where it records their digests and the check that fails when it is edited by hand or stale. `npm run provenance:check` is a gate of `npm run check`, `check:fast`, qualification
 (`generated_provenance_check`) and `test:related`. It fails on a file in `generated/` that no artifact declares, a
 declared output that is missing, a check that is not a gate of both `npm run check` and qualification, or an input
