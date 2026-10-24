@@ -7,7 +7,7 @@ tier: operator
 
 Finished snapshots also provide branded PDF and Excel downloads through client report packs. Generation is
 authenticated, bounded and rechecks every source account after rendering. See the
-[report-pack workflow](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery) and
+[report-pack workflow](workflows/REPORT-PACKS.md#client-report-packs-and-recovery) and
 [format limits and evidence](records/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
 
 ## Client reports and reusable templates
@@ -554,7 +554,7 @@ name, accent color, footer and PDF spacing. Applying requires the exact profile 
 confirmation, operator authority and current access to every source. Nonempty profile account/login bindings must
 cover all sources. The style is copied into that snapshot, so changing or deleting the reusable profile never
 rewrites old report packs. Profile-choice pages return `next_offset`; continue even after an empty filtered page.
-See [report-pack contracts and limits](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery).
+See [report-pack contracts and limits](workflows/REPORT-PACKS.md#client-report-packs-and-recovery).
 
 ### Scheduled PDF and Excel files
 

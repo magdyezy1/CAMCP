@@ -236,20 +236,12 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
 - **Remaining.** Owned text some journeys still show in English, and the refusal reasons of the family modules outside
   the inventory (B24); then the Arabic editorial and assistive-technology reviews (owner-run).
 
-## 5. Recorded on 2026-10-17: public documentation pins
+## 5. Public documentation pins
 
-These pins were the public, unauthenticated reads that earlier waves left to the owner. They were completed on
-2026-10-17 and are no longer pending owner steps; the
-[deployment record](records/DEPLOYMENT-2026-10-18.md#the-public-documentation-pins-of-2026-10-17) names the commit that
-recorded each:
-
-- **Microsoft Learn, `GetGeoLocationsFileUrl` and its `CompressionType`.** The page shows that `Zip` is reserved for
-  future use, so the location lookup now requests `GZip`. The Microsoft Search recipe's lookup by name is on (CMP-03).
-- **TikTok Pixel Event Stats**, the SDK specification and the API reference at the SDK commit that
-  `.mirror/VENDOR/tiktok-pixel-event-stats.json` pins. The statistics read is sent only under this pin (MSR-03).
-- **Meta Business SDK v25.0.3 to v26.0.2**: the change evidence was regenerated from both complete PyPI releases.
-- **Apple Ads Platform API SDK**: the re-derivation of the model evidence at its pinned revision passed with 0
-  problems (ARC-03).
+<a id="5-recorded-on-2026-10-17-public-documentation-pins"></a>The public, unauthenticated reads that earlier waves left
+to the owner were completed on 2026-10-17 and are no longer pending owner steps; the
+[deployment record](records/DEPLOYMENT-2026-10-18.md#the-public-documentation-pins-of-2026-10-17) names each pin, what it
+changed and the commit that recorded it.
 
 Still owner-run from earlier waves (each a public read, or a record that such reads were allowed): compare the 66
 Meta currency rows with Meta's Currencies page (WRT-07), re-read the Data Manager v1 Discovery document and compare

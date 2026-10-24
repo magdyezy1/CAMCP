@@ -15,7 +15,7 @@ performance, not image attribution or proof of the creative used throughout the 
 External edits, dynamic creative combinations and unrecorded provider use remain unverified. Follow `next_cursor`
 for choices and `next_offset` for matched rows; each page rechecks the asset and plan's current access.
 Website uploads have an absolute thirty-minute deadline including derived copies. Fresh provider checks for receipt reuse remain in force. Owners may explicitly retain a separately imported link/Drive original as described below. See the
-[connected workflow](PRODUCT-WORKFLOWS.md#creative-preparation-and-durable-uploads) for scope and pagination.
+[connected workflow](workflows/CREATIVE.md#creative-preparation-and-durable-uploads) for scope and pagination.
 
 A file reaches AMCP in one of three ways: uploaded on the website (the **Media library** page), a public HTTPS link, or Google Drive (a public share link, or a private file or folder selected in a separate Drive connection; see [workspace operations](WORKSPACE-OPERATIONS.md)). **The AMCP server receives or downloads the file and transfers it; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
 

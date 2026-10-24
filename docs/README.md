@@ -58,11 +58,8 @@ The current pages for whoever deploys, configures, accepts and runs AMCP: what i
 - [AMCP accounts and workspace access](USER-ACCOUNTS.md)
 - [Current readiness](CURRENT-READINESS.md)
 - [Deploy AMCP on Railway with Cloudflare DNS](DEPLOY-RAILWAY.md)
-- [Google verification: reporting and privacy evidence](GOOGLE-VERIFICATION.md)
 - [Operations](OPERATIONS.md)
-- [Opt-in isolated sandbox verification](SANDBOX-VERIFICATION.md)
 - [Status](STATUS.md)
-- [Test accounts and platform connections](TEST-ACCOUNTS.md)
 
 ### Operating tasks
 
@@ -89,12 +86,15 @@ Detail operators consult on demand: the workflow and platform guides, the accept
 - [Connected product workflows](PRODUCT-WORKFLOWS.md)
 - [Decisions](DECISIONS.md)
 - [GA4, Google tag, Search Console and Apple Ads](MEASUREMENT-AND-APPLE.md)
+- [Google verification: reporting and privacy evidence](GOOGLE-VERIFICATION.md)
 - [Media uploads](MEDIA-UPLOADS.md)
 - [Microsoft Advertising / Bing Ads](MICROSOFT-ADS.md)
+- [Opt-in isolated sandbox verification](SANDBOX-VERIFICATION.md)
 - [Provider access register](PROVIDER-ACCESS.md)
 - [Reddit adapter](REDDIT.md)
 - [Reporting Overview](REPORTING-OVERVIEW.md)
 - [Reviewed write operations](WRITE-OPERATIONS.md)
+- [Test accounts and platform connections](TEST-ACCOUNTS.md)
 - [Workspace operations](WORKSPACE-OPERATIONS.md)
 
 ### Operating tasks
@@ -108,6 +108,19 @@ Detail operators consult on demand: the workflow and platform guides, the accept
 - [Provider lifecycle](operations/PROVIDER-LIFECYCLE.md)
 - [Qualification records](operations/QUALIFICATION.md)
 - [Workers, schedules and provider pacing](operations/WORKERS.md)
+
+### Workflow guides
+
+- [Allocation proposals and native budget drafts](workflows/ALLOCATION.md)
+- [Campaign review and recovery](workflows/CAMPAIGNS.md)
+- [Client report packs and recovery](workflows/REPORT-PACKS.md)
+- [Creative preparation and durable uploads](workflows/CREATIVE.md)
+- [Errors, run stops and next actions](workflows/ERRORS-AND-RECOVERY.md)
+- [Find and resume work](workflows/HOME-AND-NAVIGATION.md)
+- [Owner settings and workspace health](workflows/OWNER-SETTINGS.md)
+- [Portfolio, measurement and commerce](workflows/PORTFOLIO-MEASUREMENT-COMMERCE.md)
+- [Read-only monitoring](workflows/MONITORING.md)
+- [Reports, evidence and delivery](workflows/REPORTS.md)
 
 ### Acceptance runbooks
 
@@ -402,8 +415,11 @@ its consolidation moved it here.
 | Date | Document |
 |---|---|
 | — | [Write coverage: batch history](records/COVERAGE-BATCH-HISTORY.md) |
+| — | [Deployment guide notes of the October 2026 deliveries](records/DEPLOY-RAILWAY-BATCH-NOTES-2026-10.md) |
 | — | [Design, accessibility and UX-copy review — October 2026](records/DESIGN-REVIEW-2026-10.md) |
+| — | [Browser qualification history of the October 2026 waves and batches](records/LOCAL-BROWSER-QA-HISTORY-2026-10.md) |
 | — | [Operations runbook notes of the October 2026 deliveries](records/OPERATIONS-NOTES-2026-10.md) |
+| — | [Workflow guide batch notes of the October 2026 deliveries](records/PRODUCT-WORKFLOWS-BATCH-NOTES-2026-10.md) |
 | — | [Progress log](records/PROGRESS.md) |
 | 2026-10-01 | [Source-bound native budget drafts — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION-PLANS.md) |
 | 2026-10-01 | [Constrained campaign allocation proposals — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION.md) |

@@ -89,7 +89,9 @@ lists them as unqualified reads (`src/personal-data.ts`).
 - Later the same day ("Confirm on google"): the `datamanager` OAuth scope for Google, and sending the uploader's own
   confirmation of Google's Customer Match terms as the upload's terms field (rule 4).
 
-## Implementation (batch 43, 2026-09-30)
+## Implementation
+
+<a id="implementation-batch-43-2026-09-30"></a>
 
 - **Foundation** (`src/personal-data.ts`, `src/personal-data-access.ts`, the seam in `src/write-review.ts`):
   - People travel as `people` beside the reviewed request, never inside its arguments. They are normalized and hashed
