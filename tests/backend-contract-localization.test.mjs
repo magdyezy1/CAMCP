@@ -178,9 +178,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // reword an uncertain write (one message added, the remedy replaced): 11,513 entries.
   // ARC-04 (wave 4c) splits campaignRecipe into per-recipe builders: src/recipe-steps.ts and the Meta, Google Search
   // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts (which keeps
-  // the catalog's own): four more files with reasons, the same reasons.
-  assert.equal(files.length, 673);
-  assert.equal(selected.filter(row => row.messages.size).length, 257);
+  // the catalog's own): four more files with reasons, the same reasons. ARC-01 (wave 4c) adds Reddit's page step, whose
+  // five refusals moved with it from src/reddit-adapter.ts (src/reddit-paging.ts: one more file with reasons, the same
+  // reasons).
+  assert.equal(files.length, 674);
+  assert.equal(selected.filter(row => row.messages.size).length, 258);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

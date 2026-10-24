@@ -11,7 +11,8 @@ import {
   authorizeRedditPostRead,
   verifyRedditPostCreation,
 } from './reddit-post-creation.js';
-import {nextPage} from './pagination.js';
+// Reddit's own page step (a leaf): src/pagination.ts consults the provider hooks, which hold Reddit's write checks.
+import {redditNextPage} from './reddit-paging.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -173,7 +174,7 @@ export async function readRedditProfiles(
       rows.push(value);
       if (rows.length > 1000) failed('Reddit profile discovery exceeded 1,000 profiles.');
     }
-    current = nextPage(current, d);
+    current = redditNextPage(current, d, structuredClone(current));
   }
   if (current) failed('Reddit profile discovery exceeded 100 pages.');
   return {status: 200, headers: {}, data: {amcpRedditProfiles: rows.sort((a, b) => a.id.localeCompare(b.id, 'en'))}};

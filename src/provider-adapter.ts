@@ -399,8 +399,9 @@ export interface StateChecks {
 
 /**
  * A provider's gateway checks (ARC-01 phase B): its parts of the write-shape and state stages. The stages keep every
- * generic rule, the order and every refusal they name; Reddit's write contract and state check stay in them (their
- * module reads pages through src/pagination.ts, which consults these hooks, so Reddit's adapter cannot import it).
+ * generic rule, the order and every refusal they name. A provider module these checks import must not read pages
+ * through src/pagination.ts, which consults these hooks (an import cycle): Reddit's family pages with its own leaf,
+ * src/reddit-paging.ts, which its adapter's paging hook is too.
  */
 export interface GatewayChecks {
   /** The provider's request contracts, first (Google's Discovery schema, Meta's campaign and v26 rules). */

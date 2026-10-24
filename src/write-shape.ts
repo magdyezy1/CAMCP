@@ -3,7 +3,6 @@ import {reviewedWriteFamily} from './reviewed-routes.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {assertWireContract} from './wire-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
-import {assertRedditWrite} from './reddit-writes.js';
 import {familyOf} from './reviewed-families.js';
 import {withheldWriteProgramId, withheldWriteReason} from './withheld-writes.js';
 import {assertNoMethodOverride, object, fail} from './write-common.js';
@@ -53,14 +52,7 @@ function assertReviewedShape(plan: CompiledRequest) {
         ' from execution_options: a reviewed write applies its request. To have Meta check a campaign or ad set without applying it, use amcp_campaign validate_provider.',
       {field: 'execution_options', refused: validation},
     );
-  // A provider whose own write contract decides alone (Microsoft's contracts). Reddit's does too, but its module
-  // reads pages through src/pagination.ts, which consults the provider hooks, so Reddit's adapter cannot import it
-  // without an import cycle: it stays here until that family takes its page step as a hook argument (section 9 of
-  // docs/review/ARCHITECTURE.md).
-  if (plan.gateway === 'reddit_native_action') {
-    assertRedditWrite(plan);
-    return;
-  }
+  // A provider whose own write contract decides alone (Microsoft's and Reddit's contracts).
   if (checks?.contract) {
     checks.contract(plan);
     return;

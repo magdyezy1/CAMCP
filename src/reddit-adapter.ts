@@ -3,8 +3,11 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {authorizeRedditPlanningRead} from './reddit-extensions.js';
+import {redditNextPage} from './reddit-paging.js';
+// Writes and campaigns (wave 4c).
+import type {TransportResult} from './transport.js';
+import {assertRedditWrite, validateRedditState} from './reddit-writes.js';
 
-const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** Reddit's account-agnostic reference reads, which any bound account may make. */
 const globalReads = [
   '/api/v3/time_zones',
@@ -50,8 +53,8 @@ function observeReddit(plan: CompiledRequest, connection: Connection, id: string
  * Reddit's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: reports, plus
  * the PRV-07 planning and history reads (src/reddit-extensions.ts), are POST reads. Its scope: the planning reads'
  * authorizer, the reference reads, and ownership of the global IDs its account lists and creations show. A review keeps
- * a response's records and verifies a write by the entity it returned. Its write contract and state check stay in the
- * write stages (src/write-shape.ts says why).
+ * a response's records and verifies a write by the entity it returned. Its write contract and state check are its
+ * gateway checks (src/reddit-writes.ts).
  */
 export const redditHooks: ProviderHooks = Object.freeze({
   gateway: 'reddit_native_action',
@@ -122,44 +125,7 @@ export const redditHooks: ProviderHooks = Object.freeze({
       ) || ['/api/v3/forecasting/bid_suggestions', '/api/v3/targeting/keyword_suggestions'].includes(pathname),
   }),
   paging: Object.freeze({
-    nextPage(plan: CompiledRequest, response: unknown, next: CompiledRequest) {
-      const d = obj(response);
-      const link = d.pagination?.next_url;
-      if (!link) return null;
-      let url: URL;
-      try {
-        url = new URL(link);
-      } catch {
-        throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination must supply a valid absolute URL.');
-      }
-      if (
-        url.origin !== 'https://ads-api.reddit.com' ||
-        url.username ||
-        url.password ||
-        url.hash ||
-        url.pathname !== plan.path
-      )
-        throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination changed upstream scope.');
-      const keys = new Set<string>();
-      for (const [key, value] of url.searchParams) {
-        if (keys.has(key))
-          throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination contains duplicate parameters.');
-        keys.add(key);
-        if (key === 'page.token') {
-          next.query[key] = value;
-          continue;
-        }
-        if (plan.query[key] === undefined || String(plan.query[key]) !== value)
-          throw new MirrorError(
-            'UNSAFE_PAGINATION_LINK',
-            'Reddit pagination changed account scope, page size or report filters.',
-            {parameter: key},
-          );
-      }
-      if (!keys.has('page.token'))
-        throw new MirrorError('UNKNOWN_PAGINATION', 'Reddit supplied a next URL without a page token.');
-      return next;
-    },
+    nextPage: redditNextPage,
   }),
   accountRead: Object.freeze({
     plan(read: CompiledRequest, id: string) {
@@ -177,5 +143,13 @@ export const redditHooks: ProviderHooks = Object.freeze({
         );
       headers['User-Agent'] = connection.userAgent;
     },
+  }),
+  // Writes and campaigns (wave 4c): its write contract decides alone, and its state check is the exact-target check.
+  // Its family reads pages with src/reddit-paging.ts, not src/pagination.ts, so this adapter imports them in no cycle.
+  checks: Object.freeze({
+    contract: assertRedditWrite,
+    state: Object.freeze({
+      target: (read: CompiledRequest, result: TransportResult) => validateRedditState(read, result),
+    }),
   }),
 });
