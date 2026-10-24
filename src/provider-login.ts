@@ -11,8 +11,9 @@ import type {NativeTransport, TransportResult} from './transport.js';
 
 /**
  * A provider's steps of the website's logins: its OAuth flow (server/platform-oauth.ts), the reads that list what a
- * login reaches (server/asset-discovery.ts) and the reads of a renewal that verifies a login's selected accounts
- * before it replaces the login (server/google-reauthorization.ts).
+ * login reaches (server/asset-discovery.ts), the reads of a renewal that verifies a login's selected accounts before
+ * it replaces the login (server/google-reauthorization.ts) and, when its accounts sign in to AMCP itself, the
+ * endpoints of that sign-in (server/social-signin.ts).
  */
 export interface ProviderLogin {
   /** The gateway of the provider adapter these steps belong to. */
@@ -20,6 +21,21 @@ export interface ProviderLogin {
   readonly oauth?: OAuthSteps;
   readonly discovery?: AssetDiscoveryHooks;
   readonly renewal?: RenewalSteps;
+  readonly signIn?: SignInEndpoints;
+}
+
+/**
+ * The endpoints of AMCP's own sign-in with a provider's accounts (Facebook Login, Meta's): server/social-signin.ts
+ * keeps the sign-in's client settings, state, browser binding, the requests' parameters, the bounded reads and the
+ * identity checks.
+ */
+export interface SignInEndpoints {
+  /** The authorization dialog. */
+  readonly authorize: string;
+  /** The token endpoint of the authorization code. */
+  readonly token: string;
+  /** The signed-in user's own profile (its ID and name), read with the access token. */
+  readonly profile: string;
 }
 
 // The website's OAuth flows: PlatformOAuth (server/platform-oauth.ts) keeps the configuration check, the state, the

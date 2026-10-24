@@ -16,7 +16,8 @@ import {metaPermissionGrants} from './meta-auth-diagnostic.js';
  * owner-set login configuration replaces the default response type; the code is exchanged with a GET, and the
  * short-lived token for a long-lived one unless AMCP_META_LONG_LIVED_TOKEN is false. Discovery: the login's ad
  * accounts, with the user's name and ID and what Meta granted; its Pages and their Instagram accounts; and, for the
- * selected ad accounts, each account edge's pixels, catalogs, apps or custom conversions.
+ * selected ad accounts, each account edge's pixels, catalogs, apps or custom conversions. Sign-in: Facebook Login's
+ * endpoints, for AMCP's own sign-in.
  */
 async function metaDiscovery(kind: string, c: DiscoveryContext): Promise<WorkspaceAsset[]> {
   let assets: WorkspaceAsset[] = [];
@@ -147,4 +148,7 @@ export const metaLogin: ProviderLogin = Object.freeze({
     extend: metaLongLived,
   }),
   discovery: Object.freeze({kind: metaDiscovery}),
+  // Facebook Login, AMCP's own sign-in (server/social-signin.ts): the same versioned dialog and token endpoint, and
+  // the Graph API's own profile of the signed-in user.
+  signIn: Object.freeze({authorize: metaDialogUrl, token: metaToken, profile: metaGraphUrl('me')}),
 });

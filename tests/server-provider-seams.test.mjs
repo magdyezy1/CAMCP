@@ -7,6 +7,7 @@ import {providerById} from '../dist/src/provider-adapters.js';
 import {googleAccountDiscovery, googleSelectedAccountRead} from '../dist/src/google-account-discovery.js';
 import {googleAccountDiscovery as serverAccountDiscovery} from '../dist/server/google-account-discovery.js';
 import {googleAdsCustomers} from '../dist/src/google-version.js';
+import {metaDialogUrl, metaGraphUrl} from '../dist/src/meta-version.js';
 
 // ARC-01 phase B, the website's server modules: route modules, the website's own flows and the composition root take
 // their provider facts from the registries instead of naming a gateway or importing a provider module. The behaviour
@@ -52,5 +53,29 @@ test('the Google renewal names no gateway and reads through Google Ads’ renewa
   assert.deepEqual(
     registeredProviderLogins.filter(l => l.renewal).map(l => l.gateway),
     [gateway],
+  );
+});
+
+test('Facebook sign-in takes Meta’s sign-in endpoints from its login steps', () => {
+  const file = 'server/social-signin.ts';
+  assert.doesNotMatch(source(file), gatewayLiteral);
+  assert.deepEqual(providerImports(file), [], 'the sign-in consults the provider login registry instead');
+  assert.ok(graph.get(file).has('src/provider-logins.ts'));
+  const meta = providerLogin(providerById('meta').gateway);
+  assert.ok(Object.isFrozen(meta.signIn));
+  // The endpoints the sign-in used before the move: Meta's versioned login dialog and token endpoint, the ones its
+  // platform login uses too, and the signed-in user's Graph API profile.
+  assert.deepEqual(meta.signIn, {
+    authorize: metaDialogUrl,
+    token: metaGraphUrl('oauth/access_token'),
+    profile: metaGraphUrl('me'),
+  });
+  assert.equal(meta.signIn.authorize, meta.oauth.authorize);
+  assert.equal(meta.signIn.token, meta.oauth.token);
+  // Only Meta's accounts sign in to AMCP through a provider's login steps; Google's and Apple's sign-ins keep their
+  // OpenID Connect endpoints in the sign-in itself.
+  assert.deepEqual(
+    registeredProviderLogins.filter(l => l.signIn).map(l => l.gateway),
+    [meta.gateway],
   );
 });

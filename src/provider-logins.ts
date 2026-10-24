@@ -51,9 +51,17 @@ for (const login of registeredProviderLogins) {
   if (!providerOf(login.gateway))
     throw new Error('Provider login steps name no provider adapter: ' + login.gateway + '.');
   if (byGateway.has(login.gateway)) throw new Error('Two provider login steps name ' + login.gateway + '.');
-  for (const part of [login, login.oauth, login.discovery, login.renewal])
+  for (const part of [login, login.oauth, login.discovery, login.renewal, login.signIn])
     if (part && !Object.isFrozen(part))
       throw new Error('Provider login steps of ' + login.gateway + ' are not frozen.');
+  // A sign-in names its three endpoints, each an HTTPS URL.
+  if (
+    login.signIn &&
+    [login.signIn.authorize, login.signIn.token, login.signIn.profile].some(
+      url => typeof url !== 'string' || !url.startsWith('https://'),
+    )
+  )
+    throw new Error('The sign-in of ' + login.gateway + ' needs its HTTPS authorization, token and profile endpoints.');
   // A renewal's steps are both its reads: the accounts a fresh authorization reaches, and the selected-account read.
   if (
     login.renewal &&
