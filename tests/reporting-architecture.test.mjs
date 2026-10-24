@@ -5,6 +5,7 @@ import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/archi
 import {providerById} from '../dist/src/provider-adapters.js';
 import * as sheets from '../dist/src/google-sheets.js';
 import * as table from '../dist/src/report-table.js';
+import {reportPlatforms} from '../dist/src/report-metrics.js';
 
 /**
  * ARC-01 (reporting): the shared reporting modules name no provider gateway and import no provider module except
@@ -14,7 +15,6 @@ import * as table from '../dist/src/report-table.js';
 const remaining = {
   'src/report-presets.ts': {literals: 14, imports: 6},
   'src/decision-reporting.ts': {literals: 7, imports: 10},
-  'src/report-metrics.ts': {literals: 11, imports: 0},
   'src/report-resource-scope.ts': {literals: 9, imports: 0},
   'src/report-breakdowns.ts': {literals: 7, imports: 0},
   'src/report-allocation.ts': {literals: 4, imports: 1},
@@ -39,6 +39,40 @@ test('the shared reporting modules hold no more provider gateways or provider im
     if (literals || imports) measured[id] = {literals, imports};
   }
   assert.deepEqual(measured, remaining);
+});
+
+test('each reporting platform reports through its provider adapter gateway, as the platform table named it', () => {
+  assert.deepEqual(Object.keys(reportPlatforms), [
+    'google',
+    'meta',
+    'tiktok',
+    'snapchat',
+    'linkedin',
+    'x',
+    'microsoft',
+    'apple',
+    'reddit',
+    'ga4',
+    'gsc',
+  ]);
+  assert.deepEqual(
+    {...reportPlatforms},
+    {
+      google: {name: 'Google Ads', gateway: 'google_ads_native_action', kind: 'paid'},
+      meta: {name: 'Meta', gateway: 'meta_native_action', kind: 'paid'},
+      tiktok: {name: 'TikTok', gateway: 'tiktok_native_action', kind: 'paid'},
+      snapchat: {name: 'Snapchat', gateway: 'snapchat_native_action', kind: 'paid'},
+      linkedin: {name: 'LinkedIn', gateway: 'linkedin_native_action', kind: 'paid'},
+      x: {name: 'X Ads', gateway: 'x_ads_native_action', kind: 'paid'},
+      microsoft: {name: 'Microsoft Ads', gateway: 'microsoft_ads_native_action', kind: 'paid'},
+      apple: {name: 'Apple Ads', gateway: 'apple_ads_native_action', kind: 'paid'},
+      reddit: {name: 'Reddit Ads', gateway: 'reddit_native_action', kind: 'paid'},
+      ga4: {name: 'Google Analytics 4', gateway: 'ga4_native_action', kind: 'measurement'},
+      gsc: {name: 'Search Console', gateway: 'google_search_console_native_action', kind: 'organic'},
+    },
+  );
+  for (const [id, platform] of Object.entries(reportPlatforms))
+    assert.equal(platform.gateway, providerById(id).gateway);
 });
 
 test('the report table is shared: the Sheets client re-exports it, and its exporters import no Sheets module', () => {
