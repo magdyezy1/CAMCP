@@ -21,6 +21,7 @@ import {docFacts} from './doc-facts.mjs';
 import {helpGuideProblems} from './help-pages.mjs';
 import {documentationPages, documentationProblems, frontMatterBlock, pageMeta} from './docs-front-matter.mjs';
 import {statusProblems} from './docs-status.mjs';
+import {findingsProblems} from './findings-register.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url)),
   docs = path.join(root, 'docs'),
@@ -69,6 +70,8 @@ for (const problem of facts.problems) problems.push('documentation facts: ' + pr
 problems.push(...statusProblems(root, facts.facts, {write: !check}));
 // DOC-03: the members-only Help page's fragments (tools/help-pages.mjs) are the owner guide as it is now.
 problems.push(...helpGuideProblems(root, {write: !check}));
+// DOC-03: the findings register's open and closed views (tools/findings-register.mjs).
+problems.push(...findingsProblems(root, {write: !check}));
 // The generated pages and the redirect stubs are written first, so the index below lists and checks them as they are.
 if (!check) writeStubs(root);
 problems.push(...documentationProblems(root, stubs));

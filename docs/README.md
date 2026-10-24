@@ -156,6 +156,7 @@ How AMCP is built and checked, for whoever changes it.
 - [AMCP architecture](review/ARCHITECTURE.md)
 - [AMCP product implementation and qualification — 1 October 2026](review/IMPLEMENTATION-2026-10-01.md)
 - [AMCP threat model](review/THREAT-MODEL.md)
+- [Closed findings](review/FINDINGS-CLOSED.md)
 - [Findings register](review/FINDINGS.md)
 - [MCP read and write controls: calibration](review/MCP-SECURITY-CALIBRATION.md)
 - [Personal data in advertising writes: policy](review/PERSONAL-DATA-POLICY.md)
