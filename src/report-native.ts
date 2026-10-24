@@ -7,7 +7,6 @@ import {
   xObjectivesUnavailableWarning,
 } from './x-campaign-report.js';
 import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
-import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
@@ -23,8 +22,6 @@ import {
 import {assertWritesNotPaused} from './owner-operations.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
-import {metaPrefix} from './meta-version.js';
-import {metaWindowsOrdered} from './meta-attribution-windows.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {detailParentsUnavailableWarning, optionalReadRefused} from './overview-parents.js';
@@ -207,8 +204,13 @@ export const linkedinCampaignsUnavailableWarning =
 /** Shown when TikTok's ad group read failed, so result definitions fall back to the generic one. */
 export const tiktokEventsUnavailableWarning =
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.';
-/** Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4). */
-export const nativeDailyPlatforms: readonly string[] = ['google', 'meta'];
+/**
+ * Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4): the report
+ * sources that declare their daily segmentation, in registry order.
+ */
+export const nativeDailyPlatforms: readonly string[] = reportSourceList
+  .filter(source => source.daily)
+  .map(source => source.platform);
 export const nativeDailySegmentation = (source: JsonObject) =>
   nativeDailyPlatforms.includes(source.platform) && overviewSourceLevel(source).id === 'campaign';
 const accountLookupPlatforms = (platform: string) => !['ga4', 'gsc', 'apple'].includes(platform);
@@ -243,11 +245,7 @@ export class NativeCampaignReports {
     for (const day of eachDay(result.date_range)) days.set(day, []);
     for (const row of result.rows) {
       const day = daily ? daily.day(row.native) : row.native?.date_start;
-      if (
-        typeof day !== 'string' ||
-        !days.has(day) ||
-        (source.platform === 'meta' && row.native?.date_stop !== undefined && row.native.date_stop !== day)
-      )
+      if (typeof day !== 'string' || !days.has(day) || (daily?.endsOn && !daily.endsOn(row.native, day)))
         throw new MirrorError(
           'REPORT_DATE_MISMATCH',
           'The provider returned a daily row outside the requested days.',
@@ -465,53 +463,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'meta') {
-      // RPT-04: an optional campaign-level attribution profile uses the detailed preset's explicit windows.
-      const profile = campaignAttributionProfile(source),
-        windows = profile ? metaWindowsOrdered(profile.attribution_windows) : undefined;
-      raw = metaCampaignRows(
-        await run(
-          plan(metaPrefix + 'act_' + account + '/insights', {
-            level: 'campaign',
-            time_range: rangeToMeta(range),
-            fields: [
-              ...new Set([
-                'account_id',
-                'account_name',
-                'date_start',
-                'date_stop',
-                'campaign_id',
-                'campaign_name',
-                'objective',
-                'spend',
-                'impressions',
-                'clicks',
-                'reach',
-                'frequency',
-                'actions',
-                'action_values',
-                ...extra,
-              ]),
-            ].join(','),
-            limit: 500,
-            ...(windows
-              ? {
-                  action_report_time: 'impression',
-                  action_attribution_windows: windows,
-                  use_account_attribution_setting: false,
-                  use_unified_attribution_setting: false,
-                }
-              : {use_unified_attribution_setting: true}),
-            ...(segment === 'daily' ? {time_increment: 1} : {}),
-          }),
-        ),
-        account,
-        range,
-      );
-      attribution = windows
-        ? 'Meta ' + windows.join(' + ') + '; impression time'
-        : 'ad set unified attribution setting';
-      resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
     } else if (p === 'tiktok') {
       const d = await run(
         plan('/v1.3/report/integrated/get/', {
@@ -1292,4 +1243,3 @@ const eachDay = (range: {since: string; until: string}) => {
   for (let day = range.since; day <= range.until; day = nextDay(day)) days.push(day);
   return days;
 };
-const rangeToMeta = (r: {since: string; until: string}) => ({since: r.since, until: r.until});
