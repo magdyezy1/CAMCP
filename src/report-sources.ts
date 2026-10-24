@@ -34,3 +34,6 @@ const byPlatform = new Map(reportSourceList.map(source => [source.platform, sour
 export function reportSource(platform: string): ReportSource | undefined {
   return byPlatform.get(platform);
 }
+
+// Warnings of the platforms' own collection (ARC-04 stage F), which src/report-native.ts re-exports from here.
+export {tiktokEventsUnavailableWarning} from './tiktok-report-source.js';

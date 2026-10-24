@@ -55,9 +55,9 @@ const bad = (message: string) => {
 };
 // The report date range lives in src/report-periods.ts (ARC-04 stage F); this module keeps exporting it.
 export {reportRange};
-/** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
-const tiktokAuctionOnlyWarning =
-  'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.';
+// The warnings of a platform's collection live with its report source (ARC-04 stage F); this module keeps exporting
+// them, through the report source registry.
+export {tiktokEventsUnavailableWarning} from './report-sources.js';
 /**
  * ACC-06 interim: AMCP reads Reddit's CONVERSION_PURCHASE_TOTAL_VALUE as cents (redditConversionValueDivisor) while
  * SPEND is in micros; no primary field reference or closed-week read against the Reddit UI confirms that unit yet, so a
@@ -201,9 +201,6 @@ export type {AccountLookupCache};
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
 export const linkedinCampaignsUnavailableWarning =
   'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
-/** Shown when TikTok's ad group read failed, so result definitions fall back to the generic one. */
-export const tiktokEventsUnavailableWarning =
-  'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.';
 /**
  * Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4): the report
  * sources that declare their daily segmentation, in registry order.
@@ -463,74 +460,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'tiktok') {
-      const d = await run(
-        plan('/v1.3/report/integrated/get/', {
-          advertiser_id: account,
-          report_type: 'BASIC',
-          data_level: 'AUCTION_CAMPAIGN',
-          dimensions: ['campaign_id'],
-          metrics: [...new Set(['campaign_name', 'spend', 'impressions', 'clicks', 'conversion', ...extra])],
-          start_date: range.since,
-          end_date: range.until,
-          page: 1,
-          page_size: 1000,
-        }),
-      );
-      raw = list(d.data?.list ?? []);
-      const inventory = list(
-        (await run(plan('/v1.3/campaign/get/', {advertiser_id: account, page: 1, page_size: 1000}))).data?.list ?? [],
-      );
-      // RPT-04: TikTok's `conversion` follows each ad group's optimization event. One bounded ad group inventory read
-      // per source and job (cached across periods, like the account lookup) names the events per campaign, so
-      // summaries never add conversions of different events into one result. The read is optional: a non-retryable
-      // failure (a refusal, or more pages than the bound) keeps the source with the generic result definition and a
-      // warning; a retryable one retries the job.
-      let adgroupEvents = lookup?.tiktokEvents;
-      if (adgroupEvents?.lineage) lineage.push({...adgroupEvents.lineage, cached: true});
-      if (!adgroupEvents) {
-        try {
-          const adgroups = list(
-            (
-              await run(
-                plan('/v1.3/adgroup/get/', {advertiser_id: account, page: 1, page_size: 1000}),
-                true,
-                'adgroups',
-              )
-            ).data?.list ?? [],
-          );
-          const events = new Map<string, Set<string>>();
-          for (const group of adgroups) {
-            const campaign = String(group.campaign_id ?? '');
-            if (!campaign) continue;
-            const event =
-              [group.optimization_goal, group.optimization_event]
-                .filter(v => typeof v === 'string' && /^[A-Za-z0-9_.]{1,80}$/.test(v))
-                .join(' / ') || 'unknown';
-            events.set(campaign, (events.get(campaign) ?? new Set()).add(event));
-          }
-          adgroupEvents = {
-            events: Object.fromEntries([...events].map(([campaign, set]) => [campaign, [...set].sort()])),
-            lineage: lineage.at(-1),
-          };
-        } catch (e) {
-          if (!(e instanceof MirrorError) || e.retryable) throw e;
-          adgroupEvents = {events: {}, unavailable: true};
-        }
-        if (lookup) lookup.tiktokEvents = adgroupEvents;
-      }
-      if (adgroupEvents.unavailable) warnings.push(tiktokEventsUnavailableWarning);
-      const campaignEvents = adgroupEvents.events;
-      raw = raw.map(r => ({
-        ...r,
-        objective_type: inventory.find(c => String(c.campaign_id) === String(r.dimensions?.campaign_id))
-          ?.objective_type,
-        optimization_events: Object.hasOwn(campaignEvents, String(r.dimensions?.campaign_id))
-          ? campaignEvents[String(r.dimensions?.campaign_id)]
-          : [],
-      }));
-      resultDefinition = 'TikTok conversion metric for the selected optimization goal';
-      warnings.push(tiktokAuctionOnlyWarning);
     } else if (p === 'snapchat') {
       if (!timezone) bad('Snapchat account timezone is required.');
       // RPT-04: an optional campaign-level attribution profile uses the detailed preset's windows and conversion time.
