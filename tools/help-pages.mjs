@@ -3,8 +3,9 @@
 // build time, into one escaped HTML fragment per language, written to generated/help-guide.json; server/help-routes.ts
 // places the fragments in the /help page it sends a signed-in member, and sends nobody else the guide. Nothing parses
 // Markdown at run time, and the fragments hold only headings, paragraphs, lists, tables, emphasis and links, with no
-// script, style or event attribute, so the website's strict Content-Security-Policy is unchanged. Every character of
-// the guide is escaped here. A link opens another part of the guide (a section of the page) or a page of the website;
+// script, style or event attribute, so the website's strict Content-Security-Policy is unchanged; they take the
+// website's existing document and table styles (.document, .review-table), so every page's stylesheet is unchanged
+// too. Every character of the guide is escaped here. A link opens another part of the guide (a section of the page) or a page of the website;
 // any other link, and any Markdown the page cannot show (code, quotes, raw HTML, images, nested lists), is refused.
 //
 //   node tools/help-pages.mjs           write generated/help-guide.json
@@ -219,7 +220,7 @@ function languageFragment(root, language, order, routes) {
           '>'
         );
       return (
-        '<table><thead><tr>' +
+        '<table class="review-table"><thead><tr>' +
         block.head.map(cell => '<th scope="col">' + inline(cell, link) + '</th>').join('') +
         '</tr></thead><tbody>' +
         block.rows
@@ -238,7 +239,7 @@ function languageFragment(root, language, order, routes) {
       );
     };
     return (
-      '<section class="panel help-page" aria-labelledby="' +
+      '<section class="panel help-page document" aria-labelledby="' +
       blocks[0].id +
       '">' +
       blocks.map(render).join('') +

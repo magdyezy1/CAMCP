@@ -1526,10 +1526,7 @@ function accessLine(s) {
     ? uiText('{role} · read + reviewed writes', {role})
     : uiText('{role} · read-only workspace', {role});
 }
-/**
- * Shell links follow the session: the brand opens Home when signed in, members get the workspace switcher, and the
- * footer's Help link is shown only to a signed-in person whose workspace includes the Help page (DOC-03).
- */
+/** Shell links follow the session: the brand opens Home when signed in; members get the switcher and Help (DOC-03). */
 function shellLinks() {
   document.querySelector('.sidebar .brand')?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
   const help = document.getElementById('footer-help');
@@ -1932,7 +1929,7 @@ async function renderCurrentPage() {
       return await renderAccountPage();
     }
     if (location.pathname === '/account') return await renderAccountPage();
-    // DOC-03: the members-only Help page, registered by web/help.js.
+    // DOC-03: web/help.js.
     if (location.pathname === '/help') return await AMCP.routes.renderer('/help')();
     if (location.pathname === '/reporting-overview') return await renderReportingOverview();
     if (

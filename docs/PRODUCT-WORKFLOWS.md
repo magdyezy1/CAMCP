@@ -19,8 +19,11 @@ uncertain upload or reviewed change, a failed export or schedule, an open incide
 for administrators, a login to reauthorize. Home shows the eight most recent, because each feed page scans a bounded
 number of records; **All operations** opens `/operations?state=attention`. The states that mean attention are
 `attentionStates` in `src/operation-types.ts`, and a test keeps every campaign runner plan state classified. Account
-readiness is a count with the accounts in a disclosure, and capability evidence (tool names, evidence levels) sits
-under **Technical details**, so Home stays short on a phone. **Continue recent work** still lists recent plans.
+readiness is a count with the accounts in a disclosure. **Capabilities and evidence** names each capability by what it
+does for the owner ("Prepare campaigns that start paused", in English and Arabic, from Home's own script
+`web/work-center.js`) with one sentence on what verified means; the capability names, coverage, tool names and
+evidence states sit under **Technical details** (DOC-03), so Home stays short on a phone and shows no tool name outside
+that disclosure (`tests/home-capability-cards.test.mjs`). **Continue recent work** still lists recent plans.
 
 **Working client (SEC-08).** In a workspace that serves several clients, the top bar's **Working client** narrows
 pickers and lists to the accounts one approved playbook binds: Home (attention items, recent plans, readiness), plans,

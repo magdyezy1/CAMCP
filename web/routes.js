@@ -206,8 +206,7 @@ const routeRegistry = [
     description: 'Profile, social sign-in, and security',
     assets: ['mfa-qr.js'],
   },
-  // DOC-03: the owner guide, for signed-in members only. It has no sidebar link: the shell footer and the palette open
-  // it, and the server sends the guide itself only to a signed-in member (server/help-routes.ts).
+  // DOC-03: members only, opened from the shell footer and the palette (server/help-routes.ts).
   {
     path: '/help',
     label: 'Help',

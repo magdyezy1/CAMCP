@@ -308,7 +308,11 @@ test('Home asks Operations for its attention page, keeps readiness and capabilit
     // every tool name with an evidence badge were always open).
     assert.equal((html.match(/class="token-row"/g) ?? []).length, accounts.length + 2);
     assert.doesNotMatch(visible, /class="token-row"|amcp_tool_|data-check-account/);
-    assert.ok(visible.includes('Capability meaning'));
+    // DOC-03: Home says in plain words what each capability does; the server's evidence sentence moved under Technical
+    // details with the tool names and evidence states (before, that engineering sentence was Home's visible copy).
+    assert.ok(!visible.includes('Capability meaning') && html.includes('Capability meaning'));
+    assert.ok(visible.includes('Each is tested against simulated platforms.'));
+    assert.ok(visible.includes('<li>Feature A</li>'), 'a capability without an outcome label shows its name');
     assert.ok(visible.includes('href="/capabilities"'));
     assert.ok(visible.length < html.length / 2, 'Most of the former Home height is collapsed');
     if (failing) assert.match(html, /Could not load the work that needs attention/);

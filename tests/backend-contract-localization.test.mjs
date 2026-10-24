@@ -177,11 +177,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its review fixes add the other three reviewer sign-in sentences the server can return (server/web-store.ts) and
   // reword an uncertain write (one message added, the remedy replaced): 11,513 entries. DOC-03's members-only Help page
   // adds server/help-routes.ts (no owned reasons: its two failures are build defects, plain errors) and seven website
-  // entries (its name, former names, description and page copy): 11,520 entries; no owned reason changes.
+  // entries (its name, former names, description and page copy): 11,520 entries. DOC-03's Home copy adds nine website
+  // entries (the capability outcomes and what verified means): 11,529 entries; no owned reason changes.
   assert.equal(files.length, 670);
   assert.equal(selected.filter(row => row.messages.size).length, 253);
   assert.equal(owned.size, 1588);
-  assert.equal(Object.keys(catalog).length, 11520);
+  assert.equal(Object.keys(catalog).length, 11529);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
