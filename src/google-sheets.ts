@@ -472,6 +472,268 @@ export function sheetsPresentationRequests(
   });
   return requests;
 }
+/** One report's delivery to one destination tab, as GoogleSheetsExports.write identifies it. */
+interface SheetsExportDelivery {
+  deliveryId: string;
+  /** The delivery's saved record, when it was sent before. */
+  prior: JsonObject | undefined;
+  tableVersion: 1 | 2;
+  table: unknown[][];
+  width: number;
+  height: number;
+  cells: number;
+  fingerprint: string;
+  /** The delivery marker the batch leaves on the tab: the delivery ID and the content fingerprint. */
+  marker: string;
+  /** The response of a confirmed delivery. */
+  result: {state: string; rows: number; url: string};
+}
+/** The response when a newer report is already exported to (or still delivering to) the tab. */
+const superseded = (newer: JsonObject) => ({
+  state: 'superseded',
+  message: 'A newer report is already exported.',
+  newer_report_id: newer.last_report_id ?? newer.report_id ?? null,
+  newer_captured_at: newer.last_captured_at ?? newer.captured_at ?? null,
+});
+/** The delivery record the export saves, and whether this batch protects the tab. */
+function exportRecord(
+  destinationId: string,
+  report: JsonObject,
+  d: JsonObject,
+  {fingerprint, height, cells, tableVersion}: SheetsExportDelivery,
+  existing: JsonObject | undefined,
+) {
+  // EXP-04 C: the owned tab is protected (warning only) when AMCP creates it, and once for a tab created earlier;
+  // a tab that already carries protection, or whose protection was settled before, is left as its users keep it.
+  const protectionSettled = tableVersion !== 2 || !!d.tab_protection_at,
+    protectedAlready = (existing?.protectedRanges ?? []).some(
+      (p: JsonObject) => (p.range?.sheetId ?? d.sheet_id) === d.sheet_id,
+    ),
+    protect = !protectionSettled && !protectedAlready;
+  const record = {
+    destination_id: destinationId,
+    report_id: report.id,
+    fingerprint,
+    captured_at: report.captured_at,
+    rows: height - 1,
+    cells,
+    spreadsheet_id: d.spreadsheet_id,
+    sheet_id: d.sheet_id,
+    table_version: tableVersion,
+    ...(protectionSettled ? {} : {tab_protection: protect ? 'added' : 'existing'}),
+  };
+  return {record, protect};
+}
+/**
+ * Whether this export resends an unconfirmed delivery: only after its settle window (recovery on), and where the
+ * deployment does not resend by itself, only once an operator confirmed it. False for a first delivery.
+ */
+function resendDecision(prior: JsonObject | undefined, deliveryId: string, destinationId: string): boolean {
+  if (!(prior && unresolvedStates.includes(prior.state))) return false;
+  const recovery = sheetsRecoveryEnabled(),
+    remaining = settleRemaining(prior);
+  if (!recovery || remaining > 0)
+    throw new MirrorError(
+      'SHEETS_OUTCOME_UNKNOWN',
+      recovery
+        ? 'The original delivery is not yet confirmed in the destination. AMCP checks its marker again and resends this identical report only after the 10-minute settle window.'
+        : 'The original delivery is not confirmed in the destination. AMCP will check its marker again without resending the report.',
+      {
+        // Re-check the marker every 150 s at most, so an applied batch with a lost response is confirmed early
+        // and the bounded job attempts still reach the settle window.
+        retry_after_ms: recovery ? Math.max(5000, Math.min(remaining, 150000)) : 5000,
+        delivery_id: deliveryId,
+        unconfirmed_since: prior.sent_at ?? null,
+        settle_until: Number(prior.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
+      },
+      503,
+      true,
+    );
+  if (!sheetsAutoResend() && !prior.resend_authorized_by)
+    throw new MirrorError(
+      'SHEETS_RESEND_CONFIRMATION_REQUIRED',
+      'The settle window has passed and this deployment resends an unconfirmed delivery only after an operator confirms it. Resend this report or release the tab from its delivery history.',
+      {delivery_id: deliveryId, destination_id: destinationId, unconfirmed_since: prior.sent_at ?? null},
+      409,
+    );
+  // Google never applied it within the settle window: send the identical, marker-idempotent batch once more.
+  return true;
+}
+/**
+ * The one atomic batchUpdate of a delivery: the tab and its ownership metadata when AMCP creates it, the grid, the
+ * cells, the header format and filter, the tab contract's presentation (version 2), the delivery marker (updated in
+ * place, or replacing every earlier marker), the table version marker and, once, the tab's warning-only protection.
+ */
+function sheetsBatchRequests(
+  report: JsonObject,
+  d: JsonObject,
+  destinationId: string,
+  {table, width, height, tableVersion, marker}: SheetsExportDelivery,
+  {existing, markers}: {existing: JsonObject | undefined; markers: JsonObject[]},
+  released: boolean,
+  protect: boolean,
+): JsonObject[] {
+  const rows = table.map(row => ({
+    values: row.map(v => ({
+      userEnteredValue: typeof v === 'number' && Number.isFinite(v) ? {numberValue: v} : {stringValue: String(v ?? '')},
+    })),
+  }));
+  const requests: JsonObject[] = existing
+    ? []
+    : [
+        {addSheet: {properties: {sheetId: d.sheet_id, title: d.tab_name}}},
+        {
+          createDeveloperMetadata: {
+            developerMetadata: {
+              metadataKey: 'amcp_destination',
+              metadataValue: destinationId,
+              location: {sheetId: d.sheet_id},
+              visibility: 'DOCUMENT',
+            },
+          },
+        },
+      ];
+  const rowCount = Math.max(100, height, existing?.properties.gridProperties?.rowCount ?? 0),
+    columnCount = Math.max(width, existing?.properties.gridProperties?.columnCount ?? 0);
+  requests.push(
+    {
+      updateSheetProperties: {
+        properties: {sheetId: d.sheet_id, gridProperties: {rowCount, columnCount, frozenRowCount: 1}},
+        fields: 'gridProperties',
+      },
+    },
+    {
+      updateCells: {
+        range: {
+          sheetId: d.sheet_id,
+          startRowIndex: 0,
+          startColumnIndex: 0,
+          endRowIndex: rowCount,
+          endColumnIndex: columnCount,
+        },
+        rows,
+        fields: 'userEnteredValue',
+      },
+    },
+    {
+      repeatCell: {
+        range: {sheetId: d.sheet_id, startRowIndex: 0, endRowIndex: 1},
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: {red: 0.16, green: 0.12, blue: 0.3},
+            textFormat: {bold: true, foregroundColor: {red: 1, green: 1, blue: 1}},
+          },
+        },
+        fields: 'userEnteredFormat',
+      },
+    },
+    {
+      setBasicFilter: {
+        filter: {
+          range: {
+            sheetId: d.sheet_id,
+            startRowIndex: 0,
+            endRowIndex: height,
+            startColumnIndex: 0,
+            endColumnIndex: width,
+          },
+        },
+      },
+    },
+  );
+  if (tableVersion === 2)
+    requests.push(...sheetsPresentationRequests(report, table, d.sheet_id, rowCount, columnCount));
+  requests.push(...sheetsMarkerRequests(d, existing, markers, released, marker));
+  requests.push(...sheetsVersionRequests(d, existing, tableVersion));
+  if (protect)
+    requests.push({
+      addProtectedRange: {
+        protectedRange: {range: {sheetId: d.sheet_id}, description: sheetsTabProtection, warningOnly: true},
+      },
+    });
+  return requests;
+}
+/** The delivery marker of the batch: the tab's one marker updated in place, or every earlier marker replaced. */
+function sheetsMarkerRequests(
+  d: JsonObject,
+  existing: JsonObject | undefined,
+  markers: JsonObject[],
+  released: boolean,
+  marker: string,
+): JsonObject[] {
+  if (markers.length === 1 && !released) {
+    if (!Number.isSafeInteger(markers[0]!.metadataId) || markers[0]!.metadataId < 0)
+      throw new MirrorError(
+        'SHEETS_RESPONSE_INVALID',
+        'Google returned an invalid delivery metadata identifier.',
+        {},
+        502,
+      );
+    return [
+      {
+        updateDeveloperMetadata: {
+          dataFilters: [{developerMetadataLookup: {metadataId: markers[0]!.metadataId}}],
+          developerMetadata: {metadataValue: marker},
+          fields: 'metadataValue',
+        },
+      },
+    ];
+  }
+  const requests: JsonObject[] = [];
+  // Idempotent per fingerprint: an existing tab first loses every delivery marker in the same atomic batch, so
+  // resending (or a late original) can never leave two markers.
+  if (existing)
+    requests.push({
+      deleteDeveloperMetadata: {
+        dataFilter: {
+          developerMetadataLookup: {metadataKey: 'amcp_last_delivery', metadataLocation: {sheetId: d.sheet_id}},
+        },
+      },
+    });
+  requests.push({
+    createDeveloperMetadata: {
+      developerMetadata: {
+        metadataKey: 'amcp_last_delivery',
+        metadataValue: marker,
+        location: {sheetId: d.sheet_id},
+        visibility: 'DOCUMENT',
+      },
+    },
+  });
+  return requests;
+}
+/**
+ * EXP-04 C: the tab names the contract its cells follow (`amcp_table_version` "2"), so a reader can tell layouts
+ * apart. The unmarked version 1 layout (a delivery first sent under it, or the rollback) carries no marker, so a marker
+ * a version 2 delivery left is removed in the same atomic batch.
+ */
+function sheetsVersionRequests(d: JsonObject, existing: JsonObject | undefined, tableVersion: 1 | 2): JsonObject[] {
+  const versions: JsonObject[] = (existing?.developerMetadata ?? []).filter(
+    (m: JsonObject) => m.metadataKey === sheetsTableVersionKey,
+  );
+  if (tableVersion === 2 && versions.length === 1 && versions[0]!.metadataValue === '2') return [];
+  const requests: JsonObject[] = [];
+  if (versions.length)
+    requests.push({
+      deleteDeveloperMetadata: {
+        dataFilter: {
+          developerMetadataLookup: {metadataKey: sheetsTableVersionKey, metadataLocation: {sheetId: d.sheet_id}},
+        },
+      },
+    });
+  if (tableVersion === 2)
+    requests.push({
+      createDeveloperMetadata: {
+        developerMetadata: {
+          metadataKey: sheetsTableVersionKey,
+          metadataValue: '2',
+          location: {sheetId: d.sheet_id},
+          visibility: 'DOCUMENT',
+        },
+      },
+    });
+  return requests;
+}
 export class GoogleSheetsExports {
   readonly credentials: CredentialProvider;
   constructor(
@@ -1148,386 +1410,254 @@ export class GoogleSheetsExports {
     }, sheetsDeliveryLimits.lock_renew_ms);
     renewal.unref?.();
     try {
-      const {d, frozenBinding, check, pinCredentials} = this.destinationAuthority(
+      return await this.writeLocked(
         actor,
+        report,
+        this.destinationAuthority(actor, destinationId, assertSource, lock, owner),
         destinationId,
-        assertSource,
-        lock,
-        owner,
       );
-      check();
-      const deliveryId = sheetsDeliveryId(destinationId, report.id);
-      let prior: JsonObject | undefined;
-      try {
-        prior = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
-      } catch (e) {
-        if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
-      }
-      // EXP-04 C: a delivery keeps the tab contract it was first sent with, so a replay is recognized and a resend of
-      // an unconfirmed batch stays identical across an upgrade; a new delivery uses the current contract.
-      const tableVersion: 1 | 2 = prior ? (prior.table_version === 2 ? 2 : 1) : sheetsTableVersion();
-      const table = reportTable(report, Date.now(), tableVersion),
-        width = table[0]!.length,
-        height = table.length,
-        cells = height * width;
-      if (cells > sheetsDeliveryLimits.cell_limit)
-        throw new MirrorError(
-          'EXPORT_TOO_LARGE',
-          'This export exceeds 200,000 cells. Select fewer metrics or split the report.',
-        );
-      const fingerprint = sha256(
-          stable({
-            version: tableVersion,
-            destination: frozenBinding,
-            report_id: report.id,
-            captured_at: report.captured_at,
-            // Delivery identity uses the snapshot as captured, so a retry or replay after its recommendations
-            // expire is still the same delivery; the written cells show the expiry at write time (DEC-01).
-            table: reportTable(report, report.captured_at, tableVersion),
-          }),
-        ),
-        marker = deliveryId + ':' + fingerprint;
-      if (prior && prior.fingerprint !== fingerprint)
-        throw new MirrorError(
-          'IDEMPOTENCY_CONFLICT',
-          'This report delivery has different content or a different destination. Create a new report run.',
-          {},
-          409,
-        );
-      const result = {
-        state: 'complete',
-        rows: height - 1,
-        url: 'https://docs.google.com/spreadsheets/d/' + d.spreadsheet_id + '/edit#gid=' + d.sheet_id,
-      };
-      if (prior?.state === 'complete') return {...result, replayed: true, receipt_only: true};
-      if (prior?.state === 'abandoned')
-        throw new MirrorError(
-          'SHEETS_DELIVERY_ABANDONED',
-          'An operator released this tab from this report’s unconfirmed delivery. Pull a new report or export to a new tab.',
-          {delivery_id: deliveryId, destination_id: destinationId},
-          409,
-        );
-      const superseded = (newer: JsonObject) => ({
-        state: 'superseded',
-        message: 'A newer report is already exported.',
-        newer_report_id: newer.last_report_id ?? newer.report_id ?? null,
-        newer_captured_at: newer.last_captured_at ?? newer.captured_at ?? null,
-      });
-      // An older snapshot never replaces a newer one, so it is superseded (not written) before any unresolved delivery
-      // of a newer report to this tab could block it (EXP-03 review).
-      if (d.last_captured_at > report.captured_at) return superseded(d);
-      const unresolved = unresolvedSheetsDelivery(this.store, actor.tenantId, destinationId, deliveryId);
-      if (unresolved && unresolved.captured_at > report.captured_at) return superseded(unresolved);
-      if (unresolved) {
-        // No overtaking: a newer report waits while an earlier one may still land. Recovery of that earlier report
-        // is automatic after its settle window; afterwards an operator resolves it.
-        const settleUntil = Number(unresolved.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
-          recovery = sheetsRecoveryEnabled(),
-          automatic = recovery && sheetsAutoResend() && Date.now() < settleUntil + 300000;
-        throw new MirrorError(
-          'SHEETS_DELIVERY_UNRESOLVED',
-          !recovery
-            ? 'An earlier report delivery is uncertain. Export that original report to this destination again to reconcile its marker before sending a newer report.'
-            : automatic
-              ? 'An earlier report delivery to this tab is not yet confirmed. AMCP checks it again and, after the settle window, resends that same report before a newer report uses this tab.'
-              : 'An earlier report delivery to this tab is still unconfirmed. Check it again, resend that same report, or release the tab from its delivery history.',
-          {
-            report_id: unresolved.report_id,
-            delivery_id: unresolved.id,
-            destination_id: destinationId,
-            unconfirmed_since: unresolved.sent_at ?? null,
-            settle_until: settleUntil,
-            ...(automatic ? {retry_after_ms: Math.max(5000, settleUntil + 60000 - Date.now())} : {}),
-          },
-          409,
-          automatic,
-        );
-      }
-      await pinCredentials();
-      // A shared write cooldown (for example after a 429 for any tenant) refuses before spending a read.
-      this.store.assertProviderCooldown('google-sheets-write');
-      const {url, existing, markers, values} = await this.inventory(actor, d, destinationId, check),
-        released = !!d.marker_release && stable(values) === stable(d.marker_release.markers ?? []);
-      if (markers.length > 1 && !released)
-        throw new MirrorError(
-          'SHEET_OWNERSHIP_CONFLICT',
-          'This tab has conflicting delivery metadata. Inspect the destination before exporting.',
-          {destination_id: destinationId, release_available: true},
-        );
-      // EXP-04 C: the owned tab is protected (warning only) when AMCP creates it, and once for a tab created earlier;
-      // a tab that already carries protection, or whose protection was settled before, is left as its users keep it.
-      const protectionSettled = tableVersion !== 2 || !!d.tab_protection_at,
-        protectedAlready = (existing?.protectedRanges ?? []).some(
-          (p: JsonObject) => (p.range?.sheetId ?? d.sheet_id) === d.sheet_id,
-        ),
-        protect = !protectionSettled && !protectedAlready;
-      const record = {
-        destination_id: destinationId,
-        report_id: report.id,
-        fingerprint,
-        captured_at: report.captured_at,
-        rows: height - 1,
-        cells,
-        spreadsheet_id: d.spreadsheet_id,
-        sheet_id: d.sheet_id,
-        table_version: tableVersion,
-        ...(protectionSettled ? {} : {tab_protection: protect ? 'added' : 'existing'}),
-      };
-      let sentAt = 0;
-      const accepted = () =>
-        this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, sentAt);
-      const current = markers.length === 1 ? values[0] : undefined;
-      if (current === marker) {
-        // The identical batch is already in the tab (lost response or late application): record it, never resend.
-        this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, 0, true);
-        check();
-        return {...result, replayed: !!prior, reconciled: true};
-      }
-      if (!released && current !== undefined && d.last_marker && current !== d.last_marker) {
-        const late = this.lateApplication(actor, destinationId, current, frozenBinding);
-        if (late.captured_at > report.captured_at) return superseded(late);
-      }
-      let resend = false;
-      if (prior && unresolvedStates.includes(prior.state)) {
-        const recovery = sheetsRecoveryEnabled(),
-          remaining = settleRemaining(prior);
-        if (!recovery || remaining > 0)
-          throw new MirrorError(
-            'SHEETS_OUTCOME_UNKNOWN',
-            recovery
-              ? 'The original delivery is not yet confirmed in the destination. AMCP checks its marker again and resends this identical report only after the 10-minute settle window.'
-              : 'The original delivery is not confirmed in the destination. AMCP will check its marker again without resending the report.',
-            {
-              // Re-check the marker every 150 s at most, so an applied batch with a lost response is confirmed early
-              // and the bounded job attempts still reach the settle window.
-              retry_after_ms: recovery ? Math.max(5000, Math.min(remaining, 150000)) : 5000,
-              delivery_id: deliveryId,
-              unconfirmed_since: prior.sent_at ?? null,
-              settle_until: Number(prior.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
-            },
-            503,
-            true,
-          );
-        if (!sheetsAutoResend() && !prior.resend_authorized_by)
-          throw new MirrorError(
-            'SHEETS_RESEND_CONFIRMATION_REQUIRED',
-            'The settle window has passed and this deployment resends an unconfirmed delivery only after an operator confirms it. Resend this report or release the tab from its delivery history.',
-            {delivery_id: deliveryId, destination_id: destinationId, unconfirmed_since: prior.sent_at ?? null},
-            409,
-          );
-        // Google never applied it within the settle window: send the identical, marker-idempotent batch once more.
-        resend = true;
-      }
-      const rows = table.map(row => ({
-        values: row.map(v => ({
-          userEnteredValue:
-            typeof v === 'number' && Number.isFinite(v) ? {numberValue: v} : {stringValue: String(v ?? '')},
-        })),
-      }));
-      const requests: JsonObject[] = existing
-        ? []
-        : [
-            {addSheet: {properties: {sheetId: d.sheet_id, title: d.tab_name}}},
-            {
-              createDeveloperMetadata: {
-                developerMetadata: {
-                  metadataKey: 'amcp_destination',
-                  metadataValue: destinationId,
-                  location: {sheetId: d.sheet_id},
-                  visibility: 'DOCUMENT',
-                },
-              },
-            },
-          ];
-      const rowCount = Math.max(100, height, existing?.properties.gridProperties?.rowCount ?? 0),
-        columnCount = Math.max(width, existing?.properties.gridProperties?.columnCount ?? 0);
-      requests.push(
-        {
-          updateSheetProperties: {
-            properties: {sheetId: d.sheet_id, gridProperties: {rowCount, columnCount, frozenRowCount: 1}},
-            fields: 'gridProperties',
-          },
-        },
-        {
-          updateCells: {
-            range: {
-              sheetId: d.sheet_id,
-              startRowIndex: 0,
-              startColumnIndex: 0,
-              endRowIndex: rowCount,
-              endColumnIndex: columnCount,
-            },
-            rows,
-            fields: 'userEnteredValue',
-          },
-        },
-        {
-          repeatCell: {
-            range: {sheetId: d.sheet_id, startRowIndex: 0, endRowIndex: 1},
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: {red: 0.16, green: 0.12, blue: 0.3},
-                textFormat: {bold: true, foregroundColor: {red: 1, green: 1, blue: 1}},
-              },
-            },
-            fields: 'userEnteredFormat',
-          },
-        },
-        {
-          setBasicFilter: {
-            filter: {
-              range: {
-                sheetId: d.sheet_id,
-                startRowIndex: 0,
-                endRowIndex: height,
-                startColumnIndex: 0,
-                endColumnIndex: width,
-              },
-            },
-          },
-        },
-      );
-      if (tableVersion === 2)
-        requests.push(...sheetsPresentationRequests(report, table, d.sheet_id, rowCount, columnCount));
-      if (markers.length === 1 && !released) {
-        if (!Number.isSafeInteger(markers[0]!.metadataId) || markers[0]!.metadataId < 0)
-          throw new MirrorError(
-            'SHEETS_RESPONSE_INVALID',
-            'Google returned an invalid delivery metadata identifier.',
-            {},
-            502,
-          );
-        requests.push({
-          updateDeveloperMetadata: {
-            dataFilters: [{developerMetadataLookup: {metadataId: markers[0]!.metadataId}}],
-            developerMetadata: {metadataValue: marker},
-            fields: 'metadataValue',
-          },
-        });
-      } else {
-        // Idempotent per fingerprint: an existing tab first loses every delivery marker in the same atomic batch, so
-        // resending (or a late original) can never leave two markers.
-        if (existing)
-          requests.push({
-            deleteDeveloperMetadata: {
-              dataFilter: {
-                developerMetadataLookup: {metadataKey: 'amcp_last_delivery', metadataLocation: {sheetId: d.sheet_id}},
-              },
-            },
-          });
-        requests.push({
-          createDeveloperMetadata: {
-            developerMetadata: {
-              metadataKey: 'amcp_last_delivery',
-              metadataValue: marker,
-              location: {sheetId: d.sheet_id},
-              visibility: 'DOCUMENT',
-            },
-          },
-        });
-      }
-      // EXP-04 C: the tab names the contract its cells follow (`amcp_table_version` "2"), so a reader can tell layouts
-      // apart. The unmarked version 1 layout (a delivery first sent under it, or the rollback) carries no marker, so a
-      // marker a version 2 delivery left is removed in the same atomic batch.
-      const versions: JsonObject[] = (existing?.developerMetadata ?? []).filter(
-        (m: JsonObject) => m.metadataKey === sheetsTableVersionKey,
-      );
-      if (!(tableVersion === 2 && versions.length === 1 && versions[0]!.metadataValue === '2')) {
-        if (versions.length)
-          requests.push({
-            deleteDeveloperMetadata: {
-              dataFilter: {
-                developerMetadataLookup: {metadataKey: sheetsTableVersionKey, metadataLocation: {sheetId: d.sheet_id}},
-              },
-            },
-          });
-        if (tableVersion === 2)
-          requests.push({
-            createDeveloperMetadata: {
-              developerMetadata: {
-                metadataKey: sheetsTableVersionKey,
-                metadataValue: '2',
-                location: {sheetId: d.sheet_id},
-                visibility: 'DOCUMENT',
-              },
-            },
-          });
-      }
-      if (protect)
-        requests.push({
-          addProtectedRange: {
-            protectedRange: {range: {sheetId: d.sheet_id}, description: sheetsTabProtection, warningOnly: true},
-          },
-        });
-      const payloadBytes = Buffer.byteLength(JSON.stringify({requests}));
-      if (payloadBytes > sheetsDeliveryLimits.payload_bytes)
-        throw new MirrorError('EXPORT_TOO_LARGE', 'Split this report into smaller exports.');
-      try {
-        await this.request(actor, d.connection_id, url + ':batchUpdate', {requests}, false, undefined, {
-          check,
-          accepted,
-          beforeSend: () => {
-            check();
-            sentAt = Date.now();
-            this.store.transaction(() => {
-              this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
-                ...record,
-                state: 'pending',
-                sent_at: sentAt,
-                first_sent_at: prior?.first_sent_at ?? prior?.sent_at ?? sentAt,
-                attempts: (prior?.attempts ?? (prior?.sent_at ? 1 : 0)) + 1,
-                payload_bytes: payloadBytes,
-                ...(prior?.resend_authorized_by
-                  ? {resend_authorized_by: prior.resend_authorized_by, resend_authorized_at: prior.resend_authorized_at}
-                  : {}),
-                ...(resend ? {resent_at: sentAt} : {}),
-              });
-              this.store.journal(actor.tenantId, 'export:' + report.id + ':' + destinationId, 'delivering', {
-                report_id: report.id,
-                rows: height - 1,
-              });
-              if (resend)
-                this.store.appendAudit(actor.tenantId, 'export/' + report.id, {
-                  event: 'google_sheets_delivery_resent',
-                  delivery_id: deliveryId,
-                  report_id: report.id,
-                  destination_id: destinationId,
-                  unconfirmed_since: prior!.sent_at ?? null,
-                  authorized_by: prior!.resend_authorized_by ? 'operator' : 'settle_window',
-                  actor: actor.userId,
-                  payload_bytes: payloadBytes,
-                });
-            });
-          },
-        });
-      } catch (e) {
-        let saved: JsonObject | undefined;
-        try {
-          saved = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
-        } catch (error) {
-          if (!(error instanceof MirrorError && error.code === 'NOT_FOUND')) throw error;
-        }
-        if (saved?.state === 'pending') {
-          // Definitive refusals (and Google's UNAVAILABLE, which batchUpdate never partially applies) are not
-          // applied. A 5xx without UNAVAILABLE, a timeout or a lost connection stays uncertain.
-          const status = e instanceof MirrorError ? Number(e.details.status) : NaN,
-            rejected =
-              e instanceof MirrorError &&
-              ([400, 401, 403, 404, 413, 429].includes(status) ||
-                (status >= 500 && status <= 599 && e.details.google_status === 'UNAVAILABLE'));
-          this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
-            ...saved,
-            state: rejected ? 'rejected' : 'uncertain',
-            error_code: e instanceof MirrorError ? e.code : 'SHEETS_OUTCOME_UNKNOWN',
-            duration_ms: Date.now() - Number(saved.sent_at ?? Date.now()),
-          });
-        }
-        throw e;
-      }
-      return {...result, ...(resend ? {resent: true} : {})};
     } finally {
       clearInterval(renewal);
       this.store.releaseLock(lock, owner);
+    }
+  }
+  /**
+   * One export under the destination lock, in stages: the authority check, the delivery's identity, its order among
+   * this tab's deliveries, the pinned login and the tab inventory, marker continuity, the resend decision, then one
+   * marker-idempotent batch.
+   */
+  private async writeLocked(
+    actor: Actor,
+    report: JsonObject,
+    authority: ReturnType<GoogleSheetsExports['destinationAuthority']>,
+    destinationId: string,
+  ): Promise<JsonObject> {
+    const {d, frozenBinding, check, pinCredentials} = authority;
+    check();
+    const delivery = this.exportDelivery(actor, destinationId, report, d, frozenBinding);
+    const {deliveryId, prior, marker, result} = delivery;
+    const ordered = this.deliveryOrder(actor, destinationId, report, d, delivery);
+    if (ordered) return ordered;
+    await pinCredentials();
+    // A shared write cooldown (for example after a 429 for any tenant) refuses before spending a read.
+    this.store.assertProviderCooldown('google-sheets-write');
+    const tab = await this.inventory(actor, d, destinationId, check),
+      {existing, markers, values} = tab,
+      released = !!d.marker_release && stable(values) === stable(d.marker_release.markers ?? []);
+    if (markers.length > 1 && !released)
+      throw new MirrorError(
+        'SHEET_OWNERSHIP_CONFLICT',
+        'This tab has conflicting delivery metadata. Inspect the destination before exporting.',
+        {destination_id: destinationId, release_available: true},
+      );
+    const {record, protect} = exportRecord(destinationId, report, d, delivery, existing);
+    const current = markers.length === 1 ? values[0] : undefined;
+    if (current === marker) {
+      // The identical batch is already in the tab (lost response or late application): record it, never resend.
+      this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, 0, true);
+      check();
+      return {...result, replayed: !!prior, reconciled: true};
+    }
+    if (!released && current !== undefined && d.last_marker && current !== d.last_marker) {
+      const late = this.lateApplication(actor, destinationId, current, frozenBinding);
+      if (late.captured_at > report.captured_at) return superseded(late);
+    }
+    const resend = resendDecision(prior, deliveryId, destinationId);
+    const requests = sheetsBatchRequests(report, d, destinationId, delivery, tab, released, protect);
+    await this.sendBatch(actor, report, authority, destinationId, delivery, tab.url, requests, record, resend);
+    return {...result, ...(resend ? {resent: true} : {})};
+  }
+  /**
+   * The delivery of one report to one destination: its ID and prior record, the tab contract it keeps, the table and
+   * its 200,000-cell bound, the content fingerprint and marker; a prior delivery of other content is refused.
+   */
+  private exportDelivery(
+    actor: Actor,
+    destinationId: string,
+    report: JsonObject,
+    d: JsonObject,
+    frozenBinding: string,
+  ): SheetsExportDelivery {
+    const deliveryId = sheetsDeliveryId(destinationId, report.id);
+    let prior: JsonObject | undefined;
+    try {
+      prior = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
+    } catch (e) {
+      if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
+    }
+    // EXP-04 C: a delivery keeps the tab contract it was first sent with, so a replay is recognized and a resend of
+    // an unconfirmed batch stays identical across an upgrade; a new delivery uses the current contract.
+    const tableVersion: 1 | 2 = prior ? (prior.table_version === 2 ? 2 : 1) : sheetsTableVersion();
+    const table = reportTable(report, Date.now(), tableVersion),
+      width = table[0]!.length,
+      height = table.length,
+      cells = height * width;
+    if (cells > sheetsDeliveryLimits.cell_limit)
+      throw new MirrorError(
+        'EXPORT_TOO_LARGE',
+        'This export exceeds 200,000 cells. Select fewer metrics or split the report.',
+      );
+    const fingerprint = sha256(
+        stable({
+          version: tableVersion,
+          destination: frozenBinding,
+          report_id: report.id,
+          captured_at: report.captured_at,
+          // Delivery identity uses the snapshot as captured, so a retry or replay after its recommendations
+          // expire is still the same delivery; the written cells show the expiry at write time (DEC-01).
+          table: reportTable(report, report.captured_at, tableVersion),
+        }),
+      ),
+      marker = deliveryId + ':' + fingerprint;
+    if (prior && prior.fingerprint !== fingerprint)
+      throw new MirrorError(
+        'IDEMPOTENCY_CONFLICT',
+        'This report delivery has different content or a different destination. Create a new report run.',
+        {},
+        409,
+      );
+    const result = {
+      state: 'complete',
+      rows: height - 1,
+      url: 'https://docs.google.com/spreadsheets/d/' + d.spreadsheet_id + '/edit#gid=' + d.sheet_id,
+    };
+    return {deliveryId, prior, tableVersion, table, width, height, cells, fingerprint, marker, result};
+  }
+  /**
+   * The delivery's order among this tab's deliveries: a confirmed one returns its receipt, an abandoned one is
+   * refused, an older snapshot is superseded by a newer exported or unresolved one, and a newer report waits while an
+   * earlier one may still land. Undefined when the export goes on.
+   */
+  private deliveryOrder(
+    actor: Actor,
+    destinationId: string,
+    report: JsonObject,
+    d: JsonObject,
+    {deliveryId, prior, result}: SheetsExportDelivery,
+  ): JsonObject | undefined {
+    if (prior?.state === 'complete') return {...result, replayed: true, receipt_only: true};
+    if (prior?.state === 'abandoned')
+      throw new MirrorError(
+        'SHEETS_DELIVERY_ABANDONED',
+        'An operator released this tab from this report’s unconfirmed delivery. Pull a new report or export to a new tab.',
+        {delivery_id: deliveryId, destination_id: destinationId},
+        409,
+      );
+    // An older snapshot never replaces a newer one, so it is superseded (not written) before any unresolved delivery
+    // of a newer report to this tab could block it (EXP-03 review).
+    if (d.last_captured_at > report.captured_at) return superseded(d);
+    const unresolved = unresolvedSheetsDelivery(this.store, actor.tenantId, destinationId, deliveryId);
+    if (unresolved && unresolved.captured_at > report.captured_at) return superseded(unresolved);
+    if (unresolved) {
+      // No overtaking: a newer report waits while an earlier one may still land. Recovery of that earlier report
+      // is automatic after its settle window; afterwards an operator resolves it.
+      const settleUntil = Number(unresolved.sent_at ?? 0) + sheetsDeliveryLimits.settle_ms,
+        recovery = sheetsRecoveryEnabled(),
+        automatic = recovery && sheetsAutoResend() && Date.now() < settleUntil + 300000;
+      throw new MirrorError(
+        'SHEETS_DELIVERY_UNRESOLVED',
+        !recovery
+          ? 'An earlier report delivery is uncertain. Export that original report to this destination again to reconcile its marker before sending a newer report.'
+          : automatic
+            ? 'An earlier report delivery to this tab is not yet confirmed. AMCP checks it again and, after the settle window, resends that same report before a newer report uses this tab.'
+            : 'An earlier report delivery to this tab is still unconfirmed. Check it again, resend that same report, or release the tab from its delivery history.',
+        {
+          report_id: unresolved.report_id,
+          delivery_id: unresolved.id,
+          destination_id: destinationId,
+          unconfirmed_since: unresolved.sent_at ?? null,
+          settle_until: settleUntil,
+          ...(automatic ? {retry_after_ms: Math.max(5000, settleUntil + 60000 - Date.now())} : {}),
+        },
+        409,
+        automatic,
+      );
+    }
+    return undefined;
+  }
+  /**
+   * Sends the batch once: the payload bound, then one batchUpdate whose pending delivery record, journal entry and
+   * resend audit are written just before it leaves (after a last authority check). A refusal the batch was never
+   * applied under marks the delivery rejected; any other failure leaves it uncertain.
+   */
+  private async sendBatch(
+    actor: Actor,
+    report: JsonObject,
+    {d, frozenBinding, check}: ReturnType<GoogleSheetsExports['destinationAuthority']>,
+    destinationId: string,
+    {deliveryId, prior, height, marker}: SheetsExportDelivery,
+    url: string,
+    requests: JsonObject[],
+    record: JsonObject,
+    resend: boolean,
+  ) {
+    let sentAt = 0;
+    const accepted = () =>
+      this.delivered(actor.tenantId, destinationId, deliveryId, record, marker, frozenBinding, sentAt);
+    const payloadBytes = Buffer.byteLength(JSON.stringify({requests}));
+    if (payloadBytes > sheetsDeliveryLimits.payload_bytes)
+      throw new MirrorError('EXPORT_TOO_LARGE', 'Split this report into smaller exports.');
+    try {
+      await this.request(actor, d.connection_id, url + ':batchUpdate', {requests}, false, undefined, {
+        check,
+        accepted,
+        beforeSend: () => {
+          check();
+          sentAt = Date.now();
+          this.store.transaction(() => {
+            this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
+              ...record,
+              state: 'pending',
+              sent_at: sentAt,
+              first_sent_at: prior?.first_sent_at ?? prior?.sent_at ?? sentAt,
+              attempts: (prior?.attempts ?? (prior?.sent_at ? 1 : 0)) + 1,
+              payload_bytes: payloadBytes,
+              ...(prior?.resend_authorized_by
+                ? {resend_authorized_by: prior.resend_authorized_by, resend_authorized_at: prior.resend_authorized_at}
+                : {}),
+              ...(resend ? {resent_at: sentAt} : {}),
+            });
+            this.store.journal(actor.tenantId, 'export:' + report.id + ':' + destinationId, 'delivering', {
+              report_id: report.id,
+              rows: height - 1,
+            });
+            if (resend)
+              this.store.appendAudit(actor.tenantId, 'export/' + report.id, {
+                event: 'google_sheets_delivery_resent',
+                delivery_id: deliveryId,
+                report_id: report.id,
+                destination_id: destinationId,
+                unconfirmed_since: prior!.sent_at ?? null,
+                authorized_by: prior!.resend_authorized_by ? 'operator' : 'settle_window',
+                actor: actor.userId,
+                payload_bytes: payloadBytes,
+              });
+          });
+        },
+      });
+    } catch (e) {
+      let saved: JsonObject | undefined;
+      try {
+        saved = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
+      } catch (error) {
+        if (!(error instanceof MirrorError && error.code === 'NOT_FOUND')) throw error;
+      }
+      if (saved?.state === 'pending') {
+        // Definitive refusals (and Google's UNAVAILABLE, which batchUpdate never partially applies) are not
+        // applied. A 5xx without UNAVAILABLE, a timeout or a lost connection stays uncertain.
+        const status = e instanceof MirrorError ? Number(e.details.status) : NaN,
+          rejected =
+            e instanceof MirrorError &&
+            ([400, 401, 403, 404, 413, 429].includes(status) ||
+              (status >= 500 && status <= 599 && e.details.google_status === 'UNAVAILABLE'));
+        this.store.putDocument(actor.tenantId, 'sheets_delivery', deliveryId, {
+          ...saved,
+          state: rejected ? 'rejected' : 'uncertain',
+          error_code: e instanceof MirrorError ? e.code : 'SHEETS_OUTCOME_UNKNOWN',
+          duration_ms: Date.now() - Number(saved.sent_at ?? Date.now()),
+        });
+      }
+      throw e;
     }
   }
   /** Check again: one inventory read; a matching marker confirms the delivery, otherwise nothing changes. */
