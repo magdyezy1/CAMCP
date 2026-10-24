@@ -22,8 +22,10 @@ import type {Actor} from './types.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {VendorRoute} from './delegated-native.js';
-// Writes and campaigns (wave 4c): the native calls a campaign clone reads its source through.
+// Writes and campaigns (wave 4c): the native calls a campaign clone reads its source through, and the service a plan's
+// preflight reads through.
 import type {ToolCall} from './workspace-core.js';
+import type {MirrorService} from './service.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -564,6 +566,59 @@ export interface CampaignHooks {
   readonly clone?: CampaignClone;
   /** Its guided activation of a completed recipe plan (src/campaign-activation.ts, src/campaign-runner.ts). */
   readonly activation?: CampaignActivation;
+  /** Its part of a campaign plan's preflight (src/campaign-preflight.ts). */
+  readonly preflight?: CampaignPreflight;
+}
+/** What a step's preflight gives its provider (src/campaign-preflight.ts campaignPreflight). */
+export interface CampaignPreflightContext {
+  readonly service: MirrorService;
+  readonly actor: Actor;
+  /** The step's login and its normalized account. */
+  readonly connectionId: string;
+  readonly account: string;
+  /** What the provider keeps for one preflight of one plan (Snapchat's pixel lists), by its own keys. */
+  readonly cache: Map<string, unknown>;
+  /** The review's state check of a read (src/write-state.ts), passed in so that no adapter imports it. */
+  validateState(read: CompiledRequest, result: TransportResult): void;
+}
+/**
+ * A provider's part of a campaign plan's preflight. The preflight keeps every check a step passes and their order
+ * (the account grant and read, the currency, media preparation, the declared predecessors, the catalog's argument
+ * validation, the compiled request's execution risk, write shape and state reads, the 25-record parts); the provider
+ * answers where it named the provider.
+ */
+export interface CampaignPreflight {
+  /**
+   * The placeholder a declared predecessor's `$ref` takes while the step's contract is checked (Google's resource
+   * name of the predecessor's compiled mutation, X's media key and card URI, Snapchat's symbolic ID); undefined for
+   * the generic `1`. Refuses a reference it cannot place.
+   */
+  reference?(context: {
+    readonly path: string;
+    readonly ref: string;
+    readonly parent: JsonObject | undefined;
+    /** The preflight's compiler, passed in so that no adapter imports it. */
+    compile(gateway: string, args: JsonObject): CompiledRequest;
+  }): string | undefined;
+  /**
+   * The compiled step's own contract checks after its state reads are planned (Meta's creative contract, Snapchat's
+   * ad squad pixels); what it can only check at the step's review is a deferral of those fields. Refuses.
+   */
+  contract?(
+    plan: CompiledRequest,
+    context: CampaignPreflightContext,
+  ): Promise<{fields: string[]; reason: string} | undefined>;
+  /**
+   * The step's existing dependencies, read live before any predecessor is created (Meta's Page and media, Snapchat's
+   * creatives and lead forms, TikTok's launch packs, LinkedIn's lead form), given the paths that depend on
+   * predecessors and the prerequisites the step declares. Refuses.
+   */
+  prerequisites?(
+    plan: CompiledRequest,
+    context: CampaignPreflightContext,
+    deferredPaths: string[],
+    declared: string[],
+  ): Promise<JsonObject[]>;
 }
 /** A plan step of an activation, as src/campaign-activation.ts builds it for the plan's gateway, account and login. */
 export type ActivationStep = (id: string, description: string, args: JsonObject, depends_on?: string[]) => JsonObject;

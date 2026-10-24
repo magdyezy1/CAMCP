@@ -193,9 +193,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // them with reasons (src/campaign-clone.ts keeps the gateway and input refusals), and the same reasons. Its guided
   // activations move each platform's steps and gates from src/campaign-activation.ts to
   // src/<provider>-recipe-activation.ts and the shared result checks to src/campaign-activation-core.ts: seven more
-  // files, the same files with reasons and the same reasons.
-  assert.equal(files.length, 693);
-  assert.equal(selected.filter(row => row.messages.size).length, 262);
+  // files, the same files with reasons and the same reasons. Its preflight moves Google's predecessor references and
+  // Snapchat's pixel ownership from src/campaign-preflight.ts to src/google-preflight.ts and src/snapchat-preflight.ts
+  // with their reasons, and Meta's preflight hooks to src/meta-preflight.ts: three more files, two more with reasons
+  // (src/campaign-preflight.ts keeps its own), the same reasons.
+  assert.equal(files.length, 696);
+  assert.equal(selected.filter(row => row.messages.size).length, 264);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

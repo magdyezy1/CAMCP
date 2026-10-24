@@ -259,3 +259,66 @@ test('the activation record keeps what the provider gates read, and a gate reads
     ],
   );
 });
+
+test('the plan preflight names no provider and imports no provider module', () => {
+  const source = read('src/campaign-preflight.ts');
+  assert.deepEqual(gatewayLiterals(source), []);
+  assert.deepEqual(providerImports(source), []);
+  // Snapchat's ad prerequisites take the preflight's state check instead of importing a lifecycle module.
+  assert.doesNotMatch(read('src/snapchat-ad-prerequisites.ts'), /from '\.\/write-state\.js'/);
+});
+
+test('each provider declares the preflight parts the stage named it for, frozen', () => {
+  const declared = Object.fromEntries(
+    registeredProviderHooks
+      .filter(h => h.campaign?.preflight)
+      .map(h => [h.gateway, Object.keys(h.campaign.preflight).sort()]),
+  );
+  assert.deepEqual(declared, {
+    google_ads_native_action: ['reference'],
+    meta_native_action: ['contract', 'prerequisites'],
+    tiktok_native_action: ['prerequisites'],
+    snapchat_native_action: ['contract', 'prerequisites', 'reference'],
+    linkedin_native_action: ['prerequisites'],
+    x_ads_native_action: ['reference'],
+  });
+  for (const hooks of registeredProviderHooks)
+    if (hooks.campaign?.preflight) assert.ok(Object.isFrozen(hooks.campaign.preflight), hooks.gateway);
+});
+
+test("a predecessor's placeholder is its provider's: X by field, Snapchat's symbolic ID, Google's resource name", () => {
+  const reference = (gateway, context) => providerHooks(gateway)?.campaign?.preflight?.reference?.(context);
+  const none = () => assert.fail('no compile');
+  assert.equal(reference('x_ads_native_action', {path: '/payload/media_key', compile: none}), '13_1');
+  assert.equal(reference('x_ads_native_action', {path: '/payload/card_uri', compile: none}), 'card://1');
+  assert.equal(reference('x_ads_native_action', {path: '/payload/line_item_id', compile: none}), undefined);
+  assert.equal(
+    reference('snapchat_native_action', {path: '/payload/x', compile: none}),
+    '00000000-0000-4000-8000-000000000001',
+  );
+  assert.equal(reference('meta_native_action', {path: '/payload/x', compile: none}), undefined);
+  // Google: the predecessor's compiled mutation names the resource; a media predecessor is an account asset.
+  assert.equal(
+    reference('google_ads_native_action', {
+      path: '/payload/x',
+      ref: 'm#/data/results/0/resourceName',
+      parent: {kind: 'media', account_id: '123-456-7890', arguments: {platform: 'google_ads'}},
+      compile: none,
+    }),
+    'customers/1234567890/assets/1',
+  );
+  const compiled = [];
+  assert.equal(
+    reference('google_ads_native_action', {
+      path: '/payload/x',
+      ref: 'c#/data/results/0/resourceName',
+      parent: {gateway: 'google_ads_native_action', account_id: '123', arguments: {action: 'a'}},
+      compile: (gateway, args) => {
+        compiled.push([gateway, args]);
+        return {path: '/v23/customers/123/campaigns:mutate', body: {operations: [{create: {name: 'C'}}]}};
+      },
+    }),
+    'customers/123/campaigns/1',
+  );
+  assert.deepEqual(compiled, [['google_ads_native_action', {action: 'a', account_id: '123'}]]);
+});

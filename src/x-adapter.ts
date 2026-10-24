@@ -138,4 +138,12 @@ export const xHooks: ProviderHooks = Object.freeze({
     snapshots: (plan: CompiledRequest) => (xTargetingKind(plan) ? xTargetingSnapshots(plan) : undefined),
     accountPath: /^\/12\/accounts\/[^/]+/,
   }),
+  // Writes and campaigns (wave 4c): a plan's preflight places a predecessor's media key and card URI by their own
+  // shapes (src/campaign-preflight.ts); any other reference is the generic placeholder.
+  campaign: Object.freeze({
+    preflight: Object.freeze({
+      reference: ({path}: {path: string}) =>
+        path.endsWith('/media_key') ? '13_1' : path.endsWith('/card_uri') ? 'card://1' : undefined,
+    }),
+  }),
 });

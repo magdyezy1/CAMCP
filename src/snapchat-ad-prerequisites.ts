@@ -3,15 +3,20 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {snapAdCreativePaths, snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
 import {fingerprint} from './workspace-core.js';
-import {validateState} from './write-state.js';
+import type {TransportResult} from './transport.js';
 
-/** Read existing creative dependencies before creating any campaign predecessors. */
+/**
+ * Read existing creative dependencies before creating any campaign predecessors. Each read is checked with the
+ * preflight's `validateState` (src/write-state.ts), passed in so that Snapchat's adapter imports no lifecycle module
+ * (ARC-01 phase B, wave 4c).
+ */
 export async function snapAdPrerequisites(
   service: MirrorService,
   actor: Actor,
   plan: CompiledRequest,
   connectionId: string,
   deferredPaths: string[],
+  validateState: (read: CompiledRequest, result: TransportResult) => void,
 ): Promise<JsonObject[]> {
   const rows = (plan.body as JsonObject | undefined)?.ads;
   if (

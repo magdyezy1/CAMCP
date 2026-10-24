@@ -23,13 +23,14 @@ import {linkedinQuery} from './linkedin-restli.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
-import {buildLinkedinLeadRecipe, linkedinLeadRecipe} from './linkedin-lead-recipe.js';
+import {buildLinkedinLeadRecipe, linkedinLeadRecipe, linkedinRecipePrerequisites} from './linkedin-lead-recipe.js';
 import {linkedinClone} from './linkedin-campaign-clone.js';
 import {
   linkedinActivationGates,
   linkedinActivationRecord,
   linkedinActivationSteps,
 } from './linkedin-recipe-activation.js';
+import type {CampaignPreflightContext} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -320,6 +321,15 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
       steps: linkedinActivationSteps,
       record: linkedinActivationRecord,
       gates: linkedinActivationGates,
+    }),
+    // The lead generation pack's lead form, read through its owner finder (src/campaign-preflight.ts).
+    preflight: Object.freeze({
+      prerequisites: (
+        plan: CompiledRequest,
+        {service, actor, connectionId}: CampaignPreflightContext,
+        _deferredPaths: string[],
+        declared: string[],
+      ) => linkedinRecipePrerequisites(service, actor, plan, connectionId, declared),
     }),
   }),
   // A create on an ad account reads the account (src/write-snapshots.ts).

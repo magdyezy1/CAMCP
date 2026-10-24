@@ -38,6 +38,7 @@ import {googleStateReads} from './google-state-reads.js';
 import {googleClone} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
+import {googlePreflight} from './google-preflight.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -574,6 +575,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       record: googleActivationRecord,
       gates: googleActivationGates,
     }),
+    // A plan step's predecessor resource names (src/campaign-preflight.ts).
+    preflight: googlePreflight,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
   // checked against the state, in that order, before the review's paused-parent check.

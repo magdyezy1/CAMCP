@@ -38,6 +38,7 @@ import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
 import {metaStateReads} from './meta-state-reads.js';
 import {metaCreativeImpact} from './meta-creative-features.js';
 import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './meta-recipe-activation.js';
+import {metaPreflight} from './meta-preflight.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -296,6 +297,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
     ),
     // A launch's campaign activated, gated on its ad's review and its conversion pixel.
     activation: Object.freeze({steps: metaActivationSteps, record: metaActivationRecord, gates: metaActivationGates}),
+    // A plan step's creative contract and its Page and media (src/campaign-preflight.ts).
+    preflight: metaPreflight,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): a new creative's state is the account read and the
   // creative's identity sources, which Meta's module reads itself through the review's access check; an ad set's audience

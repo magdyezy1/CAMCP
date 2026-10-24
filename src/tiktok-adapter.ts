@@ -60,7 +60,12 @@ import {
   tiktokReportRowKey,
 } from './tiktok-report-pagination.js';
 // Writes and campaigns (wave 4c).
-import {buildTiktokLaunchRecipe, tiktokConversionRecipe, tiktokTrafficRecipe} from './tiktok-launch-recipes.js';
+import {
+  buildTiktokLaunchRecipe,
+  tiktokConversionRecipe,
+  tiktokRecipePrerequisites,
+  tiktokTrafficRecipe,
+} from './tiktok-launch-recipes.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
@@ -68,6 +73,7 @@ import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {tiktokStateReads} from './tiktok-state-reads.js';
 import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
+import type {CampaignPreflightContext} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -447,6 +453,15 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     clone: Object.freeze({build: tiktokClone}),
     // A launch's campaign enabled; no gate.
     activation: Object.freeze({steps: tiktokActivationSteps}),
+    // A launch pack's Spark identity, post and pixel, before any predecessor is created (src/campaign-preflight.ts).
+    preflight: Object.freeze({
+      prerequisites: (
+        plan: CompiledRequest,
+        {service, actor, connectionId}: CampaignPreflightContext,
+        _deferredPaths: string[],
+        declared: string[],
+      ) => tiktokRecipePrerequisites(service, actor, plan, connectionId, declared),
+    }),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
   // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are

@@ -90,6 +90,9 @@ send `is_adset_budget_sharing_enabled: false` on the campaign: from Graph API v2
 campaign without that boolean, and AMCP refuses it first (`INVALID_META_CAMPAIGN`). Saving or inspecting a plan
 does not execute it. Preflight verifies current pixel/Page visibility and currency; event delivery, objective
 eligibility and landing-page acceptance need separate evidence. Do not infer them from SDK field compatibility.
+Preflight refuses a Meta step whose Facebook Page, Instagram account or pixel is not named by an explicit ID, or
+whose image is not the exact hash Meta returned for the ad account (`PREFLIGHT_ID_REQUIRED`), and an ad set that
+optimizes for website conversions or value without its pixel and conversion event (`CONVERSION_SETUP_REQUIRED`).
 
 `amcp_media {action:"list"}` includes accessible temporary and retained originals under `sources`. A source imported from Drive carries `drive_access`: `revoked` means the Drive login or selection it came through was revoked since; the imported copy is frozen and still usable until it expires or an owner removes it, so say so rather than treating it as unavailable. For an explicitly selected completed original, a current workspace owner may call `retain_source` with `source_id`, `confirmed:true` and its exact `expected_sha256`. Present its lifetime and shared count/byte quota first. The separate returned `lib-…` source works with the usual media preparation inputs; temporary expiry and existing plans are unchanged. Permanent `remove_source` needs fresh owner authority and the same exact confirmation fields. It removes current original storage, while provider uploads, receipts, frozen reviews and existing backups are separate. Never infer owner consent from a request to upload or reuse media.
 
