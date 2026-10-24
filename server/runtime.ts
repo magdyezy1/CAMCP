@@ -3,9 +3,7 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import type {CallOptions} from '../src/types.js';
-import {linkedinVersion} from '../src/linkedin-version.js';
-import {resolveMetaVersion} from '../src/meta-version.js';
-import {googleDeveloperTokenWarning} from '../src/google-version.js';
+import {providerStartupWarnings, providerVersionPins} from '../src/provider-startup.js';
 import {assertWireContractMode} from '../src/wire-contracts.js';
 import {loadConfig, type AmcpConfig} from './config.js';
 import {checkVolumeMarker, verifyDataVolume, type VolumeLog, type VolumeStat} from './volume.js';
@@ -31,26 +29,27 @@ export function createRuntime(
   let stage: StartupStage = 'provider_versions',
     opened: Store | undefined;
   try {
-    // Provider version pins fail closed at startup (PRV-02): an unreviewed or sunset LinkedIn-Version, or a Meta
-    // version AMCP holds no evidence for, stops the process instead of every later provider request. Unset, the
-    // reviewed default is sent: its own sunset refuses LinkedIn requests (owner health alarms 90 days ahead), never
-    // every other provider.
-    for (const [name, check] of [
-      ['AMCP_LINKEDIN_API_VERSION', () => process.env.AMCP_LINKEDIN_API_VERSION === undefined || linkedinVersion()],
-      ['AMCP_META_API_VERSION', () => resolveMetaVersion()],
-    ] as const)
+    // Provider version pins fail closed at startup (PRV-02): an unreviewed or sunset version stops the process instead
+    // of every later provider request. Each provider's pin, in its order (LinkedIn's LinkedIn-Version, then Meta's
+    // Graph API version), is its startup check in src/provider-startup.ts.
+    for (const {setting, check} of providerVersionPins)
       try {
         check();
       } catch (e) {
-        throw new Error(name + ' is not a reviewed provider version: ' + (e instanceof Error ? e.message : String(e)));
+        throw new Error(
+          setting + ' is not a reviewed provider version: ' + (e instanceof Error ? e.message : String(e)),
+        );
       }
     // PRV-05: what a wire-contract violation does (off, shadow or enforce); a misspelt mode stops startup.
     assertWireContractMode();
     for (const problem of config.problems) log({level: 'warn', event: 'config_problem', message: problem});
     // Configuration that still starts but needs the operator’s attention (PRV-04): stated once, at startup, without
-    // the token’s value; owner health repeats it.
-    const developerToken = googleDeveloperTokenWarning();
-    if (developerToken) log({level: 'warn', event: 'google_developer_token_ignored', message: developerToken});
+    // any secret’s value (each provider's warning in src/provider-startup.ts: Google's developer token); owner health
+    // repeats it.
+    for (const warning of providerStartupWarnings) {
+      const message = warning.message();
+      if (message) log({level: 'warn', event: warning.event, message});
+    }
     // Issuer quota profiles are validated before the database opens; an invalid profile stops start-up (OPS-08), and
     // the startup_failed line names this stage rather than the provider version pins.
     stage = 'quota_policy';

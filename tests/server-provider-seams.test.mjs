@@ -8,6 +8,7 @@ import {googleAccountDiscovery, googleSelectedAccountRead} from '../dist/src/goo
 import {googleAccountDiscovery as serverAccountDiscovery} from '../dist/server/google-account-discovery.js';
 import {googleAdsCustomers} from '../dist/src/google-version.js';
 import {metaDialogUrl, metaGraphUrl} from '../dist/src/meta-version.js';
+import {providerStartupWarnings, providerVersionPins} from '../dist/src/provider-startup.js';
 
 // ARC-01 phase B, the website's server modules: route modules, the website's own flows and the composition root take
 // their provider facts from the registries instead of naming a gateway or importing a provider module. The behaviour
@@ -77,5 +78,35 @@ test('Facebook sign-in takes Meta’s sign-in endpoints from its login steps', (
   assert.deepEqual(
     registeredProviderLogins.filter(l => l.signIn).map(l => l.gateway),
     [meta.gateway],
+  );
+});
+
+test('the composition root runs each provider’s startup checks from their registry, in their order', () => {
+  const file = 'server/runtime.ts';
+  assert.doesNotMatch(source(file), gatewayLiteral);
+  assert.deepEqual(providerImports(file), [], 'the composition root consults the startup registry instead');
+  assert.ok(graph.get(file).has('src/provider-startup.ts'));
+  assert.ok(providerRegistries.includes('src/provider-startup.ts'));
+  // LinkedIn's pin before Meta's, as the composition root checked them; tests/website-server-steps.test.mjs pins the
+  // refusals, their order and the warning on the builds before and after the move.
+  assert.deepEqual(
+    providerVersionPins.map(pin => pin.setting),
+    ['AMCP_LINKEDIN_API_VERSION', 'AMCP_META_API_VERSION'],
+  );
+  assert.deepEqual(
+    providerStartupWarnings.map(warning => warning.event),
+    ['google_developer_token_ignored'],
+  );
+  for (const entry of [
+    providerVersionPins,
+    providerStartupWarnings,
+    ...providerVersionPins,
+    ...providerStartupWarnings,
+  ])
+    assert.ok(Object.isFrozen(entry));
+  // Only the composition root consults the registry; no provider module imports it.
+  assert.deepEqual(
+    [...graph].filter(([, edges]) => edges.has('src/provider-startup.ts')).map(([id]) => id),
+    [file],
   );
 });
