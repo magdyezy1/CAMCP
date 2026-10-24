@@ -21,7 +21,7 @@ Status as of 2026-10-10 (owner decision D25). Each axis is counted on its own; a
 | Source acceptance (of 28) | met 20 · not met 8 |
 | Native/live acceptance | none 28 · read verified 0 · write verified 0 |
 | Manual/deployed acceptance | not recorded 26 · pending owner 1 · accepted 0 · amended 1 |
-| Open remainders | 66: register item 30 · finite package 3 · conditional stretch 1 · optional stretch 5 · owner action 11 · native acceptance 14 · parked 2 |
+| Open remainders | 65: register item 28 · finite package 3 · conditional stretch 1 · optional stretch 5 · owner action 12 · native acceptance 14 · parked 2 |
 
 ## The product today
 
