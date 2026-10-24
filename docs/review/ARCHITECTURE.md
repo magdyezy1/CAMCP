@@ -309,10 +309,10 @@ packages' falls add up: 76 and 235.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 74 |
+| `shared_modules_with_gateway_literals` | 73 |
 | `shared_to_provider_runtime_imports` | 233 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 415 |
+| `shared_gateway_literals` (reported) | 414 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -381,10 +381,11 @@ anywhere: the suites' synthetic fetchers answer.
 | Entity writes | facts `entityWrites`: the generic entity writes of seven platforms (Google Ads, Meta, TikTok, Snapchat, LinkedIn, X and DV360), the creations, edits and deletions of their campaigns, ad groups, ads and creatives that no registered family claims: each the ledger name of its reviewed route (`google_entities`, ...) and `claims`, which reads only the write's method, path and action, in one table of the registry by provider ID. `tests/provider-entity-writes.test.mjs` compares every reviewed route with the branches as they were. | `reviewedWriteFamily` (`src/reviewed-routes.ts`) keeps the read-only and special-transport exclusions and the registered families first (with their conflict refusal), then asks the write's adapter, and names no gateway; `assertWriteShape`, the structural spend effects and the action ledger consult it unchanged | PROOF-ENTITY |
 | Offline-upload rehearsal | not an adapter: the conversion families' facts, `rehearsal` of their personal-data specs (`OfflineRehearsal`, `src/personal-data.ts`), frozen in `src/google-data-manager.ts` and `src/meta-offline-conversions.ts`: the provider request an offline conversion upload rehearses, its documented no-execution flag (Data Manager's `validateOnly` on `events:ingest`) or none (Meta's `test_event_code` events are production events), and what the review says of it. `tests/offline-upload-rehearsal-route.test.mjs` compares every rehearsal with the function as it was. | `offlineUploadRehearsal` (`src/offline-upload-rehearsal.ts`, MSR-03 slice E) takes the rehearsal of the family whose request it is (`familyOf`, the registry) whatever spec its caller passes, and keeps the dry run: the people hashed with the provider's time limits, the execution and rehearsal bodies built and hashed, nothing sent, reviewed or saved; it imports no provider module | PROOF-REHEARSAL |
 | Review summary | facts `reviewOperations`: how the one-line review summary names a provider's writes, Google Ads' `:mutate` operations (each a create, a remove or an update, the entity its service names, how many), in the registry's table of review stage facts by provider ID. `tests/provider-review-stages.test.mjs` compares every summary with the branch as it was. | `reviewSummary` (`src/review-summary.ts`, WRT-05 stage E) asks the request's adapter first and keeps the generic operation from the path, method and action, the account, the money with its exact decimals and the status changes | PROOF-SUMMARY |
+| Spending confirmation | facts `everyWriteConfirmsSpend`: a provider each of whose writes needs `spend_change_confirmed=true` once no structural or family rule has decided its spending (Reddit: its writes change targeting, serving and shared lists), in the same table. `tests/provider-review-stages.test.mjs` compares every spending refusal with the function as it was. | `spendConfirmationError` (`src/preflight.ts`) keeps its order (numeric statuses, delivery edits, the family's own confirmation, then the provider's fact, then the status patches and the generic field-name match) and the refusal's wording | PROOF-SPEND |
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
-the gate test checks both modes), and phase B has moved twelve concerns so far, so 74 shared modules still name a
+the gate test checks both modes), and phase B has moved thirteen concerns so far, so 73 shared modules still name a
 gateway (target 20 or fewer) and 233 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496,
 163 imports are the reviewed-family registry's, no longer counted since phase B counts it as a registry (§8), and 9
 are ARC-04's report job registry and website route modules; the other 91 are phase B's migrations, after which the

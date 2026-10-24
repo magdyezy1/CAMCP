@@ -220,12 +220,15 @@ function googleMutateOperations(plan: CompiledRequest): {operation: string; enti
   };
 }
 /**
- * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts), by
- * provider ID, each moved unchanged and frozen here; each adapter takes its ID's entry.
+ * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts and
+ * src/preflight.ts), by provider ID, each moved unchanged and frozen here; each adapter takes its ID's entry.
  * tests/provider-review-stages.test.mjs compares every stage with its branch as it was.
  */
-const reviewStageFacts: Readonly<Record<string, Pick<ProviderAdapter, 'reviewOperations'>>> = {
+const reviewStageFacts: Readonly<
+  Record<string, Pick<ProviderAdapter, 'reviewOperations' | 'everyWriteConfirmsSpend'>>
+> = {
   google: {reviewOperations: Object.freeze({summarize: googleMutateOperations})},
+  reddit: {everyWriteConfirmsSpend: true},
 };
 
 // The account fields, references and path patterns ScopeGuard compares (ARC-01 phase B: they were tables in

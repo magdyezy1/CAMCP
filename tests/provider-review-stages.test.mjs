@@ -3,8 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {MirrorError} from '../dist/src/errors.js';
+import {familyOf} from '../dist/src/reviewed-families.js';
 import {providerAdapters} from '../dist/src/provider-adapters.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
+import {spendConfirmationError} from '../dist/src/preflight.js';
+import {deliveryEditFields, namesSpendField, numericStatusPaths} from '../dist/src/spend-effects.js';
 
 // ARC-01 phase B, the review's summary and spending stages: what each shared stage decided for one provider by name is
 // now that provider adapter's fact (src/provider-adapters.ts), and each stage asks the adapter of the request's
@@ -155,12 +159,105 @@ test('the review summary names every operation as before: every ledger route, bo
   assert.deepEqual([...summarized].sort(), ['change', 'create', 'remove', 'update']);
 });
 
+/** preflight.ts before the move: spendConfirmationError, transcribed as it was written (Reddit's branch included). */
+function copiedSpendConfirmationError(plan) {
+  const exemptFromSpendTextMatch = () => {
+    const exempt = familyOf(plan)?.exemptFromSpendTextMatch;
+    return typeof exempt === 'function' ? exempt(plan) : !!exempt;
+  };
+  const numericStatus = numericStatusPaths(plan);
+  if (numericStatus.length)
+    return new MirrorError(
+      'SPEND_CONFIRMATION_REQUIRED',
+      'A status given as a number cannot be shown to leave the entity paused. Name the status, or review the change and provide spend_change_confirmed=true.',
+      {fields: numericStatus},
+    );
+  const delivery = deliveryEditFields(plan);
+  if (delivery?.fields.length)
+    return new MirrorError(
+      'SPEND_CONFIRMATION_REQUIRED',
+      'This edit changes fields that decide what an existing ' +
+        delivery.entity +
+        ' serves, bids or spends: ' +
+        delivery.fields.join(', ') +
+        '. Review them against before_state and provide spend_change_confirmed=true.',
+      {fields: delivery.fields},
+    );
+  const spend = familyOf(plan)?.spendConfirmation;
+  if (spend?.needed(plan))
+    return new MirrorError(
+      'SPEND_CONFIRMATION_REQUIRED',
+      typeof spend.message === 'function' ? spend.message(plan) : spend.message,
+    );
+  if (plan.gateway === 'reddit_native_action')
+    return new MirrorError(
+      'SPEND_CONFIRMATION_REQUIRED',
+      'Targeting, serving and shared-list changes require spend_change_confirmed=true.',
+    );
+  const statusPatch =
+    Array.isArray(plan.body) &&
+    plan.body.some(
+      op =>
+        op &&
+        /\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path)) &&
+        ['ACTIVE', 'ENABLE', 'ENABLED'].includes(op.value),
+    );
+  if (!exemptFromSpendTextMatch() && (statusPatch || namesSpendField(plan)))
+    return new MirrorError('SPEND_CONFIRMATION_REQUIRED', 'Spend-affecting writes need spend_change_confirmed=true.');
+  return undefined;
+}
+/** A spending refusal as data: its code, reason, details and status, or none. */
+const refusal = error =>
+  error === undefined ? null : [error.constructor.name, error.code, error.message, error.details, error.status];
+
+test('every write needs the spending confirmation it needed before: every ledger route, body and Reddit write', () => {
+  const bodies = [
+    {},
+    {name: 'Spring'},
+    {status: 'PAUSED'},
+    {status: 1},
+    {daily_budget: 500},
+    {configured_status: 'ACTIVE'},
+    [{op: 'replace', path: '/status', value: 'ACTIVE'}],
+    [{op: 'replace', path: '/name', value: 'x'}],
+    {operations: [{update: {status: 'ENABLED'}, updateMask: 'status'}]},
+  ];
+  const plans = ledgerPlans(bodies);
+  // Reddit's writes the catalog has and ones it has not, a gateway named like it, and a request of no gateway.
+  for (const body of bodies) {
+    plans.push(plan('reddit_native_action', 'POST', '/api/v3/ad_accounts/1/campaigns', 'reddit_write', {body}));
+    plans.push(plan('reddit_native_action', 'PATCH', '/api/v3/ad_groups/2', 'reddit_ad_group_update', {body}));
+    plans.push(plan('reddit_native_action', 'DELETE', '/api/v3/ads/3', 'reddit_ad_delete', {body}));
+    plans.push(plan('reddit_ads_native_action', 'POST', '/api/v3/ad_accounts/1/campaigns', 'x', {body}));
+    plans.push(plan(undefined, 'POST', '/api/v3/ad_accounts/1/campaigns', 'x', {body}));
+  }
+  const reasons = new Map();
+  for (const p of plans) {
+    const expected = run(() => refusal(copiedSpendConfirmationError(p)));
+    assert.deepEqual(
+      run(() => refusal(spendConfirmationError(p))),
+      expected,
+      JSON.stringify([p.gateway, p.method, p.path, p.action, p.body]),
+    );
+    const reason = expected.result?.[2];
+    if (reason) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
+  // Reddit's own reason was reached, beside the structural, family and generic ones.
+  assert.ok(reasons.get('Targeting, serving and shared-list changes require spend_change_confirmed=true.') > 0);
+  assert.ok(reasons.get('Spend-affecting writes need spend_change_confirmed=true.') > 0);
+});
+
 test('the review stage facts are frozen facts of their adapters, and the stages name no gateway', () => {
   assert.deepEqual(
     providerAdapters.filter(a => a.reviewOperations).map(a => a.gateway),
     ['google_ads_native_action'],
   );
   for (const a of providerAdapters) if (a.reviewOperations) assert.ok(Object.isFrozen(a.reviewOperations), a.id);
-  // The regression this guards: a provider branch back in a shared review stage (the module named Google Ads).
-  assert.doesNotMatch(fs.readFileSync('src/review-summary.ts', 'utf8'), /_native_action/);
+  assert.deepEqual(
+    providerAdapters.filter(a => a.everyWriteConfirmsSpend).map(a => [a.gateway, a.everyWriteConfirmsSpend]),
+    [['reddit_native_action', true]],
+  );
+  // The regression this guards: a provider branch back in a shared review stage (each module named one provider).
+  for (const file of ['src/review-summary.ts', 'src/preflight.ts'])
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /_native_action/, file);
 });

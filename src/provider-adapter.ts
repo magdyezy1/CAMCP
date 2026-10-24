@@ -511,6 +511,11 @@ export interface ProviderAdapter {
   readonly entityWrites?: EntityWrites;
   /** How the review summary names its writes' operations (Google Ads' :mutate operations), src/review-summary.ts. */
   readonly reviewOperations?: ReviewOperations;
+  /**
+   * Each of its writes needs spend_change_confirmed=true once no structural or family rule has decided its spending
+   * (Reddit: its writes change targeting, serving and shared lists), src/preflight.ts spendConfirmationError.
+   */
+  readonly everyWriteConfirmsSpend?: true;
   readonly paging?: PagingFacts;
   /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
   readonly executionOptions?: true;
