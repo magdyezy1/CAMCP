@@ -852,15 +852,16 @@ seeded it in the reader role, so no call can change anything.
      install the runner's packages into it (a download from PyPI). On Windows `python` may be only the Microsoft Store
      alias; the interpreter `AMCP_SCHEMA_PYTHON` names works:
      `<python> -m venv .runtime/mcp-eval-venv`, then
-     `.runtime/mcp-eval-venv/Scripts/python -m pip install -r C:/Users/abdom/.claude/skills/mcp-builder/scripts/requirements.txt`
-     (`bin/python` instead of `Scripts/python` outside Windows).
+     `.runtime/mcp-eval-venv/Scripts/python -m pip install -r <skill-scripts>/requirements.txt`, where
+     `<skill-scripts>` is the installed mcp-builder skill's `scripts` folder (PowerShell:
+     `$env:USERPROFILE/.claude/skills/mcp-builder/scripts`; `bin/python` instead of `Scripts/python` outside Windows).
   3. Set the key for that shell only (PowerShell: `$env:ANTHROPIC_API_KEY = "<your key>"`). Never write it into a
      file in this repository.
   4. From the repository root, run the runner through AMCP's wrapper, with a current Claude model (the runner's
      default model may no longer be served) and a new report file under the ignored `.runtime/`:
 
      ```
-     .runtime/mcp-eval-venv/Scripts/python tools/mcp-skill-evaluation.py --skill-scripts C:/Users/abdom/.claude/skills/mcp-builder/scripts -- -t stdio -c node -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o .runtime/mcp-evaluation/<date>-report.md tests/fixtures/mcp-evaluation/evaluation.xml
+     .runtime/mcp-eval-venv/Scripts/python tools/mcp-skill-evaluation.py --skill-scripts <skill-scripts> -- -t stdio -c node -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o .runtime/mcp-evaluation/<date>-report.md tests/fixtures/mcp-evaluation/evaluation.xml
      ```
 
      The runner starts `tests/fixtures/mcp-evaluation/server.mjs` itself over stdio. That server needs no database,
