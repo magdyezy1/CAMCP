@@ -460,53 +460,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'snapchat') {
-      if (!timezone) bad('Snapchat account timezone is required.');
-      // RPT-04: an optional campaign-level attribution profile uses the detailed preset's windows and conversion time.
-      const profile = campaignAttributionProfile(source),
-        swipe = profile?.swipe_up_attribution_window ?? '28_DAY',
-        view = profile?.view_attribution_window ?? '1_DAY';
-      const start = new Date(zonedMidnight(range.since, timezone!, true)).toISOString(),
-        end = new Date(zonedMidnight(nextDay(range.until), timezone!, true)).toISOString();
-      const d = await run(
-        plan('/v1/adaccounts/' + account + '/stats', {
-          granularity: 'TOTAL',
-          breakdown: 'campaign',
-          start_time: start,
-          end_time: end,
-          fields: [
-            ...new Set([
-              'spend',
-              'impressions',
-              'swipes',
-              'conversion_purchases',
-              'conversion_purchases_value',
-              'conversion_sign_ups',
-              'total_installs',
-              'video_views',
-              'view_completion',
-              ...extra,
-            ]),
-          ].join(','),
-          swipe_up_attribution_window: swipe,
-          view_attribution_window: view,
-          ...(profile ? {action_report_time: 'conversion', conversion_source_types: 'total'} : {}),
-          omit_empty: false,
-        }),
-      );
-      raw = list(d.total_stats ?? []).flatMap(r => list(r.total_stat?.breakdown_stats?.campaign ?? []));
-      const campaigns = list((await run(plan('/v1/adaccounts/' + account + '/campaigns'))).campaigns ?? []).map(
-        r => r.campaign,
-      );
-      raw = raw.map(r => ({
-        ...r,
-        name: campaigns.find(c => c.id === r.id)?.name,
-        objective: campaigns.find(c => c.id === r.id)?.objective,
-      }));
-      attribution = profile
-        ? 'Snapchat ' + swipe + ' swipe / ' + view + ' view; conversion time; total sources'
-        : '28-day swipe / 1-day view';
-      resultDefinition = 'Objective-specific purchases, sign-ups or installs when explicitly requested';
     } else if (p === 'linkedin') {
       timezone = 'UTC';
       if (String(metadata.id ?? '') !== account)
