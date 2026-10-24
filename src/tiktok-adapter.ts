@@ -2,6 +2,8 @@ import {
   plainGetRead,
   type CompileDraft,
   type CompileHooks,
+  type ContractHooks,
+  type ContractNote,
   type ExpectState,
   type ProviderHooks,
   type ProviderVerificationRead,
@@ -62,6 +64,7 @@ import {
   tiktokReportPage,
   tiktokReportRowKey,
 } from './tiktok-report-pagination.js';
+import {tiktokReportRoute} from './tiktok-report-jobs.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -340,10 +343,21 @@ const tiktokCompile: CompileHooks = Object.freeze({
   },
   afterJob: tiktokPreviewPlan,
 });
+/** Wave 4c (transport and catalog): what TikTok's report task reads add to their action contract rows. */
+const reportTaskNote: ContractNote = Object.freeze({
+  implementation: 'src/tiktok-report-jobs.ts',
+  test: 'tests/tiktok-report-jobs.test.ts',
+  reason:
+    'Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.',
+});
+const tiktokContracts: ContractHooks = Object.freeze({
+  readNotes: (plan: CompiledRequest) => (tiktokReportRoute(plan) ? [reportTaskNote] : []),
+});
 
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
   compile: tiktokCompile,
+  contracts: tiktokContracts,
   checks: Object.freeze({
     shape: Object.freeze({after: tiktokWriteShape}),
     state: Object.freeze({

@@ -1,5 +1,7 @@
 import type {
   CompileHooks,
+  ContractHooks,
+  ContractNote,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
@@ -40,6 +42,17 @@ const dv360Compile: CompileHooks = Object.freeze({
   beforeJob: dv360TargetingSearchPlan,
 });
 
+/** Wave 4c (transport and catalog): what DV360's targeting search adds to its action contract row. */
+const targetingSearchNote: ContractNote = Object.freeze({
+  implementation: 'src/dv360-targeting-search.ts',
+  test: 'tests/dv360-targeting-search.test.ts',
+  reason:
+    'Native advertiser-scoped POST search for geo regions, POIs and business chains; exact body variants, current scopes, bounded pagination and explicit completeness. It creates no targeting assignments.',
+});
+const dv360Contracts: ContractHooks = Object.freeze({
+  readNotes: (plan: CompiledRequest) => (dv360TargetingSearchRoute(plan) ? [targetingSearchNote] : []),
+});
+
 /**
  * Display & Video 360's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * targeting option search, a POST the catalog marks as a write, is a reviewed read. The account read is the advertiser.
@@ -51,6 +64,7 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
   compile: dv360Compile,
   // Wave 4c (transport and catalog): its tool takes the operations AMCP adds to the captured definition.
   catalog: Object.freeze({tools: Object.freeze({dv360_native_action: extendDV360Tool})}),
+  contracts: dv360Contracts,
   checks: Object.freeze({
     shape: Object.freeze({
       // A write may carry updateMask, its concurrency parameter; new campaigns, insertion orders and line items start

@@ -1,4 +1,5 @@
 import type {
+  ContractHooks,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
@@ -298,6 +299,22 @@ function snapchatObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
 }
 
 /**
+ * Wave 4c (transport and catalog): Snapchat's part of the action contract ledger (src/action-contracts.ts). Its chunked
+ * upload: amcp_media sends INIT, each ADD and FINALIZE itself (F-58). A raw ADD or FINALIZE has no upload of AMCP's to
+ * continue, so it stays refused; the ledger names the workflow that performs it.
+ */
+const snapchatContracts: ContractHooks = Object.freeze({
+  mediaStep: (plan: CompiledRequest) =>
+    plan.method === 'POST' &&
+    /^\/(?:us\/)?v1\/media\/[^/]+\/multipart-upload-v2$/.test(plan.path) &&
+    ['ADD', 'FINALIZE'].includes(String(plan.query.action))
+      ? 'A step of the chunked upload amcp_media performs itself (INIT, each ADD, FINALIZE). Send the file through amcp_media; a raw ' +
+        plan.query.action +
+        ' is not accepted.'
+      : undefined,
+});
+
+/**
  * Snapchat's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning
  * POSTs, the by-ID entity reads, the audience, bid and forecasting estimates, and the catalog and Ads Library searches.
  * Its scope: the catalog comparison's internal reads, and ownership of the global IDs its account lists and creations
@@ -308,6 +325,7 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
   // Wave 4c (transport and catalog): its targeting insight and forecast POSTs are planned as reviewed reads.
   compile: Object.freeze({afterJob: snapchatPlanningPlan}),
+  contracts: snapchatContracts,
   checks: Object.freeze({
     // An ad's creative references are checked before anything else (src/snapchat-ad-creatives.ts).
     shape: Object.freeze({

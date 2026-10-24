@@ -179,8 +179,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ARC-01 phase B, wave 4c: the delegated compiler's provider rules move GA4's two property-scope refusals and
   // Business Profile's six location, account and read-mask refusals from src/delegated-native.ts (which keeps its
   // others) to their adapters, and Reddit's two report refusals to its adapter, which already owns reasons: two more
-  // files with reasons, the same reasons.
-  assert.equal(files.length, 669);
+  // files with reasons, the same reasons. The action contract ledger's provider rules add the provider workflows
+  // registry (src/provider-workflows.ts), which owns no refusal: its rows are contract explanations.
+  assert.equal(files.length, 670);
   assert.equal(selected.filter(row => row.messages.size).length, 255);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

@@ -1,6 +1,10 @@
 import type {
   CompileDraft,
   CompileHooks,
+  ContractHooks,
+  ContractLegacy,
+  ContractNote,
+  ContractRow,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
@@ -31,7 +35,8 @@ import {
 } from './google-generation.js';
 import {googleContractEvidence, googleJson, validateGoogleRequest} from './google-contracts.js';
 import {googleAdsCustomers, googleAdsRequestChange} from './google-version.js';
-import {adaptGoogleLegacy} from './google-legacy.js';
+import {adaptGoogleLegacy, googleLegacyCoverage} from './google-legacy.js';
+import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
@@ -470,6 +475,56 @@ const googleAdsCompile: CompileHooks = Object.freeze({
 });
 
 /**
+ * Wave 4c (transport and catalog): Google Ads' part of the action contract ledger (src/action-contracts.ts). A draft
+ * generation RPC's row names its contract; a legacy action the catalog lists without a route is the GAQL search or
+ * the RPC its mapping names (an explicit adapter's own row when its route depends on the request).
+ */
+const generationNote: ContractNote = Object.freeze({
+  implementation: 'src/google-generation.ts',
+  test: 'tests/google-generation.test.ts',
+  reason:
+    'Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.',
+});
+const legacyAdapterRow: ContractRow = Object.freeze({
+  status: 'adapter_requires_input' as const,
+  implementation: 'src/google-legacy.ts',
+  reason:
+    'An explicit legacy adapter exists, but its route depends on the requested scope/type. Inspect the exact payload; each selected destination retains its own reviewed contract.',
+  tests: Object.freeze(['tests/google-legacy.test.ts']),
+});
+const googleAdsContracts: ContractHooks = Object.freeze({
+  readNotes: (plan: CompiledRequest) => (googleGenerationKind(plan) ? [generationNote] : []),
+  legacy(registry: Registry): ContractLegacy {
+    const coverage = googleLegacyCoverage(),
+      search = (a: Action): Action => ({
+        ...a,
+        method: 'POST',
+        path: googleAdsCustomers + '{customer_id}/googleAds:search',
+        read_only: true,
+      });
+    return {
+      route(a: Action, route: Action, source: string) {
+        const entry = legacyMapping.entries.find(e => e.name === a.name) as JsonObject | undefined;
+        if (entry?.kind === 'GAQL') route = search(a);
+        else {
+          const hint = coverage.entries.find(e => e.action === a.name)?.destination;
+          const mapped = hint
+            ? registry.catalogs
+                .get('google_ads_native_action')
+                ?.actions.find(x => x.path && (x.name === hint || x.raw.service + '.' + x.raw.rpc === hint))
+            : undefined;
+          if (mapped) route = mapped;
+          else if (hint && /^[a-z_]+$/.test(hint)) route = search(a);
+        }
+        return {route, source: entry ? 'src/google-legacy-mapping.json' : source};
+      },
+      adapted: (a: Action) => coverage.entries.some(e => e.action === a.name),
+      row: legacyAdapterRow,
+    };
+  },
+});
+
+/**
  * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
  * customer query. On the wire, bodies are ProtoJSON, the login customer header names the manager route, and quota
@@ -487,6 +542,7 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   // Its requests are compiled by its own compiler with ProtoJSON validation (src/compiler.ts): a vendor snapshot's
   // Google Ads routes are never delegated.
   delegated: Object.freeze({direct: true as const}),
+  contracts: googleAdsContracts,
   checks: Object.freeze({
     // Every reviewed write is checked against its pinned Discovery schema first.
     request: validateGoogleRequest,

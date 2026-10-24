@@ -645,6 +645,52 @@ export interface DelegatedHooks {
   readonly scope?: DelegatedScope;
 }
 
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the action contract ledger.
+
+/** The fields of an action contract row a provider's rule sets (src/action-contracts.ts ActionContract). */
+export interface ContractRow {
+  readonly status?: 'adapter_requires_input' | 'local_workflow' | 'media_workflow';
+  readonly implementation: string;
+  readonly reason: string;
+  readonly source?: string;
+  readonly tests: readonly string[];
+}
+
+/** What a native read of a provider's own adds to its row: its module, its test and its sentence. */
+export interface ContractNote {
+  /** Appended to the row's implementation, after ' / '. */
+  readonly implementation: string;
+  /** Appended to the row's tests; with `once`, the tests are then a set (as the row kept them). */
+  readonly test: string;
+  readonly once?: true;
+  /** Appended to the row's reason, after a space. */
+  readonly reason: string;
+}
+
+/** A provider's catalogued actions that name no route (Google Ads' legacy actions), for one ledger. */
+export interface ContractLegacy {
+  /** The route such an action stands for, and the source its row cites. */
+  route(action: Action, route: Action, source: string): {readonly route: Action; readonly source: string};
+  /** Whether an explicit adapter runs it, its route depending on the request: its row is then `row`. */
+  adapted(action: Action): boolean;
+  readonly row: ContractRow;
+}
+
+/**
+ * A provider's part of the action contract ledger (src/action-contracts.ts), which keeps how every captured, supplemental
+ * and delegated action is classified, in what order, and every shared row; a hook answers only where the ledger named
+ * the provider before. The localization inventory reads the reasons of a declaration of this type
+ * (tools/check-locales.mjs), as it read them in the ledger.
+ */
+export interface ContractHooks {
+  /** What its own native reads add to their rows (DV360's targeting search, X's audience estimate and report status). */
+  readNotes?(plan: CompiledRequest): readonly ContractNote[];
+  /** The row reason of a raw step of a workflow amcp_media performs itself (Snapchat's chunked upload ADD, FINALIZE). */
+  mediaStep?(plan: CompiledRequest): string | undefined;
+  /** Its catalogued actions without a route (Google Ads' legacy actions), for one ledger of the registry. */
+  legacy?(registry: Registry): ContractLegacy;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -661,6 +707,7 @@ export interface ProviderHooks {
   readonly compile?: CompileHooks;
   readonly catalog?: CatalogHooks;
   readonly delegated?: DelegatedHooks;
+  readonly contracts?: ContractHooks;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;
