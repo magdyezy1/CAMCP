@@ -54,8 +54,9 @@ in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taugh
 
 **Local, not deployed.** Wave 4b, confirmed by the owner on 2026-10-22, is implemented and merged into `Work-here`:
 MCP quality, design review, design system, this current-state documentation and the owner guide. Its release gate,
-container parity and browser qualification are pending; it reaches amcp.shop only with the next push, which the owner
-approves after them.
+container parity and rendered browser qualification passed on 2026-10-24 ([qualification
+record](records/QUALIFICATION-4b-2026-10-24.md)); it reaches amcp.shop only with the next push, which waits for the
+owner's approval.
 
 ## 3. Package status
 

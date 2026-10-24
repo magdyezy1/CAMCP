@@ -491,6 +491,7 @@ freeze.
 | 2026-10-07 | [Conditional programs, repeated budget evidence and client parity](records/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md) |
 | 2026-10-07 | [Scoped report recovery and supplied measurement traces](records/DELIVERY-2026-10-07-TRACE-RECOVERY.md) |
 | 2026-10-18 | [Deployment of 2026-10-18](records/DEPLOYMENT-2026-10-18.md) |
+| 2026-10-24 | [Wave 4b integration qualification of 2026-10-24](records/QUALIFICATION-4b-2026-10-24.md) |
 
 Data: [WORKBOOK-LOOKUP-2026-10-02.json](records/WORKBOOK-LOOKUP-2026-10-02.json).
 

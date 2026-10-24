@@ -414,6 +414,15 @@ their synthetic fetchers answer every provider request.
 The browser stage ran after the release gate had passed on the same head (`wave4a-gate-1`), with no other heavy job
 running. `working_tree_clean` is false only because of an untracked file outside the release scope.
 
+## Wave 4b integration qualification (2026-10-24)
+
+The full `--qualification` of the merged wave 4b tree (`wave4b-browser-2`) passed 1,280 of 1,280 cases in 50.87
+minutes, after the release gate and a container-parity run had passed on the same head. No pinned WCAG rule was
+violated in either theme, every measured focus ring reached 3:1, and the critical Arabic routes stayed at zero. The
+run measured Settings and two of its states at zero leaks, so the ratchet lowered their limits. Eight samples of the
+new scroll-region target were not measured, because the command block on Connectors wraps and is not a keyboard stop.
+The [qualification record](records/QUALIFICATION-4b-2026-10-24.md) holds the runs, revisions, digests and figures.
+
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users
