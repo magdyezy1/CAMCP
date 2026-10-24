@@ -18,7 +18,10 @@ import {Compiler} from './compiler.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {encodedBodyGateways} from './parameters.js';
-import {redditReportWarning, savedRedditReportProblems} from './reddit-report-rules.js';
+import {reportSourceList} from './report-sources.js';
+
+/** PRV-04: the saved-query rules of the report sources that declare a provider rule change. */
+const savedQueryRules = reportSourceList.flatMap(source => (source.savedQueryRules ? [source.savedQueryRules] : []));
 
 let registry: Registry | undefined;
 // Leave room for the query's ID, name, binding and revision around a 64 KiB configuration.
@@ -258,16 +261,19 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
           next_call: {tool: 'amcp_workspace', arguments: {action: 'report_schedule', id: row.id}},
         });
     }
-    // Saved Reddit reports that Reddit's 2026-12-08 breakdown rules will refuse, with their schedules (PRV-04).
-    const problems = savedRedditReportProblems(query.query_config);
-    if (problems.length && warnings.length < 100)
-      warnings.push(
-        redditReportWarning(
-          String(query.id),
-          problems,
-          linked.map(row => String(row.id)),
-        ),
-      );
+    // Saved reports that a provider's rule change will refuse, with their schedules (PRV-04: Reddit's 2026-12-08
+    // breakdown rules), as the report sources declare them (ARC-04 stage F).
+    for (const rules of savedQueryRules) {
+      const problems = rules.problems(query.query_config);
+      if (problems.length && warnings.length < 100)
+        warnings.push(
+          rules.warning(
+            String(query.id),
+            problems,
+            linked.map(row => String(row.id)),
+          ),
+        );
+    }
   }
   // Empty bindings have no provider scope yet; retain only the creator/admin's local setup records.
   const empty = emptyWorkbooks(

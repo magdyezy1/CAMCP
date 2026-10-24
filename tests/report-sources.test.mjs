@@ -13,6 +13,7 @@ import {reportRange as periodRange} from '../dist/src/report-periods.js';
 import {nativeDetailPlatforms} from '../dist/src/overview-native-detail.js';
 import {sourceRequestModel} from '../dist/src/report-request-estimate.js';
 import {fixedReportTimezones, sourceReportTimezone} from '../dist/src/report-windows.js';
+import {redditReportWarning, savedRedditReportProblems} from '../dist/src/reddit-report-rules.js';
 
 // ARC-04 stage F: one report source per reporting platform; src/report-native.ts normalizes through them.
 
@@ -77,6 +78,16 @@ test('the collector and the request estimate read their platform facts from the 
     {linkedin: 'UTC', apple: 'UTC', reddit: 'UTC', gsc: 'America/Los_Angeles'},
   );
   assert.deepEqual(Object.keys(fixedReportTimezones), ['linkedin', 'apple', 'reddit', 'gsc']);
+  // PRV-04: only Reddit's saved queries meet a provider rule change, read through its report source.
+  assert.deepEqual(
+    reportSourceList.filter(s => s.savedQueryRules).map(s => s.platform),
+    ['reddit'],
+  );
+  assert.equal(reportSource('reddit').savedQueryRules.problems, savedRedditReportProblems);
+  assert.deepEqual(
+    reportSource('reddit').savedQueryRules.warning('q1', ['AUDIENCE_WITH_LOCATION_OR_PLACEMENT'], ['s1']),
+    redditReportWarning('q1', ['AUDIENCE_WITH_LOCATION_OR_PLACEMENT'], ['s1']),
+  );
   assert.deepEqual(
     reportSourceList.filter(s => s.timezoneRead).map(s => [s.platform, Object.keys(s.timezoneRead).sort()]),
     [

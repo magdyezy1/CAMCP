@@ -105,7 +105,9 @@ export const targets = Object.freeze({
     functions: ['campaignAttributionProfile', 'overviewSourceLevel', 'detailedOverviewRows'],
   },
   'dist/src/report-windows.js': {functions: ['reportWindowState', 'markReportWindow', 'sourceReportTimezone']},
-  'dist/src/report-query-access.js': {functions: ['reportingConfigScope', 'validateReportingConfig']},
+  'dist/src/report-query-access.js': {
+    functions: ['reportingConfigScope', 'validateReportingConfig', 'reportingBootstrap'],
+  },
   'dist/src/report-file-delivery.js': {classes: {ReportFileDelivery: ['bind', 'queue', 'work', 'download']}},
   'dist/src/reporting-overview.js': {classes: {ReportingOverview: ['handle', 'work']}},
 });

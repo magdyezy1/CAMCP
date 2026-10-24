@@ -21,7 +21,6 @@ const remaining = {
   'src/report-runs.ts': {literals: 3, imports: 0},
   'src/overview-parents.ts': {literals: 0, imports: 2},
   'src/overview-levels.ts': {literals: 0, imports: 1},
-  'src/report-query-access.ts': {literals: 0, imports: 1},
   'src/reporting-overview.ts': {literals: 0, imports: 1},
 };
 const gatewayLiteral = /['"]([a-z0-9]+(?:_[a-z0-9]+)*)_native_action['"]/g;

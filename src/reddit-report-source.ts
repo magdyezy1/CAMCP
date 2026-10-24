@@ -3,6 +3,7 @@ import {nativeDetailLookupLimit, nativeDetailLookupLimitedWarning, redditDetail}
 import {optionalReadRefused} from './overview-parents.js';
 import {redditConversionValueDivisor} from './report-metrics.js';
 import {nextDay, reportList, type ReportSource} from './report-source.js';
+import {redditReportWarning, savedRedditReportProblems} from './reddit-report-rules.js';
 import type {JsonObject} from './types.js';
 
 /**
@@ -30,6 +31,11 @@ export const redditReportSource: ReportSource = {
   // The report and the campaign inventory.
   minimumRequestsPerPeriod: 2,
   fixedTimezone: reportZone,
+  // PRV-04: saved report queries that Reddit's 2026-12-08 breakdown rules will refuse.
+  savedQueryRules: {
+    problems: savedRedditReportProblems,
+    warning: (id, problems, schedules) => redditReportWarning(id, problems, schedules),
+  },
   /**
    * One account report over the UTC period by campaign (RPT-07: by campaign and ad group, or ad, for the detailed
    * levels), the account's campaigns for names and objectives, and for the detailed levels its ad group and ad lists.

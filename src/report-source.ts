@@ -170,6 +170,15 @@ export interface ReportSource {
     plan?(gateway: string, account: string): CompiledRequest;
     zone?(data: JsonObject, gateway: string): unknown;
   };
+  /**
+   * PRV-04: a provider rule change that will refuse saved native report queries of this platform (Reddit's 2026-12-08
+   * breakdown rules): the problems of one saved query's configuration (none when it is unaffected), and the warning the
+   * reporting bootstrap shows for the query and its schedules.
+   */
+  readonly savedQueryRules?: {
+    problems(config: unknown): string[];
+    warning(queryId: string, problems: string[], scheduleIds: string[]): JsonObject;
+  };
   /** One natively day-segmented request split by day (RPT-03: Google Ads, Meta). */
   readonly daily?: DailySegmentation;
   /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */
