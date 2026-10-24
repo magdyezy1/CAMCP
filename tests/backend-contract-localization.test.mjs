@@ -182,8 +182,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // report source, with LinkedIn's account and currency refusals; the Microsoft one, with its report job refusals; the
   // Reddit one, with its detail-name refusal; the GA4 one, with its row-limit refusal). ARC-01 (reporting) moves the
   // report table every export uses from src/google-sheets.ts into src/report-table.ts with its three refusals: one
-  // file more, with reasons, and the same reasons.
-  assert.equal(files.length, 670);
+  // file more, with reasons, and the same reasons. ARC-04 stage F moves the Overview's levels and detailed rows from
+  // src/overview-granularity.ts, which keeps no reason, into the leaf src/overview-levels.ts with their refusals: one
+  // file more, as many files with reasons, the same reasons.
+  assert.equal(files.length, 671);
   assert.equal(selected.filter(row => row.messages.size).length, 259);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

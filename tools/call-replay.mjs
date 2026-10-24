@@ -98,8 +98,11 @@ export const targets = Object.freeze({
   'dist/src/report-breakdowns.js': {functions: ['breakdownValue', 'metaBreakdownKey', 'breakdownDescriptor']},
   'dist/src/report-allocation.js': {functions: ['allocationCandidates', 'allocationEvidence', 'reportAllocation']},
   'dist/src/overview-parents.js': {functions: ['detailParentKind', 'detailParents']},
-  'dist/src/overview-granularity.js': {
-    functions: ['campaignAttributionProfile', 'overviewSourceLevel', 'detailedOverviewRows', 'collectDetailedOverview'],
+  'dist/src/overview-granularity.js': {functions: ['collectDetailedOverview']},
+  // The levels and detailed rows left overview-granularity.js for this leaf (ARC-04 stage F), which it re-exports; a
+  // recording made before names them dist/src/overview-granularity.js#... (compare with --ignore for both).
+  'dist/src/overview-levels.js': {
+    functions: ['campaignAttributionProfile', 'overviewSourceLevel', 'detailedOverviewRows'],
   },
   'dist/src/report-windows.js': {functions: ['reportWindowState', 'markReportWindow', 'sourceReportTimezone']},
   'dist/src/report-query-access.js': {functions: ['reportingConfigScope', 'validateReportingConfig']},
@@ -144,8 +147,8 @@ export const replayable = Object.freeze([
   'dist/src/report-resource-scope.js#reportingResourceAccounts',
   'dist/src/report-breakdowns.js#breakdownValue',
   'dist/src/report-breakdowns.js#metaBreakdownKey',
-  'dist/src/overview-granularity.js#campaignAttributionProfile',
-  'dist/src/overview-granularity.js#overviewSourceLevel',
+  'dist/src/overview-levels.js#campaignAttributionProfile',
+  'dist/src/overview-levels.js#overviewSourceLevel',
   'dist/src/overview-parents.js#detailParentKind',
 ]);
 

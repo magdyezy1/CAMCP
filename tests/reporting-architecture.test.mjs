@@ -20,7 +20,7 @@ const remaining = {
   'src/report-allocation.ts': {literals: 4, imports: 1},
   'src/report-runs.ts': {literals: 3, imports: 0},
   'src/overview-parents.ts': {literals: 0, imports: 2},
-  'src/overview-granularity.ts': {literals: 0, imports: 1},
+  'src/overview-levels.ts': {literals: 0, imports: 1},
   'src/report-query-access.ts': {literals: 0, imports: 1},
   'src/report-windows.ts': {literals: 0, imports: 1},
   'src/reporting-overview.ts': {literals: 0, imports: 1},
@@ -73,6 +73,39 @@ test('each reporting platform reports through its provider adapter gateway, as t
   );
   for (const [id, platform] of Object.entries(reportPlatforms))
     assert.equal(platform.gateway, providerById(id).gateway);
+});
+
+test('the report sources reach no guided collector, so the guided reporting modules may consult their registry', () => {
+  // ARC-04 stage F: the native detail collectors build on the leaf src/overview-levels.ts, not on the guided
+  // collector (src/overview-granularity.ts imports DecisionReporting), so no report source reaches decision reporting.
+  const graph = runtimeGraph(process.cwd()),
+    reached = new Set(),
+    queue = ['src/report-sources.ts'];
+  while (queue.length)
+    for (const next of graph.get(queue.shift()) ?? []) if (!reached.has(next)) reached.add(next) && queue.push(next);
+  for (const id of [
+    'src/overview-granularity.ts',
+    'src/decision-reporting.ts',
+    'src/report-presets.ts',
+    'src/report-allocation.ts',
+    'src/report-breakdowns.ts',
+    'src/reporting-overview.ts',
+  ])
+    assert.equal(reached.has(id), false, id);
+  assert.equal(graph.get('src/overview-native-detail.ts').has('src/overview-granularity.ts'), false);
+});
+
+test('the levels and detailed rows moved to a leaf keep their overview-granularity import path', async () => {
+  const granularity = await import('../dist/src/overview-granularity.js'),
+    levels = await import('../dist/src/overview-levels.js');
+  for (const name of [
+    'campaignAttributionProfile',
+    'detailContractVersion',
+    'detailedOverviewRows',
+    'overviewEntityLevels',
+    'overviewSourceLevel',
+  ])
+    assert.equal(granularity[name], levels[name], name);
 });
 
 test('the report table is shared: the Sheets client re-exports it, and its exporters import no Sheets module', () => {
