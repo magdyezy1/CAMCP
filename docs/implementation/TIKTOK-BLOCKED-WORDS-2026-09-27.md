@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok ad comment blocked words — 2026-09-27
 
 Base revision: `1ecf2a8` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

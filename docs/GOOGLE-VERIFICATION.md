@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # Google verification: reporting and privacy evidence
 
 This document describes implemented behavior and the evidence still needed for verification. It does not assert that Google approved the app, that production reporting succeeded, or that a new demonstration video or reviewer account exists.

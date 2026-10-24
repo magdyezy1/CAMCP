@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # GA4 and Search Console connection discovery
 
 Base: 3068197b390ae032584b612bdc9f86428a96c6aa, Codex-branch only.

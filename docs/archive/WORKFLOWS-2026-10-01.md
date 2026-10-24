@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Capability and product expansion audit — reporting, campaigns, media and measurement
 
 **Archived on 2026-10-22** (DOC-03, owner decision P12): kept as it was written, with links to current addresses.

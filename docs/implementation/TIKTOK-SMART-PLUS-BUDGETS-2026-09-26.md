@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ ad group budgets — 2026-09-26
 
 Base revision: `d2d5eec` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

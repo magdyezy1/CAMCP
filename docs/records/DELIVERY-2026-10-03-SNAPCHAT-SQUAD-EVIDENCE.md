@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat ad-squad evidence and ownership cache integrity
 
 Batch 106, 2026-10-03. Baseline: `3e87fee`. Sole repository/branch: `magdyezy1/CAMCP`, `Work-here`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta creative and custom audience renames and deletions — 2026-09-27
 
 Base revision: `bf6e4a1` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

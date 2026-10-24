@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta account controls and publisher block lists — 2026-09-26
 
 Base revision: `2743949` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Personal data in advertising writes: policy
 
 **Status: approved by the owner on 2026-09-30** ("Approved"), as drafted on 2026-09-29: the seven rules, the order

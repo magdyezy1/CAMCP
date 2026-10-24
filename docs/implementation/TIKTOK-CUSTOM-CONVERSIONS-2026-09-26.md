@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok custom conversions — 2026-09-26
 
 Base revision: `06cd154` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

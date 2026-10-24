@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok custom identities — 2026-09-26
 
 Base revision: `8b97bdb` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

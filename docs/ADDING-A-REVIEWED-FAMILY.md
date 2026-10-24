@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Adding a reviewed write family
 
 A reviewed write family is the unit AMCP uses to let an agent change something at a provider safely: it knows which

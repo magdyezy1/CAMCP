@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok custom audience edits — 2026-09-27
 
 Base revision: `5119489` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

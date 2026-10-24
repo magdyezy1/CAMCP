@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Reviewed-write state projection repair
 
 ## Scope and evidence

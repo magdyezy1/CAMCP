@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat media copy between ad accounts — 2026-09-27
 
 Base revision: `e24d475` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

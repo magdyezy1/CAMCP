@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # MCP evaluation record template
 
 Copy this template once for each evaluation session with external AI clients (B15, QA-04, ACC-02). The deterministic

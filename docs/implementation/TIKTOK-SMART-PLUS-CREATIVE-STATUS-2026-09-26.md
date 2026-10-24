@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ creative status — 2026-09-26
 
 Base revision: `533efac` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

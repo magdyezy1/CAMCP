@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Public schema drift found and handled (2026-09-28)
 
 `node dist/tools/provider-drift.js --live` compares every pinned vendor document with the one its official URL serves

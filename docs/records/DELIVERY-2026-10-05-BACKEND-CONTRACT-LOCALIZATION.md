@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Directly owned backend contract Arabic — 5 October 2026
 
 Repository: magdyezy1/CAMCP. Sole working/push branch: Work-here.

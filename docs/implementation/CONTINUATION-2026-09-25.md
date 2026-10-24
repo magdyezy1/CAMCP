@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Continued implementation — 2026-09-25
 
 Baseline: `04ebe041b394c230220f8843070aef607c1e7774`, clean

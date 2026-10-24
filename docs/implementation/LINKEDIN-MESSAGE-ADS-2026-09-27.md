@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn Message Ads and Conversation Ads content — 2026-09-27
 
 Base revision: `268cd70` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

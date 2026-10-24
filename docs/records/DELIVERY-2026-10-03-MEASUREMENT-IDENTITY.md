@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Delivery — exact synthetic GA4 test-identifier observation
 
 Date: 2026-10-03. Baseline: `2b47ebc`. Repository/branch: `magdyezy1/CAMCP`, `Work-here`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # CI runtime maintenance and exact recovery-batch verification
 
 ## Confirmed CI result

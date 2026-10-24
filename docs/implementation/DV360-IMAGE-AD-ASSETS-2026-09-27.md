@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 Demand Gen image ad assets — 2026-09-27
 
 Base revision: `a9f32c0` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Provider contract implementation evidence — 2026-09-19
 
 Latest stop/resume checkpoint: [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md).

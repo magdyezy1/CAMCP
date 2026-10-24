@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # AMCP product implementation and qualification: batch history — 1 October 2026
 
 The batch sections of the [implementation and qualification record](../review/IMPLEMENTATION-2026-10-01.md),

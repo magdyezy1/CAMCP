@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok asynchronous reports — implementation evidence
 
 Status: the full sanitized required-FFmpeg release check passes: 1550 main tests

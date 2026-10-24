@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Search-term evidence to reviewed exclusion drafts — 2 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

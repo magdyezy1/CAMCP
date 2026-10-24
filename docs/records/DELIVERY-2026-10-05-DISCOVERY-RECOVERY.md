@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Effective operation help and inventory read recovery — 5 October 2026
 
 Repository: magdyezy1/CAMCP. Sole working/push branch: Work-here.

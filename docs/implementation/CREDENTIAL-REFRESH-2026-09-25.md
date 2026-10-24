@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Credential refresh and connection replacement
 
 Base revision: 7fdfe3452c50faf6bf1d59ff15b61a789dab68c8, Codex-branch.

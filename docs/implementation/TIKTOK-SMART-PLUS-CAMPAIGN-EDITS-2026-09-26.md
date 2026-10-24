@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ campaign edits — 2026-09-26
 
 Base revision: `ec0cddd` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

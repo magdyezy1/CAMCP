@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ status — 2026-09-26
 
 Base revision: `3967a83` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

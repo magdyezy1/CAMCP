@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Railway tracked report freshness
 
 Batch 120, 2026-10-03. Repository magdyezy1/CAMCP; sole branch Work-here. Baseline afb5e8f.

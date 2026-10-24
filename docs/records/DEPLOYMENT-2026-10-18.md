@@ -1,3 +1,8 @@
+---
+status: record
+tier: operator
+---
+
 # Deployment of 2026-10-18
 
 A dated record (DOC-01, DOC-03): the revisions that reached amcp.shop on 2026-10-18, and the commits that recorded the

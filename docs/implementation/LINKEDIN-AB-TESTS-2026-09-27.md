@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn A/B tests — 2026-09-27
 
 Base revision: `4298a36` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

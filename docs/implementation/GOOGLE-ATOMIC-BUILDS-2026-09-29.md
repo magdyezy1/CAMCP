@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google all-or-nothing builds — 2026-09-29
 
 The owner's item 5 asked for "one review for a whole build, all or nothing". Batch 29 gave a plan one approval

@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # OAuth compatibility and hardening decisions
 
 ## Claude remote MCP

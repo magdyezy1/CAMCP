@@ -1,3 +1,8 @@
+---
+status: proposal
+tier: engineering
+---
+
 # Roadmap
 
 ## Current implementation — 1 October 2026

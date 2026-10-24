@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok change log download tasks — 2026-09-27
 
 Base revision: `39ee55b` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

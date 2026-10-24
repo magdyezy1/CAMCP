@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X creative implementation: verification evidence
 
 Baseline: 51c08b162f09625ccc74aeee41d84aef231364a2 on Codex-branch. See [scope, findings and decisions](X-CREATIVE-REVIEW.md). Windows Node 24.19.0 / npm 11.17.0 / TypeScript 7.0.2. No live advertising requests, credential/permission changes or deployments.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Maintained browser semantics and public comparison interpretation — 5 October 2026
 
 Repository: magdyezy1/CAMCP. Sole working/push branch: Work-here.

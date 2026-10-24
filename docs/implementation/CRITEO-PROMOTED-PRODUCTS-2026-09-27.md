@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo promoted products — 2026-09-27
 
 Base revision: `78c1252` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

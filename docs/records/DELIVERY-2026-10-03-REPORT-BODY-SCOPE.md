@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 115 — scoped encoded report bodies and credential containment
 
 Baseline: `f076d8059050470166cdfa274e1f099be866606d`. Sole repository `magdyezy1/CAMCP`, sole branch `Work-here`.

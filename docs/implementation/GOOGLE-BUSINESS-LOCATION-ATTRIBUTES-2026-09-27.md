@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Business Profile location attributes — 2026-09-27
 
 Base revision: `ee25dfa` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

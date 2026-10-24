@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Adjust reporting implementation — 2026-09-25
 
 Branch: `Codex-branch`; base revision

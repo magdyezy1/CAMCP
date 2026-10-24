@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta value rule sets — 2026-09-26
 
 Base revision: `40fd508` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

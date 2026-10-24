@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat custom conversions — 2026-09-27
 
 Base revision: `8becdaa` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

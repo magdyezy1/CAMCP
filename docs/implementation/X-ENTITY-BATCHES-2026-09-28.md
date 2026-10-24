@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X campaign and line item batches — 2026-09-28
 
 Base revision: `fd8340b` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

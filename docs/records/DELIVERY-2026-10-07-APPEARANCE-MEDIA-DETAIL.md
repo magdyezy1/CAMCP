@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Appearance, thirty-minute uploads and detailed report export
 
 Batch 191 follows the conditional-program and budget-evidence implementation.

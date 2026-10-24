@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Persistent shared workspace form feedback
 
 Batch 165 extends the shared workspace form binding beyond the two GA4 controllers already

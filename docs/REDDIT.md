@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Reddit adapter
 
 All 49 action names exposed by the seven captured Reddit operation schemas resolve to the saved official v3 specification. Six independent AMCP actions, CREATE_SAVED_AUDIENCE, UPDATE_SAVED_AUDIENCE and four planning/history reads (below), extend reddit_account_ops at runtime without rewriting the captured catalog. Some names are aliases of the same vendor operation. Mappings are independently designed; exact AMCP behavior and live Reddit execution are not verified. The specification is captured in `.mirror/VENDOR/reddit-v3.json` and regenerated through `tools/fetch-vendor-specs.mjs`. [Official API specification](https://ads-api.reddit.com/api/v3/openapi.json).

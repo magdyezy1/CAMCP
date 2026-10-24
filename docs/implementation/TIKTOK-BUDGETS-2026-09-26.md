@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok ad group budgets — 2026-09-26
 
 Base revision: `bbd3324` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

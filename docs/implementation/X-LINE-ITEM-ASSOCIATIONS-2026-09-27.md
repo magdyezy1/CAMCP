@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X promoted accounts, media creatives and scheduled promoted Tweets — 2026-09-27
 
 Base revision: `4403458` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat workflow defects — 2026-09-26
 
 Base revision: `11fc25c` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

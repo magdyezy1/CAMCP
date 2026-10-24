@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Release acceptance, public source evidence and conditional provider access
 
 Batch 185 completes the measured website-diagnostic inventory and improves public source

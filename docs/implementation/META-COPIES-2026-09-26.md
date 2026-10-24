@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta native copies — 2026-09-26
 
 Base revision: `a99dfdd` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

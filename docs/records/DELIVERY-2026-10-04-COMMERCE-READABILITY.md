@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Readable product review and early destination validation
 
 Batch 150 improves selected commerce tables and the source-to-review contract. It fixes reproduced

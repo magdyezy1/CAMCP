@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Retained evidence browsing and full original workbook delivery
 
 Batch 155 adds explicit 10/25/50/100-row page choices to saved native evidence. The default remains 50. An explicit choice returns to the first page of the same report and active search using the

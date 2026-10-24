@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # HTTP startup and public DNS incident — 2026-09-24
 
 The user supplied Railway startup logs and a browser NXDOMAIN screenshot before

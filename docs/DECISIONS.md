@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Decisions
 
 The maintained record of owner decisions and of what happened to earlier recommendations (DOC-02). Each row names the

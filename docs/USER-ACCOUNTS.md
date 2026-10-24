@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # AMCP accounts and workspace access
 
 People sign in with a verified email/password or an explicitly linked Google, Apple or Facebook identity. A person can belong to multiple workspaces. Connections, selected accounts and reports belong to the workspace.

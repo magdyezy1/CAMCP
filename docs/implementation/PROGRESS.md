@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Audit recommendations implementation
 
 Current contract-expansion pass: [ALL-ACTIONS-2026-09-18.md](ALL-ACTIONS-2026-09-18.md).

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn video recovery and media lease correction
 
 Base revision: `7668016` on `Codex-branch`. This follows candidate F's qualified

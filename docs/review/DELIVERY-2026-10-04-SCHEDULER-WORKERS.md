@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Batch 133 — schedule selection and worker contention
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

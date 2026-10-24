@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Local rendered website qualification
 
 Run `npm run check:browser -- --output-dir .runtime/<fresh-directory>` from the Git checkout root

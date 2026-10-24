@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads experiment scheduling, ending, promotion and graduation — 2026-09-27
 
 Base revision: `1970383` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

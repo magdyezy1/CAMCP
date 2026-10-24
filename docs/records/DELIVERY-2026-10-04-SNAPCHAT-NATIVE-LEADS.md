@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat native lead submissions and source-preserving performance — 4 October 2026
 
 Batch 126 extends guided reporting to 19 presets across five platforms. New

@@ -21,6 +21,10 @@
 // The repository README is the one page outside docs/: it is GitHub's landing page, so it carries no block and its
 // meta data is declared here (pageMeta). docs/REPORTING-OVERVIEW.md is also an MCP guide resource: src/guidance.ts
 // serves it without its front matter, so AI clients read the same text as before.
+//
+// The index (tools/docs-index.mjs) places every page from its front matter, and the documentation lint
+// (tools/docs-lint.mjs) counts the owner and operator tiers' current pages against their word budget. A page's folder
+// must agree with what it says it is (folderRules): a dated record never passes for a current page.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,6 +33,17 @@ export const tiers = Object.freeze(['owner', 'operator', 'engineering']);
 const keys = Object.freeze(['status', 'tier', 'generated']);
 /** The pages outside docs/ the documentation counts, with the meta data their front matter would hold. */
 export const declaredMeta = Object.freeze({'README.md': Object.freeze({status: 'current', tier: 'operator'})});
+/**
+ * What a page in these folders may say it is: the dated records and the implementation records are records (the one
+ * generated report among the implementation records is a reference), the archive is archived, and the owner guide is
+ * the owner tier's current pages. No other folder holds the owner tier.
+ */
+export const folderRules = Object.freeze([
+  {folder: 'docs/records/', statuses: ['record']},
+  {folder: 'docs/implementation/', statuses: ['record', 'reference']},
+  {folder: 'docs/archive/', statuses: ['archived']},
+  {folder: 'docs/owner/', statuses: ['current'], tiers: ['owner']},
+]);
 
 const block = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 /** A page's front matter and the text after it: {data, body}; data is null when the page opens without a block. */
@@ -79,4 +94,44 @@ export function pageMeta(root, file) {
   if (Object.hasOwn(declaredMeta, file)) return {...declaredMeta[file]};
   const {data} = frontMatter(fs.readFileSync(path.join(root, file), 'utf8'));
   return data && data.invalid === undefined ? data : null;
+}
+/** Every documentation page, repository-relative and sorted: the repository README and each Markdown page in docs/. */
+export function documentationPages(root = process.cwd()) {
+  const out = [];
+  const visit = relative => {
+    for (const entry of fs.readdirSync(path.join(root, relative), {withFileTypes: true})) {
+      const file = relative + '/' + entry.name;
+      if (entry.isDirectory()) visit(file);
+      else if (entry.name.endsWith('.md')) out.push(file);
+    }
+  };
+  if (fs.existsSync(path.join(root, 'docs'))) visit('docs');
+  return [...(fs.existsSync(path.join(root, 'README.md')) ? ['README.md'] : []), ...out.sort()];
+}
+/**
+ * Every documentation page's front matter problem (an empty list passes): a page without a valid block, a page whose
+ * folder holds another kind of page, a redirect stub (`stubs`, the old addresses of docs/moved.json) that is not
+ * archived, and a generator that does not exist.
+ */
+export function documentationProblems(root = process.cwd(), stubs = new Set()) {
+  const problems = [];
+  for (const file of documentationPages(root)) {
+    if (Object.hasOwn(declaredMeta, file)) continue;
+    const text = fs.readFileSync(path.join(root, file), 'utf8'),
+      found = frontMatterProblems(file, text);
+    problems.push(...found);
+    if (found.length) continue;
+    const {data} = frontMatter(text),
+      rule = folderRules.find(r => file.startsWith(r.folder));
+    if (rule && !rule.statuses.includes(data.status))
+      problems.push(file + ': a page in ' + rule.folder + ' is ' + rule.statuses.join(' or ') + ', not ' + data.status);
+    if (rule?.tiers && !rule.tiers.includes(data.tier))
+      problems.push(file + ': a page in ' + rule.folder + ' is for the ' + rule.tiers.join(' or ') + ' tier');
+    if (data.tier === 'owner' && !file.startsWith('docs/owner/'))
+      problems.push(file + ': the owner tier is the owner guide, in docs/owner/');
+    if (stubs.has(file) && data.status !== 'archived') problems.push(file + ': a redirect stub is archived');
+    if (data.generated && !fs.existsSync(path.join(root, data.generated)))
+      problems.push(file + ': its generator ' + data.generated + ' does not exist');
+  }
+  return problems;
 }

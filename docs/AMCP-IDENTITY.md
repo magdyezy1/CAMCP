@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # AMCP identity and interface migration
 
 The current repository uses AMCP naming throughout source, generated catalogs, fixtures, documentation and website assets. Historical Git commits are retained; this release does not rewrite repository history. Baseline metadata is normalized development input, not an untouched external transcript. Vendor-owned schemas and their embedded notices retain their attribution.

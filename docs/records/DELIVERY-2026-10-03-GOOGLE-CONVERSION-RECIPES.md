@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Search conversion bidding and native strategy verification
 
 Batch 117, 2026-10-03. Repository magdyezy1/CAMCP; sole branch Work-here.

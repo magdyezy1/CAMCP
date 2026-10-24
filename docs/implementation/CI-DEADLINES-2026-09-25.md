@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # CI deadline failure — 2026-09-25
 
 Confirmed GitHub failure: [AMCP checks #96](https://github.com/magdyezy1/AMCP/actions/runs/36063643340)

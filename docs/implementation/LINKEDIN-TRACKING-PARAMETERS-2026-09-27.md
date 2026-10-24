@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn dynamic UTM tracking parameters — 2026-09-27
 
 Base revision: `c156b32` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

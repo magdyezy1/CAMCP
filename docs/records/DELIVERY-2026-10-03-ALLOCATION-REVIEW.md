@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Readable saved allocation proposals and report metrics
 
 **3 October 2026 · batch 109 · `magdyezy1/CAMCP` · `Work-here` · baseline `2709173`.**

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Conditional programs, repeated budget evidence and client parity
 
 Batch 190 continues the implementation against `bf84eabc2368010b1a60932c4035d2a3906b0f5f`.

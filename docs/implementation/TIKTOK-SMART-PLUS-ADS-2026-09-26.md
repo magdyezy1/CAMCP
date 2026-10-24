@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ Spark Ads — 2026-09-26
 
 Base revision: `bad418f` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

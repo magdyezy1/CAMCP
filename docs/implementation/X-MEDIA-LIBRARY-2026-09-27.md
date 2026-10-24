@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X media library and account media — 2026-09-27
 
 Base revision: `5f2acb4` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

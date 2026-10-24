@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Write coverage: what stays blocked and why
 
 **2 October 2026, batch 82:** Activity/MCP history now returns bounded, currently scoped event

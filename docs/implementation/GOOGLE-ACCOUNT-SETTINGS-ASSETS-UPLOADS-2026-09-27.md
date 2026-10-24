@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads account settings, automatically created asset removal and YouTube uploads — 2026-09-27
 
 Base revision: `e9db0db` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

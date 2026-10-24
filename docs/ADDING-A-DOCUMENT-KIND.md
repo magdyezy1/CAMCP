@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Adding a document kind
 
 How to store a new kind of record, or change an existing one, without weakening workspace isolation, retention,

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo campaign and line item budget overrides — 2026-09-27
 
 Base revision: `6bf3f05` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

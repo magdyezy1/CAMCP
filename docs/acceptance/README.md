@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # Acceptance runbooks
 
 How the owner runs each live, deployed or manual acceptance of the 2026-10-08 engineering review (ACC-01 to ACC-08)

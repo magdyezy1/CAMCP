@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # Current readiness
 
 What AMCP does today, how far each part has been accepted, and what is left. This page describes branch `Work-here`

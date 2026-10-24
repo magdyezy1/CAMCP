@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # AMCP threat model
 
 **Current implementation note, 1 October 2026.** The numbered threat ratings and gap descriptions below are

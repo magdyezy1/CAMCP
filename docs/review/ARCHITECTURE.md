@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # AMCP architecture
 
 This is the module map, request lifecycle and trust-boundary view of AMCP. It is a dated baseline: sections 1 to 7 were

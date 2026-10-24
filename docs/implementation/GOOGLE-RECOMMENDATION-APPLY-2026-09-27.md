@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Applying Google Ads keyword and campaign budget recommendations — 2026-09-27
 
 Base revision: `2ac1127` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

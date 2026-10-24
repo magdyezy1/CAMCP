@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Current campaign brief eligibility and form integrity
 
 Batch 105, 2026-10-03. Work only in `magdyezy1/CAMCP`, branch `Work-here`.

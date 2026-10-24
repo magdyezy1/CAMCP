@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Catalog import comparison and focused review drafts
 
 Batch 116, 2026-10-03. Repository `magdyezy1/CAMCP`, branch `Work-here` only.

@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # AMCP capability review — 8 September 2026
 
 **Archived on 2026-10-22** (DOC-03, owner decision P12): kept as it was written, with links to current addresses.

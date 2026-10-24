@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Platform contracts: research, implementation and verification
 
 Reviewed against the user-supplied **AMCP — Platform Contracts & Integration Guide**, dated 14 September 2026. Its SHA-256 was `be7e88513976a350b1d0770e6c8b5a5c848559314620ee133060d0ceb9fd0dc0`. The document was evidence to investigate, not permission to change provider grants, publish advertisements, apply for access or reset accounts.

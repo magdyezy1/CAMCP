@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat lead generation forms — 2026-09-26
 
 Base revision: `d88f1e0` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Original Google campaign/hour/day evidence
 
 Batch 179 adds a seventh separate Google capture preset, google_campaign_hour, against baseline

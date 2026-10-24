@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 131 — current native media references
 
 Baseline `37bb851`. Sole repository `magdyezy1/CAMCP`, branch `Work-here`, checkout

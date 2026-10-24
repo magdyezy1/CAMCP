@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok dynamic CTA portfolios — 2026-09-26
 
 Base revision: `b8338ab` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn third-party tracking tags — 2026-09-27
 
 Base revision: `3a2d50d` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

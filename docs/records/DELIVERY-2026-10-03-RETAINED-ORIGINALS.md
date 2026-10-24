@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Delivery — explicitly retained encrypted creative originals
 
 Date: 2026-10-03. Baseline: `2a11b96`. Repository/branch: `magdyezy1/CAMCP`, `Work-here`.

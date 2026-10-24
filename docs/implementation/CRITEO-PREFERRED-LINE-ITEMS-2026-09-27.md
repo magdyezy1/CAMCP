@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo preferred line items — 2026-09-27
 
 Base revision: `ac37309` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

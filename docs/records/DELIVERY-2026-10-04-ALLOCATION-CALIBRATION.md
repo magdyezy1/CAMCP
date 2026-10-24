@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 132 — historical allocation calibration
 
 Baseline `5195db3`. Sole checkout `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok account brand safety — 2026-09-26
 
 Base revision: `e16d168` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

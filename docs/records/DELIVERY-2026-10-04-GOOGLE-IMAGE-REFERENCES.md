@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Current Google image references
 
 Baseline: `8a50e75`. Batch 143 advances B08/B10/B15/B16/B22/B24 with a bounded original-image

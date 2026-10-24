@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta catalog product field proof — 4 October 2026
 
 Batch 148 fixes F-209: optional fields accepted by a reviewed native catalog write could be absent from its

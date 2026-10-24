@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Populated GA4 event evidence in English and Arabic
 
 Batch 154 improves the existing recent-event observation view. The summary and minute/stream tables

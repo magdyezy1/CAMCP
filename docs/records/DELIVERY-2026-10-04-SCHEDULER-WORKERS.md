@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 133 — schedule selection and worker contention
 
 Baseline `5081152`. Sole checkout `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here`.

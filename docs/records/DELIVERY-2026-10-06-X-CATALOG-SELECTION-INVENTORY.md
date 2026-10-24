@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Inspect other listed X products while retaining source boundaries
 
 Batch 180 extends the existing read-only catalog comparison against baseline

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo auction campaigns: implementation and evidence
 
 Base: Codex-branch at 6065847f96edde164b9b697cecc1f0500ad81ccc.

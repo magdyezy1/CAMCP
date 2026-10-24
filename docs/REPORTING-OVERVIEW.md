@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Reporting Overview
 
 Finished snapshots also provide branded PDF and Excel downloads through client report packs. Generation is

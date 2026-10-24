@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Original Snapchat top-snap creative references — 4 October 2026
 
 Repository `magdyezy1/CAMCP`; sole working and push branch `Work-here`; checkout `CAMCP-Codes-final-branch`.

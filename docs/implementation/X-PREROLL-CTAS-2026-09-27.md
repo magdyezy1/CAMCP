@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X pre-roll calls to action — 2026-09-27
 
 Base revision: `5b0caa4` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

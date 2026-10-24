@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Constrained campaign allocation proposals — 1 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

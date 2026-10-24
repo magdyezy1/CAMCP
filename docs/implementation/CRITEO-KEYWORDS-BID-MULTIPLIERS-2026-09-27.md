@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo keywords and bid multipliers — 2026-09-27
 
 Base revision: `c96529c` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

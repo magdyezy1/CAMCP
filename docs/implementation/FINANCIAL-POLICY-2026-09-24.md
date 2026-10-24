@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Spending-policy arithmetic and native cap enforcement
 
 Base: Codex-branch at 1605498aaeceddabe532210a6a5ae6a0a3e5f527.

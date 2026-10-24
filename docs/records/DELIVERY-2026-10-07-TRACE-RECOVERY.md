@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Scoped report recovery and supplied measurement traces
 
 Batch 192 closes three identified source gaps on `magdyezy1/CAMCP`, sole branch

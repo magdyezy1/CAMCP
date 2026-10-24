@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Worker stage recovery across both entry points
 
 Batch 162 follows through B16/B23 with an inspected worker lifecycle improvement. The HTTP worker

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat brief S1–S14 — 2026-09-29
 
 Source: the owner's engineering brief after two live Snapchat tests (25 and 29 September 2026) that cloned a LEADS

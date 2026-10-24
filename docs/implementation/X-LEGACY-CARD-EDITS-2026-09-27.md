@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X poll and conversation card edits and deletions — 2026-09-27
 
 Base revision: `24facf6` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

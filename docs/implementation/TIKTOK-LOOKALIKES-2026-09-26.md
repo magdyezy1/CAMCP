@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok lookalike audiences — 2026-09-26
 
 Base revision: `6521d0d` on `Codex-branch`, working copy `Downloads/CLaude workspace`. Push target: `magdyezy1/CAMCP` only. No live provider calls,

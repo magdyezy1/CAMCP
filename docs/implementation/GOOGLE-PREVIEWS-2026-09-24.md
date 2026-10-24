@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google shareable previews — implementation evidence
 
 Status: implementation and full sanitized validation complete: 1520 main and four

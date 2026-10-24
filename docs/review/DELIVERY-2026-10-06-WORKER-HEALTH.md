@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Bounded worker liveness and concurrent client qualification
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

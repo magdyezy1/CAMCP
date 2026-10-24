@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Media uploads
 
 The Creative page now starts with a searchable metadata library, editable internal names/tags and verified retained

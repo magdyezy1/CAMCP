@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok library image edits — 2026-09-27
 
 Base revision: `0319a4c` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Connected product workflows
 
 Implemented on `magdyezy1/CAMCP`, branch `Work-here`, on 1 October 2026. These website views call the same

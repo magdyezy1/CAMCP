@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Selected WooCommerce products into reviewed Meta imports
 
 Batch 146 advances B21 with a native, read-only WooCommerce product source. Previously Commerce could map

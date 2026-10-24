@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo auction line items — 2026-09-27
 
 Base revision: `8fa32bf` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

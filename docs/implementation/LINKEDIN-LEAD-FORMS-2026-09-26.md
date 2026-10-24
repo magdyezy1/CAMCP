@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn lead gen forms — 2026-09-26
 
 Base revision: `e45400e` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

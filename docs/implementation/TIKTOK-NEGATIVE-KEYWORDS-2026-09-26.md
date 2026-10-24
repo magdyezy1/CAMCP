@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Search Ads negative keywords — 2026-09-26
 
 Base revision: `242470d` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

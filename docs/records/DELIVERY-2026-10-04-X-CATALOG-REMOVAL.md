@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 138 — explicit X product removal with original receipt recovery
 
 Commerce now supports selecting observed individual X products for an unapproved removal draft. Nothing is

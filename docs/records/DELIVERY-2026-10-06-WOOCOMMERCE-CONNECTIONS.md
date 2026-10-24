@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Administrator WooCommerce source setup and local removal
 
 Batch 184 adds the missing administrator path between a merchant's existing WooCommerce Read key

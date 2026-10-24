@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn Insight Tags — 2026-09-27
 
 Base revision: `993ee35` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Findings register
 
 Review of `Codex-branch` from `03ac8d3` (2026-09-28). Areas follow the brief (5.1 architecture … 5.9 developer

@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # Opt-in isolated sandbox verification
 
 The ordinary checks use synthetic fixtures. `npm run test:sandbox` skips before reading a fixture or credentials unless `AMCP_LIVE_SANDBOX=true`. No live sandbox call was made during this implementation.

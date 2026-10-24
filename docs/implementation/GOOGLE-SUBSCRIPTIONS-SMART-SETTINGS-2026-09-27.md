@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads recommendation subscriptions and Smart campaign settings — 2026-09-27
 
 Base revision: `b6124bd` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

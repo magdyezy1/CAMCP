@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Provider action implementation progress
 
 Latest resume entry: [2026-09-26 handoff](RESUME-HANDOFF-2026-09-26.md) (worktree and push target changed).

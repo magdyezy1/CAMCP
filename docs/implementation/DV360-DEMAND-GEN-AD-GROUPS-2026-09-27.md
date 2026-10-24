@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 Demand Gen ad groups — 2026-09-27
 
 Base revision: `ff9c443` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

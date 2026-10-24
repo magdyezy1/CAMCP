@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Accessibility report
 
 Method: the site ran locally (`node dist/server/http.js`, throwaway database and key, no provider traffic) and a

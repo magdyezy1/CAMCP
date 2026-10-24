@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta deep campaign copies — 2026-09-26
 
 Base revision: `e227872` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

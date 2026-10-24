@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Sheets delivery acceptance on a disposable spreadsheet
 
 The owner-run acceptance of Google Sheets delivery (ACC-03): one bounded export and three hourly scheduled deliveries

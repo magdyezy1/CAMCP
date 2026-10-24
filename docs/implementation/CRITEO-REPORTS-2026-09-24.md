@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo asynchronous report contracts — 2026-09-24
 
 Base revision: `1cfc82e74982445105d0f5381b244382f07ea58c`, branch

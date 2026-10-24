@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat planning reads — 2026-09-26
 
 Base revision: `1140286` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

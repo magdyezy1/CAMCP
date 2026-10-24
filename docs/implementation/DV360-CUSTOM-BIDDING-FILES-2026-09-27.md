@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 custom bidding scripts and rules — 2026-09-27
 
 Base revision: `607d20d` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

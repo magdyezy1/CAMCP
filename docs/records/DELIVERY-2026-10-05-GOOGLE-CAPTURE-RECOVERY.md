@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Authored Google capture diagnostics and explicit recovery
 
 Batch 158 completes selected Google reporting refusal and recovery display in Arabic. All 27 direct

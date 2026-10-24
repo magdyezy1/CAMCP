@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 line item duplication — 2026-09-27
 
 Base revision: `37b18b3` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

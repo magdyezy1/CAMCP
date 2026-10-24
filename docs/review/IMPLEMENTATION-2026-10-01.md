@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # AMCP product implementation and qualification — 1 October 2026
 
 Repository: `magdyezy1/CAMCP`. Sole working/push branch: `Work-here`. Baseline: `c615cb7`.

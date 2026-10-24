@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo audience segments — 2026-09-27
 
 Base revision: `3faac7b` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

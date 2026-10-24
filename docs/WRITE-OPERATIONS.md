@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Reviewed write operations
 
 AMCP supports explicitly reviewed campaign-management mutations. The existing native gateways still provide reads and local dry runs. The additional `amcp_write` tool handles live execution when enabled. This extension is independently designed; it does not establish complete behavioral equivalence with AMCP.

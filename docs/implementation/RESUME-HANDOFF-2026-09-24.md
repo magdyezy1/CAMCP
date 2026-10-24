@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # AMCP continuation checkpoint — 2026-09-24
 
 Superseded for current resume state by the [September 25 handoff](RESUME-HANDOFF-2026-09-25.md).

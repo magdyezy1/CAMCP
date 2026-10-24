@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Authored Arabic for all shared recovery guidance
 
 Batch 164 completes the finite shared recovery-copy inventory in src/errors.ts: all 122 authored

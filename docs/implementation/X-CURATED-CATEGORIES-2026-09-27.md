@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X pre-roll curated categories — 2026-09-27
 
 Base revision: `830de73` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

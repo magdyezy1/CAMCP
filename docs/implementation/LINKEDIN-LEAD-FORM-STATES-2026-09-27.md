@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn lead form publishing and archiving — 2026-09-27
 
 Base revision: `3a3a46d` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

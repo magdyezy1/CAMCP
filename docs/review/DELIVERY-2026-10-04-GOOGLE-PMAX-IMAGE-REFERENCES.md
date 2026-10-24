@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Current Performance Max image asset-group references
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

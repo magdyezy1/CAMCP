@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Supplier CSV column mapping for Commerce — 2 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Original Google campaign/device/day evidence
 
 Batch 159 adds a sixth separate Google capture preset, google_campaign_device. It reads campaign

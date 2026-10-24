@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat product sets — 2026-09-27
 
 Base revision: `09b5472` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

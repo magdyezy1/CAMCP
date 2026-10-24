@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 Demand Gen targeting — 2026-09-27
 
 Base revision: `9e46fd9` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Business Profile lodging facts — 2026-09-28
 
 Base revision: `9d2011e` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Authored provider capture refusals in Arabic
 
 Batch 161 translates 76 distinct AMCP-authored refusal sentences in four native capture collectors:

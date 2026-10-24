@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 128 — guided additional-consent drafts
 
 Only `magdyezy1/CAMCP`, branch `Work-here`, in `CAMCP-Codes-final-branch`. This continues the original

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok previews and Smart Text — 2026-09-27
 
 Base revision: `03d7b89` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # Deploy AMCP on Railway with Cloudflare DNS
 
 Repository: https://github.com/magdyezy1/CAMCP; development branch: `Work-here`.

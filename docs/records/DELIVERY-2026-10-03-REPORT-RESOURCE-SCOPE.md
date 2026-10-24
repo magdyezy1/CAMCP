@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Retained GA4 and Search Console reporting scope
 
 Batch 119, 2026-10-03. Repository magdyezy1/CAMCP; sole branch Work-here. Baseline 54a7fef.

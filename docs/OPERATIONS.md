@@ -1,3 +1,8 @@
+---
+status: current
+tier: operator
+---
+
 # Operations
 
 This runbook covers the current single-host deployment with read access by default and optional reviewed writes. It does not certify production release.

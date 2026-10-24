@@ -145,9 +145,12 @@ test('a link to a moved address is refused until rewritten; the rewrite re-bases
     fs.readFileSync(path.join(root, 'README.md'), 'utf8'),
     '# AMCP\n\n[record](docs/records/DELIVERY-A.md)\n',
   );
+  // DOC-03: every documentation page opens with its front matter; a stub is archived, for its target's tier (a page
+  // without front matter, as here, is for engineering). Before, a stub had none.
   assert.equal(
     fs.readFileSync(path.join(root, 'docs/review/DELIVERY-A.md'), 'utf8'),
-    '# Moved: Delivery — 1 October 2026\n\nThis document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and ' +
+    '---\nstatus: archived\ntier: engineering\n---\n\n' +
+      '# Moved: Delivery — 1 October 2026\n\nThis document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and ' +
       'history are kept at\n[docs/records/DELIVERY-A.md](../records/DELIVERY-A.md); this page only keeps links to the ' +
       'old address working.\n',
   );

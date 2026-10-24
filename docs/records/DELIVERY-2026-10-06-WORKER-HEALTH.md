@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Bounded worker liveness and concurrent client qualification
 
 Batch 183 improves owner health/support observations and settings against

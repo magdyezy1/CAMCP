@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Delivery 166 — LinkedIn conversion method, ownership and collection scope
 
 The selected-account conversion inspection now exposes the native registration method and

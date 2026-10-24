@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta ad account name, EU payor and beneficiary — 2026-09-27
 
 Base revision: `e53b8ce` on `Codex-branch`, working copy `Downloads/CLaude workspace`.
