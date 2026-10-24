@@ -420,6 +420,7 @@ its consolidation moved it here.
 | — | [Operations runbook notes of the October 2026 deliveries](records/OPERATIONS-NOTES-2026-10.md) |
 | — | [Workflow guide batch notes of the October 2026 deliveries](records/PRODUCT-WORKFLOWS-BATCH-NOTES-2026-10.md) |
 | — | [Progress log](records/PROGRESS.md) |
+| — | [Threat model delivery notes of the October 2026 batches](records/THREAT-MODEL-NOTES-2026-10.md) |
 | — | [Accessibility report](review/ACCESSIBILITY.md) |
 | 2026-10-01 | [Source-bound native budget drafts — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION-PLANS.md) |
 | 2026-10-01 | [Constrained campaign allocation proposals — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION.md) |
