@@ -9,6 +9,7 @@ import type {
   ProviderParking,
   ProviderStatus,
 } from './provider-adapter.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * The provider adapter registry (ARC-01): one adapter per provider gateway, each with its lifecycle status. This module
@@ -114,6 +115,8 @@ function adapter(
     ...(options.deletions ? {deletions: bodyDeletions(options.deletions)} : {}),
     // Its entity writes are the table below's entry for its ID (ARC-01 phase B).
     ...(Object.hasOwn(entityWriteRoutes, id) ? {entityWrites: Object.freeze({...entityWriteRoutes[id]!})} : {}),
+    // Its facts of the review's summary and spending stages, the table below's entry for its ID (ARC-01 phase B).
+    ...(Object.hasOwn(reviewStageFacts, id) ? reviewStageFacts[id] : {}),
     ...(options.paging ? {paging: Object.freeze({...options.paging})} : {}),
     ...(options.executionOptions ? {executionOptions: true as const} : {}),
     // The grant's scope lists stay the declared arrays, as the grant registry kept them.
@@ -181,6 +184,48 @@ const entityWriteRoutes: Readonly<Record<string, EntityWrites>> = {
       (['PATCH', 'DELETE'].includes(p.method) &&
         /^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(p.path)),
   },
+};
+
+// The entity each Google Ads service's :mutate names, for the review summary.
+const googleMutateKinds: Record<string, string> = {
+  campaigns: 'campaign',
+  adGroups: 'ad group',
+  adGroupAds: 'ad group ad',
+  campaignBudgets: 'campaign budget',
+  ads: 'ad',
+  assets: 'asset',
+  assetGroups: 'asset group',
+  campaignCriteria: 'campaign criterion',
+  adGroupCriteria: 'ad group criterion',
+  sharedSets: 'shared set',
+  sharedCriteria: 'shared criterion',
+  campaignSharedSets: 'campaign shared set',
+};
+/** A Google Ads :mutate request's operations: each a create, a remove or an update, one entity kind per service. */
+function googleMutateOperations(plan: CompiledRequest): {operation: string; entity: string; count: number} {
+  const body = plan.body as unknown;
+  const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1] ?? '',
+    operations =
+      !!body && typeof body === 'object' && !Array.isArray(body) && Array.isArray((body as JsonObject).operations)
+        ? ((body as JsonObject).operations as JsonObject[])
+        : [];
+  const ops = operations.map((op: JsonObject) =>
+    op?.create !== undefined ? 'create' : op?.remove !== undefined ? 'remove' : 'update',
+  );
+  const kinds = [...new Set(ops)];
+  return {
+    operation: kinds.length === 1 ? (kinds[0] as string) : 'change',
+    entity: googleMutateKinds[kind] ?? kind,
+    count: ops.length || 1,
+  };
+}
+/**
+ * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts), by
+ * provider ID, each moved unchanged and frozen here; each adapter takes its ID's entry.
+ * tests/provider-review-stages.test.mjs compares every stage with its branch as it was.
+ */
+const reviewStageFacts: Readonly<Record<string, Pick<ProviderAdapter, 'reviewOperations'>>> = {
+  google: {reviewOperations: Object.freeze({summarize: googleMutateOperations})},
 };
 
 // The account fields, references and path patterns ScopeGuard compares (ARC-01 phase B: they were tables in

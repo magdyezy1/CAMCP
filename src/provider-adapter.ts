@@ -101,6 +101,15 @@ export interface EntityWrites {
 }
 
 /**
+ * How the one-line review summary names what a provider's write does (WRT-05 stage E; ARC-01 phase B: a branch of
+ * src/review-summary.ts): its operation, the kind of entity and how many, read from the request alone. A provider
+ * without it is summarized from the request's path, method and action.
+ */
+export interface ReviewOperations {
+  summarize(plan: CompiledRequest): {operation: string; entity: string; count: number};
+}
+
+/**
  * A provider's read classification (ARC-01 phase B): its documented exceptions to the generic read rules of
  * src/execution-risk.ts, which keeps every rule and decides. A request classified as a read still passes ScopeGuard and
  * every review rule.
@@ -500,6 +509,8 @@ export interface ProviderAdapter {
   readonly deletions?: BodyDeletions;
   /** Its generic entity writes, the reviewed route src/reviewed-routes.ts gives a write no registered family claims. */
   readonly entityWrites?: EntityWrites;
+  /** How the review summary names its writes' operations (Google Ads' :mutate operations), src/review-summary.ts. */
+  readonly reviewOperations?: ReviewOperations;
   readonly paging?: PagingFacts;
   /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
   readonly executionOptions?: true;
