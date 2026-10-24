@@ -8,7 +8,7 @@ The GA4 connection requests only `https://www.googleapis.com/auth/analytics.read
 
 | User-facing feature | Implementation | Why Analytics access is needed |
 | --- | --- | --- |
-| Connections → Google Analytics 4 → Manage → property selection | `server/asset-discovery.ts`: Admin API `accountSummaries.list` | Show authorized property IDs and names so users can select the correct property. |
+| Connections → Google Analytics 4 → Manage → property selection | `src/ga4-login.ts` (GA4's discovery step, run by `server/asset-discovery.ts`): Admin API `accountSummaries.list` | Show authorized property IDs and names so users can select the correct property. |
 | Report currency and timezone | `src/report-native.ts`: Admin API `properties.get` | Interpret the report in the selected property's own reporting context. |
 | Reporting overview → Pull campaign report | `src/report-native.ts`: Data API `properties.runReport` | Read sessions, total users, key events and total revenue for session campaign ID/name and the selected dates. |
 | Additional native and custom metrics | `src/report-native.ts`, `src/report-metrics.ts`, `src/reporting-overview.ts` | Request supported extra metrics and calculate formulas from report values inside AMCP. |

@@ -176,8 +176,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // guidance and Settings sentences, the metric aggregation words and the one-step plural); no owned reason changes.
   // Its review fixes add the other three reviewer sign-in sentences the server can return (server/web-store.ts) and
   // reword an uncertain write (one message added, the remedy replaced): 11,513 entries.
-  assert.equal(files.length, 669);
-  assert.equal(selected.filter(row => row.messages.size).length, 253);
+  // ARC-01 phase B's server discovery configurations move each provider's asset discovery step from
+  // server/asset-discovery.ts to its website login module (src/<provider>-login.ts, fifteen, their registry
+  // src/provider-logins.ts and their contract src/provider-login.ts, which owns no reason) and Google Ads' hierarchy
+  // discovery to src/google-account-discovery.ts (the server module re-exports it): eighteen more files, eleven more
+  // files with reasons (the eleven login modules that own reasons and the hierarchy module, less the server module the
+  // hierarchy's reasons left), the same reasons.
+  assert.equal(files.length, 687);
+  assert.equal(selected.filter(row => row.messages.size).length, 264);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

@@ -4,11 +4,16 @@ import fs from 'node:fs';
 import {inspectWebsiteFailures, localeProblems, websiteFailureSources} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+// ARC-01 phase B, the server discovery configurations: each provider's discovery step left server/asset-discovery.ts
+// for its website login module (src/<provider>-login.ts), and Google Ads' hierarchy discovery left
+// server/google-account-discovery.ts (now its re-export) for src/google-account-discovery.ts. Their 37 reasons moved with
+// them out of this inventory into the backend one (tests/backend-contract-localization.test.mjs, whose owned reasons
+// are unchanged): the stage keeps 20, its own, and the total below fell from 259 to 222.
 const counts = {
   'server/account-routes.ts': 4,
   'server/account-security.ts': 45,
-  'server/asset-discovery.ts': 49,
-  'server/google-account-discovery.ts': 8,
+  'server/asset-discovery.ts': 20,
+  'server/google-account-discovery.ts': 0,
   'server/google-reauthorization.ts': 12,
   'server/http-app.ts': 6,
   'server/media-source-routes.ts': 5,
@@ -81,7 +86,7 @@ test('all selected website sources have exact authored diagnostic coverage with 
   assert.deepEqual(Object.keys(counts).sort(), [...websiteFailureSources].sort());
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 259);
+  assert.equal(owned.size, 222);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

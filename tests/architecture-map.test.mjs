@@ -74,6 +74,11 @@ test('provider modules are the provider filename groups; the lifecycle and the w
   assert.equal(isProviderModule('src/tiktok-adapter.ts'), true);
   assert.equal(isProviderModule('src/google-search-console-adapter.ts'), true);
   assert.equal(isProviderModule('src/provider-adapter.ts'), false);
+  // The provider login registry and each provider's website login steps (ARC-01 phase B, the server discovery and
+  // OAuth configurations).
+  assert.equal(isProviderModule('src/provider-logins.ts'), true);
+  assert.equal(isProviderModule('src/meta-login.ts'), true);
+  assert.equal(isProviderModule('src/google-files-login.ts'), true);
   assert.equal(isProviderModule('src/portfolio-runner.ts'), false);
   assert.equal(isProviderModule('src/report-source.ts'), false);
   assert.equal(isProviderModule('src/report-job.ts'), false);

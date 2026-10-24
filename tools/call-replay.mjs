@@ -74,9 +74,14 @@ export const targets = Object.freeze({
   'dist/src/auth.js': {classes: {CredentialProvider: ['get']}},
   'dist/server/platform-oauth.js': {
     functions: ['platform', 'selectionKind', 'selectableKinds'],
-    classes: {PlatformOAuth: ['config', 'publicConfig', 'connectService', 'exchange']},
+    // `start` since the OAuth flow steps moved into the adapters (ARC-01 phase B): its authorization URL, and X's
+    // request-token call through the instance's fetcher.
+    classes: {PlatformOAuth: ['config', 'publicConfig', 'connectService', 'exchange', 'start']},
   },
   'dist/server/asset-discovery.js': {classes: {AssetDiscovery: ['sync', 'discoverWith']}},
+  // ARC-04: the WooCommerce store setup, split into staged steps; its outcome per call (the requests go through the
+  // caller's own request function, which the suites' fixtures answer).
+  'dist/src/woocommerce-connection.js': {functions: ['connectWooCommerce']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
