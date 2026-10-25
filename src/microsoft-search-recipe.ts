@@ -5,6 +5,8 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money} from './recipe-values.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
+import {microsoftLocationLookupStatus} from './microsoft-location-pin.js';
 import {
   assertRecipeAtomic,
   recipeDates,
@@ -151,3 +153,13 @@ export function buildMicrosoftSearchRecipe(b: JsonObject): JsonObject {
       'Activation is a separate plan. AMCP refuses to activate this campaign without a positive location criterion (owner decision P7).',
   });
 }
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of the recipe, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+export const microsoftSearchContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Enter Microsoft location IDs of Active locations from its geographical locations file, one per line: each becomes a positive location criterion of the paused campaign, read back by ID, and activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies (people in, searching for or viewing pages about these locations). Activation is a separate plan, refused without a positive location criterion.',
+  ]),
+  // CMP-03: whether recipe_lookup can search Microsoft's geographical locations file in this deployment.
+  extra: () => ({location_lookup: microsoftLocationLookupStatus()}),
+});

@@ -30,8 +30,8 @@ import {googleAdsCustomers} from './google-version.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
-import {buildGoogleSearchRecipe, googleSearchRecipes} from './google-search-recipes.js';
-import {buildGooglePmaxRecipe, googlePmaxRecipe} from './google-pmax-recipe.js';
+import {buildGoogleSearchRecipe, googleSearchRecipeContext, googleSearchRecipes} from './google-search-recipes.js';
+import {buildGooglePmaxRecipe, googlePmaxContext, googlePmaxRecipe} from './google-pmax-recipe.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {googleStateReads} from './google-state-reads.js';
@@ -561,9 +561,13 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   campaign: Object.freeze({
     recipes: Object.freeze([
       ...googleSearchRecipes.map(definition =>
-        Object.freeze({definition, build: (b: JsonObject) => buildGoogleSearchRecipe(definition.id, b)}),
+        Object.freeze({
+          definition,
+          build: (b: JsonObject) => buildGoogleSearchRecipe(definition.id, b),
+          context: googleSearchRecipeContext(definition.id),
+        }),
       ),
-      Object.freeze({definition: googlePmaxRecipe, build: buildGooglePmaxRecipe}),
+      Object.freeze({definition: googlePmaxRecipe, build: buildGooglePmaxRecipe, context: googlePmaxContext}),
     ]),
     // A Search campaign, read and recreated paused; one all-or-nothing build by default (src/campaign-clone.ts,
     // src/campaign-runner.ts), whose customer is compared without the dashes of its display form.

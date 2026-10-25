@@ -62,8 +62,10 @@ import {
 // Writes and campaigns (wave 4c).
 import {
   buildTiktokLaunchRecipe,
+  tiktokConversionContext,
   tiktokConversionRecipe,
   tiktokRecipePrerequisites,
+  tiktokTrafficContext,
   tiktokTrafficRecipe,
 } from './tiktok-launch-recipes.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
@@ -447,8 +449,16 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
   // Writes and campaigns (wave 4c): the guided traffic and conversion packs (CMP-07).
   campaign: Object.freeze({
     recipes: Object.freeze([
-      Object.freeze({definition: tiktokTrafficRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, false)}),
-      Object.freeze({definition: tiktokConversionRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true)}),
+      Object.freeze({
+        definition: tiktokTrafficRecipe,
+        build: (b: JsonObject) => buildTiktokLaunchRecipe(b, false),
+        context: tiktokTrafficContext,
+      }),
+      Object.freeze({
+        definition: tiktokConversionRecipe,
+        build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true),
+        context: tiktokConversionContext,
+      }),
     ]),
     // A campaign, its ad groups and their ads, read and recreated disabled (src/campaign-clone.ts).
     clone: Object.freeze({build: tiktokClone}),

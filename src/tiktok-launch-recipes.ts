@@ -3,6 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
 
 /**
  * Guided paused TikTok launch packs (CMP-07, packs owner decision P7 names): website traffic and website purchases on
@@ -442,3 +443,19 @@ export async function tiktokRecipePrerequisites(
   }
   return assets;
 }
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of each pack, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+const tiktokLaunchPrerequisite = 'existing TikTok post and account identity with explicit location/schedule inputs';
+export const tiktokTrafficContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
+  ]),
+  prerequisite: tiktokLaunchPrerequisite,
+});
+export const tiktokConversionContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Uses an existing TikTok post as a Spark Ad and optimizes a purchase event of the selected pixel. Preflight reads the identity, post and pixel; event delivery, ad review and objective acceptance remain unverified. Activation is separate.',
+  ]),
+  prerequisite: tiktokLaunchPrerequisite,
+});

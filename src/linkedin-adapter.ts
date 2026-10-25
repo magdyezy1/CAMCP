@@ -23,7 +23,12 @@ import {linkedinQuery} from './linkedin-restli.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
-import {buildLinkedinLeadRecipe, linkedinLeadRecipe, linkedinRecipePrerequisites} from './linkedin-lead-recipe.js';
+import {
+  buildLinkedinLeadRecipe,
+  linkedinLeadContext,
+  linkedinLeadRecipe,
+  linkedinRecipePrerequisites,
+} from './linkedin-lead-recipe.js';
 import {linkedinClone} from './linkedin-campaign-clone.js';
 import {
   linkedinActivationGates,
@@ -313,7 +318,9 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
   }),
   // Writes and campaigns (wave 4c): the guided lead generation recipe.
   campaign: Object.freeze({
-    recipes: Object.freeze([Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe})]),
+    recipes: Object.freeze([
+      Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe, context: linkedinLeadContext}),
+    ]),
     // A campaign group, its campaigns and their creatives, read and recreated paused (src/campaign-clone.ts).
     clone: Object.freeze({build: linkedinClone}),
     // A lead launch's campaign group, campaign and creative activated in turn, gated on its lead form's state.

@@ -30,7 +30,7 @@ import {
 } from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
-import {buildMetaWebsiteRecipe, metaWebsiteRecipes} from './meta-website-recipes.js';
+import {buildMetaWebsiteRecipe, metaWebsiteRecipeContext, metaWebsiteRecipes} from './meta-website-recipes.js';
 import {metaWriteShapeBefore} from './meta-write-shape.js';
 import type {ReviewStateContext} from './provider-adapter.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
@@ -294,7 +294,11 @@ export const metaHooks: ProviderHooks = Object.freeze({
   campaign: Object.freeze({
     recipes: Object.freeze(
       metaWebsiteRecipes.map(definition =>
-        Object.freeze({definition, build: (b: JsonObject) => buildMetaWebsiteRecipe(definition.id, b)}),
+        Object.freeze({
+          definition,
+          build: (b: JsonObject) => buildMetaWebsiteRecipe(definition.id, b),
+          context: metaWebsiteRecipeContext(definition.id),
+        }),
       ),
     ),
     // A launch's campaign activated, gated on its ad's review and its conversion pixel.

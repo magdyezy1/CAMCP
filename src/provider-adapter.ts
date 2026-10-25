@@ -549,6 +549,20 @@ export interface CampaignRecipe {
   readonly definition: RecipeDefinition;
   /** The campaign plan of a brief that passed the catalog's checks; refuses an input the recipe cannot use. */
   build(brief: JsonObject): JsonObject;
+  /** What recipe_context says of the recipe beyond its definition (src/recipe-context.ts, wave 4c). */
+  readonly context?: RecipeContextFacts;
+}
+/**
+ * A recipe's part of its recipe_context (src/recipe-context.ts recipeContext, which keeps the accounts, defaults,
+ * playbook, Pages, Drive logins and the shared prerequisites, in their order).
+ */
+export interface RecipeContextFacts {
+  /** What the recipe leaves unverified or does not change; none by default. */
+  readonly limitations?: readonly string[];
+  /** The recipe's own prerequisite, after the account grant and currency; its Page, media or search inputs by default. */
+  readonly prerequisite?: string;
+  /** The provider facts the context adds, read when it is asked (Microsoft's location lookup availability). */
+  extra?(): JsonObject;
 }
 /** A recipe's catalog entry: id, name, platform, required inputs and their alternatives, optional inputs, description. */
 export type RecipeDefinition = JsonObject & {

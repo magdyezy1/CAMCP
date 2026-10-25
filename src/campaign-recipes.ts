@@ -3,9 +3,9 @@ import type {JsonObject} from './types.js';
 import type {CampaignRecipe, RecipeDefinition} from './provider-adapter.js';
 import {providerById} from './provider-adapters.js';
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
-// The recipe tables moved with their providers' builders; this import path keeps them.
-export {metaConversionRecipes, metaImageSources} from './meta-website-recipes.js';
-export {googleConversionRecipes} from './google-search-recipes.js';
+// The Meta and Google conversion tables live with their providers' builders (src/meta-website-recipes.ts,
+// src/google-search-recipes.ts); recipe_context reads each recipe's own context instead (wave 4c), so nothing imports
+// them from here any more.
 
 /**
  * The guided campaign recipes (ARC-04): campaignRecipe was one 706-line function whose provider branches built each
@@ -20,8 +20,8 @@ const providerRecipes = (id: string): readonly CampaignRecipe[] =>
 const recipeTable = new Map<string, CampaignRecipe>(
   recipeProviders.flatMap(providerRecipes).map(recipe => [recipe.definition.id, recipe]),
 );
-// A load-time check, like the grant order's: every provider that declares recipes is listed once, and every recipe
-// has its own ID.
+// A load-time check, like the grant order's: every provider that declares recipes is listed once, every recipe has its
+// own ID, and each recipe's platform is the ID of the provider that declares it (whose gateway its plan writes to).
 if (
   new Set(recipeProviders).size !== recipeProviders.length ||
   recipeProviders.some(id => !providerRecipes(id).length) ||
@@ -29,13 +29,23 @@ if (
     hooks =>
       hooks.campaign?.recipes?.length && !recipeProviders.some(id => providerById(id)?.gateway === hooks.gateway),
   ) ||
-  recipeTable.size !== recipeProviders.flatMap(providerRecipes).length
+  recipeTable.size !== recipeProviders.flatMap(providerRecipes).length ||
+  recipeProviders.some(id => providerRecipes(id).some(recipe => recipe.definition.platform !== id))
 )
   throw new Error(
     'The campaign recipe catalog must list every provider that declares recipes once, each recipe by its own ID.',
   );
 /** Every recipe's catalog entry, in catalog order. */
 export const campaignRecipes: RecipeDefinition[] = [...recipeTable.values()].map(recipe => recipe.definition);
+/** A recipe as its provider declares it (its builder and its recipe_context facts), or undefined for an unknown ID. */
+export function campaignRecipeOf(id: string): CampaignRecipe | undefined {
+  return recipeTable.get(id);
+}
+/** The gateway of a recipe's platform: its declaring provider's, whose accounts its plan writes to. */
+export function recipeGateway(id: string): string | undefined {
+  const recipe = recipeTable.get(id);
+  return recipe ? providerById(recipe.definition.platform)?.gateway : undefined;
+}
 /** The required inputs a brief still lacks; an input satisfied by one of its listed alternatives is not missing. */
 export function recipeMissing(definition: JsonObject, b: JsonObject): string[] {
   const given = (key: string) => b[key] !== undefined && b[key] !== '';

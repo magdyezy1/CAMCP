@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney} from './recipe-values.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
 
 export const snapchatTrafficRecipe = {
   id: 'snapchat_website_traffic',
@@ -199,3 +200,18 @@ function buildSnapchatLaunchRecipe(b: JsonObject, leads: boolean): JsonObject {
     },
   };
 }
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of each recipe, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+export const snapchatTrafficContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
+  ]),
+  prerequisite: 'existing account-owned website creative and explicit country/schedule inputs',
+});
+export const snapchatLeadContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Uses an existing LEAD_GENERATION creative and its original account-owned form without editing either. Choose swipe or form-submission optimization explicitly. Native review reads both again; provider eligibility, privacy-policy availability and consent acceptance remain unverified. Activation is separate.',
+  ]),
+  prerequisite: 'existing account-owned lead creative and form with explicit optimization/country/schedule inputs',
+});

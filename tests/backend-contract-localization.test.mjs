@@ -201,9 +201,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/write-rejection-core.ts, neither with reasons: two more files. Its reconciliation moves Google's and Meta's
   // created-resource lookups and named targets to src/google-write-reconciliation.ts and
   // src/meta-write-reconciliation.ts and the read normalization to the leaf src/verification-core.ts, none with
-  // reasons: three more files.
-  assert.equal(files.length, 701);
-  assert.equal(selected.filter(row => row.messages.size).length, 264);
+  // reasons: three more files. Its recipe context moves the Microsoft location lookup's pinned request to the leaf
+  // src/microsoft-location-pin.ts with its two reasons (src/microsoft-locations.ts keeps its others): one more file, one
+  // more with reasons, the same reasons.
+  assert.equal(files.length, 702);
+  assert.equal(selected.filter(row => row.messages.size).length, 265);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

@@ -1,4 +1,6 @@
-import {campaignRecipes, metaConversionRecipes, googleConversionRecipes} from './campaign-recipes.js';
+import {campaignRecipeOf, campaignRecipes, recipeGateway} from './campaign-recipes.js';
+// The Drive logins a recipe's media may come from: the Drive provider's gateway, from the leaf registry (wave 4c).
+import {providerById} from './provider-adapters.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {audit, bad, noSecrets, fingerprint, obj, optional, read, update, validate, writer} from './workspace-core.js';
@@ -8,7 +10,6 @@ import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 import {accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
 import {profileWithinAccess, visibleProfile} from './client-scope.js';
-import {microsoftLocationLookupStatus} from './microsoft-locations.js';
 // Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
 // currency stay in each brief, where preflight checks them.
 export const profileDefaultKeys = [
@@ -39,23 +40,18 @@ export function recipeDefaultFields(): JsonObject[] {
     fields: r.required.filter(k => profileDefaultKeys.includes(k)),
   }));
 }
+/** The gateway of the Google Drive logins a recipe's media may come from. */
+const driveGateway = providerById('drive')?.gateway;
 export function recipeContext(store: Store, actor: Actor, recipeId: string, profileId?: string): JsonObject {
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);
   if (!recipe) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
   // A profile outside the actor's client access set is not found, like one that does not exist (SEC-08).
   const profile = profileId ? visibleProfile(store, actor, profileId) : undefined,
-    gateway =
-      (
-        {
-          google: 'google_ads',
-          meta: 'meta',
-          microsoft: 'microsoft_ads',
-          snapchat: 'snapchat',
-          tiktok: 'tiktok',
-          linkedin: 'linkedin',
-        } as Record<string, string>
-      )[recipe.platform] + '_native_action';
+    // The recipe's platform gateway is its declaring provider's (src/campaign-recipes.ts), and what the context says
+    // of the recipe beyond its definition is the recipe's own (ARC-01 phase B, wave 4c: its adapter's recipes).
+    gateway = recipeGateway(recipeId)!,
+    facts = campaignRecipeOf(recipeId)?.context;
   const inventory = store.documents(actor.tenantId, 'website_assets'),
     // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
     targets = store
@@ -133,66 +129,16 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       ),
     drive_connections: store
       .connectionsFor(actor)
-      .filter(c => c.gateway === 'google_drive_native_action' && c.enabled)
+      .filter(c => c.gateway === driveGateway && c.enabled)
       .map(c => ({id: c.id, label: c.label, files: c.accounts})),
-    // CMP-03: whether recipe_lookup can search Microsoft's geographical locations file in this deployment.
-    ...(recipe.platform === 'microsoft' ? {location_lookup: microsoftLocationLookupStatus()} : {}),
-    limitations:
-      recipe.platform === 'snapchat'
-        ? recipeId === 'snapchat_lead_generation'
-          ? [
-              'Uses an existing LEAD_GENERATION creative and its original account-owned form without editing either. Choose swipe or form-submission optimization explicitly. Native review reads both again; provider eligibility, privacy-policy availability and consent acceptance remain unverified. Activation is separate.',
-            ]
-          : [
-              'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
-            ]
-        : recipe.platform === 'tiktok'
-          ? [
-              recipeId === 'tiktok_website_conversions'
-                ? 'Uses an existing TikTok post as a Spark Ad and optimizes a purchase event of the selected pixel. Preflight reads the identity, post and pixel; event delivery, ad review and objective acceptance remain unverified. Activation is separate.'
-                : 'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
-            ]
-          : recipe.platform === 'linkedin'
-            ? [
-                'Sponsors an existing post with the account’s existing lead form and maximum-delivery bidding. Preflight reads the account’s lead forms; post eligibility, privacy-policy acceptance, ad review and objective acceptance remain unverified. Activation is separate.',
-              ]
-            : recipe.platform === 'microsoft'
-              ? [
-                  'Enter Microsoft location IDs of Active locations from its geographical locations file, one per line: each becomes a positive location criterion of the paused campaign, read back by ID, and activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies (people in, searching for or viewing pages about these locations). Activation is a separate plan, refused without a positive location criterion.',
-                ]
-              : recipeId === 'google_performance_max'
-                ? [
-                    'One all-or-nothing build: Google creates the paused campaign, its asset group and every asset link together or not at all. Images and logos are existing account assets read for their type; uses account-default conversion goals without changing them. Asset approval, ad strength, event delivery and provider eligibility remain unverified before activation.',
-                  ]
-                : googleConversionRecipes[recipeId]?.value
-                  ? [
-                      'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
-                    ]
-                  : googleConversionRecipes[recipeId]
-                    ? [
-                        'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
-                      ]
-                    : metaConversionRecipes[recipeId]
-                      ? [
-                          'Uses the selected website pixel with ' +
-                            metaConversionRecipes[recipeId]!.event +
-                            '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
-                        ]
-                      : [],
+    // The recipe's provider facts (CMP-03: whether recipe_lookup can search Microsoft's geographical locations file in
+    // this deployment), what it leaves unverified and its own prerequisite.
+    ...(facts?.extra ? facts.extra() : {}),
+    limitations: [...(facts?.limitations ?? [])],
     prerequisites: [
       'current account grant',
       'verified account currency',
-      recipe.platform === 'snapchat'
-        ? recipeId === 'snapchat_lead_generation'
-          ? 'existing account-owned lead creative and form with explicit optimization/country/schedule inputs'
-          : 'existing account-owned website creative and explicit country/schedule inputs'
-        : recipe.platform === 'tiktok'
-          ? 'existing TikTok post and account identity with explicit location/schedule inputs'
-          : recipe.platform === 'linkedin'
-            ? 'existing post and account-owned lead form with explicit location, locale and schedule inputs'
-            : recipeId === 'google_performance_max'
-              ? 'existing account image and logo assets with explicit text assets, location and language inputs'
-              : 'required Page/media or search inputs',
+      facts?.prerequisite ?? 'required Page/media or search inputs',
       'whole-plan preflight',
       'review each resolved mutation',
       'provider read-back',

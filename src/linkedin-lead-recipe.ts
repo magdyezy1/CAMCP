@@ -3,6 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {fingerprint} from './workspace-core.js';
 import {currencyMinorDigits} from './budget-units.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
 
 /**
  * linkedin_lead_generation (CMP-07 optional stretch, built before P7 named it; the owner may remove it): a guided
@@ -307,3 +308,12 @@ export async function linkedinRecipePrerequisites(
     },
   ];
 }
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of the recipe, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+export const linkedinLeadContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'Sponsors an existing post with the account’s existing lead form and maximum-delivery bidding. Preflight reads the account’s lead forms; post eligibility, privacy-policy acceptance, ad review and objective acceptance remain unverified. Activation is separate.',
+  ]),
+  prerequisite: 'existing post and account-owned lead form with explicit location, locale and schedule inputs',
+});

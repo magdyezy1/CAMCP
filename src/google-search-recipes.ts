@@ -8,6 +8,7 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money, recipeRoas, recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDates,
@@ -376,4 +377,25 @@ export function buildGoogleSearchRecipe(id: string, b: JsonObject): JsonObject {
       geo_warning: null,
     },
   );
+}
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of each Search recipe, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+const googleValueContext: RecipeContextFacts = Object.freeze({
+    limitations: Object.freeze([
+      'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
+    ]),
+  }),
+  googleConversionContext: RecipeContextFacts = Object.freeze({
+    limitations: Object.freeze([
+      'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
+    ]),
+  });
+/** A Search recipe's context: a value recipe's, a conversion recipe's, or none (Search with CPC or Maximize Clicks). */
+export function googleSearchRecipeContext(id: string): RecipeContextFacts | undefined {
+  return googleConversionRecipes[id]?.value
+    ? googleValueContext
+    : googleConversionRecipes[id]
+      ? googleConversionContext
+      : undefined;
 }

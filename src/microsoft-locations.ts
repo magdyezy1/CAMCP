@@ -5,8 +5,11 @@ import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {pinnedJson} from './pinned-json.js';
-import {microsoftEvidence, templateFields} from './microsoft-evidence.js';
+import {microsoftEvidence} from './microsoft-evidence.js';
+// The lookup's pinned request lives in the leaf src/microsoft-location-pin.ts, which the Microsoft Search recipe's
+// context reads (ARC-01 phase B, wave 4c); this import path keeps all three.
+import {geoLocationsRest, microsoftLocationLookupStatus, microsoftLocationsUnpinned} from './microsoft-location-pin.js';
+export {geoLocationsRest, microsoftLocationLookupStatus, microsoftLocationsUnpinned};
 import {
   microsoftCustomer,
   microsoftGateway,
@@ -44,8 +47,7 @@ import {publicGet, reportUrl} from './microsoft-report-download.js';
  */
 const version = '2.0',
   languageLocale = 'en',
-  compressionType = 'GZip',
-  pin = '.mirror/VENDOR/microsoft-rest-v13.json';
+  compressionType = 'GZip';
 export const microsoftLocationLimits = Object.freeze({
   archive_bytes: 32 * 1024 * 1024,
   text_bytes: 128 * 1024 * 1024,
@@ -64,65 +66,6 @@ const numericId = (v: unknown): v is string =>
 function unreadable(message: string, problem: string): never {
   throw new MirrorError('MICROSOFT_LOCATIONS_FILE_INVALID', message, {problem}, 502);
 }
-/** The refusal when the deployment cannot send the file URL request as Microsoft Learn documents it. */
-export function microsoftLocationsUnpinned(): MirrorError {
-  return new MirrorError(
-    'MICROSOFT_LOCATIONS_UNPINNED',
-    'Microsoft location search is not available in this deployment yet: AMCP sends a Microsoft request only as Microsoft Learn documents it, and the request for the geographical locations file is not pinned. Enter the location IDs instead; activation preflight lists each location with the name Microsoft gives it.',
-    {operation: contract.name, page: contract.page},
-    409,
-  );
-}
-
-/**
- * The REST request Microsoft Learn documents for GetGeoLocationsFileUrl, from the optional pin. Without it, or when the
- * page documents another method, URL or fields, the lookup refuses before anything is sent.
- */
-export function geoLocationsRest(envelope: JsonObject = pinnedJson(pin)): JsonObject {
-  const op = envelope?.document?.optional_operations?.[contract.name];
-  if (!obj(op)) throw microsoftLocationsUnpinned();
-  let request: string[] = [],
-    response: string[] = [];
-  try {
-    request = templateFields(op.request_json);
-    response = templateFields(op.response_json);
-  } catch {
-    // An unreadable template documents nothing AMCP can send.
-  }
-  if (
-    op.page !== contract.page ||
-    op.method !== contract.method ||
-    op.url !== microsoftOrigin + contract.path ||
-    contract.fields.some(f => !request.includes(f)) ||
-    ['FileUrl', 'FileUrlExpiryTimeUtc', 'LastModifiedTimeUtc'].some(f => !response.includes(f))
-  )
-    throw new MirrorError(
-      'VENDOR_SCHEMA_UNAVAILABLE',
-      'AMCP Microsoft request differs from the REST request Microsoft Learn documents for this operation.',
-      {
-        action: contract.name,
-        method: contract.method,
-        url: microsoftOrigin + contract.path,
-        documented: {method: op.method ?? null, url: op.url ?? null, page: op.page ?? null},
-      },
-    );
-  return {method: op.method, url: op.url, page: op.page, source_sha256: envelope.document_sha256};
-}
-
-/**
- * Whether this deployment can send the lookup's request (recipe_context tells the website, which then offers the search
- * or says why not). It reads the committed pin only; nothing is sent.
- */
-export function microsoftLocationLookupStatus(envelope?: JsonObject): JsonObject {
-  try {
-    geoLocationsRest(envelope);
-    return {available: true};
-  } catch (error) {
-    if (error instanceof MirrorError) return {available: false, code: error.code};
-    throw error;
-  }
-}
-
 /** The one read of the lookup that reaches the advertising API: the current URL of the file, under the account. */
 export function geoLocationsRequest(account: string, rest: JsonObject): CompiledRequest {
   return {

@@ -5,6 +5,7 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money} from './recipe-values.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDestination,
@@ -287,4 +288,19 @@ export function buildMetaWebsiteRecipe(id: string, b: JsonObject): JsonObject {
       : {}),
     geo_warning: null,
   });
+}
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of each website recipe, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+/** A conversion recipe's pixel event and what stays unverified; none for website traffic. */
+export function metaWebsiteRecipeContext(id: string): RecipeContextFacts | undefined {
+  return metaConversionRecipes[id]
+    ? Object.freeze({
+        limitations: Object.freeze([
+          'Uses the selected website pixel with ' +
+            metaConversionRecipes[id]!.event +
+            '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+        ]),
+      })
+    : undefined;
 }

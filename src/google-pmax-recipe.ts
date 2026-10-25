@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {pmaxAssetRequirements} from './google-pmax-build.js';
+import type {RecipeContextFacts} from './provider-adapter.js';
 
 /**
  * google_performance_max (CMP-07, a pack owner decision P7 of 2026-10-11 names): a guided paused
@@ -265,3 +266,12 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
     },
   };
 }
+
+// Writes and campaigns (ARC-04, wave 4c): what recipe_context says of the recipe, moved verbatim from
+// src/recipe-context.ts, which asks the recipe's provider (its adapter's `campaign.recipes`).
+export const googlePmaxContext: RecipeContextFacts = Object.freeze({
+  limitations: Object.freeze([
+    'One all-or-nothing build: Google creates the paused campaign, its asset group and every asset link together or not at all. Images and logos are existing account assets read for their type; uses account-default conversion goals without changing them. Asset approval, ad strength, event delivery and provider eligibility remain unverified before activation.',
+  ]),
+  prerequisite: 'existing account image and logo assets with explicit text assets, location and language inputs',
+});

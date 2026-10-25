@@ -322,3 +322,88 @@ test("a predecessor's placeholder is its provider's: X by field, Snapchat's symb
   );
   assert.deepEqual(compiled, [['google_ads_native_action', {action: 'a', account_id: '123'}]]);
 });
+
+test('the recipe context names no provider and imports no provider module; each recipe declares its own', async () => {
+  for (const file of ['src/recipe-context.ts', 'src/campaign-recipes.ts']) {
+    const source = read(file);
+    assert.deepEqual(gatewayLiterals(source), [], file);
+    assert.deepEqual(providerImports(source), [], file);
+  }
+  const {campaignRecipes, campaignRecipeOf, recipeGateway} = await import('../dist/src/campaign-recipes.js');
+  const {recipeContext} = await import('../dist/src/recipe-context.js');
+  const {microsoftLocationLookupStatus} = await import('../dist/src/microsoft-locations.js');
+  const pin = await import('../dist/src/microsoft-location-pin.js');
+  // The lookup status keeps its import path.
+  assert.equal(microsoftLocationLookupStatus, pin.microsoftLocationLookupStatus);
+  // A recipe's gateway is its platform's provider's: the table recipe_context kept.
+  const platformGateways = {
+    google: 'google_ads_native_action',
+    meta: 'meta_native_action',
+    microsoft: 'microsoft_ads_native_action',
+    snapchat: 'snapchat_native_action',
+    tiktok: 'tiktok_native_action',
+    linkedin: 'linkedin_native_action',
+  };
+  for (const recipe of campaignRecipes)
+    assert.equal(recipeGateway(recipe.id), platformGateways[recipe.platform], recipe.id);
+  assert.equal(recipeGateway('no_such_recipe'), undefined);
+  // What each recipe declares beyond its definition: its own prerequisite, and only Microsoft's provider facts.
+  const own = Object.fromEntries(
+    campaignRecipes.map(r => [
+      r.id,
+      campaignRecipeOf(r.id).context?.prerequisite ?? 'required Page/media or search inputs',
+    ]),
+  );
+  assert.deepEqual(
+    Object.entries(own)
+      .filter(([, p]) => p !== 'required Page/media or search inputs')
+      .map(([id]) => id),
+    [
+      'google_performance_max',
+      'snapchat_website_traffic',
+      'snapchat_lead_generation',
+      'tiktok_website_traffic',
+      'tiktok_website_conversions',
+      'linkedin_lead_generation',
+    ],
+  );
+  assert.deepEqual(
+    campaignRecipes.filter(r => campaignRecipeOf(r.id).context?.extra).map(r => r.id),
+    ['microsoft_search'],
+  );
+  assert.deepEqual(
+    campaignRecipes.filter(r => !campaignRecipeOf(r.id).context?.limitations?.length).map(r => r.id),
+    ['meta_website_traffic', 'google_search', 'google_search_clicks'],
+  );
+  // The context reads the recipe's facts: a Meta conversion recipe names its pixel event; Microsoft's adds its lookup.
+  const store = {
+    assertActorActive() {},
+    documents: () => [],
+    connectionsFor: () => [
+      {id: 'd', gateway: 'google_drive_native_action', label: 'Drive', enabled: true, accounts: ['f']},
+    ],
+  };
+  const actor = {tenantId: 't', userId: 'u', role: 'admin'};
+  const sales = recipeContext(store, actor, 'meta_website_sales');
+  assert.match(sales.limitations[0], /^Uses the selected website pixel with PURCHASE\. /);
+  assert.deepEqual(sales.drive_connections, [{id: 'd', label: 'Drive', files: ['f']}]);
+  assert.equal(Object.hasOwn(sales, 'location_lookup'), false);
+  const microsoft = recipeContext(store, actor, 'microsoft_search');
+  assert.deepEqual(microsoft.location_lookup, microsoftLocationLookupStatus());
+  assert.deepEqual(Object.keys(microsoft).slice(-4), [
+    'drive_connections',
+    'location_lookup',
+    'limitations',
+    'prerequisites',
+  ]);
+  assert.deepEqual(microsoft.prerequisites, [
+    'current account grant',
+    'verified account currency',
+    'required Page/media or search inputs',
+    'whole-plan preflight',
+    'review each resolved mutation',
+    'provider read-back',
+  ]);
+  // The limitations are the response's own copy, never the declared list.
+  assert.equal(Object.isFrozen(microsoft.limitations), false);
+});

@@ -30,7 +30,9 @@ import {snapchatOrganizationPixels, snapchatScopedResource} from './snapchat-sco
 import {
   buildSnapchatLeadRecipe,
   buildSnapchatTrafficRecipe,
+  snapchatLeadContext,
   snapchatLeadRecipe,
+  snapchatTrafficContext,
   snapchatTrafficRecipe,
 } from './snapchat-traffic-recipe.js';
 import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
@@ -413,8 +415,12 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
   // Writes and campaigns (wave 4c): the guided traffic and lead recipes.
   campaign: Object.freeze({
     recipes: Object.freeze([
-      Object.freeze({definition: snapchatTrafficRecipe, build: buildSnapchatTrafficRecipe}),
-      Object.freeze({definition: snapchatLeadRecipe, build: buildSnapchatLeadRecipe}),
+      Object.freeze({
+        definition: snapchatTrafficRecipe,
+        build: buildSnapchatTrafficRecipe,
+        context: snapchatTrafficContext,
+      }),
+      Object.freeze({definition: snapchatLeadRecipe, build: buildSnapchatLeadRecipe, context: snapchatLeadContext}),
     ]),
     // A campaign, its ad squads and their ads, read and recreated paused (src/campaign-clone.ts).
     clone: Object.freeze({build: snapchatClone}),
