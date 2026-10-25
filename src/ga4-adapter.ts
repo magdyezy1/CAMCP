@@ -4,6 +4,7 @@ import type {TransportResult} from './transport.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 // Writes and campaigns (wave 4c).
 import {assertMeasurementScopes} from './measurement-writes.js';
+import {measurementVerificationPhase} from './measurement-writes.js';
 
 const withoutJobError = (value: JsonObject) =>
   Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'errorMessage'));
@@ -64,5 +65,9 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
         : undefined,
   }),
   // Writes and campaigns (wave 4c): a review's write needs the Analytics edit permission (src/write-review.ts).
-  writes: Object.freeze({writePermission: assertMeasurementScopes}),
+  writes: Object.freeze({
+    writePermission: assertMeasurementScopes,
+    // A provider job's verification read shows its phase: running is pending, failed is failed (src/write-verification.ts).
+    verificationPhase: measurementVerificationPhase,
+  }),
 });

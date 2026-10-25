@@ -104,7 +104,7 @@ test('each provider declares exactly the review hooks of the parts the review na
     microsoft_ads_native_action: ['emptyErrors', 'writeGrant'],
     apple_ads_native_action: ['prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
     reddit_native_action: ['writeScopes'],
-    ga4_native_action: ['writePermission'],
+    ga4_native_action: ['verificationPhase', 'writePermission'],
     gtm_native_action: ['concurrency', 'outcomeData', 'publishesLive', 'writePermission'],
     google_search_console_native_action: ['publishesLive', 'writePermission'],
   });
@@ -529,4 +529,29 @@ test('a refusal after dispatch asks the provider for its proof after the family:
   assert.equal(nonAppliedRejection(google, refused(429)), false);
   for (const gateway of ['meta_native_action', 'snapchat_native_action', 'microsoft_ads_native_action'])
     assert.equal(nonAppliedRejection({...google, gateway}, refused(400)), false, gateway);
+});
+
+test('a verification asks the provider for the accounts its write changes and the phase its reads show', async () => {
+  assertProviderFree('src/write-verification.ts');
+  const {measurementVerificationPhase} = await import('../dist/src/measurement-writes.js');
+  // Only GA4 declares a phase, its measurement module's: a provider job running is pending, a failed one failed.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.writes?.verificationPhase).map(h => h.gateway),
+    ['ga4_native_action'],
+  );
+  assert.equal(writes('ga4_native_action').verificationPhase, measurementVerificationPhase);
+  const task = plan('ga4_native_action', 'GET', '/v1beta/properties/1/reportTasks/2'),
+    phase = state => writes('ga4_native_action').verificationPhase(task, state);
+  assert.equal(phase({report_metadata: {state: 'ACTIVE'}}), 'verified');
+  assert.equal(phase({report_metadata: {state: 'CREATING'}}), 'pending');
+  assert.equal(phase({report_metadata: {state: 'FAILED'}}), 'failed');
+  // Only Apple names the other accounts a write changes (its shared budgets); another write names none.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.writes?.sharedAccounts).map(h => h.gateway),
+    ['apple_ads_native_action'],
+  );
+  assert.deepEqual(
+    writes('apple_ads_native_action').sharedAccounts(plan('apple_ads_native_action', 'PUT', '/v1/x')),
+    [],
+  );
 });

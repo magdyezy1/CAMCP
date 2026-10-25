@@ -5,7 +5,7 @@
     "largest_runtime_scc": 3,
     "cyclic_modules": 11,
     "shared_modules_with_gateway_literals": 63,
-    "shared_to_provider_runtime_imports": 194,
+    "shared_to_provider_runtime_imports": 192,
     "local_fail_copies": 0
   },
   "reported": {

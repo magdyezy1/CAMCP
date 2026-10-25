@@ -820,4 +820,10 @@ export interface WriteReviewHooks {
    * failure or validate-only); without one, the refusal stays uncertain.
    */
   rejectionIsNonApplied?(plan: CompiledRequest, status: number, body: JsonObject): boolean;
+  // The verification of a completed write (src/write-verification.ts WriteVerifier.verify), after the review's.
+  /**
+   * The phase a consistent verification read shows of what the write started (GA4's provider jobs: a report task or
+   * audience export still running is pending, a failed one failed); verified without one.
+   */
+  verificationPhase?(read: CompiledRequest, state: JsonObject): 'verified' | 'pending' | 'failed';
 }
