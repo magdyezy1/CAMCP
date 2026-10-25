@@ -628,7 +628,9 @@ the registry order, the orderings that decide a match and the fall-through answe
 router with the one recorded from the function before the split (`tests/fixtures/website-router-layers.json`: each
 layer's path, methods and handler names or middleware reach, in each deployment shape), so a route moved inside a
 module fails too; a commit that adds or moves a route updates that recording deliberately. `createWebsite`
-is 7 lines; the longest route module is `connectionRoutes` (378). WEB-07, merged beside this work, has split
+is 7 lines; the longest route module is `platformRoutes` (294): `connectionRoutes` (378) registers the asset selection
+and the write-access change from their own steps (`selectAssets`, 105 lines, and `changeWriteAccess`, 57; their code
+unchanged, the routes in the same order), which left it 198 lines. WEB-07, merged beside this work, has split
 `web/account-workflows.js` behind `web/route-assets.js`: a shared helper and the portfolio, measurement and commerce
 modules.
 

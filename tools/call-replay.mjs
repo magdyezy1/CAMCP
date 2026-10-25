@@ -44,7 +44,7 @@ export const targets = Object.freeze({
   // The Snapchat scoped-resource paths left scope.js for this leaf (ARC-01 phase B, the read authorizers), which
   // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
-  'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource']}},
+  'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection']}},
   'dist/src/account-id.js': {functions: ['normalizeAccount']},
   'dist/src/execution-risk.js': {functions: ['applyExecutionRisk', 'independentlyReadOnly', 'bodyDeletion']},
   // Google Ads' global planning reads left execution-risk.js for its adapter (ARC-01 phase B, the read
@@ -90,6 +90,10 @@ export const targets = Object.freeze({
   'dist/server/social-signin.js': {classes: {SocialSignIn: ['start', 'identity', 'json']}},
   'dist/server/runtime.js': {functions: ['createRuntime']},
   'dist/src/woocommerce-source.js': {functions: ['wooCommerceSources']},
+  // ARC-01 phase B and ARC-04, the website's connection routes and views: what a login's asset selection, sync,
+  // default and name save (a route's refusal stops before any of them); Store.updateConnection records the connection
+  // a selection, write-access change, sync or renewal saves.
+  'dist/server/website-repository.js': {functions: ['saveWebsiteAssets', 'writeDefaultFlag', 'writeConnectionLabel']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
