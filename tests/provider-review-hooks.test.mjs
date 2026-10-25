@@ -80,7 +80,7 @@ test('each provider declares exactly the review hooks of the parts the review na
     registeredProviderHooks.filter(h => h.writes).map(h => [h.gateway, Object.keys(h.writes).sort()]),
   );
   assert.deepEqual(declared, {
-    google_ads_native_action: ['batch', 'confirms', 'prerequisites', 'snapshots'],
+    google_ads_native_action: ['batch', 'confirms', 'prerequisites', 'rejectionIsNonApplied', 'snapshots'],
     google_business_native_action: ['publishesLive', 'shownRequest'],
     meta_native_action: ['confirms', 'impact', 'ownState', 'parentChecks', 'snapshots'],
     tiktok_native_action: ['confirms', 'deletes', 'morePages', 'prerequisites', 'snapshots'],
@@ -484,4 +484,49 @@ test('a long request is split along its provider record list: Google operations,
     groupParts('snapchat_native_action', {action: 'x', payload: {ads}}).map(p => p.payload.ads.length),
     [25, 1],
   );
+});
+
+// The stage modules of wave 4c's last round: each names no gateway and imports no provider module.
+const assertProviderFree = file => {
+  const source = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+  assert.deepEqual(
+    [...source.matchAll(/['"]([a-z0-9_]+_native_action)['"]/g)].map(m => m[1]),
+    [],
+    file,
+  );
+  assert.deepEqual(
+    [...source.matchAll(/from '\.\/([^']+)\.js'/g)]
+      .map(m => 'src/' + m[1] + '.ts')
+      .filter(f => isProviderModule(f) && !providerRegistries.includes(f)),
+    [],
+    file,
+  );
+};
+
+test('a refusal after dispatch asks the provider for its proof after the family: Google’s per-service rule', async () => {
+  assertProviderFree('src/write-rejection.ts');
+  const {nonAppliedRejection, definitiveRefusalStatuses} = await import('../dist/src/write-rejection.js');
+  const core = await import('../dist/src/write-rejection-core.js');
+  const {googleRejectionIsNonApplied} = await import('../dist/src/google-write-rejection.js');
+  // Only Google Ads declares a proof, its module's own; the statuses keep their import path.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.writes?.rejectionIsNonApplied).map(h => h.gateway),
+    ['google_ads_native_action'],
+  );
+  assert.equal(writes('google_ads_native_action').rejectionIsNonApplied, googleRejectionIsNonApplied);
+  assert.equal(definitiveRefusalStatuses, core.definitiveRefusalStatuses);
+  const refused = (status, details = {}) =>
+    new MirrorError('UPSTREAM_ERROR', 'Refused.', {http_status: status, upstream: {error: {code: 3}}, ...details});
+  const google = plan('google_ads_native_action', 'POST', '/v23/customers/123/campaignBudgets:mutate', {
+    body: {operations: [{create: {name: 'b'}}]},
+  });
+  assert.equal(nonAppliedRejection(google, refused(400)), true);
+  // A family's proof decides first, even where Google's rule would prove the refusal.
+  assert.equal(nonAppliedRejection(google, refused(400), {rejectionIsNonApplied: () => false}), false);
+  // Partial failure, validate-only, a status that is not definitive and another provider's refusal prove nothing.
+  assert.equal(nonAppliedRejection({...google, body: {partial_failure: true}}, refused(400)), false);
+  assert.equal(nonAppliedRejection({...google, body: {validateOnly: 'true'}}, refused(400)), false);
+  assert.equal(nonAppliedRejection(google, refused(429)), false);
+  for (const gateway of ['meta_native_action', 'snapchat_native_action', 'microsoft_ads_native_action'])
+    assert.equal(nonAppliedRejection({...google, gateway}, refused(400)), false, gateway);
 });

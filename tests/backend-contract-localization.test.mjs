@@ -196,8 +196,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // files, the same files with reasons and the same reasons. Its preflight moves Google's predecessor references and
   // Snapchat's pixel ownership from src/campaign-preflight.ts to src/google-preflight.ts and src/snapchat-preflight.ts
   // with their reasons, and Meta's preflight hooks to src/meta-preflight.ts: three more files, two more with reasons
-  // (src/campaign-preflight.ts keeps its own), the same reasons.
-  assert.equal(files.length, 696);
+  // (src/campaign-preflight.ts keeps its own), the same reasons. Its rejected outcome moves Google's proof that a
+  // refusal applied nothing to src/google-write-rejection.ts and the definitive statuses to the leaf
+  // src/write-rejection-core.ts, neither with reasons: two more files.
+  assert.equal(files.length, 698);
   assert.equal(selected.filter(row => row.messages.size).length, 264);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

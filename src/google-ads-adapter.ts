@@ -40,6 +40,7 @@ import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
 import {googlePreflight} from './google-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
+import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -592,6 +593,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       validateGoogleTargetingState(plan, values);
       validateGooglePausedParents(plan, values);
     },
+    // A per-service mutate refused outright applied nothing (src/write-rejection.ts, the rejected outcome).
+    rejectionIsNonApplied: googleRejectionIsNonApplied,
   }),
 });
 

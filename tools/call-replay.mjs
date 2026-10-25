@@ -93,9 +93,10 @@ export const targets = Object.freeze({
   'dist/src/write-effects.js': {functions: ['writeEffects', 'stateTarget', 'effectNames', 'effectReasons']},
   'dist/src/write-impact.js': {functions: ['writeImpact']},
   'dist/src/write-groups.js': {functions: ['splittableBatch', 'needsGroup', 'groupLimitRefusal', 'groupParts']},
-  'dist/src/write-rejection.js': {
-    functions: ['googleServiceMutate', 'googleRejectionIsNonApplied', 'nonAppliedRejection', 'rejectedError'],
-  },
+  'dist/src/write-rejection.js': {functions: ['nonAppliedRejection', 'rejectedError']},
+  // Google Ads' proof that a refusal applied nothing left write-rejection.js for its own module (ARC-01 phase B, wave
+  // 4c); a recording made before names it dist/src/write-rejection.js#... (compare with --ignore for both).
+  'dist/src/google-write-rejection.js': {functions: ['googleServiceMutate', 'googleRejectionIsNonApplied']},
   'dist/src/write-reconciliation.js': {functions: ['findCreated', 'namedTargets']},
   'dist/src/recipe-context.js': {functions: ['recipeDefaultFields', 'recipeObjective']},
   'dist/src/recipe-eligibility.js': {functions: ['recipeEligibility']},

@@ -813,4 +813,11 @@ export interface WriteReviewHooks {
     read: (request: CompiledRequest) => Promise<TransportResult>,
     stateRead: (plan: CompiledRequest, path: string, query?: JsonObject) => CompiledRequest,
   ): Promise<JsonObject>;
+  // The rejected outcome of a refusal after dispatch (src/write-rejection.ts nonAppliedRejection), after a family's own.
+  /**
+   * Whether a definitive refusal (its HTTP status and the provider's error body) of a dispatched write provably applied
+   * nothing under the provider's contract (Google Ads' per-service and googleAds:mutate requests without partial
+   * failure or validate-only); without one, the refusal stays uncertain.
+   */
+  rejectionIsNonApplied?(plan: CompiledRequest, status: number, body: JsonObject): boolean;
 }
