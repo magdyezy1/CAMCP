@@ -80,9 +80,25 @@ test('each provider declares exactly the review hooks of the parts the review na
     registeredProviderHooks.filter(h => h.writes).map(h => [h.gateway, Object.keys(h.writes).sort()]),
   );
   assert.deepEqual(declared, {
-    google_ads_native_action: ['batch', 'confirms', 'prerequisites', 'rejectionIsNonApplied', 'snapshots'],
+    google_ads_native_action: [
+      'batch',
+      'confirms',
+      'createdLookup',
+      'namedTargets',
+      'prerequisites',
+      'rejectionIsNonApplied',
+      'snapshots',
+    ],
     google_business_native_action: ['publishesLive', 'shownRequest'],
-    meta_native_action: ['confirms', 'impact', 'ownState', 'parentChecks', 'snapshots'],
+    meta_native_action: [
+      'confirms',
+      'createdLookup',
+      'impact',
+      'namedTargets',
+      'ownState',
+      'parentChecks',
+      'snapshots',
+    ],
     tiktok_native_action: ['confirms', 'deletes', 'morePages', 'prerequisites', 'snapshots'],
     snapchat_native_action: [
       'accountPath',
@@ -554,4 +570,77 @@ test('a verification asks the provider for the accounts its write changes and th
     writes('apple_ads_native_action').sharedAccounts(plan('apple_ads_native_action', 'PUT', '/v1/x')),
     [],
   );
+});
+
+test('a reconciliation asks the provider for its created-resource lookup and the targets a request names', async () => {
+  assertProviderFree('src/write-reconciliation.ts');
+  const {findCreated, namedTargets} = await import('../dist/src/write-reconciliation.js');
+  const {googleCreated, googleNamedTargets} = await import('../dist/src/google-write-reconciliation.js');
+  const {metaCreated, metaNamedTargets} = await import('../dist/src/meta-write-reconciliation.js');
+  const {googleAdsCustomers} = await import('../dist/src/google-version.js');
+  const {familyOf} = await import('../dist/src/reviewed-families.js');
+  const verification = await import('../dist/src/verification-reads.js');
+  const core = await import('../dist/src/verification-core.js');
+  // Only Google Ads and Meta declare them, their modules' functions; the read normalization keeps its import path.
+  for (const hook of ['createdLookup', 'namedTargets'])
+    assert.deepEqual(
+      registeredProviderHooks.filter(h => h.writes?.[hook]).map(h => h.gateway),
+      ['google_ads_native_action', 'meta_native_action'],
+      hook,
+    );
+  assert.equal(writes('google_ads_native_action').createdLookup, googleCreated);
+  assert.equal(writes('google_ads_native_action').namedTargets, googleNamedTargets);
+  assert.equal(writes('meta_native_action').createdLookup, metaCreated);
+  assert.equal(writes('meta_native_action').namedTargets, metaNamedTargets);
+  assert.equal(verification.normalize, core.normalize);
+  assert.equal(verification.snake, core.snake);
+  // Google's named creates: one bounded search of the frozen names, a state read of the write's account.
+  const google = plan('google_ads_native_action', 'POST', googleAdsCustomers + '123/campaigns:mutate', {
+    body: {operations: [{create: {name: 'Spring'}}, {create: {name: 'Summer'}}]},
+  });
+  const lookup = findCreated(google);
+  assert.equal(lookup.reads.length, 1);
+  assert.equal(lookup.reads[0].action, 'AMCP_STATE_READ');
+  assert.equal(lookup.reads[0].readOnly, true);
+  assert.equal(lookup.reads[0].method, 'POST');
+  assert.equal(lookup.reads[0].path, googleAdsCustomers + '123/googleAds:search');
+  assert.match(lookup.reads[0].body.query, /WHERE campaign\.name IN \('Spring', 'Summer'\) LIMIT 100$/);
+  const rows = {
+    results: [
+      {campaign: {resourceName: 'customers/123/campaigns/1', name: 'Spring'}},
+      {campaign: {resourceName: 'customers/123/campaigns/2', name: 'Summer'}},
+    ],
+  };
+  assert.deepEqual(lookup.match([{data: rows}], 0), {
+    expected: 2,
+    complete: true,
+    found: [
+      {index: 0, id: 'customers/123/campaigns/1', name: 'Spring'},
+      {index: 1, id: 'customers/123/campaigns/2', name: 'Summer'},
+    ],
+  });
+  // Meta's account-edge create; an update, another provider and an unnamed create have no lookup.
+  const meta = plan('meta_native_action', 'POST', '/v26.0/act_123/adsets', {body: {name: 'Spring'}});
+  assert.equal(findCreated(meta).reads[0].path, '/v26.0/act_123/adsets');
+  for (const p of [
+    {...meta, path: '/v26.0/42'},
+    plan('tiktok_native_action', 'POST', '/v1.3/campaign/create/', {body: {campaign_name: 'Spring'}}),
+    {...google, body: {operations: [{create: {}}]}},
+  ])
+    assert.equal(findCreated(p), undefined, p.gateway + ' ' + p.path);
+  // The targets an update or removal names: Google's operations, a Meta node edit; none for another provider.
+  const removal = plan('google_ads_native_action', 'POST', googleAdsCustomers + '123/labels:mutate', {
+    body: {operations: [{remove: 'customers/123/labels/1'}]},
+  });
+  assert.deepEqual(googleNamedTargets(removal), {
+    success: true,
+    data: {results: [{resourceName: 'customers/123/labels/1'}]},
+  });
+  const edit = plan('meta_native_action', 'POST', '/v26.0/42');
+  assert.deepEqual(metaNamedTargets(edit), {success: true, data: {id: '42'}});
+  const other = plan('snapchat_native_action', 'PUT', '/v1/x');
+  for (const p of [removal, edit, other])
+    if (!familyOf(p)?.verify && !familyOf(p)?.verification)
+      assert.deepEqual(namedTargets(p), writes(p.gateway)?.namedTargets?.(p), p.gateway);
+  assert.equal(namedTargets(other), undefined);
 });

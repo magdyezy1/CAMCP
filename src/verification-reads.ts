@@ -1,14 +1,16 @@
 /** Verification plan: the reads that show a write took effect, what each must contain, and how read-backs compare. */
 import {Registry} from './catalog.js';
-import {normalizeReviewState} from './review-state-core.js';
 import {snapshotPlans} from './write-snapshots.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {fingerprint, obj} from './workspace-core.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOf, familyOfRead} from './reviewed-families.js';
 import {providerHooks} from './provider-hooks.js';
+// The read normalization lives in the leaf src/verification-core.ts, which the providers' created-resource lookups
+// import (ARC-01 phase B, wave 4c); this import path keeps it.
+import {normalize, snake} from './verification-core.js';
+export {normalize, snake};
 
-export const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 /**
  * Retire older value-bidding cache proofs without changing their original accepted mutation or receipt. The version is
  * the plan's provider's (`review.verificationVersion`, ARC-01 phase B: Google's value-bidding campaigns).
@@ -20,12 +22,6 @@ export function googleValueVerificationVersion(plan: CompiledRequest): string | 
 export function verificationContractVersion(plan: CompiledRequest): string | undefined {
   return familyOf(plan)?.verificationCacheVersion ?? googleValueVerificationVersion(plan);
 }
-export const normalize = (v: any): any =>
-  Array.isArray(v)
-    ? normalizeReviewState(v.map(normalize))
-    : obj(v)
-      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [snake(k), normalize(x)]))
-      : v;
 export function differing(expected: any, actual: any, path = '', out: string[] = []): string[] {
   if (obj(expected)) {
     for (const [key, value] of Object.entries(expected)) differing(value, actual?.[key], path + '/' + key, out);

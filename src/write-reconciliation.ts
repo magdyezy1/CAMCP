@@ -16,8 +16,10 @@ import {verificationReads, normalize, differing, entity} from './verification-re
 import {validateState} from './write-state.js';
 import {normalizeSnapshot, reviewStateHash} from './review-state.js';
 import {stateRead} from './write-snapshots.js';
-import {googleAdsCustomers} from './google-version.js';
 import {fingerprint, optional} from './workspace-core.js';
+// Each provider's created-resource lookups and named targets (ARC-01 phase B, wave 4c): its adapter's `writes` hooks.
+import {providerHooks} from './provider-hooks.js';
+import type {CreatedLookup, StateReadBuilder} from './provider-adapter.js';
 import {ownsRecord} from './actor-identity.js';
 import {mayResolve, pendingUncertainMs, retainedReview, writeStatus} from './write-records.js';
 import {object} from './write-common.js';
@@ -29,7 +31,8 @@ import {writeClaim} from './job-repository.js';
  * connection, guarded like every state read, in two rounds after a minimum delay, and classifies the write:
  *
  * - `appears_applied`: every target holds what was sent (an update or removal), or each created resource is found
- *   (a create, through a family's `findCreated` lookup: Google Ads by name, Meta by name and creation time);
+ *   (a create, through its provider's created lookup, `findCreated`: Google Ads by name, Meta by name and creation
+ *   time);
  * - `appears_not_applied`: no target holds it and the reviewed state is unchanged, or no created resource exists;
  * - `indeterminate`: anything else (the reads disagree, the state moved elsewhere, no read contract).
  *
@@ -52,115 +55,27 @@ export const reconcileDelayMs = () => setting('AMCP_WRITE_RECONCILE_DELAY_MS', 6
 const roundPauseMs = () => setting('AMCP_WRITE_RECONCILE_ROUND_MS', 2000, 60000);
 
 type Read = (request: CompiledRequest) => Promise<TransportResult>;
-/** What a family's lookup of a create returns: the created resources it found, in the order of the request's records. */
-export interface CreatedLookup {
-  reads: CompiledRequest[];
-  /** Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked. */
-  match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
-  /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
-  receipt(found: JsonObject[]): JsonObject;
-}
-const gaqlText = (v: unknown) => typeof v === 'string' && v.length > 0 && v.length <= 255 && !/['\\\n\r]/.test(v);
-const googleCreatable: Record<string, string> = {
-  campaigns: 'campaign',
-  campaignBudgets: 'campaign_budget',
-  adGroups: 'ad_group',
-  assetGroups: 'asset_group',
-};
+// What a provider's lookup of a create returns is the provider contract's (src/provider-adapter.ts); this import path
+// keeps the type.
+export type {CreatedLookup};
 /**
- * Google Ads creates of named resources (campaigns, budgets, ad groups, asset groups): one bounded search by the frozen
- * names. Google refuses a duplicate name for these, so one match per name is the created resource.
+ * The created-resource lookups, by the write's provider (its adapter's `writes.createdLookup`: Google Ads and Meta),
+ * whose reads are built as the review builds every state read.
  */
-function googleCreated(plan: CompiledRequest): CreatedLookup | undefined {
-  const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1],
-    resource = kind ? googleCreatable[kind] : undefined,
-    operations = object(plan.body).operations;
-  if (!resource || !Array.isArray(operations) || !operations.length || operations.some(op => !object(op).create))
-    return undefined;
-  const names = operations.map(op => object(op).create.name);
-  if (!names.every(gaqlText) || new Set(names).size !== names.length) return undefined;
-  const id = normalizeAccount(plan.gateway, plan.accountId!);
-  const query =
-    'SELECT ' +
-    resource +
-    '.resource_name, ' +
-    resource +
-    '.name FROM ' +
-    resource +
-    ' WHERE ' +
-    resource +
-    '.name IN (' +
-    names.map(n => "'" + n + "'").join(', ') +
-    ') LIMIT 100';
-  return {
-    reads: [stateRead(plan, googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
-    match(responses) {
-      const rows = (normalize(object(responses[0]?.data).results ?? []) as JsonObject[]).map(r => object(r[resource]));
-      const found = names.map(name => rows.filter(r => r.name === name));
-      return {
-        expected: names.length,
-        complete: !object(responses[0]?.data).nextPageToken,
-        found: found.every(list => list.length === 1)
-          ? found.map((list, index) => ({index, id: list[0]!.resource_name, name: names[index]}))
-          : found.flat().map(r => ({id: r.resource_name, name: r.name})),
-      };
-    },
-    receipt: found => ({results: found.map(f => ({resourceName: f.id}))}),
-  };
-}
-/** Meta campaign, ad set and ad creates: the account's edge filtered by the frozen name, created after the claim. */
-function metaCreated(plan: CompiledRequest): CreatedLookup | undefined {
-  const match = /^\/(v\d+\.\d+)\/(act_\d+)\/(campaigns|adsets|ads)$/.exec(plan.path),
-    name = object(plan.body).name;
-  if (!match || plan.method !== 'POST' || typeof name !== 'string' || !name || name.length > 400) return undefined;
-  const read = stateRead(plan, '/' + match[1] + '/' + match[2] + '/' + match[3], {
-    fields: 'id,name,created_time',
-    filtering: JSON.stringify([{field: 'name', operator: 'EQUAL', value: name}]),
-    limit: 25,
-  });
-  return {
-    reads: [read],
-    match(responses, submittedAt) {
-      const data = object(responses[0]?.data),
-        rows = (Array.isArray(data.data) ? data.data : []).map(object),
-        // A clock skew allowance: the provider stamps creation after AMCP claimed the key.
-        recent = rows.filter(r => r.name === name && Date.parse(String(r.created_time)) >= submittedAt - 120000);
-      return {
-        expected: 1,
-        complete: !object(data.paging).next,
-        found: recent.map((r, index) => ({index, id: String(r.id), name: r.name, created_time: r.created_time})),
-      };
-    },
-    receipt: found => ({id: found[0]!.id}),
-  };
-}
-/** The created-resource lookups, by family (first two families: Google Ads and Meta). */
 export function findCreated(plan: CompiledRequest): CreatedLookup | undefined {
-  if (plan.gateway === 'google_ads_native_action') return googleCreated(plan);
-  if (plan.gateway === 'meta_native_action') return metaCreated(plan);
-  return undefined;
+  const read: StateReadBuilder = (path, query = {}, body, method = 'GET') => stateRead(plan, path, query, body, method);
+  return providerHooks(plan.gateway)?.writes?.createdLookup?.(plan, read);
 }
 /**
  * For an update or removal whose targets the request names, the receipt the provider would have returned, so the
- * verification read contract names what to read and what to expect. Undefined for a create (its identifiers are the
- * provider's to assign) and for a family that verifies through its own receipt.
+ * verification read contract names what to read and what to expect: its provider's (`writes.namedTargets`: Google
+ * Ads' operations, a Meta node edit). Undefined for a create (its identifiers are the provider's to assign), for a
+ * family that verifies through its own receipt and for a provider without one.
  */
 export function namedTargets(plan: CompiledRequest): JsonObject | undefined {
   const family = familyOf(plan);
   if (family?.verify || family?.verification) return undefined;
-  const body = object(plan.body);
-  if (plan.gateway === 'google_ads_native_action' && Array.isArray(body.operations) && body.operations.length) {
-    const names = body.operations.map((op: JsonObject) => {
-      const update = object(op.update);
-      return op.create ? undefined : (op.remove ?? update.resourceName ?? update.resource_name);
-    });
-    return names.every((n: unknown) => typeof n === 'string')
-      ? {success: true, data: {results: names.map((resourceName: string) => ({resourceName}))}}
-      : undefined;
-  }
-  if (plan.gateway === 'meta_native_action' && plan.method === 'POST' && /\/\d+$/.test(plan.path))
-    return {success: true, data: {id: plan.path.split('/').at(-1)}};
-  return undefined;
+  return providerHooks(plan.gateway)?.writes?.namedTargets?.(plan);
 }
 /** A provider failure of a reconciliation read leaves the answer indeterminate; an authority failure is raised. */
 const providerFailure = (e: unknown) =>

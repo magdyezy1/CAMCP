@@ -213,8 +213,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // the campaign clones' src/campaign-clone-core.ts and four src/<provider>-campaign-clone.ts modules, and the guided
   // activations' src/campaign-activation-core.ts and six src/<provider>-recipe-activation.ts modules, and the
   // preflight's src/google-preflight.ts, src/snapchat-preflight.ts and src/meta-preflight.ts, and the rejected
-  // outcome's src/google-write-rejection.ts and src/write-rejection-core.ts.
-  assert.equal(files.length, 698);
+  // outcome's src/google-write-rejection.ts and src/write-rejection-core.ts, and the reconciliation's
+  // src/google-write-reconciliation.ts, src/meta-write-reconciliation.ts and src/verification-core.ts.
+  assert.equal(files.length, 701);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11513);

@@ -198,8 +198,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // with their reasons, and Meta's preflight hooks to src/meta-preflight.ts: three more files, two more with reasons
   // (src/campaign-preflight.ts keeps its own), the same reasons. Its rejected outcome moves Google's proof that a
   // refusal applied nothing to src/google-write-rejection.ts and the definitive statuses to the leaf
-  // src/write-rejection-core.ts, neither with reasons: two more files.
-  assert.equal(files.length, 698);
+  // src/write-rejection-core.ts, neither with reasons: two more files. Its reconciliation moves Google's and Meta's
+  // created-resource lookups and named targets to src/google-write-reconciliation.ts and
+  // src/meta-write-reconciliation.ts and the read normalization to the leaf src/verification-core.ts, none with
+  // reasons: three more files.
+  assert.equal(files.length, 701);
   assert.equal(selected.filter(row => row.messages.size).length, 264);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

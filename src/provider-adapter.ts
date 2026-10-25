@@ -826,4 +826,25 @@ export interface WriteReviewHooks {
    * audience export still running is pending, a failed one failed); verified without one.
    */
   verificationPhase?(read: CompiledRequest, state: JsonObject): 'verified' | 'pending' | 'failed';
+  // The read-only reconciliation of an uncertain write (src/write-reconciliation.ts WriteReconciler).
+  /**
+   * The lookup that finds what a create made (Google Ads' named campaigns, budgets, ad groups and asset groups by their
+   * frozen names; Meta's campaign, ad set and ad creates by name and creation time), its reads built with `read` as
+   * the review builds every state read; undefined for a write it cannot look up.
+   */
+  createdLookup?(plan: CompiledRequest, read: StateReadBuilder): CreatedLookup | undefined;
+  /**
+   * The receipt the provider would have returned for an update or removal whose targets the request names (Google
+   * Ads' operations' resource names, a Meta node edit's ID), so the verification reads name what to read and expect;
+   * undefined for a create and for a request that names none.
+   */
+  namedTargets?(plan: CompiledRequest): JsonObject | undefined;
+}
+/** What a provider's lookup of a create returns: the created resources it found, in the order of the request's records. */
+export interface CreatedLookup {
+  reads: CompiledRequest[];
+  /** Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked. */
+  match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
+  /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
+  receipt(found: JsonObject[]): JsonObject;
 }

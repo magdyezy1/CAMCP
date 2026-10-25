@@ -41,6 +41,7 @@ import {googleActivationGates, googleActivationRecord, googleActivationSteps} fr
 import {googlePreflight} from './google-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
 import {googleRejectionIsNonApplied} from './google-write-rejection.js';
+import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -595,6 +596,10 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     },
     // A per-service mutate refused outright applied nothing (src/write-rejection.ts, the rejected outcome).
     rejectionIsNonApplied: googleRejectionIsNonApplied,
+    // An uncertain write's reconciliation (src/write-reconciliation.ts): its named creates found by name, the
+    // operations' resources as the receipt of an update or removal.
+    createdLookup: googleCreated,
+    namedTargets: googleNamedTargets,
   }),
 });
 

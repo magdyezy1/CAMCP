@@ -40,6 +40,7 @@ import {metaCreativeImpact} from './meta-creative-features.js';
 import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './meta-recipe-activation.js';
 import {metaPreflight} from './meta-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
+import {metaCreated, metaNamedTargets} from './meta-write-reconciliation.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -318,6 +319,10 @@ export const metaHooks: ProviderHooks = Object.freeze({
     parentChecks: metaAdSetAudienceChoice,
     // A creative's shop destination and creative feature choices (src/write-impact.ts).
     impact: (plan: CompiledRequest) => metaCreativeImpact(plan),
+    // An uncertain write's reconciliation (src/write-reconciliation.ts): a campaign, ad set or ad create found by name
+    // and creation time, a node edit's ID as the receipt.
+    createdLookup: metaCreated,
+    namedTargets: metaNamedTargets,
   }),
 });
 
