@@ -44,7 +44,9 @@ export const targets = Object.freeze({
   // The Snapchat scoped-resource paths left scope.js for this leaf (ARC-01 phase B, the read authorizers), which
   // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
-  'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection']}},
+  'dist/src/store.js': {
+    classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection', 'resolveConnection']},
+  },
   'dist/src/account-id.js': {functions: ['normalizeAccount']},
   'dist/src/execution-risk.js': {functions: ['applyExecutionRisk', 'independentlyReadOnly', 'bodyDeletion']},
   // Google Ads' global planning reads left execution-risk.js for its adapter (ARC-01 phase B, the read
@@ -94,6 +96,9 @@ export const targets = Object.freeze({
   // default and name save (a route's refusal stops before any of them); Store.updateConnection records the connection
   // a selection, write-access change, sync or renewal saves.
   'dist/server/website-repository.js': {functions: ['saveWebsiteAssets', 'writeDefaultFlag', 'writeConnectionLabel']},
+  // ARC-01 phase B, the account model: a client access set's account comparison (Store.resolveConnection, above,
+  // compares in the same form).
+  'dist/src/access-sets.js': {functions: ['accountKey']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -123,6 +128,7 @@ export const replayable = Object.freeze([
   'dist/src/delegated-native.js#delegatedParameterMatches',
   'dist/server/platform-oauth.js#selectionKind',
   'dist/server/platform-oauth.js#selectableKinds',
+  'dist/src/access-sets.js#accountKey',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
