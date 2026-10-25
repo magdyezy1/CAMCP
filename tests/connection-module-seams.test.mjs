@@ -4,7 +4,10 @@ import fs from 'node:fs';
 import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
 import {accountKey, bindingKey} from '../dist/src/access-sets.js';
 import {normalizeAccount} from '../dist/src/account-id.js';
-import {providerAdapters} from '../dist/src/provider-adapters.js';
+import {providerAdapters, providerById} from '../dist/src/provider-adapters.js';
+import {registeredProviderLogins} from '../dist/src/provider-logins.js';
+import {googleOAuth} from '../dist/src/google-oauth.js';
+import {providerRevocationOffer, revocationTarget} from '../dist/src/provider-revocation.js';
 import {Store} from '../dist/src/store.js';
 
 // ARC-01 phase B, the login and connection modules the website and the MCP service share: the provider facts they held
@@ -75,4 +78,53 @@ test('a connection resolves by an account in its display form, as before', () =>
   } finally {
     store.close();
   }
+});
+
+test('provider revocation takes its endpoint from Google’s OAuth steps, for every Google login and no other', () => {
+  const file = 'src/provider-revocation.ts';
+  assert.doesNotMatch(source(file), gatewayLiteral);
+  assert.deepEqual(providerImports(file), [], 'it consults the provider login registry instead');
+  assert.ok(graph.get(file).has('src/provider-logins.ts'));
+  // Google's documented revocation endpoint (RFC 7009), the target every Google login revoked at before the move.
+  assert.ok(Object.isFrozen(googleOAuth.revocation));
+  assert.deepEqual(googleOAuth.revocation, {
+    provider: 'google',
+    endpoint: 'https://oauth2.googleapis.com/revoke',
+    sharedClient: true,
+  });
+  const google = {provider: 'google', endpoint: 'https://oauth2.googleapis.com/revoke', shared_client: true};
+  const revocable = registeredProviderLogins.filter(l => l.oauth?.revocation).map(l => l.gateway);
+  assert.deepEqual(revocable.sort(), [
+    'dv360_native_action',
+    'ga4_native_action',
+    'google_ads_native_action',
+    'google_business_native_action',
+    'google_drive_native_action',
+    'google_search_console_native_action',
+    'google_sheets_native_action',
+    'gtm_native_action',
+  ]);
+  for (const gateway of revocable) {
+    assert.deepEqual(revocationTarget(gateway), google, gateway);
+    // The logins that share Google's OAuth steps share its one target.
+    assert.equal(revocationTarget(gateway), revocationTarget(providerById('google').gateway), gateway);
+  }
+  for (const {gateway} of providerAdapters.filter(a => !revocable.includes(a.gateway))) {
+    assert.equal(revocationTarget(gateway), undefined, gateway);
+    assert.deepEqual(providerRevocationOffer(gateway, {AMCP_PROVIDER_REVOCATION: 'on'}), {
+      available: false,
+      reason: 'provider_not_supported',
+      provider: null,
+      shared_client: false,
+    });
+  }
+  // A name that is no gateway has no target, an inherited one included.
+  for (const name of ['amcp_workspace', 'constructor', 'toString', '__proto__'])
+    assert.equal(revocationTarget(name), undefined, name);
+  assert.deepEqual(providerRevocationOffer('ga4_native_action', {AMCP_PROVIDER_REVOCATION: 'on'}), {
+    available: true,
+    reason: null,
+    provider: 'google',
+    shared_client: true,
+  });
 });

@@ -183,6 +183,22 @@ export interface OAuthSteps {
    * renewals send), or a refusal; never the connection's identity, accounts or grants.
    */
   connectionFields?(env: NodeJS.ProcessEnv): Pick<Connection, 'userAgent'>;
+  /**
+   * The provider's token revocation endpoint (RFC 7009), where an administrator who disconnects a login may also ask
+   * the provider to revoke AMCP's token (src/provider-revocation.ts, CON-05 sub-item 10, which keeps the switch, the
+   * confirmation and every check). `sharedClient`: the provider revokes the grant of the whole OAuth client for that
+   * person, not one token (Google, Q25).
+   */
+  readonly revocation?: OAuthRevocation;
+}
+
+/** A provider's token revocation (OAuthSteps.revocation). */
+export interface OAuthRevocation {
+  /** The provider the result and the audit name. */
+  readonly provider: string;
+  /** The HTTPS revocation endpoint, which receives the token in a form body. */
+  readonly endpoint: string;
+  readonly sharedClient: boolean;
 }
 
 // The website's asset discovery: server/asset-discovery.ts keeps the platform and kind checks, the login checks around

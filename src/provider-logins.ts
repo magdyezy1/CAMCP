@@ -22,9 +22,9 @@ import {wooCommerceLogin} from './woocommerce-login.js';
  * of the website's logins, its OAuth flow steps and its asset discovery (src/<provider>-login.ts), by gateway, in the
  * order of the website platforms (server/platform-oauth.ts). Only the website's server consults it
  * (server/platform-oauth.ts, server/asset-discovery.ts, server/google-reauthorization.ts, server/social-signin.ts,
- * server/platform-routes.ts), so the reviewed-write path, which loads the provider hooks (src/provider-hooks.ts), never
- * loads these steps. No provider module imports it; the architecture ratchet (tools/architecture-map.mjs) counts it
- * with the providers.
+ * server/platform-routes.ts, and the website's disconnect with provider revocation, src/provider-revocation.ts), so the
+ * reviewed-write path, which loads the provider hooks (src/provider-hooks.ts), never loads these steps. No provider
+ * module imports it; the architecture ratchet (tools/architecture-map.mjs) counts it with the providers.
  */
 export const registeredProviderLogins: readonly ProviderLogin[] = Object.freeze([
   googleSheetsLogin,
@@ -66,6 +66,19 @@ for (const login of [...registeredProviderLogins, ...registeredKeyedLogins]) {
     )
   )
     throw new Error('The sign-in of ' + login.gateway + ' needs its HTTPS authorization, token and profile endpoints.');
+  // A revocation is one frozen declaration of its provider, its HTTPS endpoint (src/provider-revocation.ts sends a
+  // token there) and whether the provider revokes the whole client's grant.
+  const revocation = login.oauth?.revocation;
+  if (
+    revocation &&
+    (!Object.isFrozen(revocation) ||
+      typeof revocation.provider !== 'string' ||
+      !revocation.provider ||
+      typeof revocation.endpoint !== 'string' ||
+      !revocation.endpoint.startsWith('https://') ||
+      typeof revocation.sharedClient !== 'boolean')
+  )
+    throw new Error('The revocation of ' + login.gateway + ' needs its provider, HTTPS endpoint and client sharing.');
   // A renewal's steps are both its reads: the accounts a fresh authorization reaches, and the selected-account read.
   if (
     login.renewal &&

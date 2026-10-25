@@ -99,6 +99,12 @@ export const targets = Object.freeze({
   // ARC-01 phase B, the account model: a client access set's account comparison (Store.resolveConnection, above,
   // compares in the same form).
   'dist/src/access-sets.js': {functions: ['accountKey']},
+  // ARC-01 phase B, the website's disconnect with provider revocation: each gateway's revocation target (its endpoint),
+  // the offer the disconnect dialog shows and the revocation's outcome (its one request goes through the caller's
+  // fetcher, which the suites' fixtures answer).
+  'dist/src/provider-revocation.js': {
+    functions: ['revocationTarget', 'providerRevocationOffer', 'disconnectWithProviderRevocation'],
+  },
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -129,6 +135,7 @@ export const replayable = Object.freeze([
   'dist/server/platform-oauth.js#selectionKind',
   'dist/server/platform-oauth.js#selectableKinds',
   'dist/src/access-sets.js#accountKey',
+  'dist/src/provider-revocation.js#revocationTarget',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');

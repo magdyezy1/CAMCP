@@ -321,10 +321,10 @@ where the report table it shares with the Sheets export lives.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 73 |
+| `shared_modules_with_gateway_literals` | 72 |
 | `shared_to_provider_runtime_imports` | 219 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 415 |
+| `shared_gateway_literals` (reported) | 407 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
