@@ -219,6 +219,10 @@ export function inspectReportExplanations(source, file) {
       ['bad', 'invalid'].includes(node.callee?.name) &&
       [
         'report-allocation.ts',
+        // The allocation models' evidence checks and dates (ARC-04 stage F: moved from report-allocation.ts).
+        'snapchat-allocation-evidence.ts',
+        'linkedin-allocation-evidence.ts',
+        'evidence-dates.ts',
         'allocation-plan.ts',
         'google-allocation-budgets.ts',
         'linkedin-allocation-budgets.ts',
@@ -1259,6 +1263,9 @@ export function checkWebLocales(root = process.cwd()) {
     'src/decision-reporting.ts',
     'src/report-scenarios.ts',
     'src/report-allocation.ts',
+    'src/snapchat-allocation-evidence.ts',
+    'src/linkedin-allocation-evidence.ts',
+    'src/evidence-dates.ts',
     'src/allocation-calibration.ts',
     'src/report-packs.ts',
     'src/allocation-plan.ts',

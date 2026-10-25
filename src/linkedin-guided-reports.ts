@@ -1,5 +1,6 @@
 import {compileReport} from './workflows.js';
 import {bad} from './workspace-core.js';
+import {linkedinAllocationEvidence} from './linkedin-allocation-evidence.js';
 import type {GuidedReporting} from './report-source.js';
 import {linkedInDailyRange, linkedInReportDate} from './linkedin-reporting.js';
 import {linkedInConversionUrn, linkedInConversionWindowSentinel} from './linkedin-conversion-windows.js';
@@ -45,6 +46,13 @@ const presets = [
 export const linkedinGuidedReporting: GuidedReporting = {
   presets,
   presetPrefix: 'linkedin_',
+  // DEC-01: an allocation models campaign evidence kept with its original URNs, UTC daily analytics mapping and
+  // verified account currency.
+  allocation: {
+    preset: 'linkedin_campaign',
+    evidence: linkedinAllocationEvidence,
+    entity: id => typeof id === 'string' && /^urn:li:sponsoredCampaign:[1-9][0-9]{0,19}$/.test(id),
+  },
   presetRequest(preset, input, range) {
     if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
       bad('Use the exact LinkedIn advertising account ID.');

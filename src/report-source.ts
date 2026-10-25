@@ -153,6 +153,17 @@ export interface GuidedReporting {
   presetRequest?(preset: JsonObject, input: JsonObject, range: {since: string; until: string}): JsonObject;
   /** Checks the native rows of a capture of one of the platform's presets before they are mapped (LinkedIn, Meta). */
   validateRows?(preset: string, input: JsonObject, rows: JsonObject[]): void;
+  /**
+   * DEC-01: the allocation model of the platform's guided evidence (amcp_reporting allocation_candidates, allocation
+   * and its calibration, src/report-allocation.ts): the preset whose retained evidence it models, the check of that
+   * evidence's native source (it refuses; LinkedIn, Snapchat), and whether a retained row's entity ID is one of the
+   * platform's native IDs.
+   */
+  readonly allocation?: {
+    readonly preset: string;
+    evidence?(report: JsonObject): void;
+    entity(id: unknown): boolean;
+  };
 }
 
 export interface ReportSource {

@@ -1,7 +1,9 @@
 import {bad, fingerprint, validate} from './workspace-core.js';
 import type {JsonObject} from './types.js';
-import {snapchatReportId} from './snapchat-evidence.js';
 import {metricRoundingLimitation} from './provider-decimal.js';
+import {evidenceDate as dateValue} from './evidence-dates.js';
+import {reportPlatforms} from './report-metrics.js';
+import {guidedReportSources} from './report-sources.js';
 // A cyclic import of functions only (allocation-calibration reuses allocationEvidence); nothing runs at load time.
 import {calibrateAllocation} from './allocation-calibration.js';
 
@@ -25,14 +27,22 @@ const decimal = (value: bigint, places: number) => {
       .replace(/0+$/, '');
   return sign + value / scale + (fraction ? '.' + fraction : '');
 };
-function dateValue(value: unknown) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value))
-    bad('Retain valid evidence dates.', 'SCENARIO_EVIDENCE_REQUIRED');
-  const time = Date.parse(value as string);
-  if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== value)
-    bad('Retain valid evidence dates.', 'SCENARIO_EVIDENCE_REQUIRED');
-  return time;
-}
+/**
+ * DEC-01: the guided platforms' allocation models (their guided reporting's `allocation`), by the preset whose evidence
+ * each models, under the gateway of the platform's reports.
+ */
+const allocationModels = new Map(
+  guidedReportSources.flatMap(source =>
+    source.guided?.allocation
+      ? [
+          [
+            source.guided.allocation.preset,
+            {...source.guided.allocation, gateway: reportPlatforms[source.platform]!.gateway},
+          ],
+        ]
+      : [],
+  ),
+);
 type CampaignEvidence = {
   id: string;
   name: string;
@@ -43,26 +53,12 @@ type CampaignEvidence = {
   minDaily: bigint | null;
   maxDaily: bigint | null;
 };
-function linkedinSourceRange(sem: JsonObject) {
-  const date = (value: string) => {
-    dateValue(value);
-    const [year, month, day] = value.split('-').map(Number);
-    return '(year:' + year + ',month:' + month + ',day:' + day + ')';
-  };
-  return '(start:' + date(sem.date_from) + ',end:' + date(sem.date_to) + ')';
-}
 function campaigns(report: JsonObject) {
   const squad = report.preset === 'snapchat_adsquad';
-  const linkedin = report.preset === 'linkedin_campaign';
-  const gateway = {
-    google_campaign: 'google_ads_native_action',
-    meta_campaign: 'meta_native_action',
-    linkedin_campaign: 'linkedin_native_action',
-    snapchat_adsquad: 'snapchat_native_action',
-  }[report.preset as string];
+  const model = allocationModels.get(report.preset);
   if (
-    !gateway ||
-    report.gateway !== gateway ||
+    !model ||
+    report.gateway !== model.gateway ||
     report.source !== 'provider_read' ||
     report.grain !== (squad ? 'ad squad × day' : 'campaign × day')
   )
@@ -70,52 +66,8 @@ function campaigns(report: JsonObject) {
       'Capture a guided Google, Meta or LinkedIn campaign-by-day report, or a Snapchat ad-squad-by-day report, before modeling allocations.',
       'SCENARIO_EVIDENCE_REQUIRED',
     );
-  if (
-    squad &&
-    (!snapchatReportId(report.source_request?.path_params?.campaign_id) ||
-      report.source_request?.action !== 'snapchat_campaign_stats_get' ||
-      report.source_request?.query?.breakdown !== 'adsquad' ||
-      report.native_account_evidence?.parent_campaign?.id !== report.source_request.path_params.campaign_id ||
-      report.native_account_evidence.parent_campaign.account_id !== report.account_id)
-  )
-    bad('Retain exact Snapchat campaign ownership and ad-squad source evidence.', 'SCENARIO_EVIDENCE_REQUIRED');
-  if (
-    linkedin &&
-    (report.source_collection !== 'linkedin_analytics' ||
-      report.source_request?.action !== 'linkedin_rest_ad_analytics_get' ||
-      report.source_request.account_id !== report.account_id ||
-      report.source_request.connection_id !== report.connection_id ||
-      report.source_request.query?.pivot !== 'CAMPAIGN' ||
-      report.source_request.query?.q !== 'analytics' ||
-      report.source_request.query?.timeGranularity !== 'DAILY' ||
-      report.source_request.query?.accounts !== 'List(urn:li:sponsoredAccount:' + report.account_id + ')' ||
-      report.semantics?.timezone !== 'UTC' ||
-      report.semantics?.conversion_definition !== 'externalWebsiteConversions' ||
-      report.source_request.query?.dateRange !== linkedinSourceRange(report.semantics) ||
-      report.mapping?.entity_id !== '/pivotValues/0' ||
-      report.mapping?.date?.path !== '/dateRange/start' ||
-      report.mapping?.date?.format !== 'linkedin_utc_date' ||
-      report.mapping?.spend !== '/costInLocalCurrency' ||
-      report.mapping?.conversions !== '/externalWebsiteConversions' ||
-      report.native_account_evidence?.account_id !== report.account_id ||
-      report.native_account_evidence?.currency !== report.semantics?.currency ||
-      !Array.isArray(report.native_account_evidence?.checks) ||
-      report.native_account_evidence.checks.length !== 2 ||
-      report.native_account_evidence.checks.some(
-        (check: JsonObject) =>
-          check.source_request?.action !== 'linkedin_rest_ad_accounts_ad_account_id_get' ||
-          check.source_request.account_id !== report.account_id ||
-          check.source_request.connection_id !== report.connection_id ||
-          check.source_request.path_params?.ad_account_id !== report.account_id ||
-          typeof check.source_hash !== 'string' ||
-          !/^[a-f0-9]{64}$/.test(check.source_hash),
-      ) ||
-      report.native_account_evidence.checks[0].source_hash !== report.native_account_evidence.checks[1].source_hash)
-  )
-    bad(
-      'Retain the original LinkedIn campaign URNs, UTC daily analytics mapping and verified account currency evidence.',
-      'SCENARIO_EVIDENCE_REQUIRED',
-    );
+  // The native source of the platform's evidence (Snapchat's parent campaign ownership, LinkedIn's analytics read).
+  model.evidence?.(report);
   if (!Array.isArray(report.rows) || report.rows.length > 10000)
     bad(
       report.preset === 'snapchat_adsquad'
@@ -130,12 +82,7 @@ function campaigns(report: JsonObject) {
   const groups = new Map<string, CampaignEvidence>(),
     seen = new Set<string>();
   for (const row of report.rows) {
-    if (
-      squad
-        ? !snapchatReportId(row.entity_id)
-        : typeof row.entity_id !== 'string' ||
-          !(linkedin ? /^urn:li:sponsoredCampaign:[1-9][0-9]{0,19}$/ : /^\d{1,40}$/).test(row.entity_id)
-    )
+    if (!model.entity(row.entity_id))
       bad(
         report.preset === 'snapchat_adsquad'
           ? 'Retain exact native ad-squad IDs.'

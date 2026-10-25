@@ -15,7 +15,6 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
 const remaining = {
   'src/decision-reporting.ts': {literals: 7, imports: 10},
   'src/report-resource-scope.ts': {literals: 9, imports: 0},
-  'src/report-allocation.ts': {literals: 4, imports: 1},
   'src/report-runs.ts': {literals: 3, imports: 0},
   'src/overview-parents.ts': {literals: 0, imports: 2},
   'src/overview-levels.ts': {literals: 0, imports: 1},
@@ -206,6 +205,42 @@ test('the guided capture presets are the report sources’ own, listed as the pr
     reportPresets.filter(p => guidedReportSources[1].guided.campaignFilter(p)).map(p => p.id),
     ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'],
   );
+});
+
+test('the allocation models are the guided platforms’ own, under the gateways report-allocation named', async () => {
+  // DEC-01 (ARC-04 stage F): which guided evidence an allocation models, its source checks and its entity IDs left
+  // src/report-allocation.ts for the platforms' guided reporting.
+  const {guidedReportSources} = await import('../dist/src/report-sources.js'),
+    models = guidedReportSources.filter(source => source.guided.allocation);
+  assert.deepEqual(
+    Object.fromEntries(
+      models.map(source => [source.guided.allocation.preset, reportPlatforms[source.platform].gateway]),
+    ),
+    {
+      google_campaign: 'google_ads_native_action',
+      snapchat_adsquad: 'snapchat_native_action',
+      linkedin_campaign: 'linkedin_native_action',
+      meta_campaign: 'meta_native_action',
+    },
+  );
+  assert.deepEqual(
+    models.filter(source => source.guided.allocation.evidence).map(source => source.platform),
+    ['snapchat', 'linkedin'],
+  );
+  // The entity IDs each accepted: numeric campaign IDs, Snapchat ad squad UUIDs, LinkedIn campaign URNs.
+  const entity = Object.fromEntries(models.map(source => [source.platform, source.guided.allocation.entity]));
+  for (const platform of ['google', 'meta']) {
+    assert.equal(entity[platform]('1234567890'), true);
+    for (const id of ['', '12a', 'urn:li:sponsoredCampaign:1', 1, '1'.repeat(41)])
+      assert.equal(entity[platform](id), false, platform + ' ' + id);
+  }
+  assert.equal(entity.snapchat('11111111-1111-4111-8111-111111111111'), true);
+  assert.equal(entity.snapchat('1234567890'), false);
+  assert.equal(entity.linkedin('urn:li:sponsoredCampaign:123'), true);
+  for (const id of ['urn:li:sponsoredCampaign:0123', 'urn:li:sponsoredCreative:1', '123'])
+    assert.equal(entity.linkedin(id), false, id);
+  const graph = runtimeGraph(process.cwd());
+  assert.equal(graph.get('src/report-allocation.ts').has('src/snapchat-evidence.ts'), false);
 });
 
 test('the report table is shared: the Sheets client re-exports it, and its exporters import no Sheets module', () => {

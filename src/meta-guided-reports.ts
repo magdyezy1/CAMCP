@@ -117,6 +117,8 @@ export const metaGuidedReporting: GuidedReporting = {
   dimensions,
   presets,
   presetPrefix: 'meta_',
+  // DEC-01: an allocation models campaign × day evidence by native campaign ID.
+  allocation: {preset: 'meta_campaign', entity: id => typeof id === 'string' && /^\d{1,40}$/.test(id)},
   presetRequest(preset, input, range) {
     const account = normalizeAccount(preset.gateway, input.account_id ?? '');
     if (!/^[1-9][0-9]{0,31}$/.test(account)) bad('Use the exact Meta advertising account ID.');

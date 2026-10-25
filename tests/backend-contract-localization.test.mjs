@@ -191,8 +191,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // directly by the contract, so this guard owns it: one owned reason more, the same message and Arabic. The guided
   // presets, their requests and row checks move from src/report-presets.ts into the platforms' guided reporting, adding
   // src/snapchat-guided-reports.ts, src/tiktok-guided-reports.ts and src/linkedin-guided-reports.ts: three files
-  // more; their refusals are raised through bad(), as they were, so the reasons are the same.
-  assert.equal(files.length, 676);
+  // more; their refusals are raised through bad(), as they were, so the reasons are the same. The allocation models'
+  // evidence checks move from src/report-allocation.ts to src/snapchat-allocation-evidence.ts and
+  // src/linkedin-allocation-evidence.ts, and its evidence date check to the leaf src/evidence-dates.ts (three files
+  // more), all still raised through bad() and still authored allocation copy (tools/check-locales.mjs): the same reasons.
+  assert.equal(files.length, 679);
   assert.equal(selected.filter(row => row.messages.size).length, 259);
   assert.equal(owned.size, 1589);
   assert.equal(Object.keys(catalog).length, 11513);

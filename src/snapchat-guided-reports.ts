@@ -2,6 +2,7 @@ import {bad} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import type {GuidedReporting} from './report-source.js';
 import {snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
+import {snapchatAllocationEvidence} from './snapchat-allocation-evidence.js';
 
 /**
  * Snapchat's guided reporting (ARC-04 stage F): its capture presets (purchases and native lead submissions by
@@ -41,6 +42,12 @@ export const snapchatGuidedReporting: GuidedReporting = {
   presets,
   presetPrefix: 'snapchat_',
   campaignFilter: parentScoped,
+  // DEC-01: an allocation models parent-bound ad-squad evidence, with the exact campaign ownership it was read under.
+  allocation: {
+    preset: 'snapchat_adsquad',
+    evidence: snapchatAllocationEvidence,
+    entity: snapchatReportId,
+  },
   presetRequest(preset, input) {
     const leads = leadPresets.includes(preset.id),
       parent = parentScoped(preset);
