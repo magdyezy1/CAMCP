@@ -1244,8 +1244,9 @@ export function checkWebLocales(root = process.cwd()) {
         if (property.key?.name === 'label' && property.value?.type === 'StringLiteral')
           need('server:report-metrics', property.value.value);
   }
-  // The provider hierarchy labels are AMCP display copy; preset IDs and native types remain exact.
-  const levels = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'src/overview-granularity.ts'), 'utf8'));
+  // The provider hierarchy labels are AMCP display copy; preset IDs and native types remain exact. They live in the
+  // leaf src/overview-levels.ts (ARC-04 stage F moved them there from src/overview-granularity.ts).
+  const levels = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'src/overview-levels.ts'), 'utf8'));
   const visitLevels = node => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'ObjectProperty' && node.key?.name === 'label' && node.value?.type === 'StringLiteral')
