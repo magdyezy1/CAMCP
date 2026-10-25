@@ -39,3 +39,12 @@ export function reportSource(platform: string): ReportSource | undefined {
 export {tiktokEventsUnavailableWarning} from './tiktok-report-source.js';
 export {linkedinCampaignsUnavailableWarning} from './linkedin-report-source.js';
 export {redditValueUnitWarning} from './reddit-report-source.js';
+// The platforms' guided reporting facts (ARC-04 stage F), which src/report-breakdowns.ts re-exports from here.
+export {googleReportAdNetworks} from './google-reporting.js';
+export {
+  metaAgeBuckets,
+  metaGenders,
+  metaPublisherPlatforms,
+  metaBreakdownPresets,
+  metaBreakdownKey,
+} from './meta-guided-reports.js';

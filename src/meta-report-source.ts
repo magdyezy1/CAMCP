@@ -1,4 +1,5 @@
 import {metaWindowsOrdered} from './meta-attribution-windows.js';
+import {metaGuidedReporting} from './meta-guided-reports.js';
 import {metaCampaignRows} from './meta-report.js';
 import {metaPrefix} from './meta-version.js';
 import {metricNumber, objectiveGroup} from './report-metrics.js';
@@ -25,6 +26,7 @@ export const metaReportSource: ReportSource = {
     day: native => native?.date_start,
     endsOn: (native, day) => native?.date_stop === undefined || native.date_stop === day,
   },
+  guided: metaGuidedReporting,
   /**
    * One campaign Insights read over the period, under the ad sets' unified attribution setting or, with a
    * campaign-level attribution profile (RPT-04), the detailed preset's explicit windows at impression time.

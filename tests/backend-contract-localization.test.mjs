@@ -184,10 +184,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // report table every export uses from src/google-sheets.ts into src/report-table.ts with its three refusals: one
   // file more, with reasons, and the same reasons. ARC-04 stage F moves the Overview's levels and detailed rows from
   // src/overview-granularity.ts, which keeps no reason, into the leaf src/overview-levels.ts with their refusals: one
-  // file more, as many files with reasons, the same reasons.
-  assert.equal(files.length, 671);
+  // file more, as many files with reasons, the same reasons. Its guided reporting adds src/google-guided-reports.ts
+  // and src/meta-guided-reports.ts: Meta's unrequested-breakdown refusal moves from src/report-breakdowns.ts, which
+  // keeps no reason, to the Meta module, and the undocumented-value refusal to the report source contract (which owns
+  // reasons): two files more, as many files with reasons. That refusal was raised through bad() and is now raised
+  // directly by the contract, so this guard owns it: one owned reason more, the same message and Arabic.
+  assert.equal(files.length, 673);
   assert.equal(selected.filter(row => row.messages.size).length, 259);
-  assert.equal(owned.size, 1588);
+  assert.equal(owned.size, 1589);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {

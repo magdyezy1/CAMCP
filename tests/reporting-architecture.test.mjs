@@ -16,7 +16,6 @@ const remaining = {
   'src/report-presets.ts': {literals: 14, imports: 6},
   'src/decision-reporting.ts': {literals: 7, imports: 10},
   'src/report-resource-scope.ts': {literals: 9, imports: 0},
-  'src/report-breakdowns.ts': {literals: 7, imports: 0},
   'src/report-allocation.ts': {literals: 4, imports: 1},
   'src/report-runs.ts': {literals: 3, imports: 0},
   'src/overview-parents.ts': {literals: 0, imports: 2},
@@ -104,6 +103,76 @@ test('the levels and detailed rows moved to a leaf keep their overview-granulari
     'overviewSourceLevel',
   ])
     assert.equal(granularity[name], levels[name], name);
+});
+
+test('the guided breakdown dimensions are the report sources’ own, as the table in report-breakdowns.ts named them', async () => {
+  // ARC-04 stage F: Google's and Meta's native dimensions and Meta's packs left src/report-breakdowns.ts for their
+  // guided reporting (src/google-guided-reports.ts, src/meta-guided-reports.ts); the shared module names no gateway.
+  const breakdowns = await import('../dist/src/report-breakdowns.js'),
+    meta = await import('../dist/src/meta-guided-reports.js'),
+    google = await import('../dist/src/google-reporting.js');
+  assert.deepEqual(breakdowns.breakdownDimensionKeys, [
+    'native_ad_network',
+    'native_age',
+    'native_gender',
+    'native_country',
+    'native_publisher_platform',
+    'native_platform_position',
+  ]);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(breakdowns.breakdownDimensions).map(([key, d]) => [key, d.gateway])),
+    {
+      native_ad_network: 'google_ads_native_action',
+      native_age: 'meta_native_action',
+      native_gender: 'meta_native_action',
+      native_country: 'meta_native_action',
+      native_publisher_platform: 'meta_native_action',
+      native_platform_position: 'meta_native_action',
+    },
+  );
+  // The documented values each dimension accepted, and some it refused.
+  const accepts = {
+    native_ad_network: [
+      ['SEARCH', 'MAPS', 'UNKNOWN'],
+      ['search', 'SEARCH_TERM', 1, null],
+    ],
+    native_age: [
+      ['13-17', '65+', 'Unknown'],
+      ['unknown', '18-25', 18],
+    ],
+    native_gender: [
+      ['female', 'male', 'unknown'],
+      ['Unknown', 'other'],
+    ],
+    native_country: [
+      ['SA', 'US', 'unknown', 'Unknown'],
+      ['sa', 'USA', ''],
+    ],
+    native_publisher_platform: [
+      ['facebook', 'threads', 'unknown'],
+      ['Facebook', 'whatsapp'],
+    ],
+    native_platform_position: [
+      ['feed', 'instagram_reels', 'a'],
+      ['Feed', '1feed', '', 'x'.repeat(81)],
+    ],
+  };
+  for (const [key, [good, wrong]] of Object.entries(accepts)) {
+    for (const value of good) assert.equal(breakdowns.breakdownDimensions[key].valid(value), true, key + ' ' + value);
+    for (const value of wrong) assert.equal(breakdowns.breakdownDimensions[key].valid(value), false, key + ' ' + value);
+  }
+  // The moved names keep their report-breakdowns import paths: one value, two import paths.
+  for (const name of [
+    'metaAgeBuckets',
+    'metaGenders',
+    'metaPublisherPlatforms',
+    'metaBreakdownPresets',
+    'metaBreakdownKey',
+  ])
+    assert.equal(breakdowns[name], meta[name], name);
+  assert.equal(breakdowns.googleReportAdNetworks, google.googleReportAdNetworks);
+  const graph = runtimeGraph(process.cwd());
+  assert.equal(graph.get('src/google-reporting.ts').has('src/report-breakdowns.ts'), false);
 });
 
 test('the report table is shared: the Sheets client re-exports it, and its exporters import no Sheets module', () => {

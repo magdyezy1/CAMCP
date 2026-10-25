@@ -1,4 +1,5 @@
 import {googleAdsCustomers} from './google-version.js';
+import {googleGuidedReporting} from './google-guided-reports.js';
 import {reportList, type ReportSource} from './report-source.js';
 
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
@@ -18,6 +19,7 @@ export const googleReportSource: ReportSource = {
   minimumRequestsPerPeriod: 1,
   // RPT-03: one request segmented by `segments.date`.
   daily: {day: native => native?.segments?.date},
+  guided: googleGuidedReporting,
   /** One GAQL campaign query over the period, with the requested native metrics (and the date segment when daily). */
   async collect(c) {
     const fields = [

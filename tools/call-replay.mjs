@@ -95,7 +95,10 @@ export const targets = Object.freeze({
   'dist/src/decision-reporting.js': {classes: {DecisionReporting: ['handle', 'collectGuided']}},
   'dist/src/report-resource-scope.js': {functions: ['reportingResourceAccount', 'reportingResourceAccounts']},
   'dist/src/report-runs.js': {functions: ['reportRunScope']},
-  'dist/src/report-breakdowns.js': {functions: ['breakdownValue', 'metaBreakdownKey', 'breakdownDescriptor']},
+  'dist/src/report-breakdowns.js': {functions: ['breakdownValue', 'breakdownDescriptor']},
+  // Meta's breakdown key left report-breakdowns.js for Meta's guided reporting (ARC-04 stage F), which it re-exports; a
+  // recording made before names it dist/src/report-breakdowns.js#metaBreakdownKey (compare with --ignore for both).
+  'dist/src/meta-guided-reports.js': {functions: ['metaBreakdownKey']},
   'dist/src/report-allocation.js': {functions: ['allocationCandidates', 'allocationEvidence', 'reportAllocation']},
   'dist/src/overview-parents.js': {functions: ['detailParentKind', 'detailParents']},
   'dist/src/overview-granularity.js': {functions: ['collectDetailedOverview']},
@@ -148,7 +151,7 @@ export const replayable = Object.freeze([
   'dist/src/report-resource-scope.js#reportingResourceAccount',
   'dist/src/report-resource-scope.js#reportingResourceAccounts',
   'dist/src/report-breakdowns.js#breakdownValue',
-  'dist/src/report-breakdowns.js#metaBreakdownKey',
+  'dist/src/meta-guided-reports.js#metaBreakdownKey',
   'dist/src/overview-levels.js#campaignAttributionProfile',
   'dist/src/overview-levels.js#overviewSourceLevel',
   'dist/src/overview-parents.js#detailParentKind',

@@ -126,6 +126,18 @@ export interface DailySegmentation {
   endsOn?(native: JsonObject | undefined, day: string): boolean;
 }
 
+/**
+ * A platform's guided reporting (amcp_reporting's capture presets and their evidence, ARC-04 stage F): what the shared
+ * guided modules (src/report-breakdowns.ts and the modules above it) ask the platform instead of naming it.
+ */
+export interface GuidedReporting {
+  /**
+   * RPT-07 P1 dimension packs: the native breakdown dimensions of the platform's guided captures, by mapping key
+   * (`native_age`...), in the order they are listed, each with the check of the documented native values it accepts.
+   */
+  readonly dimensions?: Readonly<Record<string, (value: unknown) => boolean>>;
+}
+
 export interface ReportSource {
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */
   readonly platform: string;
@@ -181,6 +193,8 @@ export interface ReportSource {
   };
   /** One natively day-segmented request split by day (RPT-03: Google Ads, Meta). */
   readonly daily?: DailySegmentation;
+  /** The platform's guided reporting (Google, Meta); none when it has no guided capture facts. */
+  readonly guided?: GuidedReporting;
   /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */
   requestHeaders?(): Record<string, string>;
   /** Collects one period of the source's native report into `collection`. */
@@ -198,6 +212,14 @@ export const reportList = (v: unknown): JsonObject[] => {
 /** Refuses a report source that cannot be collected as configured. */
 export const invalidReportSource = (message: string) => {
   throw new MirrorError('INVALID_REPORT_SOURCE', message);
+};
+/** RPT-07: refuses a mapped breakdown value that is not a documented native value of the capture's gateway. */
+export const undocumentedBreakdownValue = (dimension: string): never => {
+  throw new MirrorError(
+    'REPORT_SHAPE_CHANGED',
+    'The provider returned a breakdown value this report type does not document.',
+    {dimension},
+  );
 };
 /** The calendar day after an ISO date. */
 export const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);
