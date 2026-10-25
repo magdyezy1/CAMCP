@@ -87,7 +87,13 @@ export const targets = Object.freeze({
   'dist/src/campaign-activation.js': {functions: ['activationSteps', 'activationGates']},
   'dist/src/campaign-preflight.js': {functions: ['campaignPreflight']},
   'dist/src/spend-policy.js': {
-    functions: ['checkSpendPolicy', 'checkGroupSpendPolicy', 'policyActivates', 'unprotectedAccounts'],
+    functions: [
+      'checkSpendPolicy',
+      'checkGroupSpendPolicy',
+      'policyActivates',
+      'unprotectedAccounts',
+      'saveSpendPolicy',
+    ],
   },
   'dist/src/google-goal-inspection.js': {functions: ['inspectGoogleRecipeGoals']},
   'dist/src/write-effects.js': {functions: ['writeEffects', 'stateTarget', 'effectNames', 'effectReasons']},
@@ -97,9 +103,15 @@ export const targets = Object.freeze({
   // Google Ads' proof that a refusal applied nothing left write-rejection.js for its own module (ARC-01 phase B, wave
   // 4c); a recording made before names it dist/src/write-rejection.js#... (compare with --ignore for both).
   'dist/src/google-write-rejection.js': {functions: ['googleServiceMutate', 'googleRejectionIsNonApplied']},
-  'dist/src/write-reconciliation.js': {functions: ['findCreated', 'namedTargets']},
-  'dist/src/recipe-context.js': {functions: ['recipeDefaultFields', 'recipeObjective']},
+  'dist/src/write-reconciliation.js': {
+    functions: ['findCreated', 'namedTargets'],
+    classes: {WriteReconciler: ['call']},
+  },
+  'dist/src/recipe-context.js': {functions: ['recipeDefaultFields', 'recipeObjective', 'recipeContext']},
   'dist/src/recipe-eligibility.js': {functions: ['recipeEligibility']},
+  // The last round of wave 4c: the verification of a write, whose provider parts move to adapter hooks (with the
+  // reconciliation's WriteReconciler, the recipe context and the spending policy's saveSpendPolicy above).
+  'dist/src/write-verification.js': {classes: {WriteVerifier: ['verify']}},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
