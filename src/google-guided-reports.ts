@@ -1,11 +1,191 @@
-import {googleReportAdNetworks} from './google-reporting.js';
+import {compileReport} from './workflows.js';
+import {bad} from './workspace-core.js';
+import {normalizeAccount} from './account-id.js';
+import {googleReportAdNetworks, googleReportId} from './google-reporting.js';
 import type {GuidedReporting} from './report-source.js';
 
 /**
- * Google Ads' guided reporting (ARC-04 stage F): what the shared guided modules (src/report-breakdowns.ts and the
- * modules above it) ask Google instead of naming it. Google's report source declares it.
+ * Google Ads' guided reporting (ARC-04 stage F): what the shared guided modules (src/report-breakdowns.ts,
+ * src/report-presets.ts and the modules above them) ask Google instead of naming it: its capture presets and the
+ * Search read each defines, and its dimension packs. Google's report source declares it.
  */
+const presets = [
+  {id: 'google_campaign', name: 'Google campaign performance', level: 'campaign', grain: 'campaign × day'},
+  {id: 'google_adset', name: 'Google ad group performance', level: 'adset', grain: 'ad group × day'},
+  {id: 'google_ad', name: 'Google ad performance', level: 'ad', grain: 'ad group × ad × day'},
+  {id: 'google_keyword', name: 'Google keyword performance', level: 'keyword', grain: 'keyword × day'},
+  {
+    id: 'google_campaign_device',
+    name: 'Google campaign device performance',
+    level: 'campaign_device',
+    grain: 'campaign × device × day',
+  },
+  {
+    id: 'google_campaign_hour',
+    name: 'Google campaign hourly performance',
+    level: 'campaign_hour',
+    grain: 'campaign × hour × day',
+  },
+  {
+    id: 'google_campaign_country',
+    name: 'Google campaign country performance',
+    level: 'campaign_country',
+    grain: 'campaign × native country × native location type × day',
+  },
+  {
+    id: 'google_search_terms',
+    name: 'Google search term evidence',
+    level: 'search_term',
+    grain: 'campaign × ad group × search term',
+  },
+  // RPT-07 P1 dimension packs.
+  {
+    id: 'google_pmax_search_terms',
+    name: 'Google Performance Max search terms',
+    level: 'pmax_search_term',
+    grain: 'Performance Max campaign × search term',
+  },
+  {
+    id: 'google_campaign_network',
+    name: 'Google campaign network performance',
+    level: 'campaign_network',
+    grain: 'campaign × native ad network × day',
+  },
+].map(p => ({
+  ...p,
+  gateway: 'google_ads_native_action',
+  max_rows: 10000,
+  max_requests: 120,
+  meaning:
+    p.id === 'google_keyword'
+      ? 'Positive Search keywords from keyword_view, by account-local day. Original keyword text, match type and full view/criterion/parent resource identities are checked; immutable keyword metadata must remain consistent. Native customer currency and timezone checked before and after complete bounded Search pages. Counts, dates and duplicate grain are checked. Conversions use metrics.conversions; attribution and window completeness remain declared. Keyword performance does not establish search-query coverage, whole-campaign totals or negative-keyword/budget eligibility.'
+      : p.id === 'google_campaign_device'
+        ? 'Campaign performance by original native device and account-local day, without device or status filtering. Exact customer/campaign resources, currency, timezone, date/device grain, counts and duplicates are checked under unchanged authorization. UNKNOWN and UNSPECIFIED remain literal native categories; missing device categories do not establish zero activity. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify device bid, campaign budget or search-exclusion changes.'
+        : p.id === 'google_campaign_hour'
+          ? 'Campaign performance by original provider-reported hour 0–23 and date, without hour or status filtering. Exact customer/campaign resources, currency, timezone, requested date/hour grain, counts and duplicates are checked under unchanged authorization. Explicit hour zero is retained; absent hours do not establish zero activity. No timestamp, timezone conversion or daylight-saving split is inferred. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify delivery schedules, bid, campaign budget or search-exclusion changes.'
+          : p.id === 'google_campaign_country'
+            ? 'Campaign performance by original native country criterion, location type and account-local day from geographic_view. Location presence and location interest remain distinct native categories; country IDs are not inferred country names or audience identities. Exact customer/campaign/geographic resources, currency, timezone, counts and duplicate grain are checked under unchanged authorization. Missing countries do not establish zero activity. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify geographic targeting, campaign budgets or search exclusions.'
+            : p.id === 'google_pmax_search_terms'
+              ? 'Performance Max search terms over the selected window from campaign_search_term_view (no keyword segments, so Performance Max data is included). Each row keeps its exact campaign search term view resource, the original search term and its PERFORMANCE_MAX campaign. Customer currency and timezone are checked before and after complete bounded pages; counts and duplicate campaign/term grain are checked. Search-term visibility thresholds mean terms need not add up to campaign totals, and an absent term is unknown, not zero. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify negative keywords, brand exclusions or budget changes.'
+              : p.id === 'google_campaign_network'
+                ? 'Campaign performance by original native ad network type (segments.ad_network_type: SEARCH, SEARCH_PARTNERS, CONTENT, YOUTUBE, MIXED and the other documented values) and account-local day, without network or status filtering. Exact customer/campaign resources, currency, timezone, network/day grain, counts and duplicates are checked under unchanged authorization. Network values stay literal; an absent network is unknown, not zero. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify network targeting, bid or budget changes.'
+                : 'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
+}));
+
 export const googleGuidedReporting: GuidedReporting = {
   // RPT-07 P1: campaign × native ad network (segments.ad_network_type), kept as the literal documented AdNetworkType.
   dimensions: {native_ad_network: v => typeof v === 'string' && googleReportAdNetworks.includes(v)},
+  presets,
+  presetPrefix: 'google_',
+  presetRequest(preset, input, range) {
+    if (typeof input.account_id !== 'string') bad('Choose the exact Google customer ID.');
+    const account = normalizeAccount(preset.gateway, input.account_id);
+    if (!googleReportId(account)) bad('Choose the exact Google customer ID.');
+    const native = compileReport({
+      platform: 'google',
+      account_id: account,
+      date_range: range,
+      level: [
+        'search_term',
+        'keyword',
+        'campaign_device',
+        'campaign_hour',
+        'campaign_country',
+        'campaign_network',
+        'pmax_search_term',
+      ].includes(preset.level)
+        ? 'campaign'
+        : preset.level,
+      granularity: 'day',
+    });
+    if (preset.level === 'search_term')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, ad_group.id, ad_group.name, search_term_view.search_term, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM search_term_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+    if (preset.level === 'keyword')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, campaign.advertising_channel_type, ad_group.id, ad_group.name, ad_group_criterion.resource_name, ad_group_criterion.criterion_id, ad_group_criterion.type, ad_group_criterion.negative, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM keyword_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}' AND campaign.advertising_channel_type = 'SEARCH' AND ad_group_criterion.negative = FALSE`;
+    if (preset.level === 'campaign_device')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.device, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+    if (preset.level === 'campaign_hour')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.hour, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+    if (preset.level === 'campaign_country')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, geographic_view.resource_name, geographic_view.country_criterion_id, geographic_view.location_type, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM geographic_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+    // RPT-07 P1 packs: network by day from campaign, and Performance Max terms (no keyword segment keeps PMax data).
+    if (preset.level === 'campaign_network')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.ad_network_type, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+    if (preset.level === 'pmax_search_term')
+      native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, campaign.advertising_channel_type, campaign_search_term_view.search_term, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign_search_term_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}' AND campaign.advertising_channel_type = 'PERFORMANCE_MAX'`;
+    const identity = [
+      'customer.id',
+      'customer.resource_name',
+      'campaign.resource_name',
+      ...(![
+        'campaign',
+        'campaign_device',
+        'campaign_hour',
+        'campaign_country',
+        'campaign_network',
+        'pmax_search_term',
+      ].includes(preset.level)
+        ? ['ad_group.resource_name']
+        : []),
+      ...(preset.level === 'ad' ? ['ad_group_ad.resource_name', 'ad_group_ad.ad.resource_name'] : []),
+      ...(preset.level === 'search_term' ? ['search_term_view.resource_name'] : []),
+      ...(preset.level === 'pmax_search_term' ? ['campaign_search_term_view.resource_name'] : []),
+      ...(preset.level === 'keyword' ? ['keyword_view.resource_name'] : []),
+    ];
+    native.input.payload.query = native.input.payload.query.replace(/^SELECT /, 'SELECT ' + identity.join(', ') + ', ');
+    native.input.payload.search_settings = {return_total_results_count: true};
+    native.input.aggregate_pages = false;
+    const entity =
+      preset.level === 'ad'
+        ? 'adGroupAd/ad'
+        : preset.level === 'adset' || preset.level === 'search_term'
+          ? 'adGroup'
+          : 'campaign';
+    return {
+      gateway: native.gateway,
+      account_id: account,
+      connection_id: input.connection_id,
+      arguments: native.input,
+      semantics: {...input.semantics, conversion_definition: 'metrics.conversions'},
+      rows_pointer: '/data/data/results',
+      mapping: {
+        entity_id:
+          preset.level === 'ad'
+            ? '/adGroupAd/resourceName'
+            : preset.level === 'search_term'
+              ? '/searchTermView/resourceName'
+              : preset.level === 'pmax_search_term'
+                ? '/campaignSearchTermView/resourceName'
+                : preset.level === 'keyword'
+                  ? '/keywordView/resourceName'
+                  : ['campaign_device', 'campaign_hour', 'campaign_country', 'campaign_network'].includes(preset.level)
+                    ? '/campaign/resourceName'
+                    : `/${entity}/id`,
+        ...(preset.level === 'ad'
+          ? {}
+          : {entity_name: preset.level === 'keyword' ? '/adGroupCriterion/keyword/text' : `/${entity}/name`}),
+        ...(preset.level === 'keyword' ? {keyword_match_type: '/adGroupCriterion/keyword/matchType'} : {}),
+        ...(preset.level === 'campaign_device' ? {native_device: '/segments/device'} : {}),
+        ...(preset.level === 'campaign_network' ? {native_ad_network: '/segments/adNetworkType'} : {}),
+        ...(preset.level === 'campaign_hour' ? {native_hour: '/segments/hour'} : {}),
+        ...(preset.level === 'campaign_country'
+          ? {
+              native_country_criterion_id: '/geographicView/countryCriterionId',
+              native_location_type: '/geographicView/locationType',
+              native_geographic_resource: '/geographicView/resourceName',
+            }
+          : {}),
+        ...(preset.level === 'search_term'
+          ? {search_term: '/searchTermView/searchTerm'}
+          : preset.level === 'pmax_search_term'
+            ? {search_term: '/campaignSearchTermView/searchTerm'}
+            : {date: '/segments/date'}),
+        spend: {path: '/metrics/costMicros', divisor: 1000000},
+        impressions: '/metrics/impressions',
+        clicks: '/metrics/clicks',
+        conversions: '/metrics/conversions',
+        conversion_value: '/metrics/conversionsValue',
+      },
+    };
+  },
 };

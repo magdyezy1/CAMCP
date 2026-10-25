@@ -188,8 +188,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // and src/meta-guided-reports.ts: Meta's unrequested-breakdown refusal moves from src/report-breakdowns.ts, which
   // keeps no reason, to the Meta module, and the undocumented-value refusal to the report source contract (which owns
   // reasons): two files more, as many files with reasons. That refusal was raised through bad() and is now raised
-  // directly by the contract, so this guard owns it: one owned reason more, the same message and Arabic.
-  assert.equal(files.length, 673);
+  // directly by the contract, so this guard owns it: one owned reason more, the same message and Arabic. The guided
+  // presets, their requests and row checks move from src/report-presets.ts into the platforms' guided reporting, adding
+  // src/snapchat-guided-reports.ts, src/tiktok-guided-reports.ts and src/linkedin-guided-reports.ts: three files
+  // more; their refusals are raised through bad(), as they were, so the reasons are the same.
+  assert.equal(files.length, 676);
   assert.equal(selected.filter(row => row.messages.size).length, 259);
   assert.equal(owned.size, 1589);
   assert.equal(Object.keys(catalog).length, 11513);

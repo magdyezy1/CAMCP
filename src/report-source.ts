@@ -136,6 +136,23 @@ export interface GuidedReporting {
    * (`native_age`...), in the order they are listed, each with the check of the documented native values it accepts.
    */
   readonly dimensions?: Readonly<Record<string, (value: unknown) => boolean>>;
+  /**
+   * The platform's capture presets, as amcp_reporting capture_presets lists them (src/report-presets.ts lists the
+   * platforms' presets in the registry's guided order, src/report-sources.ts guidedReportSources).
+   */
+  readonly presets?: readonly JsonObject[];
+  /** The prefix every one of the platform's preset IDs starts with (`linkedin_`), by which a capture names its preset. */
+  readonly presetPrefix?: string;
+  /** Whether a capture of `preset` takes a parent campaign filter (Snapchat's parent-scoped presets); none when absent. */
+  campaignFilter?(preset: JsonObject): boolean;
+  /**
+   * The native capture one of the platform's presets defines (capture_preset): the gateway, account and connection,
+   * the native read's arguments, the declared semantics, the rows pointer and the field mapping, over the validated
+   * reporting window `range`. It refuses what the preset does not accept, after the shared checks.
+   */
+  presetRequest?(preset: JsonObject, input: JsonObject, range: {since: string; until: string}): JsonObject;
+  /** Checks the native rows of a capture of one of the platform's presets before they are mapped (LinkedIn, Meta). */
+  validateRows?(preset: string, input: JsonObject, rows: JsonObject[]): void;
 }
 
 export interface ReportSource {
@@ -193,7 +210,7 @@ export interface ReportSource {
   };
   /** One natively day-segmented request split by day (RPT-03: Google Ads, Meta). */
   readonly daily?: DailySegmentation;
-  /** The platform's guided reporting (Google, Meta); none when it has no guided capture facts. */
+  /** The platform's guided reporting (Google, Snapchat, TikTok, LinkedIn, Meta); none without guided captures. */
   readonly guided?: GuidedReporting;
   /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */
   requestHeaders?(): Record<string, string>;

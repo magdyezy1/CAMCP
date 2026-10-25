@@ -1,5 +1,6 @@
 import {objectiveGroup} from './report-metrics.js';
 import {invalidReportSource, nextDay, reportList, type ReportSource} from './report-source.js';
+import {snapchatGuidedReporting} from './snapchat-guided-reports.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 
@@ -17,6 +18,7 @@ export const snapchatReportSource: ReportSource = {
   nativeMetricContainer: 'stats',
   // The stats and the campaign inventory.
   minimumRequestsPerPeriod: 2,
+  guided: snapchatGuidedReporting,
   /**
    * One account stats read by campaign over the account-local period, with the default windows or a campaign-level
    * attribution profile (RPT-04), then the account's campaigns for names and objectives.

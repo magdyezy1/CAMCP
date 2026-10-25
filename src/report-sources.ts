@@ -30,6 +30,18 @@ export const reportSourceList: readonly ReportSource[] = Object.freeze([
 ]);
 const byPlatform = new Map(reportSourceList.map(source => [source.platform, source]));
 
+/**
+ * The report sources with guided reporting (ARC-04 stage F), in the order amcp_reporting capture_presets lists their
+ * presets (src/report-presets.ts).
+ */
+export const guidedReportSources: readonly ReportSource[] = Object.freeze([
+  googleReportSource,
+  snapchatReportSource,
+  tiktokReportSource,
+  linkedinReportSource,
+  metaReportSource,
+]);
+
 /** The report source of a platform ID, or undefined for a platform without one. */
 export function reportSource(platform: string): ReportSource | undefined {
   return byPlatform.get(platform);

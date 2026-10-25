@@ -1,0 +1,109 @@
+import {bad} from './workspace-core.js';
+import type {JsonObject} from './types.js';
+import type {GuidedReporting} from './report-source.js';
+import {snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
+
+/**
+ * Snapchat's guided reporting (ARC-04 stage F): its capture presets (purchases and native lead submissions by
+ * campaign, ad squad and ad) and the stats read each defines. Snapchat's report source declares it; src/report-presets.ts
+ * lists the presets and keeps the shared checks.
+ */
+const leadPresets = ['snapchat_campaign_leads', 'snapchat_adsquad_leads', 'snapchat_ad_leads'];
+const presets = [
+  ...['campaign', 'adsquad', 'ad'].map(level => ({
+    id: 'snapchat_' + level,
+    name: 'Snapchat ' + (level === 'adsquad' ? 'ad squad' : level) + ' performance',
+    level,
+    grain: (level === 'adsquad' ? 'ad squad' : level) + ' × day',
+    gateway: 'snapchat_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Account-local daily purchases with explicit swipe/view attribution, conversion-time reporting and total conversion sources. Account identity, currency and timezone are checked before and after complete bounded pages. Each page must confirm delivery and conversion processing through the requested end. Uses swipes for clicks and exact spend micros. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing metrics stay unknown; no conversion-value or creative-assignment claim.',
+  })),
+  ...['campaign', 'adsquad', 'ad'].map(level => ({
+    id: 'snapchat_' + level + '_leads',
+    name: 'Snapchat ' + (level === 'adsquad' ? 'ad squad' : level) + ' native lead submissions',
+    level,
+    grain: (level === 'adsquad' ? 'ad squad' : level) + ' × day',
+    gateway: 'snapchat_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Account-local daily native_leads counts for submitted Snapchat lead forms. No submitted lead records are read. Exact spend micros and swipes remain separate. Account identity, currency and timezone are checked before and after complete bounded pages; ad squads and ads require an exact owned parent campaign. Each page must confirm non-conversion metric finalization through the requested end. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing counts stay unknown. Pixel/MMP attribution, lead quality and historical creative assignment are not established.',
+  })),
+];
+/** The parent-scoped presets: ad squads, and native lead submissions by ad, read one exact campaign's stats. */
+const parentScoped = (preset: JsonObject) =>
+  preset.level === 'adsquad' || (leadPresets.includes(preset.id) && preset.level === 'ad');
+
+export const snapchatGuidedReporting: GuidedReporting = {
+  presets,
+  presetPrefix: 'snapchat_',
+  campaignFilter: parentScoped,
+  presetRequest(preset, input) {
+    const leads = leadPresets.includes(preset.id),
+      parent = parentScoped(preset);
+    if (!snapchatReportId(input.account_id)) bad('Use the exact Snapchat advertising account UUID.');
+    if (parent && !snapchatReportId(input.campaign_id)) bad('Choose the exact Snapchat parent campaign UUID.');
+    const swipe = input.swipe_up_attribution_window,
+      view = input.view_attribution_window;
+    if (leads && (swipe !== undefined || view !== undefined))
+      bad('Native lead-form submissions do not use the purchase attribution window controls.');
+    if (
+      !leads &&
+      (!['1_DAY', '7_DAY', '28_DAY'].includes(swipe) ||
+        !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(view) ||
+        (view === '7_DAY' && swipe === '1_DAY'))
+    )
+      bad(
+        'Choose explicit supported Snapchat swipe and view attribution windows; a seven-day view requires at least a seven-day swipe window.',
+      );
+    const days = snapchatDailyRange(input.semantics);
+    return {
+      gateway: preset.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      arguments: {
+        action: parent ? 'snapchat_campaign_stats_get' : 'snapchat_account_stats_get',
+        path_params: parent ? {campaign_id: input.campaign_id} : {ad_account_id: input.account_id},
+        aggregate_pages: false,
+        query: {
+          granularity: 'DAY',
+          breakdown: preset.level,
+          start_time: new Date(days[0]!.start).toISOString(),
+          end_time: new Date(days.at(-1)!.end).toISOString(),
+          fields: 'spend,impressions,swipes,' + (leads ? 'native_leads' : 'conversion_purchases'),
+          ...(!leads
+            ? {
+                swipe_up_attribution_window: swipe,
+                view_attribution_window: view,
+                action_report_time: 'conversion',
+                conversion_source_types: 'total',
+              }
+            : {}),
+          omit_empty: false,
+          limit: 200,
+        },
+      },
+      semantics: {
+        ...input.semantics,
+        attribution: leads
+          ? 'Snapchat native form submissions; no off-platform attribution claim'
+          : 'Snapchat ' + swipe + ' swipe / ' + view + ' view; conversion time; total sources',
+        conversion_definition: leads
+          ? 'native_leads (submitted native lead forms)'
+          : 'conversion_purchases (total sources)',
+      },
+      rows_pointer: '/data/data/rows',
+      mapping: {
+        entity_id: '/entity_id',
+        date: '/date',
+        spend: {path: '/stats/spend', divisor: 1000000},
+        impressions: '/stats/impressions',
+        clicks: '/stats/swipes',
+        conversions: '/stats/' + (leads ? 'native_leads' : 'conversion_purchases'),
+      },
+    };
+  },
+};

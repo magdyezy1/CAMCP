@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {reportList, type ReportSource} from './report-source.js';
+import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 
 /** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
 const tiktokAuctionOnlyWarning =
@@ -28,6 +29,7 @@ export const tiktokReportSource: ReportSource = {
   nativeMetricContainer: 'metrics',
   // The report, the campaign inventory and the ad group optimization events (RPT-04).
   minimumRequestsPerPeriod: 3,
+  guided: tiktokGuidedReporting,
   /**
    * One BASIC auction campaign report over the period, the campaign inventory for objectives, and the ad group
    * optimization events (RPT-04), read once per source and job.

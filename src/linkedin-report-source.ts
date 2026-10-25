@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {linkedinGuidedReporting} from './linkedin-guided-reports.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {optionalReadRefused} from './overview-parents.js';
@@ -28,6 +29,7 @@ export const linkedinReportSource: ReportSource = {
   ],
   minimumRequestsPerPeriod: 1,
   fixedTimezone: reportZone,
+  guided: linkedinGuidedReporting,
   requestHeaders: () => ({'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'}),
   // LinkedIn versions its API by header, not by path, so lineage names that header's value.
   versionHeader: 'LinkedIn-Version',

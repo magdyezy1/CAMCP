@@ -1,0 +1,166 @@
+import {compileReport} from './workflows.js';
+import {bad} from './workspace-core.js';
+import type {GuidedReporting} from './report-source.js';
+import {linkedInDailyRange, linkedInReportDate} from './linkedin-reporting.js';
+import {linkedInConversionUrn, linkedInConversionWindowSentinel} from './linkedin-conversion-windows.js';
+
+/**
+ * LinkedIn's guided reporting (ARC-04 stage F): its capture presets (UTC daily analytics by campaign group, campaign
+ * and creative, and campaign × conversion with verified rule windows), the analytics read each defines and the checks
+ * of its evidence rows. LinkedIn's report source declares it; src/report-presets.ts lists the presets and keeps the
+ * shared checks.
+ */
+const presets = [
+  ...[
+    {
+      id: 'linkedin_campaign_group',
+      name: 'LinkedIn campaign group performance',
+      level: 'campaign_group',
+      grain: 'campaign group × day',
+    },
+    {id: 'linkedin_campaign', name: 'LinkedIn campaign performance', level: 'campaign', grain: 'campaign × day'},
+    {id: 'linkedin_creative', name: 'LinkedIn creative performance', level: 'creative', grain: 'creative × day'},
+  ].map(p => ({
+    ...p,
+    gateway: 'linkedin_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Native UTC daily analytics with account identity and currency verified before and after collection under unchanged authorization. Keeps source references for both account checks and the single complete analytics response. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only.',
+  })),
+  {
+    // RPT-07 (B18): windows verified per conversion rule instead of declared.
+    id: 'linkedin_campaign_conversion',
+    name: 'LinkedIn campaign conversions with verified rule windows',
+    level: 'campaign_conversion',
+    grain: 'campaign × conversion × day',
+    gateway: 'linkedin_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Native UTC daily conversions by campaign and conversion rule (statistics finder, CAMPAIGN and CONVERSION pivots) with post-click and post-view counts. In the same authorization bracket the account’s current conversion rules are read and each conversion is joined to its rule’s windows: verified_per_rule when all match, mixed when they differ (no single window), unknown when a rule is missing. Declare attribution verified_per_rule; windows are never typed. Spend, impressions and clicks are not split by conversion and stay unmapped. Empty or truncated (15,000-element) responses are refused. Current month and previous five calendar months only.',
+  },
+];
+
+export const linkedinGuidedReporting: GuidedReporting = {
+  presets,
+  presetPrefix: 'linkedin_',
+  presetRequest(preset, input, range) {
+    if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
+      bad('Use the exact LinkedIn advertising account ID.');
+    if (input.semantics.timezone !== 'UTC') bad('LinkedIn analytics dates require UTC.');
+    linkedInDailyRange(range.since, range.until);
+    if (preset.level === 'campaign_conversion') {
+      // RPT-07: windows come from the conversion rules read in the same bracket; a typed window is never accepted.
+      if (input.semantics.attribution !== linkedInConversionWindowSentinel)
+        bad(
+          'LinkedIn conversion windows are read from each conversion rule. Declare attribution verified_per_rule; a typed single window is not accepted.',
+          'REPORT_ATTRIBUTION_DECLARED',
+        );
+      const tuple = (date: string) => {
+        const [y, m, d] = date.split('-').map(Number);
+        return `(year:${y},month:${m},day:${d})`;
+      };
+      return {
+        gateway: preset.gateway,
+        account_id: input.account_id,
+        connection_id: input.connection_id,
+        arguments: {
+          action: 'linkedin_rest_ad_analytics_get',
+          query: {
+            q: 'statistics',
+            pivots: 'List(CAMPAIGN,CONVERSION)',
+            accounts: 'List(urn:li:sponsoredAccount:' + input.account_id + ')',
+            timeGranularity: 'DAILY',
+            dateRange: `(start:${tuple(range.since)},end:${tuple(range.until)})`,
+            fields: [
+              'dateRange',
+              'pivotValues',
+              'externalWebsiteConversions',
+              'externalWebsitePostClickConversions',
+              'externalWebsitePostViewConversions',
+              'conversionValueInLocalCurrency',
+            ].join(','),
+          },
+          aggregate_pages: false,
+        },
+        semantics: {...input.semantics, conversion_definition: 'externalWebsiteConversions by conversion rule'},
+        rows_pointer: '/data/data/elements',
+        mapping: {
+          entity_id: '/pivotValues/0',
+          native_conversion: '/pivotValues/1',
+          date: {path: '/dateRange/start', format: 'linkedin_utc_date'},
+          conversions: '/externalWebsiteConversions',
+          post_click_conversions: '/externalWebsitePostClickConversions',
+          post_view_conversions: '/externalWebsitePostViewConversions',
+          conversion_value: '/conversionValueInLocalCurrency',
+        },
+      };
+    }
+    const level = {campaign_group: 'campaign', campaign: 'adset', creative: 'ad'}[preset.level as string];
+    const native = compileReport({
+      platform: 'linkedin',
+      account_id: input.account_id,
+      date_range: range,
+      level,
+      granularity: 'day',
+    });
+    return {
+      gateway: native.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      arguments: {...native.input, aggregate_pages: false},
+      semantics: {...input.semantics, conversion_definition: 'externalWebsiteConversions'},
+      rows_pointer: '/data/data/elements',
+      mapping: {
+        entity_id: '/pivotValues/0',
+        date: {path: '/dateRange/start', format: 'linkedin_utc_date'},
+        spend: '/costInLocalCurrency',
+        impressions: '/impressions',
+        clicks: '/clicks',
+        conversions: '/externalWebsiteConversions',
+        conversion_value: '/conversionValueInLocalCurrency',
+      },
+    };
+  },
+  /** Guided evidence must retain its requested native hierarchy, reporting window and grain. */
+  validateRows(preset, input, rows) {
+    if (!rows.length)
+      bad(
+        'LinkedIn returned no rows. No activity and missing reporting access cannot be distinguished; no zero-performance evidence was saved.',
+        'REPORT_EMPTY_AMBIGUOUS',
+      );
+    const kind: Record<string, string> = {
+      linkedin_campaign_group: 'sponsoredCampaignGroup',
+      linkedin_campaign: 'sponsoredCampaign',
+      linkedin_creative: 'sponsoredCreative',
+      linkedin_campaign_conversion: 'sponsoredCampaign',
+    };
+    const pattern = new RegExp('^urn:li:' + kind[preset] + ':[1-9][0-9]{0,31}$'),
+      // RPT-07: the conversion preset pivots by campaign and conversion; pivotValues follow the requested order.
+      conversion = preset === 'linkedin_campaign_conversion',
+      seen = new Set<string>();
+    for (const row of rows) {
+      if (
+        !row ||
+        typeof row !== 'object' ||
+        !Array.isArray(row.pivotValues) ||
+        row.pivotValues.length !== (conversion ? 2 : 1) ||
+        typeof row.pivotValues[0] !== 'string' ||
+        !pattern.test(row.pivotValues[0]) ||
+        (conversion && (typeof row.pivotValues[1] !== 'string' || !linkedInConversionUrn.test(row.pivotValues[1])))
+      )
+        bad('LinkedIn did not return the requested native entity pivot.', 'REPORT_SHAPE_CHANGED');
+      const date = linkedInReportDate(row.dateRange?.start);
+      if (
+        date !== linkedInReportDate(row.dateRange?.end) ||
+        date < input.semantics.date_from ||
+        date > input.semantics.date_to
+      )
+        bad('LinkedIn returned a different reporting period or grain.', 'REPORT_DATE_MISMATCH');
+      const key = row.pivotValues.join('|') + ':' + date;
+      if (seen.has(key)) bad('LinkedIn returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS');
+      seen.add(key);
+    }
+  },
+};

@@ -13,7 +13,6 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
  * providers' modules lowers it here, and nothing may raise it (tools/architecture-map.mjs ratchets the totals).
  */
 const remaining = {
-  'src/report-presets.ts': {literals: 14, imports: 6},
   'src/decision-reporting.ts': {literals: 7, imports: 10},
   'src/report-resource-scope.ts': {literals: 9, imports: 0},
   'src/report-allocation.ts': {literals: 4, imports: 1},
@@ -173,6 +172,40 @@ test('the guided breakdown dimensions are the report sources’ own, as the tabl
   assert.equal(breakdowns.googleReportAdNetworks, google.googleReportAdNetworks);
   const graph = runtimeGraph(process.cwd());
   assert.equal(graph.get('src/google-reporting.ts').has('src/report-breakdowns.ts'), false);
+});
+
+test('the guided capture presets are the report sources’ own, listed as the preset table listed them', async () => {
+  // ARC-04 stage F: each platform's presets, their native requests and its evidence row checks left
+  // src/report-presets.ts for its guided reporting (src/<platform>-guided-reports.ts). The fixture is the table
+  // report-presets.ts held before (capture_presets returns it): the same presets, fields and order.
+  const {reportPresets} = await import('../dist/src/report-presets.js'),
+    {guidedReportSources} = await import('../dist/src/report-sources.js'),
+    expected = JSON.parse(fs.readFileSync('tests/fixtures/guided-report-presets.json', 'utf8'));
+  assert.equal(JSON.stringify(reportPresets), JSON.stringify(expected));
+  assert.deepEqual(
+    guidedReportSources.map(source => source.platform),
+    ['google', 'snapchat', 'tiktok', 'linkedin', 'meta'],
+  );
+  for (const source of guidedReportSources)
+    for (const preset of source.guided.presets) {
+      // A platform's presets report through its gateway and are named under its prefix, so a capture finds them.
+      assert.equal(preset.gateway, reportPlatforms[source.platform].gateway, preset.id);
+      assert.ok(preset.id.startsWith(source.guided.presetPrefix), preset.id);
+      assert.ok(typeof source.guided.presetRequest === 'function', preset.id);
+    }
+  // Only LinkedIn and Meta check their evidence rows; only Snapchat takes a parent campaign filter.
+  assert.deepEqual(
+    guidedReportSources.filter(source => source.guided.validateRows).map(source => source.platform),
+    ['linkedin', 'meta'],
+  );
+  assert.deepEqual(
+    guidedReportSources.filter(source => source.guided.campaignFilter).map(source => source.platform),
+    ['snapchat'],
+  );
+  assert.deepEqual(
+    reportPresets.filter(p => guidedReportSources[1].guided.campaignFilter(p)).map(p => p.id),
+    ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'],
+  );
 });
 
 test('the report table is shared: the Sheets client re-exports it, and its exporters import no Sheets module', () => {

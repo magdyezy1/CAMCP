@@ -1,0 +1,64 @@
+import {bad} from './workspace-core.js';
+import type {GuidedReporting} from './report-source.js';
+import {tiktokDailyRange} from './tiktok-reporting.js';
+
+/**
+ * TikTok's guided reporting (ARC-04 stage F): its capture presets (BASIC auction daily reports by campaign, ad group
+ * and ad) and the integrated report each defines. TikTok's report source declares it; src/report-presets.ts lists the
+ * presets and keeps the shared checks.
+ */
+const presets = ['campaign', 'adgroup', 'ad'].map(level => ({
+  id: 'tiktok_' + level,
+  name: 'TikTok ' + (level === 'adgroup' ? 'ad group' : level) + ' performance',
+  level,
+  grain: (level === 'adgroup' ? 'ad group' : level) + ' × day',
+  gateway: 'tiktok_native_action',
+  max_rows: 10000,
+  max_requests: 120,
+  meaning:
+    'Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate.',
+}));
+
+export const tiktokGuidedReporting: GuidedReporting = {
+  presets,
+  presetPrefix: 'tiktok_',
+  presetRequest(preset, input, range) {
+    if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
+      bad('Use the exact TikTok advertiser ID.');
+    tiktokDailyRange(input.semantics);
+    return {
+      gateway: preset.gateway,
+      account_id: input.account_id,
+      connection_id: input.connection_id,
+      arguments: {
+        action: 'tiktok_report_integrated_get',
+        query: {
+          advertiser_id: input.account_id,
+          report_type: 'BASIC',
+          data_level: 'AUCTION_' + preset.level.toUpperCase(),
+          dimensions: [preset.level + '_id', 'stat_time_day'],
+          metrics: [preset.level + '_name', 'spend', 'impressions', 'clicks', 'conversion'],
+          start_date: range.since,
+          end_date: range.until,
+          query_lifetime: false,
+          multi_adv_report_in_utc_time: false,
+          enable_total_metrics: false,
+          page: 1,
+          page_size: 1000,
+        },
+        aggregate_pages: false,
+      },
+      semantics: {...input.semantics, conversion_definition: 'conversion (optimization goal)'},
+      rows_pointer: '/data/data/list',
+      mapping: {
+        entity_id: '/dimensions/' + preset.level + '_id',
+        entity_name: '/metrics/' + preset.level + '_name',
+        date: {path: '/dimensions/stat_time_day', format: 'tiktok_day'},
+        spend: '/metrics/spend',
+        impressions: '/metrics/impressions',
+        clicks: '/metrics/clicks',
+        conversions: '/metrics/conversion',
+      },
+    };
+  },
+};
