@@ -3,8 +3,10 @@ import {accountKey} from '../src/access-sets.js';
 import {clientViews} from '../src/client-scope.js';
 import {credentialHealth} from '../src/connection-health.js';
 import {MirrorError} from '../src/errors.js';
+import {providerOf} from '../src/provider-adapters.js';
 import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {providerJobGateways, reportJobAccounts} from '../src/provider-jobs.js';
+import {providerLogin} from '../src/provider-logins.js';
 import {stable} from '../src/security.js';
 import type {Store} from '../src/store.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
@@ -23,7 +25,7 @@ import {
 } from './platform-oauth.js';
 import type {WebStore, WebsiteOptions} from './web-store.js';
 import {writeConnectionLabel} from './website-repository.js';
-import {googleAdsGateway, microsoftGateway} from './website-site.js';
+import {googleAdsGateway} from './website-site.js';
 
 /**
  * The website's views of a workspace's logins (ARC-04 stage D, moved from createWebsite): a login by ID, its saved
@@ -285,18 +287,12 @@ export function connectionViews(
       const accounts = c.accounts.filter(
         id => !dropped.has(id) && (!visible || visible.has(id) || alsoSelected.has(id)),
       );
-      const accountCustomers =
-        c.gateway === microsoftGateway && accountsGroup
-          ? Object.fromEntries(accountsGroup.assets.filter(a => accounts.includes(a.id)).map(a => [a.id, a.parentId!]))
-          : c.accountCustomers;
-      const accountLoginCustomers =
-        c.gateway === googleAdsGateway && accountsGroup
-          ? Object.fromEntries(
-              accountsGroup.assets
-                .filter(a => accounts.includes(a.id) && a.loginCustomerId)
-                .map(a => [a.id, a.loginCustomerId!]),
-            )
-          : c.accountLoginCustomers;
+      // How each kept account is reached, from the complete listing, on a login whose provider keeps it (as the asset
+      // selection does: server/connection-routes.ts).
+      const routes = accountsGroup ? providerOf(c.gateway)?.account?.routes : undefined,
+        routed = () => providerLogin(c.gateway)!.routes!(accountsGroup!.assets, accounts);
+      const accountCustomers = routes === 'accountCustomers' ? routed() : c.accountCustomers;
+      const accountLoginCustomers = routes === 'accountLoginCustomers' ? routed() : c.accountLoginCustomers;
       if (
         accounts.length !== c.accounts.length ||
         JSON.stringify(accountCustomers) !== JSON.stringify(c.accountCustomers) ||

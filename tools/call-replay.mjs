@@ -45,7 +45,7 @@ export const targets = Object.freeze({
   // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
   'dist/src/store.js': {
-    classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection', 'resolveConnection']},
+    classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection', 'resolveConnection', 'putConnection']},
   },
   'dist/src/account-id.js': {functions: ['normalizeAccount']},
   'dist/src/execution-risk.js': {functions: ['applyExecutionRisk', 'independentlyReadOnly', 'bodyDeletion']},

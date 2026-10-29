@@ -25,7 +25,17 @@ export interface ProviderLogin {
   readonly renewal?: RenewalSteps;
   readonly signIn?: SignInEndpoints;
   readonly keyed?: KeyedLogins;
+  /** How each selected account is reached, read from the discovered accounts (`AccountRoutes`). */
+  readonly routes?: AccountRoutes;
 }
+
+/**
+ * The route of each selected account (Microsoft's parent customer, Google Ads' manager route), read from the accounts of
+ * its kind the login's discovery found; the connection field its provider adapter's account model names
+ * (src/provider-adapter.ts AccountModel.routes) keeps them. The website's asset selection and sync
+ * (server/connection-routes.ts, server/website-connections.ts) keep every other rule of the selection.
+ */
+export type AccountRoutes = (assets: readonly WorkspaceAsset[], accounts: readonly string[]) => Record<string, string>;
 
 /**
  * Logins an administrator sets up with a provider's key on its own website page rather than through an OAuth flow

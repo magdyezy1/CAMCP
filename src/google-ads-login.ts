@@ -1,4 +1,4 @@
-import type {DiscoveryContext, ProviderLogin} from './provider-login.js';
+import type {DiscoveryContext, ProviderLogin, WorkspaceAsset} from './provider-login.js';
 import type {Credentials} from './types.js';
 import {googleAccountDiscovery, googleSelectedAccountRead} from './google-account-discovery.js';
 import {googleOAuth} from './google-oauth.js';
@@ -27,4 +27,10 @@ export const googleAdsLogin: ProviderLogin = Object.freeze({
       googleAccountDiscovery(c.transport, c.connection, c.credentials, c.check),
   }),
   renewal: Object.freeze({accounts: googleAccountDiscovery, selectedAccountRead: googleSelectedAccountRead}),
+  // The manager route of each selected account its hierarchy recorded (accountLoginCustomers); an account its
+  // discovery reached without one keeps none.
+  routes: (assets: readonly WorkspaceAsset[], accounts: readonly string[]) =>
+    Object.fromEntries(
+      assets.filter(a => accounts.includes(a.id) && a.loginCustomerId).map(a => [a.id, a.loginCustomerId!]),
+    ),
 });

@@ -105,4 +105,7 @@ export const microsoftLogin: ProviderLogin = Object.freeze({
     },
   }),
   discovery: Object.freeze({kind: microsoftDiscovery}),
+  // Each selected account's parent customer, as its discovery found it (accountCustomers).
+  routes: (assets: readonly WorkspaceAsset[], accounts: readonly string[]) =>
+    Object.fromEntries(assets.filter(a => accounts.includes(a.id)).map(a => [a.id, a.parentId!])),
 });

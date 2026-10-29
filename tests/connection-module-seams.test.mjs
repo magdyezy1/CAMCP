@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
 import {accountKey, bindingKey} from '../dist/src/access-sets.js';
 import {normalizeAccount} from '../dist/src/account-id.js';
-import {providerAdapters, providerById} from '../dist/src/provider-adapters.js';
-import {registeredProviderLogins} from '../dist/src/provider-logins.js';
+import {providerAdapters, providerById, providerOf} from '../dist/src/provider-adapters.js';
+import {providerLogin, registeredKeyedLogins, registeredProviderLogins} from '../dist/src/provider-logins.js';
 import {googleOAuth} from '../dist/src/google-oauth.js';
 import {providerRevocationOffer, revocationTarget} from '../dist/src/provider-revocation.js';
 import {Store} from '../dist/src/store.js';
@@ -127,4 +127,73 @@ test('provider revocation takes its endpoint from Google’s OAuth steps, for ev
     provider: 'google',
     shared_client: true,
   });
+});
+
+test('how a login’s accounts are reached is its provider’s fact and login step', () => {
+  // The asset selection and the sync name neither Microsoft's nor Google Ads' gateway for it, and the store names none.
+  for (const file of ['server/connection-routes.ts', 'server/website-connections.ts'])
+    assert.doesNotMatch(source(file), /microsoftGateway|accountLoginCustomers =\s+c\.gateway/, file);
+  assert.doesNotMatch(source('server/connection-routes.ts'), /googleAdsGateway/);
+  assert.doesNotMatch(source('src/store.ts'), gatewayLiteral);
+  assert.deepEqual(providerImports('src/store.ts'), []);
+  // Only Microsoft (its parent customers) and Google Ads (its manager routes) keep routes, each in its own field.
+  assert.deepEqual(
+    providerAdapters.filter(a => a.account?.routes).map(a => [a.gateway, a.account.routes]),
+    [
+      ['google_ads_native_action', 'accountLoginCustomers'],
+      ['microsoft_ads_native_action', 'accountCustomers'],
+    ],
+  );
+  for (const login of [...registeredProviderLogins, ...registeredKeyedLogins])
+    assert.equal(typeof login.routes === 'function', !!providerOf(login.gateway).account?.routes, login.gateway);
+  // The routes the selection and the sync kept before the move: Microsoft's parent customer of every selected account,
+  // Google Ads' manager route of each selected account that has one (an object keyed by the decimal account IDs).
+  const asset = (id, extra) => ({id, kind: 'ad_accounts', name: 'Account ' + id, source: 'vendor', ...extra});
+  const assets = [
+    asset('3', {parentId: '7', loginCustomerId: '6'}),
+    asset('1', {parentId: '9', loginCustomerId: '7'}),
+    asset('2', {parentId: '8'}),
+  ];
+  const microsoft = providerLogin('microsoft_ads_native_action').routes,
+    google = providerLogin('google_ads_native_action').routes;
+  assert.deepEqual(Object.entries(microsoft(assets, ['1', '2'])), [
+    ['1', '9'],
+    ['2', '8'],
+  ]);
+  assert.deepEqual(Object.entries(google(assets, ['1', '2', '3'])), [
+    ['1', '7'],
+    ['3', '6'],
+  ]);
+  assert.deepEqual(google(assets, []), {});
+  // An account listed without its parent keeps no value (the saved connection drops it), as before.
+  assert.deepEqual(microsoft([asset('4', {})], ['4']), {4: undefined});
+});
+
+test('the store keeps manager routes only on a login whose provider keeps them', () => {
+  const store = new Store(':memory:', Buffer.alloc(32, 59).toString('base64')),
+    actor = {tenantId: 'account-routes', userId: 'owner', role: 'admin'},
+    login = (id, gateway, extra) =>
+      store.putConnection(
+        actor,
+        {id, tenantId: actor.tenantId, gateway, accounts: ['123'], enabled: true, label: id, scopes: [], ...extra},
+        {accessToken: 'synthetic-access'},
+      );
+  try {
+    login('google', 'google_ads_native_action', {accountLoginCustomers: {123: '456'}});
+    login('microsoft', 'microsoft_ads_native_action', {accountCustomers: {123: '456'}});
+    for (const gateway of ['microsoft_ads_native_action', 'meta_native_action', 'dv360_native_action'])
+      assert.throws(
+        () => login('other-' + gateway, gateway, {accountLoginCustomers: {123: '456'}}),
+        e =>
+          e.code === 'INVALID_ACCOUNT_BINDING' &&
+          e.message === 'Google login customers must map selected accounts to decimal identifiers.',
+        gateway,
+      );
+    assert.throws(
+      () => login('google-bad', 'google_ads_native_action', {accountLoginCustomers: {999: '456'}}),
+      e => e.code === 'INVALID_ACCOUNT_BINDING',
+    );
+  } finally {
+    store.close();
+  }
 });

@@ -79,6 +79,9 @@ for (const login of [...registeredProviderLogins, ...registeredKeyedLogins]) {
       typeof revocation.sharedClient !== 'boolean')
   )
     throw new Error('The revocation of ' + login.gateway + ' needs its provider, HTTPS endpoint and client sharing.');
+  // A login reads its accounts' routes exactly when its adapter's account model names the field that keeps them.
+  if ((typeof login.routes === 'function') !== !!providerOf(login.gateway)!.account?.routes)
+    throw new Error('The account routes of ' + login.gateway + ' need their connection field and their reads.');
   // A renewal's steps are both its reads: the accounts a fresh authorization reaches, and the selected-account read.
   if (
     login.renewal &&

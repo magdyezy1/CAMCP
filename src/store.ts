@@ -62,6 +62,7 @@ import {
 } from './access-sets.js';
 import {storableCredentials, withAppSecrets} from './app-credentials.js';
 import {normalizeAccount} from './account-id.js';
+import {providerOf} from './provider-adapters.js';
 import {DocumentRepository} from './document-repository.js';
 import {mcpRateLimitsSQL} from './mcp-rate-limit-repository.js';
 import {
@@ -2160,10 +2161,11 @@ export class Store {
         'INVALID_ACCOUNT_BINDING',
         'Microsoft parent customers must map selected accounts to decimal identifiers.',
       );
+    // Manager routes belong only to a login whose provider adapter keeps them there (Google Ads).
     if (
       connection.accountLoginCustomers !== undefined &&
       (!connection.accountLoginCustomers ||
-        connection.gateway !== 'google_ads_native_action' ||
+        providerOf(connection.gateway)?.account?.routes !== 'accountLoginCustomers' ||
         typeof connection.accountLoginCustomers !== 'object' ||
         Array.isArray(connection.accountLoginCustomers) ||
         Object.entries(connection.accountLoginCustomers).some(

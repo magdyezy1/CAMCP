@@ -3,14 +3,16 @@ import {randomUUID} from 'node:crypto';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {clearRefreshFailure} from '../src/connection-health.js';
 import {MirrorError} from '../src/errors.js';
+import {providerOf} from '../src/provider-adapters.js';
 import {reportJobAccounts, saveReportJobAccess} from '../src/provider-jobs.js';
+import {providerLogin} from '../src/provider-logins.js';
 import {disconnectWithProviderRevocation} from '../src/provider-revocation.js';
 import {approvalView, approveReview} from '../src/write-approval.js';
 import type {AssetGroup} from './asset-discovery.js';
 import {authorizationRevision, reauthorizationEnabled} from './connection-reauthorization.js';
 import {platforms, selectableKinds} from './platform-oauth.js';
 import {saveWebsiteAssets, writeDefaultFlag} from './website-repository.js';
-import {commerceGateway, googleAdsGateway, handler, microsoftGateway, type WebsiteSite} from './website-site.js';
+import {commerceGateway, handler, type WebsiteSite} from './website-site.js';
 
 /**
  * A login's management: its view, renewal in place (CON-02), credential retry, asset sync and selection, report-job
@@ -281,24 +283,17 @@ function selectAssets({store, web, allowWrites, webAccounts, connections: views}
         {added: writeAdded.slice(0, 200), added_count: writeAdded.length},
         400,
       );
-    const accountCustomers =
-      c.gateway === microsoftGateway
-        ? Object.fromEntries(
-            (assets.groups as AssetGroup[])
-              .flatMap(g => g.assets)
-              .filter(a => a.kind === 'ad_accounts' && accounts.includes(a.id))
-              .map(a => [a.id, a.parentId!]),
-          )
-        : c.accountCustomers;
-    const accountLoginCustomers =
-      c.gateway === googleAdsGateway
-        ? Object.fromEntries(
-            (assets.groups as AssetGroup[])
-              .flatMap(g => g.assets)
-              .filter(a => a.kind === 'ad_accounts' && accounts.includes(a.id) && a.loginCustomerId)
-              .map(a => [a.id, a.loginCustomerId!]),
-          )
-        : c.accountLoginCustomers;
+    // How each selected account is reached, on a login whose provider keeps it: its adapter's account model names the
+    // field (Microsoft's parent customers, Google Ads' manager routes) and its login steps read the routes from the
+    // discovered accounts. Any other field stays as saved.
+    const routes = providerOf(c.gateway)?.account?.routes,
+      routed = () =>
+        providerLogin(c.gateway)!.routes!(
+          (assets.groups as AssetGroup[]).flatMap(g => g.assets).filter(a => a.kind === 'ad_accounts'),
+          accounts,
+        );
+    const accountCustomers = routes === 'accountCustomers' ? routed() : c.accountCustomers;
+    const accountLoginCustomers = routes === 'accountLoginCustomers' ? routed() : c.accountLoginCustomers;
     // A selection that adds write access needs recent proof of identity (SEC-06); keeping or removing it never does.
     if (writeAccounts.some(id => !(c.writeAccounts ?? []).includes(id))) webAccounts.fresh(s);
     store.transaction(() => {

@@ -70,6 +70,13 @@ export interface AccountModel {
   readonly path?: RegExp;
   /** What a bound resource is; an advertising account when absent. */
   readonly kind?: AccountKind;
+  /**
+   * The connection field that keeps how each selected account is reached, as its login's discovery found it:
+   * Microsoft's parent customer of each account (`accountCustomers`), Google Ads' manager route (`accountLoginCustomers`).
+   * The website's asset selection and sync replace it from the discovered accounts with the provider's login steps
+   * (`routes`, src/provider-login.ts), and the store keeps manager routes only on a login whose provider keeps them.
+   */
+  readonly routes?: 'accountCustomers' | 'accountLoginCustomers';
 }
 
 /**

@@ -132,6 +132,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       fields: ['customer_id', 'customerId'],
       references: /\bcustomers\/([^/:\s'"),]+)/g,
       path: /\/customers\/([^/:]+)/,
+      // Each selected account's manager route, which its requests send as their login customer (CON-05).
+      routes: 'accountLoginCustomers',
     },
     // A REMOVE account budget proposal, experiment asset detail or targeting restriction operation removes what it names.
     deletions: {
@@ -258,7 +260,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
     },
   }),
   adapter('microsoft', 'microsoft_ads_native_action', {
-    account: {fields: ['AccountId', 'AccountIds', 'CustomerAccountId']},
+    // Each selected account's parent customer, which its requests name (CustomerId).
+    account: {fields: ['AccountId', 'AccountIds', 'CustomerAccountId'], routes: 'accountCustomers'},
     // Status Deleted on entities; Action Delete in AdGroupCriterionAction and AssetGroupListingGroupAction; a user's
     // UserLifeCycleStatus Deleted (Customer Management).
     deletions: {
