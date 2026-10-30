@@ -10,6 +10,8 @@ keep a record of every change, on the website or through an AI assistant. Member
 
 ## How AMCP keeps you in control
 
+<a id="words-used-in-this-guide"></a>
+
 - **Nothing changes without a review.** AMCP reads the account, shows exactly what would change and waits for
   approval.
 - **New campaigns start paused.** Turning one on is its own reviewed step.
@@ -29,6 +31,8 @@ keep a record of every change, on the website or through an AI assistant. Member
 7. [Your team and your clients](team.md)
 8. [Privacy and retention](privacy.md)
 9. [What stays with you](owner-run.md)
+
+<a id="where-things-stand"></a>
 
 AMCP's changes are tested against simulated platforms; none has been accepted on a real account yet. Keep each first
 real change paused, read its review and check the result.

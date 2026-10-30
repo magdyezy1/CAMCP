@@ -196,3 +196,40 @@ test('a link to a section opens that heading; a changed page makes the fragments
   assert.match(helpGuideProblems(root)[0], /does not link docs\/owner\/extra\.md/);
   assert.equal(guideBlocks(front + '# T\n\nText\non two lines.\n')[1].text, 'Text on two lines.');
 });
+
+// The review of wave 4c: condensing the guide dropped section headings that wave 4b had published, so each page keeps
+// their anchors on a line of its own (tests/owner-guide.test.mjs). The Help page shows nothing for that line, a guide
+// link to one of its anchors opens the heading above it, and every other HTML stays refused.
+test('a former section anchor shows nothing on the Help page, and a link to it opens the heading above it', t => {
+  const root = tree(t, {
+    'README.md': front + '# Guide\n\n1. [Old section](team.md#old-roles)\n',
+    'team.md':
+      front + '# Team\n\n## Roles\n\n<a id="old-roles"></a><a id="old-members"></a>\n\nOwners do everything.\n',
+  });
+  fs.writeFileSync(path.join(root, 'docs/owner/ar/README.md'), front + '# Guide (ar)\n\n1. [Old](team.md#old-roles)\n');
+  fs.writeFileSync(
+    path.join(root, 'docs/owner/ar/team.md'),
+    front + '# Team (ar)\n\n## Roles (ar)\n\n<a id="old-roles"></a>\n\nText.\n',
+  );
+  assert.deepEqual(helpGuideProblems(root, {write: true}), []);
+  const {en, ar} = JSON.parse(fs.readFileSync(path.join(root, helpFile), 'utf8')).languages;
+  assert.ok(en.html.includes('<a href="#help-en-team-1">Old section</a>'));
+  assert.ok(ar.html.includes('<a href="#help-ar-team-1">Old</a>'));
+  assert.ok(en.html.includes('<h3 id="help-en-team-1">Roles</h3><p>Owners do everything.</p>'));
+  for (const {html} of [en, ar]) assert.doesNotMatch(html, /old-roles|old-members/);
+  for (const [text, reason] of [
+    ['## Roles\n<a id="old"></a>\n\nText.', /stands alone, between blank lines/],
+    ['## Roles\n\n<a id="old"></a>\nText.', /stands alone, between blank lines/],
+    ['## Roles\n\n<a id="roles"></a>\n\nText.', /the anchor "roles" repeats an anchor of the page/],
+    ['## Roles\n\n<a id="old-roles"></a><a id="old-roles"></a>\n\nText.', /repeats an anchor of the page/],
+    ['## Roles\n\n<a id="old-roles"></a> and text\n\nText.', /headings, paragraphs, lists, tables/],
+    ['## Roles\n\n<a id="old-roles" class="x"></a>\n\nText.', /headings, paragraphs, lists, tables/],
+    ['## Roles\n\n<a name="old-roles"></a>\n\nText.', /headings, paragraphs, lists, tables/],
+  ]) {
+    fs.writeFileSync(path.join(root, 'docs/owner/team.md'), front + '# Team\n\n' + text + '\n');
+    assert.match(helpGuideProblems(root).join('\n'), reason, text);
+  }
+  // A page still starts with its title.
+  fs.writeFileSync(path.join(root, 'docs/owner/team.md'), front + '<a id="old-roles"></a>\n\n# Team\n');
+  assert.match(helpGuideProblems(root).join('\n'), /starts with its "# " title/);
+});

@@ -6,7 +6,9 @@
 // script, style or event attribute, so the website's strict Content-Security-Policy is unchanged; they take the
 // website's existing document and table styles (.document, .review-table), so every page's stylesheet is unchanged
 // too. Every character of the guide is escaped here. A link opens another part of the guide (a section of the page) or a page of the website;
-// any other link, and any Markdown the page cannot show (code, quotes, raw HTML, images, nested lists), is refused.
+// any other link, and any Markdown the page cannot show (code, quotes, raw HTML, images, nested lists), is refused. The
+// one line of HTML a page may hold is a former section's anchors (`<a id="..."></a>`, alone between blank lines), which
+// keeps the address of a section the condensed guide no longer has as a heading: the Help page shows nothing for it.
 //
 //   node tools/help-pages.mjs           write generated/help-guide.json
 //   node tools/help-pages.mjs --check   fail when it differs from what the guide produces now
@@ -74,6 +76,16 @@ export function guideBlocks(markdown, file = 'page.md') {
       at = offset + i + 1;
     let m;
     if (!line.trim()) {
+      i++;
+      continue;
+    }
+    // A former section's anchors: a line of `<a id="..."></a>` alone, between blank lines, keeps the address of a section
+    // the guide no longer has as a heading, so a link to it from outside the repository still opens the page where its
+    // text went. The Help page shows nothing for it; a guide link to one opens the heading above it.
+    if ((m = /^((?:<a id="[^"<>&'\s]+"><\/a>)+)$/.exec(line))) {
+      if ((lines[i - 1] ?? '').trim() || (lines[i + 1] ?? '').trim())
+        fail(file, at, 'an anchor line stands alone, between blank lines');
+      blocks.push({type: 'anchor', ids: [...m[1].matchAll(/id="([^"]+)"/g)].map(a => a[1]), line: at});
       i++;
       continue;
     }
@@ -181,6 +193,16 @@ function languageFragment(root, language, order, routes) {
           block.id = block.level === 1 ? id(page) : id(page, ++n);
           anchors.set(headingSlug(block.text), block.id);
         }
+      // A former section's anchor opens the heading above it; it may not repeat a heading's anchor or another one.
+      let above;
+      for (const block of blocks)
+        if (block.type === 'heading') above = block.id;
+        else if (block.type === 'anchor')
+          for (const anchor of block.ids) {
+            if (anchors.has(anchor.toLowerCase()))
+              fail(file, block.line, 'the anchor "' + anchor + '" repeats an anchor of the page');
+            anchors.set(anchor.toLowerCase(), above);
+          }
       return {page, file, text, blocks, anchors};
     });
   const sections = pages.map(({page, file, blocks}) => {
@@ -204,6 +226,7 @@ function languageFragment(root, language, order, routes) {
       return '#' + anchor;
     };
     const render = block => {
+      if (block.type === 'anchor') return '';
       if (block.type === 'heading') {
         const tag = 'h' + (block.level + 1);
         return '<' + tag + ' id="' + block.id + '">' + inline(block.text, link) + '</' + tag + '>';

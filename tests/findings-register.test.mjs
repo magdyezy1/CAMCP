@@ -12,6 +12,7 @@ import {
   closedView,
   closedViewText,
   findingsProblems,
+  formerSectionProblems,
   isOpen,
   openView,
   openViewText,
@@ -20,6 +21,7 @@ import {
   summaryOf,
 } from '../tools/findings-register.mjs';
 import {frontMatter} from '../tools/docs-front-matter.mjs';
+import {headingSlug, markdownAnchors} from '../tools/docs-links.mjs';
 import {currentPages} from '../tools/docs-lint.mjs';
 import {removeTestDirectory} from '../dist/tests/temp.js';
 
@@ -173,6 +175,45 @@ test('the open view lists a summary, then the record as written; the closed view
   assert.ok(!closed.includes('F-2') && !closed.includes('F-3') && !closed.includes('Later deliveries'));
 });
 
+// The review of wave 4c: the hand-written page's section anchors (#money-and-write-safety-52-57, #website-53, ...) were
+// headings of the closed view only, so a link to one from outside the repository opened the open view at its top.
+test('every section anchor of the hand-written register still opens the open view, beside where it went', () => {
+  // The headings of docs/review/FINDINGS.md before it was generated (2026-10-23).
+  const former = [
+      'Findings register',
+      'October findings — baseline and implementation status',
+      'Money and write safety (5.2, 5.7)',
+      'Authentication, sessions, OAuth (5.2)',
+      'Egress, data and secrets (5.2)',
+      'MCP workflow (5.4)',
+      'Website (5.3)',
+      'Platform contracts (5.5)',
+      'Product gaps (5.8)',
+      'Architecture, performance, developer experience (5.1, 5.6, 5.9)',
+      'Controls verified correct (not re-audit targets)',
+    ],
+    openAnchors = markdownAnchors(openText),
+    closedAnchors = markdownAnchors(closedText);
+  for (const heading of former) assert.ok(openAnchors.has(headingSlug(heading)), heading);
+  assert.deepEqual(formerSectionProblems(register, closedText), []);
+  for (const s of register.former_sections) {
+    const row = openText.split('\n').find(line => line.startsWith('| <a id="' + headingSlug(s.title) + '"></a>'));
+    assert.ok(row, s.title + ' has its row');
+    const target = /\]\(FINDINGS-CLOSED\.md#([^)]+)\) \|$/.exec(row)?.[1];
+    assert.ok(target && closedAnchors.has(target), s.title + ' points to a heading of the closed view');
+  }
+  // A synthetic register: its former section points to its closed view, and a heading that view lacks is refused.
+  const r = sample();
+  r.former_sections = [{title: 'Money (old)', now: 'Money'}];
+  assert.deepEqual(registerProblems(r), []);
+  assert.deepEqual(formerSectionProblems(r), []);
+  assert.ok(openViewText(r).includes('| <a id="money-old"></a>Money (old) | [Money](FINDINGS-CLOSED.md#money) |'));
+  r.former_sections[0].now = 'Nowhere';
+  assert.deepEqual(formerSectionProblems(r), [
+    'former section "Money (old)" names "Nowhere", which is no heading of the closed view',
+  ]);
+});
+
 test('a register its views cannot show is refused, with what is wrong', () => {
   const broken = (change, pattern) => {
     const r = sample();
@@ -198,6 +239,15 @@ test('a register its views cannot show is refused, with what is wrong', () => {
   broken(r => (r.intro = 'one paragraph'), /intro is a list of paragraphs/);
   broken(r => delete r.groups[0].title, /each group has its id, title and intro/);
   broken(r => (r.findings[0] = null), /a finding is an object/);
+  broken(r => (r.former_sections = [{title: 'Money (old)'}]), /former_sections lists each former section/);
+  broken(
+    r =>
+      (r.former_sections = [
+        {title: 'Money (old)', now: 'Money'},
+        {title: 'Money (old)', now: 'Money'},
+      ]),
+    /former_sections names each former section once/,
+  );
 });
 
 test('a changed register makes the views stale until they are written; closing a finding moves it', t => {

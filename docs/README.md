@@ -51,7 +51,7 @@ budget of 25,000 words, and the reference pages’ total may only fall unless an
 
 ## Operate AMCP
 
-The current pages for whoever deploys, configures, accepts and runs AMCP: what is true now.
+<a id="status-and-decisions"></a><a id="operate-and-deploy"></a><a id="acceptance"></a>The current pages for whoever deploys, configures, accepts and runs AMCP: what is true now.
 
 ### Guides
 
@@ -78,7 +78,7 @@ The current pages for whoever deploys, configures, accepts and runs AMCP: what i
 
 ## Operator reference
 
-Detail operators consult on demand: the workflow and platform guides, the acceptance runbooks and the decisions.
+<a id="platform-guides"></a>Detail operators consult on demand: the workflow and platform guides, the acceptance runbooks and the decisions.
 
 ### Guides
 
@@ -137,7 +137,7 @@ Detail operators consult on demand: the workflow and platform guides, the accept
 
 ## Engineering reference
 
-How AMCP is built and checked, for whoever changes it.
+<a id="engineering"></a>How AMCP is built and checked, for whoever changes it.
 
 ### Guides
 
@@ -166,7 +166,7 @@ How AMCP is built and checked, for whoever changes it.
 
 ## Plans and proposals
 
-Plans and proposals that are not the product; [decisions](DECISIONS.md) records what became of them.
+<a id="reviews-and-plans"></a>Plans and proposals that are not the product; [decisions](DECISIONS.md) records what became of them.
 
 ### Status, reviews and policies
 

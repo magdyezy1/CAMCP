@@ -1,0 +1,153 @@
+{
+  "meaning": "The section anchors of the owner guide (docs/owner/, docs/owner/ar/) as wave 4b published it on 2026-10-24, before DOC-03 condensed it: tests/owner-guide.test.mjs holds every one to resolve on its page, as a heading or as a former section anchor, so a link from outside the repository still lands where its text went.",
+  "pages": {
+    "docs/owner/README.md": [
+      "amcp-owner-guide",
+      "how-amcp-keeps-you-in-control",
+      "start-here",
+      "where-things-stand",
+      "words-used-in-this-guide"
+    ],
+    "docs/owner/ar/README.md": [
+      "دليل-المالك-في-amcp",
+      "كيف-يُبقيك-amcp-صاحب-القرار",
+      "ابدأ-من-هنا",
+      "أين-نقف-الآن",
+      "مصطلحات-هذا-الدليل"
+    ],
+    "docs/owner/ar/campaigns.md": [
+      "أطلق-حملة-موقوفة-مؤقتًا-عبر-المراجعة",
+      "1-ابدأ-خطة",
+      "2-افحص-ما-تحتاجه-الخطة",
+      "3-اعتمد-الخطة-كاملة",
+      "4-شغّلها",
+      "5-شغّل-الحملة",
+      "حدود-الإنفاق"
+    ],
+    "docs/owner/ar/connect.md": [
+      "اربط-حساباتك",
+      "ربط-منصة",
+      "اختر-ما-يمكن-لـ-amcp-استخدامه",
+      "عدة-اتصالات-دخول",
+      "حافظ-على-عمل-الاتصالات",
+      "مساعدو-الذكاء-الاصطناعي-اختياري"
+    ],
+    "docs/owner/ar/measurement.md": [
+      "مركز-القياس",
+      "ما-يمكنك-فحصه",
+      "كيف-تقرأ-النتائج"
+    ],
+    "docs/owner/ar/owner-run.md": [
+      "ما-يبقى-من-مسؤوليتك",
+      "قريبًا",
+      "بعد-كل-إصدار",
+      "بانتظام",
+      "تطبيقات-المنصات-وموافقاتها",
+      "القبول-الفعلي",
+      "قرارات-لا-يتخذها-غيرك"
+    ],
+    "docs/owner/ar/privacy.md": [
+      "الخصوصية-والاحتفاظ-بالبيانات",
+      "ما-يحتفظ-به-amcp",
+      "إلى-متى",
+      "حذف-البيانات",
+      "البيانات-الشخصية-في-الإعلانات",
+      "دورك"
+    ],
+    "docs/owner/ar/readiness.md": [
+      "تحقّق-من-جاهزية-الحساب",
+      "في-الرئيسية",
+      "ما-يحتاجه-الحساب-المحظور-عادةً",
+      "ما-يستطيعه-كل-حساب"
+    ],
+    "docs/owner/ar/recovery.md": [
+      "عندما-يحتاج-أمرٌ-ما-إلى-متابعة",
+      "أين-تنظر",
+      "تغيير-نتيجته-غير-مؤكدة",
+      "حالات-شائعة-أخرى",
+      "الإيقاف-الطارئ",
+      "الحصول-على-المساعدة"
+    ],
+    "docs/owner/ar/results.md": [
+      "التقارير-والتصدير",
+      "أنشئ-تقريرًا",
+      "شارك-وصدّر",
+      "التقارير-المحفوظة-والقوالب-والجداول",
+      "من-يمكنه-التنزيل"
+    ],
+    "docs/owner/ar/team.md": [
+      "فريقك-وعملاؤك",
+      "الأعضاء-والأدوار",
+      "التحقق-بخطوتين",
+      "عملاء-متعددون-في-مساحة-عمل-واحدة",
+      "مشاركة-العمل-والاعتمادات"
+    ],
+    "docs/owner/campaigns.md": [
+      "launch-a-paused-campaign-through-review",
+      "1-start-a-plan",
+      "2-check-what-the-plan-needs",
+      "3-approve-the-whole-plan",
+      "4-run-it",
+      "5-turn-it-on",
+      "spending-limits"
+    ],
+    "docs/owner/connect.md": [
+      "connect-your-accounts",
+      "connect-a-platform",
+      "choose-what-amcp-may-use",
+      "several-logins",
+      "keep-connections-working",
+      "ai-assistants-optional"
+    ],
+    "docs/owner/measurement.md": [
+      "the-measurement-hub",
+      "what-you-can-check",
+      "how-to-read-the-results"
+    ],
+    "docs/owner/owner-run.md": [
+      "what-stays-with-you",
+      "soon",
+      "after-each-release",
+      "regularly",
+      "platform-apps-and-approvals",
+      "live-acceptance",
+      "decisions-only-you-can-make"
+    ],
+    "docs/owner/privacy.md": [
+      "privacy-and-retention",
+      "what-amcp-keeps",
+      "how-long",
+      "deleting-data",
+      "personal-data-in-advertising",
+      "your-part"
+    ],
+    "docs/owner/readiness.md": [
+      "check-that-an-account-is-ready",
+      "on-home",
+      "what-a-blocked-account-usually-needs",
+      "what-each-account-can-do"
+    ],
+    "docs/owner/recovery.md": [
+      "when-something-needs-attention",
+      "where-to-look",
+      "a-change-whose-outcome-is-uncertain",
+      "other-common-cases",
+      "the-emergency-stop",
+      "getting-help"
+    ],
+    "docs/owner/results.md": [
+      "reports-and-exports",
+      "build-a-report",
+      "share-and-export",
+      "saved-reports-templates-and-schedules",
+      "who-can-download"
+    ],
+    "docs/owner/team.md": [
+      "your-team-and-your-clients",
+      "members-and-roles",
+      "two-step-verification",
+      "clients-in-one-workspace",
+      "sharing-work-and-approvals"
+    ]
+  }
+}

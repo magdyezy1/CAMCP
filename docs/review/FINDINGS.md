@@ -78,6 +78,24 @@ static byte differences. Current deployed backend Git/image, Railway branch/sett
 and cause remain unverified; the diagnostic tool does not resolve the deployment gap. See
 [observations, limits and qualification](../records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
+## Sections of the hand-written register
+
+Until 2026-10-24 this page was the hand-written register, in the sections below. Their open findings are listed
+above and their closed findings are in the [closed findings](FINDINGS-CLOSED.md); a link to one of those sections
+still opens here.
+
+| Section | Now in |
+|---|---|
+| <a id="october-findings--baseline-and-implementation-status"></a>October findings — baseline and implementation status | [October 2026 review and the deliveries that followed it](FINDINGS-CLOSED.md#october-2026-review-and-the-deliveries-that-followed-it) |
+| <a id="money-and-write-safety-52-57"></a>Money and write safety (5.2, 5.7) | [Money and write safety (5.2, 5.7)](FINDINGS-CLOSED.md#money-and-write-safety-52-57) |
+| <a id="authentication-sessions-oauth-52"></a>Authentication, sessions, OAuth (5.2) | [Authentication, sessions, OAuth (5.2)](FINDINGS-CLOSED.md#authentication-sessions-oauth-52) |
+| <a id="egress-data-and-secrets-52"></a>Egress, data and secrets (5.2) | [Egress, data and secrets (5.2)](FINDINGS-CLOSED.md#egress-data-and-secrets-52) |
+| <a id="mcp-workflow-54"></a>MCP workflow (5.4) | [MCP workflow (5.4)](FINDINGS-CLOSED.md#mcp-workflow-54) |
+| <a id="website-53"></a>Website (5.3) | [Website (5.3)](FINDINGS-CLOSED.md#website-53) |
+| <a id="platform-contracts-55"></a>Platform contracts (5.5) | [Platform contracts (5.5)](FINDINGS-CLOSED.md#platform-contracts-55) |
+| <a id="product-gaps-58"></a>Product gaps (5.8) | [Product gaps (5.8)](FINDINGS-CLOSED.md#product-gaps-58) |
+| <a id="architecture-performance-developer-experience-51-56-59"></a>Architecture, performance, developer experience (5.1, 5.6, 5.9) | [Architecture, performance, developer experience (5.1, 5.6, 5.9)](FINDINGS-CLOSED.md#architecture-performance-developer-experience-51-56-59) |
+
 ## Controls verified correct (not re-audit targets)
 
 Session cookie (`__Host-`, HttpOnly, Secure, SameSite=Lax, 256-bit, hashed, rotated on every sign-in step, deleted on

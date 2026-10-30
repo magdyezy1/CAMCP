@@ -163,9 +163,21 @@ if (ownerPages.length) {
   }
   lines.push('');
 }
+/**
+ * The anchors of the index's sections before 2026-10-24 (DOC-03), each kept at the section that lists most of its
+ * pages now, so a link to one from outside the repository still opens the right part of the index. The other sections
+ * kept their names (the owner guide, the workflow guides, the implementation records, records and archive).
+ */
+const formerAnchors = Object.freeze({
+  'Operate AMCP': ['status-and-decisions', 'operate-and-deploy', 'acceptance'],
+  'Operator reference': ['platform-guides'],
+  'Engineering reference': ['engineering'],
+  'Plans and proposals': ['reviews-and-plans'],
+});
 /** A section of pages, grouped by folder (the folders in folderGroups' order, then any other) and ordered by title. */
 const section = (heading, intro, selected) => {
-  lines.push('## ' + heading, '', intro, '');
+  const anchors = (formerAnchors[heading] ?? []).map(anchor => '<a id="' + anchor + '"></a>').join('');
+  lines.push('## ' + heading, '', anchors + intro, '');
   const groupOf = page => {
       const folder = path.posix.dirname('docs/' + page.file);
       return folderGroups[folder] ?? folder;

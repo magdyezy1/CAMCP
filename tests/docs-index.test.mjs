@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {documentationPages, pageMeta} from '../tools/docs-front-matter.mjs';
-import {readMoves} from '../tools/docs-links.mjs';
+import {headingSlug, markdownAnchors, readMoves} from '../tools/docs-links.mjs';
 
 const index = fs.readFileSync('docs/README.md', 'utf8'),
   {moves} = readMoves('.');
@@ -52,6 +52,49 @@ test('the index tool names no document: the pages place themselves by their fron
       'Archive',
     ],
   );
+});
+
+// The review of wave 4c: the generated index renamed six sections of the hand-written one, so a link to one of those
+// from outside the repository (#operate-and-deploy, #engineering, ...) opened the index at its top.
+test('every section anchor of the index before 2026-10-24 still opens the section that lists its pages now', () => {
+  // The headings of docs/README.md on 2026-10-23.
+  const former = [
+      'AMCP documentation',
+      'Owner guide',
+      'Status and decisions',
+      'Operate and deploy',
+      'Acceptance',
+      'Workflow guides',
+      'Platform guides',
+      'Engineering',
+      'Reviews and plans',
+      'Implementation records',
+      'Google',
+      'Meta',
+      'TikTok',
+      'Snapchat',
+      'LinkedIn',
+      'X',
+      'Display & Video 360',
+      'Criteo',
+      'Across platforms',
+      'Ledgers and data',
+      'Records',
+      'Archive',
+    ],
+    anchors = markdownAnchors(index);
+  for (const heading of former) assert.ok(anchors.has(headingSlug(heading)), heading);
+  // A renamed section's anchor opens the section that lists most of its pages now, ahead of its introduction.
+  for (const [section, kept] of [
+    ['Operate AMCP', ['status-and-decisions', 'operate-and-deploy', 'acceptance']],
+    ['Operator reference', ['platform-guides']],
+    ['Engineering reference', ['engineering']],
+    ['Plans and proposals', ['reviews-and-plans']],
+  ])
+    assert.ok(
+      sections.get(section).startsWith('\n' + kept.map(anchor => '<a id="' + anchor + '"></a>').join('')),
+      section + ' keeps ' + kept.join(', '),
+    );
 });
 
 /** The index's entries: its list items and table rows (its introductions also link a few pages in their prose). */

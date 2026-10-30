@@ -5,6 +5,8 @@ tier: owner
 
 # Your team and your clients
 
+<a id="members-and-roles"></a>
+
 Invite people in **Your account → Workspace members**. An invitation works only for the invited address, for 7 days.
 
 | Role | Can |
@@ -14,11 +16,15 @@ Invite people in **Your account → Workspace members**. An invitation works onl
 | Operator | Reports, schedules and reviewed changes on selected accounts |
 | Viewer | Read reports and plans |
 
+<a id="two-step-verification"></a>
+
 Owners and administrators of a workspace that makes changes must use two-step verification; keep the recovery codes
 outside AMCP. You can require it of everyone in **Your account → Workspace security**. Sensitive changes ask you to
 **Confirm it’s you**.
 
 ## Many clients in one workspace
+
+<a id="clients-in-one-workspace"></a><a id="sharing-work-and-approvals"></a>
 
 - **Clients & templates** keeps each client's playbook: accounts, naming, tracking parameters and report branding.
 - **Working client**, in the top bar, narrows the lists to one client; it never grants access.

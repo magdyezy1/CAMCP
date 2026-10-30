@@ -7,6 +7,8 @@ tier: owner
 
 Some work needs your accounts or your decision; your operator has the steps.
 
+<a id="soon"></a><a id="after-each-release"></a><a id="regularly"></a><a id="platform-apps-and-approvals"></a>
+
 - **Platform apps.** Register each platform's app and give its credentials to your operator; until then its card says
   *Administrator setup required*. Declare what each platform approved.
 - **Backups.** Turn on scheduled backups, keep an encrypted copy elsewhere, keep the master key in a password manager

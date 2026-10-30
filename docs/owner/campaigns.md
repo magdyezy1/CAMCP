@@ -7,6 +7,8 @@ tier: owner
 
 The guided workflows on **Campaigns** take a brief to a paused campaign, step by step.
 
+<a id="1-start-a-plan"></a><a id="2-check-what-the-plan-needs"></a><a id="3-approve-the-whole-plan"></a><a id="4-run-it"></a><a id="5-turn-it-on"></a>
+
 1. **Plan.** Choose a workflow, the account, the budget in its currency, bidding, goals, landing page and creative.
    **Create paused campaign plan** sends nothing.
 2. **Check.** Fix each blocking item, then choose **Check prerequisites again**.

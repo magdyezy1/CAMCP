@@ -1,15 +1,17 @@
 // The findings register (DOC-03): docs/review/findings.json is the machine-readable register of every review finding,
 // and this writes its two views, so nobody keeps a finding's status in prose: the open view (docs/review/FINDINGS.md:
-// the counts, every open finding listed and then in full with its record and what remains, and the controls verified
-// correct) and the closed view (docs/review/FINDINGS-CLOSED.md: every closed finding with the text it was recorded
-// with, grouped as it was found). Every finding is in exactly one view. Before, the register was a hand-written page
-// whose later findings were prose paragraphs with no open-items view.
+// the counts, every open finding listed and then in full with its record and what remains, the sections of the
+// hand-written page it replaced, each by an anchor of its old name beside the closed view's heading that holds it now,
+// and the controls verified correct) and the closed view (docs/review/FINDINGS-CLOSED.md: every closed finding with
+// the text it was recorded with, grouped as it was found). Every finding is in exactly one view. Before, the register
+// was a hand-written page whose later findings were prose paragraphs with no open-items view.
 // `npm run docs:index` writes both views and `npm run docs:index:check` fails when one differs from the register.
 // Usage on its own: node tools/findings-register.mjs [--check]
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {frontMatterBlock} from './docs-front-matter.mjs';
+import {headingSlug} from './docs-links.mjs';
 
 export const registerFile = 'docs/review/findings.json',
   openView = 'docs/review/FINDINGS.md',
@@ -68,7 +70,33 @@ export function registerProblems(register) {
     }
   if (!(typeof register.controls_verified === 'string' && register.controls_verified.trim()))
     problems.push('controls_verified holds the controls verified correct');
+  // The hand-written page's sections, each with the closed view's heading that holds its findings now (optional).
+  if (register.former_sections !== undefined) {
+    const text = v => typeof v === 'string' && v.trim();
+    if (
+      !Array.isArray(register.former_sections) ||
+      !register.former_sections.every(s => s && text(s.title) && text(s.now))
+    )
+      problems.push('former_sections lists each former section with its title and the heading that holds it now');
+    else if (new Set(register.former_sections.map(s => headingSlug(s.title))).size !== register.former_sections.length)
+      problems.push('former_sections names each former section once');
+  }
   return problems;
+}
+/**
+ * The former sections whose heading the closed view no longer has: each names a heading of the closed view, where a
+ * link to the section's old address is sent on.
+ */
+export function formerSectionProblems(register, closedText = closedViewText(register)) {
+  const headings = new Set(
+    closedText
+      .split('\n')
+      .map(line => /^#{2,3} (.+)$/.exec(line)?.[1])
+      .filter(Boolean),
+  );
+  return (register.former_sections ?? [])
+    .filter(s => !headings.has(s.now))
+    .map(s => 'former section "' + s.title + '" names "' + s.now + '", which is no heading of the closed view');
 }
 /** Whether a finding is open: an open status, or a closed one that still names what remains. */
 export const isOpen = (register, f) => register.states.open.includes(f.status) || f.remaining !== undefined;
@@ -171,6 +199,32 @@ export function openViewText(register) {
     for (const f of open) lines.push(...openDetail(register, f));
     lines.pop();
   } else lines.push('None.');
+  // A link to a section of the hand-written page this one replaced still lands here, beside where it went.
+  if (register.former_sections?.length) {
+    lines.push(
+      '',
+      '## Sections of the hand-written register',
+      '',
+      'Until 2026-10-24 this page was the hand-written register, in the sections below. Their open findings are listed',
+      'above and their closed findings are in the [closed findings](FINDINGS-CLOSED.md); a link to one of those sections',
+      'still opens here.',
+      '',
+      '| Section | Now in |',
+      '|---|---|',
+    );
+    for (const s of register.former_sections)
+      lines.push(
+        '| <a id="' +
+          headingSlug(s.title) +
+          '"></a>' +
+          cell(s.title) +
+          ' | [' +
+          cell(s.now) +
+          '](FINDINGS-CLOSED.md#' +
+          headingSlug(s.now) +
+          ') |',
+      );
+  }
   lines.push('', '## Controls verified correct (not re-audit targets)', '', register.controls_verified);
   return lines.join('\n') + '\n';
 }
@@ -245,9 +299,12 @@ export function findingsProblems(root, {write = false} = {}) {
   }
   const problems = registerProblems(register).map(p => registerFile + ': ' + p);
   if (problems.length) return problems;
+  const closedText = closedViewText(register),
+    former = formerSectionProblems(register, closedText).map(p => registerFile + ': ' + p);
+  if (former.length) return former;
   for (const [file, text] of [
     [openView, openViewText(register)],
-    [closedView, closedViewText(register)],
+    [closedView, closedText],
   ]) {
     const target = path.join(root, file),
       current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8').replaceAll('\r\n', '\n') : undefined;

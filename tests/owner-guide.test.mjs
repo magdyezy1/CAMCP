@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {markdownLinks, parseTarget, resolveLink} from '../tools/docs-links.mjs';
+import {markdownAnchors, markdownLinks, parseTarget, resolveLink} from '../tools/docs-links.mjs';
 import {frontMatter, stripFrontMatter} from '../tools/docs-front-matter.mjs';
 
 const english = 'docs/owner',
@@ -144,9 +144,12 @@ const blocks = file =>
     .split(/\n\s*\n|\n(?=\s*(?:[-*]|\d+\.) )|\|/)
     .map(block => block.trim())
     .filter(Boolean);
+/** A line of a former section's anchors (`<a id="..."></a>`), which keeps an old address: markup, not prose. */
+const anchorLine = /^(?:<a id="[^"]+"><\/a>)+$/gm;
 /** The words of a page's prose: Markdown markers (list numbers, table pipes, heading marks) are not words. */
 const words = file =>
   read(file)
+    .replace(anchorLine, '')
     .split(/\s+/)
     .filter(word => word && !/^(?:\||[-*]|\d+\.|#+|\|?(?:---\|)+)$/.test(word)).length;
 
@@ -248,6 +251,25 @@ test('the guide stays in plain language: no tool names, codes, environment names
       [/\b[0-9a-f]{7,40}\b/, 'a commit hash'],
     ])
       assert.doesNotMatch(text, pattern, file + ' contains ' + what);
+  }
+});
+
+// The review of wave 4c: condensing the guide dropped most of its section headings (connect.md#several-logins, ...),
+// which wave 4b had published, so a link to one from outside the repository opened its page at the top. Each page keeps
+// every anchor it had, as a heading or as a former section's anchor before the text that holds that section now.
+test('every section anchor the guide had before it was condensed still opens its page, in both languages', () => {
+  const former = JSON.parse(fs.readFileSync('tests/fixtures/owner-guide-anchors.json', 'utf8')).pages;
+  assert.deepEqual(
+    Object.keys(former).sort(),
+    pages.flatMap(page => [english + '/' + page, arabic + '/' + page]).sort(),
+  );
+  for (const [file, anchors] of Object.entries(former)) {
+    const text = fs.readFileSync(file, 'utf8'),
+      now = markdownAnchors(text);
+    for (const anchor of anchors) assert.ok(now.has(anchor), file + '#' + anchor + ' resolves');
+    // A former section's anchors are the ones the page had: the line keeps old addresses and invents none.
+    const kept = [...read(file).matchAll(anchorLine)].flatMap(m => [...m[0].matchAll(/id="([^"]+)"/g)].map(a => a[1]));
+    for (const anchor of kept) assert.ok(anchors.includes(anchor), file + ': ' + anchor + ' is no former anchor');
   }
 });
 
