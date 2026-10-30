@@ -394,8 +394,7 @@ anywhere: the suites' synthetic fetchers answer.
 Wave 4c's rows, and its three ARC-04 restructurings (§15: `campaignRecipe`, `inspectGoogleRecipeGoals`,
 `checkAccountSpendPolicy`), are proven by one comparison of the whole branch rather than one per row: the related
 suites of every file the branch changes (775 test files, all but the six it adds or changes) recorded on Work-here
-(`de754838`, with the branch's call-replay targets) and on the branch (`8b33ee11`): 5,219,848 records before and
-5,218,647 after. A calibration (Work-here recorded again over the 127 test files with differences) separates run-to-run
+(with the branch's call-replay targets) and on the branch: 5,219,848 records before and 5,218,647 after. A calibration (Work-here recorded again over the 127 test files with differences) separates run-to-run
 noise: random plan and preview IDs and the hashes derived from them, personal-data digests, `elapsed_ms`, and signatures
 and clock values inside form bodies. With the calibration's noisy fields masked, every record of every test file and
 function is identical, and each function's outcomes (results and refusal codes) are the same in each test file: 0
