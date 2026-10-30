@@ -4,8 +4,8 @@
   "metrics": {
     "largest_runtime_scc": 3,
     "cyclic_modules": 11,
-    "shared_modules_with_gateway_literals": 34,
-    "shared_to_provider_runtime_imports": 53,
+    "shared_modules_with_gateway_literals": 32,
+    "shared_to_provider_runtime_imports": 37,
     "local_fail_copies": 0
   },
   "reported": {
@@ -16,7 +16,7 @@
       2,
       2
     ],
-    "shared_gateway_literals": 164
+    "shared_gateway_literals": 149
   },
   "cycles": [
     [
