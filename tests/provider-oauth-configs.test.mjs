@@ -9,7 +9,8 @@ import {platforms} from '../dist/server/platform-oauth.js';
 // (server/platform-oauth.ts) named each provider's gateway. Each grant is now a fact of its provider's adapter (`grant`
 // in src/provider-adapters.ts, with the scope names it uses), listed in the registry's grant order, and each website
 // platform takes its gateway and default scopes from the adapter its ID names. The OAuth flows' provider steps and asset
-// discovery stay in server/ (ARCHITECTURE section 9).
+// discovery are the provider's website login steps (src/<provider>-login.ts; tests/provider-oauth-steps.test.mjs and
+// tests/provider-asset-discovery.test.mjs, ARCHITECTURE section 9).
 
 test('the grant registry and the website platforms name no gateway', () => {
   for (const file of ['src/provider-grants.ts', 'server/platform-oauth.ts']) {

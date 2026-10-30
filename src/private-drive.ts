@@ -4,7 +4,9 @@ import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
 import {driveDownloadUrl, mediaType, MAX_MEDIA_BYTES} from './drive-media.js';
 import type {Actor, Connection} from './types.js';
-export const driveGateway = 'google_drive_native_action';
+import {providerById} from './provider-adapters.js';
+/** Google Drive's gateway, its provider adapter's (src/provider-adapters.ts; ARC-01: this module names no gateway). */
+export const driveGateway = providerById('drive')!.gateway;
 const driveId = /^[A-Za-z0-9_-]{10,200}$/,
   mediaMimes = ['image/png', 'image/jpeg', 'video/mp4', 'video/quicktime'],
   folderMime = 'application/vnd.google-apps.folder',

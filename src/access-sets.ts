@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import type {Actor, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {normalizeAccount} from './account-id.js';
 
 /**
  * Client access sets (SEC-08 phase 2, owner direction P1: many clients per workspace). An agency names the accounts one
@@ -40,14 +41,12 @@ export interface AccessBinding {
   account_id: string;
 }
 
-/** Account IDs compare as resolution compares them: Meta without act_, Google Ads without dashes. */
+/**
+ * Account IDs compare as resolution compares them: in each provider adapter's account form (src/account-id.ts: Meta
+ * without act_, Google Ads without dashes, every other ID as given).
+ */
 export function accountKey(gateway: string, id: unknown): string {
-  const value = String(id);
-  return gateway === 'meta_native_action'
-    ? value.replace(/^act_/, '')
-    : gateway === 'google_ads_native_action'
-      ? value.replaceAll('-', '')
-      : value;
+  return normalizeAccount(gateway, id);
 }
 export const bindingKey = (gateway: string, connectionId: string, accountId: unknown) =>
   gateway + '\u0000' + connectionId + '\u0000' + accountKey(gateway, accountId);

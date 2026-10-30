@@ -1,4 +1,5 @@
 import type {Credentials} from './types.js';
+import {providerAdapters, providerOf} from './provider-adapters.js';
 
 /**
  * Deployment app credentials at use time (SEC-07 S2).
@@ -17,26 +18,14 @@ import type {Credentials} from './types.js';
  * login from AMCP_GOOGLE_LOGIN_CUSTOMER_ID.
  */
 
-/** The environment-variable stem of each website platform's OAuth app (server/platform-oauth.ts `env`; a test keeps
- * the two equal). */
-export const appEnvironmentStems: Readonly<Record<string, string>> = Object.freeze({
-  google_sheets_native_action: 'SHEETS',
-  google_drive_native_action: 'DRIVE',
-  microsoft_ads_native_action: 'MICROSOFT',
-  google_ads_native_action: 'GOOGLE',
-  meta_native_action: 'META',
-  tiktok_native_action: 'TIKTOK',
-  snapchat_native_action: 'SNAPCHAT',
-  linkedin_native_action: 'LINKEDIN',
-  x_ads_native_action: 'X',
-  ga4_native_action: 'GA4',
-  gtm_native_action: 'GTM',
-  google_search_console_native_action: 'GSC',
-  apple_ads_native_action: 'APPLE',
-  dv360_native_action: 'DV360',
-  reddit_native_action: 'REDDIT',
-  google_business_native_action: 'GBP',
-});
+/**
+ * The environment-variable stem of each website platform's OAuth app, by gateway: its provider adapter's app
+ * (`app.stem`, src/provider-adapters.ts; ARC-01 phase B), which the website platform's `env` (server/platform-oauth.ts)
+ * takes too.
+ */
+export const appEnvironmentStems: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(providerAdapters.flatMap(a => (a.app ? [[a.gateway, a.app.stem]] : []))),
+);
 /**
  * Whether the owner declared that Google approved this deployment's Cloud project for the Business Profile APIs
  * (CON-06). Without it, and without a dedicated AMCP_GBP_CLIENT_ID/SECRET, Business Profile is not offered for connection.
@@ -72,32 +61,34 @@ export function appClient(stem: string, env: NodeJS.ProcessEnv): {clientId?: str
   };
 }
 
-/** The client ID and the secrets this deployment supplies for a gateway's logins, or undefined when it names none. */
+/**
+ * The client ID and the secrets this deployment supplies for a gateway's logins, or undefined when it names none. Which
+ * login fields they fill is the provider adapter's app: the client secret's field (X's consumer secret), then its
+ * further settings in their order (Microsoft's developer token; Apple's team, key and private key).
+ */
 export function deploymentAppSecrets(
   gateway: string,
   env: NodeJS.ProcessEnv,
 ): {clientId: string; secrets: Partial<Credentials>} | undefined {
-  const stem = appEnvironmentStems[gateway];
-  if (!stem) return;
-  const {clientId, clientSecret} = appClient(stem, env);
+  const app = providerOf(gateway)?.app;
+  if (!app) return;
+  const {clientId, clientSecret} = appClient(app.stem, env);
   if (!clientId) return;
   const secrets: Partial<Credentials> = {},
     set = (field: (typeof appSecretFields)[number], value: string | undefined) => {
       if (value) secrets[field] = value;
     };
-  set(gateway === 'x_ads_native_action' ? 'consumerSecret' : 'clientSecret', clientSecret);
-  if (gateway === 'microsoft_ads_native_action') set('developerToken', env.AMCP_MICROSOFT_DEVELOPER_TOKEN);
-  if (gateway === 'apple_ads_native_action') {
-    set('appleTeamId', env.AMCP_APPLE_TEAM_ID);
-    set('appleKeyId', env.AMCP_APPLE_KEY_ID);
-    set('applePrivateKey', env.AMCP_APPLE_PRIVATE_KEY);
-  }
+  set(app.secretField ?? 'clientSecret', clientSecret);
+  for (const [field, setting] of Object.entries(app.settings ?? {}))
+    set(field as (typeof appSecretFields)[number], env[setting!]);
   return {clientId, secrets};
 }
 
 /** The client a login was authorized with: an OAuth 1.0a login (X) names it as its consumer key. */
-export const recordedClient = (gateway: string, c: Credentials) =>
-  (gateway === 'x_ads_native_action' ? (c.consumerKey ?? c.clientId) : c.clientId) || undefined;
+export const recordedClient = (gateway: string, c: Credentials) => {
+  const field = providerOf(gateway)?.app?.clientField;
+  return (field ? (c[field] ?? c.clientId) : c.clientId) || undefined;
+};
 
 /**
  * Whether the deployment's client for this gateway differs from the one the login was authorized with. False when
@@ -139,6 +130,7 @@ export function storableCredentials(
   if (appSecretStorage(env) === 'copy') return {...value, ...app.secrets};
   const out: Credentials = {...value};
   for (const field of Object.keys(app.secrets) as (keyof Credentials)[]) delete out[field];
-  if (gateway === 'google_ads_native_action') delete out.developerToken;
+  // A deployment secret no longer sent is never sealed either (Google Ads' developer token).
+  for (const field of providerOf(gateway)?.app?.unsealed ?? []) delete out[field];
   return out;
 }

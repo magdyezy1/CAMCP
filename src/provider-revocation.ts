@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {credentialsLogin} from './connection-authority.js';
 import {disconnectLocalConnection} from './connection-disconnect.js';
+import type {OAuthRevocation} from './provider-login.js';
+import {registeredProviderLogins} from './provider-logins.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 
@@ -16,12 +18,13 @@ import type {Actor, JsonObject} from './types.js';
  * same person's other AMCP Google logins too, in any workspace of the deployment. The owner tests that with disposable
  * logins before turning it on.
  *
- * It is wired for Google only (its documented revocation endpoint, https://oauth2.googleapis.com/revoke, RFC 7009).
- * Other providers' logins disconnect locally only, and their access is revoked in the provider's own settings; a
- * provider is added only after its own shared-app effect is checked the way Q25 checks Google's. Test accounts never
- * revoke (the shared reviewer password lets any evaluator disconnect any reviewer login, and AMCP cannot tell who
- * connected it), like every capability the test-account allow-list in server/website.ts does not name. A token never
- * appears in a URL, a result, an error or the audit trail.
+ * It is wired for Google only (its documented revocation endpoint, https://oauth2.googleapis.com/revoke, RFC 7009):
+ * the endpoint is the `revocation` of a provider's OAuth steps (src/provider-login.ts), which only Google's declare
+ * (src/google-oauth.ts, shared by every Google login). Other providers' logins disconnect locally only, and their
+ * access is revoked in the provider's own settings; a provider is added only after its own shared-app effect is checked
+ * the way Q25 checks Google's. Test accounts never revoke (the shared reviewer password lets any evaluator disconnect
+ * any reviewer login, and AMCP cannot tell who connected it), like every capability the test-account allow-list in
+ * server/website.ts does not name. A token never appears in a URL, a result, an error or the audit trail.
  */
 export const providerRevocationEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   env.AMCP_PROVIDER_REVOCATION === 'on';
@@ -32,24 +35,27 @@ interface RevocationTarget {
   /** The provider revokes the grant of the whole OAuth client for that person, not one token (Q25). */
   shared_client: boolean;
 }
-const google: RevocationTarget = {
-  provider: 'google',
-  endpoint: 'https://oauth2.googleapis.com/revoke',
-  shared_client: true,
-};
-const targets: Record<string, RevocationTarget> = Object.fromEntries(
-  [
-    'google_ads_native_action',
-    'ga4_native_action',
-    'gtm_native_action',
-    'google_search_console_native_action',
-    'dv360_native_action',
-    'google_business_native_action',
-    'google_sheets_native_action',
-    'google_drive_native_action',
-  ].map(gateway => [gateway, google]),
-);
-export const revocationTarget = (gateway: string): RevocationTarget | undefined => targets[gateway];
+/**
+ * The revocation target of each gateway whose provider's OAuth steps declare one (ARC-01 phase B), from the provider
+ * login registry: one target per declaration, so the logins that share a provider's OAuth steps (Google's) share it.
+ * A gateway without one, or a name that is no gateway, has none.
+ */
+const targets = new Map<string, RevocationTarget>();
+{
+  const declared = new Map<OAuthRevocation, RevocationTarget>();
+  for (const login of registeredProviderLogins) {
+    const revocation = login.oauth?.revocation;
+    if (!revocation) continue;
+    if (!declared.has(revocation))
+      declared.set(revocation, {
+        provider: revocation.provider,
+        endpoint: revocation.endpoint,
+        shared_client: revocation.sharedClient,
+      });
+    targets.set(login.gateway, declared.get(revocation)!);
+  }
+}
+export const revocationTarget = (gateway: string): RevocationTarget | undefined => targets.get(gateway);
 
 /** Whether the website offers "Also revoke at the provider" for a platform's logins to this actor, and why not. */
 export function providerRevocationOffer(

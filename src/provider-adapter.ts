@@ -81,6 +81,13 @@ export interface AccountModel {
   readonly path?: RegExp;
   /** What a bound resource is; an advertising account when absent. */
   readonly kind?: AccountKind;
+  /**
+   * The connection field that keeps how each selected account is reached, as its login's discovery found it:
+   * Microsoft's parent customer of each account (`accountCustomers`), Google Ads' manager route (`accountLoginCustomers`).
+   * The website's asset selection and sync replace it from the discovered accounts with the provider's login steps
+   * (`routes`, src/provider-login.ts), and the store keeps manager routes only on a login whose provider keeps them.
+   */
+  readonly routes?: 'accountCustomers' | 'accountLoginCustomers';
 }
 
 /**
@@ -580,6 +587,40 @@ export interface ProviderAdapter {
   readonly executionOptions?: true;
   /** Its OAuth grant (CON-02, CON-03), which src/provider-grants.ts lists and reads. */
   readonly grant?: ProviderGrantFacts;
+  /** The deployment's OAuth app of its logins (SEC-07 S2), which src/app-credentials.ts reads. */
+  readonly app?: ProviderApp;
+  /** How AMCP renews its logins without the user (CON-02), which src/connection-health.ts reads. */
+  readonly renewal?: ProviderRenewal;
+}
+
+/**
+ * How AMCP renews a provider's logins without the user (CON-02): at the provider's token endpoint with the login's
+ * refresh token, or with the client's own credentials (Apple). A provider without one (Meta, TikTok, X) needs the user's
+ * consent again; src/connection-health.ts and the token refresh (src/auth.ts) read it.
+ */
+export type ProviderRenewal = {readonly tokenEndpoint: string} | {readonly clientCredentials: true};
+
+/**
+ * The deployment's OAuth app of a provider's logins (SEC-07 S2): where the environment names its client, and which login
+ * fields the deployment's secrets fill when a login of that client is used (src/app-credentials.ts). The website
+ * platform that authorizes the provider's logins takes the same stem (server/platform-oauth.ts `env`).
+ */
+export interface ProviderApp {
+  /** AMCP_<stem>_CLIENT_ID and AMCP_<stem>_CLIENT_SECRET name the client. */
+  readonly stem: string;
+  /** The login field the client secret fills; clientSecret when absent (X's OAuth 1.0a consumer secret). */
+  readonly secretField?: 'consumerSecret';
+  /** The login field that names the client a login was authorized with, before its clientId (X's consumer key). */
+  readonly clientField?: 'consumerKey';
+  /**
+   * The deployment's further secrets of these logins, by login field and the environment variable that holds it, in this
+   * order (Microsoft's developer token; Apple's team, key and private key).
+   */
+  readonly settings?: Readonly<
+    Partial<Record<'developerToken' | 'appleTeamId' | 'appleKeyId' | 'applePrivateKey', string>>
+  >;
+  /** Login fields never sealed into a login of the deployment's own client (Google Ads' developer token, no longer sent). */
+  readonly unsealed?: readonly 'developerToken'[];
 }
 
 /** A requirement on recorded scopes: any one of `any` is recorded, and every scope of `all` is. */

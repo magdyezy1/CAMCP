@@ -54,10 +54,10 @@ export const handler =
 export const grantOwner = (s: {actor: {userId: string}}) =>
   s.actor.userId === 'workspace-admin' ? null : s.actor.userId;
 /**
- * The gateways the website treats by name: Google Ads (login customers and its authorization view), Microsoft
- * Advertising (account customers) and WooCommerce (store connections, which Commerce manages). They come from the
- * provider adapter registry (ARC-01), so no website module names a gateway itself.
+ * The gateways the website treats by name: Google Ads (its renewal and authorization view) and WooCommerce (store
+ * connections, which Commerce manages). They come from the provider adapter registry (ARC-01), so no website module
+ * names a gateway itself; how a login's accounts are reached (Microsoft's parent customers, Google Ads' manager routes)
+ * is its provider's fact and login step.
  */
 export const googleAdsGateway = providerById('google')!.gateway,
-  microsoftGateway = providerById('microsoft')!.gateway,
   commerceGateway = providerById('woocommerce')!.gateway;

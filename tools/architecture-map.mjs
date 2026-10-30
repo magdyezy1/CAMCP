@@ -62,6 +62,12 @@ export const providerRegistries = Object.freeze([
   'src/provider-remedies.ts',
   'src/reviewed-families.ts',
   'src/provider-hooks.ts',
+  // ARC-01 phase B, the server discovery and OAuth configurations: each provider's website login steps, which only the
+  // website's server consults (src/<provider>-login.ts).
+  'src/provider-logins.ts',
+  // ARC-01 phase B, the website server modules: each provider's startup checks (version pins, configuration
+  // warnings), which the composition root runs.
+  'src/provider-startup.ts',
 ]);
 const roots = ['src', 'server'];
 const posix = file => file.replaceAll('\\', '/');

@@ -228,8 +228,21 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged, the reporting and writes packages' files add up (ten and 33 more files, six and twelve more with reasons),
   // and so do their two newly owned reasons: the report source contract's undocumented-value refusal and Meta's
   // currency-cap refusal, each already translated.
-  assert.equal(files.length, 712);
-  assert.equal(selected.filter(row => row.messages.size).length, 271);
+  // ARC-01 phase B's server discovery configurations move each provider's asset discovery step from
+  // server/asset-discovery.ts to its website login module (src/<provider>-login.ts, fifteen, their registry
+  // src/provider-logins.ts and their contract src/provider-login.ts, which owns no reason) and Google Ads' hierarchy
+  // discovery to src/google-account-discovery.ts (the server module re-exports it): eighteen more files, eleven more
+  // files with reasons (the eleven login modules that own reasons and the hierarchy module, less the server module the
+  // hierarchy's reasons left), the same reasons. Its OAuth flow steps add Google's shared steps (src/google-oauth.ts)
+  // and the leaf that signs X's authorization calls (src/oauth1-authorization.ts), neither owning a reason: two more
+  // files; the 11 reasons the steps took from server/platform-oauth.ts are in login modules that already own reasons.
+  // Its website server modules add the provider startup registry (src/provider-startup.ts) and WooCommerce's website
+  // login steps (src/woocommerce-login.ts), neither owning a reason: two more files.
+  // Merged, the server package's 22 more files, eleven of them with reasons, add to the reporting and writes packages'
+  // 43 and 18; the server package owns no new reason, so the owned reasons stay the merged reporting and writes
+  // packages' 1,590.
+  assert.equal(files.length, 734);
+  assert.equal(selected.filter(row => row.messages.size).length, 282);
   assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

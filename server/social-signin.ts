@@ -6,7 +6,8 @@ import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {cookieValue, type WebSession} from './web-store.js';
 import {UserAccounts, accountEmail, accountName} from './user-accounts.js';
-import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
+import {providerById} from '../src/provider-adapters.js';
+import {providerLogin} from '../src/provider-logins.js';
 import {
   accountWithEmail,
   addIdentity,
@@ -21,6 +22,11 @@ import {
 } from './web-session-repository.js';
 
 const random = () => randomBytes(32).toString('base64url');
+/**
+ * Facebook Login is Meta's (ARC-01 phase B: its website login steps, src/meta-login.ts): the versioned login dialog,
+ * the token endpoint and the signed-in user's Graph API profile.
+ */
+const facebook = providerLogin(providerById('meta')!.gateway)!.signIn!;
 const definitions = {
   google: {
     name: 'Google',
@@ -40,8 +46,8 @@ const definitions = {
   },
   facebook: {
     name: 'Facebook',
-    authorize: metaDialogUrl,
-    token: metaGraphUrl('oauth/access_token'),
+    authorize: facebook.authorize,
+    token: facebook.token,
     jwks: '',
     issuer: [],
     scope: 'public_profile,email',
@@ -242,7 +248,7 @@ export class SocialSignIn {
       if (typeof tokens.access_token !== 'string' || tokens.access_token.length > 8192)
         throw new MirrorError('SIGNIN_IDENTITY_INVALID', 'Facebook did not return a valid identity.');
       const proof = createHmac('sha256', c.secret!).update(tokens.access_token).digest('hex'),
-        info = await this.json(metaGraphUrl('me?fields=id,name&appsecret_proof=') + proof, {
+        info = await this.json(facebook.profile + '?fields=id,name&appsecret_proof=' + proof, {
           headers: {Authorization: 'Bearer ' + tokens.access_token},
         });
       if (typeof info.id !== 'string' || !/^\d{1,100}$/.test(info.id))

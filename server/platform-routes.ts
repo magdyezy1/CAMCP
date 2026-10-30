@@ -4,29 +4,26 @@ import {recordAuthorized} from '../src/connection-health.js';
 import {MirrorError} from '../src/errors.js';
 import {providerLifecycle} from '../src/provider-adapters.js';
 import {providerRevocationOffer} from '../src/provider-revocation.js';
+import {providerLogin} from '../src/provider-logins.js';
 import type {Connection, JsonObject} from '../src/types.js';
-import {wooCommerceSources} from '../src/woocommerce-source.js';
 import {reauthorizeConnection} from './connection-reauthorization.js';
 import {reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {platform, platforms} from './platform-oauth.js';
-import {handler, type WebsiteSite} from './website-site.js';
+import {commerceGateway, handler, type WebsiteSite} from './website-site.js';
+
+/** Commerce's store sources are WooCommerce's keyed logins (its website login steps, src/woocommerce-login.ts). */
+const commerceLogins = providerLogin(commerceGateway)!.keyed!;
 
 /**
  * Platform logins: the platforms and their logins a person may see, an administrator starting a connection (browser
  * OAuth or a server-owned API connection), the provider's return with its session-bound state (CON-05: a refused
- * return gets the localized result page), and the progress of an authorization and its first sync.
+ * return gets the localized result page), and the progress of an authorization and its first sync. The routes
+ * register in this order; the start of a connection and the provider's return are their own steps (ARC-04: no route
+ * module function near 400 lines).
  */
-export function platformRoutes({
-  router,
-  store,
-  web,
-  options,
-  allowWrites,
-  oauth,
-  discovery,
-  connections: views,
-}: WebsiteSite) {
-  const {connection, readDocument, sameIdentity, actorConnections, visibleConnection, sync} = views;
+export function platformRoutes(site: WebsiteSite) {
+  const {router, store, web, options, oauth, connections: views} = site;
+  const {actorConnections, visibleConnection} = views;
   router.get(
     '/api/platforms',
     handler((req, res) => {
@@ -44,7 +41,7 @@ export function platformRoutes({
         })),
         authenticated: !!session,
         // Stored store connections stay listed while WooCommerce is parked, so an administrator can still remove one.
-        commerce_sources: session ? wooCommerceSources(store, session.actor).items : [],
+        commerce_sources: session ? commerceLogins.sources(store, session.actor) : [],
         // Parked providers this deployment does not offer (ARC-01, P9): Commerce hides their panels.
         providers_not_offered: providerLifecycle()
           .filter(p => !p.offered)
@@ -52,82 +49,126 @@ export function platformRoutes({
       });
     }),
   );
-  router.post(
-    '/api/auth/:platform/start',
-    express.json({limit: '4kb'}),
-    handler(async (req, res) => {
-      const session = web.requireAdminMutation(req),
-        id = String(req.params.platform),
-        p = platform(id);
-      if (!p.authType) {
-        res.json(await oauth.start(session, id));
-        return;
-      }
-      if (session.actor.tenantId !== web.tenantId)
-        throw new MirrorError(
-          'SERVICE_CONNECTION_RESTRICTED',
-          'This server-owned API connection is available only in the deployment administrator workspace.',
-          {},
-          403,
-        );
-      const result = await oauth.connectService(id),
-        connectionId = randomUUID(),
-        attemptId = randomUUID(),
-        tenant = session.actor.tenantId;
-      // Browser sessions may be revoked while the token service is responding.
-      web.requireAdminMutation(req);
-      const c: Connection = {
-        id: connectionId,
-        tenantId: tenant,
-        gateway: p.gateway,
-        accounts: [],
-        ...(p.id === 'reddit' ? {userAgent: oauth.redditUserAgent()} : {}),
-        defaultWriteAccess: allowWrites,
-        label: result.label,
-        enabled: false,
-        scopes: result.scopes,
-        isDefault: !store.listConnections(tenant).some(c => c.gateway === p.gateway && c.isDefault),
-      };
-      store.putConnection(session.actor, c, result.credentials);
-      store.putDocument(tenant, 'website_connection', connectionId, {
-        platform: id,
-        expiresAt: result.credentials.expiresAt ?? null,
-        createdAt: Date.now(),
-      });
-      recordAuthorized(store, connection(tenant, connectionId), result.credentials);
-      store.appendAudit(tenant, attemptId, {
-        event: 'website_api_connected',
-        platform: id,
-        connection_id: connectionId,
-        vendor_writes: 0,
-      });
-      let error: string | null = null;
-      try {
-        error = (
-          await sync(tenant, c, () => {
-            web.requireAdminMutation(req);
-          })
-        ).error;
-      } catch (e) {
-        error =
-          e instanceof MirrorError
-            ? e.message
-            : 'Asset sync could not be completed. Retry from the connection manager.';
-      }
-      store.putDocument(tenant, 'oauth_progress', attemptId, {
-        platform: id,
-        state: error ? 'sync_attention' : 'complete',
-        authorization: true,
-        exchange: true,
-        sync: !error,
-        connectionId,
-        createdAt: Date.now(),
-        message: error ?? 'Connection secured. Choose the assets AMCP can use.',
-      });
-      res.json({url: '/oauth/result?attempt=' + encodeURIComponent(attemptId), attemptId});
+  router.post('/api/auth/:platform/start', express.json({limit: '4kb'}), startConnection(site));
+  const callback = oauthCallback(site);
+  // A browser that returns from the provider after its session ended, without administrator rights, with an expired or
+  // reused state or with malformed parameters gets the localized result page instead of raw JSON (CON-05). Only these
+  // fixed codes and a known platform ID reach the page; no provider parameter is echoed. Other callers keep the JSON
+  // refusal.
+  const callbackRefusals = new Set(['SIGN_IN_REQUIRED', 'FORBIDDEN', 'OAUTH_STATE_INVALID', 'OAUTH_CALLBACK_INVALID']);
+  const callbackPage = (req: Request, res: Response, next: NextFunction) =>
+    callback(req, res, (e?: unknown) => {
+      if (
+        !(e instanceof MirrorError) ||
+        !callbackRefusals.has(e.code) ||
+        !/\btext\/html\b/i.test(req.headers.accept ?? '') ||
+        res.headersSent
+      )
+        return next(e);
+      const id = String(req.params.platform),
+        query = new URLSearchParams({error: e.code});
+      if (platforms.some(p => p.id === id)) query.set('platform', id);
+      res.setHeader('Cache-Control', 'no-store');
+      res.redirect(303, '/oauth/result?' + query);
+    });
+  router.get('/api/auth/:platform/callback', callbackPage);
+  router.get('/api/:platform/callback', callbackPage);
+  router.get(
+    '/api/oauth/progress/:id',
+    handler((req, res) => {
+      const session = web.requireSession(req);
+      res.json(store.document(session.actor.tenantId, 'oauth_progress', String(req.params.id)));
     }),
   );
-  const callback = handler(async (req, res) => {
+}
+
+/**
+ * POST /api/auth/:platform/start: an administrator starts a connection: a browser authorization, or for a platform whose
+ * logins use server-side API credentials a server-owned API connection in the deployment administrator workspace,
+ * synced right away.
+ */
+function startConnection({store, web, allowWrites, oauth, connections: views}: WebsiteSite) {
+  const {connection, sync} = views;
+  return handler(async (req, res) => {
+    const session = web.requireAdminMutation(req),
+      id = String(req.params.platform),
+      p = platform(id);
+    if (!p.authType) {
+      res.json(await oauth.start(session, id));
+      return;
+    }
+    if (session.actor.tenantId !== web.tenantId)
+      throw new MirrorError(
+        'SERVICE_CONNECTION_RESTRICTED',
+        'This server-owned API connection is available only in the deployment administrator workspace.',
+        {},
+        403,
+      );
+    const result = await oauth.connectService(id),
+      connectionId = randomUUID(),
+      attemptId = randomUUID(),
+      tenant = session.actor.tenantId;
+    // Browser sessions may be revoked while the token service is responding.
+    web.requireAdminMutation(req);
+    const c: Connection = {
+      id: connectionId,
+      tenantId: tenant,
+      gateway: p.gateway,
+      accounts: [],
+      // What the provider's logins keep on their connection (Reddit's User-Agent: src/reddit-login.ts).
+      ...oauth.connectionFields(p),
+      defaultWriteAccess: allowWrites,
+      label: result.label,
+      enabled: false,
+      scopes: result.scopes,
+      isDefault: !store.listConnections(tenant).some(c => c.gateway === p.gateway && c.isDefault),
+    };
+    store.putConnection(session.actor, c, result.credentials);
+    store.putDocument(tenant, 'website_connection', connectionId, {
+      platform: id,
+      expiresAt: result.credentials.expiresAt ?? null,
+      createdAt: Date.now(),
+    });
+    recordAuthorized(store, connection(tenant, connectionId), result.credentials);
+    store.appendAudit(tenant, attemptId, {
+      event: 'website_api_connected',
+      platform: id,
+      connection_id: connectionId,
+      vendor_writes: 0,
+    });
+    let error: string | null = null;
+    try {
+      error = (
+        await sync(tenant, c, () => {
+          web.requireAdminMutation(req);
+        })
+      ).error;
+    } catch (e) {
+      error =
+        e instanceof MirrorError ? e.message : 'Asset sync could not be completed. Retry from the connection manager.';
+    }
+    store.putDocument(tenant, 'oauth_progress', attemptId, {
+      platform: id,
+      state: error ? 'sync_attention' : 'complete',
+      authorization: true,
+      exchange: true,
+      sync: !error,
+      connectionId,
+      createdAt: Date.now(),
+      message: error ?? 'Connection secured. Choose the assets AMCP can use.',
+    });
+    res.json({url: '/oauth/result?attempt=' + encodeURIComponent(attemptId), attemptId});
+  });
+}
+
+/**
+ * GET /api/auth/:platform/callback (and /api/:platform/callback): the provider's return to the session that started the
+ * authorization, with its session-bound state: the token exchange, then the renewal in place of the login it names or
+ * a new login and its first sync, with the progress the result page shows.
+ */
+function oauthCallback({store, web, options, allowWrites, oauth, discovery, connections: views}: WebsiteSite) {
+  const {connection, readDocument, sameIdentity, sync} = views;
+  return handler(async (req, res) => {
     const session = web.requireSession(req),
       id = String(req.params.platform),
       query: Record<string, string> = {};
@@ -213,7 +254,8 @@ export function platformRoutes({
         tenantId: tenant,
         gateway: p.gateway,
         accounts: [],
-        ...(p.id === 'reddit' ? {userAgent: oauth.redditUserAgent()} : {}),
+        // What the provider's logins keep on their connection (Reddit's User-Agent: src/reddit-login.ts).
+        ...oauth.connectionFields(p),
         defaultWriteAccess: p.reviewedWrites !== false && allowWrites && pending.requestedWriteAccess === true,
         label: result.label,
         enabled: false,
@@ -278,33 +320,4 @@ export function platformRoutes({
     }
     res.redirect(303, '/oauth/result?attempt=' + encodeURIComponent(attemptId));
   });
-  // A browser that returns from the provider after its session ended, without administrator rights, with an expired or
-  // reused state or with malformed parameters gets the localized result page instead of raw JSON (CON-05). Only these
-  // fixed codes and a known platform ID reach the page; no provider parameter is echoed. Other callers keep the JSON
-  // refusal.
-  const callbackRefusals = new Set(['SIGN_IN_REQUIRED', 'FORBIDDEN', 'OAUTH_STATE_INVALID', 'OAUTH_CALLBACK_INVALID']);
-  const callbackPage = (req: Request, res: Response, next: NextFunction) =>
-    callback(req, res, (e?: unknown) => {
-      if (
-        !(e instanceof MirrorError) ||
-        !callbackRefusals.has(e.code) ||
-        !/\btext\/html\b/i.test(req.headers.accept ?? '') ||
-        res.headersSent
-      )
-        return next(e);
-      const id = String(req.params.platform),
-        query = new URLSearchParams({error: e.code});
-      if (platforms.some(p => p.id === id)) query.set('platform', id);
-      res.setHeader('Cache-Control', 'no-store');
-      res.redirect(303, '/oauth/result?' + query);
-    });
-  router.get('/api/auth/:platform/callback', callbackPage);
-  router.get('/api/:platform/callback', callbackPage);
-  router.get(
-    '/api/oauth/progress/:id',
-    handler((req, res) => {
-      const session = web.requireSession(req);
-      res.json(store.document(session.actor.tenantId, 'oauth_progress', String(req.params.id)));
-    }),
-  );
 }

@@ -5,15 +5,21 @@ import {MirrorError} from '../src/errors.js';
 import {scopeKey} from '../src/security.js';
 import {assetSyncDiagnostic} from '../src/report-errors.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
-import {googleAccountDiscovery} from './google-account-discovery.js';
 import type {AssetGroup} from './asset-discovery.js';
-import {googleAdsCustomers} from '../src/google-version.js';
+import {providerLogin} from '../src/provider-logins.js';
 import {storedLogin} from '../src/connection-authority.js';
 import {recordAuthorized} from '../src/connection-health.js';
 import {authorizationRevision} from './connection-reauthorization.js';
 import {googleAdsScope} from '../src/provider-grants.js';
+import {googleAdsGateway} from './website-site.js';
 
 export {googleAdsScope};
+/**
+ * The renewal is Google Ads' (its gateway from the adapter registry, server/website-site.ts), and its reads are Google
+ * Ads' renewal steps (its website login steps, src/google-ads-login.ts, ARC-01 phase B): the account hierarchy a fresh
+ * authorization reaches, and the read of a selected account the hierarchy did not verify.
+ */
+const googleAdsRenewal = providerLogin(googleAdsGateway)!.renewal!;
 /** Every platform's reauthorization revision lives in website_connection (server/connection-reauthorization.ts). */
 export const googleAuthorizationRevision = authorizationRevision;
 export function googleAuthorizationInfo(
@@ -66,7 +72,7 @@ export async function reauthorizeGoogleConnection(input: {
     assertActive();
     if (actor.role !== 'admin') throw new MirrorError('FORBIDDEN', 'A workspace administrator is required.', {}, 403);
     const c = store.connectionsFor(actor).find(c => c.id === connectionId);
-    if (!c || c.gateway !== 'google_ads_native_action')
+    if (!c || c.gateway !== googleAdsGateway)
       throw new MirrorError(
         'CONNECTION_NOT_FOUND',
         'This Google connection was removed. Start again from Connections.',
@@ -121,7 +127,7 @@ export async function reauthorizeGoogleConnection(input: {
   if (!input.fetcher || input.fetcher === fetch) transport.coordination = store;
   let group: AssetGroup;
   try {
-    group = await googleAccountDiscovery(transport, c, credentials, check);
+    group = await googleAdsRenewal.accounts(transport, c, credentials, check);
   } catch (e) {
     check();
     throw new MirrorError(
@@ -150,22 +156,7 @@ export async function reauthorizeGoogleConnection(input: {
       );
     try {
       const result = await transport.request(
-        {
-          gateway: c.gateway,
-          action: 'AMCP_GOOGLE_SELECTED_VERIFICATION',
-          method: 'POST',
-          path: googleAdsCustomers + id + '/googleAds:search',
-          query: {},
-          body: {
-            query: 'SELECT customer.id, customer.currency_code, customer.time_zone, customer.status FROM customer',
-          },
-          headers: {},
-          readOnly: true,
-          destructive: false,
-          requiresConfirmation: false,
-          evidence: 'SELECTED_ACCOUNT_VERIFICATION',
-          warnings: [],
-        },
+        googleAdsRenewal.selectedAccountRead(c.gateway, id),
         c,
         {...credentials, loginCustomerId: asset.loginCustomerId},
         undefined,

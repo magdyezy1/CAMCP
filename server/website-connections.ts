@@ -3,8 +3,10 @@ import {accountKey} from '../src/access-sets.js';
 import {clientViews} from '../src/client-scope.js';
 import {credentialHealth} from '../src/connection-health.js';
 import {MirrorError} from '../src/errors.js';
+import {providerOf} from '../src/provider-adapters.js';
 import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {providerJobGateways, reportJobAccounts} from '../src/provider-jobs.js';
+import {providerLogin} from '../src/provider-logins.js';
 import {stable} from '../src/security.js';
 import type {Store} from '../src/store.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
@@ -19,11 +21,12 @@ import {
   providerDisplayName,
   selectableKinds,
   selectionKind,
+  type PlatformDefinition,
   type PlatformOAuth,
 } from './platform-oauth.js';
 import type {WebStore, WebsiteOptions} from './web-store.js';
 import {writeConnectionLabel} from './website-repository.js';
-import {googleAdsGateway, microsoftGateway} from './website-site.js';
+import {googleAdsGateway} from './website-site.js';
 
 /**
  * The website's views of a workspace's logins (ARC-04 stage D, moved from createWebsite): a login by ID, its saved
@@ -101,7 +104,109 @@ export function connectionViews(
       };
     }
   };
-  const publicConnection = (tenant: string, c: Connection) => {
+  // A login's public view and its asset sync are their own steps (ARC-04), given the parts they read.
+  const parts: ViewParts = {
+    store,
+    web,
+    oauth,
+    discovery,
+    reviewerLifetime,
+    connection,
+    readDocument,
+    savedAssets,
+    sameIdentity,
+    writeLabel,
+    renewal,
+    readableCredentials,
+  };
+  const publicConnection = publicConnectionView(parts);
+  /**
+   * A login as this person may see it (SEC-08): for access limited to a client access set, only the set's accounts of
+   * the login (Store.connectionsFor) and only those discovered assets; Pages, catalogs and other accounts stay out.
+   */
+  const actorConnections = (actor: Actor) => store.connectionsFor(actor);
+  /**
+   * The working clients a person may choose (SEC-08 phase 1): client profiles with their accounts within current
+   * access. None for a reviewer test account, or while a required two-step setup is pending (SEC-06).
+   */
+  const workingClientChoices = (actor: Actor): JsonObject[] =>
+    actor.testAccount === true || actor.mfaEnrollmentRequired === true
+      ? []
+      : clientViews(store, actor).map(({has: _has, ...client}) => client);
+  const actorConnection = (actor: Actor, id: string) => {
+    const c = actorConnections(actor).find(c => c.id === id);
+    if (!c) throw new MirrorError('CONNECTION_NOT_FOUND', 'The connection was not found in this workspace.', {}, 404);
+    return c;
+  };
+  const visibleConnection = (actor: Actor, c: Connection) => {
+    const view = publicConnection(actor.tenantId, c);
+    if (actor.accessSetId === undefined) return view;
+    const kinds = selectableKinds(c.gateway),
+      inSet = (id: unknown) => c.accounts.some(a => accountKey(c.gateway, a) === accountKey(c.gateway, id));
+    return {
+      ...view,
+      duplicateOf: null,
+      selected: view.selected.filter((s: string) =>
+        kinds.some(kind => s.startsWith(kind + ':') && inSet(s.slice(kind.length + 1))),
+      ),
+      groups: view.groups
+        .filter((g: JsonObject) => kinds.includes(g.kind))
+        .map((g: JsonObject) => ({...g, assets: (g.assets ?? []).filter((a: JsonObject) => inSet(a.id))})),
+    };
+  };
+  const sync = assetSync(parts, publicConnection);
+  return {
+    connection,
+    readDocument,
+    savedAssets,
+    sameIdentity,
+    writeLabel,
+    renewal,
+    readableCredentials,
+    publicConnection,
+    actorConnections,
+    workingClientChoices,
+    actorConnection,
+    visibleConnection,
+    sync,
+  };
+}
+export type ConnectionViews = ReturnType<typeof connectionViews>;
+
+/** What a login's public view and its asset sync read: the website's parts and the login views they share. */
+interface ViewParts {
+  store: Store;
+  web: WebStore;
+  oauth: PlatformOAuth;
+  discovery: AssetDiscovery;
+  reviewerLifetime: number | null;
+  connection: (tenant: string, id: string) => Connection;
+  readDocument: (tenant: string, kind: string, id: string, fallback?: JsonObject) => JsonObject;
+  savedAssets: (tenant: string, c: Connection) => JsonObject;
+  sameIdentity: (tenant: string, gateway: string, providerId: unknown, except: string) => string | undefined;
+  writeLabel: (tenant: string, id: string, label: string) => unknown;
+  renewal: (c: Connection) => PlatformDefinition | undefined;
+  readableCredentials: (
+    tenant: string,
+    c: Connection,
+  ) => {saved?: Credentials; unreadable?: 'reauthorize' | 'operator'};
+}
+
+/**
+ * A login's public view: its status, credential health, grants, renewal, asset selection and synced groups. Metadata
+ * only: no token, secret or raw credential object leaves it.
+ */
+function publicConnectionView({
+  store,
+  web,
+  oauth,
+  reviewerLifetime,
+  savedAssets,
+  readDocument,
+  renewal,
+  readableCredentials,
+}: ViewParts) {
+  return (tenant: string, c: Connection) => {
     const assets = savedAssets(tenant, c),
       p = platforms.find(p => p.gateway === c.gateway),
       // Metadata only: no token, secret or raw credential object leaves this function.
@@ -164,41 +269,18 @@ export function connectionViews(
         : {}),
     };
   };
-  /**
-   * A login as this person may see it (SEC-08): for access limited to a client access set, only the set's accounts of
-   * the login (Store.connectionsFor) and only those discovered assets; Pages, catalogs and other accounts stay out.
-   */
-  const actorConnections = (actor: Actor) => store.connectionsFor(actor);
-  /**
-   * The working clients a person may choose (SEC-08 phase 1): client profiles with their accounts within current
-   * access. None for a reviewer test account, or while a required two-step setup is pending (SEC-06).
-   */
-  const workingClientChoices = (actor: Actor): JsonObject[] =>
-    actor.testAccount === true || actor.mfaEnrollmentRequired === true
-      ? []
-      : clientViews(store, actor).map(({has: _has, ...client}) => client);
-  const actorConnection = (actor: Actor, id: string) => {
-    const c = actorConnections(actor).find(c => c.id === id);
-    if (!c) throw new MirrorError('CONNECTION_NOT_FOUND', 'The connection was not found in this workspace.', {}, 404);
-    return c;
-  };
-  const visibleConnection = (actor: Actor, c: Connection) => {
-    const view = publicConnection(actor.tenantId, c);
-    if (actor.accessSetId === undefined) return view;
-    const kinds = selectableKinds(c.gateway),
-      inSet = (id: unknown) => c.accounts.some(a => accountKey(c.gateway, a) === accountKey(c.gateway, id));
-    return {
-      ...view,
-      duplicateOf: null,
-      selected: view.selected.filter((s: string) =>
-        kinds.some(kind => s.startsWith(kind + ':') && inSet(s.slice(kind.length + 1))),
-      ),
-      groups: view.groups
-        .filter((g: JsonObject) => kinds.includes(g.kind))
-        .map((g: JsonObject) => ({...g, assets: (g.assets ?? []).filter((a: JsonObject) => inSet(a.id))})),
-    };
-  };
-  const sync = async (tenant: string, c: Connection, assertActive: () => void, kinds?: string[]) => {
+}
+
+/**
+ * The asset sync that refreshes a login's inventory (server/asset-discovery.ts): the identity, grants and recorded
+ * scopes its reads found, the merged asset groups, the selected accounts and write grants a complete listing no
+ * longer shows, the login's name and the audit; then the login's public view.
+ */
+function assetSync(
+  {store, discovery, connection, readDocument, savedAssets, sameIdentity, writeLabel}: ViewParts,
+  publicConnection: ReturnType<typeof publicConnectionView>,
+) {
+  return async (tenant: string, c: Connection, assertActive: () => void, kinds?: string[]) => {
     const revision = authorizationRevision(store, tenant, c.id);
     const result = await discovery.sync(c, kinds, assertActive);
     result.assertCurrent();
@@ -285,18 +367,12 @@ export function connectionViews(
       const accounts = c.accounts.filter(
         id => !dropped.has(id) && (!visible || visible.has(id) || alsoSelected.has(id)),
       );
-      const accountCustomers =
-        c.gateway === microsoftGateway && accountsGroup
-          ? Object.fromEntries(accountsGroup.assets.filter(a => accounts.includes(a.id)).map(a => [a.id, a.parentId!]))
-          : c.accountCustomers;
-      const accountLoginCustomers =
-        c.gateway === googleAdsGateway && accountsGroup
-          ? Object.fromEntries(
-              accountsGroup.assets
-                .filter(a => accounts.includes(a.id) && a.loginCustomerId)
-                .map(a => [a.id, a.loginCustomerId!]),
-            )
-          : c.accountLoginCustomers;
+      // How each kept account is reached, from the complete listing, on a login whose provider keeps it (as the asset
+      // selection does: server/connection-routes.ts).
+      const routes = accountsGroup ? providerOf(c.gateway)?.account?.routes : undefined,
+        routed = () => providerLogin(c.gateway)!.routes!(accountsGroup!.assets, accounts);
+      const accountCustomers = routes === 'accountCustomers' ? routed() : c.accountCustomers;
+      const accountLoginCustomers = routes === 'accountLoginCustomers' ? routed() : c.accountLoginCustomers;
       if (
         accounts.length !== c.accounts.length ||
         JSON.stringify(accountCustomers) !== JSON.stringify(c.accountCustomers) ||
@@ -347,20 +423,4 @@ export function connectionViews(
     });
     return publicConnection(tenant, c);
   };
-  return {
-    connection,
-    readDocument,
-    savedAssets,
-    sameIdentity,
-    writeLabel,
-    renewal,
-    readableCredentials,
-    publicConnection,
-    actorConnections,
-    workingClientChoices,
-    actorConnection,
-    visibleConnection,
-    sync,
-  };
 }
-export type ConnectionViews = ReturnType<typeof connectionViews>;

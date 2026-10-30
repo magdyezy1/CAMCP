@@ -44,7 +44,9 @@ export const targets = Object.freeze({
   // The Snapchat scoped-resource paths left scope.js for this leaf (ARC-01 phase B, the read authorizers), which
   // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
-  'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource']}},
+  'dist/src/store.js': {
+    classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection', 'resolveConnection', 'putConnection']},
+  },
   'dist/src/account-id.js': {functions: ['normalizeAccount']},
   'dist/src/execution-risk.js': {functions: ['applyExecutionRisk', 'independentlyReadOnly', 'bodyDeletion']},
   // Google Ads' global planning reads left execution-risk.js for its adapter (ARC-01 phase B, the read
@@ -74,7 +76,9 @@ export const targets = Object.freeze({
   'dist/src/auth.js': {classes: {CredentialProvider: ['get']}},
   'dist/server/platform-oauth.js': {
     functions: ['platform', 'selectionKind', 'selectableKinds'],
-    classes: {PlatformOAuth: ['config', 'publicConfig', 'connectService', 'exchange']},
+    // `start` since the OAuth flow steps moved into the adapters (ARC-01 phase B): its authorization URL, and X's
+    // request-token call through the instance's fetcher.
+    classes: {PlatformOAuth: ['config', 'publicConfig', 'connectService', 'exchange', 'start']},
   },
   'dist/server/asset-discovery.js': {classes: {AssetDiscovery: ['sync', 'discoverWith']}},
   // The reviewed route of a write (ARC-01 phase B, the entity writes: each platform's generic entity routes left
@@ -163,6 +167,30 @@ export const targets = Object.freeze({
   // Reddit's page step (wave 4c), with which its creative family reads its profile and post pages instead of
   // src/pagination.ts; a recording made before names those calls dist/src/pagination.js#nextPage.
   'dist/src/reddit-paging.js': {functions: ['redditNextPage']},
+  // ARC-04: the WooCommerce store setup, split into staged steps; its outcome per call (the requests go through the
+  // caller's own request function, which the suites' fixtures answer).
+  'dist/src/woocommerce-connection.js': {functions: ['connectWooCommerce']},
+  // ARC-01 phase B, the website's server modules, whose provider facts moved into the registries: the Google renewal
+  // (its reads go through NativeTransport, recorded above), Facebook sign-in (SocialSignIn.json is its one fetch: each
+  // request and answer), the composition root's startup checks (each refusal and started runtime) and Commerce's store
+  // sources.
+  'dist/server/google-reauthorization.js': {functions: ['reauthorizeGoogleConnection', 'googleAuthorizationInfo']},
+  'dist/server/social-signin.js': {classes: {SocialSignIn: ['start', 'identity', 'json']}},
+  'dist/server/runtime.js': {functions: ['createRuntime']},
+  'dist/src/woocommerce-source.js': {functions: ['wooCommerceSources']},
+  // ARC-01 phase B and ARC-04, the website's connection routes and views: what a login's asset selection, sync,
+  // default and name save (a route's refusal stops before any of them); Store.updateConnection records the connection
+  // a selection, write-access change, sync or renewal saves.
+  'dist/server/website-repository.js': {functions: ['saveWebsiteAssets', 'writeDefaultFlag', 'writeConnectionLabel']},
+  // ARC-01 phase B, the account model: a client access set's account comparison (Store.resolveConnection, above,
+  // compares in the same form).
+  'dist/src/access-sets.js': {functions: ['accountKey']},
+  // ARC-01 phase B, the website's disconnect with provider revocation: each gateway's revocation target (its endpoint),
+  // the offer the disconnect dialog shows and the revocation's outcome (its one request goes through the caller's
+  // fetcher, which the suites' fixtures answer).
+  'dist/src/provider-revocation.js': {
+    functions: ['revocationTarget', 'providerRevocationOffer', 'disconnectWithProviderRevocation'],
+  },
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -221,6 +249,8 @@ export const replayable = Object.freeze([
   'dist/src/write-effects.js#effectNames',
   'dist/src/write-effects.js#effectReasons',
   'dist/src/write-impact.js#writeImpact',
+  'dist/src/access-sets.js#accountKey',
+  'dist/src/provider-revocation.js#revocationTarget',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');

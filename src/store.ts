@@ -61,6 +61,8 @@ import {
   type AccessBinding,
 } from './access-sets.js';
 import {storableCredentials, withAppSecrets} from './app-credentials.js';
+import {normalizeAccount} from './account-id.js';
+import {providerOf} from './provider-adapters.js';
 import {DocumentRepository} from './document-repository.js';
 import {mcpRateLimitsSQL} from './mcp-rate-limit-repository.js';
 import {
@@ -2159,10 +2161,11 @@ export class Store {
         'INVALID_ACCOUNT_BINDING',
         'Microsoft parent customers must map selected accounts to decimal identifiers.',
       );
+    // Manager routes belong only to a login whose provider adapter keeps them there (Google Ads).
     if (
       connection.accountLoginCustomers !== undefined &&
       (!connection.accountLoginCustomers ||
-        connection.gateway !== 'google_ads_native_action' ||
+        providerOf(connection.gateway)?.account?.routes !== 'accountLoginCustomers' ||
         typeof connection.accountLoginCustomers !== 'object' ||
         Array.isArray(connection.accountLoginCustomers) ||
         Object.entries(connection.accountLoginCustomers).some(
@@ -2352,12 +2355,9 @@ export class Store {
   }
   resolveConnection(actor: Actor, gateway: string, accountId?: string, connectionId?: string): Connection {
     this.assertActorActive(actor);
-    const normalize = (id: string) =>
-      gateway === 'google_ads_native_action'
-        ? id.replaceAll('-', '')
-        : gateway === 'meta_native_action'
-          ? id.replace(/^act_/, '')
-          : id;
+    // Accounts compare in their provider adapter's account form (src/account-id.ts: Google Ads without dashes, Meta
+    // without act_, every other ID as given).
+    const normalize = (id: string) => normalizeAccount(gateway, id);
     const available = this.connectionsFor(actor).filter(
       c =>
         c.enabled &&
