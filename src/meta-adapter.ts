@@ -18,7 +18,7 @@ import {extendMetaPostWorkflow} from './meta-post-extensions.js';
 import {metaRuleActions} from './meta-rule-routes.js';
 import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
-import {metaPrefix, metaRoute} from './meta-version.js';
+import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
 import {normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
@@ -176,6 +176,8 @@ const metaCatalog: CatalogHooks = Object.freeze({
   tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
   action: metaActionOverride,
   supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
+  // Its captured catalog is read at the Graph API version AMCP sends (src/catalog-versions.ts).
+  version: Object.freeze({version: metaApiVersion, action: metaActionVersion, capture: currentMetaCapture}),
 });
 
 export const metaHooks: ProviderHooks = Object.freeze({

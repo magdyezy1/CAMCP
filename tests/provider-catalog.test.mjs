@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Registry, listsActions} from '../dist/src/catalog.js';
-import {registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {catalogVersions, currentCapture} from '../dist/src/catalog-versions.js';
+import {toolHelp} from '../dist/src/tool-help.js';
+import {extendGoogleAdsTool, googleAdsVersion} from '../dist/src/google-version.js';
+import {metaApiVersion} from '../dist/src/meta-version.js';
+import {extendLinkedInTool, linkedinDescribedVersion} from '../dist/src/linkedin-version.js';
 import {microsoftActions, microsoftTool} from '../dist/src/microsoft-native.js';
 import {appleActions} from '../dist/src/apple-native.js';
 import {metaRuleActions} from '../dist/src/meta-rule-routes.js';
@@ -39,7 +44,7 @@ test('the catalog registry names no provider: it consults the providers’ catal
 });
 
 test('the providers’ catalog hooks: frozen, of the contract, and each tool extended by one provider', () => {
-  const known = new Set(['tools', 'action', 'supplemental', 'own', 'helpArguments', 'help']),
+  const known = new Set(['tools', 'action', 'version', 'supplemental', 'own', 'helpArguments', 'help']),
     extended = new Map();
   for (const hooks of registeredProviderHooks.filter(h => h.catalog)) {
     assert.ok(Object.isFrozen(hooks.catalog), hooks.gateway);
@@ -60,6 +65,36 @@ test('the providers’ catalog hooks: frozen, of the contract, and each tool ext
   });
   // The gateways AMCP lists from its catalog although their captured schema has no LIST_ACTIONS: DV360 only.
   assert.deepEqual([...listsActions], ['dv360_native_action']);
+});
+
+test('the catalog version moves are each provider’s: Google Ads’, Meta’s and LinkedIn’s, as their adapters declare', () => {
+  // src/catalog-versions.ts imported the three providers' version modules (fails on the build before); it now lists
+  // their adapters' catalog hooks, in the order the table had them.
+  const source = fs.readFileSync(new URL('../src/catalog-versions.ts', import.meta.url), 'utf8');
+  for (const [, module] of source.matchAll(/from '\.\/([^']+)\.js'/g))
+    assert.ok(
+      !isProviderModule('src/' + module + '.ts') || providerRegistries.includes('src/' + module + '.ts'),
+      'src/catalog-versions.ts imports no provider module (' + module + ')',
+    );
+  assert.deepEqual(Object.keys(catalogVersions), [
+    'google_ads_native_action',
+    'meta_native_action',
+    'linkedin_native_action',
+  ]);
+  for (const [gateway, moved] of Object.entries(catalogVersions)) {
+    assert.equal(moved, providerHooks(gateway).catalog.version, gateway);
+    assert.ok(Object.isFrozen(moved), gateway);
+  }
+  assert.equal(catalogVersions.google_ads_native_action.version, googleAdsVersion);
+  assert.equal(catalogVersions.meta_native_action.version, metaApiVersion);
+  // LinkedIn's is the reviewed version when it is read (PRV-02), not one fixed at load.
+  assert.equal(catalogVersions.linkedin_native_action.version, linkedinDescribedVersion());
+  assert.equal(catalogVersions.google_ads_native_action.tool, extendGoogleAdsTool);
+  assert.equal(catalogVersions.linkedin_native_action.tool, extendLinkedInTool);
+  assert.equal(catalogVersions.meta_native_action.tool, undefined);
+  // A gateway without a version move answers its captured data as captured.
+  const captured = {success: true};
+  assert.equal(currentCapture('tiktok_native_action', captured), captured);
 });
 
 test('the providers’ documented actions are registered only with the catalog or tool they extend', () => {
@@ -114,6 +149,28 @@ test('Microsoft’s own tool and catalog come with AMCP’s tools, and its help 
   assert.throws(
     () => registry.help({gateway, operation: 'GetCampaignsByAcountId'}, strict),
     refusal('UNKNOWN_OPERATION', /^Unknown Microsoft operation\. Use LIST_ACTIONS\.$/),
+  );
+});
+
+test('the help tool’s extension gateways are the providers whose tool and catalog are AMCP’s own', () => {
+  // src/tool-help.ts imported Microsoft's module for its gateway name (fails on the build before).
+  const source = fs.readFileSync(new URL('../src/tool-help.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /['"][a-z0-9_]+_native_action['"]/, 'no gateway literal in src/tool-help.ts');
+  for (const [, module] of source.matchAll(/from '\.\/([^']+)\.js'/g))
+    assert.ok(
+      !isProviderModule('src/' + module + '.ts') || providerRegistries.includes('src/' + module + '.ts'),
+      'src/tool-help.ts imports no provider module (' + module + ')',
+    );
+  const self = {name: 'amcp_tool_help', description: 'Help.', inputSchema: {type: 'object'}},
+    context = {registry, options: strict, listed: () => [self], firstParty: () => []};
+  assert.deepEqual(toolHelp(context, {}).amcp_extensions, {gateways: ['microsoft_ads_native_action']});
+  assert.equal(
+    toolHelp(context, {gateway: 'amcp_tool_help'}).amcp_arguments.gateway,
+    'Any tool tools/list shows, including the AMCP tools and microsoft_ads_native_action.',
+  );
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.catalog?.own).map(h => h.gateway),
+    ['microsoft_ads_native_action'],
   );
 });
 

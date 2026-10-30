@@ -534,6 +534,18 @@ export interface CompileHooks {
 
 // ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog registry.
 
+/**
+ * A captured catalog read at the newer provider version AMCP sends (CatalogHooks.version, src/catalog-versions.ts): the
+ * version, a catalog action, a captured LIST_ACTIONS page or DESCRIBE_ACTION response, and the tool definition when its
+ * text names a version.
+ */
+export interface CatalogVersion {
+  readonly version: string;
+  action(action: Action): Action;
+  capture(data: JsonObject): JsonObject;
+  tool?(tool: ToolDefinition): ToolDefinition;
+}
+
 /** Actions a provider documents beyond the captured catalog (CatalogHooks.supplemental). */
 export interface SupplementalActions {
   readonly actions: readonly Action[];
@@ -555,6 +567,11 @@ export interface CatalogHooks {
   readonly tools?: Readonly<Record<string, (tool: ToolDefinition) => ToolDefinition>>;
   /** Its captured catalog's actions as AMCP reads them (Meta's documented overrides), before any version move. */
   action?(action: Action): Action;
+  /**
+   * Its captured catalog moved to the newer version AMCP sends (Google Ads', Meta's, LinkedIn's), which
+   * src/catalog-versions.ts lists for the registry, introspection and the capture verification.
+   */
+  readonly version?: CatalogVersion;
   /** Its documented actions beyond the captured catalog (Meta's rule updates, Google's Data Manager, Apple's v1). */
   readonly supplemental?: SupplementalActions;
   /**

@@ -34,7 +34,14 @@ import {
   validateGoogleGeneration,
 } from './google-generation.js';
 import {googleContractEvidence, googleJson, validateGoogleRequest} from './google-contracts.js';
-import {googleAdsCustomers, googleAdsRequestChange} from './google-version.js';
+import {
+  currentGoogleAdsCapture,
+  extendGoogleAdsTool,
+  googleAdsActionVersion,
+  googleAdsCustomers,
+  googleAdsRequestChange,
+  googleAdsVersion,
+} from './google-version.js';
 import {adaptGoogleLegacy, googleLegacyCoverage} from './google-legacy.js';
 import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
@@ -535,9 +542,15 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
   compile: googleAdsCompile,
   // Wave 4c (transport and catalog): Customer Match and offline conversions through the Data Manager API, documented
-  // beyond the captured catalog.
+  // beyond the captured catalog; its captured catalog is read at the API version AMCP sends (src/catalog-versions.ts).
   catalog: Object.freeze({
     supplemental: Object.freeze({actions: dataManagerActions, requires: 'catalog' as const}),
+    version: Object.freeze({
+      version: googleAdsVersion,
+      action: googleAdsActionVersion,
+      capture: currentGoogleAdsCapture,
+      tool: extendGoogleAdsTool,
+    }),
   }),
   // Its requests are compiled by its own compiler with ProtoJSON validation (src/compiler.ts): a vendor snapshot's
   // Google Ads routes are never delegated.

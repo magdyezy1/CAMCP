@@ -2,7 +2,7 @@ import type {Registry} from './catalog.js';
 import type {CallOptions, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {guardInput, sha256, stable} from './security.js';
-import {microsoftGateway} from './microsoft-native.js';
+import {registeredProviderHooks} from './provider-hooks.js';
 import {mediaDiscovery} from './media-routing.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
 import {providerContractView} from './contract-evidence.js';
@@ -56,6 +56,13 @@ export function surfaceBlock(ctx: HelpContext): JsonObject {
   };
 }
 const helpArguments = ['gateway', 'operation', 'topic', 'include_guidance'];
+/**
+ * The extension gateways: providers whose tool and catalog are AMCP's own contracts rather than captured ones (their
+ * catalog hooks, ARC-01 phase B: Microsoft Advertising), in the provider hooks registry's order.
+ */
+const extensionGateways: readonly string[] = Object.freeze(
+  registeredProviderHooks.filter(hooks => hooks.catalog?.own).map(hooks => hooks.gateway),
+);
 /** Operation help names an operation of a media gateway that moves a file: the media import route applies to it. */
 const mediaOperation = /upload|image|video|media|asset/i;
 /**
@@ -94,7 +101,7 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
       meaning: 'Action-level route coverage; exact-payload inspect remains mandatory.',
     },
     amcp_guidance: guidanceDiscovery,
-    amcp_extensions: {gateways: [microsoftGateway]},
+    amcp_extensions: {gateways: [...extensionGateways]},
   };
   if (input.gateway === undefined)
     return {
@@ -130,7 +137,7 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
       description: self.description,
       inputSchema: self.inputSchema,
       amcp_arguments: {
-        gateway: 'Any tool tools/list shows, including the AMCP tools and ' + microsoftGateway + '.',
+        gateway: 'Any tool tools/list shows, including the AMCP tools and ' + extensionGateways.join(', ') + '.',
         operation: 'An action or operation of that gateway.',
         topic: '"guides", "guides/<name>" (a section index) or "guides/<name>/<section id>" (one section).',
         include_guidance: 'true adds the guide list and extension gateways to gateway or operation help.',

@@ -25,6 +25,12 @@ import {authorizeLinkedInAdPreview, linkedinAdPreviewRead, observeLinkedInCreati
 import {authorizeLinkedInSpecial, linkedinSpecialRequest} from './linkedin-posts.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
+import {
+  currentLinkedInCapture,
+  extendLinkedInTool,
+  linkedinActionVersion,
+  linkedinDescribedVersion,
+} from './linkedin-version.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
@@ -201,6 +207,18 @@ const linkedinCompile: CompileHooks = Object.freeze({
 export const linkedinHooks: ProviderHooks = Object.freeze({
   gateway: 'linkedin_native_action',
   compile: linkedinCompile,
+  // Wave 4c (transport and catalog): its captured catalog reports 202605 (its li-lms-2026-05 snapshot); it is read at
+  // the reviewed version AMCP sends (PRV-02, src/catalog-versions.ts), as that version is when it is read.
+  catalog: Object.freeze({
+    version: Object.freeze({
+      get version() {
+        return linkedinDescribedVersion();
+      },
+      action: linkedinActionVersion,
+      capture: currentLinkedInCapture,
+      tool: extendLinkedInTool,
+    }),
+  }),
   checks: Object.freeze({
     shape: Object.freeze({
       // An entity POST is a native PARTIAL_UPDATE patch.
