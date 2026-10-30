@@ -47,6 +47,8 @@ import {snapchatClone} from './snapchat-campaign-clone.js';
 import {snapchatActivationGates, snapchatActivationSteps} from './snapchat-recipe-activation.js';
 import {snapchatPreflight} from './snapchat-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {snapchatCatalogIngestion} from './snapchat-catalog-ingestion.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -489,6 +491,9 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     recordCount: (body: JsonObject, kind: string) => (Array.isArray(body[kind]) ? body[kind].length : undefined),
     impact: snapchatWriteImpact,
   }),
+  // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection, the supplied rows its read-only
+  // comparison reads (src/catalog-ingestion.ts).
+  catalogProjection: snapchatCatalogIngestion,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

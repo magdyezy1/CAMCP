@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import {catalogDestination, catalogDestinations, fallbackCatalogDestination} from '../dist/src/catalog-destinations.js';
 import {catalogRetirementOf} from '../dist/src/catalog-retirement.js';
 import {catalogDestinationOrder, providerAdapters, providerOf} from '../dist/src/provider-adapters.js';
+import {catalogIngestion, catalogRetirement, retired} from '../dist/src/catalog-ingestion.js';
+import * as supplied from '../dist/src/supplied-catalog-ingestion.js';
+import {metaCatalogIngestion} from '../dist/src/meta-catalog-ingestion.js';
+import {xCatalogIngestion} from '../dist/src/x-catalog-ingestion.js';
+import {snapchatCatalogIngestion} from '../dist/src/snapchat-catalog-ingestion.js';
+import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import * as removal from '../dist/src/x-catalog-removal.js';
+import * as removalBinding from '../dist/src/x-catalog-removal-binding.js';
+import {MirrorError} from '../dist/src/errors.js';
 
 /**
  * ARC-01 (wave 4c round 6): the catalog destinations (COM-03) are facts of their providers' adapters, and the shared
@@ -116,4 +125,87 @@ test('a plan step retires its destination product only when the plan retires tha
   assert.equal(catalogRetirementOf({}, step('meta_native_action', {retailer_id: 'SKU-1'})), undefined);
   assert.equal(catalogRetirementOf(run, {kind: 'write', gateway: {}, arguments: {payload: {}}}), undefined);
   assert.equal(catalogRetirementOf(run, step('meta_native_action', {retailer_id: 7})), undefined);
+});
+
+test('each catalog destination projects supplied products through its own provider hooks', () => {
+  const projections = {
+    meta_native_action: metaCatalogIngestion,
+    x_ads_native_action: xCatalogIngestion,
+    snapchat_native_action: snapchatCatalogIngestion,
+  };
+  for (const gateway of Object.keys(catalogDestinations))
+    assert.equal(providerHooks(gateway).catalogProjection, projections[gateway], gateway);
+  // Only the destinations project; the hooks list them in its own order.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.catalogProjection).map(h => h.gateway),
+    ['meta_native_action', 'snapchat_native_action', 'x_ads_native_action'],
+  );
+  // The moved exports keep their old import paths.
+  assert.equal(catalogRetirement, supplied.catalogRetirement);
+  assert.equal(retired, supplied.retired);
+  for (const name of ['assertCatalogRemovalStep', 'catalogRemovalChanged', 'catalogRemovalCreationBinding'])
+    assert.equal(removal[name], removalBinding[name], name);
+});
+
+test('the shared ingestion keeps its refusal for a gateway that is no destination, and X alone needs a whole sale period', () => {
+  const refusal = input => {
+    try {
+      catalogIngestion(input);
+    } catch (error) {
+      assert.ok(error instanceof MirrorError);
+      return {code: error.code, message: error.message, details: error.details};
+    }
+    assert.fail('accepted ' + JSON.stringify(input));
+  };
+  for (const gateway of ['google_ads_native_action', 'toString', undefined])
+    assert.deepEqual(refusal({gateway, products: []}), {
+      code: 'INVALID_ARGUMENT',
+      message: 'Choose a numeric Meta product catalog ID and selected Meta ad account.',
+      details: {},
+    });
+  const start = '2026-11-01T00:00:00+03:00',
+    product = {
+      retailer_id: 'sku-1',
+      name: 'Product 1',
+      price: '20',
+      currency: 'SAR',
+      image_url: 'https://shop.example.test/i/1.jpg',
+      url: 'https://shop.example.test/p/1',
+      availability: 'in stock',
+      condition: 'new',
+      brand: 'Brand',
+      description: 'Synthetic product 1',
+      sale_price: '9',
+      sale_price_start_date: start,
+    };
+  const x = {gateway: 'x_ads_native_action', account_id: 'acct1', connection_id: 'x', catalog_id: '9001'};
+  assert.deepEqual(refusal({...x, allow_upsert: true, products: [product]}), {
+    code: 'INVALID_CATALOG_SALE',
+    message: 'X needs both the sale start and the sale end, or neither.',
+    details: {product: 1},
+  });
+  // Meta keeps a sale that only starts: the period check is X's own.
+  const meta = catalogIngestion({
+    gateway: 'meta_native_action',
+    account_id: '123',
+    connection_id: 'm',
+    catalog_id: '555',
+    allow_upsert: true,
+    products: [product],
+  });
+  assert.equal(meta.plan.steps[0].arguments.payload.sale_price_start_date, start);
+  // A sale shared rule still refuses first, for every destination: a period without a price.
+  const {sale_price, ...unpriced} = product;
+  for (const input of [
+    {...x, allow_upsert: true, products: [unpriced]},
+    {
+      gateway: 'meta_native_action',
+      account_id: '123',
+      connection_id: 'm',
+      catalog_id: '555',
+      allow_upsert: true,
+      products: [unpriced],
+    },
+  ])
+    assert.equal(refusal(input).message, 'A sale start or end needs a sale price.');
 });

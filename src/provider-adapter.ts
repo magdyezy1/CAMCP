@@ -852,6 +852,12 @@ export interface ProviderHooks {
   readonly campaign?: CampaignHooks;
   /** Its parts of the reviewed write lifecycle (wave 4c, writes and campaigns). */
   readonly writes?: WriteReviewHooks;
+  // Wave 4c round 6 (w4c-arc6-catalog).
+  /**
+   * Its catalog destination's projection of supplied products into its native reviewed steps, or of the rows its
+   * comparison reads (COM-03), which src/catalog-ingestion.ts dispatches to by gateway: it refuses in its own order.
+   */
+  readonly catalogProjection?: (input: JsonObject) => JsonObject;
 }
 
 export interface ProviderAdapter {

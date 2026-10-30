@@ -257,7 +257,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owned reason changes.
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
-  assert.equal(files.length, 736);
+  // ARC-01 (wave 4c round 6, catalog) moves each catalog destination's projection from src/catalog-ingestion.ts to
+  // src/meta-catalog-ingestion.ts and its X and Snapchat siblings, the rules they share to
+  // src/supplied-catalog-ingestion.ts, and the X removal's plan binding to src/x-catalog-removal-binding.ts; their
+  // refusals are raised through bad(), as they were: five more files, the same reasons.
+  assert.equal(files.length, 741);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11529);

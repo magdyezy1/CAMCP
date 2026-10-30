@@ -4,7 +4,7 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {ScopeGuard} from './scope.js';
 import {stable} from './security.js';
 import {bad, fingerprint} from './workspace-core.js';
-import {snapchatCatalogIngestion} from './catalog-ingestion.js';
+import {snapchatCatalogIngestion} from './snapchat-catalog-ingestion.js';
 import {
   catalogDestinations,
   catalogItemSchemaVersion,

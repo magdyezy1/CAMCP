@@ -50,6 +50,8 @@ import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './
 import {metaPreflight} from './meta-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
 import {metaCreated, metaNamedTargets} from './meta-write-reconciliation.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {metaCatalogIngestion} from './meta-catalog-ingestion.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -369,6 +371,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
     // The owner's spending policy (src/spend-policy.ts): a currency cap its offsets cannot convert.
     currencyCapRefusal: metaCurrencyCapRefusal,
   }),
+  // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection (src/catalog-ingestion.ts).
+  catalogProjection: metaCatalogIngestion,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.
