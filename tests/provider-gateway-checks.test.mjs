@@ -11,9 +11,11 @@ import {isProviderModule, providerRegistries} from '../tools/architecture-map.mj
 // ARC-01 phase B, the gateway checks: the write-shape stage (src/write-shape.ts) and the state stage
 // (src/write-state.ts) named each provider where its own rules ran. Those rules are now its adapter's
 // (`checks`, src/<provider>-adapter.ts); the stages keep every generic rule, their order and their refusals, and ask
-// the provider at the points they named it. Reddit's write contract and state check stay in the stages (their module
-// reads pages through src/pagination.ts, which consults the hooks), and so do Meta's first write checks
-// (tests/meta-version.test.mjs reads every string literal of a Meta module as a name AMCP may send).
+// the provider at the points they named it. The two remainders joined them in wave 4c: Reddit's write contract and
+// state check (its family reads pages with its own leaf, src/reddit-paging.ts, not src/pagination.ts, which consults
+// the hooks) and Meta's first write checks (src/meta-write-shape.ts; tests/meta-version.test.mjs reads every string
+// literal of a Meta module as a name AMCP may send, and accepts the removed field they refuse only because the stage
+// refuses it).
 
 const plan = (gateway, method, path, fields = {}) => ({
   gateway,
@@ -52,7 +54,7 @@ const declared = hooks => {
   ];
 };
 
-test('the write stages name only their documented remainders and import no other provider module', () => {
+test('the write stages name no provider and import no provider module', () => {
   const facts = file => {
     const source = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
     return {
@@ -63,13 +65,90 @@ test('the write stages name only their documented remainders and import no other
     };
   };
   assert.deepEqual(facts('src/write-shape.ts'), {
-    literals: ['meta_native_action', 'reddit_native_action'],
-    imports: ['src/reddit-writes.ts'],
+    literals: [],
+    imports: [],
   });
   assert.deepEqual(facts('src/write-state.ts'), {
-    literals: ['reddit_native_action'],
-    imports: ['src/reddit-writes.ts'],
+    literals: [],
+    imports: [],
   });
+});
+
+test('Reddit’s write contract and state check are its adapter’s, and its family pages with its own leaf', async () => {
+  // ARC-01 (wave 4c). Reddit's creative family read its profile pages through src/pagination.ts, which consults the
+  // provider hooks, so its adapter could not hold Reddit's write checks without an import cycle (reddit-writes ->
+  // reddit-creative-writes -> pagination -> provider-hooks -> reddit-adapter): the stages named Reddit instead.
+  const {assertRedditWrite} = await import('../dist/src/reddit-writes.js');
+  const {redditNextPage} = await import('../dist/src/reddit-paging.js');
+  const {nextPage} = await import('../dist/src/pagination.js');
+  const hooks = providerHooks('reddit_native_action');
+  assert.equal(hooks.checks.contract, assertRedditWrite);
+  assert.equal(hooks.paging.nextPage, redditNextPage);
+  for (const file of ['src/reddit-adapter.ts', 'src/reddit-writes.ts', 'src/reddit-creative-writes.ts'])
+    assert.doesNotMatch(fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8'), /from '\.\/pagination\.js'/);
+  // The write-shape stage refuses a route outside Reddit's contract with Reddit's own reason, before any family.
+  refusal(
+    () => assertWriteShape(plan('reddit_native_action', 'DELETE', '/api/v3/campaigns/1')),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /^Reddit execution supports/,
+  );
+  // The state stage checks a Reddit read's exact target with Reddit's check.
+  const state = read('reddit_native_action', '/api/v3/campaigns/c1');
+  validateState(state, {status: 200, headers: {}, data: {data: {id: 'c1', ad_account_id: '123'}}});
+  refusal(
+    () => validateState(state, {status: 200, headers: {}, data: {data: {id: 'c2', ad_account_id: '123'}}}),
+    'STATE_TARGET_MISMATCH',
+    /exact scoped resource/,
+  );
+  // The family's page step is the one src/pagination.ts takes for a Reddit read: the same next page and refusals.
+  const profiles = read('reddit_native_action', '/api/v3/ad_accounts/123/profiles', {query: {'page.size': '10'}}),
+    origin = 'https://ads-api.reddit.com/api/v3/ad_accounts/';
+  const outcome = run => {
+    try {
+      return {next: run()};
+    } catch (error) {
+      return {code: error.code, message: error.message};
+    }
+  };
+  for (const next_url of [
+    null,
+    origin + '123/profiles?page.size=10&page.token=t2',
+    origin + '999/profiles?page.size=10&page.token=t2',
+    origin + '123/profiles?page.size=10',
+    origin + '123/profiles?page.size=20&page.token=t2',
+    'not a url',
+  ]) {
+    const response = {data: [], pagination: {next_url}};
+    assert.deepEqual(
+      outcome(() => redditNextPage(profiles, response, structuredClone(profiles))),
+      outcome(() => nextPage(profiles, response)),
+      String(next_url),
+    );
+  }
+});
+
+test('Meta’s first write checks are its adapter’s, asked before the generic checks', async () => {
+  // ARC-01 (wave 4c): they stayed in the write-shape stage because they name a field v26.0 removed only to refuse it
+  // (tests/meta-version.test.mjs now reads their module and checks that refusal).
+  const {metaWriteShapeBefore} = await import('../dist/src/meta-write-shape.js');
+  const before = providerHooks('meta_native_action').checks.shape.before;
+  assert.equal(before, metaWriteShapeBefore);
+  const ad = (body, fields = {}) =>
+    plan('meta_native_action', 'POST', '/v26.0/act_123/ads', {action: 'meta_ad_create', body, ...fields});
+  assert.doesNotThrow(() => before(ad({creative: {creative_id: '42'}}), {creative: {creative_id: '42'}}));
+  for (const creative of [{name: 'inline'}, '{"creative_id":"0"}', {creative_id: 42}, 'not json'])
+    refusal(() => before(ad({creative}), {creative}), 'WRITE_CONTRACT_UNAVAILABLE', /names an existing creative/);
+  refusal(
+    () => before(ad({budget_schedule_specs: []}), {budget_schedule_specs: []}),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /budget_schedules/,
+  );
+  // Through the stage they still come before its query check, as they did when the stage named Meta.
+  refusal(
+    () => assertWriteShape(ad({status: 'PAUSED', creative: {name: 'inline'}}, {query: {fields: 'id'}})),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    /names an existing creative/,
+  );
 });
 
 test('the reviewed write gateways are the registry’s, in the review’s order, and each declares its own checks', () => {
@@ -77,7 +156,8 @@ test('the reviewed write gateways are the registry’s, in the review’s order,
   assert.equal(new Set(reviewedWriteGateways).size, reviewedWriteGateways.length);
   for (const gateway of reviewedWriteGateways) assert.ok(providerOf(gateway), gateway + ' has an adapter');
   assert.deepEqual(Object.fromEntries(reviewedWriteGateways.map(g => [g, declared(providerHooks(g))])), {
-    meta_native_action: ['request', 'shape.after', 'state.target'],
+    // Its first write checks, before the generic ones, joined its checks in wave 4c (src/meta-write-shape.ts).
+    meta_native_action: ['request', 'shape.before', 'shape.after', 'state.target'],
     tiktok_native_action: ['shape.after', 'state.complete', 'state.target'],
     snapchat_native_action: ['shape.before', 'shape.after', 'state.target'],
     google_ads_native_action: ['request', 'shape.after', 'state.envelope', 'state.target'],
@@ -85,8 +165,8 @@ test('the reviewed write gateways are the registry’s, in the review’s order,
     linkedin_native_action: ['shape.afterQuery', 'shape.after', 'state.target'],
     x_ads_native_action: ['shape.after', 'state.target'],
     dv360_native_action: ['shape.queryParameter', 'shape.after', 'state.target'],
-    // Its write contract and state check stay in the stages (see above).
-    reddit_native_action: [],
+    // Its write contract decides alone, like Microsoft's, and its state check is its target check (wave 4c).
+    reddit_native_action: ['contract', 'state.target'],
     criteo_native_action: [],
     microsoft_ads_native_action: ['contract', 'state.contract', 'state.ownTarget', 'state.target'],
     ga4_native_action: ['routeWrite', 'state.settled', 'state.envelope', 'state.ownTarget', 'state.target'],

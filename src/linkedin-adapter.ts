@@ -22,6 +22,21 @@ import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+// Writes and campaigns (wave 4c).
+import {
+  buildLinkedinLeadRecipe,
+  linkedinDependencyEvidence,
+  linkedinLeadContext,
+  linkedinLeadRecipe,
+  linkedinRecipePrerequisites,
+} from './linkedin-lead-recipe.js';
+import {linkedinClone} from './linkedin-campaign-clone.js';
+import {
+  linkedinActivationGates,
+  linkedinActivationRecord,
+  linkedinActivationSteps,
+} from './linkedin-recipe-activation.js';
+import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -302,4 +317,46 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
           : undefined,
     }),
   }),
+  // Writes and campaigns (wave 4c): the guided lead generation recipe.
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      Object.freeze({definition: linkedinLeadRecipe, build: buildLinkedinLeadRecipe, context: linkedinLeadContext}),
+    ]),
+    // A campaign group, its campaigns and their creatives, read and recreated paused (src/campaign-clone.ts).
+    clone: Object.freeze({build: linkedinClone}),
+    // A lead launch's campaign group, campaign and creative activated in turn, gated on its lead form's state.
+    activation: Object.freeze({
+      steps: linkedinActivationSteps,
+      record: linkedinActivationRecord,
+      gates: linkedinActivationGates,
+    }),
+    // The lead generation pack's lead form, read through its owner finder (src/campaign-preflight.ts).
+    preflight: Object.freeze({
+      prerequisites: (
+        plan: CompiledRequest,
+        {service, actor, connectionId}: CampaignPreflightContext,
+        _deferredPaths: string[],
+        declared: string[],
+      ) => linkedinRecipePrerequisites(service, actor, plan, connectionId, declared),
+    }),
+    // The lead generation pack's lead form, as its eligibility shows it (src/recipe-eligibility.ts).
+    dependencyEvidence: linkedinDependencyEvidence,
+  }),
+  // A create on an ad account reads the account (src/write-snapshots.ts).
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: linkedinConfirms,
+    accountPath: /^\/rest\/adAccounts\/[^/]+/,
+    // The owner's spending policy (src/spend-policy.ts): a creative spells activation as its intendedStatus.
+    activationRule: (plan: CompiledRequest) =>
+      /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
+        ? {field: 'intendedStatus', active: ['ACTIVE']}
+        : undefined,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** A create returns 201 with its x-restli-id; any other write 204. */
+function linkedinConfirms(_plan: CompiledRequest, result: TransportResult, {hasId}: MutationResponse): boolean {
+  return result.status === 201 ? hasId(result.headers['x-restli-id']) : result.status === 204;
+}

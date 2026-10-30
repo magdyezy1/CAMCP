@@ -17,6 +17,17 @@ import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
+// Writes and campaigns (wave 4c): what the review gives a provider's own state read.
+import type {Actor} from './types.js';
+import type {NativeTransport} from './transport.js';
+import type {CredentialProvider} from './auth.js';
+import type {VendorRoute} from './delegated-native.js';
+// Writes and campaigns (wave 4c): the native calls a campaign clone reads its source through, and the service a plan's
+// preflight reads through.
+import type {ToolCall} from './workspace-core.js';
+import type {MirrorService} from './service.js';
+// Writes and campaigns (wave 4c): a provider's refusal under the spending policy.
+import type {MirrorError} from './errors.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -433,8 +444,9 @@ export interface StateChecks {
 
 /**
  * A provider's gateway checks (ARC-01 phase B): its parts of the write-shape and state stages. The stages keep every
- * generic rule, the order and every refusal they name; Reddit's write contract and state check stay in them (their
- * module reads pages through src/pagination.ts, which consults these hooks, so Reddit's adapter cannot import it).
+ * generic rule, the order and every refusal they name. A provider module these checks import must not read pages
+ * through src/pagination.ts, which consults these hooks (an import cycle): Reddit's family pages with its own leaf,
+ * src/reddit-paging.ts, which its adapter's paging hook is too.
  */
 export interface GatewayChecks {
   /** The provider's request contracts, first (Google's Discovery schema, Meta's campaign and v26 rules). */
@@ -464,7 +476,10 @@ export interface ProviderVerificationRead extends VerificationRead {
 export interface ReviewProjections {
   /** The state a review keeps of a read, before normalization: its configuration, not its envelope; `data` by default. */
   snapshot?(read: CompiledRequest, data: JsonObject): unknown;
-  /** The write's headers a verification read keeps (LinkedIn's versioning headers); none by default. */
+  /**
+   * The write's headers its verification reads keep (LinkedIn's versioning headers); none by default. Its state reads
+   * keep the same (src/write-snapshots.ts stateRead, wave 4c).
+   */
   verificationHeaders?(plan: CompiledRequest): Record<string, string>;
   /**
    * The reads that show a write took effect, none by default. `read` builds one the way the stage builds every
@@ -528,6 +543,10 @@ export interface ProviderHooks {
   readonly review?: ReviewProjections;
   /** Workbook reporting (ARC-01, reporting): the account a saved native report query's selectors name. */
   readonly reportScope?: ReportResourceScope;
+  /** Its guided campaign recipes (wave 4c, writes and campaigns). */
+  readonly campaign?: CampaignHooks;
+  /** Its parts of the reviewed write lifecycle (wave 4c, writes and campaigns). */
+  readonly writes?: WriteReviewHooks;
 }
 
 export interface ProviderAdapter {
@@ -589,4 +608,419 @@ export interface ProviderGrantFacts {
   grantSource: 'token_response' | 'permissions_endpoint' | 'requested_access_type' | 'none';
   /** Whether readiness has one exact, scoped account read for this gateway (src/account-metadata.ts accountPlan). */
   accountReadContract: boolean;
+}
+
+// ---- Writes and campaigns (ARC-01 phase B and ARC-04, wave 4c) ----
+
+/**
+ * A guided campaign recipe a provider offers (ARC-04: campaignRecipe became a table of per-recipe builders). The recipe
+ * catalog (src/campaign-recipes.ts) lists the definitions in its provider order and keeps the checks every brief passes
+ * before a builder runs: the recipe exists, the brief is an object with every required input, and it names the plan,
+ * the account, the login and an ISO currency.
+ */
+export interface CampaignRecipe {
+  readonly definition: RecipeDefinition;
+  /** The campaign plan of a brief that passed the catalog's checks; refuses an input the recipe cannot use. */
+  build(brief: JsonObject): JsonObject;
+  /** What recipe_context says of the recipe beyond its definition (src/recipe-context.ts, wave 4c). */
+  readonly context?: RecipeContextFacts;
+}
+/**
+ * A recipe's part of its recipe_context (src/recipe-context.ts recipeContext, which keeps the accounts, defaults,
+ * playbook, Pages, Drive logins and the shared prerequisites, in their order).
+ */
+export interface RecipeContextFacts {
+  /** What the recipe leaves unverified or does not change; none by default. */
+  readonly limitations?: readonly string[];
+  /** The recipe's own prerequisite, after the account grant and currency; its Page, media or search inputs by default. */
+  readonly prerequisite?: string;
+  /** The provider facts the context adds, read when it is asked (Microsoft's location lookup availability). */
+  extra?(): JsonObject;
+}
+/** A recipe's catalog entry: id, name, platform, required inputs and their alternatives, optional inputs, description. */
+export type RecipeDefinition = JsonObject & {
+  id: string;
+  name: string;
+  platform: string;
+  required: string[];
+  description: string;
+};
+/** A provider's campaign hooks (ARC-01 phase B, wave 4c). */
+export interface CampaignHooks {
+  /** Its guided recipes, in the order the recipe catalog lists them. */
+  readonly recipes?: readonly CampaignRecipe[];
+  /** Its campaign clone (src/campaign-clone.ts, which keeps the checks every clone passes and the spec's changes). */
+  readonly clone?: CampaignClone;
+  /** Its guided activation of a completed recipe plan (src/campaign-activation.ts, src/campaign-runner.ts). */
+  readonly activation?: CampaignActivation;
+  /** Its part of a campaign plan's preflight (src/campaign-preflight.ts). */
+  readonly preflight?: CampaignPreflight;
+  /**
+   * Whether a write step the provider refused outright after submission provably created nothing, so that the step may
+   * be amended and reviewed under a new key (src/campaign-runner.ts, after the step's own failed-write checks: Google's
+   * googleAds:mutate builds without partial failure, refused with a definitive 4xx; the owner's decision 5,
+   * 2026-09-29). A provider without one stops the plan.
+   */
+  refusedBuild?(step: JsonObject): boolean;
+  /** The recipe lookups the provider answers, by lookup_kind (src/campaign-runner.ts recipe_lookup). */
+  readonly lookups?: Readonly<Record<string, RecipeLookup>>;
+  /**
+   * The evidence a dependency its recipes declare has in their eligibility (src/recipe-eligibility.ts, after the
+   * account currency): the status, evidence and meaning a ready dependency shows, from the assets the read-only
+   * preflight checked or the compiled brief; undefined leaves it unknown.
+   */
+  dependencyEvidence?(id: string, context: DependencyEvidenceContext): JsonObject | undefined;
+  /** The plan binding the provider's previews make (Tag Manager's consent preview, X's selected catalog removal). */
+  readonly planBinding?: CampaignPlanBinding;
+}
+/**
+ * A campaign plan binding (src/campaign-runner.ts, which keeps where each is made and checked, in its order): the
+ * binding a creation input makes is saved on the plan under its key, and each step's review and execution check it.
+ */
+export interface CampaignPlanBinding {
+  /** The plan field it is saved under (`gtm_consent`, `catalog_removal`). */
+  readonly key: string;
+  /** The binding a plan's creation input and steps make, or undefined without one; refuses a changed preview. */
+  create(store: Store, actor: Actor, input: JsonObject, steps: JsonObject[]): JsonObject | undefined;
+  /** Before a step's review and its execution, reading through the native calls (Tag Manager's tag); refuses. */
+  check?(store: Store, call: ToolCall, actor: Actor, run: JsonObject, step: JsonObject): Promise<void>;
+  /** What a step's review and execution expect (X's selected product), or undefined; refuses a changed target. */
+  expectation?(run: JsonObject, step: JsonObject): unknown;
+  /** Runs a step's review or execution under its expectation. */
+  under?<T>(expectation: unknown, run: () => Promise<T>): Promise<T>;
+  /** The refusal of a step whose expected evidence changed since the draft. */
+  changed?(): never;
+}
+/** What a recipe's eligibility gives its provider's dependency evidence (src/recipe-eligibility.ts). */
+export interface DependencyEvidenceContext {
+  /** The assets the read-only preflight's checks name. */
+  readonly assets: JsonObject[];
+  /** The plan's gateway, login and account. */
+  readonly scope: JsonObject;
+  /** The brief's resolved inputs. */
+  readonly business: JsonObject;
+  /** The compiled recipe and its steps. */
+  readonly recipe: JsonObject;
+  readonly steps: JsonObject[];
+}
+/**
+ * A recipe lookup (recipe_lookup). The runner keeps its order of checks: a lookup the service answers from the
+ * provider's own source comes first, then the query's form (2 to 60 letters) and the refusal of an unknown kind, then a
+ * lookup searched by that query.
+ */
+export interface RecipeLookup {
+  /**
+   * A lookup searched by its query through the ordinary account-scoped native calls (Google's country and language
+   * constants); it refuses what the provider's response cannot answer.
+   */
+  search?(context: RecipeLookupContext): Promise<JsonObject>;
+  /**
+   * A lookup the service answers from the provider's own source (Microsoft's geographical locations file, CMP-03): the
+   * refusal while the service has none.
+   */
+  unavailable?(): MirrorError;
+}
+/** What a searched recipe lookup reads with: the runner's store, its native calls, the caller and the checked query. */
+export interface RecipeLookupContext {
+  readonly store: Store;
+  readonly call: ToolCall;
+  readonly actor: Actor;
+  readonly input: JsonObject;
+  readonly query: string;
+}
+/** What a step's preflight gives its provider (src/campaign-preflight.ts campaignPreflight). */
+export interface CampaignPreflightContext {
+  readonly service: MirrorService;
+  readonly actor: Actor;
+  /** The step's login and its normalized account. */
+  readonly connectionId: string;
+  readonly account: string;
+  /** What the provider keeps for one preflight of one plan (Snapchat's pixel lists), by its own keys. */
+  readonly cache: Map<string, unknown>;
+  /** The review's state check of a read (src/write-state.ts), passed in so that no adapter imports it. */
+  validateState(read: CompiledRequest, result: TransportResult): void;
+}
+/**
+ * A provider's part of a campaign plan's preflight. The preflight keeps every check a step passes and their order
+ * (the account grant and read, the currency, media preparation, the declared predecessors, the catalog's argument
+ * validation, the compiled request's execution risk, write shape and state reads, the 25-record parts); the provider
+ * answers where it named the provider.
+ */
+export interface CampaignPreflight {
+  /**
+   * The placeholder a declared predecessor's `$ref` takes while the step's contract is checked (Google's resource
+   * name of the predecessor's compiled mutation, X's media key and card URI, Snapchat's symbolic ID); undefined for
+   * the generic `1`. Refuses a reference it cannot place.
+   */
+  reference?(context: {
+    readonly path: string;
+    readonly ref: string;
+    readonly parent: JsonObject | undefined;
+    /** The preflight's compiler, passed in so that no adapter imports it. */
+    compile(gateway: string, args: JsonObject): CompiledRequest;
+  }): string | undefined;
+  /**
+   * The compiled step's own contract checks after its state reads are planned (Meta's creative contract, Snapchat's
+   * ad squad pixels); what it can only check at the step's review is a deferral of those fields. Refuses.
+   */
+  contract?(
+    plan: CompiledRequest,
+    context: CampaignPreflightContext,
+  ): Promise<{fields: string[]; reason: string} | undefined>;
+  /**
+   * The step's existing dependencies, read live before any predecessor is created (Meta's Page and media, Snapchat's
+   * creatives and lead forms, TikTok's launch packs, LinkedIn's lead form), given the paths that depend on
+   * predecessors and the prerequisites the step declares. Refuses.
+   */
+  prerequisites?(
+    plan: CompiledRequest,
+    context: CampaignPreflightContext,
+    deferredPaths: string[],
+    declared: string[],
+  ): Promise<JsonObject[]>;
+}
+/** A plan step of an activation, as src/campaign-activation.ts builds it for the plan's gateway, account and login. */
+export type ActivationStep = (id: string, description: string, args: JsonObject, depends_on?: string[]) => JsonObject;
+/** What an activation plan's read-only gates read with (src/campaign-activation.ts activationGates). */
+export interface ActivationGateContext {
+  /** The ordinary account-scoped native calls. */
+  readonly call: ToolCall;
+  readonly actor: Actor;
+  /** The plan's activation record: its platform and what the provider's `record` kept for the gates. */
+  readonly activation: JsonObject;
+  /** The activation plan's steps. */
+  readonly steps: JsonObject[];
+  /** The account and login of its first step. */
+  readonly scope: JsonObject;
+  /** Re-checks the actor between reads, as recipe_eligibility does. */
+  readonly current: () => void;
+  /** Reads the current Google conversion configuration, as recipe_eligibility does (the runner's inspector). */
+  readonly inspectConversionGoals?: (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>;
+}
+/**
+ * A provider's guided activation (CMP-03): a recipe creates its campaign paused, and activation is a separate, linked
+ * plan whose steps come from the resources the completed plan verified, in the order that keeps delivery off until
+ * the last switch. src/campaign-activation.ts keeps the platforms offered, the step builder and the refusal of a plan
+ * without one; src/campaign-runner.ts keeps the activation record and the gates' place in its preflight.
+ */
+export interface CampaignActivation {
+  /** The activation steps from the plan's verified results (step id -> result), made with `step`; refuses a gap. */
+  steps(results: ReadonlyMap<string, JsonObject>, scope: JsonObject, step: ActivationStep): JsonObject[];
+  /**
+   * What the activation record keeps for the gates beyond the plan, platform and recipe (the ad, pixel, lead form or
+   * conversion goals the gates read), from the plan, its verified results and its recipe's declared objects.
+   */
+  record?(run: JsonObject, results: ReadonlyMap<string, JsonObject>, declared: string[]): JsonObject;
+  /** The read-only gates, run as one set at the activation plan's preflight; their checks, passed or blocked. */
+  gates?(context: ActivationGateContext): Promise<JsonObject[]>;
+}
+/** What a provider's clone reads and builds (src/campaign-clone.ts clonePlan, after its source and name checks). */
+export interface CampaignClone {
+  /**
+   * The steps of a plan that recreates the source campaign under the new name, read through `call` (the ordinary
+   * account-scoped native reads), with the fields it did not copy and what the source holds; refuses a source it
+   * cannot clone.
+   */
+  build(call: ToolCall, actor: Actor, input: JsonObject): Promise<ClonedCampaign>;
+  /**
+   * The one all-or-nothing build a clone becomes unless the caller asks for step-by-step (`atomic: false`), which
+   * also lifts the 50-step plan limit (Google's atomic build, src/campaign-runner.ts); without it a clone is steps.
+   */
+  allOrNothing?(steps: JsonObject[], accountId: unknown): JsonObject;
+}
+/** A clone's plan steps, the source fields not copied (by step), and what the source holds. */
+export interface ClonedCampaign {
+  steps: JsonObject[];
+  notCopied: JsonObject[];
+  source: JsonObject;
+}
+
+/** A state read of a path of the write's account, built as the review builds every state read (src/write-snapshots.ts). */
+export type StateReadBuilder = (
+  path: string,
+  query?: JsonObject,
+  body?: JsonObject,
+  method?: string,
+) => CompiledRequest;
+/** A mutation's response and request as the outcome stage reads them (src/write-outcome.ts confirmedMutationResult). */
+export interface MutationResponse {
+  /** The response data, an object or empty. */
+  readonly data: JsonObject;
+  /** The request body, an object or empty. */
+  readonly body: JsonObject;
+  /** The request path's segments, and its last one. */
+  readonly segments: string[];
+  readonly last: string;
+  /** A non-empty string or a safe integer: a native ID. */
+  hasId(value: unknown): boolean;
+}
+/** What the review gives a provider that reads part of a write's state itself: the review's services and access check. */
+export interface ReviewStateContext {
+  readonly store: Store;
+  readonly transport: NativeTransport;
+  readonly credentials: CredentialProvider;
+  readonly actor: Actor;
+  /** The review's access check (actor, deployment, grants, the write's scope), run again; it returns the connection. */
+  readonly access: () => Connection;
+}
+/** What the review gives a provider whose write changes other accounts while it reads state (Apple's shared budget). */
+export interface SharedAccountContext {
+  /** Binds another account to the review's connection with its write grant, or refuses. */
+  bind(account: string): void;
+  /** The review's reads, in order; the provider may append reads. */
+  readonly reads: CompiledRequest[];
+}
+/**
+ * A provider's parts of the reviewed write lifecycle (ARC-01 phase B, wave 4c: src/write-review.ts named the provider
+ * at each). The review keeps the actor, deployment, role and account-grant checks, ScopeGuard, the family hooks, every
+ * read's authority checks, the state hash, the spending policy, the approvals, the claim and the single send, in their
+ * order; a provider answers only where the review asked about it, for its own writes (and reads, where so marked).
+ */
+export interface WriteReviewHooks {
+  // The review's access check (WriteReviewService.access), in its order.
+  /** The other accounts the write changes (Apple's shared budget): each is bound to the connection with its grant. */
+  sharedAccounts?(plan: CompiledRequest): string[];
+  /** The connection's write scopes, before the family's scope check (Reddit's adsread and adsedit); refuses. */
+  writeScopes?(connection: Connection): void;
+  /** The connection's write grant, after the family's scope check (Microsoft's msads.manage); refuses. */
+  writeGrant?(connection: Connection): void;
+  /** The write permission the provider requires, after ScopeGuard (Search Console, GA4, Apple, Tag Manager); refuses. */
+  writePermission?(plan: CompiledRequest, connection: Connection): void;
+  // The review's state reads (src/write-snapshots.ts snapshotPlans), after a family's own, in its order.
+  /**
+   * The state reads of a write no family plans, built with `read` (X's targeting criteria, Google Ads' mutations,
+   * TikTok's campaign writes, Meta's account-edge creations and node edits, Snapchat's updates and patches); undefined
+   * leaves the write to the review's generic reads. Refuses a write whose state it cannot read.
+   */
+  snapshots?(plan: CompiledRequest, read: StateReadBuilder): CompiledRequest[] | undefined;
+  /** Where a path names the write's account (Snapchat's, X's, LinkedIn's, DV360's): a create on it reads the account. */
+  readonly accountPath?: RegExp;
+  /**
+   * The reads of a create by the account its path names (undefined outside one), before the review's generic account
+   * read (Snapchat's: a create outside an account, an account create's dependencies); undefined for the generic.
+   */
+  accountSnapshots?(
+    plan: CompiledRequest,
+    read: StateReadBuilder,
+    account: string | undefined,
+  ): CompiledRequest[] | undefined;
+  // The review's state (WriteReviewService.state), in its order.
+  /** A write whose state is its first read and what the provider reads itself (a Meta creative's identity). */
+  readonly ownState?: {
+    claims(plan: CompiledRequest): boolean;
+    state(plan: CompiledRequest, context: ReviewStateContext): Promise<unknown>;
+  };
+  /** After each read of this provider's: ScopeGuard learns ownership from it (Snapchat). */
+  readonly observeState?: true;
+  /** After each read: the reads it shows the write depends on, before the paused parent's (Snapchat's lead forms). */
+  dependentReads?(plan: CompiledRequest, read: CompiledRequest, data: unknown): CompiledRequest[];
+  /** After each read of this provider's, after the paused parent's: the rest of its pages (TikTok's Instant Forms). */
+  morePages?(read: CompiledRequest, data: unknown): CompiledRequest[];
+  /** After each read: the accounts of a shared budget it shows, bound and read too (Apple). */
+  sharedState?(plan: CompiledRequest, read: CompiledRequest, data: unknown, context: SharedAccountContext): void;
+  /** After every read and the family's prerequisites, before the paused-parent check: the provider's (refuses). */
+  prerequisites?(plan: CompiledRequest, values: unknown[], reads: CompiledRequest[]): void;
+  /** After the paused-parent check (Meta's ad set audience choice, X's paused line item); refuses. */
+  parentChecks?(plan: CompiledRequest, values: unknown[]): void;
+  // The review's disclosures (src/write-effects.ts, src/write-impact.ts), after a family's own.
+  /** Whether a write makes a change live for everyone once executed (Tag Manager, Search Console, Business Profile). */
+  publishesLive?(plan: CompiledRequest): boolean;
+  /** How many records a write lists where one request writes several (Snapchat's record lists); undefined for one. */
+  recordCount?(body: JsonObject, kind: string): number | undefined;
+  /** A write the provider documents as a deletion on a route that is not one (TikTok's status update to DELETE). */
+  deletes?(plan: CompiledRequest): boolean;
+  /**
+   * What a write changes beyond its target (Snapchat's creative edits and segment replacements, Meta's creative
+   * choices), or undefined; refuses a replacement that would reset what it omits.
+   */
+  impact?(plan: CompiledRequest, state: unknown[]): JsonObject | undefined;
+  // A long request's parts under one approval (src/write-groups.ts splittableBatch).
+  /**
+   * The record list a request's payload is split along into parts of 25 under one approval (Google Ads' operations,
+   * unless temporary resource IDs link them; Snapchat's one record list); undefined when it is not one AMCP splits.
+   */
+  batch?(payload: JsonObject): {key: string; items: unknown[]} | undefined;
+  // The outcome of the one mutation (src/write-outcome.ts writeOutcome), after a family's own.
+  /**
+   * Whether a top-level response field that names errors holds none under the provider's contract (Microsoft's
+   * batch PartialErrors and NestedPartialErrors whose slots are all null, aligned with the request's items).
+   */
+  emptyErrors?(key: string, value: unknown): boolean;
+  /**
+   * Whether the response confirms every mutation under the provider's response contract (Meta, Google Ads, TikTok,
+   * Snapchat, LinkedIn, X, DV360), given the response and request as the stage reads them; a write of a provider
+   * without one is never confirmed.
+   */
+  confirms?(plan: CompiledRequest, result: TransportResult, response: MutationResponse): boolean;
+  /** What an outcome shows of the response data and its failures (Tag Manager's safe configuration). */
+  outcomeData?(value: unknown): unknown;
+  // The review's preparation and execution (prepareReview, submit).
+  /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
+  shownRequest?(plan: CompiledRequest): unknown;
+  /** The concurrency token a route takes from the state, unless its family owns it (Tag Manager's fingerprint). */
+  concurrency?(plan: CompiledRequest, state: unknown[], routes: readonly VendorRoute[]): void;
+  /** The provider's resources the state names, each owned by the account (Snapchat's creative references); refuses. */
+  ownedReferences?(plan: CompiledRequest, state: unknown[], owns: (resource: string) => boolean): void;
+  /**
+   * The ads a creative edit changes (Snapchat), read through the review's guarded reader with reads `stateRead` builds
+   * (src/write-snapshots.ts, passed in so that no adapter imports a lifecycle module); a provider failure of the read
+   * leaves them unknown, an authority failure refuses.
+   */
+  affectedAds?(
+    plan: CompiledRequest,
+    creativeIds: unknown[],
+    read: (request: CompiledRequest) => Promise<TransportResult>,
+    stateRead: (plan: CompiledRequest, path: string, query?: JsonObject) => CompiledRequest,
+  ): Promise<JsonObject>;
+  // The rejected outcome of a refusal after dispatch (src/write-rejection.ts nonAppliedRejection), after a family's own.
+  /**
+   * Whether a definitive refusal (its HTTP status and the provider's error body) of a dispatched write provably applied
+   * nothing under the provider's contract (Google Ads' per-service and googleAds:mutate requests without partial
+   * failure or validate-only); without one, the refusal stays uncertain.
+   */
+  rejectionIsNonApplied?(plan: CompiledRequest, status: number, body: JsonObject): boolean;
+  // The verification of a completed write (src/write-verification.ts WriteVerifier.verify), after the review's.
+  /**
+   * The phase a consistent verification read shows of what the write started (GA4's provider jobs: a report task or
+   * audience export still running is pending, a failed one failed); verified without one.
+   */
+  verificationPhase?(read: CompiledRequest, state: JsonObject): 'verified' | 'pending' | 'failed';
+  // The read-only reconciliation of an uncertain write (src/write-reconciliation.ts WriteReconciler).
+  /**
+   * The lookup that finds what a create made (Google Ads' named campaigns, budgets, ad groups and asset groups by their
+   * frozen names; Meta's campaign, ad set and ad creates by name and creation time), its reads built with `read` as
+   * the review builds every state read; undefined for a write it cannot look up.
+   */
+  createdLookup?(plan: CompiledRequest, read: StateReadBuilder): CreatedLookup | undefined;
+  /**
+   * The receipt the provider would have returned for an update or removal whose targets the request names (Google
+   * Ads' operations' resource names, a Meta node edit's ID), so the verification reads name what to read and expect;
+   * undefined for a create and for a request that names none.
+   */
+  namedTargets?(plan: CompiledRequest): JsonObject | undefined;
+  // The owner's spending policy (src/spend-policy.ts), which keeps every rule, its order and its refusals (wave 4c).
+  /** The refusal of a cap stated in currency that the provider's own unit cannot convert (Meta's currency offsets). */
+  currencyCapRefusal?(field: string, nativeField: string, currency: string | null | undefined): MirrorError;
+  /**
+   * The owner policy's activation and deletion switches applied to the access a write grants or removes (Business
+   * Profile's administrators, Google Ads' users), before a family's policy requirement; refuses.
+   */
+  accessPolicy?(plan: CompiledRequest, state: unknown, policy: JsonObject): void;
+  /** The field a route spells activation with where it is not the provider's declared one (LinkedIn's creatives). */
+  activationRule?(plan: CompiledRequest): {field: string; active: string[]} | undefined;
+  /** The reviewed state whose amounts are the write's current ones (Apple's shared budget: its value alone). */
+  policyState?(plan: CompiledRequest, state: unknown): unknown;
+  /**
+   * Money fields the provider's pinned contract classifies (Google Ads' Discovery document): bids, which join the bid
+   * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy.
+   */
+  moneyFields?(): {bid: string[]; unsupported: string[]};
+}
+/** What a provider's lookup of a create returns: the created resources it found, in the order of the request's records. */
+export interface CreatedLookup {
+  reads: CompiledRequest[];
+  /** Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked. */
+  match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
+  /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
+  receipt(found: JsonObject[]): JsonObject;
 }

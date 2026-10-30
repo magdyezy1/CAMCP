@@ -2,10 +2,16 @@ import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} 
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
+// Writes and campaigns (wave 4c).
+import {validateXTargetingState, xTargetingKind, xTargetingSnapshots} from './x-targeting-writes.js';
 import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
+// Writes and campaigns (wave 4c).
+import type {MutationResponse} from './provider-adapter.js';
+import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {withXCatalogRemovalExpectation} from './x-catalog-products.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -128,4 +134,39 @@ export const xHooks: ProviderHooks = Object.freeze({
       },
     }),
   }),
+  // Writes and campaigns (wave 4c): targeting criteria are applied only under a paused line item, checked after the
+  // review's paused-parent check (src/write-review.ts).
+  // Its targeting criteria are read from their line item, and a create on an account reads the account.
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: xConfirms,
+    parentChecks: validateXTargetingState,
+    snapshots: (plan: CompiledRequest) => (xTargetingKind(plan) ? xTargetingSnapshots(plan) : undefined),
+    accountPath: /^\/12\/accounts\/[^/]+/,
+  }),
+  // Writes and campaigns (wave 4c): a plan's preflight places a predecessor's media key and card URI by their own
+  // shapes (src/campaign-preflight.ts); any other reference is the generic placeholder.
+  campaign: Object.freeze({
+    preflight: Object.freeze({
+      reference: ({path}: {path: string}) =>
+        path.endsWith('/media_key') ? '13_1' : path.endsWith('/card_uri') ? 'card://1' : undefined,
+    }),
+    // A selected catalog removal's plan binding: each unsent step's review and execution run under the product it
+    // expects, refused when its evidence changed (src/campaign-runner.ts).
+    planBinding: Object.freeze({
+      key: 'catalog_removal',
+      create: catalogRemovalCreationBinding,
+      expectation: assertCatalogRemovalStep,
+      under: withXCatalogRemovalExpectation,
+      changed: catalogRemovalChanged,
+    }),
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** A create returns its records with IDs; an edit returns its target. */
+function xConfirms(plan: CompiledRequest, _result: TransportResult, {data: d, last, hasId}: MutationResponse): boolean {
+  return Array.isArray(d.data)
+    ? plan.method === 'POST' && d.data.length > 0 && d.data.every(r => hasId(r.id))
+    : hasId(d.data?.id) && (plan.method === 'POST' || String(d.data.id) === last);
+}

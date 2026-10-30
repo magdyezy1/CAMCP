@@ -209,7 +209,18 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ARC-04 stage F (reporting) adds ten modules split from the reporting modules, without wrapper reasons: the shared
   // report table (src/report-table.ts), the leaf src/overview-levels.ts, five platforms' guided reporting
   // (src/<platform>-guided-reports.ts), two allocation evidence checks and src/evidence-dates.ts.
-  assert.equal(files.length, 679);
+  // ARC-04 (wave 4c) splits campaignRecipe into per-recipe builders: src/recipe-steps.ts and the Meta, Google Search
+  // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts. ARC-01
+  // (wave 4c) adds src/reddit-paging.ts, src/meta-write-shape.ts, src/snapchat-affected-ad-pages.ts and four provider
+  // state-read modules (src/<provider>-state-reads.ts) and src/snapchat-write-impact.ts, without wrapper reasons, and
+  // the campaign clones' src/campaign-clone-core.ts and four src/<provider>-campaign-clone.ts modules, and the guided
+  // activations' src/campaign-activation-core.ts and six src/<provider>-recipe-activation.ts modules, and the
+  // preflight's src/google-preflight.ts, src/snapchat-preflight.ts and src/meta-preflight.ts, and the rejected
+  // outcome's src/google-write-rejection.ts and src/write-rejection-core.ts, and the reconciliation's
+  // src/google-write-reconciliation.ts, src/meta-write-reconciliation.ts and src/verification-core.ts, and the recipe
+  // context's src/microsoft-location-pin.ts.
+  // Merged, the reporting package's ten modules and the writes package's 33 add up.
+  assert.equal(files.length, 712);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11513);

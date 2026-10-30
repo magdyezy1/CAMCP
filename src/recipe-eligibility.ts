@@ -9,6 +9,7 @@ import {fingerprint, optional, type ToolCall} from './workspace-core.js';
 import {randomUUID} from 'node:crypto';
 import {writePause} from './owner-operations.js';
 import {storedLogin} from './connection-authority.js';
+import {providerHooks} from './provider-hooks.js';
 
 /** A bounded read-only assessment of the current compiled brief, never a write grant or saved campaign plan. */
 export async function recipeEligibility(
@@ -207,110 +208,20 @@ export async function recipeEligibility(
             evidence: proof,
             meaning: 'The exact selected account read confirmed this currency. This is not objective acceptance.',
           });
-      } else if (['existing_website_creative', 'existing_lead_creative', 'existing_lead_form'].includes(id)) {
-        const creative = assets.find(
-          a =>
-            a.asset_type === 'Snapchat creative' &&
-            a.asset_id === business.creative_id &&
-            a.account_id === scope.account_id &&
-            a.connection_id === scope.connection_id,
-        );
-        const proof = assets.find(
-          a =>
-            a.asset_type === (id === 'existing_lead_form' ? 'Snapchat lead form' : 'Snapchat creative') &&
-            a.asset_id === (id === 'existing_lead_form' ? creative?.lead_generation_form_id : business.creative_id) &&
-            a.account_id === scope.account_id &&
-            a.connection_id === scope.connection_id &&
-            a.status === 'provider_read_checked',
-        );
-        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
-      } else if (
-        ['tiktok_spark_identity', 'existing_tiktok_post'].includes(id) ||
-        (id === 'account_owned_pixel' && gateway === 'tiktok_native_action')
-      ) {
-        // TikTok launch packs (CMP-07): the identity, post and pixel preflight read for this exact advertiser.
-        const type = {
-            tiktok_spark_identity: 'TikTok identity',
-            existing_tiktok_post: 'TikTok post',
-            account_owned_pixel: 'TikTok pixel',
-          }[id as 'tiktok_spark_identity'],
-          proof = assets.find(
-            a =>
-              a.asset_type === type &&
-              a.account_id === scope.account_id &&
-              a.connection_id === scope.connection_id &&
-              a.status === 'provider_read_checked',
-          );
-        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
-      } else if (id === 'linkedin_lead_form') {
-        // The LinkedIn lead generation pack (CMP-07): the owner-finder read of this exact form.
-        const proof = assets.find(
-          a =>
-            a.asset_type === 'LinkedIn lead form' &&
-            a.asset_id === business.lead_form_id &&
-            a.account_id === scope.account_id &&
-            a.connection_id === scope.connection_id &&
-            a.status === 'provider_read_checked',
-        );
-        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
-      } else if (['page_identity', 'account_owned_pixel'].includes(id)) {
-        const proof = assets.find(
-          a =>
-            a.asset_type === (id === 'page_identity' ? 'Facebook Page' : 'Meta pixel') &&
-            a.status === 'provider_read_checked',
-        );
-        if (proof)
-          Object.assign(out, {
-            status: 'ready',
-            evidence: proof,
-            meaning: 'The account-scoped native collection confirmed access to this exact resource.',
-          });
-      } else if (id === 'attribution_window')
-        Object.assign(out, {
-          status: 'ready',
-          evidence: {
-            kind: 'compiled_explicit_settings',
-            windows: steps.find((step: JsonObject) => step.id === 'adset')?.arguments.payload.attribution_spec,
-          },
-          meaning:
-            'The explicit settings match the local recipe contract. Historical attribution and event delivery remain unverified.',
+      } else {
+        // Every other dependency's evidence is its recipe's provider's (ARC-01 phase B, wave 4c: its adapter's
+        // `campaign.dependencyEvidence`): Snapchat's creatives and lead form, TikTok's identity, post and pixel,
+        // LinkedIn's lead form, Meta's Page, pixel and attribution windows, Google's explicit bidding settings and
+        // Performance Max asset counts, each from the preflight's checked assets or the compiled brief.
+        const evidence = providerHooks(gateway)?.campaign?.dependencyEvidence?.(id, {
+          assets,
+          scope,
+          business,
+          recipe: compiled.recipe,
+          steps,
         });
-      else if (id === 'campaign_cpc_ceiling')
-        Object.assign(out, {
-          status: 'ready',
-          evidence: {kind: 'compiled_explicit_setting', ceiling: business.cpc_bid_ceiling},
-          meaning:
-            'The explicit ceiling passed exact native-unit compilation. Provider acceptance occurs during review.',
-        });
-      else if (id === 'conversion_value_policy')
-        Object.assign(out, {
-          status: 'ready',
-          evidence: {kind: 'compiled_explicit_setting', policy: compiled.recipe.conversion_value_policy},
-          meaning:
-            'The operator explicitly chose recorded account values. This does not establish configured or delivered conversion values.',
-        });
-      else if (id === 'campaign_target_roas')
-        Object.assign(out, {
-          status: 'ready',
-          evidence: {kind: 'compiled_explicit_setting', ratio: compiled.recipe.target_roas},
-          meaning:
-            'The explicit ratio passed local validation. Provider acceptance, historical eligibility and actual return remain unverified.',
-        });
-      else if (id === 'pmax_asset_minimums')
-        // CMP-07: the counts and text lengths the build compiled passed the pinned Performance Max minimums.
-        Object.assign(out, {
-          status: 'ready',
-          evidence: {kind: 'compiled_explicit_setting', asset_counts: compiled.recipe.asset_counts},
-          meaning:
-            'The asset counts and text lengths meet the pinned Performance Max minimums. Image ratios, policy review and ad strength remain with Google.',
-        });
-      else if (id === 'campaign_target_cpa')
-        Object.assign(out, {
-          status: 'ready',
-          evidence: {kind: 'compiled_explicit_setting', target_cpa_micros: compiled.recipe.target_cpa_micros},
-          meaning:
-            'The explicit target CPA passed exact native-unit compilation. It is an average optimization target; provider acceptance and performance remain unverified.',
-        });
+        if (evidence) Object.assign(out, evidence);
+      }
       return out;
     });
   dependencies.push({

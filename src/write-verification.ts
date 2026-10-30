@@ -7,8 +7,7 @@ import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {MirrorError} from './errors.js';
 import {readConsistently} from './read-consistency.js';
-import {measurementVerificationPhase, optionalMissingState} from './measurement-writes.js';
-import {appleSharedAccounts} from './apple-entity-writes.js';
+import {optionalMissingState} from './write-common.js';
 import {validateState} from './write-state.js';
 import {audit, bad, fingerprint, obj, optional, read} from './workspace-core.js';
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
@@ -17,6 +16,9 @@ import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {normalize, differing, verificationReads, entity, verificationContractVersion} from './verification-reads.js';
 import {loginStamp} from './connection-authority.js';
 import {writeClaim} from './job-repository.js';
+// The provider's parts of a verification (ARC-01 phase B, wave 4c): the other accounts its write changes (Apple's
+// shared budget) and the phase its reads show (GA4's provider jobs), from its adapter's `writes` hooks.
+import {providerHooks} from './provider-hooks.js';
 
 /** A guarded-reader binding: the connection's login (its revision, not token bytes) must stay the one the first read used. */
 const sameLogin = (message: string) => ({
@@ -87,10 +89,12 @@ export class WriteVerifier {
     const result = JSON.parse(row.result),
       plan = review.plan as CompiledRequest,
       c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, review.connection_id);
-    const checkAppleAccounts = () => {
-      for (const account of appleSharedAccounts(plan)) this.store.resolveConnection(actor, plan.gateway, account, c.id);
+    // Every other account the write changes (Apple's shared budget) is checked like the selected one, at each read.
+    const checkSharedAccounts = () => {
+      for (const account of providerHooks(plan.gateway)?.writes?.sharedAccounts?.(plan) ?? [])
+        this.store.resolveConnection(actor, plan.gateway, account, c.id);
     };
-    checkAppleAccounts();
+    checkSharedAccounts();
     const family = familyOf(plan);
     family?.actor?.(plan, actor, true);
     family?.scope?.(c, false, plan);
@@ -150,7 +154,7 @@ export class WriteVerifier {
             readback = await readConsistently(
               async () => {
                 this.store.assertActorActive(actor);
-                checkAppleAccounts();
+                checkSharedAccounts();
                 const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
                 new ScopeGuard(this.registry, this.store).authorize(item.read, current);
                 const auth = await this.credentials.get(current);
@@ -184,7 +188,7 @@ export class WriteVerifier {
                   this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
                 );
                 validateState(item.read, response);
-                checkAppleAccounts();
+                checkSharedAccounts();
                 return normalize(entity(item.read, response.data as JsonObject));
               },
               actual => differing(split(actual).exp, actual).length === 0,
@@ -195,7 +199,13 @@ export class WriteVerifier {
             unacknowledged = Object.entries(acknowledged)
               .filter(([, v]) => differing(normalize(v.sent), normalize(v.echoed)).length)
               .map(([k]) => '/' + k);
-          const measured = readback.consistent ? measurementVerificationPhase(item.read, actual) : 'inconclusive',
+          // The provider's phase of what the write started (GA4's provider jobs); verified without one.
+          const providerPhase = providerHooks(item.read.gateway)?.writes?.verificationPhase,
+            measured = readback.consistent
+              ? providerPhase
+                ? providerPhase(item.read, actual)
+                : 'verified'
+              : 'inconclusive',
             actualHash = fingerprint(actual ?? null),
             // Every read of this round returned the same differing state. When the previous round saw the same
             // state too, the disagreement is not propagation: it is a mismatch, and reading again changes nothing.

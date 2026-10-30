@@ -277,18 +277,8 @@ export function measurementSnapshots(p: CompiledRequest): CompiledRequest[] {
   if (a === 'CREATE_CONTAINER_VERSION') return [read(prefix + resource), read(prefix + resource + '/status')];
   return [read(prefix + (a.startsWith('CREATE_') ? resource.slice(0, resource.lastIndexOf('/')) : resource))];
 }
-/** 404 is evidence of absence only for a derived optional target, never for its parent or permission failures. */
-export function optionalMissingState(read: CompiledRequest, e: unknown): TransportResult | undefined {
-  if (
-    read.action === 'AMCP_STATE_OPTIONAL' &&
-    read.method === 'GET' &&
-    e instanceof MirrorError &&
-    e.code === 'UPSTREAM_ERROR' &&
-    e.status === 404
-  )
-    return {data: {amcp_absent: true, path: read.path}, status: 404, headers: {}};
-  return undefined;
-}
+/** 404 is evidence of absence only for a derived optional target (a lifecycle rule; ARC-01 wave 4c moved it). */
+export {optionalMissingState} from './write-common.js';
 export function validateMeasurementState(read: CompiledRequest, result: TransportResult): void {
   const d = obj(result.data),
     failState = (): never => {

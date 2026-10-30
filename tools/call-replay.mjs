@@ -125,6 +125,44 @@ export const targets = Object.freeze({
   },
   'dist/src/report-file-delivery.js': {classes: {ReportFileDelivery: ['bind', 'queue', 'work', 'download']}},
   'dist/src/reporting-overview.js': {classes: {ReportingOverview: ['handle', 'work']}},
+  // Writes and campaigns (ARC-01 phase B, ARC-04; wave 4c): the outputs of amcp_write and amcp_campaign, the review's
+  // access and state stages, and the campaign, recipe, spending-policy and write stages whose provider branches move to
+  // adapter hooks or whose long functions become staged steps.
+  'dist/src/write-review.js': {classes: {WriteReviewService: ['call', 'access', 'state']}},
+  'dist/src/campaign-runner.js': {classes: {CampaignRunner: ['handle']}},
+  'dist/src/campaign-recipes.js': {functions: ['campaignRecipe', 'recipeMissing', 'assertRecipeDraftCurrent']},
+  'dist/src/campaign-clone.js': {functions: ['assertCloneGateway', 'clonePlan', 'applyCloneChanges']},
+  'dist/src/campaign-activation.js': {functions: ['activationSteps', 'activationGates']},
+  'dist/src/campaign-preflight.js': {functions: ['campaignPreflight']},
+  'dist/src/spend-policy.js': {
+    functions: [
+      'checkSpendPolicy',
+      'checkGroupSpendPolicy',
+      'policyActivates',
+      'unprotectedAccounts',
+      'saveSpendPolicy',
+    ],
+  },
+  'dist/src/google-goal-inspection.js': {functions: ['inspectGoogleRecipeGoals']},
+  'dist/src/write-effects.js': {functions: ['writeEffects', 'stateTarget', 'effectNames', 'effectReasons']},
+  'dist/src/write-impact.js': {functions: ['writeImpact']},
+  'dist/src/write-groups.js': {functions: ['splittableBatch', 'needsGroup', 'groupLimitRefusal', 'groupParts']},
+  'dist/src/write-rejection.js': {functions: ['nonAppliedRejection', 'rejectedError']},
+  // Google Ads' proof that a refusal applied nothing left write-rejection.js for its own module (ARC-01 phase B, wave
+  // 4c); a recording made before names it dist/src/write-rejection.js#... (compare with --ignore for both).
+  'dist/src/google-write-rejection.js': {functions: ['googleServiceMutate', 'googleRejectionIsNonApplied']},
+  'dist/src/write-reconciliation.js': {
+    functions: ['findCreated', 'namedTargets'],
+    classes: {WriteReconciler: ['call']},
+  },
+  'dist/src/recipe-context.js': {functions: ['recipeDefaultFields', 'recipeObjective', 'recipeContext']},
+  'dist/src/recipe-eligibility.js': {functions: ['recipeEligibility']},
+  // The last round of wave 4c: the verification of a write, whose provider parts move to adapter hooks (with the
+  // reconciliation's WriteReconciler, the recipe context and the spending policy's saveSpendPolicy above).
+  'dist/src/write-verification.js': {classes: {WriteVerifier: ['verify']}},
+  // Reddit's page step (wave 4c), with which its creative family reads its profile and post pages instead of
+  // src/pagination.ts; a recording made before names those calls dist/src/pagination.js#nextPage.
+  'dist/src/reddit-paging.js': {functions: ['redditNextPage']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -173,6 +211,16 @@ export const replayable = Object.freeze([
   'dist/src/overview-levels.js#campaignAttributionProfile',
   'dist/src/overview-levels.js#overviewSourceLevel',
   'dist/src/overview-parents.js#detailParentKind',
+  // Writes and campaigns (wave 4c): builders and stage helpers that read neither the clock nor the environment.
+  'dist/src/campaign-recipes.js#campaignRecipe',
+  'dist/src/campaign-recipes.js#recipeMissing',
+  'dist/src/campaign-activation.js#activationSteps',
+  'dist/src/campaign-clone.js#applyCloneChanges',
+  'dist/src/write-effects.js#writeEffects',
+  'dist/src/write-effects.js#stateTarget',
+  'dist/src/write-effects.js#effectNames',
+  'dist/src/write-effects.js#effectReasons',
+  'dist/src/write-impact.js#writeImpact',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');

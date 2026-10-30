@@ -4,7 +4,6 @@ import {normalizeAccount} from './scope.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {nextPage} from './pagination.js';
-import {validateRedditState} from './reddit-writes.js';
 import {familyOfRead} from './reviewed-families.js';
 import {object, fail} from './write-common.js';
 import {writeOutcome} from './write-outcome.js';
@@ -88,11 +87,6 @@ function validateGatewayState(
   }
   if (identity) {
     identity(read, result);
-    return;
-  }
-  // Reddit's state check stays here with its write contract (src/write-shape.ts says why).
-  if (read.gateway === 'reddit_native_action') {
-    validateRedditState(read, result);
     return;
   }
   if (state?.target) {

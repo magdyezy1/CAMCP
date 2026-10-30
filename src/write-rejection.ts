@@ -1,6 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {definitiveRefusalStatuses} from './write-rejection-core.js';
+import {providerHooks} from './provider-hooks.js';
 
 /**
  * The third outcome of a submitted write (CMP-04): `rejected`, beside complete and uncertain. A write is rejected only
@@ -13,39 +15,18 @@ import type {CompiledRequest, JsonObject} from './types.js';
  */
 export const rejectedOutcomeEnabled = () => process.env.AMCP_WRITE_REJECTED_OUTCOME !== 'false';
 
-/** Statuses a provider sends only after deciding the request; a timeout (408) and a rate limit (429) are not among them. */
-export const definitiveRefusalStatuses: readonly number[] = [400, 401, 403, 404, 409, 412, 422];
+// The definitive refusal statuses live in the leaf src/write-rejection-core.ts, which the providers' proofs import
+// (ARC-01 phase B, wave 4c); this import path keeps them.
+export {definitiveRefusalStatuses};
 
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const on = (v: unknown) => v === true || v === 'true';
-
-/**
- * A Google Ads per-service Mutate with partial failure off and no validate-only flag. Google documents that such a
- * request's operations "will be carried out in one transaction if and only if they are all valid" (partial_failure
- * false is the default), so a definitive refusal created, changed or removed nothing.
- */
-export function googleServiceMutate(plan: CompiledRequest): boolean {
-  const body = object(plan.body) ? plan.body : {};
-  return (
-    plan.gateway === 'google_ads_native_action' &&
-    plan.method === 'POST' &&
-    /^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path) &&
-    !on(body.partial_failure) &&
-    !on(body.partialFailure) &&
-    !on(body.validate_only) &&
-    !on(body.validateOnly)
-  );
-}
-
-/** Google's proof: a per-service or googleAds:mutate request refused with Google's own error body. */
-export function googleRejectionIsNonApplied(plan: CompiledRequest, status: number, body: JsonObject): boolean {
-  return googleServiceMutate(plan) && definitiveRefusalStatuses.includes(status) && object(body.error);
-}
 
 /**
  * Whether this error, raised after the request was dispatched, is a refusal that provably applied nothing. The family
- * that owns the request (familyOf) decides; a Google Ads request no family proves follows Google's per-service rule. Meta,
- * Snapchat, Microsoft and the others declare no proof yet, so their refusals stay uncertain.
+ * that owns the request (familyOf) decides; a request no family proves follows its provider's rule where the provider
+ * declares one (its adapter's `writes.rejectionIsNonApplied`, ARC-01 phase B: Google Ads' per-service rule,
+ * src/google-write-rejection.ts). Meta, Snapchat, Microsoft and the others declare no proof yet, so their refusals stay
+ * uncertain.
  */
 export function nonAppliedRejection(plan: CompiledRequest, error: unknown, family?: ReviewedFamily): boolean {
   if (!rejectedOutcomeEnabled() || !(error instanceof MirrorError)) return false;
@@ -58,9 +39,7 @@ export function nonAppliedRejection(plan: CompiledRequest, error: unknown, famil
     !object(details.upstream)
   )
     return false;
-  const proof =
-    family?.rejectionIsNonApplied ??
-    (plan.gateway === 'google_ads_native_action' ? googleRejectionIsNonApplied : undefined);
+  const proof = family?.rejectionIsNonApplied ?? providerHooks(plan.gateway)?.writes?.rejectionIsNonApplied;
   return proof?.(plan, status, details.upstream) === true;
 }
 

@@ -29,6 +29,23 @@ import {
   providerReference,
 } from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+// Writes and campaigns (wave 4c).
+import {
+  buildMetaWebsiteRecipe,
+  metaDependencyEvidence,
+  metaWebsiteRecipeContext,
+  metaWebsiteRecipes,
+} from './meta-website-recipes.js';
+import {metaWriteShapeBefore} from './meta-write-shape.js';
+import type {ReviewStateContext} from './provider-adapter.js';
+import {metaAdSetAudienceChoice} from './meta-contracts.js';
+import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
+import {metaStateReads} from './meta-state-reads.js';
+import {metaCreativeImpact} from './meta-creative-features.js';
+import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './meta-recipe-activation.js';
+import {metaPreflight} from './meta-preflight.js';
+import type {MutationResponse} from './provider-adapter.js';
+import {metaCreated, metaNamedTargets} from './meta-write-reconciliation.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -159,6 +176,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
       validateMetaV26(plan);
     },
     shape: Object.freeze({
+      // Writes and campaigns (wave 4c): a creative's own contract, no budget schedules and no inline creatives, before
+      // the generic checks (src/meta-write-shape.ts).
+      before: metaWriteShapeBefore,
       // Campaigns start paused. Ad sets and ads may start active under a parent the review reads as paused
       // (paused-parents.ts, the owner's decision of 2026-09-29).
       after(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
@@ -275,4 +295,68 @@ export const metaHooks: ProviderHooks = Object.freeze({
       classify: classifyMetaError,
     }),
   }),
+  // Writes and campaigns (wave 4c): the guided website recipes.
+  campaign: Object.freeze({
+    recipes: Object.freeze(
+      metaWebsiteRecipes.map(definition =>
+        Object.freeze({
+          definition,
+          build: (b: JsonObject) => buildMetaWebsiteRecipe(definition.id, b),
+          context: metaWebsiteRecipeContext(definition.id),
+        }),
+      ),
+    ),
+    // A launch's campaign activated, gated on its ad's review and its conversion pixel.
+    activation: Object.freeze({steps: metaActivationSteps, record: metaActivationRecord, gates: metaActivationGates}),
+    // A plan step's creative contract and its Page and media (src/campaign-preflight.ts).
+    preflight: metaPreflight,
+    // Its recipes' Page, pixel and attribution windows, as their eligibility shows them (src/recipe-eligibility.ts).
+    dependencyEvidence: metaDependencyEvidence,
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): a new creative's state is the account read and the
+  // creative's identity sources, which Meta's module reads itself through the review's access check; an ad set's audience
+  // choice is checked after the review's paused-parent check.
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: metaConfirms,
+    // An account-edge creation reads the account and its parent, a node edit the node (src/meta-state-reads.ts).
+    snapshots: metaStateReads,
+    ownState: Object.freeze({
+      claims: metaCreativeCreate,
+      state: async (plan: CompiledRequest, {store, transport, credentials, actor, access}: ReviewStateContext) => ({
+        creative_source: await metaCreativeState(plan, store, transport, credentials, actor, access),
+      }),
+    }),
+    parentChecks: metaAdSetAudienceChoice,
+    // A creative's shop destination and creative feature choices (src/write-impact.ts).
+    impact: (plan: CompiledRequest) => metaCreativeImpact(plan),
+    // An uncertain write's reconciliation (src/write-reconciliation.ts): a campaign, ad set or ad create found by name
+    // and creation time, a node edit's ID as the receipt.
+    createdLookup: metaCreated,
+    namedTargets: metaNamedTargets,
+    // The owner's spending policy (src/spend-policy.ts): a currency cap its offsets cannot convert.
+    currencyCapRefusal: metaCurrencyCapRefusal,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.
+/** A cap stated in currency that Meta's minor unit cannot be computed for: state it in native units. */
+function metaCurrencyCapRefusal(field: string, nativeField: string, currency: string | null | undefined): MirrorError {
+  return new MirrorError(
+    'INVALID_POLICY',
+    'Meta counts money in the minor unit of the account currency, and AMCP converts a currency cap (field) only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units instead (native_field; 100 USD is 10000).',
+    {
+      gateway: 'meta_native_action',
+      field,
+      native_field: nativeField,
+      // The currency Meta's offsets were looked up for (stated, or the account's observed one), or null (WRT-07).
+      currency: currency ?? null,
+    },
+  );
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** An account-edge creation returns its ID; a node edit returns success. */
+function metaConfirms(plan: CompiledRequest, _result: TransportResult, {data: d, hasId}: MutationResponse): boolean {
+  return /^\/v[^/]+\/act_/.test(plan.path) ? hasId(d.id) : d.success === true;
+}

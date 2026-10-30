@@ -8,6 +8,8 @@ import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds} from './write-common.js';
 import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
+// The record list a provider's request is split along (ARC-01 phase B, wave 4c: its adapter's `writes.batch`).
+import {providerHooks} from './provider-hooks.js';
 
 /**
  * One approval for a request longer than one native call allows (the owner's item 4, 2026-09-29): Google Ads
@@ -21,22 +23,13 @@ import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './wri
 export const groupPartSize = 25;
 export const groupMaxParts = 40;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-/** The list a request would be split along, or undefined when it is not one AMCP splits. */
+/**
+ * The list a request would be split along, or undefined when it is not one AMCP splits: its provider's record list
+ * (Google Ads' operations, Snapchat's one record list; moved verbatim to their adapters).
+ */
 export function splittableBatch(gateway: unknown, args: unknown): {key: string; items: unknown[]} | undefined {
   if (!object(args) || !object(args.payload)) return undefined;
-  const payload = args.payload;
-  if (gateway === 'google_ads_native_action' && Array.isArray(payload.operations)) {
-    // Temporary resource IDs (customers/1/campaigns/-1) link operations inside one request; they cannot be split.
-    if (/"[^"]*customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(JSON.stringify(payload.operations))) return undefined;
-    return {key: 'operations', items: payload.operations};
-  }
-  if (gateway === 'snapchat_native_action') {
-    const keys = ['campaigns', 'adsquads', 'ads', 'creatives', 'media', 'segments'].filter(k =>
-      Array.isArray(payload[k]),
-    );
-    if (keys.length === 1) return {key: keys[0]!, items: payload[keys[0]!]};
-  }
-  return undefined;
+  return providerHooks(gateway)?.writes?.batch?.(args.payload);
 }
 export const needsGroup = (gateway: unknown, args: unknown) =>
   (splittableBatch(gateway, args)?.items.length ?? 0) > groupPartSize;

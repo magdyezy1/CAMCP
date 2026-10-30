@@ -33,7 +33,7 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 | Spending | `spendConfirmation`, `exemptFromSpendTextMatch` | `authorizeExecution` (`preflight.ts`) | See [Spending](#spending). |
 | Owner policy | `activates`, `destructive`, `policyAmounts` | `checkSpendPolicy` (`spend-policy.ts`), `applyExecutionRisk` | See [Spending](#spending). |
 | Outcome | `outcome(plan, result, before)`, `receipt`, `safeOutcome` | `writeOutcome` (`write-outcome.ts`) | Return true only when the response confirms every mutation of the request; add the provider's receipt; remove what must not be stored or shown. |
-| Refusal | `rejectionIsNonApplied(plan, status, body)` | `WriteReviewer` execute (`write-rejection.ts`) | Optional (CMP-04): true only when a primary document or authorized live observation proves that this definitive refusal (HTTP 4xx with the provider's parsed error body) applied nothing. The claim becomes `rejected`, its spend reservation is released and a plan step can be amended under a new key. Without it the outcome stays uncertain. |
+| Refusal | `rejectionIsNonApplied(plan, status, body)` | `WriteReviewer` execute (`write-rejection.ts`) | Optional (CMP-04): true only when a primary document or authorized live observation proves that this definitive refusal (HTTP 4xx with the provider's parsed error body) applied nothing. The claim becomes `rejected`, its spend reservation is released and a plan step can be amended under a new key. Without it the outcome stays uncertain, unless the provider declares a proof for the requests no family proves (its adapter's `writes.rejectionIsNonApplied`: Google Ads' per-service rule, `src/google-write-rejection.ts`). |
 | Verification | `verification(plan, result, before, verificationRead, classify)`, `observed(read, data, gateway)` | `WriteVerifier` | Name the reads and expected fields that show the result, and project each read to the shape of its `expected`; `classify` as for snapshots. |
 | Own verification | `verify(plan, verification)` | `WriteVerifier` | Optional, instead of the read-back: verify with the family's own reads (report jobs, previews, account access). |
 | Created resources | `verifiedResources(plan, actual)`, `afterReadBack(plan, check, verification)` | `WriteVerifier` | Optional: IDs a consistent read-back proves the write created; they become readable for the account after `scope` with `write`. |
@@ -256,15 +256,21 @@ request of a gateway rather than one family:
   projections: each provider adapter declares which writes are its entity writes (`entityWrites`,
   `src/provider-adapters.ts`), and `src/reviewed-routes.ts` gives that route to a write no registered family claims;
 - gateway checks and projections shared by several families. The write-shape and state checks of each provider are
-  its adapter's (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's request validation, the
-  measurement gateways' checks, TikTok's state checks, the paused-creation rules), which `src/write-shape.ts` and
-  `src/write-state.ts` consult where they named the provider; Reddit's request validation and state check stay in
-  those stages. So are the review's projections of its reads (`review`: TikTok's path-keyed projections, Google's
-  configuration fallback and the gateway verification reads), which `src/review-state.ts` and
-  `src/verification-reads.ts` consult after the families' own. The Business Profile URL redaction (`placeActionSafe`)
-  and paused-parent checks stay in the lifecycle modules;
-- Apple shared budgets, which change a budget several ad accounts share: the lifecycle checks each account's write
-  grant itself (`appleSharedBudget`);
+  its adapter's (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's and Reddit's request
+  validation, Meta's first write checks, the measurement gateways' checks, TikTok's and Reddit's state checks, the
+  paused-creation rules), which `src/write-shape.ts` and `src/write-state.ts` consult where they named the provider.
+  So are the review's projections of its reads (`review`: TikTok's path-keyed projections, Google's configuration
+  fallback and the gateway verification reads), which `src/review-state.ts` and `src/verification-reads.ts` consult
+  after the families' own, and the provider's parts of the review itself (`writes`, wave 4c: the write scopes, grants
+  and permissions a connection needs, a provider's own state reads, follow-up reads and prerequisites, the Business
+  Profile URL redaction, Tag Manager's fingerprint and Snapchat's creative references and affected ads), which
+  `src/write-review.ts` consults where it named the provider, the state reads of a write no family plans
+  (`snapshots`, `accountPath`, `accountSnapshots`), which `src/write-snapshots.ts` consults after the families' own,
+  and what a write publishes, deletes or changes beyond its target (`publishesLive`, `recordCount`, `deletes`,
+  `impact`), which `src/write-effects.ts` and `src/write-impact.ts` consult after the families' own. The
+  paused-parent checks stay in the lifecycle modules;
+- Apple shared budgets, which change a budget several ad accounts share: the review checks each account's write
+  grant itself, for the accounts Apple's `writes` hooks name (`appleSharedBudget`);
 - compile-time path rewriting (`linkedinTrackingPlan`, `linkedinDomainPlan`) in `src/compiler.ts`.
 
 `tests/reviewed-families.test.mjs` fails when a lifecycle module names a registered family's hook function.

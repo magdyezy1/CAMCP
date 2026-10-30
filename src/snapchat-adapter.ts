@@ -26,6 +26,25 @@ import {errorObject, errorToken} from './provider-error-core.js';
 import {normalizeAccount} from './account-id.js';
 import {authorizeSnapCatalogComparisonRead, snapCompareMarker} from './snapchat-catalog-reads.js';
 import {snapchatOrganizationPixels, snapchatScopedResource} from './snapchat-scope.js';
+// Writes and campaigns (wave 4c).
+import {
+  buildSnapchatLeadRecipe,
+  buildSnapchatTrafficRecipe,
+  snapchatDependencyEvidence,
+  snapchatLeadContext,
+  snapchatLeadRecipe,
+  snapchatTrafficContext,
+  snapchatTrafficRecipe,
+} from './snapchat-traffic-recipe.js';
+import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
+import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
+import {snapchatAffectedAdsDisclosure} from './snapchat-affected-ad-pages.js';
+import {snapchatAccountStateReads, snapchatStateReads} from './snapchat-state-reads.js';
+import {snapchatWriteImpact} from './snapchat-write-impact.js';
+import {snapchatClone} from './snapchat-campaign-clone.js';
+import {snapchatActivationGates, snapchatActivationSteps} from './snapchat-recipe-activation.js';
+import {snapchatPreflight} from './snapchat-preflight.js';
+import type {MutationResponse} from './provider-adapter.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -394,4 +413,81 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     reportData: (plan: CompiledRequest) => /\/stats$/.test(plan.path),
     errors: Object.freeze({code: (body: unknown) => errorToken(errorObject(body).error_code)}),
   }),
+  // Writes and campaigns (wave 4c): the guided traffic and lead recipes.
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      Object.freeze({
+        definition: snapchatTrafficRecipe,
+        build: buildSnapchatTrafficRecipe,
+        context: snapchatTrafficContext,
+      }),
+      Object.freeze({definition: snapchatLeadRecipe, build: buildSnapchatLeadRecipe, context: snapchatLeadContext}),
+    ]),
+    // A campaign, its ad squads and their ads, read and recreated paused (src/campaign-clone.ts).
+    clone: Object.freeze({build: snapchatClone}),
+    // A launch's campaign, ad squad and ad activated in turn, gated on the ad's creative review.
+    activation: Object.freeze({steps: snapchatActivationSteps, gates: snapchatActivationGates}),
+    // A plan step's symbolic predecessor ID, its ad squads' pixels and its ads' creatives (src/campaign-preflight.ts).
+    preflight: snapchatPreflight,
+    // Its recipes' existing creative and lead form, as their eligibility shows them (src/recipe-eligibility.ts).
+    dependencyEvidence: snapchatDependencyEvidence,
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): ScopeGuard learns ownership from each of its state
+  // reads; an ad's lead form is read after its creative, and its creatives' prerequisites are checked after every read;
+  // an edited creative's references must be the account's, and the ads a creative edit changes are listed.
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: snapchatConfirms,
+    // A long record list's parts of 25 under one approval (src/write-groups.ts).
+    batch: snapchatBatch,
+    // Its updates and patches read each target; a create reads its parent collection or its account and dependencies.
+    snapshots: snapchatStateReads,
+    accountPath: /^\/v1\/adaccounts\/[^/]+/,
+    accountSnapshots: snapchatAccountStateReads,
+    observeState: true as const,
+    dependentReads: snapAdLeadFormFollowUps,
+    prerequisites: (plan: CompiledRequest, values: unknown[]) => snapAdCreativePrerequisites(plan, values),
+    ownedReferences: assertSnapCreativeReferences,
+    affectedAds: snapchatAffectedAdsDisclosure,
+    // A request writes a list of records, and a creative edit or segment replacement changes more than its target.
+    recordCount: (body: JsonObject, kind: string) => (Array.isArray(body[kind]) ? body[kind].length : undefined),
+    impact: snapchatWriteImpact,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** Every record of the request succeeded with its ID; a delete returns none. */
+function snapchatConfirms(
+  plan: CompiledRequest,
+  _result: TransportResult,
+  {data: d, body: b, segments, last, hasId}: MutationResponse,
+): boolean {
+  if (String(d.request_status).toUpperCase() !== 'SUCCESS') return false;
+  const kind = [...segments]
+      .reverse()
+      .find(k => ['campaigns', 'adsquads', 'ads', 'creatives', 'lead_generation_forms', 'segments'].includes(k))!,
+    rows = d[kind];
+  if (plan.method === 'DELETE') return Array.isArray(rows) && rows.length === 0;
+  const singular = kind === 'adsquads' ? 'adsquad' : kind.slice(0, -1),
+    expected = Array.isArray(b[kind]) ? b[kind].length : 1;
+  return (
+    Array.isArray(rows) &&
+    rows.length === expected &&
+    rows.every(
+      (r, i) =>
+        String(r.sub_request_status).toUpperCase() === 'SUCCESS' &&
+        hasId(r[singular]?.id) &&
+        (plan.method === 'POST' || String(r[singular].id) === String(plan.method === 'PUT' ? b[kind][i].id : last)),
+    )
+  );
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
+/** The one record list of an entity batch. */
+function snapchatBatch(payload: JsonObject): {key: string; items: unknown[]} | undefined {
+  const keys = ['campaigns', 'adsquads', 'ads', 'creatives', 'media', 'segments'].filter(k =>
+    Array.isArray(payload[k]),
+  );
+  if (keys.length === 1) return {key: keys[0]!, items: payload[keys[0]!]};
+  return undefined;
+}

@@ -12,6 +12,8 @@ import {
 } from '../dist/src/meta-version.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Introspection} from '../dist/src/introspection.js';
+import {assertWriteShape} from '../dist/src/write-shape.js';
+import {providerHooks} from '../dist/src/provider-hooks.js';
 import {metaSdkTag, metaVersion} from '../tools/meta-sdk.mjs';
 
 /**
@@ -106,8 +108,50 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
   // execution_options list: Meta's Ad Rules "Execution Spec" page (read 2026-09-30) documents it for every rule action.
   // Only the rule module may send that name, inside execution_spec.
   const otherEdge = {time_start: 'src/meta-budget-schedules.ts', execution_options: 'src/meta-ad-rules.ts'};
+  // Two names are kept out of what AMCP sends by Meta modules this scan reads since ARC-01 wave 4c moved the code there
+  // from shared stages it never read; each is accepted in its one module only because the checks below show it is never
+  // sent. Meta's first write-shape checks (src/meta-write-shape.ts) name the removed budget_schedule_specs only to refuse
+  // it: the write-shape stage refuses a Meta write that carries it. Meta's state reads (src/meta-state-reads.ts) name the
+  // removed execution_options only to leave the edit's option out of the node read's fields. Every other removed name,
+  // and every other literal of those modules, is checked as before.
+  const keptOut = {budget_schedule_specs: 'src/meta-write-shape.ts', execution_options: 'src/meta-state-reads.ts'};
+  for (const [name, where] of Object.entries(keptOut)) assert.ok(sent.get(name)?.has(where), where + ' names ' + name);
+  const write = (action, path, body) => ({
+    gateway,
+    accountId: '123',
+    action,
+    method: 'POST',
+    path,
+    query: {},
+    headers: {},
+    body,
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: true,
+    evidence: 'synthetic',
+    warnings: [],
+  });
+  const specs = [{time_start: 1900000000, time_end: 1900021600, budget_value: 100, budget_value_type: 'ABSOLUTE'}];
+  for (const [action, path, body] of [
+    [
+      'meta_ad_account_id_campaigns_create',
+      '/v26.0/act_123/campaigns',
+      {name: 'C', objective: 'OUTCOME_SALES', status: 'PAUSED', is_adset_budget_sharing_enabled: false},
+    ],
+    ['meta_ad_account_id_adsets_create', '/v26.0/act_123/adsets', {name: 'S', campaign_id: '111', status: 'PAUSED'}],
+  ])
+    assert.throws(
+      () => assertWriteShape(write(action, path, {...body, budget_schedule_specs: specs})),
+      e => e.code === 'WRITE_CONTRACT_UNAVAILABLE' && e.details.field === 'budget_schedule_specs',
+      action,
+    );
+  const nodeReads = providerHooks(gateway).writes.snapshots(
+    write('meta_campaign_id_update', '/v26.0/987', {status: 'PAUSED', execution_options: ['synchronous_ad_review']}),
+    (path, query = {}) => ({path, query}),
+  );
+  assert.deepEqual(nodeReads, [{path: '/v26.0/987', query: {fields: 'id,name,status'}}]);
   const sentAsRemoved = name =>
-    sent.has(name) && !(otherEdge[name] && [...sent.get(name)].every(where => where === otherEdge[name]));
+    sent.has(name) && ![...sent.get(name)].every(where => where === otherEdge[name] || where === keptOut[name]);
   // Removed enum values belong to removed fields (cost_bidding_mode, budget_source, attribution counting), so the
   // field and parameter names cover them.
   const removed = [

@@ -3,6 +3,11 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
+// Writes and campaigns (wave 4c).
+import type {VendorRoute} from './delegated-native.js';
+import {assertMeasurementScopes} from './measurement-writes.js';
+import {fail, object} from './write-common.js';
+import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 
 /**
  * Google Tag Manager's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a
@@ -50,4 +55,33 @@ export const gtmHooks: ProviderHooks = Object.freeze({
     },
     anchorKind: (anchor: string) => (anchor.startsWith('accounts/') ? 'account' : undefined),
   }),
+  // Writes and campaigns (wave 4c): its parts of the reviewed write lifecycle (src/write-review.ts): the Tag Manager
+  // permission a write needs, and the workspace fingerprint a route takes from the state read.
+  writes: Object.freeze({
+    writePermission: assertMeasurementScopes,
+    concurrency: gtmConcurrency,
+    // A container version's publish takes effect for everyone at once (src/write-effects.ts).
+    publishesLive: (plan: CompiledRequest) => plan.method === 'POST' && /:publish$/.test(plan.path),
+    // An outcome shows the safe configuration of the response and of its failures (src/write-outcome.ts).
+    outcomeData: gtmSafeConfiguration,
+  }),
+  // Writes and campaigns (wave 4c): a consent preview's plan binding, made at creation and checked against the current
+  // tag before each step's review and execution (src/campaign-runner.ts).
+  campaign: Object.freeze({
+    planBinding: Object.freeze({key: 'gtm_consent', create: consentCreationBinding, check: assertConsentStep}),
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.prepareReview (src/write-review.ts).
+/** A route that takes the workspace fingerprint takes the state read's, refusing a stale one the caller supplied. */
+function gtmConcurrency(plan: CompiledRequest, state: unknown[], routes: readonly VendorRoute[]): void {
+  const route = routes.find(
+      r => r.gateway === plan.gateway && r.operation + (r.action ? '/' + r.action : '') === plan.action,
+    ),
+    fingerprint = object(state[0]).fingerprint;
+  if (route?.parameters.fingerprint && typeof fingerprint === 'string' && fingerprint) {
+    if (plan.query.fingerprint !== undefined && plan.query.fingerprint !== fingerprint)
+      fail('STATE_CHANGED', 'The supplied Tag Manager fingerprint is stale.');
+    plan.query.fingerprint = fingerprint;
+  }
+}

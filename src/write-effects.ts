@@ -1,6 +1,8 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
 import {deliveryStops} from './spend-effects.js';
+// A provider's effects (ARC-01 phase B, wave 4c): its adapter's writes hooks, asked where this stage named it.
+import {providerHooks} from './provider-hooks.js';
 
 /**
  * Effects a person should see before approving a reviewed write (WRT-05 Stage B): it deletes or removes something,
@@ -25,16 +27,14 @@ const statusKeys = [
   'secondary_status',
   'Status',
 ];
-/** Requests that make a change live for everyone once executed, by provider route. */
+/**
+ * Requests that make a change live for everyone once executed: a family's own, then its provider's routes (Tag Manager's
+ * publish, Search Console's sitemap submission, Business Profile's place action links).
+ */
 function publishesLive(plan: CompiledRequest): boolean {
   const family = familyOf(plan);
   if (family?.publishes) return family.publishes(plan);
-  if (plan.gateway === 'gtm_native_action') return plan.method === 'POST' && /:publish$/.test(plan.path);
-  if (plan.gateway === 'google_search_console_native_action')
-    return plan.method === 'PUT' && plan.path.includes('/sitemaps/');
-  if (plan.gateway === 'google_business_native_action')
-    return ['POST', 'PATCH'].includes(plan.method) && /\/placeActionLinks(?:\/[^/]+)?$/.test(plan.path);
-  return false;
+  return providerHooks(plan.gateway)?.writes?.publishesLive?.(plan) ?? false;
 }
 /**
  * How many entities a request writes where it can be more than one (Google Ads operations, Snapchat record lists).
@@ -44,8 +44,8 @@ function targetCount(plan: CompiledRequest): number {
   const body = object(plan.body) ? plan.body : {},
     kind = plan.path.split('/').at(-1) ?? '';
   if (Array.isArray(body.operations)) return body.operations.length;
-  if (plan.gateway === 'snapchat_native_action' && Array.isArray(body[kind])) return body[kind].length;
-  return 1;
+  // A provider that writes a list of records in one request (Snapchat).
+  return providerHooks(plan.gateway)?.writes?.recordCount?.(body, kind) ?? 1;
 }
 /**
  * The effects of a compiled reviewed request, or undefined when it has none of them. With the before-state of a single
@@ -53,12 +53,9 @@ function targetCount(plan: CompiledRequest): number {
  * delivery.
  */
 export function writeEffects(plan: CompiledRequest, state?: unknown[]): WriteEffects | undefined {
-  const tiktokDelete =
-    plan.gateway === 'tiktok_native_action' &&
-    /\/status\/update\/$/.test(plan.path) &&
-    object(plan.body) &&
-    plan.body.operation_status === 'DELETE';
-  const destructive = plan.destructive === true || tiktokDelete,
+  // A write its provider documents as a deletion on a route that is not one (TikTok's status update to DELETE).
+  const providerDeletes = providerHooks(plan.gateway)?.writes?.deletes?.(plan) === true;
+  const destructive = plan.destructive === true || providerDeletes,
     delivery = deliveryStops(plan),
     publishes = publishesLive(plan),
     current = state && targetCount(plan) === 1 ? stateTarget(state)?.status?.toUpperCase() : undefined,

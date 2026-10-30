@@ -13,7 +13,7 @@ import type {TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {snake} from './write-common.js';
 import {currencyText, minimumUnitMicros} from './budget-units.js';
-import {googleRejectionIsNonApplied} from './write-rejection.js';
+import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {
   assertPmaxBuild,
   assertPmaxExistingAssets,

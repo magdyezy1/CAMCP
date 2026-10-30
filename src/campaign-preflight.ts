@@ -1,18 +1,13 @@
 import {planReference} from './workspace-core.js';
-import {metaPrerequisites} from './meta-prerequisites.js';
-import {snapAdPrerequisites} from './snapchat-ad-prerequisites.js';
-import {tiktokRecipePrerequisites} from './tiktok-launch-recipes.js';
-import {linkedinRecipePrerequisites} from './linkedin-lead-recipe.js';
 import {assertAccountWrite} from './write-access.js';
 import type {MirrorService} from './service.js';
-import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {driveDownloadUrl} from './drive-media.js';
 import {mediaLinkUrl} from './media-link.js';
-import {validateMetaCreative} from './creative-validation.js';
 import {normalizeAccount} from './scope.js';
 import {
   accountPlan,
@@ -25,113 +20,17 @@ import {
 import {unprotectedAccounts} from './spend-policy.js';
 import {groupLimitRefusal, groupParts, needsGroup} from './write-groups.js';
 import {fingerprint} from './workspace-core.js';
-import {googleJson} from './google-contracts.js';
 import {validateState} from './write-state.js';
+// A step's provider part (ARC-01 phase B, wave 4c: its adapter's `campaign.preflight`), asked where this stage named it.
+import {providerHooks} from './provider-hooks.js';
 
-function googleReference(service: MirrorService, parent: JsonObject | undefined, ref: string): string {
-  if (!parent) throw new MirrorError('INVALID_REFERENCE', 'The Google resource predecessor is missing.');
-  const account = normalizeAccount('google_ads_native_action', parent.account_id);
-  if (parent.kind === 'media' && parent.arguments.platform === 'google_ads')
-    return 'customers/' + account + '/assets/1';
-  if (parent.gateway !== 'google_ads_native_action')
-    throw new MirrorError('INVALID_REFERENCE', 'A Google resource name must come from a Google predecessor.');
-  const plan = service.compiler.compile(parent.gateway, {...parent.arguments, account_id: account}, service.options);
-  const match = plan.path.match(/^\/v\d+\/customers\/(\d+)\/([A-Za-z]+):mutate$/);
-  if (!match)
-    throw new MirrorError('INVALID_REFERENCE', 'This predecessor has no declared Google resource mutation receipt.');
-  const pointer = /^\/data\/results\/(0|[1-9][0-9]*)\/resourceName$/.exec(ref.slice(ref.indexOf('#') + 1));
-  const operations = googleJson(plan.body)?.operations,
-    index = pointer ? Number(pointer[1]) : -1;
-  if (!Number.isSafeInteger(index) || index < 0 || !Array.isArray(operations) || index >= operations.length)
-    throw new MirrorError(
-      'INVALID_REFERENCE',
-      'Select an existing operation result resourceName from this Google predecessor.',
-    );
-  const operation = operations[index],
-    existing = operation.update?.resourceName ?? operation.remove;
-  if (typeof existing === 'string') return existing;
-  // Symbolic contract checking uses the actual compiled collection and customer,
-  // not guesses based on the action name. Verified native IDs replace these at review.
-  const composite: Record<string, string> = {adGroupAds: '1~1', adGroupCriteria: '1~1', campaignCriteria: '1~1'};
-  let id = composite[match[2]!] ?? '1';
-  if (['campaignAssets', 'adGroupAssets', 'customerAssets', 'assetGroupAssets'].includes(match[2]!)) {
-    const type = operation.create?.fieldType;
-    if (typeof type !== 'string' || !type.match(/^[A-Z_]+$/))
-      throw new MirrorError('INVALID_REFERENCE', 'An asset-association predecessor requires its exact field type.');
-    id = (match[2] === 'customerAssets' ? '1~' : '1~1~') + type;
-  }
-  return 'customers/' + match[1] + '/' + match[2] + '/' + id;
-}
-const snapSymbolicId = '00000000-0000-4000-8000-000000000001';
-// Snapchat rejects an ad squad pixel the ad account does not own (E2405) only when the ad squad is
-// written. Compare with that account's own pixel list first. null = list unreadable (deferred).
-async function snapchatPixelsOwned(
-  service: MirrorService,
-  actor: Actor,
-  plan: CompiledRequest,
-  connectionId: string,
-  account: string,
-  cache: Map<string, Set<string> | null>,
-): Promise<boolean | null | undefined> {
-  if (!/^\/v1\/campaigns\/[^/]+\/adsquads$/.test(plan.path)) return undefined;
-  const rows = (plan.body as JsonObject | undefined)?.adsquads,
-    wanted = [
-      ...new Set(
-        (Array.isArray(rows) ? rows : [])
-          .map((r: JsonObject) => r?.pixel_id)
-          .filter((id: unknown): id is string => typeof id === 'string' && id !== snapSymbolicId),
-      ),
-    ];
-  if (!wanted.length) return undefined;
-  const key = connectionId + ':' + account;
-  if (!cache.has(key)) {
-    const read: CompiledRequest = {
-      gateway: plan.gateway,
-      accountId: account,
-      action: 'AMCP_PREFLIGHT_PIXELS',
-      method: 'GET',
-      path: '/v1/adaccounts/' + account + '/pixels',
-      query: {},
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      evidence: 'AMCP ad account pixel ownership read',
-      warnings: [],
-    };
-    try {
-      const out = (await service.runPlan(
-          read,
-          {connection_id: connectionId, aggregate_pages: true, max_pages: 25},
-          actor,
-        )) as JsonObject,
-        d = out.data ?? {};
-      cache.set(
-        key,
-        out.truncated || !Array.isArray(d.pixels)
-          ? null
-          : new Set(
-              d.pixels
-                .map((w: JsonObject) => w?.pixel?.id)
-                .filter((id: unknown): id is string => typeof id === 'string'),
-            ),
-      );
-    } catch (e) {
-      if (!(e instanceof MirrorError)) throw e;
-      cache.set(key, null);
-    }
-  }
-  const owned = cache.get(key);
-  if (!owned) return null;
-  const missing = wanted.filter(id => !owned.has(id));
-  if (missing.length)
-    throw new MirrorError(
-      'SNAPCHAT_PIXEL_NOT_OWNED',
-      'Snapchat accepts only pixels owned by this ad account. Use an owned pixel, or share this pixel to the ad account in Snapchat Business Manager first.',
-      {pixel_ids: missing, owned_pixel_ids: [...owned].sort()},
-    );
-  return true;
-}
+/**
+ * The whole-plan preflight: every step's account grant and read, currency, media and contract checked before any
+ * mutation. A provider's own parts are its adapter's `campaign.preflight` (Google's predecessor resource names, X's
+ * media key and card URI, Snapchat's symbolic IDs, ad squad pixels and ad creatives, Meta's creative contract and its
+ * Page and media, TikTok's launch packs and LinkedIn's lead form), moved verbatim from here; this stage keeps every
+ * check and its order and asks the step's provider where it named it.
+ */
 export async function campaignPreflight(
   service: MirrorService,
   actor: Actor,
@@ -141,8 +40,13 @@ export async function campaignPreflight(
     deferred: JsonObject[] = [],
     accounts = new Set<string>(),
     currencies = new Map<string, string | null>(),
-    pixels = new Map<string, Set<string> | null>(),
+    // What each provider keeps for this preflight (Snapchat's pixel lists), by gateway.
+    caches = new Map<string, Map<string, unknown>>(),
     accountEvidence: JsonObject[] = [];
+  const cache = (gateway: string) => {
+    if (!caches.has(gateway)) caches.set(gateway, new Map());
+    return caches.get(gateway)!;
+  };
   const error = (step: string, e: unknown) =>
     checks.push({
       step,
@@ -273,6 +177,9 @@ export async function campaignPreflight(
         continue;
       }
       const refs: string[] = [];
+      // The step's provider's part of the preflight (its adapter's `campaign.preflight`).
+      const preflight = providerHooks(gateway)?.campaign?.preflight,
+        context = {service, actor, connectionId: c.id, account, cache: cache(gateway), validateState};
       const symbolic = (v: any, path = ''): any => {
         if (v && typeof v === 'object' && !Array.isArray(v) && Object.hasOwn(v, '$ref')) {
           const {ref, prefix} = planReference(v);
@@ -282,12 +189,15 @@ export async function campaignPreflight(
           // A LinkedIn URN built from the referenced ID: the placeholder takes the same shape.
           if (prefix !== undefined) return prefix + '1';
           const parent = steps.find(s => s.id === ref.split('#')[0]);
-          if (gateway === 'x_ads_native_action') {
-            if (path.endsWith('/media_key')) return '13_1';
-            if (path.endsWith('/card_uri')) return 'card://1';
-          }
-          if (gateway === 'google_ads_native_action') return googleReference(service, parent, ref);
-          return gateway === 'snapchat_native_action' ? snapSymbolicId : '1';
+          // The provider's placeholder (X's media key and card URI, Google's resource name, Snapchat's symbolic ID).
+          return (
+            preflight?.reference?.({
+              path,
+              ref,
+              parent,
+              compile: (target: string, args: JsonObject) => service.compiler.compile(target, args, service.options),
+            }) ?? '1'
+          );
         }
         if (Array.isArray(v)) return v.map((x, i) => symbolic(x, path + '/' + i));
         if (v && typeof v === 'object')
@@ -309,27 +219,15 @@ export async function campaignPreflight(
         );
         assertWriteShape(plan);
         snapshotPlans(plan, service.registry);
-        if (gateway === 'meta_native_action' && plan.path.endsWith('/adcreatives'))
-          validateMetaCreative(plan.body as JsonObject, plan.path);
-        if (
-          gateway === 'snapchat_native_action' &&
-          (await snapchatPixelsOwned(service, actor, plan, c.id, account, pixels)) === null &&
-          !deferred.some(d => d.step === step.id && d.fields?.includes('pixel_id'))
-        )
-          deferred.push({
-            step: step.id,
-            fields: ['pixel_id'],
-            reason:
-              'The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.',
-          });
-        const assets = [
-          ...((await metaPrerequisites(service, actor, plan, c.id, refs, step.prerequisites ?? [])) ?? []),
-          ...(await snapAdPrerequisites(service, actor, plan, c.id, refs)),
-          // TikTok launch packs (CMP-07): the Spark identity, post and pixel before any predecessor is created.
-          ...(await tiktokRecipePrerequisites(service, actor, plan, c.id, step.prerequisites ?? [])),
-          // The LinkedIn lead generation pack (CMP-07): the account's lead form, read through its owner finder.
-          ...(await linkedinRecipePrerequisites(service, actor, plan, c.id, step.prerequisites ?? [])),
-        ];
+        // The provider's contract checks (Meta's creative contract, Snapchat's ad squad pixels); what it can check only
+        // at the step's review is deferred, once per step and field.
+        const deferral = await preflight?.contract?.(plan, context);
+        if (deferral && !deferred.some(d => d.step === step.id && d.fields?.includes(deferral.fields[0])))
+          deferred.push({step: step.id, ...deferral});
+        // The provider's existing dependencies, read live: Meta's Page and media, Snapchat's creatives and lead forms,
+        // TikTok's launch packs (CMP-07: the Spark identity, post and pixel before any predecessor is created) and the
+        // LinkedIn lead generation pack (CMP-07: the account's lead form, read through its owner finder).
+        const assets = [...((await preflight?.prerequisites?.(plan, context, refs, step.prerequisites ?? [])) ?? [])];
         if (assets?.length) checks.push({step: step.id, status: 'prerequisites_checked', assets});
       };
       // The step as it will be sent: whole, or, when only the 25-record limit refuses it, in the parts of 25 that

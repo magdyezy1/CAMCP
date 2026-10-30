@@ -15,6 +15,12 @@ import {
 } from './microsoft-native.js';
 import type {TransportResult} from './transport.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
+// Writes and campaigns (wave 4c).
+import {buildMicrosoftSearchRecipe, microsoftSearchContext, microsoftSearchRecipe} from './microsoft-search-recipe.js';
+import {microsoftActivationGates, microsoftActivationSteps} from './microsoft-recipe-activation.js';
+import {recordedWriteGrant} from './provider-grants.js';
+import {fail} from './write-common.js';
+import {microsoftLocationsUnpinned} from './microsoft-location-pin.js';
 
 /**
  * Microsoft's resource scope, after the account path: the mandatory CustomerAccountId header confines Campaign
@@ -123,4 +129,36 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
     // Report submission creates a provider job: one attempt.
     singleAttempt: (plan: CompiledRequest) => plan.action === 'SubmitGenerateReport',
   }),
+  // Writes and campaigns (wave 4c): the guided Search recipe (CMP-03).
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      Object.freeze({
+        definition: microsoftSearchRecipe,
+        build: buildMicrosoftSearchRecipe,
+        context: microsoftSearchContext,
+      }),
+    ]),
+    // A launch's campaign, ad group, keywords and ad activated in turn, gated on positive location criteria (P7).
+    activation: Object.freeze({steps: microsoftActivationSteps, gates: microsoftActivationGates}),
+    // recipe_lookup's locations, which the service answers from Microsoft's geographical locations file (CMP-03,
+    // src/microsoft-locations.ts); refused while the file's request is not pinned (src/campaign-runner.ts).
+    lookups: Object.freeze({microsoft_location: Object.freeze({unavailable: microsoftLocationsUnpinned})}),
+  }),
+  // Its review needs msads.manage, after the family's scope check (src/write-review.ts).
+  writes: Object.freeze({
+    writeGrant: microsoftWriteGrant,
+    // Batch errors can align with request items using null success slots: those top-level lists hold no error. The
+    // exception is exact (src/write-outcome.ts); false or objects still fail.
+    emptyErrors: (key: string, value: unknown) =>
+      (key === 'PartialErrors' || key === 'NestedPartialErrors') &&
+      Array.isArray(value) &&
+      value.every(item => item === null),
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.access (src/write-review.ts).
+/** The one grant registry (CON-03): msads.manage, recorded in its full or short form. */
+function microsoftWriteGrant(connection: Connection): void {
+  if (recordedWriteGrant(connection) === false)
+    fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
+}

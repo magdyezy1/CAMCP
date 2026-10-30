@@ -29,6 +29,33 @@ import {googleJson, validateGoogleRequest} from './google-contracts.js';
 import {googleAdsCustomers} from './google-version.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+// Writes and campaigns (wave 4c).
+import {
+  buildGoogleSearchRecipe,
+  googleRecipeLookup,
+  googleSearchDependencyEvidence,
+  googleSearchRecipeContext,
+  googleSearchRecipes,
+} from './google-search-recipes.js';
+import {
+  buildGooglePmaxRecipe,
+  googlePmaxContext,
+  googlePmaxDependencyEvidence,
+  googlePmaxRecipe,
+} from './google-pmax-recipe.js';
+import {validateGoogleTargetingState} from './google-targeting-writes.js';
+import {validateGooglePausedParents} from './google-paused-parents.js';
+import {googleStateReads} from './google-state-reads.js';
+import {googleClone} from './google-campaign-clone.js';
+import {composeGoogleBuild} from './google-atomic-builds.js';
+import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
+import {googlePreflight} from './google-preflight.js';
+import type {DependencyEvidenceContext, MutationResponse} from './provider-adapter.js';
+import {googleRejectionIsNonApplied} from './google-write-rejection.js';
+import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
+// Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
+import {assertGoogleAccessPolicy} from './google-user-access.js';
+import {pinnedJson} from './pinned-json.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -544,4 +571,132 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       plan.path.startsWith('/resumable/upload/') ? ['x-goog-upload-url', 'x-goog-upload-chunk-granularity'] : [],
     errors: Object.freeze({code: googleErrorCode, classify: classifyGoogleError}),
   }),
+  // Writes and campaigns (wave 4c): the guided Search recipes, then Performance Max (CMP-07).
+  campaign: Object.freeze({
+    recipes: Object.freeze([
+      ...googleSearchRecipes.map(definition =>
+        Object.freeze({
+          definition,
+          build: (b: JsonObject) => buildGoogleSearchRecipe(definition.id, b),
+          context: googleSearchRecipeContext(definition.id),
+        }),
+      ),
+      Object.freeze({definition: googlePmaxRecipe, build: buildGooglePmaxRecipe, context: googlePmaxContext}),
+    ]),
+    // A Search campaign, read and recreated paused; one all-or-nothing build by default (src/campaign-clone.ts,
+    // src/campaign-runner.ts), whose customer is compared without the dashes of its display form.
+    clone: Object.freeze({
+      build: googleClone,
+      allOrNothing: (steps: JsonObject[], accountId: unknown) =>
+        composeGoogleBuild(steps, String(accountId).replace(/-/g, '')),
+    }),
+    // A launch's campaign enabled, a conversion launch gated on its account-default goals.
+    activation: Object.freeze({
+      steps: googleActivationSteps,
+      record: googleActivationRecord,
+      gates: googleActivationGates,
+    }),
+    // A plan step's predecessor resource names (src/campaign-preflight.ts).
+    preflight: googlePreflight,
+    // A build Google refused outright created nothing, and recipe_lookup's country and language constants
+    // (src/campaign-runner.ts).
+    refusedBuild: googleRefusedBuild,
+    lookups: Object.freeze({
+      country: Object.freeze({search: googleRecipeLookup}),
+      language: Object.freeze({search: googleRecipeLookup}),
+    }),
+    // Its recipes' explicit bidding settings and Performance Max asset counts, as their eligibility shows them
+    // (src/recipe-eligibility.ts).
+    dependencyEvidence: (id: string, context: DependencyEvidenceContext) =>
+      googleSearchDependencyEvidence(id, context) ?? googlePmaxDependencyEvidence(id, context),
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
+  // checked against the state, in that order, before the review's paused-parent check.
+  writes: Object.freeze({
+    // Its response contract for the one mutation (src/write-outcome.ts).
+    confirms: googleConfirms,
+    // A long mutation's parts of 25 under one approval (src/write-groups.ts).
+    batch: googleBatch,
+    // A mutation's state reads: its targets, the customer of a create, and each existing parent.
+    snapshots: googleStateReads,
+    prerequisites(plan: CompiledRequest, values: unknown[]) {
+      validateGoogleTargetingState(plan, values);
+      validateGooglePausedParents(plan, values);
+    },
+    // A per-service mutate refused outright applied nothing (src/write-rejection.ts, the rejected outcome).
+    rejectionIsNonApplied: googleRejectionIsNonApplied,
+    // An uncertain write's reconciliation (src/write-reconciliation.ts): its named creates found by name, the
+    // operations' resources as the receipt of an update or removal.
+    createdLookup: googleCreated,
+    namedTargets: googleNamedTargets,
+    // The owner's spending policy (src/spend-policy.ts): its switches over the user access a write grants, and the
+    // money fields of the pinned Discovery document.
+    accessPolicy: assertGoogleAccessPolicy,
+    moneyFields: googleMoneyFields,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from rejectedBuild (src/campaign-runner.ts), after the runner's own
+// failed-write checks.
+/**
+ * A build Google refused outright (HTTP 4xx other than a timeout or rate limit). The pinned v25 contract applies a
+ * partialFailure-false googleAds:mutate "if and only if" every operation is valid, so a refused build created nothing
+ * (the owner's decision 5, 2026-09-29).
+ */
+function googleRefusedBuild(step: JsonObject): boolean {
+  return (
+    /_google_ads_mutate$/.test(String(step.arguments?.action ?? '')) &&
+    step.arguments?.payload?.partial_failure !== true &&
+    step.arguments?.payload?.partialFailure !== true &&
+    [400, 401, 403, 404, 409, 412, 422].includes(Number(step.error?.details?.http_status))
+  );
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from src/spend-policy.ts.
+/**
+ * Google Ads money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B):
+ * bid ceilings, floors and targets join the bid cap, and money that is neither a bid nor a measured budget is refused
+ * as unsupported under a numeric policy. Ratios such as location_fraction_micros stay out.
+ */
+type GoogleMoneyFields = {bid: string[]; unsupported: string[]};
+let googleMoney: GoogleMoneyFields | undefined;
+export function googleMoneyFields(): GoogleMoneyFields {
+  return (googleMoney ??= (() => {
+    const fields = pinnedJson<{fields: GoogleMoneyFields}>('generated/google-bid-fields.json').fields;
+    return {bid: [...fields.bid], unsupported: [...fields.unsupported]};
+  })());
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
+/** One result per operation, each naming its target or a new resource of the mutated collection in the account. */
+function googleConfirms(
+  plan: CompiledRequest,
+  _result: TransportResult,
+  {data: d, body: b, last}: MutationResponse,
+): boolean {
+  return (
+    Array.isArray(d.results) &&
+    d.results.length === b.operations.length &&
+    d.results.every((r: JsonObject, i: number) => {
+      const op = b.operations[i],
+        expected = op.remove ?? op.update?.resource_name ?? op.update?.resourceName;
+      return (
+        typeof r.resourceName === 'string' &&
+        (expected
+          ? r.resourceName === expected
+          : r.resourceName.startsWith('customers/' + plan.accountId + '/' + last.replace(':mutate', '') + '/'))
+      );
+    })
+  );
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
+/** A mutation's operations, unless temporary resource IDs link them. */
+function googleBatch(payload: JsonObject): {key: string; items: unknown[]} | undefined {
+  if (Array.isArray(payload.operations)) {
+    // Temporary resource IDs (customers/1/campaigns/-1) link operations inside one request; they cannot be split.
+    if (/"[^"]*customers\/[^"/]+\/[A-Za-z]+\/-\d/.test(JSON.stringify(payload.operations))) return undefined;
+    return {key: 'operations', items: payload.operations};
+  }
+  return undefined;
+}

@@ -4,6 +4,8 @@ import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
+// Writes and campaigns (wave 4c).
+import {assertMeasurementScopes} from './measurement-writes.js';
 
 /**
  * Search Console's sitemap `errors` is a documented content-error count, not a failed API envelope: the success check
@@ -107,5 +109,11 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
       }
       return undefined;
     },
+  }),
+  // Writes and campaigns (wave 4c): a review's write needs the Search Console write permission (src/write-review.ts).
+  writes: Object.freeze({
+    writePermission: assertMeasurementScopes,
+    // A sitemap submission takes effect for everyone at once (src/write-effects.ts).
+    publishesLive: (plan: CompiledRequest) => plan.method === 'PUT' && plan.path.includes('/sitemaps/'),
   }),
 });

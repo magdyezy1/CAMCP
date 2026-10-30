@@ -195,9 +195,42 @@ test('all actual directly owned backend reasons have Arabic with original native
   // evidence checks move from src/report-allocation.ts to src/snapchat-allocation-evidence.ts and
   // src/linkedin-allocation-evidence.ts, and its evidence date check to the leaf src/evidence-dates.ts (three files
   // more), all still raised through bad() and still authored allocation copy (tools/check-locales.mjs): the same reasons.
-  assert.equal(files.length, 679);
-  assert.equal(selected.filter(row => row.messages.size).length, 259);
-  assert.equal(owned.size, 1589);
+  // ARC-04 (wave 4c) splits campaignRecipe into per-recipe builders: src/recipe-steps.ts and the Meta, Google Search
+  // and Microsoft Search recipe modules, whose reasons moved with their code from src/campaign-recipes.ts (which keeps
+  // the catalog's own): four more files with reasons, the same reasons. ARC-01 (wave 4c) adds Reddit's page step, whose
+  // five refusals moved with it from src/reddit-adapter.ts (src/reddit-paging.ts: one more file with reasons, the same
+  // reasons), and Meta's first write-shape checks (src/meta-write-shape.ts, whose refusals this inventory never owned in
+  // src/write-shape.ts either). Its review hooks move Snapchat's affected-ads read to the leaf
+  // src/snapchat-affected-ad-pages.ts, whose one reason moved with it from src/snapchat-affected-ads.ts (which keeps its
+  // signature): one more file, the same files with reasons and the same reasons. Its state reads move the Google Ads,
+  // TikTok, Meta and Snapchat branches of src/write-snapshots.ts to four provider modules (src/google-state-reads.ts and
+  // its three siblings), whose refusals this inventory never owned in src/write-snapshots.ts either: four more files.
+  // Its disclosures move Snapchat's creative replacement check from src/write-impact.ts, which owns no other reason, to
+  // src/snapchat-write-impact.ts with its four reasons: one more file, the same files with reasons and reasons.
+  // Its campaign clones move each provider's clone builder from src/campaign-clone.ts to src/<provider>-campaign-clone.ts
+  // and the shared source read to src/campaign-clone-core.ts, their reasons with their code: five more files, four of
+  // them with reasons (src/campaign-clone.ts keeps the gateway and input refusals), and the same reasons. Its guided
+  // activations move each platform's steps and gates from src/campaign-activation.ts to
+  // src/<provider>-recipe-activation.ts and the shared result checks to src/campaign-activation-core.ts: seven more
+  // files, the same files with reasons and the same reasons. Its preflight moves Google's predecessor references and
+  // Snapchat's pixel ownership from src/campaign-preflight.ts to src/google-preflight.ts and src/snapchat-preflight.ts
+  // with their reasons, and Meta's preflight hooks to src/meta-preflight.ts: three more files, two more with reasons
+  // (src/campaign-preflight.ts keeps its own), the same reasons. Its rejected outcome moves Google's proof that a
+  // refusal applied nothing to src/google-write-rejection.ts and the definitive statuses to the leaf
+  // src/write-rejection-core.ts, neither with reasons: two more files. Its reconciliation moves Google's and Meta's
+  // created-resource lookups and named targets to src/google-write-reconciliation.ts and
+  // src/meta-write-reconciliation.ts and the read normalization to the leaf src/verification-core.ts, none with
+  // reasons: three more files. Its recipe context moves the Microsoft location lookup's pinned request to the leaf
+  // src/microsoft-location-pin.ts with its two reasons (src/microsoft-locations.ts keeps its others): one more file, one
+  // more with reasons, the same reasons. Its spending policy moves Meta's currency-cap refusal from
+  // src/spend-policy.ts, where it reached MirrorError through a helper this inventory does not follow, to
+  // src/meta-adapter.ts, which constructs it: one more owned reason, whose Arabic the catalog already held.
+  // Merged, the reporting and writes packages' files add up (ten and 33 more files, six and twelve more with reasons),
+  // and so do their two newly owned reasons: the report source contract's undocumented-value refusal and Meta's
+  // currency-cap refusal, each already translated.
+  assert.equal(files.length, 712);
+  assert.equal(selected.filter(row => row.messages.size).length, 271);
+  assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
