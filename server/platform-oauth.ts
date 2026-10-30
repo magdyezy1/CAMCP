@@ -363,10 +363,14 @@ export class PlatformOAuth {
   ) {}
   /**
    * Reddit's User-Agent for this deployment (AMCP_REDDIT_USER_AGENT; its OAuth steps, src/reddit-login.ts, check it),
-   * as a Reddit login keeps it on its connection (`connectionFields`).
+   * as a Reddit login keeps it on its connection (`connectionFields`). Login steps that keep none are a wiring defect:
+   * it refuses then, rather than answering "undefined" as the value a header would carry.
    */
-  redditUserAgent() {
-    return String(this.connectionFields(platform('reddit')).userAgent);
+  redditUserAgent(): string {
+    const userAgent = this.connectionFields(platform('reddit')).userAgent;
+    if (typeof userAgent !== 'string' || !userAgent)
+      throw new Error("Reddit's login steps keep no User-Agent on its connection.");
+    return userAgent;
   }
   /** Fields a new login of the platform keeps on its connection (Reddit's User-Agent), or the provider's refusal. */
   connectionFields(p: PlatformDefinition): Pick<Connection, 'userAgent'> {

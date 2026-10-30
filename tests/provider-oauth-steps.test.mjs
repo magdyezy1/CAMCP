@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {platforms} from '../dist/server/platform-oauth.js';
+import {PlatformOAuth, platforms} from '../dist/server/platform-oauth.js';
 import {providerLogin, registeredProviderLogins} from '../dist/src/provider-logins.js';
 import {googleOAuth} from '../dist/src/google-oauth.js';
 import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
@@ -100,4 +100,16 @@ test('what a login keeps on its connection is never its identity, accounts or gr
       }),
     e => e.code === 'USER_AGENT_REQUIRED',
   );
+});
+
+test('the deployment’s Reddit User-Agent is what its login keeps, and login steps that keep none are refused', () => {
+  const web = {};
+  assert.equal(new PlatformOAuth(web, {AMCP_REDDIT_USER_AGENT: ' probe/1 '}).redditUserAgent(), 'probe/1');
+  assert.equal(new PlatformOAuth(web, {}).redditUserAgent(), 'AMCP/0.1.0 (advertising campaign management)');
+  // Regression (wave 4c merge review): without the login steps' connection fields it answered the string "undefined".
+  const unwired = new PlatformOAuth(web, {AMCP_REDDIT_USER_AGENT: 'probe/1'});
+  unwired.connectionFields = () => ({});
+  assert.throws(() => unwired.redditUserAgent(), /Reddit's login steps keep no User-Agent on its connection\./);
+  unwired.connectionFields = () => ({userAgent: ''});
+  assert.throws(() => unwired.redditUserAgent(), /keep no User-Agent/);
 });
