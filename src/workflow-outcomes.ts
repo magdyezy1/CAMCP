@@ -1,4 +1,5 @@
 import type {JsonObject} from './types.js';
+import {workspaceWebsitePath} from './provider-workflows.js';
 
 /**
  * What following a suggested call does (MCP-09): whether it reaches a provider, which AMCP records it may save, and that
@@ -366,6 +367,7 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
       };
   }
   if (tool === 'amcp_workspace') {
+    let page: {readonly path?: string} | undefined;
     if (Array.isArray(data.operations)) result.website_path = '/operations';
     else if (['portfolio', 'portfolio_reconciliation'].includes(data.record_kind)) result.website_path = '/portfolio';
     else if (data.record_kind === 'audit_history') result.website_path = '/activity';
@@ -376,53 +378,11 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
         .map(key => key + '=' + encodeURIComponent(data.scope[key]))
         .join('&');
       result.website_path = '/commerce?catalog_comparison=1' + (query ? '&' + query : '');
-    } else if (
-      data.record_kind === 'catalog_source_inventory' &&
-      data.state === 'complete' &&
-      data.complete_collected_inventory === true &&
-      data.scope?.gateway === 'commerce_native_action' &&
-      data.scope.source_kind === 'inventory' &&
-      data.scope.absent_source_policy === 'retain' &&
-      data.scope.api_version === 'wc/v3' &&
-      data.scope.product_status === 'publish' &&
-      data.scope.variation_status === 'any' &&
-      ['price', 'regular_price', 'sale_price'].includes(data.scope.price_field) &&
-      ['connection_id', 'account_id'].every(
-        key => typeof data.scope[key] === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(data.scope[key]),
-      )
-    ) {
-      result.website_path =
-        '/commerce?woo_inventory=1&connection_id=' +
-        encodeURIComponent(data.scope.connection_id) +
-        '&account_id=' +
-        encodeURIComponent(data.scope.account_id) +
-        '&price_field=' +
-        data.scope.price_field;
-    } else if (
-      data.record_kind === 'catalog_source' &&
-      data.scope?.gateway === 'commerce_native_action' &&
-      data.complete_selected_evidence === true &&
-      Array.isArray(data.product_ids) &&
-      data.product_ids.length >= 1 &&
-      data.product_ids.length <= 50 &&
-      data.product_ids.every((id: unknown) => typeof id === 'string' && /^[1-9][0-9]{0,19}$/.test(id)) &&
-      new Set(data.product_ids).size === data.product_ids.length &&
-      ['price', 'regular_price', 'sale_price'].includes(data.scope?.price_field)
-    ) {
-      const query = ['connection_id', 'account_id']
-        .filter(key => typeof data.scope?.[key] === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(data.scope[key]))
-        .map(key => key + '=' + encodeURIComponent(data.scope[key]));
-      if (query.length === 2)
-        result.website_path =
-          '/commerce?woo_source=1&' +
-          query.join('&') +
-          '&product_ids=' +
-          encodeURIComponent(data.product_ids.join(',')) +
-          '&price_field=' +
-          data.scope.price_field +
-          (data.scope.source_kind === 'variations' && /^[1-9][0-9]{0,19}$/.test(data.scope.parent_product_id ?? '')
-            ? '&source_kind=variations&parent_product_id=' + data.scope.parent_product_id
-            : '');
+    } else if ((page = workspaceWebsitePath(data))) {
+      // A provider's record of a workspace action (WooCommerce's complete store reads) names its page in the provider
+      // workflows registry (ARC-01 phase B, src/provider-workflows.ts), here in this chain; its record without one gets
+      // no link.
+      if (page.path !== undefined) result.website_path = page.path;
     } else if (data.record_kind === 'measurement_events') result.website_path = '/measurement';
     else if (data.record_kind === 'measurement_event_identity') {
       const values = {

@@ -257,7 +257,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owned reason changes.
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
-  assert.equal(files.length, 736);
+  // ARC-01 phase B (wave 4c round 6): the workspace tool's provider actions add Tag Manager's measurement audit
+  // (src/gtm-measurement-audit.ts) and WooCommerce's workspace actions (src/woocommerce-workspace.ts), neither owning a
+  // reason: 738 files, the same reasons.
+  assert.equal(files.length, 738);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11529);

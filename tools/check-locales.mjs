@@ -1377,6 +1377,8 @@ export function checkWebLocales(root = process.cwd()) {
     'src/x-catalog-selection-inventory.ts',
     'src/gtm-diagnostics.ts',
     'src/gtm-consent-plans.ts',
+    // ARC-01 phase B (wave 4c round 6): the measurement audit's meaning, a branch of src/workspace.ts before.
+    'src/gtm-measurement-audit.ts',
     'src/measurement-google-goals.ts',
     'src/ga4-admin-config.ts',
     'src/measurement-ledger.ts',

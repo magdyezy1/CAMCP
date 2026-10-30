@@ -231,7 +231,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // DOC-03's members-only Help page adds server/help-routes.ts and seven website entries, none a wrapper reason, and
   // its Home copy nine website entries (the capability outcomes), none a wrapper reason.
   // Merged with the ARC packages, the Help page's module is one more: 736.
-  assert.equal(files.length, 736);
+  // ARC-01 phase B (wave 4c round 6) adds Tag Manager's measurement audit and WooCommerce's workspace actions
+  // (src/gtm-measurement-audit.ts, src/woocommerce-workspace.ts), without wrapper reasons: 738.
+  assert.equal(files.length, 738);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11529);

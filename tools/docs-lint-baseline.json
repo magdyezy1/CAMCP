@@ -34,10 +34,16 @@
       "raised": [
         "reference_words 143221 → 143230"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the workspace tool's provider actions as the provider workflows registry's workspace entries (ARC-01, 79 words)",
+      "raised": [
+        "reference_words 143230 → 143309"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143230
+    "reference_words": 143309
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

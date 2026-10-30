@@ -222,6 +222,10 @@ export const targets = Object.freeze({
   'dist/src/meta-asset-usage.js': {functions: ['metaAssetUsage']},
   'dist/src/google-image-usage.js': {functions: ['googleImageUsage']},
   'dist/src/snapchat-asset-usage.js': {functions: ['snapchatAssetUsage']},
+  // Wave 4c round 6 (w4c-arc6-workspace): the workspace tool, whose providers' actions are the provider workflows
+  // registry's workspace entries, and the outcome links that ask the registry for a provider's page.
+  'dist/src/workspace.js': {classes: {WorkspaceService: ['handle']}},
+  'dist/src/workflow-outcomes.js': {functions: ['workflowOutcome']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -282,6 +286,8 @@ export const replayable = Object.freeze([
   'dist/src/write-impact.js#writeImpact',
   'dist/src/access-sets.js#accountKey',
   'dist/src/provider-revocation.js#revocationTarget',
+  // Wave 4c round 6 (w4c-arc6-workspace).
+  'dist/src/workflow-outcomes.js#workflowOutcome',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
