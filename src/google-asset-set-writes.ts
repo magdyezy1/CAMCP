@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {readOf} from './family-kit.js';
 import {googleJson} from './google-contracts.js';
 import {googleFeedAssetFields} from './google-asset-set-fields.js';
 import {stable, sha256} from './security.js';
@@ -175,13 +176,12 @@ function setNames(p: CompiledRequest) {
   }
   return [...names].sort();
 }
+/** A Google Ads search of the feed's state: the family kit's read, the family's state reset before both clears. */
 function search(p: CompiledRequest, entity: string, fields: string[], where: string): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_FEED_READ',
     method: 'POST',
     path: googleAdsCustomers + p.accountId!.replaceAll('-', '') + '/googleAds:search',
-    headers: {},
     query: {},
     body: {
       query:
@@ -192,14 +192,8 @@ function search(p: CompiledRequest, entity: string, fields: string[], where: str
         ' WHERE ' +
         where,
     },
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    googleState: undefined,
-    googleAssetSetState: undefined,
-    responseControls: undefined,
-    specialTransport: undefined,
-  };
+    after: {googleState: undefined, googleAssetSetState: undefined},
+  });
 }
 const namesQuery = (entity: string, names: string[]) =>
   entity + '.resource_name IN (' + names.map(n => "'" + n + "'").join(', ') + ')';

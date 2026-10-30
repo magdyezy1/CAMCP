@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {readOf} from './family-kit.js';
 import {googleJson} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -190,22 +191,18 @@ function search(p: CompiledRequest, collection: string, field: string, values: s
       ' IN (' +
       values.map(n => "'" + n + "'").join(', ') +
       ')';
-  return {
-    ...p,
-    action: 'AMCP_KEYWORD_PLAN_READ',
-    path: googleAdsCustomers + p.accountId!.replaceAll('-', '') + '/googleAds:search',
-    method: 'POST',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    googleState: undefined,
-    googleKeywordPlanState: undefined,
-  };
+  // The family kit's read: a Google Ads search that clears both write-only fields, then the family's state.
+  return readOf(
+    p,
+    {
+      action: 'AMCP_KEYWORD_PLAN_READ',
+      method: 'POST',
+      path: googleAdsCustomers + p.accountId!.replaceAll('-', '') + '/googleAds:search',
+      query: {},
+      body: {query},
+    },
+    {googleState: undefined, googleKeywordPlanState: undefined},
+  );
 }
 export function keywordPlanSnapshots(p: CompiledRequest): CompiledRequest[] {
   const kind = keywordPlanKind(p);

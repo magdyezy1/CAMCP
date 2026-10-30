@@ -1,4 +1,4 @@
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -56,24 +56,12 @@ export function xCatalogRead(
   query: Record<string, string | number> = {},
   tag: XCatalogTag = {},
 ): CompiledRequest {
-  const r: JsonObject = {
-    ...p,
-    action: xCatalogMarker,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  // The family kit's state read, then the tags and every family state key in their order.
+  return stateReadOf<CompiledRequest & JsonObject>(p, xCatalogMarker, path, query, {
     xCatalogUser: tag.xCatalogUser,
     xCatalogId: tag.xCatalogId,
-  };
-  for (const k of stateKeys) r[k] = undefined;
-  return r as unknown as CompiledRequest;
+    ...Object.fromEntries(stateKeys.map(k => [k, undefined])),
+  });
 }
 /**
  * Internal catalog reads: the account's promotable users, the catalogs of one of them, and the products, product sets

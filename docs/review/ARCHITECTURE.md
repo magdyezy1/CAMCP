@@ -555,11 +555,15 @@ defaults. Each builder is now one kit call in its module's own wrapper (145 call
 no read of their own), produced by a codemod that moved each member's expression unchanged. For every compiled request
 (each carries CompiledRequest's required members, so where a builder wrote those does not change its read) each call
 gives the builder's keys, values and key order: a static comparison of the 127 builders the codemod rewrote with their
-calls found no difference (the lodging reads' shared base, the 128th, became two calls by hand),
-`tests/family-reads.test.mjs` compares the kit with each of the 25 layouts the builders had
-for all 512 combinations of the optional fields a request may carry, and fails when a family module builds a read of
-its own, and the call replay over the families' suites (186 test files, 2,955,676 recorded calls and requests) shows
-no difference.
+calls found no difference (the lodging reads' shared base, the 128th, became two calls by hand), and the call replay
+over the families' suites (186 test files, 2,955,676 recorded calls and requests) shows no difference. Three more
+builders sat in provider modules that family modules import, where that scan did not look: google_configuration's
+feed and keyword plan searches (`src/google-asset-set-writes.ts`, `src/google-keyword-plan-writes.ts`) and the X
+catalog families' shared read (`src/x-catalogs.ts`). They are kit calls too; the feed search, which reset the
+family's state before the write-only fields, uses the kit's `after`. `tests/family-reads.test.mjs` compares the kit
+with each of the 28 layouts the builders had for all 1,024 combinations of the optional fields a request may carry,
+and fails when a family module, or a provider module one imports, builds a read of its own (X's audience estimate, a
+read tool whose literals are no family's reads, is the one helper it leaves out).
 
 ## 14. Composition tables
 

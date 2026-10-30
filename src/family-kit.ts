@@ -83,6 +83,11 @@ export interface FamilyRead<R extends CompiledRequest = CompiledRequest> {
    */
   readonly before?: Partial<R>;
   /**
+   * Fields the read sets after its own and before the write-only fields it clears, in this order: a family's state
+   * fields that its builder reset ahead of those (google_configuration's feed searches).
+   */
+  readonly after?: Partial<R>;
+  /**
    * The write-only fields the read clears, in this order: both by default. A family whose reads always kept one of
    * them names only the other (most Google Ads searches keep the special transport), or none.
    */
@@ -92,11 +97,11 @@ export interface FamilyRead<R extends CompiledRequest = CompiledRequest> {
 /**
  * A family's state read of its write request `p` (the review's `readsFor`), as family modules had each built it: `p`,
  * then `read.before`, the read's action, method, path, query, body and headers, read-only, not destructive, no
- * confirmation, the write-only fields it clears (`read.clears`), then `fields` in the order the family set them (its
- * state fields reset, a query encoding). For every compiled request (all of its required fields present) a family's
- * builder and its `readOf` call give the same keys, values and key order (tests/family-reads.test.mjs). A family keeps
- * its own `read` wrapper, so its call sites do not change: `return readOf<Read>(p, {action: 'AMCP_X_READ', method:
- * 'POST', path, query: {}, body: {query}, clears: ['responseControls']}, {xState: undefined});`.
+ * confirmation, `read.after`, the write-only fields it clears (`read.clears`), then `fields` in the order the family
+ * set them (its state fields reset, a query encoding). For every compiled request (all of its required fields present)
+ * a family's builder and its `readOf` call give the same keys, values and key order (tests/family-reads.test.mjs). A
+ * family keeps its own `read` wrapper, so its call sites do not change: `return readOf<Read>(p, {action:
+ * 'AMCP_X_READ', method: 'POST', path, query: {}, body: {query}, clears: ['responseControls']}, {xState: undefined});`.
  */
 export function readOf<R extends CompiledRequest = CompiledRequest>(
   p: CompiledRequest,
@@ -115,6 +120,7 @@ export function readOf<R extends CompiledRequest = CompiledRequest>(
     readOnly: true,
     destructive: false,
     requiresConfirmation: false,
+    ...read.after,
   };
   for (const field of read.clears ?? writeOnlyFields) out[field] = undefined;
   return {...out, ...fields} as R;

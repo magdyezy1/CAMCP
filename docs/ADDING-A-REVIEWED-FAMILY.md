@@ -71,16 +71,19 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
   read replaces, such as `accountId` or `origin`, what it never carries, such as `personalData`, or state fields a
   family sets first), the read's action, method (`GET` unless it posts a search `body`), path, query, body and headers
   (`{}` unless the provider needs some on a read, such as LinkedIn's version headers), read-only, not destructive, no
-  confirmation, then the write-only fields it clears (`read.clears`: `responseControls` and `specialTransport` by
-  default; most Google Ads searches clear only the first) and `fields` in order (the family's state fields reset, a
-  query encoding). `stateReadOf(p, action, path, query, fields)` is its common case, a GET that clears both. Keep a
-  `read` wrapper in the module so its call sites stay the same, for example
+  confirmation, then `read.after` (state fields a family resets ahead of the clears), the write-only fields it clears
+  (`read.clears`: `responseControls` and `specialTransport` by default; most Google Ads searches clear only the first)
+  and `fields` in order (the family's state fields reset, a query encoding). `stateReadOf(p, action, path, query,
+  fields)` is its common case, a GET that clears both. Keep a `read` wrapper in the module so its call sites stay the
+  same, for example
   `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`
   or, for a Google Ads search, `return readOf<Read>(p, {action: 'AMCP_GOOGLE_BID_READ', method: 'POST', path, body:
   {query}, query: {}, clears: ['responseControls']}, {googleBidState: undefined});`. Every family builds its reads
-  with them: `tests/family-reads.test.mjs` holds each layout the families had copied, compares the kit's read with it
-  key by key and in order for every combination of the fields a request may carry, and fails when a family module
-  spreads a request into a read of its own.
+  with them, in its own modules and in the provider modules they import (google_configuration's searches in
+  `src/google-asset-set-writes.ts` and `src/google-keyword-plan-writes.ts`, the X catalog families' shared read in
+  `src/x-catalogs.ts`): `tests/family-reads.test.mjs` holds each layout the families had copied, compares the kit's
+  read with it key by key and in order for every combination of the fields a request may carry, and fails when a
+  family module or one of those helpers spreads a request into a read of its own.
 - `familyStages` lists the hooks of `ReviewedFamily` by the stage that calls them (`core`, `state`, `policy`,
   `delivery`, `verification`), each hook in one stage; `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`,
   `FamilyDeliveryHooks` and `FamilyVerificationHooks` are their types, and `FamilyDeclaration` is all five. A new hook

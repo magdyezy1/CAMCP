@@ -5,12 +5,15 @@ import {parsers} from 'prettier/plugins/babel';
 import {Registry} from '../dist/src/catalog.js';
 import {reviewedFamilies} from '../dist/src/reviewed-families.js';
 import {readOf, stateReadOf} from '../dist/src/family-kit.js';
+import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
 
 // ARC-04 stage C (the review's readsFor): every reviewed family builds its state reads with the family kit. Each
 // builder the family modules had copied is transcribed below as it was written, by layout (what it cleared, what it
 // set before its own members, the order it wrote them in), with the families that had it. Loading the catalog first
 // evaluates the registry, as entry points do.
 new Registry();
+// The state keys of the X catalog families, which their shared read clears (src/x-catalogs.ts).
+const catalogStates = ['xCatalogState', 'xProductSetState', 'xScheduledFeedState', 'xCatalogProductState'];
 
 /**
  * A family's builder, as its modules had written it, and the kit call that replaced it. `copied` and `kit` take the
@@ -95,7 +98,11 @@ const layouts = {
       ...v.fields,
     }),
     kit: (p, v) =>
-      readOf(p, {action: v.action, method: 'POST', path: v.path, body: v.body, query: {}, clears: ['responseControls']}, v.fields),
+      readOf(
+        p,
+        {action: v.action, method: 'POST', path: v.path, body: v.body, query: {}, clears: ['responseControls']},
+        v.fields,
+      ),
   },
   'POST search, both cleared': {
     families: ['google_asset_links', 'google_listing_groups', 'google_configuration', 'google_atomic_builds'],
@@ -208,7 +215,11 @@ const layouts = {
       ...v.fields,
     }),
     kit: (p, v) =>
-      readOf(p, {action: v.action, method: v.body ? 'POST' : 'GET', path: v.path, query: v.query, body: v.body}, v.fields),
+      readOf(
+        p,
+        {action: v.action, method: v.body ? 'POST' : 'GET', path: v.path, query: v.query, body: v.body},
+        v.fields,
+      ),
   },
   // Reads that kept the special transport: Snapchat media and targeting specs, X and TikTok report jobs, Meta insights,
   // Criteo campaigns and reports (no confirmation before not destructive).
@@ -285,7 +296,11 @@ const layouts = {
       ...v.fields,
     }),
     kit: (p, v) =>
-      readOf(p, {action: v.action, path: v.path, query: v.query, headers: v.headers, clears: ['responseControls']}, v.fields),
+      readOf(
+        p,
+        {action: v.action, path: v.path, query: v.query, headers: v.headers, clears: ['responseControls']},
+        v.fields,
+      ),
   },
   'GET with headers last, response controls cleared': {
     families: ['linkedin_audience_templates'],
@@ -304,7 +319,11 @@ const layouts = {
       ...v.fields,
     }),
     kit: (p, v) =>
-      readOf(p, {action: v.action, path: v.path, query: v.query, headers: v.headers, clears: ['responseControls']}, v.fields),
+      readOf(
+        p,
+        {action: v.action, path: v.path, query: v.query, headers: v.headers, clears: ['responseControls']},
+        v.fields,
+      ),
   },
   'GET with headers, nothing cleared': {
     families: ['linkedin_dsc'],
@@ -324,7 +343,13 @@ const layouts = {
   },
   // Meta graph reads set the family's state and page first.
   'GET, family fields first, both cleared': {
-    families: ['meta_ad_rules', 'meta_catalog_products', 'meta_product_catalogs', 'meta_product_feeds', 'meta_product_sets'],
+    families: [
+      'meta_ad_rules',
+      'meta_catalog_products',
+      'meta_product_catalogs',
+      'meta_product_feeds',
+      'meta_product_sets',
+    ],
     copied: (p, v) => ({
       ...p,
       ...v.before,
@@ -361,7 +386,12 @@ const layouts = {
       specialTransport: undefined,
     }),
     kit: (p, v) =>
-      readOf(p, {before: {personalData: undefined, metaListState: v.state}, action: v.action, path: v.path, query: v.query}),
+      readOf(p, {
+        before: {personalData: undefined, metaListState: v.state},
+        action: v.action,
+        path: v.path,
+        query: v.query,
+      }),
   },
   // Apple reads the account a shared budget names; the special transport cleared first.
   'GET, its account first, special transport cleared first': {
@@ -433,7 +463,11 @@ const layouts = {
       ...v.fields,
     }),
     kit: (p, v) =>
-      readOf(p, {action: v.action, path: v.path, query: v.query, clears: ['specialTransport', 'responseControls']}, v.fields),
+      readOf(
+        p,
+        {action: v.action, path: v.path, query: v.query, clears: ['specialTransport', 'responseControls']},
+        v.fields,
+      ),
   },
   // Business Profile reads go to another host; the access read binds the grant's account.
   'GET, its host, response controls cleared': {
@@ -453,7 +487,13 @@ const layouts = {
       responseControls: undefined,
     }),
     kit: (p, v) =>
-      readOf(p, {before: {origin: v.origin}, action: v.action, path: v.path, query: v.query, clears: ['responseControls']}),
+      readOf(p, {
+        before: {origin: v.origin},
+        action: v.action,
+        path: v.path,
+        query: v.query,
+        clears: ['responseControls'],
+      }),
   },
   'GET, its host, the grant account after the headers': {
     families: ['google_business_access'],
@@ -494,7 +534,14 @@ const layouts = {
         responseControls: undefined,
         specialTransport: undefined,
       };
-      return {...base, action: v.action, origin: v.origin, path: v.path, query: v.query, businessLodgingRead: 'lodging'};
+      return {
+        ...base,
+        action: v.action,
+        origin: v.origin,
+        path: v.path,
+        query: v.query,
+        businessLodgingRead: 'lodging',
+      };
     },
     kit: (p, v) => stateReadOf(p, v.action, v.path, v.query, {origin: v.origin, businessLodgingRead: 'lodging'}),
   },
@@ -535,6 +582,80 @@ const layouts = {
     }),
     kit: (p, v) => readOf(p, {action: v.action, path: v.path, query: v.query, clears: []}, v.fields),
   },
+  // The builders of the provider modules family modules import (familyHelpers below). google_configuration's feed
+  // searches (src/google-asset-set-writes.ts) wrote the headers before the query and the body, and reset the family's
+  // state before clearing both write-only fields: the kit's `after`.
+  'POST search, the family state reset before both cleared': {
+    families: ['google_configuration'],
+    copied: (p, v) => ({
+      ...p,
+      action: v.action,
+      method: 'POST',
+      path: v.path,
+      headers: {},
+      query: {},
+      body: v.body,
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      ...v.fields,
+      responseControls: undefined,
+      specialTransport: undefined,
+    }),
+    kit: (p, v) =>
+      readOf(p, {action: v.action, method: 'POST', path: v.path, query: {}, body: v.body, after: v.fields}),
+  },
+  // Its keyword plan searches (src/google-keyword-plan-writes.ts): the path before the method, the body before the query.
+  'POST search, the path before the method, both cleared': {
+    families: ['google_configuration'],
+    copied: (p, v) => ({
+      ...p,
+      action: v.action,
+      path: v.path,
+      method: 'POST',
+      body: v.body,
+      query: {},
+      headers: {},
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      responseControls: undefined,
+      specialTransport: undefined,
+      ...v.fields,
+    }),
+    kit: (p, v) => readOf(p, {action: v.action, method: 'POST', path: v.path, query: {}, body: v.body}, v.fields),
+  },
+  // The X catalog families' shared read (src/x-catalogs.ts xCatalogRead): the tags of the account or catalog just read,
+  // then every catalog family's state key, set one by one after the literal.
+  'GET, both cleared, the catalog tags and every catalog state': {
+    families: ['x_catalog_products', 'x_product_catalogs', 'x_product_sets', 'x_scheduled_feeds'],
+    copied: (p, v) => {
+      const r = {
+        ...p,
+        action: v.action,
+        method: 'GET',
+        path: v.path,
+        query: v.query,
+        body: undefined,
+        headers: {},
+        readOnly: true,
+        destructive: false,
+        requiresConfirmation: false,
+        responseControls: undefined,
+        specialTransport: undefined,
+        xCatalogUser: v.tag.xCatalogUser,
+        xCatalogId: v.tag.xCatalogId,
+      };
+      for (const k of catalogStates) r[k] = undefined;
+      return r;
+    },
+    kit: (p, v) =>
+      stateReadOf(p, v.action, v.path, v.query, {
+        xCatalogUser: v.tag.xCatalogUser,
+        xCatalogId: v.tag.xCatalogId,
+        ...Object.fromEntries(catalogStates.map(k => [k, undefined])),
+      }),
+  },
 };
 
 // The members CompiledRequest requires; a compiled request carries all of them (src/compiler.ts sets each).
@@ -562,6 +683,8 @@ const optional = {
   personalData: {count: 2},
   scopeContext: {campaignId: '9'},
   metaListState: {kind: 'write'},
+  // A state key a family read clears, which the request carries already (an X catalog family's own).
+  xCatalogState: {kind: 'write'},
 };
 function* requests() {
   const keys = Object.keys(optional);
@@ -586,6 +709,7 @@ const values = [
     origin: 'https://read.example.test',
     account: 'shared-7',
     state: {pixel: '3'},
+    tag: {xCatalogUser: '1200', xCatalogId: '77'},
   },
   {
     action: 'AMCP_STATE_OPTIONAL',
@@ -598,6 +722,7 @@ const values = [
     origin: undefined,
     account: undefined,
     state: undefined,
+    tag: {},
   },
 ];
 
@@ -610,7 +735,7 @@ test('the kit builds the read each family builder had written: the same keys, va
         assert.deepEqual(Object.entries(layout.kit(p, v)), Object.entries(layout.copied(p, v)), name);
         compared++;
       }
-  assert.equal(compared, Object.keys(layouts).length * 512 * values.length);
+  assert.equal(compared, Object.keys(layouts).length * (1 << Object.keys(optional).length) * values.length);
   // Every layout names families that are registered.
   const registered = new Set(reviewedFamilies().map(f => f.name));
   for (const [name, layout] of Object.entries(layouts))
@@ -631,9 +756,36 @@ test('readOf leaves the request untouched and builds a new read each time', () =
   );
   // A family field overrides what the kit set, as the builders' own members did when they came last.
   assert.equal(readOf(p, {action: 'AMCP_R', path: '/r', query: {}}, {headers: {'X-A': '1'}}).headers['X-A'], '1');
+  // `after` comes after the read's own members and before the fields it clears; `fields` still come last.
+  const lacking = {...required},
+    keys = Object.keys(readOf(lacking, {action: 'AMCP_R', path: '/r', query: {}, after: {googleState: undefined}}));
+  assert.deepEqual(keys.slice(-4), ['body', 'googleState', 'responseControls', 'specialTransport']);
 });
 
 const familyModules = () => [...new Set(reviewedFamilies().flatMap(f => f.files[0].split(' / ')))].sort();
+/**
+ * The provider modules family modules import, directly or through one another (a family's helpers: the searches of
+ * google_configuration in src/google-asset-set-writes.ts and src/google-keyword-plan-writes.ts, the X catalog
+ * families' shared read in src/x-catalogs.ts), from the compiled import graph.
+ */
+function familyHelpers() {
+  const graph = runtimeGraph('.'),
+    modules = new Set(familyModules()),
+    helpers = new Set(),
+    queue = [...modules];
+  while (queue.length)
+    for (const to of graph.get(queue.shift()) ?? [])
+      if (!modules.has(to) && !helpers.has(to) && isProviderModule(to) && !providerRegistries.includes(to)) {
+        helpers.add(to);
+        queue.push(to);
+      }
+  return [...helpers].sort();
+}
+// A helper whose literals are no family's reads: X's audience estimate read tool, whose plan keeps the request it
+// classifies and whose reference reads are its own (x_targeting_batch imports only its criteria types).
+const notFamilyReads = new Set(['src/x-audience-estimate.ts']);
+/** The modules that build families' reads: the family modules and their helpers. */
+const readModules = () => [...familyModules(), ...familyHelpers().filter(file => !notFamilyReads.has(file))];
 const programOf = file => parsers['babel-ts'].parse(fs.readFileSync(file, 'utf8'), {filepath: file}).program;
 function walk(node, visit) {
   if (!node || typeof node.type !== 'string') return;
@@ -646,11 +798,15 @@ function walk(node, visit) {
 }
 const keyOf = p => (p.type === 'ObjectProperty' && !p.computed ? (p.key.name ?? p.key.value) : undefined);
 
-test('every family read builder is the kit: no reviewed family module spreads a request into a read of its own', () => {
-  const modules = familyModules();
-  assert.ok(modules.length >= 160);
+test('every family read builder is the kit: no family module or helper spreads a request into a read of its own', () => {
+  assert.ok(familyModules().length >= 160);
+  // The helpers whose builders moved onto the kit are among them, and the one exemption is a helper too.
+  const helpers = familyHelpers();
+  for (const file of ['src/google-asset-set-writes.ts', 'src/google-keyword-plan-writes.ts', 'src/x-catalogs.ts'])
+    assert.ok(helpers.includes(file), file);
+  for (const file of notFamilyReads) assert.ok(helpers.includes(file), file);
   const copies = [];
-  for (const file of modules)
+  for (const file of readModules())
     walk(programOf(file), node => {
       if (node.type !== 'ObjectExpression') return;
       const readOnly = node.properties.some(
@@ -665,7 +821,7 @@ test('every family read builder is the kit: no reviewed family module spreads a 
 test('every write-only field order a family clears is one the layouts above cover', () => {
   const covered = new Set(['', 'responseControls', 'specialTransport,responseControls']);
   let calls = 0;
-  for (const file of familyModules())
+  for (const file of readModules())
     walk(programOf(file), node => {
       if (node.type !== 'CallExpression' || node.callee.type !== 'Identifier') return;
       if (node.callee.name === 'stateReadOf') calls++;
