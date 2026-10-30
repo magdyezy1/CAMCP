@@ -532,11 +532,9 @@ Snapchat's adapter, `tests/provider-workflows.test.mjs` and `tools/call-replay.m
 them through `src/scope.ts`. Compared the same way, none of the 41 `src/` and `server/` modules wave 4c's server
 package changed or added, nor any of the other 27 of its transport and catalog package, lost an export.
 
-Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
-suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
-the gate test checks both modes), and phase B moves one concern at a time (the rows above), so on the merged wave 4c
-tree 34 shared modules still name a gateway (target 20 or fewer) and 53 shared-to-provider imports remain (target 30
-or fewer). Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts
+Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): phase B
+moves one concern at a time (the rows above), so on the merged wave 4c tree 34 shared modules still name a gateway
+(target 20 or fewer) and 53 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts
 it as a registry (§8), and 9 are ARC-04's report job registry and website route modules; the rest are phase B's
 migrations, after which the shared stages consult the provider registries (the provider hooks, `src/provider-hooks.ts`,
 which imports the 17 adapter modules; the provider workflows, `src/provider-workflows.ts`; the website login steps,
@@ -549,7 +547,8 @@ provider tables of shared modules (`src/retired-provider-actions.ts`, `src/tool-
 `src/wire-contracts.ts`, `src/provider-validation.ts`), the allocation plan (`src/allocation-plan.ts`), the ad
 previews (`src/ad-previews.ts`), the workbook selectors' SQL projections (`src/workbook-repository.ts`, ARC-02) and the
 shared modules that read a provider's version module (`src/media-upload.ts`, `src/owner-operations.ts`,
-`src/provider-contracts.ts`). ARC-01's native and manual criteria are
+`src/provider-contracts.ts`). The whole suite also passes with `AMCP_PROVIDERS=criteo,woocommerce`, where the
+tool-surface suites count the tools it offers. ARC-01's native and manual criteria are
 the owner's: read-only `verify-reads` per migrated gateway on existing test accounts, and a security reviewer's
 sign-off of every `src/scope.ts` and `src/transport.ts` diff.
 
