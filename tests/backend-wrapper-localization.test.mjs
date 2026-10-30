@@ -220,7 +220,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/google-write-reconciliation.ts, src/meta-write-reconciliation.ts and src/verification-core.ts, and the recipe
   // context's src/microsoft-location-pin.ts.
   // Merged, the reporting package's ten modules and the writes package's 33 add up.
-  assert.equal(files.length, 712);
+  // ARC-01 phase B (wave 4c, the website's server modules) adds 22 modules without wrapper reasons: fifteen provider
+  // login modules (src/<provider>-login.ts), their contract src/provider-login.ts and registry src/provider-logins.ts,
+  // Google Ads' hierarchy discovery (src/google-account-discovery.ts), Google's shared OAuth steps
+  // (src/google-oauth.ts), the leaf that signs X's authorization calls (src/oauth1-authorization.ts), the provider
+  // startup registry (src/provider-startup.ts) and WooCommerce's login steps (src/woocommerce-login.ts); the reasons
+  // the login steps took from server/ were never wrapper reasons, so the wrapper reasons are unchanged.
+  assert.equal(files.length, 734);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11513);
