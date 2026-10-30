@@ -397,26 +397,29 @@ anywhere: the suites' synthetic fetchers answer.
 Wave 4c's rows, and its three ARC-04 restructurings (§15: `campaignRecipe`, `inspectGoogleRecipeGoals`,
 `checkAccountSpendPolicy`), are proven by one comparison of the whole branch rather than one per row: the related
 suites of every file the branch changes (775 test files, all but the six it adds or changes) recorded on Work-here
-(with the branch's call-replay targets) and on the branch: 5,219,848 records before and 5,218,647 after. A calibration (Work-here recorded again over the 127 test files with differences) separates run-to-run
-noise: random plan and preview IDs and the hashes derived from them, personal-data digests, `elapsed_ms`, and signatures
-and clock values inside form bodies. With the calibration's noisy fields masked, every record of every test file and
-function is identical, and each function's outcomes (results and refusal codes) are the same in each test file: 0
-request differences and 0 outcome flips (the 16 the pairing showed are plans with random IDs paired across their
-outcomes). Three differences of call counts remain, each explained: 1,011 fewer `normalizeAccount` calls (the generic
-state-read stage no longer normalizes the account of a write whose provider does not use it; Google Ads' and TikTok's
-state reads normalize it themselves, and the function is total, so no outcome depends on the call), 194 `nextPage`
-calls of Reddit's profile and post reads now made by Reddit's own page step (`src/reddit-paging.ts`; the requests and
-their callers' records are identical), and 4 more `platform()` lookups of `tests/measurement-apple.test.ts`, whose
-number varies between runs of one build (19, 18, 17 and 17 in four recordings of Work-here). The 101,898 distinct pure
-calls of the recording before replay through the build after with 0 differences (392 `campaignRecipe`, 394
-`recipeMissing`, 3,649 `writeEffects`, 3,793 `writeImpact`, 6,857 `assertWriteShape`, 19 `applyCloneChanges`).
+(with the branch's call-replay targets) and on the branch, on one UTC day (a recording across a UTC midnight differs in
+every report window and date-relative fixture): 5,219,858 records before and 5,218,655 after. A calibration (Work-here
+recorded again over the 127 test files with differences) separates run-to-run noise: random plan and preview IDs and
+the hashes derived from them, personal-data digests, `elapsed_ms`, and signatures and clock values inside form bodies.
+With the calibration's noisy fields masked, every record of every test file and function is identical, and each
+function's outcomes (results and refusal codes) are the same in each test file: 0 request differences and 0 outcome
+flips (the 16 the pairing showed are plans with random IDs paired across their outcomes). Three differences of call
+counts remain, each explained: 1,011 fewer `normalizeAccount` calls (the generic state-read stage no longer normalizes
+the account of a write whose provider does not use it; Google Ads' and TikTok's state reads normalize it themselves,
+and the function is total, so no outcome depends on the call), 194 `nextPage` calls of Reddit's profile and post reads
+now made by Reddit's own page step (`src/reddit-paging.ts`, which the comparison records: each of the 194 is one of
+its calls with the same read, response and result, a refusal included; the requests and the callers' records are
+identical), and 4 `platform()` lookups of `tests/measurement-apple.test.ts`, whose number varies between runs of one
+build (19, 18, 17 and 17 in four recordings of Work-here). The 101,898 distinct pure calls of the recording before
+replay through the build after with 0 differences (392 `campaignRecipe`, 394 `recipeMissing`, 3,649 `writeEffects`,
+3,793 `writeImpact`, 6,857 `assertWriteShape`, 19 `applyCloneChanges`).
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
-the gate test checks both modes), and phase B has moved nine concerns so far, so 76 shared modules still name a
-gateway (target 20 or fewer) and 235 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496,
-163 imports are the reviewed-family registry's, no longer counted since phase B counts it as a registry (§8), and 9
-are ARC-04's report job registry and website route modules; the other 89 are phase B's migrations, after which the
+the gate test checks both modes), and phase B moves one concern at a time (the rows above), so shared modules still
+name gateways and import provider modules: the ratchet's counts (§8) against targets of 20 or fewer and 30 or fewer.
+Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts it as a
+registry (§8), and 9 are ARC-04's report job registry and website route modules; the rest are phase B's migrations, after which the
 shared stages consult the provider hooks registry (`src/provider-hooks.ts`, which imports the 17 adapter modules)
 instead of provider modules. The largest remaining are the catalog compiler (`src/compiler.ts`,
 `src/delegated-native.ts`, `src/catalog.ts`), the service and action contracts (`src/service.ts`,
