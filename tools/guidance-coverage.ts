@@ -156,6 +156,12 @@ const operational: [string, string[]][] = [
     'Internal policy arithmetic behind the documented budget rules.',
     ['POLICY_AMOUNT_INVALID', 'INCOMPLETE_STATE', 'MUTATION_PAGINATION_FORBIDDEN', 'LIBRARY_REVIEW_EXISTS'],
   ],
+  [
+    // ARC-01 phase B (wave 4c): recipe_lookup's Google search is its adapter's hook (src/google-search-recipes.ts), so
+    // the provider hooks registry puts it on this path although no reviewed write raises it.
+    'A campaign recipe lookup (amcp_campaign recipe_lookup), not a reviewed write; the message says to narrow the search.',
+    ['INCOMPLETE_LOOKUP'],
+  ],
 ];
 export const undocumentedCodes = new Map<string, string>(
   operational.flatMap(([reason, codes]) => codes.map(c => [c, reason] as [string, string])),

@@ -584,6 +584,40 @@ export interface CampaignHooks {
   readonly activation?: CampaignActivation;
   /** Its part of a campaign plan's preflight (src/campaign-preflight.ts). */
   readonly preflight?: CampaignPreflight;
+  /**
+   * Whether a write step the provider refused outright after submission provably created nothing, so that the step may
+   * be amended and reviewed under a new key (src/campaign-runner.ts, after the step's own failed-write checks: Google's
+   * googleAds:mutate builds without partial failure, refused with a definitive 4xx; the owner's decision 5,
+   * 2026-09-29). A provider without one stops the plan.
+   */
+  refusedBuild?(step: JsonObject): boolean;
+  /** The recipe lookups the provider answers, by lookup_kind (src/campaign-runner.ts recipe_lookup). */
+  readonly lookups?: Readonly<Record<string, RecipeLookup>>;
+}
+/**
+ * A recipe lookup (recipe_lookup). The runner keeps its order of checks: a lookup the service answers from the
+ * provider's own source comes first, then the query's form (2 to 60 letters) and the refusal of an unknown kind, then a
+ * lookup searched by that query.
+ */
+export interface RecipeLookup {
+  /**
+   * A lookup searched by its query through the ordinary account-scoped native calls (Google's country and language
+   * constants); it refuses what the provider's response cannot answer.
+   */
+  search?(context: RecipeLookupContext): Promise<JsonObject>;
+  /**
+   * A lookup the service answers from the provider's own source (Microsoft's geographical locations file, CMP-03): the
+   * refusal while the service has none.
+   */
+  unavailable?(): MirrorError;
+}
+/** What a searched recipe lookup reads with: the runner's store, its native calls, the caller and the checked query. */
+export interface RecipeLookupContext {
+  readonly store: Store;
+  readonly call: ToolCall;
+  readonly actor: Actor;
+  readonly input: JsonObject;
+  readonly query: string;
 }
 /** What a step's preflight gives its provider (src/campaign-preflight.ts campaignPreflight). */
 export interface CampaignPreflightContext {

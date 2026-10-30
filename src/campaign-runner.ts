@@ -26,8 +26,10 @@ import {ownership, ownsRecord, principalOf} from './actor-identity.js';
 import {MirrorError, errorRemedy} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
-// A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`).
-import {providerHooks} from './provider-hooks.js';
+// A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
+// and so are a refused build that created nothing (`campaign.refusedBuild`) and the recipe lookups (`campaign.lookups`).
+import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
+import type {RecipeLookup} from './provider-adapter.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
@@ -39,7 +41,6 @@ import {
   refusedAfterSubmission,
 } from './campaign-continuation.js';
 import {activationGates, activationPlatforms, activationSteps, platformActivation} from './campaign-activation.js';
-import {microsoftLocationsUnpinned} from './microsoft-locations.js';
 import {recipeDependencies} from './capability-eligibility.js';
 import {
   archivableStates,
@@ -239,19 +240,28 @@ const alreadyCurrent = (step: JsonObject, error: JsonObject | undefined) =>
   error.details.upstream === undefined &&
   error.details.response === undefined;
 /**
- * A Google build Google refused outright (HTTP 4xx other than a timeout or rate limit). The pinned v25 contract
- * applies a partialFailure-false googleAds:mutate "if and only if" every operation is valid, so a refused build created
- * nothing (the owner's decision 5, 2026-09-29). Its key stays uncertain and is never sent again; the step may be
- * amended and reviewed under a new key. Every other refusal after submission, and a lost response, still stop the plan.
+ * A build its provider refused outright, which provably created nothing (its adapter's `campaign.refusedBuild`, ARC-01
+ * phase B: Google's googleAds:mutate builds without partial failure refused with a definitive 4xx, the owner's decision
+ * 5, 2026-09-29). Its key stays uncertain and is never sent again; the step may be amended and reviewed under a new key.
+ * Every other refusal after submission, and a lost response, still stop the plan.
  */
 const rejectedBuild = (step: JsonObject) =>
   step.kind === 'write' &&
   step.status === 'failed' &&
-  step.gateway === 'google_ads_native_action' &&
-  /_google_ads_mutate$/.test(String(step.arguments?.action ?? '')) &&
-  step.arguments?.payload?.partial_failure !== true &&
-  step.arguments?.payload?.partialFailure !== true &&
-  [400, 401, 403, 404, 409, 412, 422].includes(Number(step.error?.details?.http_status));
+  providerHooks(step.gateway)?.campaign?.refusedBuild?.(step) === true;
+/**
+ * The recipe lookups by lookup_kind, each its provider's (`campaign.lookups`). Load-time checks: one provider declares
+ * each kind, and one lookup is the service's own (the runner's `lookupMicrosoftLocations`).
+ */
+const recipeLookups = new Map<string, RecipeLookup>();
+for (const hooks of registeredProviderHooks)
+  for (const [kind, lookup] of Object.entries(hooks.campaign?.lookups ?? {})) {
+    if (recipeLookups.has(kind) || !lookup.search === !lookup.unavailable)
+      throw new Error('The recipe lookup ' + kind + ' must be one provider’s, searched or the service’s own.');
+    recipeLookups.set(kind, lookup);
+  }
+if ([...recipeLookups.values()].filter(lookup => lookup.unavailable).length > 1)
+  throw new Error('Only one recipe lookup is answered by the service’s own lookup.');
 const planState = (run: JsonObject, step: JsonObject) =>
   run.steps.every(settled) ? 'complete' : settled(step) ? 'in_progress' : 'attention';
 /**
@@ -1572,58 +1582,21 @@ export class CampaignRunner {
     prepare_next: call => this.prepareNext(call),
     execute_next: call => this.executeNext(call),
   };
-  /** recipe_lookup: Microsoft locations from its geographical locations file, or Google country and language constants. */
+  /**
+   * recipe_lookup: a lookup its provider answers (`campaign.lookups`): Microsoft locations from its geographical
+   * locations file, or Google country and language constants.
+   */
   private async recipeLookup({input, actor}: CampaignCall): Promise<JsonObject> {
+    const lookup = typeof input.lookup_kind === 'string' ? recipeLookups.get(input.lookup_kind) : undefined;
     // CMP-03: Microsoft location IDs and names from its geographical locations file, by name or by ID.
-    if (input.lookup_kind === 'microsoft_location') {
-      if (!this.lookupMicrosoftLocations) throw microsoftLocationsUnpinned();
+    if (lookup?.unavailable) {
+      if (!this.lookupMicrosoftLocations) throw lookup.unavailable();
       return this.lookupMicrosoftLocations(actor, input);
     }
     const query = String(input.query ?? '').trim();
-    if (!/^[A-Za-z -]{2,60}$/.test(query) || !['country', 'language'].includes(input.lookup_kind))
+    if (!/^[A-Za-z -]{2,60}$/.test(query) || !lookup?.search)
       throw new MirrorError('INVALID_LOOKUP', 'Enter a country name/code or language name (2–60 letters).');
-    this.store.resolveConnection(actor, 'google_ads_native_action', input.account_id, input.connection_id);
-    const country = input.lookup_kind === 'country',
-      gaql = country
-        ? "SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND " +
-          (query.length === 2
-            ? "geo_target_constant.country_code = '" + query.toUpperCase() + "'"
-            : "geo_target_constant.name LIKE '%" + query + "%'") +
-          ' LIMIT 100'
-        : 'SELECT language_constant.id, language_constant.name, language_constant.code FROM language_constant LIMIT 1000';
-    const out = await this.call(
-      'google_ads_native_action',
-      {
-        action: 'google_ads_v23_google_ads_search',
-        connection_id: input.connection_id,
-        account_id: input.account_id,
-        payload: {query: gaql},
-      },
-      actor,
-    );
-    if (!out.success) throw new MirrorError(out.error.code, out.error.message, out.error.details);
-    if (out.data.truncated) throw new MirrorError('INCOMPLETE_LOOKUP', 'This lookup is incomplete. Narrow the search.');
-    const rows = out.data.data?.results;
-    if (!Array.isArray(rows))
-      throw new MirrorError('UPSTREAM_RESPONSE_INVALID', 'Google did not return targeting constants.');
-    return {
-      kind: input.lookup_kind,
-      results: rows
-        .map((r: JsonObject) => (country ? r.geoTargetConstant : r.languageConstant))
-        .filter(
-          (r: JsonObject) =>
-            r &&
-            typeof r.id === 'string' &&
-            (country ||
-              String(r.name ?? '')
-                .toLowerCase()
-                .includes(query.toLowerCase()) ||
-              String(r.code ?? '').toLowerCase() === query.toLowerCase()),
-        )
-        .slice(0, 50)
-        .map((r: JsonObject) => ({id: r.id, name: r.name, code: r.code ?? r.countryCode})),
-      provider_mutations: 0,
-    };
+    return lookup.search({store: this.store, call: this.call, actor, input, query});
   }
   /** preview_recipe and create_from_recipe: a recipe compiled from the business inputs, and a plan created from it. */
   private async fromRecipe({input, actor}: CampaignCall): Promise<JsonObject> {

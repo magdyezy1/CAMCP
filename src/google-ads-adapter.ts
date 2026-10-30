@@ -30,7 +30,12 @@ import {googleAdsCustomers} from './google-version.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
-import {buildGoogleSearchRecipe, googleSearchRecipeContext, googleSearchRecipes} from './google-search-recipes.js';
+import {
+  buildGoogleSearchRecipe,
+  googleRecipeLookup,
+  googleSearchRecipeContext,
+  googleSearchRecipes,
+} from './google-search-recipes.js';
 import {buildGooglePmaxRecipe, googlePmaxContext, googlePmaxRecipe} from './google-pmax-recipe.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
@@ -587,6 +592,13 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     }),
     // A plan step's predecessor resource names (src/campaign-preflight.ts).
     preflight: googlePreflight,
+    // A build Google refused outright created nothing, and recipe_lookup's country and language constants
+    // (src/campaign-runner.ts).
+    refusedBuild: googleRefusedBuild,
+    lookups: Object.freeze({
+      country: Object.freeze({search: googleRecipeLookup}),
+      language: Object.freeze({search: googleRecipeLookup}),
+    }),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
   // checked against the state, in that order, before the review's paused-parent check.
@@ -613,6 +625,22 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     moneyFields: googleMoneyFields,
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from rejectedBuild (src/campaign-runner.ts), after the runner's own
+// failed-write checks.
+/**
+ * A build Google refused outright (HTTP 4xx other than a timeout or rate limit). The pinned v25 contract applies a
+ * partialFailure-false googleAds:mutate "if and only if" every operation is valid, so a refused build created nothing
+ * (the owner's decision 5, 2026-09-29).
+ */
+function googleRefusedBuild(step: JsonObject): boolean {
+  return (
+    /_google_ads_mutate$/.test(String(step.arguments?.action ?? '')) &&
+    step.arguments?.payload?.partial_failure !== true &&
+    step.arguments?.payload?.partialFailure !== true &&
+    [400, 401, 403, 404, 409, 412, 422].includes(Number(step.error?.details?.http_status))
+  );
+}
 
 // Writes and campaigns (wave 4c): moved verbatim from src/spend-policy.ts.
 /**

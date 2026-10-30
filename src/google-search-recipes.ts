@@ -8,7 +8,7 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money, recipeRoas, recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
-import type {RecipeContextFacts} from './provider-adapter.js';
+import type {RecipeContextFacts, RecipeLookupContext} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDates,
@@ -398,4 +398,52 @@ export function googleSearchRecipeContext(id: string): RecipeContextFacts | unde
     : googleConversionRecipes[id]
       ? googleConversionContext
       : undefined;
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from CampaignRunner.recipeLookup (src/campaign-runner.ts), after the
+// runner's query and kind checks.
+/** recipe_lookup's Google country and language constants, read through the selected Google Ads login. */
+export async function googleRecipeLookup({store, call, actor, input, query}: RecipeLookupContext): Promise<JsonObject> {
+  store.resolveConnection(actor, 'google_ads_native_action', input.account_id, input.connection_id);
+  const country = input.lookup_kind === 'country',
+    gaql = country
+      ? "SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND " +
+        (query.length === 2
+          ? "geo_target_constant.country_code = '" + query.toUpperCase() + "'"
+          : "geo_target_constant.name LIKE '%" + query + "%'") +
+        ' LIMIT 100'
+      : 'SELECT language_constant.id, language_constant.name, language_constant.code FROM language_constant LIMIT 1000';
+  const out = await call(
+    'google_ads_native_action',
+    {
+      action: 'google_ads_v23_google_ads_search',
+      connection_id: input.connection_id,
+      account_id: input.account_id,
+      payload: {query: gaql},
+    },
+    actor,
+  );
+  if (!out.success) throw new MirrorError(out.error.code, out.error.message, out.error.details);
+  if (out.data.truncated) throw new MirrorError('INCOMPLETE_LOOKUP', 'This lookup is incomplete. Narrow the search.');
+  const rows = out.data.data?.results;
+  if (!Array.isArray(rows))
+    throw new MirrorError('UPSTREAM_RESPONSE_INVALID', 'Google did not return targeting constants.');
+  return {
+    kind: input.lookup_kind,
+    results: rows
+      .map((r: JsonObject) => (country ? r.geoTargetConstant : r.languageConstant))
+      .filter(
+        (r: JsonObject) =>
+          r &&
+          typeof r.id === 'string' &&
+          (country ||
+            String(r.name ?? '')
+              .toLowerCase()
+              .includes(query.toLowerCase()) ||
+            String(r.code ?? '').toLowerCase() === query.toLowerCase()),
+      )
+      .slice(0, 50)
+      .map((r: JsonObject) => ({id: r.id, name: r.name, code: r.code ?? r.countryCode})),
+    provider_mutations: 0,
+  };
 }

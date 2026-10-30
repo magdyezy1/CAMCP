@@ -407,3 +407,71 @@ test('the recipe context names no provider and imports no provider module; each 
   // The limitations are the response's own copy, never the declared list.
   assert.equal(Object.isFrozen(microsoft.limitations), false);
 });
+
+test('the runner asks the provider for a refused build and its recipe lookups, naming no gateway but an example', async () => {
+  // ARC-01 phase B (wave 4c): src/campaign-runner.ts named Google Ads where a refused build created nothing and where
+  // recipe_lookup read Google's country and language constants, and imported Microsoft's unpinned-lookup refusal.
+  // They are the adapters' `campaign` hooks; the runner keeps its checks and their order. The one literal left is the
+  // example in a malformed step's refusal ("a write step needs gateway, e.g. ..."), whose text does not change.
+  const source = read('src/campaign-runner.ts');
+  assert.deepEqual(gatewayLiterals(source), ['snapchat_native_action']);
+  assert.match(source, /'a write step needs gateway, e\.g\. "snapchat_native_action"'/);
+  assert.deepEqual(providerImports(source), [
+    'src/gtm-consent-plans.ts',
+    'src/x-catalog-removal.ts',
+    'src/x-catalog-products.ts',
+  ]);
+  const {googleRecipeLookup} = await import('../dist/src/google-search-recipes.js');
+  const {microsoftLocationsUnpinned} = await import('../dist/src/microsoft-locations.js');
+  const {CampaignRunner} = await import('../dist/src/campaign-runner.js');
+  // Only Google declares a refused build; Google and Microsoft the lookups, frozen.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.campaign?.refusedBuild).map(h => h.gateway),
+    ['google_ads_native_action'],
+  );
+  const lookups = Object.fromEntries(
+    registeredProviderHooks.flatMap(h =>
+      Object.entries(h.campaign?.lookups ?? {}).map(([k, v]) => [k, [h.gateway, v]]),
+    ),
+  );
+  assert.deepEqual(Object.keys(lookups).sort(), ['country', 'language', 'microsoft_location']);
+  assert.equal(lookups.country[1].search, googleRecipeLookup);
+  assert.equal(lookups.language[1].search, googleRecipeLookup);
+  assert.equal(lookups.microsoft_location[0], 'microsoft_ads_native_action');
+  assert.equal(lookups.microsoft_location[1].unavailable, microsoftLocationsUnpinned);
+  for (const [, lookup] of Object.values(lookups)) assert.ok(Object.isFrozen(lookup));
+  // Google's refused build: a googleAds:mutate build without partial failure, refused with a definitive 4xx.
+  const refused = providerHooks('google_ads_native_action').campaign.refusedBuild,
+    step = (status, payload = {}, action = 'google_ads_v23_google_ads_mutate') => ({
+      kind: 'write',
+      status: 'failed',
+      gateway: 'google_ads_native_action',
+      arguments: {action, payload},
+      error: {details: {http_status: status}},
+    });
+  for (const status of [400, 401, 403, 404, 409, 412, 422]) assert.equal(refused(step(status)), true, String(status));
+  for (const status of [408, 429, 500, 503, undefined]) assert.equal(refused(step(status)), false, String(status));
+  assert.equal(refused(step(400, {partial_failure: true})), false);
+  assert.equal(refused(step(400, {partialFailure: true})), false);
+  assert.equal(refused(step(400, {}, 'google_ads_v23_campaign_mutate_campaigns')), false);
+  // Through the runner: a lookup's query is checked before its kind, a searched lookup only with a valid query, and
+  // the Microsoft lookup without the service's own lookup is Microsoft's refusal, before any query check.
+  const store = {assertActorActive() {}, resolveConnection: () => assert.fail('no connection is resolved')},
+    runner = new CampaignRunner(
+      store,
+      async () => assert.fail('nothing is called'),
+      async () => ({}),
+      async () => ({}),
+    );
+  const actor = {tenantId: 't', userId: 'u', role: 'admin'},
+    lookup = input => runner.handle({action: 'recipe_lookup', ...input}, actor);
+  for (const input of [
+    {lookup_kind: 'country', query: 'x'},
+    {lookup_kind: 'language', query: 'French1'},
+    {lookup_kind: 'city', query: 'Paris'},
+    {lookup_kind: 'constructor', query: 'Paris'},
+    {query: 'Paris'},
+  ])
+    await refusal(() => lookup(input), 'INVALID_LOOKUP');
+  await refusal(() => lookup({lookup_kind: 'microsoft_location', query: 'x'}), 'MICROSOFT_LOCATIONS_UNPINNED');
+});

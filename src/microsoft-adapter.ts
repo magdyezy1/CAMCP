@@ -20,6 +20,7 @@ import {buildMicrosoftSearchRecipe, microsoftSearchContext, microsoftSearchRecip
 import {microsoftActivationGates, microsoftActivationSteps} from './microsoft-recipe-activation.js';
 import {recordedWriteGrant} from './provider-grants.js';
 import {fail} from './write-common.js';
+import {microsoftLocationsUnpinned} from './microsoft-location-pin.js';
 
 /**
  * Microsoft's resource scope, after the account path: the mandatory CustomerAccountId header confines Campaign
@@ -139,6 +140,9 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
     ]),
     // A launch's campaign, ad group, keywords and ad activated in turn, gated on positive location criteria (P7).
     activation: Object.freeze({steps: microsoftActivationSteps, gates: microsoftActivationGates}),
+    // recipe_lookup's locations, which the service answers from Microsoft's geographical locations file (CMP-03,
+    // src/microsoft-locations.ts); refused while the file's request is not pinned (src/campaign-runner.ts).
+    lookups: Object.freeze({microsoft_location: Object.freeze({unavailable: microsoftLocationsUnpinned})}),
   }),
   // Its review needs msads.manage, after the family's scope check (src/write-review.ts).
   writes: Object.freeze({
