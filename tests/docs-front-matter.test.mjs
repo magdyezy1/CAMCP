@@ -14,6 +14,7 @@ import {
   frontMatterBlock,
   frontMatterProblems,
   pageMeta,
+  reviewedOutsideRecords,
   statuses,
   stripFrontMatter,
   tiers,
@@ -92,6 +93,8 @@ test('a page whose front matter its folder contradicts, a stub that is not archi
   write('docs/archive/OLD.md', page('archived', 'engineering'));
   write('docs/owner/README.md', page('current', 'owner'));
   write('docs/review/MOVED.md', page('archived', 'engineering'));
+  // A reviewed proposal of the review folder stays where links expect it.
+  write('docs/review/ROADMAP.md', page('proposal', 'engineering'));
   assert.deepEqual(documentationProblems(root, new Set(['docs/review/MOVED.md'])), []);
   write('docs/records/NOW.md', page('current', 'operator'));
   write('docs/archive/LIVE.md', page('reference', 'engineering'));
@@ -100,13 +103,33 @@ test('a page whose front matter its folder contradicts, a stub that is not archi
   write('docs/review/MOVED.md', page('reference', 'engineering'));
   write('docs/LOST.md', page('reference', 'engineering', '\ngenerated: tools/gone.mjs'));
   write('docs/BARE.md', '# No front matter\n');
+  // The review of wave 4c: a hand-written page left the freeze, the budget and the reference total by saying it was a
+  // record, a proposal or archived. Outside the record folders only a stub or a reviewed page may say so, as reviewed.
+  const outside = status =>
+    ': outside docs/records/, docs/implementation/, docs/archive/ a page is current or reference, not ' +
+    status +
+    ' (move it there, or review it into reviewedOutsideRecords in tools/docs-front-matter.mjs)';
+  write('docs/PLAN.md', page('proposal', 'operator'));
+  write('docs/review/DATED.md', page('record', 'engineering'));
+  write('docs/review/ROADMAP.md', page('archived', 'engineering'));
   assert.deepEqual(documentationProblems(root, new Set(['docs/review/MOVED.md'])), [
     'docs/BARE.md: no front matter (---, status: …, tier: …, ---) at the top of the page',
     'docs/LOST.md: its generator tools/gone.mjs does not exist',
     'docs/OWNER.md: the owner tier is the owner guide, in docs/owner/',
+    'docs/PLAN.md' + outside('proposal'),
     'docs/archive/LIVE.md: a page in docs/archive/ is archived, not reference',
     'docs/owner/ops.md: a page in docs/owner/ is for the owner tier',
     'docs/records/NOW.md: a page in docs/records/ is record, not current',
+    'docs/review/DATED.md' + outside('record'),
     'docs/review/MOVED.md: a redirect stub is archived',
+    'docs/review/ROADMAP.md' + outside('archived'),
   ]);
+});
+
+test('the pages reviewed to be records or proposals outside the record folders say what they were reviewed as', () => {
+  for (const [file, status] of Object.entries(reviewedOutsideRecords)) {
+    assert.ok(fs.existsSync(file), file);
+    assert.equal(pageMeta('.', file).status, status, file);
+    assert.doesNotMatch(file, /^docs\/(?:records|implementation|archive)\//, file + ' needs no entry');
+  }
 });

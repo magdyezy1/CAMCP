@@ -24,7 +24,8 @@
 //
 // The index (tools/docs-index.mjs) places every page from its front matter, and the documentation lint
 // (tools/docs-lint.mjs) counts the owner and operator tiers' current pages against their word budget. A page's folder
-// must agree with what it says it is (folderRules): a dated record never passes for a current page.
+// must agree with what it says it is (folderRules): a dated record never passes for a current page, and outside the
+// record folders a current page never passes for a record, a proposal or an archived page (reviewedOutsideRecords).
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -44,6 +45,21 @@ export const folderRules = Object.freeze([
   {folder: 'docs/archive/', statuses: ['archived']},
   {folder: 'docs/owner/', statuses: ['current'], tiers: ['owner']},
 ]);
+/** The folders whose pages may say they are a record or archived (their folder rule says which). */
+const recordFolders = Object.freeze(['docs/records/', 'docs/implementation/', 'docs/archive/']);
+/**
+ * The other way round: outside those folders a page is current or reference, since a record, proposal or archived page
+ * counts in neither the word budget nor the reference total of tools/docs-lint.mjs, nor in its freeze, so the label
+ * alone would take a hand-written page out of all three. The exceptions are the redirect stubs of docs/moved.json and
+ * these pages, each reviewed to be what it says where links expect it (DOC-03, 2026-10-24): dated pages and proposals
+ * of the review folder. Another needs its entry here, or moves to docs/records/ or docs/archive/.
+ */
+export const reviewedOutsideRecords = Object.freeze({
+  'docs/review/ACCESSIBILITY.md': 'record',
+  'docs/review/IMPLEMENTATION-2026-10-01.md': 'record',
+  'docs/review/PRODUCT-BLUEPRINT-2026-10-01.md': 'proposal',
+  'docs/review/ROADMAP.md': 'proposal',
+});
 
 const block = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 /** A page's front matter and the text after it: {data, body}; data is null when the page opens without a block. */
@@ -111,7 +127,8 @@ export function documentationPages(root = process.cwd()) {
 /**
  * Every documentation page's front matter problem (an empty list passes): a page without a valid block, a page whose
  * folder holds another kind of page, a redirect stub (`stubs`, the old addresses of docs/moved.json) that is not
- * archived, and a generator that does not exist.
+ * archived, a generator that does not exist, and a record, proposal or archived page outside the record folders that
+ * is neither a stub nor reviewed to be one.
  */
 export function documentationProblems(root = process.cwd(), stubs = new Set()) {
   const problems = [];
@@ -132,6 +149,20 @@ export function documentationProblems(root = process.cwd(), stubs = new Set()) {
     if (stubs.has(file) && data.status !== 'archived') problems.push(file + ': a redirect stub is archived');
     if (data.generated && !fs.existsSync(path.join(root, data.generated)))
       problems.push(file + ': its generator ' + data.generated + ' does not exist');
+    if (
+      ['record', 'proposal', 'archived'].includes(data.status) &&
+      !recordFolders.some(folder => file.startsWith(folder)) &&
+      !stubs.has(file) &&
+      reviewedOutsideRecords[file] !== data.status
+    )
+      problems.push(
+        file +
+          ': outside ' +
+          recordFolders.join(', ') +
+          ' a page is current or reference, not ' +
+          data.status +
+          ' (move it there, or review it into reviewedOutsideRecords in tools/docs-front-matter.mjs)',
+      );
   }
   return problems;
 }
