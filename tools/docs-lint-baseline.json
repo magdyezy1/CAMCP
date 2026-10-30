@@ -40,10 +40,16 @@
       "raised": [
         "reference_words 143230 → 143309"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the generic workflows' gateways and X's stats times as adapter facts and hooks (ARC-01, 54 words)",
+      "raised": [
+        "reference_words 143309 → 143363"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143309
+    "reference_words": 143363
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

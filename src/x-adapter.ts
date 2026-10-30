@@ -20,6 +20,8 @@ import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
 import type {MutationResponse} from './provider-adapter.js';
 import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
 import {withXCatalogRemovalExpectation} from './x-catalog-products.js';
+// Wave 4c round 6 (w4c-arc6-workspace).
+import {xAnalyticsTime} from './x-report-jobs.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -197,6 +199,9 @@ export const xHooks: ProviderHooks = Object.freeze({
       changed: catalogRemovalChanged,
     }),
   }),
+  // Wave 4c round 6 (w4c-arc6-workspace): the generic X report of amcp_native_action (src/workflows.ts) states its
+  // range in X's whole UTC hours.
+  genericWorkflows: Object.freeze({statsTime: xAnalyticsTime}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

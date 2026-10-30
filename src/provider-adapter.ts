@@ -852,6 +852,9 @@ export interface ProviderHooks {
   readonly campaign?: CampaignHooks;
   /** Its parts of the reviewed write lifecycle (wave 4c, writes and campaigns). */
   readonly writes?: WriteReviewHooks;
+  // Wave 4c round 6 (w4c-arc6-workspace).
+  /** Its parts of AMCP's generic workflows of amcp_native_action (src/workflows.ts). */
+  readonly genericWorkflows?: GenericWorkflowHooks;
 }
 
 export interface ProviderAdapter {
@@ -1364,4 +1367,12 @@ export interface CreatedLookup {
   match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
   /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
   receipt(found: JsonObject[]): JsonObject;
+}
+
+// ---- Wave 4c round 6 (w4c-arc6-workspace) ----
+
+/** A provider's parts of AMCP's generic workflows of amcp_native_action (src/workflows.ts). */
+export interface GenericWorkflowHooks {
+  /** The time a stats read's range takes for an instant in milliseconds (X: whole UTC hours); refuses any other. */
+  statsTime(ms: number): string;
 }

@@ -226,6 +226,12 @@ export const targets = Object.freeze({
   // registry's workspace entries, and the outcome links that ask the registry for a provider's page.
   'dist/src/workspace.js': {classes: {WorkspaceService: ['handle']}},
   'dist/src/workflow-outcomes.js': {functions: ['workflowOutcome']},
+  // The generic workflows, whose platforms' gateways are their adapters' and whose X report times are X's hook.
+  'dist/src/workflows.js': {
+    functions: ['compileEntityMutation', 'compileEntityRead', 'compileReport'],
+    classes: {WorkflowEngine: ['handle']},
+  },
+  'dist/src/x-report-jobs.js': {functions: ['xAnalyticsTime']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -288,6 +294,10 @@ export const replayable = Object.freeze([
   'dist/src/provider-revocation.js#revocationTarget',
   // Wave 4c round 6 (w4c-arc6-workspace).
   'dist/src/workflow-outcomes.js#workflowOutcome',
+  'dist/src/workflows.js#compileEntityMutation',
+  'dist/src/workflows.js#compileEntityRead',
+  'dist/src/workflows.js#compileReport',
+  'dist/src/x-report-jobs.js#xAnalyticsTime',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
