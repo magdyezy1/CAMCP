@@ -231,7 +231,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // DOC-03's members-only Help page adds server/help-routes.ts and seven website entries, none a wrapper reason, and
   // its Home copy nine website entries (the capability outcomes), none a wrapper reason.
   // Merged with the ARC packages, the Help page's module is one more: 736.
-  assert.equal(files.length, 736);
+  // Wave 4c round 6 (reporting) adds the four allocation models' native budget drafts
+  // (src/<platform>-allocation-draft.ts), moved from src/allocation-plan.ts without wrapper reasons: 740.
+  assert.equal(files.length, 740);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11529);

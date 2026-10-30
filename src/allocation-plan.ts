@@ -3,14 +3,41 @@ import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {bad, fingerprint, writer, type ToolCall} from './workspace-core.js';
 import {reportAllocation} from './report-allocation.js';
-import {googleAllocationBudgets} from './google-allocation-budgets.js';
-import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
-import {linkedinAllocationBudgets} from './linkedin-allocation-budgets.js';
-import {metaAllocationBudgets} from './meta-allocation-budgets.js';
-import {linkedinStoredVersion} from './linkedin-version.js';
-import {currencyText, metaCurrencyOffset, minimumUnitMicros} from './budget-units.js';
+import {reportPlatforms} from './report-metrics.js';
+import {guidedReportSources} from './report-sources.js';
+import type {AllocationBudgets, AllocationDraft} from './report-source.js';
+import {minimumUnitMicros} from './budget-units.js';
 
-const gateway = 'google_ads_native_action';
+/**
+ * ARC-01 (reporting, wave 4c round 6): the guided platforms' native budget drafts (each guided reporting's
+ * allocationDraft, beside its allocation model), under the gateway of the platform's reports: the budget reader, the
+ * source fields a binding keeps, the platform's own checks of a converted daily budget, its native update and its
+ * wording. This module keeps the conversion, the shared checks, their order and refusals, the preview and draft records
+ * and the source binding, and asks a draft only where it named the platform before.
+ */
+const drafts = guidedReportSources.flatMap(source =>
+  source.guided?.allocation && source.guided.allocationDraft
+    ? [
+        {
+          gateway: reportPlatforms[source.platform]!.gateway,
+          preset: source.guided.allocation.preset,
+          draft: source.guided.allocationDraft,
+        },
+      ]
+    : [],
+);
+if (
+  drafts.filter(entry => entry.draft.fallback).length !== 1 ||
+  guidedReportSources.some(source => !source.guided?.allocation !== !source.guided?.allocationDraft)
+)
+  throw new Error('Every allocation model needs its native budget draft, and exactly one draft is the fallback.');
+// A binding that names no gateway (one made before the other platforms qualified) is the fallback draft's, Google
+// Ads', and so is a gateway no draft declares.
+const fallback = drafts.find(entry => entry.draft.fallback)!;
+/** The gateway of an allocation binding: its own, or the fallback draft's when it names none. */
+export const allocationGateway = (binding: JsonObject): string => binding.gateway ?? fallback.gateway;
+const draftOf = (gateway: unknown): AllocationDraft =>
+  (drafts.find(entry => entry.gateway === gateway) ?? fallback).draft;
 const decimal = (n: bigint) => {
   const tail = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
   return String(n / 1000000n) + (tail ? '.' + tail : '');
@@ -55,24 +82,13 @@ async function budgets(
   pricing = true,
   // DEC-02: the evidence period, given only by the preview, for Google's Search budget-lost impression share.
   window?: {since: string; until: string},
-): Promise<{
-  targets: JsonObject[];
-  source_references?: JsonObject[];
-  daily_budget_limits?: JsonObject;
-  search_budget_lost?: JsonObject;
-}> {
-  if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
-  if (source.gateway === 'linkedin_native_action')
-    return linkedinAllocationBudgets(store, call, actor, source, ids, pricing);
-  if (source.gateway === 'meta_native_action') return metaAllocationBudgets(store, call, actor, source, ids);
-  return googleAllocationBudgets(store, call, actor, source, ids, window);
+): Promise<AllocationBudgets> {
+  return draftOf(source.gateway).budgets(store, call, actor, source, ids, pricing, window);
 }
 
 function draft(binding: JsonObject, previewId: string) {
-  const snap = binding.gateway === 'snapchat_native_action',
-    linkedin = binding.gateway === 'linkedin_native_action',
-    meta = binding.gateway === 'meta_native_action',
-    targetGateway = binding.gateway ?? gateway;
+  const plan = draftOf(binding.gateway),
+    targetGateway = allocationGateway(binding);
   return {
     action: 'create',
     name: 'Allocation budget draft',
@@ -91,9 +107,9 @@ function draft(binding: JsonObject, previewId: string) {
         : '; efficiency factors declared by the operator') +
       '. Equal daily conversion over a comparable ' +
       binding.period_days +
-      (snap || linkedin || meta
-        ? '-day period. Daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'
-        : '-day period. Average daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'),
+      (plan.averageDaily
+        ? '-day period. Average daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'
+        : '-day period. Daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'),
     steps: binding.targets.map((t: JsonObject, i: number) => ({
       id: 'allocation-' + (i + 1),
       kind: 'write',
@@ -103,53 +119,15 @@ function draft(binding: JsonObject, previewId: string) {
       expected_currency: binding.currency,
       depends_on: [],
       description:
-        (snap ? 'Ad squad ' : 'Campaign ') +
+        plan.entity +
         (t.entity_id ?? t.campaign_id) +
-        (meta && t.budget_owner === 'ad_set' ? ' (ad set ' + t.adset_id + ')' : '') +
-        (snap || linkedin || meta ? ': daily budget ' : ': average daily budget ') +
+        (plan.owner?.(t) ?? '') +
+        (plan.averageDaily ? ': average daily budget ' : ': daily budget ') +
         decimal(BigInt(t.daily_budget_micros)) +
         ' ' +
         binding.currency +
-        (meta ? ' (' + t.daily_budget_native + ' in Meta minor units)' : ''),
-      arguments: meta
-        ? // DEC-02: the budget owner's own reviewed Meta update; the amount is exact Meta minor units.
-          t.budget_owner === 'ad_set'
-          ? {
-              action: 'meta_ad_set_id_update',
-              path_params: {ad_set_id: t.adset_id},
-              payload: {daily_budget: t.daily_budget_native},
-            }
-          : {
-              action: 'meta_campaign_id_update',
-              path_params: {campaign_id: t.campaign_id},
-              payload: {daily_budget: t.daily_budget_native},
-            }
-        : snap
-          ? {
-              action: 'snapchat_adsquad_update',
-              path_params: {campaign_id: binding.parent_campaign_id, ad_squad_id: t.entity_id},
-              payload: [{op: 'replace', path: '/daily_budget_micro', value: Number(t.daily_budget_micros)}],
-            }
-          : linkedin
-            ? {
-                action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
-                api_version: binding.api_version,
-                restli_method: 'PARTIAL_UPDATE',
-                path_params: {ad_account_id: binding.account_id, campaign_id: t.campaign_id},
-                payload: {patch: {$set: {dailyBudget: {amount: t.daily_budget, currencyCode: binding.currency}}}},
-              }
-            : {
-                action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-                payload: {
-                  operations: [
-                    {
-                      update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
-                      update_mask: 'amount_micros',
-                    },
-                  ],
-                  partial_failure: false,
-                },
-              },
+        (plan.nativeAmount?.(t) ?? ''),
+      arguments: plan.step(binding, t),
     })),
   };
 }
@@ -195,7 +173,7 @@ export function allocationCreationBinding(store: Store, actor: Actor, input: Jso
 }
 function sourceCurrent(store: Store, actor: Actor, b: JsonObject) {
   const report = store.document(actor.tenantId, 'decision_report', b.report_id);
-  const selectedGateway = b.gateway ?? gateway;
+  const selectedGateway = allocationGateway(b);
   store.resolveConnection(actor, selectedGateway, b.account_id, b.connection_id);
   if (
     report.revision !== b.report_revision ||
@@ -203,8 +181,8 @@ function sourceCurrent(store: Store, actor: Actor, b: JsonObject) {
     report.gateway !== selectedGateway ||
     report.account_id !== b.account_id ||
     report.connection_id !== b.connection_id ||
-    (selectedGateway === 'snapchat_native_action' &&
-      report.source_request?.path_params?.campaign_id !== b.parent_campaign_id)
+    // The source fields only the platform binds (Snapchat's parent campaign).
+    !!draftOf(selectedGateway).sourceChanged?.(report, b)
   )
     bad('The allocation source changed. Model and preview a new draft.', 'ALLOCATION_SOURCE_CHANGED');
   const modeled = reportAllocation(report, b.options); // Recheck age, completeness and evidence eligibility immediately before use.
@@ -223,14 +201,14 @@ export async function previewAllocationPlan(
   input: JsonObject,
 ) {
   writer(store, actor);
-  const snap = report.gateway === 'snapchat_native_action' && report.preset === 'snapchat_adsquad',
-    linkedin = report.gateway === 'linkedin_native_action' && report.preset === 'linkedin_campaign',
-    meta = report.gateway === 'meta_native_action' && report.preset === 'meta_campaign';
-  if (!snap && !linkedin && !meta && (report.gateway !== gateway || report.preset !== 'google_campaign'))
+  // A draft qualifies the evidence of its platform's allocation model, under the gateway of the platform's reports.
+  const qualified = drafts.find(entry => entry.gateway === report.gateway && entry.preset === report.preset);
+  if (!qualified)
     bad(
       'Native allocation drafts qualify Google dedicated campaign budgets, LinkedIn independent campaign daily budgets, Meta campaign or single-ad-set daily budgets and Snapchat ad-squad daily budgets. Other budget modes need their separate native planning flow.',
       'ALLOCATION_PLAN_UNQUALIFIED',
     );
+  const plan = qualified.draft;
   if (input.conversion !== 'equal_daily')
     bad(
       'Explicitly choose equal_daily conversion. Period totals are not native daily budgets.',
@@ -243,9 +221,8 @@ export async function previewAllocationPlan(
     connection_id: report.connection_id,
     currency: modeled.currency,
     timezone: modeled.semantics.timezone,
-    // A saved report's version is reused while reviewed; a sunset (or soon sunset) one moves to the current version.
-    ...(linkedin ? {api_version: linkedinStoredVersion(report.source_request?.api_version)} : {}),
-    ...(snap ? {parent_campaign_id: report.source_request.path_params.campaign_id} : {}),
+    // The source fields the platform binds: LinkedIn's API version, Snapchat's parent campaign.
+    ...plan.source?.(report),
   };
   // The smallest amount the account currency can be charged (WRT-07 Stage A): 10000 micros for USD, 1000000 for JPY
   // and CLP, 1000 for KWD. A daily budget that is not a multiple of it is refused by the provider.
@@ -255,15 +232,9 @@ export async function previewAllocationPlan(
       'The report names no ISO currency, so daily budgets cannot be rounded to an amount the account can be charged.',
       'ALLOCATION_PRECISION',
     );
-  // DEC-02: Meta counts budgets in whole minor units of its pinned per-currency offset; refused before any read without
-  // one. A daily amount is a whole number of those units and of the ISO minor unit.
-  const offset = meta ? metaCurrencyOffset(modeled.currency) : undefined;
-  if (meta && offset === undefined)
-    bad(
-      'Meta budgets count in the account currency’s minor unit, and AMCP has no pinned Meta offset for this currency. Pin Meta’s currency table before converting an allocation; nothing was read or saved.',
-      'ALLOCATION_PRECISION',
-      {currency: modeled.currency},
-    );
+  // DEC-02: a platform that counts budgets in whole minor units of a pinned per-currency offset (Meta) refuses a
+  // currency without one before any read. A daily amount is a whole number of those units and of the ISO minor unit.
+  const offset = plan.minorUnits?.(modeled.currency);
   if (offset !== undefined && 1000000n / BigInt(offset) > unit!) unit = 1000000n / BigInt(offset);
   const native = await budgets(
     store,
@@ -283,27 +254,8 @@ export async function previewAllocationPlan(
         'Every converted daily budget must be positive and within the exact allocation precision limit.',
         'ALLOCATION_PRECISION',
       );
-    const limits = native.daily_budget_limits;
-    if (
-      limits?.status === 'checked' &&
-      (daily < BigInt(limits.min_micros) || (limits.max_micros !== null && daily > BigInt(limits.max_micros)))
-    )
-      bad(
-        'A converted daily budget is outside the daily budget limits LinkedIn states for this account. Adjust the model bounds.',
-        'ALLOCATION_BUDGET_LIMIT',
-        {
-          entity_id: r.entity_id,
-          daily_budget: currencyText(daily, modeled.currency),
-          minimum: limits.min,
-          maximum: limits.max,
-          currency: modeled.currency,
-        },
-      );
-    if (snap && daily < 5000000n)
-      bad(
-        'Every Snapchat daily budget must meet the documented minimum of 5000000 native micros.',
-        'ALLOCATION_PRECISION',
-      );
+    // The platform's own checks of the converted amount: LinkedIn's stated daily limits, Snapchat's minimum.
+    plan.daily?.(daily, {entity_id: r.entity_id, currency: modeled.currency, limits: native.daily_budget_limits});
     if (daily === BigInt(n.amount_micros))
       bad(
         'The allocation contains an unchanged daily budget; adjust the modeled selection before creating a plan.',
@@ -317,7 +269,8 @@ export async function previewAllocationPlan(
       );
     return {
       ...n,
-      name: linkedin && n.campaign.name ? n.campaign.name : r.name,
+      // The platform's native name of the target (LinkedIn's current campaign name), else the report's.
+      name: plan.name?.(n) || r.name,
       period_budget: r.proposed_budget,
       current_daily_budget: decimal(BigInt(n.amount_micros)),
       current_daily_budget_micros: n.amount_micros,
@@ -381,13 +334,7 @@ export async function previewAllocationPlan(
       expires_at,
       ...binding,
       advertising_writes: 0,
-      meaning: meta
-        ? 'Preview only. Each Meta daily budget is set on its current owner: the campaign when it has a campaign daily budget, otherwise its one spending ad set. Amounts are whole Meta minor units of the account currency, rounded down; residuals are shown. Meta can spend up to 75% more than a daily budget on a day with better opportunities and at most seven times it over a calendar week. Daily budgets remain in effect until changed; this draft sets no end date and does not approve or execute any change.'
-        : linkedin
-          ? 'Preview only. LinkedIn native daily budgets use decimal account-currency amounts, rounded down to the smallest unit of the currency and checked against LinkedIn’s daily budget limits for the account when it states them. Rounding residuals are shown. Daily settings remain in effect until changed, and LinkedIn can charge up to 150% of a daily budget on a day with strong auction opportunities. Existing group caps are preserved. This draft sets no end date or automatic period spending cap, and does not approve or execute any change.'
-          : binding.gateway === 'snapchat_native_action'
-            ? 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
-            : 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
+      meaning: plan.meaning,
     };
   });
 }
@@ -494,7 +441,7 @@ export async function assertAllocationStep(
     !original ||
     !target ||
     fingerprint(step.arguments) !== fingerprint(original.arguments) ||
-    step.gateway !== (b.gateway ?? gateway) ||
+    step.gateway !== allocationGateway(b) ||
     step.account_id !== b.account_id ||
     step.connection_id !== b.connection_id ||
     step.expected_currency !== b.currency

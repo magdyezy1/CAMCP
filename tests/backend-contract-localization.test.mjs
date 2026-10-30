@@ -257,7 +257,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owned reason changes.
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
-  assert.equal(files.length, 736);
+  // Wave 4c round 6 (reporting) moves each allocation model's native budget draft from src/allocation-plan.ts to
+  // src/<platform>-allocation-draft.ts (Google, Meta, LinkedIn, Snapchat): four more files. Their three refusals are
+  // still raised through bad() and still authored allocation copy (tools/check-locales.mjs), so the files with
+  // reasons and the reasons are the same.
+  assert.equal(files.length, 740);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11529);

@@ -11,6 +11,7 @@ import {
   googleReportLocationTypes,
 } from './google-reporting.js';
 import type {GuidedReporting} from './report-source.js';
+import {googleAllocationDraft} from './google-allocation-draft.js';
 
 /**
  * Google Ads' guided reporting (ARC-04 stage F): what the shared guided modules (src/report-breakdowns.ts,
@@ -230,4 +231,6 @@ export const googleGuidedReporting: GuidedReporting = {
       },
     },
   },
+  // Wave 4c round 6 (w4c-arc6-reporting): DEC-02's native budget draft of the allocation model (campaign budgets).
+  allocationDraft: googleAllocationDraft,
 };

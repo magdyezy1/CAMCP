@@ -236,6 +236,12 @@ export interface GuidedReporting {
     evidence?(report: JsonObject): void;
     entity(id: unknown): boolean;
   };
+  // Wave 4c round 6 (w4c-arc6-reporting).
+  /**
+   * DEC-02: the native budget draft of an allocation preview of that model (amcp_reporting allocation_plan,
+   * src/allocation-plan.ts), declared exactly when `allocation` is.
+   */
+  readonly allocationDraft?: AllocationDraft;
 }
 
 export interface ReportSource {
@@ -323,3 +329,63 @@ export const undocumentedBreakdownValue = (dimension: string): never => {
 };
 /** The calendar day after an ISO date. */
 export const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);
+
+// Wave 4c round 6 (w4c-arc6-reporting): a platform's native budget draft of its allocation model.
+/** The current native budgets of an allocation's entities, as a platform's budget reader returns them (DEC-02). */
+export interface AllocationBudgets {
+  targets: JsonObject[];
+  source_references?: JsonObject[];
+  daily_budget_limits?: JsonObject;
+  search_budget_lost?: JsonObject;
+}
+
+/**
+ * DEC-02 (ARC-01 reporting): a platform's native budget draft of an allocation preview. src/allocation-plan.ts keeps
+ * the conversion, the shared checks, their order and refusals, the preview and draft records and the source binding,
+ * and asks the draft of the report's platform only for what it named the platform for: the budget reader, the source
+ * fields a binding keeps, the platform's own checks of a converted daily budget, and each target's native update with
+ * its wording.
+ */
+export interface AllocationDraft {
+  /**
+   * The current native budgets of the entities `ids` under an allocation source (a preview's source or a draft's
+   * binding). `pricing` is false where the preview already priced the platform's daily limits; `window` is the
+   * evidence period, which only the preview gives.
+   */
+  budgets(
+    store: Store,
+    call: ToolCall,
+    actor: Actor,
+    source: JsonObject,
+    ids: string[],
+    pricing: boolean,
+    window?: {since: string; until: string},
+  ): Promise<AllocationBudgets>;
+  /** The source fields the platform binds from its report (LinkedIn's API version, Snapchat's parent campaign). */
+  source?(report: JsonObject): JsonObject;
+  /** Whether the report no longer matches a source field the binding keeps (Snapchat's parent campaign). */
+  sourceChanged?(report: JsonObject, binding: JsonObject): boolean;
+  /**
+   * The platform's minor units per unit of `currency`, for budgets counted in whole units of a pinned offset (Meta).
+   * It refuses a currency without one, before any read.
+   */
+  minorUnits?(currency: string): number;
+  /** The platform's own checks of a converted daily budget in micros (LinkedIn's stated limits, Snapchat's minimum). */
+  daily?(daily: bigint, target: {entity_id: unknown; currency: string; limits?: JsonObject}): void;
+  /** The platform's native name of a target (LinkedIn's current campaign name); the report's when it gives none. */
+  name?(native: JsonObject): unknown;
+  /** True when the draft's daily budgets are average daily budgets (Google Ads). */
+  readonly averageDaily?: true;
+  /** How a draft step's description names its entity (`Campaign `, `Ad squad `). */
+  readonly entity: string;
+  /** What a step's description adds after its entity ID (Meta's spending ad set). */
+  owner?(target: JsonObject): string;
+  /** What a step's description adds after its amount (Meta's minor units). */
+  nativeAmount?(target: JsonObject): string;
+  /** The native update of one target: the arguments of its draft step. */
+  step(binding: JsonObject, target: JsonObject): JsonObject;
+  /** What the preview means. */
+  readonly meaning: string;
+  /** True for the one draft of a binding that names no gateway (Google Ads', which qualified first). */
+  readonly fallback?: true;
+}

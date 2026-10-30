@@ -40,10 +40,16 @@
       "raised": [
         "reference_words 143230 → 143300"
       ]
+    },
+    {
+      "reason": "w4c-arc6-reporting: the allocation drafts row of ARCHITECTURE.md section 9 (wave 4c round 6)",
+      "raised": [
+        "reference_words 143300 → 143396"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143300
+    "reference_words": 143396
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
