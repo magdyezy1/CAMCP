@@ -42,7 +42,8 @@ export const targets = Object.freeze({
     classes: {ScopeGuard: ['authorize', 'observe', 'observeCreated']},
   },
   // The Snapchat scoped-resource paths left scope.js for this leaf (ARC-01 phase B, the read authorizers), which
-  // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
+  // scope.js re-exported until wave 4c; a recording made before names them dist/src/scope.js#... (compare with
+  // --ignore for both).
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
   'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource']}},
   'dist/src/account-id.js': {functions: ['normalizeAccount']},

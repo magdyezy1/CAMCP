@@ -55,13 +55,14 @@ test('the read authorizers are the chain’s, each its provider’s, at the stag
     ],
   );
   for (const {authorizer} of authorizers) assert.ok(Object.isFrozen(authorizer), authorizer.name);
-  // The shared guard names no provider and imports no provider module but Snapchat's path leaf it re-exports.
+  // The shared guard names no provider and imports no provider module: wave 4c removed its last one, the re-export of
+  // Snapchat's path leaf (src/snapchat-scope.ts), which no module imported through src/scope.ts.
   const source = fs.readFileSync(new URL('../src/scope.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /['"][a-z0-9_]+_native_action['"]/, 'no gateway literal in src/scope.ts');
   const providerImports = [...source.matchAll(/from '\.\/([^']+)\.js'/g)]
     .map(m => 'src/' + m[1] + '.ts')
     .filter(file => isProviderModule(file) && !providerRegistries.includes(file));
-  assert.deepEqual(providerImports, ['src/snapchat-scope.ts']);
+  assert.deepEqual(providerImports, []);
 });
 
 test('each authorizer claims its own documented requests, and none of another provider’s', () => {
