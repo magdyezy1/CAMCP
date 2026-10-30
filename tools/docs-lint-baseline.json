@@ -16,10 +16,16 @@
       "raised": [
         "docs/operations/QUALIFICATION.md commit_refs 0 → 1"
       ]
+    },
+    {
+      "reason": "wave 4c ARC-01/ARC-04 packages (transport-catalog, server, writes-campaigns, reporting, families), merged before DOC-03: the architecture record docs/review/ARCHITECTURE.md (9,321 to 18,365 words: the provider adapters' hooks and facts, report sources, family kit, composition tables, module structure, the ratchet's falls and the deliberate removals of section 9), the reviewed-family guide docs/ADDING-A-REVIEWED-FAMILY.md (3,522 to 3,997: the facts adapters declare) and docs/GOOGLE-VERIFICATION.md (1,137 to 1,143: GA4's discovery step) describe the merged modules",
+      "raised": [
+        "reference_words 133656 → 143181"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 133656
+    "reference_words": 143181
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
