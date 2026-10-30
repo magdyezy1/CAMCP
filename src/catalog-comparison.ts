@@ -15,6 +15,7 @@ import {
   catalogItemSchemaVersion,
   comparisonItemV2,
   comparisonSummary,
+  fallbackCatalogDestination,
   type CatalogGateway,
 } from './catalog-destinations.js';
 import type {Store} from './store.js';
@@ -50,9 +51,9 @@ export async function catalogComparison(
   // An explicit selection of listed X products by native key (COM-02 B) reads only those products.
   const keys = listedSelectionRequested(input);
   if (keys) return xCatalogListedSelection(store, registry, transport, credentials, actor, input, keys);
-  // A gateway that is not a catalog destination keeps the Meta refusal it had before the destination contract.
-  const destination = catalogDestination(input.gateway)?.gateway ?? 'meta_native_action';
-  return comparisons[destination](store, registry, transport, credentials, actor, input);
+  // A gateway that is not a catalog destination keeps the refusal it had before the destination contract.
+  const destination = (catalogDestination(input.gateway) ?? fallbackCatalogDestination).gateway;
+  return comparisons[destination]!(store, registry, transport, credentials, actor, input);
 }
 /** Meta: reads only the supplied retailer IDs; Meta's own price_amount filter establishes price equality. */
 async function metaCatalogComparison(
@@ -63,7 +64,7 @@ async function metaCatalogComparison(
   actor: Actor,
   input: JsonObject,
 ) {
-  if (typeof input.catalog_id !== 'string' || !catalogDestinations.meta_native_action.catalogId.test(input.catalog_id))
+  if (typeof input.catalog_id !== 'string' || !catalogDestinations.meta_native_action!.catalogId.test(input.catalog_id))
     bad('Choose an exact positive numeric Meta product catalog ID.');
   const preview = catalogIngestion(input),
     retire = catalogRetirement(input),
@@ -130,7 +131,7 @@ async function metaCatalogComparison(
           comparisonItemV2(
             {...item, blocked_reason: item.blocked ? 'existing_product_create_only' : null},
             plans[i]!.body as JsonObject,
-            catalogDestinations.meta_native_action,
+            catalogDestinations.meta_native_action!,
             !!retire?.ids.has(item.retailer_id),
           ),
         ),

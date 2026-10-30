@@ -21,7 +21,7 @@ export function catalogIngestion(input: JsonObject) {
   const destination = catalogDestination(input.gateway);
   // An unknown gateway keeps the refusal it had before the destination contract.
   if (!destination) return bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
-  return projections[destination.gateway](input) as ReturnType<typeof metaCatalogIngestion>;
+  return projections[destination.gateway]!(input) as ReturnType<typeof metaCatalogIngestion>;
 }
 /** Exact order of two nonnegative decimal strings, without floating point: negative, zero or positive. */
 function decimalOrder(a: string, b: string): number {
@@ -130,7 +130,7 @@ export function retired(p: JsonObject, retire: ReturnType<typeof catalogRetireme
 }
 /** Supplied products → one Meta product create per item; Meta counts prices in hundredths. */
 export function metaCatalogIngestion(input: JsonObject) {
-  const fields = catalogSourceFields(catalogDestinations.meta_native_action),
+  const fields = catalogSourceFields(catalogDestinations.meta_native_action!),
     retire = catalogRetirement(input);
   if (input.gateway !== 'meta_native_action' || !/^\d+$/.test(input.catalog_id ?? ''))
     bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
@@ -256,7 +256,7 @@ export function metaCatalogIngestion(input: JsonObject) {
 
 /** A bounded local projection into the existing single-product X reviewed contract. No inferred source values. */
 export function xCatalogIngestion(input: JsonObject) {
-  const fields = catalogSourceFields(catalogDestinations.x_ads_native_action),
+  const fields = catalogSourceFields(catalogDestinations.x_ads_native_action!),
     retire = catalogRetirement(input);
   if (typeof input.catalog_id !== 'string' || !xSnowflake.test(input.catalog_id))
     bad('Choose an exact X product catalog ID and selected X ad account.', 'INVALID_X_CATALOG_IMPORT');
@@ -270,7 +270,7 @@ export function xCatalogIngestion(input: JsonObject) {
   const seen = new Set<string>();
   const native = input.products.map((p: JsonObject, i: number) => {
     validate(p, fields, 16384, 'product field');
-    for (const key of catalogDestinations.x_ads_native_action.sourceFields.required)
+    for (const key of catalogDestinations.x_ads_native_action!.sourceFields.required)
       if (typeof p[key] !== 'string' || !p[key].trim())
         bad(
           'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
@@ -363,7 +363,7 @@ export function xCatalogIngestion(input: JsonObject) {
  * the exact decimal the source wrote, in "amount CUR" form. allow_upsert has no meaning here and is ignored.
  */
 export function snapchatCatalogIngestion(input: JsonObject) {
-  const d = catalogDestinations.snapchat_native_action,
+  const d = catalogDestinations.snapchat_native_action!,
     fields = catalogSourceFields(d);
   if (typeof input.catalog_id !== 'string' || !d.catalogId.test(input.catalog_id))
     bad(

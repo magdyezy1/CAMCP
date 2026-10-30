@@ -891,6 +891,9 @@ export interface ProviderAdapter {
   readonly renewal?: ProviderRenewal;
   /** Its captured schema lacks LIST_ACTIONS, but AMCP lists its actions from its catalog (DV360, MCP-05; wave 4c). */
   readonly listsActions?: true;
+  // Wave 4c round 6 (w4c-arc6-catalog).
+  /** Its catalog destination (COM-03), which src/catalog-destinations.ts lists in catalogDestinationOrder's order. */
+  readonly catalogDestination?: CatalogDestinationFacts;
 }
 
 /**
@@ -1364,4 +1367,51 @@ export interface CreatedLookup {
   match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
   /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
   receipt(found: JsonObject[]): JsonObject;
+}
+
+// Wave 4c round 6 (w4c-arc6-catalog): the catalog destinations (COM-03) the providers fill.
+/**
+ * A provider's catalog destination (COM-03), a fact of its adapter that src/catalog-destinations.ts lists: what a
+ * supplied product source may carry, its item identity and how product changes reach the destination.
+ */
+export interface CatalogDestinationFacts {
+  /** Source columns a product may carry; required first. Unknown columns are refused. */
+  readonly sourceFields: {required: readonly string[]; optional: readonly string[]};
+  /** The destination's native catalog ID. */
+  readonly catalogId: RegExp;
+  /**
+   * Item identity: the source's retailer_id names a product, and `native` is the destination's own key of that product
+   * in a comparison item's product_id (Meta's product ID, X's product key, Snapchat's product ID, which is the
+   * retailer_id itself).
+   */
+  readonly identity: {source: 'retailer_id'; native: 'product_id' | 'product_key' | 'retailer_id'; pattern: RegExp};
+  /**
+   * How product changes reach the destination: one reviewed native step per product, each with its own receipt and
+   * read-back (`reviewed_steps`), or only through the destination's own product feeds (`feed_only`: a comparison names
+   * what to fix in the feed and no draft is saved).
+   */
+  readonly writes: 'reviewed_steps' | 'feed_only';
+  /** How an existing retailer ID is treated: Meta asks for an explicit choice, X always updates matching IDs. */
+  readonly upsert: 'explicit_choice' | 'required' | 'none';
+  /**
+   * Explicit removal intent the destination supports: a non-destructive retirement of supplied products through the
+   * reviewed update (`retire`), also an explicit deletion of selected individual products by native key
+   * (`retire_and_selected_deletion`), or nothing (`none`). Absence from a source never selects anything.
+   */
+  readonly removal: 'retire' | 'retire_and_selected_deletion' | 'none';
+  /**
+   * What a populated attribute the source does not send means for the comparison (P9's first question): `review` puts
+   * an otherwise matching product in the review set as `unknown` (owner decision P9 of 2026-10-11, which names Meta),
+   * and `note` names it in `unsent_fields` without changing the state (COM-01's reading, kept for X, whose native
+   * review warns of such values, and for feed-only Snapchat). Either way `unsent_fields` names the attributes
+   * (docs/DECISIONS.md).
+   */
+  readonly destinationOnlyValues: 'review' | 'note';
+  /**
+   * The destination whose comparison answers a gateway that is no catalog destination, which keeps the refusal it had
+   * before the destination contract (Meta's). Exactly one destination is the fallback.
+   */
+  readonly fallback?: true;
+  /** The retailer ID one of its reviewed product steps writes, read from the step's payload (src/catalog-retirement.ts). */
+  stepRetailerId?(payload: JsonObject | undefined): unknown;
 }

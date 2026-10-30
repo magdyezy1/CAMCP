@@ -1,6 +1,8 @@
 import type {
   AccountModel,
   BodyDeletions,
+  // Wave 4c round 6 (w4c-arc6-catalog).
+  CatalogDestinationFacts,
   EntityWrites,
   PagingFacts,
   ParkedReason,
@@ -140,6 +142,10 @@ function adapter(
     // ARC-01 phase B, the login and connection modules: how its logins renew without the user (CON-02).
     ...(options.renewal ? {renewal: Object.freeze({...options.renewal})} : {}),
     ...(options.listsActions ? {listsActions: true as const} : {}),
+    // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination (COM-03), the table below's entry for its ID.
+    ...(Object.hasOwn(catalogDestinationFacts, id)
+      ? {catalogDestination: Object.freeze({...catalogDestinationFacts[id]!})}
+      : {}),
   });
 }
 
@@ -256,6 +262,58 @@ const reviewStageFacts: Readonly<
       field: 'is_adset_budget_sharing_enabled',
       value: false,
     }),
+  },
+};
+
+// Wave 4c round 6 (w4c-arc6-catalog): the catalog destinations (COM-03; the table of src/catalog-destinations.ts), by
+// provider ID, each moved unchanged; each adapter takes its ID's entry, and catalogDestinationOrder lists them.
+// tests/catalog-destination-contract.test.mjs holds each projection and the website to its destination.
+const catalogShared = ['retailer_id', 'name', 'price', 'currency', 'image_url'] as const,
+  catalogDescribed = ['url', 'availability', 'condition', 'brand', 'description'] as const,
+  // An optional sale in the product currency with literal start and end times (COM-02 A).
+  catalogSale = ['sale_price', 'sale_price_start_date', 'sale_price_end_date'] as const;
+const catalogDestinationFacts: Readonly<Record<string, CatalogDestinationFacts>> = {
+  meta: {
+    sourceFields: {
+      required: catalogShared,
+      optional: [...catalogDescribed, 'retailer_product_group_id', ...catalogSale],
+    },
+    catalogId: /^[1-9][0-9]{0,31}$/,
+    identity: {source: 'retailer_id', native: 'product_id', pattern: /^[1-9][0-9]{0,31}$/},
+    writes: 'reviewed_steps',
+    upsert: 'explicit_choice',
+    // Meta has no product delete contract: a discontinued product is retired (COM-02 B).
+    removal: 'retire',
+    // Owner decision P9 (2026-10-11): a populated Meta attribute the source does not send puts a product that otherwise
+    // matches in the review set as `unknown`, because Meta does not say whether an upsert keeps or clears it; before P9
+    // it was only a note on a matching product (COM-01). The native review of the upsert warns about the same values.
+    destinationOnlyValues: 'review',
+    // A gateway that is not a catalog destination keeps the Meta refusal it had before the destination contract.
+    fallback: true,
+    // One product create per step, its payload the product.
+    stepRetailerId: payload => payload?.retailer_id,
+  },
+  x: {
+    sourceFields: {required: [...catalogShared, ...catalogDescribed], optional: catalogSale},
+    catalogId: /^[1-9][0-9]{0,24}$/,
+    identity: {source: 'retailer_id', native: 'product_key', pattern: /^[1-9][0-9]{0,24}$/},
+    writes: 'reviewed_steps',
+    upsert: 'required',
+    removal: 'retire_and_selected_deletion',
+    destinationOnlyValues: 'note',
+    // One product put per step, its payload a list of the one product.
+    stepRetailerId: payload => (Array.isArray(payload?.products) ? payload.products[0]?.id : undefined),
+  },
+  // COM-02 D: Snapchat products change only through product feeds, so its comparison is read-only and names what to fix
+  // in the feed. Its sale is a sale price only: the read format of Snapchat sale dates is not qualified.
+  snapchat: {
+    sourceFields: {required: catalogShared, optional: [...catalogDescribed, 'sale_price']},
+    catalogId: /^[A-Za-z0-9-]{1,64}$/,
+    identity: {source: 'retailer_id', native: 'retailer_id', pattern: /^[^\u0000-\u001f\u007f]{1,100}$/},
+    writes: 'feed_only',
+    upsert: 'none',
+    removal: 'none',
+    destinationOnlyValues: 'note',
   },
 };
 
@@ -714,3 +772,17 @@ export function providerLifecycle(env: NodeJS.ProcessEnv = process.env): Provide
     offered: providerOffered(a, env),
   }));
 }
+
+// Wave 4c round 6 (w4c-arc6-catalog).
+/**
+ * The order in which src/catalog-destinations.ts lists the catalog destinations (COM-03), by provider ID. A load-time
+ * check: it names every adapter with a catalog destination once, and no other, and exactly one of them is the fallback.
+ */
+export const catalogDestinationOrder: readonly string[] = Object.freeze(['meta', 'x', 'snapchat']);
+if (
+  new Set(catalogDestinationOrder).size !== catalogDestinationOrder.length ||
+  catalogDestinationOrder.some(id => !byId.get(id)?.catalogDestination) ||
+  providerAdapters.filter(a => a.catalogDestination).length !== catalogDestinationOrder.length ||
+  providerAdapters.filter(a => a.catalogDestination?.fallback).length !== 1
+)
+  throw new Error('The catalog destination order must name every catalog destination once, one of them the fallback.');

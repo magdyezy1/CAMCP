@@ -338,10 +338,10 @@ other four packages, the falls add up again: 34 and 53.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 34 |
+| `shared_modules_with_gateway_literals` | 31 |
 | `shared_to_provider_runtime_imports` | 53 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 164 |
+| `shared_gateway_literals` (reported) | 155 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 

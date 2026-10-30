@@ -1,14 +1,17 @@
 import type {JsonObject} from './types.js';
+import type {CatalogDestinationFacts, ProviderAdapter} from './provider-adapter.js';
+import {catalogDestinationOrder, providerById} from './provider-adapters.js';
 import {bad} from './workspace-core.js';
 
 /**
  * Catalog destinations (COM-03): one contract for the commerce destinations a supplied product source can be compared
  * with or imported into. Each destination names its source fields, its item identity, how it accepts product changes
- * (explicit upsert intent, explicit removal intent, per-item receipts, or feeds only); its projection
- * (src/catalog-ingestion.ts) and its comparison (src/catalog-comparison.ts) are registered under the same gateway, so
- * adding a destination is one entry here plus its two adapters, checked at compile time. Product sources plug in on the
- * other side (src/catalog-sources.ts, with column mappings in src/catalog-mapping.ts): whatever produced the products,
- * a destination sees the same supplied rows. tests/catalog-destination-contract.test.mjs holds each projection and the
+ * (explicit upsert intent, explicit removal intent, per-item receipts, or feeds only). The destinations are facts of
+ * their providers' adapters (src/provider-adapters.ts, ARC-01), listed here under their gateways in the registry's
+ * catalogDestinationOrder; each provider registers its projection (src/catalog-ingestion.ts) and its comparison
+ * (src/catalog-comparison.ts) under the same gateway. Product sources plug in on the other side
+ * (src/catalog-sources.ts, with column mappings in src/catalog-mapping.ts): whatever produced the products, a
+ * destination sees the same supplied rows. tests/catalog-destination-contract.test.mjs holds each projection and the
  * website to this contract.
  *
  * Every destination returns the shared comparison item (`catalog-comparison-item-v2`): `state`, `changes`,
@@ -19,92 +22,37 @@ import {bad} from './workspace-core.js';
  * destination infers a deletion from a product's absence in the source.
  */
 export const catalogItemSchemaVersion = 'catalog-comparison-item-v2';
-export type CatalogGateway = 'meta_native_action' | 'x_ads_native_action' | 'snapchat_native_action';
-export type CatalogDestination = {
+/** A catalog destination's gateway; the provider adapters name the destinations (src/provider-adapters.ts). */
+export type CatalogGateway = string;
+/** A destination: its adapter's facts (src/provider-adapter.ts CatalogDestinationFacts) under its gateway. */
+export type CatalogDestination = Omit<CatalogDestinationFacts, 'fallback' | 'stepRetailerId'> & {
   gateway: CatalogGateway;
-  provider: 'meta' | 'x' | 'snapchat';
-  /** Source columns a product may carry; required first. Unknown columns are refused. */
-  sourceFields: {required: readonly string[]; optional: readonly string[]};
-  /** The destination's native catalog ID. */
-  catalogId: RegExp;
-  /**
-   * Item identity: the source's retailer_id names a product, and `native` is the destination's own key of that product
-   * in a comparison item's product_id (Meta's product ID, X's product key, Snapchat's product ID, which is the
-   * retailer_id itself).
-   */
-  identity: {source: 'retailer_id'; native: 'product_id' | 'product_key' | 'retailer_id'; pattern: RegExp};
-  /**
-   * How product changes reach the destination: one reviewed native step per product, each with its own receipt and
-   * read-back (`reviewed_steps`), or only through the destination's own product feeds (`feed_only`: a comparison names
-   * what to fix in the feed and no draft is saved).
-   */
-  writes: 'reviewed_steps' | 'feed_only';
-  /** How an existing retailer ID is treated: Meta asks for an explicit choice, X always updates matching IDs. */
-  upsert: 'explicit_choice' | 'required' | 'none';
-  /**
-   * Explicit removal intent the destination supports: a non-destructive retirement of supplied products through the
-   * reviewed update (`retire`), also an explicit deletion of selected individual products by native key
-   * (`retire_and_selected_deletion`), or nothing (`none`). Absence from a source never selects anything.
-   */
-  removal: 'retire' | 'retire_and_selected_deletion' | 'none';
-  /**
-   * What a populated attribute the source does not send means for the comparison (P9's first question): `review` puts
-   * an otherwise matching product in the review set as `unknown` (owner decision P9 of 2026-10-11, which names Meta),
-   * and `note` names it in `unsent_fields` without changing the state (COM-01's reading, kept for X, whose native
-   * review warns of such values, and for feed-only Snapchat). Either way `unsent_fields` names the attributes
-   * (docs/DECISIONS.md).
-   */
-  destinationOnlyValues: 'review' | 'note';
+  /** The ID of its provider adapter. */
+  provider: string;
   itemSchemaVersion: typeof catalogItemSchemaVersion;
 };
-const shared = ['retailer_id', 'name', 'price', 'currency', 'image_url'] as const,
-  described = ['url', 'availability', 'condition', 'brand', 'description'] as const,
-  // An optional sale in the product currency with literal start and end times (COM-02 A).
-  sale = ['sale_price', 'sale_price_start_date', 'sale_price_end_date'] as const;
-export const catalogDestinations: Readonly<Record<CatalogGateway, CatalogDestination>> = {
-  meta_native_action: {
-    gateway: 'meta_native_action',
-    provider: 'meta',
-    sourceFields: {required: shared, optional: [...described, 'retailer_product_group_id', ...sale]},
-    catalogId: /^[1-9][0-9]{0,31}$/,
-    identity: {source: 'retailer_id', native: 'product_id', pattern: /^[1-9][0-9]{0,31}$/},
-    writes: 'reviewed_steps',
-    upsert: 'explicit_choice',
-    // Meta has no product delete contract: a discontinued product is retired (COM-02 B).
-    removal: 'retire',
-    // Owner decision P9 (2026-10-11): a populated Meta attribute the source does not send puts a product that otherwise
-    // matches in the review set as `unknown`, because Meta does not say whether an upsert keeps or clears it; before P9
-    // it was only a note on a matching product (COM-01). The native review of the upsert warns about the same values.
-    destinationOnlyValues: 'review',
+function destinationOf(adapter: ProviderAdapter): CatalogDestination {
+  const d = adapter.catalogDestination!;
+  return {
+    gateway: adapter.gateway,
+    provider: adapter.id,
+    sourceFields: d.sourceFields,
+    catalogId: d.catalogId,
+    identity: d.identity,
+    writes: d.writes,
+    upsert: d.upsert,
+    removal: d.removal,
+    destinationOnlyValues: d.destinationOnlyValues,
     itemSchemaVersion: catalogItemSchemaVersion,
-  },
-  x_ads_native_action: {
-    gateway: 'x_ads_native_action',
-    provider: 'x',
-    sourceFields: {required: [...shared, ...described], optional: sale},
-    catalogId: /^[1-9][0-9]{0,24}$/,
-    identity: {source: 'retailer_id', native: 'product_key', pattern: /^[1-9][0-9]{0,24}$/},
-    writes: 'reviewed_steps',
-    upsert: 'required',
-    removal: 'retire_and_selected_deletion',
-    destinationOnlyValues: 'note',
-    itemSchemaVersion: catalogItemSchemaVersion,
-  },
-  // COM-02 D: Snapchat products change only through product feeds, so its comparison is read-only and names what to fix
-  // in the feed. Its sale is a sale price only: the read format of Snapchat sale dates is not qualified.
-  snapchat_native_action: {
-    gateway: 'snapchat_native_action',
-    provider: 'snapchat',
-    sourceFields: {required: shared, optional: [...described, 'sale_price']},
-    catalogId: /^[A-Za-z0-9-]{1,64}$/,
-    identity: {source: 'retailer_id', native: 'retailer_id', pattern: /^[^\u0000-\u001f\u007f]{1,100}$/},
-    writes: 'feed_only',
-    upsert: 'none',
-    removal: 'none',
-    destinationOnlyValues: 'note',
-    itemSchemaVersion: catalogItemSchemaVersion,
-  },
-};
+  };
+}
+const destinationAdapters = catalogDestinationOrder.map(id => providerById(id)!);
+export const catalogDestinations: Readonly<Record<CatalogGateway, CatalogDestination>> = Object.fromEntries(
+  destinationAdapters.map(a => [a.gateway, destinationOf(a)]),
+);
+/** The destination whose comparison answers a gateway that is no catalog destination (its adapter's `fallback`). */
+export const fallbackCatalogDestination: CatalogDestination =
+  catalogDestinations[destinationAdapters.find(a => a.catalogDestination!.fallback)!.gateway]!;
 /** The destination of a gateway, or undefined for a gateway that is not a catalog destination. */
 export function catalogDestination(gateway: unknown): CatalogDestination | undefined {
   return typeof gateway === 'string' && Object.hasOwn(catalogDestinations, gateway)
