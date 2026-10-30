@@ -10,6 +10,7 @@ import {googleOAuth} from '../dist/src/google-oauth.js';
 import {providerRevocationOffer, revocationTarget} from '../dist/src/provider-revocation.js';
 import {Store} from '../dist/src/store.js';
 import {platforms} from '../dist/server/platform-oauth.js';
+import {driveGateway} from '../dist/src/private-drive.js';
 
 // ARC-01 phase B, the login and connection modules the website and the MCP service share: the provider facts they held
 // (how an account ID compares, ...) are the provider adapters' (src/provider-adapters.ts) or their website login steps'
@@ -242,4 +243,12 @@ test('the website platforms’ OAuth apps are their providers’ facts, which ap
       ],
     ],
   );
+});
+
+test('the private Drive source takes Drive’s gateway from its adapter', () => {
+  assert.doesNotMatch(source('src/private-drive.ts'), gatewayLiteral);
+  // The same gateway its logins, selections and imports name (tests/drive-folders.test.mjs and its suites).
+  assert.equal(driveGateway, 'google_drive_native_action');
+  assert.equal(driveGateway, providerById('drive').gateway);
+  assert.equal(providerOf(driveGateway).app.stem, 'DRIVE');
 });
