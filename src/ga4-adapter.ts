@@ -126,4 +126,7 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
     // A provider job's verification read shows its phase: running is pending, failed is failed (src/write-verification.ts).
     verificationPhase: measurementVerificationPhase,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its connection
+  // operation, whose OAuth steps run on the website (src/unavailable-operations.ts, src/connection-diagnostics.ts).
+  connection: Object.freeze({operation: 'ga4_connection_ops', provider: 'Google Analytics'}),
 });

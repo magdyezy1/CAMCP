@@ -20,6 +20,8 @@ import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
 import type {MutationResponse} from './provider-adapter.js';
 import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
 import {withXCatalogRemovalExpectation} from './x-catalog-products.js';
+// Wave 4c round 6 (w4c-arc6-tables).
+import {deepFrozen} from './frozen-facts.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -197,6 +199,32 @@ export const xHooks: ProviderHooks = Object.freeze({
       changed: catalogRemovalChanged,
     }),
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them).
+  // The Ads API access every X request needs, which AMCP lists but never checks (src/discovery-programs.ts).
+  programs: deepFrozen([
+    {
+      id: 'program:x_ads_api_access',
+      name: 'X Ads API access',
+      description: 'Use the X Ads API for an advertiser account: reads, reviewed writes and analytics.',
+      prerequisites: [
+        {
+          id: 'ads_api_access_form',
+          text: 'X must approve the developer application through the Ads API access form before any Ads API request succeeds.',
+        },
+        {
+          id: 'advertiser_account_access',
+          text: 'The connected X user needs access to the advertiser account in X Ads.',
+        },
+      ],
+      program: {
+        access: 'The X Ads API needs an approved application through the Ads API access form.',
+        reference: 'https://docs.x.com/x-ads-api/introduction',
+        checked_on: '2026-10-08',
+      },
+      unlocks: ['X reporting', 'Reviewed X campaign and catalog writes'],
+      withheld_actions: [],
+    },
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

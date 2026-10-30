@@ -27,6 +27,8 @@ import type {VendorRoute} from './delegated-native.js';
 // preflight reads through.
 import type {ToolCall} from './workspace-core.js';
 import type {MirrorService} from './service.js';
+// Wave 4c round 6 (w4c-arc6-tables): the shared tables' row types.
+import type {Alternative} from './unavailable-operations.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -852,6 +854,14 @@ export interface ProviderHooks {
   readonly campaign?: CampaignHooks;
   /** Its parts of the reviewed write lifecycle (wave 4c, writes and campaigns). */
   readonly writes?: WriteReviewHooks;
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables, which each shared module lists in the order
+  // src/provider-hooks.ts declares for it.
+  /** The captured operations it lists but AMCP cannot run (src/unavailable-operations.ts), after its connection's. */
+  readonly unavailable?: Readonly<Record<string, UnavailableOperationFacts>>;
+  /** Its connection operation, whose OAuth steps run on the website (src/connection-diagnostics.ts). */
+  readonly connection?: ConnectionOperation;
+  /** Its discovery-only programs (src/discovery-programs.ts), in their listed order. */
+  readonly programs?: readonly DiscoveryProgramFacts[];
 }
 
 export interface ProviderAdapter {
@@ -1364,4 +1374,36 @@ export interface CreatedLookup {
   match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
   /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
   receipt(found: JsonObject[]): JsonObject;
+}
+
+// Wave 4c round 6 (w4c-arc6-tables): the provider rows of the shared tables (ProviderHooks, above). A row is frozen
+// where its provider declares it; the shared module that lists it copies it into the plain table it exports.
+
+/** A captured operation AMCP lists but cannot run, as its provider declares it (src/unavailable-operations.ts). */
+export interface UnavailableOperationFacts {
+  /** The operation's actions that cannot run; absent when none of them can. */
+  readonly actions?: readonly string[];
+  readonly reason: string;
+  readonly alternatives: readonly Alternative[];
+}
+/** A connection operation (Analytics, Search Console, Business Profile): its OAuth steps run on the website. */
+export interface ConnectionOperation {
+  readonly operation: string;
+  /** The provider's name in the refusal of those steps (src/unavailable-operations.ts). */
+  readonly provider: string;
+  /** Its retired Q&A operation, whose status the diagnostics answer locally (Business Profile). */
+  readonly qanda?: string;
+}
+/** A discovery-only program as its provider declares it; src/discovery-programs.ts adds what every entry says. */
+export interface DiscoveryProgramFacts {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly prerequisites: readonly {readonly id: string; readonly text: string}[];
+  readonly program: {readonly access: string; readonly reference: string; readonly checked_on: string};
+  readonly unlocks: readonly string[];
+  readonly withheld_actions: readonly string[];
+  /** Why the withheld actions wait on the program (the refusal of each of them, src/withheld-writes.ts). */
+  readonly withheld_reason?: string;
+  readonly personal_data?: string;
 }

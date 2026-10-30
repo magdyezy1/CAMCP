@@ -21,6 +21,8 @@ import {authorizeDV360AudienceRead, dv360AudienceRead} from './dv360-audiences.j
 // Writes and campaigns (wave 4c).
 import type {MutationResponse} from './provider-adapter.js';
 import {extendDV360Tool} from './dv360-extensions.js';
+// Wave 4c round 6 (w4c-arc6-tables).
+import {deepFrozen} from './frozen-facts.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -143,6 +145,37 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     confirms: dv360Confirms,
     accountPath: /^\/v\d+\/advertisers\/[^/]+/,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them).
+  // Bid Manager reporting, which AMCP lists but never checks (src/discovery-programs.ts).
+  programs: deepFrozen([
+    {
+      id: 'program:dv360_bid_manager_reporting',
+      name: 'Display & Video 360 reporting (Bid Manager)',
+      description: 'Run Display & Video 360 reports through the Bid Manager API.',
+      prerequisites: [
+        {
+          id: 'bid_manager_scope',
+          text: 'The Google identity must grant the Bid Manager OAuth scope, which is separate from the Display & Video 360 scope.',
+        },
+        {
+          id: 'dv360_customer_role',
+          text: 'The Google identity needs a Display & Video 360 user profile with access to the partner or advertiser.',
+        },
+        {
+          id: 'reporting_workflow',
+          text: 'AMCP has no Bid Manager report workflow yet; reports, query runs and report retrieval are not available.',
+        },
+      ],
+      program: {
+        access:
+          'Bid Manager reporting uses its own OAuth scope and report workflow; an advertiser read does not establish reporting access.',
+        reference: 'https://developers.google.com/bid-manager',
+        checked_on: '2026-10-08',
+      },
+      unlocks: ['Display & Video 360 reporting'],
+      withheld_actions: [],
+    },
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

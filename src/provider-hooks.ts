@@ -17,6 +17,8 @@ import {searchConsoleHooks} from './google-search-console-adapter.js';
 import {criteoHooks} from './criteo-adapter.js';
 import {adjustHooks} from './adjust-adapter.js';
 import {amazonHooks} from './amazon-adapter.js';
+// Wave 4c round 6 (w4c-arc6-tables): WooCommerce's rows of the shared tables.
+import {woocommerceHooks} from './woocommerce-adapter.js';
 
 /**
  * The provider hooks registry (ARC-01 phase B): each provider's behaviour that needs its own modules, from its adapter
@@ -44,6 +46,7 @@ export const registeredProviderHooks: readonly ProviderHooks[] = Object.freeze([
   criteoHooks,
   adjustHooks,
   amazonHooks,
+  woocommerceHooks,
 ]);
 
 const byGateway = new Map<string, ProviderHooks>(),
@@ -73,3 +76,31 @@ for (const hooks of registeredProviderHooks) {
 export function providerHooks(gateway: unknown): ProviderHooks | undefined {
   return typeof gateway === 'string' ? byGateway.get(gateway) : undefined;
 }
+
+// Wave 4c round 6 (w4c-arc6-tables): the order in which each shared table lists its providers' rows, by provider ID
+// (src/provider-adapters.ts). A load-time check, like the grant order's: an order names every hooks entry that declares
+// the table's rows exactly once, and no other.
+function tableOrder(table: string, ids: readonly string[], declares: (hooks: ProviderHooks) => unknown) {
+  const listed = ids.map(id => registeredProviderHooks.find(hooks => providerOf(hooks.gateway)?.id === id));
+  if (
+    new Set(ids).size !== ids.length ||
+    listed.some(hooks => !hooks || !declares(hooks)) ||
+    registeredProviderHooks.filter(hooks => declares(hooks)).length !== ids.length
+  )
+    throw new Error(
+      'The ' + table + ' order must name every provider hooks entry that declares its rows exactly once.',
+    );
+  return Object.freeze(listed as ProviderHooks[]);
+}
+/** src/unavailable-operations.ts: after AMCP's own, each provider's connection operation and then its own rows. */
+export const unavailableOperationProviders: readonly ProviderHooks[] = tableOrder(
+  'unavailable operation',
+  ['adjust', 'woocommerce', 'ga4', 'gsc', 'google_business'],
+  hooks => hooks.connection || hooks.unavailable,
+);
+/** src/discovery-programs.ts. */
+export const discoveryProgramProviders: readonly ProviderHooks[] = tableOrder(
+  'discovery program',
+  ['linkedin', 'x', 'dv360'],
+  hooks => hooks.programs,
+);

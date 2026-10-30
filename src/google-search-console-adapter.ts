@@ -132,4 +132,7 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
     // A sitemap submission takes effect for everyone at once (src/write-effects.ts).
     publishesLive: (plan: CompiledRequest) => plan.method === 'PUT' && plan.path.includes('/sitemaps/'),
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its connection
+  // operation, whose OAuth steps run on the website (src/unavailable-operations.ts, src/connection-diagnostics.ts).
+  connection: Object.freeze({operation: 'gsc_connection_ops', provider: 'Search Console'}),
 });

@@ -11,6 +11,8 @@ import {MirrorError} from './errors.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
+// Wave 4c round 6 (w4c-arc6-tables).
+import {deepFrozen} from './frozen-facts.js';
 // Writes and campaigns (wave 4c).
 import {placeActionSafe} from './google-place-action-links.js';
 import {assertBusinessAccessPolicy} from './google-business-access.js';
@@ -242,5 +244,23 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
       ['POST', 'PATCH'].includes(plan.method) && /\/placeActionLinks(?:\/[^/]+)?$/.test(plan.path),
     // The owner's spending policy (src/spend-policy.ts): its switches over the administrator access a write grants.
     accessPolicy: assertBusinessAccessPolicy,
+  }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its connection
+  // operation, whose OAuth steps run on the website, and its retired Q&A operation, whose status the diagnostics answer
+  // locally (src/unavailable-operations.ts, src/connection-diagnostics.ts).
+  connection: Object.freeze({operation: 'gmb_connection_ops', provider: 'Business Profile', qanda: 'gmb_qanda_ops'}),
+  // AMCP sends no request to the retired v4 API; the operation's other actions run.
+  unavailable: deepFrozen({
+    gmb_engagement_ops: {
+      actions: ['LEGACY_V4_REQUEST'],
+      reason: 'AMCP sends no request to the retired Business Profile v4 API.',
+      alternatives: [
+        {
+          tool: 'google_business_native_action',
+          arguments: {operation: 'gmb_engagement_ops', arguments: {action: 'LIST_PLACE_ACTION_LINKS'}},
+          meaning: 'The place-action links of a location; the other actions of this operation run.',
+        },
+      ],
+    },
   }),
 });
