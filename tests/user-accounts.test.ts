@@ -751,13 +751,12 @@ test('a test account is scoped to the evaluator tabs and inherits no owner conne
     assert.equal(connect.status, 200, 'an invited test account can connect its own platform login');
     assert.equal(new URL((await connect.json()).url).hostname, 'www.facebook.com');
 
-    // Excluded tabs are refused by the server, not merely hidden.
+    // Product tools are available; their own argument and write checks still apply.
     for (const tool of ['campaign', 'reporting', 'media', 'write']) {
       const blocked = await f.request('/api/workspace/' + tool, 'POST', {action: 'list'}, session);
-      assert.equal(blocked.status, 403, tool);
-      assert.equal((await blocked.json()).error.code, 'TEST_ACCOUNT_SCOPE', tool);
+      assert.notEqual((await blocked.json()).error?.code, 'TEST_ACCOUNT_SCOPE', tool);
     }
-    assert.equal((await f.request('/api/connector-tokens', 'GET', undefined, session)).status, 403);
+    assert.equal((await f.request('/api/connector-tokens', 'GET', undefined, session)).status, 200);
 
     // Its workspace is its own: the owner's connections are not inherited.
     assert.notEqual(profile.workspaceId, f.web.tenantId);
@@ -840,12 +839,16 @@ test('a reviewer signs in with the test password and lands scoped, outside the o
     assert.equal(profile.workspaceId, f.web.testTenantId);
     assert.equal(profile.administrator, false);
 
-    // Included tabs work; excluded tabs are refused by the server.
+    // Product workflows and connector management are available in the isolated workspace.
     assert.equal((await f.request('/api/activity', 'GET', undefined, session)).status, 200);
     assert.equal((await f.request('/api/workspace/overview', 'POST', {action: 'list'}, session)).status, 200);
     for (const tool of ['campaign', 'reporting', 'media', 'write'])
-      assert.equal((await f.request('/api/workspace/' + tool, 'POST', {action: 'list'}, session)).status, 403, tool);
-    assert.equal((await f.request('/api/connector-tokens', 'GET', undefined, session)).status, 403);
+      assert.notEqual(
+        (await (await f.request('/api/workspace/' + tool, 'POST', {action: 'list'}, session)).json()).error?.code,
+        'TEST_ACCOUNT_SCOPE',
+        tool,
+      );
+    assert.equal((await f.request('/api/connector-tokens', 'GET', undefined, session)).status, 200);
 
     // It is not the administrator: owner-only account management stays closed.
     assert.equal((await f.request('/api/owner/accounts', 'GET', undefined, session)).status, 403);

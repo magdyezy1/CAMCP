@@ -1697,6 +1697,14 @@ export class Store {
   }
   assertActorActive(actor: Actor): void {
     this.actorChecks.get(actor)?.();
+    // Reviewer-door clients remain reviewer-scoped even after token refresh or
+    // background-job restoration. They have no personal account or membership.
+    const reviewerDoor = actor.ownerUserId === 'workspace-test';
+    if (reviewerDoor) {
+      actor.testAccount = true;
+      if (actor.role === 'admin')
+        throw new MirrorError('FORBIDDEN', 'Reviewer connectors cannot have administrator access.', {}, 403);
+    }
     // A client access set limits reader and operator access only (SEC-08); an administrator is never limited by one.
     if (actor.accessSetId !== undefined && actor.role === 'admin')
       throw new MirrorError('MEMBERSHIP_REVOKED', 'Workspace access changed. Sign in again.', {}, 403);
@@ -1712,11 +1720,10 @@ export class Store {
         {},
         401,
       );
-    if (actor.ownerUserId) {
+    if (actor.ownerUserId && !reviewerDoor) {
       const hasUsers = this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get();
       const user = hasUsers
-        ? (this.db.prepare('SELECT version,approved,disabled FROM amcp_users WHERE id=?').get(actor.ownerUserId) as
-            JsonObject | undefined)
+        ? (this.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(actor.ownerUserId) as JsonObject | undefined)
         : undefined;
       if (
         !user ||
@@ -1730,8 +1737,9 @@ export class Store {
           {},
           401,
         );
+      actor.testAccount = !!user.test_account;
     }
-    if (actor.ownerUserId) {
+    if (actor.ownerUserId && !reviewerDoor) {
       const membership = this.db
         .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.ownerUserId) as JsonObject | undefined;
@@ -1779,7 +1787,7 @@ export class Store {
     this.assertActorActive(actor);
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Background verification requires encryption.');
     const bound = {...actor};
-    if (bound.ownerUserId && bound.accountVersion === undefined)
+    if (bound.ownerUserId && bound.ownerUserId !== 'workspace-test' && bound.accountVersion === undefined)
       bound.accountVersion = Number(
         (this.db.prepare('SELECT version FROM amcp_users WHERE id=?').get(bound.ownerUserId) as JsonObject).version,
       );

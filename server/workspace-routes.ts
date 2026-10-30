@@ -42,7 +42,7 @@ export function workspaceRoutes({router, store, web, options, service}: WebsiteS
     }),
   );
   // WEB-09: the command palette's workspace search, as the signed-in person; local reads only, never a provider
-  // request. A POST keeps the search text out of addresses. The test-account allow-list above does not include it.
+  // request. A POST keeps the search text out of addresses. Reviewers search only their isolated workspace.
   // The session's client access set applies to every source (SEC-08), and profile_id, the working client, narrows it.
   router.post(
     '/api/workspace-search',

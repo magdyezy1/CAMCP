@@ -127,12 +127,10 @@ export function connectionViews(
   const actorConnections = (actor: Actor) => store.connectionsFor(actor);
   /**
    * The working clients a person may choose (SEC-08 phase 1): client profiles with their accounts within current
-   * access. None for a reviewer test account, or while a required two-step setup is pending (SEC-06).
+   * access, unless a required two-step setup is pending (SEC-06).
    */
   const workingClientChoices = (actor: Actor): JsonObject[] =>
-    actor.testAccount === true || actor.mfaEnrollmentRequired === true
-      ? []
-      : clientViews(store, actor).map(({has: _has, ...client}) => client);
+    actor.mfaEnrollmentRequired === true ? [] : clientViews(store, actor).map(({has: _has, ...client}) => client);
   const actorConnection = (actor: Actor, id: string) => {
     const c = actorConnections(actor).find(c => c.id === id);
     if (!c) throw new MirrorError('CONNECTION_NOT_FOUND', 'The connection was not found in this workspace.', {}, 404);

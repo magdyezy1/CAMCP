@@ -11527,5 +11527,6 @@
   "Summed": "يُجمع",
   "Not summed": "لا يُجمع",
   "Native field": "حقل أصلي",
-  "{count} step": "عدد الخطوات: {count}"
+  "{count} step": "عدد الخطوات: {count}",
+  "Reviewer connectors cannot have administrator access.": "لا يمكن منح موصلات المراجعين صلاحيات المسؤول."
 }
