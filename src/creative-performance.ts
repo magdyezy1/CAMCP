@@ -3,32 +3,35 @@ import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, identifier} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
 import {creativeReport, creativeReportPage, type CreativeReportScope} from './report-repository.js';
+import {providerById} from './provider-adapters.js';
 
+// ARC-01 (reporting): each asset platform's gateway is its provider adapter's (src/provider-adapters.ts).
+const gatewayOf = (provider: string) => providerById(provider)!.gateway;
 const scopes: Record<string, {gateway: string; presets: string[]; grain: string; actions: string[]}> = {
   meta: {
-    gateway: 'meta_native_action',
+    gateway: gatewayOf('meta'),
     presets: ['meta_ad'],
     grain: 'ad × day',
     actions: ['meta_ad_create', 'meta_ad_account_id_ads_create'],
   },
   google_ads: {
-    gateway: 'google_ads_native_action',
+    gateway: gatewayOf('google'),
     presets: ['google_ad'],
     grain: 'ad group × ad × day',
     actions: ['google_ads_v23_ad_group_ad_mutate_ad_group_ads'],
   },
   snapchat: {
-    gateway: 'snapchat_native_action',
+    gateway: gatewayOf('snapchat'),
     presets: ['snapchat_ad', 'snapchat_ad_leads'],
     grain: 'ad × day',
     actions: ['snapchat_ad_create'],
   },
-  tiktok: {gateway: 'tiktok_native_action', presets: ['tiktok_ad'], grain: 'ad × day', actions: ['tiktok_ad_create']},
+  tiktok: {gateway: gatewayOf('tiktok'), presets: ['tiktok_ad'], grain: 'ad × day', actions: ['tiktok_ad_create']},
   // MED-04 C: a verified creative-creation step joined to retained `linkedin_creative` daily snapshots. Both sides must
   // carry the exact sponsoredCreative URN: the snapshot's pivot (refused at capture otherwise, and checked again here)
   // and the step's verified resource. A bare numeric or encoded ID is withheld, never converted into a URN.
   linkedin: {
-    gateway: 'linkedin_native_action',
+    gateway: gatewayOf('linkedin'),
     presets: ['linkedin_creative'],
     grain: 'creative × day',
     actions: ['linkedin_rest_ad_accounts_ad_account_id_creatives_post'],

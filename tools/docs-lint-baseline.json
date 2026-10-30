@@ -34,10 +34,16 @@
       "raised": [
         "reference_words 143221 → 143230"
       ]
+    },
+    {
+      "reason": "w4c-arc6-reporting: ARCHITECTURE.md section 9 gains the reporting gateways row of ARC-01 round 6",
+      "raised": [
+        "reference_words 143230 → 143300"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143230
+    "reference_words": 143300
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

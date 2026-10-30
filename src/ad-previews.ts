@@ -1,8 +1,11 @@
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
+import {providerById} from './provider-adapters.js';
 import type {Actor, JsonObject} from './types.js';
 
 type Call = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
+// ARC-01 (reporting): each platform's previews are read under its provider adapter's gateway (src/provider-adapters.ts).
+const gatewayOf = (provider: string) => providerById(provider)!.gateway;
 
 /**
  * Meta placements its ad preview read takes (`ad_format`), as recorded in the captured AMCP catalog's get_ad_preview
@@ -173,7 +176,7 @@ export class AdPreviews {
         : {};
     switch (platform) {
       case 'meta': {
-        const listed = await this.read(actor, 'meta_native_action', {
+        const listed = await this.read(actor, gatewayOf('meta'), {
             action: 'meta_ad_list',
             ...base,
             query: {fields: 'id,name', limit: 100},
@@ -188,7 +191,7 @@ export class AdPreviews {
             ad_format: format,
             links: previewLinks(
               'meta',
-              await this.read(actor, 'meta_native_action', {
+              await this.read(actor, gatewayOf('meta'), {
                 action: 'meta_ad_id_previews_get',
                 ...base,
                 ad_id: row.id,
@@ -204,7 +207,7 @@ export class AdPreviews {
         const rows: Row[] = wanted
           ? wanted.map(id => ({id, name: null}))
           : ((
-              await this.read(actor, 'tiktok_native_action', {
+              await this.read(actor, gatewayOf('tiktok'), {
                 action: 'tiktok_ad_list',
                 ...base,
                 query: {advertiser_id: account, page_size: 100},
@@ -215,7 +218,7 @@ export class AdPreviews {
               .slice(0, limit) ?? []);
         return result(
           await each(rows, async row => {
-            const r = await this.read(actor, 'tiktok_native_action', {
+            const r = await this.read(actor, gatewayOf('tiktok'), {
                 action: 'tiktok_ad_preview',
                 ...base,
                 payload: {advertiser_id: account, preview_type: 'AD', ad_id: row.id},
@@ -229,7 +232,7 @@ export class AdPreviews {
         );
       }
       case 'snapchat': {
-        const listed = await this.read(actor, 'snapchat_native_action', {action: 'snapchat_creative_list', ...base}),
+        const listed = await this.read(actor, gatewayOf('snapchat'), {action: 'snapchat_creative_list', ...base}),
           rows: Row[] = (Array.isArray(listed?.creatives) ? listed.creatives : [])
             .map((w: JsonObject) => (object(w?.creative) ? w.creative : w))
             .filter((c: unknown) => object(c) && typeof c.id === 'string')
@@ -239,7 +242,7 @@ export class AdPreviews {
           await each(chosen, async row => ({
             links: previewLinks(
               'snapchat',
-              await this.read(actor, 'snapchat_native_action', {
+              await this.read(actor, gatewayOf('snapchat'), {
                 action: 'snapchat_creatives_creative_id_creative_preview_get',
                 ...base,
                 creative_id: row.id,
@@ -250,7 +253,7 @@ export class AdPreviews {
         );
       }
       case 'linkedin': {
-        const listed = await this.read(actor, 'linkedin_native_action', {
+        const listed = await this.read(actor, gatewayOf('linkedin'), {
             action: 'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
             ...base,
             restli_method: 'FINDER',
@@ -264,7 +267,7 @@ export class AdPreviews {
           await each(chosen, async row => ({
             links: previewLinks(
               'linkedin',
-              await this.read(actor, 'linkedin_native_action', {
+              await this.read(actor, gatewayOf('linkedin'), {
                 action: 'linkedin_rest_ad_previews_get',
                 ...base,
                 query: {q: 'creative', creative: row.id},
@@ -275,7 +278,7 @@ export class AdPreviews {
         );
       }
       case 'reddit': {
-        const listed = await this.read(actor, 'reddit_native_action', {
+        const listed = await this.read(actor, gatewayOf('reddit'), {
             operation: 'reddit_campaign_ops',
             arguments: {action: 'LIST_ADS', ...base, params: wanted ? {id: wanted} : {'page.size': limit}},
           }),
@@ -320,7 +323,7 @@ export class AdPreviews {
             tool: 'amcp_write',
             arguments: {
               action: 'prepare',
-              gateway: 'google_ads_native_action',
+              gateway: gatewayOf('google'),
               ...(connection ? {connection_id: connection} : {}),
               arguments: {
                 action: 'GENERATE_SHAREABLE_PREVIEWS',
