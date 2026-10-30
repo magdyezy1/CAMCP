@@ -7,8 +7,8 @@ tier: operator
 
 What AMCP does today, how far each part has been accepted, and what is left. This page describes branch `Work-here`
 of `magdyezy1/CAMCP` as deployed on amcp.shop on 2026-10-18 (the [deployment record](records/DEPLOYMENT-2026-10-18.md)
-names the revision) together with the wave 4b work that is committed locally and not yet deployed (section 2). It was
-rewritten on 2026-10-22 (DOC-01).
+names the revision) together with the later work no deployment report covers yet: wave 4b, pushed on 2026-10-24, and
+wave 4c, merged locally (section 2). It was rewritten on 2026-10-22 (DOC-01).
 
 Numbers in this page and every table marked "generated" are written from the code and the committed ledgers by
 `npm run docs:index`, and `npm run docs:index:check` (part of `npm run check` and the Docker build) fails when one of
@@ -57,11 +57,16 @@ build log proves is not yet recorded: the owner exports it and runs `npm run evi
 ([Linux evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)). The lessons for the next push are
 in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taught).
 
-**Local, not deployed.** Wave 4b, confirmed by the owner on 2026-10-22, is implemented and merged into `Work-here`:
-MCP quality, design review, design system, this current-state documentation and the owner guide. Its release gate,
-container parity and rendered browser qualification passed on 2026-10-24 ([qualification
-record](records/QUALIFICATION-4b-2026-10-24.md)); it reaches amcp.shop only with the next push, which waits for the
-owner's approval.
+**Not reported deployed.** Wave 4b, confirmed by the owner on 2026-10-22 (MCP quality, design review, design system,
+this current-state documentation and the owner guide), was pushed to `Work-here` on 2026-10-24 once its release gate,
+container parity and rendered browser qualification had passed ([qualification
+record](records/QUALIFICATION-4b-2026-10-24.md)); no deployment of it has been reported yet. Wave 4c, which the owner
+instructed on 2026-10-24, is implemented and merged into `Work-here` locally: the documentation consolidation (each
+page's front matter, the generated index and status page, the findings register as data, the operations and workflow
+task pages and the size budget), the members-only Help page with the owner guide condensed in English and Arabic,
+Home's outcome labels, and the ARC-01 and ARC-04 work (provider facts and hooks in the provider adapters, and no
+backend function of 400 lines or more). Its release gate, container parity and rendered browser qualification run
+before it is pushed.
 
 ## 3. Package status
 
@@ -225,9 +230,10 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
   tools' actions as entries of staged action tables (`src/tool-actions.ts`, ARC-04), and ratchets that
   block regressions only: import cycles and provider coupling, SQL outside the store layer, hand-escaped markup,
   literal colours and page bytes (D26). [Architecture](review/ARCHITECTURE.md) shows the ratchet table.
-- **Remaining, local.** The ARC-01 and ARC-04 targets (fewer shared modules naming a provider, the long functions),
-  ARC-03's route anchors for five gateways, and B23's and B24's web items, each listed in
-  [package status](review/PACKAGE-STATUS.md).
+- **Remaining, local.** ARC-01's target (fewer shared modules naming a provider or importing a provider module),
+  ARC-04's review that re-exports keep public import paths and its sign-off of the deliberate removals the
+  architecture record lists (its long functions are split), ARC-03's route anchors for five gateways, and B23's and
+  B24's web items, each listed in [package status](review/PACKAGE-STATUS.md).
 
 ### Arabic
 
@@ -239,9 +245,14 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
 ## 5. Public documentation pins
 
 <a id="5-recorded-on-2026-10-17-public-documentation-pins"></a>The public, unauthenticated reads that earlier waves left
-to the owner were completed on 2026-10-17 and are no longer pending owner steps; the
-[deployment record](records/DEPLOYMENT-2026-10-18.md#the-public-documentation-pins-of-2026-10-17) names each pin, what it
-changed and the commit that recorded it.
+to the owner were completed on 2026-10-17 and are no longer pending owner steps. The
+[deployment record](records/DEPLOYMENT-2026-10-18.md#the-public-documentation-pins-of-2026-10-17) names three of them,
+with what each changed and the commit that recorded it: the Microsoft Learn location file page (CMP-03), the TikTok
+Pixel Event Stats specification (MSR-03) and the Meta Business SDK v25.0.3 to v26.0.2 change evidence. The fourth is
+not in it:
+
+- **Apple Ads Platform API SDK**: the re-derivation of the model evidence at its pinned revision passed with 0
+  problems (ARC-03; [package status](review/PACKAGE-STATUS.md) keeps it with ARC-03's manual acceptance).
 
 Still owner-run from earlier waves (each a public read, or a record that such reads were allowed): compare the 66
 Meta currency rows with Meta's Currencies page (WRT-07), re-read the Data Manager v1 Discovery document and compare
@@ -335,9 +346,11 @@ After the 2026-10-18 deployment, in order of need:
    (`npm run check:public-website`).
 2. **Settings and dashboards.** The Railway, Cloudflare and backup steps under Operations above; before 2027-04-01,
    review the security contact and move `security.txt`'s `Expires` forward (D3).
-3. **Sign-offs.** A security reviewer signs off ARC-01 phase B's `src/scope.ts` and `src/transport.ts` changes and the
-   OAuth grant move; the owner signs off WEB-07's component colours in light and dark mode and says which "Home" its
-   shell-chunk criterion means; the owner reviews ARC-03's unanchored routes
+3. **Sign-offs.** A security reviewer signs off ARC-01 phase B's `src/scope.ts` and `src/transport.ts` changes, the
+   OAuth grant move, and wave 4c's token renewal steps (`src/auth.ts`) and OAuth app facts (`server/platform-oauth.ts`);
+   a reviewer signs off ARC-04's re-exports and the deliberate removals the architecture record lists; the owner signs
+   off WEB-07's component colours in light and dark mode and says which "Home" its shell-chunk criterion means; the
+   owner reviews ARC-03's unanchored routes
    ([route anchors](implementation/ROUTE-ANCHOR-COVERAGE.md)) and the withheld-capture declaration
    (`.mirror/RAW/WITHHELD.json`); the owner approves the retention per document kind
    ([document kinds](DOCUMENT-KINDS.md)) and the package-status taxonomy and counts (D25).
