@@ -257,10 +257,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owned reason changes.
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
+  // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
   assert.equal(files.length, 736);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
-  assert.equal(owned.size, 1590);
-  assert.equal(Object.keys(catalog).length, 11529);
+  assert.equal(owned.size, 1591);
+  assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
