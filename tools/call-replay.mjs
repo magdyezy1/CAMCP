@@ -222,6 +222,33 @@ export const targets = Object.freeze({
   'dist/src/meta-asset-usage.js': {functions: ['metaAssetUsage']},
   'dist/src/google-image-usage.js': {functions: ['googleImageUsage']},
   'dist/src/snapchat-asset-usage.js': {functions: ['snapchatAssetUsage']},
+  // Wave 4c round 6 (w4c-arc6-versions): the entry points of the shared modules that now ask a provider's adapter for
+  // its version, tool notes, listing, owner setting, provider job or legacy names instead of importing its modules.
+  // The Meta creative check left src/creative-validation.ts for Meta's creative module; a recording made before names
+  // it dist/src/creative-validation.js#validateMetaCreative (compare with --ignore for both).
+  'dist/src/contract-evidence.js': {
+    functions: ['providerContractView', 'providerContractReference', 'executionEvidence'],
+  },
+  'dist/src/provider-sunsets.js': {
+    functions: ['acceptedVersions', 'sunsetStatus', 'staleSunsetChecks', 'assertSunsetRegistry'],
+  },
+  'dist/src/owner-operations.js': {functions: ['ownerOperations']},
+  'dist/src/legacy-alias-usage.js': {functions: ['legacyAliasUsage']},
+  'dist/src/effect-class.js': {functions: ['effectClass', 'providerJob', 'microsoftReportSubmit']},
+  'dist/src/tool-notes.js': {
+    functions: [
+      'listedDescription',
+      'readOnlyTail',
+      'unavailableSentence',
+      'ownedDescription',
+      'describesOwnText',
+      'amcpNote',
+      'mediaListing',
+      'describedTool',
+    ],
+  },
+  'dist/src/introspection.js': {classes: {Introspection: ['describe', 'list', 'catalogRequest']}},
+  'dist/src/meta-creative-features.js': {functions: ['validateMetaCreative']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -282,6 +309,24 @@ export const replayable = Object.freeze([
   'dist/src/write-impact.js#writeImpact',
   'dist/src/access-sets.js#accountKey',
   'dist/src/provider-revocation.js#revocationTarget',
+  // Wave 4c round 6 (w4c-arc6-versions): the contract views, effect classes, accepted versions and tool notes read
+  // neither the clock (but for a version's sunset day) nor the environment.
+  'dist/src/contract-evidence.js#providerContractView',
+  'dist/src/contract-evidence.js#providerContractReference',
+  'dist/src/contract-evidence.js#executionEvidence',
+  'dist/src/provider-sunsets.js#acceptedVersions',
+  'dist/src/effect-class.js#effectClass',
+  'dist/src/effect-class.js#providerJob',
+  'dist/src/effect-class.js#microsoftReportSubmit',
+  'dist/src/tool-notes.js#listedDescription',
+  'dist/src/tool-notes.js#readOnlyTail',
+  'dist/src/tool-notes.js#unavailableSentence',
+  'dist/src/tool-notes.js#ownedDescription',
+  'dist/src/tool-notes.js#describesOwnText',
+  'dist/src/tool-notes.js#amcpNote',
+  'dist/src/tool-notes.js#mediaListing',
+  'dist/src/tool-notes.js#describedTool',
+  'dist/src/meta-creative-features.js#validateMetaCreative',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
