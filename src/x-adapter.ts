@@ -1,10 +1,18 @@
-import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} from './provider-adapter.js';
+import type {
+  ContractHooks,
+  ContractNote,
+  ExpectState,
+  ProviderHooks,
+  ProviderVerificationRead,
+  StateTarget,
+} from './provider-adapter.js';
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
 // Writes and campaigns (wave 4c).
 import {validateXTargetingState, xTargetingKind, xTargetingSnapshots} from './x-targeting-writes.js';
-import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-estimate.js';
+import {authorizeXAudienceEstimate, xAudienceEstimatePlan, xAudienceEstimateRoute} from './x-audience-estimate.js';
+import {extendXReportTool, xReportRoute} from './x-report-jobs.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
@@ -22,6 +30,27 @@ const jsonBody = (plan: CompiledRequest) =>
   (plan.method === 'POST' && /^\/12\/accounts\/[a-z0-9]{1,32}\/audience_estimate$/.test(plan.path)) ||
   (['PUT', 'DELETE'].includes(plan.method) && /^\/12\/product_catalogs\/\d+\/products$/.test(plan.path)) ||
   (['POST', 'PUT'].includes(plan.method) && /^\/12\/product_catalogs\/\d+\/product_sets(?:\/\d+)?$/.test(plan.path));
+/** Wave 4c (transport and catalog): what X's audience estimate and report job status reads add to their contract rows. */
+const audienceEstimateNote: ContractNote = Object.freeze({
+  implementation: 'src/x-audience-estimate.ts',
+  test: 'tests/x-audience-estimate.test.mjs',
+  once: true as const,
+  reason:
+    'Native JSON potential-audience range, bounded criteria and private-reference reads, current account/login authority and explicit non-additive estimate semantics; no targeting or ad mutation.',
+});
+const reportStatusNote: ContractNote = Object.freeze({
+  implementation: 'src/x-report-jobs.ts / src/x-report-download.ts',
+  test: 'tests/x-report-jobs.test.ts',
+  once: true as const,
+  reason:
+    'Original AMCP job/account/connection/app-user binding; fresh native status and bounded server-only gzip retrieval with encrypted result recovery, exact row identity and explicit incomplete output.',
+});
+const xContracts: ContractHooks = Object.freeze({
+  readNotes: (plan: CompiledRequest) => [
+    ...(xAudienceEstimateRoute(plan) ? [audienceEstimateNote] : []),
+    ...(xReportRoute(plan) === 'status' ? [reportStatusNote] : []),
+  ],
+});
 /**
  * X Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the audience
  * estimate, a POST the catalog marks as a write, is a reviewed read. On the wire, requests are signed with OAuth 1.0a
@@ -30,6 +59,13 @@ const jsonBody = (plan: CompiledRequest) =>
  */
 export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
+  // Wave 4c (transport and catalog): the audience estimate is planned as a bounded read after its report job's controls.
+  compile: Object.freeze({afterJob: xAudienceEstimatePlan}),
+  // Its tool takes the report job operations AMCP adds to the captured definition.
+  catalog: Object.freeze({tools: Object.freeze({x_ads_native_action: extendXReportTool})}),
+  contracts: xContracts,
+  // Its login holds its OAuth 1.0a app's consumer secret, which a renewal after an app change needs.
+  refresh: Object.freeze({appSecret: (c: Credentials) => c.consumerSecret}),
   checks: Object.freeze({
     shape: Object.freeze({
       // New campaigns and line items start paused; a targeting criterion follows its own contract.

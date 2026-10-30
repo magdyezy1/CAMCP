@@ -1,16 +1,19 @@
-import type {ProviderHooks, ScopeContext, WireHeaders} from './provider-adapter.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CatalogHooks, ProviderHooks, RefreshRequest, ScopeContext, WireHeaders} from './provider-adapter.js';
+import type {Catalog, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
   assertMicrosoftWrite,
   compileMicrosoft,
+  microsoftActions,
   microsoftCustomer,
   microsoftCustomerOrigin,
   microsoftContracts,
   microsoftGateway,
   microsoftGeoLocationsContract,
   microsoftRead,
+  microsoftScope,
+  microsoftTool,
   validateMicrosoftResponse,
 } from './microsoft-native.js';
 import type {TransportResult} from './transport.js';
@@ -21,6 +24,65 @@ import {microsoftActivationGates, microsoftActivationSteps} from './microsoft-re
 import {recordedWriteGrant} from './provider-grants.js';
 import {fail} from './write-common.js';
 import {microsoftLocationsUnpinned} from './microsoft-location-pin.js';
+import {nameCandidates, searchTerm} from './name-candidates.js';
+
+/**
+ * Wave 4c (transport and catalog): Microsoft's part of the catalog registry (src/catalog.ts). Its tool and catalog are
+ * AMCP's own contracts, outside the captured denominator; its help is those contracts, and amcp_tool_help takes only
+ * its gateway and an operation name for it.
+ */
+const microsoftCatalog: CatalogHooks = Object.freeze({
+  own: (): {tool: ToolDefinition; catalog: Catalog} => ({
+    tool: microsoftTool,
+    catalog: {
+      gateway: microsoftGateway,
+      mode: 'direct',
+      api_version: 'v13',
+      reported_total: null,
+      captured: 0,
+      complete: false,
+      denominator_kind: 'LIST_ACTIONS',
+      actions: microsoftActions,
+      gaps: ['Independent extension; not part of the captured AMCP denominator.'],
+    },
+  }),
+  helpArguments(input: JsonObject) {
+    if (
+      Object.keys(input).some(k => !['gateway', 'operation'].includes(k)) ||
+      (input.operation !== undefined && typeof input.operation !== 'string')
+    )
+      throw new MirrorError('INVALID_ARGUMENT', 'Invalid Microsoft help arguments.');
+  },
+  help(input: JsonObject, tool: ToolDefinition, schema: () => JsonObject) {
+    if (input.operation) {
+      const action = microsoftActions.find(a => a.name === input.operation);
+      if (!action)
+        throw new MirrorError('UNKNOWN_OPERATION', 'Unknown Microsoft operation. Use LIST_ACTIONS.', {
+          field: 'operation',
+          gateway: microsoftGateway,
+          ...nameCandidates(
+            input.operation,
+            microsoftActions.map(a => a.name),
+          ),
+          list_call: {
+            tool: microsoftGateway,
+            arguments: {action: 'LIST_ACTIONS', search: searchTerm(input.operation)},
+          },
+        });
+      return structuredClone(action);
+    }
+    return {
+      ...structuredClone(tool.help),
+      inputSchema: schema(),
+      amcp_actions: microsoftActions.map(a => ({
+        action: a.name,
+        method: a.method,
+        path: a.path,
+        read_only: a.read_only,
+      })),
+    };
+  },
+});
 
 /**
  * Microsoft's resource scope, after the account path: the mandatory CustomerAccountId header confines Campaign
@@ -85,6 +147,13 @@ function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: str
  */
 export const microsoftHooks: ProviderHooks = Object.freeze({
   gateway: microsoftGateway,
+  // Wave 4c (transport and catalog): its requests are compiled from its own contracts, not the catalog compiler's.
+  compile: Object.freeze({own: compileMicrosoft}),
+  catalog: microsoftCatalog,
+  // A token renewal asks again for its API scope, and for renewal itself (offline_access).
+  refresh: Object.freeze({
+    request: ({body}: RefreshRequest) => body.set('scope', microsoftScope + ' offline_access'),
+  }),
   // Its contracts decide alone: the write contract, and a state read's response contract in place of the generic
   // success check; the contract is the target check, whatever a family supplies.
   checks: Object.freeze({

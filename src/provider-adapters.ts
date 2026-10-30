@@ -115,6 +115,7 @@ function adapter(
     grant?: ProviderGrantFacts;
     app?: ProviderApp;
     renewal?: ProviderRenewal;
+    listsActions?: true;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -138,6 +139,7 @@ function adapter(
     ...(options.app ? {app: providerApp(options.app)} : {}),
     // ARC-01 phase B, the login and connection modules: how its logins renew without the user (CON-02).
     ...(options.renewal ? {renewal: Object.freeze({...options.renewal})} : {}),
+    ...(options.listsActions ? {listsActions: true as const} : {}),
   });
 }
 
@@ -496,6 +498,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       grantSource: 'token_response',
       accountReadContract: true,
     },
+    // Its captured schema has no LIST_ACTIONS; AMCP lists its actions from the catalog (MCP-05).
+    listsActions: true,
   }),
   adapter('ga4', 'ga4_native_action', {
     account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'},

@@ -2,37 +2,22 @@ import {Registry} from './catalog.js';
 import {withheldWriteProgramId, withheldWriteReason} from './withheld-writes.js';
 import {connectionDiagnosticKind, businessQandaRetirement} from './connection-diagnostics.js';
 import {connectionDisconnectKind} from './connection-disconnect.js';
-import {measurementConnectionSyncKind} from './measurement-connection-sync.js';
-import {businessConnectionSyncKind} from './google-business-sync.js';
-import {adjustReportingKind} from './adjust-reporting.js';
-import {metaPostActions} from './meta-existing-posts.js';
-import {placeActionReadKind} from './google-place-action-discovery.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
-import {appleActions} from './apple-native.js';
-import {metaRuleActions} from './meta-rule-routes.js';
-import {dataManagerActions} from './google-data-manager-routes.js';
 import {businessWorkflowOperations} from './workflows.js';
 import {reportingOperations} from './reporting.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
-import {tiktokReportRoute} from './tiktok-report-jobs.js';
-import {xReportRoute} from './x-report-jobs.js';
-import {xAudienceEstimateRoute} from './x-audience-estimate.js';
-import {googleGenerationKind} from './google-generation.js';
-import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {mediaRoute} from './media-routing.js';
 import {providerContracts} from './provider-contracts.js';
-import {redditAudienceRoutes, redditReadRoutes} from './reddit-extensions.js';
 import {MirrorError} from './errors.js';
 import {assertGatewayOffered, gatewayOffered} from './provider-offering.js';
-import {googleLegacyCoverage} from './google-legacy.js';
 import {retiredProviderAction, unsupportedProviderAlias} from './retired-provider-actions.js';
-import {gtmDiagnosticOperations} from './gtm-diagnostics.js';
-import legacy from './google-legacy-mapping.json' with {type: 'json'};
 import type {Action, CompiledRequest, JsonObject} from './types.js';
+import type {ContractLegacy} from './provider-adapter.js';
 import {reviewedFamilyFiles} from './reviewed-families.js';
-import {googleAdsCustomers} from './google-version.js';
+import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
+import {providerWorkflows, type ContractStage} from './provider-workflows.js';
 import {personalDataRead, personalDataReadReason} from './personal-data.js';
 import {
   acceptanceLayers,
@@ -219,35 +204,12 @@ function classify(
       result.reason +=
         ' Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.';
     }
-    if (dv360TargetingSearchRoute(p)) {
-      result.implementation += ' / src/dv360-targeting-search.ts';
-      result.tests = [...result.tests, 'tests/dv360-targeting-search.test.ts'];
-      result.reason +=
-        ' Native advertiser-scoped POST search for geo regions, POIs and business chains; exact body variants, current scopes, bounded pagination and explicit completeness. It creates no targeting assignments.';
-    }
-    if (xAudienceEstimateRoute(p)) {
-      result.implementation += ' / src/x-audience-estimate.ts';
-      result.tests = [...new Set([...result.tests, 'tests/x-audience-estimate.test.mjs'])];
-      result.reason +=
-        ' Native JSON potential-audience range, bounded criteria and private-reference reads, current account/login authority and explicit non-additive estimate semantics; no targeting or ad mutation.';
-    }
-    if (xReportRoute(p) === 'status') {
-      result.implementation += ' / src/x-report-jobs.ts / src/x-report-download.ts';
-      result.tests = [...new Set([...result.tests, 'tests/x-report-jobs.test.ts'])];
-      result.reason +=
-        ' Original AMCP job/account/connection/app-user binding; fresh native status and bounded server-only gzip retrieval with encrypted result recovery, exact row identity and explicit incomplete output.';
-    }
-    if (tiktokReportRoute(p)) {
-      result.implementation += ' / src/tiktok-report-jobs.ts';
-      result.tests = [...result.tests, 'tests/tiktok-report-jobs.test.ts'];
-      result.reason +=
-        ' Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.';
-    }
-    if (googleGenerationKind(p)) {
-      result.implementation += ' / src/google-generation.ts';
-      result.tests = [...result.tests, 'tests/google-generation.test.ts'];
-      result.reason +=
-        ' Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.';
+    // What a native read of the provider's own adds, from its adapter's contract hooks (DV360's targeting search, X's
+    // audience estimate and report status, TikTok's report tasks, Google's draft generation), in their order.
+    for (const note of providerHooks(p.gateway)?.contracts?.readNotes?.(p) ?? []) {
+      result.implementation += ' / ' + note.implementation;
+      result.tests = note.once ? [...new Set([...result.tests, note.test])] : [...result.tests, note.test];
+      result.reason += ' ' + note.reason;
     }
     return result;
   }
@@ -269,21 +231,14 @@ function classify(
       'Use amcp_media or the native Drive import bridge. Raw native upload variants are not thereby enabled.';
     return result;
   }
-  // Snapchat's chunked upload: amcp_media sends INIT, each ADD and FINALIZE itself (F-58). A raw ADD or FINALIZE has
-  // no upload of AMCP's to continue, so it stays refused; the ledger names the workflow that performs it.
-  if (
-    p.gateway === 'snapchat_native_action' &&
-    p.method === 'POST' &&
-    /^\/(?:us\/)?v1\/media\/[^/]+\/multipart-upload-v2$/.test(p.path) &&
-    ['ADD', 'FINALIZE'].includes(String(p.query.action))
-  ) {
+  // A raw step of a workflow amcp_media performs itself has no upload of AMCP's to continue, so it stays refused; the
+  // ledger names the workflow that performs it (the provider's contract hooks: Snapchat's chunked upload, F-58).
+  const step = providerHooks(p.gateway)?.contracts?.mediaStep?.(p);
+  if (step) {
     result.status = 'media_workflow';
     result.implementation = 'src/media-upload.ts';
     result.tests = ['tests/media-upload.test.ts'];
-    result.reason =
-      'A step of the chunked upload amcp_media performs itself (INIT, each ADD, FINALIZE). Send the file through amcp_media; a raw ' +
-      p.query.action +
-      ' is not accepted.';
+    result.reason = step;
     return result;
   }
   if (readOnly === true && personalDataRead(p))
@@ -317,36 +272,26 @@ export function actionContracts(registry: Registry): ActionContract[] {
   if (saved) return saved;
   const records = new Map<string, ActionContract>(),
     vendor = new DelegatedNativeCompiler(),
-    vendorRoutes = [...vendor.data.routes, ...redditAudienceRoutes, ...redditReadRoutes()],
-    legacyCoverage = googleLegacyCoverage();
+    // A provider's own delegated routes beside the snapshot's (its delegated hooks: Reddit's audience and read routes).
+    vendorRoutes = [...vendor.data.routes, ...registeredProviderHooks.flatMap(h => h.delegated?.routes?.list() ?? [])],
+    // Each provider's catalogued actions without a route of their own (its contract hooks: Google Ads' legacy actions).
+    legacy = new Map<string, ContractLegacy>();
+  for (const {gateway, contracts} of registeredProviderHooks) {
+    const adapted = contracts?.legacy?.(registry);
+    if (adapted) legacy.set(gateway, adapted);
+  }
   const put = (row: ActionContract) => records.set([row.gateway, row.operation ?? '', row.action].join('/'), row);
   const direct = (gateway: string, a: Action) => {
     let route = registry.action(gateway, a.name) ?? a,
       source = route.evidence;
     if (!route.path) route = registry.data.supplemental.find(s => s.gateway === gateway && s.name === a.name) ?? route;
-    if (gateway === 'google_ads_native_action' && !route.path) {
-      const entry = legacy.entries.find(e => e.name === a.name) as JsonObject | undefined;
-      if (entry?.kind === 'GAQL')
-        route = {...a, method: 'POST', path: googleAdsCustomers + '{customer_id}/googleAds:search', read_only: true};
-      else {
-        const hint = legacyCoverage.entries.find(e => e.action === a.name)?.destination;
-        const mapped = hint
-          ? registry.catalogs
-              .get(gateway)
-              ?.actions.find(a => a.path && (a.name === hint || a.raw.service + '.' + a.raw.rpc === hint))
-          : undefined;
-        if (mapped) route = mapped;
-        else if (hint && /^[a-z_]+$/.test(hint))
-          route = {...a, method: 'POST', path: googleAdsCustomers + '{customer_id}/googleAds:search', read_only: true};
-      }
-      source = entry ? 'src/google-legacy-mapping.json' : source;
-    }
+    const adapter = legacy.get(gateway);
+    if (adapter && !route.path) ({route, source} = adapter.route(a, route, source));
     // The compiler executes canonical names; classify that same identity while
     // retaining every advertised alias as its own denominator row.
     // Google legacy adapters deliberately retain the legacy name for immutable
     // operation restrictions even when they route to a general mutate RPC.
-    const executionAction =
-      gateway === 'google_ads_native_action' && !a.path ? a.name : route.canonical_name || route.name;
+    const executionAction = adapter && !a.path ? a.name : route.canonical_name || route.name;
     const row = classify(
       gateway,
       a.name,
@@ -361,14 +306,9 @@ export function actionContracts(registry: Registry): ActionContract[] {
       {},
       executionAction,
     );
-    if (gateway === 'google_ads_native_action' && !route.path && legacyCoverage.entries.some(e => e.action === a.name))
-      Object.assign(row, {
-        status: 'adapter_requires_input',
-        implementation: 'src/google-legacy.ts',
-        reason:
-          'An explicit legacy adapter exists, but its route depends on the requested scope/type. Inspect the exact payload; each selected destination retains its own reviewed contract.',
-        tests: ['tests/google-legacy.test.ts'],
-      });
+    // An explicit adapter whose route depends on the request has the adapter's row (Google Ads' legacy actions).
+    if (adapter && !route.path && adapter.adapted(a))
+      Object.assign(row, {...adapter.row, tests: [...adapter.row.tests]});
     put(row);
   };
   for (const catalog of registry.catalogs.values())
@@ -376,10 +316,22 @@ export function actionContracts(registry: Registry): ActionContract[] {
   for (const a of registry.data.supplemental)
     if (registry.tools.get(a.gateway!)?.mode === 'direct' && !records.has(a.gateway + '//' + a.name))
       direct(a.gateway!, a);
-  for (const a of appleActions) direct('apple_ads_native_action', a);
-  if (registry.catalogs.has('meta_native_action')) for (const a of metaRuleActions) direct('meta_native_action', a);
-  if (registry.catalogs.has('google_ads_native_action'))
-    for (const a of dataManagerActions) direct('google_ads_native_action', a);
+  // The actions providers document beyond the captured catalog (their catalog hooks): those that extend a captured
+  // catalog where the registry holds it (Meta's rule update and delete, Google's Data Manager), a tool's own whatever
+  // it holds (Apple's v1 actions). Each provider's rows are its own gateway's, so their order between providers does
+  // not matter (the rows are sorted below).
+  for (const {gateway, catalog} of registeredProviderHooks) {
+    const extra = catalog?.supplemental;
+    if (extra && (extra.requires === 'tool' || registry.catalogs.has(gateway)))
+      for (const a of extra.actions) direct(gateway, a);
+  }
+  // The row a provider workflow sets at one of the ledger's stages (src/provider-workflows.ts), else the row so far.
+  const workflowRow = (stage: ContractStage, tool: string, operation: string, action: string, row: ActionContract) => {
+    for (const {tool: owner, contract} of providerWorkflows)
+      if (owner === tool && contract?.stage === stage && contract.listed(operation, action, row))
+        row = {...row, ...contract.row, tests: [...contract.row.tests]};
+    return row;
+  };
   for (const tool of registry.tools.values())
     if (tool.mode === 'delegated')
       for (const op of tool.operations ?? []) {
@@ -422,24 +374,8 @@ export function actionContracts(registry: Registry): ActionContract[] {
               tests: ['tests/workflows.test.ts'],
             };
           }
-          if (tool.name === 'commerce_native_action' && op.operation === 'woocommerce_list_stores')
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/woocommerce-source.ts',
-              reason:
-                'Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.',
-              tests: ['tests/woocommerce-store-discovery.test.mjs', 'tests/mcp-woocommerce-store-discovery.test.mjs'],
-            };
-          if (tool.name === 'gtm_native_action' && gtmDiagnosticOperations.has(op.operation))
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/gtm-diagnostics.ts',
-              reason:
-                'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',
-              tests: ['tests/gtm-diagnostics.test.ts'],
-            };
+          // A provider workflow's row (WooCommerce's store listing, Tag Manager's diagnostics), before the diagnostics.
+          row = workflowRow('before_diagnostics', tool.name, op.operation, action, row);
           const diagnostic = connectionDiagnosticKind(tool.name, op.operation, action);
           if (diagnostic)
             row = {
@@ -453,59 +389,9 @@ export function actionContracts(registry: Registry): ActionContract[] {
               ...(diagnostic === 'qanda' ? {source: businessQandaRetirement.source} : {}),
               tests: ['tests/connection-diagnostics.test.ts'],
             };
-          if (measurementConnectionSyncKind(tool.name, op.operation, action))
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/measurement-connection-sync.ts / src/google-measurement-assets.ts',
-              reason:
-                'Administrator-scoped GA4 properties or Search Console sites discovery with dry-run default, bounded native GETs and atomic complete metadata persistence. Preserves selections/write grants; scopes, login, concurrent sync and current authority are fenced. No OAuth grant change or provider mutation.',
-              tests: ['tests/measurement-connection-sync.test.ts'],
-            };
-          if (businessConnectionSyncKind(tool.name, op.operation, action))
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/google-business-sync.ts / src/google-business-assets.ts',
-              reason:
-                'Administrator-scoped Business Profile account and optional location discovery. Bounded native GETs, required read mask, shared location parents, current authority and per-attempt login fencing; complete groups persist atomically without changing selections or grants. Website Connections uses the same discovery; no OAuth grant change or provider mutation.',
-              tests: ['tests/google-business-sync.test.ts'],
-            };
-          if (tool.name === 'adjust_native_action' && adjustReportingKind(op.operation, action))
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/adjust-reporting.ts',
-              reason:
-                'Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.',
-              source: 'https://dev.adjust.com/en/api/rs-api/',
-              tests: ['tests/adjust-reporting.test.ts'],
-            };
-          if (tool.name === 'amcp_native_action' && op.operation === 'search_ads_library')
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/meta-ad-library.ts',
-              reason:
-                'Bounded public Meta Ad Library search through the sole/default connection. Media format is translated separately from provider ad category. Geographic API coverage and result limits are explicit; no performance inference or token-bearing URLs are returned.',
-              source: 'https://www.facebook.com/ads/library/api/',
-              tests: ['tests/meta-ad-library.test.ts'],
-            };
-          if (
-            tool.name === 'amcp_native_action' &&
-            op.operation === 'fetch_meta_existing_posts' &&
-            metaPostActions.includes(action)
-          )
-            row = {
-              ...row,
-              status: 'local_workflow',
-              implementation: 'src/meta-existing-posts.ts',
-              reason:
-                'Account-scoped Page/Instagram identity discovery, ephemeral server-side Page token and owned content reads. Exact IDs or bounded canonical permalink lookup with encrypted, scoped continuations. No arbitrary URL fetching or automatic creative writes; native eligibility and approval remain unverified.',
-              source:
-                'https://github.com/facebook/facebook-python-business-sdk/tree/25.0.3/facebook_business/adobjects',
-              tests: ['tests/meta-existing-posts.test.ts'],
-            };
+          // A provider workflow's row (GA4's and Search Console's sync, Business Profile's sync, Adjust's reporting,
+          // Meta's Ad Library and existing posts), before the disconnect rule.
+          row = workflowRow('before_disconnect', tool.name, op.operation, action, row);
           if (connectionDisconnectKind(tool.name, op.operation, action))
             row = {
               ...row,
@@ -515,17 +401,8 @@ export function actionContracts(registry: Registry): ActionContract[] {
                 'Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.',
               tests: ['tests/connection-disconnect.test.ts'],
             };
-          if (
-            row.status === 'native_read' &&
-            placeActionReadKind({gateway: tool.name, action: op.operation + '/' + action} as CompiledRequest)
-          )
-            row = {
-              ...row,
-              implementation: 'src/delegated-native.ts / src/google-place-action-discovery.ts / src/transport.ts',
-              reason:
-                'Native place-action metadata, complete bounded link lists or exact link read. Location filters bind the selected location grant; global/region metadata does not establish eligibility. Current scope checks, native envelopes, private URL redaction and explicit page continuation; no ownership or write grants are inferred.',
-              tests: ['tests/google-place-action-discovery.test.ts', 'tests/google-place-action-links.test.ts'],
-            };
+          // A provider's native read whose row names its contract (Business Profile's place-action discovery), last.
+          row = workflowRow('after_disconnect', tool.name, op.operation, action, row);
           put(row);
         }
       }

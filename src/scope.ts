@@ -13,8 +13,6 @@ import {providerHooks} from './provider-hooks.js';
 
 // The account ID form lives in the leaf src/account-id.ts, from the provider adapters (ARC-04 stage B).
 export {normalizeAccount};
-// Snapchat's scoped resource paths live in its leaf (src/snapchat-scope.ts), which its scope hooks read too.
-export {snapchatOrganizationPixels, snapchatScopedResource} from './snapchat-scope.js';
 function mismatch(field: string): never {
   throw new MirrorError(
     'ACCOUNT_SCOPE_MISMATCH',

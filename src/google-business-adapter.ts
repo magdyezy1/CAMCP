@@ -1,11 +1,91 @@
-import type {ProviderHooks, ReportResourceScope, ScopeContext} from './provider-adapter.js';
+import type {
+  DelegatedAccount,
+  DelegatedHooks,
+  DelegatedScopeContext,
+  ProviderHooks,
+  ReportResourceScope,
+  ScopeContext,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {MirrorError} from './errors.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
 // Writes and campaigns (wave 4c).
 import {placeActionSafe} from './google-place-action-links.js';
 import {assertBusinessAccessPolicy} from './google-business-access.js';
+import {extendGoogleBusinessTool} from './google-business-extensions.js';
+
+/**
+ * Wave 4c (transport and catalog): Business Profile's part of the delegated compiler (src/delegated-native.ts). Its
+ * location and lodging reads need an explicit read mask; a request inside the account may be scoped by a location,
+ * and the place-action type metadata by exactly one account or one location, the location given as its filter.
+ */
+const businessDelegated: DelegatedHooks = Object.freeze({
+  // These discovery query descriptions and current provider docs require an explicit field selection.
+  // Discovery omits the required flag; do not default to all fields or change other routes.
+  requiredQuery(operation: string, action: string, key: string) {
+    if (
+      key !== 'readMask' ||
+      !(
+        (operation === 'gmb_location_ops' && action === 'GET_LOCATION') ||
+        (operation === 'gmb_lodging_ops' && action === 'GET_LODGING')
+      )
+    )
+      return undefined;
+    return (value: unknown) => {
+      if (typeof value === 'string' && !value.trim())
+        throw new MirrorError('INVALID_PARAMETER', 'Choose an explicit nonempty readMask for this resource.', {
+          parameter: key,
+        });
+    };
+  },
+  scope: Object.freeze({
+    refine({route, args, path, query, resourceId}: DelegatedScopeContext, {account, id, match}: DelegatedAccount) {
+      const location = resourceId(args.location_id, 'locations'),
+        found = path.match(/\/locations\/([^/:]+)/);
+      if (location && found && decodeURIComponent(found[1]!) !== location)
+        throw new MirrorError(
+          'ACCOUNT_SCOPE_MISMATCH',
+          'The request resource belongs to a different location.',
+          {},
+          403,
+        );
+      if (route.operation === 'gmb_engagement_ops' && route.action === 'LIST_PLACE_ACTION_TYPE_METADATA') {
+        if (
+          args.location_id !== undefined &&
+          (typeof args.location_id !== 'string' || !/^(?:locations\/)?[1-9][0-9]*$/.test(args.location_id))
+        )
+          throw new MirrorError('INVALID_RESOURCE_NAME', 'Use the exact numeric location ID or locations/{id}.');
+        if (account !== undefined && (typeof account !== 'string' || !/^(?:accounts\/)?[1-9][0-9]*$/.test(account)))
+          throw new MirrorError('INVALID_RESOURCE_NAME', 'Use the exact numeric account ID or accounts/{id}.');
+        const filter =
+          typeof query.filter === 'string' ? /^location=(locations\/[1-9][0-9]*)$/.exec(query.filter)?.[1] : undefined;
+        if (filter && (id || (location && filter !== 'locations/' + location)))
+          throw new MirrorError(
+            'ACCOUNT_SCOPE_MISMATCH',
+            'Use the exact selected location for location-filtered metadata; do not substitute a broader account.',
+            {},
+            403,
+          );
+        if (location && id)
+          throw new MirrorError(
+            'ACCOUNT_SCOPE_MISMATCH',
+            'Choose an account or a location context, not both.',
+            {},
+            403,
+          );
+        if (location && query.filter === undefined) query.filter = 'location=locations/' + location;
+        return location ? 'locations/' + location : (filter ?? id);
+      }
+      return (
+        id ??
+        (match ? decodeURIComponent(match[1]!) : undefined) ??
+        (found ? 'locations/' + decodeURIComponent(found[1]!) : undefined)
+      );
+    },
+  }),
+});
 
 /**
  * Business Profile's resource scope, after the account path: a business account's path names it, and a location's
@@ -82,6 +162,9 @@ const businessReportScope: ReportResourceScope = Object.freeze({
  */
 export const googleBusinessHooks: ProviderHooks = Object.freeze({
   gateway: 'google_business_native_action',
+  // Wave 4c (transport and catalog): its tool takes the operations AMCP adds to the captured definition.
+  catalog: Object.freeze({tools: Object.freeze({google_business_native_action: extendGoogleBusinessTool})}),
+  delegated: businessDelegated,
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

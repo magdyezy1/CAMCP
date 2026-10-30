@@ -1,10 +1,54 @@
-import type {ProviderHooks} from './provider-adapter.js';
+import type {DelegatedHooks, DelegatedScopeContext, ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {MirrorError} from './errors.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 // Writes and campaigns (wave 4c).
 import {assertMeasurementScopes} from './measurement-writes.js';
 import {measurementVerificationPhase} from './measurement-writes.js';
+
+/**
+ * Wave 4c (transport and catalog): GA4's part of the delegated compiler (src/delegated-native.ts). Its body is the
+ * `request` argument, which on a route without a body carries query values; its requests are scoped by their
+ * property, which the path and every nested report property must name.
+ */
+const ga4Delegated: DelegatedHooks = Object.freeze({
+  bodyArgument: 'request',
+  queryBody: true as const,
+  missingPathStep: 'Supply the property and full audience_export_name or report_task_name when required.',
+  scope: Object.freeze({
+    own({args, path, body, resourceId, sameResource}: DelegatedScopeContext) {
+      const property = args.property === undefined ? undefined : resourceId(args.property, 'properties');
+      const match = path.match(/\/properties\/([^/:]+)/);
+      if (match && property && decodeURIComponent(match[1]!) !== property)
+        throw new MirrorError(
+          'ACCOUNT_SCOPE_MISMATCH',
+          'The request resource belongs to a different Analytics property.',
+          {},
+          403,
+        );
+      const visit = (v: unknown) => {
+        if (Array.isArray(v)) {
+          for (const n of v) visit(n);
+          return;
+        }
+        if (v && typeof v === 'object')
+          for (const [k, n] of Object.entries(v)) {
+            if (k === 'property' && property && !sameResource(n, property, 'properties'))
+              throw new MirrorError(
+                'ACCOUNT_SCOPE_MISMATCH',
+                'Nested report property differs from the authorized property.',
+                {},
+                403,
+              );
+            visit(n);
+          }
+      };
+      visit(body);
+      return property ?? (match ? decodeURIComponent(match[1]!) : undefined);
+    },
+  }),
+});
 
 const withoutJobError = (value: JsonObject) =>
   Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'errorMessage'));
@@ -30,6 +74,7 @@ function ga4JobEnvelope(read: CompiledRequest, result: TransportResult, data: Js
  */
 export const ga4Hooks: ProviderHooks = Object.freeze({
   gateway: 'ga4_native_action',
+  delegated: ga4Delegated,
   checks: Object.freeze({
     routeWrite: assertMeasurementWrite,
     state: Object.freeze({

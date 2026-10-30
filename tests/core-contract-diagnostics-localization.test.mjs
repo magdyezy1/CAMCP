@@ -7,19 +7,26 @@ import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 
 const counts = {
-  'src/catalog.ts': 7,
+  // ARC-01 phase B (wave 4c, the catalog registry): Microsoft's help argument and unknown operation refusals moved with
+  // its help to src/microsoft-adapter.ts, unchanged; tests/backend-contract-localization.test.mjs keeps their Arabic.
+  'src/catalog.ts': 5,
   // ARC-04 stage F moved the X and Microsoft report retrievals and the X and TikTok job-read checks from
   // MirrorService to their report jobs (src/x-report-download.ts, src/microsoft-report-download.ts,
   // src/tiktok-report-jobs.ts): their 14 reasons moved with them, unchanged, and stay owned, with the same Arabic, by
-  // the backend contract inventory (tests/backend-contract-localization.test.mjs).
-  'src/service.ts': 16,
+  // the backend contract inventory (tests/backend-contract-localization.test.mjs). ARC-01 phase B (wave 4c) moves
+  // the three refusals of the native read's provider steps (X's audience estimate and its status, Google's draft
+  // generation) with those steps to src/provider-workflows.ts, unchanged, which that inventory owns too.
+  'src/service.ts': 13,
   // ARC-02's review fixes add the refusal of a reserved workspace ID (INVALID_TENANT).
   'src/store.ts': 89,
   // ARC-01 phase B's wire profile moves six refusals that name a provider's own headers to that provider's adapter
   // (Reddit's User-Agent, Microsoft's developer token and account, Amazon's client ID, Google Ads' login customer) and
   // X's OAuth 1.0a credentials to src/oauth1.ts; tests/backend-contract-localization.test.mjs keeps their Arabic.
   'src/transport.ts': 36,
-  'src/delegated-native.ts': 37,
+  // ARC-01 phase B (wave 4c, the delegated compiler): the ten refusals of GA4's property scope, Business Profile's
+  // location scope and read mask, and Reddit's report window and fields moved with their rules to those providers'
+  // adapters, unchanged; tests/backend-contract-localization.test.mjs keeps their Arabic.
+  'src/delegated-native.ts': 27,
   'src/workflows.ts': 52,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
@@ -62,7 +69,7 @@ test('core diagnostic ownership resolves runtime imports and excludes lexical sh
 test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 237);
+  assert.equal(owned.size, 222);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

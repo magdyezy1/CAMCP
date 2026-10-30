@@ -1,5 +1,7 @@
 import {
   plainGetRead,
+  type CompileDraft,
+  type CompileHooks,
   type ExpectState,
   type ProviderHooks,
   type ProviderVerificationRead,
@@ -13,12 +15,22 @@ import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
-import {linkedinPlanningAccount, linkedinPlanningRoute} from './linkedin-planning-reads.js';
+import {linkedinPlanningAccount, linkedinPlanningPlan, linkedinPlanningRoute} from './linkedin-planning-reads.js';
+import {linkedinConversionPlan} from './linkedin-conversion-links.js';
+import {linkedinDomainPlan} from './linkedin-insight-domains.js';
+import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
+import {linkedinMessagePlan} from './linkedin-message-ads.js';
 import {authorizeLinkedInConversionEvidenceRead} from './linkedin-conversion-evidence.js';
 import {authorizeLinkedInAdPreview, linkedinAdPreviewRead, observeLinkedInCreatives} from './linkedin-ad-previews.js';
 import {authorizeLinkedInSpecial, linkedinSpecialRequest} from './linkedin-posts.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
+import {
+  currentLinkedInCapture,
+  extendLinkedInTool,
+  linkedinActionVersion,
+  linkedinDescribedVersion,
+} from './linkedin-version.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
@@ -158,8 +170,70 @@ function linkedinVerification(
   ];
 }
 
+/**
+ * Wave 4c (transport and catalog): LinkedIn's part of the catalog compiler (src/compiler.ts). Its parameters go in
+ * the query whatever the method; every request carries the LinkedIn-Version and Rest.li protocol headers, and may
+ * name a Rest.li method or tunnel an HTTP method (a read stays a read only for a reading method); its keyed paths
+ * take their Rest.li encoding before the report job's controls, its planning reads, message ads and insight domains
+ * after them.
+ */
+const linkedinCompile: CompileHooks = Object.freeze({
+  queryParameters: true as const,
+  request(draft: CompileDraft, input: JsonObject) {
+    draft.headers['LinkedIn-Version'] = linkedinVersion(input.api_version);
+    draft.headers['X-Restli-Protocol-Version'] = '2.0.0';
+    if (input.restli_method) {
+      const restli = String(input.restli_method).toUpperCase();
+      if (
+        ![
+          'GET',
+          'BATCH_GET',
+          'FINDER',
+          'GET_ALL',
+          'CREATE',
+          'BATCH_CREATE',
+          'UPDATE',
+          'BATCH_UPDATE',
+          'PARTIAL_UPDATE',
+          'BATCH_PARTIAL_UPDATE',
+          'DELETE',
+          'BATCH_DELETE',
+          'ACTION',
+        ].includes(restli)
+      )
+        throw new MirrorError('INVALID_METHOD_OVERRIDE', 'Unsupported REST.li method.');
+      draft.headers['X-RestLi-Method'] = String(input.restli_method);
+      draft.readOnly = draft.readOnly && ['GET', 'BATCH_GET', 'FINDER', 'GET_ALL'].includes(restli);
+    }
+    if (input.http_method_override) {
+      const override = String(input.http_method_override).toUpperCase();
+      if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].includes(override))
+        throw new MirrorError('INVALID_METHOD_OVERRIDE', 'Unsupported HTTP method override.');
+      draft.headers['X-HTTP-Method-Override'] = override;
+      draft.method = 'POST';
+      draft.readOnly = draft.readOnly && ['GET', 'HEAD'].includes(override);
+    }
+    return undefined;
+  },
+  beforeJob: (plan: CompiledRequest) => linkedinTrackingPlan(linkedinConversionPlan(plan)),
+  afterJob: (plan: CompiledRequest) => linkedinDomainPlan(linkedinMessagePlan(linkedinPlanningPlan(plan))),
+});
+
 export const linkedinHooks: ProviderHooks = Object.freeze({
   gateway: 'linkedin_native_action',
+  compile: linkedinCompile,
+  // Wave 4c (transport and catalog): its captured catalog reports 202605 (its li-lms-2026-05 snapshot); it is read at
+  // the reviewed version AMCP sends (PRV-02, src/catalog-versions.ts), as that version is when it is read.
+  catalog: Object.freeze({
+    version: Object.freeze({
+      get version() {
+        return linkedinDescribedVersion();
+      },
+      action: linkedinActionVersion,
+      capture: currentLinkedInCapture,
+      tool: extendLinkedInTool,
+    }),
+  }),
   checks: Object.freeze({
     shape: Object.freeze({
       // An entity POST is a native PARTIAL_UPDATE patch.

@@ -1,5 +1,9 @@
 import {
   plainGetRead,
+  type CompileDraft,
+  type CompileHooks,
+  type ContractHooks,
+  type ContractNote,
   type ExpectState,
   type ProviderHooks,
   type ProviderVerificationRead,
@@ -52,7 +56,8 @@ import {tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.j
 import {tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js';
 import {stable} from './security.js';
 import {errorInteger, errorObject} from './provider-error-core.js';
-import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
+import {tiktokPreviewPlan, tiktokPreviewRoute, tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
+import {tiktokCommentScope} from './tiktok-ad-comments.js';
 import {
   tiktokIntegratedReport,
   tiktokReportGrain,
@@ -78,6 +83,7 @@ import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
 import {object} from './write-common.js';
 import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
+import {tiktokReportRoute} from './tiktok-report-jobs.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -335,8 +341,42 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   return data.data?.list?.[0];
 }
 
+// Wave 4c (transport and catalog): TikTok's part of the catalog compiler (src/compiler.ts).
+const plain = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
+/**
+ * Each preview type's required fields are its plan step's to check (the catalog lists every variant's together); a
+ * request names its advertiser in the query or the body and may carry a lead region; a comment status update rides
+ * beside its reviewed comment list read; preview reads are planned after the report job's controls.
+ */
+const tiktokCompile: CompileHooks = Object.freeze({
+  required: Object.freeze({unchecked: (route: string) => tiktokPreviewVariantPath('tiktok_native_action', route)}),
+  request(draft: CompileDraft, input: JsonObject) {
+    if (draft.accountId) {
+      if (['GET', 'HEAD', 'DELETE'].includes(draft.method)) draft.query.advertiser_id ??= draft.accountId;
+      else if (!Array.isArray(draft.body)) draft.body = {advertiser_id: draft.accountId, ...plain(draft.body)};
+      if (input.lead_region) draft.headers['X-Lead-Region'] = input.lead_region;
+    }
+    // The comment list read a comment status update is reviewed against; it rides beside the request, never in it.
+    const commentScope = tiktokCommentScope(draft.route, input.comment_scope);
+    return commentScope ? {tiktokCommentScope: commentScope} : undefined;
+  },
+  afterJob: tiktokPreviewPlan,
+});
+/** Wave 4c (transport and catalog): what TikTok's report task reads add to their action contract rows. */
+const reportTaskNote: ContractNote = Object.freeze({
+  implementation: 'src/tiktok-report-jobs.ts',
+  test: 'tests/tiktok-report-jobs.test.ts',
+  reason:
+    'Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.',
+});
+const tiktokContracts: ContractHooks = Object.freeze({
+  readNotes: (plan: CompiledRequest) => (tiktokReportRoute(plan) ? [reportTaskNote] : []),
+});
+
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
+  compile: tiktokCompile,
+  contracts: tiktokContracts,
   checks: Object.freeze({
     shape: Object.freeze({after: tiktokWriteShape}),
     state: Object.freeze({

@@ -1,4 +1,6 @@
 import type {
+  CatalogHooks,
+  CompileHooks,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
@@ -11,10 +13,12 @@ import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
-import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
+import {metaActionOverride, validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
+import {extendMetaPostWorkflow} from './meta-post-extensions.js';
+import {metaRuleActions} from './meta-rule-routes.js';
 import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
-import {metaPrefix, metaRoute} from './meta-version.js';
+import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
 import {normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
@@ -167,8 +171,36 @@ function metaVerification(
   ];
 }
 
+/**
+ * Wave 4c (transport and catalog): Meta's part of the catalog compiler (src/compiler.ts). Its `fields` lists are one
+ * comma-separated value; an ad account path takes the account ID without its act_ prefix (the template adds it); a
+ * Graph batch carries other requests, so it is never a read.
+ */
+const metaCompile: CompileHooks = Object.freeze({
+  joinedFields: true as const,
+  accountValues(values: JsonObject, _accountId: string, route: string) {
+    if (route.includes('act_{ad_account_id}')) values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+  },
+  batchParameter: 'batch',
+});
+
+/**
+ * Wave 4c (transport and catalog): Meta's part of the catalog registry (src/catalog.ts). AMCP's native workflow tool
+ * takes Meta's post workflow; its captured actions take their documented overrides; it documents rule update and
+ * delete beyond the captured catalog, which maps only creation (src/meta-ad-rules.ts).
+ */
+const metaCatalog: CatalogHooks = Object.freeze({
+  tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
+  action: metaActionOverride,
+  supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
+  // Its captured catalog is read at the Graph API version AMCP sends (src/catalog-versions.ts).
+  version: Object.freeze({version: metaApiVersion, action: metaActionVersion, capture: currentMetaCapture}),
+});
+
 export const metaHooks: ProviderHooks = Object.freeze({
   gateway: 'meta_native_action',
+  compile: metaCompile,
+  catalog: metaCatalog,
   checks: Object.freeze({
     // Meta's campaign and v26 request rules come first.
     request(plan: CompiledRequest) {

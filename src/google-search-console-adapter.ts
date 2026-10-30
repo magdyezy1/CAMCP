@@ -1,4 +1,4 @@
-import type {ProviderHooks, ScopeContext} from './provider-adapter.js';
+import type {DelegatedHooks, DelegatedScopeContext, ProviderHooks, ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
@@ -6,6 +6,21 @@ import {fail} from './write-common.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 // Writes and campaigns (wave 4c).
 import {assertMeasurementScopes} from './measurement-writes.js';
+
+const record = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
+const inspectionFields = Object.freeze(['siteUrl', 'inspectionUrl', 'languageCode']);
+/**
+ * Wave 4c (transport and catalog): Search Console's part of the delegated compiler (src/delegated-native.ts). A URL
+ * inspection takes its site, URL and language from the top-level arguments into its body; a request is scoped by
+ * its site, given once under any of its names.
+ */
+const searchConsoleDelegated: DelegatedHooks = Object.freeze({
+  bodyFields: (action: string) => (action === 'INSPECT_URL' ? inspectionFields : undefined),
+  scope: Object.freeze({
+    own: ({args, body, singleValue}: DelegatedScopeContext) =>
+      singleValue('siteUrl', [args, record(args.params), record(args.path_params), body]) as string | undefined,
+  }),
+});
 
 /**
  * Search Console's sitemap `errors` is a documented content-error count, not a failed API envelope: the success check
@@ -33,6 +48,7 @@ const sitemapProcessing = new Set(['lastDownloaded', 'isPending', 'warnings', 'e
  */
 export const searchConsoleHooks: ProviderHooks = Object.freeze({
   gateway: 'google_search_console_native_action',
+  delegated: searchConsoleDelegated,
   checks: Object.freeze({
     routeWrite: assertMeasurementWrite,
     state: Object.freeze({

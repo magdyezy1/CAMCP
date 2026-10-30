@@ -1,11 +1,18 @@
 import type {
+  CompileDraft,
+  CompileHooks,
+  ContractHooks,
+  ContractLegacy,
+  ContractNote,
+  ContractRow,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
   StateTarget,
   WireHeaders,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Action, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts), and the verification
@@ -22,11 +29,22 @@ import {googleConfigurationObserved} from './google-configuration-writes.js';
 import {
   assertGoogleGenerationScope,
   googleGenerationKind,
+  googleGenerationPlan,
   googleGenerationResult,
   validateGoogleGeneration,
 } from './google-generation.js';
-import {googleJson, validateGoogleRequest} from './google-contracts.js';
-import {googleAdsCustomers} from './google-version.js';
+import {googleContractEvidence, googleJson, validateGoogleRequest} from './google-contracts.js';
+import {
+  currentGoogleAdsCapture,
+  extendGoogleAdsTool,
+  googleAdsActionVersion,
+  googleAdsCustomers,
+  googleAdsRequestChange,
+  googleAdsVersion,
+} from './google-version.js';
+import {adaptGoogleLegacy, googleLegacyCoverage} from './google-legacy.js';
+import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
+import {dataManagerActions} from './google-data-manager-routes.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
@@ -447,6 +465,99 @@ function googleVerificationVersion(plan: CompiledRequest): string | undefined {
     : undefined;
 }
 
+// Wave 4c (transport and catalog): Google Ads' part of the catalog compiler (src/compiler.ts).
+const plain = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
+/**
+ * Its legacy actions compile as the routed requests they stand for; the account sets customer_id without dashes; its
+ * required fields are checked in every mode, under their camelCase names too, except the content the Drive importer
+ * supplies after review, and a missing one names its action's version change; a request's body is the field its RPC
+ * maps; its requests carry their Discovery route evidence and the generation drafts' checks.
+ */
+const googleAdsCompile: CompileHooks = Object.freeze({
+  legacy: adaptGoogleLegacy,
+  accountValues(values: JsonObject, accountId: string) {
+    values.customer_id = accountId.replaceAll('-', '');
+  },
+  required: Object.freeze({
+    always: true as const,
+    alias: (values: JsonObject, key: string) => values[key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())],
+    // The AMCP Drive importer supplies the binary payload after review. Only its
+    // exact upload routes may omit their ordinary native content container.
+    supplied: (key: string, route: string, values: JsonObject) =>
+      ['operations', 'you_tube_video_upload'].includes(key) &&
+      /\/(?:assets:mutate|youTubeVideoUploads:create)$/.test(route) &&
+      ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'].some(k => typeof values[k] === 'string'),
+    missing(action: Action, key: string) {
+      const change = googleAdsRequestChange(action.name);
+      return new MirrorError(
+        'MISSING_PARAMETER',
+        action.name +
+          " requires request field '" +
+          key +
+          "'. Pass path values in path_params and all other native request fields in params or payload.",
+        {parameter: key, ...(change ? {version_change: change} : {})},
+      );
+    },
+  }),
+  request(draft: CompileDraft, _input: JsonObject, registry: Registry) {
+    const desc = registry.data.descriptions[draft.gateway + '/' + draft.action.name];
+    if (desc?.body_mapping && desc.body_mapping !== '*')
+      draft.body = plain(draft.body)[desc.body_mapping] ?? draft.body;
+    return undefined;
+  },
+  beforeJob: (plan: CompiledRequest) => googleGenerationPlan(googleContractEvidence(plan)),
+});
+
+/**
+ * Wave 4c (transport and catalog): Google Ads' part of the action contract ledger (src/action-contracts.ts). A draft
+ * generation RPC's row names its contract; a legacy action the catalog lists without a route is the GAQL search or
+ * the RPC its mapping names (an explicit adapter's own row when its route depends on the request).
+ */
+const generationNote: ContractNote = Object.freeze({
+  implementation: 'src/google-generation.ts',
+  test: 'tests/google-generation.test.ts',
+  reason:
+    'Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.',
+});
+const legacyAdapterRow: ContractRow = Object.freeze({
+  status: 'adapter_requires_input' as const,
+  implementation: 'src/google-legacy.ts',
+  reason:
+    'An explicit legacy adapter exists, but its route depends on the requested scope/type. Inspect the exact payload; each selected destination retains its own reviewed contract.',
+  tests: Object.freeze(['tests/google-legacy.test.ts']),
+});
+const googleAdsContracts: ContractHooks = Object.freeze({
+  readNotes: (plan: CompiledRequest) => (googleGenerationKind(plan) ? [generationNote] : []),
+  legacy(registry: Registry): ContractLegacy {
+    const coverage = googleLegacyCoverage(),
+      search = (a: Action): Action => ({
+        ...a,
+        method: 'POST',
+        path: googleAdsCustomers + '{customer_id}/googleAds:search',
+        read_only: true,
+      });
+    return {
+      route(a: Action, route: Action, source: string) {
+        const entry = legacyMapping.entries.find(e => e.name === a.name) as JsonObject | undefined;
+        if (entry?.kind === 'GAQL') route = search(a);
+        else {
+          const hint = coverage.entries.find(e => e.action === a.name)?.destination;
+          const mapped = hint
+            ? registry.catalogs
+                .get('google_ads_native_action')
+                ?.actions.find(x => x.path && (x.name === hint || x.raw.service + '.' + x.raw.rpc === hint))
+            : undefined;
+          if (mapped) route = mapped;
+          else if (hint && /^[a-z_]+$/.test(hint)) route = search(a);
+        }
+        return {route, source: entry ? 'src/google-legacy-mapping.json' : source};
+      },
+      adapted: (a: Action) => coverage.entries.some(e => e.action === a.name),
+      row: legacyAdapterRow,
+    };
+  },
+});
+
 /**
  * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
@@ -456,6 +567,22 @@ function googleVerificationVersion(plan: CompiledRequest): string | undefined {
  */
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
+  compile: googleAdsCompile,
+  // Wave 4c (transport and catalog): Customer Match and offline conversions through the Data Manager API, documented
+  // beyond the captured catalog; its captured catalog is read at the API version AMCP sends (src/catalog-versions.ts).
+  catalog: Object.freeze({
+    supplemental: Object.freeze({actions: dataManagerActions, requires: 'catalog' as const}),
+    version: Object.freeze({
+      version: googleAdsVersion,
+      action: googleAdsActionVersion,
+      capture: currentGoogleAdsCapture,
+      tool: extendGoogleAdsTool,
+    }),
+  }),
+  // Its requests are compiled by its own compiler with ProtoJSON validation (src/compiler.ts): a vendor snapshot's
+  // Google Ads routes are never delegated.
+  delegated: Object.freeze({direct: true as const}),
+  contracts: googleAdsContracts,
   checks: Object.freeze({
     // Every reviewed write is checked against its pinned Discovery schema first.
     request: validateGoogleRequest,

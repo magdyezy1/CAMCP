@@ -3,24 +3,25 @@ import addFormatsModule from 'ajv-formats';
 import type {Action, CallOptions, Catalog, RegistryData, ToolDefinition, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {guardInput} from './security.js';
-import {appleActions} from './apple-native.js';
-import {microsoftActions, microsoftGateway, microsoftTool} from './microsoft-native.js';
-import {extendRedditTool} from './reddit-extensions.js';
-import {extendDV360Tool} from './dv360-extensions.js';
-import {extendGoogleBusinessTool} from './google-business-extensions.js';
-import {extendMetaPostWorkflow} from './meta-post-extensions.js';
-import {extendAdjustTool} from './adjust-extensions.js';
-import {metaActionOverride} from './meta-contracts.js';
 import {catalogVersions, currentCapture} from './catalog-versions.js';
-import {extendXReportTool} from './x-report-jobs.js';
 import {pinnedJson} from './pinned-json.js';
-import {metaRuleActions} from './meta-rule-routes.js';
-import {dataManagerActions} from './google-data-manager-routes.js';
 import {describedTool, describesOwnText} from './tool-notes.js';
 import {nameCandidates, searchTerm} from './name-candidates.js';
+import {providerAdapters} from './provider-adapters.js';
+import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 /** Gateways whose captured schema lacks LIST_ACTIONS but which AMCP lists from its catalog (MCP-05). */
-export const listsActions = new Set(['dv360_native_action']);
+export const listsActions = new Set(providerAdapters.filter(a => a.listsActions).map(a => a.gateway));
+/**
+ * The providers' additions to captured tool definitions, by tool name (ARC-01 phase B, src/<provider>-adapter.ts): a
+ * load-time check, like a family declaration's, that no two providers extend one tool.
+ */
+const toolExtensions = new Map<string, (tool: ToolDefinition) => ToolDefinition>();
+for (const {gateway, catalog} of registeredProviderHooks)
+  for (const [name, extend] of Object.entries(catalog?.tools ?? {})) {
+    if (toolExtensions.has(name)) throw new Error('Two providers extend the tool ' + name + ': ' + gateway + '.');
+    toolExtensions.set(name, extend);
+  }
 /**
  * Ajv errors, compacted (MCP-05): the failing path and keyword, and for an enum the first 20 allowed values and their
  * count, so a misspelt DV360 action no longer echoes all 346 values. `field` names the first failing argument.
@@ -63,27 +64,18 @@ export class Registry {
     this.data = data ?? pinnedJson<RegistryData>('generated/registry.json');
     addFormats(this.ajv);
     for (const original of this.data.tools) {
-      const tool =
-        original.name === 'x_ads_native_action'
-          ? extendXReportTool(original)
-          : original.name === 'reddit_native_action'
-            ? extendRedditTool(original)
-            : original.name === 'dv360_native_action'
-              ? extendDV360Tool(original)
-              : original.name === 'google_business_native_action'
-                ? extendGoogleBusinessTool(original)
-                : original.name === 'amcp_native_action'
-                  ? extendMetaPostWorkflow(original)
-                  : original.name === 'adjust_native_action'
-                    ? extendAdjustTool(original)
-                    : (catalogVersions[original.name]?.tool?.(original) ?? original);
+      // A provider's additions to the captured definition (X's report jobs, Reddit's, DV360's, Business Profile's and
+      // Adjust's extensions, Meta's post workflow in AMCP's native tool), else the gateway's version move.
+      const extend = toolExtensions.get(original.name),
+        tool = extend ? extend(original) : (catalogVersions[original.name]?.tool?.(original) ?? original);
       this.tools.set(tool.name, tool);
       this.schemas.set(tool.name, tool.inputSchema);
       for (const op of tool.operations ?? []) this.schemas.set(tool.name + '/' + op.operation, op.argumentsSchema);
     }
     for (const original of this.data.catalogs) {
-      const actions =
-          original.gateway === 'meta_native_action' ? original.actions.map(metaActionOverride) : original.actions,
+      // A provider's documented overrides of its captured actions (Meta's), before the version move.
+      const override = providerHooks(original.gateway)?.catalog?.action,
+        actions = override ? original.actions.map(override) : original.actions,
         moved = catalogVersions[original.gateway],
         catalog = moved
           ? {...original, api_version: moved.version, actions: actions.map(moved.action)}
@@ -92,29 +84,25 @@ export class Registry {
       for (const action of catalog.actions) this.register(catalog.gateway, action);
     }
     for (const action of this.data.supplemental) this.register(action.gateway!, action, false);
-    // Meta documents rule update and delete; the captured catalog maps only creation (src/meta-ad-rules.ts).
-    if (this.catalogs.has('meta_native_action'))
-      for (const action of metaRuleActions) this.register('meta_native_action', action, false);
-    if (this.catalogs.has('google_ads_native_action'))
-      for (const action of dataManagerActions) this.register('google_ads_native_action', action, false);
-    if (this.tools.has('apple_ads_native_action'))
-      for (const action of appleActions) this.register('apple_ads_native_action', action, false);
-    if (this.tools.has('amcp_tool_help')) {
-      this.tools.set(microsoftGateway, microsoftTool);
-      this.schemas.set(microsoftGateway, microsoftTool.inputSchema);
-      this.catalogs.set(microsoftGateway, {
-        gateway: microsoftGateway,
-        mode: 'direct',
-        api_version: 'v13',
-        reported_total: null,
-        captured: 0,
-        complete: false,
-        denominator_kind: 'LIST_ACTIONS',
-        actions: microsoftActions,
-        gaps: ['Independent extension; not part of the captured AMCP denominator.'],
-      });
-      for (const a of microsoftActions) this.register(microsoftGateway, a);
+    // The actions providers document beyond the captured catalog (Meta's rule update and delete, which the captured
+    // catalog maps only as creation, src/meta-ad-rules.ts; Google's Data Manager; Apple's v1 actions), where the
+    // registry holds the catalog or tool they extend. Their routes are each provider's own, so the order between
+    // providers does not matter.
+    for (const {gateway, catalog} of registeredProviderHooks) {
+      const extra = catalog?.supplemental;
+      if (extra && (extra.requires === 'tool' ? this.tools : this.catalogs).has(gateway))
+        for (const action of extra.actions) this.register(gateway, action, false);
     }
+    // A provider whose tool and catalog are AMCP's own contracts (Microsoft Advertising), with AMCP's tools.
+    if (this.tools.has('amcp_tool_help'))
+      for (const {gateway, catalog} of registeredProviderHooks) {
+        const own = catalog?.own?.();
+        if (!own) continue;
+        this.tools.set(gateway, own.tool);
+        this.schemas.set(gateway, own.tool.inputSchema);
+        this.catalogs.set(gateway, own.catalog);
+        for (const a of own.catalog.actions) this.register(gateway, a);
+      }
   }
   private validator(key: string) {
     let compiled = this.validators.get(key);
@@ -153,12 +141,10 @@ export class Registry {
     const definition = this.tools.get(tool);
     if (!definition) throw new MirrorError('UNKNOWN_TOOL', 'Unknown MCP tool: ' + tool);
     const checkInput = structuredClone(input);
-    if (tool === 'amcp_tool_help' && input.gateway === microsoftGateway) {
-      if (
-        Object.keys(input).some(k => !['gateway', 'operation'].includes(k)) ||
-        (input.operation !== undefined && typeof input.operation !== 'string')
-      )
-        throw new MirrorError('INVALID_ARGUMENT', 'Invalid Microsoft help arguments.');
+    // A provider that answers amcp_tool_help from its own contracts checks those arguments itself (Microsoft).
+    const helpArguments = tool === 'amcp_tool_help' ? providerHooks(input.gateway)?.catalog?.helpArguments : undefined;
+    if (helpArguments) {
+      helpArguments(input);
       return;
     }
     if (options.mode === 'enhanced')
@@ -261,52 +247,9 @@ export class Registry {
     if (!input.gateway) return structuredClone(this.data.discovery);
     const tool = this.tools.get(input.gateway);
     if (!tool) throw new MirrorError('UNKNOWN_GATEWAY', 'Unknown gateway.');
-    if (input.gateway === microsoftGateway) {
-      if (input.operation) {
-        const action = microsoftActions.find(a => a.name === input.operation);
-        if (!action)
-          throw new MirrorError('UNKNOWN_OPERATION', 'Unknown Microsoft operation. Use LIST_ACTIONS.', {
-            field: 'operation',
-            gateway: microsoftGateway,
-            ...nameCandidates(
-              input.operation,
-              microsoftActions.map(a => a.name),
-            ),
-            list_call: {
-              tool: microsoftGateway,
-              arguments: {action: 'LIST_ACTIONS', search: searchTerm(input.operation)},
-            },
-          });
-        return structuredClone(action);
-      }
-      return {
-        ...structuredClone(tool.help),
-        inputSchema: this.schema(tool, options),
-        amcp_actions: microsoftActions.map(a => ({
-          action: a.name,
-          method: a.method,
-          path: a.path,
-          read_only: a.read_only,
-        })),
-      };
-    }
-    if (input.gateway === 'apple_ads_native_action') {
-      const action = appleActions.find(a => a.name === input.operation);
-      if (action)
-        return {...structuredClone(action), qualification: 'Independent AMCP implementation; no live parity claim.'};
-      if (!input.operation)
-        return {
-          ...structuredClone(tool.help),
-          amcp_actions: appleActions.map(a => ({
-            action: a.name,
-            method: a.method,
-            path: a.path,
-            read_only: a.read_only,
-          })),
-          qualification:
-            'Independent AMCP v1 extensions. Captured catalog counts are unchanged. Legacy v5 routes are unavailable.',
-        };
-    }
+    // A provider's own help, before the captured help (Microsoft's contracts; Apple's v1 actions and its gateway).
+    const own = providerHooks(input.gateway)?.catalog?.help?.(input, tool, () => this.schema(tool, options));
+    if (own) return own;
     if (input.operation && tool.mode === 'delegated') {
       const op = tool.operations?.find(x => x.operation === input.operation);
       if (!op)

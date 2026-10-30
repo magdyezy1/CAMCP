@@ -1,5 +1,5 @@
-import type {ProviderHooks, WireHeaders} from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CatalogHooks, ProviderHooks, WireHeaders} from './provider-adapter.js';
+import type {CompiledRequest, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
@@ -12,6 +12,8 @@ import {
   appleSharedAccounts,
   appleSharedBudget,
 } from './apple-entity-writes.js';
+import {appleActions, validateApplePlan} from './apple-native.js';
+import {requestAppleAccessToken} from './apple-auth.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 // SDK output-only processing/approval observations are not advertiser edits.
@@ -25,12 +27,43 @@ const observational = new Set([
 /** An Apple record's ad account IDs, in one order (a shared budget lists the accounts it spans). */
 const sortedAccounts = (ids: unknown[]) => [...ids].sort((a, b) => String(a).localeCompare(String(b), 'en'));
 /**
+ * Wave 4c (transport and catalog): Apple's part of the catalog registry (src/catalog.ts). Its v1 actions are AMCP's
+ * own, registered with its tool beside the captured catalog; their help describes them, and any other operation is
+ * left to the registry's help.
+ */
+const appleCatalog: CatalogHooks = Object.freeze({
+  supplemental: Object.freeze({actions: appleActions, requires: 'tool' as const}),
+  help(input: JsonObject, tool: ToolDefinition) {
+    const action = appleActions.find(a => a.name === input.operation);
+    if (action)
+      return {...structuredClone(action), qualification: 'Independent AMCP implementation; no live parity claim.'};
+    if (!input.operation)
+      return {
+        ...structuredClone(tool.help),
+        amcp_actions: appleActions.map(a => ({
+          action: a.name,
+          method: a.method,
+          path: a.path,
+          read_only: a.read_only,
+        })),
+        qualification:
+          'Independent AMCP v1 extensions. Captured catalog counts are unchanged. Legacy v5 routes are unavailable.',
+      };
+    return undefined;
+  },
+});
+/**
  * Apple Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * documented /query selectors of the Apple Ads API (v1 on api.ads.apple.com) are POST reads. A review keeps a
  * record's result without Apple's own status observations.
  */
 export const appleHooks: ProviderHooks = Object.freeze({
   gateway: 'apple_ads_native_action',
+  // Wave 4c (transport and catalog): its v1 actions' numeric IDs and account path are checked as they are compiled.
+  compile: Object.freeze({beforeJob: validateApplePlan}),
+  catalog: appleCatalog,
+  // Its access token is renewed with its own client-credentials request (src/apple-auth.ts), not a refresh token.
+  refresh: Object.freeze({own: requestAppleAccessToken}),
   // Its writes follow the measurement resource contract (src/measurement-writes.ts: Apple's entity and shared-budget
   // writes); a resource's 404 is its documented absence, and the resource checks every state read's target.
   checks: Object.freeze({

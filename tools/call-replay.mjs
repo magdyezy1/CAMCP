@@ -42,7 +42,8 @@ export const targets = Object.freeze({
     classes: {ScopeGuard: ['authorize', 'observe', 'observeCreated']},
   },
   // The Snapchat scoped-resource paths left scope.js for this leaf (ARC-01 phase B, the read authorizers), which
-  // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
+  // scope.js re-exported until wave 4c; a recording made before names them dist/src/scope.js#... (compare with
+  // --ignore for both).
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
   'dist/src/store.js': {
     classes: {Store: ['rememberResource', 'ownsResource', 'updateConnection', 'resolveConnection', 'putConnection']},
@@ -177,7 +178,7 @@ export const targets = Object.freeze({
   'dist/server/google-reauthorization.js': {functions: ['reauthorizeGoogleConnection', 'googleAuthorizationInfo']},
   'dist/server/social-signin.js': {classes: {SocialSignIn: ['start', 'identity', 'json']}},
   'dist/server/runtime.js': {functions: ['createRuntime']},
-  'dist/src/woocommerce-source.js': {functions: ['wooCommerceSources']},
+  'dist/src/woocommerce-source.js': {functions: ['wooCommerceSources', 'wooCommerceStoreDiscovery']},
   // ARC-01 phase B and ARC-04, the website's connection routes and views: what a login's asset selection, sync,
   // default and name save (a route's refusal stops before any of them); Store.updateConnection records the connection
   // a selection, write-access change, sync or renewal saves.
@@ -191,6 +192,36 @@ export const targets = Object.freeze({
   'dist/src/provider-revocation.js': {
     functions: ['revocationTarget', 'providerRevocationOffer', 'disconnectWithProviderRevocation'],
   },
+  // Wave 4c (ARC-01 phase B, the catalog, compiler, delegated compiler, contracts and service concerns): the catalog
+  // registry's validation, help and lookups, and the provider steps whose call sites leave the shared modules for the
+  // provider hooks and the provider workflows registry. The steps stay in their provider modules, so both recordings
+  // see their calls.
+  'dist/src/catalog.js': {classes: {Registry: ['validate', 'help', 'unknownAction', 'acceptsArgument']}},
+  'dist/src/google-generation.js': {functions: ['validateGoogleGeneration', 'googleGenerationResult']},
+  'dist/src/dv360-targeting-search.js': {functions: ['validateDV360TargetingSearch', 'runDV360TargetingSearch']},
+  'dist/src/snapchat-by-ids.js': {functions: ['validateSnapchatByIds', 'checkSnapchatByIdsResult']},
+  'dist/src/snapchat-result-ids.js': {functions: ['snapchatResultIds', 'keepResultIds']},
+  'dist/src/x-audience-estimate.js': {functions: ['validateXAudienceEstimate', 'runXAudienceEstimate']},
+  'dist/src/google-place-action-discovery.js': {
+    functions: ['validatePlaceActionRead', 'placeActionReadResult', 'runPlaceActionDiscovery'],
+  },
+  'dist/src/google-place-action-links.js': {functions: ['placeActionSafeError', 'redactPlaceActionInput']},
+  'dist/src/apple-native.js': {functions: ['validateAppleResponse']},
+  'dist/src/microsoft-native.js': {functions: ['validateMicrosoftResponse', 'compileMicrosoft']},
+  'dist/src/reddit-extensions.js': {functions: ['projectRedditAccountHistory']},
+  'dist/src/google-legacy.js': {functions: ['legacyLimitDisclosure', 'adaptGoogleLegacy']},
+  // WooCommerce's store discovery (`wooCommerceStoreDiscovery`) is recorded with its store sources, and its store
+  // setup (`connectWooCommerce`), Adjust's reporting (`adjustReporting`) and `inspectGoogleRecipeGoals` by the entries
+  // above: one entry per module, since a repeated key would replace the earlier list.
+  'dist/src/measurement-connection-sync.js': {functions: ['syncMeasurementConnection']},
+  'dist/src/google-business-sync.js': {functions: ['syncBusinessConnection']},
+  'dist/src/meta-ad-library.js': {functions: ['searchMetaAdLibrary']},
+  'dist/src/meta-existing-posts.js': {functions: ['fetchMetaExistingPosts', 'redactMetaPostInput']},
+  'dist/src/gtm-diagnostics.js': {functions: ['gtmDiagnostics']},
+  'dist/src/microsoft-locations.js': {functions: ['microsoftLocationLookup']},
+  'dist/src/meta-asset-usage.js': {functions: ['metaAssetUsage']},
+  'dist/src/google-image-usage.js': {functions: ['googleImageUsage']},
+  'dist/src/snapchat-asset-usage.js': {functions: ['snapchatAssetUsage']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([

@@ -1,12 +1,14 @@
 import type {
+  ContractHooks,
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
+  RefreshRequest,
   ScopeCallBuilder,
   ScopeContext,
   StateTarget,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
@@ -20,7 +22,7 @@ import {
   snapSegmentProjection,
   snapSegmentState,
 } from './snapchat-segments.js';
-import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
+import {snapchatPlanningPlan, snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {MirrorError} from './errors.js';
 import {errorObject, errorToken} from './provider-error-core.js';
 import {normalizeAccount} from './account-id.js';
@@ -317,6 +319,22 @@ function snapchatObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
 }
 
 /**
+ * Wave 4c (transport and catalog): Snapchat's part of the action contract ledger (src/action-contracts.ts). Its chunked
+ * upload: amcp_media sends INIT, each ADD and FINALIZE itself (F-58). A raw ADD or FINALIZE has no upload of AMCP's to
+ * continue, so it stays refused; the ledger names the workflow that performs it.
+ */
+const snapchatContracts: ContractHooks = Object.freeze({
+  mediaStep: (plan: CompiledRequest) =>
+    plan.method === 'POST' &&
+    /^\/(?:us\/)?v1\/media\/[^/]+\/multipart-upload-v2$/.test(plan.path) &&
+    ['ADD', 'FINALIZE'].includes(String(plan.query.action))
+      ? 'A step of the chunked upload amcp_media performs itself (INIT, each ADD, FINALIZE). Send the file through amcp_media; a raw ' +
+        plan.query.action +
+        ' is not accepted.'
+      : undefined,
+});
+
+/**
  * Snapchat's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning
  * POSTs, the by-ID entity reads, the audience, bid and forecasting estimates, and the catalog and Ads Library searches.
  * Its scope: the catalog comparison's internal reads, and ownership of the global IDs its account lists and creations
@@ -325,6 +343,22 @@ function snapchatObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
+  // Wave 4c (transport and catalog): its targeting insight and forecast POSTs are planned as reviewed reads.
+  compile: Object.freeze({afterJob: snapchatPlanningPlan}),
+  contracts: snapchatContracts,
+  // A token renewal names the callback registered with its OAuth app, which the login must have recorded.
+  refresh: Object.freeze({
+    request({body}: RefreshRequest, c: Credentials, connection: Connection) {
+      if (!c.redirectUri)
+        throw new MirrorError(
+          'REAUTHORIZATION_REQUIRED',
+          'Reconnect Snapchat to record the registered callback required for refresh.',
+          {connection_id: connection.id},
+          401,
+        );
+      body.set('redirect_uri', c.redirectUri);
+    },
+  }),
   checks: Object.freeze({
     // An ad's creative references are checked before anything else (src/snapchat-ad-creatives.ts).
     shape: Object.freeze({
@@ -358,6 +392,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     },
     observe: observeSnapchat,
     observeCreated: observeSnapchatCreated,
+    // Wave 4c (transport and catalog): a lapsed observation of a scoped entity is renewed from the account's list.
+    lapsedResource: snapchatScopedResource,
   }),
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => !!snapchatPlanningRoute(p),

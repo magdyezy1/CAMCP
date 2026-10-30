@@ -241,8 +241,18 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged, the server package's 22 more files, eleven of them with reasons, add to the reporting and writes packages'
   // 43 and 18; the server package owns no new reason, so the owned reasons stay the merged reporting and writes
   // packages' 1,590.
-  assert.equal(files.length, 734);
-  assert.equal(selected.filter(row => row.messages.size).length, 282);
+  // ARC-01 phase B, wave 4c: the delegated compiler's provider rules move GA4's two property-scope refusals and
+  // Business Profile's six location, account and read-mask refusals from src/delegated-native.ts (which keeps its
+  // others) to their adapters, and Reddit's two report refusals to its adapter, which already owns reasons: two more
+  // files with reasons, the same reasons. The action contract ledger's provider rules add the provider workflows
+  // registry (src/provider-workflows.ts), whose rows are contract explanations; the service's provider steps move
+  // the three refusals of a native read's provider checks there from src/service.ts (which keeps its others): one more
+  // file with reasons, the same reasons.
+  // Merged with the transport and catalog package (one more file, src/provider-workflows.ts, and three more with
+  // reasons: the GA4 and Business Profile adapters and the provider workflows registry), the files add up: 735, 285
+  // of them with reasons; that package moves reasons without adding one, so the owned reasons stay 1,590.
+  assert.equal(files.length, 735);
+  assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);

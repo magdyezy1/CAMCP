@@ -11,7 +11,8 @@
  * profile, its part of ScopeGuard, its write-shape and state checks, the review's projections of its reads) is its
  * hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
-import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Action, Catalog, CompiledRequest, Connection, Credentials, JsonObject, ToolDefinition} from './types.js';
+import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
@@ -26,8 +27,6 @@ import type {VendorRoute} from './delegated-native.js';
 // preflight reads through.
 import type {ToolCall} from './workspace-core.js';
 import type {MirrorService} from './service.js';
-// Writes and campaigns (wave 4c): a provider's refusal under the spending policy.
-import type {MirrorError} from './errors.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -397,6 +396,12 @@ export interface ScopeHooks {
   observe?(plan: CompiledRequest, connection: Connection, account: string, data: unknown, store: Store): void;
   /** Learns ownership of what a verified, successful creation made; never from caller-supplied data. */
   observeCreated?(plan: CompiledRequest, connection: Connection, account: string, data: JsonObject, store: Store): void;
+  /**
+   * Wave 4c (transport and catalog): the resource a RESOURCE_SCOPE_REQUIRED refusal's path names whose ownership
+   * observation, once lapsed, MirrorService may renew from the account's own list (Snapchat's scoped entities, F-70);
+   * undefined for any other path.
+   */
+  lapsedResource?(path: string): string | undefined;
 }
 
 /** Refuses a new serving entity whose `key` is not one of `values`: the write-shape stage's paused-creation rule. */
@@ -529,6 +534,293 @@ export interface ReportResourceScope {
   accounts?(rows: JsonObject[], existing: unknown[], account: (row: JsonObject) => string): string[] | undefined;
 }
 
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog compiler. The shared module
+// keeps every rule and the order of every step; a hook answers only where it named the provider before.
+
+/** A request the catalog lists without a route, adapted to the routed request it stands for (CompileHooks.legacy). */
+export interface AdaptedRequest {
+  /** The input of the routed action, compiled in its place. */
+  readonly input: JsonObject;
+  /** The action name the compiled request keeps. */
+  readonly legacyAction: string;
+  readonly evidence: string;
+  readonly warnings: readonly string[];
+  /** A default page size the adaptation applied (Google Ads' GAQL LIMIT of a list alias asked without one). */
+  readonly defaultLimit?: number;
+}
+
+/** What a provider's request rules may set on a request the compiler is building (CompileHooks.request). */
+export interface CompileDraft {
+  readonly gateway: string;
+  /** The catalog action the request is compiled from, and its route template. */
+  readonly action: Action;
+  readonly route: string;
+  method: string;
+  readonly query: JsonObject;
+  body: unknown;
+  readonly headers: Record<string, string>;
+  readOnly: boolean;
+  readonly accountId: string | undefined;
+}
+
+/** How a provider's catalog-required request fields are checked (CompileHooks.required). */
+export interface RequiredFields {
+  /** Checked in every call mode, not only under the catalogPreflight flag (Google Ads). */
+  readonly always?: true;
+  /** A route whose required fields its own plan step checks per variant instead (TikTok's preview types). */
+  unchecked?(route: string): boolean;
+  /** The value of a required field under its other name (Google Ads' camelCase names). */
+  alias?(values: JsonObject, key: string): unknown;
+  /** A required field another step supplies after review (Google Ads' Drive-imported upload content). */
+  supplied?(key: string, route: string, values: JsonObject): boolean;
+  /** The refusal of a missing required field (Google Ads names the version change of its action). */
+  missing?(action: Action, key: string): MirrorError;
+}
+
+/**
+ * A provider's part of the catalog compiler (src/compiler.ts Compiler.compile), which keeps the input guards, the
+ * catalog lookup, the alias, account, body, path, query and method rules and the order of every step.
+ */
+export interface CompileHooks {
+  /** The provider compiles its requests from its own contracts (Microsoft Advertising): the compiler returns this. */
+  own?(input: JsonObject): CompiledRequest;
+  /** An action the catalog lists without a route, as the routed request it stands for (Google Ads' legacy actions). */
+  legacy?(registry: Registry, input: JsonObject): AdaptedRequest | undefined;
+  /** The catalog action of a request that names a resource and an RPC instead of an action (DV360). */
+  resourceAction?(registry: Registry, input: JsonObject): Action | undefined;
+  /** Its `fields` lists are one comma-separated value (Meta's Graph API): joined when compared and when sent. */
+  readonly joinedFields?: true;
+  /** Request values the account sets besides its aliases (Google Ads' customer_id, Meta's act_ path ID). */
+  accountValues?(values: JsonObject, accountId: string, route: string): void;
+  readonly required?: RequiredFields;
+  /** Its parameters are sent in the query whatever the method (LinkedIn's Rest.li, DV360). */
+  readonly queryParameters?: true;
+  /**
+   * Its request rules once the query and body are formed (TikTok's advertiser and lead region, Google Ads' body
+   * mapping, LinkedIn's version, Rest.li method and method override): it may set the draft's method, body, headers,
+   * query and readOnly, and returns the plan fields that ride beside the request (TikTok's comment scope).
+   */
+  request?(draft: CompileDraft, input: JsonObject, registry: Registry): Partial<CompiledRequest> | undefined;
+  /** The query parameter that makes a request carry other requests, never a read (Meta's Graph batch). */
+  readonly batchParameter?: string;
+  /** Its plan steps before the request controls of its gateway's report job (src/report-jobs.ts). */
+  beforeJob?(plan: CompiledRequest): CompiledRequest;
+  /** Its plan steps after them. */
+  afterJob?(plan: CompiledRequest): CompiledRequest;
+}
+
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog registry.
+
+/**
+ * A captured catalog read at the newer provider version AMCP sends (CatalogHooks.version, src/catalog-versions.ts): the
+ * version, a catalog action, a captured LIST_ACTIONS page or DESCRIBE_ACTION response, and the tool definition when its
+ * text names a version.
+ */
+export interface CatalogVersion {
+  readonly version: string;
+  action(action: Action): Action;
+  capture(data: JsonObject): JsonObject;
+  tool?(tool: ToolDefinition): ToolDefinition;
+}
+
+/** Actions a provider documents beyond the captured catalog (CatalogHooks.supplemental). */
+export interface SupplementalActions {
+  readonly actions: readonly Action[];
+  /** What the registry must hold for them to be registered: the provider's captured catalog, or its tool. */
+  readonly requires: 'catalog' | 'tool';
+}
+
+/**
+ * A provider's part of the catalog registry (src/catalog.ts Registry), which keeps how tools, schemas, catalogs and
+ * routes are built and in what order, validation, lookups, listings and help; a hook answers only where the registry
+ * named the provider before.
+ */
+export interface CatalogHooks {
+  /**
+   * AMCP's additions to captured tool definitions, by tool name: its own gateway's (X's report jobs, Reddit's,
+   * DV360's, Business Profile's and Adjust's extensions) or an AMCP tool's (Meta's post workflow in
+   * amcp_native_action). No two providers extend one tool (a load-time check).
+   */
+  readonly tools?: Readonly<Record<string, (tool: ToolDefinition) => ToolDefinition>>;
+  /** Its captured catalog's actions as AMCP reads them (Meta's documented overrides), before any version move. */
+  action?(action: Action): Action;
+  /**
+   * Its captured catalog moved to the newer version AMCP sends (Google Ads', Meta's, LinkedIn's), which
+   * src/catalog-versions.ts lists for the registry, introspection and the capture verification.
+   */
+  readonly version?: CatalogVersion;
+  /** Its documented actions beyond the captured catalog (Meta's rule updates, Google's Data Manager, Apple's v1). */
+  readonly supplemental?: SupplementalActions;
+  /**
+   * Its tool and catalog are AMCP's own rather than captured (Microsoft Advertising), registered when the registry
+   * holds AMCP's tools; the catalog's actions are its routes.
+   */
+  own?(): {readonly tool: ToolDefinition; readonly catalog: Catalog};
+  /** Checks amcp_tool_help's arguments for its gateway, in place of the help tool's schema (Microsoft), or refuses. */
+  helpArguments?(input: JsonObject): void;
+  /**
+   * Its help, in place of the captured help (Microsoft's contracts, Apple's v1 actions); undefined leaves the request to
+   * the registry's own help. `schema` is the tool's input schema as the call's options list it.
+   */
+  help?(input: JsonObject, tool: ToolDefinition, schema: () => JsonObject): JsonObject | undefined;
+}
+
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the delegated compiler.
+
+/** The account a delegated request names, as the generic scope rule found it (DelegatedScope.refine). */
+export interface DelegatedAccount {
+  /** The account argument, under its name or one of its aliases. */
+  readonly account: unknown;
+  /** Its ID (an `accounts/<id>` name's last segment). */
+  readonly id: string | undefined;
+  /** The account the path names, matched by the provider's account path. */
+  readonly match: RegExpMatchArray | null;
+}
+
+/** What the delegated compiler gives a provider's scope rule: the request and the compiler's own resource helpers. */
+export interface DelegatedScopeContext {
+  readonly route: VendorRoute;
+  readonly args: JsonObject;
+  readonly path: string;
+  readonly body: JsonObject;
+  /** The request's query, which a scope rule may complete (Business Profile's location filter). */
+  readonly query: JsonObject;
+  /** The ID a value names: itself, or the ID of a `<resource>/<id>` name; refuses another shape. */
+  resourceId(value: unknown, resource: string): string | undefined;
+  /** Whether two values name the same resource. */
+  sameResource(left: unknown, right: unknown, resource: string): boolean;
+  /** The one value the bags give a parameter under its names; conflicting aliases are refused. */
+  singleValue(key: string, bags: JsonObject[], extra?: string[]): unknown;
+}
+
+/**
+ * A provider's scope rule for its delegated requests, at the step where the delegated compiler named the provider:
+ * in place of the generic account rule, its account names, or after it.
+ */
+export interface DelegatedScope {
+  /** The scope in place of the account rule (GA4's property, Search Console's site). */
+  own?(context: DelegatedScopeContext): string | undefined;
+  /** Its account argument's other names and the path that names its account (Reddit's ad_account_id, /ad_accounts/). */
+  readonly account?: {readonly aliases: readonly string[]; readonly path: RegExp};
+  /** Its scope from the account the request names (Business Profile's locations), in place of the account's own. */
+  refine?(context: DelegatedScopeContext, account: DelegatedAccount): string | undefined;
+}
+
+/**
+ * A provider's part of the delegated compiler (src/delegated-native.ts DelegatedNativeCompiler), which keeps the route
+ * lookup, the version, path, query and body rules, the vendor schema checks and the order of every step.
+ */
+export interface DelegatedHooks {
+  /** Its routes in the vendor snapshot are compiled by its own entry point, never delegated (Google Ads). */
+  readonly direct?: true;
+  /** Routes it adds to the snapshot's, when the snapshot holds the schema components they use (Reddit's). */
+  readonly routes?: {readonly components: string; list(): readonly VendorRoute[]};
+  /** Other names its tool's arguments may give a native parameter (Reddit's), none otherwise. */
+  aliases?(parameter: string): readonly string[] | undefined;
+  /** The argument that carries its request body (GA4's `request`), `payload` otherwise. */
+  readonly bodyArgument?: string;
+  /** On a route without a body, its body carries query values and is not refused (GA4's report requests). */
+  readonly queryBody?: true;
+  /** Body fields its arguments may give at the top level, for an action (Search Console's URL inspection). */
+  bodyFields?(action: string): readonly string[] | undefined;
+  /** What the refusal of a missing path parameter suggests (GA4's resource names). */
+  readonly missingPathStep?: string;
+  /**
+   * A query parameter its documentation requires although the snapshot does not mark it (Business Profile's readMask
+   * of its location and lodging reads): the check of a value given for it, which refuses an unusable one.
+   */
+  requiredQuery?(operation: string, action: string, key: string): ((value: unknown) => void) | undefined;
+  /** Its unexploded array parameters are sent comma-separated (Reddit). */
+  readonly joinedArrays?: true;
+  /**
+   * Its request bodies are checked against their pinned schema (Reddit's; Criteo's documented ones): the compiler
+   * refuses an invalid body with INVALID_VENDOR_BODY, `refusal` its sentence naming the provider's schema, and `report`
+   * checks a valid report body further (Reddit's insights).
+   */
+  readonly bodySchema?: {
+    applies(route: VendorRoute): boolean;
+    readonly refusal: string;
+    report?(action: string, body: JsonObject): void;
+  };
+  readonly scope?: DelegatedScope;
+}
+
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the action contract ledger.
+
+/** The fields of an action contract row a provider's rule sets (src/action-contracts.ts ActionContract). */
+export interface ContractRow {
+  readonly status?: 'adapter_requires_input' | 'local_workflow' | 'media_workflow';
+  readonly implementation: string;
+  readonly reason: string;
+  readonly source?: string;
+  readonly tests: readonly string[];
+}
+
+/** What a native read of a provider's own adds to its row: its module, its test and its sentence. */
+export interface ContractNote {
+  /** Appended to the row's implementation, after ' / '. */
+  readonly implementation: string;
+  /** Appended to the row's tests; with `once`, the tests are then a set (as the row kept them). */
+  readonly test: string;
+  readonly once?: true;
+  /** Appended to the row's reason, after a space. */
+  readonly reason: string;
+}
+
+/** A provider's catalogued actions that name no route (Google Ads' legacy actions), for one ledger. */
+export interface ContractLegacy {
+  /** The route such an action stands for, and the source its row cites. */
+  route(action: Action, route: Action, source: string): {readonly route: Action; readonly source: string};
+  /** Whether an explicit adapter runs it, its route depending on the request: its row is then `row`. */
+  adapted(action: Action): boolean;
+  readonly row: ContractRow;
+}
+
+/**
+ * A provider's part of the action contract ledger (src/action-contracts.ts), which keeps how every captured, supplemental
+ * and delegated action is classified, in what order, and every shared row; a hook answers only where the ledger named
+ * the provider before. The localization inventory reads the reasons of a declaration of this type
+ * (tools/check-locales.mjs), as it read them in the ledger.
+ */
+export interface ContractHooks {
+  /** What its own native reads add to their rows (DV360's targeting search, X's audience estimate and report status). */
+  readNotes?(plan: CompiledRequest): readonly ContractNote[];
+  /** The row reason of a raw step of a workflow amcp_media performs itself (Snapchat's chunked upload ADD, FINALIZE). */
+  mediaStep?(plan: CompiledRequest): string | undefined;
+  /** Its catalogued actions without a route (Google Ads' legacy actions), for one ledger of the registry. */
+  legacy?(registry: Registry): ContractLegacy;
+}
+
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the token renewal.
+
+/** The refresh-token request as the renewal formed it, which a provider's rule completes (RefreshHooks.request). */
+export interface RefreshRequest {
+  /** The form body: grant_type, refresh_token, client_id and client_secret. */
+  readonly body: URLSearchParams;
+  readonly headers: Record<string, string>;
+}
+
+/**
+ * A provider's part of the token renewal (src/auth.ts CredentialProvider), which keeps the expiry window, the single
+ * renewal per connection and its store lock, the refresh gate, the app-change refusal, the refresh-token grant and its
+ * endpoint, the single attempt, the response checks, the health records and the order of every step; a hook answers
+ * only where the renewal named the provider before.
+ */
+export interface RefreshHooks {
+  /**
+   * The provider renews its access token itself instead of with a refresh-token grant (Apple's client credentials), so
+   * the renewal asks its login for no app secret; the outcome is recorded as any other renewal's.
+   */
+  own?(credentials: Credentials, fetcher: typeof fetch): Promise<Credentials>;
+  /** The secret its login holds of its own OAuth app (X's consumer secret); the client secret otherwise. */
+  appSecret?(credentials: Credentials): unknown;
+  /**
+   * Its parts of the refresh-token request once the body is formed (Microsoft's scope, Snapchat's registered callback,
+   * Reddit's User-Agent and Basic authentication); it refuses a request it cannot send.
+   */
+  request?(request: RefreshRequest, credentials: Credentials, connection: Connection): void;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -541,6 +833,12 @@ export const plainGetRead = (p: CompiledRequest) =>
 export interface ProviderHooks {
   /** The gateway of the provider adapter these hooks belong to. */
   readonly gateway: string;
+  // Wave 4c (transport and catalog).
+  readonly compile?: CompileHooks;
+  readonly catalog?: CatalogHooks;
+  readonly delegated?: DelegatedHooks;
+  readonly contracts?: ContractHooks;
+  readonly refresh?: RefreshHooks;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;
@@ -591,6 +889,8 @@ export interface ProviderAdapter {
   readonly app?: ProviderApp;
   /** How AMCP renews its logins without the user (CON-02), which src/connection-health.ts reads. */
   readonly renewal?: ProviderRenewal;
+  /** Its captured schema lacks LIST_ACTIONS, but AMCP lists its actions from its catalog (DV360, MCP-05; wave 4c). */
+  readonly listsActions?: true;
 }
 
 /**

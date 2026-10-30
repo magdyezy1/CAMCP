@@ -68,6 +68,9 @@ export const providerRegistries = Object.freeze([
   // ARC-01 phase B, the website server modules: each provider's startup checks (version pins, configuration
   // warnings), which the composition root runs.
   'src/provider-startup.ts',
+  // ARC-01 phase B (wave 4c): the provider workflows registry, which imports each provider's workflow modules so that
+  // the action contract ledger and the service consult it instead of naming providers.
+  'src/provider-workflows.ts',
 ]);
 const roots = ['src', 'server'];
 const posix = file => file.replaceAll('\\', '/');

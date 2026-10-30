@@ -239,7 +239,43 @@ export function inspectReportExplanations(source, file) {
   return messages;
 }
 /** Only AMCP-authored contract explanations. Dynamic/native reasons never become translation templates. */
-export function inspectContractExplanations(source) {
+/**
+ * The types whose declarations hold a provider's action contract rows (ARC-01 phase B, wave 4c): its adapter's
+ * contract hooks (src/<provider>-adapter.ts) and the provider workflows registry (src/provider-workflows.ts), where
+ * the rules that src/action-contracts.ts named providers in moved with their reasons.
+ */
+export const contractDeclarationTypes = Object.freeze([
+  'ContractHooks',
+  'ContractNote',
+  'ContractRow',
+  'ProviderWorkflow',
+]);
+/** The modules whose contract declarations the inventory reads besides src/action-contracts.ts. */
+export function contractExplanationSources(root) {
+  return fs
+    .readdirSync(path.join(root, 'src'))
+    .filter(name => /-adapter\.ts$/.test(name) || name === 'provider-workflows.ts')
+    .sort()
+    .map(name => 'src/' + name);
+}
+/** A declarator's type annotation names one of the contract declaration types (`readonly ProviderWorkflow[]` too). */
+function contractDeclaration(declarator) {
+  let found = false;
+  const visit = node => {
+    if (!node || typeof node !== 'object' || found) return;
+    if (node.type === 'TSTypeReference' && contractDeclarationTypes.includes(node.typeName?.name)) found = true;
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) visit(child);
+  };
+  visit(declarator.id?.typeAnnotation);
+  return found;
+}
+/**
+ * The contract explanations of a module: every reason and meaning of src/action-contracts.ts, or with `declarations`
+ * only those inside the contract declarations of a provider module (contractDeclarationTypes).
+ */
+export function inspectContractExplanations(source, {declarations = false} = {}) {
   const ast = parsers['babel-ts'].parse(source),
     messages = new Set();
   const collect = value => {
@@ -262,7 +298,20 @@ export function inspectContractExplanations(source) {
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
   };
-  walk(ast);
+  if (!declarations) walk(ast);
+  else {
+    const find = node => {
+      if (!node || typeof node !== 'object') return;
+      if (node.type === 'VariableDeclarator' && contractDeclaration(node)) {
+        walk(node.init);
+        return;
+      }
+      for (const [key, value] of Object.entries(node))
+        if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+          for (const child of Array.isArray(value) ? value : [value]) find(child);
+    };
+    find(ast);
+  }
   return messages;
 }
 // Account explanations are authored display fields; dynamic native fragments are never inferred from text.
@@ -1293,9 +1342,12 @@ export function checkWebLocales(root = process.cwd()) {
   for (const message of displayed)
     if (!explanations.has(message)) problems.push('Unrecognized report explanation: ' + message);
   const accountExplanations = new Set();
-  const contractExplanations = inspectContractExplanations(
-    fs.readFileSync(path.join(root, 'src/action-contracts.ts'), 'utf8'),
-  );
+  const contractExplanations = new Set([
+    ...inspectContractExplanations(fs.readFileSync(path.join(root, 'src/action-contracts.ts'), 'utf8')),
+    ...contractExplanationSources(root).flatMap(file => [
+      ...inspectContractExplanations(fs.readFileSync(path.join(root, file), 'utf8'), {declarations: true}),
+    ]),
+  ]);
   const capabilityCopy = parsers.babel.parse(fs.readFileSync(path.join(directory, 'capability-center.js'), 'utf8'));
   const contractDeclaration = capabilityCopy.program.body
     .flatMap(node => node.declarations ?? [])

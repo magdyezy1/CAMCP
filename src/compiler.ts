@@ -1,18 +1,8 @@
 import {MirrorError} from './errors.js';
 import {reportJobPlan} from './report-jobs.js';
-import {xAudienceEstimatePlan} from './x-audience-estimate.js';
-import {snapchatPlanningPlan} from './snapchat-planning-reads.js';
-import {linkedinPlanningPlan} from './linkedin-planning-reads.js';
-import {linkedinConversionPlan} from './linkedin-conversion-links.js';
-import {linkedinDomainPlan} from './linkedin-insight-domains.js';
-import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
-import {linkedinMessagePlan} from './linkedin-message-ads.js';
-import {tiktokPreviewPlan, tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
-import {tiktokCommentScope} from './tiktok-ad-comments.js';
 import type {CallOptions, CompiledRequest, JsonObject} from './types.js';
-import {Registry} from './catalog.js';
+import type {Registry} from './catalog.js';
 import {guardInput} from './security.js';
-import {adaptGoogleLegacy} from './google-legacy.js';
 import {
   accountAliases as aliases,
   parameterBag,
@@ -21,13 +11,9 @@ import {
   encodedBodyGateways,
 } from './parameters.js';
 import {responseControls} from './projection.js';
-import {validateApplePlan} from './apple-native.js';
-import {microsoftGateway, compileMicrosoft} from './microsoft-native.js';
-import {googleContractEvidence} from './google-contracts.js';
-import {googleAdsRequestChange} from './google-version.js';
-import {googleGenerationPlan} from './google-generation.js';
-import {dv360TargetingSearchPlan} from './dv360-targeting-search.js';
-import {linkedinVersion} from './linkedin-version.js';
+import {normalizeAccount} from './account-id.js';
+import {providerHooks} from './provider-hooks.js';
+import type {CompileDraft} from './provider-adapter.js';
 const object = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
 export function expandPath(template: string, values: JsonObject): {path: string; consumed: string[]} {
   const consumed: string[] = [];
@@ -78,9 +64,13 @@ export class Compiler {
   constructor(private registry: Registry) {}
   compile(gateway: string, input: JsonObject, options: CallOptions): CompiledRequest {
     guardInput(input);
-    if (gateway === microsoftGateway) return compileMicrosoft(input);
-    if (gateway === 'google_ads_native_action' && !this.registry.action(gateway, String(input.action))?.path) {
-      const adapted = adaptGoogleLegacy(this.registry, input);
+    // The provider's part of the compiler (ARC-01 phase B, src/<provider>-adapter.ts): what only it says about its
+    // requests, consulted at the step where the compiler named the provider before. The compiler keeps every rule and
+    // the order of every step.
+    const hooks = providerHooks(gateway)?.compile;
+    if (hooks?.own) return hooks.own(input);
+    if (hooks?.legacy && !this.registry.action(gateway, String(input.action))?.path) {
+      const adapted = hooks.legacy(this.registry, input);
       if (adapted) {
         const compiled = this.compile(gateway, adapted.input, options);
         return {
@@ -95,10 +85,8 @@ export class Compiler {
     if (options.mode === 'enhanced' && options.flags.nativeRequests && input.native_request)
       return this.native(gateway, input);
     let action = this.registry.action(gateway, String(input.action ?? ''));
-    if (gateway === 'dv360_native_action' && !input.action && input.resource && input.method)
-      action = this.registry.data.supplemental.find(
-        a => a.raw.resource === input.resource && a.raw.rpc === input.method,
-      );
+    if (hooks?.resourceAction && !input.action && input.resource && input.method)
+      action = hooks.resourceAction(this.registry, input);
     if (action && !action.path)
       action = this.registry.data.supplemental.find(a => a.gateway === gateway && a.name === action!.name) ?? action;
     if (!action)
@@ -130,9 +118,7 @@ export class Compiler {
         if (bag[key] !== undefined && !aliases[gateway]?.includes(key))
           assertSameAlias(
             value,
-            gateway === 'meta_native_action' && key === 'fields' && Array.isArray(bag[key])
-              ? bag[key].join(',')
-              : bag[key],
+            hooks?.joinedFields && key === 'fields' && Array.isArray(bag[key]) ? bag[key].join(',') : bag[key],
             key,
           );
       params[key] ??= value;
@@ -158,7 +144,7 @@ export class Compiler {
       if (object(body)[key] !== undefined && !aliases[gateway]?.includes(key))
         assertSameAlias(
           value,
-          gateway === 'meta_native_action' && key === 'fields' && Array.isArray(object(body)[key])
+          hooks?.joinedFields && key === 'fields' && Array.isArray(object(body)[key])
             ? object(body)[key].join(',')
             : object(body)[key],
           key,
@@ -169,10 +155,9 @@ export class Compiler {
       .find(v => v !== undefined && v !== null && v !== '');
     const accountId = account === undefined ? undefined : String(account);
     if (accountId) {
-      const canonicalId = (v: unknown) =>
-        String(v)
-          .replace(gateway === 'meta_native_action' ? /^act_/ : /$^/, '')
-          .replace(gateway === 'google_ads_native_action' ? /-/g : /$^/g, '');
+      // The account IDs compare in the form the provider's account model binds (Meta without act_, Google Ads
+      // without dashes).
+      const canonicalId = (v: unknown) => normalizeAccount(gateway, v);
       for (const key of aliases[gateway] ?? [])
         for (const bag of [input, params, explicitPath, explicitQuery, object(body)])
           if (bag[key] !== undefined && canonicalId(bag[key]) !== canonicalId(accountId))
@@ -183,9 +168,7 @@ export class Compiler {
               403,
             );
       for (const key of aliases[gateway] ?? []) if (values[key] === undefined) values[key] = accountId;
-      if (gateway === 'google_ads_native_action') values.customer_id = accountId.replaceAll('-', '');
-      if (gateway === 'meta_native_action' && action.path.includes('act_{ad_account_id}'))
-        values.ad_account_id = String(values.ad_account_id).replace(/^act_/, '');
+      hooks?.accountValues?.(values, accountId, action.path);
     }
     const absolute = action.path.startsWith('https://') ? new URL(action.path) : undefined;
     // URL serializes template braces; restore those delimiters before expansion.
@@ -202,42 +185,24 @@ export class Compiler {
         return String(values[key]);
       });
     }
-    const required = new Set([...action.required, ...(action.raw.required_path_params ?? [])]);
-    // tiktokPreviewPlan checks each TikTok preview_type's own required fields; the catalog lists every variant's together.
+    const required = new Set([...action.required, ...(action.raw.required_path_params ?? [])]),
+      fields = hooks?.required;
+    // A provider may check its required fields in every mode (Google Ads), or leave a route's to its own plan step
+    // (TikTok's preview types: the catalog lists every variant's together).
     if (
-      gateway === 'google_ads_native_action' ||
-      (options.mode === 'enhanced' && options.flags.catalogPreflight && !tiktokPreviewVariantPath(gateway, action.path))
+      fields?.always ||
+      (options.mode === 'enhanced' && options.flags.catalogPreflight && !fields?.unchecked?.(action.path))
     )
       for (const key of required) {
         if (typeof key !== 'string') continue;
-        const v =
-          values[key] ??
-          (gateway === 'google_ads_native_action'
-            ? values[key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())]
-            : undefined);
-        // The AMCP Drive importer supplies the binary payload after review. Only its
-        // exact upload routes may omit their ordinary native content container.
-        if (
-          gateway === 'google_ads_native_action' &&
-          ['operations', 'you_tube_video_upload'].includes(key) &&
-          /\/(?:assets:mutate|youTubeVideoUploads:create)$/.test(action.path) &&
-          ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'].some(k => typeof values[k] === 'string')
-        )
-          continue;
-        if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) {
-          if (gateway === 'google_ads_native_action') {
-            const change = googleAdsRequestChange(action.name);
-            throw new MirrorError(
-              'MISSING_PARAMETER',
-              action.name +
-                " requires request field '" +
-                key +
-                "'. Pass path values in path_params and all other native request fields in params or payload.",
-              {parameter: key, ...(change ? {version_change: change} : {})},
-            );
-          }
-          throw new MirrorError('MISSING_PARAMETER', 'Missing required parameter: ' + key, {parameter: key});
-        }
+        const v = values[key] ?? fields?.alias?.(values, key);
+        // A field another step supplies after review (Google Ads' Drive-imported upload content).
+        if (fields?.supplied?.(key, action.path, values)) continue;
+        if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0))
+          throw (
+            fields?.missing?.(action, key) ??
+            new MirrorError('MISSING_PARAMETER', 'Missing required parameter: ' + key, {parameter: key})
+          );
       }
     const remaining = {...params};
     for (const key of consumed) delete remaining[key];
@@ -245,10 +210,8 @@ export class Compiler {
     const headers: Record<string, string> = {};
     let method = action.method.toUpperCase();
     let readOnly = action.read_only === true;
-    const queryOnly =
-      ['GET', 'HEAD', 'DELETE'].includes(method) ||
-      gateway === 'linkedin_native_action' ||
-      gateway === 'dv360_native_action';
+    // A provider may send its parameters in the query whatever the method (LinkedIn's Rest.li, DV360).
+    const queryOnly = ['GET', 'HEAD', 'DELETE'].includes(method) || hooks?.queryParameters === true;
     if (!queryOnly && Array.isArray(body) && Object.keys(remaining).length)
       throw new MirrorError(
         'UNSUPPORTED_PARAMETER',
@@ -271,58 +234,26 @@ export class Compiler {
         );
       body = undefined;
     }
-    if (gateway === 'meta_native_action') {
+    if (hooks?.joinedFields) {
       if (Array.isArray(query.fields)) query.fields = query.fields.join(',');
       if (!Array.isArray(body) && Array.isArray(object(body).fields))
         body = {...object(body), fields: object(body).fields.join(',')};
     }
-    if (gateway === 'tiktok_native_action' && accountId) {
-      if (['GET', 'HEAD', 'DELETE'].includes(method)) query.advertiser_id ??= accountId;
-      else if (!Array.isArray(body)) body = {advertiser_id: accountId, ...object(body)};
-      if (input.lead_region) headers['X-Lead-Region'] = input.lead_region;
-    }
-    // The comment list read a comment status update is reviewed against; it rides beside the request, never in it.
-    const commentScope =
-      gateway === 'tiktok_native_action' ? tiktokCommentScope(action.path, input.comment_scope) : undefined;
-    if (gateway === 'google_ads_native_action') {
-      const desc = this.registry.data.descriptions[gateway + '/' + action.name];
-      if (desc?.body_mapping && desc.body_mapping !== '*') body = object(body)[desc.body_mapping] ?? body;
-    }
-    if (gateway === 'linkedin_native_action') {
-      headers['LinkedIn-Version'] = linkedinVersion(input.api_version);
-      headers['X-Restli-Protocol-Version'] = '2.0.0';
-      if (input.restli_method) {
-        const restli = String(input.restli_method).toUpperCase();
-        if (
-          ![
-            'GET',
-            'BATCH_GET',
-            'FINDER',
-            'GET_ALL',
-            'CREATE',
-            'BATCH_CREATE',
-            'UPDATE',
-            'BATCH_UPDATE',
-            'PARTIAL_UPDATE',
-            'BATCH_PARTIAL_UPDATE',
-            'DELETE',
-            'BATCH_DELETE',
-            'ACTION',
-          ].includes(restli)
-        )
-          throw new MirrorError('INVALID_METHOD_OVERRIDE', 'Unsupported REST.li method.');
-        headers['X-RestLi-Method'] = String(input.restli_method);
-        readOnly = readOnly && ['GET', 'BATCH_GET', 'FINDER', 'GET_ALL'].includes(restli);
-      }
-      if (input.http_method_override) {
-        const override = String(input.http_method_override).toUpperCase();
-        if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].includes(override))
-          throw new MirrorError('INVALID_METHOD_OVERRIDE', 'Unsupported HTTP method override.');
-        headers['X-HTTP-Method-Override'] = override;
-        method = 'POST';
-        readOnly = readOnly && ['GET', 'HEAD'].includes(override);
-      }
-    }
+    // The provider's request rules (TikTok's advertiser and lead region, Google Ads' body mapping, LinkedIn's version,
+    // Rest.li method and method override); what rides beside the request comes back (TikTok's comment scope).
+    const draft: CompileDraft = {
+      gateway,
+      action,
+      route: action.path,
+      method,
+      query,
+      body,
+      headers,
+      readOnly,
+      accountId,
+    };
+    const beside = hooks?.request?.(draft, input, this.registry);
+    ({method, body, readOnly} = draft);
     // Graph and other REST servers can tunnel methods in the query string.
     for (const key of ['method', '_method', 'http_method', 'method_override'])
       if (query[key] !== undefined) {
@@ -331,55 +262,31 @@ export class Compiler {
           throw new MirrorError('INVALID_METHOD_OVERRIDE', 'Unsupported query method override.');
         readOnly = readOnly && ['GET', 'HEAD'].includes(override);
       }
-    if (gateway === 'meta_native_action' && query.batch !== undefined) readOnly = false;
-    return tiktokPreviewPlan(
-      linkedinDomainPlan(
-        linkedinMessagePlan(
-          linkedinPlanningPlan(
-            snapchatPlanningPlan(
-              xAudienceEstimatePlan(
-                // ARC-04 stage F: the request controls of its gateway's report job (src/report-jobs.ts).
-                reportJobPlan(
-                  dv360TargetingSearchPlan(
-                    linkedinTrackingPlan(
-                      linkedinConversionPlan(
-                        googleGenerationPlan(
-                          googleContractEvidence(
-                            validateApplePlan({
-                              gateway,
-                              action: action.canonical_name || action.name,
-                              method,
-                              path,
-                              query,
-                              ...(absolute ? {origin: absolute.origin} : {}),
-                              ...(body === undefined ? {} : {body}),
-                              headers,
-                              readOnly,
-                              destructive:
-                                action.destructive === true || headers['X-HTTP-Method-Override'] === 'DELETE',
-                              requiresConfirmation: !readOnly,
-                              accountId,
-                              evidence: action.evidence,
-                              warnings: [
-                                'Request routing compiled locally; live behavioral parity is tracked separately.',
-                              ],
-                              specialTransport: action.raw.special_transport ?? undefined,
-                              ...(projection ? {responseControls: projection} : {}),
-                              ...(commentScope ? {tiktokCommentScope: commentScope} : {}),
-                            }),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  input,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    // A request that carries other requests is never a read (Meta's Graph batch).
+    if (hooks?.batchParameter !== undefined && query[hooks.batchParameter] !== undefined) readOnly = false;
+    const compiled: CompiledRequest = {
+      gateway,
+      action: action.canonical_name || action.name,
+      method,
+      path,
+      query,
+      ...(absolute ? {origin: absolute.origin} : {}),
+      ...(body === undefined ? {} : {body}),
+      headers,
+      readOnly,
+      destructive: action.destructive === true || headers['X-HTTP-Method-Override'] === 'DELETE',
+      requiresConfirmation: !readOnly,
+      accountId,
+      evidence: action.evidence,
+      warnings: ['Request routing compiled locally; live behavioral parity is tracked separately.'],
+      specialTransport: action.raw.special_transport ?? undefined,
+      ...(projection ? {responseControls: projection} : {}),
+      ...beside,
+    };
+    // The provider's plan steps around the request controls of its gateway's report job (ARC-04 stage F,
+    // src/report-jobs.ts), in the order the compiler applied them.
+    const controlled = reportJobPlan(hooks?.beforeJob ? hooks.beforeJob(compiled) : compiled, input);
+    return hooks?.afterJob ? hooks.afterJob(controlled) : controlled;
   }
   private native(gateway: string, input: JsonObject): CompiledRequest {
     const n = input.native_request;
@@ -395,7 +302,8 @@ export class Compiler {
           throw new MirrorError('INVALID_METHOD_OVERRIDE', 'Unsupported query method override.');
         readOnly = readOnly && ['GET', 'HEAD'].includes(String(query[key]).toUpperCase());
       }
-    if (gateway === 'meta_native_action' && query.batch !== undefined) readOnly = false;
+    const batch = providerHooks(gateway)?.compile?.batchParameter;
+    if (batch !== undefined && query[batch] !== undefined) readOnly = false;
     return {
       gateway,
       action: String(input.action ?? 'NATIVE_REQUEST'),
