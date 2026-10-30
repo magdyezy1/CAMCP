@@ -222,6 +222,33 @@ export const targets = Object.freeze({
   'dist/src/meta-asset-usage.js': {functions: ['metaAssetUsage']},
   'dist/src/google-image-usage.js': {functions: ['googleImageUsage']},
   'dist/src/snapchat-asset-usage.js': {functions: ['snapchatAssetUsage']},
+  // Wave 4c round 6 (w4c-arc6-catalog): the catalog destinations, projections, comparisons and retirements, the
+  // creative library's native usage and the conditional program checks, whose provider facts and steps move into the
+  // adapters, the provider hooks and the provider workflows registry. The entry points stay in their shared modules.
+  'dist/src/catalog-destinations.js': {
+    functions: [
+      'catalogDestination',
+      'catalogSourceFields',
+      'catalogServingNotes',
+      'comparisonItemV2',
+      'comparisonSummary',
+    ],
+  },
+  'dist/src/catalog-ingestion.js': {functions: ['catalogIngestion']},
+  'dist/src/catalog-comparison.js': {functions: ['catalogComparison']},
+  'dist/src/catalog-retirement.js': {functions: ['assertCatalogRetirementTarget', 'catalogRetirementOf']},
+  'dist/src/creative-library.js': {functions: ['creativeAssetView', 'creativeLibrary']},
+  'dist/src/conditional-programs.js': {
+    functions: [
+      'conditionalProgram',
+      'programNativeError',
+      'conditionalProgramTemplate',
+      'programDiscovery',
+      'programObservation',
+      'conditionalProgramDescription',
+      'checkConditionalProgram',
+    ],
+  },
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -282,6 +309,15 @@ export const replayable = Object.freeze([
   'dist/src/write-impact.js#writeImpact',
   'dist/src/access-sets.js#accountKey',
   'dist/src/provider-revocation.js#revocationTarget',
+  // Wave 4c round 6 (w4c-arc6-catalog): projections, lookups and program facts that read neither the clock nor a store.
+  'dist/src/catalog-destinations.js#catalogServingNotes',
+  'dist/src/catalog-destinations.js#comparisonSummary',
+  'dist/src/catalog-ingestion.js#catalogIngestion',
+  'dist/src/catalog-retirement.js#catalogRetirementOf',
+  'dist/src/conditional-programs.js#conditionalProgram',
+  'dist/src/conditional-programs.js#programNativeError',
+  'dist/src/conditional-programs.js#conditionalProgramTemplate',
+  'dist/src/conditional-programs.js#programDiscovery',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
