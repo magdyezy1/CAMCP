@@ -178,4 +178,10 @@ export const redditHooks: ProviderHooks = Object.freeze({
       headers['User-Agent'] = connection.userAgent;
     },
   }),
+  // Workbook reporting (ARC-01, reporting; src/report-resource-scope.ts): delegated Reddit routes identify their exact
+  // ad-account parent by ad_account_id. Scope never comes from a campaign or ad child ID or an arbitrary HTTP path.
+  reportScope: Object.freeze({
+    account: (kind: unknown, value: string) =>
+      kind === 'account' && /^[A-Za-z0-9_-]{1,200}$/.test(value) ? value : undefined,
+  }),
 });

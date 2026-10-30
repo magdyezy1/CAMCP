@@ -4,7 +4,7 @@ import {MirrorError} from './errors.js';
 import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {fingerprint} from './workspace-core.js';
-import {reportingResourceAccount, reportingResourceAccounts} from './report-resource-scope.js';
+import {reportingAnchorKind, reportingResourceAccount, reportingResourceAccounts} from './report-resource-scope.js';
 import {reportRunRow} from './workbook-repository.js';
 import {jobKind} from './job-repository.js';
 
@@ -43,14 +43,12 @@ export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
       {},
       403,
     );
+  // An anchor in a provider's resource form names its account through that provider's selector check.
   const normalized = new Set(
-      accounts.map(v =>
-        gateway === 'ga4_native_action' && v.startsWith('properties/')
-          ? reportingResourceAccount(gateway, {kind: 'property', value: v})
-          : ['gtm_native_action', 'google_business_native_action'].includes(gateway) && v.startsWith('accounts/')
-            ? reportingResourceAccount(gateway, {kind: 'account', value: v})
-            : normalizeAccount(gateway, v),
-      ),
+      accounts.map(v => {
+        const kind = reportingAnchorKind(gateway, v);
+        return kind ? reportingResourceAccount(gateway, {kind, value: v}) : normalizeAccount(gateway, v);
+      }),
     ),
     account = normalized.values().next().value;
   if (!account || normalized.size !== 1 || new Set(connections).size > 1)

@@ -61,4 +61,15 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
         ? plan.measurementSyncDeadline
         : undefined,
   }),
+  // Workbook reporting (ARC-01, reporting; src/report-resource-scope.ts): a saved query names its property by a
+  // property selector or by a properties/{property}/... resource name, the exact parent ScopeGuard derives too.
+  reportScope: Object.freeze({
+    account(kind: unknown, value: string) {
+      if (kind === 'property') return /^(?:properties\/)?([0-9]{1,32})$/.exec(value)?.[1];
+      if (kind !== 'resource') return undefined;
+      const match = /^properties\/([0-9]{1,32})(?:\/[^/\x00-\x20\\?#%]+)*$/.exec(value);
+      return match && !value.split('/').some(part => part === '.' || part === '..') ? match[1] : undefined;
+    },
+    anchorKind: (anchor: string) => (anchor.startsWith('properties/') ? 'property' : undefined),
+  }),
 });

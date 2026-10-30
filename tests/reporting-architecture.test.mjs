@@ -14,8 +14,6 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
  */
 const remaining = {
   'src/decision-reporting.ts': {literals: 7, imports: 10},
-  'src/report-resource-scope.ts': {literals: 9, imports: 0},
-  'src/report-runs.ts': {literals: 3, imports: 0},
   'src/overview-parents.ts': {literals: 0, imports: 2},
   'src/overview-levels.ts': {literals: 0, imports: 1},
   'src/reporting-overview.ts': {literals: 0, imports: 1},
@@ -251,4 +249,132 @@ test('the report table is shared: the Sheets client re-exports it, and its expor
     assert.equal(graph.get(id).has('src/google-sheets.ts'), false, id);
   // A Sheets destination's connection is resolved under the Sheets provider adapter's gateway.
   assert.equal(providerById('sheets').gateway, sheets.sheetsGateway);
+});
+
+test('the workbook resource selectors are their providers’ own, accepting and refusing what the shared table did', async () => {
+  // ARC-01 (reporting): which account a saved native query's resource selector names left
+  // src/report-resource-scope.ts and src/report-runs.ts for the providers' reportScope hooks (src/<provider>-adapter.ts).
+  // Each case is what the shared table answered: the account, or the REPORT_SCOPE_UNAVAILABLE refusal (null).
+  const scope = await import('../dist/src/report-resource-scope.js'),
+    {registeredProviderHooks} = await import('../dist/src/provider-hooks.js');
+  assert.deepEqual(
+    registeredProviderHooks.filter(hooks => hooks.reportScope).map(hooks => hooks.gateway),
+    [
+      'google_business_native_action',
+      'reddit_native_action',
+      'ga4_native_action',
+      'gtm_native_action',
+      'google_search_console_native_action',
+    ],
+  );
+  const refused = (f, label) => assert.throws(f, e => e.code === 'REPORT_SCOPE_UNAVAILABLE' && e.status === 403, label);
+  const cases = {
+    ga4_native_action: [
+      ['property', '100', '100'],
+      ['property', 'properties/100', '100'],
+      ['property', 'properties/abc', null],
+      ['resource', 'properties/100/reportTasks/opaque-task_7', '100'],
+      ['resource', 'properties/100', '100'],
+      ['resource', 'properties/100/../200', null],
+      ['resource', 'properties/100/a%2Fb', null],
+      ['account', '100', null],
+      ['site', '100', null],
+    ],
+    google_search_console_native_action: [
+      ['site', 'sc-domain:example.com', 'sc-domain:example.com'],
+      ['site', 'https://example.com/', 'https://example.com/'],
+      ['site', 'https://user:secret@example.com/', null],
+      ['site', 'https://' + 'a'.repeat(200) + '.com/', null],
+      ['site', 'example.com', null],
+      ['account', 'sc-domain:example.com', null],
+    ],
+    reddit_native_action: [
+      ['account', 't2_ab-C9', 't2_ab-C9'],
+      ['account', 'a.b', null],
+      ['resource', 'abc', null],
+    ],
+    gtm_native_action: [
+      ['account', '123', '123'],
+      ['account', 'accounts/123', '123'],
+      ['account', 'locations/9', null],
+      ['resource', 'accounts/123/containers/4', '123'],
+      ['resource', 'accounts/123/../9', null],
+      ['resource', 'locations/9/media/x', null],
+      ['location', '9', null],
+    ],
+    google_business_native_action: [
+      ['account', 'locations/9', 'locations/9'],
+      ['account', 'accounts/12', '12'],
+      ['account', '12', '12'],
+      ['location', '9', 'locations/9'],
+      ['location', 'locations/9', 'locations/9'],
+      ['location', 'accounts/9', null],
+      ['resource', 'locations/9/media/x', 'locations/9'],
+      ['resource', 'accounts/12/locations/9', '12'],
+      ['resource', 'accounts/12/./x', null],
+      ['resource', 'other/12', null],
+    ],
+    meta_native_action: [['account', '123', null]],
+  };
+  for (const [gateway, rows] of Object.entries(cases))
+    for (const [kind, value, account] of rows) {
+      const label = gateway + ' ' + kind + ' ' + value;
+      if (account === null) refused(() => scope.reportingResourceAccount(gateway, {kind, value}), label);
+      else assert.equal(scope.reportingResourceAccount(gateway, {kind, value}), account, label);
+    }
+  // The shared bounds come first, whatever the provider: a non-text, empty, long or spaced value is refused.
+  for (const value of [undefined, 1, '', 'a'.repeat(513), 'accounts/1 2', 'accounts\\1'])
+    refused(() => scope.reportingResourceAccount('gtm_native_action', {kind: 'account', value}), String(value));
+  // Business Profile's location selectors check the consistency of the account parent beside them.
+  const business = (rows, existing = []) =>
+    scope.reportingResourceAccounts('google_business_native_action', rows, existing);
+  assert.deepEqual(business([{kind: 'location', value: '9'}]), ['locations/9']);
+  assert.deepEqual(
+    business([
+      {kind: 'location', value: '9'},
+      {kind: 'account', value: '12'},
+    ]),
+    ['12'],
+  );
+  assert.deepEqual(business([{kind: 'location', value: '9'}], ['12']), []);
+  assert.deepEqual(
+    business([
+      {kind: 'location', value: '9'},
+      {kind: 'resource', value: 'locations/9/media/x'},
+    ]),
+    ['locations/9'],
+  );
+  refused(
+    () =>
+      business([
+        {kind: 'location', value: '9'},
+        {kind: 'resource', value: 'locations/8/media/x'},
+      ]),
+    '8',
+  );
+  refused(() => business([{kind: 'location', value: '9'}], ['locations/8']), 'existing');
+  assert.deepEqual(
+    scope.reportingResourceAccounts(
+      'ga4_native_action',
+      [
+        {kind: 'property', value: '1'},
+        {kind: 'property', value: '2'},
+      ],
+      [],
+    ),
+    ['1', '2'],
+  );
+  // A run's anchors in resource form: GA4's properties/, Tag Manager's and Business Profile's accounts/.
+  assert.deepEqual(
+    [
+      ['ga4_native_action', 'properties/1'],
+      ['ga4_native_action', 'accounts/1'],
+      ['gtm_native_action', 'accounts/1'],
+      ['google_business_native_action', 'accounts/1'],
+      ['google_business_native_action', 'locations/1'],
+      ['reddit_native_action', 'accounts/1'],
+      ['meta_native_action', 'properties/1'],
+    ].map(([gateway, anchor]) => scope.reportingAnchorKind(gateway, anchor) ?? null),
+    ['property', null, 'account', 'account', null, null, null],
+  );
 });

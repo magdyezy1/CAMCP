@@ -1,4 +1,4 @@
-import type {ProviderHooks, ScopeContext} from './provider-adapter.js';
+import type {ProviderHooks, ReportResourceScope, ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
@@ -21,6 +21,54 @@ function businessResourceScope(_plan: CompiledRequest, _c: Connection, id: strin
   }
   return false;
 }
+
+/**
+ * Workbook reporting (ARC-01, reporting; src/report-resource-scope.ts): a saved query names its business account by
+ * an account selector (an account ID or accounts/{id}, or a bare locations/{id}), its location by a location selector,
+ * or either by a resource name under it.
+ */
+const businessReportScope: ReportResourceScope = Object.freeze({
+  account(kind: unknown, value: string) {
+    if (kind === 'account') {
+      if (/^locations\/[A-Za-z0-9_-]{1,200}$/.test(value)) return value;
+      return /^(?:accounts\/)?([A-Za-z0-9_-]{1,200})$/.exec(value)?.[1];
+    }
+    if (kind === 'location') {
+      const match = /^(?:locations\/)?([A-Za-z0-9_-]{1,200})$/.exec(value);
+      return match ? 'locations/' + match[1] : undefined;
+    }
+    if (kind !== 'resource' || value.split('/').some(part => part === '.' || part === '..')) return undefined;
+    const account = /^accounts\/([A-Za-z0-9_-]{1,200})(?:\/[^/\x00-\x20\\?#%]+)*$/.exec(value);
+    if (account) return account[1];
+    const location = /^locations\/([A-Za-z0-9_-]{1,200})(?:\/[^/\x00-\x20\\?#%]+)*$/.exec(value);
+    return location ? 'locations/' + location[1] : undefined;
+  },
+  anchorKind: (anchor: string) => (anchor.startsWith('accounts/') ? 'account' : undefined),
+  /**
+   * A location selector only checks the consistency of the account parent present beside it; a bare location selector
+   * can establish locations/{id} only when no existing account context is supplied.
+   */
+  accounts(rows: JsonObject[], existing: unknown[], account: (row: JsonObject) => string) {
+    const locationRows = rows.filter(row => row.kind === 'location'),
+      otherRows = rows.filter(row => row.kind !== 'location'),
+      accounts = otherRows.map(row => account(row)),
+      locations = locationRows.map(row => account(row));
+    if (locations.length) {
+      const referenced = [
+        ...accounts.filter(id => id.startsWith('locations/')),
+        ...existing.filter(id => typeof id === 'string' && id.startsWith('locations/')),
+        ...otherRows
+          .filter(row => row.kind === 'resource')
+          .flatMap(row => {
+            const match = /(?:^|\/)locations\/([A-Za-z0-9_-]{1,200})(?:\/|$)/.exec(row.value);
+            return match ? ['locations/' + match[1]] : [];
+          }),
+      ];
+      if (new Set([...locations, ...referenced]).size > 1) return undefined;
+    }
+    return accounts.length || existing.length ? accounts : locations;
+  },
+});
 
 /**
  * Business Profile's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
@@ -98,4 +146,5 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
       },
     }),
   }),
+  reportScope: businessReportScope,
 });

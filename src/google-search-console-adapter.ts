@@ -93,4 +93,19 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
       ['PUT', 'DELETE'].includes(plan.method) &&
       /^\/webmasters\/v3\/sites\//.test(plan.path),
   }),
+  // Workbook reporting (ARC-01, reporting; src/report-resource-scope.ts): a saved query names its property by a site
+  // selector, a domain property or a URL-prefix property without credentials.
+  reportScope: Object.freeze({
+    account(kind: unknown, value: string) {
+      if (kind !== 'site' || value.length > 200) return undefined;
+      if (/^sc-domain:[^/?#]+$/.test(value)) return value;
+      if (/^https?:\/\//.test(value)) {
+        try {
+          const url = new URL(value);
+          if (!url.username && !url.password) return value; // Preserve prefix-property bytes, including trailing slash.
+        } catch {}
+      }
+      return undefined;
+    },
+  }),
 });
