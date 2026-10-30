@@ -70,6 +70,13 @@ export const gtmHooks: ProviderHooks = Object.freeze({
   campaign: Object.freeze({
     planBinding: Object.freeze({key: 'gtm_consent', create: consentCreationBinding, check: assertConsentStep}),
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts); its
+  // catalog has write actions, which its gateway previews or refuses.
+  notes: Object.freeze({
+    description:
+      'Google Tag Manager gateway: gtm_ops runs one Tag Manager API operation on accounts, containers, workspaces, versions, tags, triggers and variables; gtm_audit_ops audits a workspace’s configuration and consent settings; gtm_action_job_status reads the verification job of a reviewed Tag Manager write.',
+    delegatedWrites: true as const,
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.prepareReview (src/write-review.ts).

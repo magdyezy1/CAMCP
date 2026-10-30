@@ -29,4 +29,9 @@ export const adjustHooks: ProviderHooks = Object.freeze({
     boundedReport: reportRead,
     deadline: (plan: CompiledRequest, url: URL) => (reportRead(plan, url) ? plan.adjustReportDeadline : undefined),
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts).
+  notes: Object.freeze({
+    description:
+      'Adjust gateway: adjust_reporting (apps, events, filters, reports and pivots) and adjust_list_assets (the Adjust bindings configured in AMCP) run.',
+  }),
 });

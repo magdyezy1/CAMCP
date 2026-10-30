@@ -32,6 +32,8 @@ import {
   linkedinDescribedVersion,
 } from './linkedin-version.js';
 import {linkedinQuery} from './linkedin-restli.js';
+// Wave 4c round 6 (w4c-arc6-versions): the reviewed versions, a stored request's version and the owner's status view.
+import {linkedinStoredVersion, linkedinVersionStatus, linkedinVersions} from './linkedin-version.js';
 import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
@@ -426,6 +428,16 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
       /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
         ? {field: 'intendedStatus', active: ['ACTIVE']}
         : undefined,
+  }),
+  // Wave 4c round 6 (w4c-arc6-versions): the LinkedIn-Version it sends, each answer src/linkedin-version.ts's own (the
+  // explicit, AMCP_LINKEDIN_API_VERSION or default version, read at each call, and the reviewed table).
+  versions: Object.freeze({
+    current: linkedinDescribedVersion,
+    header: 'LinkedIn-Version',
+    request: linkedinVersion,
+    stored: linkedinStoredVersion,
+    reviewed: linkedinVersions,
+    status: linkedinVersionStatus,
   }),
 });
 

@@ -489,6 +489,13 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     recordCount: (body: JsonObject, kind: string) => (Array.isArray(body[kind]) ? body[kind].length : undefined),
     impact: snapchatWriteImpact,
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts);
+  // its captured LIST_ACTIONS lists 25 actions a page by `cursor` in its own envelope (src/introspection.ts).
+  notes: Object.freeze({
+    description: 'Run one Snapchat Marketing API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it.',
+    routing: true as const,
+  }),
+  listing: Object.freeze({defaultLimit: 25, cursorPages: true as const}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

@@ -236,4 +236,7 @@ export const redditHooks: ProviderHooks = Object.freeze({
   }),
   // Its review needs adsread and adsedit on the connection, before the family's scope check (src/write-review.ts).
   writes: Object.freeze({writeScopes: assertRedditWriteScopes}),
+  // Wave 4c round 6 (w4c-arc6-versions): its catalog has write actions, which its gateway previews or refuses
+  // (src/tool-notes.ts).
+  notes: Object.freeze({delegatedWrites: true as const}),
 });

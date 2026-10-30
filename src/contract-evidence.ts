@@ -1,16 +1,17 @@
 import {MirrorError} from './errors.js';
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
-import {criteoDocs} from './criteo-version.js';
 import {providerSunset} from './provider-sunsets.js';
-import {linkedinVersions} from './linkedin-version.js';
+import {providerVersions} from './provider-hooks.js';
 import {wireContractEvidence} from './wire-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+/** A Criteo guide at the version AMCP sends (its adapter's versions, src/criteo-version.ts). */
+const criteoGuide = (page: string) => providerVersions('criteo')!.docs!(page);
 export const providerMaintenance: Record<string, JsonObject> = {
   criteo: {
-    campaigns: criteoDocs('campaigns-endpoints'),
+    campaigns: criteoGuide('campaigns-endpoints'),
     changelog: 'https://developers.criteo.com/retail-media/changelog/changelog',
-    lifecycle: criteoDocs('dsp-analytics-migration-guide'),
-    reports: criteoDocs('performance-report'),
+    lifecycle: criteoGuide('dsp-analytics-migration-guide'),
+    reports: criteoGuide('performance-report'),
     sandbox: 'No AMCP live Criteo sandbox fixture is qualified.',
     traps: [
       'Campaign PUT can clear omitted limits. The qualified family requires complete manual finite-limit fields, standard Criteo-budget balances and no budget overrides; campaign status is computed, not writable.',
@@ -89,24 +90,30 @@ export const providerMaintenance: Record<string, JsonObject> = {
     ],
   },
 };
-/** The sunset entry of a LinkedIn version sent other than the registry's (a reviewed rollback), from the version table. */
-function linkedinVersionEnd(sent?: string): JsonObject | undefined {
-  const entry = linkedinVersions.find(v => v.version === sent),
-    recorded = providerSunset('linkedin');
-  if (!entry || recorded?.version === sent) return undefined;
+/**
+ * The sunset entry of a version sent other than the registry's (a reviewed rollback, LinkedIn's), from the provider's
+ * reviewed version table (its adapter's versions.reviewed).
+ */
+function reviewedVersionEnd(id: string, sent?: string): JsonObject | undefined {
+  const entry = providerVersions(id)?.reviewed?.find(v => v.version === sent);
+  if (!entry || providerSunset(id)?.version === sent) return undefined;
   return {
-    provider: 'linkedin',
+    provider: id,
     version: entry.version,
     basis: entry.basis,
     sunset: entry.sunset,
     checked: entry.reviewed,
   };
 }
-/** `plan`, when given, is the compiled request: its version header is the version reported (PRV-02). */
+/**
+ * `plan`, when given, is the compiled request: the version header of its provider (LinkedIn-Version, its adapter's
+ * versions.header) is the version reported (PRV-02).
+ */
 export function providerContractView(gateway?: string, plan?: CompiledRequest): JsonObject | undefined {
   const item = providerContracts.find(c => c.gateway === gateway);
   if (!item) return undefined;
-  const sent = item.id === 'linkedin' ? plan?.headers?.['LinkedIn-Version'] : undefined,
+  const header = providerVersions(String(item.id))?.header,
+    sent = header ? plan?.headers?.[header] : undefined,
     contract = effectiveProviderContract(item.id, sent)!;
   return {
     ...contract,
@@ -117,7 +124,7 @@ export function providerContractView(gateway?: string, plan?: CompiledRequest): 
       'unsupported: not built. implemented_unverified and partial_unverified: built (in part) and tested against local fixtures and the pinned provider contract, but not proven against a live account; treat them as unverified. Reviewed writes a workspace has verified on its own accounts are counted per provider by amcp_workspace dashboard and listed a page at a time by amcp_workspace dashboard {sections:["verified_writes"], gateway}.',
     maintenance: providerMaintenance[item.id] ?? {sandbox: 'unqualified', changelog: item.documentation},
     // When the version AMCP sends stops working, as far as AMCP has evidence (F-56).
-    version_end: linkedinVersionEnd(sent) ?? providerSunset(String(item.id)) ?? null,
+    version_end: reviewedVersionEnd(String(item.id), sent) ?? providerSunset(String(item.id)) ?? null,
     evidence_interpretation:
       'Catalog evidence is captured compatibility metadata. Vendor schemas, local reviewed contracts and live provider qualification are distinct. Use amcp_write inspect with the exact payload.',
   };

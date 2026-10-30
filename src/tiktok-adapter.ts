@@ -539,6 +539,11 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       tiktokManualAdIdentityPrerequisites(plan, values);
     },
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts).
+  notes: Object.freeze({
+    description: 'Run one TikTok Business API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it.',
+    routing: true as const,
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

@@ -50,6 +50,9 @@ import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './
 import {metaPreflight} from './meta-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
 import {metaCreated, metaNamedTargets} from './meta-write-reconciliation.js';
+// Wave 4c round 6 (w4c-arc6-versions): the versions its configuration may name, and the catalog's action.
+import {metaApiVersions} from './meta-version.js';
+import type {Action} from './types.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -368,6 +371,33 @@ export const metaHooks: ProviderHooks = Object.freeze({
     namedTargets: metaNamedTargets,
     // The owner's spending policy (src/spend-policy.ts): a currency cap its offsets cannot convert.
     currencyCapRefusal: metaCurrencyCapRefusal,
+  }),
+  // Wave 4c round 6 (w4c-arc6-versions): the Graph API version it sends (src/meta-version.ts: AMCP_META_API_VERSION,
+  // read at load) and the versions that setting may name; its tool description; and DESCRIBE_ACTION of the account ad
+  // label read, which answers the captured record at the version sent, with the SDK source it was checked against.
+  versions: Object.freeze({
+    current: () => metaApiVersion,
+    path: (rest: string) => '/' + metaApiVersion + rest,
+    configurable: metaApiVersions,
+  }),
+  notes: Object.freeze({
+    description: 'Run one Meta Graph Marketing API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it.',
+    routing: true as const,
+  }),
+  listing: Object.freeze({
+    describe: (action: Action) =>
+      action.name === 'meta_ad_account_id_adlabels_get'
+        ? {
+            success: true,
+            api_version: metaApiVersion,
+            ...structuredClone(action.raw),
+            path: action.path,
+            mirror_evidence: action.evidence,
+            captured_mapping: structuredClone(action.raw),
+            source:
+              'https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py',
+          }
+        : undefined,
   }),
 });
 

@@ -143,6 +143,29 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     confirms: dv360Confirms,
     accountPath: /^\/v\d+\/advertisers\/[^/]+/,
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts): the
+  // captured description with the sentences AMCP does not hold corrected, and the routing summary tools/list shows.
+  notes: Object.freeze({
+    description: (captured: string) =>
+      captured
+        .replace('with create_campaign or DV360_', 'with amcp_native_action create_campaign or DV360_')
+        .replace(
+          'create display/video/audio/Demand Gen or explicit YouTube & Partners line items with create_adset or DV360_',
+          'create display/video/audio/Demand Gen line items with amcp_native_action create_adset or DV360_',
+        )
+        .replace(
+          /For YouTube & Partners line item writes, provide the exact lineItemType and bidStrategy\.youtubeAndPartnersBid\. Existing DV360 accounts can return YouTube & Partners line items through read\/list, so MCP does not locally block explicit payloads; Google remains the final authority for account\/type-specific write support\./,
+          'YouTube & Partners line items cannot be created or updated through the API, so AMCP refuses those writes; reads still return them.',
+        )
+        .replace('or the semantic create_creative tool,', 'or amcp_native_action create_creative,')
+        .replace(
+          /For Bid Manager reports, standard report runs, query runs, report retrieval, or report listing, use dv360_reporting_ops instead of this generic REST tool\./,
+          'AMCP has no DV360 reporting: Bid Manager reports, query runs and report retrieval are not available.',
+        )
+        .replace(/ ?Write actions default to dry_run: true and require confirmed: true when dry_run is false\./, ''),
+    summary:
+      'Run one Display & Video 360 v4 REST action by name: a canonical DV360_* action such as DV360_ADVERTISERS_LIST, or resource and method (resource=advertisers, method=list); LIST_ACTIONS and DESCRIBE_ACTION find it. Path and query parameters go in params, pathParams or query, request bodies in body or payload. YouTube & Partners line items cannot be created or updated through the API, so AMCP refuses those writes, and AMCP has no DV360 reporting. The campaign flow, targeting and audience search, inventory and creative assignment: amcp_tool_help {gateway:"dv360_native_action"}.',
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

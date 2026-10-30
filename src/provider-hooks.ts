@@ -17,6 +17,10 @@ import {searchConsoleHooks} from './google-search-console-adapter.js';
 import {criteoHooks} from './criteo-adapter.js';
 import {adjustHooks} from './adjust-adapter.js';
 import {amazonHooks} from './amazon-adapter.js';
+// Wave 4c round 6 (w4c-arc6-versions): WooCommerce's hooks (its tool notes), and the provider lookup of a version.
+import {wooCommerceHooks} from './woocommerce-adapter.js';
+import type {ProviderVersions} from './provider-adapter.js';
+import {providerById} from './provider-adapters.js';
 
 /**
  * The provider hooks registry (ARC-01 phase B): each provider's behaviour that needs its own modules, from its adapter
@@ -44,6 +48,7 @@ export const registeredProviderHooks: readonly ProviderHooks[] = Object.freeze([
   criteoHooks,
   adjustHooks,
   amazonHooks,
+  wooCommerceHooks,
 ]);
 
 const byGateway = new Map<string, ProviderHooks>(),
@@ -72,4 +77,13 @@ for (const hooks of registeredProviderHooks) {
 /** The hooks of a gateway's provider, or undefined for AMCP's own tools, unknown names and providers without hooks. */
 export function providerHooks(gateway: unknown): ProviderHooks | undefined {
   return typeof gateway === 'string' ? byGateway.get(gateway) : undefined;
+}
+
+// Wave 4c round 6 (w4c-arc6-versions).
+/**
+ * The API version of a provider, by its ID (`google`, `linkedin`; src/provider-adapters.ts), as its adapter declares
+ * it; undefined for a provider whose hooks declare none. Shared modules ask this instead of importing a version module.
+ */
+export function providerVersions(id: string): ProviderVersions | undefined {
+  return providerHooks(providerById(id)?.gateway)?.versions;
 }

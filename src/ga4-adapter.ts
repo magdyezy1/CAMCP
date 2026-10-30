@@ -6,6 +6,8 @@ import {assertMeasurementWrite, validateMeasurementState} from './measurement-wr
 // Writes and campaigns (wave 4c).
 import {assertMeasurementScopes} from './measurement-writes.js';
 import {measurementVerificationPhase} from './measurement-writes.js';
+// Wave 4c round 6 (w4c-arc6-versions): the owner's realtime test properties (MSR-04).
+import {ga4TestProperties, saveGa4TestProperty} from './measurement-test-properties.js';
 
 /**
  * Wave 4c (transport and catalog): GA4's part of the delegated compiler (src/delegated-native.ts). Its body is the
@@ -125,5 +127,20 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
     writePermission: assertMeasurementScopes,
     // A provider job's verification read shows its phase: running is pending, failed is failed (src/write-verification.ts).
     verificationPhase: measurementVerificationPhase,
+  }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts), whose
+  // catalog has write actions, previewed or refused; and the properties the owner marks for the realtime test-identity
+  // mode (MSR-04, P4), which owner health lists and an owner operation saves (src/owner-operations.ts).
+  notes: Object.freeze({
+    description:
+      'Google Analytics 4 gateway for properties, metadata, reports, asynchronous report tasks and audience exports.',
+    connectedOnWebsite: true as const,
+    delegatedWrites: true as const,
+  }),
+  ownerSetting: Object.freeze({
+    field: 'ga4_test_properties',
+    action: 'save_ga4_test_property',
+    list: ga4TestProperties,
+    save: saveGa4TestProperty,
   }),
 });

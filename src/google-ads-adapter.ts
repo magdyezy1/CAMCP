@@ -43,6 +43,8 @@ import {
   googleAdsVersion,
 } from './google-version.js';
 import {adaptGoogleLegacy, googleLegacyCoverage} from './google-legacy.js';
+// Wave 4c round 6 (w4c-arc6-versions): its version's request paths and configuration warning.
+import {googleAdsPath, googleDeveloperTokenWarning} from './google-version.js';
 import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
@@ -761,6 +763,22 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     accessPolicy: assertGoogleAccessPolicy,
     moneyFields: googleMoneyFields,
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): the API version it sends (src/google-version.ts), which its tool note states;
+  // its listing counts its catalog's RPC and legacy actions; the owner's alias baseline counts its legacy names.
+  versions: Object.freeze({current: () => googleAdsVersion, path: googleAdsPath, warning: googleDeveloperTokenWarning}),
+  notes: Object.freeze({
+    version:
+      'Requests go to Google Ads API ' +
+      googleAdsVersion +
+      '; action names keep their recorded google_ads_v23_ spelling.',
+  }),
+  listing: Object.freeze({
+    totals: (actions: readonly Action[]) => ({
+      rpc_action_count: actions.filter(a => a.raw.surface === 'rpc').length,
+      legacy_action_count: actions.filter(a => a.raw.surface === 'legacy').length,
+    }),
+  }),
+  legacyAliases: () => googleLegacyCoverage().entries.map(e => e.action),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from rejectedBuild (src/campaign-runner.ts), after the runner's own

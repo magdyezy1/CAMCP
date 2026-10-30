@@ -243,4 +243,12 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
     // The owner's spending policy (src/spend-policy.ts): its switches over the administrator access a write grants.
     accessPolicy: assertBusinessAccessPolicy,
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts); its
+  // catalog has write actions, which its gateway previews or refuses.
+  notes: Object.freeze({
+    description:
+      'Google Business Profile gateway for accounts, locations, catalogs, verification, engagement, performance, notifications and lodging.',
+    connectedOnWebsite: true as const,
+    delegatedWrites: true as const,
+  }),
 });

@@ -3,6 +3,8 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {VendorRoute} from './delegated-native.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
+// Wave 4c round 6 (w4c-arc6-versions): the version it sends and its guides.
+import {criteoApiVersion, criteoDocs} from './criteo-version.js';
 
 /**
  * Wave 4c (transport and catalog): Criteo's part of the delegated compiler (src/delegated-native.ts). The bodies of its
@@ -80,4 +82,8 @@ export const criteoHooks: ProviderHooks = Object.freeze({
       plan.method === 'GET' &&
       criteoRoute('/reports/[a-f0-9-]+/output$', 'i').test(plan.path),
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): the Retail Media version it sends (src/criteo-version.ts) and its guides; its
+  // catalog has write actions, which its gateway previews or refuses (src/tool-notes.ts).
+  versions: Object.freeze({current: () => criteoApiVersion, docs: criteoDocs}),
+  notes: Object.freeze({delegatedWrites: true as const}),
 });

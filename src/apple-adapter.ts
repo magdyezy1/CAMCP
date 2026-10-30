@@ -169,6 +169,11 @@ export const appleHooks: ProviderHooks = Object.freeze({
     // The owner's spending policy (src/spend-policy.ts) compares a shared budget with its own current value alone.
     policyState: appleBudgetState,
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts).
+  notes: Object.freeze({
+    description:
+      'Run one Apple Ads Platform API v1 action by name (names begin apple_ads_v1_; amcp_tool_help {gateway:"apple_ads_native_action"} lists them). Legacy Campaign Management API v5 routes are unavailable. Reads support result projection and bounded pagination.',
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.state (src/write-review.ts).

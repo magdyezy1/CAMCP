@@ -2,25 +2,21 @@ import type {CallOptions, JsonObject, Action} from './types.js';
 import {Registry, listsActions} from './catalog.js';
 import {MirrorError} from './errors.js';
 import {currentCapture} from './catalog-versions.js';
-import {metaApiVersion} from './meta-version.js';
 import {actionContracts} from './action-contracts.js';
+import {providerHooks} from './provider-hooks.js';
+/**
+ * LIST_ACTIONS and DESCRIBE_ACTION. A provider's part (its adapter's CatalogListing: its own description of an action,
+ * its page size and cursor envelope, its catalog totals) is asked for where the listing named the provider before.
+ */
 export class Introspection {
   constructor(private registry: Registry) {}
   describe(gateway: string, input: JsonObject): JsonObject {
     const name = input.target_action;
     if (!name) throw new MirrorError('INVALID_ARGUMENT', 'target_action is required for DESCRIBE_ACTION.');
     const effective = this.registry.action(gateway, name);
-    if (gateway === 'meta_native_action' && effective?.name === 'meta_ad_account_id_adlabels_get')
-      return {
-        success: true,
-        api_version: metaApiVersion,
-        ...structuredClone(effective.raw),
-        path: effective.path,
-        mirror_evidence: effective.evidence,
-        captured_mapping: structuredClone(effective.raw),
-        source:
-          'https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py',
-      };
+    // An action its provider describes itself (Meta's account ad label read), before the captured descriptions.
+    const own = effective && providerHooks(gateway)?.listing?.describe?.(effective);
+    if (own) return own;
     const exact = this.registry.data.descriptions[gateway + '/' + name];
     if (exact) return structuredClone(currentCapture(gateway, exact));
     const action = this.registry.action(gateway, name);
@@ -46,17 +42,14 @@ export class Introspection {
     const uniform = enhanced && options.flags.catalogPagination;
     const definition = this.registry.tools.get(gateway)!;
     const schema = definition.inputSchema.properties;
+    const listing = providerHooks(gateway)?.listing;
     const nativeCap = schema.limit?.maximum ?? 100;
     const limit = Math.min(
       uniform ? 500 : nativeCap,
-      Math.max(1, Number(input.limit ?? schema.limit?.default ?? (gateway === 'snapchat_native_action' ? 25 : 50))),
+      Math.max(1, Number(input.limit ?? schema.limit?.default ?? listing?.defaultLimit ?? 50)),
     );
     const offset = Number(
-      uniform
-        ? (input.offset ?? input.cursor ?? 0)
-        : gateway === 'snapchat_native_action'
-          ? (input.cursor ?? 0)
-          : (input.offset ?? 0),
+      uniform ? (input.offset ?? input.cursor ?? 0) : listing?.cursorPages ? (input.cursor ?? 0) : (input.offset ?? 0),
     );
     let all = catalog.actions;
     if (input.search) {
@@ -74,7 +67,7 @@ export class Introspection {
       all = all.filter(a => String(a.raw.service ?? '').toLowerCase() === String(input.service).toLowerCase());
     if (input.surface && input.surface !== 'all') all = all.filter(a => a.raw.surface === input.surface);
     const actions = all.slice(offset, offset + limit).map(a => this.record(a, options));
-    if (gateway === 'snapchat_native_action' && !(enhanced && options.flags.catalogEnvelope))
+    if (listing?.cursorPages && !(enhanced && options.flags.catalogEnvelope))
       return {
         actions,
         total: all.length,
@@ -90,10 +83,8 @@ export class Introspection {
       has_more: offset + limit < all.length,
       actions,
     };
-    if (gateway === 'google_ads_native_action') {
-      result.rpc_action_count = catalog.actions.filter(a => a.raw.surface === 'rpc').length;
-      result.legacy_action_count = catalog.actions.filter(a => a.raw.surface === 'legacy').length;
-    }
+    // What the provider's listing says of its whole catalog (Google Ads: its RPC and legacy action counts).
+    if (listing?.totals) Object.assign(result, listing.totals(catalog.actions));
     return result;
   }
   /**
