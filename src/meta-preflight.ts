@@ -1,6 +1,6 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {CampaignPreflight} from './provider-adapter.js';
-import {validateMetaCreative} from './creative-validation.js';
+import {validateMetaCreative} from './meta-creative-features.js';
 import {metaPrerequisites} from './meta-prerequisites.js';
 
 // Meta's part of a campaign plan's preflight, its adapter's `campaign.preflight` (ARC-01 phase B, wave 4c: moved from
