@@ -18,6 +18,12 @@ const blocked: typeof fetch = async () => {
 async function site() {
   const store = new Store(':memory:', master),
     service = new MirrorService(new Registry(), store);
+  const toolActors: {tool: string; role: string; testAccount: boolean}[] = [],
+    invoke = service.call.bind(service);
+  service.call = (...args) => {
+    toolActors.push({tool: args[0], role: args[2].role, testAccount: args[2].testAccount === true});
+    return invoke(...args);
+  };
   const listener = await listenForFetch(
     createHttpApp(service, store, {
       website: {origin, masterKey: master, adminPassword: password, testPassword, fetcher: blocked},
@@ -45,6 +51,7 @@ async function site() {
   const headers = {Cookie: cookie, 'X-AMCP-CSRF': csrf};
   return {
     store,
+    toolActors,
     request,
     headers,
     close: async () => {
@@ -185,6 +192,8 @@ test('a reviewer opens Clients & templates and saves a playbook in its own works
       assert.equal(response.status, 200, action);
       assert.equal((await response.json()).success, true, action);
     }
+    assert.ok(s.toolActors.some(actor => actor.tool === 'amcp_campaign'));
+    assert.ok(s.toolActors.every(actor => actor.role === 'operator' && actor.testAccount));
     assert.equal((await s.request('/api/connector-tokens', 'GET', undefined, s.headers)).status, 200);
     const issued = await s.request('/api/connector-tokens', 'POST', {name: 'Reviewer LLM', role: 'reader'}, s.headers);
     assert.equal(issued.status, 200, await issued.clone().text());

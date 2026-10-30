@@ -31,7 +31,10 @@ export function workspaceRoutes({router, store, web, options, service}: WebsiteS
         };
       const tool = tools[String(req.params.tool)];
       if (!tool) throw new MirrorError('NOT_FOUND', 'Unknown workspace operation.', {}, 404);
-      const actor = {...session.actor};
+      const actor = {
+        ...session.actor,
+        role: session.actor.testAccount && session.actor.role === 'admin' ? ('operator' as const) : session.actor.role,
+      };
       store.bindActorCheck(actor, () => {
         web.requireMutation(req);
       });
@@ -49,7 +52,11 @@ export function workspaceRoutes({router, store, web, options, service}: WebsiteS
     express.json({limit: '1kb'}),
     handler(async (req, res) => {
       const session = web.requireMutation(req),
-        actor = {...session.actor};
+        actor = {
+          ...session.actor,
+          role:
+            session.actor.testAccount && session.actor.role === 'admin' ? ('operator' as const) : session.actor.role,
+        };
       store.bindActorCheck(actor, () => {
         web.requireMutation(req);
       });
