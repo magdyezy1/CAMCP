@@ -2,6 +2,7 @@ import {bad} from './workspace-core.js';
 import {normalizeAccount} from './account-id.js';
 import {metaWindowsMessage, metaWindowsOrdered, metaWindowsValid} from './meta-attribution-windows.js';
 import {undocumentedBreakdownValue, type GuidedReporting} from './report-source.js';
+import {collectMetaEvidence} from './meta-evidence.js';
 import type {JsonObject} from './types.js';
 
 /**
@@ -233,4 +234,11 @@ export const metaGuidedReporting: GuidedReporting = {
       seen.add(key);
     }
   },
+  // ARC-01 (reporting): a capture of a Meta preset collects complete Insights pages (src/meta-evidence.ts).
+  collect: ({store, call, actor, args, semantics}) => collectMetaEvidence(store, call, actor, args, semantics),
+  sourceCollection: 'meta_insights_pages',
+  semanticsSource: () =>
+    'Meta account currency and timezone verified before and after complete Insights pages; action/window/report-time settings come from the retained request, native account/parent/day grain is checked, and reporting-window completeness remains declared. Collection is not a point-in-time snapshot.',
+  // RPT-04 (owner policy P6): guided Meta pages are complete and Meta omits zero-valued action entries.
+  omittedAsZero: true,
 };

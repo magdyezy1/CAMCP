@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {DetailParentCache} from './overview-parents.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import type {ToolCall} from './workspace-core.js';
 
 /**
  * The report-source contract (ARC-04 stage F): what one reporting platform declares about its native campaign reports.
@@ -126,11 +127,82 @@ export interface DailySegmentation {
   endsOn?(native: JsonObject | undefined, day: string): boolean;
 }
 
+/** What a guided capture's collector is given (src/decision-reporting.ts capture, ARC-01 reporting). */
+export interface GuidedCaptureContext {
+  readonly store: Store;
+  readonly call: ToolCall;
+  readonly actor: Actor;
+  /** The native read's arguments, bound to the capture's account and connection and never a dry run. */
+  readonly args: JsonObject;
+  /** The capture's validated declared semantics. */
+  readonly semantics: JsonObject;
+  /** The preset the capture collects. */
+  readonly preset: string;
+  /** The preset's row checks (validatePresetRows), for a collector that checks its rows before its last read. */
+  validateRows(rows: JsonObject[]): void;
+}
+
+/** What a platform's guided collector read: the provider read the capture maps, its pages, its account evidence. */
+export interface GuidedCapture {
+  readonly source: JsonObject;
+  readonly sourcePages: unknown;
+  readonly nativeAccountEvidence?: JsonObject;
+  /** Checks the actor, the connection and its authorization again, before the capture is retained. */
+  assertCurrent(): void;
+}
+
+/**
+ * RPT-07: a capture's conversion rules, read in its authorization bracket after its native report (LinkedIn's campaign
+ * × conversion preset): the rules' account currency, which the capture compares with the declared one, the join of the
+ * reported conversions to their rules' windows, and the rules' provenance.
+ */
+export interface GuidedConversionRules {
+  readonly currency: unknown;
+  join(conversions: string[]): JsonObject;
+  provenance(): JsonObject;
+}
+
+/**
+ * A native dimension a capture's mapping may retain that one platform documents (Google's devices and geography,
+ * LinkedIn's conversion rules): whether a mapped value is one the capture keeps and, for a dimension other mapped
+ * dimensions of a row must agree with (Google's geographic resource), whether they do. The capture keeps the refusal.
+ */
+export interface GuidedDimension {
+  valid(value: unknown, capture: JsonObject): boolean;
+  agrees?(row: JsonObject): boolean;
+}
+
 /**
  * A platform's guided reporting (amcp_reporting's capture presets and their evidence, ARC-04 stage F): what the shared
  * guided modules (src/report-breakdowns.ts and the modules above it) ask the platform instead of naming it.
  */
 export interface GuidedReporting {
+  /**
+   * The platform's collection of a capture of one of its presets (ARC-01 reporting): complete native pages bracketed
+   * by account and authorization checks, in place of one read through the gateway. The capture keeps every shared
+   * check of the read it returns.
+   */
+  collect?(context: GuidedCaptureContext): Promise<GuidedCapture>;
+  /** How the collector read the evidence, retained as its source_collection (`google_search_pages`...). */
+  readonly sourceCollection?: string;
+  /** True when the collector checks the native rows before its last read (LinkedIn), so the capture does not again. */
+  readonly collectorChecksRows?: true;
+  /** The provenance a capture of `preset` with its generated `request` retains as semantics_source (capture_preset). */
+  semanticsSource?(preset: string, request: JsonObject): string;
+  /** RPT-04: a delivered row's absent selected action counts as zero (Meta omits zero-valued action entries). */
+  readonly omittedAsZero?: true;
+  /** Native date formats a mapping may name for the report date, each with its parse of a native date. */
+  readonly dateFormats?: Readonly<Record<string, (value: unknown) => unknown>>;
+  /** The native dimensions a mapping may retain that this platform documents, by mapping key. */
+  readonly dimensionChecks?: Readonly<Record<string, GuidedDimension>>;
+  /** RPT-07: the preset whose capture joins its conversions to their rules, and the rules' read. */
+  readonly conversionRules?: {
+    readonly preset: string;
+    read(
+      context: Pick<GuidedCaptureContext, 'store' | 'call' | 'actor'>,
+      capture: {gateway: string; account_id: string; connection_id: string},
+    ): Promise<GuidedConversionRules>;
+  };
   /**
    * RPT-07 P1 dimension packs: the native breakdown dimensions of the platform's guided captures, by mapping key
    * (`native_age`...), in the order they are listed, each with the check of the documented native values it accepts.

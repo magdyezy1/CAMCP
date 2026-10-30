@@ -1,7 +1,15 @@
 import {compileReport} from './workflows.js';
 import {bad} from './workspace-core.js';
 import {normalizeAccount} from './account-id.js';
-import {googleReportAdNetworks, googleReportId} from './google-reporting.js';
+import {
+  collectGoogleReport,
+  googleGeographicResource,
+  googleReportAdNetworks,
+  googleReportCountryId,
+  googleReportDevices,
+  googleReportId,
+  googleReportLocationTypes,
+} from './google-reporting.js';
 import type {GuidedReporting} from './report-source.js';
 
 /**
@@ -189,5 +197,37 @@ export const googleGuidedReporting: GuidedReporting = {
         conversion_value: '/metrics/conversionsValue',
       },
     };
+  },
+  // ARC-01 (reporting): a capture of a Google preset collects complete bounded Search pages (src/google-reporting.ts).
+  collect: ({store, call, actor, args, semantics, preset}) =>
+    collectGoogleReport(store, call, actor, args, semantics, preset),
+  sourceCollection: 'google_search_pages',
+  semanticsSource: () =>
+    'Google customer currency and timezone verified before and after complete Search pages; native resource identity, dates, result counts and unique grain checked; conversions use metrics.conversions. Attribution and reporting-window completeness remain declared, not independently verified. Collection is not a point-in-time snapshot.',
+  // The native device, country, location type and geographic resource a capture's mapping may retain.
+  dimensionChecks: {
+    native_device: {valid: value => typeof value === 'string' && googleReportDevices.includes(value)},
+    native_country_criterion_id: {valid: value => googleReportCountryId(value)},
+    native_location_type: {
+      valid: value => typeof value === 'string' && Object.hasOwn(googleReportLocationTypes, value),
+    },
+    // A geographic resource names the capture's own customer, and the row's country and location type agree with it.
+    native_geographic_resource: {
+      valid: (value, capture) =>
+        capture.gateway === 'google_ads_native_action' &&
+        googleGeographicResource(value)?.account_id === normalizeAccount(capture.gateway, capture.account_id),
+      agrees(row) {
+        const geographic = googleGeographicResource(row.native_geographic_resource)!;
+        return !(
+          (row.native_country_criterion_id !== undefined &&
+            row.native_country_criterion_id !== null &&
+            row.native_country_criterion_id !== geographic.country_criterion_id) ||
+          (row.native_location_type !== undefined &&
+            row.native_location_type !== null &&
+            googleReportLocationTypes[row.native_location_type as keyof typeof googleReportLocationTypes] !==
+              geographic.location_type_value)
+        );
+      },
+    },
   },
 };

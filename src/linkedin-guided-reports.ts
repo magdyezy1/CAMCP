@@ -3,7 +3,13 @@ import {bad} from './workspace-core.js';
 import {linkedinAllocationEvidence} from './linkedin-allocation-evidence.js';
 import type {GuidedReporting} from './report-source.js';
 import {linkedInDailyRange, linkedInReportDate} from './linkedin-reporting.js';
-import {linkedInConversionUrn, linkedInConversionWindowSentinel} from './linkedin-conversion-windows.js';
+import {
+  linkedInConversionUrn,
+  linkedInConversionWindowSentinel,
+  linkedInConversionWindows,
+} from './linkedin-conversion-windows.js';
+import {collectLinkedInEvidence} from './linkedin-evidence.js';
+import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
 
 /**
  * LinkedIn's guided reporting (ARC-04 stage F): its capture presets (UTC daily analytics by campaign group, campaign
@@ -170,5 +176,43 @@ export const linkedinGuidedReporting: GuidedReporting = {
       if (seen.has(key)) bad('LinkedIn returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS');
       seen.add(key);
     }
+  },
+  // ARC-01 (reporting): a capture of a LinkedIn preset reads one complete bounded analytics response, bracketed by
+  // account and authorization checks, and checks its rows before the last check (src/linkedin-evidence.ts).
+  collect: ({store, call, actor, args, semantics, validateRows}) =>
+    collectLinkedInEvidence(store, call, actor, args, semantics, validateRows),
+  sourceCollection: 'linkedin_analytics',
+  collectorChecksRows: true,
+  semanticsSource: preset =>
+    preset === 'linkedin_campaign_conversion'
+      ? "LinkedIn account identity and currency verified before and after a complete bounded campaign × conversion analytics response and the account's current conversion rules, all under unchanged authorization; each conversion's post-click and post-view windows come from its current rule (verified_per_rule, mixed or unknown). Rule settings are current, not historical. Reporting-window completeness remains declared. Collection is not a point-in-time snapshot."
+      : 'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
+  // A mapping may read the report date from LinkedIn's UTC date range.
+  dateFormats: {linkedin_utc_date: linkedInReportDate},
+  // The conversion a campaign × conversion row retains is an exact conversion rule URN of a LinkedIn capture.
+  dimensionChecks: {
+    native_conversion: {
+      valid: (value, capture) =>
+        capture.gateway === 'linkedin_native_action' && typeof value === 'string' && linkedInConversionUrn.test(value),
+    },
+  },
+  // RPT-07 (B18): the conversion preset joins every reported conversion to its current rule's windows. The rules are
+  // read after the analytics response and before the bracket's final authorization check, so both reads share it.
+  conversionRules: {
+    preset: 'linkedin_campaign_conversion',
+    async read({store, call, actor}, capture) {
+      const rules = await linkedInConversionEvidence(store, call, actor, capture);
+      return {
+        currency: rules.account_evidence?.currency,
+        join: conversions => linkedInConversionWindows(rules.rules, conversions),
+        provenance: () => ({
+          rules_source_hash: rules.source_hash,
+          rules_captured_at: rules.captured_at,
+          rule_count: rules.rule_count,
+          rule_source_pages: rules.source_pages,
+          rule_account_checks: rules.account_evidence.checks,
+        }),
+      };
+    },
   },
 };

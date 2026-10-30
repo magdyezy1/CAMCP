@@ -1,6 +1,6 @@
 import {bad} from './workspace-core.js';
 import type {GuidedReporting} from './report-source.js';
-import {tiktokDailyRange} from './tiktok-reporting.js';
+import {collectTikTokDailyReport, tiktokDailyRange, tiktokReportDate} from './tiktok-reporting.js';
 
 /**
  * TikTok's guided reporting (ARC-04 stage F): its capture presets (BASIC auction daily reports by campaign, ad group
@@ -61,4 +61,11 @@ export const tiktokGuidedReporting: GuidedReporting = {
       },
     };
   },
+  // ARC-01 (reporting): a capture of a TikTok preset collects complete BASIC daily pages (src/tiktok-reporting.ts).
+  collect: ({store, call, actor, args, semantics}) => collectTikTokDailyReport(store, call, actor, args, semantics),
+  sourceCollection: 'tiktok_daily_pages',
+  semanticsSource: () =>
+    'TikTok advertiser currency and timezone verified before and after complete native pages; native conversion refers to each entity optimization goal and goals may differ; attribution windows and completeness declared, not independently verified. Collection is not a point-in-time snapshot.',
+  // A mapping may read the report date from TikTok's stat_time_day.
+  dateFormats: {tiktok_day: tiktokReportDate},
 };

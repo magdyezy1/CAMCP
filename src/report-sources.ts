@@ -51,6 +51,10 @@ export function reportSource(platform: string): ReportSource | undefined {
 export {tiktokEventsUnavailableWarning} from './tiktok-report-source.js';
 export {linkedinCampaignsUnavailableWarning} from './linkedin-report-source.js';
 export {redditValueUnitWarning} from './reddit-report-source.js';
+// The guided reporting facts amcp_reporting's tool definition and actions read from here (ARC-01 reporting): the Meta
+// attribution windows its capture_preset schema lists, and Google's read-only serving diagnostics.
+export {metaAttributionWindows} from './meta-attribution-windows.js';
+export {googleServingDiagnostics} from './google-serving-diagnostics.js';
 // The platforms' guided reporting facts (ARC-04 stage F), which src/report-breakdowns.ts re-exports from here.
 export {googleReportAdNetworks} from './google-reporting.js';
 export {

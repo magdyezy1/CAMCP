@@ -1,7 +1,7 @@
 import {bad} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import type {GuidedReporting} from './report-source.js';
-import {snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
+import {collectSnapchatEvidence, snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
 import {snapchatAllocationEvidence} from './snapchat-allocation-evidence.js';
 
 /**
@@ -113,4 +113,11 @@ export const snapchatGuidedReporting: GuidedReporting = {
       },
     };
   },
+  // ARC-01 (reporting): a capture of a Snapchat preset collects complete daily stats pages (src/snapchat-evidence.ts).
+  collect: ({store, call, actor, args, semantics}) => collectSnapchatEvidence(store, call, actor, args, semantics),
+  sourceCollection: 'snapchat_daily_pages',
+  semanticsSource: (_preset, request) =>
+    request.arguments.query.fields === 'spend,impressions,swipes,native_leads'
+      ? 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Native submitted-form counts use native_leads; every page confirms non-conversion metric finalization through the selected end. Swipes are clicks; spend is native micros. No submitted lead records are read. Collection is not a point-in-time snapshot; off-platform attribution, lead quality and measurement setup remain unverified.'
+      : 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Explicit swipe/view windows, conversion-time reporting and total conversion sources come from the retained request; each page confirms delivery and conversion processing through the selected end. Swipes are clicks; spend is native micros. Collection is not a point-in-time snapshot or proof of measurement setup.',
 };

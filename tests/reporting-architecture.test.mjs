@@ -13,7 +13,6 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
  * providers' modules lowers it here, and nothing may raise it (tools/architecture-map.mjs ratchets the totals).
  */
 const remaining = {
-  'src/decision-reporting.ts': {literals: 7, imports: 10},
   'src/overview-parents.ts': {literals: 0, imports: 2},
   'src/overview-levels.ts': {literals: 0, imports: 1},
   'src/reporting-overview.ts': {literals: 0, imports: 1},
@@ -377,4 +376,137 @@ test('the workbook resource selectors are their providers’ own, accepting and 
     ].map(([gateway, anchor]) => scope.reportingAnchorKind(gateway, anchor) ?? null),
     ['property', null, 'account', 'account', null, null, null],
   );
+});
+
+test('a guided capture is collected and checked by its platform’s guided reporting, as decision-reporting did', async () => {
+  // ARC-01 (reporting): src/decision-reporting.ts named five gateways for the capture provenance and imported ten
+  // provider modules for the guided collectors, date formats, documented dimensions and LinkedIn's conversion rules;
+  // each platform's guided reporting (src/<platform>-guided-reports.ts) now declares them, and the capture consults it.
+  const {guidedReportSources, googleServingDiagnostics, metaAttributionWindows} =
+      await import('../dist/src/report-sources.js'),
+    google = await import('../dist/src/google-reporting.js'),
+    windows = await import('../dist/src/meta-attribution-windows.js'),
+    diagnostics = await import('../dist/src/google-serving-diagnostics.js'),
+    guided = Object.fromEntries(guidedReportSources.map(source => [source.platform, source.guided]));
+  // Every guided platform collects its captures; the collections are named as the capture named them.
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(guided).map(([platform, g]) => [platform, [typeof g.collect, g.sourceCollection]]),
+    ),
+    {
+      google: ['function', 'google_search_pages'],
+      snapchat: ['function', 'snapchat_daily_pages'],
+      tiktok: ['function', 'tiktok_daily_pages'],
+      linkedin: ['function', 'linkedin_analytics'],
+      meta: ['function', 'meta_insights_pages'],
+    },
+  );
+  // Only LinkedIn's collector checks its rows itself; only Meta counts an omitted action of a delivered row as zero.
+  assert.deepEqual(
+    Object.entries(guided)
+      .filter(([, g]) => g.collectorChecksRows)
+      .map(([platform]) => platform),
+    ['linkedin'],
+  );
+  assert.deepEqual(
+    Object.entries(guided)
+      .filter(([, g]) => g.omittedAsZero)
+      .map(([platform]) => platform),
+    ['meta'],
+  );
+  // The report date formats and the documented dimensions, by the platform that documents them.
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(guided).map(([platform, g]) => [platform, Object.keys(g.dateFormats ?? {})])),
+    {google: [], snapchat: [], tiktok: ['tiktok_day'], linkedin: ['linkedin_utc_date'], meta: []},
+  );
+  assert.equal(guided.tiktok.dateFormats.tiktok_day('2026-10-01 00:00:00'), '2026-10-01');
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(guided).map(([platform, g]) => [platform, Object.keys(g.dimensionChecks ?? {})])),
+    {
+      google: ['native_device', 'native_country_criterion_id', 'native_location_type', 'native_geographic_resource'],
+      snapchat: [],
+      tiktok: [],
+      linkedin: ['native_conversion'],
+      meta: [],
+    },
+  );
+  const capture = {gateway: 'google_ads_native_action', account_id: '123-456-7890'},
+    checks = guided.google.dimensionChecks;
+  assert.deepEqual(
+    google.googleReportDevices.map(device => checks.native_device.valid(device, capture)),
+    google.googleReportDevices.map(() => true),
+  );
+  for (const value of ['mobile', 'PHONE', 1, null]) assert.equal(checks.native_device.valid(value, capture), false);
+  assert.equal(checks.native_country_criterion_id.valid('2682', capture), true);
+  for (const value of ['-1', '01', 2682, '9223372036854775808'])
+    assert.equal(checks.native_country_criterion_id.valid(value, capture), false, String(value));
+  assert.equal(checks.native_location_type.valid('LOCATION_OF_PRESENCE', capture), true);
+  assert.equal(checks.native_location_type.valid('PRESENCE', capture), false);
+  const resource = 'customers/1234567890/geographicViews/2682~3';
+  assert.equal(checks.native_geographic_resource.valid(resource, capture), true);
+  assert.equal(
+    checks.native_geographic_resource.valid(resource, {...capture, account_id: '1234567891'}),
+    false,
+    'another customer',
+  );
+  assert.equal(
+    checks.native_geographic_resource.valid(resource, {gateway: 'meta_native_action', account_id: '1234567890'}),
+    false,
+    'another gateway',
+  );
+  assert.equal(checks.native_geographic_resource.agrees({native_geographic_resource: resource}), true);
+  assert.equal(
+    checks.native_geographic_resource.agrees({
+      native_geographic_resource: resource,
+      native_country_criterion_id: '2682',
+      native_location_type: 'LOCATION_OF_PRESENCE',
+    }),
+    true,
+  );
+  assert.equal(
+    checks.native_geographic_resource.agrees({
+      native_geographic_resource: resource,
+      native_country_criterion_id: '2840',
+    }),
+    false,
+  );
+  assert.equal(
+    checks.native_geographic_resource.agrees({native_geographic_resource: resource, native_location_type: 'UNKNOWN'}),
+    false,
+  );
+  const conversion = guided.linkedin.dimensionChecks.native_conversion;
+  assert.equal(conversion.valid('urn:lla:llaPartnerConversion:123', {gateway: 'linkedin_native_action'}), true);
+  assert.equal(conversion.valid('urn:lla:llaPartnerConversion:123', {gateway: 'meta_native_action'}), false);
+  assert.equal(conversion.valid('urn:li:sponsoredCampaign:123', {gateway: 'linkedin_native_action'}), false);
+  // Only LinkedIn's campaign × conversion preset joins conversion rules.
+  assert.deepEqual(
+    Object.entries(guided)
+      .filter(([, g]) => g.conversionRules)
+      .map(([platform, g]) => [platform, g.conversionRules.preset]),
+    [['linkedin', 'linkedin_campaign_conversion']],
+  );
+  // Each platform declares the provenance of its captures; Snapchat's lead presets and LinkedIn's conversion preset
+  // have their own.
+  for (const [platform, g] of Object.entries(guided))
+    for (const preset of g.presets) {
+      const request = g.presetPrefix === 'snapchat_' ? {arguments: {query: {fields: 'spend'}}} : {};
+      assert.match(
+        g.semanticsSource(preset.id, request),
+        /verified before and after (?:a )?complete/,
+        platform + ' ' + preset.id,
+      );
+    }
+  assert.notEqual(
+    guided.snapchat.semanticsSource('snapchat_campaign_leads', {
+      arguments: {query: {fields: 'spend,impressions,swipes,native_leads'}},
+    }),
+    guided.snapchat.semanticsSource('snapchat_campaign', {arguments: {query: {fields: 'spend'}}}),
+  );
+  assert.notEqual(
+    guided.linkedin.semanticsSource('linkedin_campaign_conversion', {}),
+    guided.linkedin.semanticsSource('linkedin_campaign', {}),
+  );
+  // The tool's Meta windows and Google's serving diagnostics are read through the registry: one value, two paths.
+  assert.equal(metaAttributionWindows, windows.metaAttributionWindows);
+  assert.equal(googleServingDiagnostics, diagnostics.googleServingDiagnostics);
 });
