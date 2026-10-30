@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # MCP read and write controls: calibration
 
 Question from the owner (2026-09-28): are the read and write controls reached through MCP too tight or too loose, and

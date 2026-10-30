@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok ad groups that use a custom conversion — 2026-09-26
 
 Base revision: `b4e1c25` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Catalog product evidence and receipt verification
 
 Batch 104, 2026-10-03. Work only in `magdyezy1/CAMCP`, branch `Work-here`.

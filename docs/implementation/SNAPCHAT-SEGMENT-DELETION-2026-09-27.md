@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat audience segment deletion — 2026-09-27
 
 Base revision: `7c5d198` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Resume handoff — 2026-09-20
 
 The user requested finishing the in-progress work, documenting everything left,

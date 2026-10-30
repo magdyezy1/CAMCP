@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Guided LinkedIn daily reporting evidence — 1 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads conversion value rules — 2026-09-26
 
 Base revision: `f289b11` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

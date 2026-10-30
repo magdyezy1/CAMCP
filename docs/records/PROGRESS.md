@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Progress log
 
 Newest last. Each batch lists what changed, the red/green evidence, the related suites, and the full qualification

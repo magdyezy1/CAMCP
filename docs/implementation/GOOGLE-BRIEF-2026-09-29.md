@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google list, items 1–10 — 2026-09-29
 
 Source: the owner's list of Google edits found while rebuilding a Search campaign through AMCP (live use from

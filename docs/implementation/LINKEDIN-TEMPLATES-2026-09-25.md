@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn saved-audience template contracts — 2026-09-25
 
 Base revision: `5ea83ed2b5eddda004e464625a28f82f502b517b`, isolated

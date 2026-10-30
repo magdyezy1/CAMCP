@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # AMCP design system
 
 The website's tokens, components and the rules that keep them consistent: what to use when you build or change a page,

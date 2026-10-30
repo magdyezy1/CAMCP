@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Portfolio contracts and GAQL correction — 2026-09-24
 
 Implementation starts at `48054ff54a18e78a26e97f615580b108771fad21`, in the

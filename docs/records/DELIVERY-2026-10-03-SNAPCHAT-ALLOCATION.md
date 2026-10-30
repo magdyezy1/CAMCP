@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat allocation evidence to reviewed daily-budget drafts
 
 Batch 107, 2026-10-03. Baseline: `0cda06f`. Sole repository/branch: `magdyezy1/CAMCP`, `Work-here`.

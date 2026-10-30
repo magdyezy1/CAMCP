@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn ad account name and notifications — 2026-09-27
 
 Base revision: `0f2ad86` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

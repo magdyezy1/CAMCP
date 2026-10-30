@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 advertiser targeting — 2026-09-26
 
 Base revision: `ca8c6e8` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

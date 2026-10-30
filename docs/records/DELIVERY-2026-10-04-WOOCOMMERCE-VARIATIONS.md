@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Selected WooCommerce variations with reviewed Meta titles and groups
 
 Batch 152 extends the read-only store source to explicitly selected published variations of one

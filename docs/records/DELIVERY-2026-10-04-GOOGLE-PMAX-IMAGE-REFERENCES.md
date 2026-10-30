@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Current Performance Max image asset-group references
 
 Baseline: `af9167b`. Batch 144 advances B08/B10/B15/B16/B22/B24 with an explicit second Google image view.

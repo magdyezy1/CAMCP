@@ -1,3 +1,8 @@
+---
+status: record
+tier: operator
+---
+
 # Sign-in failure and database diagnostics
 
 The user reports **Request could not be processed** at `/login`; Incognito displays the form

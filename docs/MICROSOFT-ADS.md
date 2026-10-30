@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Microsoft Advertising / Bing Ads
 
 AMCP includes an independent Microsoft Advertising v13 JSON adapter, website OAuth connection, advertiser-account discovery, reviewed Search mutations and asynchronous reporting. This is separate from the captured AMCP interface. Automated tests establish local contracts; Microsoft app approval and live account qualification are still required.

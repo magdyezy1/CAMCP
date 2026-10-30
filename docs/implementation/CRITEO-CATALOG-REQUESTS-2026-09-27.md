@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo catalog requests and exports — 2026-09-27
 
 Base revision: `a20537d` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

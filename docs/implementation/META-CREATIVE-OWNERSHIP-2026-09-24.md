@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta creative source ownership — 2026-09-24
 
 Continuation baseline: reporting commit `0d8204dfce2fc20e434a8f4ebd2a9a0c4f209d6e`

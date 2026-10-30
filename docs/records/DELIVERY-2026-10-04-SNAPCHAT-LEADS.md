@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Guided Snapchat lead generation — 4 October 2026
 
 Batch 125 adds the tenth guided recipe, `snapchat_lead_generation`, using existing reviewed campaign, ad-squad and

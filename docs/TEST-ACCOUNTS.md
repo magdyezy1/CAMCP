@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Test accounts and platform connections
 
 Test accounts can authorize their own configured browser OAuth platforms from Connections, follow the callback and discovery result, select accounts or properties, sync assets, add another login, choose a default, and disconnect. Google Ads also supports reauthorization in place. This applies to both shared test-password sessions and individually invited test accounts.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Saved query management and scoped reporting setup — 1 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

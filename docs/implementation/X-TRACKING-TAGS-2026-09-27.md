@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X line item tracking tags — 2026-09-27
 
 Base revision: `1836baf` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,84 +1,43 @@
 // Writes docs/README.md, the map of AMCP's documentation (F-68, DOC-03), from the documents themselves: each is listed
-// with its own title. The map has three tiers, one per reader (owner decision P12: the primary audience is workspace
-// owners at agencies and in-house teams): the owner guide, then operating and deploying AMCP, then changing it. The
-// owner guide (in its reading order, each English page beside its Arabic translation), the acceptance runbooks, the
-// implementation records, the delivery records (docs/records/) and the archive (docs/archive/) are listed from their
-// folders. Every other guide or reference must be placed in a section below, so a new one cannot go unlisted. A moved
-// document's old address holds a redirect stub (docs/moved.json, tools/docs-links.mjs), which is never listed; this
-// writes the stubs, and fails on any broken relative link in the repository's Markdown and on a current page that
-// breaks the documentation freeze (tools/docs-lint.mjs). It also writes, or with --check compares, the current pages'
-// facts generated from the code (tools/doc-facts.mjs, DOC-01), so it needs `npm run build` first.
+// with its own title, in the place its front matter gives it (tools/docs-front-matter.mjs), so there is no hand list to
+// keep. The map has three tiers, one per reader (owner decision P12: the primary audience is workspace owners at
+// agencies and in-house teams): the owner guide (in its reading order, each English page beside its Arabic
+// translation), then operating AMCP (its current pages, then the references operators consult), then changing it (the
+// engineering references, proposals and implementation records). Dated records and the archive follow, by date. Within
+// a section a page is grouped by its folder and ordered by title. A moved document's old address holds a redirect stub
+// (docs/moved.json, tools/docs-links.mjs), which is never listed; this writes the stubs, and fails on a page without
+// valid front matter, on any broken relative link in the repository's Markdown and on a maintained page that breaks
+// the documentation freeze or a page set above its size target (tools/docs-lint.mjs). It also writes, or with --check
+// compares, the generated pages: the package status, the status page, the findings register, the current pages' facts
+// generated from the code (tools/doc-facts.mjs, DOC-01) and the Help page's fragments, so it needs `npm run build` first.
 // Usage: node tools/docs-index.mjs [--check]
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {linkProblems, markdownLinks, readMoves, writeStubs} from './docs-links.mjs';
-import {lintProblems} from './docs-lint.mjs';
+import {budgetProblems, lintProblems} from './docs-lint.mjs';
 import {packageStatusTable, tableFile} from './package-status.mjs';
 import {docFacts} from './doc-facts.mjs';
+import {helpGuideProblems} from './help-pages.mjs';
+import {documentationPages, documentationProblems, frontMatterBlock, pageMeta} from './docs-front-matter.mjs';
+import {statusProblems} from './docs-status.mjs';
+import {findingsProblems} from './findings-register.mjs';
 
-const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
-  target = path.join(docs, 'README.md');
-// The guides and references placed by hand, tier by tier: the operators' sections first, then the engineers'.
-const sections = [
-  ['Status and decisions', ['CURRENT-READINESS.md', 'DECISIONS.md', 'review/PACKAGE-STATUS.md', 'PROVIDER-ACCESS.md']],
-  [
-    'Operate and deploy',
-    [
-      'DEPLOY-RAILWAY.md',
-      'OPERATIONS.md',
-      'USER-ACCOUNTS.md',
-      'TEST-ACCOUNTS.md',
-      'OAUTH-HARDENING.md',
-      'GOOGLE-VERIFICATION.md',
-      'SANDBOX-VERIFICATION.md',
-      'LOCAL-BROWSER-QA.md',
-      'review/MCP-EVALUATION-RECORD-TEMPLATE.md',
-    ],
-  ],
-  [
-    'Workflow guides',
-    [
-      'WRITE-OPERATIONS.md',
-      'MEDIA-UPLOADS.md',
-      'AD-PREVIEWS.md',
-      'REPORTING-OVERVIEW.md',
-      'WORKSPACE-OPERATIONS.md',
-      'PRODUCT-WORKFLOWS.md',
-    ],
-  ],
-  ['Platform guides', ['MEASUREMENT-AND-APPLE.md', 'MICROSOFT-ADS.md', 'REDDIT.md']],
-  [
-    'Engineering',
-    [
-      'review/ARCHITECTURE.md',
-      'CONTRACTS.md',
-      'ADDING-A-REVIEWED-FAMILY.md',
-      'ADDING-A-DOCUMENT-KIND.md',
-      'DOCUMENT-KINDS.md',
-      'AMCP-IDENTITY.md',
-      'DESIGN-SYSTEM.md',
-      'review/THREAT-MODEL.md',
-      'review/PERSONAL-DATA-POLICY.md',
-      'review/MCP-SECURITY-CALIBRATION.md',
-      'review/ACCESSIBILITY.md',
-    ],
-  ],
-  [
-    'Reviews and plans',
-    [
-      'review/FINDINGS.md',
-      'review/COVERAGE.md',
-      'review/ROADMAP.md',
-      'review/PRODUCT-BLUEPRINT-2026-10-01.md',
-      'review/IMPLEMENTATION-2026-10-01.md',
-    ],
-  ],
-];
-// The folders listed as they are: owner guide, runbooks, records and archive. docs/implementation is listed below.
+const root = fileURLToPath(new URL('..', import.meta.url)),
+  docs = path.join(root, 'docs'),
+  target = path.join(docs, 'README.md'),
+  check = process.argv.includes('--check');
+/** The group a page's folder gives it within its section (folders, not documents: a new page needs no entry here). */
+const folderGroups = {
+  docs: 'Guides',
+  'docs/operations': 'Operating tasks',
+  'docs/workflows': 'Workflow guides',
+  'docs/acceptance': 'Acceptance runbooks',
+  'docs/review': 'Status, reviews and policies',
+  'docs/implementation': 'Generated reports',
+};
 const owner = 'owner',
-  arabic = 'owner/ar',
-  folders = ['acceptance', 'records', 'archive'];
+  arabic = 'owner/ar';
 const platforms = [
   ['GOOGLE', 'Google'],
   ['META', 'Meta'],
@@ -96,53 +55,53 @@ const title = file => {
   if (!heading) throw Error('docs/' + file + ' has no title (a "# " heading).');
   return heading[1].trim();
 };
-const listing = directory =>
+const cell = text => text.replace(/\|/g, '\\|');
+const {moves} = readMoves(root),
+  stubs = new Set([...moves.keys()].filter(file => file.startsWith('docs/')));
+const problems = [];
+// The three-axis package status (DOC-02): its data must validate, and its generated table is written and checked here.
+const status = packageStatusTable(root),
+  statusTarget = path.join(root, tableFile);
+for (const problem of status.problems) problems.push('package status: ' + problem);
+// DOC-01: the current pages' generated facts (tools/doc-facts.mjs), checked or written with the index. It needs dist/.
+const facts = docFacts(root, {write: !check});
+for (const problem of facts.problems) problems.push('documentation facts: ' + problem);
+// DOC-03: the status page, generated from the package status, those facts, provider access and the latest record.
+problems.push(...statusProblems(root, facts.facts, {write: !check}));
+// DOC-03: the members-only Help page's fragments (tools/help-pages.mjs) are the owner guide as it is now.
+problems.push(...helpGuideProblems(root, {write: !check}));
+// DOC-03: the findings register's open and closed views (tools/findings-register.mjs).
+problems.push(...findingsProblems(root, {write: !check}));
+// The generated pages and the redirect stubs are written first, so the index below lists and checks them as they are.
+if (!check) writeStubs(root);
+problems.push(...documentationProblems(root, stubs));
+
+// Every page under docs/ but the index and the stubs, with its meta data (docs-relative paths).
+const pages = documentationPages(root)
+  .filter(file => file.startsWith('docs/') && file !== 'docs/README.md' && !stubs.has(file))
+  .map(file => ({file: file.slice('docs/'.length), meta: pageMeta(root, file) ?? {}}))
+  .filter(page => page.meta.status);
+
+// The owner guide: the English pages in the order its README links them, each beside its Arabic translation.
+const markdown = directory =>
   fs.existsSync(path.join(docs, directory))
     ? fs
         .readdirSync(path.join(docs, directory), {withFileTypes: true})
-        .filter(entry => entry.isFile())
-        .map(entry => (directory ? directory + '/' : '') + entry.name)
+        .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+        .map(entry => directory + '/' + entry.name)
         .sort()
     : [];
-const markdown = directory => listing(directory).filter(f => f.endsWith('.md'));
-const stubs = new Set(
-  [...readMoves(fileURLToPath(new URL('..', import.meta.url))).moves.keys()]
-    .filter(file => file.startsWith('docs/'))
-    .map(file => file.slice('docs/'.length)),
-);
-const problems = [];
-const placed = sections.flatMap(([, files]) => files);
-for (const file of placed) {
-  if (stubs.has(file)) problems.push('docs/' + file + ' moved (docs/moved.json); place its new address instead');
-  else if (!fs.existsSync(path.join(docs, file))) problems.push('docs/' + file + ' does not exist');
-}
-if (new Set(placed).size !== placed.length) problems.push('a document is placed twice');
-
-// Every Markdown document under docs/ is listed: placed, in a listed folder, an implementation record, or a stub.
-const listedFolders = new Set([owner, arabic, ...folders, 'implementation']);
-const walk = directory =>
-  fs.readdirSync(path.join(docs, directory), {withFileTypes: true}).flatMap(entry => {
-    const file = (directory ? directory + '/' : '') + entry.name;
-    return entry.isDirectory() ? walk(file) : file.endsWith('.md') ? [file] : [];
-  });
-for (const file of walk('')) {
-  if (file === 'README.md' || stubs.has(file) || placed.includes(file)) continue;
-  if (!listedFolders.has(path.posix.dirname(file)))
-    problems.push('place docs/' + file + ' in a section of tools/docs-index.mjs');
-}
-
-// The owner guide: the English pages in the order its README links them, each beside its Arabic translation.
 const ownerPages = (() => {
-  const pages = markdown(owner);
-  if (!pages.length) return [];
+  const english = markdown(owner);
+  if (!english.length) return [];
   const index = owner + '/README.md',
     order = [index];
   for (const link of markdownLinks(read(index))) {
     const page = path.posix.normalize(owner + '/' + link.target.split('#')[0]);
-    if (pages.includes(page) && !order.includes(page)) order.push(page);
+    if (english.includes(page) && !order.includes(page)) order.push(page);
   }
-  for (const page of pages) if (!order.includes(page)) problems.push('docs/' + index + ' does not link docs/' + page);
-  for (const page of pages) {
+  for (const page of english) if (!order.includes(page)) problems.push('docs/' + index + ' does not link docs/' + page);
+  for (const page of english) {
     const translation = arabic + '/' + path.posix.basename(page);
     if (!fs.existsSync(path.join(docs, translation)))
       problems.push('docs/' + page + ' has no Arabic translation docs/' + translation);
@@ -150,35 +109,40 @@ const ownerPages = (() => {
   for (const page of markdown(arabic))
     if (!fs.existsSync(path.join(docs, owner, path.posix.basename(page))))
       problems.push('docs/' + page + ' translates no English page of docs/' + owner);
-  return order.filter(page => pages.includes(page));
+  return order.filter(page => english.includes(page));
 })();
 
 const lines = [
+  frontMatterBlock({status: 'current', tier: 'operator', generated: 'tools/docs-index.mjs'}).trimEnd(),
+  '',
   '# AMCP documentation',
   '',
-  'Generated by `npm run docs:index`; `npm run check` fails when it is out of date. Each document is listed with its own',
-  'title: the owner guide, runbooks, records, archive and implementation records from their folders, every other guide',
-  'from the section `tools/docs-index.mjs` places it in. Start with the [repository README](../README.md) for what AMCP',
-  'is.',
+  'Generated by `npm run docs:index` from each page’s front matter; `npm run check` fails when it is out of date. Each',
+  'document is listed with its own title, where its status and tier place it. Start with the',
+  '[repository README](../README.md) for what AMCP is and the [status page](STATUS.md) for where it stands.',
   '',
   'The documentation has three tiers, one for each reader (owner decision P12):',
   '',
   '- **Workspace owners** at agencies and in-house teams: the [owner guide](#owner-guide), in English with a complete',
-  '  Arabic translation. Plain language, task by task, and what stays the owner’s to do.',
-  '- **Operators** who deploy, configure and accept AMCP: [status and decisions](#status-and-decisions),',
-  '  [operate and deploy](#operate-and-deploy), [acceptance](#acceptance), the [workflow guides](#workflow-guides) and',
-  '  the [platform guides](#platform-guides).',
-  '- **Engineers** who change AMCP: [engineering](#engineering), [reviews and plans](#reviews-and-plans) and the',
-  '  [implementation records](#implementation-records).',
+  '  Arabic translation, which members also read on the website under **Help**. Plain language, task by task, and',
+  '  what stays the owner’s to do.',
+  '- **Operators** who deploy, configure and accept AMCP: [operate AMCP](#operate-amcp), the current pages, and the',
+  '  [operator reference](#operator-reference) they consult on demand.',
+  '- **Engineers** who change AMCP: the [engineering reference](#engineering-reference),',
+  '  [plans and proposals](#plans-and-proposals) and the [implementation records](#implementation-records).',
   '',
-  'Dated delivery records and superseded reviews are kept as they were written, under [records](#records) and',
-  '[archive](#archive). A document that moved keeps a redirect stub at its old address ([moves](moved.json)).',
+  'Each page opens with its front matter: its **status** (*current*: what is true now, kept short; *reference*: detail',
+  'consulted on demand; *record*: dated and kept as written; *proposal*; *archived*) and its **tier** (owner, operator',
+  'or engineering). Dated delivery records and superseded reviews are under [records](#records) and [archive](#archive).',
+  'A document that moved keeps a redirect stub at its old address ([moves](moved.json)).',
   '',
   'Keeping it current: a current page says what is true now, so the history of a delivery belongs in its commit or a',
-  'record, never in a guide. `npm run docs:index:check` refuses a broken relative link anywhere in the repository and,',
-  'on a current page, a new heading naming a batch, a commit reference, a typed package count (link the',
-  '[package status](review/PACKAGE-STATUS.md) instead) or a long line repeated from another current page',
-  '(`tools/docs-lint.mjs`). To move or rename a document, add it to [moves](moved.json) and run',
+  'record, never in a guide. `npm run docs:index:check` refuses a page without valid front matter, a broken relative',
+  'link anywhere in the repository and, on a current or reference page, a new heading naming a batch, a commit',
+  'reference, a typed package count (link the [package status](review/PACKAGE-STATUS.md) instead) or a long line',
+  'repeated from another such page (`tools/docs-lint.mjs`). The owner and operator tiers’ current pages keep within a',
+  'budget of 25,000 words, and the reference pages’ total may only fall unless an increase is recorded with its reason',
+  '([decisions](DECISIONS.md), 2026-10-24). To move or rename a document, add it to [moves](moved.json) and run',
   '`node tools/docs-links.mjs --write`, which rewrites every link to it and writes the stub.',
   '',
 ];
@@ -189,46 +153,66 @@ if (ownerPages.length) {
     const translation = arabic + '/' + path.posix.basename(page);
     lines.push(
       '| [' +
-        title(page).replace(/\|/g, '\\|') +
+        cell(title(page)) +
         '](' +
         page +
         ') | ' +
-        (fs.existsSync(path.join(docs, translation))
-          ? '[' + title(translation).replace(/\|/g, '\\|') + '](' + translation + ')'
-          : '') +
+        (fs.existsSync(path.join(docs, translation)) ? '[' + cell(title(translation)) + '](' + translation + ')' : '') +
         ' |',
     );
   }
   lines.push('');
 }
-const placedSection = name => {
-  const [, files] = sections.find(([n]) => n === name);
-  lines.push('## ' + name, '');
-  for (const file of files) if (fs.existsSync(path.join(docs, file)) && !stubs.has(file)) lines.push(row(file));
-  lines.push('');
+/** A section of pages, grouped by folder (the folders in folderGroups' order, then any other) and ordered by title. */
+const section = (heading, intro, selected) => {
+  lines.push('## ' + heading, '', intro, '');
+  const groupOf = page => {
+      const folder = path.posix.dirname('docs/' + page.file);
+      return folderGroups[folder] ?? folder;
+    },
+    order = [...Object.values(folderGroups)],
+    groups = [...new Set(selected.map(groupOf))].sort(
+      (a, b) =>
+        (order.indexOf(a) + 1 || order.length + 1) - (order.indexOf(b) + 1 || order.length + 1) || a.localeCompare(b),
+    );
+  for (const group of groups) {
+    const members = selected
+      .filter(page => groupOf(page) === group)
+      .sort((a, b) => title(a.file).localeCompare(title(b.file), 'en') || a.file.localeCompare(b.file));
+    lines.push('### ' + group, '', ...members.map(page => row(page.file)), '');
+  }
 };
-placedSection('Status and decisions');
-placedSection('Operate and deploy');
-// ACC-01 to ACC-08: the owner-run acceptance runbooks, their index first.
-const runbooks = markdown('acceptance');
-lines.push('## Acceptance', '');
-for (const file of [
-  ...runbooks.filter(f => f.endsWith('/README.md')),
-  ...runbooks.filter(f => !f.endsWith('/README.md')),
-])
-  lines.push(row(file));
-lines.push('');
-placedSection('Workflow guides');
-placedSection('Platform guides');
-placedSection('Engineering');
-placedSection('Reviews and plans');
+const is = (page, status, tiers) => page.meta.status === status && tiers.includes(page.meta.tier);
+section(
+  'Operate AMCP',
+  'The current pages for whoever deploys, configures, accepts and runs AMCP: what is true now.',
+  pages.filter(page => is(page, 'current', ['operator'])),
+);
+section(
+  'Operator reference',
+  'Detail operators consult on demand: the workflow and platform guides, the acceptance runbooks and the decisions.',
+  pages.filter(page => is(page, 'reference', ['operator'])),
+);
+section(
+  'Engineering reference',
+  'How AMCP is built and checked, for whoever changes it.',
+  pages.filter(page => ['current', 'reference'].includes(page.meta.status) && page.meta.tier === 'engineering'),
+);
+section(
+  'Plans and proposals',
+  'Plans and proposals that are not the product; [decisions](DECISIONS.md) records what became of them.',
+  pages.filter(page => page.meta.status === 'proposal'),
+);
 
 // Implementation records: a dated account of how one family or change was built and verified. A record's
 // NAME-VERIFICATION-DATE.json holds its machine-checked evidence.
-const implementation = fs.readdirSync(path.join(docs, 'implementation')).sort();
+const implementation = fs.readdirSync(path.join(docs, 'implementation')).sort(),
+  implementationRecords = new Set(
+    pages.filter(p => p.file.startsWith('implementation/') && p.meta.status === 'record').map(p => p.file),
+  );
 const evidenceOf = file => file.replace(/-(\d{4}-\d{2}-\d{2})\.md$/, '-VERIFICATION-$1.json');
 const records = implementation
-  .filter(f => f.endsWith('.md'))
+  .filter(f => implementationRecords.has('implementation/' + f))
   .map(file => {
     const evidence = evidenceOf(file),
       prefix = file.split('-')[0],
@@ -262,7 +246,7 @@ for (const group of [...platforms.map(([, name]) => name), 'Across platforms']) 
       '| ' +
         (r.date || '—') +
         ' | [' +
-        r.title.replace(/\|/g, '\\|') +
+        cell(r.title) +
         '](implementation/' +
         r.file +
         ') | ' +
@@ -279,47 +263,51 @@ lines.push('');
 // Records and the archive: listed by date (from the file name; an undated record first), never edited except for a
 // link to the address of a document that moved.
 const dated = file => file.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? '';
-const folder = (name, heading, intro) => {
-  const files = listing(name),
-    pages = files.filter(f => f.endsWith('.md')).sort((a, b) => dated(a).localeCompare(dated(b)) || a.localeCompare(b));
+const byDate = (heading, intro, selected, dataFolder) => {
+  const sorted = selected.map(page => page.file).sort((a, b) => dated(a).localeCompare(dated(b)) || a.localeCompare(b));
   lines.push('## ' + heading, '', intro, '', '| Date | Document |', '|---|---|');
-  for (const file of pages)
-    lines.push('| ' + (dated(file) || '—') + ' | [' + title(file).replace(/\|/g, '\\|') + '](' + file + ') |');
-  const other = files.filter(f => !f.endsWith('.md'));
+  for (const file of sorted) lines.push('| ' + (dated(file) || '—') + ' | [' + cell(title(file)) + '](' + file + ') |');
+  const other = fs.existsSync(path.join(docs, dataFolder))
+    ? fs
+        .readdirSync(path.join(docs, dataFolder), {recursive: true})
+        .map(f => dataFolder + '/' + String(f).replaceAll('\\', '/'))
+        .filter(f => !f.endsWith('.md') && fs.statSync(path.join(docs, f)).isFile())
+        .sort()
+    : [];
   if (other.length)
     lines.push('', 'Data: ' + other.map(f => '[' + path.posix.basename(f) + '](' + f + ')').join(', ') + '.');
   lines.push('');
 };
-folder(
-  'records',
+byDate(
   'Records',
   'What was delivered, measured or found on a given day, kept as written: the delivery records of the October 2026\n' +
-    'review, the incident record, the design review, each deployment with the revisions it shipped, the September\n' +
-    'progress log, and the batch history that the write coverage and implementation pages held until the documentation\n' +
-    'freeze.',
+    'review, the incident record, the design review, each deployment and qualification with the revisions it covered,\n' +
+    'the September progress log, and the delivery history the current guides held until the documentation freeze and\n' +
+    'its consolidation moved it here.',
+  pages.filter(page => page.meta.status === 'record' && !page.file.startsWith('implementation/')),
+  'records',
 );
-folder(
-  'archive',
+byDate(
   'Archive',
   'Reviews, summaries and proposals that later documents superseded, kept for their history: their recommendations\n' +
     'have dispositions in [decisions](DECISIONS.md), and the current state is in the sections above.',
+  pages.filter(page => page.meta.status === 'archived'),
+  'archive',
 );
 const text = lines.join('\n').replace(/\n+$/, '') + '\n';
+// Every page is listed once: a page the sections above leave out has a status or tier no section takes.
+const listed = new Set([...text.matchAll(/\]\(((?!\.\.\/|#|https?:)[^)#]+)\)/g)].map(m => m[1]));
+for (const page of pages)
+  if (!listed.has(page.file) && !page.file.startsWith(owner + '/'))
+    problems.push(
+      'docs/' + page.file + ' (' + page.meta.status + ', ' + page.meta.tier + ') has no place in the index',
+    );
 
-// The three-axis package status (DOC-02): its data must validate, and its generated table is written and checked here.
-const root = fileURLToPath(new URL('..', import.meta.url)),
-  status = packageStatusTable(root),
-  statusTarget = fileURLToPath(new URL('../' + tableFile, import.meta.url));
-for (const problem of status.problems) problems.push('package status: ' + problem);
-// DOC-01: the current pages' generated facts (tools/doc-facts.mjs), checked or written with the index. It needs dist/.
-const facts = docFacts(root, {write: !process.argv.includes('--check')});
-for (const problem of facts.problems) problems.push('documentation facts: ' + problem);
 if (problems.length) {
   console.error('Documentation index: ' + problems.join('; '));
   process.exit(1);
 }
 const count = (text.match(/\]\((?!\.\.\/|#|moved\.json)[^)]+\)/g) ?? []).length;
-const check = process.argv.includes('--check');
 if (check) {
   if (!fs.existsSync(target) || fs.readFileSync(target, 'utf8') !== text) {
     console.error('docs/README.md is out of date. Run npm run docs:index.');
@@ -342,8 +330,9 @@ if (links.length) {
   );
   process.exit(1);
 }
-// DOC-03: current pages collect no new batch headings, commit references or repeated long lines.
-const lint = lintProblems(root);
+// DOC-03: maintained pages collect no new batch headings, commit references or repeated long lines, and the page sets
+// keep to their size targets.
+const lint = [...lintProblems(root), ...budgetProblems(root)];
 if (lint.length) {
   console.error('Documentation freeze (tools/docs-lint.mjs):\n' + lint.join('\n'));
   process.exit(1);

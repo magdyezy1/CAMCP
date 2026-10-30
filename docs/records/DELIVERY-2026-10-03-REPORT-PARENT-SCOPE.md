@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Tag Manager and Business Profile report recovery
 
 Batch 121, 2026-10-03. Repository magdyezy1/CAMCP; sole branch Work-here. Baseline d91cfd7.

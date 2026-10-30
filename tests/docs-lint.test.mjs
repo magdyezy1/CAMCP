@@ -10,11 +10,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   baselineFile,
+  budgetProblems,
   commitRecordPages,
   currentPages,
   lintProblems,
   measure,
   packageCounts,
+  readBaseline,
   summary,
   writeBaseline,
 } from '../tools/docs-lint.mjs';
@@ -45,37 +47,51 @@ test('the repository keeps the documentation freeze, and the owner guide starts 
   for (const file of pages) assert.doesNotMatch(file, /^docs\/(?:records|archive|implementation)\//);
   for (const file of ['docs/README.md', 'docs/CONTRACTS.md', 'docs/review/PACKAGE-STATUS.md', 'docs/review/SUMMARY.md'])
     assert.ok(!pages.includes(file), file);
-  // The review's targets: the duplicate-line share is under 5% (it was 6.8% before the batch history below moved);
-  // the word count still waits on consolidating the long guides, so it is measured, not asserted.
+  // The review's targets: the duplicate-line share is under 5% (6.8% before the batch history below moved, 1.8% before
+  // the consolidation of 2026-10-24), and the owner and operator tiers' current pages keep within about 25,000 words
+  // (46,536 before the operations runbook and the workflow guide were split into task pages). The reference pages
+  // keep within the total the baseline records.
   const s = summary('.');
   assert.equal(s.targets.words, 25000);
-  assert.ok(s.duplicate_share > 0 && s.duplicate_share < s.targets.duplicate_share, String(s.duplicate_share));
+  assert.ok(s.duplicate_share < s.targets.duplicate_share, String(s.duplicate_share));
+  assert.ok(s.budget_words > 0 && s.budget_words <= s.targets.words, String(s.budget_words));
+  assert.equal(s.unclassified_words, 0, 'every maintained page says its tier');
+  assert.equal(s.reference_words, s.engineering_words + s.operator_reference_words);
+  assert.deepEqual(budgetProblems('.'), []);
+  assert.ok(s.reference_words <= readBaseline('.').totals.reference_words);
 });
 
 // DOC-03 implementation path, step 4: the batch sections of the write coverage and implementation pages are delivery
 // history. They held 106 batch headings and 335 long lines repeated on other current pages, about half of all the
 // repetition across current pages; they now live in docs/records/, kept as written, and each page links its history.
+// The implementation page itself is the dated matrix of 1 October 2026, "no longer updated" by its own words, with the
+// batch notes of 113 to 158 under it: since the consolidation of 2026-10-24 its front matter says it is a record, so the
+// freeze and the size report no longer read it as a maintained page (before, they did).
 test('the coverage and implementation pages keep no batch history; their records hold it, linked both ways', () => {
   const {counts} = measure('.'),
     pages = currentPages('.');
-  for (const [page, record, first, last] of [
-    ['docs/review/COVERAGE.md', 'docs/records/COVERAGE-BATCH-HISTORY.md', '## Done in batch 49', '## Batch 181 '],
+  for (const [page, record, first, last, maintained] of [
+    ['docs/review/COVERAGE.md', 'docs/records/COVERAGE-BATCH-HISTORY.md', '## Done in batch 49', '## Batch 181 ', true],
     [
       'docs/review/IMPLEMENTATION-2026-10-01.md',
       'docs/records/IMPLEMENTATION-2026-10-01-BATCH-HISTORY.md',
       '## Batch 160 ',
       '## Batch 192 ',
+      false,
     ],
   ]) {
     const text = fs.readFileSync(page, 'utf8'),
       history = fs.readFileSync(record, 'utf8');
-    assert.equal(counts[page].batch_headings, 0, page);
-    assert.equal(counts[page].duplicate_lines, 0, page);
     assert.doesNotMatch(text, /^## .*\bbatch(?:es)?\s+\d+/im, page);
     assert.ok(text.includes('](../records/' + path.posix.basename(record) + ')'), page + ' links its history');
     assert.ok(history.includes('](../review/' + path.posix.basename(page) + ')'), record + ' links its page');
     assert.ok(history.includes('\n' + first) && history.includes('\n' + last), record);
-    assert.ok(pages.includes(page) && !pages.includes(record), record + ' is a record, not a current page');
+    assert.ok(!pages.includes(record), record + ' is a record, not a current page');
+    assert.equal(pages.includes(page), maintained, page);
+    if (maintained) {
+      assert.equal(counts[page].batch_headings, 0, page);
+      assert.equal(counts[page].duplicate_lines, 0, page);
+    } else assert.match(text, /^---\nstatus: record\n/, page + ' says it is a record');
   }
 });
 
@@ -150,6 +166,80 @@ test('a new batch heading, commit reference, package count or repeated long line
     [
       'docs/GUIDE.md: 1 literal package counts (link docs/review/PACKAGE-STATUS.md, generated from the package status, instead), above 0',
     ],
+  );
+});
+
+/** A page with front matter and about `words` words of prose in short lines (no line is a long line). */
+const sized = (status, tier, words, mark = 'w') => {
+  const body = Array.from({length: words - 2}, (_, i) => mark + i),
+    lines = [];
+  for (let i = 0; i < body.length; i += 8) lines.push(body.slice(i, i + 8).join(' '));
+  return '---\nstatus: ' + status + '\ntier: ' + tier + '\n---\n\n# Page\n\n' + lines.join('\n') + '\n';
+};
+
+// DOC-03, the consolidation of 2026-10-24: the size targets are enforced, not only measured. The owner and operator
+// tiers' current pages keep within the review's about 25,000 words, the duplicate-line share stays under 5%, and the
+// reference pages (the engineering tier, and the owner and operator references) keep within the total the baseline
+// records, which may only fall unless an increase is recorded with its reason. Before, the lint reported the word
+// count and refused nothing, so a current page could grow without limit or leave the budget for a reference page.
+test('the budget, the duplicate-line share and the recorded reference total are enforced; an increase needs its reason', t => {
+  const root = temporary(t);
+  write(root, 'README.md', '# Repo\n\nA short landing page.\n');
+  write(root, 'docs/GUIDE.md', sized('current', 'operator', 24000, 'g'));
+  write(root, 'docs/owner/README.md', sized('current', 'owner', 500, 'o'));
+  write(root, 'docs/ENGINEERING.md', sized('reference', 'engineering', 1000, 'e'));
+  write(root, 'docs/WORKFLOW.md', sized('reference', 'operator', 600, 'f'));
+  write(root, 'docs/records/RECORD-2026-10-01.md', sized('record', 'operator', 9000, 'r'));
+  let s = summary(root);
+  assert.deepEqual(
+    [s.budget_words, s.reference_words, s.engineering_words, s.operator_reference_words],
+    [24506, 1600, 1000, 600],
+    'records are outside both totals',
+  );
+  // No baseline yet: the budget and the duplicate share are checked, there is no recorded total to compare.
+  assert.deepEqual(budgetProblems(root), []);
+  writeBaseline(root);
+  assert.equal(readBaseline(root).totals.reference_words, 1600);
+  // A current page that grows past the budget is refused.
+  write(root, 'docs/GUIDE.md', sized('current', 'operator', 24600, 'g'));
+  assert.deepEqual(budgetProblems(root), [
+    'the owner and operator current pages hold 25106 words, above their budget of 25000: move detail to a reference page or a record, or shorten them',
+  ]);
+  // Calling it a reference page moves its words to the reference total, which is above what the baseline records.
+  write(root, 'docs/GUIDE.md', sized('reference', 'operator', 24600, 'g'));
+  s = summary(root);
+  assert.deepEqual([s.budget_words, s.reference_words], [506, 26200]);
+  assert.deepEqual(budgetProblems(root), [
+    'the reference pages (engineering, and the owner and operator references) hold 26200 words, above the 1600 recorded in tools/docs-lint-baseline.json: shorten them, or record why with node tools/docs-lint.mjs --write --allow-increase=<reason>',
+  ]);
+  assert.throws(() => writeBaseline(root), /reference_words 1600 → 26200[\s\S]*--allow-increase/);
+  writeBaseline(root, 'the guide is detail operators consult on demand');
+  assert.deepEqual(readBaseline(root).increases, [
+    {reason: 'the guide is detail operators consult on demand', raised: ['reference_words 1600 → 26200']},
+  ]);
+  assert.deepEqual(budgetProblems(root), []);
+  // Shortening lowers the record on the next write, which needs no reason; growing again is refused.
+  write(root, 'docs/GUIDE.md', sized('reference', 'operator', 20000, 'g'));
+  writeBaseline(root);
+  assert.equal(readBaseline(root).totals.reference_words, 21600);
+  write(root, 'docs/ENGINEERING.md', sized('reference', 'engineering', 1100, 'e'));
+  assert.equal(budgetProblems(root).length, 1);
+  write(root, 'docs/ENGINEERING.md', sized('reference', 'engineering', 1000, 'e'));
+  assert.deepEqual(budgetProblems(root), []);
+  // The duplicate-line share: one long line of two maintained pages out of three long lines is not under 5%.
+  write(root, 'docs/ENGINEERING.md', sized('reference', 'engineering', 1000, 'e') + '\n' + long + '\n');
+  write(root, 'docs/WORKFLOW.md', sized('reference', 'operator', 600, 'f') + '\n' + long + '\n');
+  write(
+    root,
+    'docs/owner/README.md',
+    sized('current', 'owner', 500, 'o') + '\nThis owner line is long enough to count, at seventy characters or more.\n',
+  );
+  s = summary(root);
+  assert.deepEqual([s.long_lines, s.duplicate_lines], [3, 2]);
+  assert.ok(
+    budgetProblems(root).includes(
+      'the duplicate-line share is 66.7%, not under 5%: keep each fact in one place and link to it',
+    ),
   );
 });
 

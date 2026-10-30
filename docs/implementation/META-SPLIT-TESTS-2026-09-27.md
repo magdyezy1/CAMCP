@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta split tests — 2026-09-27
 
 Base revision: `b271e1f` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

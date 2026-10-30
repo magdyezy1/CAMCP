@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 inventory source groups — 2026-09-27
 
 Base revision: `b45a4b5` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

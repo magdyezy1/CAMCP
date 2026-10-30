@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn field projections and read-only live acceptance
 
 Batch 181 corrects a reproduced native reporting defect. A LinkedIn account analytics read

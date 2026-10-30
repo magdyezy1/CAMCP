@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Business Profile location hours and contact details — 2026-09-27
 
 Base revision: `b84a511` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

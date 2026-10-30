@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Current Google conversion activity dates
 
 Baseline: `764936e`. Batch 142 advances B08/B15/B16/B17/B20/B24 with selected aggregate observations for

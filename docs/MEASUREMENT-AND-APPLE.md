@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # GA4, Google tag, Search Console and Apple Ads
 
 The Connections page includes all four providers. Each login has encrypted credentials and explicit resource grants. Connecting discovers resources; select resources and save before an MCP reader can use them. These integrations support reads, native previews and the reviewed mutations below when MIRROR_ALLOW_WRITES=true. Each resource also needs an administrator write grant and an operator connector.

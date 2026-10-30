@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Business Profile discovery through MCP — 2026-09-25
 
 Base revision: `b372c660a4d11df1fee2e37b55891ded1085f1b6`, only

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 129 — source-bound LinkedIn daily-budget drafts
 
 Only `magdyezy1/CAMCP`, branch `Work-here`, in `CAMCP-Codes-final-branch`. This advances the original

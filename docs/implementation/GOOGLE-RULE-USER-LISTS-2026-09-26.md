@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads rule-based remarketing lists — 2026-09-26
 
 Base revision: `1d971f2` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -145,9 +145,12 @@ test('a link to a moved address is refused until rewritten; the rewrite re-bases
     fs.readFileSync(path.join(root, 'README.md'), 'utf8'),
     '# AMCP\n\n[record](docs/records/DELIVERY-A.md)\n',
   );
+  // DOC-03: every documentation page opens with its front matter; a stub is archived, for its target's tier (a page
+  // without front matter, as here, is for engineering). Before, a stub had none.
   assert.equal(
     fs.readFileSync(path.join(root, 'docs/review/DELIVERY-A.md'), 'utf8'),
-    '# Moved: Delivery — 1 October 2026\n\nThis document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and ' +
+    '---\nstatus: archived\ntier: engineering\n---\n\n' +
+      '# Moved: Delivery — 1 October 2026\n\nThis document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and ' +
       'history are kept at\n[docs/records/DELIVERY-A.md](../records/DELIVERY-A.md); this page only keeps links to the ' +
       'old address working.\n',
   );
@@ -165,6 +168,74 @@ test('a link to a moved address is refused until rewritten; the rewrite re-bases
       'docs/moved.json: docs/records/DELIVERY-B.md (moved from docs/review/DELIVERY-B.md) does not exist',
     ),
   );
+});
+
+// DOC-03, the consolidation of 2026-10-24: a long guide's sections moved to task pages. docs/moved.json lists each
+// moved section (old page#anchor to new page#anchor) under a later batch with its date and decision. A link to the old
+// section is refused until rewritten, the rewrite names the task page, and the old page must keep an anchor of the
+// section's name, so a link from outside the repository still lands beside a pointer to the new place. Before, a moved
+// section's inbound links were checked only as anchors of the old page, which a hub keeping the anchor would pass.
+test('a moved section: links to it are rewritten to its task page, and its old page keeps the anchor', t => {
+  const root = temporary(t);
+  write(
+    root,
+    'docs/OPERATIONS.md',
+    '# Operations\n\n| Section | Now in |\n|---|---|\n| <a id="restore-drill"></a>Restore drill | ' +
+      '[Backups](operations/BACKUPS.md#restore-drill) |\n',
+  );
+  write(root, 'docs/operations/BACKUPS.md', '# Backups\n\n## Restore drill\n\nRun it once.\n');
+  write(
+    root,
+    'README.md',
+    '# AMCP\n\nSee the [drill](docs/OPERATIONS.md#restore-drill) and the [runbook](docs/OPERATIONS.md).\n',
+  );
+  write(root, 'docs/DECISIONS.md', '# Decisions\n\n[drill](OPERATIONS.md#Restore-Drill)\n');
+  write(
+    root,
+    'docs/moved.json',
+    JSON.stringify({
+      date: '2026-10-22',
+      moved: {},
+      later: [
+        {
+          date: '2026-10-24',
+          decision: 'DOC-03, owner instruction of 2026-10-24',
+          moved: {},
+          sections: {'docs/OPERATIONS.md#restore-drill': 'docs/operations/BACKUPS.md#restore-drill'},
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    readMoves(root).sections,
+    new Map([['docs/OPERATIONS.md#restore-drill', 'docs/operations/BACKUPS.md#restore-drill']]),
+  );
+  assert.deepEqual(linkProblems(root), [
+    'README.md:3: docs/OPERATIONS.md#restore-drill names the old address of the section docs/operations/BACKUPS.md#restore-drill (node tools/docs-links.mjs --write)',
+    'docs/DECISIONS.md:3: OPERATIONS.md#Restore-Drill names the old address of the section docs/operations/BACKUPS.md#restore-drill (node tools/docs-links.mjs --write)',
+  ]);
+  assert.deepEqual(rewriteLinks(root).sort(), ['README.md', 'docs/DECISIONS.md']);
+  assert.equal(
+    fs.readFileSync(path.join(root, 'README.md'), 'utf8'),
+    '# AMCP\n\nSee the [drill](docs/operations/BACKUPS.md#restore-drill) and the [runbook](docs/OPERATIONS.md).\n',
+  );
+  assert.equal(
+    fs.readFileSync(path.join(root, 'docs/DECISIONS.md'), 'utf8'),
+    '# Decisions\n\n[drill](operations/BACKUPS.md#restore-drill)\n',
+  );
+  assert.deepEqual(linkProblems(root), []);
+  // The old page must keep the anchor, and the task page must hold the section.
+  write(root, 'docs/OPERATIONS.md', '# Operations\n\nSee the task pages.\n');
+  assert.deepEqual(linkProblems(root), [
+    'docs/OPERATIONS.md: keeps no anchor "restore-drill" pointing to its moved section docs/operations/BACKUPS.md#restore-drill',
+  ]);
+  write(root, 'docs/OPERATIONS.md', '# Operations\n\n<a id="restore-drill"></a>Restore drill moved.\n');
+  write(root, 'docs/operations/BACKUPS.md', '# Backups\n\n## Drill\n');
+  assert.deepEqual(linkProblems(root), [
+    'docs/moved.json: the section docs/operations/BACKUPS.md#restore-drill (moved from docs/OPERATIONS.md#restore-drill) does not exist',
+    'README.md:3: docs/operations/BACKUPS.md#restore-drill names no heading or anchor in docs/operations/BACKUPS.md',
+    'docs/DECISIONS.md:3: operations/BACKUPS.md#restore-drill names no heading or anchor in docs/operations/BACKUPS.md',
+  ]);
 });
 
 test('headings get GitHub’s anchors, repeats numbered, in any script; links are found only outside code', () => {

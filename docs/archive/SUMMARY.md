@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Review summary for the owner
 
 **Archived on 2026-10-22** (DOC-03, owner decision P12): kept as it was written, with links to current addresses.

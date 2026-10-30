@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Authorization at each provider attempt — 2026-09-25
 
 Base revision: `8672f3a992fd423b99351a75ee904d4100988e04`, only

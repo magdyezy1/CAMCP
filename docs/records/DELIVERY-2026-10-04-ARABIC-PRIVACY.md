@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Complete static Arabic privacy page and language-aware navigation
 
 Batch 151 supplies a complete Arabic counterpart to the published English privacy policy, including

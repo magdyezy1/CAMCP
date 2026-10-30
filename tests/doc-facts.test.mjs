@@ -165,17 +165,20 @@ test('every current page takes its counts from a marker; only a listed dated lin
     'docs/PRODUCT-WORKFLOWS.md:3: "26 tools" — a hand-typed tool count: use <!-- fact:tools_writes --> or <!-- fact:tools_read_only -->.',
   ]);
   page('docs/PRODUCT-WORKFLOWS.md', '# Product workflows\n');
-  // A dated line that historyLines lists keeps its count; the status rules still read it.
-  page('docs/OPERATIONS.md', '# Operations\n\n- Re-baseline after the wave 2 merges: 28 → 27 tools.\n');
+  // A dated line that historyLines lists keeps its count; the status rules still read it. Since DOC-03 split the
+  // operations runbook (2026-10-24) that line is on its qualification page, which the rules read as before.
+  const history = 'docs/operations/QUALIFICATION.md';
+  page(history, '# Qualification records\n\n- Re-baseline after the wave 2 merges: 28 → 27 tools.\n');
   assert.deepEqual(check(), []);
-  page('docs/OPERATIONS.md', '# Operations\n\n- Re-baseline after the wave 2 merges: 28 → 27 tools; B25 open.\n');
+  page(history, '# Qualification records\n\n- Re-baseline after the wave 2 merges: 28 → 27 tools; B25 open.\n');
   assert.deepEqual(check(), [
-    'docs/OPERATIONS.md:3: "B25 open" — B25 is partial, not open: state package status through docs/review/PACKAGE-STATUS.md.',
+    history + ':3: "B25 open" — B25 is partial, not open: state package status through docs/review/PACKAGE-STATUS.md.',
   ]);
   // An allowance whose line is gone is reported, so the list cannot outlive the history it excuses.
-  page('docs/OPERATIONS.md', '# Operations\n');
+  page(history, '# Qualification records\n');
   assert.deepEqual(check(), [
-    'docs/OPERATIONS.md: historyLines in tools/doc-facts.mjs names "28 → 27 tools", which is no line of this current page any more; remove it.',
+    history +
+      ': historyLines in tools/doc-facts.mjs names "28 → 27 tools", which is no line of this current page any more; remove it.',
   ]);
   // The family rule's false positive on a current page: an RFC number before a comma is no count.
   assert.deepEqual(lintText('`client_revoke` (RFC 7009, family revoke)', 'docs/X.md', countRules), []);

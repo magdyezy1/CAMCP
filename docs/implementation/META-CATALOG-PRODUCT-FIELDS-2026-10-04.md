@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta catalog product field verification — 2026-10-04
 
 The reviewed single-product create/upsert contract already accepted optional catalog fields, but its

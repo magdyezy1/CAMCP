@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Current Google primary-action conversion value settings
 
 Baseline: `4d73f57`. Batch 141 advances B08/B15/B16/B17/B20/B24 with bounded current configuration inspection

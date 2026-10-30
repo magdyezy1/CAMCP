@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Isolated encrypted backup restoration
 
 This batch implements part of operational ticket R10. It does not qualify a

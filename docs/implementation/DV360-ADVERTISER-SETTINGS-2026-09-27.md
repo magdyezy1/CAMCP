@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 advertiser settings — 2026-09-27
 
 Base revision: `a7f4754` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

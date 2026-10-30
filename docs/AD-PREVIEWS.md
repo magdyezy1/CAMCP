@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Ad previews
 
 `amcp_ad_previews` gathers each platform's own preview links for ads that already exist in an account. On the

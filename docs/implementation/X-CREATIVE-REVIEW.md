@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X creative chain: critical review and implementation
 
 Review date: 2026-09-14. This is a scoped follow-up to the supplied “close the X creative gap” brief, not a new claim that the entire repository or all providers are production-qualified.

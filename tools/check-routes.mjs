@@ -52,6 +52,23 @@ export function serverShellRoutes(source) {
     )?.[1];
   return list ? [...list.matchAll(/'([^']+)'/g)].map(m => m[1]) : null;
 }
+/**
+ * The members-only Help page (DOC-03) is answered by its own route module, which adds the owner guide to the shell for
+ * a signed-in member: its page, from the source of serverHelpSource.
+ */
+export const serverHelpSource = 'server/help-routes.ts';
+export function serverHelpRoutes(source) {
+  const path = /export const helpPath = '([^']+)'/.exec(source)?.[1];
+  return path && source.includes('router.get(helpPath,') && source.includes("publicAssets.html('index.html')")
+    ? [path]
+    : null;
+}
+/** Every page the server answers with the shell: the shell list, then the Help page. */
+export function servedPages(root = process.cwd()) {
+  const shell = serverShellRoutes(fs.readFileSync(path.join(root, serverShellSource), 'utf8')),
+    help = serverHelpRoutes(fs.readFileSync(path.join(root, serverHelpSource), 'utf8'));
+  return shell && help ? [...shell, ...help] : null;
+}
 /** The loader's view of the registry: the files each page loads, and every file the loader may request, in order. */
 export function pageAssetPlan(root = process.cwd()) {
   const context = createContext({});
@@ -118,13 +135,14 @@ export function routeProblems({registry, index, server, assets}) {
       problems.push('index.html: navigation page ' + entry.path + ' has no navigation link');
   if (links.map(link => link.href).join() !== expected.map(entry => entry.path).join())
     problems.push('index.html: navigation order differs from web/routes.js');
-  if (!server) problems.push(serverShellSource + ': the list of shell pages was not found');
+  if (!server) problems.push(serverShellSource + ' or ' + serverHelpSource + ': the list of shell pages was not found');
   else {
     for (const route of server)
       if (!paths.includes(route))
         problems.push(serverShellSource + ': serves ' + route + ', which web/routes.js does not register');
     for (const route of paths)
       if (!server.includes(route)) problems.push(serverShellSource + ': does not serve registered page ' + route);
+    if (new Set(server).size !== server.length) problems.push(serverShellSource + ': a page is served twice');
   }
   for (const route of assets ?? [])
     if (!paths.includes(route)) problems.push('web/route-assets.js: loads assets for unregistered page ' + route);
@@ -136,7 +154,7 @@ export function checkRoutes(root = process.cwd()) {
     ...routeProblems({
       registry: loadRouteRegistry(root),
       index: fs.readFileSync(path.join(root, 'web/index.html'), 'utf8'),
-      server: serverShellRoutes(fs.readFileSync(path.join(root, serverShellSource), 'utf8')),
+      server: servedPages(root),
       assets: Object.keys(plan.routes),
     }),
     ...pageAssetProblems(plan, file => fs.existsSync(path.join(root, 'web', file))),

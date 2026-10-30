@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Operating and qualifying this candidate
 
 The supported deployment remains one application replica with a persistent local SQLite volume. Coordination tests cover two workers sharing one database, not network filesystems or independent replica volumes. No new service is required.

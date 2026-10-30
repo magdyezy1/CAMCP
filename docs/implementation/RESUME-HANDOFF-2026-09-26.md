@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # AMCP implementation handoff — 2026-09-26
 
 The user asked to fix the Snapchat workflow defects found in live AMCP use on

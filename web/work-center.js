@@ -1,4 +1,20 @@
 'use strict';
+// DOC-03: Home names each capability (src/capabilities.ts) by what it does for the owner and says what verified means;
+// the capability's name, coverage, MCP tool and evidence state stay under Technical details (web/workspace.js). A
+// capability without an outcome here shows its name.
+const homeCapabilityCopy = {
+  note: 'Each is tested against simulated platforms. It counts as verified on one of your accounts only after AMCP reads the result back there.',
+  outcomes: {
+    campaign_builder: 'Prepare campaigns that start paused',
+    readiness: 'Check that accounts are ready before a launch',
+    media_library: 'Keep your creative in one library',
+    write_verification: 'Check that each approved change took effect',
+    reporting: 'Report results from the platforms’ own numbers',
+    optimization: 'Get suggestions only when the data supports them',
+    profiles: 'Reuse each client’s naming, links and templates',
+    capabilities: 'See what is verified on each account',
+  },
+};
 // The operation kinds Home names, with the Operations labels (OPS-06). Home does not load the Operations page script.
 function homeOperationKind(kind) {
   switch (kind) {

@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Read acceptance: measurement, TikTok, Reddit value unit, X placement
 
 The owner-run, read-only acceptance of ACC-06 in four parts, each run on its own under its own written authorization:

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Tag Manager consent evidence and scoped audit handoff — 2 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

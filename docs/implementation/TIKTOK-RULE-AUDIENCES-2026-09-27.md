@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok audiences by rule — 2026-09-27
 
 Base revision: `54e8dd1` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

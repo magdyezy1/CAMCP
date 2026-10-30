@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Assistive-technology acceptance: screen readers and touch, English and Arabic
 
 The finite manual acceptance of ACC-07: seven website journeys, each run with two screen readers in two languages,

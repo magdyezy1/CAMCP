@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Design, accessibility and UX-copy review — October 2026
 
 Review of the rendered AMCP website after wave 4a (WEB-07's colour consolidation), with the design-critique, WCAG 2.1

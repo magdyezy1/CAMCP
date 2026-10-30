@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo Retail Media 2026-01 → 2026-07: preparation (2026-09-28)
 
 > Carried out on 2026-09-29 from Criteo's official 2026-07 document: see [the upgrade record](CRITEO-2026-07-2026-09-29.md).

@@ -215,6 +215,16 @@ export const generatedArtifacts = [
     check: gates.docs,
   },
   {
+    // DOC-03 (owner instruction of 2026-10-24): the owner guide as the members-only Help page shows it.
+    id: 'help_guide',
+    outputs: ['generated/help-guide.json'],
+    generator: 'tools/help-pages.mjs',
+    regenerate: 'npm run docs:index (or node tools/help-pages.mjs)',
+    inputs: ['docs/owner/*.md', 'docs/owner/ar/*.md', 'web/routes.js (the pages a guide link may open)'],
+    provenance: 'sources: the SHA-256 of every guide page the fragments were built from; its generator names itself.',
+    check: gates.docs,
+  },
+  {
     // DOC-03 (owner decision P12): the redirect stub each moved document leaves at its old address.
     id: 'docs_redirect_stubs',
     outputs: [
@@ -240,14 +250,43 @@ export const generatedArtifacts = [
     check: gates.docs,
   },
   {
-    // DOC-03: the documentation freeze's recorded counts, which may only fall.
+    // DOC-03: the documentation freeze's recorded counts and reference total, which may only fall.
     id: 'docs_lint_baseline',
     outputs: ['tools/docs-lint-baseline.json'],
     generator: 'tools/docs-lint.mjs',
     regenerate:
       'node tools/docs-lint.mjs --write, which refuses a count above its record unless --allow-increase=<reason> records why',
-    inputs: ['README.md and the current pages of docs/ (not records, archive, implementation records or stubs)'],
-    provenance: 'Per-page counts and every recorded increase with its reason; npm run docs:index:check counts again.',
+    inputs: [
+      'README.md and the maintained pages of docs/ (current and reference by their front matter, not generated)',
+    ],
+    provenance:
+      'Per-page counts, the reference pages’ word total and every recorded increase with its reason; npm run docs:index:check counts again.',
+    check: gates.docs,
+  },
+  {
+    // DOC-03: the status page.
+    id: 'docs_status',
+    outputs: ['docs/STATUS.md'],
+    generator: 'tools/docs-status.mjs',
+    regenerate: 'npm run build, then npm run docs:index',
+    inputs: [
+      'docs/review/package-status.json',
+      'the doc-facts values (dist/src and dist/server)',
+      'src/provider-access.json',
+      'docs/implementation/ACTION-CONTRACT-COVERAGE.json',
+      'the latest docs/records/QUALIFICATION-*.md',
+    ],
+    provenance: 'Its front matter names the generator; docs:index:check regenerates and compares it.',
+    check: gates.docs,
+  },
+  {
+    // DOC-03: the findings register's open and closed views.
+    id: 'findings_register',
+    outputs: ['docs/review/FINDINGS.md', 'docs/review/FINDINGS-CLOSED.md'],
+    generator: 'tools/findings-register.mjs',
+    regenerate: 'npm run docs:index (or node tools/findings-register.mjs)',
+    inputs: ['docs/review/findings.json'],
+    provenance: 'Their front matter names the generator; docs:index:check regenerates and compares both.',
     check: gates.docs,
   },
   {

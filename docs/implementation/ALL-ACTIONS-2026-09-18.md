@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Action contracts: implementation, evidence and remaining work
 
 Review date: 2026-09-18. This is an all-platform **contract inventory and targeted implementation pass**, continuing the earlier audit. It is not a second manual audit of every line or a claim of universal provider support.

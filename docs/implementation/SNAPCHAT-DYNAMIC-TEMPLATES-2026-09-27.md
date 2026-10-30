@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat dynamic templates — 2026-09-27
 
 Base revision: `683a2da` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

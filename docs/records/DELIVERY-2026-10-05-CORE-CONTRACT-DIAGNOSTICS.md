@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Core contract language and public deployment comparison — 5 October 2026
 
 Repository: magdyezy1/CAMCP. Sole working/push branch: Work-here.

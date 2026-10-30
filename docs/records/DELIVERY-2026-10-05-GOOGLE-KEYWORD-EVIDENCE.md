@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Native Google keyword performance, bounded daily evidence and exact downloads
 
 Batch 156 adds a fifth Google detailed-evidence preset, google_keyword, through the existing v25

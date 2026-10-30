@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Performance Max retail listing groups — 2026-09-26
 
 Base revision: `4b67890` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

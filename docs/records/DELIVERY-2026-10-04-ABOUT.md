@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Public About Us page — 4 October 2026
 
 Batch 124 adds the owner-requested `/about` page. It explains AMCP's purpose, audience, connected workflow and

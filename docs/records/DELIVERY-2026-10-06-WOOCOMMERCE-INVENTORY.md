@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Complete bounded WooCommerce inventory inspection
 
 Batch 182 adds a read-only inventory mode to the existing `amcp_workspace catalog_source`

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Readable retained-report controls and contained phone layout
 
 Batch 157 improves saved evidence search, page-size/page choice and workbook-language controls through

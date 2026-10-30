@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 135 — explicit source products into reviewed X catalog plans
 
 Baseline `11304de`. Sole checkout `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here`.

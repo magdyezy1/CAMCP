@@ -1,5 +1,5 @@
 {
-  "meaning": "DOC-03 documentation freeze: per current page, the headings naming a batch, the commit references, the long lines repeated on another current page and the literal package counts that it already held; each count may only fall, and a page not listed must have none (node tools/docs-lint.mjs, run by npm run docs:index:check).",
+  "meaning": "DOC-03 documentation freeze: per maintained page, the headings naming a batch, the commit references, the long lines repeated on another maintained page and the literal package counts that it already held; each count may only fall, and a page not listed must have none. totals.reference_words is the size of the reference pages (the engineering tier, and the owner and operator references), outside the word budget of the owner and operator current pages; it may only fall unless an increase is recorded with its reason (node tools/docs-lint.mjs, run by npm run docs:index:check).",
   "increases": [
     {
       "reason": "DOC-03 adds literal package counts to the freeze (implementation path step 1); these are the counts the pages already held",
@@ -10,19 +10,28 @@
         "docs/PRODUCT-WORKFLOWS.md package_counts 0 → 2",
         "docs/review/IMPLEMENTATION-2026-10-01.md package_counts 0 → 26"
       ]
+    },
+    {
+      "reason": "DOC-03 consolidation (2026-10-24): the pinned object hash moved verbatim with its section from docs/OPERATIONS.md, whose baseline held it",
+      "raised": [
+        "docs/operations/QUALIFICATION.md commit_refs 0 → 1"
+      ]
     }
   ],
+  "totals": {
+    "reference_words": 133656
+  },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
-      "batch_headings": 8,
-      "commit_refs": 1,
-      "duplicate_lines": 13,
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 1,
       "package_counts": 0
     },
     "docs/LOCAL-BROWSER-QA.md": {
-      "batch_headings": 27,
-      "commit_refs": 20,
-      "duplicate_lines": 14,
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 1,
       "package_counts": 0
     },
     "docs/OAUTH-HARDENING.md": {
@@ -31,25 +40,7 @@
       "duplicate_lines": 1,
       "package_counts": 0
     },
-    "docs/OPERATIONS.md": {
-      "batch_headings": 3,
-      "commit_refs": 1,
-      "duplicate_lines": 54,
-      "package_counts": 0
-    },
-    "docs/PRODUCT-WORKFLOWS.md": {
-      "batch_headings": 7,
-      "commit_refs": 0,
-      "duplicate_lines": 53,
-      "package_counts": 0
-    },
     "docs/USER-ACCOUNTS.md": {
-      "batch_headings": 0,
-      "commit_refs": 0,
-      "duplicate_lines": 1,
-      "package_counts": 0
-    },
-    "docs/WORKSPACE-OPERATIONS.md": {
       "batch_headings": 0,
       "commit_refs": 0,
       "duplicate_lines": 1,
@@ -67,9 +58,9 @@
       "duplicate_lines": 3,
       "package_counts": 0
     },
-    "docs/review/ACCESSIBILITY.md": {
+    "docs/operations/QUALIFICATION.md": {
       "batch_headings": 0,
-      "commit_refs": 3,
+      "commit_refs": 1,
       "duplicate_lines": 0,
       "package_counts": 0
     },
@@ -80,30 +71,6 @@
       "package_counts": 0
     },
     "docs/review/COVERAGE.md": {
-      "batch_headings": 0,
-      "commit_refs": 1,
-      "duplicate_lines": 0,
-      "package_counts": 0
-    },
-    "docs/review/FINDINGS.md": {
-      "batch_headings": 0,
-      "commit_refs": 22,
-      "duplicate_lines": 0,
-      "package_counts": 0
-    },
-    "docs/review/IMPLEMENTATION-2026-10-01.md": {
-      "batch_headings": 0,
-      "commit_refs": 6,
-      "duplicate_lines": 0,
-      "package_counts": 26
-    },
-    "docs/review/PERSONAL-DATA-POLICY.md": {
-      "batch_headings": 1,
-      "commit_refs": 0,
-      "duplicate_lines": 0,
-      "package_counts": 0
-    },
-    "docs/review/PRODUCT-BLUEPRINT-2026-10-01.md": {
       "batch_headings": 0,
       "commit_refs": 1,
       "duplicate_lines": 0,

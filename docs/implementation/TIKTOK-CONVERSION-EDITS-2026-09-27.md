@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok custom conversion edits — 2026-09-27
 
 Base revision: `aef9f72` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 line item targeting — 2026-09-26
 
 Base revision: `d72743b` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

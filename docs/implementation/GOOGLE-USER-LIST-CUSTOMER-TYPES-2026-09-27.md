@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads user list customer types — 2026-09-27
 
 Base revision: `220e746` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

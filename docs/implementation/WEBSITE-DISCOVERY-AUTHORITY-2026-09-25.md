@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Website discovery, OAuth and resumable media authorization — 2026-09-25
 
 Base revision: `796c22660d16c68a7ecde71cb0d9363b3bf824bd`, on `Codex-branch`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ ad group edits — 2026-09-26
 
 Base revision: `53fb3ad` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

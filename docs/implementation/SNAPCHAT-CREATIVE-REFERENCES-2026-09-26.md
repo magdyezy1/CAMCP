@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat creative reference ownership — 2026-09-26
 
 Base revision: `927b73e` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

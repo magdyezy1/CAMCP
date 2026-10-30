@@ -206,6 +206,15 @@ const routeRegistry = [
     description: 'Profile, social sign-in, and security',
     assets: ['mfa-qr.js'],
   },
+  // DOC-03: members only, opened from the shell footer and the palette (server/help-routes.ts).
+  {
+    path: '/help',
+    label: 'Help',
+    palette: true,
+    aliases: ['Owner guide', 'Documentation'],
+    description: 'The owner guide, task by task',
+    assets: ['help.js'],
+  },
   {path: '/report-pack', label: 'Report pack', parent: '/report-library', assets: ['evidence-workflows.js']},
   {
     path: '/oauth/consent',

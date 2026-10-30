@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Write coverage: batch history
 
 What each batch added to [write coverage](../review/COVERAGE.md), from batch 34 to batch 181, kept as it was

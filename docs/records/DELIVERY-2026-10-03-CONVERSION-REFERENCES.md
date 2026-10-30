@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Delivery — guided conversion references and complete playbook preview
 
 Date: 2026-10-03. Baseline: `31c2607`. Repository/branch: `magdyezy1/CAMCP`, `Work-here`.

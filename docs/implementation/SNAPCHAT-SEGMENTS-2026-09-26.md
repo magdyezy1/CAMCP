@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat audience segments — 2026-09-26
 
 Base revision: `874038e` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

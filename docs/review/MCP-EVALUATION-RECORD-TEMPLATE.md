@@ -1,7 +1,12 @@
+---
+status: reference
+tier: operator
+---
+
 # MCP evaluation record template
 
 Copy this template once for each evaluation session with external AI clients (B15, QA-04, ACC-02). The deterministic
-local baseline is `tests/journeys/baseline.json`; [operations](../OPERATIONS.md#journey-and-mcp-evaluation-qa-04)
+local baseline is `tests/journeys/baseline.json`; [operations](../operations/QUALIFICATION.md#journey-and-mcp-evaluation-qa-04)
 explains how it is produced and checked. This record holds what the local harness cannot measure: real assistants
 choosing calls. Model behavior is nondeterministic, so report ranges over repeated runs, never a single number.
 

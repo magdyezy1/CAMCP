@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads campaign drafts — 2026-09-27
 
 Base revision: `d355933` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

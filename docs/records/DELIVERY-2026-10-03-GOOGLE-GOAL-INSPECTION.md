@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Current Google conversion goals and primary-action prerequisites
 
 Batch 118, 2026-10-03. Repository magdyezy1/CAMCP; sole branch Work-here. Baseline c10579c.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Explicit PDF/Excel language and Arabic reading order — 1 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

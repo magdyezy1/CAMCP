@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat event details — 2026-09-27
 
 Base revision: `140396f` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

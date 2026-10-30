@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../server/mcp.js';
@@ -49,6 +50,21 @@ test('MCP clients discover, read and load curated campaign guides without provid
     await server.close();
     store.close();
   }
+});
+
+// DOC-03: every documentation page opens with its front matter (status, tier). The reporting guide is also an MCP
+// resource, which AI clients read as before: the page without its front matter, from its title on. The Skills guides
+// keep their own front matter, as written.
+test('the reporting guide AI clients read is its documentation page without the front matter', () => {
+  const page = fs.readFileSync('docs/REPORTING-OVERVIEW.md', 'utf8'),
+    served = readGuidance('amcp://guides/reporting-overview').text;
+  assert.match(page, /^---\nstatus: reference\ntier: operator\n---\n\n# /);
+  assert.equal(served, page.slice(page.indexOf('\n---\n\n') + '\n---\n\n'.length));
+  assert.match(served, /^# Reporting Overview\n/);
+  assert.equal(
+    readGuidance('amcp://guides/index').text,
+    fs.readFileSync('Skills/amcp-campaign-builder/SKILL.md', 'utf8'),
+  );
 });
 
 test('guide references are complete and distinguish unsupported execution from metadata', () => {

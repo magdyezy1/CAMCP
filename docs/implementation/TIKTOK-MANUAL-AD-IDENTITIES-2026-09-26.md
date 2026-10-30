@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok manual ads with custom identities — 2026-09-26
 
 Base revision: `f440117` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

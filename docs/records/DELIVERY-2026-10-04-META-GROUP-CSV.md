@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Explicit Meta product groups in canonical and supplier CSV imports
 
 Batch 153 completes the website CSV path for the optional Meta retailer_product_group_id already

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 Demand Gen ads — 2026-09-27
 
 Base revision: `e8e4a8a` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

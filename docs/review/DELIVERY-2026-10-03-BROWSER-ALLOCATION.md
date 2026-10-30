@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Browser allocation flow, native unit labels and keyboard focus
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

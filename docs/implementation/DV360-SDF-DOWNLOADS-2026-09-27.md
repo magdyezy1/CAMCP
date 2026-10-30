@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 SDF download tasks — 2026-09-27
 
 Base revision: `f2c29f9` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

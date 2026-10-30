@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 137 — typed X catalog identities and original receipt recovery
 
 Baseline `d32321a`. Sole checkout `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here`.

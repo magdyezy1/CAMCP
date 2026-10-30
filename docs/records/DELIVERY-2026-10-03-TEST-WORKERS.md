@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Explicit test workers for CI and Docker builds
 
 Batch 123. Work-here only; sole remote magdyezy1/CAMCP. Baseline 63641dd.

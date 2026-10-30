@@ -1,3 +1,8 @@
+---
+status: proposal
+tier: engineering
+---
+
 # AMCP full product, workflow, integration and website blueprint
 
 **1 October 2026 · `magdyezy1/CAMCP` · `Work-here` · reviewed source `c615cb7`.**

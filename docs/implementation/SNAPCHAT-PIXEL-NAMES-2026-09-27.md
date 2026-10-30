@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat pixel names — 2026-09-27
 
 Base revision: `85f8ec8` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

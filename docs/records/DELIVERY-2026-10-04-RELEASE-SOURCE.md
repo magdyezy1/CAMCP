@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 139 — maintained committed-source release verification
 
 Release source verification is now a repository command, `npm run release:verify -- .release/candidate`.

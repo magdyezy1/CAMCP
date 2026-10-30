@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 audience targeting — 2026-09-27
 
 Base revision: `bc4faba` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

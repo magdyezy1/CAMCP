@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 customer match audience names — 2026-09-27
 
 Base revision: `7a4cda4` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

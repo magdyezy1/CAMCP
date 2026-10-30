@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads experiments and experiment arms (setup) — 2026-09-27
 
 Base revision: `0679aef` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

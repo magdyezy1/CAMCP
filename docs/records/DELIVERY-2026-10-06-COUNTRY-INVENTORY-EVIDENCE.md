@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Native country evidence and bounded inventory comparison
 
 Only magdyezy1/CAMCP Work-here in CAMCP-Codes-final-branch is authorized. Live provider

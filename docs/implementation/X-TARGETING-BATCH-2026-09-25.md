@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X atomic targeting batch
 
 Base: `a28930443ca38afd21fc3d73048d9b61de356915`, Codex-branch.

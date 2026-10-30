@@ -228,10 +228,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // startup registry (src/provider-startup.ts) and WooCommerce's login steps (src/woocommerce-login.ts); the reasons
   // the login steps took from server/ were never wrapper reasons, so the wrapper reasons are unchanged.
   // Merged with the transport and catalog package's provider workflows registry (above), the modules add up: 735.
-  assert.equal(files.length, 735);
+  // DOC-03's members-only Help page adds server/help-routes.ts and seven website entries, none a wrapper reason, and
+  // its Home copy nine website entries (the capability outcomes), none a wrapper reason.
+  // Merged with the ARC packages, the Help page's module is one more: 736.
+  assert.equal(files.length, 736);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11513);
+  assert.equal(Object.keys(catalog).length, 11529);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

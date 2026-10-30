@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn Audience Network publisher lists — 2026-09-27
 
 Base revision: `00f480d` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

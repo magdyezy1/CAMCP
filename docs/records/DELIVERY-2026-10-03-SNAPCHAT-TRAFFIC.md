@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Guided Snapchat website traffic and creative dependency reviews
 
 Batch 122. Work-here only; sole remote magdyezy1/CAMCP. Baseline 00cbe27.

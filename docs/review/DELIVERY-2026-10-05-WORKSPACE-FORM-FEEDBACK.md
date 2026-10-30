@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Persistent shared workspace form feedback
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

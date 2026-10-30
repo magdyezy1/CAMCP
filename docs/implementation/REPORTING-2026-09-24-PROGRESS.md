@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Reporting and provider-contract continuation — 2026-09-24
 
 Baseline: db617803e88e76986257617e633f156d59b97977, clean Codex-branch,

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # DV360 custom bidding algorithms — 2026-09-27
 
 Base revision: `295b1e3` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

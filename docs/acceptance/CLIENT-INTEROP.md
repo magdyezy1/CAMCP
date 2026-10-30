@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # AI-client interoperability matrix
 
 The owner-run acceptance that each must-pass AI client connects to AMCP and keeps working (ACC-02). Owner decision D14

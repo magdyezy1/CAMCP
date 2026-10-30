@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn DSC post edits and deletion — 2026-09-27
 
 Base revision: `58cecd7` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

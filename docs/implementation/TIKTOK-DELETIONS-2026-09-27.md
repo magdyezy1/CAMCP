@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok saved audience and identity deletion — 2026-09-27
 
 Base revision: `5ca6357` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

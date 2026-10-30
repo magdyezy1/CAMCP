@@ -118,6 +118,13 @@ export function documentKindsMarkdown(): string {
     tenant = kinds.filter(k => k.scope === 'tenant'),
     service = kinds.filter(k => k.scope === 'service');
   const lines: string[] = [
+    // DOC-03: the front matter every documentation page opens with (tools/docs-front-matter.mjs).
+    '---',
+    'status: reference',
+    'tier: engineering',
+    'generated: tools/document-kinds-doc.ts',
+    '---',
+    '',
     '# Document kinds and retention',
     '',
     'Generated from the document-kind registry, `src/document-kinds.ts` (ARC-02), by',

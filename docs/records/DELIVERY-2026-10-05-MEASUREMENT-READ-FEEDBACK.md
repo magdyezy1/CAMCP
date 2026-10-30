@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Persistent measurement read feedback and authored Arabic recovery
 
 Batch 163 improves the two existing GA4 measurement reads and their MCP contract evaluation.

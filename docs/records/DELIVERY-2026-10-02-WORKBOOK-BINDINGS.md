@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Scoped workbook setup and reviewed local names — 2 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

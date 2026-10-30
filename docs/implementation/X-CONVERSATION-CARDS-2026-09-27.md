@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X poll and conversation cards — 2026-09-27
 
 Base revision: `b45d675` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

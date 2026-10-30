@@ -70,8 +70,9 @@ export const historicalPages = Object.freeze([
  * every current page takes its family, recipe, guide and tool counts from a marker.
  */
 export const historyLines = Object.freeze({
-  // The re-baseline of the MCP evaluation after the wave 2 merges (2026-10-11).
-  'docs/OPERATIONS.md': ['28 → 27 tools'],
+  // The re-baseline of the MCP evaluation after the wave 2 merges (2026-10-11), in the section the operations runbook
+  // moved to its qualification page (DOC-03, 2026-10-24).
+  'docs/operations/QUALIFICATION.md': ['28 → 27 tools'],
   // The registry passes of September 2026, family by family.
   'docs/review/ARCHITECTURE.md': ['Pass 1 registered 41 families', '(57 families;', '(71 families;'],
 });
@@ -674,6 +675,9 @@ export function currentPages(root) {
     ...top,
     ...markdown('docs/acceptance'),
     ...markdown('docs/owner'),
+    // DOC-03 (2026-10-24): the task pages the operations runbook and the workflow guide split into.
+    ...markdown('docs/operations'),
+    ...markdown('docs/workflows'),
     'docs/review/ARCHITECTURE.md',
     'docs/review/THREAT-MODEL.md',
     ...markdown('Skills/amcp-campaign-builder'),

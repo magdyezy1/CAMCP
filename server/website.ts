@@ -24,6 +24,7 @@ import {platformRoutes} from './platform-routes.js';
 import {connectionRoutes} from './connection-routes.js';
 import {accessRoutes} from './access-routes.js';
 import {activityRoutes} from './activity-routes.js';
+import {helpRoutes} from './help-routes.js';
 import {pageRoutes} from './page-routes.js';
 
 /** Account sign-up, sign-in, recovery and security pages (server/account-routes.ts). */
@@ -41,8 +42,9 @@ const apiResponses: WebsiteRoutes = ({router}) => {
  * The website's route registry (ARC-04 stage D): its route modules in registration order, which is the order Express
  * matches their routes in. The security headers and the access gates come first, so they see every request; the
  * account pages before the no-store and MCP OAuth layers, as before; the provider callbacks before the connection
- * routes (/api/:platform/callback precedes /api/connections/:id); the public pages and the not-found page last. A new
- * route joins the module of its area, in that module's order.
+ * routes (/api/:platform/callback precedes /api/connections/:id); the members-only Help page (DOC-03) before the
+ * public pages, and the public pages and the not-found page last. A new route joins the module of its area, in that
+ * module's order.
  */
 export const websiteRoutes: readonly WebsiteRoutes[] = Object.freeze([
   securityHeaders,
@@ -60,6 +62,7 @@ export const websiteRoutes: readonly WebsiteRoutes[] = Object.freeze([
   connectionRoutes,
   accessRoutes,
   activityRoutes,
+  helpRoutes,
   pageRoutes,
 ]);
 

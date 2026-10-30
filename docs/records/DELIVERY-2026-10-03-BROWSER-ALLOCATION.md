@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Browser allocation flow, native unit labels and keyboard focus
 
 **3 October 2026 · batch 108 · `magdyezy1/CAMCP` · `Work-here` · baseline `a462f0f`.**

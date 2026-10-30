@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 113 — exact linked-ad performance across four providers
 
 Repository `magdyezy1/CAMCP`, sole branch `Work-here`, checkout `CAMCP-Codes-final-branch`. Baseline:

@@ -251,10 +251,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged with the transport and catalog package (one more file, src/provider-workflows.ts, and three more with
   // reasons: the GA4 and Business Profile adapters and the provider workflows registry), the files add up: 735, 285
   // of them with reasons; that package moves reasons without adding one, so the owned reasons stay 1,590.
-  assert.equal(files.length, 735);
+  // DOC-03's members-only Help page adds server/help-routes.ts (no owned reasons: its two failures are build defects,
+  // plain errors) and seven website entries (its name, former names, description and page copy): 11,520 entries.
+  // DOC-03's Home copy adds nine website entries (the capability outcomes and what verified means): 11,529 entries; no
+  // owned reason changes.
+  // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
+  // reasons, and the owned reasons stay 1,590.
+  assert.equal(files.length, 736);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1590);
-  assert.equal(Object.keys(catalog).length, 11513);
+  assert.equal(Object.keys(catalog).length, 11529);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

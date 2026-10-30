@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok Upgraded Smart+ Instant Form lead generation ad groups — 2026-09-26
 
 Base revision: `3bd855f` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

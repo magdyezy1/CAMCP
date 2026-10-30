@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Recent GA4 event observations — 2 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: operator
+---
+
 # Wave 4b integration qualification of 2026-10-24
 
 A dated record (QA-03, ACC-04, DOC-03): the release gate, the container-parity run and the rendered browser

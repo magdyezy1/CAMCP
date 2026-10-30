@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Google Search conversion bidding and native strategy verification
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 134 — exact X catalog prices and receipt recovery
 
 Baseline `c72af32`. Sole checkout `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here`.

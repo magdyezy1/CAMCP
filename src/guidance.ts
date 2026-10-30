@@ -41,11 +41,21 @@ export const guidanceDiscovery = {
   qualification:
     'Curated from the supplied Skills manuals, current provider documentation and executable AMCP contracts. Historical sources are not instructions or live acceptance evidence.',
 };
+/** A documentation page's text after its front matter block (`---`, `key: value` lines, `---`, one blank line). */
+export const withoutDocumentationFrontMatter = (text: string) =>
+  text.replace(/^---\r?\n(?:[a-z_]+:[^\r\n]*\r?\n)+---\r?\n(?:\r?\n)?/, '');
 export function readGuidance(uri: string) {
   const guide = guides.find(([id]) => uri === 'amcp://guides/' + id);
   if (!guide) throw new MirrorError('GUIDE_NOT_FOUND', 'Unknown AMCP guide URI.', {}, 404);
-  const file = fileURLToPath(new URL('../../Skills/amcp-campaign-builder/' + guide[2], import.meta.url));
-  return {uri, mimeType: 'text/markdown', text: fs.readFileSync(file, 'utf8')};
+  const file = fileURLToPath(new URL('../../Skills/amcp-campaign-builder/' + guide[2], import.meta.url)),
+    text = fs.readFileSync(file, 'utf8');
+  // DOC-03: a documentation page opens with its status and tier (tools/docs-front-matter.mjs); the guide served from
+  // docs/ starts at its title, as before. The Skills files keep their own front matter.
+  return {
+    uri,
+    mimeType: 'text/markdown',
+    text: guide[2].startsWith('../../docs/') ? withoutDocumentationFrontMatter(text) : text,
+  };
 }
 /** A guide's heading-delimited sections (MCP-01): what a client without resource support reads one at a time. */
 export interface GuideSection {

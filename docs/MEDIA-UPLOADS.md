@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Media uploads
 
 The Creative page now starts with a searchable metadata library, editable internal names/tags and verified retained
@@ -10,7 +15,7 @@ performance, not image attribution or proof of the creative used throughout the 
 External edits, dynamic creative combinations and unrecorded provider use remain unverified. Follow `next_cursor`
 for choices and `next_offset` for matched rows; each page rechecks the asset and plan's current access.
 Website uploads have an absolute thirty-minute deadline including derived copies. Fresh provider checks for receipt reuse remain in force. Owners may explicitly retain a separately imported link/Drive original as described below. See the
-[connected workflow](PRODUCT-WORKFLOWS.md#creative-preparation-and-durable-uploads) for scope and pagination.
+[connected workflow](workflows/CREATIVE.md#creative-preparation-and-durable-uploads) for scope and pagination.
 
 A file reaches AMCP in one of three ways: uploaded on the website (the **Media library** page), a public HTTPS link, or Google Drive (a public share link, or a private file or folder selected in a separate Drive connection; see [workspace operations](WORKSPACE-OPERATIONS.md)). **The AMCP server receives or downloads the file and transfers it; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
 
@@ -37,7 +42,7 @@ With `fit_to_platform: true`, `prepare` fits the file before freezing it for rev
 - A MOV video for X or LinkedIn, which take only MP4, becomes MP4. Streams that are already H.264 and AAC are copied without re-encoding.
 - A JPEG's EXIF orientation is applied to the pixels, since the output carries no metadata. FFmpeg 5.1 (the production image) and later versions treat EXIF orientation differently, so AMCP reads it itself and applies it once. One helper (MED-04) gives the upload record, its preview frame, `inspect_eligibility`, fit and variants the same displayed size: a photo stored 2700 × 2160 with orientation 6 is 2160 × 2700 everywhere, and every image is decoded with `-noautorotate` and turned by AMCP's own filter. A video's rotation is applied by FFmpeg itself.
 
-Media that already fits is uploaded byte for byte. Otherwise `request.transform` in the review states `from` and `to` (dimensions, bytes, type), each step, and those steps in words for the platform. Fitting is bounded like variants: one image or video stream, at most 40 megapixels and 180 seconds, two conversions at once. One video conversion (fit or variant) may run 180 seconds (`VIDEO_CONVERSION_TIMEOUT_MS`), always within a website upload's deadline. Measured with `npm run benchmark:media-variants` ([Operations](OPERATIONS.md#video-conversion-time)): a 180-second 1080p source took 42–64 seconds per variant on a lightly loaded workstation and up to 167 seconds under heavy load, so the earlier 120-second limit was raised and the two costliest conversions were made cheaper. A long 2160p (4K) source takes about three times longer to fit or crop and can reach the limit; it is then refused with `MEDIA_CONVERSION_TIMEOUT`, never cut short. Without `fit_to_platform`, a refusal that fitting would solve (an image over the limit, MOV for X or LinkedIn) says so.
+Media that already fits is uploaded byte for byte. Otherwise `request.transform` in the review states `from` and `to` (dimensions, bytes, type), each step, and those steps in words for the platform. Fitting is bounded like variants: one image or video stream, at most 40 megapixels and 180 seconds, two conversions at once. One video conversion (fit or variant) may run 180 seconds (`VIDEO_CONVERSION_TIMEOUT_MS`), always within a website upload's deadline. Measured with `npm run benchmark:media-variants` ([Operations](operations/STORAGE.md#video-conversion-time)): a 180-second 1080p source took 42–64 seconds per variant on a lightly loaded workstation and up to 167 seconds under heavy load, so the earlier 120-second limit was raised and the two costliest conversions were made cheaper. A long 2160p (4K) source takes about three times longer to fit or crop and can reach the limit; it is then refused with `MEDIA_CONVERSION_TIMEOUT`, never cut short. Without `fit_to_platform`, a refusal that fitting would solve (an image over the limit, MOV for X or LinkedIn) says so.
 
 ## Push to several accounts
 

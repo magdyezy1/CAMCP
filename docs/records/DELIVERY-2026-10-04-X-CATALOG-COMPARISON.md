@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 136 — exact X source reconciliation and native variant guards
 
 Baseline `af5f23f`. Sole checkout `CAMCP-Codes-final-branch`, repository `magdyezy1/CAMCP`, branch `Work-here`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Original Performance Max campaign logo references and selected-view handoffs
 
 Baseline: `fd4a016`. Batch 145 advances B08/B10/B15/B16/B22/B24 through a separately selected campaign-logo

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Meta pixels — 2026-09-27
 
 Base revision: `f19a883` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

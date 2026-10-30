@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Performance Max brand guidelines — 2026-09-27
 
 Base revision: `3dac065` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 114 — bounded tool timings in owner health
 
 Baseline: `2db4f7b74f2a702f7eecdf557d82676c4aeb7565`, sole repository `magdyezy1/CAMCP`, branch `Work-here`.

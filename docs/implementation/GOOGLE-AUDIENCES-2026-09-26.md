@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Google Ads audience signals — 2026-09-26
 
 Base revision: `d21fb76` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

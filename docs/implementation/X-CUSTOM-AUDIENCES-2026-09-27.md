@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X custom audiences — 2026-09-27
 
 Base revision: `63ad83a` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

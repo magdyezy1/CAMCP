@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Snapchat chunked media upload — 2026-09-27
 
 Base revision: `fefc545` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

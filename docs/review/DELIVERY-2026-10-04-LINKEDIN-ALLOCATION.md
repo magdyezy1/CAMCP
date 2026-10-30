@@ -1,3 +1,8 @@
+---
+status: archived
+tier: engineering
+---
+
 # Moved: Batch 129 — source-bound LinkedIn daily-budget drafts
 
 This document moved on 2026-10-22 (DOC-03, owner decision P12). Its text and history are kept at

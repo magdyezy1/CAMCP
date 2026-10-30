@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Arabic analytical explanations with original evidence — 1 October 2026
 
 Repository: `magdyezy1/CAMCP`. Branch: `Work-here`. Folder: `CAMCP-Codes-final-branch`.

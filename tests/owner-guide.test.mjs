@@ -1,13 +1,16 @@
 // DOC-03 (owner decision P12): the primary audience is workspace owners at agencies and in-house teams, and owner
 // documentation is bilingual, English first with an Arabic translation. Before it, a new owner met release-engineering
 // status pages; there was no owner guide in either language. These checks hold the guide to its job: every English page
-// has a complete Arabic translation with the same structure and links, it stays in plain language, and the names it
-// gives the website's pages and controls are the website's own, in both languages.
+// has a complete Arabic translation with the same structure and links, it stays in plain language and short (the
+// ticket's target is about 1,500 English words; the first guide held about 5,000), the names it gives the website's
+// pages and controls are the website's own in both languages, and its links stay inside the guide or the website, so
+// the members-only Help page (tools/help-pages.mjs) can show it as it is.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {markdownLinks, parseTarget, resolveLink} from '../tools/docs-links.mjs';
+import {frontMatter, stripFrontMatter} from '../tools/docs-front-matter.mjs';
 
 const english = 'docs/owner',
   arabic = 'docs/owner/ar',
@@ -15,7 +18,8 @@ const english = 'docs/owner',
     .readdirSync(english)
     .filter(file => file.endsWith('.md'))
     .sort(),
-  read = file => fs.readFileSync(file, 'utf8');
+  // The guide's text, without the front matter every documentation page opens with.
+  read = file => stripFrontMatter(fs.readFileSync(file, 'utf8'));
 // What the owner guide must cover (DOC-03): connecting accounts, readiness, paused launches through review, reports and
 // exports, the measurement hub, recovery, team and clients, privacy and retention, and what stays owner-run.
 const topics = [
@@ -30,45 +34,38 @@ const topics = [
   'privacy.md',
   'owner-run.md',
 ];
-// The website's names the guide uses, as web/locales/ar.json pairs them with their Arabic.
+// The website's names the guide uses, as web/locales/ar.json pairs them with their Arabic. The last test holds this
+// list complete: every bold or italic name of the English guide that the catalog knows is here.
 const labels = [
-  'Home',
-  'Campaigns',
-  'Capabilities',
-  'Connections',
-  'Measurement',
-  'Operations',
-  'Monitoring inbox',
-  'Audit activity',
-  'Report builder',
-  'Reporting',
-  'Schedules',
-  'Evidence & analysis',
-  'Clients & templates',
+  'Help',
   'Workspace settings',
-  'Your account',
-  'AI connectors',
-  'Account readiness',
-  'Accounts and their readiness',
-  'Check account',
-  'Technical details',
-  'Capabilities and evidence',
-  'Implemented, not live-verified',
+  'Pause all writes',
+  'Connections',
   'Connect',
   'Connection result',
-  'Administrator setup required',
   'Manage',
   'Save selection',
   'Save and check access',
   'Resource write access',
   'Save write access',
-  'Enable read + reviewed write access for all selected resources',
+  'Administrator setup required',
   '+ Connect another',
   'Make default',
   'Reauthorize',
   'Reauthorization required',
   'Declined permissions',
   'Disconnect',
+  'AI connectors',
+  'Home',
+  'Account readiness',
+  'Accounts and their readiness',
+  'Check account',
+  'Prerequisites',
+  'Capabilities',
+  'Capabilities and evidence',
+  'Technical details',
+  'Implemented, not live-verified',
+  'Campaigns',
   'Create paused campaign plan',
   'Check prerequisites again',
   'Approve this complete plan',
@@ -79,30 +76,42 @@ const labels = [
   'Account spending policy',
   'Allow activation after review',
   'Allow deletion after review',
+  'Report builder',
   'Pull report',
+  'Recommendations',
   'Save report',
   'Download CSV',
+  'Export now to Google Sheets',
   'Deliver complete reports only',
   'Allow clearly marked partial reports',
+  'Reporting',
+  'Schedules',
+  'Evidence & analysis',
   'Unconfirmed Google Sheets delivery',
+  'Report file downloads',
+  'Measurement',
   'Measurement evidence ledger',
-  'Google Ads conversion goals',
-  'GA4 property configuration',
-  'Recent GA4 events',
-  'Google Tag Manager configuration audit',
-  'LinkedIn conversion settings',
+  'Observed',
+  'Unknown',
+  'Unavailable',
+  'Not applicable',
   'Inspect a sanitized event trace',
+  'Operations',
+  'Monitoring inbox',
+  'Audit activity',
   'Check the provider (read-only)',
   'Accept as applied',
   'Prepare support bundle',
-  'Pause all writes',
-  'Working client',
-  'Client access sets',
-  'Confirm it’s you',
-  'Delete your account',
+  'Your account',
   'Workspace members',
   'Workspace security',
-  'Report file downloads',
+  'Confirm it’s you',
+  'Clients & templates',
+  'Working client',
+  'Client access sets',
+  'Retention',
+  'Delete your account',
+  'Privacy',
 ];
 
 /** A page's shape: its heading levels in order, its list items, its table rows and the documents it links. */
@@ -135,6 +144,11 @@ const blocks = file =>
     .split(/\n\s*\n|\n(?=\s*(?:[-*]|\d+\.) )|\|/)
     .map(block => block.trim())
     .filter(Boolean);
+/** The words of a page's prose: Markdown markers (list numbers, table pipes, heading marks) are not words. */
+const words = file =>
+  read(file)
+    .split(/\s+/)
+    .filter(word => word && !/^(?:\||[-*]|\d+\.|#+|\|?(?:---\|)+)$/.test(word)).length;
 
 test('the owner guide covers each owner task, and every page has an Arabic translation and no other', () => {
   assert.deepEqual(pages, [...topics].sort());
@@ -165,6 +179,21 @@ test('the owner guide covers each owner task, and every page has an Arabic trans
       'docs/README.md links ' + target,
     );
   }
+  // Every page says what it is: a current page for workspace owners (tools/docs-front-matter.mjs).
+  for (const file of pages.flatMap(page => [english + '/' + page, arabic + '/' + page]))
+    assert.deepEqual(frontMatter(fs.readFileSync(file, 'utf8')).data, {status: 'current', tier: 'owner'}, file);
+});
+
+// The first guide held about 5,000 English words, a long read for the owner it addresses; the ticket's target is about
+// 1,500. The detail it dropped moved to the operator tier (docs/operations/OWNER-TASKS.md) and to the guides it named.
+test('the English guide stays at about 1,500 words, and the Arabic guide translates all of it', () => {
+  const total = pages.reduce((sum, page) => sum + words(english + '/' + page), 0),
+    translated = pages.reduce((sum, page) => sum + words(arabic + '/' + page), 0);
+  assert.ok(total <= 1650, 'the English guide has ' + total + ' words; its target is about 1,500');
+  assert.ok(total >= 1200, 'the English guide has ' + total + ' words: is a task missing?');
+  // Arabic packs prepositions and pronouns into its words, so a complete translation has fewer of them, not a third.
+  assert.ok(translated > total * 0.7 && translated < total * 1.2, 'Arabic ' + translated + ' against English ' + total);
+  assert.ok(fs.existsSync('docs/operations/OWNER-TASKS.md'), 'the owner tasks keep their operator steps');
 });
 
 test('each Arabic page has its English page’s headings, lists, tables and links, and no untranslated passage', () => {
@@ -185,7 +214,7 @@ test('each Arabic page has its English page’s headings, lists, tables and link
 });
 
 test('the guide names the website’s pages and controls by their own English and Arabic names', () => {
-  const catalog = JSON.parse(read('web/locales/ar.json')),
+  const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
     en = pages.map(page => read(english + '/' + page)).join('\n'),
     ar = pages.map(page => read(arabic + '/' + page)).join('\n');
   for (const label of labels) {
@@ -196,6 +225,16 @@ test('the guide names the website’s pages and controls by their own English an
     assert.ok(en.includes(label), 'the English guide uses "' + label + '"');
     assert.ok(ar.includes(catalog[label]), 'the Arabic guide uses "' + catalog[label] + '" for "' + label + '"');
   }
+  // The list is complete: a bold or italic website name in the English guide is checked in Arabic too. A bold lead-in
+  // that ends its own sentence ("**Plan.**", "**One switch stops everything:**") is the guide's wording, not a name.
+  const named = new Set(
+    [...en.matchAll(/\*\*([^*]+?)\*\*|(?<!\*)\*([^*\s][^*]*?)\*(?!\*)/g)]
+      .map(m => (m[1] ?? m[2]).trim())
+      .filter(span => !/[.:]$/.test(span))
+      .flatMap(span => span.split(' → '))
+      .filter(name => Object.hasOwn(catalog, name)),
+  );
+  assert.deepEqual([...named].filter(name => !labels.includes(name)).sort(), []);
 });
 
 test('the guide stays in plain language: no tool names, codes, environment names, register IDs or batch notes', () => {
@@ -210,4 +249,22 @@ test('the guide stays in plain language: no tool names, codes, environment names
     ])
       assert.doesNotMatch(text, pattern, file + ' contains ' + what);
   }
+});
+
+// The members-only Help page shows the guide on the website (DOC-03), where a link can only open another part of the
+// guide or a page of the website: a link to another page of the guide, or to a page of amcp.shop.
+test('the guide links only to its own pages and to pages of the website', () => {
+  for (const file of pages.flatMap(page => [english + '/' + page, arabic + '/' + page]))
+    for (const link of markdownLinks(read(file))) {
+      const target = parseTarget(link.target);
+      if (target.kind === 'external') {
+        assert.match(link.target, /^https:\/\/amcp\.shop\/[a-z-]+(?:\?lang=ar)?$/, file + ' links ' + link.target);
+        continue;
+      }
+      const resolved = target.kind === 'section' ? file : resolveLink(file, target.file);
+      assert.ok(
+        path.posix.dirname(resolved) === path.posix.dirname(file) && pages.includes(path.posix.basename(resolved)),
+        file + ' links ' + link.target + ', outside the guide',
+      );
+    }
 });

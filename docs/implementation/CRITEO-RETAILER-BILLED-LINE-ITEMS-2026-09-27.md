@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Criteo line items in retailer-billed campaigns — 2026-09-27
 
 Base revision: `3123374` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

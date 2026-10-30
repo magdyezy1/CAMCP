@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Implementation verification
 
 The authorized destination is `magdyezy1/AMCP`, branch `Codex-branch`, based on `067871481d79fc59a6cb976d8a13b62d409e283a`. Work was isolated from the existing development checkout and older release checkout. No live advertising requests or production changes were used. See PROGRESS.md for every audit ticket and OPERATIONS.md for migration and qualification boundaries.

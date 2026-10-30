@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok asset library edits — 2026-09-27
 
 Base revision: `d397f7c` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

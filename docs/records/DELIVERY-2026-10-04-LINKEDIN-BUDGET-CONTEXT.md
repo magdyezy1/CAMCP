@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Batch 130 — current LinkedIn budget context
 
 Baseline: `5bff289`. Sole repository `magdyezy1/CAMCP`, branch `Work-here`, checkout

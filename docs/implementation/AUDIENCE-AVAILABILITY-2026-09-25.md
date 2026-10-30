@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # X audience estimation and native Google action availability
 
 This continuation follows commit `90d5682` on `Codex-branch`. The preceding

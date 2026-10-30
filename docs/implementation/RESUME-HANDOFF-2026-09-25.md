@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # AMCP implementation handoff — 2026-09-25
 
 Superseded for current resume state by the [September 26 handoff](RESUME-HANDOFF-2026-09-26.md),

@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Delivery — selected browser WCAG rules — 5 October 2026
 
 Repository magdyezy1/CAMCP; sole branch Work-here; workspace CAMCP-Codes-final-branch.

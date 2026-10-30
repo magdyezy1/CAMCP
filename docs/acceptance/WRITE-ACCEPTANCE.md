@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Write acceptance: zero-spend reviewed writes
 
 The owner-run acceptance of AMCP's central promise (ACC-01): a guided recipe goes through preflight, the whole-plan

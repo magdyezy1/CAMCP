@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # LinkedIn campaign group and creative batch deletion — 2026-09-27
 
 Base revision: `2e16202` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

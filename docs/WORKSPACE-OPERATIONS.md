@@ -1,3 +1,8 @@
+---
+status: reference
+tier: operator
+---
+
 # Workspace operations
 
 The [connected product workflow guide](PRODUCT-WORKFLOWS.md) covers the October 2026 website/MCP additions:

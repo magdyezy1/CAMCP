@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # TikTok saved audiences — 2026-09-26
 
 Base revision: `21d351a` on `Codex-branch`, working copy `Downloads/CLaude workspace`.

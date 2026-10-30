@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Persistent feedback for current evidence capture
 
 Batch 160 keeps failed guided-capture feedback beside the original submit control until the user

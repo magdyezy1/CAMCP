@@ -1,3 +1,8 @@
+---
+status: reference
+tier: engineering
+---
+
 # Personal data in advertising writes: policy
 
 **Status: approved by the owner on 2026-09-30** ("Approved"), as drafted on 2026-09-29: the seven rules, the order
@@ -84,7 +89,9 @@ lists them as unqualified reads (`src/personal-data.ts`).
 - Later the same day ("Confirm on google"): the `datamanager` OAuth scope for Google, and sending the uploader's own
   confirmation of Google's Customer Match terms as the upload's terms field (rule 4).
 
-## Implementation (batch 43, 2026-09-30)
+## Implementation
+
+<a id="implementation-batch-43-2026-09-30"></a>
 
 - **Foundation** (`src/personal-data.ts`, `src/personal-data-access.ts`, the seam in `src/write-review.ts`):
   - People travel as `people` beside the reviewed request, never inside its arguments. They are normalized and hashed
@@ -156,6 +163,6 @@ people (accounts, workspaces and what they hold), not the uploads above, which s
   write-ahead log is truncated at the next maintenance pass after an erasure; older backups and volume snapshots keep a
   copy until they expire; the erasure receipts are re-applied to any restored copy; and master-key rotation retires the
   key that opens old copies once they have expired.
-- Periods, switches and the runbook: [operations](../OPERATIONS.md#account-erasure-and-retention). Counsel should
+- Periods, switches and the runbook: [operations](../operations/ERASURE-AND-RETENTION.md#account-erasure-and-retention). Counsel should
   confirm the periods for each country served, as for the rules above.
 
