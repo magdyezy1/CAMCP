@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {compileEntityRead} from '../dist/src/workflows.js';
 import {xAnalyticsTime} from '../dist/src/x-report-jobs.js';
 import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {launchCheckPlatforms} from '../dist/src/launch-check.js';
+import {providerById} from '../dist/src/provider-adapters.js';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 
 // ARC-01 phase B, wave 4c round 6: shared modules that named providers' gateways or imported their modules take those
@@ -46,4 +48,13 @@ test('the generic workflows take their platforms’ gateways from the adapters a
       () => statsTime(instant),
       e => e.code === 'INVALID_REPORT_RANGE' && e.message === 'X analytics times are expressed in whole hours.',
     );
+});
+
+test('the launch check reads each guided launch through its platform adapter’s gateway', () => {
+  assertNamesNoProvider('src/launch-check.ts');
+  // tests/launch-check.test.mjs checks each platform's reads, refusals and findings through the tool.
+  assert.deepEqual(
+    launchCheckPlatforms.map(platform => providerById(platform)?.gateway),
+    ['meta_native_action', 'snapchat_native_action'],
+  );
 });

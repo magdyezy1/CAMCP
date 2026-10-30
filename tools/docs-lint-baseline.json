@@ -46,10 +46,16 @@
       "raised": [
         "reference_words 143309 → 143363"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the launch check's gateways as adapter facts (ARC-01, 38 words)",
+      "raised": [
+        "reference_words 143363 → 143401"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143363
+    "reference_words": 143401
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

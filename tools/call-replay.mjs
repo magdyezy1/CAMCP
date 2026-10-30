@@ -232,6 +232,24 @@ export const targets = Object.freeze({
     classes: {WorkflowEngine: ['handle']},
   },
   'dist/src/x-report-jobs.js': {functions: ['xAnalyticsTime']},
+  // The launch check, the paused-parent rule and the budget units, which read their providers' facts from the leaf
+  // registry, and the media upload with the LinkedIn steps it reaches through LinkedIn's hooks.
+  'dist/src/launch-check.js': {functions: ['launchCheck']},
+  'dist/src/paused-parents.js': {
+    functions: ['pausedParentChildStatuses', 'pausedParentFollowUp', 'validatePausedParents'],
+  },
+  'dist/src/budget-units.js': {functions: ['nativeAmount', 'policyNativeUnit']},
+  'dist/src/media-upload.js': {classes: {MediaUploadService: ['call', 'plannedMedia']}},
+  'dist/src/linkedin-media-resume.js': {
+    functions: [
+      'linkedInTransfer',
+      'linkedInResumeReason',
+      'assertLinkedInResume',
+      'assertLinkedInWaiting',
+      'linkedInPartId',
+    ],
+  },
+  'dist/src/linkedin-posts.js': {functions: ['assertLinkedInOrganization']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -298,6 +316,11 @@ export const replayable = Object.freeze([
   'dist/src/workflows.js#compileEntityRead',
   'dist/src/workflows.js#compileReport',
   'dist/src/x-report-jobs.js#xAnalyticsTime',
+  'dist/src/paused-parents.js#pausedParentChildStatuses',
+  'dist/src/paused-parents.js#pausedParentFollowUp',
+  'dist/src/paused-parents.js#validatePausedParents',
+  'dist/src/linkedin-media-resume.js#linkedInPartId',
+  'dist/src/linkedin-media-resume.js#assertLinkedInWaiting',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');

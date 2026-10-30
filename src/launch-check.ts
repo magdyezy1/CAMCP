@@ -1,4 +1,5 @@
 import {auditCampaign, type CampaignAuditCheck} from './campaign-audit.js';
+import {providerById} from './provider-adapters.js';
 import {bad, fingerprint, obj, read, type ToolCall} from './workspace-core.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
@@ -12,9 +13,9 @@ import type {Actor, JsonObject} from './types.js';
  * Every read is a native read through the gateway's scope checks; nothing is saved and nothing is changed. Missing
  * evidence stays unknown: without a report, delivery is unknown; a paused campaign is unknown, never a false alarm;
  * a window without impressions is "none reported", which early data and reporting delay do not turn into a fault.
+ * The launches it checks are named by adapter ID; each one's reads go to that adapter's gateway (ARC-01 phase B).
  */
 export const launchCheckPlatforms = ['meta', 'snapchat'];
-const gateways: Record<string, string> = {meta: 'meta_native_action', snapchat: 'snapchat_native_action'};
 const checks: CampaignAuditCheck[] = ['budget', 'schedule', 'bid_strategy', 'creative_fatigue', 'targeting'];
 
 async function native(call: ToolCall, actor: Actor, gateway: string, input: JsonObject) {
@@ -89,7 +90,7 @@ export async function launchCheck(
       },
     );
   const write = run.steps.find((s: JsonObject) => s.kind === 'write'),
-    gateway = gateways[platform]!,
+    gateway = providerById(platform)!.gateway,
     scope = {account_id: String(write.account_id), connection_id: write.connection_id};
   const campaignResult = verifiedResult(run, 'campaign'),
     campaignId = platform === 'meta' ? campaignResult?.data?.id : campaignResult?.data?.campaigns?.[0]?.campaign?.id,
