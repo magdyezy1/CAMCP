@@ -624,17 +624,21 @@ report downloads and the workspace tools (only where the MCP service runs), the 
 logins and provider returns (before the connection routes, so `/api/connections/callback` is a provider return),
 connections, connector tokens and client access sets, activity, and the public pages with the not-found page last
 (`server/page-routes.ts`). A new route joins the module of its area, in that module's order. The routes' SQL moved
-into the store layer (`server/website-repository.ts`), and the three gateways the website treats by name come from
-the provider adapter registry. The modules' code is the function's code unchanged (a token comparison shows no other
+into the store layer (`server/website-repository.ts`), and the gateways the website treats by name (Google Ads and
+WooCommerce) come from the provider adapter registry. The modules' code is the function's code unchanged (a token comparison shows no other
 difference), and the router has the same layers as before in every deployment shape: the same 98 layers (85 without
 the MCP service) in the same order, with the same paths, methods and handlers. `tests/website-routes.test.mjs` holds
 the registry order, the orderings that decide a match and the fall-through answers (404, never 405), and compares the
 router with the one recorded from the function before the split (`tests/fixtures/website-router-layers.json`: each
 layer's path, methods and handler names or middleware reach, in each deployment shape), so a route moved inside a
 module fails too; a commit that adds or moves a route updates that recording deliberately. `createWebsite`
-is 7 lines; the longest route module is `platformRoutes` (294): `connectionRoutes` (378) registers the asset selection
-and the write-access change from their own steps (`selectAssets`, 105 lines, and `changeWriteAccess`, 57; their code
-unchanged, the routes in the same order), which left it 198 lines. WEB-07, merged beside this work, has split
+is 7 lines. `connectionRoutes` (378) registers the asset selection and the write-access change from their own steps
+(`selectAssets`, 105 lines, and `changeWriteAccess`, 57; their code unchanged, the routes in the same order), which
+left it 198 lines; `platformRoutes` (294) registers the start of a connection and the provider's return from theirs
+(`startConnection`, 73, and `oauthCallback`, 155), which left it 60; and the login views (`connectionViews`, 326, in
+`server/website-connections.ts`) build a login's public view and its asset sync in their own steps
+(`publicConnectionView`, 74, and `assetSync`, 148), which left them 137. The longest function of a route module is now
+`accountRoutes` (244). WEB-07, merged beside this work, has split
 `web/account-workflows.js` behind `web/route-assets.js`: a shared helper and the portfolio, measurement and commerce
 modules.
 
