@@ -309,10 +309,10 @@ packages' falls add up: 76 and 235.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 75 |
-| `shared_to_provider_runtime_imports` | 218 |
+| `shared_modules_with_gateway_literals` | 70 |
+| `shared_to_provider_runtime_imports` | 157 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 402 |
+| `shared_gateway_literals` (reported) | 347 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -403,18 +403,34 @@ of each tool, every catalogued action of every direct gateway compiled in seven 
 every delegated route in four shapes, and the action contract rows with their summary and pages (73,811 results or
 refusals).
 
+**The package's final comparison.** After the package's last three concerns (`src/scope.ts`'s last provider import,
+the token renewal, the catalog version moves with the help tool's extension gateways), the same 780 test files were
+recorded on the head on the UTC day of the two Work-here recordings: 5,097,744 records before and 5,176,968 after
+(79,226 more `normalizeAccount` calls); with those set aside, 2,883,964 and 2,883,962 records, 0 differences beyond
+calibration but 2 `platform()` lookups of `tests/measurement-apple.test.ts`, and 7,726 records within calibration.
+Eight records are unsettled by rule, outcome flips the calibration pair shows too, each in a window computed from the
+clock (LinkedIn's media planning `startDateOn`, which must lie in the future, a conditional program's plan and
+Adjust's `date_period`); recorded back to back on both builds, twice each, those four test files show 0 differences
+beyond calibration and no outcome flip, and the one record left unsettled is the `platform()` count, which varies
+between two runs of Work-here. The direct check above is byte-identical on the final head too.
+
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
-the gate test checks both modes), and phase B has moved nine concerns so far, so 76 shared modules still name a
-gateway (target 20 or fewer) and 235 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496,
-163 imports are the reviewed-family registry's, no longer counted since phase B counts it as a registry (§8), and 9
-are ARC-04's report job registry and website route modules; the other 89 are phase B's migrations, after which the
-shared stages consult the provider hooks registry (`src/provider-hooks.ts`, which imports the 17 adapter modules)
-instead of provider modules. The largest remaining are the catalog compiler (`src/compiler.ts`,
-`src/delegated-native.ts`, `src/catalog.ts`), the service and action contracts (`src/service.ts`,
-`src/action-contracts.ts`), the review (`src/write-review.ts`, `src/write-snapshots.ts`), the campaign and reporting
-modules, each provider's asset discovery and OAuth flow steps in `server/`, and the two remainders of the gateway
-checks (Reddit's write contract and state check, Meta's first write checks). ARC-01's native and manual criteria are
+the gate test checks both modes), and phase B has moved fifteen concerns so far (nine before wave 4c and the six wave
+4c rows above), so 70 shared modules still name a gateway (target 20 or fewer) and 157 shared-to-provider imports
+remain (target 30 or fewer), as measured on the wave 4c transport and catalog branch before the other wave 4c
+packages merge (Work-here: 76 and 235). Of the fall from 496, 163 imports are the reviewed-family registry's, no
+longer counted since phase B counts it as a registry (§8), and 9 are ARC-04's report job registry and website route
+modules; the other 167 are phase B's migrations, after which the shared stages consult the provider hooks registry
+(`src/provider-hooks.ts`, which imports the 17 adapter modules) or the provider workflows registry
+(`src/provider-workflows.ts`) instead of provider modules. The transport and catalog modules (`src/transport.ts`,
+`src/compiler.ts`, `src/delegated-native.ts`, `src/catalog.ts`, `src/action-contracts.ts`, `src/service.ts`,
+`src/scope.ts`, `src/auth.ts`, `src/tool-help.ts`, `src/catalog-versions.ts`) now name no gateway and import no
+provider module. The largest remaining are the review (`src/write-review.ts`, `src/write-snapshots.ts`), the
+workspace tool (`src/workspace.ts`), the campaign and reporting modules, the provider tables of shared modules
+(`src/retired-provider-actions.ts`, `src/tool-notes.ts`, `src/parameters.ts`, `src/wire-contracts.ts`), each
+provider's asset discovery and OAuth flow steps in `server/`, and the two remainders of the gateway checks (Reddit's
+write contract and state check, Meta's first write checks). ARC-01's native and manual criteria are
 the owner's: read-only `verify-reads` per migrated gateway on existing test accounts, and a security reviewer's
 sign-off of every `src/scope.ts` and `src/transport.ts` diff.
 
