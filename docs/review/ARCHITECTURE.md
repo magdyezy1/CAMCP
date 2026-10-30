@@ -519,6 +519,14 @@ modules. No other export left a module that wave 4c's writes, reporting and fami
 every changed `src/` and `server/` module compared with the base), so every other move keeps its import path through a
 re-export, as ARC-04's manual criterion asks.
 
+One more path is removed on purpose, for the manual reviewer to sign off with the `src/scope.ts` diff: `src/scope.ts`
+no longer re-exports `snapchatScopedResource` and `snapchatOrganizationPixels` (wave 4c's transport and catalog
+package). The re-export was the shared guard's last import of a provider module, which ARC-01 removes, so restoring it
+is not the fix; the supported path is the leaf `src/snapchat-scope.ts`, where both are defined and from which
+Snapchat's adapter, `tests/provider-workflows.test.mjs` and `tools/call-replay.mjs` import them, and nothing imported
+them through `src/scope.ts`. Compared the same way, none of the 41 `src/` and `server/` modules wave 4c's server
+package changed or added, nor any of the other 27 of its transport and catalog package, lost an export.
+
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
 the gate test checks both modes), and phase B moves one concern at a time (the rows above), so on the merged wave 4c
