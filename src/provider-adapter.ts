@@ -483,6 +483,30 @@ export interface ReviewProjections {
   verificationVersion?(plan: CompiledRequest): string | undefined;
 }
 
+/**
+ * How a saved native report query of the provider names its exact account (ARC-01, reporting): the resource
+ * selectors a workbook query's arguments carry (projected by src/workbook-repository.ts) and the account anchors it
+ * writes in resource form. src/report-resource-scope.ts and src/report-runs.ts keep the selector bounds, the order of
+ * the checks and their one refusal (REPORT_SCOPE_UNAVAILABLE); a provider only says which account a selector names.
+ */
+export interface ReportResourceScope {
+  /**
+   * The exact account a selector of `kind` names by `value` (a bounded text the shared checks passed), never a child
+   * resource; undefined when it names none (refused).
+   */
+  account(kind: unknown, value: string): string | undefined;
+  /**
+   * The selector kind of an account anchor written in resource form (GA4's `properties/...` is a property selector,
+   * Tag Manager's and Business Profile's `accounts/...` an account selector); undefined for a plain account ID.
+   */
+  anchorKind?(anchor: string): string | undefined;
+  /**
+   * The accounts of several selectors when some only check another's consistency (Business Profile's location
+   * selectors); undefined to refuse. `account` is the shared check of one selector.
+   */
+  accounts?(rows: JsonObject[], existing: unknown[], account: (row: JsonObject) => string): string[] | undefined;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -502,6 +526,8 @@ export interface ProviderHooks {
   readonly scope?: ScopeHooks;
   readonly checks?: GatewayChecks;
   readonly review?: ReviewProjections;
+  /** Workbook reporting (ARC-01, reporting): the account a saved native report query's selectors name. */
+  readonly reportScope?: ReportResourceScope;
 }
 
 export interface ProviderAdapter {

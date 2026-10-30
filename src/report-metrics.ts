@@ -1,20 +1,26 @@
 import {recommendationContext} from './recommendation-context.js';
 import {zonedMidnight} from './workflows.js';
 import {MirrorError} from './errors.js';
+import {providerById} from './provider-adapters.js';
 import type {JsonObject} from './types.js';
 
+/**
+ * A reporting platform (ARC-01): it reports through the gateway of the provider adapter with the same ID
+ * (src/provider-adapters.ts); its display name and source kind are reporting's own.
+ */
+const reportPlatform = (id: string, name: string, kind: string) => ({name, gateway: providerById(id)!.gateway, kind});
 export const reportPlatforms: Record<string, {name: string; gateway: string; kind: string}> = {
-  google: {name: 'Google Ads', gateway: 'google_ads_native_action', kind: 'paid'},
-  meta: {name: 'Meta', gateway: 'meta_native_action', kind: 'paid'},
-  tiktok: {name: 'TikTok', gateway: 'tiktok_native_action', kind: 'paid'},
-  snapchat: {name: 'Snapchat', gateway: 'snapchat_native_action', kind: 'paid'},
-  linkedin: {name: 'LinkedIn', gateway: 'linkedin_native_action', kind: 'paid'},
-  x: {name: 'X Ads', gateway: 'x_ads_native_action', kind: 'paid'},
-  microsoft: {name: 'Microsoft Ads', gateway: 'microsoft_ads_native_action', kind: 'paid'},
-  apple: {name: 'Apple Ads', gateway: 'apple_ads_native_action', kind: 'paid'},
-  reddit: {name: 'Reddit Ads', gateway: 'reddit_native_action', kind: 'paid'},
-  ga4: {name: 'Google Analytics 4', gateway: 'ga4_native_action', kind: 'measurement'},
-  gsc: {name: 'Search Console', gateway: 'google_search_console_native_action', kind: 'organic'},
+  google: reportPlatform('google', 'Google Ads', 'paid'),
+  meta: reportPlatform('meta', 'Meta', 'paid'),
+  tiktok: reportPlatform('tiktok', 'TikTok', 'paid'),
+  snapchat: reportPlatform('snapchat', 'Snapchat', 'paid'),
+  linkedin: reportPlatform('linkedin', 'LinkedIn', 'paid'),
+  x: reportPlatform('x', 'X Ads', 'paid'),
+  microsoft: reportPlatform('microsoft', 'Microsoft Ads', 'paid'),
+  apple: reportPlatform('apple', 'Apple Ads', 'paid'),
+  reddit: reportPlatform('reddit', 'Reddit Ads', 'paid'),
+  ga4: reportPlatform('ga4', 'Google Analytics 4', 'measurement'),
+  gsc: reportPlatform('gsc', 'Search Console', 'organic'),
 };
 export const metricDefinitions: Record<string, JsonObject> = {
   spend: {label: 'Spend', format: 'currency', aggregation: 'sum'},

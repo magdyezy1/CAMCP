@@ -206,7 +206,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/snapchat-scope.ts, Snapchat's scoped paths, without wrapper reasons.
   // The design review of 2026-10 adds 24 website entries to the catalog, none a wrapper reason, and its review fixes
   // three reviewer sign-in sentences and one uncertain-write message (its remedy replaced), none a wrapper reason.
-  assert.equal(files.length, 669);
+  // ARC-04 stage F (reporting) adds ten modules split from the reporting modules, without wrapper reasons: the shared
+  // report table (src/report-table.ts), the leaf src/overview-levels.ts, five platforms' guided reporting
+  // (src/<platform>-guided-reports.ts), two allocation evidence checks and src/evidence-dates.ts.
+  assert.equal(files.length, 679);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11513);

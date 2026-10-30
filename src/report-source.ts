@@ -1,11 +1,18 @@
-import type {JsonObject} from './types.js';
+import {MirrorError} from './errors.js';
+import type {DetailParentCache} from './overview-parents.js';
+import type {Store} from './store.js';
+import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import type {ToolCall} from './workspace-core.js';
 
 /**
- * The report-source contract (ARC-04 stage F): what one reporting platform declares about its native campaign report
- * rows. src/report-sources.ts registers one source per platform; src/report-native.ts normalizes every row through
- * its platform's source instead of a platform if-chain, and keeps the shared parts: the identity check, the native
- * metric copy, the omitted-as-zero and result-definition fields, and the row envelope. Collection (the request plans
- * and response parsing of each platform) still lives in src/report-native.ts.
+ * The report-source contract (ARC-04 stage F): what one reporting platform declares about its native campaign reports.
+ * src/report-sources.ts registers one source per platform; src/report-native.ts normalizes every row through its
+ * platform's source instead of a platform if-chain, and keeps the shared parts: the identity check, the native metric
+ * copy, the omitted-as-zero and result-definition fields, and the row envelope. A source's `collect` reads one period
+ * of its report (its request plans, paging and response parsing) through the collection the shared collector gives it,
+ * which keeps every shared check: the native metric names, the connection before and after, the account lookup and its
+ * cache, the read path of each request (runPlan, with its refusals and lineage), the row bound and the result envelope.
+ * A leaf: it imports only types and the error class.
  */
 export interface ReportRowReader {
   /** A metric of the row: the number a provider value holds (metricNumber), divided by `divisor`, or null. */
@@ -34,6 +41,203 @@ export interface ReportSourceRow {
   mixedResult?: boolean;
 }
 
+/**
+ * RPT-03: one account lookup per source per job. Later periods reuse the first read (lineage marks it `cached`), and
+ * `verifyAccount` re-reads once after collection so a currency or time-zone change during a long run is still caught.
+ */
+export interface AccountLookupCache {
+  data?: JsonObject;
+  lineage?: JsonObject;
+  /**
+   * RPT-04: TikTok ad group optimization events per campaign, read once per source per job like the account lookup
+   * (not once per period). `unavailable` records a non-retryable failure of this optional read.
+   */
+  tiktokEvents?: {events: Record<string, string[]>; lineage?: JsonObject; unavailable?: boolean};
+  /**
+   * RPT-07: current LinkedIn campaign names and objectives by URN, read once per source per job for the URNs reported
+   * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
+   */
+  linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
+  detailParents?: DetailParentCache;
+}
+
+/**
+ * One period of one source's collection (ARC-04 stage F): what the shared collector gives a source's `collect`, and the
+ * state the source sets for the result envelope. The collector checked the native metric names and the connection and
+ * read the account (sources with an account lookup) before; it checks the row bound, the actor and the connection again
+ * after, and builds the result from this state.
+ */
+export interface ReportCollection {
+  /** The report source as configured: platform, account, connection, level, report options, native metrics. */
+  readonly source: JsonObject;
+  readonly account: string;
+  /** The connection ID of the source. */
+  readonly connection: string;
+  readonly range: {since: string; until: string};
+  /** The requested native metrics. */
+  readonly extra: string[];
+  /** `daily` for one natively day-segmented request (collectDaily). */
+  readonly segment?: 'daily';
+  /** The level a native detail source reports (`adset` or `ad`); undefined for campaigns. */
+  readonly detail?: string;
+  /** The period's checkpoint, and how the collection saves one (X inventories and windows, Microsoft report jobs). */
+  readonly checkpoint: JsonObject;
+  save(value: JsonObject): void;
+  /** The job's per-source cache (the account lookup, TikTok events, LinkedIn campaigns). */
+  readonly lookup?: AccountLookupCache;
+  readonly actor: Actor;
+  readonly store: Store;
+  /** The source's request lineage so far (the account lookup first), which `run` extends. */
+  readonly lineage: JsonObject[];
+  /**
+   * Reads one request through the read path (MirrorService.runPlan) and returns its provider data: a dry run, an
+   * unsuccessful or truncated read, or a provider error envelope is refused, and the request's lineage is recorded.
+   */
+  run(plan: CompiledRequest, aggregate?: boolean, stage?: string): Promise<JsonObject>;
+  /** A read-only report request of the source's gateway and account (a POST when it has a body). */
+  plan(path: string, query?: JsonObject, body?: JsonObject, origin?: string): CompiledRequest;
+  /** The validated campaign-level attribution profile of the source (Meta, Snapchat; RPT-04), or undefined. */
+  attributionProfile(): JsonObject | undefined;
+  // What the collection sets for the result.
+  metadata: JsonObject;
+  currency: string | null;
+  timezone: string | null;
+  raw: JsonObject[];
+  readonly warnings: string[];
+  attribution: string;
+  resultDefinition: string;
+  complete: boolean;
+  collectionComplete: boolean;
+  /** Source-specific fields returned with the result (X campaigns without activity, Microsoft's report time zone). */
+  readonly context: JsonObject;
+  /** RPT-02 scope limits: what the source covers by design. They are disclosed, not counted as incompleteness. */
+  readonly scopeLimitations: string[];
+  quality: JsonObject;
+  /** The native detail rows of an ad group or ad level (RPT-07: Microsoft, Reddit, Apple) and their parents. */
+  detailRows?: {rows: JsonObject[]; parents: Record<string, JsonObject>};
+  /** Rounded native decimals of the detail rows, by metric (owner decision D10). */
+  readonly detailRounding: Record<string, number>;
+}
+
+/** Native daily segmentation (RPT-03): the day a native row of one day-segmented request belongs to. */
+export interface DailySegmentation {
+  day(native: JsonObject | undefined): unknown;
+  /** Whether a row that names its last day ends on `day` (Meta's date_stop); every row does when absent. */
+  endsOn?(native: JsonObject | undefined, day: string): boolean;
+}
+
+/** What a guided capture's collector is given (src/decision-reporting.ts capture, ARC-01 reporting). */
+export interface GuidedCaptureContext {
+  readonly store: Store;
+  readonly call: ToolCall;
+  readonly actor: Actor;
+  /** The native read's arguments, bound to the capture's account and connection and never a dry run. */
+  readonly args: JsonObject;
+  /** The capture's validated declared semantics. */
+  readonly semantics: JsonObject;
+  /** The preset the capture collects. */
+  readonly preset: string;
+  /** The preset's row checks (validatePresetRows), for a collector that checks its rows before its last read. */
+  validateRows(rows: JsonObject[]): void;
+}
+
+/** What a platform's guided collector read: the provider read the capture maps, its pages, its account evidence. */
+export interface GuidedCapture {
+  readonly source: JsonObject;
+  readonly sourcePages: unknown;
+  readonly nativeAccountEvidence?: JsonObject;
+  /** Checks the actor, the connection and its authorization again, before the capture is retained. */
+  assertCurrent(): void;
+}
+
+/**
+ * RPT-07: a capture's conversion rules, read in its authorization bracket after its native report (LinkedIn's campaign
+ * × conversion preset): the rules' account currency, which the capture compares with the declared one, the join of the
+ * reported conversions to their rules' windows, and the rules' provenance.
+ */
+export interface GuidedConversionRules {
+  readonly currency: unknown;
+  join(conversions: string[]): JsonObject;
+  provenance(): JsonObject;
+}
+
+/**
+ * A native dimension a capture's mapping may retain that one platform documents (Google's devices and geography,
+ * LinkedIn's conversion rules): whether a mapped value is one the capture keeps and, for a dimension other mapped
+ * dimensions of a row must agree with (Google's geographic resource), whether they do. The capture keeps the refusal.
+ */
+export interface GuidedDimension {
+  valid(value: unknown, capture: JsonObject): boolean;
+  agrees?(row: JsonObject): boolean;
+}
+
+/**
+ * A platform's guided reporting (amcp_reporting's capture presets and their evidence, ARC-04 stage F): what the shared
+ * guided modules (src/report-breakdowns.ts and the modules above it) ask the platform instead of naming it.
+ */
+export interface GuidedReporting {
+  /**
+   * The platform's collection of a capture of one of its presets (ARC-01 reporting): complete native pages bracketed
+   * by account and authorization checks, in place of one read through the gateway. The capture keeps every shared
+   * check of the read it returns.
+   */
+  collect?(context: GuidedCaptureContext): Promise<GuidedCapture>;
+  /** How the collector read the evidence, retained as its source_collection (`google_search_pages`...). */
+  readonly sourceCollection?: string;
+  /** True when the collector checks the native rows before its last read (LinkedIn), so the capture does not again. */
+  readonly collectorChecksRows?: true;
+  /** The provenance a capture of `preset` with its generated `request` retains as semantics_source (capture_preset). */
+  semanticsSource?(preset: string, request: JsonObject): string;
+  /** RPT-04: a delivered row's absent selected action counts as zero (Meta omits zero-valued action entries). */
+  readonly omittedAsZero?: true;
+  /** Native date formats a mapping may name for the report date, each with its parse of a native date. */
+  readonly dateFormats?: Readonly<Record<string, (value: unknown) => unknown>>;
+  /** The native dimensions a mapping may retain that this platform documents, by mapping key. */
+  readonly dimensionChecks?: Readonly<Record<string, GuidedDimension>>;
+  /** RPT-07: the preset whose capture joins its conversions to their rules, and the rules' read. */
+  readonly conversionRules?: {
+    readonly preset: string;
+    read(
+      context: Pick<GuidedCaptureContext, 'store' | 'call' | 'actor'>,
+      capture: {gateway: string; account_id: string; connection_id: string},
+    ): Promise<GuidedConversionRules>;
+  };
+  /**
+   * RPT-07 P1 dimension packs: the native breakdown dimensions of the platform's guided captures, by mapping key
+   * (`native_age`...), in the order they are listed, each with the check of the documented native values it accepts.
+   */
+  readonly dimensions?: Readonly<Record<string, (value: unknown) => boolean>>;
+  /**
+   * The platform's capture presets, as amcp_reporting capture_presets lists them (src/report-presets.ts lists the
+   * platforms' presets in the registry's guided order, src/report-sources.ts guidedReportSources).
+   */
+  readonly presets?: readonly JsonObject[];
+  /** The prefix every one of the platform's preset IDs starts with (`linkedin_`), by which a capture names its preset. */
+  readonly presetPrefix?: string;
+  /** Whether a capture of `preset` takes a parent campaign filter (Snapchat's parent-scoped presets); none when absent. */
+  campaignFilter?(preset: JsonObject): boolean;
+  /**
+   * The native capture one of the platform's presets defines (capture_preset): the gateway, account and connection,
+   * the native read's arguments, the declared semantics, the rows pointer and the field mapping, over the validated
+   * reporting window `range`. It refuses what the preset does not accept, after the shared checks.
+   */
+  presetRequest?(preset: JsonObject, input: JsonObject, range: {since: string; until: string}): JsonObject;
+  /** Checks the native rows of a capture of one of the platform's presets before they are mapped (LinkedIn, Meta). */
+  validateRows?(preset: string, input: JsonObject, rows: JsonObject[]): void;
+  /**
+   * DEC-01: the allocation model of the platform's guided evidence (amcp_reporting allocation_candidates, allocation
+   * and its calibration, src/report-allocation.ts): the preset whose retained evidence it models, the check of that
+   * evidence's native source (it refuses; LinkedIn, Snapchat), and whether a retained row's entity ID is one of the
+   * platform's native IDs.
+   */
+  readonly allocation?: {
+    readonly preset: string;
+    evidence?(report: JsonObject): void;
+    entity(id: unknown): boolean;
+  };
+}
+
 export interface ReportSource {
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */
   readonly platform: string;
@@ -44,6 +248,78 @@ export interface ReportSource {
    * Snapchat `stats`); no other prefix or suffix is accepted.
    */
   readonly nativeMetricContainer?: string;
+  /** Requested native metric names the source accepts beyond plain field names (Google Ads' `metrics.` paths). */
+  readonly nativeMetricName?: RegExp;
+  /** False for sources that read no account before collection (GA4, Search Console, Apple Ads). */
+  readonly accountLookup?: false;
+  /** Whether the source's own reports collect its ad group and ad levels (RPT-07: Microsoft, Reddit, Apple). */
+  readonly nativeDetail?: true;
+  /**
+   * False when requested native metrics are not checked against the returned rows (RPT-04): X and Apple Ads rows carry
+   * their metrics in their own shapes, so a missing field is not reported there.
+   */
+  readonly nativeMetricCheck?: false;
+  /** True when a native null is kept as a null metric (GA4 marks access-restricted metrics null) instead of dropped. */
+  readonly nullNativeMetrics?: true;
+  /** The request header whose value names the API version in lineage (LinkedIn-Version); else the path's version. */
+  readonly versionHeader?: string;
+  /**
+   * RPT-03: the fewest data requests one period of a campaign-level source needs, beyond the account lookup (the
+   * request estimate made before any egress; pages beyond the first, retries and polls are not counted).
+   */
+  readonly minimumRequestsPerPeriod: number;
+  /**
+   * RPT-02: the report day boundary the source's collector fixes, independent of account metadata (LinkedIn, Apple Ads
+   * and Reddit report in UTC, Search Console in Pacific time); the account time zone otherwise.
+   */
+  readonly fixedTimezone?: string;
+  /**
+   * RPT-02: how the source's report time zone is read without collecting its report (a rolling window in the account
+   * zone): the request, when it is not the account read, and the zone of its response, when that is not the account
+   * time zone (GA4 reads its property; Microsoft maps the account zone to its report zone).
+   */
+  readonly timezoneRead?: {
+    plan?(gateway: string, account: string): CompiledRequest;
+    zone?(data: JsonObject, gateway: string): unknown;
+  };
+  /**
+   * PRV-04: a provider rule change that will refuse saved native report queries of this platform (Reddit's 2026-12-08
+   * breakdown rules): the problems of one saved query's configuration (none when it is unaffected), and the warning the
+   * reporting bootstrap shows for the query and its schedules.
+   */
+  readonly savedQueryRules?: {
+    problems(config: unknown): string[];
+    warning(queryId: string, problems: string[], scheduleIds: string[]): JsonObject;
+  };
+  /** One natively day-segmented request split by day (RPT-03: Google Ads, Meta). */
+  readonly daily?: DailySegmentation;
+  /** The platform's guided reporting (Google, Snapchat, TikTok, LinkedIn, Meta); none without guided captures. */
+  readonly guided?: GuidedReporting;
+  /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */
+  requestHeaders?(): Record<string, string>;
+  /** Collects one period of the source's native report into `collection`. */
+  collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */
   normalize(raw: JsonObject, row: ReportRowReader): ReportSourceRow;
 }
+
+/** A provider collection of report rows, refused unless every item is an object. */
+export const reportList = (v: unknown): JsonObject[] => {
+  if (!Array.isArray(v) || v.some(x => !x || typeof x !== 'object' || Array.isArray(x)))
+    throw new MirrorError('REPORT_SHAPE_CHANGED', 'The provider returned an unexpected report collection.', {}, 502);
+  return v;
+};
+/** Refuses a report source that cannot be collected as configured. */
+export const invalidReportSource = (message: string) => {
+  throw new MirrorError('INVALID_REPORT_SOURCE', message);
+};
+/** RPT-07: refuses a mapped breakdown value that is not a documented native value of the capture's gateway. */
+export const undocumentedBreakdownValue = (dimension: string): never => {
+  throw new MirrorError(
+    'REPORT_SHAPE_CHANGED',
+    'The provider returned a breakdown value this report type does not document.',
+    {dimension},
+  );
+};
+/** The calendar day after an ISO date. */
+export const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);

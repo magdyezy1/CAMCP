@@ -40,4 +40,14 @@ export const gtmHooks: ProviderHooks = Object.freeze({
   wire: Object.freeze({
     emptyWrite: (plan: CompiledRequest, response: Response) => response.status === 200 && plan.method === 'DELETE',
   }),
+  // Workbook reporting (ARC-01, reporting; src/report-resource-scope.ts): a saved query names its Tag Manager account
+  // by an account selector (an account ID or accounts/{id}) or by an accounts/{id}/... resource name.
+  reportScope: Object.freeze({
+    account(kind: unknown, value: string) {
+      if (kind === 'account') return /^(?:accounts\/)?([A-Za-z0-9_-]{1,200})$/.exec(value)?.[1];
+      if (kind !== 'resource' || value.split('/').some(part => part === '.' || part === '..')) return undefined;
+      return /^accounts\/([A-Za-z0-9_-]{1,200})(?:\/[^/\x00-\x20\\?#%]+)*$/.exec(value)?.[1];
+    },
+    anchorKind: (anchor: string) => (anchor.startsWith('accounts/') ? 'account' : undefined),
+  }),
 });

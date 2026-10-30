@@ -17,27 +17,12 @@ import {reportScenarios} from './report-scenarios.js';
 import {allocationCandidates, reportAllocation} from './report-allocation.js';
 import {calibrateAllocation} from './allocation-calibration.js';
 import {previewAllocationPlan, createAllocationPlan} from './allocation-plan.js';
-import {linkedInReportDate} from './linkedin-reporting.js';
 import {assertCompatibleBaseline, compareDeclaredReference, compareReportContext} from './report-references.js';
-import {collectTikTokDailyReport, tiktokReportDate} from './tiktok-reporting.js';
-import {
-  collectGoogleReport,
-  googleReportDevices,
-  googleReportCountryId,
-  googleReportLocationTypes,
-  googleGeographicResource,
-} from './google-reporting.js';
-import {normalizeAccount} from './scope.js';
-import {collectMetaEvidence} from './meta-evidence.js';
-import {collectLinkedInEvidence} from './linkedin-evidence.js';
-import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
 import {allocationOutcomeView, captureAllocationOutcome} from './allocation-outcome.js';
-import {linkedInConversionUrn, linkedInConversionWindows} from './linkedin-conversion-windows.js';
 import {breakdownDescriptor, breakdownDimensionKeys, breakdownValue} from './report-breakdowns.js';
-import {metaAttributionWindows} from './meta-attribution-windows.js';
-import {collectSnapchatEvidence} from './snapchat-evidence.js';
+import {guidedReportSources, googleServingDiagnostics, metaAttributionWindows} from './report-sources.js';
+import type {GuidedDimension, GuidedReporting} from './report-source.js';
 import {evidenceIndex} from './evidence-index.js';
-import {googleServingDiagnostics} from './google-serving-diagnostics.js';
 import {launchCheck} from './launch-check.js';
 import {
   metricRoundingLimitation,
@@ -48,6 +33,31 @@ import {
 const nativeDeviceMappingFailure = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
 const nativeHourMappingFailure = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
 const nativeCountryMappingFailure = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
+/**
+ * ARC-01 (reporting): the guided platforms' capture facts come from their report sources (src/report-sources.ts):
+ * the guided reporting of the platform a preset is named under or a gateway reports through, the report date formats
+ * and the native dimensions they document, by key.
+ */
+const guidedByPreset = (preset: string | undefined): GuidedReporting | undefined =>
+  preset === undefined
+    ? undefined
+    : guidedReportSources.find(source => preset.startsWith(source.guided!.presetPrefix!))?.guided;
+const guidedByGateway = (gateway: unknown): GuidedReporting | undefined =>
+  guidedReportSources.find(source => reportPlatforms[source.platform]?.gateway === gateway)?.guided;
+const guidedDateFormats = new Map<string, (value: unknown) => unknown>(
+  guidedReportSources.flatMap(source => Object.entries(source.guided?.dateFormats ?? {})),
+);
+const guidedDimensions = new Map<string, GuidedDimension>(
+  guidedReportSources.flatMap(source => Object.entries(source.guided?.dimensionChecks ?? {})),
+);
+/** Whether a mapped value of a dimension one guided platform documents is one the capture keeps. */
+const dimensionValue = (key: string, value: unknown, capture: JsonObject) =>
+  guidedDimensions.get(key)!.valid(value, capture);
+/** The semantics_source a preset capture retains: the provenance its platform declares, when it declares one. */
+function semanticsSourceField(request: JsonObject, preset: string): JsonObject {
+  const source = guidedByGateway(request.gateway)?.semanticsSource?.(preset, request);
+  return source === undefined ? {} : {semantics_source: source};
+}
 /** RPT-04: analyze against a baseline whose window is not declared complete. */
 const baselineIncompleteLimitation =
   'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.';
@@ -532,40 +542,7 @@ export class DecisionReporting {
         preset: input.preset,
         collection_usage: {requests: usage.requests, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
         grain: reportPresets.find(p => p.id === input.preset)!.grain,
-        ...(request.gateway === 'snapchat_native_action'
-          ? {
-              semantics_source:
-                request.arguments.query.fields === 'spend,impressions,swipes,native_leads'
-                  ? 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Native submitted-form counts use native_leads; every page confirms non-conversion metric finalization through the selected end. Swipes are clicks; spend is native micros. No submitted lead records are read. Collection is not a point-in-time snapshot; off-platform attribution, lead quality and measurement setup remain unverified.'
-                  : 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Explicit swipe/view windows, conversion-time reporting and total conversion sources come from the retained request; each page confirms delivery and conversion processing through the selected end. Swipes are clicks; spend is native micros. Collection is not a point-in-time snapshot or proof of measurement setup.',
-            }
-          : {}),
-        ...(request.gateway === 'google_ads_native_action'
-          ? {
-              semantics_source:
-                'Google customer currency and timezone verified before and after complete Search pages; native resource identity, dates, result counts and unique grain checked; conversions use metrics.conversions. Attribution and reporting-window completeness remain declared, not independently verified. Collection is not a point-in-time snapshot.',
-            }
-          : {}),
-        ...(request.gateway === 'meta_native_action'
-          ? {
-              semantics_source:
-                'Meta account currency and timezone verified before and after complete Insights pages; action/window/report-time settings come from the retained request, native account/parent/day grain is checked, and reporting-window completeness remains declared. Collection is not a point-in-time snapshot.',
-            }
-          : {}),
-        ...(request.gateway === 'linkedin_native_action'
-          ? {
-              semantics_source:
-                input.preset === 'linkedin_campaign_conversion'
-                  ? "LinkedIn account identity and currency verified before and after a complete bounded campaign × conversion analytics response and the account's current conversion rules, all under unchanged authorization; each conversion's post-click and post-view windows come from its current rule (verified_per_rule, mixed or unknown). Rule settings are current, not historical. Reporting-window completeness remains declared. Collection is not a point-in-time snapshot."
-                  : 'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
-            }
-          : {}),
-        ...(request.gateway === 'tiktok_native_action'
-          ? {
-              semantics_source:
-                'TikTok advertiser currency and timezone verified before and after complete native pages; native conversion refers to each entity optimization goal and goals may differ; attribution windows and completeness declared, not independently verified. Collection is not a point-in-time snapshot.',
-            }
-          : {}),
+        ...semanticsSourceField(request, input.preset),
       };
       const saved = read(this.store, actor, 'decision_report', result.id);
       // RPT-07 dimension packs: the retained dimensions, the values observed and that absent buckets stay unknown.
@@ -692,7 +669,7 @@ export class DecisionReporting {
         obj(spec) &&
         spec.format !== undefined &&
         (key !== 'date' ||
-          !['linkedin_utc_date', 'tiktok_day'].includes(spec.format) ||
+          !guidedDateFormats.has(spec.format) ||
           spec.divisor !== undefined ||
           spec.action_type !== undefined)
       )
@@ -722,26 +699,20 @@ export class DecisionReporting {
     if (args.operation) {
       args.arguments = {...args.arguments, account_id: input.account_id, connection_id: c.id, dry_run: false};
     } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
-    let nativeAccountEvidence: JsonObject | undefined;
-    const linkedin = capturePreset?.startsWith('linkedin_')
-      ? await collectLinkedInEvidence(this.store, this.call, actor, args, sem, rows =>
-          validatePresetRows(capturePreset, input, rows),
-        )
-      : undefined;
-    const tiktok = capturePreset?.startsWith('tiktok_')
-      ? await collectTikTokDailyReport(this.store, this.call, actor, args, sem)
-      : undefined;
-    const google = capturePreset?.startsWith('google_')
-      ? await collectGoogleReport(this.store, this.call, actor, args, sem, capturePreset)
-      : undefined;
-    const meta = capturePreset?.startsWith('meta_')
-      ? await collectMetaEvidence(this.store, this.call, actor, args, sem)
-      : undefined;
-    const snapchat = capturePreset?.startsWith('snapchat_')
-      ? await collectSnapchatEvidence(this.store, this.call, actor, args, sem)
-      : undefined;
-    const collected = tiktok ?? google ?? meta ?? linkedin ?? snapchat;
-    if (collected) nativeAccountEvidence = collected.nativeAccountEvidence;
+    // A guided preset's capture is collected by its platform (ARC-01 reporting: its report source's guided reporting).
+    const guided = guidedByPreset(capturePreset),
+      collected = guided?.collect
+        ? await guided.collect({
+            store: this.store,
+            call: this.call,
+            actor,
+            args,
+            semantics: sem,
+            preset: capturePreset!,
+            validateRows: rows => validatePresetRows(capturePreset, input, rows),
+          })
+        : undefined;
+    const nativeAccountEvidence: JsonObject | undefined = collected?.nativeAccountEvidence;
     const source: JsonObject = collected?.source ?? (await this.call(input.gateway, args, actor));
     if (source.success !== true)
       bad(source.error?.message ?? 'Provider report failed.', source.error?.code ?? 'REPORT_FAILED');
@@ -749,11 +720,11 @@ export class DecisionReporting {
       bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
     const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
     if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
-    if (!linkedin) validatePresetRows(capturePreset, input, raw);
+    if (!(collected && guided?.collectorChecksRows)) validatePresetRows(capturePreset, input, raw);
     const rounding: Record<string, number> = {};
     // RPT-04 (owner policy P6): guided Meta pages are complete, and Meta omits zero-valued action entries, so a
     // delivered row (impressions above 0) counts an absent selected action as 0 and names it in `omitted_as_zero`.
-    const metaOmittedZero = meta !== undefined,
+    const metaOmittedZero = !!collected && guided?.omittedAsZero === true,
       omittedCounts: Record<string, number> = {};
     const rows = raw.map(r => {
       const out: JsonObject = {},
@@ -825,82 +796,56 @@ export class DecisionReporting {
           // The native unit is applied to the exact decimal text before the nine-place rounding policy.
           out[key] = providerMetric(key, value, key + ' (' + (path || '/') + ')', rounding, divisor);
         } else {
-          if (obj(spec) && spec.format === 'linkedin_utc_date') value = linkedInReportDate(value);
-          if (obj(spec) && spec.format === 'tiktok_day') value = tiktokReportDate(value);
+          // A native report date format names its guided platform's parse of the date (LinkedIn, TikTok).
+          const parseDate = obj(spec) ? guidedDateFormats.get(spec.format) : undefined;
+          if (parseDate) value = parseDate(value);
           if (typeof value === 'object' || String(value).length > 1000) bad('Invalid report identifier or label.');
           if (
             key === 'keyword_match_type' &&
             (typeof value !== 'string' || !['EXACT', 'PHRASE', 'BROAD'].includes(value))
           )
             bad('Native keyword match type must retain EXACT, PHRASE or BROAD.', 'REPORT_SHAPE_CHANGED');
-          if (key === 'native_device' && (typeof value !== 'string' || !googleReportDevices.includes(value)))
+          // The device and geographic dimensions are Google's, the conversion LinkedIn's (their guided reporting).
+          if (key === 'native_device' && !dimensionValue(key, value, input))
             nativeDeviceMappingFailure('Native device must retain a documented Google device value.');
           if (key === 'native_hour' && (!Number.isInteger(value) || value < 0 || value > 23))
             nativeHourMappingFailure('Native hour must retain an explicit integer from 0 through 23.');
-          if (key === 'native_country_criterion_id' && !googleReportCountryId(value))
+          if (key === 'native_country_criterion_id' && !dimensionValue(key, value, input))
             nativeCountryMappingFailure('Native country criterion IDs must retain exact nonnegative int64 strings.');
-          if (
-            key === 'native_location_type' &&
-            (typeof value !== 'string' || !Object.hasOwn(googleReportLocationTypes, value))
-          )
+          if (key === 'native_location_type' && !dimensionValue(key, value, input))
             nativeCountryMappingFailure('Native location type must retain a documented Google geographic value.');
-          if (
-            key === 'native_geographic_resource' &&
-            (input.gateway !== 'google_ads_native_action' ||
-              googleGeographicResource(value)?.account_id !== normalizeAccount(input.gateway, input.account_id))
-          )
+          if (key === 'native_geographic_resource' && !dimensionValue(key, value, input))
             nativeCountryMappingFailure('Native geographic resources must retain the exact selected customer.');
-          if (
-            key === 'native_conversion' &&
-            (input.gateway !== 'linkedin_native_action' ||
-              typeof value !== 'string' ||
-              !linkedInConversionUrn.test(value))
-          )
+          if (key === 'native_conversion' && !dimensionValue(key, value, input))
             bad('The native conversion must retain an exact LinkedIn conversion rule URN.', 'REPORT_SHAPE_CHANGED');
           // RPT-07: a breakdown value stays the literal documented native value of this gateway.
           if (breakdownDimensionKeys.includes(key)) breakdownValue(key, input.gateway, value);
           out[key] = String(value);
         }
       }
-      if (out.native_geographic_resource !== undefined && out.native_geographic_resource !== null) {
-        const geographic = googleGeographicResource(out.native_geographic_resource)!;
-        if (
-          (out.native_country_criterion_id !== undefined &&
-            out.native_country_criterion_id !== null &&
-            out.native_country_criterion_id !== geographic.country_criterion_id) ||
-          (out.native_location_type !== undefined &&
-            out.native_location_type !== null &&
-            googleReportLocationTypes[out.native_location_type as keyof typeof googleReportLocationTypes] !==
-              geographic.location_type_value)
-        )
-          nativeCountryMappingFailure('Native geographic dimensions disagree with their original resource identity.');
-      }
+      if (
+        out.native_geographic_resource !== undefined &&
+        out.native_geographic_resource !== null &&
+        !guidedDimensions.get('native_geographic_resource')!.agrees!(out)
+      )
+        nativeCountryMappingFailure('Native geographic dimensions disagree with their original resource identity.');
       if (omitted.length) out.omitted_as_zero = omitted;
       return out;
     });
     // RPT-07 (B18): the conversion preset joins every reported conversion to its current rule's windows. The rules are
-    // read after the analytics response and before the bracket's final authorization check, so both reads share it.
+    // read after the analytics response and before the bracket's final authorization check, so both reads share it
+    // (LinkedIn's campaign × conversion preset: its guided reporting's conversion rules).
     let conversionWindows: JsonObject | undefined;
-    if (capturePreset === 'linkedin_campaign_conversion') {
-      const rules = await linkedInConversionEvidence(this.store, this.call, actor, {
-        gateway: input.gateway,
-        account_id: input.account_id,
-        connection_id: c.id,
-      });
-      if (rules.account_evidence?.currency !== sem.currency)
-        bad('The declared currency does not match the current LinkedIn account.', 'REPORT_CURRENCY_MISMATCH');
-      const join = linkedInConversionWindows(
-        rules.rules,
-        rows.map(row => String(row.native_conversion)),
+    const conversionRules = guided?.conversionRules;
+    if (conversionRules && capturePreset === conversionRules.preset) {
+      const rules = await conversionRules.read(
+        {store: this.store, call: this.call, actor},
+        {gateway: input.gateway, account_id: input.account_id, connection_id: c.id},
       );
-      conversionWindows = {
-        ...join,
-        rules_source_hash: rules.source_hash,
-        rules_captured_at: rules.captured_at,
-        rule_count: rules.rule_count,
-        rule_source_pages: rules.source_pages,
-        rule_account_checks: rules.account_evidence.checks,
-      };
+      if (rules.currency !== sem.currency)
+        bad('The declared currency does not match the current LinkedIn account.', 'REPORT_CURRENCY_MISMATCH');
+      const join = rules.join(rows.map(row => String(row.native_conversion)));
+      conversionWindows = {...join, ...rules.provenance()};
     }
     this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
     this.store.assertActorActive(actor);
@@ -944,15 +889,7 @@ export class DecisionReporting {
         ...(collected
           ? {
               source_pages: collected.sourcePages,
-              source_collection: tiktok
-                ? 'tiktok_daily_pages'
-                : google
-                  ? 'google_search_pages'
-                  : meta
-                    ? 'meta_insights_pages'
-                    : snapchat
-                      ? 'snapchat_daily_pages'
-                      : 'linkedin_analytics',
+              source_collection: guided!.sourceCollection,
             }
           : {}),
         captured_at: Date.now(),

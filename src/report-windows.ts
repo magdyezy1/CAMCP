@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import {zonedMidnight} from './workflows.js';
 import {accountPlan, accountTimezone} from './account-metadata.js';
 import {reportPlatforms} from './report-metrics.js';
-import {microsoftReportZone} from './microsoft-timezones.js';
+import {reportSource, reportSourceList} from './report-sources.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
@@ -14,15 +14,17 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
  */
 export const unknownWindowTimezone = 'Etc/GMT+12';
 /**
- * Report day boundaries fixed by each campaign collector, independent of account metadata. Microsoft uses the account
- * time zone (RPT-04, owner policy P6).
+ * Report day boundaries fixed by each campaign collector, independent of account metadata: the report sources that
+ * declare one (src/report-sources.ts, ARC-04 stage F), in registry order. Microsoft uses the account time zone (RPT-04,
+ * owner policy P6).
  */
-export const fixedReportTimezones: Readonly<Record<string, string>> = Object.freeze({
-  linkedin: 'UTC',
-  apple: 'UTC',
-  reddit: 'UTC',
-  gsc: 'America/Los_Angeles',
-});
+export const fixedReportTimezones: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    reportSourceList.flatMap(source =>
+      source.fixedTimezone ? [[source.platform, source.fixedTimezone] as [string, string]] : [],
+    ),
+  ),
+);
 export const openWindowWarning =
   'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.';
 
@@ -86,24 +88,9 @@ export async function sourceReportTimezone(
   const account = String(source.account_id),
     connection = String(source.connection_id);
   service.store.resolveConnection(actor, platform.gateway, account, connection);
-  const plan: CompiledRequest =
-    source.platform === 'ga4'
-      ? {
-          gateway: platform.gateway,
-          accountId: account,
-          action: 'AMCP_CAMPAIGN_REPORT',
-          method: 'GET',
-          path: '/v1beta/properties/' + account,
-          query: {},
-          origin: 'https://analyticsadmin.googleapis.com',
-          headers: {},
-          readOnly: true,
-          destructive: false,
-          requiresConfirmation: false,
-          evidence: 'Reporting time zone for a rolling window, bounded property scope',
-          warnings: [],
-        }
-      : accountPlan(platform.gateway, account);
+  // The source's own time zone read (GA4's property), or its account read.
+  const read = reportSource(source.platform)?.timezoneRead,
+    plan: CompiledRequest = read?.plan ? read.plan(platform.gateway, account) : accountPlan(platform.gateway, account);
   const out = (await service.runPlan(
     plan,
     {connection_id: connection, aggregate_pages: false, max_pages: 25},
@@ -111,11 +98,7 @@ export async function sourceReportTimezone(
   )) as JsonObject;
   if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
     throw new MirrorError('REPORT_RESPONSE_INVALID', 'The reporting request did not return provider data.', {}, 502);
-  const zone =
-    source.platform === 'ga4'
-      ? (out.data.timeZone ?? null)
-      : source.platform === 'microsoft'
-        ? microsoftReportZone(accountTimezone(platform.gateway, out.data)).timezone
-        : accountTimezone(platform.gateway, out.data);
+  // The zone the source reads from that response (GA4's property zone, Microsoft's report zone), or the account's.
+  const zone = read?.zone ? read.zone(out.data, platform.gateway) : accountTimezone(platform.gateway, out.data);
   return knownZone(zone) ? zone : null;
 }

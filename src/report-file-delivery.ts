@@ -4,7 +4,8 @@ import {MirrorError} from './errors.js';
 import {bad, fingerprint, optional, validate, writer} from './workspace-core.js';
 import {sha256} from './security.js';
 import {presentationStyle} from './report-packs.js';
-import {assertReportExportable, sheetsGateway} from './google-sheets.js';
+import {assertReportExportable} from './report-table.js';
+import {providerById} from './provider-adapters.js';
 import {activeReportJobCount} from './job-repository.js';
 
 type Format = 'pdf' | 'xlsx';
@@ -28,7 +29,8 @@ export function reportDestination(store: Store, actor: Actor, id: unknown): Json
     bad('Choose a saved reporting destination.', 'INVALID_DESTINATION');
   if (id.startsWith('files-')) return store.document(actor.tenantId, 'report_file_destination', id);
   const d = store.document(actor.tenantId, 'sheets_destination', id);
-  store.resolveConnection(actor, sheetsGateway, d.spreadsheet_id, d.connection_id);
+  // A Sheets destination's connection belongs to the Google Sheets provider (its gateway from the adapter registry).
+  store.resolveConnection(actor, providerById('sheets')!.gateway, d.spreadsheet_id, d.connection_id);
   return {...d, kind: 'google_sheets'};
 }
 

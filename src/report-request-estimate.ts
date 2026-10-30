@@ -5,27 +5,18 @@ import {reportContractVersion} from './report-quality.js';
 import {reportCollectionLimits} from './report-collection-budget.js';
 import {overviewSourceLevel} from './overview-granularity.js';
 import {fixedReportTimezones} from './report-windows.js';
+import {reportSource} from './report-sources.js';
 import type {JsonObject} from './types.js';
 
 /**
- * RPT-03: the fewest provider requests a source can need, before any egress. Pages beyond the first, retries, polls
- * and X analytics (planned from active entities at run time) are excluded, so the estimate is a lower bound: a
- * configuration refused here cannot fit the whole-job collection budget.
+ * RPT-03: the fewest provider requests a source can need, before any egress, from its report source
+ * (src/report-sources.ts, ARC-04 stage F). Pages beyond the first, retries, polls and X analytics (planned from active
+ * entities at run time) are excluded, so the estimate is a lower bound: a configuration refused here cannot fit the
+ * whole-job collection budget.
  */
-const dataRequestsPerPeriod: Readonly<Record<string, number>> = Object.freeze({
-  google: 1,
-  meta: 1,
-  tiktok: 3, // report, campaign inventory and ad group optimization events (RPT-04)
-  snapchat: 2, // stats and campaign inventory
-  linkedin: 1,
-  x: 2, // campaign inventory and active entities
-  microsoft: 2, // submit and first poll
-  apple: 2, // account and report
-  reddit: 2, // report and campaign inventory
-  ga4: 3, // property, metric report and name report
-  gsc: 1,
-});
-const accountLookup = (platform: string) => !['ga4', 'gsc', 'apple'].includes(platform);
+const dataRequestsPerPeriod = (platform: string) => reportSource(platform)?.minimumRequestsPerPeriod ?? 1;
+/** Whether the source reads its account before collection (and verifies it after a multi-period collection). */
+const accountLookup = (platform: string) => reportSource(platform)?.accountLookup !== false;
 /** Snapshots created under the current source contract collect natively segmented days (RPT-03). */
 export const nativeDailyCollection = (config: JsonObject, source: JsonObject) =>
   config.source_contract_version === reportContractVersion && nativeDailySegmentation(source);
@@ -33,7 +24,7 @@ export const nativeDailyCollection = (config: JsonObject, source: JsonObject) =>
 export const sourceRequestModel = (platform: string) => ({
   account_lookups: accountLookup(platform) ? 1 : 0,
   account_verification_after_periods: accountLookup(platform) ? 1 : 0,
-  minimum_requests_per_period: dataRequestsPerPeriod[platform] ?? 1,
+  minimum_requests_per_period: dataRequestsPerPeriod(platform),
   native_daily_segmentation: nativeDailySegmentation({platform}),
 });
 export function estimateCollectionRequests(config: JsonObject, limit = reportCollectionLimits.requests) {
@@ -51,7 +42,7 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         account_id: source.account_id,
         periods: count,
         collection: daily ? 'native_daily' : 'per_period',
-        requests: lookups + window + periods * (detailed ? 1 : (dataRequestsPerPeriod[source.platform] ?? 1)),
+        requests: lookups + window + periods * (detailed ? 1 : dataRequestsPerPeriod(source.platform)),
       };
     });
   return {

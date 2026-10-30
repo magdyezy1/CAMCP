@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-granularity.js';
+import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';

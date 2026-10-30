@@ -3,9 +3,26 @@ import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {storedLogin} from './connection-authority.js';
-import {googleReportAdNetworks} from './report-breakdowns.js';
 
 const gateway = 'google_ads_native_action';
+/**
+ * Native v25 AdNetworkType values (pinned discovery .mirror/VENDOR/google-ads-v25.json): the RPT-07 campaign × ad
+ * network pack's dimension (src/google-guided-reports.ts).
+ */
+export const googleReportAdNetworks = Object.freeze([
+  'UNSPECIFIED',
+  'UNKNOWN',
+  'SEARCH',
+  'SEARCH_PARTNERS',
+  'CONTENT',
+  'MIXED',
+  'YOUTUBE',
+  'GOOGLE_TV',
+  'GOOGLE_OWNED_CHANNELS',
+  'GMAIL',
+  'DISCOVER',
+  'MAPS',
+]);
 export const googleReportDevices = Object.freeze([
   'UNSPECIFIED',
   'UNKNOWN',

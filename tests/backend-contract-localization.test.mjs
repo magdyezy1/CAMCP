@@ -176,9 +176,28 @@ test('all actual directly owned backend reasons have Arabic with original native
   // guidance and Settings sentences, the metric aggregation words and the one-step plural); no owned reason changes.
   // Its review fixes add the other three reviewer sign-in sentences the server can return (server/web-store.ts) and
   // reword an uncertain write (one message added, the remedy replaced): 11,513 entries.
-  assert.equal(files.length, 669);
-  assert.equal(selected.filter(row => row.messages.size).length, 253);
-  assert.equal(owned.size, 1588);
+  // ARC-04 stage F (wave 4c) moves each platform's collection from src/report-native.ts into its report source, with
+  // the refusals of its requests, and the shared collection helpers into the report source contract
+  // (src/report-source.ts): files with reasons are added, the reasons are the same (the contract; then the LinkedIn
+  // report source, with LinkedIn's account and currency refusals; the Microsoft one, with its report job refusals; the
+  // Reddit one, with its detail-name refusal; the GA4 one, with its row-limit refusal). ARC-01 (reporting) moves the
+  // report table every export uses from src/google-sheets.ts into src/report-table.ts with its three refusals: one
+  // file more, with reasons, and the same reasons. ARC-04 stage F moves the Overview's levels and detailed rows from
+  // src/overview-granularity.ts, which keeps no reason, into the leaf src/overview-levels.ts with their refusals: one
+  // file more, as many files with reasons, the same reasons. Its guided reporting adds src/google-guided-reports.ts
+  // and src/meta-guided-reports.ts: Meta's unrequested-breakdown refusal moves from src/report-breakdowns.ts, which
+  // keeps no reason, to the Meta module, and the undocumented-value refusal to the report source contract (which owns
+  // reasons): two files more, as many files with reasons. That refusal was raised through bad() and is now raised
+  // directly by the contract, so this guard owns it: one owned reason more, the same message and Arabic. The guided
+  // presets, their requests and row checks move from src/report-presets.ts into the platforms' guided reporting, adding
+  // src/snapchat-guided-reports.ts, src/tiktok-guided-reports.ts and src/linkedin-guided-reports.ts: three files
+  // more; their refusals are raised through bad(), as they were, so the reasons are the same. The allocation models'
+  // evidence checks move from src/report-allocation.ts to src/snapchat-allocation-evidence.ts and
+  // src/linkedin-allocation-evidence.ts, and its evidence date check to the leaf src/evidence-dates.ts (three files
+  // more), all still raised through bad() and still authored allocation copy (tools/check-locales.mjs): the same reasons.
+  assert.equal(files.length, 679);
+  assert.equal(selected.filter(row => row.messages.size).length, 259);
+  assert.equal(owned.size, 1589);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {

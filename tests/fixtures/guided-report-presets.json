@@ -1,0 +1,303 @@
+[
+  {
+    "id": "google_campaign",
+    "name": "Google campaign performance",
+    "level": "campaign",
+    "grain": "campaign × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max."
+  },
+  {
+    "id": "google_adset",
+    "name": "Google ad group performance",
+    "level": "adset",
+    "grain": "ad group × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max."
+  },
+  {
+    "id": "google_ad",
+    "name": "Google ad performance",
+    "level": "ad",
+    "grain": "ad group × ad × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max."
+  },
+  {
+    "id": "google_keyword",
+    "name": "Google keyword performance",
+    "level": "keyword",
+    "grain": "keyword × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Positive Search keywords from keyword_view, by account-local day. Original keyword text, match type and full view/criterion/parent resource identities are checked; immutable keyword metadata must remain consistent. Native customer currency and timezone checked before and after complete bounded Search pages. Counts, dates and duplicate grain are checked. Conversions use metrics.conversions; attribution and window completeness remain declared. Keyword performance does not establish search-query coverage, whole-campaign totals or negative-keyword/budget eligibility."
+  },
+  {
+    "id": "google_campaign_device",
+    "name": "Google campaign device performance",
+    "level": "campaign_device",
+    "grain": "campaign × device × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Campaign performance by original native device and account-local day, without device or status filtering. Exact customer/campaign resources, currency, timezone, date/device grain, counts and duplicates are checked under unchanged authorization. UNKNOWN and UNSPECIFIED remain literal native categories; missing device categories do not establish zero activity. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify device bid, campaign budget or search-exclusion changes."
+  },
+  {
+    "id": "google_campaign_hour",
+    "name": "Google campaign hourly performance",
+    "level": "campaign_hour",
+    "grain": "campaign × hour × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Campaign performance by original provider-reported hour 0–23 and date, without hour or status filtering. Exact customer/campaign resources, currency, timezone, requested date/hour grain, counts and duplicates are checked under unchanged authorization. Explicit hour zero is retained; absent hours do not establish zero activity. No timestamp, timezone conversion or daylight-saving split is inferred. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify delivery schedules, bid, campaign budget or search-exclusion changes."
+  },
+  {
+    "id": "google_campaign_country",
+    "name": "Google campaign country performance",
+    "level": "campaign_country",
+    "grain": "campaign × native country × native location type × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Campaign performance by original native country criterion, location type and account-local day from geographic_view. Location presence and location interest remain distinct native categories; country IDs are not inferred country names or audience identities. Exact customer/campaign/geographic resources, currency, timezone, counts and duplicate grain are checked under unchanged authorization. Missing countries do not establish zero activity. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify geographic targeting, campaign budgets or search exclusions."
+  },
+  {
+    "id": "google_search_terms",
+    "name": "Google search term evidence",
+    "level": "search_term",
+    "grain": "campaign × ad group × search term",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max."
+  },
+  {
+    "id": "google_pmax_search_terms",
+    "name": "Google Performance Max search terms",
+    "level": "pmax_search_term",
+    "grain": "Performance Max campaign × search term",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Performance Max search terms over the selected window from campaign_search_term_view (no keyword segments, so Performance Max data is included). Each row keeps its exact campaign search term view resource, the original search term and its PERFORMANCE_MAX campaign. Customer currency and timezone are checked before and after complete bounded pages; counts and duplicate campaign/term grain are checked. Search-term visibility thresholds mean terms need not add up to campaign totals, and an absent term is unknown, not zero. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify negative keywords, brand exclusions or budget changes."
+  },
+  {
+    "id": "google_campaign_network",
+    "name": "Google campaign network performance",
+    "level": "campaign_network",
+    "grain": "campaign × native ad network × day",
+    "gateway": "google_ads_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Campaign performance by original native ad network type (segments.ad_network_type: SEARCH, SEARCH_PARTNERS, CONTENT, YOUTUBE, MIXED and the other documented values) and account-local day, without network or status filtering. Exact customer/campaign resources, currency, timezone, network/day grain, counts and duplicates are checked under unchanged authorization. Network values stay literal; an absent network is unknown, not zero. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify network targeting, bid or budget changes."
+  },
+  {
+    "id": "snapchat_campaign",
+    "name": "Snapchat campaign performance",
+    "level": "campaign",
+    "grain": "campaign × day",
+    "gateway": "snapchat_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Account-local daily purchases with explicit swipe/view attribution, conversion-time reporting and total conversion sources. Account identity, currency and timezone are checked before and after complete bounded pages. Each page must confirm delivery and conversion processing through the requested end. Uses swipes for clicks and exact spend micros. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing metrics stay unknown; no conversion-value or creative-assignment claim."
+  },
+  {
+    "id": "snapchat_adsquad",
+    "name": "Snapchat ad squad performance",
+    "level": "adsquad",
+    "grain": "ad squad × day",
+    "gateway": "snapchat_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Account-local daily purchases with explicit swipe/view attribution, conversion-time reporting and total conversion sources. Account identity, currency and timezone are checked before and after complete bounded pages. Each page must confirm delivery and conversion processing through the requested end. Uses swipes for clicks and exact spend micros. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing metrics stay unknown; no conversion-value or creative-assignment claim."
+  },
+  {
+    "id": "snapchat_ad",
+    "name": "Snapchat ad performance",
+    "level": "ad",
+    "grain": "ad × day",
+    "gateway": "snapchat_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Account-local daily purchases with explicit swipe/view attribution, conversion-time reporting and total conversion sources. Account identity, currency and timezone are checked before and after complete bounded pages. Each page must confirm delivery and conversion processing through the requested end. Uses swipes for clicks and exact spend micros. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing metrics stay unknown; no conversion-value or creative-assignment claim."
+  },
+  {
+    "id": "snapchat_campaign_leads",
+    "name": "Snapchat campaign native lead submissions",
+    "level": "campaign",
+    "grain": "campaign × day",
+    "gateway": "snapchat_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Account-local daily native_leads counts for submitted Snapchat lead forms. No submitted lead records are read. Exact spend micros and swipes remain separate. Account identity, currency and timezone are checked before and after complete bounded pages; ad squads and ads require an exact owned parent campaign. Each page must confirm non-conversion metric finalization through the requested end. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing counts stay unknown. Pixel/MMP attribution, lead quality and historical creative assignment are not established."
+  },
+  {
+    "id": "snapchat_adsquad_leads",
+    "name": "Snapchat ad squad native lead submissions",
+    "level": "adsquad",
+    "grain": "ad squad × day",
+    "gateway": "snapchat_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Account-local daily native_leads counts for submitted Snapchat lead forms. No submitted lead records are read. Exact spend micros and swipes remain separate. Account identity, currency and timezone are checked before and after complete bounded pages; ad squads and ads require an exact owned parent campaign. Each page must confirm non-conversion metric finalization through the requested end. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing counts stay unknown. Pixel/MMP attribution, lead quality and historical creative assignment are not established."
+  },
+  {
+    "id": "snapchat_ad_leads",
+    "name": "Snapchat ad native lead submissions",
+    "level": "ad",
+    "grain": "ad × day",
+    "gateway": "snapchat_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Account-local daily native_leads counts for submitted Snapchat lead forms. No submitted lead records are read. Exact spend micros and swipes remain separate. Account identity, currency and timezone are checked before and after complete bounded pages; ad squads and ads require an exact owned parent campaign. Each page must confirm non-conversion metric finalization through the requested end. Requires 1–31 closed days and whole-hour local midnight boundaries. Missing counts stay unknown. Pixel/MMP attribution, lead quality and historical creative assignment are not established."
+  },
+  {
+    "id": "tiktok_campaign",
+    "name": "TikTok campaign performance",
+    "level": "campaign",
+    "grain": "campaign × day",
+    "gateway": "tiktok_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
+  },
+  {
+    "id": "tiktok_adgroup",
+    "name": "TikTok ad group performance",
+    "level": "adgroup",
+    "grain": "ad group × day",
+    "gateway": "tiktok_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
+  },
+  {
+    "id": "tiktok_ad",
+    "name": "TikTok ad performance",
+    "level": "ad",
+    "grain": "ad × day",
+    "gateway": "tiktok_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
+  },
+  {
+    "id": "linkedin_campaign_group",
+    "name": "LinkedIn campaign group performance",
+    "level": "campaign_group",
+    "grain": "campaign group × day",
+    "gateway": "linkedin_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native UTC daily analytics with account identity and currency verified before and after collection under unchanged authorization. Keeps source references for both account checks and the single complete analytics response. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only."
+  },
+  {
+    "id": "linkedin_campaign",
+    "name": "LinkedIn campaign performance",
+    "level": "campaign",
+    "grain": "campaign × day",
+    "gateway": "linkedin_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native UTC daily analytics with account identity and currency verified before and after collection under unchanged authorization. Keeps source references for both account checks and the single complete analytics response. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only."
+  },
+  {
+    "id": "linkedin_creative",
+    "name": "LinkedIn creative performance",
+    "level": "creative",
+    "grain": "creative × day",
+    "gateway": "linkedin_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native UTC daily analytics with account identity and currency verified before and after collection under unchanged authorization. Keeps source references for both account checks and the single complete analytics response. Uses externalWebsiteConversions; attribution windows remain declared. Empty responses are ambiguous and cannot establish zero activity. No pagination; narrow oversized reports. Current month and previous five calendar months only."
+  },
+  {
+    "id": "linkedin_campaign_conversion",
+    "name": "LinkedIn campaign conversions with verified rule windows",
+    "level": "campaign_conversion",
+    "grain": "campaign × conversion × day",
+    "gateway": "linkedin_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Native UTC daily conversions by campaign and conversion rule (statistics finder, CAMPAIGN and CONVERSION pivots) with post-click and post-view counts. In the same authorization bracket the account’s current conversion rules are read and each conversion is joined to its rule’s windows: verified_per_rule when all match, mixed when they differ (no single window), unknown when a rule is missing. Declare attribution verified_per_rule; windows are never typed. Spend, impressions and clicks are not split by conversion and stay unmapped. Empty or truncated (15,000-element) responses are refused. Current month and previous five calendar months only."
+  },
+  {
+    "id": "meta_campaign",
+    "name": "Meta campaign performance",
+    "level": "campaign",
+    "grain": "campaign × day",
+    "gateway": "meta_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Daily native Insights with an exact action type, explicit attribution windows and impression-time reporting. Pixel and aggregate purchase aliases are never added together. Missing action values remain unknown. Currency and timezone are verified against the account before and after complete pages; each account/page read retains a source reference."
+  },
+  {
+    "id": "meta_adset",
+    "name": "Meta ad set performance",
+    "level": "adset",
+    "grain": "ad set × day",
+    "gateway": "meta_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Daily native Insights with an exact action type, explicit attribution windows and impression-time reporting. Pixel and aggregate purchase aliases are never added together. Missing action values remain unknown. Currency and timezone are verified against the account before and after complete pages; each account/page read retains a source reference."
+  },
+  {
+    "id": "meta_ad",
+    "name": "Meta ad performance",
+    "level": "ad",
+    "grain": "ad × day",
+    "gateway": "meta_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Daily native Insights with an exact action type, explicit attribution windows and impression-time reporting. Pixel and aggregate purchase aliases are never added together. Missing action values remain unknown. Currency and timezone are verified against the account before and after complete pages; each account/page read retains a source reference."
+  },
+  {
+    "id": "meta_campaign_age_gender",
+    "name": "Meta campaign age and gender",
+    "grain": "campaign × age × gender × day",
+    "level": "campaign",
+    "breakdowns": [
+      "age",
+      "gender"
+    ],
+    "gateway": "meta_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Daily campaign Insights by the native breakdown values Meta returns (literal age, gender, country, publisher platform or placement), with an exact action type, explicit attribution windows and impression-time reporting. Account, currency, timezone, breakdown values and the campaign/breakdown/day grain are checked around complete pages. Buckets Meta does not return (privacy thresholds, no delivery) stay unknown and bucket totals need not equal campaign totals. Reach and frequency stay per bucket; Meta omits reach for breakdown reports that start more than 13 months ago."
+  },
+  {
+    "id": "meta_campaign_country",
+    "name": "Meta campaign country",
+    "grain": "campaign × country × day",
+    "level": "campaign",
+    "breakdowns": [
+      "country"
+    ],
+    "gateway": "meta_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Daily campaign Insights by the native breakdown values Meta returns (literal age, gender, country, publisher platform or placement), with an exact action type, explicit attribution windows and impression-time reporting. Account, currency, timezone, breakdown values and the campaign/breakdown/day grain are checked around complete pages. Buckets Meta does not return (privacy thresholds, no delivery) stay unknown and bucket totals need not equal campaign totals. Reach and frequency stay per bucket; Meta omits reach for breakdown reports that start more than 13 months ago."
+  },
+  {
+    "id": "meta_campaign_placement",
+    "name": "Meta campaign placement",
+    "grain": "campaign × publisher platform × placement × day",
+    "level": "campaign",
+    "breakdowns": [
+      "publisher_platform",
+      "platform_position"
+    ],
+    "gateway": "meta_native_action",
+    "max_rows": 10000,
+    "max_requests": 120,
+    "meaning": "Daily campaign Insights by the native breakdown values Meta returns (literal age, gender, country, publisher platform or placement), with an exact action type, explicit attribution windows and impression-time reporting. Account, currency, timezone, breakdown values and the campaign/breakdown/day grain are checked around complete pages. Buckets Meta does not return (privacy thresholds, no delivery) stay unknown and bucket totals need not equal campaign totals. Reach and frequency stay per bucket; Meta omits reach for breakdown reports that start more than 13 months ago."
+  }
+]

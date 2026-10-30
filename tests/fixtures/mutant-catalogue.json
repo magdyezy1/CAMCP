@@ -36,7 +36,7 @@
     {
       "id": "M5-granular-reach-summed-across-days",
       "guards": "Reach and frequency are never summed across days in detailed Overview rows",
-      "file": "src/overview-granularity.ts",
+      "file": "src/overview-levels.ts",
       "find": "reach: group.mapped.length === 1 ? metricNumber(group.mapped[0].reach) : null,",
       "replace": "reach: group.mapped.reduce((n, row) => n + (Number(row.reach) || 0), 0),",
       "tests": ["tests/overview-granularity.test.mjs"]

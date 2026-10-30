@@ -1,5 +1,7 @@
-import {bad} from './workspace-core.js';
 import type {JsonObject} from './types.js';
+import {reportPlatforms} from './report-metrics.js';
+import {undocumentedBreakdownValue} from './report-source.js';
+import {reportSourceList} from './report-sources.js';
 
 /**
  * RPT-07 P1 dimension packs: guided evidence by a native dimension that campaign rows cannot answer.
@@ -8,99 +10,43 @@ import type {JsonObject} from './types.js';
  * Every dimension value stays the literal native value (never translated, renamed or merged). A bucket the provider did
  * not return stays unknown: it is never filled with zero, and breakdown totals are not claimed to equal campaign totals
  * (privacy thresholds and unknown buckets). Reach and frequency stay per row; they are never added across buckets.
+ *
+ * Each platform's dimensions and their native values are its guided reporting's (ARC-04 stage F: the report sources,
+ * src/google-guided-reports.ts and src/meta-guided-reports.ts); this module names no platform.
  */
 
-/** Native v25 AdNetworkType values (pinned discovery .mirror/VENDOR/google-ads-v25.json). */
-export const googleReportAdNetworks = Object.freeze([
-  'UNSPECIFIED',
-  'UNKNOWN',
-  'SEARCH',
-  'SEARCH_PARTNERS',
-  'CONTENT',
-  'MIXED',
-  'YOUTUBE',
-  'GOOGLE_TV',
-  'GOOGLE_OWNED_CHANNELS',
-  'GMAIL',
-  'DISCOVER',
-  'MAPS',
-]);
-/** Meta Insights `age` buckets and `gender` values. */
-export const metaAgeBuckets = Object.freeze(['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+', 'Unknown']);
-export const metaGenders = Object.freeze(['female', 'male', 'unknown']);
-/** Meta Insights `publisher_platform` values. Placements (`platform_position`) change often; their shape is checked. */
-export const metaPublisherPlatforms = Object.freeze([
-  'facebook',
-  'instagram',
-  'audience_network',
-  'messenger',
-  'threads',
-  'unknown',
-]);
-const metaPosition = (v: unknown) => typeof v === 'string' && /^[a-z][a-z0-9_]{0,79}$/.test(v);
-/** ISO 3166-1 alpha-2 country codes, or Meta's literal unknown bucket. */
-const metaCountry = (v: unknown) => typeof v === 'string' && /^(?:[A-Z]{2}|unknown|Unknown)$/.test(v);
+// The native value lists and Meta's packs keep these import paths, through the report source registry.
+export {
+  googleReportAdNetworks,
+  metaAgeBuckets,
+  metaGenders,
+  metaPublisherPlatforms,
+  metaBreakdownPresets,
+  metaBreakdownKey,
+} from './report-sources.js';
 
-/** The mapped native dimension keys, their gateway and the native values each accepts. */
-export const breakdownDimensions: Record<string, {gateway: string; valid: (v: unknown) => boolean}> = {
-  native_ad_network: {
-    gateway: 'google_ads_native_action',
-    valid: v => typeof v === 'string' && googleReportAdNetworks.includes(v),
-  },
-  native_age: {gateway: 'meta_native_action', valid: v => typeof v === 'string' && metaAgeBuckets.includes(v)},
-  native_gender: {gateway: 'meta_native_action', valid: v => typeof v === 'string' && metaGenders.includes(v)},
-  native_country: {gateway: 'meta_native_action', valid: metaCountry},
-  native_publisher_platform: {
-    gateway: 'meta_native_action',
-    valid: v => typeof v === 'string' && metaPublisherPlatforms.includes(v),
-  },
-  native_platform_position: {gateway: 'meta_native_action', valid: metaPosition},
-};
+/**
+ * The mapped native dimension keys, their gateway and the native values each accepts: the dimensions the report
+ * sources' guided reporting declares, in registry order, under the gateway of the source's platform.
+ */
+export const breakdownDimensions: Record<string, {gateway: string; valid: (v: unknown) => boolean}> =
+  Object.fromEntries(
+    reportSourceList.flatMap(source =>
+      Object.entries(source.guided?.dimensions ?? {}).map(([key, valid]) => [
+        key,
+        {gateway: reportPlatforms[source.platform]!.gateway, valid},
+      ]),
+    ),
+  );
 export const breakdownDimensionKeys = Object.keys(breakdownDimensions);
 
 /** A mapped dimension value, refused unless it is a documented native value of the capture's gateway. */
 export function breakdownValue(key: string, gateway: unknown, value: unknown): string {
   const dimension = breakdownDimensions[key];
-  if (!dimension || gateway !== dimension.gateway || !dimension.valid(value))
-    bad('The provider returned a breakdown value this report type does not document.', 'REPORT_SHAPE_CHANGED', {
-      dimension: key,
-    });
+  if (!dimension || gateway !== dimension.gateway || !dimension.valid(value)) undocumentedBreakdownValue(key);
   return String(value);
 }
 
-/** The Meta breakdown packs: Insights `breakdowns` and the row field each mapped dimension reads. */
-export const metaBreakdownPresets: Record<string, {breakdowns: string[]; dimensions: Record<string, string>}> = {
-  meta_campaign_age_gender: {breakdowns: ['age', 'gender'], dimensions: {native_age: 'age', native_gender: 'gender'}},
-  meta_campaign_country: {breakdowns: ['country'], dimensions: {native_country: 'country'}},
-  meta_campaign_placement: {
-    breakdowns: ['publisher_platform', 'platform_position'],
-    dimensions: {native_publisher_platform: 'publisher_platform', native_platform_position: 'platform_position'},
-  },
-};
-/** Meta Insights breakdown fields AMCP never requests here; a row naming one is a different report. */
-const otherMetaBreakdowns = [
-  'age',
-  'gender',
-  'country',
-  'region',
-  'dma',
-  'publisher_platform',
-  'platform_position',
-  'impression_device',
-  'device_platform',
-];
-/**
- * The breakdown values of one Meta row (validated, in dimension order) for its grain key. A row must carry every
- * requested breakdown with a documented value and no other breakdown field.
- */
-export function metaBreakdownKey(preset: string, row: JsonObject): string[] {
-  const pack = metaBreakdownPresets[preset];
-  if (!pack) return [];
-  const requested = Object.values(pack.dimensions);
-  if (otherMetaBreakdowns.some(field => !requested.includes(field) && row[field] !== undefined))
-    bad('Meta returned a breakdown that was not requested.', 'REPORT_SHAPE_CHANGED');
-  return Object.entries(pack.dimensions).map(([key, field]) => breakdownValue(key, 'meta_native_action', row[field]));
-}
 /** What a breakdown capture retains about its dimensions (on the saved evidence and in capture_presets). */
 export function breakdownDescriptor(dimensions: string[], rows: JsonObject[]) {
   return {

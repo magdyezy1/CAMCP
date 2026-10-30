@@ -1,6 +1,6 @@
 import {MirrorError} from '../src/errors.js';
 import {assertDownloadAllowed} from '../src/export-policy.js';
-import {exportCsv} from '../src/google-sheets.js';
+import {exportCsv} from '../src/report-table.js';
 import {reportEvidence} from '../src/report-quality.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {sha256} from '../src/security.js';

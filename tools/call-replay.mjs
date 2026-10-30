@@ -89,6 +89,42 @@ export const targets = Object.freeze({
   'dist/src/review-summary.js': {functions: ['reviewSummary']},
   'dist/src/preflight.js': {functions: ['spendConfirmationError']},
   'dist/src/spend-effects.js': {functions: ['namesSpendField', 'deliveryEditFields', 'deliveryStops']},
+  // ARC-04 stage F and ARC-01 (reporting): the native report collector and the reporting modules whose provider facts
+  // move into report sources and registries, Adjust reporting and the Sheets client (whose requests are recorded too).
+  'dist/src/report-native.js': {
+    functions: ['normalizeNativeRow', 'missingNativeMetrics'],
+    classes: {NativeCampaignReports: ['collect', 'collectDaily', 'verifyAccount']},
+  },
+  'dist/src/adjust-reporting.js': {functions: ['adjustReporting', 'adjustReportingKind']},
+  'dist/src/google-sheets.js': {
+    functions: ['sheetsPresentationRequests', 'deliveryProjection'],
+    classes: {GoogleSheetsExports: ['write', 'checkDelivery', 'releaseDestination', 'create', 'bind']},
+  },
+  // The report table left google-sheets.js for this shared module (ARC-01), which google-sheets.js re-exports; a
+  // recording made before names them dist/src/google-sheets.js#... (compare with --ignore for both).
+  'dist/src/report-table.js': {functions: ['reportTable', 'exportCsv', 'assertReportExportable']},
+  'dist/src/report-presets.js': {functions: ['reportPreset', 'validatePresetRows']},
+  'dist/src/decision-reporting.js': {classes: {DecisionReporting: ['handle', 'collectGuided']}},
+  'dist/src/report-resource-scope.js': {functions: ['reportingResourceAccount', 'reportingResourceAccounts']},
+  'dist/src/report-runs.js': {functions: ['reportRunScope']},
+  'dist/src/report-breakdowns.js': {functions: ['breakdownValue', 'breakdownDescriptor']},
+  // Meta's breakdown key left report-breakdowns.js for Meta's guided reporting (ARC-04 stage F), which it re-exports; a
+  // recording made before names it dist/src/report-breakdowns.js#metaBreakdownKey (compare with --ignore for both).
+  'dist/src/meta-guided-reports.js': {functions: ['metaBreakdownKey']},
+  'dist/src/report-allocation.js': {functions: ['allocationCandidates', 'allocationEvidence', 'reportAllocation']},
+  'dist/src/overview-parents.js': {functions: ['detailParentKind', 'detailParents']},
+  'dist/src/overview-granularity.js': {functions: ['collectDetailedOverview']},
+  // The levels and detailed rows left overview-granularity.js for this leaf (ARC-04 stage F), which it re-exports; a
+  // recording made before names them dist/src/overview-granularity.js#... (compare with --ignore for both).
+  'dist/src/overview-levels.js': {
+    functions: ['campaignAttributionProfile', 'overviewSourceLevel', 'detailedOverviewRows'],
+  },
+  'dist/src/report-windows.js': {functions: ['reportWindowState', 'markReportWindow', 'sourceReportTimezone']},
+  'dist/src/report-query-access.js': {
+    functions: ['reportingConfigScope', 'validateReportingConfig', 'reportingBootstrap'],
+  },
+  'dist/src/report-file-delivery.js': {classes: {ReportFileDelivery: ['bind', 'queue', 'work', 'download']}},
+  'dist/src/reporting-overview.js': {classes: {ReportingOverview: ['handle', 'work']}},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -124,6 +160,19 @@ export const replayable = Object.freeze([
   'dist/src/spend-effects.js#namesSpendField',
   'dist/src/spend-effects.js#deliveryEditFields',
   'dist/src/spend-effects.js#deliveryStops',
+  // ARC-04 stage F and ARC-01 (reporting).
+  'dist/src/report-native.js#normalizeNativeRow',
+  'dist/src/report-native.js#missingNativeMetrics',
+  'dist/src/adjust-reporting.js#adjustReportingKind',
+  'dist/src/google-sheets.js#sheetsPresentationRequests',
+  'dist/src/report-presets.js#validatePresetRows',
+  'dist/src/report-resource-scope.js#reportingResourceAccount',
+  'dist/src/report-resource-scope.js#reportingResourceAccounts',
+  'dist/src/report-breakdowns.js#breakdownValue',
+  'dist/src/meta-guided-reports.js#metaBreakdownKey',
+  'dist/src/overview-levels.js#campaignAttributionProfile',
+  'dist/src/overview-levels.js#overviewSourceLevel',
+  'dist/src/overview-parents.js#detailParentKind',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
