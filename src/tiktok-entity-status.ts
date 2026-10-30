@@ -3,6 +3,7 @@ import {assertNoMethodOverride, object, responseData} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Operation statuses of standard TikTok campaigns, ad groups and ads, per API for Business v1.3 "Update the status of
@@ -363,7 +364,7 @@ export function tiktokEntityStatusObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokEntityStatusFamily: ReviewedFamily = {
+export const tiktokEntityStatusFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_entity_status',
   files: ['src/tiktok-entity-status.ts', ['tests/tiktok-entity-status.test.mjs']],
   kind: tiktokEntityStatusKind,
@@ -383,4 +384,4 @@ export const tiktokEntityStatusFamily: ReviewedFamily = {
   observed: tiktokEntityStatusObserved,
   activates: tiktokEntityStatusActivates,
   destructive: tiktokEntityStatusDeletes,
-};
+});

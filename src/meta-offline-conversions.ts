@@ -12,7 +12,7 @@ import {
   type PersonalDataSpec,
   type Row,
 } from './personal-data.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Meta offline conversions through the Conversions API, under the personal-data policy the owner approved on
@@ -209,6 +209,11 @@ export const metaOfflineConversionPeople: PersonalDataSpec = {
     };
   },
   body: (p, rows) => ({data: rows.map(r => event(r, record(p)!.schema))}),
+  // Meta's Conversions API test_event_code sends production events that are not dropped, so Meta has no rehearsal.
+  rehearsal: Object.freeze({
+    provider: 'Meta Conversions API events',
+    note: 'Meta has no rehearsal for conversions: events sent with test_event_code are production events that are not dropped, so AMCP never offers it.',
+  }),
 };
 
 /** The request as AMCP builds it: the events of the reviewed people, nothing else. */
@@ -227,22 +232,13 @@ export function assertMetaOfflineConversion(p: CompiledRequest): void {
   if (!b || Object.keys(b).join() !== 'data' || !reviewedRows(r, rowsOf(b.data, r.schema)))
     fail('PERSONAL_DATA_CHANGED', 'The request body is not the one AMCP built from the reviewed events.');
 }
-const read = (p: CompiledRequest, query: JsonObject, s?: {pixel: string}): Read => ({
-  ...p,
-  personalData: undefined,
-  metaEventsState: s,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + 'act_' + account(p.accountId) + '/adspixels',
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const read = (p: CompiledRequest, query: JsonObject, s?: {pixel: string}): Read =>
+  readOf<Read>(p, {
+    before: {personalData: undefined, metaEventsState: s},
+    action: marker,
+    path: metaPrefix + 'act_' + account(p.accountId) + '/adspixels',
+    query,
+  });
 export function metaOfflineConversionSnapshots(p: CompiledRequest): Read[] {
   return [read(p, {fields: 'id,name', limit: 100}, {pixel: pixelOf(p)})];
 }
@@ -384,7 +380,7 @@ function verifyEvents(p: CompiledRequest, result: JsonObject): Verified {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaOfflineConversionFamily: ReviewedFamily = {
+export const metaOfflineConversionFamily: ReviewedFamily = defineFamily({
   name: 'meta_offline_conversions',
   files: ['src/meta-offline-conversions.ts', ['tests/meta-offline-conversions.test.mjs']],
   kind: metaOfflineConversionKind,
@@ -404,4 +400,4 @@ export const metaOfflineConversionFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: () => false,
-};
+});

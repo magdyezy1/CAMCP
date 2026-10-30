@@ -3,7 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn brand lift tests, per the Brand Lift Testing pages of the Marketing API (Overview, Lift Test Management API,
@@ -241,22 +241,16 @@ export function assertLinkedInLiftScope(c: Connection, write = false): void {
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: query as CompiledRequest['query'],
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinLiftState: undefined,
-    linkedinLiftPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: marker,
+      path,
+      query: query as CompiledRequest['query'],
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinLiftState: undefined, linkedinLiftPage: true},
+  );
 }
 const resumableQuery = (p: CompiledRequest) => ({
   q: 'criteria',
@@ -612,7 +606,7 @@ export function linkedinLiftObserved(read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinLiftFamily: ReviewedFamily = {
+export const linkedinLiftFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_lift_tests',
   files: ['src/linkedin-lift-tests.ts', ['tests/linkedin-lift-tests.test.mjs']],
   kind: linkedinLiftKind,
@@ -640,4 +634,4 @@ export const linkedinLiftFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: linkedinLiftActivates,
   destructive: p => ['delete', 'surveys'].includes(linkedinLiftKind(p) ?? ''),
-};
+});

@@ -3,7 +3,7 @@ import {assertDV360WriteScope} from './dv360-scope.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Structured Data File download tasks on Display & Video 360 API v4, per the pinned Discovery document
@@ -135,21 +135,8 @@ export function assertDV360SdfScope(c: Connection): void {
   if (!c.scopes.includes(oauthScope))
     fail('INSUFFICIENT_SCOPE', 'Reconnect the selected DV360 connection with display-video scope.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string): Read => ({
-  ...p,
-  action: 'AMCP_DV360_SDF_READ',
-  method: 'GET',
-  path,
-  query: {},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  dv360SdfState: undefined,
-});
+const read = (p: CompiledRequest, path: string): Read =>
+  stateReadOf<Read>(p, 'AMCP_DV360_SDF_READ', path, {}, {dv360SdfState: undefined});
 const stateRead = (p: CompiledRequest, operation?: string): Read => ({
   ...read(p, '/v4/advertisers/' + p.accountId),
   dv360SdfState: operation ? {operation} : {},
@@ -286,7 +273,7 @@ export function dv360SdfCreated(_p: CompiledRequest, actual: JsonObject): string
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360SdfFamily: ReviewedFamily = {
+export const dv360SdfFamily: ReviewedFamily = defineFamily({
   name: 'dv360_sdf_downloads',
   files: ['src/dv360-sdf-downloads.ts', ['tests/dv360-sdf-downloads.test.mjs']],
   kind: dv360SdfKind,
@@ -306,4 +293,4 @@ export const dv360SdfFamily: ReviewedFamily = {
   scope: assertDV360WriteScope,
   verifiedResources: dv360SdfCreated,
   exemptFromSpendTextMatch: true,
-};
+});

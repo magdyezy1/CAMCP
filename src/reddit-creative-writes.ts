@@ -15,6 +15,7 @@ import {nextPage} from './pagination.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {defineFamily, stateReadOf} from './family-kit.js';
 
 export const redditLeadFormSunset = '2026-09-21T00:00:00Z';
 export const redditLeadFormSource = 'https://ads-api.reddit.com/docs/v3/history';
@@ -102,21 +103,8 @@ export function assertRedditCreative(p: CompiledRequest): void {
       'Post updates can only set an explicit allow_comments boolean on an exact t3_ post ID. Create a new post to change content.',
     );
 }
-const read = (p: CompiledRequest, path: string): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_REDDIT_CREATIVE_READ',
-  path,
-  method: 'GET',
-  query: {},
-  headers: {},
-  body: undefined,
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  redditProfilesState: undefined,
-});
+const read = (p: CompiledRequest, path: string): CompiledRequest =>
+  stateReadOf(p, 'AMCP_REDDIT_CREATIVE_READ', path, {}, {redditProfilesState: undefined});
 export function redditCreativeSnapshots(p: CompiledRequest): CompiledRequest[] {
   const c = redditCreativeKind(p)!;
   const reads = [read(p, '/api/v3/ad_accounts/' + p.accountId)];
@@ -304,7 +292,7 @@ export function redditCreativeImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const redditCreativeFamily: ReviewedFamily = {
+export const redditCreativeFamily: ReviewedFamily = defineFamily({
   name: 'reddit_creatives',
   files: [
     'src/reddit-creative-writes.ts / src/reddit-post-creation.ts',
@@ -348,4 +336,4 @@ export const redditCreativeFamily: ReviewedFamily = {
       : undefined,
   pendingOnRetryableError: plan => !!redditPostCreation(plan),
   activates: plan => !!redditCreativeServing(plan),
-};
+});

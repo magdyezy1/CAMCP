@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Editing TikTok library images, per API for Business v1.3 "Edit an image" (checked 2026-09-28). POST
@@ -63,21 +63,14 @@ export function assertTiktokImageEdit(p: CompiledRequest): void {
       'image_name has 1–' + nameMax + ' characters without leading or trailing spaces, like other library image names.',
     );
 }
-const search = (p: CompiledRequest, id: string, state?: State): Read => ({
-  ...p,
-  action: 'tiktok_file_image_ad_search',
-  method: 'GET',
-  path: '/v1.3/file/image/ad/search/',
-  query: {advertiser_id: p.accountId, filtering: {image_ids: [id]}, page: 1, page_size: 20},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokImageEditState: state,
-});
+const search = (p: CompiledRequest, id: string, state?: State): Read =>
+  stateReadOf<Read>(
+    p,
+    'tiktok_file_image_ad_search',
+    '/v1.3/file/image/ad/search/',
+    {advertiser_id: p.accountId, filtering: {image_ids: [id]}, page: 1, page_size: 20},
+    {tiktokImageEditState: state},
+  );
 export function tiktokImageEditSnapshots(p: CompiledRequest): Read[] {
   const id = String(body(p).image_id);
   return [search(p, id, {image: id})];
@@ -231,7 +224,7 @@ export function tiktokImageEditObserved(read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokImageEditFamily: ReviewedFamily = {
+export const tiktokImageEditFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_image_edits',
   files: ['src/tiktok-image-edits.ts', ['tests/tiktok-image-edits.test.mjs']],
   kind: tiktokImageEditKind,
@@ -246,4 +239,4 @@ export const tiktokImageEditFamily: ReviewedFamily = {
   verification: tiktokImageEditVerification,
   observed: tiktokImageEditObserved,
   exemptFromSpendTextMatch: true,
-};
+});

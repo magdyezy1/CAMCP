@@ -2,7 +2,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat dynamic templates, Marketing API v1 (Dynamic Product Ads guide, "Dynamic Templates"; checked 2026-09-27).
@@ -217,21 +217,8 @@ export function assertSnapTemplate(p: CompiledRequest): void {
     }
   });
 }
-const read = (p: CompiledRequest, path: string, state?: State): Read => ({
-  ...p,
-  action: 'AMCP_SNAPCHAT_TEMPLATE_READ',
-  method: 'GET',
-  path,
-  query: {limit: pageSize},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  snapTemplateState: state,
-});
+const read = (p: CompiledRequest, path: string, state?: State): Read =>
+  stateReadOf<Read>(p, 'AMCP_SNAPCHAT_TEMPLATE_READ', path, {limit: pageSize}, {snapTemplateState: state});
 const stateRead = (p: CompiledRequest, state: State) =>
   read(p, '/v1/adaccounts/' + accountOf(p) + '/dynamic_templates', state);
 export function snapTemplateSnapshots(p: CompiledRequest): Read[] {
@@ -467,7 +454,7 @@ export function snapTemplateObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapTemplateFamily: ReviewedFamily = {
+export const snapTemplateFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_dynamic_templates',
   files: ['src/snapchat-dynamic-templates.ts', ['tests/snapchat-dynamic-templates.test.mjs']],
   kind: snapTemplateKind,
@@ -483,4 +470,4 @@ export const snapTemplateFamily: ReviewedFamily = {
   verification: snapTemplateVerification,
   observed: snapTemplateObserved,
   exemptFromSpendTextMatch: true,
-};
+});

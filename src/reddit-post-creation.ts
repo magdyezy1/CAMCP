@@ -6,6 +6,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {writeClaim} from './job-repository.js';
+import {readOf} from './family-kit.js';
 
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const invalid = (message: string): never => {
@@ -271,22 +272,15 @@ export function assertRedditPostCreation(p: CompiledRequest, d: JsonObject) {
   else legacy(d);
 }
 
-export const redditPostRead = (p: CompiledRequest, path: string, reviewId?: string): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_REDDIT_POST_VERIFY',
-  path,
-  method: 'GET',
-  query: {},
-  headers: {},
-  body: undefined,
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  specialTransport: undefined,
-  responseControls: undefined,
-  redditProfilesState: undefined,
-  scopeContext: {...p.scopeContext, ...(reviewId ? {redditPostReviewId: reviewId} : {})},
-});
+export const redditPostRead = (p: CompiledRequest, path: string, reviewId?: string): CompiledRequest =>
+  readOf(
+    p,
+    {action: 'AMCP_REDDIT_POST_VERIFY', path, query: {}, clears: ['specialTransport', 'responseControls']},
+    {
+      redditProfilesState: undefined,
+      scopeContext: {...p.scopeContext, ...(reviewId ? {redditPostReviewId: reviewId} : {})},
+    },
+  );
 export function validateRedditPromotion(p: CompiledRequest, states: unknown[]): void {
   const source = redditPromotedSource(p);
   if (!source) return;

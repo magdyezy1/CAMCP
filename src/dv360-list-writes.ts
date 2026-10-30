@@ -1,7 +1,7 @@
 import {assertDV360WriteScope} from './dv360-scope.js';
 import {assertNoMethodOverride} from './write-common.js';
 import type {GatewayStateChecks, ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -216,20 +216,8 @@ export function assertDV360ListWrite(p: CompiledRequest): void {
   )
     fail('INVALID_VENDOR_BODY', 'A member cannot be duplicated or both added and removed in one review.');
 }
-const base = (p: CompiledRequest, path: string, optional = false): CompiledRequest => ({
-  ...p,
-  path,
-  action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_DV360_LIST_STATE',
-  method: 'GET',
-  query: {},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const base = (p: CompiledRequest, path: string, optional = false): CompiledRequest =>
+  stateReadOf(p, optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_DV360_LIST_STATE', path, {});
 function members(p: CompiledRequest, r: Contract): CompiledRequest {
   const c = dv360ListContracts[r.kind],
     path = r.child ? r.collection : r.parent + '/' + r.target + '/' + c.child;
@@ -450,7 +438,7 @@ export function dv360ListImpact(): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360ListFamily: ReviewedFamily = {
+export const dv360ListFamily: ReviewedFamily = defineFamily({
   name: 'dv360_lists',
   files: ['src/dv360-list-writes.ts', ['tests/dv360-list-writes.test.ts']],
   kind: dv360ListKind,
@@ -482,4 +470,4 @@ export const dv360ListFamily: ReviewedFamily = {
   },
   activates: plan => !!dv360ListAffectsServing(plan),
   destructive: plan => !!dv360ListRemoves(plan),
-};
+});

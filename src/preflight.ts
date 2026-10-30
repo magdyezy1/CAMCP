@@ -3,6 +3,7 @@ import {MirrorError, connectorReadOnly} from './errors.js';
 import {numericStatusPaths, deliveryEditFields, namesSpendField} from './spend-effects.js';
 import {familyOf} from './reviewed-families.js';
 import {reviewedProviderJob} from './effect-class.js';
+import {providerOf} from './provider-adapters.js';
 export interface ExecutionPolicy {
   allowWrites: boolean;
   /**
@@ -66,7 +67,8 @@ export function spendConfirmationError(plan: CompiledRequest): MirrorError | und
       'SPEND_CONFIRMATION_REQUIRED',
       typeof spend.message === 'function' ? spend.message(plan) : spend.message,
     );
-  if (plan.gateway === 'reddit_native_action')
+  // A provider whose every write changes what serves (Reddit: targeting, serving and shared lists).
+  if (providerOf(plan.gateway)?.everyWriteConfirmsSpend)
     return new MirrorError(
       'SPEND_CONFIRMATION_REQUIRED',
       'Targeting, serving and shared-list changes require spend_change_confirmed=true.',

@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {compileMicrosoft, getByIdsPayload} from './microsoft-native.js';
 
@@ -295,7 +295,7 @@ export function microsoftCriterionImpact(p: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const microsoftCriterionFamily: ReviewedFamily = {
+export const microsoftCriterionFamily: ReviewedFamily = defineFamily({
   name: 'microsoft_location_targets',
   files: ['src/microsoft-campaign-criteria.ts', ['tests/microsoft-campaign-criteria.test.ts']],
   kind: microsoftCriterionKind,
@@ -311,4 +311,4 @@ export const microsoftCriterionFamily: ReviewedFamily = {
     typeof read.scopeContext?.microsoftCriterionId === 'string',
   observed: (read, data) => microsoftCriterionObserved(read, data),
   activates: () => false,
-};
+});

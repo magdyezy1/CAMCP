@@ -62,17 +62,32 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
   The localization check owns the reason of a call to a binding built this way, at the argument the factory's refusal
   takes it in (`kitRefusalFactories`), and of a forwarder to it, as for `fail`.
 - `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
-  modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
-  registered family.
-- `stateReadOf(p, action, path, query, fields)` builds a state read from the write request `p`: `p` with the read's
-  action and a GET of `path` with `query`, without the body, headers, confirmation, response controls or special
-  transport of a write, then `fields` in order (the family's state fields reset, a query encoding). Keep a `read`
-  wrapper in the module so its call sites stay the same, for example
-  `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`.
-  The X, DV360 and Criteo families use it; a read that resets other fields keeps its own builder.
-- `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
-  hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
-  (`everyFamilyHookHasAStage`).
+  modules, at least one test, a `kind` hook, no member outside the stages) and returns it unchanged. Every registered
+  family is declared through it (`tests/family-kit.test.mjs`). It takes a `FamilyDeclaration`, the five stages below
+  together, so a member that is no hook of any stage (a misspelt hook, which no stage would call) fails to compile
+  (`tests/family-declaration.test.ts`), and a hook written in place is typed by its stage; such a member brought in by a
+  spread, which that type check does not see, fails when the module loads.
+- `readOf(p, read, fields)` builds a state read from the write request `p`: `p`, then `read.before` (a binding the
+  read replaces, such as `accountId` or `origin`, what it never carries, such as `personalData`, or state fields a
+  family sets first), the read's action, method (`GET` unless it posts a search `body`), path, query, body and headers
+  (`{}` unless the provider needs some on a read, such as LinkedIn's version headers), read-only, not destructive, no
+  confirmation, then `read.after` (state fields a family resets ahead of the clears), the write-only fields it clears
+  (`read.clears`: `responseControls` and `specialTransport` by default; most Google Ads searches clear only the first)
+  and `fields` in order (the family's state fields reset, a query encoding). `stateReadOf(p, action, path, query,
+  fields)` is its common case, a GET that clears both. Keep a `read` wrapper in the module so its call sites stay the
+  same, for example
+  `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`
+  or, for a Google Ads search, `return readOf<Read>(p, {action: 'AMCP_GOOGLE_BID_READ', method: 'POST', path, body:
+  {query}, query: {}, clears: ['responseControls']}, {googleBidState: undefined});`. Every family builds its reads
+  with them, in its own modules and in the provider modules they import (google_configuration's searches in
+  `src/google-asset-set-writes.ts` and `src/google-keyword-plan-writes.ts`, the X catalog families' shared read in
+  `src/x-catalogs.ts`): `tests/family-reads.test.mjs` holds each layout the families had copied, compares the kit's
+  read with it key by key and in order for every combination of the fields a request may carry, and fails when a
+  family module or one of those helpers spreads a request into a read of its own.
+- `familyStages` lists the hooks of `ReviewedFamily` by the stage that calls them (`core`, `state`, `policy`,
+  `delivery`, `verification`), each hook in one stage; `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`,
+  `FamilyDeliveryHooks` and `FamilyVerificationHooks` are their types, and `FamilyDeclaration` is all five. A new hook
+  joins the list of its stage or the build fails (`everyFamilyHookHasAStage`); then a declaration may name it.
 
 Every module is on the kit: the byte-identical copies moved in waves 1 to 3 (X, then TikTok, Google Ads, Criteo, DV360,
 LinkedIn, Meta and Snapchat), and wave 4 moved the variants with their own codes and statuses onto the factories, each
@@ -129,6 +144,12 @@ Every write passes three independent checks; none of them may be weakened to mak
 3. **Generic text match** (`preflight.ts`): a request whose body mentions a budget, bid, spend or an active status
    needs the flag. Set `exemptFromSpendTextMatch: true` only when the family decides its spending effect itself (2),
    or provably has none (a keyword or form field containing "budget" is not a budget edit).
+
+Two facts of the provider's adapter (`src/provider-adapters.ts`) take part as well, never a family's own: a provider
+each of whose writes changes what serves declares `everyWriteConfirmsSpend` (Reddit), and its writes need the flag
+after checks 1 and 2, whether or not the family is exempt from the text match; a creation field that names a budget
+but moves no money is its `spendNeutralCreation` (a new Meta campaign's top-level
+`is_adset_budget_sharing_enabled: false`), which the text match reads without that one field.
 
 Owner policies: `activates(plan, before)` must return true when the request starts or widens delivery
 (`allow_activation=false` then refuses it); `destructive(plan, before?)` must return true when it deletes or removes
@@ -231,8 +252,9 @@ Every reviewed family is registered: <!-- fact:reviewed_families -->170<!-- /fac
 request of a gateway rather than one family:
 
 - the entity writes of seven platforms (`google_entities`, `meta_entities`, `snapchat_entities`, `tiktok_entities`,
-  `x_entities`, `linkedin_entities`, `dv360_entities`: `src/reviewed-routes.ts`), which use each gateway's generic
-  reads, checks and projections;
+  `x_entities`, `linkedin_entities`, `dv360_entities`), which use each gateway's generic reads, checks and
+  projections: each provider adapter declares which writes are its entity writes (`entityWrites`,
+  `src/provider-adapters.ts`), and `src/reviewed-routes.ts` gives that route to a write no registered family claims;
 - gateway checks and projections shared by several families. The write-shape and state checks of each provider are
   its adapter's (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's request validation, the
   measurement gateways' checks, TikTok's state checks, the paused-creation rules), which `src/write-shape.ts` and

@@ -60,6 +60,22 @@ export interface PersonalDataSpec {
   check?(rows: Row[], now: number): void;
   /** What the review shows of the rows, in aggregate only (events by name, value by currency). */
   summarize?(rows: Row[]): JsonObject;
+  /**
+   * The provider's rehearsal of the family's uploads, which `amcp_write inspect` builds and never sends
+   * (src/offline-upload-rehearsal.ts): a conversion upload's family declares it, and no other.
+   */
+  readonly rehearsal?: OfflineRehearsal;
+}
+/**
+ * What a provider documents as the rehearsal of a conversion upload (MSR-03 slice E; ARC-01 phase B: the routes of
+ * src/offline-upload-rehearsal.ts): the request, its documented no-execution flag, or none when the provider's "test"
+ * path is a production write, and what the review says of it.
+ */
+export interface OfflineRehearsal {
+  readonly provider: string;
+  /** The documented no-execution flag of the provider's request, or undefined when the provider has none. */
+  readonly flag?: string;
+  readonly note: string;
 }
 /** The review's record of an upload: counts, digest and confirmations, never the people. */
 export interface PersonalDataRecord extends JsonObject {

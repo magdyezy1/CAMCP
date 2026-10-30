@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -235,8 +235,7 @@ export function assertGoogleConversionGoal(p: CompiledRequest) {
   }
 }
 function read(p: CompiledRequest, resource: string, fields: string[], where = ''): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_CONVERSION_GOAL_READ',
     method: 'POST',
     path: googleAdsCustomers + account(p) + '/googleAds:search',
@@ -250,12 +249,8 @@ function read(p: CompiledRequest, resource: string, fields: string[], where = ''
         (resource === 'customer' ? ' LIMIT 1' : ''),
     },
     query: {},
-    headers: {},
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function googleConversionGoalSnapshots(p: CompiledRequest) {
   return [
@@ -753,7 +748,7 @@ export const googleConversionGoalImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleConversionGoalFamily: ReviewedFamily = {
+export const googleConversionGoalFamily: ReviewedFamily = defineFamily({
   name: 'google_conversion_goals',
   files: ['src/google-conversion-goals.ts', ['tests/google-conversion-goals.test.ts']],
   kind: googleConversionGoalKind,
@@ -790,4 +785,4 @@ export const googleConversionGoalFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: plan => !!googleConversionGoalServing(plan),
   exemptFromActivationScan: true,
-};
+});

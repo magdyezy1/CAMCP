@@ -1,7 +1,7 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Business Profile location hours and contact details, per the pinned Business Information API v1 Discovery document
@@ -215,21 +215,8 @@ export function assertBusinessLocationEditScope(c: Connection): void {
   if (!c.scopes.includes(oauthScope))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Business Profile with business.manage.', {}, 403);
 }
-const read = (p: CompiledRequest): Read => ({
-  ...p,
-  action: 'gmb_location_ops/GET_LOCATION',
-  method: 'GET',
-  path: p.path,
-  query: {readMask},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  businessLocationEditRead: true,
-});
+const read = (p: CompiledRequest): Read =>
+  stateReadOf<Read>(p, 'gmb_location_ops/GET_LOCATION', p.path, {readMask}, {businessLocationEditRead: true});
 /** The validated edit and its read of the same location, for the selected location grant. */
 export function authorizeBusinessLocationEdit(p: CompiledRequest, c: Connection, id: string): boolean {
   if (businessLocationEditKind(p)) {
@@ -397,7 +384,7 @@ export function businessLocationEditObserved(_read: CompiledRequest, data: JsonO
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const businessLocationEditFamily: ReviewedFamily = {
+export const businessLocationEditFamily: ReviewedFamily = defineFamily({
   name: 'google_business_location_edits',
   files: ['src/google-business-location-edits.ts', ['tests/google-business-location-edits.test.mjs']],
   kind: businessLocationEditKind,
@@ -413,4 +400,4 @@ export const businessLocationEditFamily: ReviewedFamily = {
   verification: businessLocationEditVerification,
   observed: businessLocationEditObserved,
   exemptFromSpendTextMatch: true,
-};
+});

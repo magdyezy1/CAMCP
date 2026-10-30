@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {xRead, xReader} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
@@ -347,7 +347,7 @@ export function xDraftImpact(p: CompiledRequest) {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xDraftFamily: ReviewedFamily = {
+export const xDraftFamily: ReviewedFamily = defineFamily({
   name: 'x_drafts',
   files: ['src/x-draft-writes.ts', ['tests/x-draft-writes.test.ts']],
   kind: xDraftKind,
@@ -363,4 +363,4 @@ export const xDraftFamily: ReviewedFamily = {
       checks: o.checks,
     })),
   exemptFromSpendTextMatch: true,
-};
+});

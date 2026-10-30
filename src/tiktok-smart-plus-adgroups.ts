@@ -11,6 +11,7 @@ import {
   tiktokNumericId,
 } from './tiktok-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Paused Upgraded Smart+ website-conversion and Instant Form lead generation ad groups, per API for Business v1.3
@@ -536,7 +537,7 @@ export function tiktokSmartPlusAdgroupProjection(row: unknown): JsonObject | und
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = {
+export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_adgroups',
   files: [
     'src/tiktok-smart-plus-adgroups.ts',
@@ -569,4 +570,4 @@ export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_adgroup_get'},
     })),
-};
+});

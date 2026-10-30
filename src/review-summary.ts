@@ -1,6 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {budgetUnits, currencyMinorDigits} from './budget-units.js';
 import {stateTarget} from './write-effects.js';
+import {providerOf} from './provider-adapters.js';
 
 /**
  * A one-line, server-authored summary of a reviewed write (WRT-05 Stage E), shown above the exact native table, which
@@ -14,20 +15,6 @@ const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa/i;
 /** Money and status entries a summary lists; the exact request below holds every one. */
 export const summaryEntries = 10;
 const statusKeys = new Set(['status', 'entity_status', 'entityStatus', 'configured_status', 'operation_status']);
-const googleKinds: Record<string, string> = {
-  campaigns: 'campaign',
-  adGroups: 'ad group',
-  adGroupAds: 'ad group ad',
-  campaignBudgets: 'campaign budget',
-  ads: 'ad',
-  assets: 'asset',
-  assetGroups: 'asset group',
-  campaignCriteria: 'campaign criterion',
-  adGroupCriteria: 'ad group criterion',
-  sharedSets: 'shared set',
-  sharedCriteria: 'shared criterion',
-  campaignSharedSets: 'campaign shared set',
-};
 const singular: Record<string, string> = {
   campaigns: 'campaign',
   adsquads: 'ad squad',
@@ -98,19 +85,9 @@ export function stateCurrency(state: unknown): string | undefined {
 /** What the request does: an operation and the entities it acts on. */
 function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
-  if (plan.gateway === 'google_ads_native_action') {
-    const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1] ?? '',
-      operations = object(body) && Array.isArray(body.operations) ? body.operations : [];
-    const ops = operations.map((op: JsonObject) =>
-      op?.create !== undefined ? 'create' : op?.remove !== undefined ? 'remove' : 'update',
-    );
-    const kinds = [...new Set(ops)];
-    return {
-      operation: kinds.length === 1 ? (kinds[0] as string) : 'change',
-      entity: googleKinds[kind] ?? kind,
-      count: ops.length || 1,
-    };
-  }
+  // A provider whose writes name their operations themselves summarizes them (Google Ads' :mutate operations).
+  const provided = providerOf(plan.gateway)?.reviewOperations;
+  if (provided) return provided.summarize(plan);
   const segments = plan.path.split('/').filter(Boolean),
     collection = [...segments].reverse().find(s => Object.hasOwn(singular, s.replace(/:.*/, ''))) ?? '',
     key = collection.replace(/:.*/, ''),

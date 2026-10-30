@@ -3,7 +3,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Product feeds of Snapchat catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -154,25 +154,13 @@ const read = (
   query: Record<string, string | number>,
   extra: Partial<Read> = {},
 ): Read =>
-  ({
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  stateReadOf<Read>(p, marker, path, query, {
     snapFeedState: undefined,
     snapFeedOrg: undefined,
     snapFeedCatalog: undefined,
     snapFeedId: undefined,
     ...extra,
-  }) as Read;
+  });
 const accountRead = (p: CompiledRequest, state: State) =>
   read(p, '/v1/adaccounts/' + p.accountId, {}, {snapFeedState: state});
 export function snapProductFeedSnapshots(p: CompiledRequest): Read[] {
@@ -480,7 +468,7 @@ export function snapProductFeedObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapProductFeedFamily: ReviewedFamily = {
+export const snapProductFeedFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_product_feeds',
   files: ['src/snapchat-product-feeds.ts', ['tests/snapchat-product-feeds.test.mjs']],
   kind: snapProductFeedKind,
@@ -496,4 +484,4 @@ export const snapProductFeedFamily: ReviewedFamily = {
   verification: snapProductFeedVerification,
   observed: snapProductFeedObserved,
   destructive: plan => snapProductFeedKind(plan) === 'delete',
-};
+});

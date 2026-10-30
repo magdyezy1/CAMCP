@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertNoMethodOverride} from './write-common.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Creating and renaming TikTok pixels, API for Business v1.3. The request fields come from TikTok's official Business
@@ -68,21 +68,14 @@ export function assertTiktokPixel(p: CompiledRequest, gatewayShape: () => void):
   if (kind === 'rename' && !numeric(b.pixel_id))
     invalid('pixel_id', 'pixel_id must be the numeric pixel ID from /pixel/list/.');
 }
-const read = (p: CompiledRequest, state: State): Read => ({
-  ...p,
-  action: 'tiktok_pixel_list_get',
-  method: 'GET',
-  path: listPath,
-  query: {advertiser_id: p.accountId, ...(state.pixel ? {pixel_id: state.pixel} : {}), page: 1, page_size: pageSize},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokPixelState: state,
-});
+const read = (p: CompiledRequest, state: State): Read =>
+  stateReadOf<Read>(
+    p,
+    'tiktok_pixel_list_get',
+    listPath,
+    {advertiser_id: p.accountId, ...(state.pixel ? {pixel_id: state.pixel} : {}), page: 1, page_size: pageSize},
+    {tiktokPixelState: state},
+  );
 export function tiktokPixelSnapshots(p: CompiledRequest): Read[] {
   return [read(p, tiktokPixelKind(p) === 'rename' ? {pixel: String(body(p).pixel_id)} : {})];
 }
@@ -264,7 +257,7 @@ export function tiktokPixelObserved(_read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokPixelFamily: ReviewedFamily = {
+export const tiktokPixelFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_pixels',
   files: ['src/tiktok-pixels.ts', ['tests/tiktok-pixels.test.mjs']],
   kind: tiktokPixelKind,
@@ -279,4 +272,4 @@ export const tiktokPixelFamily: ReviewedFamily = {
   verification: tiktokPixelVerification,
   observed: tiktokPixelObserved,
   exemptFromSpendTextMatch: true,
-};
+});

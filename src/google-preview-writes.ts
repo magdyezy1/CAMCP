@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {changedStateFields} from './review-state-core.js';
 import {redact, stable, sha256} from './security.js';
@@ -148,19 +148,16 @@ export function googlePreviewSnapshots(p: CompiledRequest): CompiledRequest[] {
         ')',
     );
   }
-  return queries.map(query => ({
-    ...p,
-    action: 'AMCP_GOOGLE_PREVIEW_READ',
-    method: 'POST',
-    path: googleAdsCustomers + cid(p) + '/googleAds:search',
-    query: {},
-    body: {query},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  }));
+  return queries.map(query =>
+    readOf(p, {
+      action: 'AMCP_GOOGLE_PREVIEW_READ',
+      method: 'POST',
+      path: googleAdsCustomers + cid(p) + '/googleAds:search',
+      query: {},
+      body: {query},
+      clears: ['responseControls'],
+    }),
+  );
 }
 /** Preview approval authorizes sharing these existing sources, not campaign
  * changes or an assertion that the renderer freezes every inherited asset. */
@@ -505,7 +502,7 @@ export const googlePreviewImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googlePreviewFamily: ReviewedFamily = {
+export const googlePreviewFamily: ReviewedFamily = defineFamily({
   name: 'google_shareable_previews',
   files: ['src/google-preview-writes.ts', ['tests/google-preview-writes.test.ts']],
   kind: googlePreviewKind,
@@ -541,4 +538,4 @@ export const googlePreviewFamily: ReviewedFamily = {
       }),
     ).then(o => ({status: o.status, checks: o.checks})),
   verifyEveryTime: true,
-};
+});

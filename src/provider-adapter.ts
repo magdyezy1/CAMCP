@@ -88,6 +88,40 @@ export interface BodyDeletions {
 }
 
 /**
+ * A provider's generic entity writes (ARC-01 phase B: they were branches of src/reviewed-routes.ts): the creations,
+ * edits and deletions of its campaigns, ad groups, ads and creatives that no registered family claims, which the
+ * gateway's generic reads, checks and projections serve. reviewedWriteFamily keeps the read-only and special-transport
+ * exclusions and the registered families first, and asks the adapter only whether a write is one of these.
+ */
+export interface EntityWrites {
+  /** The ledger name of their reviewed route (`google_entities`). */
+  readonly family: string;
+  /** Whether a write is one of them, from its method, path and action alone; it never refuses. */
+  claims(plan: CompiledRequest): boolean;
+}
+
+/**
+ * How the one-line review summary names what a provider's write does (WRT-05 stage E; ARC-01 phase B: a branch of
+ * src/review-summary.ts): its operation, the kind of entity and how many, read from the request alone. A provider
+ * without it is summarized from the request's path, method and action.
+ */
+export interface ReviewOperations {
+  summarize(plan: CompiledRequest): {operation: string; entity: string; count: number};
+}
+
+/**
+ * A creation field whose value names a budget but moves no money (ARC-01 phase B: a branch of src/spend-effects.ts):
+ * the spending field-name match reads a POST to `path` whose body carries exactly `value` in `field` at its top level
+ * without that field. Any other value, another method or path, or the field anywhere else still names a budget.
+ */
+export interface SpendNeutralCreation {
+  /** The creation's path; never global or sticky, so it keeps no position between requests. */
+  readonly path: RegExp;
+  readonly field: string;
+  readonly value: unknown;
+}
+
+/**
  * A provider's read classification (ARC-01 phase B): its documented exceptions to the generic read rules of
  * src/execution-risk.ts, which keeps every rule and decides. A request classified as a read still passes ScopeGuard and
  * every review rule.
@@ -485,6 +519,17 @@ export interface ProviderAdapter {
   readonly familyPrefixes: readonly string[];
   readonly account?: AccountModel;
   readonly deletions?: BodyDeletions;
+  /** Its generic entity writes, the reviewed route src/reviewed-routes.ts gives a write no registered family claims. */
+  readonly entityWrites?: EntityWrites;
+  /** How the review summary names its writes' operations (Google Ads' :mutate operations), src/review-summary.ts. */
+  readonly reviewOperations?: ReviewOperations;
+  /**
+   * Each of its writes needs spend_change_confirmed=true once no structural or family rule has decided its spending
+   * (Reddit: its writes change targeting, serving and shared lists), src/preflight.ts spendConfirmationError.
+   */
+  readonly everyWriteConfirmsSpend?: true;
+  /** A creation field that names a budget but moves no money (Meta's unshared ad set budgets), src/spend-effects.ts. */
+  readonly spendNeutralCreation?: SpendNeutralCreation;
   readonly paging?: PagingFacts;
   /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
   readonly executionOptions?: true;

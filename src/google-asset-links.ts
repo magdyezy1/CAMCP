@@ -5,6 +5,7 @@ import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 // Native association contracts, independent of whether the caller used an RPC
 // name or a legacy alias. Source: Google Ads v23 resource and GAQL references.
@@ -300,21 +301,17 @@ function search(
     (entity.endsWith('_asset') && entity !== 'asset'
       ? ' AND ' + entity + ".status IN ('ENABLED', 'PAUSED', 'REMOVED')"
       : '');
-  return {
-    ...plan,
-    action: 'AMCP_STATE_READ',
-    method: 'POST',
-    path: googleAdsCustomers + plan.accountId!.replaceAll('-', '') + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    googleState: {resource: entity, names: targets, allowMissing, removedAsAbsent},
-  };
+  return readOf(
+    plan,
+    {
+      action: 'AMCP_STATE_READ',
+      method: 'POST',
+      path: googleAdsCustomers + plan.accountId!.replaceAll('-', '') + '/googleAds:search',
+      body: {query},
+      query: {},
+    },
+    {googleState: {resource: entity, names: targets, allowMissing, removedAsAbsent}},
+  );
 }
 const linkFields = (kind: Kind) => [
   'asset',
@@ -346,18 +343,16 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
       ),
     );
   else
-    reads.push({
-      ...plan,
-      action: 'AMCP_STATE_READ',
-      method: 'POST',
-      path: googleAdsCustomers + plan.accountId + '/googleAds:search',
-      query: {},
-      body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-    });
+    reads.push(
+      readOf(plan, {
+        action: 'AMCP_STATE_READ',
+        method: 'POST',
+        path: googleAdsCustomers + plan.accountId + '/googleAds:search',
+        query: {},
+        body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
+        clears: [],
+      }),
+    );
   for (const type of [...new Set(targets.map(t => assetTypes[t.role] ?? t.role))]) {
     const fields = [
       'type',
@@ -479,7 +474,7 @@ export function googleAssetLinkImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleAssetLinkFamily: ReviewedFamily = {
+export const googleAssetLinkFamily: ReviewedFamily = defineFamily({
   name: 'google_asset_links',
   files: ['src/google-asset-links.ts', ['tests/google-asset-links.test.ts']],
   kind: googleAssetLinkKind,
@@ -502,4 +497,4 @@ export const googleAssetLinkFamily: ReviewedFamily = {
       'Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.',
   },
   activates: plan => !!googleAssetLinkActivates(plan),
-};
+});

@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -204,21 +204,13 @@ export function assertMetaValueRule(p: CompiledRequest): void {
 }
 export function metaValueRuleReads(p: CompiledRequest): CompiledRequest[] {
   return [
-    {
-      ...p,
-      action: 'AMCP_META_VALUE_RULE_READ',
-      method: 'GET',
-      path: metaPrefix + 'act_' + p.accountId + '/value_rule_set',
-      query: {fields: metaValueRuleFields, limit: 25},
-      body: undefined,
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      responseControls: undefined,
-      specialTransport: undefined,
-      metaValueRuleState: true,
-    },
+    stateReadOf(
+      p,
+      'AMCP_META_VALUE_RULE_READ',
+      metaPrefix + 'act_' + p.accountId + '/value_rule_set',
+      {fields: metaValueRuleFields, limit: 25},
+      {metaValueRuleState: true},
+    ),
   ];
 }
 export function isMetaValueRuleRead(p: CompiledRequest): boolean {
@@ -406,7 +398,7 @@ export function metaValueRuleRemoves(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaValueRuleFamily: ReviewedFamily = {
+export const metaValueRuleFamily: ReviewedFamily = defineFamily({
   name: 'meta_value_rules',
   files: ['src/meta-value-rules.ts', ['tests/meta-value-rules.test.mjs']],
   kind: metaValueRuleKind,
@@ -428,4 +420,4 @@ export const metaValueRuleFamily: ReviewedFamily = {
   },
   activates: plan => !!metaValueRuleServing(plan),
   destructive: plan => !!metaValueRuleRemoves(plan),
-};
+});

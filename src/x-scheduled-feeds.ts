@@ -17,6 +17,7 @@ import {
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Scheduled feeds of X catalogs, opened by the owner on 2026-09-29. X Ads API v12, "Catalog Management API Reference"
@@ -285,7 +286,7 @@ export function xScheduledFeedObserved(_read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xScheduledFeedFamily: ReviewedFamily = {
+export const xScheduledFeedFamily: ReviewedFamily = defineFamily({
   name: 'x_scheduled_feeds',
   verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-scheduled-feeds.ts', ['tests/x-scheduled-feeds.test.mjs']],
@@ -302,4 +303,4 @@ export const xScheduledFeedFamily: ReviewedFamily = {
   verification: xScheduledFeedVerification,
   observed: xScheduledFeedObserved,
   destructive: plan => xScheduledFeedKind(plan) === 'delete',
-};
+});

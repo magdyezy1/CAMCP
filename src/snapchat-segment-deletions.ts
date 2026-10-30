@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Deleting Snapchat audience segments, Marketing API v1 (Audiences, "Delete a Segment"; checked 2026-09-27):
@@ -37,21 +37,14 @@ export function assertSnapSegmentDelete(p: CompiledRequest): void {
   )
     invalid('Segment deletion takes only the segment in the path, without a body, query or header overrides.');
 }
-const read = (p: CompiledRequest, state: NonNullable<Read['snapSegmentDeleteState']>): Read => ({
-  ...p,
-  action: 'AMCP_SNAPCHAT_SEGMENT_DELETE_READ',
-  method: 'GET',
-  path: '/v1/adaccounts/' + p.accountId + '/segments',
-  query: {limit: pageSize},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  snapSegmentDeleteState: state,
-});
+const read = (p: CompiledRequest, state: NonNullable<Read['snapSegmentDeleteState']>): Read =>
+  stateReadOf<Read>(
+    p,
+    'AMCP_SNAPCHAT_SEGMENT_DELETE_READ',
+    '/v1/adaccounts/' + p.accountId + '/segments',
+    {limit: pageSize},
+    {snapSegmentDeleteState: state},
+  );
 export function snapSegmentDeleteSnapshots(p: CompiledRequest): Read[] {
   return [read(p, {segmentId: segmentOf(p), adsquads: true})];
 }
@@ -211,7 +204,7 @@ export function snapSegmentDeleteObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapSegmentDeleteFamily: ReviewedFamily = {
+export const snapSegmentDeleteFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_segment_deletions',
   files: ['src/snapchat-segment-deletions.ts', ['tests/snapchat-segment-deletions.test.mjs']],
   kind: snapSegmentDeleteKind,
@@ -226,4 +219,4 @@ export const snapSegmentDeleteFamily: ReviewedFamily = {
   verification: snapSegmentDeleteVerification,
   observed: snapSegmentDeleteObserved,
   exemptFromSpendTextMatch: true,
-};
+});

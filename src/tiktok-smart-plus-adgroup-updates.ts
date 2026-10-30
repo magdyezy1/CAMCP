@@ -2,6 +2,7 @@ import {assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Upgraded Smart+ ad group edits, per API for Business v1.3 "Update an Upgraded Smart+ Ad Group" and "Get Upgraded
@@ -292,7 +293,7 @@ export function tiktokSmartPlusAdgroupUpdateVerification(plan: CompiledRequest) 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusAdgroupUpdateFamily: ReviewedFamily = {
+export const tiktokSmartPlusAdgroupUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_adgroup_edits',
   files: ['src/tiktok-smart-plus-adgroup-updates.ts', ['tests/tiktok-smart-plus-adgroup-updates.test.mjs']],
   kind: tiktokSmartPlusAdgroupUpdateKind,
@@ -323,4 +324,4 @@ export const tiktokSmartPlusAdgroupUpdateFamily: ReviewedFamily = {
     message:
       'Bid, end time and dayparting edits change when and at what price the ad group spends, and a bid edit also changes the other ad groups of the campaign. Review them, then provide spend_change_confirmed=true.',
   },
-};
+});

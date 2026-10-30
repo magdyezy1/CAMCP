@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Snapchat ad squad targeting specs, per Snap's Audience Targeting page, "Targeting Specs - Greater than 500 rows"
@@ -84,22 +84,11 @@ export function assertSnapchatSpec(p: CompiledRequest): void {
     invalid('geos includes at least one location; exclusions alone target nowhere.');
 }
 function read(p: CompiledRequest, path: string): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    snapchatSpecPage: true,
-    snapchatSpecState: undefined,
-    snapchatSpecCheck: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {action: marker, path, query: {}, clears: ['responseControls']},
+    {snapchatSpecPage: true, snapchatSpecState: undefined, snapchatSpecCheck: undefined},
+  );
 }
 export function snapchatSpecSnapshots(p: CompiledRequest): Read[] {
   return [{...read(p, '/v1/adsquads/' + squad(p)), snapchatSpecState: true}];
@@ -330,7 +319,7 @@ export function snapchatSpecVerification(p: CompiledRequest) {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapchatSpecFamily: ReviewedFamily = {
+export const snapchatSpecFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_targeting_specs',
   files: ['src/snapchat-targeting-specs.ts', ['tests/snapchat-targeting-specs.test.mjs']],
   kind: snapchatSpecKind,
@@ -360,4 +349,4 @@ export const snapchatSpecFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: () => false,
-};
+});

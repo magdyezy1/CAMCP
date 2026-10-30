@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
@@ -172,21 +172,17 @@ export function linkedinRuleServing(p: CompiledRequest): boolean {
   return linkedinRuleKind(p) && (!creating(p) || ruleInputs(p).values.some(v => v.enabled !== false));
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): RuleRead {
-  return {
-    ...p,
-    action: 'AMCP_LINKEDIN_RULE_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    linkedinRuleState: undefined,
-    linkedinRulePage: true,
-  };
+  return readOf<RuleRead>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_RULE_READ',
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+      clears: ['responseControls'],
+    },
+    {linkedinRuleState: undefined, linkedinRulePage: true},
+  );
 }
 export function linkedinRuleSnapshots(p: CompiledRequest): RuleRead[] {
   return [
@@ -520,7 +516,7 @@ export const linkedinRuleImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinRuleFamily: ReviewedFamily = {
+export const linkedinRuleFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_conversion_rules',
   files: ['src/linkedin-conversion-rules.ts', ['tests/linkedin-conversion-rules.test.ts']],
   kind: linkedinRuleKind,
@@ -541,4 +537,4 @@ export const linkedinRuleFamily: ReviewedFamily = {
       'Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and provide spend_change_confirmed=true.',
   },
   activates: plan => !!linkedinRuleServing(plan),
-};
+});

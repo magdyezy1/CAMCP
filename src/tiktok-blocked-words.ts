@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Ad comment blocked words, per TikTok API for Business v1.3 "Create blocked words", "Update a blocked word", "Delete
@@ -81,21 +81,8 @@ export function assertTiktokBlockedWords(p: CompiledRequest): void {
   words(b.blocked_words, 'blocked_words', false);
   if (b.lang !== undefined && !langs.includes(b.lang as string)) invalid('lang is EN, JA or ZH.');
 }
-const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state: State): Read => ({
-  ...p,
-  action,
-  method: 'GET',
-  path,
-  query: {advertiser_id: p.accountId, ...query},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokBlockedWordState: state,
-});
+const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state: State): Read =>
+  stateReadOf<Read>(p, action, path, {advertiser_id: p.accountId, ...query}, {tiktokBlockedWordState: state});
 const listRead = (p: CompiledRequest) =>
   read(p, 'tiktok_blockedword_list_get', '/v1.3/blockedword/list/', {page: 1, page_size: pageSize}, {kind: 'list'});
 export function tiktokBlockedWordSnapshots(p: CompiledRequest): Read[] {
@@ -263,7 +250,7 @@ export function tiktokBlockedWordObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokBlockedWordFamily: ReviewedFamily = {
+export const tiktokBlockedWordFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_blocked_words',
   files: ['src/tiktok-blocked-words.ts', ['tests/tiktok-blocked-words.test.mjs']],
   kind: tiktokBlockedWordKind,
@@ -278,4 +265,4 @@ export const tiktokBlockedWordFamily: ReviewedFamily = {
   verification: tiktokBlockedWordVerification,
   observed: tiktokBlockedWordObserved,
   exemptFromSpendTextMatch: true,
-};
+});

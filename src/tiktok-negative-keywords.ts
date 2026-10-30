@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -134,21 +134,7 @@ function read(
   action: string,
   marker: NonNullable<CompiledRequest['tiktokNegativeKeywordState']>,
 ): CompiledRequest {
-  return {
-    ...p,
-    action,
-    method: 'GET',
-    path,
-    query: {advertiser_id: p.accountId, ...query},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    tiktokNegativeKeywordState: marker,
-  };
+  return stateReadOf(p, action, path, {advertiser_id: p.accountId, ...query}, {tiktokNegativeKeywordState: marker});
 }
 /** The campaigns (with their ad groups) or ad groups, then each complete keyword list. */
 export function tiktokNegativeKeywordReads(p: CompiledRequest): CompiledRequest[] {
@@ -452,7 +438,7 @@ export function tiktokNegativeKeywordRemoves(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokNegativeKeywordFamily: ReviewedFamily = {
+export const tiktokNegativeKeywordFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_negative_keywords',
   files: ['src/tiktok-negative-keywords.ts', ['tests/tiktok-negative-keywords.test.mjs']],
   kind: tiktokNegativeKeywordKind,
@@ -476,4 +462,4 @@ export const tiktokNegativeKeywordFamily: ReviewedFamily = {
   },
   activates: plan => !!tiktokNegativeKeywordWidens(plan),
   destructive: plan => !!tiktokNegativeKeywordRemoves(plan),
-};
+});

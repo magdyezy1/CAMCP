@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Auto-apply recommendation subscriptions, Google Ads API v23 (pinned Discovery document:
@@ -109,20 +109,18 @@ export function assertGoogleSubscriptions(p: CompiledRequest): void {
 const subscriptionQuery =
   'SELECT recommendation_subscription.resource_name, recommendation_subscription.type, recommendation_subscription.status FROM recommendation_subscription';
 function read(p: CompiledRequest): Read {
-  return {
-    ...p,
-    action: 'AMCP_GOOGLE_SUBSCRIPTION_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query: subscriptionQuery},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleSubscriptionState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_GOOGLE_SUBSCRIPTION_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query: subscriptionQuery},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleSubscriptionState: undefined},
+  );
 }
 export function googleSubscriptionSnapshots(p: CompiledRequest): Read[] {
   return [
@@ -253,7 +251,7 @@ export function googleSubscriptionObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleSubscriptionFamily: ReviewedFamily = {
+export const googleSubscriptionFamily: ReviewedFamily = defineFamily({
   name: 'google_recommendation_subscriptions',
   files: ['src/google-recommendation-subscriptions.ts', ['tests/google-recommendation-subscriptions.test.mjs']],
   kind: googleSubscriptionKind,
@@ -275,4 +273,4 @@ export const googleSubscriptionFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: googleSubscriptionEnables,
-};
+});

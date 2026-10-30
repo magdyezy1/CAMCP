@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -140,23 +140,7 @@ export function assertTiktokBrandSafety(p: CompiledRequest): void {
 export function tiktokBrandSafetyReads(p: CompiledRequest): CompiledRequest[] {
   const kind = tiktokBrandSafetyKind(p)!,
     r = reads[kind];
-  return [
-    {
-      ...p,
-      action: r.action,
-      method: 'GET',
-      path: r.path,
-      query: {advertiser_id: p.accountId},
-      body: undefined,
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      responseControls: undefined,
-      specialTransport: undefined,
-      tiktokBrandSafetyState: kind,
-    },
-  ];
+  return [stateReadOf(p, r.action, r.path, {advertiser_id: p.accountId}, {tiktokBrandSafetyState: kind})];
 }
 export function isTiktokBrandSafetyRead(p: CompiledRequest): boolean {
   return p.gateway === 'tiktok_native_action' && !!p.tiktokBrandSafetyState;
@@ -324,7 +308,7 @@ export function tiktokBrandSafetyHubKind(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokBrandSafetyFamily: ReviewedFamily = {
+export const tiktokBrandSafetyFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_brand_safety',
   files: ['src/tiktok-brand-safety.ts', ['tests/tiktok-brand-safety.test.mjs']],
   kind: tiktokBrandSafetyKind,
@@ -349,4 +333,4 @@ export const tiktokBrandSafetyFamily: ReviewedFamily = {
   },
   activates: plan => !!tiktokBrandSafetyWidens(plan),
   destructive: plan => !!tiktokBrandSafetyRemoves(plan),
-};
+});

@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -262,19 +262,14 @@ export function assertGoogleBiddingEvent(p: CompiledRequest) {
 }
 const camel = (v: string) => v.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 function read(p: CompiledRequest, query: string): CompiledRequest {
-  return {
-    ...p,
+  return readOf(p, {
     action: 'AMCP_BIDDING_EVENT_READ',
     method: 'POST',
     path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 // RESOURCE_NAME is selectable/filterable but not sortable in these v23 resources.
 // Native page tokens traverse the result; identity-keyed state handles ordering.
@@ -660,7 +655,7 @@ export const googleBiddingEventImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleBiddingEventFamily: ReviewedFamily = {
+export const googleBiddingEventFamily: ReviewedFamily = defineFamily({
   name: 'google_bidding_events',
   files: ['src/google-bidding-events.ts', ['tests/google-bidding-events.test.ts']],
   kind: googleBiddingEventKind,
@@ -691,4 +686,4 @@ export const googleBiddingEventFamily: ReviewedFamily = {
       'Seasonality adjustments and data exclusions can change bids, including after removal. Review the account timezone, scope and bidding impact, then provide spend_change_confirmed=true.',
   },
   activates: () => true,
-};
+});

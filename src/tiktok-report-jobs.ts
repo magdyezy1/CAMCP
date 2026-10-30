@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import type {NativeReportJob} from './report-job.js';
 import {redact, scopeKey, sha256, stable} from './security.js';
 import type {Store} from './store.js';
@@ -202,37 +202,26 @@ export function assertTiktokReport(p: CompiledRequest) {
   }
 }
 function read(p: CompiledRequest, kind: 'check' | 'download', task: string): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_TIKTOK_REPORT_READ',
-    path: prefix + kind + '/',
-    method: 'GET',
-    query: {advertiser_id: p.accountId, task_id: task},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    tiktokReportRead: undefined,
-  };
+  return readOf(
+    p,
+    {
+      action: 'AMCP_TIKTOK_REPORT_READ',
+      path: prefix + kind + '/',
+      query: {advertiser_id: p.accountId, task_id: task},
+      clears: ['responseControls'],
+    },
+    {tiktokReportRead: undefined},
+  );
 }
 export function tiktokReportSnapshots(p: CompiledRequest): CompiledRequest[] {
   if (tiktokReportKind(p) === 'cancel') return [read(p, 'check', (p.body as JsonObject).task_id)];
   return [
-    {
-      ...p,
+    readOf(p, {
       action: 'AMCP_TIKTOK_REPORT_ACCOUNT',
       path: '/v1.3/advertiser/info/',
-      method: 'GET',
       query: {advertiser_ids: [p.accountId], fields: ['advertiser_id', 'currency', 'timezone']},
-      body: undefined,
-      headers: {},
-      readOnly: true,
-      requiresConfirmation: false,
-      destructive: false,
-      responseControls: undefined,
-    },
+      clears: ['responseControls'],
+    }),
   ];
 }
 function envelope(r: TransportResult): JsonObject {
@@ -676,7 +665,7 @@ export const tiktokReportImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokReportFamily: ReviewedFamily = {
+export const tiktokReportFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_report_jobs',
   files: ['src/tiktok-report-jobs.ts', ['tests/tiktok-report-jobs.test.ts']],
   kind: tiktokReportKind,
@@ -739,4 +728,4 @@ export const tiktokReportFamily: ReviewedFamily = {
   },
   verifyEveryTime: true,
   exemptFromSpendTextMatch: true,
-};
+});

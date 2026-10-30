@@ -11,7 +11,7 @@ import {
   metaCatalogView,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Products of Meta catalogs, one at a time, opened by the owner on 2026-09-29. Meta's "Product Catalog Products"
@@ -196,22 +196,13 @@ export function assertMetaCatalogProductFields(b: JsonObject): void {
 export function assertMetaCatalogProductScope(c: Connection, write = false): void {
   assertMetaCatalogScope(c, write, 'Catalog product changes');
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject, page?: Page): Read => ({
-  ...p,
-  metaCatalogProductState: undefined,
-  metaCatalogProductPage: page,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject, page?: Page): Read =>
+  readOf<Read>(p, {
+    before: {metaCatalogProductState: undefined, metaCatalogProductPage: page},
+    action: marker,
+    path: metaPrefix + path,
+    query,
+  });
 const read = (p: CompiledRequest, s: State): Read => ({
   ...graph(p, 'act_' + account(p.accountId), {fields: 'id,business{id}'}),
   metaCatalogProductState: s,
@@ -616,7 +607,7 @@ export function metaCatalogProductObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaCatalogProductFamily: ReviewedFamily = {
+export const metaCatalogProductFamily: ReviewedFamily = defineFamily({
   name: 'meta_catalog_products',
   files: ['src/meta-catalog-products.ts', ['tests/meta-catalog-products.test.mjs']],
   kind: metaCatalogProductKind,
@@ -634,4 +625,4 @@ export const metaCatalogProductFamily: ReviewedFamily = {
   verification: metaCatalogProductVerification,
   observed: metaCatalogProductObserved,
   verificationCacheVersion: metaCatalogProductVerificationVersion,
-};
+});

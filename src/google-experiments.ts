@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * System-managed experiments, Google Ads API v23 (pinned Discovery document: ExperimentService.MutateExperiments,
@@ -346,20 +346,18 @@ export function assertGoogleExperiments(p: CompiledRequest): void {
 
 const quote = (v: string[]) => v.map(n => "'" + n + "'").join(', ');
 function read(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_GOOGLE_EXPERIMENT_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleExperimentState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_GOOGLE_EXPERIMENT_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleExperimentState: undefined},
+  );
 }
 const customerQuery = 'SELECT customer.id, customer.manager, customer.time_zone FROM customer LIMIT 1';
 function context(p: CompiledRequest): Context {
@@ -996,7 +994,7 @@ export function googleExperimentObserved(read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleExperimentFamily: ReviewedFamily = {
+export const googleExperimentFamily: ReviewedFamily = defineFamily({
   name: 'google_experiments',
   files: [
     'src/google-experiments.ts',
@@ -1021,4 +1019,4 @@ export const googleExperimentFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: googleExperimentNeedsConfirmation,
-};
+});

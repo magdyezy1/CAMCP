@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -109,21 +109,17 @@ export function assertLinkedInConversionScope(c: Connection, write = false) {
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): LinkRead {
-  return {
-    ...p,
-    action: 'AMCP_LINKEDIN_CONVERSION_READ',
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    linkedinConversionState: undefined,
-    linkedinConversionPage: true,
-  };
+  return readOf<LinkRead>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_CONVERSION_READ',
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+      clears: ['responseControls'],
+    },
+    {linkedinConversionState: undefined, linkedinConversionPage: true},
+  );
 }
 export function linkedinConversionSnapshots(p: CompiledRequest): LinkRead[] {
   return [{...read(p, '/rest/adAccounts/' + account(p)), linkedinConversionState: conversionPairs(p)}];
@@ -378,7 +374,7 @@ export const linkedinConversionImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinConversionFamily: ReviewedFamily = {
+export const linkedinConversionFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_conversion_links',
   files: ['src/linkedin-conversion-links.ts', ['tests/linkedin-conversion-links.test.ts']],
   kind: linkedinConversionKind,
@@ -399,4 +395,4 @@ export const linkedinConversionFamily: ReviewedFamily = {
       'Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and provide spend_change_confirmed=true.',
   },
   activates: () => true,
-};
+});

@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * X poll, image conversation and video conversation cards, per X Ads API v12 Creatives reference ("Poll Cards", "Image
@@ -205,21 +205,9 @@ export function assertXConversationCard(p: CompiledRequest): void {
   }
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}, state?: State): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_CONVERSATION_CARD_READ',
-    method: 'GET',
-    path: '/12/accounts/' + accountOf(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_CONVERSATION_CARD_READ', '/12/accounts/' + accountOf(p) + path, query, {
     xConversationCardState: state,
-  };
+  });
 }
 /** One marked read of the account; the reader adds each media item and, for a poll with media, the account features. */
 export function xConversationCardSnapshots(p: CompiledRequest): Read[] {

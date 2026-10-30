@@ -2,7 +2,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal, readOf, stateReadOf} from './family-kit.js';
 import {
   appleEntityKind,
   assertAppleEntityWrite,
@@ -256,21 +256,8 @@ export function assertMeasurementScopes(p: CompiledRequest, c: Connection): void
 
 export function measurementSnapshots(p: CompiledRequest): CompiledRequest[] {
   if (appleEntityKind(p)) return appleEntitySnapshots(p);
-  const read = (path: string, origin = p.origin, optional = false): CompiledRequest => ({
-    ...p,
-    action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_STATE_READ',
-    method: 'GET',
-    path,
-    origin,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-  });
+  const read = (path: string, origin = p.origin, optional = false): CompiledRequest =>
+    readOf(p, {before: {origin}, action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_STATE_READ', path, query: {}});
   if (p.gateway === 'apple_ads_native_action')
     return [read(p.method === 'POST' ? '/v1/ad-accounts/' + p.accountId : p.path)];
   if (p.gateway === 'ga4_native_action')
@@ -440,20 +427,8 @@ export function measurementVerification(
   const d = obj(result.data),
     b = obj(plan.body),
     a = action(plan);
-  const read = (path: string, optional = false): CompiledRequest => ({
-    ...plan,
-    action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_VERIFY_READ',
-    method: 'GET',
-    path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-  });
+  const read = (path: string, optional = false): CompiledRequest =>
+    stateReadOf(plan, optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_VERIFY_READ', path, {});
   if (plan.method === 'DELETE')
     return [{read: read(plan.path, true), expected: {amcp_absent: true, path: plan.path}, id: plan.path}];
   if (plan.gateway === 'apple_ads_native_action') {
@@ -506,21 +481,21 @@ export function measurementVerificationPhase(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const appleCampaignFamily: ReviewedFamily = {
+export const appleCampaignFamily: ReviewedFamily = defineFamily({
   name: 'apple_campaigns',
   files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
   kind: appleCampaignKind,
   snapshots: measurementSnapshots,
   outcome: measurementOutcome,
   verification: measurementVerification,
-};
+});
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 /** A report task is a provider job (RPT-06). An audience export lists audience members, so it stays a reviewed write. */
 function ga4ExportEffect(plan: CompiledRequest): 'provider_job' | 'reviewed_write' {
   return plan.action === 'ga4_create_report_task' ? 'provider_job' : 'reviewed_write';
 }
-export const ga4ExportFamily: ReviewedFamily = {
+export const ga4ExportFamily: ReviewedFamily = defineFamily({
   name: 'ga4_export_jobs',
   files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
   kind: ga4ExportKind,
@@ -528,24 +503,24 @@ export const ga4ExportFamily: ReviewedFamily = {
   snapshots: measurementSnapshots,
   outcome: measurementOutcome,
   verification: measurementVerification,
-};
+});
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const gtmEntityFamily: ReviewedFamily = {
+export const gtmEntityFamily: ReviewedFamily = defineFamily({
   name: 'gtm_entities',
   files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
   kind: gtmEntityKind,
   snapshots: measurementSnapshots,
   outcome: measurementOutcome,
   verification: measurementVerification,
-};
+});
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const searchConsoleSiteFamily: ReviewedFamily = {
+export const searchConsoleSiteFamily: ReviewedFamily = defineFamily({
   name: 'search_console_sites',
   files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
   kind: searchConsoleSiteKind,
   snapshots: measurementSnapshots,
   outcome: measurementOutcome,
   verification: measurementVerification,
-};
+});

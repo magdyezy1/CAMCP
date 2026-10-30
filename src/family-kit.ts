@@ -62,12 +62,73 @@ export function failWithStatus(status: number): StatusRefusal {
   return (code, message, details = {}, override = status) => fail(code, message, details, override);
 }
 
+/** The fields only a write request carries, which a family's state read clears. */
+export type WriteOnlyField = 'responseControls' | 'specialTransport';
+const writeOnlyFields: readonly WriteOnlyField[] = Object.freeze(['responseControls', 'specialTransport']);
+
+/** What a family's state read asks the provider (`readOf`); everything else is its write request's. */
+export interface FamilyRead<R extends CompiledRequest = CompiledRequest> {
+  /** The read's action: a marker the family's `isRead` recognizes, or the native read it performs. */
+  readonly action: string;
+  readonly path: string;
+  readonly query: JsonObject;
+  /** `GET`, unless the read is a search that posts `body` (a Google Ads `googleAds:search`, a Criteo search). */
+  readonly method?: string;
+  readonly body?: unknown;
+  /** `{}`, unless the provider needs request headers on a read too (LinkedIn's version headers). */
+  readonly headers?: Record<string, string>;
+  /**
+   * Fields the read sets before its own, in this order: a binding it replaces (`accountId`, `origin`), what it never
+   * carries (`personalData`), or a family's state fields that its builder had set first.
+   */
+  readonly before?: Partial<R>;
+  /**
+   * Fields the read sets after its own and before the write-only fields it clears, in this order: a family's state
+   * fields that its builder reset ahead of those (google_configuration's feed searches).
+   */
+  readonly after?: Partial<R>;
+  /**
+   * The write-only fields the read clears, in this order: both by default. A family whose reads always kept one of
+   * them names only the other (most Google Ads searches keep the special transport), or none.
+   */
+  readonly clears?: readonly WriteOnlyField[];
+}
+
 /**
- * A family's state read of its write request `p` (the review's `readsFor`), as family modules had each copied it: `p`
- * with the read's action, a GET of `path` with `query`, and without what only a write carries: no body, no headers,
- * read-only, not destructive, no confirmation, no response controls, no special transport. `fields` follow, in the
- * order the family's read set them (its state fields reset, a query encoding). A family keeps its own `read` wrapper,
- * so its call sites do not change: `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) +
+ * A family's state read of its write request `p` (the review's `readsFor`), as family modules had each built it: `p`,
+ * then `read.before`, the read's action, method, path, query, body and headers, read-only, not destructive, no
+ * confirmation, `read.after`, the write-only fields it clears (`read.clears`), then `fields` in the order the family
+ * set them (its state fields reset, a query encoding). For every compiled request (all of its required fields present)
+ * a family's builder and its `readOf` call give the same keys, values and key order (tests/family-reads.test.mjs). A
+ * family keeps its own `read` wrapper, so its call sites do not change: `return readOf<Read>(p, {action:
+ * 'AMCP_X_READ', method: 'POST', path, query: {}, body: {query}, clears: ['responseControls']}, {xState: undefined});`.
+ */
+export function readOf<R extends CompiledRequest = CompiledRequest>(
+  p: CompiledRequest,
+  read: FamilyRead<R>,
+  fields: Partial<R> = {},
+): R {
+  const out: CompiledRequest = {
+    ...p,
+    ...read.before,
+    action: read.action,
+    method: read.method ?? 'GET',
+    path: read.path,
+    query: read.query,
+    body: read.body,
+    headers: read.headers ?? {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    ...read.after,
+  };
+  for (const field of read.clears ?? writeOnlyFields) out[field] = undefined;
+  return {...out, ...fields} as R;
+}
+
+/**
+ * The state read most families build (`readOf` with its defaults): a GET of `path` with `query` that clears both
+ * write-only fields, then `fields`. `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) +
  * path, query, {xMediaState: undefined});`.
  */
 export function stateReadOf<R extends CompiledRequest = CompiledRequest>(
@@ -77,113 +138,115 @@ export function stateReadOf<R extends CompiledRequest = CompiledRequest>(
   query: JsonObject,
   fields: Partial<R> = {},
 ): R {
-  return {
-    ...p,
-    action,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    ...fields,
-  } as R;
+  return readOf<R>(p, {action, path, query}, fields);
 }
 
-/** The hooks of a family, by the stage that calls them (src/reviewed-family.ts documents each hook). */
-export type FamilyCore = Pick<
-  ReviewedFamily,
-  | 'name'
-  | 'files'
-  | 'kind'
-  | 'effect'
-  | 'available'
-  | 'actor'
-  | 'credentials'
-  | 'assert'
-  | 'scope'
-  | 'authorize'
-  | 'observe'
->;
-export type FamilyStateHooks = Pick<
-  ReviewedFamily,
-  | 'snapshots'
-  | 'state'
-  | 'isRead'
-  | 'reader'
-  | 'validateState'
-  | 'snapshotState'
-  | 'snapshotValue'
-  | 'followUps'
-  | 'prerequisites'
-  | 'stateChecks'
-  | 'impact'
-  | 'stateAsRead'
-  | 'ownsConcurrency'
-  | 'creativeEditConfirmation'
-  | 'warnings'
->;
-export type FamilyPolicyHooks = Pick<
-  ReviewedFamily,
-  | 'spendConfirmation'
-  | 'exemptFromSpendTextMatch'
-  | 'activates'
-  | 'exemptFromActivationScan'
-  | 'destructive'
-  | 'publishes'
-  | 'policyAmounts'
-  | 'requiresSpendPolicy'
-  | 'personalData'
-  | 'administratorRequired'
->;
-export type FamilyDeliveryHooks = Pick<
-  ReviewedFamily,
-  | 'outcome'
-  | 'receipt'
-  | 'beforeSubmit'
-  | 'admit'
-  | 'safeOutcome'
-  | 'retain'
-  | 'deliver'
-  | 'safeError'
-  | 'rejectionIsNonApplied'
-  | 'created'
->;
-export type FamilyVerificationHooks = Pick<
-  ReviewedFamily,
-  | 'verification'
-  | 'verify'
-  | 'bindVerificationRead'
-  | 'readCheck'
-  | 'observed'
-  | 'afterReadBack'
-  | 'pendingOnRetryableError'
-  | 'retryReadAfterMs'
-  | 'verifyEveryTime'
-  | 'verificationCacheVersion'
-  | 'verifiedResources'
->;
-type GroupedHook =
-  | keyof FamilyCore
-  | keyof FamilyStateHooks
-  | keyof FamilyPolicyHooks
-  | keyof FamilyDeliveryHooks
-  | keyof FamilyVerificationHooks;
-/** Fails to compile while a ReviewedFamily hook belongs to no group above: add a new hook to the group of its stage. */
-export const everyFamilyHookHasAStage: [Exclude<keyof ReviewedFamily, GroupedHook>] extends [never] ? true : never =
-  true;
+/**
+ * The hooks of a family, by the stage that calls them (src/reviewed-family.ts documents each hook): its core (who it is,
+ * what it owns, who may use it), the review's state reads and checks, the owner's policies, the submission and its
+ * outcome, and the read-back. Each hook belongs to one stage (tests/family-kit.test.mjs). A list at run time too, so
+ * defineFamily refuses a member of no stage that the type check of an object literal never sees, one a spread brings.
+ */
+export const familyStages = Object.freeze({
+  core: Object.freeze([
+    'name',
+    'files',
+    'kind',
+    'effect',
+    'available',
+    'actor',
+    'credentials',
+    'assert',
+    'scope',
+    'authorize',
+    'observe',
+  ] as const),
+  state: Object.freeze([
+    'snapshots',
+    'state',
+    'isRead',
+    'reader',
+    'validateState',
+    'snapshotState',
+    'snapshotValue',
+    'followUps',
+    'prerequisites',
+    'stateChecks',
+    'impact',
+    'stateAsRead',
+    'ownsConcurrency',
+    'creativeEditConfirmation',
+    'warnings',
+  ] as const),
+  policy: Object.freeze([
+    'spendConfirmation',
+    'exemptFromSpendTextMatch',
+    'activates',
+    'exemptFromActivationScan',
+    'destructive',
+    'publishes',
+    'policyAmounts',
+    'requiresSpendPolicy',
+    'personalData',
+    'administratorRequired',
+  ] as const),
+  delivery: Object.freeze([
+    'outcome',
+    'receipt',
+    'beforeSubmit',
+    'admit',
+    'safeOutcome',
+    'retain',
+    'deliver',
+    'safeError',
+    'rejectionIsNonApplied',
+    'created',
+  ] as const),
+  verification: Object.freeze([
+    'verification',
+    'verify',
+    'bindVerificationRead',
+    'readCheck',
+    'observed',
+    'afterReadBack',
+    'pendingOnRetryableError',
+    'retryReadAfterMs',
+    'verifyEveryTime',
+    'verificationCacheVersion',
+    'verifiedResources',
+  ] as const),
+}) satisfies Readonly<Record<string, readonly (keyof ReviewedFamily)[]>>;
+type FamilyStage = keyof typeof familyStages;
+type StageHook<S extends FamilyStage> = (typeof familyStages)[S][number];
+/** The hooks of each stage, typed as ReviewedFamily declares them. */
+export type FamilyCore = Pick<ReviewedFamily, StageHook<'core'>>;
+export type FamilyStateHooks = Pick<ReviewedFamily, StageHook<'state'>>;
+export type FamilyPolicyHooks = Pick<ReviewedFamily, StageHook<'policy'>>;
+export type FamilyDeliveryHooks = Pick<ReviewedFamily, StageHook<'delivery'>>;
+export type FamilyVerificationHooks = Pick<ReviewedFamily, StageHook<'verification'>>;
+/** Fails to compile while a ReviewedFamily hook belongs to no stage above: add a new hook to the list of its stage. */
+export const everyFamilyHookHasAStage: [Exclude<keyof ReviewedFamily, StageHook<FamilyStage>>] extends [never]
+  ? true
+  : never = true;
+/**
+ * A family's declaration, by stage: its core, and the hooks of each stage it takes part in. Typed by the stages, so a
+ * declaration that names a member of no stage (a misspelt hook, which no stage would ever call) fails to compile.
+ */
+export type FamilyDeclaration = FamilyCore &
+  FamilyStateHooks &
+  FamilyPolicyHooks &
+  FamilyDeliveryHooks &
+  FamilyVerificationHooks;
+const stagedHooks: ReadonlySet<string> = new Set(Object.values(familyStages).flat());
 
 /**
  * Checks a family declaration where it is made, so a malformed one fails when its module loads (which
  * tests/import-order.test.mjs exercises for every module) rather than at its first request: a ledger family name, its
- * implementation module and tests, a membership hook, and a function or a value for every hook. Returns the
- * declaration itself, unchanged.
+ * implementation module and tests, a membership hook, and no member outside the stages (`familyStages`; its type,
+ * `FamilyDeclaration`, checks that before the build too). Returns the declaration itself, unchanged. Every registered
+ * family is declared through it (tests/family-kit.test.mjs).
  */
-export function defineFamily<F extends ReviewedFamily>(family: F): F {
+export function defineFamily(family: FamilyDeclaration): ReviewedFamily {
   const malformed = (what: string): never => {
     throw new MirrorError(
       'REVIEWED_FAMILY_INVALID',
@@ -208,5 +271,8 @@ export function defineFamily<F extends ReviewedFamily>(family: F): F {
   )
     malformed('it names no test file');
   if (typeof family.kind !== 'function') malformed('it has no kind hook');
+  // A member no stage calls would be ignored at run time, so a misspelt hook would silently not apply.
+  for (const member of Object.keys(family))
+    if (!stagedHooks.has(member)) malformed('its member ' + member + ' is no hook of any stage');
   return family;
 }

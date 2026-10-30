@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Customer types of Google Ads user lists, API v23 (pinned Discovery document: UserListCustomerTypeService
@@ -128,20 +128,18 @@ export function assertGoogleCustomerTypes(p: CompiledRequest): void {
 }
 const quote = (names: string[]) => names.map(n => "'" + n + "'").join(', ');
 function read(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_CUSTOMER_TYPE_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {query},
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleCustomerTypeState: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_CUSTOMER_TYPE_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {query},
+      query: {},
+      clears: ['responseControls'],
+    },
+    {googleCustomerTypeState: undefined},
+  );
 }
 const customerQuery =
   'SELECT customer.id, customer.manager, customer.conversion_tracking_setting.conversion_tracking_status FROM customer LIMIT 1';
@@ -396,7 +394,7 @@ export function googleCustomerTypeObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleCustomerTypeFamily: ReviewedFamily = {
+export const googleCustomerTypeFamily: ReviewedFamily = defineFamily({
   name: 'google_user_list_customer_types',
   files: ['src/google-user-list-customer-types.ts', ['tests/google-user-list-customer-types.test.mjs']],
   kind: googleCustomerTypeKind,
@@ -411,4 +409,4 @@ export const googleCustomerTypeFamily: ReviewedFamily = {
   outcome: googleCustomerTypeOutcome,
   verification: googleCustomerTypeVerification,
   observed: googleCustomerTypeObserved,
-};
+});

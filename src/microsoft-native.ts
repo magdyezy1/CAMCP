@@ -22,7 +22,7 @@ import {
 import type {Action, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {guardInput, stable} from './security.js';
 
 export const microsoftGateway = 'microsoft_ads_native_action';
@@ -701,7 +701,7 @@ export function microsoftSearchVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const microsoftSearchFamily: ReviewedFamily = {
+export const microsoftSearchFamily: ReviewedFamily = defineFamily({
   name: 'microsoft_search',
   files: ['src/microsoft-native.ts', ['tests/microsoft.test.ts']],
   kind: microsoftSearchKind,
@@ -709,4 +709,4 @@ export const microsoftSearchFamily: ReviewedFamily = {
   prerequisites: microsoftLocationGuard,
   outcome: microsoftOutcome,
   verification: microsoftSearchVerification,
-};
+});

@@ -2,7 +2,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal, stateReadOf} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -206,20 +206,7 @@ export function assertXCreative(p: CompiledRequest) {
 export function xRead(p: CompiledRequest, suffix: string, query: JsonObject = {}): CompiledRequest {
   const account = /^\/12\/accounts\/[a-z0-9]+/.exec(p.path)?.[0];
   if (!account) fail('The X account path is invalid.');
-  return {
-    ...p,
-    path: account + suffix,
-    action: 'AMCP_X_CREATIVE_READ',
-    method: 'GET',
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-  };
+  return stateReadOf(p, 'AMCP_X_CREATIVE_READ', account + suffix, query);
 }
 /** inspect is local: these are the entry reads; account users and line items determine further reads. */
 export function xCreativeSnapshots(p: CompiledRequest): CompiledRequest[] {
@@ -774,7 +761,7 @@ export async function verifyXCreative(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xCreativeFamily: ReviewedFamily = {
+export const xCreativeFamily: ReviewedFamily = defineFamily({
   name: 'x_creatives',
   files: ['src/x-creative-writes.ts', ['tests/x-creative-writes.test.ts', 'tests/x-legacy-card-edits.test.mjs']],
   kind: xCreativeKind,
@@ -810,4 +797,4 @@ export const xCreativeFamily: ReviewedFamily = {
   warnings: plan => xCreativeWarnings(plan),
   creativeEditConfirmation: plan => !!xCreativeEdit(plan),
   stateAsRead: true,
-};
+});

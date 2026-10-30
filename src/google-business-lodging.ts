@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Business Profile lodging facts, per the pinned Lodging API v1 Discovery document (business-lodging-v1, revision
@@ -397,33 +397,29 @@ export function assertBusinessLodgingScope(c: Connection): void {
   if (!c.scopes.includes(oauthScope))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Business Profile with business.manage.', {}, 403);
 }
-const base = (p: CompiledRequest): Read => ({
-  ...p,
-  method: 'GET',
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
-const lodgingRead = (p: CompiledRequest): Read => ({
-  ...base(p),
-  action: 'gmb_lodging_ops/GET_LODGING',
-  origin,
-  path: '/v1/' + lodgingOf(p),
-  query: {readMask: '*'},
-  businessLodgingRead: 'lodging',
-});
-const locationRead = (p: CompiledRequest): Read => ({
-  ...base(p),
-  action: 'gmb_location_ops/GET_LOCATION',
-  origin: infoOrigin,
-  path: '/v1/' + locationOf(p),
-  query: {readMask: locationMask},
-  businessLodgingRead: 'location',
-});
+// Each read sets its host after the write-only fields it clears, as the shared base these reads spread had.
+const lodgingRead = (p: CompiledRequest): Read =>
+  stateReadOf<Read>(
+    p,
+    'gmb_lodging_ops/GET_LODGING',
+    '/v1/' + lodgingOf(p),
+    {readMask: '*'},
+    {
+      origin,
+      businessLodgingRead: 'lodging',
+    },
+  );
+const locationRead = (p: CompiledRequest): Read =>
+  stateReadOf<Read>(
+    p,
+    'gmb_location_ops/GET_LOCATION',
+    '/v1/' + locationOf(p),
+    {readMask: locationMask},
+    {
+      origin: infoOrigin,
+      businessLodgingRead: 'location',
+    },
+  );
 /** The validated edit and the reads of the same location: the lodging and the location. */
 export function authorizeBusinessLodging(p: CompiledRequest, c: Connection, id: string): boolean {
   if (businessLodgingKind(p)) {
@@ -567,7 +563,7 @@ export function businessLodgingObserved(read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const businessLodgingFamily: ReviewedFamily = {
+export const businessLodgingFamily: ReviewedFamily = defineFamily({
   name: 'google_business_lodging',
   files: ['src/google-business-lodging.ts', ['tests/google-business-lodging.test.mjs']],
   kind: businessLodgingKind,
@@ -583,4 +579,4 @@ export const businessLodgingFamily: ReviewedFamily = {
   verification: businessLodgingVerification,
   observed: businessLodgingObserved,
   exemptFromSpendTextMatch: true,
-};
+});

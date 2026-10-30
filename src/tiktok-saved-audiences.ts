@@ -10,6 +10,7 @@ import {
   tiktokNumericId,
 } from './tiktok-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * TikTok saved audiences (reusable targeting), per API for Business v1.3 "Create a Saved Audience", "Get details
@@ -144,7 +145,7 @@ export function validateTiktokSavedAudienceState(
 export const tiktokSavedAudienceDependencyPath = tiktokAudienceGetPath;
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSavedAudienceFamily: ReviewedFamily = {
+export const tiktokSavedAudienceFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_saved_audiences',
   files: ['src/tiktok-saved-audiences.ts', ['tests/tiktok-saved-audiences.test.mjs']],
   kind: tiktokSavedAudienceKind,
@@ -175,4 +176,4 @@ export const tiktokSavedAudienceFamily: ReviewedFamily = {
       read: {...verificationRead(v.path, v.query), action: 'tiktok_dmp_saved_audience_list_get'},
     })),
   exemptFromSpendTextMatch: true,
-};
+});

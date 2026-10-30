@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Audience segments of a Criteo Retail Media account, API 2026-07 (unchanged from 2026-01; pinned OpenAPI document:
@@ -180,22 +180,12 @@ export function assertCriteoSegmentScopes(c: {scopes: string[]}, write = false, 
   if (!required.every(s => c.scopes.includes(s)))
     fail('INSUFFICIENT_SCOPE', 'The selected Criteo connection needs ' + required.join(', ') + '.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string, body?: JsonObject, query: JsonObject = {}): Read => ({
-  ...p,
-  action: 'AMCP_CRITEO_SEGMENT_READ',
-  method: body ? 'POST' : 'GET',
-  path,
-  query,
-  body,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: 'repeat',
-  criteoSegmentState: undefined,
-});
+const read = (p: CompiledRequest, path: string, body?: JsonObject, query: JsonObject = {}): Read =>
+  readOf<Read>(
+    p,
+    {action: 'AMCP_CRITEO_SEGMENT_READ', method: body ? 'POST' : 'GET', path, query, body},
+    {queryArrayEncoding: 'repeat', criteoSegmentState: undefined},
+  );
 function context(p: CompiledRequest) {
   const kind = criteoSegmentKind(p)!;
   return {
@@ -493,7 +483,7 @@ export function criteoSegmentObserved(read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoSegmentFamily: ReviewedFamily = {
+export const criteoSegmentFamily: ReviewedFamily = defineFamily({
   name: 'criteo_audience_segments',
   files: ['src/criteo-audience-segments.ts', ['tests/criteo-audience-segments.test.mjs']],
   kind: criteoSegmentKind,
@@ -516,4 +506,4 @@ export const criteoSegmentFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: criteoSegmentServing,
   destructive: criteoSegmentRemoves,
-};
+});

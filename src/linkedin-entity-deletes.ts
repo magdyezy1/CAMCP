@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Batch deletion of LinkedIn campaign groups and creatives, per "Create and Manage Campaign Groups" and "Create and Manage
@@ -131,22 +131,16 @@ export function assertLinkedInDeleteScope(c: Connection, write = false): void {
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinDeleteState: undefined,
-    linkedinDeletePage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: marker,
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinDeleteState: undefined, linkedinDeletePage: true},
+  );
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({
   ...read(p, '/rest/adAccounts/' + account(p)),
@@ -461,7 +455,7 @@ export function linkedinDeleteObserved(_read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinDeleteFamily: ReviewedFamily = {
+export const linkedinDeleteFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_entity_deletes',
   files: ['src/linkedin-entity-deletes.ts', ['tests/linkedin-entity-deletes.test.mjs']],
   kind: linkedinDeleteKind,
@@ -476,4 +470,4 @@ export const linkedinDeleteFamily: ReviewedFamily = {
   outcome: linkedinDeleteOutcome,
   verification: linkedinDeleteVerification,
   observed: linkedinDeleteObserved,
-};
+});

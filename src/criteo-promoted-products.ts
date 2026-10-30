@@ -4,7 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertCriteoLineItemScopes, criteoLineItemStateRead, criteoProductKey} from './criteo-auction-line-items.js';
 import {criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Promoted products of Criteo auction line items on Retail Media API 2026-07 (unchanged from 2026-01), per the pinned
@@ -273,7 +273,7 @@ export function criteoPromotedProductsVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoPromotedProductsFamily: ReviewedFamily = {
+export const criteoPromotedProductsFamily: ReviewedFamily = defineFamily({
   name: 'criteo_promoted_products',
   files: ['src/criteo-promoted-products.ts', ['tests/criteo-promoted-products.test.mjs']],
   kind: criteoPromotedProductsKind,
@@ -293,4 +293,4 @@ export const criteoPromotedProductsFamily: ReviewedFamily = {
   activates: criteoPromotedProductsServing,
   destructive: p => criteoPromotedProductsKind(p) === 'delete',
   exemptFromSpendTextMatch: true,
-};
+});

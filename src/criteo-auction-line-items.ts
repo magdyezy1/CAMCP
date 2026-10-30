@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media auction (Onsite Sponsored Products) line items on API 2026-07 (unchanged from 2026-01), per the
@@ -999,7 +999,7 @@ export function criteoLineItemPolicyAmounts(plan: CompiledRequest, before: unkno
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoLineItemFamily: ReviewedFamily = {
+export const criteoLineItemFamily: ReviewedFamily = defineFamily({
   name: 'criteo_auction_line_items',
   files: ['src/criteo-auction-line-items.ts', ['tests/criteo-auction-line-items.test.mjs']],
   kind: criteoLineItemKind,
@@ -1040,4 +1040,4 @@ export const criteoLineItemFamily: ReviewedFamily = {
         : 'A complete line item PUT replaces its budgets, bids, dates and status and can start or change delivery. Review every field and provide spend_change_confirmed=true.',
   },
   policyAmounts: criteoLineItemPolicyAmounts,
-};
+});

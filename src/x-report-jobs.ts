@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {sha256, scopeKey, stable} from './security.js';
 import {xRead, xReader} from './x-creative-writes.js';
 import type {Store} from './store.js';
@@ -539,21 +539,16 @@ export function xReportStatusData(p: CompiledRequest, r: TransportResult) {
   };
 }
 export function xReportRead(p: CompiledRequest, id: string): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_X_REPORT_READ',
-    method: 'GET',
-    path: '/12/stats/jobs/accounts/' + p.accountId,
-    query: {job_ids: id},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    reportDownload: undefined,
-    xReportRead: undefined,
-  };
+  return readOf(
+    p,
+    {
+      action: 'AMCP_X_REPORT_READ',
+      path: '/12/stats/jobs/accounts/' + p.accountId,
+      query: {job_ids: id},
+      clears: ['responseControls'],
+    },
+    {reportDownload: undefined, xReportRead: undefined},
+  );
 }
 export async function verifyXReport(p: CompiledRequest, result: JsonObject, send: Send) {
   const id = result.data.data.id_str,
@@ -720,7 +715,7 @@ export const xReportImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xReportFamily: ReviewedFamily = {
+export const xReportFamily: ReviewedFamily = defineFamily({
   name: 'x_report_jobs',
   files: ['src/x-report-jobs.ts / src/x-report-download.ts', ['tests/x-report-jobs.test.ts']],
   kind: xReportKind,
@@ -776,4 +771,4 @@ export const xReportFamily: ReviewedFamily = {
   },
   verifyEveryTime: true,
   exemptFromSpendTextMatch: true,
-};
+});

@@ -10,7 +10,7 @@ import {
   metaCatalogView,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Scheduled product feeds of Meta catalogs, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29):
@@ -182,22 +182,13 @@ export function assertMetaProductFeed(p: CompiledRequest): void {
 export function assertMetaProductFeedScope(c: Connection, write = false): void {
   assertMetaCatalogScope(c, write, 'Product feed changes');
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read => ({
-  ...p,
-  metaFeedState: undefined,
-  metaFeedPage: page,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read =>
+  readOf<Read>(p, {
+    before: {metaFeedState: undefined, metaFeedPage: page},
+    action: marker,
+    path: metaPrefix + path,
+    query,
+  });
 const read = (p: CompiledRequest, s: State): Read => ({
   ...graph(p, 'act_' + account(p.accountId), {fields: 'id,business{id}'}),
   metaFeedState: s,
@@ -519,7 +510,7 @@ export function metaProductFeedObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaProductFeedFamily: ReviewedFamily = {
+export const metaProductFeedFamily: ReviewedFamily = defineFamily({
   name: 'meta_product_feeds',
   files: ['src/meta-product-feeds.ts', ['tests/meta-product-feeds.test.mjs']],
   kind: metaProductFeedKind,
@@ -536,4 +527,4 @@ export const metaProductFeedFamily: ReviewedFamily = {
   verification: metaProductFeedVerification,
   observed: metaProductFeedObserved,
   destructive: metaProductFeedDeletes,
-};
+});

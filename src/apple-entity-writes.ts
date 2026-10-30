@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal, readOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -148,21 +148,13 @@ export function assertAppleEntityWrite(p: CompiledRequest): void {
     fail('endTime must follow startTime.');
 }
 function read(p: CompiledRequest, path: string, account = p.accountId!, optional = false): CompiledRequest {
-  return {
-    ...p,
-    accountId: account,
+  return readOf(p, {
+    before: {accountId: account},
     action: optional ? 'AMCP_STATE_OPTIONAL' : 'AMCP_APPLE_ENTITY_STATE',
-    method: 'GET',
     path,
     query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    specialTransport: undefined,
-    responseControls: undefined,
-  };
+    clears: ['specialTransport', 'responseControls'],
+  });
 }
 export function appleSharedAccounts(p: CompiledRequest, value?: unknown): string[] {
   if (appleEntityKind(p) !== 'shared_budget') return [];
@@ -364,7 +356,7 @@ export function appleSharedBudget(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const appleEntityFamily: ReviewedFamily = {
+export const appleEntityFamily: ReviewedFamily = defineFamily({
   name: 'apple_entities',
   files: ['src/apple-entity-writes.ts', ['tests/apple-entity-writes.test.ts']],
   kind: appleEntityKind,
@@ -379,4 +371,4 @@ export const appleEntityFamily: ReviewedFamily = {
       'Apple shared budgets, exclusions, creative edits and serving settings can affect existing campaigns. Provide spend_change_confirmed=true.',
   },
   activates: plan => !!appleEntityServing(plan),
-};
+});

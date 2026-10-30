@@ -2,6 +2,7 @@ import {responseData, assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Pausing and enabling creatives inside an Upgraded Smart+ ad, per API for Business v1.3 "Disable or enable creatives
@@ -164,7 +165,7 @@ export function tiktokSmartPlusMaterialStatusVerification(plan: CompiledRequest)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusMaterialStatusFamily: ReviewedFamily = {
+export const tiktokSmartPlusMaterialStatusFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_material_status',
   files: ['src/tiktok-smart-plus-material-status.ts', ['tests/tiktok-smart-plus-material-status.test.mjs']],
   kind: tiktokSmartPlusMaterialStatusKind,
@@ -190,4 +191,4 @@ export const tiktokSmartPlusMaterialStatusFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
     })),
-};
+});

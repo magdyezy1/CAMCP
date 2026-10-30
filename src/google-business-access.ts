@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
+import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {assertPlaceActionScope, placeActionSafeError, placeActionSafe} from './google-place-action-links.js';
@@ -123,21 +123,12 @@ function read(
   host = origin,
   grant = p.accountId,
 ): CompiledRequest {
-  return {
-    ...p,
-    action: 'AMCP_BUSINESS_ACCESS_READ',
-    method: 'GET',
-    origin: host,
-    path: '/v1/' + resource,
-    query,
-    body: undefined,
-    headers: {},
-    accountId: grant,
-    readOnly: true,
-    requiresConfirmation: false,
-    destructive: false,
-    responseControls: undefined,
-  };
+  // The grant's account is set after the body and before the cleared response controls, as this read always set them.
+  return readOf(
+    p,
+    {before: {origin: host}, action: 'AMCP_BUSINESS_ACCESS_READ', path: '/v1/' + resource, query, clears: []},
+    {accountId: grant, responseControls: undefined},
+  );
 }
 export function businessAccessSnapshots(p: CompiledRequest): CompiledRequest[] {
   const resource = parent(p),
@@ -488,7 +479,7 @@ export function businessAccessImpact(p: CompiledRequest, state: unknown[]): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const businessAccessFamily: ReviewedFamily = {
+export const businessAccessFamily: ReviewedFamily = defineFamily({
   name: 'google_business_access',
   files: ['src/google-business-access.ts', ['tests/google-business-access.test.ts']],
   kind: businessAccessKind,
@@ -515,4 +506,4 @@ export const businessAccessFamily: ReviewedFamily = {
     ),
   exemptFromSpendTextMatch: true,
   administratorRequired: true,
-};
+});

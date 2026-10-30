@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Editing and deleting LinkedIn Direct Sponsored Content posts, per "Posts API" (li-lms-2026-09, checked 2026-09-28).
@@ -164,21 +164,17 @@ export function authorizeLinkedInDscEdit(p: CompiledRequest, c: Connection, stor
     );
   return true;
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject = {}, extra: JsonObject = {}): Read => ({
-  ...p,
-  action: 'AMCP_LINKEDIN_DSC_EDIT_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0', ...extra},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  linkedinDscEditState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject = {}, extra: JsonObject = {}): Read =>
+  readOf<Read>(
+    p,
+    {
+      action: 'AMCP_LINKEDIN_DSC_EDIT_READ',
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0', ...extra},
+    },
+    {linkedinDscEditState: undefined},
+  );
 const stateRead = (p: CompiledRequest, state: State): Read => ({
   ...read(p, '/rest/adAccounts/' + account(p)),
   linkedinDscEditState: state,
@@ -385,7 +381,7 @@ export function linkedinDscEditObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinDscEditFamily: ReviewedFamily = {
+export const linkedinDscEditFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_dsc_edits',
   files: ['src/linkedin-dsc-edits.ts', ['tests/linkedin-dsc-edits.test.mjs']],
   kind: linkedinDscEditKind,
@@ -406,4 +402,4 @@ export const linkedinDscEditFamily: ReviewedFamily = {
       'Editing a sponsored post changes the ads that sponsor it. Review them and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

@@ -4,7 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media preferred (onsite display) line items on API 2026-07 (unchanged from 2026-01), per the pinned
@@ -594,7 +594,7 @@ export function criteoPreferredVerifiedResources(p: CompiledRequest, actual: Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoPreferredFamily: ReviewedFamily = {
+export const criteoPreferredFamily: ReviewedFamily = defineFamily({
   name: 'criteo_preferred_line_items',
   files: ['src/criteo-preferred-line-items.ts', ['tests/criteo-preferred-line-items.test.mjs']],
   kind: criteoPreferredKind,
@@ -619,4 +619,4 @@ export const criteoPreferredFamily: ReviewedFamily = {
         : 'A complete preferred line item PUT replaces its budget, dates, placement and status and can start or change spending. Review it and provide spend_change_confirmed=true.',
   },
   policyAmounts: criteoPreferredPolicyAmounts,
-};
+});

@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Renaming and deleting Meta ad creatives and custom audiences, Marketing API v25.0 ("Ad Creative" and "Custom Audience"
@@ -90,21 +90,8 @@ export function assertMetaObjectScope(c: Connection, write = false): void {
   if (write ? !c.scopes.includes('ads_management') : !c.scopes.some(s => s === 'ads_management' || s === 'ads_read'))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Meta with ads_management to change creatives and audiences.', {}, 403);
 }
-const read = (p: CompiledRequest, s: NonNullable<Read['metaObjectState']>): Read => ({
-  ...p,
-  action: 'AMCP_META_OBJECT_READ',
-  method: 'GET',
-  path: metaPrefix + s.id,
-  query: {fields: fields[s.object]!},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  metaObjectState: s,
-});
+const read = (p: CompiledRequest, s: NonNullable<Read['metaObjectState']>): Read =>
+  stateReadOf<Read>(p, 'AMCP_META_OBJECT_READ', metaPrefix + s.id, {fields: fields[s.object]!}, {metaObjectState: s});
 export function metaObjectSnapshots(p: CompiledRequest): Read[] {
   const k = metaObjectKind(p)!;
   return [read(p, {object: k.object, id: targetOf(p)})];
@@ -235,7 +222,7 @@ export function metaObjectObserved(_read: CompiledRequest, data: JsonObject): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaObjectFamily: ReviewedFamily = {
+export const metaObjectFamily: ReviewedFamily = defineFamily({
   name: 'meta_object_edits',
   files: ['src/meta-object-edits.ts', ['tests/meta-object-edits.test.mjs']],
   kind: metaObjectKind,
@@ -251,4 +238,4 @@ export const metaObjectFamily: ReviewedFamily = {
   verification: metaObjectVerification,
   observed: metaObjectObserved,
   exemptFromSpendTextMatch: true,
-};
+});

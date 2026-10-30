@@ -56,6 +56,7 @@ import {
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 type Reference = {field: string; collection: string; parts: number; resource: string; fields: string[]};
 type Contract = {
@@ -702,21 +703,17 @@ function search(
     '.resource_name IN (' +
     ids.map(id => "'" + id + "'").join(', ') +
     ')';
-  return {
-    ...p,
-    action: 'AMCP_CONFIG_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    query: {},
-    body: {query},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    googleState: {resource, names: ids, allowMissing: optional, removedAsAbsent: removed},
-  };
+  return readOf(
+    p,
+    {
+      action: 'AMCP_CONFIG_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      query: {},
+      body: {query},
+    },
+    {googleState: {resource, names: ids, allowMissing: optional, removedAsAbsent: removed}},
+  );
 }
 function references(p: CompiledRequest, c: Contract, op: JsonObject): {ref: Reference; name: string}[] {
   const r = op.create ?? op.update ?? {},
@@ -745,18 +742,16 @@ export function googleConfigurationSnapshots(p: CompiledRequest): CompiledReques
     if (ids.length) reads.push(search(p, c.resource, c.fields, ids, creating));
   }
   if (ops.some(o => o.create && !c.identity))
-    reads.push({
-      ...p,
-      action: 'AMCP_STATE_READ',
-      method: 'POST',
-      path: googleAdsCustomers + account(p) + '/googleAds:search',
-      query: {},
-      body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-    });
+    reads.push(
+      readOf(p, {
+        action: 'AMCP_STATE_READ',
+        method: 'POST',
+        path: googleAdsCustomers + account(p) + '/googleAds:search',
+        query: {},
+        body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
+        clears: [],
+      }),
+    );
   const groups = new Map<Reference, string[]>();
   for (const op of ops)
     for (const {ref, name} of references(p, c, op)) {
@@ -975,7 +970,7 @@ export function googleConfigurationImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleConfigurationFamily: ReviewedFamily = {
+export const googleConfigurationFamily: ReviewedFamily = defineFamily({
   name: 'google_configuration',
   files: [
     'src/google-configuration-writes.ts',
@@ -1029,4 +1024,4 @@ export const googleConfigurationFamily: ReviewedFamily = {
   activates: plan => !!googleConfigurationServing(plan),
   exemptFromActivationScan: plan => !!googleSegmentKind(plan),
   destructive: plan => !!googleSegmentRemoval(plan),
-};
+});

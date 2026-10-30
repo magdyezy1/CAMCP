@@ -15,7 +15,7 @@ import {
   type PersonalDataSpec,
   type Row,
 } from './personal-data.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Google Customer Match and offline conversions through the Data Manager API, which the owner opened on 2026-09-30
@@ -234,6 +234,12 @@ export const googleOfflineConversionPeople: PersonalDataSpec = {
       encoding: 'HEX',
     };
   },
+  // Google documents validateOnly on events:ingest: "the request is validated but not executed".
+  rehearsal: Object.freeze({
+    provider: 'Google Data Manager events:ingest',
+    flag: 'validateOnly',
+    note: 'Google documents validateOnly on events:ingest: the request is validated but not executed. It still sends the hashed people, so AMCP does not send it.',
+  }),
 };
 
 /** The rows back from a body, to check them against the review's digest. */
@@ -312,21 +318,15 @@ export function assertDataManagerScope(c: Connection): void {
     );
 }
 function stateRead(p: CompiledRequest, query: string): Read {
-  return {
-    ...p,
-    origin: undefined,
-    personalData: undefined,
+  return readOf<Read>(p, {
+    before: {origin: undefined, personalData: undefined},
     action: stateMarker,
     method: 'POST',
     path: googleAdsCustomers + customer(p) + '/googleAds:search',
     body: {query},
     query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 const queries = (p: CompiledRequest): string[] => {
   const s = settingsOf(p),
@@ -516,22 +516,13 @@ export function dataManagerSafeOutcome(outcome: JsonObject): JsonObject {
   };
 }
 function statusRead(p: CompiledRequest, requestId: string): Read {
-  return {
-    ...p,
-    origin: dataManagerOrigin,
-    personalData: undefined,
-    dataManagerRead: 'status',
+  return readOf<Read>(p, {
+    before: {origin: dataManagerOrigin, personalData: undefined, dataManagerRead: 'status'},
     action: statusMarker,
-    method: 'GET',
     path: '/v1/requestStatus:retrieve',
     query: {requestId},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-  };
+    clears: ['responseControls'],
+  });
 }
 export function isDataManagerRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).dataManagerRead;
@@ -671,7 +662,7 @@ const common = {
   destructive: () => false,
 };
 /** Registers the Customer Match family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleCustomerMatchFamily: ReviewedFamily = {
+export const googleCustomerMatchFamily: ReviewedFamily = defineFamily({
   name: 'google_customer_match',
   files: ['src/google-data-manager.ts', ['tests/google-data-manager.test.mjs']],
   kind: p => {
@@ -680,12 +671,12 @@ export const googleCustomerMatchFamily: ReviewedFamily = {
   },
   ...common,
   personalData: googleCustomerMatchPeople,
-};
+});
 /** Registers the offline conversions family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleOfflineConversionFamily: ReviewedFamily = {
+export const googleOfflineConversionFamily: ReviewedFamily = defineFamily({
   name: 'google_offline_conversions',
   files: ['src/google-data-manager.ts', ['tests/google-data-manager.test.mjs']],
   kind: p => dataManagerKind(p) === 'events',
   ...common,
   personalData: googleOfflineConversionPeople,
-};
+});

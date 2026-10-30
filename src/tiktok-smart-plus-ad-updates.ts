@@ -13,6 +13,7 @@ import {
   tiktokSmartPlusAdProjection,
 } from './tiktok-smart-plus-ads.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Edits of Upgraded Smart+ Spark Ads, per API for Business v1.3 "Update an Upgraded Smart+ Ad" (checked 2026-09-26):
@@ -253,7 +254,7 @@ export function tiktokSmartPlusAdUpdateVerification(plan: CompiledRequest) {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = {
+export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_ad_edits',
   files: ['src/tiktok-smart-plus-ad-updates.ts', ['tests/tiktok-smart-plus-ad-updates.test.mjs']],
   kind: tiktokSmartPlusAdUpdateKind,
@@ -276,4 +277,4 @@ export const tiktokSmartPlusAdUpdateFamily: ReviewedFamily = {
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
     })),
   creativeEditConfirmation: () => true,
-};
+});

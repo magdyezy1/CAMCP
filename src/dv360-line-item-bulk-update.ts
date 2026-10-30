@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Bulk status and EU political advertising updates of DV360 line items, per the pinned Display & Video 360 API v4 Discovery
@@ -257,7 +257,7 @@ export function dv360LineItemBulkObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360LineItemBulkFamily: ReviewedFamily = {
+export const dv360LineItemBulkFamily: ReviewedFamily = defineFamily({
   name: 'dv360_line_item_bulk_update',
   files: ['src/dv360-line-item-bulk-update.ts', ['tests/dv360-line-item-bulk-update.test.mjs']],
   kind: dv360LineItemBulkKind,
@@ -278,4 +278,4 @@ export const dv360LineItemBulkFamily: ReviewedFamily = {
       'Active line items spend once their insertion order is active. Review the line items and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

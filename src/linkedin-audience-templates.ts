@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
@@ -277,20 +277,17 @@ export function assertLinkedInTemplate(p: CompiledRequest) {
   segmentRefs(p);
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}, deadline?: number): CompiledRequest {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query,
-    body: undefined,
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    responseControls: undefined,
-    linkedinTemplateDeadline: deadline,
-  };
+  return readOf(
+    p,
+    {
+      action: marker,
+      path,
+      query,
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+      clears: ['responseControls'],
+    },
+    {linkedinTemplateDeadline: deadline},
+  );
 }
 export const linkedinTemplateSnapshots = (p: CompiledRequest) => [
   read(p, '/rest/adAccounts/' + p.accountId),
@@ -548,7 +545,7 @@ export const linkedinTemplateImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinTemplateFamily: ReviewedFamily = {
+export const linkedinTemplateFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_audience_templates',
   files: ['src/linkedin-audience-templates.ts', ['tests/linkedin-audience-templates.test.mjs']],
   kind: linkedinTemplateKind,
@@ -578,4 +575,4 @@ export const linkedinTemplateFamily: ReviewedFamily = {
       }),
     ).then(o => ({status: o.status, checks: o.checks})),
   verifyEveryTime: true,
-};
+});

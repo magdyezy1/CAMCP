@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * TikTok custom audience edits, per API for Business v1.3 "Update an audience", "Delete audiences", "Apply audiences to
@@ -121,21 +121,8 @@ export function assertTiktokAudienceEdit(p: CompiledRequest): void {
   if (b.action_mode === 'Disconnect' && b.usage_mode !== undefined)
     invalid('Disconnecting an audience takes no usage_mode.');
 }
-const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read => ({
-  ...p,
-  action,
-  method: 'GET',
-  path,
-  query: {advertiser_id: p.accountId, ...query},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  tiktokAudienceEditState: state,
-});
+const read = (p: CompiledRequest, action: string, path: string, query: JsonObject, state?: State): Read =>
+  stateReadOf<Read>(p, action, path, {advertiser_id: p.accountId, ...query}, {tiktokAudienceEditState: state});
 function stateRead(p: CompiledRequest, s: State): Read {
   return read(
     p,
@@ -582,7 +569,7 @@ export function tiktokAudienceEditObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokAudienceEditFamily: ReviewedFamily = {
+export const tiktokAudienceEditFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_audience_edits',
   files: ['src/tiktok-audience-edits.ts', ['tests/tiktok-audience-edits.test.mjs']],
   kind: tiktokAudienceEditKind,
@@ -602,4 +589,4 @@ export const tiktokAudienceEditFamily: ReviewedFamily = {
       'Applying or disconnecting an audience changes whom the ad groups reach while they deliver. Review the ad groups and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

@@ -9,7 +9,7 @@ import {
 import type {CompiledRequest, JsonObject, Connection} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal, readOf} from './family-kit.js';
 import {recordedWriteGrant} from './provider-grants.js';
 const kinds = ['campaigns', 'ad_groups', 'ads', 'saved_audiences'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -204,24 +204,21 @@ const pixelEvents = [
   'sign_up',
   'view_content',
 ];
-const pixelRead = (plan: CompiledRequest, state: 'membership' | 'activity', pixel: string): PixelRead => ({
-  ...plan,
-  action: pixelAction,
-  path:
-    state === 'membership'
-      ? '/api/v3/ad_accounts/' + plan.accountId + '/pixels'
-      : '/api/v3/pixels/' + pixel + '/last_fired_at',
-  method: 'GET',
-  body: undefined,
-  // One page holds every pixel an account can have in practice; another page is refused as incomplete state.
-  query: state === 'membership' ? {'page.size': 1000} : {},
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  redditPixelState: state,
-  redditPixelId: pixel,
-});
+const pixelRead = (plan: CompiledRequest, state: 'membership' | 'activity', pixel: string): PixelRead =>
+  readOf<PixelRead>(
+    plan,
+    {
+      action: pixelAction,
+      path:
+        state === 'membership'
+          ? '/api/v3/ad_accounts/' + plan.accountId + '/pixels'
+          : '/api/v3/pixels/' + pixel + '/last_fired_at',
+      // One page holds every pixel an account can have in practice; another page is refused as incomplete state.
+      query: state === 'membership' ? {'page.size': 1000} : {},
+      clears: [],
+    },
+    {redditPixelState: state, redditPixelId: pixel},
+  );
 export const isRedditPixelRead = (read: CompiledRequest): boolean =>
   read.gateway === 'reddit_native_action' && read.action === pixelAction && !!(read as PixelRead).redditPixelState;
 /** The marked activity read of a pixel the account's list named, for the selected account only. */
@@ -356,18 +353,8 @@ export function redditSnapshots(plan: CompiledRequest): CompiledRequest[] {
   if (redditCreativeKind(plan)) return redditCreativeSnapshots(plan);
   const route = redditWriteKind(plan)!,
     d = (plan.body as JsonObject).data;
-  const read = (path: string): CompiledRequest => ({
-    ...plan,
-    action: 'AMCP_STATE_READ',
-    path,
-    method: 'GET',
-    body: undefined,
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-  });
+  const read = (path: string): CompiledRequest =>
+    readOf(plan, {action: 'AMCP_STATE_READ', path, query: {}, clears: []});
   const reads = [read('/api/v3/ad_accounts/' + plan.accountId)];
   if (!route.create) reads.push(read(plan.path));
   const parents: Record<string, string> = {
@@ -448,7 +435,7 @@ export function redditOutcome(plan: CompiledRequest, result: TransportResult) {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const redditWriteFamily: ReviewedFamily = {
+export const redditWriteFamily: ReviewedFamily = defineFamily({
   name: 'reddit_classic',
   files: ['src/reddit-writes.ts', ['tests/reddit-writes.test.ts', 'tests/reddit-pixel-check.test.mjs']],
   kind: redditWriteKind,
@@ -466,4 +453,4 @@ export const redditWriteFamily: ReviewedFamily = {
   impact: redditPixelImpact,
   outcome: redditOutcome,
   policyAmounts: redditPolicyAmounts,
-};
+});

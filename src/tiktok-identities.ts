@@ -3,6 +3,7 @@ import {normalizeAccount} from './account-id.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * TikTok custom identities, per API for Business v1.3 "Create an identity", "Get info about an identity" and
@@ -108,7 +109,7 @@ export function tiktokIdentityVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokIdentityFamily: ReviewedFamily = {
+export const tiktokIdentityFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_identities',
   files: ['src/tiktok-identities.ts', ['tests/tiktok-identities.test.mjs']],
   kind: tiktokIdentityKind,
@@ -134,4 +135,4 @@ export const tiktokIdentityFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_identity_info_get'},
     })),
-};
+});

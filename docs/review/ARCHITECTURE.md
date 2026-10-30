@@ -309,10 +309,10 @@ packages' falls add up: 76 and 235.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 76 |
-| `shared_to_provider_runtime_imports` | 235 |
+| `shared_modules_with_gateway_literals` | 72 |
+| `shared_to_provider_runtime_imports` | 233 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 417 |
+| `shared_gateway_literals` (reported) | 413 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -343,9 +343,9 @@ gateway's status, so there is no family-level offering check. `tests/provider-li
 surface in both modes; suites that exercise a parked provider offer it with `tests/helpers/parked-providers.mjs`.
 
 An adapter has two halves, split by import layer. Its **facts** (lifecycle status, family prefixes, the account model,
-body deletions, paging names) are pure data in the leaf registry, which any module may read, the lowest included
-(`src/account-id.ts`, which family modules import). Its **hooks** call the provider's own modules, so they live in the
-provider's adapter module (`src/<provider>-adapter.ts`, a provider module) and are registered by gateway in
+body deletions, entity writes, paging names) are pure data in the leaf registry, which any module may read, the lowest
+included (`src/account-id.ts`, which family modules import). Its **hooks** call the provider's own modules, so they
+live in the provider's adapter module (`src/<provider>-adapter.ts`, a provider module) and are registered by gateway in
 `src/provider-hooks.ts`, which the shared stages consult instead of importing provider modules; no provider module
 imports it, and the ratchet (§8) counts it with the providers. One registry holding both would sit in an import
 cycle: the hooks' modules import shared helpers that read the facts. A hook only supplies a provider fact to the shared
@@ -377,21 +377,39 @@ anywhere: the suites' synthetic fetchers answer.
 | Gateway checks: write shape and state | hooks `checks`: in the write-shape stage, each provider's request contracts first (Google's Discovery schema, Meta's campaign and v26 rules), a write contract that decides alone (Microsoft's), the measurement providers' resource write contract before the reviewed routes (GA4, Tag Manager, Search Console, Apple), its checks before the generic ones (Snapchat's creative paths), its one concurrency query parameter (DV360's `updateMask`, Tag Manager's `fingerprint`), its checks after the query parameters (LinkedIn's PARTIAL_UPDATE patches) and after the method checks, given the stage's paused-creation rule (paused or draft creation for Meta, TikTok, Snapchat, X, LinkedIn, DV360 and Google Ads, the native record structure, TikTok's conversion and CTA references, X's targeting criteria, Google's atomic homogeneous operations); in the state stage, its response contract (Microsoft's), the documented results that settle a read (a measurement resource's 404, Tag Manager's status read), the envelope its success check reads (Search Console's sitemap error counts, Google's omitted empty results, a failed GA4 job's message), a read complete by its own contract (TikTok's published Instant Forms) and its exact-target check (Microsoft's and the measurement providers' whatever a family supplies); facts `executionOptions` (Meta) and `reviewedWriteGateways`, from which `writeContractGateways` is made. `tests/provider-gateway-checks.test.mjs` pins the seam. | `assertWriteShape` keeps the refusal of every other gateway, MUTATION_REQUIRED, the execution_options refusal, the special-transport refusal, the families' own `assert`, the method-override check, the reviewed routes with their withheld reasons, the query, batch, method-tunnelling and GET/HEAD refusals, the paused-creation rule and then the wire contract; `validateState` keeps the families' identity checks, the success check, the pagination checks, the exact-ID comparison and the final STATE_READ_FAILED; `metaValidationOptions`. Two remainders stay in the stages: Reddit's write contract and state check (`src/reddit-writes.ts` reads pages through `src/pagination.ts`, which consults the provider hooks, so Reddit's adapter cannot import it until that family takes its page step as a hook argument) and Meta's first write checks (they name `budget_schedule_specs`, a field v26.0 removed, only to refuse it, and `tests/meta-version.test.mjs` reads every string literal of a Meta module as a name AMCP may send) | 4,748,255 records before, 4,748,258 after: 0 differences beyond calibration (the 3 more are `platform()` lookups of `tests/measurement-apple.test.ts`, whose number varies between runs of one build: 13 and 11 in the calibration pair); the final build, recorded after a UTC midnight, compared with calendar dates masked: 0 differences beyond calibration but 5 verification fingerprints that digest two suites' dated plans; 85,633 distinct pure calls (6,854 `assertWriteShape`, 530 `metaValidationOptions`) replay with 0 differences |
 | Review projections | hooks `review`: the state a review keeps of a read no family projects (`snapshot`: Google's state-query rows, each requested resource once, sorted and canonical, with STATE_RESOURCE_INVALID and STATE_RESOURCE_MISMATCH; TikTok's pixel, Smart+, Instant Form, CTA portfolio, conversion and list states; Snapchat's rows, segments and ad accounts; X's and Reddit's records; Microsoft's contract result; Apple's results without status observations; Tag Manager's safe configuration; Search Console's sitemaps without crawl fields), the write headers a verification read keeps (LinkedIn's versioning headers), the reads that verify a write no family verifies (Google's state queries, given `snapshotPlans` as an argument, Meta's node reads, TikTok's get routes, Snapchat's, Reddit's, X's, LinkedIn's and DV360's entity reads), what each such read shows (`observed`: Google's removals as REMOVED and its implicit zero bidding targets, TikTok's and Snapchat's projections, Microsoft's contract rows, Apple's results and absences, X's and Reddit's records) and Google's value-bidding verification version. `tests/provider-review-projections.test.mjs` pins the seam. | `normalizeSnapshot` keeps the families' `snapshotState` first and the shared normalization; `verificationReads` the families' `verification` first, the read builder (read-only, AMCP_VERIFY_READ) and the empty verification of a DELETE or of a provider without reads; `entity` the families' `observed` first and absent resources; `verificationContractVersion`, `googleValueVerificationVersion` (now the provider's version), `normalize` and `differing` | the builds before and after recorded back to back (the clock had crossed a UTC midnight since the last recording): 4,748,257 records before, 4,748,255 after, 0 differences beyond calibration (the 2 fewer are `platform()` lookups of `tests/measurement-apple.test.ts`); 85,633 distinct pure calls (5,740 `normalizeSnapshot`, 1,532 `entity`, 1,142 `googleValueVerificationVersion`) replay with 0 differences |
 | OAuth configuration: grants and website platforms | facts `grant`: each provider's OAuth grant (CON-02, CON-03: requested read and write scopes, the read and write requirements, the grant source, whether readiness has an exact account read, the website platform that authorizes it) and the scope names they use, in the registry with `grantOrder`, the order the grant registry lists them in (a load-time check: every adapter with a grant, once). `tests/provider-oauth-configs.test.mjs` pins the seam. | `src/provider-grants.ts` lists the grants (`providerGrants`, gateway first, the facts in their order), keeps `providerGrant`, `requestedScopes`, `missingScopes`, `recordedWriteGrant`, `publicGrants` and `grantedScopes`, and re-exports the scope names; `server/platform-oauth.ts` keeps the website platforms (names, copy, OAuth endpoints, asset kinds), each taking its gateway and default scopes from the adapter its ID names, and every OAuth flow step. Remainders: the flows' provider steps (X's OAuth 1.0a, TikTok's app ID and auth code, Meta's GET exchange and long-lived token, Reddit's Basic authentication and User-Agent, Microsoft's scope and developer token, Apple's client credentials) and each provider's asset discovery in `server/asset-discovery.ts` | the builds before and after recorded back to back: 4,748,259 records before, 4,748,263 after, 0 differences beyond calibration except 5 records of the burst-pacing test (one request more of its 80 served in one run; its records are those served in both), with 1,257 `PlatformOAuth.config`, 364 `platform`, 73 `exchange` and 122 asset-sync records; 85,638 distinct pure calls (17 `selectionKind`, 16 `selectableKinds`) replay with 0 differences |
+| Entity writes | facts `entityWrites`: the generic entity writes of seven platforms (Google Ads, Meta, TikTok, Snapchat, LinkedIn, X and DV360), the creations, edits and deletions of their campaigns, ad groups, ads and creatives that no registered family claims: each the ledger name of its reviewed route (`google_entities`, ...) and `claims`, which reads only the write's method, path and action, in one table of the registry by provider ID. `tests/provider-entity-writes.test.mjs` compares every reviewed route with the branches as they were. | `reviewedWriteFamily` (`src/reviewed-routes.ts`) keeps the read-only and special-transport exclusions and the registered families first (with their conflict refusal), then asks the write's adapter, and names no gateway; `assertWriteShape`, the structural spend effects and the action ledger consult it unchanged | one comparison of the branch with `Work-here` for this row, the four below and the family kit (§13), in the paragraph after this table |
+| Offline-upload rehearsal | not an adapter: the conversion families' facts, `rehearsal` of their personal-data specs (`OfflineRehearsal`, `src/personal-data.ts`), frozen in `src/google-data-manager.ts` and `src/meta-offline-conversions.ts`: the provider request an offline conversion upload rehearses, its documented no-execution flag (Data Manager's `validateOnly` on `events:ingest`) or none (Meta's `test_event_code` events are production events), and what the review says of it. `tests/offline-upload-rehearsal-route.test.mjs` compares every rehearsal with the function as it was. | `offlineUploadRehearsal` (`src/offline-upload-rehearsal.ts`, MSR-03 slice E) takes the rehearsal of the family whose request it is (`familyOf`, the registry) whatever spec its caller passes, and keeps the dry run: the people hashed with the provider's time limits, the execution and rehearsal bodies built and hashed, nothing sent, reviewed or saved; it imports no provider module | the same comparison: its records differ only in the spec argument, which now carries the moved `rehearsal` |
+| Review summary | facts `reviewOperations`: how the one-line review summary names a provider's writes, Google Ads' `:mutate` operations (each a create, a remove or an update, the entity its service names, how many), in the registry's table of review stage facts by provider ID. `tests/provider-review-stages.test.mjs` compares every summary with the branch as it was. | `reviewSummary` (`src/review-summary.ts`, WRT-05 stage E) asks the request's adapter first and keeps the generic operation from the path, method and action, the account, the money with its exact decimals and the status changes | the same comparison: 1,907 distinct `reviewSummary` calls replay with 0 differences |
+| Spending confirmation | facts `everyWriteConfirmsSpend`: a provider each of whose writes needs `spend_change_confirmed=true` once no structural or family rule has decided its spending (Reddit: its writes change targeting, serving and shared lists), in the same table. `tests/provider-review-stages.test.mjs` compares every spending refusal with the function as it was. | `spendConfirmationError` (`src/preflight.ts`) keeps its order (numeric statuses, delivery edits, the family's own confirmation, then the provider's fact, then the status patches and the generic field-name match) and the refusal's wording | the same comparison: 3,219 distinct `spendConfirmationError` calls replay with 0 differences |
+| Structural spend effects | facts `spendNeutralCreation`: a creation field whose value names a budget but moves no money (Meta's new campaign with `is_adset_budget_sharing_enabled: false`, each ad set spending only its own budget, CMP-01): its path, field and value, frozen in the same table. `tests/provider-review-stages.test.mjs` compares the field-name match with the function as it was. | `namesSpendField` (`src/spend-effects.ts`) reads such a creation without that one field and keeps every rule: the changed names, the spending words, the active statuses, and any other value, method, path or placement still naming a budget | the same comparison: 1,333 distinct `namesSpendField` calls replay with 0 differences |
+
+The last five rows and the family kit's reads and declarations (§13) were proved by one comparison of the branch that
+made them with `Work-here`, both recorded with the same targets over the 764 related test files of every file the
+branch changes (the six test files it adds or changes left out): 5,597,171 records before, 5,597,161 after. Against
+the base recorded on the same UTC date, with two base recordings as the calibration (they span a UTC midnight, so
+2,493 records with date-relative inputs are noise), there are 0 differences and no allow/refuse flip, except records
+read one by one: the 11 rehearsal records whose spec argument now carries the moved fact, identical with that member
+set aside; the media suite that failed under load in the branch's run (an FFmpeg conversion timeout) and the
+date-relative LinkedIn planning compiles of two suites recorded on either side of the midnight, which show 0
+differences when their test files are recorded again back to back; and the `platform()` lookups of
+`tests/measurement-apple.test.ts`, whose number varies between runs of one build. The burst-pacing test's 40 records
+are counted apart. 110,086 distinct pure calls (5,130 `reviewedWriteFamily`) replay through the branch with 0
+differences.
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
-the gate test checks both modes), and phase B has moved nine concerns so far, so 76 shared modules still name a
-gateway (target 20 or fewer) and 235 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496,
+the gate test checks both modes), and phase B has moved fourteen concerns so far, so 72 shared modules still name a
+gateway (target 20 or fewer) and 233 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496,
 163 imports are the reviewed-family registry's, no longer counted since phase B counts it as a registry (§8), and 9
-are ARC-04's report job registry and website route modules; the other 89 are phase B's migrations, after which the
-shared stages consult the provider hooks registry (`src/provider-hooks.ts`, which imports the 17 adapter modules)
-instead of provider modules. The largest remaining are the catalog compiler (`src/compiler.ts`,
-`src/delegated-native.ts`, `src/catalog.ts`), the service and action contracts (`src/service.ts`,
-`src/action-contracts.ts`), the review (`src/write-review.ts`, `src/write-snapshots.ts`), the campaign and reporting
-modules, each provider's asset discovery and OAuth flow steps in `server/`, and the two remainders of the gateway
-checks (Reddit's write contract and state check, Meta's first write checks). ARC-01's native and manual criteria are
-the owner's: read-only `verify-reads` per migrated gateway on existing test accounts, and a security reviewer's
-sign-off of every `src/scope.ts` and `src/transport.ts` diff.
+are ARC-04's report job registry and website route modules; the other 91 are phase B's migrations, after which the
+shared stages consult the provider hooks registry (`src/provider-hooks.ts`, which imports the 17 adapter modules), or
+the family registry for a family's own facts, instead of provider modules. The largest remaining are the catalog
+compiler (`src/compiler.ts`, `src/delegated-native.ts`, `src/catalog.ts`), the service and action contracts
+(`src/service.ts`, `src/action-contracts.ts`), the review (`src/write-review.ts`, `src/write-snapshots.ts`), the
+campaign and reporting modules, each provider's asset discovery and OAuth flow steps in `server/`, and the two
+remainders of the gateway checks (Reddit's write contract and state check, Meta's first write checks). ARC-01's native
+and manual criteria are the owner's: read-only `verify-reads` per migrated gateway on existing test accounts, and a
+security reviewer's sign-off of every `src/scope.ts` and `src/transport.ts` diff.
 
 ## 10. Import cycles and leaf modules
 
@@ -479,16 +497,21 @@ the transport reach a job's own requests as the hooks of `ReportJobPage`. Neithe
 
 ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), the refusal
 factories for modules with their own codes (`familyErrors`, `familyStateErrors`, `familyCodeError`, `failWithStatus`), a
-load-time check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the
+load-time check of a family declaration (`defineFamily`) and the hooks of `ReviewedFamily` by stage. Wave 1 (the
 nine X families), wave 2 (ten TikTok and fourteen Google Ads families) and wave 3 (8 Criteo, 11 DV360, 13 LinkedIn, 15
 Meta and 14 Snapchat families) import its `fail`; wave 4 moved the 58 variants onto `fail` or a factory with the codes
 and statuses each helper gave, and the shared helpers other modules import (`write-common.ts`, `personal-data.ts`,
-`x-catalogs.ts`) re-export the kit's `fail` under their old name. The X families declare themselves through
-`defineFamily`. The localization check owns the reasons of the kit's `fail` and of a kit-built refusal as it owned each
-local helper (`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged: 2,553 reasons in the 152
-modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding
-helper the inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have
-no Arabic), a gap now named rather than implicit (an open remainder of B24 in `docs/review/package-status.json`).
+`x-catalogs.ts`) re-export the kit's `fail` under their old name. Every registered family declares itself through
+`defineFamily` (the nine X families first, then the other 161 declarations by a codemod that wrapped each object
+literal unchanged), so each declaration is checked when its module loads; its parameter is the five stages together
+(`FamilyDeclaration`), so a member that is no hook of any stage fails to compile, which the earlier generic signature
+let through, and the load refuses one that a spread brought in, where that type check does not look (`familyStages`,
+each hook in one stage, is the same list at run time). The localization check owns the reasons of the kit's `fail`
+and of a kit-built refusal as it owned each local helper (`tools/check-locales.mjs`), so the owned reasons and their
+Arabic are unchanged: 2,553 reasons in the 152 modules on the kit, the same set before stage C and after each wave.
+Nineteen modules whose former arrow or forwarding helper the inventory never followed stay outside it
+(`unlocalizedRefusalModules`; about 420 of their 430 reasons have no Arabic), a gap now named rather than implicit (an
+open remainder of B24 in `docs/review/package-status.json`).
 `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). The `fail` that `src/errors.ts` exported moved to the kit
 and is intentionally not re-exported there: `family-kit.ts` imports `MirrorError` from `errors.ts`, so a re-export
 would join the two in a runtime import cycle (§8), and a second definition would be a local copy again; nothing in the
@@ -520,9 +543,30 @@ The kit's `stateReadOf` (the review's `readsFor`) builds a state read from a wri
 read's action and a GET of its path and query, without what only a write carries, then the family's own fields. The
 seven X list-attachment families, five DV360 families and four Criteo families had each copied that builder, identical
 but for the action and state fields; their `read` wrappers now call the kit, with the same fields in the same order
-(`tests/family-kit.test.mjs` compares its keys, values and order with each group's copy). The other 93 builders differ
-in what they reset (a POST search with a body, another query encoding, no special-transport reset), so they stay their
-families' own until each change can be tested with its family.
+(`tests/family-kit.test.mjs` compares its keys, values and order with each group's copy). The other builders differed
+in what they reset (a POST search with a body, another query encoding, no special-transport reset): wave 4a counted 93
+that differ from `stateReadOf`, and a scan of every registered family module for an object literal that spreads a
+request and sets `readOnly: true` found 128 in 121 modules, 33 of them with `stateReadOf`'s exact layout. The kit's
+`readOf` takes what they varied as parameters: the method and a posted search body, headers (LinkedIn's version
+headers), fields set before the read's own (`before`: an account or host the read binds, no `personalData`, Meta's
+state fields first) and the write-only fields it clears, in its order (`clears`: most Google Ads searches kept the
+special transport, Apple and GTM cleared it first, Reddit cleared neither); `stateReadOf` is now `readOf` with its
+defaults. Each builder is now one kit call in its module's own wrapper (145 calls in 137 modules; the other 30 build
+no read of their own), produced by a codemod that moved each member's expression unchanged. For every compiled request
+(each carries CompiledRequest's required members, so where a builder wrote those does not change its read) each call
+gives the builder's keys, values and key order: a static comparison of the 127 builders the codemod rewrote with their
+calls found no difference (the lodging reads' shared base, the 128th, became two calls by hand), and the call replay
+over the families' suites (186 test files, 2,955,676 recorded calls and requests) shows no difference. Three more
+builders sat in provider modules that family modules import, where that scan did not look: google_configuration's
+feed and keyword plan searches (`src/google-asset-set-writes.ts`, `src/google-keyword-plan-writes.ts`) and the X
+catalog families' shared read (`src/x-catalogs.ts`). They are kit calls too; the feed search, which reset the
+family's state before the write-only fields, uses the kit's `after`. `tests/family-reads.test.mjs` compares the kit
+with each of the 28 layouts the builders had for all 1,024 combinations of the optional fields a request may carry,
+and fails when a family module, or a provider module one imports, builds a read of its own (X's audience estimate, a
+read tool whose literals are no family's reads, is the one helper it leaves out). The whole branch's call replay,
+re-run on that build against the base recorded the same UTC day (5,597,171 records before, 5,597,169 after), shows 0
+differences but the rehearsal records whose spec argument carries the moved fact and the `platform()` lookups of §7,
+and 110,086 distinct pure calls replay with 0 differences.
 
 ## 14. Composition tables
 
@@ -633,5 +677,5 @@ loop), so shortening it further splits it inside `src/transport.ts`; the asset d
 (the server discovery configurations); `collectSource` is report collection (each platform's requests, paging and
 parsing, the part of the report sources still in `src/report-native.ts`, §12), and the rest are single workflows. The
 review's target of three or fewer needs those changes. These are open remainders of B18 and B27 in
-`docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: the 93 read builders
-that differ from the kit's `stateReadOf` (§13).
+`docs/review/package-status.json`, so neither package is closed by ARC-04. Every family read builder is now a kit call
+(§13).

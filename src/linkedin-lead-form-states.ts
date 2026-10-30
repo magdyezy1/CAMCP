@@ -1,7 +1,7 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Publishing and archiving LinkedIn lead gen forms, per "Lead Syncing" (Updating Lead Forms, Updating Form Status;
@@ -74,21 +74,16 @@ export function linkedinLeadFormStateNeedsConfirmation(p: CompiledRequest): bool
 }
 function read(p: CompiledRequest): Read {
   const id = formOf(p)!;
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path: '/rest/leadForms/' + id,
-    query: {},
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinLeadFormStateRead: id,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: marker,
+      path: '/rest/leadForms/' + id,
+      query: {},
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinLeadFormStateRead: id},
+  );
 }
 /** The status change after validation, and the server-built read of the same form for the selected account. */
 export function authorizeLinkedInLeadFormState(p: CompiledRequest, c: Connection, selected: string): boolean {
@@ -202,7 +197,7 @@ export function linkedinLeadFormStateObserved(_read: CompiledRequest, data: Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinLeadFormStateFamily: ReviewedFamily = {
+export const linkedinLeadFormStateFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_lead_form_states',
   files: ['src/linkedin-lead-form-states.ts', ['tests/linkedin-lead-form-states.test.mjs']],
   kind: linkedinLeadFormStateKind,
@@ -223,4 +218,4 @@ export const linkedinLeadFormStateFamily: ReviewedFamily = {
       'Publishing or archiving a lead form decides whether the creatives that use it serve. Review it and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

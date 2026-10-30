@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {readGoogleConversionGraph, googleConversionGoalSnapshots} from './google-conversion-goals.js';
 import {stable, sha256} from './security.js';
@@ -504,7 +504,7 @@ export const googleConversionActionImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleConversionActionFamily: ReviewedFamily = {
+export const googleConversionActionFamily: ReviewedFamily = defineFamily({
   name: 'google_conversion_actions',
   files: ['src/google-conversion-actions.ts', ['tests/google-conversion-actions.test.ts']],
   kind: googleConversionActionKind,
@@ -543,4 +543,4 @@ export const googleConversionActionFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: plan => !!googleConversionActionServing(plan),
   exemptFromActivationScan: true,
-};
+});

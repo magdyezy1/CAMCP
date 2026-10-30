@@ -3,7 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn engagement retargeting audiences, per LinkedIn's Engagement Retargeting and DMP Segments pages (Microsoft
@@ -264,22 +264,16 @@ export function assertLinkedInEngagementScope(c: Connection, write = false): voi
     );
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: query as CompiledRequest['query'],
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinEngagementState: undefined,
-    linkedinEngagementPage: true,
-  };
+  return readOf<Read>(
+    p,
+    {
+      action: marker,
+      path,
+      query: query as CompiledRequest['query'],
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinEngagementState: undefined, linkedinEngagementPage: true},
+  );
 }
 const usageQuery = (token?: string) => ({
   q: 'search',
@@ -700,7 +694,7 @@ export function linkedinEngagementObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinEngagementFamily: ReviewedFamily = {
+export const linkedinEngagementFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_engagement_audiences',
   files: ['src/linkedin-engagement-audiences.ts', ['tests/linkedin-engagement-audiences.test.mjs']],
   kind: linkedinEngagementKind,
@@ -720,4 +714,4 @@ export const linkedinEngagementFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: p => ['delete', 'deleteMany', 'deleteRule', 'deleteRules'].includes(linkedinEngagementKind(p) ?? ''),
-};
+});

@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -144,22 +144,13 @@ export function assertMetaBrandSafety(p: CompiledRequest): void {
 export function metaBrandSafetyReads(p: CompiledRequest): CompiledRequest[] {
   const kind = metaBrandSafetyKind(p)!;
   return [
-    {
-      ...p,
-      action: 'AMCP_META_BRAND_SAFETY_READ',
-      method: 'GET',
-      path:
-        metaPrefix + 'act_' + p.accountId + '/' + (kind === 'controls' ? 'account_controls' : 'publisher_block_lists'),
-      query: kind === 'controls' ? {} : {fields: 'id,name', limit: 100},
-      body: undefined,
-      headers: {},
-      readOnly: true,
-      destructive: false,
-      requiresConfirmation: false,
-      responseControls: undefined,
-      specialTransport: undefined,
-      metaBrandSafetyState: kind,
-    },
+    stateReadOf(
+      p,
+      'AMCP_META_BRAND_SAFETY_READ',
+      metaPrefix + 'act_' + p.accountId + '/' + (kind === 'controls' ? 'account_controls' : 'publisher_block_lists'),
+      kind === 'controls' ? {} : {fields: 'id,name', limit: 100},
+      {metaBrandSafetyState: kind},
+    ),
   ];
 }
 export function isMetaBrandSafetyRead(p: CompiledRequest): boolean {
@@ -317,7 +308,7 @@ export function metaAccountControlsKind(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaBrandSafetyFamily: ReviewedFamily = {
+export const metaBrandSafetyFamily: ReviewedFamily = defineFamily({
   name: 'meta_brand_safety',
   files: ['src/meta-brand-safety.ts', ['tests/meta-brand-safety.test.mjs']],
   kind: metaBrandSafetyKind,
@@ -338,4 +329,4 @@ export const metaBrandSafetyFamily: ReviewedFamily = {
       'Account controls change the audience and placements of every eligible Advantage+ campaign of the account. Review the controls and provide spend_change_confirmed=true.',
   },
   activates: plan => !!metaAccountControlsKind(plan),
-};
+});

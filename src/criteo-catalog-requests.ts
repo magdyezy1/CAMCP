@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media catalog requests and exports on API 2026-07 (unchanged from 2026-01), per the pinned OpenAPI
@@ -126,22 +126,14 @@ export function assertCriteoCatalogScopes(c: Connection, kind?: Kind): void {
   if (!required.every(s => c.scopes.includes(s)))
     fail('INSUFFICIENT_SCOPE', 'The selected Criteo connection needs ' + required.join(', ') + '.', {}, 403);
 }
-const accountRead = (p: CompiledRequest, state: State): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_CRITEO_CATALOG_READ',
-  method: 'GET',
-  path: prefix + '/accounts',
-  query: {limitToId: [p.accountId!], pageIndex: 0, pageSize: 2},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: 'repeat',
-  criteoCatalogState: state,
-});
+const accountRead = (p: CompiledRequest, state: State): CompiledRequest =>
+  stateReadOf(
+    p,
+    'AMCP_CRITEO_CATALOG_READ',
+    prefix + '/accounts',
+    {limitToId: [p.accountId!], pageIndex: 0, pageSize: 2},
+    {queryArrayEncoding: 'repeat', criteoCatalogState: state},
+  );
 export function criteoCatalogSnapshots(p: CompiledRequest): CompiledRequest[] {
   return [accountRead(p, {})];
 }
@@ -313,7 +305,7 @@ export function criteoCatalogCreated(_p: CompiledRequest, actual: JsonObject): s
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoCatalogFamily: ReviewedFamily = {
+export const criteoCatalogFamily: ReviewedFamily = defineFamily({
   name: 'criteo_catalog_requests',
   files: ['src/criteo-catalog-requests.ts', ['tests/criteo-catalog-requests.test.mjs']],
   kind: criteoCatalogKind,
@@ -331,4 +323,4 @@ export const criteoCatalogFamily: ReviewedFamily = {
   scope: criteoCatalogScope,
   verifiedResources: criteoCatalogCreated,
   exemptFromSpendTextMatch: true,
-};
+});

@@ -2,7 +2,7 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Claiming an organic Snap into an ad account, per Snap's "Claim Media" page (read 2026-09-30): POST
@@ -50,22 +50,11 @@ export function assertSnapchatClaimMedia(p: CompiledRequest): void {
   if (Object.keys(p.headers).length) invalid('A claim takes no header overrides.');
 }
 function read(p: CompiledRequest, path: string): Read {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    snapchatClaimPage: true,
-    snapchatClaimState: undefined,
-    snapchatClaimCheck: undefined,
-  };
+  return readOf<Read>(
+    p,
+    {action: marker, path, query: {}, clears: ['responseControls']},
+    {snapchatClaimPage: true, snapchatClaimState: undefined, snapchatClaimCheck: undefined},
+  );
 }
 export function snapchatClaimMediaSnapshots(p: CompiledRequest): Read[] {
   return [{...read(p, '/v1/adaccounts/' + account(p)), snapchatClaimState: true}];
@@ -165,7 +154,7 @@ export function snapchatClaimMediaObserved(r: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapchatClaimMediaFamily: ReviewedFamily = {
+export const snapchatClaimMediaFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_claim_media',
   files: ['src/snapchat-claim-media.ts', ['tests/snapchat-claim-media.test.mjs']],
   kind: snapchatClaimMediaKind,
@@ -190,4 +179,4 @@ export const snapchatClaimMediaFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: () => false,
-};
+});

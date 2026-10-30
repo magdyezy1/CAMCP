@@ -19,6 +19,7 @@ import {
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * X product catalogs, opened by the owner on 2026-09-29. X Ads API v12, "Catalog Management API Reference" (docs.x.com,
@@ -243,7 +244,7 @@ export function xCatalogObserved(_read: CompiledRequest, data: JsonObject): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xCatalogFamily: ReviewedFamily = {
+export const xCatalogFamily: ReviewedFamily = defineFamily({
   name: 'x_product_catalogs',
   verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-product-catalogs.ts', ['tests/x-product-catalogs.test.mjs']],
@@ -260,4 +261,4 @@ export const xCatalogFamily: ReviewedFamily = {
   verification: xCatalogVerification,
   observed: xCatalogObserved,
   destructive: plan => xCatalogKind(plan) === 'delete',
-};
+});

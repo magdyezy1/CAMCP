@@ -5,6 +5,7 @@ import {parseLinkedInValue} from './linkedin-restli.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 /**
  * LinkedIn sponsored lead gen forms, per Microsoft Learn "Lead Syncing" and "Lead Syncing Schema" (li-lms-2026-09,
@@ -500,21 +501,16 @@ export function linkedinLeadFormProjection(form: unknown): JsonObject {
 }
 
 function read(p: CompiledRequest, id: string): FormRead {
-  return {
-    ...p,
-    action: marker,
-    method: 'GET',
-    path: linkedinLeadFormsPath + '/' + id,
-    query: {},
-    body: undefined,
-    headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    linkedinLeadFormRead: true,
-  };
+  return readOf<FormRead>(
+    p,
+    {
+      action: marker,
+      path: linkedinLeadFormsPath + '/' + id,
+      query: {},
+      headers: {'LinkedIn-Version': p.headers['LinkedIn-Version']!, 'X-Restli-Protocol-Version': '2.0.0'},
+    },
+    {linkedinLeadFormRead: true},
+  );
 }
 export const isLinkedInLeadFormRead = (p: CompiledRequest): p is FormRead =>
   (p as FormRead).linkedinLeadFormRead === true;
@@ -581,7 +577,7 @@ export function linkedinLeadFormImpact(p: CompiledRequest, state: unknown[]): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinLeadFormFamily: ReviewedFamily = {
+export const linkedinLeadFormFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_lead_forms',
   files: ['src/linkedin-lead-forms.ts', ['tests/linkedin-lead-forms.test.mjs']],
   kind: linkedinLeadFormKind,
@@ -602,4 +598,4 @@ export const linkedinLeadFormFamily: ReviewedFamily = {
   verification: linkedinLeadFormVerification,
   observed: (read: CompiledRequest, data: JsonObject) => linkedinLeadFormProjection(data),
   exemptFromSpendTextMatch: true,
-};
+});

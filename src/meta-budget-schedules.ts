@@ -3,7 +3,7 @@ import type {TransportResult} from './transport.js';
 import type {PolicyAmounts, ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertNoMethodOverride} from './write-common.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta budget scheduling (high demand periods), opened by the owner on 2026-09-29 on conditions. Meta's references (read
@@ -86,20 +86,8 @@ export function assertMetaBudgetScheduleScope(c: Connection, write = false): voi
   if (write ? !c.scopes.includes('ads_management') : !c.scopes.some(s => s === 'ads_management' || s === 'ads_read'))
     fail('INSUFFICIENT_SCOPE', 'Reconnect Meta with ads_management to schedule budget increases.', {}, 403);
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_META_BUDGET_SCHEDULE_READ',
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject): CompiledRequest =>
+  stateReadOf(p, 'AMCP_META_BUDGET_SCHEDULE_READ', metaPrefix + path, query);
 const read = (p: CompiledRequest, s: State): Read => ({
   ...graph(p, s.id + '/budget_schedules', {
     fields: 'id,budget_value,budget_value_type,recurrence_type,time_start,time_end',
@@ -483,7 +471,7 @@ export function metaBudgetScheduleObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaBudgetScheduleFamily: ReviewedFamily = {
+export const metaBudgetScheduleFamily: ReviewedFamily = defineFamily({
   name: 'meta_budget_schedules',
   files: ['src/meta-budget-schedules.ts', ['tests/meta-budget-schedules.test.mjs']],
   kind: metaBudgetScheduleKind,
@@ -506,4 +494,4 @@ export const metaBudgetScheduleFamily: ReviewedFamily = {
       'A scheduled budget increase raises spending during the period. Show the user the period in the account time zone and its maximum extra spend, then set spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

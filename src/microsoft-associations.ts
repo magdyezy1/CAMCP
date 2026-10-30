@@ -1,7 +1,7 @@
 import {microsoftOutcome, microsoftSnapshots, compileMicrosoft} from './microsoft-native.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {microsoftAssociationContracts, microsoftExtensionTypes} from './microsoft-association-contracts.js';
 type Compile = (input: JsonObject) => CompiledRequest;
@@ -210,7 +210,7 @@ export function microsoftAssociationImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const microsoftAssociationFamily: ReviewedFamily = {
+export const microsoftAssociationFamily: ReviewedFamily = defineFamily({
   name: 'microsoft_asset_links',
   files: ['src/microsoft-associations.ts', ['tests/microsoft-associations.test.ts']],
   kind: microsoftAssociationKind,
@@ -233,4 +233,4 @@ export const microsoftAssociationFamily: ReviewedFamily = {
       'Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.',
   },
   activates: plan => !!microsoftAssociationActivates(plan),
-};
+});

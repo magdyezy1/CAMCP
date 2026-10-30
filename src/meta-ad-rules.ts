@@ -4,7 +4,7 @@ import type {PolicyAmounts, ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertNoMethodOverride} from './write-common.js';
 import {optionalMetaRead} from './meta-catalogs.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Meta automated rules (the Ad Rules Engine), unblocked by the owner on 2026-09-30. Meta's references (read 2026-09-30):
@@ -386,22 +386,13 @@ export function assertMetaRule(p: CompiledRequest): void {
     invalid('Send evaluation_spec and execution_spec whole: Meta replaces them, so an update restates every field.');
   checkRule(b);
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject, page: {object?: string} = {}): Read => ({
-  ...p,
-  metaRuleState: undefined,
-  metaRulePage: page,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject, page: {object?: string} = {}): Read =>
+  readOf<Read>(p, {
+    before: {metaRuleState: undefined, metaRulePage: page},
+    action: marker,
+    path: metaPrefix + path,
+    query,
+  });
 const accountRead = (p: CompiledRequest, s: State): Read => ({
   ...graph(p, 'act_' + account(p.accountId), {fields: 'id,account_id,currency'}),
   metaRuleState: s,
@@ -749,7 +740,7 @@ export function metaRuleObserved(_read: CompiledRequest, data: JsonObject): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaRuleFamily: ReviewedFamily = {
+export const metaRuleFamily: ReviewedFamily = defineFamily({
   name: 'meta_ad_rules',
   files: ['src/meta-ad-rules.ts', ['tests/meta-ad-rules.test.mjs']],
   kind: metaRuleKind,
@@ -781,4 +772,4 @@ export const metaRuleFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   exemptFromActivationScan: true,
   destructive: plan => metaRuleKind(plan) === 'delete',
-};
+});

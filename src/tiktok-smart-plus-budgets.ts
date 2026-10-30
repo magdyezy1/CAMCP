@@ -2,6 +2,7 @@ import {assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Upgraded Smart+ ad group budget updates, per API for Business v1.3 "Update the budgets of Upgraded Smart+ Ad
@@ -151,7 +152,7 @@ export function tiktokSmartPlusBudgetVerification(plan: CompiledRequest) {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusBudgetFamily: ReviewedFamily = {
+export const tiktokSmartPlusBudgetFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_budgets',
   files: ['src/tiktok-smart-plus-budgets.ts', ['tests/tiktok-smart-plus-budgets.test.mjs']],
   kind: tiktokSmartPlusBudgetKind,
@@ -173,4 +174,4 @@ export const tiktokSmartPlusBudgetFamily: ReviewedFamily = {
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_adgroup_get'},
     })),
   policyAmounts: (plan, before) => tiktokSmartPlusBudgetPolicyAmounts(plan, before),
-};
+});

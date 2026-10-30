@@ -1,4 +1,4 @@
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -154,31 +154,29 @@ function read(
   names?: string[],
   filter = 'resource_name',
 ): Read {
-  return {
-    ...p,
-    action: 'AMCP_CAMPAIGN_BID_READ',
-    method: 'POST',
-    path: googleAdsCustomers + account(p) + '/googleAds:search',
-    body: {
-      query:
-        'SELECT ' +
-        fields.map(f => resource + '.' + f).join(', ') +
-        ' FROM ' +
-        resource +
-        (names
-          ? ' WHERE ' + resource + '.' + filter + ' IN (' + names.map(n => "'" + n + "'").join(', ') + ')'
-          : resource === 'customer'
-            ? ' LIMIT 1'
-            : ''),
+  return readOf<Read>(
+    p,
+    {
+      action: 'AMCP_CAMPAIGN_BID_READ',
+      method: 'POST',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
+      body: {
+        query:
+          'SELECT ' +
+          fields.map(f => resource + '.' + f).join(', ') +
+          ' FROM ' +
+          resource +
+          (names
+            ? ' WHERE ' + resource + '.' + filter + ' IN (' + names.map(n => "'" + n + "'").join(', ') + ')'
+            : resource === 'customer'
+              ? ' LIMIT 1'
+              : ''),
+      },
+      query: {},
+      clears: ['responseControls'],
     },
-    query: {},
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    googleCampaignBidState: undefined,
-  };
+    {googleCampaignBidState: undefined},
+  );
 }
 export function googleCampaignBidSnapshots(p: CompiledRequest): Read[] {
   const targets = googleJson(p.body).operations.map((op: JsonObject) => rn(p, op.remove ?? op.update.resourceName));

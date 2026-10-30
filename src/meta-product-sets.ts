@@ -12,7 +12,7 @@ import {
   metaRefusal,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Product sets of Meta catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -180,22 +180,13 @@ export function assertMetaProductSet(p: CompiledRequest): void {
 export function assertMetaProductSetScope(c: Connection, write = false): void {
   assertMetaCatalogScope(c, write, 'Product set changes');
 }
-const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read => ({
-  ...p,
-  metaProductSetState: undefined,
-  metaProductSetPage: page,
-  action: marker,
-  method: 'GET',
-  path: metaPrefix + path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-});
+const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read =>
+  readOf<Read>(p, {
+    before: {metaProductSetState: undefined, metaProductSetPage: page},
+    action: marker,
+    path: metaPrefix + path,
+    query,
+  });
 const setFields = 'id,name,filter,retailer_id,product_catalog{id}',
   catalogFields = metaCatalogFields,
   adSetFields = 'id,name,status,promoted_object',
@@ -568,7 +559,7 @@ export function metaProductSetObserved(read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaProductSetFamily: ReviewedFamily = {
+export const metaProductSetFamily: ReviewedFamily = defineFamily({
   name: 'meta_product_sets',
   files: ['src/meta-product-sets.ts', ['tests/meta-product-sets.test.mjs']],
   kind: metaProductSetKind,
@@ -585,4 +576,4 @@ export const metaProductSetFamily: ReviewedFamily = {
   verification: metaProductSetVerification,
   observed: metaProductSetObserved,
   destructive: plan => metaProductSetKind(plan) === 'delete',
-};
+});
