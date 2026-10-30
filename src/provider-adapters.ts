@@ -4,6 +4,7 @@ import type {
   PagingFacts,
   ParkedReason,
   ProviderAdapter,
+  ProviderApp,
   ProviderGrantFacts,
   ProviderParking,
   ProviderStatus,
@@ -61,6 +62,15 @@ function accountModel(id: string, {fields, ...declared}: AccountDeclaration): Ac
   return Object.freeze({...declared, ...(fields ? {fields: fixedSet(fields)} : {})});
 }
 
+/** A provider's OAuth app as frozen facts (SEC-07 S2): its setting table and its unsealed fields included. */
+function providerApp(declared: ProviderApp): ProviderApp {
+  return Object.freeze({
+    ...declared,
+    ...(declared.settings ? {settings: Object.freeze({...declared.settings})} : {}),
+    ...(declared.unsealed ? {unsealed: Object.freeze([...declared.unsealed])} : {}),
+  });
+}
+
 /** Body deletions as frozen facts: the field table and each value list. */
 function bodyDeletions(declared: BodyDeletions): BodyDeletions {
   return Object.freeze({
@@ -100,6 +110,7 @@ function adapter(
     paging?: PagingFacts;
     executionOptions?: true;
     grant?: ProviderGrantFacts;
+    app?: ProviderApp;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -115,6 +126,8 @@ function adapter(
     ...(options.executionOptions ? {executionOptions: true as const} : {}),
     // The grant's scope lists stay the declared arrays, as the grant registry kept them.
     ...(options.grant ? {grant: Object.freeze({...options.grant})} : {}),
+    // ARC-01 phase B, the website platforms' OAuth apps (SEC-07 S2): frozen with their setting table and field list.
+    ...(options.app ? {app: providerApp(options.app)} : {}),
   });
 }
 
@@ -148,6 +161,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       mutateRemovals: true,
     },
     paging: {tokenParameter: 'page_token'},
+    // Its developer token is the deployment's and no longer sent, so a login of its client never keeps a copy.
+    app: {stem: 'GOOGLE', unsealed: ['developerToken']},
     grant: {
       platform: 'google',
       requestedRead: [googleAdsScope, 'openid', 'profile'],
@@ -161,6 +176,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('google_business', 'google_business_native_action', {
     account: {kind: 'business_profile'},
+    app: {stem: 'GBP'},
     grant: {
       platform: 'google_business',
       requestedRead: [businessScope],
@@ -184,6 +200,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source: 'Marketing API campaign, ad set and ad updates: status ACTIVE, PAUSED, DELETED or ARCHIVED',
     },
     executionOptions: true,
+    app: {stem: 'META'},
     grant: {
       platform: 'meta',
       requestedRead: ['ads_read', 'pages_show_list', 'pages_read_engagement', 'business_management'],
@@ -201,6 +218,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'API for Business v1.3 campaign, ad group and ad /status/update/: operation_status ENABLE, DISABLE or DELETE',
     },
+    app: {stem: 'TIKTOK'},
     grant: {
       platform: 'tiktok',
       requestedRead: [],
@@ -215,6 +233,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('snapchat', 'snapchat_native_action', {
     account: {fields: ['ad_account_id', 'ad_account_ids'], patchFields: true, path: /^\/v1\/adaccounts\/([^/]+)/},
+    app: {stem: 'SNAPCHAT'},
     grant: {
       platform: 'snapchat',
       requestedRead: [snapchatScope],
@@ -236,6 +255,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'LinkedIn campaign groups and creatives: "update the status to PENDING_DELETION" to delete (src/linkedin-entity-deletes.ts)',
     },
+    app: {stem: 'LINKEDIN'},
     grant: {
       platform: 'linkedin',
       requestedRead: ['r_ads', 'r_ads_reporting'],
@@ -248,6 +268,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('x', 'x_ads_native_action', {
     account: {fields: ['account_id'], path: /\/accounts\/([^/]+)/},
+    // OAuth 1.0a: the client is the consumer key and its secret the consumer secret.
+    app: {stem: 'X', secretField: 'consumerSecret', clientField: 'consumerKey'},
     grant: {
       platform: 'x',
       requestedRead: [],
@@ -269,6 +291,8 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'pinned Microsoft Advertising v13 Campaign and Customer Management WSDLs: entity statuses Deleted, ItemAction Delete, UserLifeCycleStatus Deleted',
     },
+    // The developer token every request sends with the login's token.
+    app: {stem: 'MICROSOFT', settings: {developerToken: 'AMCP_MICROSOFT_DEVELOPER_TOKEN'}},
     grant: {
       platform: 'microsoft',
       requestedRead: [microsoftManageScope, 'offline_access'],
@@ -282,6 +306,15 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('apple', 'apple_ads_native_action', {
     account: {fields: ['adAccountId', 'account_id', 'ad_account_id']},
+    // The signing key of its client-credentials token.
+    app: {
+      stem: 'APPLE',
+      settings: {
+        appleTeamId: 'AMCP_APPLE_TEAM_ID',
+        appleKeyId: 'AMCP_APPLE_KEY_ID',
+        applePrivateKey: 'AMCP_APPLE_PRIVATE_KEY',
+      },
+    },
     grant: {
       platform: 'apple',
       requestedRead: [appleScope],
@@ -300,6 +333,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'pinned Reddit Ads API v3 OpenAPI document: configured_status and status ACTIVE, ARCHIVED, DELETED or PAUSED',
     },
+    app: {stem: 'REDDIT'},
     grant: {
       platform: 'reddit',
       // adsedit is requested only when the deployment allows reviewed writes (owner decision D19, item 5).
@@ -318,6 +352,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days from when it was first scheduled for deletion"',
     },
+    app: {stem: 'DV360'},
     grant: {
       platform: 'dv360',
       requestedRead: [dv360Scope],
@@ -331,6 +366,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('ga4', 'ga4_native_action', {
     account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'},
     paging: {bodyArgument: 'request'},
+    app: {stem: 'GA4'},
     grant: {
       platform: 'ga4',
       requestedRead: [google('analytics.readonly')],
@@ -344,6 +380,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('gtm', 'gtm_native_action', {
     account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'},
+    app: {stem: 'GTM'},
     grant: {
       platform: 'gtm',
       requestedRead: [google('tagmanager.readonly')],
@@ -358,6 +395,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('gsc', 'google_search_console_native_action', {
     families: ['search_console_'],
     account: {kind: 'search_property'},
+    app: {stem: 'GSC'},
     grant: {
       platform: 'gsc',
       requestedRead: [google('webmasters.readonly')],
@@ -371,6 +409,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('adjust', 'adjust_native_action'),
   adapter('drive', 'google_drive_native_action', {
     account: {kind: 'destination'},
+    app: {stem: 'DRIVE'},
     grant: {
       platform: 'drive',
       requestedRead: [google('drive.readonly')],
@@ -383,6 +422,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('sheets', 'google_sheets_native_action', {
     account: {kind: 'destination'},
+    app: {stem: 'SHEETS'},
     grant: {
       platform: 'sheets',
       requestedRead: [google('drive.file'), google('spreadsheets')],

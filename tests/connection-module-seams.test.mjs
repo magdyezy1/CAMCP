@@ -9,6 +9,7 @@ import {providerLogin, registeredKeyedLogins, registeredProviderLogins} from '..
 import {googleOAuth} from '../dist/src/google-oauth.js';
 import {providerRevocationOffer, revocationTarget} from '../dist/src/provider-revocation.js';
 import {Store} from '../dist/src/store.js';
+import {platforms} from '../dist/server/platform-oauth.js';
 
 // ARC-01 phase B, the login and connection modules the website and the MCP service share: the provider facts they held
 // (how an account ID compares, ...) are the provider adapters' (src/provider-adapters.ts) or their website login steps'
@@ -196,4 +197,49 @@ test('the store keeps manager routes only on a login whose provider keeps them',
   } finally {
     store.close();
   }
+});
+
+test('the website platforms’ OAuth apps are their providers’ facts, which app credentials and the platforms read', () => {
+  // SEC-07 S2's use-time secrets name no gateway; tests/app-credential-golden.test.mjs pins what they resolve.
+  assert.doesNotMatch(source('src/app-credentials.ts'), gatewayLiteral);
+  assert.deepEqual(providerImports('src/app-credentials.ts'), []);
+  assert.doesNotMatch(source('server/platform-oauth.ts'), /\benv: '/);
+  // Exactly the website platforms' providers declare an app, and each platform takes its adapter's stem.
+  assert.deepEqual(
+    providerAdapters
+      .filter(a => a.app)
+      .map(a => a.gateway)
+      .sort(),
+    platforms.map(p => p.gateway).sort(),
+  );
+  for (const p of platforms) assert.equal(p.env, providerOf(p.gateway).app.stem, p.id);
+  for (const {gateway, app} of providerAdapters.filter(a => a.app)) {
+    assert.ok(Object.isFrozen(app), gateway);
+    if (app.settings) assert.ok(Object.isFrozen(app.settings), gateway);
+    if (app.unsealed) assert.ok(Object.isFrozen(app.unsealed), gateway);
+  }
+  // What only some apps declare: X's consumer key and secret, Microsoft's developer token, Apple's signing key and
+  // Google Ads' developer token, which is never sealed.
+  assert.deepEqual(
+    providerAdapters.filter(a => a.app && Object.keys(a.app).some(k => k !== 'stem')).map(a => [a.gateway, {...a.app}]),
+    [
+      ['google_ads_native_action', {stem: 'GOOGLE', unsealed: ['developerToken']}],
+      ['x_ads_native_action', {stem: 'X', secretField: 'consumerSecret', clientField: 'consumerKey'}],
+      [
+        'microsoft_ads_native_action',
+        {stem: 'MICROSOFT', settings: {developerToken: 'AMCP_MICROSOFT_DEVELOPER_TOKEN'}},
+      ],
+      [
+        'apple_ads_native_action',
+        {
+          stem: 'APPLE',
+          settings: {
+            appleTeamId: 'AMCP_APPLE_TEAM_ID',
+            appleKeyId: 'AMCP_APPLE_KEY_ID',
+            applePrivateKey: 'AMCP_APPLE_PRIVATE_KEY',
+          },
+        },
+      ],
+    ],
+  );
 });
