@@ -894,6 +894,9 @@ export interface ProviderAdapter {
   readonly renewal?: ProviderRenewal;
   /** Its captured schema lacks LIST_ACTIONS, but AMCP lists its actions from its catalog (DV360, MCP-05; wave 4c). */
   readonly listsActions?: true;
+  // Wave 4c round 6 (w4c-arc6-workspace).
+  /** The child create of a POST that a paused parent covers (Snapchat, Meta, TikTok), src/paused-parents.ts. */
+  readonly pausedParents?: (plan: CompiledRequest) => PausedParentLevel | undefined;
 }
 
 /**
@@ -1375,4 +1378,28 @@ export interface CreatedLookup {
 export interface GenericWorkflowHooks {
   /** The time a stats read's range takes for an instant in milliseconds (X: whole UTC hours); refuses any other. */
   statsTime(ms: number): string;
+}
+
+/**
+ * A child create a paused parent covers (the owner's decision of 2026-09-29, src/paused-parents.ts): what the refusal
+ * calls the child and its parent, the status field with its serving and paused values, the statuses the create
+ * carries, the parent's record in the review's state, and for an ad the campaign above its parent.
+ */
+export interface PausedParentLevel {
+  /** What the refusal calls the child and its parent. */
+  child: string;
+  parent: string;
+  /** The status field, its serving value, and the parents' paused value. */
+  field: string;
+  active: string;
+  paused: string;
+  statuses: (body: JsonObject) => unknown[];
+  /** The parent's record in the review's state, or in the parent read's own result. */
+  parentRow: (body: JsonObject, states: unknown[]) => JsonObject | undefined;
+  /** For an ad: the campaign above its parent, the read that returns it, and its record in the state. */
+  campaign?: {
+    id: (parent: JsonObject) => unknown;
+    read: (parentRead: CompiledRequest, id: string) => CompiledRequest;
+    row: (states: unknown[], id: unknown) => JsonObject | undefined;
+  };
 }

@@ -4,7 +4,8 @@ import {compileEntityRead} from '../dist/src/workflows.js';
 import {xAnalyticsTime} from '../dist/src/x-report-jobs.js';
 import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {launchCheckPlatforms} from '../dist/src/launch-check.js';
-import {providerById} from '../dist/src/provider-adapters.js';
+import {providerAdapters, providerById} from '../dist/src/provider-adapters.js';
+import {pausedParentChildStatuses, pausedParentFollowUp, validatePausedParents} from '../dist/src/paused-parents.js';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 
 // ARC-01 phase B, wave 4c round 6: shared modules that named providers' gateways or imported their modules take those
@@ -56,5 +57,103 @@ test('the launch check reads each guided launch through its platform adapter’s
   assert.deepEqual(
     launchCheckPlatforms.map(platform => providerById(platform)?.gateway),
     ['meta_native_action', 'snapchat_native_action'],
+  );
+});
+
+/** A reviewed request as the review compiles it. */
+const request = (gateway, path, body, method = 'POST') => ({
+  gateway,
+  accountId: '1',
+  action: 'reviewed_write',
+  method,
+  path,
+  query: {},
+  headers: {},
+  ...(body === undefined ? {} : {body}),
+  readOnly: method === 'GET',
+  destructive: false,
+  requiresConfirmation: method !== 'GET',
+  evidence: 'test',
+  warnings: [],
+});
+
+test('the paused-parent rule reads each platform’s child creates from its adapter’s facts', () => {
+  assertNamesNoProvider('src/paused-parents.ts');
+  assert.deepEqual(
+    providerAdapters.filter(a => a.pausedParents).map(a => a.id),
+    ['meta', 'tiktok', 'snapchat'],
+  );
+  for (const [gateway, path, statuses] of [
+    ['snapchat_native_action', '/v1/campaigns/c1/adsquads', ['PAUSED', 'ACTIVE']],
+    ['snapchat_native_action', '/v1/adsquads/s1/ads', ['PAUSED', 'ACTIVE']],
+    ['meta_native_action', '/v24.0/act_1/adsets', ['PAUSED', 'ACTIVE']],
+    ['meta_native_action', '/v24.0/act_1/ads', ['PAUSED', 'ACTIVE']],
+    ['tiktok_native_action', '/v1.3/adgroup/create/', ['DISABLE', 'ENABLE']],
+    ['tiktok_native_action', '/v1.3/ad/create/', ['DISABLE', 'ENABLE']],
+  ]) {
+    assert.deepEqual(pausedParentChildStatuses(request(gateway, path, {})), statuses, path);
+    // The method is checked first: only a POST creates a child.
+    assert.equal(pausedParentChildStatuses(request(gateway, path, {}, 'PATCH')), undefined, path);
+  }
+  // Another platform's child path, a campaign create, another gateway and an inherited name create no child.
+  for (const [gateway, path] of [
+    ['meta_native_action', '/v1/campaigns/c1/adsquads'],
+    ['snapchat_native_action', '/v24.0/act_1/adsets'],
+    ['tiktok_native_action', '/v1.3/campaign/create/'],
+    ['google_ads_native_action', '/v1.3/adgroup/create/'],
+    ['toString', '/v1.3/adgroup/create/'],
+  ])
+    assert.equal(pausedParentChildStatuses(request(gateway, path, {})), undefined, gateway + ' ' + path);
+  // Meta: an active ad set is refused under a serving campaign and allowed under a paused one.
+  const adset = request('meta_native_action', '/v24.0/act_1/adsets', {status: 'ACTIVE', campaign_id: '7'});
+  assert.throws(
+    () => validatePausedParents(adset, [{id: '7', status: 'ACTIVE'}]),
+    e =>
+      e.code === 'PARENT_SERVING' &&
+      e.message ===
+        'A new ad set must start PAUSED while its campaign can serve (campaign ACTIVE). Under a PAUSED campaign it may start ACTIVE.' &&
+      JSON.stringify(e.details) ===
+        JSON.stringify({field: 'status', parent: 'campaign', parent_status: 'ACTIVE', allowed: ['PAUSED']}),
+  );
+  assert.equal(validatePausedParents(adset, [{id: '7', status: 'PAUSED'}]), undefined);
+  // An active ad under a serving ad set reads the campaign its ad set names; TikTok's ad its ad group's campaign.
+  const metaRead = request('meta_native_action', '/v24.0/8', undefined, 'GET');
+  assert.deepEqual(
+    pausedParentFollowUp(
+      request('meta_native_action', '/v24.0/act_1/ads', {status: 'ACTIVE', adset_id: '8'}),
+      metaRead,
+      {
+        id: '8',
+        status: 'ACTIVE',
+        campaign_id: '7',
+      },
+    ),
+    {...metaRead, path: '/v24.0/7', query: {fields: 'id,name,status'}},
+  );
+  const tiktokRead = {
+    ...request('tiktok_native_action', '/v1.3/adgroup/get/', undefined, 'GET'),
+    query: {advertiser_id: '5'},
+  };
+  assert.deepEqual(
+    pausedParentFollowUp(
+      request('tiktok_native_action', '/v1.3/ad/create/', {adgroup_id: '9', creatives: [{operation_status: 'ENABLE'}]}),
+      tiktokRead,
+      {data: {list: [{adgroup_id: '9', campaign_id: '3', operation_status: 'ENABLE'}]}},
+    ),
+    {
+      ...tiktokRead,
+      action: 'tiktok_campaign_get',
+      path: '/v1.3/campaign/get/',
+      query: {advertiser_id: '5', filtering: {campaign_ids: ['3']}, page_size: 100},
+    },
+  );
+  // Snapchat's ad under a paused ad squad needs no campaign read.
+  assert.equal(
+    pausedParentFollowUp(
+      request('snapchat_native_action', '/v1/adsquads/s1/ads', {ads: [{status: 'ACTIVE'}]}),
+      request('snapchat_native_action', '/v1/adsquads/s1', undefined, 'GET'),
+      {adsquads: [{adsquad: {id: 's1', status: 'PAUSED', campaign_id: 'c1'}}]},
+    ),
+    undefined,
   );
 });

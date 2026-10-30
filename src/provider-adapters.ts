@@ -140,6 +140,8 @@ function adapter(
     // ARC-01 phase B, the login and connection modules: how its logins renew without the user (CON-02).
     ...(options.renewal ? {renewal: Object.freeze({...options.renewal})} : {}),
     ...(options.listsActions ? {listsActions: true as const} : {}),
+    // Wave 4c round 6 (w4c-arc6-workspace): its facts of shared rules, the table's entry for its ID.
+    ...(Object.hasOwn(sharedRuleFacts, id) ? sharedRuleFacts[id] : {}),
   });
 }
 
@@ -256,6 +258,134 @@ const reviewStageFacts: Readonly<
       field: 'is_adset_budget_sharing_enabled',
       value: false,
     }),
+  },
+};
+
+// ---- Wave 4c round 6 (w4c-arc6-workspace) ----
+// The paused-parent rule's records (moved verbatim from src/paused-parents.ts).
+const parentRecord = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+/** Snapchat wraps each record: {campaigns: [{sub_request_status, campaign}]}. */
+const snapRow = (states: unknown[], kind: string, singular: string, id?: unknown): JsonObject | undefined =>
+  states
+    .flatMap(s => (parentRecord(s) && Array.isArray(s[kind]) ? s[kind] : []))
+    .map(r => (parentRecord(r) && parentRecord(r[singular]) ? r[singular] : r))
+    .find((r): r is JsonObject => parentRecord(r) && (id === undefined || String(r.id) === String(id)));
+/** A TikTok campaign or ad group record; an ad group also names its campaign_id, so a campaign is one without an
+ * adgroup_id. */
+const tiktokRow = (states: unknown[], key: 'campaign_id' | 'adgroup_id', id: unknown): JsonObject | undefined =>
+  states
+    .flatMap(s => (parentRecord(s) && parentRecord(s.data) && Array.isArray(s.data.list) ? s.data.list : []))
+    .find(
+      (r): r is JsonObject =>
+        parentRecord(r) && String(r[key]) === String(id) && (key === 'adgroup_id' || r.adgroup_id === undefined),
+    );
+const metaRow = (states: unknown[], id: unknown): JsonObject | undefined =>
+  states.find((s): s is JsonObject => parentRecord(s) && String(s.id) === String(id));
+const statusesOf = (rows: unknown, field: string) =>
+  Array.isArray(rows) ? rows.map(r => (parentRecord(r) ? r[field] : undefined)) : [];
+/**
+ * The facts of shared rules (ARC-01 phase B, wave 4c round 6: they were branches of src/paused-parents.ts), by provider
+ * ID, moved unchanged; each adapter takes its ID's entry. `pausedParents` reads a POST child create (src/paused-parents.ts
+ * checks the method first).
+ */
+const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedParents'>>> = {
+  snapchat: {
+    pausedParents: plan => {
+      const squad = /^\/v1\/campaigns\/([^/]+)\/adsquads$/.exec(plan.path)?.[1];
+      if (squad !== undefined)
+        return {
+          child: 'ad squad',
+          parent: 'campaign',
+          field: 'status',
+          active: 'ACTIVE',
+          paused: 'PAUSED',
+          statuses: b => statusesOf(b.adsquads, 'status'),
+          parentRow: (_, s) => snapRow(s, 'campaigns', 'campaign', squad),
+        };
+      const ad = /^\/v1\/adsquads\/([^/]+)\/ads$/.exec(plan.path)?.[1];
+      if (ad !== undefined)
+        return {
+          child: 'ad',
+          parent: 'ad squad',
+          field: 'status',
+          active: 'ACTIVE',
+          paused: 'PAUSED',
+          statuses: b => statusesOf(b.ads, 'status'),
+          parentRow: (_, s) => snapRow(s, 'adsquads', 'adsquad', ad),
+          campaign: {
+            id: p => p.campaign_id,
+            read: (r, id) => ({...r, path: '/v1/campaigns/' + id}),
+            row: (s, id) => snapRow(s, 'campaigns', 'campaign', id),
+          },
+        };
+      return undefined;
+    },
+  },
+  meta: {
+    pausedParents: plan => {
+      const level = /^\/v[^/]+\/act_[^/]+\/(adsets|ads)$/.exec(plan.path)?.[1];
+      if (level === 'adsets')
+        return {
+          child: 'ad set',
+          parent: 'campaign',
+          field: 'status',
+          active: 'ACTIVE',
+          paused: 'PAUSED',
+          statuses: b => [b.status],
+          parentRow: (b, s) => metaRow(s, b.campaign_id),
+        };
+      if (level === 'ads')
+        return {
+          child: 'ad',
+          parent: 'ad set',
+          field: 'status',
+          active: 'ACTIVE',
+          paused: 'PAUSED',
+          statuses: b => [b.status],
+          parentRow: (b, s) => metaRow(s, b.adset_id),
+          campaign: {
+            id: p => p.campaign_id,
+            read: (r, id) => ({...r, path: r.path.replace(/[^/]+$/, id), query: {fields: 'id,name,status'}}),
+            row: metaRow,
+          },
+        };
+      return undefined;
+    },
+  },
+  tiktok: {
+    pausedParents: plan => {
+      if (plan.path === '/v1.3/adgroup/create/')
+        return {
+          child: 'ad group',
+          parent: 'campaign',
+          field: 'operation_status',
+          active: 'ENABLE',
+          paused: 'DISABLE',
+          statuses: b => [b.operation_status],
+          parentRow: (b, s) => tiktokRow(s, 'campaign_id', b.campaign_id),
+        };
+      if (plan.path === '/v1.3/ad/create/')
+        return {
+          child: 'ad',
+          parent: 'ad group',
+          field: 'operation_status',
+          active: 'ENABLE',
+          paused: 'DISABLE',
+          statuses: b => statusesOf(b.creatives, 'operation_status'),
+          parentRow: (b, s) => tiktokRow(s, 'adgroup_id', b.adgroup_id),
+          campaign: {
+            id: p => p.campaign_id,
+            read: (r, id) => ({
+              ...r,
+              action: 'tiktok_campaign_get',
+              path: '/v1.3/campaign/get/',
+              query: {advertiser_id: r.query?.advertiser_id, filtering: {campaign_ids: [id]}, page_size: 100},
+            }),
+            row: (s, id) => tiktokRow(s, 'campaign_id', id),
+          },
+        };
+      return undefined;
+    },
   },
 };
 
