@@ -1,26 +1,18 @@
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
+import type {ParameterFacts} from './provider-adapter.js';
+import {accountAliasProviders, encodedBodyProviders, providerHooks, registeredProviderHooks} from './provider-hooks.js';
 import type {Action, JsonObject} from './types.js';
 
+// Each provider's parameter rules are facts of its adapter hooks (`parameters`, ARC-01 wave 4c round 6), copied into
+// the plain tables below; src/provider-hooks.ts orders the two whose order shows.
 /** These direct compilers already accept a JSON-encoded native body. Keep metadata recovery aligned. */
-export const encodedBodyGateways: readonly string[] = [
-  'dv360_native_action',
-  'linkedin_native_action',
-  'x_ads_native_action',
-];
+export const encodedBodyGateways: readonly string[] = encodedBodyProviders.map(hooks => hooks.gateway);
 
-export const accountAliases: Record<string, string[]> = {
-  meta_native_action: ['ad_account_id', 'account_id'],
-  tiktok_native_action: ['advertiser_id', 'account_id'],
-  snapchat_native_action: ['ad_account_id', 'account_id'],
-  google_ads_native_action: ['account_id', 'customer_id'],
-  linkedin_native_action: ['account_id', 'ad_account_id'],
-  x_ads_native_action: ['account_id'],
-  amazon_native_action: ['profile_id'],
-  apple_ads_native_action: ['account_id', 'ad_account_id', 'org_id'],
-  dv360_native_action: ['advertiserId'],
-  reddit_native_action: ['account_id', 'ad_account_id'],
-};
+export const accountAliases: Record<string, string[]> = Object.fromEntries(
+  accountAliasProviders.map(hooks => [hooks.gateway, [...hooks.parameters!.accountAliases!]]),
+);
+const own = (gateway: string): ParameterFacts | undefined => providerHooks(gateway)?.parameters;
 const controls = new Set([
   'action',
   'params',
@@ -69,13 +61,11 @@ const unsupported: Record<string, string> = {
   allowUnsupportedLineItemTypes: 'The DV360 validation escape hatch is not implemented.',
   region: 'Regional Amazon routing is not implemented for captured actions.',
 };
-const platformControls: Record<string, string[]> = {
-  x_ads_native_action: ['download_report'],
-  meta_native_action: ['business_id', 'page_id', 'report_run_id', 'batch', 'adbatch', 'include_headers'],
-  tiktok_native_action: ['lead_region', 'comment_scope'],
-  linkedin_native_action: ['restli_method', 'http_method_override', 'body_format', 'api_version'],
-  dv360_native_action: ['resource', 'method'],
-};
+const platformControls: Record<string, string[]> = Object.fromEntries(
+  registeredProviderHooks
+    .filter(hooks => hooks.parameters?.platformControls)
+    .map(hooks => [hooks.gateway, [...hooks.parameters!.platformControls!]]),
+);
 /** Envelope parameters AMCP refuses unless false (listed in the AMCP note of each tool that captures them). */
 export const refusedParameters = Object.keys(unsupported);
 export function parameterHandling(gateway: string, key: string): string | undefined {
@@ -93,15 +83,17 @@ export function parameterBag(value: unknown, key: string): JsonObject {
   return {...value};
 }
 export function nativeFields(gateway: string, action: Action): boolean {
-  return gateway === 'meta_native_action' || (action.raw.native_fields ?? []).includes('fields');
+  return own(gateway)?.everyActionFields === true || (action.raw.native_fields ?? []).includes('fields');
 }
 
 /** Only route documented top-level native fields. Envelope controls never reach a vendor. */
 export function nativeTopLevel(gateway: string, action: Action, input: JsonObject): JsonObject {
   const pathKeys = new Set([...action.path!.matchAll(/\{\+?([^{}=]+)(?:=[^{}]+)?\}/g)].map(m => m[1]!));
   const nativeKeys = new Set<string>(action.raw.native_fields ?? []);
+  const facts = own(gateway),
+    joinedFields = providerHooks(gateway)?.compile?.joinedFields === true;
   if (nativeFields(gateway, action)) nativeKeys.add('fields');
-  if (gateway === 'snapchat_native_action' && /stats|report/i.test(action.path!)) nativeKeys.add('limit');
+  if (facts?.nativeLimit !== undefined && facts.nativeLimit.test(action.path!)) nativeKeys.add('limit');
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(input)) {
     if (value === undefined) continue;
@@ -109,31 +101,26 @@ export function nativeTopLevel(gateway: string, action: Action, input: JsonObjec
       if (value === false) continue;
       throw new MirrorError('UNSUPPORTED_PARAMETER', unsupported[key]!, {parameter: key, gateway});
     }
-    if (key === 'body_format' && gateway === 'linkedin_native_action' && value !== 'json')
-      throw new MirrorError(
-        'UNSUPPORTED_PARAMETER',
-        'LinkedIn form query tunneling is not implemented; use JSON requests.',
-        {parameter: key},
-      );
+    const only = facts?.onlyValue;
+    if (only !== undefined && key === only.parameter && value !== only.value)
+      throw new MirrorError('UNSUPPORTED_PARAMETER', only.refusal, {parameter: key});
     if (controls.has(key) && key !== 'fields') continue;
     if (pathKeys.has(key) || nativeKeys.has(key)) {
-      out[key] = gateway === 'meta_native_action' && key === 'fields' && Array.isArray(value) ? value.join(',') : value;
+      out[key] = joinedFields && key === 'fields' && Array.isArray(value) ? value.join(',') : value;
       continue;
     }
-    if (gateway === 'x_ads_native_action' && input.download_report === true && ['offset', 'limit'].includes(key))
-      continue;
+    const dropped = facts?.droppedWhile;
+    if (dropped !== undefined && input[dropped.parameter] === true && dropped.dropped.includes(key)) continue;
     if (catalogOnly.has(key))
       throw new MirrorError(
         'UNSUPPORTED_PARAMETER',
         key + ' only applies to introspection for this action. Put native API parameters in params or query.',
         {parameter: key},
       );
-    if (gateway === 'meta_native_action' && platformControls[gateway]!.includes(key))
-      throw new MirrorError(
-        'UNSUPPORTED_PARAMETER',
-        key + ' is not routed by this action. Automatic Page Access Token resolution is not implemented.',
-        {parameter: key},
-      );
+    if (facts?.controlRefusal !== undefined && platformControls[gateway]!.includes(key))
+      throw new MirrorError('UNSUPPORTED_PARAMETER', key + ' is not routed by this action. ' + facts.controlRefusal, {
+        parameter: key,
+      });
     if (!parameterHandling(gateway, key))
       throw new MirrorError(
         'UNSUPPORTED_PARAMETER',

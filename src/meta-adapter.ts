@@ -369,6 +369,15 @@ export const metaHooks: ProviderHooks = Object.freeze({
     // The owner's spending policy (src/spend-policy.ts): a currency cap its offsets cannot convert.
     currencyCapRefusal: metaCurrencyCapRefusal,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its top-level
+  // parameters (src/parameters.ts): its account aliases, the Graph API's fields on every action, and its controls,
+  // which a captured action refuses since AMCP resolves no Page Access Token.
+  parameters: Object.freeze({
+    accountAliases: Object.freeze(['ad_account_id', 'account_id']),
+    platformControls: Object.freeze(['business_id', 'page_id', 'report_run_id', 'batch', 'adbatch', 'include_headers']),
+    controlRefusal: 'Automatic Page Access Token resolution is not implemented.',
+    everyActionFields: true as const,
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.

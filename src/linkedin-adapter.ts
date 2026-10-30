@@ -432,6 +432,17 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
   // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them).
   // Its programs AMCP lists but never checks (src/discovery-programs.ts).
   programs: linkedinPrograms,
+  // Its top-level parameters (src/parameters.ts): its account aliases, its Rest.li controls and JSON bodies only.
+  parameters: Object.freeze({
+    accountAliases: Object.freeze(['account_id', 'ad_account_id']),
+    platformControls: Object.freeze(['restli_method', 'http_method_override', 'body_format', 'api_version']),
+    encodedBody: true as const,
+    onlyValue: Object.freeze({
+      parameter: 'body_format',
+      value: 'json',
+      refusal: 'LinkedIn form query tunneling is not implemented; use JSON requests.',
+    }),
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

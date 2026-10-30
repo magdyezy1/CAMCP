@@ -176,6 +176,13 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
       withheld_actions: [],
     },
   ]),
+  // Its top-level parameters (src/parameters.ts): its account alias, its resource and RPC controls, and its
+  // JSON-encoded native bodies.
+  parameters: deepFrozen({
+    accountAliases: ['advertiserId'],
+    platformControls: ['resource', 'method'],
+    encodedBody: true as const,
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

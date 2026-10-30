@@ -862,6 +862,8 @@ export interface ProviderHooks {
   readonly connection?: ConnectionOperation;
   /** Its discovery-only programs (src/discovery-programs.ts), in their listed order. */
   readonly programs?: readonly DiscoveryProgramFacts[];
+  /** Its top-level parameters (src/parameters.ts): account aliases, platform controls and its own parameter rules. */
+  readonly parameters?: ParameterFacts;
 }
 
 export interface ProviderAdapter {
@@ -1406,4 +1408,26 @@ export interface DiscoveryProgramFacts {
   /** Why the withheld actions wait on the program (the refusal of each of them, src/withheld-writes.ts). */
   readonly withheld_reason?: string;
   readonly personal_data?: string;
+}
+/**
+ * A provider's top-level parameters (src/parameters.ts). The shared checks keep every rule and their order; these name
+ * what differs by provider. A `fields` list sent as one value is CompileHooks.joinedFields.
+ */
+export interface ParameterFacts {
+  /** Its account scope aliases, in the order the compiler reads them. */
+  readonly accountAliases?: readonly string[];
+  /** Its platform routing controls: top-level parameters its compiler routes, or refuses explicitly. */
+  readonly platformControls?: readonly string[];
+  /** Why a captured action refuses a platform control it does not route, after "is not routed by this action." */
+  readonly controlRefusal?: string;
+  /** Its direct compiler accepts a JSON-encoded native body (src/parameters.ts encodedBodyGateways). */
+  readonly encodedBody?: true;
+  /** Every action takes the native `fields` parameter (Meta's Graph API). */
+  readonly everyActionFields?: true;
+  /** Its actions whose path matches take a native `limit` (Snapchat's stats and reports). */
+  readonly nativeLimit?: RegExp;
+  /** A parameter that takes one value only, refused with `refusal` otherwise (LinkedIn's JSON body format). */
+  readonly onlyValue?: {readonly parameter: string; readonly value: string; readonly refusal: string};
+  /** Parameters dropped while another is true (X's offset and limit of a report download). */
+  readonly droppedWhile?: {readonly parameter: string; readonly dropped: readonly string[]};
 }

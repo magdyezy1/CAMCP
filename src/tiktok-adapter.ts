@@ -539,6 +539,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       tiktokManualAdIdentityPrerequisites(plan, values);
     },
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its top-level
+  // parameters (src/parameters.ts): its account aliases and its lead region and comment scope controls.
+  parameters: Object.freeze({
+    accountAliases: Object.freeze(['advertiser_id', 'account_id']),
+    platformControls: Object.freeze(['lead_region', 'comment_scope']),
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

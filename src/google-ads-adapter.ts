@@ -761,6 +761,9 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     accessPolicy: assertGoogleAccessPolicy,
     moneyFields: googleMoneyFields,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // aliases (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['account_id', 'customer_id'])}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from rejectedBuild (src/campaign-runner.ts), after the runner's own

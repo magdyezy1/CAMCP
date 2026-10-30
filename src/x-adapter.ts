@@ -225,6 +225,14 @@ export const xHooks: ProviderHooks = Object.freeze({
       withheld_actions: [],
     },
   ]),
+  // Its top-level parameters (src/parameters.ts): its account alias, its report download control, which drops offset
+  // and limit, and its JSON-encoded native bodies.
+  parameters: deepFrozen({
+    accountAliases: ['account_id'],
+    platformControls: ['download_report'],
+    encodedBody: true as const,
+    droppedWhile: {parameter: 'download_report', dropped: ['offset', 'limit']},
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

@@ -104,3 +104,15 @@ export const discoveryProgramProviders: readonly ProviderHooks[] = tableOrder(
   ['linkedin', 'x', 'dv360'],
   hooks => hooks.programs,
 );
+/** src/parameters.ts accountAliases, whose key order the workbook selectors' SQL shows. */
+export const accountAliasProviders: readonly ProviderHooks[] = tableOrder(
+  'account alias',
+  ['meta', 'tiktok', 'snapchat', 'google', 'linkedin', 'x', 'amazon', 'apple', 'dv360', 'reddit'],
+  hooks => hooks.parameters?.accountAliases,
+);
+/** src/parameters.ts encodedBodyGateways. */
+export const encodedBodyProviders: readonly ProviderHooks[] = tableOrder(
+  'encoded body',
+  ['dv360', 'linkedin', 'x'],
+  hooks => hooks.parameters?.encodedBody,
+);

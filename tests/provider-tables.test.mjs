@@ -15,6 +15,14 @@ import {
   discoveryOnlyPrograms,
   withheldWriteProgram,
 } from '../dist/src/discovery-programs.js';
+import {MirrorError} from '../dist/src/errors.js';
+import {
+  accountAliases,
+  encodedBodyGateways,
+  nativeFields,
+  nativeTopLevel,
+  parameterHandling,
+} from '../dist/src/parameters.js';
 
 // ARC-01, wave 4c round 6 (w4c-arc6-tables): the provider rows of the shared tables moved into the adapters, and each
 // shared module lists them in the order src/provider-hooks.ts declares. Each table as it was is transcribed below, and
@@ -452,5 +460,216 @@ test('the discovery-only programs are the same entries in the same order, with t
     if (hooks.programs) {
       assert.ok(Object.isFrozen(hooks.programs), hooks.gateway);
       for (const program of hooks.programs) assert.ok(Object.isFrozen(program.prerequisites[0]), program.id);
+    }
+});
+
+// src/parameters.ts as it was: its provider tables and the functions that read them, verbatim but for the types.
+const oldParameters = (() => {
+  const encodedBodyGateways = ['dv360_native_action', 'linkedin_native_action', 'x_ads_native_action'];
+  const accountAliases = {
+    meta_native_action: ['ad_account_id', 'account_id'],
+    tiktok_native_action: ['advertiser_id', 'account_id'],
+    snapchat_native_action: ['ad_account_id', 'account_id'],
+    google_ads_native_action: ['account_id', 'customer_id'],
+    linkedin_native_action: ['account_id', 'ad_account_id'],
+    x_ads_native_action: ['account_id'],
+    amazon_native_action: ['profile_id'],
+    apple_ads_native_action: ['account_id', 'ad_account_id', 'org_id'],
+    dv360_native_action: ['advertiserId'],
+    reddit_native_action: ['account_id', 'ad_account_id'],
+  };
+  const controls = new Set([
+    'action',
+    'params',
+    'path_params',
+    'pathParams',
+    'query',
+    'payload',
+    'body',
+    'connection_id',
+    'connectionId',
+    'aggregate_pages',
+    'max_pages',
+    'paginate',
+    'allPages',
+    'dry_run',
+    'confirmed',
+    'idempotency_key',
+    'before_state',
+    'spend_change_confirmed',
+    'result_fields',
+    'result_ids',
+    'fields',
+    'max_items',
+    'compact',
+  ]);
+  const catalogOnly = new Set([
+    'target_action',
+    'search',
+    'category',
+    'read_only',
+    'limit',
+    'offset',
+    'cursor',
+    'service',
+    'surface',
+  ]);
+  const unsupported = {
+    campaign: 'Curated campaign preflight is not implemented. Put native request fields in payload.',
+    adset: 'Curated ad-set preflight is not implemented. Put native request fields in payload.',
+    creative: 'Curated creative preflight is not implemented. Put native request fields in payload.',
+    ad: 'Curated ad preflight is not implemented. Put native request fields in payload.',
+    assets: 'Curated asset preflight is not implemented.',
+    context: 'Curated context preflight is not implemented.',
+    skip_preflight: 'Bypassing provider preflight is not supported.',
+    override_preflight: 'Bypassing provider preflight is not supported.',
+    allowUnsupportedLineItemTypes: 'The DV360 validation escape hatch is not implemented.',
+    region: 'Regional Amazon routing is not implemented for captured actions.',
+  };
+  const platformControls = {
+    x_ads_native_action: ['download_report'],
+    meta_native_action: ['business_id', 'page_id', 'report_run_id', 'batch', 'adbatch', 'include_headers'],
+    tiktok_native_action: ['lead_region', 'comment_scope'],
+    linkedin_native_action: ['restli_method', 'http_method_override', 'body_format', 'api_version'],
+    dv360_native_action: ['resource', 'method'],
+  };
+  function parameterHandling(gateway, key) {
+    if (controls.has(key)) return 'compiler/service';
+    if (catalogOnly.has(key)) return 'introspection only (Snapchat reporting limit is native)';
+    if (key in unsupported) return 'explicitly unsupported when enabled';
+    if (accountAliases[gateway]?.includes(key)) return 'account scope alias';
+    if (platformControls[gateway]?.includes(key)) return 'platform routing or explicit unsupported action';
+    return undefined;
+  }
+  function nativeFields(gateway, action) {
+    return gateway === 'meta_native_action' || (action.raw.native_fields ?? []).includes('fields');
+  }
+  function nativeTopLevel(gateway, action, input) {
+    const pathKeys = new Set([...action.path.matchAll(/\{\+?([^{}=]+)(?:=[^{}]+)?\}/g)].map(m => m[1]));
+    const nativeKeys = new Set(action.raw.native_fields ?? []);
+    if (nativeFields(gateway, action)) nativeKeys.add('fields');
+    if (gateway === 'snapchat_native_action' && /stats|report/i.test(action.path)) nativeKeys.add('limit');
+    const out = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (value === undefined) continue;
+      if (key in unsupported) {
+        if (value === false) continue;
+        throw new MirrorError('UNSUPPORTED_PARAMETER', unsupported[key], {parameter: key, gateway});
+      }
+      if (key === 'body_format' && gateway === 'linkedin_native_action' && value !== 'json')
+        throw new MirrorError(
+          'UNSUPPORTED_PARAMETER',
+          'LinkedIn form query tunneling is not implemented; use JSON requests.',
+          {parameter: key},
+        );
+      if (controls.has(key) && key !== 'fields') continue;
+      if (pathKeys.has(key) || nativeKeys.has(key)) {
+        out[key] =
+          gateway === 'meta_native_action' && key === 'fields' && Array.isArray(value) ? value.join(',') : value;
+        continue;
+      }
+      if (gateway === 'x_ads_native_action' && input.download_report === true && ['offset', 'limit'].includes(key))
+        continue;
+      if (catalogOnly.has(key))
+        throw new MirrorError(
+          'UNSUPPORTED_PARAMETER',
+          key + ' only applies to introspection for this action. Put native API parameters in params or query.',
+          {parameter: key},
+        );
+      if (gateway === 'meta_native_action' && platformControls[gateway].includes(key))
+        throw new MirrorError(
+          'UNSUPPORTED_PARAMETER',
+          key + ' is not routed by this action. Automatic Page Access Token resolution is not implemented.',
+          {parameter: key},
+        );
+      if (!parameterHandling(gateway, key))
+        throw new MirrorError(
+          'UNSUPPORTED_PARAMETER',
+          'Unrecognized top-level parameter. Put native API fields in params, query or payload.',
+          {parameter: key},
+        );
+    }
+    return out;
+  }
+  return {encodedBodyGateways, accountAliases, platformControls, parameterHandling, nativeFields, nativeTopLevel};
+})();
+
+test('the parameter tables and checks answer every gateway, action and top-level parameter as before', () => {
+  assert.deepEqual(encodedBodyGateways, oldParameters.encodedBodyGateways);
+  assert.equal(Object.isFrozen(encodedBodyGateways), false);
+  assert.deepEqual(accountAliases, oldParameters.accountAliases);
+  assert.deepEqual(Object.keys(accountAliases), Object.keys(oldParameters.accountAliases));
+  assert.equal(Object.getPrototypeOf(accountAliases), Object.prototype);
+  for (const aliases of Object.values(accountAliases)) assert.equal(Object.isFrozen(aliases), false);
+  const keys = [
+    ...new Set([
+      ...Object.values(oldParameters.accountAliases).flat(),
+      ...Object.values(oldParameters.platformControls).flat(),
+      'action',
+      'params',
+      'payload',
+      'fields',
+      'result_fields',
+      'limit',
+      'offset',
+      'cursor',
+      'search',
+      'campaign',
+      'region',
+      'allowUnsupportedLineItemTypes',
+      'id',
+      'name',
+      'parent',
+      'native_only',
+      'unknown_key',
+      'constructor',
+      'toString',
+      '__proto__',
+      'hasOwnProperty',
+    ]),
+  ];
+  const actions = [
+    {path: '/v1/accounts/{account_id}/stats', raw: {}},
+    {path: '/v1/{ad_account_id}/reports/summary', raw: {native_fields: ['name']}},
+    {path: '/v2/{+parent}/items/{id=*}', raw: {native_fields: ['fields', 'limit']}},
+    {path: '/v1/campaigns/{id}', raw: {native_fields: ['offset', 'native_only']}},
+    {path: '/rest/adAccounts/{account_id}', raw: {}},
+  ];
+  const values = [true, false, 'json', 'form', 7, ['a', 'b'], {nested: 1}, null, undefined];
+  let compared = 0;
+  for (const gateway of gateways) {
+    for (const key of keys)
+      assert.deepEqual(
+        outcome(() => parameterHandling(gateway, key)),
+        outcome(() => oldParameters.parameterHandling(gateway, key)),
+        gateway + ' ' + key,
+      );
+    for (const action of actions) {
+      assert.equal(nativeFields(gateway, action), oldParameters.nativeFields(gateway, action), gateway + action.path);
+      const inputs = [
+        {},
+        {download_report: true, offset: 1, limit: 2, cursor: 'c'},
+        {download_report: false, offset: 1},
+        {download_report: 'true', limit: 2},
+        {fields: ['a', 'b'], body_format: 'json', account_id: '1'},
+        {body_format: 'form', fields: 'a,b'},
+        ...keys.flatMap(key => values.map(value => Object.defineProperty({}, key, {value, enumerable: true}))),
+      ];
+      for (const input of inputs) {
+        compared++;
+        assert.deepEqual(
+          outcome(() => nativeTopLevel(gateway, action, input)),
+          outcome(() => oldParameters.nativeTopLevel(gateway, action, input)),
+          gateway + ' ' + action.path + ' ' + JSON.stringify(input),
+        );
+      }
+    }
+  }
+  assert.ok(compared > 40000, String(compared));
+  for (const hooks of registeredProviderHooks)
+    if (hooks.parameters) {
+      assert.ok(Object.isFrozen(hooks.parameters), hooks.gateway);
+      for (const list of [hooks.parameters.accountAliases, hooks.parameters.platformControls])
+        if (list) assert.ok(Object.isFrozen(list), hooks.gateway);
     }
 });

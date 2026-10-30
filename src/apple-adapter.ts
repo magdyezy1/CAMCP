@@ -169,6 +169,9 @@ export const appleHooks: ProviderHooks = Object.freeze({
     // The owner's spending policy (src/spend-policy.ts) compares a shared budget with its own current value alone.
     policyState: appleBudgetState,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // aliases (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['account_id', 'ad_account_id', 'org_id'])}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.state (src/write-review.ts).

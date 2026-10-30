@@ -17,4 +17,7 @@ export const amazonHooks: ProviderHooks = Object.freeze({
       if (plan.accountId) headers['Amazon-Advertising-API-Scope'] = plan.accountId;
     },
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // alias (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['profile_id'])}),
 });
