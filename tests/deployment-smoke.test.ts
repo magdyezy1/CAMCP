@@ -13,10 +13,14 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {createHttpApp} from '../server/http-app.js';
+import {withoutParkedProviders} from './helpers/parked-providers.js';
 
 const {checkApplication} = await import(pathToFileURL(resolve('deploy/smoke-api.mjs')).href);
 for (const writes of [false, true])
-  test(`deployment HTTP contract includes reporting and survives restart (writes=${writes})`, async () => {
+  test(`deployment HTTP contract includes reporting and survives restart (writes=${writes})`, async t => {
+    // The contract deploy/smoke-api.mjs holds (shared with the deployed check) is that of a deployment that sets no
+    // AMCP_PROVIDERS: 25 tools and no parked gateway, whatever AMCP_PROVIDERS this suite runs with (ARC-01).
+    withoutParkedProviders(t);
     const directory = mkdtempSync(join(tmpdir(), 'amcp-deployment-smoke-')),
       database = join(directory, 'mirror.sqlite');
     const master = randomBytes(32).toString('base64'),

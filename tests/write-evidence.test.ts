@@ -9,6 +9,7 @@ import {gatewayOffered} from '../src/provider-offering.js';
 import {providerContractView, providerContractReference, ContractMemory} from '../src/contract-evidence.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {assertRefused} from './helpers/assert-refused.js';
+import {offeredParkedGateways} from './helpers/parked-providers.js';
 
 // F-29: inspect and prepare repeat the provider's whole contract (5-7 KB) unless the caller asks for a reference.
 const registry = new Registry(),
@@ -146,8 +147,12 @@ test('every gateway a review can name has a reference that leads to its whole co
       assert.deepEqual(resultAt(help, reference.full_contract.result_field), whole, gateway);
       followed++;
     }
-    // Drive and Sheets (no MCP gateway), and the parked Amazon Ads and Criteo.
-    assert.equal(followed, providerContracts.length - 4);
+    // Drive and Sheets (no MCP gateway), and the parked Amazon Ads and Criteo unless AMCP_PROVIDERS offers them (the
+    // suite also runs with Criteo offered, ARC-01, where its reference is followed too).
+    const unoffered = ['amazon_native_action', 'criteo_native_action'].filter(
+      parked => !offeredParkedGateways().includes(parked),
+    );
+    assert.equal(followed, providerContracts.length - 2 - unoffered.length);
     assert.equal(providerContractReference('amcp_native_action'), undefined);
   } finally {
     x.store.close();

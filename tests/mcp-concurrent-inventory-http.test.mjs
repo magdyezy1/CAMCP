@@ -11,7 +11,7 @@ import {
   wooInventoryFixture,
   wooInventoryInput,
 } from './fixtures/woocommerce-inventory-data.mjs';
-import {offerParkedProviders} from './helpers/parked-providers.mjs';
+import {listedToolCount, offerParkedProviders} from './helpers/parked-providers.mjs';
 
 // WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
 // deployment whose AMCP_PROVIDERS names it.
@@ -42,8 +42,8 @@ async function clients(t, f, actors) {
       peers.map(async peer => {
         const descriptors = (await peer.listTools()).tools;
         // A read-only deployment also lists amcp_write with inspect only (owner decision D15, MCP-09). Amazon Ads (CON-06)
-        // and Criteo (ARC-01, P9) are parked; this suite offers WooCommerce.
-        assert.equal(descriptors.length, 26);
+        // and Criteo (ARC-01, P9) are parked unless AMCP_PROVIDERS offers them; this suite offers WooCommerce (26 tools).
+        assert.equal(descriptors.length, listedToolCount());
         return new Ajv({strict: false}).compile(descriptors.find(tool => tool.name === 'amcp_workspace').inputSchema);
       }),
     ),

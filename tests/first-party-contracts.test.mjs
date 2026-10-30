@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {withoutParkedProviders} from './helpers/parked-providers.mjs';
 import {Ajv} from 'ajv';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
@@ -323,9 +324,12 @@ test('the outcome schema is published for the AMCP tools and a real SDK client v
   }
 });
 
-test('tools/list of a writes deployment (strict) stays within 95 KB with every output schema', async () => {
+test('tools/list of a writes deployment (strict) stays within 95 KB with every output schema', async t => {
   // MCP-07 acceptance: the outcome schemas are published without growing the listing past 95 KB (it was 143,745 bytes
-  // before MCP-01; MCP-10's AMCP-owned descriptions keep it under the line).
+  // before MCP-01; MCP-10's AMCP-owned descriptions keep it under the line). The budget is that of a deployment that
+  // sets no AMCP_PROVIDERS, whatever AMCP_PROVIDERS this suite runs with: each parked gateway an operator offers adds
+  // its own tool to the listing (ARC-01).
+  withoutParkedProviders(t);
   const store = new Store(':memory:');
   const service = new MirrorService(new Registry(), store, undefined, undefined, writes);
   const c = await sdkClient(service);

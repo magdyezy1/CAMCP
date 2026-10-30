@@ -13,6 +13,7 @@ import {
   toolPresentation,
 } from '../dist/src/tool-annotations.js';
 import {bags, fill, readOnlyCall, world as walkWorld} from './helpers/annotation-walk.mjs';
+import {listedToolCount, offeredParkedGateways, parkedGateways} from './helpers/parked-providers.mjs';
 
 // MCP-06: initialize carried no instructions and no tool had a title or annotations, so every read prompted in clients
 // that auto-approve read-only tools. A wrong readOnlyHint:true would let a client run a state-changing tool unasked, so
@@ -189,10 +190,14 @@ test('every listed tool has a title and reviewed annotations in both modes', asy
       const tools = (await c.client.listTools()).tools;
       // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Parked providers are not
       // offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9); their reviewed annotations stay for
-      // a deployment that offers them with AMCP_PROVIDERS.
-      assert.equal(tools.length, 25);
-      for (const parked of ['amazon_native_action', 'criteo_native_action', 'commerce_native_action'])
-        assert.ok(!tools.some(t => t.name === parked), parked);
+      // a deployment that offers them with AMCP_PROVIDERS, where each is listed and checked like any other tool.
+      assert.equal(tools.length, listedToolCount());
+      for (const parked of Object.values(parkedGateways))
+        assert.equal(
+          tools.some(t => t.name === parked),
+          offeredParkedGateways().includes(parked),
+          parked,
+        );
       for (const tool of tools) {
         assert.equal(typeof tool.title, 'string', tool.name);
         assert.ok(tool.title.length > 3 && tool.title.length <= 60, tool.name);

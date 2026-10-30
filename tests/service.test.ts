@@ -9,6 +9,7 @@ import {NativeTransport} from '../src/transport.js';
 import {MirrorService} from '../src/service.js';
 import {createMcpServer} from '../server/mcp.js';
 import type {Actor} from '../src/types.js';
+import {listedToolCount} from './helpers/parked-providers.js';
 const actor: Actor = {tenantId: 't', userId: 'test', role: 'admin'};
 test('MCP initialize, list tools and call help work through real SDK transports', async () => {
   const store = new Store(':memory:');
@@ -21,8 +22,9 @@ test('MCP initialize, list tools and call help work through real SDK transports'
     await client.connect(c);
     const list = await client.listTools();
     // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-    // Parked providers are not offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9).
-    assert.equal(list.tools.length, 25);
+    // Parked providers are not offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9); 25 tools,
+    // and one more for each parked gateway AMCP_PROVIDERS offers.
+    assert.equal(list.tools.length, listedToolCount());
     const response = await client.callTool({name: 'amcp_tool_help', arguments: {}});
     const content = response.content as any[];
     const presented = JSON.parse(content[0].text);

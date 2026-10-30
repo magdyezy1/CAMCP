@@ -12,6 +12,7 @@ import {PlatformOAuth, platforms} from '../server/platform-oauth.js';
 import {AssetDiscovery} from '../server/asset-discovery.js';
 import {sha256} from '../src/security.js';
 import type {Connection} from '../src/types.js';
+import {listedToolCount} from './helpers/parked-providers.js';
 const master = Buffer.alloc(32, 77).toString('base64'),
   password = 'synthetic-test-password-only',
   origin = 'https://amcp.shop';
@@ -156,8 +157,9 @@ test('website routes conceal connections, protect mutations, and issue revocable
     });
     assert.equal(native.status, 200);
     // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-    // Parked providers are not offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9).
-    assert.equal((await native.json()).result.tools.length, 25);
+    // Parked providers are not offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9); 25 tools,
+    // and one more for each parked gateway AMCP_PROVIDERS offers.
+    assert.equal((await native.json()).result.tools.length, listedToolCount());
     assert.equal((await s.request('/api/connector-tokens/' + token.id, 'DELETE', undefined, s.headers)).status, 200);
     assert.throws(() => s.store.authenticate(token.token));
     const logout = await s.request('/api/session', 'DELETE', undefined, s.headers);
