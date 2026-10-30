@@ -7,6 +7,7 @@ import {CredentialProvider} from '../dist/src/auth.js';
 import {refreshEndpoints} from '../dist/src/connection-health.js';
 import {requestAppleAccessToken} from '../dist/src/apple-auth.js';
 import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {providerAdapters, providerOf} from '../dist/src/provider-adapters.js';
 import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
 
 // ARC-01 phase B, wave 4c (transport and catalog): the token renewal (src/auth.ts CredentialProvider) named five
@@ -172,4 +173,38 @@ test('a provider refuses a renewal it cannot send before any token request, with
       'REAUTHORIZATION_REQUIRED',
       gateway,
     );
+});
+
+// The wave 4c merge review: a login's renewal is described twice, by these refresh hooks (which src/auth.ts runs) and
+// by the adapters' renewal facts (`renewal`, which src/connection-health.ts reads for refreshEndpoints and
+// renewsAutomatically), each half pinned by its own package's tests. They must agree for every gateway: otherwise a
+// provider could renew itself while credential health says its logins need consent, or a provider's parts of the
+// refresh-token request could go to no token endpoint.
+test('the refresh hooks and the adapters’ renewal facts agree for every gateway', () => {
+  const gateways = [
+    ...new Set([...providerAdapters.map(a => a.gateway), ...registeredProviderHooks.map(h => h.gateway)]),
+  ];
+  for (const gateway of gateways) {
+    const refresh = providerHooks(gateway)?.refresh,
+      renewal = providerOf(gateway)?.renewal,
+      endpoint = renewal && 'tokenEndpoint' in renewal ? renewal.tokenEndpoint : undefined;
+    assert.equal(
+      !!refresh?.own,
+      !!renewal && 'clientCredentials' in renewal,
+      gateway + ': it renews itself exactly where its logins renew with the client’s own credentials',
+    );
+    if (refresh?.request) assert.ok(endpoint, gateway + ': its parts of the refresh request go to its token endpoint');
+    if (refresh?.own) assert.equal(Object.hasOwn(refreshEndpoints, gateway), false, gateway + ': it has no endpoint');
+    assert.equal(refreshEndpoints[gateway], endpoint, gateway + ': the renewal sends to its adapter’s token endpoint');
+  }
+  // The agreement today: Apple renews itself, and the three request hooks belong to providers with endpoints.
+  assert.deepEqual(
+    gateways.filter(gateway => providerHooks(gateway)?.refresh?.own),
+    ['apple_ads_native_action'],
+  );
+  assert.deepEqual(gateways.filter(gateway => providerHooks(gateway)?.refresh?.request).sort(), [
+    'microsoft_ads_native_action',
+    'reddit_native_action',
+    'snapchat_native_action',
+  ]);
 });
