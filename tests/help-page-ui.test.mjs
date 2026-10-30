@@ -1,8 +1,9 @@
 // DOC-03 (owner instruction of 2026-10-24: "DOCS AND HELP ARE MEMBERS ONLY"): the shell's Help page and its footer link.
 // The server puts the owner guide in a member's /help page (tests/help-route.test.mjs); web/help.js shows the part in
-// the interface language, hides the guide on every other page, sends a visitor who is not signed in to sign-in, and
-// loads /help from the server once when the page was opened from another one. The footer link is offered only to a
-// signed-in person whose workspace includes the page. These run the shipped scripts against a minimal document.
+// the interface language, hides the guide on every other page, takes it out of the page once the session may no longer
+// read it (a sign-out, a test account, two-step setup owed), sends a visitor who is not signed in to sign-in, and loads
+// /help from the server once when the page was opened from another one. The footer link is offered only to a signed-in
+// person whose workspace includes the page. These run the shipped scripts against a minimal document.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,15 +13,30 @@ const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 
 function shell({session = {authenticated: true}, locale = 'en', guide = 'member'} = {}) {
   const parts = ['en', 'ar'].map(language => ({dataset: {helpLanguage: language}, hidden: false})),
+    attributes = new Set(guide === 'unavailable' ? ['data-help-unavailable'] : []),
+    // The #help-guide element the server put in the page: its language parts are its children, which setting its
+    // textContent removes, as it does in a browser.
     element =
       guide === 'absent'
         ? null
         : {
             hidden: true,
-            hasAttribute: name => name === 'data-help-unavailable' && guide === 'unavailable',
-            querySelector: selector =>
-              parts.find(part => selector === '[data-help-language="' + part.dataset.helpLanguage + '"]') ?? null,
-            querySelectorAll: selector => (selector === '[data-help-language]' ? parts : []),
+            children: guide === 'unavailable' ? [] : [...parts],
+            set textContent(value) {
+              this.children = [];
+              if (value !== '') throw Error('the guide is only ever emptied, never written by a script');
+            },
+            hasAttribute: name => attributes.has(name),
+            setAttribute: name => void attributes.add(name),
+            querySelector(selector) {
+              return (
+                this.children.find(part => selector === '[data-help-language="' + part.dataset.helpLanguage + '"]') ??
+                null
+              );
+            },
+            querySelectorAll(selector) {
+              return selector === '[data-help-language]' ? this.children : [];
+            },
           },
     storage = new Map(),
     calls = {login: 0, reload: 0};
@@ -35,7 +51,12 @@ function shell({session = {authenticated: true}, locale = 'en', guide = 'member'
     location: {pathname: '/help', search: '', hash: '', reload: () => calls.reload++},
     sessionStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
     showLogin: () => calls.login++,
-    document: {addEventListener() {}, getElementById: id => (id === 'help-guide' ? element : null)},
+    document: {
+      addEventListener() {},
+      getElementById: id => (id === 'help-guide' ? element : null),
+      // The guide's language parts are the only elements of the page that hold it.
+      querySelectorAll: selector => (selector === '[data-help-language]' && element ? element.children : []),
+    },
   });
   context.sessionStorage.removeItem = key => storage.delete(key);
   const run = source => new Script(source).runInContext(context);
@@ -73,6 +94,50 @@ test('a member sees the guide in the interface language, with the page heading, 
     other.parts.map(part => part.hidden),
     [false, true],
   );
+});
+
+// The review of wave 4c: web/app.js signs out without reloading the page (it asks the server for the signed-out session
+// and renders Home), so the guide the server put in a member's /help page stayed in the document, hidden, for whoever
+// used the tab next. The render after the session changes now takes it out; a member's next visit loads /help again.
+test('after a sign-out, or as a test account or before two-step setup, no part of the guide stays in the document', async () => {
+  for (const next of [
+    {authenticated: false, csrf: null},
+    {authenticated: true, testAccount: true},
+    {authenticated: true, mfaEnrollmentRequired: true},
+  ]) {
+    const f = shell(),
+      label = JSON.stringify(next);
+    await f.render();
+    assert.equal(f.element.hidden, false, label);
+    assert.equal(f.context.document.querySelectorAll('[data-help-language]').length, 2, label);
+    // A member who leaves Help keeps the guide in the page, hidden, for the next visit.
+    f.run('AMCP.hooks.runBefore()');
+    assert.equal(f.element.hidden, true, label);
+    assert.equal(f.context.document.querySelectorAll('[data-help-language]').length, 2, label);
+    // The session changes (a sign-out, or another identity in this tab) and the next page renders.
+    f.context.session = next;
+    f.run('AMCP.hooks.runBefore()');
+    assert.equal(f.element.hidden, true, label);
+    assert.equal(f.context.document.querySelectorAll('[data-help-language]').length, 0, label);
+    assert.equal(f.element.hasAttribute('data-help-unavailable'), true, label);
+    // A member who signs in again and opens Help gets the guide from the server, not from this page.
+    f.context.session = {authenticated: true};
+    await f.render();
+    assert.equal(f.calls.reload, 1, label);
+    assert.equal(f.element.hidden, true, label);
+    assert.match(f.context.content.innerHTML, /role="status" aria-busy="true"/, label);
+  }
+  // The sign-out replaces the session before it renders the next page, so the render sees the signed-out session.
+  const app = fs.readFileSync('web/app.js', 'utf8'),
+    logout = app.slice(
+      app.indexOf("if (el.id === 'logout-button') {"),
+      app.indexOf("if (el.dataset.action === 'refresh')"),
+    );
+  assert.match(
+    logout,
+    /await api\('\/api\/session', \{method: 'DELETE'\}\);\s+session = await api\('\/api\/session'\);/,
+  );
+  assert.ok(logout.indexOf('session = await api') < logout.indexOf("navigate('/')"), 'the session is read first');
 });
 
 test('a visitor who is not signed in goes to sign-in, and nothing of the guide is shown', async () => {

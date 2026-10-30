@@ -8,10 +8,24 @@ const helpReloadKey = 'amcp.help.reload';
 function helpGuideElement() {
   return document.getElementById('help-guide');
 }
+/**
+ * Whether the server sends this session the guide (server/help-routes.ts): a signed-in member who is not a test account
+ * and owes no two-step setup.
+ */
+function helpGuideAllowed() {
+  return !!session.authenticated && !session.testAccount && !session.mfaEnrollmentRequired;
+}
 // The guide sits beside the page content, not in it: leaving Help only hides it, and a later visit shows it again.
+// Once the session may no longer read it (after a sign-out, as a test account, or while two-step setup is owed), the
+// guide leaves the document too, and is marked so that a member's next visit loads /help from the server again: the
+// page does not keep the members-only guide for whoever uses the tab next.
 AMCP.hooks.beforeRender(() => {
   const guide = helpGuideElement();
-  if (guide) guide.hidden = true;
+  if (!guide) return;
+  guide.hidden = true;
+  if (helpGuideAllowed()) return;
+  guide.textContent = '';
+  guide.setAttribute('data-help-unavailable', '');
 });
 /** Whether this tab reloaded /help in the last ten seconds, so a guide the server did not send never loops. */
 function helpReloadedRecently() {
