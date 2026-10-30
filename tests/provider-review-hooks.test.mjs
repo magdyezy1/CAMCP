@@ -455,6 +455,7 @@ test('the outcome asks the provider for its response contract, its empty error l
   const microsoft = plan('microsoft_ads_native_action', 'POST', '/UpdateCampaigns');
   const nullSlots = writeOutcome(response({CampaignIds: ['1'], PartialErrors: [null]}));
   assert.equal(nullSlots.success, false);
+  assert.equal(nullSlots.outcome, 'partial_or_failed');
   assert.deepEqual(nullSlots.failures, [{path: '$.PartialErrors', value: [null]}]);
   assert.equal(writes('microsoft_ads_native_action').emptyErrors('PartialErrors', [null, null]), true);
   assert.equal(writes('microsoft_ads_native_action').emptyErrors('PartialErrors', [{Code: 1}]), false);
@@ -462,7 +463,12 @@ test('the outcome asks the provider for its response contract, its empty error l
   // A provider's own response contract confirms its mutation; one without a contract confirms nothing.
   const meta = plan('meta_native_action', 'POST', '/v26.0/act_123/campaigns');
   assert.equal(writeOutcome(response({id: '42'}), meta).success, true);
-  assert.equal(writeOutcome(response({success: true}), meta).success, false);
+  const unconfirmed = writeOutcome(response({success: true}), meta);
+  assert.equal(unconfirmed.success, false);
+  assert.equal(unconfirmed.outcome, 'partial_or_failed');
+  assert.deepEqual(unconfirmed.failures, [
+    {path: '$', value: 'The response does not confirm every mutation under this provider response contract.'},
+  ]);
   const linkedin = plan('linkedin_native_action', 'POST', '/rest/adAccounts/123/adCampaigns');
   assert.equal(writeOutcome(response(null, 201, {'x-restli-id': '7'}), linkedin).success, true);
   assert.deepEqual(writeOutcome(response({}, 200), plan('reddit_native_action', 'POST', '/api/v3/x')).failures, [
