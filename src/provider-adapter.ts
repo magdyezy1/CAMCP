@@ -599,6 +599,26 @@ export interface CampaignHooks {
    * preflight checked or the compiled brief; undefined leaves it unknown.
    */
   dependencyEvidence?(id: string, context: DependencyEvidenceContext): JsonObject | undefined;
+  /** The plan binding the provider's previews make (Tag Manager's consent preview, X's selected catalog removal). */
+  readonly planBinding?: CampaignPlanBinding;
+}
+/**
+ * A campaign plan binding (src/campaign-runner.ts, which keeps where each is made and checked, in its order): the
+ * binding a creation input makes is saved on the plan under its key, and each step's review and execution check it.
+ */
+export interface CampaignPlanBinding {
+  /** The plan field it is saved under (`gtm_consent`, `catalog_removal`). */
+  readonly key: string;
+  /** The binding a plan's creation input and steps make, or undefined without one; refuses a changed preview. */
+  create(store: Store, actor: Actor, input: JsonObject, steps: JsonObject[]): JsonObject | undefined;
+  /** Before a step's review and its execution, reading through the native calls (Tag Manager's tag); refuses. */
+  check?(store: Store, call: ToolCall, actor: Actor, run: JsonObject, step: JsonObject): Promise<void>;
+  /** What a step's review and execution expect (X's selected product), or undefined; refuses a changed target. */
+  expectation?(run: JsonObject, step: JsonObject): unknown;
+  /** Runs a step's review or execution under its expectation. */
+  under?<T>(expectation: unknown, run: () => Promise<T>): Promise<T>;
+  /** The refusal of a step whose expected evidence changed since the draft. */
+  changed?(): never;
 }
 /** What a recipe's eligibility gives its provider's dependency evidence (src/recipe-eligibility.ts). */
 export interface DependencyEvidenceContext {

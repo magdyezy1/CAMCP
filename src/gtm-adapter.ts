@@ -7,6 +7,7 @@ import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import type {VendorRoute} from './delegated-native.js';
 import {assertMeasurementScopes} from './measurement-writes.js';
 import {fail, object} from './write-common.js';
+import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 
 /**
  * Google Tag Manager's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a
@@ -53,6 +54,11 @@ export const gtmHooks: ProviderHooks = Object.freeze({
     publishesLive: (plan: CompiledRequest) => plan.method === 'POST' && /:publish$/.test(plan.path),
     // An outcome shows the safe configuration of the response and of its failures (src/write-outcome.ts).
     outcomeData: gtmSafeConfiguration,
+  }),
+  // Writes and campaigns (wave 4c): a consent preview's plan binding, made at creation and checked against the current
+  // tag before each step's review and execution (src/campaign-runner.ts).
+  campaign: Object.freeze({
+    planBinding: Object.freeze({key: 'gtm_consent', create: consentCreationBinding, check: assertConsentStep}),
   }),
 });
 

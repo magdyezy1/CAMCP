@@ -416,11 +416,8 @@ test('the runner asks the provider for a refused build and its recipe lookups, n
   const source = read('src/campaign-runner.ts');
   assert.deepEqual(gatewayLiterals(source), ['snapchat_native_action']);
   assert.match(source, /'a write step needs gateway, e\.g\. "snapchat_native_action"'/);
-  assert.deepEqual(providerImports(source), [
-    'src/gtm-consent-plans.ts',
-    'src/x-catalog-removal.ts',
-    'src/x-catalog-products.ts',
-  ]);
+  // Its plan bindings are the providers' too (the test below), so it imports no provider module.
+  assert.deepEqual(providerImports(source), []);
   const {googleRecipeLookup} = await import('../dist/src/google-search-recipes.js');
   const {microsoftLocationsUnpinned} = await import('../dist/src/microsoft-locations.js');
   const {CampaignRunner} = await import('../dist/src/campaign-runner.js');
@@ -585,4 +582,43 @@ test("a recipe's dependency evidence is its provider's, and the pixel is the rec
     asset_counts: {headlines: 3},
   });
   assert.equal(google('landing_page', context([])), undefined);
+});
+
+test("the plan bindings are their providers': Tag Manager's consent preview and X's selected catalog removal", async () => {
+  // ARC-01 phase B (wave 4c): src/campaign-runner.ts imported Tag Manager's consent-plan and X's catalog-removal
+  // modules to make and check their plan bindings. They are the providers' `campaign.planBinding`; the runner keeps
+  // where each binding is made (after the allocation and search-exclusion bindings), saved and checked, in its order.
+  const {assertConsentStep, consentCreationBinding} = await import('../dist/src/gtm-consent-plans.js');
+  const {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} =
+    await import('../dist/src/x-catalog-removal.js');
+  const {withXCatalogRemovalExpectation} = await import('../dist/src/x-catalog-products.js');
+  const bindings = registeredProviderHooks
+    .filter(h => h.campaign?.planBinding)
+    .map(h => [h.gateway, h.campaign.planBinding]);
+  assert.deepEqual(
+    bindings.map(([gateway, binding]) => [gateway, binding.key]),
+    [
+      ['x_ads_native_action', 'catalog_removal'],
+      ['gtm_native_action', 'gtm_consent'],
+    ],
+  );
+  const [[, removal], [, consent]] = bindings;
+  assert.ok(Object.isFrozen(removal) && Object.isFrozen(consent));
+  assert.equal(consent.create, consentCreationBinding);
+  assert.equal(consent.check, assertConsentStep);
+  assert.equal(removal.create, catalogRemovalCreationBinding);
+  assert.equal(removal.expectation, assertCatalogRemovalStep);
+  assert.equal(removal.under, withXCatalogRemovalExpectation);
+  assert.equal(removal.changed, catalogRemovalChanged);
+  // An input without a preview makes no binding, and a plan without one checks nothing, before any read.
+  const store = {document: () => assert.fail('no preview is read')},
+    actor = {tenantId: 't', userId: 'u', role: 'admin'};
+  assert.equal(consent.create(store, actor, {}, []), undefined);
+  assert.equal(removal.create(store, actor, {}, []), undefined);
+  assert.equal(removal.create(store, actor, {catalog_binding: {kind: 'lineage'}}, []), undefined);
+  assert.equal(removal.expectation({steps: [{id: 's'}]}, {id: 's'}), undefined);
+  await consent.check(store, async () => assert.fail('nothing is read'), actor, {steps: [{id: 's'}]}, {id: 's'});
+  // The removal's refusal is its own; its expectation holds only while its step runs under it.
+  await refusal(() => removal.changed(), 'CATALOG_REMOVAL_CHANGED');
+  assert.equal(await removal.under({catalog: {}, target: {}}, async () => 'ran'), 'ran');
 });

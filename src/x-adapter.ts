@@ -10,6 +10,8 @@ import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
 // Writes and campaigns (wave 4c).
 import type {MutationResponse} from './provider-adapter.js';
+import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {withXCatalogRemovalExpectation} from './x-catalog-products.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -148,6 +150,15 @@ export const xHooks: ProviderHooks = Object.freeze({
     preflight: Object.freeze({
       reference: ({path}: {path: string}) =>
         path.endsWith('/media_key') ? '13_1' : path.endsWith('/card_uri') ? 'card://1' : undefined,
+    }),
+    // A selected catalog removal's plan binding: each unsent step's review and execution run under the product it
+    // expects, refused when its evidence changed (src/campaign-runner.ts).
+    planBinding: Object.freeze({
+      key: 'catalog_removal',
+      create: catalogRemovalCreationBinding,
+      expectation: assertCatalogRemovalStep,
+      under: withXCatalogRemovalExpectation,
+      changed: catalogRemovalChanged,
     }),
   }),
 });

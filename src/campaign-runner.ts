@@ -2,11 +2,8 @@ import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
 import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {scheduleAllocationOutcomeQuietly} from './allocation-outcome.js';
-import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
-import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
 import {catalogLineageCreationBinding, catalogRetirementCreationBinding} from './catalog-lineage.js';
 import {catalogRetirementOf, withCatalogRetirement} from './catalog-retirement.js';
-import {withXCatalogRemovalExpectation, type XCatalogRemovalExpectation} from './x-catalog-products.js';
 import {addNativeRequests, meterNativeRequests} from './native-request-meter.js';
 import {
   assertSearchExclusionStep,
@@ -29,7 +26,7 @@ import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
 // and so are a refused build that created nothing (`campaign.refusedBuild`) and the recipe lookups (`campaign.lookups`).
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
-import type {RecipeLookup} from './provider-adapter.js';
+import type {CampaignPlanBinding, RecipeLookup} from './provider-adapter.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {approvalSpends, approvalStep, approvalSummary} from './plan-approval.js';
 import {temporaryMediaSources} from './media-retention.js';
@@ -262,6 +259,28 @@ for (const hooks of registeredProviderHooks)
   }
 if ([...recipeLookups.values()].filter(lookup => lookup.unavailable).length > 1)
   throw new Error('Only one recipe lookup is answered by the service’s own lookup.');
+/**
+ * The plan bindings by plan field, each its provider's (`campaign.planBinding`, ARC-01 phase B, wave 4c): Tag Manager's
+ * consent preview and X's selected catalog removal. A load-time check: one provider each, and only the two the runner
+ * keeps a place for.
+ */
+const planBindings = new Map<string, CampaignPlanBinding>();
+for (const hooks of registeredProviderHooks) {
+  const binding = hooks.campaign?.planBinding;
+  if (!binding) continue;
+  if (planBindings.has(binding.key)) throw new Error('Two providers declare the plan binding ' + binding.key + '.');
+  planBindings.set(binding.key, binding);
+}
+const consentBinding = planBindings.get('gtm_consent')!,
+  removalBinding = planBindings.get('catalog_removal')!;
+if (
+  planBindings.size !== 2 ||
+  !consentBinding?.check ||
+  !removalBinding?.expectation ||
+  !removalBinding.under ||
+  !removalBinding.changed
+)
+  throw new Error('The campaign runner keeps a place for the consent and catalog removal plan bindings only.');
 const planState = (run: JsonObject, step: JsonObject) =>
   run.steps.every(settled) ? 'complete' : settled(step) ? 'in_progress' : 'attention';
 /**
@@ -1880,8 +1899,8 @@ export class CampaignRunner {
       bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
     const allocation = allocationCreationBinding(this.store, actor, input, steps);
     const search_exclusions = searchExclusionCreationBinding(this.store, actor, input, steps);
-    const gtm_consent = consentCreationBinding(this.store, actor, input, steps);
-    const catalog_removal = catalogRemovalCreationBinding(this.store, actor, input, steps);
+    const gtm_consent = consentBinding.create(this.store, actor, input, steps);
+    const catalog_removal = removalBinding.create(this.store, actor, input, steps);
     // Where a catalog plan's products came from (COM-03): set only by amcp_workspace catalog_plan.
     const catalog_lineage = catalogLineageCreationBinding(this.store, actor, input, steps);
     // The retailer IDs the plan retires (COM-02 B): their native reviews must find an existing product.
@@ -2266,10 +2285,10 @@ export class CampaignRunner {
       this.assertReviewHolder(actor, run, next);
     if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
-    if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
+    if (run.gtm_consent) await consentBinding.check!(this.store, this.call, actor, run, next);
     // A selected-removal step is checked by its own native review against the bound product (COM-02 C), and the
     // review of a retirement step refuses a product the catalog does not have (COM-02 B).
-    const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined,
+    const removal = run.catalog_removal ? removalBinding.expectation!(run, next) : undefined,
       retiring = catalogRetirementOf(run, next);
     // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
     if (next.status === 'executing')
@@ -2346,7 +2365,7 @@ export class CampaignRunner {
         );
       prepared = await meterNativeRequests(prepareCount, () =>
         removal
-          ? withXCatalogRemovalExpectation(removal, prepare)
+          ? removalBinding.under!(removal, prepare)
           : retiring
             ? withCatalogRetirement(retiring, prepare)
             : prepare(),
@@ -2356,7 +2375,7 @@ export class CampaignRunner {
     // The review read the selected product and it no longer matches its saved evidence: refused like before COM-02 C,
     // the step unchanged and nothing retained, and the remedy is a new removal preview.
     if (removal && !prepared.success && ['CATALOG_REMOVAL_CHANGED', 'STATE_NOT_FOUND'].includes(prepared.error?.code))
-      catalogRemovalChanged();
+      removalBinding.changed!();
     if (!prepared.success && alreadyCurrent(next, prepared.error)) {
       // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
       next.status = 'skipped_unchanged';
@@ -2494,10 +2513,8 @@ export class CampaignRunner {
     // Persist the review reference before egress. A crash resumes with the same native idempotency key.
     if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
-    if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
-    const removal: XCatalogRemovalExpectation | undefined = run.catalog_removal
-        ? assertCatalogRemovalStep(run, next)
-        : undefined,
+    if (run.gtm_consent) await consentBinding.check!(this.store, this.call, actor, run, next);
+    const removal = run.catalog_removal ? removalBinding.expectation!(run, next) : undefined,
       retiring = catalogRetirementOf(run, next),
       before = {status: next.status, state: run.state};
     next.status = 'executing';
@@ -2526,7 +2543,7 @@ export class CampaignRunner {
       executeCount = {reads: 0, writes: 0};
     const result = await meterNativeRequests(executeCount, () =>
       removal
-        ? withXCatalogRemovalExpectation(removal, execute)
+        ? removalBinding.under!(removal, execute)
         : retiring
           ? withCatalogRetirement(retiring, execute)
           : execute(),
@@ -2540,7 +2557,7 @@ export class CampaignRunner {
       step.status = before.status;
       run.state = before.state;
       this.save(actor, run);
-      catalogRemovalChanged();
+      removalBinding.changed!();
     }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
