@@ -30,6 +30,7 @@ import {snapchatOrganizationPixels, snapchatScopedResource} from './snapchat-sco
 import {
   buildSnapchatLeadRecipe,
   buildSnapchatTrafficRecipe,
+  snapchatDependencyEvidence,
   snapchatLeadContext,
   snapchatLeadRecipe,
   snapchatTrafficContext,
@@ -428,6 +429,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     activation: Object.freeze({steps: snapchatActivationSteps, gates: snapchatActivationGates}),
     // A plan step's symbolic predecessor ID, its ad squads' pixels and its ads' creatives (src/campaign-preflight.ts).
     preflight: snapchatPreflight,
+    // Its recipes' existing creative and lead form, as their eligibility shows them (src/recipe-eligibility.ts).
+    dependencyEvidence: snapchatDependencyEvidence,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): ScopeGuard learns ownership from each of its state
   // reads; an ad's lead form is read after its creative, and its creatives' prerequisites are checked after every read;

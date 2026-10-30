@@ -8,7 +8,7 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money, recipeRoas, recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
-import type {RecipeContextFacts, RecipeLookupContext} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts, RecipeLookupContext} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDates,
@@ -398,6 +398,43 @@ export function googleSearchRecipeContext(id: string): RecipeContextFacts | unde
     : googleConversionRecipes[id]
       ? googleConversionContext
       : undefined;
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from recipeEligibility (src/recipe-eligibility.ts), which asks the
+// recipe's provider (its adapter's `campaign.dependencyEvidence`).
+/** A Google Search recipe's explicit bidding settings, as the brief compiled them. */
+export function googleSearchDependencyEvidence(
+  id: string,
+  {business, recipe}: DependencyEvidenceContext,
+): JsonObject | undefined {
+  if (id === 'campaign_cpc_ceiling')
+    return {
+      status: 'ready',
+      evidence: {kind: 'compiled_explicit_setting', ceiling: business.cpc_bid_ceiling},
+      meaning: 'The explicit ceiling passed exact native-unit compilation. Provider acceptance occurs during review.',
+    };
+  if (id === 'conversion_value_policy')
+    return {
+      status: 'ready',
+      evidence: {kind: 'compiled_explicit_setting', policy: recipe.conversion_value_policy},
+      meaning:
+        'The operator explicitly chose recorded account values. This does not establish configured or delivered conversion values.',
+    };
+  if (id === 'campaign_target_roas')
+    return {
+      status: 'ready',
+      evidence: {kind: 'compiled_explicit_setting', ratio: recipe.target_roas},
+      meaning:
+        'The explicit ratio passed local validation. Provider acceptance, historical eligibility and actual return remain unverified.',
+    };
+  if (id === 'campaign_target_cpa')
+    return {
+      status: 'ready',
+      evidence: {kind: 'compiled_explicit_setting', target_cpa_micros: recipe.target_cpa_micros},
+      meaning:
+        'The explicit target CPA passed exact native-unit compilation. It is an average optimization target; provider acceptance and performance remain unverified.',
+    };
+  return undefined;
 }
 
 // Writes and campaigns (wave 4c): moved verbatim from CampaignRunner.recipeLookup (src/campaign-runner.ts), after the

@@ -475,3 +475,114 @@ test('the runner asks the provider for a refused build and its recipe lookups, n
     await refusal(() => lookup(input), 'INVALID_LOOKUP');
   await refusal(() => lookup({lookup_kind: 'microsoft_location', query: 'x'}), 'MICROSOFT_LOCATIONS_UNPINNED');
 });
+
+test("a recipe's dependency evidence is its provider's, and the pixel is the recipe provider's own", async () => {
+  // ARC-01 phase B (wave 4c): src/recipe-eligibility.ts named TikTok to tell its pixel from Meta's and held each
+  // provider's dependency evidence in one chain. Each recipe provider declares it (`campaign.dependencyEvidence`); the
+  // eligibility keeps the account currency, the Google conversion settings and every other rule, in their order.
+  const source = read('src/recipe-eligibility.ts');
+  assert.deepEqual(gatewayLiterals(source), []);
+  assert.deepEqual(providerImports(source), []);
+  const {snapchatDependencyEvidence} = await import('../dist/src/snapchat-traffic-recipe.js');
+  const {tiktokDependencyEvidence} = await import('../dist/src/tiktok-launch-recipes.js');
+  const {linkedinDependencyEvidence} = await import('../dist/src/linkedin-lead-recipe.js');
+  const {metaDependencyEvidence} = await import('../dist/src/meta-website-recipes.js');
+  const {recipeDependencies} = await import('../dist/src/capability-eligibility.js');
+  const {campaignRecipes, recipeGateway} = await import('../dist/src/campaign-recipes.js');
+  const evidence = gateway => providerHooks(gateway)?.campaign?.dependencyEvidence;
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.campaign?.dependencyEvidence).map(h => h.gateway),
+    [
+      'google_ads_native_action',
+      'meta_native_action',
+      'tiktok_native_action',
+      'snapchat_native_action',
+      'linkedin_native_action',
+    ],
+  );
+  assert.equal(evidence('snapchat_native_action'), snapchatDependencyEvidence);
+  assert.equal(evidence('tiktok_native_action'), tiktokDependencyEvidence);
+  assert.equal(evidence('linkedin_native_action'), linkedinDependencyEvidence);
+  assert.equal(evidence('meta_native_action'), metaDependencyEvidence);
+  // Each recipe's provider is the one whose recipes declare its dependencies: no other provider answers them.
+  const empty = {assets: [], scope: {}, business: {}, recipe: {}, steps: []};
+  for (const {id} of campaignRecipes)
+    for (const dependency of recipeDependencies[id]?.objects ?? [])
+      for (const hooks of registeredProviderHooks)
+        if (hooks.gateway !== recipeGateway(id) && hooks.campaign?.dependencyEvidence)
+          assert.equal(
+            hooks.campaign.dependencyEvidence(dependency, empty),
+            undefined,
+            id + ' ' + dependency + ' ' + hooks.gateway,
+          );
+  const scope = {gateway: 'x', connection_id: 'c', account_id: '1'},
+    asset = (asset_type, extra = {}) => ({
+      asset_type,
+      account_id: '1',
+      connection_id: 'c',
+      status: 'provider_read_checked',
+      meaning: 'Read.',
+      ...extra,
+    }),
+    context = (assets, extra = {}) => ({assets, scope, business: {}, recipe: {}, steps: [], ...extra});
+  // The account-owned pixel is TikTok's for a TikTok recipe and Meta's for a Meta recipe, as the chain told them apart.
+  const tiktokPixel = asset('TikTok pixel'),
+    metaPixel = asset('Meta pixel');
+  assert.deepEqual(tiktokDependencyEvidence('account_owned_pixel', context([metaPixel, tiktokPixel])), {
+    status: 'ready',
+    evidence: tiktokPixel,
+    meaning: 'Read.',
+  });
+  assert.equal(tiktokDependencyEvidence('account_owned_pixel', context([metaPixel])), undefined);
+  assert.deepEqual(metaDependencyEvidence('account_owned_pixel', context([tiktokPixel, metaPixel])), {
+    status: 'ready',
+    evidence: metaPixel,
+    meaning: 'The account-scoped native collection confirmed access to this exact resource.',
+  });
+  // TikTok's proof is this exact advertiser's and login's, read and checked.
+  for (const other of [{account_id: '2'}, {connection_id: 'd'}, {status: 'unknown'}])
+    assert.equal(
+      tiktokDependencyEvidence('tiktok_spark_identity', context([asset('TikTok identity', other)])),
+      undefined,
+    );
+  // Snapchat's lead form is the reused creative's own form; LinkedIn's is the brief's form.
+  const creative = asset('Snapchat creative', {asset_id: 'cr', lead_generation_form_id: 'lf'}),
+    form = asset('Snapchat lead form', {asset_id: 'lf'});
+  assert.equal(
+    snapchatDependencyEvidence('existing_lead_form', context([creative, form], {business: {creative_id: 'cr'}}))
+      ?.evidence,
+    form,
+  );
+  assert.equal(
+    snapchatDependencyEvidence('existing_lead_form', context([creative, form], {business: {creative_id: 'other'}})),
+    undefined,
+  );
+  const leadForm = asset('LinkedIn lead form', {asset_id: 'f1'});
+  assert.equal(
+    linkedinDependencyEvidence('linkedin_lead_form', context([leadForm], {business: {lead_form_id: 'f1'}}))?.evidence,
+    leadForm,
+  );
+  assert.equal(
+    linkedinDependencyEvidence('linkedin_lead_form', context([leadForm], {business: {lead_form_id: 'f2'}})),
+    undefined,
+  );
+  // Meta's attribution windows and Google's explicit settings come from the compiled brief.
+  const windows = [{event_type: 'CLICK_THROUGH', window_days: 7}];
+  assert.deepEqual(
+    metaDependencyEvidence(
+      'attribution_window',
+      context([], {steps: [{id: 'adset', arguments: {payload: {attribution_spec: windows}}}]}),
+    ).evidence,
+    {kind: 'compiled_explicit_settings', windows},
+  );
+  const google = evidence('google_ads_native_action');
+  assert.deepEqual(google('campaign_target_roas', context([], {recipe: {target_roas: '3.5'}})).evidence, {
+    kind: 'compiled_explicit_setting',
+    ratio: '3.5',
+  });
+  assert.deepEqual(google('pmax_asset_minimums', context([], {recipe: {asset_counts: {headlines: 3}}})).evidence, {
+    kind: 'compiled_explicit_setting',
+    asset_counts: {headlines: 3},
+  });
+  assert.equal(google('landing_page', context([])), undefined);
+});

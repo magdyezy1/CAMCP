@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney} from './recipe-values.js';
-import type {RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 export const snapchatTrafficRecipe = {
   id: 'snapchat_website_traffic',
@@ -215,3 +215,29 @@ export const snapchatLeadContext: RecipeContextFacts = Object.freeze({
   ]),
   prerequisite: 'existing account-owned lead creative and form with explicit optimization/country/schedule inputs',
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from recipeEligibility (src/recipe-eligibility.ts), which asks the
+// recipe's provider (its adapter's `campaign.dependencyEvidence`).
+/** The existing creative and lead form a Snapchat recipe reuses, as its preflight read them for this exact account. */
+export function snapchatDependencyEvidence(
+  id: string,
+  {assets, scope, business}: DependencyEvidenceContext,
+): JsonObject | undefined {
+  if (!['existing_website_creative', 'existing_lead_creative', 'existing_lead_form'].includes(id)) return undefined;
+  const creative = assets.find(
+    a =>
+      a.asset_type === 'Snapchat creative' &&
+      a.asset_id === business.creative_id &&
+      a.account_id === scope.account_id &&
+      a.connection_id === scope.connection_id,
+  );
+  const proof = assets.find(
+    a =>
+      a.asset_type === (id === 'existing_lead_form' ? 'Snapchat lead form' : 'Snapchat creative') &&
+      a.asset_id === (id === 'existing_lead_form' ? creative?.lead_generation_form_id : business.creative_id) &&
+      a.account_id === scope.account_id &&
+      a.connection_id === scope.connection_id &&
+      a.status === 'provider_read_checked',
+  );
+  return proof ? {status: 'ready', evidence: proof, meaning: proof.meaning} : undefined;
+}

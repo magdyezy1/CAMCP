@@ -33,10 +33,16 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
 import {
   buildGoogleSearchRecipe,
   googleRecipeLookup,
+  googleSearchDependencyEvidence,
   googleSearchRecipeContext,
   googleSearchRecipes,
 } from './google-search-recipes.js';
-import {buildGooglePmaxRecipe, googlePmaxContext, googlePmaxRecipe} from './google-pmax-recipe.js';
+import {
+  buildGooglePmaxRecipe,
+  googlePmaxContext,
+  googlePmaxDependencyEvidence,
+  googlePmaxRecipe,
+} from './google-pmax-recipe.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {googleStateReads} from './google-state-reads.js';
@@ -44,7 +50,7 @@ import {googleClone} from './google-campaign-clone.js';
 import {composeGoogleBuild} from './google-atomic-builds.js';
 import {googleActivationGates, googleActivationRecord, googleActivationSteps} from './google-recipe-activation.js';
 import {googlePreflight} from './google-preflight.js';
-import type {MutationResponse} from './provider-adapter.js';
+import type {DependencyEvidenceContext, MutationResponse} from './provider-adapter.js';
 import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
@@ -599,6 +605,10 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       country: Object.freeze({search: googleRecipeLookup}),
       language: Object.freeze({search: googleRecipeLookup}),
     }),
+    // Its recipes' explicit bidding settings and Performance Max asset counts, as their eligibility shows them
+    // (src/recipe-eligibility.ts).
+    dependencyEvidence: (id: string, context: DependencyEvidenceContext) =>
+      googleSearchDependencyEvidence(id, context) ?? googlePmaxDependencyEvidence(id, context),
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
   // checked against the state, in that order, before the review's paused-parent check.

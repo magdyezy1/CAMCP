@@ -3,7 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {fingerprint} from './workspace-core.js';
 import {currencyMinorDigits} from './budget-units.js';
-import type {RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
  * linkedin_lead_generation (CMP-07 optional stretch, built before P7 named it; the owner may remove it): a guided
@@ -317,3 +317,22 @@ export const linkedinLeadContext: RecipeContextFacts = Object.freeze({
   ]),
   prerequisite: 'existing post and account-owned lead form with explicit location, locale and schedule inputs',
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from recipeEligibility (src/recipe-eligibility.ts), which asks the
+// recipe's provider (its adapter's `campaign.dependencyEvidence`).
+/** The LinkedIn lead generation pack (CMP-07): the owner-finder read of this exact form. */
+export function linkedinDependencyEvidence(
+  id: string,
+  {assets, scope, business}: DependencyEvidenceContext,
+): JsonObject | undefined {
+  if (id !== 'linkedin_lead_form') return undefined;
+  const proof = assets.find(
+    a =>
+      a.asset_type === 'LinkedIn lead form' &&
+      a.asset_id === business.lead_form_id &&
+      a.account_id === scope.account_id &&
+      a.connection_id === scope.connection_id &&
+      a.status === 'provider_read_checked',
+  );
+  return proof ? {status: 'ready', evidence: proof, meaning: proof.meaning} : undefined;
+}

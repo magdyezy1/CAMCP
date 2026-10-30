@@ -25,6 +25,7 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
 // Writes and campaigns (wave 4c).
 import {
   buildLinkedinLeadRecipe,
+  linkedinDependencyEvidence,
   linkedinLeadContext,
   linkedinLeadRecipe,
   linkedinRecipePrerequisites,
@@ -338,6 +339,8 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
         declared: string[],
       ) => linkedinRecipePrerequisites(service, actor, plan, connectionId, declared),
     }),
+    // The lead generation pack's lead form, as its eligibility shows it (src/recipe-eligibility.ts).
+    dependencyEvidence: linkedinDependencyEvidence,
   }),
   // A create on an ad account reads the account (src/write-snapshots.ts).
   writes: Object.freeze({

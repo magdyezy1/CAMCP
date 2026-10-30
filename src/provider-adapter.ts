@@ -593,6 +593,24 @@ export interface CampaignHooks {
   refusedBuild?(step: JsonObject): boolean;
   /** The recipe lookups the provider answers, by lookup_kind (src/campaign-runner.ts recipe_lookup). */
   readonly lookups?: Readonly<Record<string, RecipeLookup>>;
+  /**
+   * The evidence a dependency its recipes declare has in their eligibility (src/recipe-eligibility.ts, after the
+   * account currency): the status, evidence and meaning a ready dependency shows, from the assets the read-only
+   * preflight checked or the compiled brief; undefined leaves it unknown.
+   */
+  dependencyEvidence?(id: string, context: DependencyEvidenceContext): JsonObject | undefined;
+}
+/** What a recipe's eligibility gives its provider's dependency evidence (src/recipe-eligibility.ts). */
+export interface DependencyEvidenceContext {
+  /** The assets the read-only preflight's checks name. */
+  readonly assets: JsonObject[];
+  /** The plan's gateway, login and account. */
+  readonly scope: JsonObject;
+  /** The brief's resolved inputs. */
+  readonly business: JsonObject;
+  /** The compiled recipe and its steps. */
+  readonly recipe: JsonObject;
+  readonly steps: JsonObject[];
 }
 /**
  * A recipe lookup (recipe_lookup). The runner keeps its order of checks: a lookup the service answers from the

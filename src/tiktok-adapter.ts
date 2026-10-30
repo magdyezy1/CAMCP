@@ -64,6 +64,7 @@ import {
   buildTiktokLaunchRecipe,
   tiktokConversionContext,
   tiktokConversionRecipe,
+  tiktokDependencyEvidence,
   tiktokRecipePrerequisites,
   tiktokTrafficContext,
   tiktokTrafficRecipe,
@@ -473,6 +474,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         declared: string[],
       ) => tiktokRecipePrerequisites(service, actor, plan, connectionId, declared),
     }),
+    // A launch pack's identity, post and pixel, as its eligibility shows them (src/recipe-eligibility.ts).
+    dependencyEvidence: tiktokDependencyEvidence,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
   // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are

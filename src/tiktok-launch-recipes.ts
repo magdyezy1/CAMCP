@@ -3,7 +3,7 @@ import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
-import type {RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
  * Guided paused TikTok launch packs (CMP-07, packs owner decision P7 names): website traffic and website purchases on
@@ -459,3 +459,26 @@ export const tiktokConversionContext: RecipeContextFacts = Object.freeze({
   ]),
   prerequisite: tiktokLaunchPrerequisite,
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from recipeEligibility (src/recipe-eligibility.ts), which asks the
+// recipe's provider (its adapter's `campaign.dependencyEvidence`); the pixel is TikTok's for a TikTok recipe.
+/** TikTok launch packs (CMP-07): the identity, post and pixel preflight read for this exact advertiser. */
+export function tiktokDependencyEvidence(
+  id: string,
+  {assets, scope}: DependencyEvidenceContext,
+): JsonObject | undefined {
+  if (!['tiktok_spark_identity', 'existing_tiktok_post', 'account_owned_pixel'].includes(id)) return undefined;
+  const type = {
+      tiktok_spark_identity: 'TikTok identity',
+      existing_tiktok_post: 'TikTok post',
+      account_owned_pixel: 'TikTok pixel',
+    }[id as 'tiktok_spark_identity'],
+    proof = assets.find(
+      a =>
+        a.asset_type === type &&
+        a.account_id === scope.account_id &&
+        a.connection_id === scope.connection_id &&
+        a.status === 'provider_read_checked',
+    );
+  return proof ? {status: 'ready', evidence: proof, meaning: proof.meaning} : undefined;
+}

@@ -30,7 +30,12 @@ import {
 } from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
-import {buildMetaWebsiteRecipe, metaWebsiteRecipeContext, metaWebsiteRecipes} from './meta-website-recipes.js';
+import {
+  buildMetaWebsiteRecipe,
+  metaDependencyEvidence,
+  metaWebsiteRecipeContext,
+  metaWebsiteRecipes,
+} from './meta-website-recipes.js';
 import {metaWriteShapeBefore} from './meta-write-shape.js';
 import type {ReviewStateContext} from './provider-adapter.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
@@ -305,6 +310,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
     activation: Object.freeze({steps: metaActivationSteps, record: metaActivationRecord, gates: metaActivationGates}),
     // A plan step's creative contract and its Page and media (src/campaign-preflight.ts).
     preflight: metaPreflight,
+    // Its recipes' Page, pixel and attribution windows, as their eligibility shows them (src/recipe-eligibility.ts).
+    dependencyEvidence: metaDependencyEvidence,
   }),
   // Its parts of the reviewed write lifecycle (src/write-review.ts): a new creative's state is the account read and the
   // creative's identity sources, which Meta's module reads itself through the review's access check; an ad set's audience

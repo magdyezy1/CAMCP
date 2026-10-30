@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {pmaxAssetRequirements} from './google-pmax-build.js';
-import type {RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 
 /**
  * google_performance_max (CMP-07, a pack owner decision P7 of 2026-10-11 names): a guided paused
@@ -275,3 +275,16 @@ export const googlePmaxContext: RecipeContextFacts = Object.freeze({
   ]),
   prerequisite: 'existing account image and logo assets with explicit text assets, location and language inputs',
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from recipeEligibility (src/recipe-eligibility.ts), which asks the
+// recipe's provider (its adapter's `campaign.dependencyEvidence`).
+/** CMP-07: the counts and text lengths the build compiled passed the pinned Performance Max minimums. */
+export function googlePmaxDependencyEvidence(id: string, {recipe}: DependencyEvidenceContext): JsonObject | undefined {
+  if (id !== 'pmax_asset_minimums') return undefined;
+  return {
+    status: 'ready',
+    evidence: {kind: 'compiled_explicit_setting', asset_counts: recipe.asset_counts},
+    meaning:
+      'The asset counts and text lengths meet the pinned Performance Max minimums. Image ratios, policy review and ad strength remain with Google.',
+  };
+}

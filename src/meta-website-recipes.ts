@@ -5,7 +5,7 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {recipeMoney as money} from './recipe-values.js';
-import type {RecipeContextFacts} from './provider-adapter.js';
+import type {DependencyEvidenceContext, RecipeContextFacts} from './provider-adapter.js';
 import {
   assertRecipeAtomic,
   recipeDestination,
@@ -303,4 +303,35 @@ export function metaWebsiteRecipeContext(id: string): RecipeContextFacts | undef
         ]),
       })
     : undefined;
+}
+
+// Writes and campaigns (wave 4c): moved verbatim from recipeEligibility (src/recipe-eligibility.ts), which asks the
+// recipe's provider (its adapter's `campaign.dependencyEvidence`); the pixel is Meta's for a Meta recipe.
+/** A Meta recipe's Page and pixel, as its preflight read them, and its explicit attribution windows. */
+export function metaDependencyEvidence(id: string, {assets, steps}: DependencyEvidenceContext): JsonObject | undefined {
+  if (['page_identity', 'account_owned_pixel'].includes(id)) {
+    const proof = assets.find(
+      a =>
+        a.asset_type === (id === 'page_identity' ? 'Facebook Page' : 'Meta pixel') &&
+        a.status === 'provider_read_checked',
+    );
+    return proof
+      ? {
+          status: 'ready',
+          evidence: proof,
+          meaning: 'The account-scoped native collection confirmed access to this exact resource.',
+        }
+      : undefined;
+  }
+  if (id === 'attribution_window')
+    return {
+      status: 'ready',
+      evidence: {
+        kind: 'compiled_explicit_settings',
+        windows: steps.find((step: JsonObject) => step.id === 'adset')?.arguments.payload.attribution_spec,
+      },
+      meaning:
+        'The explicit settings match the local recipe contract. Historical attribution and event delivery remain unverified.',
+    };
+  return undefined;
 }
