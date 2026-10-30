@@ -563,7 +563,10 @@ catalog families' shared read (`src/x-catalogs.ts`). They are kit calls too; the
 family's state before the write-only fields, uses the kit's `after`. `tests/family-reads.test.mjs` compares the kit
 with each of the 28 layouts the builders had for all 1,024 combinations of the optional fields a request may carry,
 and fails when a family module, or a provider module one imports, builds a read of its own (X's audience estimate, a
-read tool whose literals are no family's reads, is the one helper it leaves out).
+read tool whose literals are no family's reads, is the one helper it leaves out). The whole branch's call replay,
+re-run on that build against the base recorded the same UTC day (5,597,171 records before, 5,597,169 after), shows 0
+differences but the rehearsal records whose spec argument carries the moved fact and the `platform()` lookups of §7,
+and 110,086 distinct pure calls replay with 0 differences.
 
 ## 14. Composition tables
 
