@@ -233,6 +233,16 @@ export const xHooks: ProviderHooks = Object.freeze({
     encodedBody: true as const,
     droppedWhile: {parameter: 'download_report', dropped: ['offset', 'limit']},
   }),
+  // Its report job family and what it guarantees (src/provider-jobs.ts).
+  jobs: deepFrozen([
+    {
+      family: 'x_report_jobs',
+      kind: 'report' as const,
+      admission: 'At most 100 unresolved jobs per account (admitXReport).',
+      lost_response: 'Uncertain; the original job is polled by its ID and never replaced.',
+      retrieval: 'download_report on the original job: a bounded gzip from the pinned X download host.',
+    },
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

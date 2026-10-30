@@ -183,6 +183,16 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     platformControls: ['resource', 'method'],
     encodedBody: true as const,
   }),
+  // Its SDF download job family and what it guarantees (src/provider-jobs.ts).
+  jobs: deepFrozen([
+    {
+      family: 'dv360_sdf_downloads',
+      kind: 'export' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original operation is read by its name, never resubmitted.',
+      retrieval: 'The original operation is read until done; its files are then downloaded with media.download.',
+    },
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

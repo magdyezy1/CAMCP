@@ -19,6 +19,7 @@ import {adjustHooks} from './adjust-adapter.js';
 import {amazonHooks} from './amazon-adapter.js';
 // Wave 4c round 6 (w4c-arc6-tables): WooCommerce's rows of the shared tables.
 import {woocommerceHooks} from './woocommerce-adapter.js';
+import type {ProviderJobFacts} from './provider-adapter.js';
 
 /**
  * The provider hooks registry (ARC-01 phase B): each provider's behaviour that needs its own modules, from its adapter
@@ -116,3 +117,28 @@ export const encodedBodyProviders: readonly ProviderHooks[] = tableOrder(
   ['dv360', 'linkedin', 'x'],
   hooks => hooks.parameters?.encodedBody,
 );
+/**
+ * src/provider-jobs.ts providerJobContracts, whose rows follow the job families' order (a provider's families need not
+ * be adjacent): each family with the hooks entry that declares it. Checked at load like the provider orders.
+ */
+const jobFamilyOrder = [
+  'x_report_jobs',
+  'tiktok_report_jobs',
+  'meta_insights_jobs',
+  'dv360_sdf_downloads',
+  'criteo_report_jobs',
+  'tiktok_change_log_tasks',
+  'ga4_export_jobs',
+  'microsoft_reporting_pipeline',
+];
+export const providerJobFamilies: readonly {readonly hooks: ProviderHooks; readonly job: ProviderJobFacts}[] = (() => {
+  const declared = registeredProviderHooks.flatMap(hooks => (hooks.jobs ?? []).map(job => ({hooks, job})));
+  const listed = jobFamilyOrder.map(family => declared.find(entry => entry.job.family === family));
+  if (
+    new Set(jobFamilyOrder).size !== jobFamilyOrder.length ||
+    listed.some(entry => !entry) ||
+    declared.length !== jobFamilyOrder.length
+  )
+    throw new Error('The provider job order must name every job family the provider hooks declare exactly once.');
+  return Object.freeze(listed.map(entry => Object.freeze(entry!)));
+})();

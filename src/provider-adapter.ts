@@ -864,6 +864,8 @@ export interface ProviderHooks {
   readonly programs?: readonly DiscoveryProgramFacts[];
   /** Its top-level parameters (src/parameters.ts): account aliases, platform controls and its own parameter rules. */
   readonly parameters?: ParameterFacts;
+  /** Its provider job families and what each guarantees (src/provider-jobs.ts providerJobContracts). */
+  readonly jobs?: readonly ProviderJobFacts[];
 }
 
 export interface ProviderAdapter {
@@ -1430,4 +1432,14 @@ export interface ParameterFacts {
   readonly onlyValue?: {readonly parameter: string; readonly value: string; readonly refusal: string};
   /** Parameters dropped while another is true (X's offset and limit of a report download). */
   readonly droppedWhile?: {readonly parameter: string; readonly dropped: readonly string[]};
+}
+/** A provider job family and what it guarantees (src/provider-jobs.ts providerJobContracts). */
+export interface ProviderJobFacts {
+  readonly family: string;
+  readonly kind: 'report' | 'export' | 'change_log';
+  readonly admission: string;
+  readonly lost_response: string;
+  readonly retrieval: string;
+  /** The reporting pipeline's jobs (Microsoft's): no reviewed family creates them, so no report-job grant applies. */
+  readonly pipeline?: true;
 }

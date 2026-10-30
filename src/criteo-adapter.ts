@@ -80,4 +80,15 @@ export const criteoHooks: ProviderHooks = Object.freeze({
       plan.method === 'GET' &&
       criteoRoute('/reports/[a-f0-9-]+/output$', 'i').test(plan.path),
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its report
+  // job family and what it guarantees (src/provider-jobs.ts).
+  jobs: Object.freeze([
+    Object.freeze({
+      family: 'criteo_report_jobs',
+      kind: 'report' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original report is read by its ID, never resubmitted.',
+      retrieval: 'The original report’s bounded output.',
+    }),
+  ]),
 });

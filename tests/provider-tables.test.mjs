@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {providerAdapters} from '../dist/src/provider-adapters.js';
-import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {providerHooks, providerJobFamilies, registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {
   unavailableOperation,
   unavailableOperationNames,
@@ -23,6 +23,8 @@ import {
   nativeTopLevel,
   parameterHandling,
 } from '../dist/src/parameters.js';
+import {providerJobContracts, providerJobGateways, reviewedJobFamily} from '../dist/src/provider-jobs.js';
+import {campaignRecipes, recipeGateway} from '../dist/src/campaign-recipes.js';
 
 // ARC-01, wave 4c round 6 (w4c-arc6-tables): the provider rows of the shared tables moved into the adapters, and each
 // shared module lists them in the order src/provider-hooks.ts declares. Each table as it was is transcribed below, and
@@ -672,4 +674,121 @@ test('the parameter tables and checks answer every gateway, action and top-level
       for (const list of [hooks.parameters.accountAliases, hooks.parameters.platformControls])
         if (list) assert.ok(Object.isFrozen(list), hooks.gateway);
     }
+});
+
+// src/provider-jobs.ts as it was: the job families' contract, and the reviewed families' gateways.
+const oldJobContracts = Object.freeze([
+  {
+    family: 'x_report_jobs',
+    gateway: 'x_ads_native_action',
+    provider: 'x',
+    kind: 'report',
+    admission: 'At most 100 unresolved jobs per account (admitXReport).',
+    lost_response: 'Uncertain; the original job is polled by its ID and never replaced.',
+    retrieval: 'download_report on the original job: a bounded gzip from the pinned X download host.',
+  },
+  {
+    family: 'tiktok_report_jobs',
+    gateway: 'tiktok_native_action',
+    provider: 'tiktok',
+    kind: 'report',
+    admission: 'One per second and 500 per hour per app and account (admitTiktokReport).',
+    lost_response: 'Uncertain; the original task is checked, never resubmitted.',
+    retrieval: 'The original task is checked and its bounded file downloaded with the same login.',
+  },
+  {
+    family: 'meta_insights_jobs',
+    gateway: 'meta_native_action',
+    provider: 'meta',
+    kind: 'report',
+    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+    lost_response: 'Uncertain; the original report run is read by its ID, never resubmitted.',
+    retrieval: 'Bounded pages of the original report run.',
+  },
+  {
+    family: 'dv360_sdf_downloads',
+    gateway: 'dv360_native_action',
+    provider: 'dv360',
+    kind: 'export',
+    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+    lost_response: 'Uncertain; the original operation is read by its name, never resubmitted.',
+    retrieval: 'The original operation is read until done; its files are then downloaded with media.download.',
+  },
+  {
+    family: 'criteo_report_jobs',
+    gateway: 'criteo_native_action',
+    provider: 'criteo',
+    kind: 'report',
+    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+    lost_response: 'Uncertain; the original report is read by its ID, never resubmitted.',
+    retrieval: 'The original report’s bounded output.',
+  },
+  {
+    family: 'tiktok_change_log_tasks',
+    gateway: 'tiktok_native_action',
+    provider: 'tiktok',
+    kind: 'change_log',
+    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+    lost_response: 'Uncertain; the original task is checked, never resubmitted.',
+    retrieval: 'The original task’s status and bounded download.',
+  },
+  {
+    family: 'ga4_export_jobs',
+    gateway: 'ga4_native_action',
+    provider: 'ga4',
+    kind: 'report',
+    admission: 'The deployment-wide hourly bound per property (admitProviderJob); report tasks only.',
+    lost_response: 'Uncertain; the original report task is read by its name, never resubmitted.',
+    retrieval: 'Bounded pages of the original report task.',
+  },
+  {
+    family: 'microsoft_reporting_pipeline',
+    gateway: 'microsoft_ads_native_action',
+    provider: 'microsoft',
+    kind: 'report',
+    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+    lost_response:
+      'Uncertain; the Overview never submits it again (PROVIDER_JOB_UNCERTAIN), and a new snapshot submits a new job.',
+    retrieval: 'PollGenerateReport on the original ReportRequestId, a bounded ZIP and CSV.',
+  },
+]);
+const oldJobGateways = [
+  ...new Set(oldJobContracts.filter(j => j.family !== 'microsoft_reporting_pipeline').map(j => j.gateway)),
+];
+// src/capability-graph.ts as it was: a recipe's gateway.
+const oldRecipeGateways = {google: 'google_ads_native_action', microsoft: 'microsoft_ads_native_action'};
+
+test('the provider job contracts, their gateways and the job capability filter are the same rows in the same order', () => {
+  assert.deepEqual(providerJobContracts, oldJobContracts);
+  assert.ok(Object.isFrozen(providerJobContracts));
+  providerJobContracts.forEach((row, i) => {
+    assert.deepEqual(Object.keys(row), Object.keys(oldJobContracts[i]), row.family);
+    assert.equal(Object.isFrozen(row), false, row.family);
+    assert.equal(Object.getPrototypeOf(row), Object.prototype, row.family);
+  });
+  assert.deepEqual(providerJobGateways, oldJobGateways);
+  assert.ok(Object.isFrozen(providerJobGateways));
+  const families = [...oldJobContracts.map(j => j.family), 'unknown_jobs', '', 'constructor', '__proto__', 'toString'];
+  for (const family of families)
+    assert.equal(reviewedJobFamily(family), family !== 'microsoft_reporting_pipeline', family);
+  // providerJobCapability's filter of the job families, for every gateway and none (offering aside, which is shared).
+  for (const gateway of [...gateways, undefined])
+    assert.deepEqual(
+      providerJobContracts.filter(j => reviewedJobFamily(j.family) && (!gateway || j.gateway === gateway)),
+      oldJobContracts.filter(j => j.family !== 'microsoft_reporting_pipeline' && (!gateway || j.gateway === gateway)),
+      String(gateway),
+    );
+  assert.ok(Object.isFrozen(providerJobFamilies));
+  for (const {hooks, job} of providerJobFamilies) {
+    assert.ok(Object.isFrozen(job), job.family);
+    assert.ok(Object.isFrozen(hooks.jobs), hooks.gateway);
+  }
+  // capabilityGraph's recipe gateways: each recipe's gateway as the old map and naming rule gave it.
+  assert.ok(campaignRecipes.length > 0);
+  for (const recipe of campaignRecipes)
+    assert.equal(
+      recipeGateway(recipe.id),
+      oldRecipeGateways[recipe.platform] ?? recipe.platform + '_native_action',
+      recipe.id,
+    );
 });

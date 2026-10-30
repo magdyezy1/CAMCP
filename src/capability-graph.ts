@@ -3,10 +3,10 @@ import type {Registry} from './catalog.js';
 import type {Store} from './store.js';
 import {actionContractSummary} from './action-contracts.js';
 import {gatewayOffered} from './provider-offering.js';
-import {campaignRecipes} from './campaign-recipes.js';
+import {campaignRecipes, recipeGateway} from './campaign-recipes.js';
 import {reportPlatforms} from './report-metrics.js';
 import {writesPausedFor} from './owner-operations.js';
-import {providerJobContracts, reportJobAccounts} from './provider-jobs.js';
+import {providerJobContracts, reportJobAccounts, reviewedJobFamily} from './provider-jobs.js';
 
 /**
  * Whether this person may create provider report and export jobs, and what blocks them (RPT-06): the deployment owner's
@@ -20,8 +20,7 @@ export function providerJobCapability(
   gateway?: string,
 ): JsonObject {
   const families = providerJobContracts.filter(
-      j =>
-        j.family !== 'microsoft_reporting_pipeline' && gatewayOffered(j.gateway) && (!gateway || j.gateway === gateway),
+      j => reviewedJobFamily(j.family) && gatewayOffered(j.gateway) && (!gateway || j.gateway === gateway),
     ),
     // Only the logins and accounts this actor reaches (SEC-08: a client access set limits them).
     connections = store.connectionsFor(actor).filter(c => families.some(f => f.gateway === c.gateway)),
@@ -69,15 +68,12 @@ export function capabilityGraph(
   providerJobs = false,
 ) {
   store.assertActorActive(actor);
-  const gateways: Record<string, string> = {
-    google: 'google_ads_native_action',
-    microsoft: 'microsoft_ads_native_action',
-  };
   const recipes = campaignRecipes.map(recipe => ({
     id: 'recipe:' + recipe.id,
     kind: 'campaign_recipe',
     name: recipe.name,
-    gateway: gateways[recipe.platform] ?? recipe.platform + '_native_action',
+    // Its declaring provider's gateway, whose accounts its plan writes to (src/campaign-recipes.ts checks each).
+    gateway: recipeGateway(recipe.id)!,
     description: recipe.description,
     required_inputs: recipe.required,
     effects: 'reviewed_provider_writes',

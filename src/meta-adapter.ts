@@ -378,6 +378,16 @@ export const metaHooks: ProviderHooks = Object.freeze({
     controlRefusal: 'Automatic Page Access Token resolution is not implemented.',
     everyActionFields: true as const,
   }),
+  // Its insights job family and what it guarantees (src/provider-jobs.ts).
+  jobs: Object.freeze([
+    Object.freeze({
+      family: 'meta_insights_jobs',
+      kind: 'report' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original report run is read by its ID, never resubmitted.',
+      retrieval: 'Bounded pages of the original report run.',
+    }),
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.

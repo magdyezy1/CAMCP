@@ -223,6 +223,20 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
       Array.isArray(value) &&
       value.every(item => item === null),
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its reporting
+  // pipeline's job family and what it guarantees (src/provider-jobs.ts): the Overview's jobs, which no reviewed family
+  // creates.
+  jobs: Object.freeze([
+    Object.freeze({
+      family: 'microsoft_reporting_pipeline',
+      kind: 'report' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response:
+        'Uncertain; the Overview never submits it again (PROVIDER_JOB_UNCERTAIN), and a new snapshot submits a new job.',
+      retrieval: 'PollGenerateReport on the original ReportRequestId, a bounded ZIP and CSV.',
+      pipeline: true as const,
+    }),
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.access (src/write-review.ts).
