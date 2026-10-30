@@ -433,6 +433,18 @@ build (19, 18, 17 and 17 in four recordings of Work-here). The 101,898 distinct 
 replay through the build after with 0 differences (392 `campaignRecipe`, 394 `recipeMissing`, 3,649 `writeEffects`,
 3,793 `writeImpact`, 6,857 `assertWriteShape`, 19 `applyCloneChanges`).
 
+Seven exports moved with their code and are not re-exported from the shared modules that held them, since a re-export
+would import the provider module again and raise the ratchet's counts: `metaImageSources` and `metaConversionRecipes`
+(from `src/campaign-recipes.ts` to `src/meta-website-recipes.ts`), `googleConversionRecipes` (from
+`src/campaign-recipes.ts` to `src/google-search-recipes.ts`), `googleMoneyFields` (from `src/spend-policy.ts` to
+`src/google-ads-adapter.ts`), `googleServiceMutate` and `googleRejectionIsNonApplied` (from `src/write-rejection.ts` to
+`src/google-write-rejection.ts`), and `composeGoogleBuild`, which `src/campaign-clone.ts` re-exported from
+`src/google-atomic-builds.ts`, where it is defined. They are intentional internal moves, not public import paths: before
+wave 4c nothing in `tests/`, `tools/`, `server/` or `web/` imported them, and their callers in `src/` import the new
+modules. No other export left a module that wave 4c's writes, reporting and family packages changed (the exports of
+every changed `src/` and `server/` module compared with the base), so every other move keeps its import path through a
+re-export, as ARC-04's manual criterion asks.
+
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
 the gate test checks both modes), and phase B moves one concern at a time (the rows above), so shared modules still
