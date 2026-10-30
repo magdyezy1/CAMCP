@@ -145,6 +145,12 @@ Every write passes three independent checks; none of them may be weakened to mak
    needs the flag. Set `exemptFromSpendTextMatch: true` only when the family decides its spending effect itself (2),
    or provably has none (a keyword or form field containing "budget" is not a budget edit).
 
+Two facts of the provider's adapter (`src/provider-adapters.ts`) take part as well, never a family's own: a provider
+each of whose writes changes what serves declares `everyWriteConfirmsSpend` (Reddit), and its writes need the flag
+after checks 1 and 2, whether or not the family is exempt from the text match; a creation field that names a budget
+but moves no money is its `spendNeutralCreation` (a new Meta campaign's top-level
+`is_adset_budget_sharing_enabled: false`), which the text match reads without that one field.
+
 Owner policies: `activates(plan, before)` must return true when the request starts or widens delivery
 (`allow_activation=false` then refuses it); `destructive(plan, before?)` must return true when it deletes or removes
 something the catalog method does not show (`allow_deletion=false`), and receives the reviewed state at prepare and
