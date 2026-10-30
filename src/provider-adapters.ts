@@ -7,6 +7,7 @@ import type {
   ProviderApp,
   ProviderGrantFacts,
   ProviderParking,
+  ProviderRenewal,
   ProviderStatus,
 } from './provider-adapter.js';
 
@@ -111,6 +112,7 @@ function adapter(
     executionOptions?: true;
     grant?: ProviderGrantFacts;
     app?: ProviderApp;
+    renewal?: ProviderRenewal;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -128,6 +130,8 @@ function adapter(
     ...(options.grant ? {grant: Object.freeze({...options.grant})} : {}),
     // ARC-01 phase B, the website platforms' OAuth apps (SEC-07 S2): frozen with their setting table and field list.
     ...(options.app ? {app: providerApp(options.app)} : {}),
+    // ARC-01 phase B, the login and connection modules: how its logins renew without the user (CON-02).
+    ...(options.renewal ? {renewal: Object.freeze({...options.renewal})} : {}),
   });
 }
 
@@ -163,6 +167,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
     paging: {tokenParameter: 'page_token'},
     // Its developer token is the deployment's and no longer sent, so a login of its client never keeps a copy.
     app: {stem: 'GOOGLE', unsealed: ['developerToken']},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'google',
       requestedRead: [googleAdsScope, 'openid', 'profile'],
@@ -177,6 +182,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('google_business', 'google_business_native_action', {
     account: {kind: 'business_profile'},
     app: {stem: 'GBP'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'google_business',
       requestedRead: [businessScope],
@@ -234,6 +240,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('snapchat', 'snapchat_native_action', {
     account: {fields: ['ad_account_id', 'ad_account_ids'], patchFields: true, path: /^\/v1\/adaccounts\/([^/]+)/},
     app: {stem: 'SNAPCHAT'},
+    renewal: {tokenEndpoint: 'https://accounts.snapchat.com/login/oauth2/access_token'},
     grant: {
       platform: 'snapchat',
       requestedRead: [snapchatScope],
@@ -256,6 +263,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
         'LinkedIn campaign groups and creatives: "update the status to PENDING_DELETION" to delete (src/linkedin-entity-deletes.ts)',
     },
     app: {stem: 'LINKEDIN'},
+    renewal: {tokenEndpoint: 'https://www.linkedin.com/oauth/v2/accessToken'},
     grant: {
       platform: 'linkedin',
       requestedRead: ['r_ads', 'r_ads_reporting'],
@@ -293,6 +301,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
     },
     // The developer token every request sends with the login's token.
     app: {stem: 'MICROSOFT', settings: {developerToken: 'AMCP_MICROSOFT_DEVELOPER_TOKEN'}},
+    renewal: {tokenEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token'},
     grant: {
       platform: 'microsoft',
       requestedRead: [microsoftManageScope, 'offline_access'],
@@ -315,6 +324,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
         applePrivateKey: 'AMCP_APPLE_PRIVATE_KEY',
       },
     },
+    renewal: {clientCredentials: true},
     grant: {
       platform: 'apple',
       requestedRead: [appleScope],
@@ -334,6 +344,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
         'pinned Reddit Ads API v3 OpenAPI document: configured_status and status ACTIVE, ARCHIVED, DELETED or PAUSED',
     },
     app: {stem: 'REDDIT'},
+    renewal: {tokenEndpoint: 'https://www.reddit.com/api/v1/access_token'},
     grant: {
       platform: 'reddit',
       // adsedit is requested only when the deployment allows reviewed writes (owner decision D19, item 5).
@@ -353,6 +364,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
         'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days from when it was first scheduled for deletion"',
     },
     app: {stem: 'DV360'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'dv360',
       requestedRead: [dv360Scope],
@@ -367,6 +379,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
     account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'},
     paging: {bodyArgument: 'request'},
     app: {stem: 'GA4'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'ga4',
       requestedRead: [google('analytics.readonly')],
@@ -381,6 +394,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('gtm', 'gtm_native_action', {
     account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'},
     app: {stem: 'GTM'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'gtm',
       requestedRead: [google('tagmanager.readonly')],
@@ -396,6 +410,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
     families: ['search_console_'],
     account: {kind: 'search_property'},
     app: {stem: 'GSC'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'gsc',
       requestedRead: [google('webmasters.readonly')],
@@ -410,6 +425,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('drive', 'google_drive_native_action', {
     account: {kind: 'destination'},
     app: {stem: 'DRIVE'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'drive',
       requestedRead: [google('drive.readonly')],
@@ -423,6 +439,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('sheets', 'google_sheets_native_action', {
     account: {kind: 'destination'},
     app: {stem: 'SHEETS'},
+    renewal: {tokenEndpoint: 'https://oauth2.googleapis.com/token'},
     grant: {
       platform: 'sheets',
       requestedRead: [google('drive.file'), google('spreadsheets')],
@@ -454,6 +471,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   }),
   adapter('amazon', 'amazon_native_action', {
     parked: {reason: 'unimplemented', decision: 'CON-06 option (b), docs/DECISIONS.md'},
+    renewal: {tokenEndpoint: 'https://api.amazon.com/auth/o2/token'},
   }),
 ]);
 

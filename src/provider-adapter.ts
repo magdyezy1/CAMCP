@@ -499,7 +499,16 @@ export interface ProviderAdapter {
   readonly grant?: ProviderGrantFacts;
   /** The deployment's OAuth app of its logins (SEC-07 S2), which src/app-credentials.ts reads. */
   readonly app?: ProviderApp;
+  /** How AMCP renews its logins without the user (CON-02), which src/connection-health.ts reads. */
+  readonly renewal?: ProviderRenewal;
 }
+
+/**
+ * How AMCP renews a provider's logins without the user (CON-02): at the provider's token endpoint with the login's
+ * refresh token, or with the client's own credentials (Apple). A provider without one (Meta, TikTok, X) needs the user's
+ * consent again; src/connection-health.ts and the token refresh (src/auth.ts) read it.
+ */
+export type ProviderRenewal = {readonly tokenEndpoint: string} | {readonly clientCredentials: true};
 
 /**
  * The deployment's OAuth app of a provider's logins (SEC-07 S2): where the environment names its client, and which login

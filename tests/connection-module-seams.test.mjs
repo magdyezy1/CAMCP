@@ -245,6 +245,26 @@ test('the website platforms’ OAuth apps are their providers’ facts, which ap
   );
 });
 
+test('how a login renews without the user is its provider’s fact, which credential health and the refresh read', () => {
+  // tests/connection-renewal-golden.test.mjs pins each endpoint and which logins renew automatically.
+  assert.doesNotMatch(source('src/connection-health.ts'), gatewayLiteral);
+  assert.deepEqual(providerImports('src/connection-health.ts'), []);
+  for (const {gateway, renewal} of providerAdapters.filter(a => a.renewal)) {
+    assert.ok(Object.isFrozen(renewal), gateway);
+    // One way each: a token endpoint (HTTPS) or the client's own credentials.
+    assert.equal(Object.keys(renewal).length, 1, gateway);
+    if (renewal.tokenEndpoint) assert.equal(new URL(renewal.tokenEndpoint).protocol, 'https:', gateway);
+    else assert.equal(renewal.clientCredentials, true, gateway);
+  }
+  assert.deepEqual(
+    providerAdapters.filter(a => a.renewal?.clientCredentials).map(a => a.gateway),
+    ['apple_ads_native_action'],
+  );
+  // The providers whose logins need the user's consent again declare none.
+  for (const id of ['meta', 'tiktok', 'x', 'adjust', 'criteo', 'woocommerce'])
+    assert.equal(providerById(id).renewal, undefined, id);
+});
+
 test('the private Drive source takes Drive’s gateway from its adapter', () => {
   assert.doesNotMatch(source('src/private-drive.ts'), gatewayLiteral);
   // The same gateway its logins, selections and imports name (tests/drive-folders.test.mjs and its suites).

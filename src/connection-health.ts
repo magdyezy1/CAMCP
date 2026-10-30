@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {credentialsLogin, loginRevision} from './connection-authority.js';
+import {providerAdapters, providerOf} from './provider-adapters.js';
 import type {Store} from './store.js';
 import type {Connection, Credentials, JsonObject} from './types.js';
 
@@ -28,26 +29,20 @@ export type CredentialHealthState =
   /** The saved login exists but this server cannot open it (missing or changed encryption key): an operator fix. */
   | 'credentials_unreadable';
 
-/** Token endpoints that renew a login in place; Meta, TikTok and X logins cannot be renewed without consent. */
-export const refreshEndpoints: Record<string, string> = {
-  google_sheets_native_action: 'https://oauth2.googleapis.com/token',
-  google_drive_native_action: 'https://oauth2.googleapis.com/token',
-  google_ads_native_action: 'https://oauth2.googleapis.com/token',
-  dv360_native_action: 'https://oauth2.googleapis.com/token',
-  ga4_native_action: 'https://oauth2.googleapis.com/token',
-  gtm_native_action: 'https://oauth2.googleapis.com/token',
-  google_business_native_action: 'https://oauth2.googleapis.com/token',
-  google_search_console_native_action: 'https://oauth2.googleapis.com/token',
-  snapchat_native_action: 'https://accounts.snapchat.com/login/oauth2/access_token',
-  linkedin_native_action: 'https://www.linkedin.com/oauth/v2/accessToken',
-  amazon_native_action: 'https://api.amazon.com/auth/o2/token',
-  microsoft_ads_native_action: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-  reddit_native_action: 'https://www.reddit.com/api/v1/access_token',
-};
+/**
+ * Token endpoints that renew a login in place, by gateway: each provider adapter's renewal (`renewal.tokenEndpoint`,
+ * src/provider-adapters.ts; ARC-01 phase B). Meta, TikTok and X logins cannot be renewed without consent.
+ */
+export const refreshEndpoints: Record<string, string> = Object.fromEntries(
+  providerAdapters.flatMap(a =>
+    a.renewal && 'tokenEndpoint' in a.renewal ? [[a.gateway, a.renewal.tokenEndpoint]] : [],
+  ),
+);
 
 /** Whether AMCP can renew these credentials without the user (refresh token, or Apple client credentials). */
 export function renewsAutomatically(gateway: string, c: Credentials): boolean {
-  if (gateway === 'apple_ads_native_action') return !!c.clientId;
+  const renewal = providerOf(gateway)?.renewal;
+  if (renewal && 'clientCredentials' in renewal) return !!c.clientId;
   return !!refreshEndpoints[gateway] && !!c.refreshToken && !!c.clientId && !!c.clientSecret;
 }
 
