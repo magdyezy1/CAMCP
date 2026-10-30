@@ -112,6 +112,9 @@ export const targets = Object.freeze({
   // The last round of wave 4c: the verification of a write, whose provider parts move to adapter hooks (with the
   // reconciliation's WriteReconciler, the recipe context and the spending policy's saveSpendPolicy above).
   'dist/src/write-verification.js': {classes: {WriteVerifier: ['verify']}},
+  // Reddit's page step (wave 4c), with which its creative family reads its profile and post pages instead of
+  // src/pagination.ts; a recording made before names those calls dist/src/pagination.js#nextPage.
+  'dist/src/reddit-paging.js': {functions: ['redditNextPage']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
