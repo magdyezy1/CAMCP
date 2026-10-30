@@ -327,8 +327,26 @@ export const metaHooks: ProviderHooks = Object.freeze({
     // and creation time, a node edit's ID as the receipt.
     createdLookup: metaCreated,
     namedTargets: metaNamedTargets,
+    // The owner's spending policy (src/spend-policy.ts): a currency cap its offsets cannot convert.
+    currencyCapRefusal: metaCurrencyCapRefusal,
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.
+/** A cap stated in currency that Meta's minor unit cannot be computed for: state it in native units. */
+function metaCurrencyCapRefusal(field: string, nativeField: string, currency: string | null | undefined): MirrorError {
+  return new MirrorError(
+    'INVALID_POLICY',
+    'Meta counts money in the minor unit of the account currency, and AMCP converts a currency cap (field) only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units instead (native_field; 100 USD is 10000).',
+    {
+      gateway: 'meta_native_action',
+      field,
+      native_field: nativeField,
+      // The currency Meta's offsets were looked up for (stated, or the account's observed one), or null (WRT-07).
+      currency: currency ?? null,
+    },
+  );
+}
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
 /** An account-edge creation returns its ID; a node edit returns success. */

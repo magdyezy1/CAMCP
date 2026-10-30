@@ -203,10 +203,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/meta-write-reconciliation.ts and the read normalization to the leaf src/verification-core.ts, none with
   // reasons: three more files. Its recipe context moves the Microsoft location lookup's pinned request to the leaf
   // src/microsoft-location-pin.ts with its two reasons (src/microsoft-locations.ts keeps its others): one more file, one
-  // more with reasons, the same reasons.
+  // more with reasons, the same reasons. Its spending policy moves Meta's currency-cap refusal from
+  // src/spend-policy.ts, where it reached MirrorError through a helper this inventory does not follow, to
+  // src/meta-adapter.ts, which constructs it: one more owned reason, whose Arabic the catalog already held.
   assert.equal(files.length, 702);
   assert.equal(selected.filter(row => row.messages.size).length, 265);
-  assert.equal(owned.size, 1588);
+  assert.equal(owned.size, 1589);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {

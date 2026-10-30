@@ -26,6 +26,8 @@ import type {VendorRoute} from './delegated-native.js';
 // preflight reads through.
 import type {ToolCall} from './workspace-core.js';
 import type {MirrorService} from './service.js';
+// Writes and campaigns (wave 4c): a provider's refusal under the spending policy.
+import type {MirrorError} from './errors.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -853,6 +855,23 @@ export interface WriteReviewHooks {
    * undefined for a create and for a request that names none.
    */
   namedTargets?(plan: CompiledRequest): JsonObject | undefined;
+  // The owner's spending policy (src/spend-policy.ts), which keeps every rule, its order and its refusals (wave 4c).
+  /** The refusal of a cap stated in currency that the provider's own unit cannot convert (Meta's currency offsets). */
+  currencyCapRefusal?(field: string, nativeField: string, currency: string | null | undefined): MirrorError;
+  /**
+   * The owner policy's activation and deletion switches applied to the access a write grants or removes (Business
+   * Profile's administrators, Google Ads' users), before a family's policy requirement; refuses.
+   */
+  accessPolicy?(plan: CompiledRequest, state: unknown, policy: JsonObject): void;
+  /** The field a route spells activation with where it is not the provider's declared one (LinkedIn's creatives). */
+  activationRule?(plan: CompiledRequest): {field: string; active: string[]} | undefined;
+  /** The reviewed state whose amounts are the write's current ones (Apple's shared budget: its value alone). */
+  policyState?(plan: CompiledRequest, state: unknown): unknown;
+  /**
+   * Money fields the provider's pinned contract classifies (Google Ads' Discovery document): bids, which join the bid
+   * cap, and money that is neither a bid nor a measured budget, unsupported under a numeric policy.
+   */
+  moneyFields?(): {bid: string[]; unsupported: string[]};
 }
 /** What a provider's lookup of a create returns: the created resources it found, in the order of the request's records. */
 export interface CreatedLookup {

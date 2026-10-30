@@ -8,9 +8,10 @@ import {
   multiplyDecimal,
   type PolicyDecimal,
 } from './policy-decimal.js';
-import {assertBusinessAccessPolicy} from './google-business-access.js';
-import {assertGoogleAccessPolicy} from './google-user-access.js';
-import {appleSharedAccounts, appleBudgetState} from './apple-entity-writes.js';
+// The policy's provider parts are its adapters' writes hooks (ARC-01 phase B, wave 4c): Business Profile's and Google
+// Ads' access switches, Apple's shared budget, LinkedIn's creative activation field, Google Ads' money fields and Meta's
+// currency-cap refusal.
+import {providerHooks} from './provider-hooks.js';
 import {Store} from './store.js';
 import {applyExecutionRisk, bodyDeletion} from './execution-risk.js';
 import {MirrorError} from './errors.js';
@@ -19,7 +20,6 @@ import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
 import {lifetimeAmount, nativeAmount, policyNativeUnit} from './budget-units.js';
-import {pinnedJson} from './pinned-json.js';
 import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
   sha256(gateway + ':' + normalizeAccount(gateway, account));
@@ -154,18 +154,15 @@ function moneyLimits(input: JsonObject, gateway: string, observedCurrency?: stri
     if (nativeMoneyKeys.includes(key)) out[key] = value;
     else if (currencyMoneyKeys[key]) {
       const native = nativeAmount(gateway, value as number, currency);
+      // A provider whose unit converts only some currencies refuses the others itself (its adapter's
+      // `writes.currencyCapRefusal`: Meta's currency offsets); any other platform has no documented unit.
       if (native === undefined)
-        throw invalidPolicy(
-          gateway === 'meta_native_action'
-            ? 'Meta counts money in the minor unit of the account currency, and AMCP converts a currency cap (field) only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units instead (native_field; 100 USD is 10000).'
-            : 'This platform has no documented budget unit in AMCP, so state this cap (field) in native API units instead (native_field).',
-          {
-            gateway,
-            field: key,
-            native_field: currencyMoneyKeys[key],
-            // The currency Meta's offsets were looked up for (stated, or the account's observed one), or null (WRT-07).
-            ...(gateway === 'meta_native_action' ? {currency: currency ?? null} : {}),
-          },
+        throw (
+          providerHooks(gateway)?.writes?.currencyCapRefusal?.(key, currencyMoneyKeys[key]!, currency) ??
+          invalidPolicy(
+            'This platform has no documented budget unit in AMCP, so state this cap (field) in native API units instead (native_field).',
+            {gateway, field: key, native_field: currencyMoneyKeys[key]},
+          )
         );
       out[currencyMoneyKeys[key]] = native;
       out[key] = value;
@@ -671,20 +668,8 @@ const bidField =
   /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
 const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid)$/;
 const numeric = (x: unknown) => typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x));
-/**
- * Google Ads money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B):
- * bid ceilings, floors and targets join the bid cap, and money that is neither a bid nor a measured budget is refused
- * as unsupported under a numeric policy. Ratios such as location_fraction_micros stay out.
- */
-type GoogleMoneyFields = {bid: string[]; unsupported: string[]};
-let googleMoney: GoogleMoneyFields | undefined;
-export function googleMoneyFields(): GoogleMoneyFields {
-  return (googleMoney ??= (() => {
-    const fields = pinnedJson<{fields: GoogleMoneyFields}>('generated/google-bid-fields.json').fields;
-    return {bid: [...fields.bid], unsupported: [...fields.unsupported]};
-  })());
-}
-const googleGateway = 'google_ads_native_action';
+// Google Ads' money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B)
+// are its adapter's (`writes.moneyFields`, src/google-ads-adapter.ts googleMoneyFields; ARC-01 phase B, wave 4c).
 function bidAmounts(
   v: unknown,
   path = '',
@@ -816,7 +801,8 @@ export function checkSpendPolicy(
   capOverrideConfirmed = false,
   pendingIncrease?: string,
 ): JsonObject {
-  const accounts = appleSharedAccounts(plan);
+  // The other accounts the write changes are its provider's (`writes.sharedAccounts`: Apple's shared budget).
+  const accounts = providerHooks(plan.gateway)?.writes?.sharedAccounts?.(plan) ?? [];
   if (accounts.length)
     return store.transaction(() => ({
       scope: 'shared_budget',
@@ -975,8 +961,12 @@ function governingPolicy(store: Store, actor: Actor, plan: CompiledRequest, befo
     accountRow = read(accountKey);
   const id = accountRow ? accountKey : workspaceDefaultPolicyId,
     row = accountRow ?? read(workspaceDefaultPolicyId);
-  if (row) assertBusinessAccessPolicy(plan, before, JSON.parse(row.data));
-  if (row) assertGoogleAccessPolicy(plan, before, JSON.parse(row.data));
+  // The switches applied to the access a write grants are its provider's (`writes.accessPolicy`: Business Profile's
+  // administrators, Google Ads' users); the stored policy is parsed here whichever provider, as it always was.
+  if (row) {
+    const stored = JSON.parse(row.data);
+    providerHooks(plan.gateway)?.writes?.accessPolicy?.(plan, before, stored);
+  }
   const needsPolicy = familyOf(plan)?.requiresSpendPolicy;
   if (!row && (typeof needsPolicy === 'function' ? needsPolicy(plan) : !!needsPolicy))
     throw new MirrorError(
@@ -1008,10 +998,8 @@ function assertPolicyAllows({plan, before, policy, id}: SpendCheck): void {
         {policy_id: id, gateway: plan.gateway},
         403,
       );
-    const rule =
-      plan.gateway === 'linkedin_native_action' && /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
-        ? {field: 'intendedStatus', active: ['ACTIVE']}
-        : activationFields[plan.gateway];
+    // A route that spells activation its own way is its provider's (`writes.activationRule`: LinkedIn's creatives).
+    const rule = providerHooks(plan.gateway)?.writes?.activationRule?.(plan) ?? activationFields[plan.gateway];
     if (policyActivates(plan, before, rule))
       throw new MirrorError(
         'POLICY_ACTIVATION_FORBIDDEN',
@@ -1023,6 +1011,11 @@ function assertPolicyAllows({plan, before, policy, id}: SpendCheck): void {
         403,
       );
   }
+}
+/** The reviewed state whose amounts are current: the provider's where it narrows it (Apple's shared budget), else all. */
+function policyState(plan: CompiledRequest, before: unknown): unknown {
+  const state = providerHooks(plan.gateway)?.writes?.policyState;
+  return state ? state(plan, before) : before;
 }
 /** The request's budget amounts and the reviewed state's, as the family or the generic scan measures them. */
 function policyAmounts({plan, before, policy, breach}: SpendCheck) {
@@ -1046,7 +1039,7 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
       );
     for (const u of campaignAmounts?.unsupported ?? [])
       unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
-    old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before), '', [], false, 0, [], identity);
+    old = campaignAmounts?.old ?? budgets(policyState(plan, before), '', [], false, 0, [], identity);
   } catch (e) {
     // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
     if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
@@ -1068,20 +1061,15 @@ function policyAmounts({plan, before, policy, breach}: SpendCheck) {
 }
 /** The request's bid amounts under a bid cap; Google money that is neither a bid nor a budget is unsupported. */
 function policyBids({plan, policy}: SpendCheck, unsupported: Unsupported[], strict: boolean): Amount[] {
-  // Google money that is neither a bid nor a measured budget (a deprecated spend target) is never guessed.
-  if (plan.gateway === googleGateway && (strict || policy.max_bid_native !== undefined))
-    for (const field of namedMoney({body: plan.body, query: plan.query}, googleMoneyFields().unsupported))
+  // Money the provider's pinned contract classifies (`writes.moneyFields`: Google Ads' Discovery fields) that is neither
+  // a bid nor a measured budget (a deprecated spend target) is never guessed.
+  const money = providerHooks(plan.gateway)?.writes?.moneyFields;
+  if (money && (strict || policy.max_bid_native !== undefined))
+    for (const field of namedMoney({body: plan.body, query: plan.query}, money().unsupported))
       unsupported.push({field, message: unmappedMessage});
   const bids =
     policy.max_bid_native !== undefined
-      ? bidAmounts(
-          {body: plan.body, query: plan.query},
-          '',
-          '',
-          [],
-          0,
-          plan.gateway === googleGateway ? googleMoneyFields().bid : [],
-        )
+      ? bidAmounts({body: plan.body, query: plan.query}, '', '', [], 0, money ? money().bid : [])
       : [];
   return bids;
 }

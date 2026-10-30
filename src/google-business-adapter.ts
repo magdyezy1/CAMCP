@@ -5,6 +5,7 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
 import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
 // Writes and campaigns (wave 4c).
 import {placeActionSafe} from './google-place-action-links.js';
+import {assertBusinessAccessPolicy} from './google-business-access.js';
 
 /**
  * Business Profile's resource scope, after the account path: a business account's path names it, and a location's
@@ -107,5 +108,7 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
     // A place action link is live for everyone once written (src/write-effects.ts).
     publishesLive: (plan: CompiledRequest) =>
       ['POST', 'PATCH'].includes(plan.method) && /\/placeActionLinks(?:\/[^/]+)?$/.test(plan.path),
+    // The owner's spending policy (src/spend-policy.ts): its switches over the administrator access a write grants.
+    accessPolicy: assertBusinessAccessPolicy,
   }),
 });

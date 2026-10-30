@@ -81,18 +81,23 @@ test('each provider declares exactly the review hooks of the parts the review na
   );
   assert.deepEqual(declared, {
     google_ads_native_action: [
+      // The spending policy's (src/spend-policy.ts): its user-access switches and its money fields.
+      'accessPolicy',
       'batch',
       'confirms',
       'createdLookup',
+      'moneyFields',
       'namedTargets',
       'prerequisites',
       'rejectionIsNonApplied',
       'snapshots',
     ],
-    google_business_native_action: ['publishesLive', 'shownRequest'],
+    google_business_native_action: ['accessPolicy', 'publishesLive', 'shownRequest'],
     meta_native_action: [
       'confirms',
       'createdLookup',
+      // The spending policy's: a currency cap Meta's offsets cannot convert.
+      'currencyCapRefusal',
       'impact',
       'namedTargets',
       'ownState',
@@ -115,10 +120,12 @@ test('each provider declares exactly the review hooks of the parts the review na
       'snapshots',
     ],
     x_ads_native_action: ['accountPath', 'confirms', 'parentChecks', 'snapshots'],
-    linkedin_native_action: ['accountPath', 'confirms'],
+    // The spending policy's: a creative's activation field.
+    linkedin_native_action: ['accountPath', 'activationRule', 'confirms'],
     dv360_native_action: ['accountPath', 'confirms'],
     microsoft_ads_native_action: ['emptyErrors', 'writeGrant'],
-    apple_ads_native_action: ['prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
+    // The spending policy's: a shared budget's current value.
+    apple_ads_native_action: ['policyState', 'prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
     reddit_native_action: ['writeScopes'],
     ga4_native_action: ['verificationPhase', 'writePermission'],
     gtm_native_action: ['concurrency', 'outcomeData', 'publishesLive', 'writePermission'],
@@ -643,4 +650,119 @@ test('a reconciliation asks the provider for its created-resource lookup and the
     if (!familyOf(p)?.verify && !familyOf(p)?.verification)
       assert.deepEqual(namedTargets(p), writes(p.gateway)?.namedTargets?.(p), p.gateway);
   assert.equal(namedTargets(other), undefined);
+});
+
+test('the spending policy asks the provider where it named it: access switches, shared budgets, activation, money, currency', async () => {
+  // ARC-01 phase B (wave 4c): src/spend-policy.ts named Meta (its currency-cap refusal), Google Ads (its money fields)
+  // and LinkedIn (its creatives' activation field), and imported Business Profile's and Google Ads' access switches
+  // and Apple's shared budget. They are the adapters' writes hooks; the policy keeps every rule, its order and refusals.
+  assertProviderFree('src/spend-policy.ts');
+  const {Store} = await import('../dist/src/store.js');
+  const {checkSpendPolicy, saveSpendPolicy} = await import('../dist/src/spend-policy.js');
+  const {assertBusinessAccessPolicy} = await import('../dist/src/google-business-access.js');
+  const {assertGoogleAccessPolicy} = await import('../dist/src/google-user-access.js');
+  const {appleBudgetState, appleSharedAccounts} = await import('../dist/src/apple-entity-writes.js');
+  const {googleMoneyFields} = await import('../dist/src/google-ads-adapter.js');
+  const declaring = hook => registeredProviderHooks.filter(h => h.writes?.[hook]).map(h => h.gateway);
+  assert.deepEqual(declaring('accessPolicy'), ['google_ads_native_action', 'google_business_native_action']);
+  assert.deepEqual(declaring('moneyFields'), ['google_ads_native_action']);
+  assert.deepEqual(declaring('currencyCapRefusal'), ['meta_native_action']);
+  assert.deepEqual(declaring('activationRule'), ['linkedin_native_action']);
+  assert.deepEqual(declaring('policyState'), ['apple_ads_native_action']);
+  assert.equal(writes('google_business_native_action').accessPolicy, assertBusinessAccessPolicy);
+  assert.equal(writes('google_ads_native_action').accessPolicy, assertGoogleAccessPolicy);
+  assert.equal(writes('apple_ads_native_action').policyState, appleBudgetState);
+  assert.equal(writes('google_ads_native_action').moneyFields, googleMoneyFields);
+  // An Apple write that is no shared budget changes no other account and is compared with its whole state.
+  const apple = plan('apple_ads_native_action', 'PUT', '/v1/campaigns/1');
+  assert.deepEqual(appleSharedAccounts(apple), []);
+  assert.deepEqual(appleBudgetState(apple, [{result: {id: 1}}]), [{result: {id: 1}}]);
+  // Google Ads' money fields are the pinned Discovery classification, read once.
+  const generated = JSON.parse(
+    fs.readFileSync(new URL('../generated/google-bid-fields.json', import.meta.url), 'utf8'),
+  );
+  assert.deepEqual(googleMoneyFields(), {
+    bid: [...generated.fields.bid],
+    unsupported: [...generated.fields.unsupported],
+  });
+  assert.equal(googleMoneyFields(), googleMoneyFields());
+  // LinkedIn's creatives spell activation as intendedStatus; its other routes take the declared field.
+  const rule = writes('linkedin_native_action').activationRule;
+  for (const path of [
+    '/rest/adAccounts/123/creatives',
+    '/rest/adAccounts/123/creatives/urn%3Ali%3AsponsoredCreative%3A9',
+  ])
+    assert.deepEqual(rule(plan('linkedin_native_action', 'POST', path)), {field: 'intendedStatus', active: ['ACTIVE']});
+  for (const path of ['/rest/adAccounts/123/adCampaigns/1', '/rest/adAccounts/123/creatives/9/x'])
+    assert.equal(rule(plan('linkedin_native_action', 'POST', path)), undefined, path);
+  // Through the policy: a save and a check refuse as they did when the policy named the providers.
+  const owner = {tenantId: 'spend-hooks', userId: 'owner', role: 'admin'},
+    store = new Store(':memory:', Buffer.alloc(32, 23).toString('base64'));
+  try {
+    const save = (gateway, policy) =>
+      saveSpendPolicy(store, owner, {gateway, account_id: '123', confirmed: true, policy});
+    // Meta's refusal names the currency its offsets were looked up for: the stated one, or null without one.
+    for (const currency of [undefined, 'XXX'])
+      assert.throws(
+        () => save('meta_native_action', {max_budget_currency: 100, ...(currency ? {currency} : {})}),
+        e =>
+          e.code === 'INVALID_POLICY' &&
+          /^Meta counts money in the minor unit of the account currency/.test(e.message) &&
+          JSON.stringify(e.details) ===
+            JSON.stringify({
+              gateway: 'meta_native_action',
+              field: 'max_budget_currency',
+              native_field: 'max_budget_native',
+              currency: currency ?? null,
+            }),
+        String(currency),
+      );
+    // A platform without a documented unit is refused generically, without a currency.
+    assert.throws(
+      () => save('tiktok_native_action', {max_daily_increase_currency: 5}),
+      e =>
+        e.code === 'INVALID_POLICY' &&
+        /^This platform has no documented budget unit in AMCP/.test(e.message) &&
+        JSON.stringify(e.details) ===
+          JSON.stringify({
+            gateway: 'tiktok_native_action',
+            field: 'max_daily_increase_currency',
+            native_field: 'max_daily_increase_native',
+          }),
+    );
+    store.putConnection(
+      owner,
+      {
+        id: 'li',
+        tenantId: owner.tenantId,
+        gateway: 'linkedin_native_action',
+        accounts: ['123'],
+        writeAccounts: ['123'],
+        label: 'Fixture',
+        enabled: true,
+        scopes: [],
+      },
+      {accessToken: 'fixture'},
+    );
+    save('linkedin_native_action', {allow_activation: false});
+    const creative = plan('linkedin_native_action', 'POST', '/rest/adAccounts/123/creatives/9', {
+      body: {patch: {$set: {intendedStatus: 'ACTIVE'}}},
+    });
+    assert.throws(
+      () => checkSpendPolicy(store, owner, creative, []),
+      e => e.code === 'POLICY_ACTIVATION_FORBIDDEN' && e.details.field === 'intendedStatus',
+    );
+    const campaign = plan('linkedin_native_action', 'POST', '/rest/adAccounts/123/adCampaigns/1', {
+      body: {patch: {$set: {status: 'ACTIVE'}}},
+    });
+    assert.throws(
+      () => checkSpendPolicy(store, owner, campaign, []),
+      e => e.code === 'POLICY_ACTIVATION_FORBIDDEN' && e.details.field === 'status',
+    );
+    // A creative left paused is no activation.
+    const paused = {...creative, body: {patch: {$set: {intendedStatus: 'PAUSED'}}}};
+    assert.equal(checkSpendPolicy(store, owner, paused, []).configured, true);
+  } finally {
+    store.close();
+  }
 });

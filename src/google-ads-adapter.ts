@@ -42,6 +42,9 @@ import {googlePreflight} from './google-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
 import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
+// Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
+import {assertGoogleAccessPolicy} from './google-user-access.js';
+import {pinnedJson} from './pinned-json.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -604,8 +607,27 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     // operations' resources as the receipt of an update or removal.
     createdLookup: googleCreated,
     namedTargets: googleNamedTargets,
+    // The owner's spending policy (src/spend-policy.ts): its switches over the user access a write grants, and the
+    // money fields of the pinned Discovery document.
+    accessPolicy: assertGoogleAccessPolicy,
+    moneyFields: googleMoneyFields,
   }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from src/spend-policy.ts.
+/**
+ * Google Ads money fields classified from the pinned Discovery document (tools/google-bid-fields.mjs, WRT-01 stage B):
+ * bid ceilings, floors and targets join the bid cap, and money that is neither a bid nor a measured budget is refused
+ * as unsupported under a numeric policy. Ratios such as location_fraction_micros stay out.
+ */
+type GoogleMoneyFields = {bid: string[]; unsupported: string[]};
+let googleMoney: GoogleMoneyFields | undefined;
+export function googleMoneyFields(): GoogleMoneyFields {
+  return (googleMoney ??= (() => {
+    const fields = pinnedJson<{fields: GoogleMoneyFields}>('generated/google-bid-fields.json').fields;
+    return {bid: [...fields.bid], unsupported: [...fields.unsupported]};
+  })());
+}
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
 /** One result per operation, each naming its target or a new resource of the mutated collection in the account. */

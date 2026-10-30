@@ -6,7 +6,12 @@ import {assertMeasurementWrite, validateMeasurementState} from './measurement-wr
 // Writes and campaigns (wave 4c).
 import type {SharedAccountContext} from './provider-adapter.js';
 import {assertMeasurementScopes} from './measurement-writes.js';
-import {appleSharedAccountReads, appleSharedAccounts, appleSharedBudget} from './apple-entity-writes.js';
+import {
+  appleBudgetState,
+  appleSharedAccountReads,
+  appleSharedAccounts,
+  appleSharedBudget,
+} from './apple-entity-writes.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 // SDK output-only processing/approval observations are not advertiser edits.
@@ -128,6 +133,8 @@ export const appleHooks: ProviderHooks = Object.freeze({
     writePermission: assertMeasurementScopes,
     sharedState: appleSharedBudgetState,
     prerequisites: appleSharedBudgetScope,
+    // The owner's spending policy (src/spend-policy.ts) compares a shared budget with its own current value alone.
+    policyState: appleBudgetState,
   }),
 });
 

@@ -344,6 +344,11 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: linkedinConfirms,
     accountPath: /^\/rest\/adAccounts\/[^/]+/,
+    // The owner's spending policy (src/spend-policy.ts): a creative spells activation as its intendedStatus.
+    activationRule: (plan: CompiledRequest) =>
+      /^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)
+        ? {field: 'intendedStatus', active: ['ACTIVE']}
+        : undefined,
   }),
 });
 
