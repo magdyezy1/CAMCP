@@ -3,11 +3,12 @@ import type {
   ExpectState,
   ProviderHooks,
   ProviderVerificationRead,
+  RefreshRequest,
   ScopeCallBuilder,
   ScopeContext,
   StateTarget,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
@@ -326,6 +327,19 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
   // Wave 4c (transport and catalog): its targeting insight and forecast POSTs are planned as reviewed reads.
   compile: Object.freeze({afterJob: snapchatPlanningPlan}),
   contracts: snapchatContracts,
+  // A token renewal names the callback registered with its OAuth app, which the login must have recorded.
+  refresh: Object.freeze({
+    request({body}: RefreshRequest, c: Credentials, connection: Connection) {
+      if (!c.redirectUri)
+        throw new MirrorError(
+          'REAUTHORIZATION_REQUIRED',
+          'Reconnect Snapchat to record the registered callback required for refresh.',
+          {connection_id: connection.id},
+          401,
+        );
+      body.set('redirect_uri', c.redirectUri);
+    },
+  }),
   checks: Object.freeze({
     // An ad's creative references are checked before anything else (src/snapchat-ad-creatives.ts).
     shape: Object.freeze({

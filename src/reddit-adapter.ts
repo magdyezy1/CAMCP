@@ -2,10 +2,11 @@ import type {
   DelegatedHooks,
   ProviderHooks,
   ProviderVerificationRead,
+  RefreshRequest,
   ScopeCallBuilder,
   ScopeContext,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
@@ -115,6 +116,21 @@ export const redditHooks: ProviderHooks = Object.freeze({
   // Wave 4c (transport and catalog): its tool takes the audience and read operations AMCP adds to the captured one.
   catalog: Object.freeze({tools: Object.freeze({reddit_native_action: extendRedditTool})}),
   delegated: redditDelegated,
+  // A token renewal sends the connection's descriptive User-Agent and authenticates the app with HTTP Basic, so the
+  // app's ID and secret leave the form body.
+  refresh: Object.freeze({
+    request({body, headers}: RefreshRequest, c: Credentials, connection: Connection) {
+      if (!connection.userAgent || /[\r\n]/.test(connection.userAgent))
+        throw new MirrorError(
+          'USER_AGENT_REQUIRED',
+          'Configure a descriptive Reddit application userAgent on the connection.',
+        );
+      headers['User-Agent'] = connection.userAgent;
+      headers.Authorization = 'Basic ' + Buffer.from(c.clientId + ':' + c.clientSecret).toString('base64');
+      body.delete('client_id');
+      body.delete('client_secret');
+    },
+  }),
   // A response's records are under data, the rest is its envelope.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),

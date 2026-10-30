@@ -2,8 +2,7 @@ import {Store} from './store.js';
 import type {Connection, Credentials, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {scopeKey} from './security.js';
-import {requestAppleAccessToken} from './apple-auth.js';
-import {microsoftGateway, microsoftScope} from './microsoft-native.js';
+import {providerHooks} from './provider-hooks.js';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {inheritLogin} from './connection-authority.js';
@@ -93,14 +92,14 @@ export class CredentialProvider {
     throw e;
   }
   private async refresh(connection: Connection, c: Credentials): Promise<Credentials> {
+    // The provider's part of the renewal (ARC-01 phase B, src/<provider>-adapter.ts): its own token request (Apple),
+    // the app secret its login holds (X) and its parts of the refresh-token request (Microsoft, Snapchat, Reddit).
+    // Everything else here, and the order, is this renewal's.
+    const hooks = providerHooks(connection.gateway)?.refresh;
     // The deployment's OAuth app for this platform is not the one this login was authorized with (SEC-07 S2): the
     // login renews with the copy of its own app's secret it still holds, and its health says the client changed.
     const clientChanged = appClientChanged(connection.gateway, c, this.store.appEnvironment);
-    if (
-      clientChanged &&
-      connection.gateway !== 'apple_ads_native_action' &&
-      !(connection.gateway === 'x_ads_native_action' ? c.consumerSecret : c.clientSecret)
-    )
+    if (clientChanged && !hooks?.own && !(hooks?.appSecret ? hooks.appSecret(c) : c.clientSecret))
       return this.failed(
         connection,
         c,
@@ -113,10 +112,10 @@ export class CredentialProvider {
         null,
         'client_changed',
       );
-    if (connection.gateway === 'apple_ads_native_action') {
+    if (hooks?.own) {
       let token: Credentials;
       try {
-        token = await requestAppleAccessToken(c, this.fetcher);
+        token = await hooks.own(c, this.fetcher);
       } catch (e) {
         return this.failed(
           connection,
@@ -144,29 +143,10 @@ export class CredentialProvider {
       client_id: c.clientId,
       client_secret: c.clientSecret,
     });
-    if (connection.gateway === microsoftGateway) body.set('scope', microsoftScope + ' offline_access');
-    if (connection.gateway === 'snapchat_native_action') {
-      if (!c.redirectUri)
-        throw new MirrorError(
-          'REAUTHORIZATION_REQUIRED',
-          'Reconnect Snapchat to record the registered callback required for refresh.',
-          {connection_id: connection.id},
-          401,
-        );
-      body.set('redirect_uri', c.redirectUri);
-    }
     const headers: Record<string, string> = {};
-    if (connection.gateway === 'reddit_native_action') {
-      if (!connection.userAgent || /[\r\n]/.test(connection.userAgent))
-        throw new MirrorError(
-          'USER_AGENT_REQUIRED',
-          'Configure a descriptive Reddit application userAgent on the connection.',
-        );
-      headers['User-Agent'] = connection.userAgent;
-      headers.Authorization = 'Basic ' + Buffer.from(c.clientId + ':' + c.clientSecret).toString('base64');
-      body.delete('client_id');
-      body.delete('client_secret');
-    }
+    // The provider's parts of the request: Microsoft's scope, Snapchat's registered callback, Reddit's User-Agent and
+    // Basic authentication; each refuses a request it cannot send.
+    hooks?.request?.({body, headers}, c, connection);
     let response: Response;
     try {
       response = await this.fetcher(endpoint, {

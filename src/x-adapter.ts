@@ -58,6 +58,8 @@ export const xHooks: ProviderHooks = Object.freeze({
   // Its tool takes the report job operations AMCP adds to the captured definition.
   catalog: Object.freeze({tools: Object.freeze({x_ads_native_action: extendXReportTool})}),
   contracts: xContracts,
+  // Its login holds its OAuth 1.0a app's consumer secret, which a renewal after an app change needs.
+  refresh: Object.freeze({appSecret: (c: Credentials) => c.consumerSecret}),
   checks: Object.freeze({
     shape: Object.freeze({
       // New campaigns and line items start paused; a targeting criterion follows its own contract.

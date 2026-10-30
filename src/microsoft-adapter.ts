@@ -1,4 +1,4 @@
-import type {CatalogHooks, ProviderHooks, ScopeContext, WireHeaders} from './provider-adapter.js';
+import type {CatalogHooks, ProviderHooks, RefreshRequest, ScopeContext, WireHeaders} from './provider-adapter.js';
 import type {Catalog, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -12,6 +12,7 @@ import {
   microsoftGateway,
   microsoftGeoLocationsContract,
   microsoftRead,
+  microsoftScope,
   microsoftTool,
   validateMicrosoftResponse,
 } from './microsoft-native.js';
@@ -143,6 +144,10 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
   // Wave 4c (transport and catalog): its requests are compiled from its own contracts, not the catalog compiler's.
   compile: Object.freeze({own: compileMicrosoft}),
   catalog: microsoftCatalog,
+  // A token renewal asks again for its API scope, and for renewal itself (offline_access).
+  refresh: Object.freeze({
+    request: ({body}: RefreshRequest) => body.set('scope', microsoftScope + ' offline_access'),
+  }),
   // Its contracts decide alone: the write contract, and a state read's response contract in place of the generic
   // success check; the contract is the target check, whatever a family supplies.
   checks: Object.freeze({

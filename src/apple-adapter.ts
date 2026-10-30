@@ -4,6 +4,7 @@ import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 import {appleActions, validateApplePlan} from './apple-native.js';
+import {requestAppleAccessToken} from './apple-auth.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 // SDK output-only processing/approval observations are not advertiser edits.
@@ -52,6 +53,8 @@ export const appleHooks: ProviderHooks = Object.freeze({
   // Wave 4c (transport and catalog): its v1 actions' numeric IDs and account path are checked as they are compiled.
   compile: Object.freeze({beforeJob: validateApplePlan}),
   catalog: appleCatalog,
+  // Its access token is renewed with its own client-credentials request (src/apple-auth.ts), not a refresh token.
+  refresh: Object.freeze({own: requestAppleAccessToken}),
   // Its writes follow the measurement resource contract (src/measurement-writes.ts: Apple's entity and shared-budget
   // writes); a resource's 404 is its documented absence, and the resource checks every state read's target.
   checks: Object.freeze({

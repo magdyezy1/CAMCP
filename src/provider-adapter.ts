@@ -697,6 +697,36 @@ export interface ContractHooks {
   legacy?(registry: Registry): ContractLegacy;
 }
 
+// ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the token renewal.
+
+/** The refresh-token request as the renewal formed it, which a provider's rule completes (RefreshHooks.request). */
+export interface RefreshRequest {
+  /** The form body: grant_type, refresh_token, client_id and client_secret. */
+  readonly body: URLSearchParams;
+  readonly headers: Record<string, string>;
+}
+
+/**
+ * A provider's part of the token renewal (src/auth.ts CredentialProvider), which keeps the expiry window, the single
+ * renewal per connection and its store lock, the refresh gate, the app-change refusal, the refresh-token grant and its
+ * endpoint, the single attempt, the response checks, the health records and the order of every step; a hook answers
+ * only where the renewal named the provider before.
+ */
+export interface RefreshHooks {
+  /**
+   * The provider renews its access token itself instead of with a refresh-token grant (Apple's client credentials), so
+   * the renewal asks its login for no app secret; the outcome is recorded as any other renewal's.
+   */
+  own?(credentials: Credentials, fetcher: typeof fetch): Promise<Credentials>;
+  /** The secret its login holds of its own OAuth app (X's consumer secret); the client secret otherwise. */
+  appSecret?(credentials: Credentials): unknown;
+  /**
+   * Its parts of the refresh-token request once the body is formed (Microsoft's scope, Snapchat's registered callback,
+   * Reddit's User-Agent and Basic authentication); it refuses a request it cannot send.
+   */
+  request?(request: RefreshRequest, credentials: Credentials, connection: Connection): void;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -714,6 +744,7 @@ export interface ProviderHooks {
   readonly catalog?: CatalogHooks;
   readonly delegated?: DelegatedHooks;
   readonly contracts?: ContractHooks;
+  readonly refresh?: RefreshHooks;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;
