@@ -223,6 +223,11 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
       Array.isArray(value) &&
       value.every(item => item === null),
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): a report submission, compiled as a read, is the reporting pipeline's provider
+  // job (src/effect-class.ts).
+  jobs: Object.freeze({
+    submission: (plan: CompiledRequest) => plan.action === 'SubmitGenerateReport' && plan.method === 'POST',
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.access (src/write-review.ts).

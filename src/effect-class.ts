@@ -4,7 +4,7 @@ import {familyOf} from './reviewed-families.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {writeEffects} from './write-effects.js';
 import {spendConfirmationError} from './preflight.js';
-import {microsoftGateway} from './microsoft-native.js';
+import {providerHooks} from './provider-hooks.js';
 
 /**
  * One effect taxonomy for every request AMCP sends (RPT-06, shared with WRT-06). A request has exactly one class, the
@@ -41,9 +41,12 @@ export function familyEffect(family: ReviewedFamily | undefined, plan: CompiledR
   const effect = family?.effect;
   return (typeof effect === 'function' ? effect(plan) : effect) ?? 'reviewed_write';
 }
-/** Microsoft's report submission: the reporting pipeline's provider job, compiled as a read (src/microsoft-native.ts). */
+/**
+ * A provider job its provider compiles as a read, which its adapter's jobs.submission names: Microsoft's report
+ * submission, the reporting pipeline's job (src/microsoft-native.ts). The name is kept for its callers.
+ */
 export function microsoftReportSubmit(plan: CompiledRequest): boolean {
-  return plan.gateway === microsoftGateway && plan.action === 'SubmitGenerateReport' && plan.method === 'POST';
+  return providerHooks(plan.gateway)?.jobs?.submission?.(plan) === true;
 }
 /** A reviewed family's provider job: the requests the owner's provider-job switch may admit (RPT-06). */
 export function reviewedProviderJob(plan: CompiledRequest): boolean {
