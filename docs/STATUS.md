@@ -54,11 +54,13 @@ acceptance is run.
 
 ## Latest qualification
 
-[Wave 4b integration qualification of 2026-10-24](records/QUALIFICATION-4b-2026-10-24.md), 2026-10-24.
+[Wave 4c integration qualification of 2026-10-30](records/QUALIFICATION-4c-2026-10-30.md), 2026-10-30.
 
 | Run | Revision | Result |
 | --- | --- | --- |
-| Release gate `wave4b-gate-1` | `b2ea6264` | Passed: 8,021 of 8,021 tests and 4 of 4 capture tests in 435 s, every `npm run check` stage with FFmpeg required. The public reports regenerated from the empty sample matched the tracked ones. |
-| Container parity on `wave4b-gate-1` | `b2ea6264` | Passed outside any Git repository, with two test workers and FFmpeg required, as Railway's Dockerfile build runs: 8,024 passed, 0 failed, 1 skipped (the entrypoint test that needs a POSIX `sh`, absent from this Windows layout; Railway's Linux build runs it), in 1,138 s. |
-| Browser `wave4b-browser-1` | `b2ea6264` | Not a result: Chromium's page target crashed about 22 minutes in, when the integration agent's session ended. Every case it had finished had passed. |
-| Browser `wave4b-browser-2` (`--qualification`) | `b2ea6264` | Passed 1,280 of 1,280 cases on its first complete run, 2026-10-24 08:28 to 09:19 UTC, 50.87 minutes against the 75-minute budget. `results.json` SHA-256 `16fb6f14dfb2b67a6f51a66949b359bfbd5a4db618fb5466ee5797b6f11ee394`. |
+| Whole suite with `AMCP_PROVIDERS=criteo,woocommerce` | `a503f2f6` | Passed 8,279 of 8,279 tests in 390 s on a clean public candidate, after `a503f2f6` made ten tests state the offering they count (ARC-01: the suites pass with the parked providers offered and without). |
+| Release gate `wave4c-gate-1` | `4ecee507` | Passed: 8,279 of 8,279 tests and 4 of 4 capture tests in 424 s, every `npm run check` stage with FFmpeg required. The public reports regenerated from the empty sample matched the tracked ones. |
+| Container parity on `wave4c-gate-1` | `4ecee507` | Passed outside any Git repository, with two test workers and FFmpeg required, as Railway's Dockerfile build runs: 8,282 passed, 0 failed, 1 skipped (the entrypoint test that needs a POSIX `sh`, absent from this Windows layout; Railway's Linux build runs it), `npm run check` in 1,117 s. |
+| Browser `wave4c-browser-1` (`--qualification`) | `4ecee507` | Failed 8 of 1,296 cases, 2026-10-30 07:22 to 08:13 UTC: the Help page at 320 and 375 pixels, in both languages and themes, scrolled sideways (520 CSS pixels of 320 and 375) because the owner guide's two tables took a data table's minimum width. `results.json` SHA-256 `08231333ca534656e15ff57930a99a1c467cdedcdf9ef396972dd2a9eb3905b6`. |
+| Release gate `wave4c-gate-2` | `4bd55002` | Passed after the fix (`4bd55002`: the guide's tables reflow): 8,280 of 8,280 tests and 4 of 4 capture tests in 418 s, every stage, no report difference. |
+| Browser `wave4c-browser-2` (`--qualification`) | `4bd55002` | Passed 1,296 of 1,296 cases, 2026-10-30 08:32 to 09:23 UTC, 51.0 minutes against the 75-minute budget. `results.json` SHA-256 `3dc60d1ed891617a056b256719f65cabd56e089d0b456edbb635253ada1d7707`. |

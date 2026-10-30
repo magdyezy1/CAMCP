@@ -28,10 +28,16 @@
       "raised": [
         "reference_words 143181 → 143229"
       ]
+    },
+    {
+      "reason": "wave 4c gate: docs/LOCAL-BROWSER-QA.md links the wave 4c qualification record, as the page asks of each new run (DOC-03)",
+      "raised": [
+        "reference_words 143221 → 143230"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143221
+    "reference_words": 143230
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -97,7 +97,8 @@ icon's 20 px box had broken "Evidence & analysis" into three centred lines.
 The qualification records of waves 2 to 4a below stay where they were written. Record the next run in
 `docs/records/` (for example `QUALIFICATION-<wave>-<date>.md`, with its revision, digests and figures) and link
 it from here: since the documentation freeze (DOC-03), a current page cites no commit and repeats no long line of
-another current page, and `npm run docs:index:check` refuses one (`tools/docs-lint.mjs`).
+another current page, and `npm run docs:index:check` refuses one (`tools/docs-lint.mjs`). The latest is the
+[wave 4c qualification of 2026-10-30](records/QUALIFICATION-4c-2026-10-30.md).
 
 ## What it exercises
 

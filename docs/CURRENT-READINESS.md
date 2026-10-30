@@ -8,7 +8,7 @@ tier: operator
 What AMCP does today, how far each part has been accepted, and what is left. This page describes branch `Work-here`
 of `magdyezy1/CAMCP` as deployed on amcp.shop on 2026-10-18 (the [deployment record](records/DEPLOYMENT-2026-10-18.md)
 names the revision) together with the later work no deployment report covers yet: wave 4b, pushed on 2026-10-24, and
-wave 4c, merged locally (section 2). It was rewritten on 2026-10-22 (DOC-01).
+wave 4c, merged and qualified on 2026-10-30 (section 2). It was rewritten on 2026-10-22 (DOC-01).
 
 Numbers in this page and every table marked "generated" are written from the code and the committed ledgers by
 `npm run docs:index`, and `npm run docs:index:check` (part of `npm run check` and the Docker build) fails when one of
@@ -61,12 +61,13 @@ in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taugh
 this current-state documentation and the owner guide), was pushed to `Work-here` on 2026-10-24 once its release gate,
 container parity and rendered browser qualification had passed ([qualification
 record](records/QUALIFICATION-4b-2026-10-24.md)); no deployment of it has been reported yet. Wave 4c, which the owner
-instructed on 2026-10-24, is implemented and merged into `Work-here` locally: the documentation consolidation (each
+instructed on 2026-10-24, is implemented and merged into `Work-here`: the documentation consolidation (each
 page's front matter, the generated index and status page, the findings register as data, the operations and workflow
 task pages and the size budget), the members-only Help page with the owner guide condensed in English and Arabic,
 Home's outcome labels, and the ARC-01 and ARC-04 work (provider facts and hooks in the provider adapters, and no
-backend function of 400 lines or more). Its release gate, container parity and rendered browser qualification run
-before it is pushed.
+backend function of 400 lines or more). Its release gate, container parity and rendered browser qualification
+passed on 2026-10-30 ([qualification record](records/QUALIFICATION-4c-2026-10-30.md)), the Help page among the pages
+qualified at every width; no deployment of it has been reported yet.
 
 ## 3. Package status
 
