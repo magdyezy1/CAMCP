@@ -4,8 +4,11 @@
 // places the fragments in the /help page it sends a signed-in member, and sends nobody else the guide. Nothing parses
 // Markdown at run time, and the fragments hold only headings, paragraphs, lists, tables, emphasis and links, with no
 // script, style or event attribute, so the website's strict Content-Security-Policy is unchanged; they take the
-// website's existing document and table styles (.document, .review-table), so every page's stylesheet is unchanged
-// too. Every character of the guide is escaped here. A link opens another part of the guide (a section of the page) or a page of the website;
+// website's existing document and table styles (.document, .review-table). One rule (web/workflows.css, `.help-guide
+// .review-table`) lets the guide's two-column tables reflow at phone widths: below 720px a review table otherwise keeps
+// the minimum width of a data table inside a scrolling region, and the guide's tables sit in the page itself, which
+// then scrolled sideways at 320 and 375px (WCAG 1.4.10, wave 4c browser qualification). Every character of the guide
+// is escaped here. A link opens another part of the guide (a section of the page) or a page of the website;
 // any other link, and any Markdown the page cannot show (code, quotes, raw HTML, images, nested lists), is refused. The
 // one line of HTML a page may hold is a former section's anchors (`<a id="..."></a>`, alone between blank lines), which
 // keeps the address of a section the condensed guide no longer has as a heading: the Help page shows nothing for it.

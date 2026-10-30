@@ -917,3 +917,7 @@
 .measurement-trace-import select {
   max-width: 100%;
 }
+.help-guide .review-table,
+.help-guide .review-table td {
+  min-width: 0;
+}

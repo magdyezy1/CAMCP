@@ -233,3 +233,25 @@ test('a former section anchor shows nothing on the Help page, and a link to it o
   fs.writeFileSync(path.join(root, 'docs/owner/team.md'), front + '<a id="old-roles"></a>\n\n# Team\n');
   assert.match(helpGuideProblems(root).join('\n'), /starts with its "# " title/);
 });
+
+test('the guide’s tables reflow at phone widths instead of widening the Help page', () => {
+  // WCAG 1.4.10: below 720px a review table keeps 30rem, and each of its cells 10rem, the minimum width of a data table
+  // that sits in a scrolling region (web/workflows.css). The guide's two-column tables sit in the page itself, so /help
+  // scrolled sideways (520 of 320 and 375 CSS pixels in the wave 4c browser qualification) until the guide's tables
+  // and their cells were let go of those minimums.
+  const css = fs.readFileSync('web/workflows.css', 'utf8');
+  assert.match(css, /@media \(max-width: 720px\) \{\s*\.review-table \{\s*min-width: 30rem;/);
+  assert.match(css, /\n\.help-guide \.review-table,\n\.help-guide \.review-table td \{\n {2}min-width: 0;\n\}/);
+  // The guide reaches the page inside the element that rule names, for a member (server/help-routes.ts).
+  assert.match(fs.readFileSync('server/help-routes.ts', 'utf8'), /<div id="help-guide" class="help-guide" hidden>/);
+  let tables = 0;
+  for (const {html} of Object.values(committed.languages))
+    for (const table of html.matchAll(/<table([^>]*)>/g)) {
+      tables++;
+      // Every table of the guide takes the review table's style, so the rule above reaches it, and none sits in a
+      // scrolling region of its own.
+      assert.equal(table[1], ' class="review-table"');
+    }
+  assert.ok(tables >= 2, String(tables));
+  assert.doesNotMatch(JSON.stringify(committed.languages), /data-scroll|role=\\"region\\"/);
+});
