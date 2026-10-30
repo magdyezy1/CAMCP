@@ -22,10 +22,16 @@
       "raised": [
         "reference_words 133656 → 143181"
       ]
+    },
+    {
+      "reason": "wave 4c review fix (w4c-docs-help): the 2026-10-24 row of docs/DECISIONS.md discloses that generated pages count in neither the owner and operator budget nor the reference total, with their totals on 2026-10-30 (48 words)",
+      "raised": [
+        "reference_words 143181 → 143229"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143181
+    "reference_words": 143229
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -141,9 +141,10 @@ const lines = [
   'link anywhere in the repository and, on a current or reference page, a new heading naming a batch, a commit',
   'reference, a typed package count (link the [package status](review/PACKAGE-STATUS.md) instead) or a long line',
   'repeated from another such page (`tools/docs-lint.mjs`). The owner and operator tiers’ current pages keep within a',
-  'budget of 25,000 words, and the reference pages’ total may only fall unless an increase is recorded with its reason',
-  '([decisions](DECISIONS.md), 2026-10-24). To move or rename a document, add it to [moves](moved.json) and run',
-  '`node tools/docs-links.mjs --write`, which rewrites every link to it and writes the stub.',
+  'budget of 25,000 words, and the reference pages’ total may only fall unless an increase is recorded with its reason;',
+  'generated pages, this index among them, count in neither ([decisions](DECISIONS.md), 2026-10-24). To move or rename',
+  'a document, add it to [moves](moved.json) and run `node tools/docs-links.mjs --write`, which rewrites every link to',
+  'it and writes the stub.',
   '',
 ];
 const row = file => '- [' + title(file) + '](' + file + ')';
