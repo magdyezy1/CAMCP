@@ -257,8 +257,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owned reason changes.
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
-  assert.equal(files.length, 736);
-  assert.equal(selected.filter(row => row.messages.size).length, 285);
+  // ARC-01 wave 4c round 6 (w4c-arc6-versions) adds WooCommerce's adapter module (src/woocommerce-adapter.ts, its tool
+  // notes, no owned reason): 737 files. It moves the Meta creative check's reasons from src/creative-validation.ts,
+  // which keeps none, to src/meta-creative-features.ts, which already owns reasons: 284 files with reasons, the same
+  // reasons.
+  assert.equal(files.length, 737);
+  assert.equal(selected.filter(row => row.messages.size).length, 284);
   assert.equal(owned.size, 1590);
   assert.equal(Object.keys(catalog).length, 11529);
   assert.deepEqual(localeProblems(catalog, owned), []);

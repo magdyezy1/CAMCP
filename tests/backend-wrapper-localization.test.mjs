@@ -231,7 +231,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // DOC-03's members-only Help page adds server/help-routes.ts and seven website entries, none a wrapper reason, and
   // its Home copy nine website entries (the capability outcomes), none a wrapper reason.
   // Merged with the ARC packages, the Help page's module is one more: 736.
-  assert.equal(files.length, 736);
+  // ARC-01 wave 4c round 6 (w4c-arc6-versions) adds WooCommerce's adapter module (src/woocommerce-adapter.ts, its tool
+  // notes), without wrapper reasons, and moves the Meta creative check's reasons to src/meta-creative-features.ts: 737.
+  assert.equal(files.length, 737);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11529);
