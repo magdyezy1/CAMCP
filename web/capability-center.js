@@ -227,6 +227,21 @@ const capabilityLabels = {
   'report-kind:paid': 'paid context with native metric definitions and source evidence.',
   'report-kind:measurement': 'measurement context with native metric definitions and source evidence.',
   'report-kind:organic': 'organic context with native metric definitions and source evidence.',
+  // Report captures whose names the guided presets build from their level (src/meta-guided-reports.ts and the TikTok
+  // and Snapchat ones). Listed so this page carries their Arabic: before, only Evidence & analysis did, and an Arabic
+  // Capabilities page showed "Meta ad performance". tests/status-labels.test.mjs fails when these drift.
+  'capture:meta_campaign': 'Meta campaign performance',
+  'capture:meta_adset': 'Meta ad set performance',
+  'capture:meta_ad': 'Meta ad performance',
+  'capture:tiktok_campaign': 'TikTok campaign performance',
+  'capture:tiktok_adgroup': 'TikTok ad group performance',
+  'capture:tiktok_ad': 'TikTok ad performance',
+  'capture:snapchat_campaign': 'Snapchat campaign performance',
+  'capture:snapchat_adsquad': 'Snapchat ad squad performance',
+  'capture:snapchat_ad': 'Snapchat ad performance',
+  'capture:snapchat_campaign_leads': 'Snapchat campaign native lead submissions',
+  'capture:snapchat_adsquad_leads': 'Snapchat ad squad native lead submissions',
+  'capture:snapchat_ad_leads': 'Snapchat ad native lead submissions',
 };
 // A capability value's first-party label; workflow states share the workspace status labels (WEB-05).
 const capabilityLabel = value =>

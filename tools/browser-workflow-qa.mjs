@@ -54,9 +54,18 @@ import {
   nativeTextLines,
   showNativeIds,
 } from '../tests/fixtures/evidence-rows-browser.mjs';
+import {
+  captureApiResponses,
+  exerciseReviewerPage,
+  reviewerQuery,
+  reviewerRoutes,
+} from '../tests/fixtures/reviewer-browser.mjs';
+import {loadRouteRegistry} from './check-routes.mjs';
 
 const fixtureKinds = [
   'empty',
+  // OWNER-REVIEWER-QA: an invited test account in its own workspace, the view Meta's app reviewers use.
+  'reviewer',
   'granular-reporting',
   // RPT-07: the Overview period comparison (previous equal window, Compare to, delta columns).
   'period-comparison',
@@ -143,7 +152,9 @@ const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
   executablePath = process.env.AMCP_QA_BROWSER_PATH,
   wcagEngine = readPinnedWcagEngine(process.env.AMCP_QA_AXE_PATH),
   leakAllowlist = readLeakAllowlist(),
-  leakBaseline = readLeakBaseline();
+  leakBaseline = readLeakBaseline(),
+  // OWNER-REVIEWER-QA: the pages a test account opens, read from the route registry itself.
+  reviewerScope = reviewerRoutes(loadRouteRegistry(root));
 if (!configuredModule || !path.isAbsolute(configuredModule) || !executablePath || !path.isAbsolute(executablePath))
   throw Error('Browser QA requires explicit installed local Playwright module and test browser executable paths.');
 if (!fs.statSync(executablePath).isFile()) throw Error('The configured test browser executable is not a file.');
@@ -547,13 +558,17 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     } else if (response.status() >= 400)
       result.failed_responses.push({path: new URL(response.url()).pathname, status: response.status()});
   });
+  // OWNER-REVIEWER-QA: each API answer a reviewer's page receives, with a refusal's error code.
+  const reviewerApi = workflow === 'reviewer' ? captureApiResponses(page) : undefined;
   try {
     const query =
       workflow === 'snapchat'
         ? '?asset_id=asset-147&reference_view=snapchat_top_snap&reference_limit=50'
         : workflow === 'retained-evidence'
           ? '?id=' + evidenceId
-          : '';
+          : workflow === 'reviewer'
+            ? await reviewerQuery(site, route)
+            : '';
     // The legal pages are static documents in one language each (WEB-02); their address carries the language.
     const staticLegal = ['/privacy', '/terms', '/data-deletion'].includes(route),
       routeQuery = staticLegal ? '?lang=' + locale : query;
@@ -561,11 +576,12 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
     await page.evaluate(() => document.fonts.ready);
     await page.locator('h1').first().waitFor({state: 'visible'});
+    reviewerApi?.firstContent();
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
     // WEB-05: every route as first rendered is pristine, so a language switch never asks to discard edits.
-    if (kind === 'empty')
+    if (kind === 'empty' || kind === 'reviewer')
       assert.equal(
         await page.evaluate(() => typeof uiHasUnsavedEdits !== 'function' || !uiHasUnsavedEdits()),
         true,
@@ -709,7 +725,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
       assert.deepEqual(site.counts(), counts, 'Intermediate inspection must not read or mutate providers');
     };
-    if (workflow === 'write-journey') {
+    if (workflow === 'reviewer') {
+      await exerciseReviewerPage({page, route, locale, result, api: reviewerApi, scope: reviewerScope});
+    } else if (workflow === 'write-journey') {
       await exerciseWriteJourney({page, site, locale, result, checks: {intermediate}});
     } else if (workflow === 'spend-policy-edit') {
       await exerciseSpendPolicyEdit({page, site, locale, result, checks: {intermediate}});
@@ -2673,6 +2691,12 @@ async function runFixture(kind, site) {
       for (const route of ['/dashboard', '/capabilities', '/reporting-overview'])
         for (const locale of ['en', 'ar'])
           for (const width of [851, 1024, 1150, 1280]) await shellChromeCase(site, route, locale, width);
+    } else if (kind === 'reviewer') {
+      // OWNER-REVIEWER-QA: every page the registry opens to a test account, then each member page it leaves out, at
+      // the reduced matrix (two widths, both languages, light theme).
+      for (const route of [...reviewerScope.routes, ...reviewerScope.excluded])
+        for (const locale of ['en', 'ar'])
+          for (const width of [320, 1280]) await renderedCase(site, kind, route, locale, width, true, kind, 'light');
     } else if (Object.hasOwn(syntheticJourneyRoutes, kind)) {
       // QA-03: the reduced matrix (two widths, both languages, light theme) bounds the added runtime.
       for (const locale of ['en', 'ar'])

@@ -14,7 +14,9 @@ const approvalWhen = value => {
 const approvalText = value =>
   String(value ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
 async function renderAccountApprovals() {
-  if (!session.authenticated) return;
+  // A test account is never the instance owner, and the test-account gate refuses owner administration on purpose
+  // (server/website-gates.ts): asking would only add a refused request to a reviewer's Settings page.
+  if (!session.authenticated || session.testAccount) return;
   let data;
   try {
     data = await api('/api/owner/accounts');

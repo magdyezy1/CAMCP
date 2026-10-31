@@ -209,7 +209,8 @@ async function renderClientPlaybooks() {
             `<fieldset class="profile-account-group"><legend>${esc(platformName(gateway))} · ${esc(uiNumber(rows.length))}</legend>${rows
               .map(({t, checked}) => {
                 const {label, ...binding} = t;
-                return `<label class="form-note"><input type="checkbox" data-profile-binding value="${esc(JSON.stringify(binding))}" ${checked ? 'checked' : ''}> ${esc(label)}</label>`;
+                // The platform's own account name, isolated so an Arabic page keeps its words and ID in order.
+                return `<label class="form-note"><input type="checkbox" data-profile-binding value="${esc(JSON.stringify(binding))}" ${checked ? 'checked' : ''}> <bdi dir="auto">${esc(label)}</bdi></label>`;
               })
               .join('')}</fieldset>`,
         )

@@ -456,8 +456,7 @@ export async function browserWorkflowSite(kind) {
     },
     {web, accounts, mcpOAuth} = createWebsite(fixture.store, options, false, fixture.service),
     // OWNER-REVIEWER-QA: the reviewer is the invited test account of its own workspace, never a deployment member.
-    reviewer =
-      kind === 'reviewer' ? await reviewerWorkspace({accounts, store: fixture.store, mcpOAuth}) : undefined,
+    reviewer = kind === 'reviewer' ? await reviewerWorkspace({accounts, store: fixture.store, mcpOAuth}) : undefined,
     user = reviewer?.user ?? accounts.newUser('Synthetic browser reader', null, null, true),
     // COM-03: a mapped supplier preview first saves the catalog's versioned column mapping, which only operators do
     // (readers are refused), so catalog-groups signs in as the owner; the canonical `catalog` journey stays a viewer's.
@@ -510,7 +509,8 @@ export async function browserWorkflowSite(kind) {
   const webActor = session.actor;
   return {
     origin,
-    tenantId: fixture.actor.tenantId,
+    // The reviewer signs in to its own workspace, so that is the tenant its cases use.
+    tenantId: reviewer?.tenantId ?? fixture.actor.tenantId,
     cookie: {name: web.cookieName, value: session.id, url: origin},
     // For Playwright-free HTTP checks of the same journeys (tests/browser-synthetic-writes.test.mjs).
     csrf: session.csrf,
