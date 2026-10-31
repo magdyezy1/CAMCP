@@ -518,6 +518,20 @@ Adjust's `date_period`); recorded back to back on both builds, twice each, those
 beyond calibration and no outcome flip, and the one record left unsettled is the `platform()` count, which varies
 between two runs of Work-here. The direct check above is byte-identical on the final head too.
 
+**The reporting round's comparison (wave 4c round 6).** The six rows marked wave 4c round 6 were proven by one
+comparison of the branch head with Work-here: the 818 related test files both builds hold (the five new seam tests and
+the mutation suite run on their own), recorded twice on Work-here (with the branch's targets) and once on the head, on
+one UTC day: 8,149,118 records before and 8,149,110 after. Eleven test files were recorded again one at a time on all
+three, back to back, and replace theirs: seven that failed under the recordings' load (worker, queue, backup and
+startup timing) and four whose records differed in a clock or a count, among them `tests/report-period-compare.test.mjs`,
+whose `Pacific/Kiritimati` account windows moved a day because that zone's midnight fell between the recordings. Then
+there are 0 differences beyond calibration and no request difference; 5,702 records are within calibration and 15 of
+the burst-pacing test are counted apart. 134 records are unsettled by rule: 130 plans and previews with random IDs
+paired across their outcomes in ten allocation, exclusion, workbook and campaign test files, where each function's
+results and refusal codes are the same per test file on both builds, and 4 `platform()` lookups of
+`tests/measurement-apple.test.ts` (48 and 52 in two Work-here runs). The 333,656 distinct pure calls of the recording
+before replay through the head with 0 differences.
+
 Seven exports moved with their code and are not re-exported from the shared modules that held them, since a re-export
 would import the provider module again and raise the ratchet's counts: `metaImageSources` and `metaConversionRecipes`
 (from `src/campaign-recipes.ts` to `src/meta-website-recipes.ts`), `googleConversionRecipes` (from

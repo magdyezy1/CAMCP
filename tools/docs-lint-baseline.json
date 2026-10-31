@@ -58,10 +58,16 @@
       "raised": [
         "reference_words 143590 → 143671"
       ]
+    },
+    {
+      "reason": "w4c-arc6-reporting: the reporting round's call-replay comparison, which the six round 6 rows of section 9 cite",
+      "raised": [
+        "reference_words 143671 → 143899"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143671
+    "reference_words": 143899
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
