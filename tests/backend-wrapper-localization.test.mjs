@@ -234,7 +234,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ARC-01 wave 4c round 6 (w4c-arc6-versions) adds WooCommerce's adapter module (src/woocommerce-adapter.ts, its tool
   // notes), without wrapper reasons, and moves the Meta creative check's reasons to src/meta-creative-features.ts: 737.
   // Reviewer connector authority adds one catalog entry, without adding a wrapper reason.
-  assert.equal(files.length, 737);
+  // ARC-01 (wave 4c round 6, the shared tables) adds src/frozen-facts.ts, src/linkedin-programs.ts and
+  // src/woocommerce-adapter.ts, without wrapper reasons: 739. Its wire contracts add src/discovery-issues.ts and
+  // src/microsoft-wire-contract.ts, without wrapper reasons: 741.
+  // Merged with the versions package, both add the one WooCommerce adapter module (it holds both packages' hooks), so
+  // the modules add up: 741, the same wrapper reasons.
+  assert.equal(files.length, 741);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11530);

@@ -544,6 +544,29 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     description: 'Run one TikTok Business API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it.',
     routing: true as const,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its top-level
+  // parameters (src/parameters.ts): its account aliases and its lead region and comment scope controls.
+  parameters: Object.freeze({
+    accountAliases: Object.freeze(['advertiser_id', 'account_id']),
+    platformControls: Object.freeze(['lead_region', 'comment_scope']),
+  }),
+  // Its report and change-log job families and what each guarantees (src/provider-jobs.ts).
+  jobFamilies: Object.freeze([
+    Object.freeze({
+      family: 'tiktok_report_jobs',
+      kind: 'report' as const,
+      admission: 'One per second and 500 per hour per app and account (admitTiktokReport).',
+      lost_response: 'Uncertain; the original task is checked, never resubmitted.',
+      retrieval: 'The original task is checked and its bounded file downloaded with the same login.',
+    }),
+    Object.freeze({
+      family: 'tiktok_change_log_tasks',
+      kind: 'change_log' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original task is checked, never resubmitted.',
+      retrieval: 'The original task’s status and bounded download.',
+    }),
+  ]),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

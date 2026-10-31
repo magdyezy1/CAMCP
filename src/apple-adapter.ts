@@ -174,6 +174,9 @@ export const appleHooks: ProviderHooks = Object.freeze({
     description:
       'Run one Apple Ads Platform API v1 action by name (names begin apple_ads_v1_; amcp_tool_help {gateway:"apple_ads_native_action"} lists them). Legacy Campaign Management API v5 routes are unavailable. Reads support result projection and bounded pagination.',
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // aliases (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['account_id', 'ad_account_id', 'org_id'])}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.state (src/write-review.ts).

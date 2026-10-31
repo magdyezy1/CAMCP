@@ -399,7 +399,57 @@ export const metaHooks: ProviderHooks = Object.freeze({
           }
         : undefined,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its top-level
+  // parameters (src/parameters.ts): its account aliases, the Graph API's fields on every action, and its controls,
+  // which a captured action refuses since AMCP resolves no Page Access Token.
+  parameters: Object.freeze({
+    accountAliases: Object.freeze(['ad_account_id', 'account_id']),
+    platformControls: Object.freeze(['business_id', 'page_id', 'report_run_id', 'batch', 'adbatch', 'include_headers']),
+    controlRefusal: 'Automatic Page Access Token resolution is not implemented.',
+    everyActionFields: true as const,
+  }),
+  // Its insights job family and what it guarantees (src/provider-jobs.ts).
+  jobFamilies: Object.freeze([
+    Object.freeze({
+      family: 'meta_insights_jobs',
+      kind: 'report' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original report run is read by its ID, never resubmitted.',
+      retrieval: 'Bounded pages of the original report run.',
+    }),
+  ]),
+  // Its provider validation (src/provider-validation.ts): a campaign or ad set create or edit with execution_options
+  // ["validate_only"], after refusing a request that sets execution_options itself; a refusal names its blamed fields,
+  // and a reply with success: false refuses too.
+  validation: Object.freeze({
+    request: (plan: CompiledRequest): CompiledRequest | undefined =>
+      plan.method === 'POST' &&
+      (/^\/v[^/]+\/act_\d+\/(?:campaigns|adsets)$/.test(plan.path) ||
+        (metaValidatedEdits.has(plan.action) && /^\/v[^/]+\/\d+$/.test(plan.path)))
+        ? {...plan, body: {...(plan.body as JsonObject), execution_options: ['validate_only']}}
+        : undefined,
+    fieldPaths(error: JsonObject): string[] {
+      const paths: string[] = [];
+      const blame = error?.error_data?.blame_field_specs;
+      for (const spec of Array.isArray(blame) ? blame : []) paths.push([spec].flat().map(String).join('.'));
+      return paths;
+    },
+    unsuccessful: (data: JsonObject) => data?.success === false,
+    refusal: (plan: CompiledRequest) =>
+      (plan.body as JsonObject)?.execution_options !== undefined
+        ? new MirrorError(
+            'INVALID_ARGUMENT',
+            'Omit execution_options: provider validation adds validate_only itself.',
+            {
+              field: 'execution_options',
+            },
+          )
+        : undefined,
+  }),
 });
+/** Its campaign and ad set edits, by compiled (canonical) action: the meta_campaign_update and meta_adset_update
+ * aliases compile to these. Creates are recognized by their account-edge path. */
+const metaValidatedEdits = new Set(['meta_campaign_id_update', 'meta_ad_set_id_update']);
 
 // Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.
 /** A cap stated in currency that Meta's minor unit cannot be computed for: state it in native units. */

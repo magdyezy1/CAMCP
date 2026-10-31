@@ -6,6 +6,8 @@ import {accountWriteGranted} from './write-access.js';
 import {optional} from './workspace-core.js';
 import {sweepProviderJobReceipts} from './retention-repository.js';
 import {providerJobCounts} from './report-repository.js';
+import {providerOf} from './provider-adapters.js';
+import {providerJobFamilies} from './provider-hooks.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -25,7 +27,10 @@ import type {Actor, Connection, JsonObject} from './types.js';
  * - the declared contract of each job family (providerJobContracts), which a test holds against the family registry.
  */
 
-/** What each provider job family guarantees; the adapters keep their own code (src/<provider>-report-jobs.ts). */
+/**
+ * What each provider job family guarantees; the adapters keep their own code (src/<provider>-report-jobs.ts) and
+ * declare these rows (`jobFamilies`, ARC-01 wave 4c round 6), which src/provider-hooks.ts orders by family.
+ */
 export const providerJobContracts: readonly {
   family: string;
   gateway: string;
@@ -34,85 +39,26 @@ export const providerJobContracts: readonly {
   admission: string;
   lost_response: string;
   retrieval: string;
-}[] = Object.freeze([
-  {
-    family: 'x_report_jobs',
-    gateway: 'x_ads_native_action',
-    provider: 'x',
-    kind: 'report',
-    admission: 'At most 100 unresolved jobs per account (admitXReport).',
-    lost_response: 'Uncertain; the original job is polled by its ID and never replaced.',
-    retrieval: 'download_report on the original job: a bounded gzip from the pinned X download host.',
-  },
-  {
-    family: 'tiktok_report_jobs',
-    gateway: 'tiktok_native_action',
-    provider: 'tiktok',
-    kind: 'report',
-    admission: 'One per second and 500 per hour per app and account (admitTiktokReport).',
-    lost_response: 'Uncertain; the original task is checked, never resubmitted.',
-    retrieval: 'The original task is checked and its bounded file downloaded with the same login.',
-  },
-  {
-    family: 'meta_insights_jobs',
-    gateway: 'meta_native_action',
-    provider: 'meta',
-    kind: 'report',
-    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
-    lost_response: 'Uncertain; the original report run is read by its ID, never resubmitted.',
-    retrieval: 'Bounded pages of the original report run.',
-  },
-  {
-    family: 'dv360_sdf_downloads',
-    gateway: 'dv360_native_action',
-    provider: 'dv360',
-    kind: 'export',
-    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
-    lost_response: 'Uncertain; the original operation is read by its name, never resubmitted.',
-    retrieval: 'The original operation is read until done; its files are then downloaded with media.download.',
-  },
-  {
-    family: 'criteo_report_jobs',
-    gateway: 'criteo_native_action',
-    provider: 'criteo',
-    kind: 'report',
-    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
-    lost_response: 'Uncertain; the original report is read by its ID, never resubmitted.',
-    retrieval: 'The original report’s bounded output.',
-  },
-  {
-    family: 'tiktok_change_log_tasks',
-    gateway: 'tiktok_native_action',
-    provider: 'tiktok',
-    kind: 'change_log',
-    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
-    lost_response: 'Uncertain; the original task is checked, never resubmitted.',
-    retrieval: 'The original task’s status and bounded download.',
-  },
-  {
-    family: 'ga4_export_jobs',
-    gateway: 'ga4_native_action',
-    provider: 'ga4',
-    kind: 'report',
-    admission: 'The deployment-wide hourly bound per property (admitProviderJob); report tasks only.',
-    lost_response: 'Uncertain; the original report task is read by its name, never resubmitted.',
-    retrieval: 'Bounded pages of the original report task.',
-  },
-  {
-    family: 'microsoft_reporting_pipeline',
-    gateway: 'microsoft_ads_native_action',
-    provider: 'microsoft',
-    kind: 'report',
-    admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
-    lost_response:
-      'Uncertain; the Overview never submits it again (PROVIDER_JOB_UNCERTAIN), and a new snapshot submits a new job.',
-    retrieval: 'PollGenerateReport on the original ReportRequestId, a bounded ZIP and CSV.',
-  },
-]);
+}[] = Object.freeze(
+  providerJobFamilies.map(({hooks, job}) => ({
+    family: job.family,
+    gateway: hooks.gateway,
+    provider: providerOf(hooks.gateway)!.id,
+    kind: job.kind,
+    admission: job.admission,
+    lost_response: job.lost_response,
+    retrieval: job.retrieval,
+  })),
+);
+const pipelineFamilies = new Set(providerJobFamilies.filter(({job}) => job.pipeline).map(({job}) => job.family));
+/** Whether reviewed families create the jobs of `family` (the reporting pipeline's jobs are not theirs). */
+export function reviewedJobFamily(family: string): boolean {
+  return !pipelineFamilies.has(family);
+}
 
 /** The gateways whose reviewed families create provider jobs, which a report-job grant can apply to. */
 export const providerJobGateways: readonly string[] = Object.freeze([
-  ...new Set(providerJobContracts.filter(j => j.family !== 'microsoft_reporting_pipeline').map(j => j.gateway)),
+  ...new Set(providerJobContracts.filter(j => reviewedJobFamily(j.family)).map(j => j.gateway)),
 ]);
 /**
  * Settled receipts are kept this long after they settle; submitting and uncertain receipts this long after they were

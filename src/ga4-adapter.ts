@@ -143,4 +143,19 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
     list: ga4TestProperties,
     save: saveGa4TestProperty,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its connection
+  // operation, whose OAuth steps run on the website (src/unavailable-operations.ts, src/connection-diagnostics.ts).
+  connection: Object.freeze({operation: 'ga4_connection_ops', provider: 'Google Analytics'}),
+  // Its export job family and what it guarantees (src/provider-jobs.ts).
+  jobFamilies: Object.freeze([
+    Object.freeze({
+      family: 'ga4_export_jobs',
+      kind: 'report' as const,
+      admission: 'The deployment-wide hourly bound per property (admitProviderJob); report tasks only.',
+      lost_response: 'Uncertain; the original report task is read by its name, never resubmitted.',
+      retrieval: 'Bounded pages of the original report task.',
+    }),
+  ]),
+  // Its wire contract (src/wire-contracts.ts): each route's request schema in its pinned Google Discovery document.
+  wireContract: Object.freeze({routes: Object.freeze({label: 'Google'})}),
 });

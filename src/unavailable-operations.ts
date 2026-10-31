@@ -1,4 +1,6 @@
 import {MirrorError} from './errors.js';
+import type {ProviderHooks} from './provider-adapter.js';
+import {unavailableOperationProviders} from './provider-hooks.js';
 import type {JsonObject} from './types.js';
 
 /** A call AMCP offers instead of an operation it cannot run, or the website page where that work is done. */
@@ -14,18 +16,6 @@ const connections: Alternative = {
   website_path: '/connections',
   meaning: 'Connect, reconnect or disconnect the provider on the Connections page of the AMCP website.',
 };
-const adjust: Alternative[] = [
-  {
-    tool: 'adjust_native_action',
-    arguments: {operation: 'adjust_reporting'},
-    meaning: 'Adjust apps, events, filters, reports and pivots: the Adjust reads AMCP runs.',
-  },
-  {
-    tool: 'adjust_native_action',
-    arguments: {operation: 'adjust_list_assets'},
-    meaning: 'The Adjust connections and app bindings configured in AMCP.',
-  },
-];
 /** The OAuth steps of a connection operation; its status, sync and disconnect actions run. */
 const connectionOps = (gateway: string, operation: string, provider: string): UnavailableOperation => ({
   actions: ['start', 'exchange', 'refresh'],
@@ -40,10 +30,23 @@ const connectionOps = (gateway: string, operation: string, provider: string): Un
   ],
 });
 /**
+ * A provider's rows (ARC-01, wave 4c round 6): its connection operation's OAuth steps, then the operations its adapter
+ * declares (src/<provider>-adapter.ts), copied into plain rows as this table always held them.
+ */
+const providerOperations = ({
+  gateway,
+  connection,
+  unavailable,
+}: ProviderHooks): Record<string, UnavailableOperation> => ({
+  ...(connection ? {[connection.operation]: connectionOps(gateway, connection.operation, connection.provider)} : {}),
+  ...(structuredClone(unavailable ?? {}) as Record<string, UnavailableOperation>),
+});
+/**
  * Captured operations AMCP lists for compatibility with the captured catalog but cannot run (owner decision D17: they
  * are annotated, not hidden). The contracts ledger classifies each one as unmapped, and
  * tests/truthful-surface.test.mjs holds this table equal to the ledger, so the descriptions, help and refusals
- * built from it name exactly the operations that cannot run (MCP-10).
+ * built from it name exactly the operations that cannot run (MCP-10). AMCP's own operations come first, then each
+ * provider's in the order src/provider-hooks.ts declares (unavailableOperationProviders).
  */
 export const unavailableOperations: Readonly<Record<string, Readonly<Record<string, UnavailableOperation>>>> = {
   amcp_native_action: {
@@ -138,48 +141,7 @@ export const unavailableOperations: Readonly<Record<string, Readonly<Record<stri
       ],
     },
   },
-  adjust_native_action: {
-    adjust_ad_spend: {reason: 'AMCP sends no ad spend to Adjust.', alternatives: adjust},
-    adjust_app_automation: {reason: 'AMCP does not manage Adjust apps or app secrets.', alternatives: adjust},
-    adjust_campaign_api: {reason: 'AMCP does not read or change Adjust trackers or partners.', alternatives: adjust},
-    adjust_deeplinks: {reason: 'AMCP does not read or create Adjust deep links.', alternatives: adjust},
-  },
-  commerce_native_action: {
-    woocommerce_store_ops: {
-      reason:
-        'AMCP reads WooCommerce products only as catalog sources; store reports, orders and customers are not read. Shopify and Salla have no connection, and WooCommerce expansion is parked.',
-      alternatives: [
-        {
-          tool: 'amcp_workspace',
-          arguments: {action: 'catalog_sources'},
-          meaning: 'The WooCommerce stores configured as catalog sources.',
-        },
-        {
-          tool: 'amcp_workspace',
-          arguments: {action: 'catalog_source'},
-          meaning: 'Read the products of one configured store.',
-        },
-      ],
-    },
-  },
-  ga4_native_action: {ga4_connection_ops: connectionOps('ga4_native_action', 'ga4_connection_ops', 'Google Analytics')},
-  google_search_console_native_action: {
-    gsc_connection_ops: connectionOps('google_search_console_native_action', 'gsc_connection_ops', 'Search Console'),
-  },
-  google_business_native_action: {
-    gmb_connection_ops: connectionOps('google_business_native_action', 'gmb_connection_ops', 'Business Profile'),
-    gmb_engagement_ops: {
-      actions: ['LEGACY_V4_REQUEST'],
-      reason: 'AMCP sends no request to the retired Business Profile v4 API.',
-      alternatives: [
-        {
-          tool: 'google_business_native_action',
-          arguments: {operation: 'gmb_engagement_ops', arguments: {action: 'LIST_PLACE_ACTION_LINKS'}},
-          meaning: 'The place-action links of a location; the other actions of this operation run.',
-        },
-      ],
-    },
-  },
+  ...Object.fromEntries(unavailableOperationProviders.map(hooks => [hooks.gateway, providerOperations(hooks)])),
 };
 /** The unavailable entry for this call, when the operation (or its action) cannot run. */
 export function unavailableOperation(gateway: string, operation: unknown, action?: unknown) {

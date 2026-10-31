@@ -77,6 +77,9 @@ export const gtmHooks: ProviderHooks = Object.freeze({
       'Google Tag Manager gateway: gtm_ops runs one Tag Manager API operation on accounts, containers, workspaces, versions, tags, triggers and variables; gtm_audit_ops audits a workspace’s configuration and consent settings; gtm_action_job_status reads the verification job of a reviewed Tag Manager write.',
     delegatedWrites: true as const,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables. Its wire contract (src/wire-contracts.ts): each
+  // route's request schema in its pinned Google Discovery document.
+  wireContract: Object.freeze({routes: Object.freeze({label: 'Google'})}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.prepareReview (src/write-review.ts).

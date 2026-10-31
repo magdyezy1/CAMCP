@@ -47,6 +47,8 @@ import {adaptGoogleLegacy, googleLegacyCoverage} from './google-legacy.js';
 import {googleAdsPath, googleDeveloperTokenWarning} from './google-version.js';
 import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
+// Wave 4c round 6 (w4c-arc6-tables): the Data Manager routes' origin, which its wire contract names.
+import {dataManagerOrigin} from './google-data-manager-routes.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
@@ -779,6 +781,46 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     }),
   }),
   legacyAliases: () => googleLegacyCoverage().entries.map(e => e.action),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // aliases (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['account_id', 'customer_id'])}),
+  // Its provider validation (src/provider-validation.ts): a mutate request with validate_only, and the field path of
+  // each error its refusal lists.
+  validation: Object.freeze({
+    request(plan: CompiledRequest): CompiledRequest | undefined {
+      if (plan.method !== 'POST' || !/^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path)) return undefined;
+      const body: JsonObject = {...(plan.body as JsonObject), validate_only: true};
+      delete body.validateOnly;
+      return {...plan, body};
+    },
+    fieldPaths(error: JsonObject): string[] {
+      const paths: string[] = [];
+      for (const detail of Array.isArray(error?.details) ? error.details : [])
+        for (const e of Array.isArray(detail?.errors) ? detail.errors : []) {
+          const path = (Array.isArray(e?.location?.fieldPathElements) ? e.location.fieldPathElements : [])
+            .map((p: JsonObject) => String(p.fieldName) + (Number.isInteger(p.index) ? '[' + p.index + ']' : ''))
+            .join('.');
+          if (path) paths.push(path);
+        }
+      return paths;
+    },
+  }),
+  // Its wire contract (src/wire-contracts.ts): the Data Manager v1 routes' methods in the pinned Discovery document,
+  // checked on top of AMCP's own exact-body check (src/google-data-manager.ts). Its other requests are checked by
+  // validateGoogleRequest (src/google-contracts.ts).
+  wireContract: Object.freeze({
+    dataManager: Object.freeze({
+      origin: dataManagerOrigin,
+      document: 'datamanager-v1',
+      label: 'Data Manager',
+      methods: Object.freeze({
+        DATA_MANAGER_INGEST_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.ingest',
+        DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.remove',
+        DATA_MANAGER_INGEST_EVENTS: 'datamanager.events.ingest',
+        DATA_MANAGER_RETRIEVE_REQUEST_STATUS: 'datamanager.requestStatus.retrieve',
+      }),
+    }),
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from rejectedBuild (src/campaign-runner.ts), after the runner's own

@@ -46,10 +46,28 @@
       "raised": [
         "reference_words 143542 → 143704"
       ]
+    },
+    {
+      "reason": "w4c-arc6-tables: ARCHITECTURE.md section 9 gains one row per shared-table concern moved into the adapters (unavailable operations and programs, parameter tables, provider jobs)",
+      "raised": [
+        "reference_words 143230 → 143470"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-tables: ARCHITECTURE.md section 9 gains one row per round 7 concern moved into the adapters (withdrawn methods, provider validation, wire contracts, the audit repository) and the shared tables' comparison that the round 6 and 7 rows cite",
+      "raised": [
+        "reference_words 143470 → 143989"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-tables merged after w4c-arc6-versions: docs/review/ARCHITECTURE.md holds both packages' section 9 rows and comparisons, the tables package's fall and the merged one (22 and 36) in section 8, and the remainder after both packages",
+      "raised": [
+        "reference_words 143989 → 144551"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143703
+    "reference_words": 144551
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

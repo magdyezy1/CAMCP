@@ -86,4 +86,15 @@ export const criteoHooks: ProviderHooks = Object.freeze({
   // catalog has write actions, which its gateway previews or refuses (src/tool-notes.ts).
   versions: Object.freeze({current: () => criteoApiVersion, docs: criteoDocs}),
   notes: Object.freeze({delegatedWrites: true as const}),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its report
+  // job family and what it guarantees (src/provider-jobs.ts).
+  jobFamilies: Object.freeze([
+    Object.freeze({
+      family: 'criteo_report_jobs',
+      kind: 'report' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original report is read by its ID, never resubmitted.',
+      retrieval: 'The original report’s bounded output.',
+    }),
+  ]),
 });

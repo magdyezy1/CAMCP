@@ -239,4 +239,7 @@ export const redditHooks: ProviderHooks = Object.freeze({
   // Wave 4c round 6 (w4c-arc6-versions): its catalog has write actions, which its gateway previews or refuses
   // (src/tool-notes.ts).
   notes: Object.freeze({delegatedWrites: true as const}),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // aliases (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['account_id', 'ad_account_id'])}),
 });

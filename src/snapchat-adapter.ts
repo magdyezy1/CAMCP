@@ -496,6 +496,12 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     routing: true as const,
   }),
   listing: Object.freeze({defaultLimit: 25, cursorPages: true as const}),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its top-level
+  // parameters (src/parameters.ts): its account aliases, and the native limit of its stats and reports.
+  parameters: Object.freeze({
+    accountAliases: Object.freeze(['ad_account_id', 'account_id']),
+    nativeLimit: Object.freeze(/stats|report/i),
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

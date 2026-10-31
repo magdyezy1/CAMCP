@@ -24,4 +24,7 @@ export const amazonHooks: ProviderHooks = Object.freeze({
       'Amazon Ads gateway, listed for compatibility with the captured catalog: AMCP has no executable Amazon Ads action yet. Its catalog is empty, so every call is refused and nothing reaches Amazon.',
     withoutExecutableActions: true as const,
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its account
+  // alias (src/parameters.ts).
+  parameters: Object.freeze({accountAliases: Object.freeze(['profile_id'])}),
 });

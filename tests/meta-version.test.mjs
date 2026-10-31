@@ -150,8 +150,34 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
     (path, query = {}) => ({path, query}),
   );
   assert.deepEqual(nodeReads, [{path: '/v26.0/987', query: {fields: 'id,name,status'}}]);
+  // Meta's provider validation (its adapter's hooks `validation`, which ARC-01 wave 4c round 6 moved there from
+  // src/provider-validation.ts, a shared module this scan never read) names execution_options only in its refusal of a
+  // caller's own. The validation request it builds sets execution_options: ["validate_only"] on a campaign or ad set
+  // create or edit, a parameter v26.0 kept: its removals name the ad set's own field, AdSet.execution_options, and no
+  // execution_options parameter.
+  const validationRefusal = {execution_options: 'src/meta-adapter.ts'};
+  assert.ok(sent.get('execution_options')?.has('src/meta-adapter.ts'));
+  assert.deepEqual(
+    changes.removed.params.filter(p => p.endsWith(' execution_options')),
+    [],
+  );
+  const validation = providerHooks(gateway).validation;
+  for (const [action, path] of [
+    ['meta_ad_account_id_campaigns_create', '/v26.0/act_123/campaigns'],
+    ['meta_ad_account_id_adsets_create', '/v26.0/act_123/adsets'],
+    ['meta_ad_set_id_update', '/v26.0/987'],
+  ]) {
+    assert.deepEqual(validation.request(write(action, path, {name: 'N'})).body.execution_options, ['validate_only']);
+    assert.equal(
+      validation.refusal(write(action, path, {name: 'N', execution_options: ['validate_only']}))?.details.field,
+      'execution_options',
+    );
+  }
   const sentAsRemoved = name =>
-    sent.has(name) && ![...sent.get(name)].every(where => where === otherEdge[name] || where === keptOut[name]);
+    sent.has(name) &&
+    ![...sent.get(name)].every(
+      where => where === otherEdge[name] || where === keptOut[name] || where === validationRefusal[name],
+    );
   // Removed enum values belong to removed fields (cost_bidding_mode, budget_source, attribution counting), so the
   // field and parameter names cover them.
   const removed = [

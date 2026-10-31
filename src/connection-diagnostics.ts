@@ -3,12 +3,12 @@ import {redact} from './security.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 import {recordedCredentialHealth} from './connection-health.js';
+import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 
-const operations: Record<string, string> = {
-  ga4_native_action: 'ga4_connection_ops',
-  google_search_console_native_action: 'gsc_connection_ops',
-  google_business_native_action: 'gmb_connection_ops',
-};
+/** Each gateway's connection operation, from its adapter (ARC-01, wave 4c round 6: src/<provider>-adapter.ts). */
+const operations: Record<string, string> = Object.fromEntries(
+  registeredProviderHooks.flatMap(hooks => (hooks.connection ? [[hooks.gateway, hooks.connection.operation]] : [])),
+);
 export const businessQandaRetirement = {
   status: 'provider_unsupported',
   discontinued_on: '2025-11-03',
@@ -34,12 +34,9 @@ export function connectionDiagnosticKind(
   action: unknown,
 ): 'connection' | 'qanda' | undefined {
   if (operations[gateway] === operation && action === 'status') return 'connection';
-  if (
-    gateway === 'google_business_native_action' &&
-    operation === 'gmb_qanda_ops' &&
-    (action === undefined || action === 'status')
-  )
-    return 'qanda';
+  // A retired Q&A operation its provider declares (Business Profile's), whose status is answered locally.
+  const qanda = providerHooks(gateway)?.connection?.qanda;
+  if (qanda !== undefined && operation === qanda && (action === undefined || action === 'status')) return 'qanda';
 }
 function invalid(message: string): never {
   throw new MirrorError('INVALID_ARGUMENT', message);

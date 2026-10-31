@@ -3,7 +3,9 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {googleAdsContract, googleAdsRequestChange, googleAdsVersion} from './google-version.js';
 import {pinnedJson} from './pinned-json.js';
 import {googleAdsScope} from './provider-grants.js';
-import {discoveryIssues} from './wire-contracts.js';
+// Wave 4c round 6 (w4c-arc6-tables): the leaf that holds the Discovery check, so this module, under the provider hooks,
+// no longer imports the wire contracts that consult them (which re-export it).
+import {discoveryIssues} from './discovery-issues.js';
 
 export function assertGoogleAdsScope(c: Connection): void {
   if (!c.scopes.includes(googleAdsScope))

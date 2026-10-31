@@ -332,17 +332,20 @@ and catalog package (70 and 157 on its own branch) counts the provider workflows
 §9) with the registries and empties the catalog compiler, the delegated compiler, the action contract ledger, the
 service, the token renewal, the help tool and the catalog versions of provider names and imports; merged with the
 other four packages, the falls add up again: 34 and 53. Wave 4c round 6's versions package lowers them to 32 and 37:
-nine shared modules ask the provider hooks (§9) instead of importing provider modules.
+nine shared modules ask the provider hooks (§9) instead of importing provider modules. Its tables package lowers them
+to 24 and 52 on its own branch: the ten shared modules whose provider rows rounds 6 and 7 moved into the adapters (§9)
+name no gateway, and `src/wire-contracts.ts` no longer imports Google's Data Manager routes. Merged, the two packages'
+falls add up: 22 and 36.
 
 <!-- architecture-map:baseline:begin -->
 | Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 32 |
-| `shared_to_provider_runtime_imports` | 37 |
+| `shared_modules_with_gateway_literals` | 22 |
+| `shared_to_provider_runtime_imports` | 36 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 149 |
+| `shared_gateway_literals` (reported) | 87 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -448,6 +451,13 @@ anywhere: the suites' synthetic fetchers answer.
 | Owner settings, provider jobs and legacy names (wave 4c round 6) | hooks `ownerSetting` (GA4's realtime test properties, MSR-04), `jobs` (Microsoft's report submission) and `legacyAliases` (Google Ads'); `tests/provider-versions.test.mjs` pins each. | `ownerOperations`, `effectClass` and `legacyAliasUsage` keep every rule, field and count | the versions comparison (below) |
 | Meta creative check (wave 4c round 6) | not a hook: `validateMetaCreative` moved verbatim to `src/meta-creative-features.ts`; `src/creative-validation.ts` keeps the contract's fields and imports nothing | Meta's write shape and preflight call it where they did | the versions comparison (below) |
 | Workbook resource selectors (reporting) | hooks `reportScope`: which account a saved native report query's resource selector names (GA4's property selectors and `properties/{property}/...` resource names, Search Console's domain and URL-prefix sites, Reddit's ad account, Tag Manager's account selectors and `accounts/{id}/...` resources, Business Profile's accounts, locations and resources with its location consistency rule) and the selector kind of a run's resource-form account anchor. `tests/reporting-architecture.test.mjs` pins the seam. | `reportingResourceAccount` keeps the selector bounds first and the one refusal (REPORT_SCOPE_UNAVAILABLE, 403); `reportingResourceAccounts` and `reportRunScope` the order of the checks; the workbook selectors' SQL projections stay in `src/workbook-repository.ts` (ARC-02) | the reporting branch's comparison with `Work-here` (194 reporting test files, both recorded on one UTC date): 350,705 records before, 350,678 after, 0 differences beyond calibration but 27 `breakdownValue` calls the moved Meta breakdown key no longer makes; the 353 `reportingResourceAccount`, 3,020 `reportingResourceAccounts` and 3,020 `reportRunScope` records identical; 2,713 selector cases give the same results and refusals on both builds; 34,932 distinct pure calls (154 of the selectors) replay with 0 differences |
+| Unavailable operations, connection diagnostics and discovery-only programs (round 6) | hooks `unavailable`, `connection` and `programs`: the captured operations AMCP lists but cannot run, with their alternatives (Adjust, WooCommerce, Business Profile); the connection operations whose OAuth steps run on the website (Analytics, Search Console, Business Profile with its retired Q&A); the discovery-only programs and their withheld writes (LinkedIn, X, DV360) | `unavailableOperation`, `connectionDiagnostics` and `discoveryOnlyProgram` list AMCP's own rows first, then each provider's in the order `src/provider-hooks.ts` declares, and keep every refusal and its wording | `tests/provider-tables.test.mjs` (each old table, over every gateway) and the shared tables' comparison after this table |
+| Parameter tables (round 6) | hooks `parameters`: each provider's account aliases, platform routing controls (Meta's refusal of one it does not route), a JSON-encoded native body (DV360, LinkedIn, X), Meta's `fields` on every action, Snapchat's native `limit`, LinkedIn's one body format (its refusal built in the adapter) and the paging X drops from a report download | `parameterHandling`, `nativeTopLevel` and `assertSameAlias` (`src/parameters.ts`) keep every check and its order; the account aliases keep the order the workbook selectors' SQL shows | the same test and comparison |
+| Provider jobs and recipe gateways (round 6) | hooks `jobFamilies`: each provider job family and what it guarantees (admission, a lost response, retrieval), with Microsoft's reporting-pipeline jobs marked as created by no reviewed family (beside the versions package's `jobs`, Microsoft's report submission) | `providerJobContracts` (`src/provider-jobs.ts`) lists them in the job families' order; `providerJobGateways` and `providerJobCapability` leave the pipeline's out; the capability graph takes a recipe's gateway from its declaring provider (`recipeGateway`) | the same test and comparison |
+| Withdrawn methods and unsupported aliases (round 7) | facts `retired` (`src/provider-adapters.ts`): the methods AMCP refuses whatever a historical mapping says (X's v5 recommendation reads, four Tag Manager methods, Google Ads' lifecycle goals, LinkedIn's unversioned routes) and Google Ads' v25 aliases, with the provider's reason, replacement and check date for a row without its own (checked at load) | `assertProviderActionAvailable` refuses the alias before the route; the tables list plain copies in the registry's order, each naming its gateway first | the same test and comparison |
+| Provider validation (round 7) | hooks `validation`: the request that has the provider check a write without applying it (Google Ads' `validate_only` mutate; Meta's campaign and ad set creates and edits), the field paths its refusal names, Meta's `success: false` and its refusal of a caller-set `execution_options` | `validateProviderRequest` keeps the gates in their order, the connection, write grant and audit steps and its other refusals | the same test and comparison |
+| Wire contracts (round 7) | hooks `wireContract`: the pinned contract of a provider's requests (Tag Manager's, GA4's, Search Console's and Business Profile's generated routes; DV360's Discovery methods; Microsoft's WSDL type model, `src/microsoft-wire-contract.ts`; Google Ads' Data Manager methods and origin) | `src/wire-contracts.ts` keeps the modes, seals, checks and refusals; its Discovery check moved unchanged to the leaf `src/discovery-issues.ts` (re-exported), which Google Ads' own check imports without a cycle | the same test and comparison |
+| Audit repository (round 7) | Google Ads' gateway from the registry, bound to the legacy-alias query that named it | `googleAdsRequestActions` reads the same rows through the same query plan | the same test and comparison |
 | Entity writes | facts `entityWrites`: the generic entity writes of seven platforms (Google Ads, Meta, TikTok, Snapchat, LinkedIn, X and DV360), the creations, edits and deletions of their campaigns, ad groups, ads and creatives that no registered family claims: each the ledger name of its reviewed route (`google_entities`, ...) and `claims`, which reads only the write's method, path and action, in one table of the registry by provider ID. `tests/provider-entity-writes.test.mjs` compares every reviewed route with the branches as they were. | `reviewedWriteFamily` (`src/reviewed-routes.ts`) keeps the read-only and special-transport exclusions and the registered families first (with their conflict refusal), then asks the write's adapter, and names no gateway; `assertWriteShape`, the structural spend effects and the action ledger consult it unchanged | one comparison of the branch with `Work-here` for this row, the four below and the family kit (§13), in the paragraph after this table |
 | Offline-upload rehearsal | not an adapter: the conversion families' facts, `rehearsal` of their personal-data specs (`OfflineRehearsal`, `src/personal-data.ts`), frozen in `src/google-data-manager.ts` and `src/meta-offline-conversions.ts`: the provider request an offline conversion upload rehearses, its documented no-execution flag (Data Manager's `validateOnly` on `events:ingest`) or none (Meta's `test_event_code` events are production events), and what the review says of it. `tests/offline-upload-rehearsal-route.test.mjs` compares every rehearsal with the function as it was. | `offlineUploadRehearsal` (`src/offline-upload-rehearsal.ts`, MSR-03 slice E) takes the rehearsal of the family whose request it is (`familyOf`, the registry) whatever spec its caller passes, and keeps the dry run: the people hashed with the provider's time limits, the execution and rehearsal bodies built and hashed, nothing sent, reviewed or saved; it imports no provider module | the same comparison: its records differ only in the spec argument, which now carries the moved `rehearsal` |
 | Review summary | facts `reviewOperations`: how the one-line review summary names a provider's writes, Google Ads' `:mutate` operations (each a create, a remove or an update, the entity its service names, how many), in the registry's table of review stage facts by provider ID. `tests/provider-review-stages.test.mjs` compares every summary with the branch as it was. | `reviewSummary` (`src/review-summary.ts`, WRT-05 stage E) asks the request's adapter first and keeps the generic operation from the path, method and action, the account, the money with its exact decimals and the status changes | the same comparison: 1,907 distinct `reviewSummary` calls replay with 0 differences |
@@ -528,6 +538,22 @@ file, and one `platform()` lookup of `tests/measurement-apple.test.ts` fewer (49
 349,100 distinct pure calls replay with 0 differences but one recorded under `AMCP_WIRE_CONTRACTS=enforce` (likewise
 on Work-here's build); `tests/tool-surface-golden.test.mjs` passes on both builds.
 
+**The shared tables' comparison.** The ten shared modules whose provider rows rounds 6 and 7 moved were proven by
+one comparison with Work-here: the 814 related test files both builds hold (the seam test
+`tests/provider-tables.test.mjs` and the two localization inventories whose counts the package changes run on their
+own), recorded with the package's targets twice on Work-here, for calibration, and once on the head, on one UTC day:
+11,984,756 records before and 11,984,749 after. 6,448 are within calibration (random IDs and the hashes derived from
+them, capture times, `elapsed_ms`, dated personal-data summaries) and the burst-pacing test's 10 are counted apart.
+53 are unsettled by rule: 52 outcome pairs the calibration pair flips too (plans and previews with random IDs paired
+across their outcomes) and one `platform()` lookup of `tests/measurement-apple.test.ts` (48 before, 49 after, 51 in
+the calibration). Two records differ, by the clock and by chance: a Sheets delivery's `retry_after_ms` countdown
+(659,996 against 659,997) and which of two workbook runs created in one millisecond, ordered by random IDs, the
+operations feed scopes twice; recorded again back to back, three times on each build, both vary that way on
+Work-here too and show 0 differences against a two-run calibration. Each function's results and refusal codes per
+action are the same in every test file but that count and the burst-pacing test, and the 407,422 distinct pure calls
+before (12,942 `retiredProviderAction`, 17,147 `nativeTopLevel`, 12,487 `redactConnectionInput` and 310
+`providerValidationRequest` among them) replay through the head with 0 differences.
+
 Seven exports moved with their code and are not re-exported from the shared modules that held them, since a re-export
 would import the provider module again and raise the ratchet's counts: `metaImageSources` and `metaConversionRecipes`
 (from `src/campaign-recipes.ts` to `src/meta-website-recipes.ts`), `googleConversionRecipes` (from
@@ -551,8 +577,9 @@ them through `src/scope.ts`. Compared the same way, none of the 41 `src/` and `s
 package changed or added, nor any of the other 27 of its transport and catalog package, lost an export.
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): phase B
-moves one concern at a time (the rows above), so after wave 4c round 6's versions package 32 shared modules still name a
-gateway (target 20 or fewer) and 37 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts
+moves one concern at a time (the rows above), so after wave 4c round 6's versions and tables packages 22 shared modules
+still name a gateway (target 20 or fewer) and 36 shared-to-provider imports remain (target 30 or fewer). Of the fall
+from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts
 it as a registry (§8), and 9 are ARC-04's report job registry and website route modules; the rest are phase B's
 migrations, after which the shared stages consult the provider registries (the provider hooks, `src/provider-hooks.ts`,
 which imports the 18 adapter modules; the provider workflows, `src/provider-workflows.ts`; the website login steps,
@@ -560,11 +587,10 @@ which imports the 18 adapter modules; the provider workflows, `src/provider-work
 facts, instead of provider modules. The transport and catalog modules (`src/transport.ts`, `src/compiler.ts`,
 `src/delegated-native.ts`, `src/catalog.ts`, `src/action-contracts.ts`, `src/service.ts`, `src/scope.ts`,
 `src/auth.ts`, `src/tool-help.ts`, `src/catalog-versions.ts`), the review's stages and `server/` name no gateway and
-import no provider module. The largest remaining are the workspace tool (`src/workspace.ts`, 11 of the imports), the
-provider tables of shared modules (`src/retired-provider-actions.ts`, `src/parameters.ts`, `src/wire-contracts.ts`,
-`src/provider-validation.ts`), the allocation plan (`src/allocation-plan.ts`), the ad previews (`src/ad-previews.ts`),
-the workbook selectors' SQL projections (`src/workbook-repository.ts`, ARC-02) and the shared modules that still read
-a provider's version module (`src/media-upload.ts`, `src/allocation-plan.ts`, `src/catalog-comparison.ts`,
+import no provider module, and neither do the ten shared modules whose provider tables rounds 6 and 7 moved into the
+adapters. The largest remaining are the workspace tool (`src/workspace.ts`, 11 of the imports), the allocation plan
+(`src/allocation-plan.ts`), the ad previews (`src/ad-previews.ts`), the workbook selectors' SQL projections
+(`src/workbook-repository.ts`, ARC-02) and the shared modules that still read a provider's version module (`src/media-upload.ts`, `src/allocation-plan.ts`, `src/catalog-comparison.ts`,
 `src/conditional-programs.ts`, `src/overview-parents.ts`), which can ask `providerVersions` instead. The whole suite
 also passes with `AMCP_PROVIDERS=criteo,woocommerce`, where the tool-surface suites count the tools it offers. ARC-01's
 native and manual criteria are the owner's: read-only `verify-reads` per migrated gateway on existing test accounts,

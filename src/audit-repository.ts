@@ -1,5 +1,6 @@
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
+import {providerById} from './provider-adapters.js';
 
 /**
  * Reads of a workspace's audit records in the store layer (ARC-02), moved here verbatim from src/audit-history.ts,
@@ -57,6 +58,9 @@ export function writeAuditEvents(
     )
     .all(tenant, since, now, limit) as {request_id: string; event: string; created_at: number}[];
 }
+// ARC-01 (wave 4c round 6, the shared tables): Google Ads' gateway, from the adapter registry, is bound to the query
+// below where the query named it.
+const googleAdsGateway = providerById('google')!.gateway;
 /** Up to `limit` Google Ads requests since `since` (request id and planned action), oldest first. */
 export function googleAdsRequestActions(
   store: Store,
@@ -67,7 +71,7 @@ export function googleAdsRequestActions(
   return store
     .sql()
     .prepare(
-      "SELECT request_id, json_extract(event,'$.request.action') AS action FROM audit WHERE tenant_id=? AND created_at>=? AND instr(event,'google_ads_native_action')>0 AND json_extract(event,'$.request.gateway')='google_ads_native_action' ORDER BY seq LIMIT ?",
+      "SELECT request_id, json_extract(event,'$.request.action') AS action FROM audit WHERE tenant_id=? AND created_at>=? AND instr(event,?)>0 AND json_extract(event,'$.request.gateway')=? ORDER BY seq LIMIT ?",
     )
-    .all(tenant, since, limit) as {request_id: string; action: unknown}[];
+    .all(tenant, since, googleAdsGateway, googleAdsGateway, limit) as {request_id: string; action: unknown}[];
 }

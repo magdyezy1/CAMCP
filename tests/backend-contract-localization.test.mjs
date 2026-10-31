@@ -262,8 +262,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // which keeps none, to src/meta-creative-features.ts, which already owns reasons: 284 files with reasons, the same
   // reasons.
   // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
-  assert.equal(files.length, 737);
-  assert.equal(selected.filter(row => row.messages.size).length, 284);
+  // ARC-01 (wave 4c round 6, the shared tables) adds src/frozen-facts.ts, src/linkedin-programs.ts and
+  // src/woocommerce-adapter.ts, none with an owned reason: the moved rows are facts, and the one refusal a moved rule
+  // raises (LinkedIn's body format, from src/parameters.ts) is constructed in src/linkedin-adapter.ts, which owns
+  // reasons: 739 files, as many with reasons, the same reasons.
+  // Its wire contracts add src/discovery-issues.ts, the Discovery check, whose refusals name their label (it owns no
+  // reason), and src/microsoft-wire-contract.ts, to which Microsoft's bounds refusal moves from src/wire-contracts.ts
+  // (which keeps its others); its provider validation moves Meta's execution_options refusal from
+  // src/provider-validation.ts (which keeps its others) to src/meta-adapter.ts, which owns reasons: 741 files, one more
+  // with reasons, the same reasons.
+  // Merged with the versions package, both add the one WooCommerce adapter module (it holds both packages' hooks), and
+  // the versions package's move leaves src/creative-validation.ts without reasons: 741 files, 285 of them with reasons,
+  // the same reasons.
+  assert.equal(files.length, 741);
+  assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);

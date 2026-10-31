@@ -21,6 +21,8 @@ import {authorizeDV360AudienceRead, dv360AudienceRead} from './dv360-audiences.j
 // Writes and campaigns (wave 4c).
 import type {MutationResponse} from './provider-adapter.js';
 import {extendDV360Tool} from './dv360-extensions.js';
+// Wave 4c round 6 (w4c-arc6-tables).
+import {deepFrozen} from './frozen-facts.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -166,6 +168,57 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     summary:
       'Run one Display & Video 360 v4 REST action by name: a canonical DV360_* action such as DV360_ADVERTISERS_LIST, or resource and method (resource=advertisers, method=list); LIST_ACTIONS and DESCRIBE_ACTION find it. Path and query parameters go in params, pathParams or query, request bodies in body or payload. YouTube & Partners line items cannot be created or updated through the API, so AMCP refuses those writes, and AMCP has no DV360 reporting. The campaign flow, targeting and audience search, inventory and creative assignment: amcp_tool_help {gateway:"dv360_native_action"}.',
   }),
+  // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them).
+  // Bid Manager reporting, which AMCP lists but never checks (src/discovery-programs.ts).
+  programs: deepFrozen([
+    {
+      id: 'program:dv360_bid_manager_reporting',
+      name: 'Display & Video 360 reporting (Bid Manager)',
+      description: 'Run Display & Video 360 reports through the Bid Manager API.',
+      prerequisites: [
+        {
+          id: 'bid_manager_scope',
+          text: 'The Google identity must grant the Bid Manager OAuth scope, which is separate from the Display & Video 360 scope.',
+        },
+        {
+          id: 'dv360_customer_role',
+          text: 'The Google identity needs a Display & Video 360 user profile with access to the partner or advertiser.',
+        },
+        {
+          id: 'reporting_workflow',
+          text: 'AMCP has no Bid Manager report workflow yet; reports, query runs and report retrieval are not available.',
+        },
+      ],
+      program: {
+        access:
+          'Bid Manager reporting uses its own OAuth scope and report workflow; an advertiser read does not establish reporting access.',
+        reference: 'https://developers.google.com/bid-manager',
+        checked_on: '2026-10-08',
+      },
+      unlocks: ['Display & Video 360 reporting'],
+      withheld_actions: [],
+    },
+  ]),
+  // Its top-level parameters (src/parameters.ts): its account alias, its resource and RPC controls, and its
+  // JSON-encoded native bodies.
+  parameters: deepFrozen({
+    accountAliases: ['advertiserId'],
+    platformControls: ['resource', 'method'],
+    encodedBody: true as const,
+  }),
+  // Its SDF download job family and what it guarantees (src/provider-jobs.ts).
+  jobFamilies: deepFrozen([
+    {
+      family: 'dv360_sdf_downloads',
+      kind: 'export' as const,
+      admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
+      lost_response: 'Uncertain; the original operation is read by its name, never resubmitted.',
+      retrieval: 'The original operation is read until done; its files are then downloaded with media.download.',
+    },
+  ]),
+  // Its wire contract (src/wire-contracts.ts): the pinned v4 Discovery method with the request's verb and path; media
+  // and asset uploads are multipart transports with their own contracts.
+  wireContract: deepFrozen({discovery: {document: 'dv360-v4', label: 'Display & Video 360', uploads: '/upload/'}}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
