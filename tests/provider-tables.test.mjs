@@ -1479,6 +1479,8 @@ test('the withdrawn methods and unsupported aliases are the same rows in the sam
   );
 });
 
+/** A plan as the compiler builds it: no query parameters or headers, and not a read. */
+const compiledShape = shape => ({query: {}, headers: {}, readOnly: false, ...shape});
 /** Plans of validation's two providers, and others, each under every gateway. */
 const validationShapes = [
   {
@@ -1531,6 +1533,36 @@ const validationShapes = [
   {method: 'POST', path: '/v26.0/abc', action: 'meta_campaign_id_update', accountId: '123', body: {}},
   {method: 'DELETE', path: '/v26.0/987', action: 'meta_campaign_id_update', accountId: '123'},
   {method: 'POST', path: '/v26.0/act_123/campaigns', action: 'meta_campaign_create', accountId: '123'},
+  // Requests as the compiler builds them, with their query and headers (tests/provider-validation-gating.test.mjs): a
+  // budget create and a campaign create that pass the write shape, so validation reaches the connection, and an ad
+  // edit, a reviewed write that has no validation path. The shapes above fail the write shape's own checks.
+  compiledShape({
+    method: 'POST',
+    path: '/v25/customers/123/campaignBudgets:mutate',
+    action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+    accountId: '123',
+    body: {operations: [{create: {name: 'Budget', amount_micros: '1000000', delivery_method: 'STANDARD'}}]},
+  }),
+  compiledShape({
+    method: 'POST',
+    path: '/v26.0/act_123/campaigns',
+    action: 'meta_ad_account_id_campaigns_create',
+    accountId: '123',
+    body: {
+      name: 'Draft',
+      status: 'PAUSED',
+      objective: 'OUTCOME_TRAFFIC',
+      special_ad_categories: [],
+      is_adset_budget_sharing_enabled: false,
+    },
+  }),
+  compiledShape({
+    method: 'POST',
+    path: '/v26.0/987',
+    action: 'meta_ad_id_update',
+    accountId: '123',
+    body: {status: 'PAUSED'},
+  }),
 ];
 const googleDetails = [
   {
@@ -1648,8 +1680,9 @@ test('provider validation builds, classifies and refuses every gateway’s reque
       );
       if (now !== '{}') requests++;
     }
-  // Google's two mutate routes, and Meta's two creates, two edits and a create without a body, under their own gateway.
-  assert.equal(requests, 7);
+  // Google's three mutate routes, and Meta's three creates, two edits and a create without a body, under their own
+  // gateway.
+  assert.equal(requests, 9);
   let replies = 0;
   for (const planGateway of gateways)
     for (const requestGateway of new Set([
