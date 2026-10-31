@@ -1,5 +1,6 @@
 import {createHash, createHmac, randomBytes, randomUUID, timingSafeEqual} from 'node:crypto';
 import type {Request} from 'express';
+import {testAccountElsewhere} from '../src/actor-identity.js';
 import {MirrorError} from '../src/errors.js';
 import {purposeKey, sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
@@ -310,11 +311,14 @@ export class UserAccounts {
     const membership = this.web.store.db
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(session.actor.tenantId, u.id) as JsonObject | undefined;
-    const mfaEnabled = this.hasMfa(u.id),
+    const elsewhere = testAccountElsewhere(u, session.actor.tenantId),
+      role = elsewhere ? 'viewer' : membership?.role,
+      mfaEnabled = this.hasMfa(u.id),
       // Two-step requirement of this workspace for this member (SEC-06): from when it is enforced, and whether it is.
-      requirement = u.test_account
-        ? {required: false, by: null}
-        : mfaRequirement(this.web.store, this.web.mfaBaseline, session.actor.tenantId, u.id, membership?.role);
+      requirement =
+        u.test_account && !elsewhere
+          ? {required: false, by: null}
+          : mfaRequirement(this.web.store, this.web.mfaBaseline, session.actor.tenantId, u.id, role);
     return {
       id: u.id,
       name: u.name,
@@ -324,7 +328,7 @@ export class UserAccounts {
       administrator: false,
       workspaceName,
       workspaceId: session.actor.tenantId,
-      workspaceRole: u.test_account && ['owner', 'admin'].includes(membership?.role) ? 'operator' : membership?.role,
+      workspaceRole: u.test_account && ['owner', 'admin'].includes(role) ? 'operator' : role,
       mfaEnabled,
       mfaRequired: requirement.required,
       mfaRequiredBy: requirement.by,
@@ -387,13 +391,14 @@ export class UserAccounts {
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(tenant, user.id) as JsonObject | undefined;
     if (!m) throw new MirrorError('MEMBERSHIP_REQUIRED', 'You no longer have access to this workspace.', {}, 403);
+    const role = testAccountElsewhere(user, tenant) ? 'viewer' : m.role;
     return this.web.createSession(
       {
         userId: user.id,
         ownerUserId: user.id,
         tenantId: tenant,
-        membershipRole: m.role,
-        role: m.role === 'viewer' ? 'reader' : m.role === 'operator' ? 'operator' : 'admin',
+        membershipRole: role,
+        role: role === 'viewer' ? 'reader' : role === 'operator' ? 'operator' : 'admin',
         ...(user.test_account ? {testAccount: true} : {}),
         // Opened with two-step verification (SEC-06): a workspace's two-step policy can require it for owner changes.
         ...(mfaVerified && this.hasMfa(user.id) ? {mfaVerified: true} : {}),

@@ -10,7 +10,7 @@ import {
 } from './spend-policy.js';
 import {sha256, stable} from './security.js';
 import {optional} from './workspace-core.js';
-import {doorPrincipal, principalOf} from './actor-identity.js';
+import {doorPrincipal, principalOf, viaReviewerDoor} from './actor-identity.js';
 import {reviewSummary} from './review-summary.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -404,6 +404,11 @@ function personName(store: Store, tenant: string, principal: unknown): string | 
       : undefined;
   return typeof row?.name === 'string' && row.name.trim() ? row.name.trim().slice(0, 200) : null;
 }
+/** Whether the page names a person as a reviewer: the door's person in the reviewers' own test workspace, which only the
+ * reviewers' door reaches, rather than the door's ID (owner decision, 2026-10-31). */
+function shownAsReviewer(actor: Actor, principal: unknown): boolean {
+  return principal === doorPrincipal && viaReviewerDoor(actor);
+}
 /**
  * A review or group as a person sees it before approving (website). Nothing is sent; the request body is not shown. A
  * part of a group opens its group, which is approved as a whole.
@@ -453,6 +458,7 @@ export function approvalView(store: Store, actor: Actor, reviewId: unknown): Jso
     effects: context?.effects ?? null,
     prepared_by: preparedBy,
     prepared_by_name: personName(store, actor.tenantId, preparedBy),
+    ...(shownAsReviewer(actor, preparedBy) ? {prepared_by_kind: 'reviewer'} : {}),
     prepared_at: typeof s.review.created_at === 'number' ? new Date(s.review.created_at).toISOString() : null,
     expires_at: new Date(Number(s.review.expires_at)).toISOString(),
     fingerprint: s.fingerprint,
@@ -463,6 +469,7 @@ export function approvalView(store: Store, actor: Actor, reviewId: unknown): Jso
       ? {
           approver: current.approver_principal,
           approver_name: personName(store, actor.tenantId, current.approver_principal),
+          ...(shownAsReviewer(actor, current.approver_principal) ? {approver_kind: 'reviewer'} : {}),
           approver_is_owner: current.approver_is_owner === true,
           approved_at: current.approved_at,
         }
@@ -566,6 +573,7 @@ export function approveReview(store: Store, actor: Actor, reviewId: unknown, inp
       approval: {
         approver: approval.approver_principal,
         approver_name: personName(store, actor.tenantId, approval.approver_principal),
+        ...(shownAsReviewer(actor, approval.approver_principal) ? {approver_kind: 'reviewer'} : {}),
         approver_is_owner: owner,
         approved_at: approval.approved_at,
       },
