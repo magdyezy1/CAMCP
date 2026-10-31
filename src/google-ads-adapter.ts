@@ -74,6 +74,8 @@ import {googleCreated, googleNamedTargets} from './google-write-reconciliation.j
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {normalizeAccount} from './account-id.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -761,6 +763,21 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     accessPolicy: assertGoogleAccessPolicy,
     moneyFields: googleMoneyFields,
   }),
+  // Wave 4c round 6 (w4c-arc6-catalog): moved verbatim from the creative library's asset view
+  // (src/creative-library.ts), which asks the asset's platform: an uploaded image asset of the account's own customer
+  // has its image links read.
+  mediaUsage: (p: JsonObject) =>
+    p.media_type === 'image' &&
+    typeof p.account_id === 'string' &&
+    /^\d{1,20}$/.test(normalizeAccount('google_ads_native_action', p.account_id)) &&
+    typeof p.media_id === 'string' &&
+    new RegExp(
+      '^customers/' + normalizeAccount('google_ads_native_action', p.account_id) + '/assets/[1-9][0-9]{0,19}$',
+    ).test(p.media_id) &&
+    typeof p.uploaded_sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(p.uploaded_sha256)
+      ? {supported: true, kind: 'google_image_links', views: ['ad_images', 'performance_max', 'performance_max_brand']}
+      : undefined,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from rejectedBuild (src/campaign-runner.ts), after the runner's own

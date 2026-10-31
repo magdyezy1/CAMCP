@@ -373,6 +373,12 @@ export const metaHooks: ProviderHooks = Object.freeze({
   }),
   // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection (src/catalog-ingestion.ts).
   catalogProjection: metaCatalogIngestion,
+  // Moved verbatim from the creative library's asset view (src/creative-library.ts), which asks the asset's platform:
+  // a Meta image or video has its scalar references read.
+  mediaUsage: (p: JsonObject) => ({
+    supported: ['image', 'video'].includes(p.media_type),
+    kind: 'meta_scalar_references',
+  }),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from moneyLimits (src/spend-policy.ts), as its INVALID_POLICY refusal.

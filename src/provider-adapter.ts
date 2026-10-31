@@ -858,6 +858,11 @@ export interface ProviderHooks {
    * comparison reads (COM-03), which src/catalog-ingestion.ts dispatches to by gateway: it refuses in its own order.
    */
   readonly catalogProjection?: (input: JsonObject) => JsonObject;
+  /**
+   * The native usage the creative library offers for one of its library assets of this provider, from the asset's
+   * retained metadata (src/creative-library.ts), or undefined for none.
+   */
+  readonly mediaUsage?: (asset: JsonObject) => MediaUsage | undefined;
 }
 
 export interface ProviderAdapter {
@@ -1420,4 +1425,13 @@ export interface CatalogDestinationFacts {
   readonly fallback?: true;
   /** The retailer ID one of its reviewed product steps writes, read from the step's payload (src/catalog-retirement.ts). */
   stepRetailerId?(payload: JsonObject | undefined): unknown;
+}
+/** The native usage a library asset offers (ProviderHooks.mediaUsage), which its asset view states. */
+export interface MediaUsage {
+  /** Whether the provider's reader can read the asset's current native usage. */
+  readonly supported: boolean;
+  /** The usage kind of that reader (src/provider-workflows.ts assetUsageReader). */
+  readonly kind: string;
+  /** The native views it reads, when it names them. */
+  readonly views?: readonly string[];
 }

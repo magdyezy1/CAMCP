@@ -14,7 +14,8 @@ import * as removalBinding from '../dist/src/x-catalog-removal-binding.js';
 import {MirrorError} from '../dist/src/errors.js';
 import fs from 'node:fs';
 import {catalogComparison} from '../dist/src/catalog-comparison.js';
-import {catalogComparisonSteps} from '../dist/src/provider-workflows.js';
+import {assetUsageReader, catalogComparisonSteps} from '../dist/src/provider-workflows.js';
+import {normalizeAccount} from '../dist/src/account-id.js';
 import {metaCatalogComparison} from '../dist/src/meta-catalog-comparison.js';
 import {xCatalogComparison, xCatalogListedSelection} from '../dist/src/x-catalog-comparison.js';
 import {snapchatCatalogComparison} from '../dist/src/snapchat-catalog-comparison.js';
@@ -290,4 +291,97 @@ test('each catalog destination compares through its provider workflows step, aft
   );
   for (const gateway of ['google_ads_native_action', 'toString', undefined])
     await refused({...meta, gateway}, 'Choose a numeric Meta product catalog ID and selected Meta ad account.');
+});
+
+// The creative library's native usage fields as src/creative-library.ts computed them before ARC-01 moved them into
+// the Google Ads, Snapchat and Meta hooks (mediaUsage), copied verbatim, and as it computes them now.
+function usageBefore(p) {
+  const googleImage =
+    p.platform === 'google_ads' &&
+    p.media_type === 'image' &&
+    typeof p.account_id === 'string' &&
+    /^\d{1,20}$/.test(normalizeAccount('google_ads_native_action', p.account_id)) &&
+    typeof p.media_id === 'string' &&
+    new RegExp(
+      '^customers/' + normalizeAccount('google_ads_native_action', p.account_id) + '/assets/[1-9][0-9]{0,19}$',
+    ).test(p.media_id) &&
+    typeof p.uploaded_sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
+  const snapchatMedia =
+    p.platform === 'snapchat' &&
+    ['image', 'video'].includes(p.media_type) &&
+    [p.account_id, p.media_id].every(
+      v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+    ) &&
+    typeof p.uploaded_sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
+  return {
+    native_usage_supported:
+      googleImage || snapchatMedia || (p.platform === 'meta' && ['image', 'video'].includes(p.media_type)),
+    native_usage_kind: googleImage
+      ? 'google_image_links'
+      : snapchatMedia
+        ? 'snapchat_top_snap'
+        : p.platform === 'meta'
+          ? 'meta_scalar_references'
+          : null,
+    ...(googleImage ? {native_usage_views: ['ad_images', 'performance_max', 'performance_max_brand']} : {}),
+    ...(snapchatMedia ? {native_usage_views: ['snapchat_top_snap']} : {}),
+  };
+}
+function usageAfter(p) {
+  const usage =
+    typeof p.platform === 'string' ? providerHooks(p.platform + '_native_action')?.mediaUsage?.(p) : undefined;
+  return {
+    native_usage_supported: usage?.supported ?? false,
+    native_usage_kind: usage?.kind ?? null,
+    ...(usage?.views ? {native_usage_views: [...usage.views]} : {}),
+  };
+}
+const gatewayLiteral = /['"][a-z0-9]+(?:_[a-z0-9]+)*_native_action['"]/;
+
+test('a library asset offers the native usage its platform hooks name, as the creative library computed it', () => {
+  // Exactly Google Ads, Meta and Snapchat name one, each a kind an asset usage reader reads.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.mediaUsage).map(h => h.gateway),
+    ['google_ads_native_action', 'meta_native_action', 'snapchat_native_action'],
+  );
+  const uuid = '0f8fad5b-d9cb-469f-a165-70867728950e',
+    other = '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+    hash = 'ab'.repeat(32);
+  const kinds = new Map();
+  for (const platform of ['google_ads', 'snapchat', 'meta', 'tiktok', 'linkedin', 'x_ads', 'dv360', 'toString', 7])
+    for (const media_type of ['image', 'video', 'document', undefined])
+      for (const account_id of ['123-456-7890', '1234567890', uuid, 'act_1', '', undefined])
+        for (const media_id of ['customers/1234567890/assets/42', 'customers/1234567890/assets/0', other, undefined])
+          for (const uploaded_sha256 of [hash, hash.toUpperCase(), undefined]) {
+            const p = {platform, media_type, account_id, media_id, uploaded_sha256},
+              after = usageAfter(p);
+            assert.deepEqual(after, usageBefore(p), JSON.stringify(p));
+            if (after.native_usage_supported) kinds.set(after.native_usage_kind, after.native_usage_views);
+          }
+  // Success: each kind is reached, and an asset usage reader reads it.
+  assert.deepEqual([...kinds.keys()].sort(), ['google_image_links', 'meta_scalar_references', 'snapchat_top_snap']);
+  for (const kind of kinds.keys()) assert.equal(typeof assetUsageReader(kind), 'function', kind);
+  // Refusals: another customer's Google asset, a Snapchat asset without UUIDs, a Meta document, another platform.
+  const google = {platform: 'google_ads', media_type: 'image', account_id: '1234567890', uploaded_sha256: hash};
+  assert.equal(usageAfter({...google, media_id: 'customers/1234567890/assets/42'}).native_usage_supported, true);
+  assert.deepEqual(usageAfter({...google, media_id: 'customers/99/assets/42'}), {
+    native_usage_supported: false,
+    native_usage_kind: null,
+  });
+  assert.deepEqual(
+    usageAfter({platform: 'snapchat', media_type: 'video', account_id: uuid, media_id: '42', uploaded_sha256: hash}),
+    {native_usage_supported: false, native_usage_kind: null},
+  );
+  assert.deepEqual(usageAfter({platform: 'meta', media_type: 'document'}), {
+    native_usage_supported: false,
+    native_usage_kind: 'meta_scalar_references',
+  });
+  assert.deepEqual(usageAfter({platform: 'tiktok', media_type: 'image'}), {
+    native_usage_supported: false,
+    native_usage_kind: null,
+  });
+  // The shared module names no gateway.
+  assert.doesNotMatch(sharedSource('creative-library.ts'), gatewayLiteral);
 });
