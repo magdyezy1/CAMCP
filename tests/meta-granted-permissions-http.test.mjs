@@ -148,17 +148,18 @@ async function site(env = {}) {
   };
 }
 
-test('Meta callbacks secure and discover tokens with inspected expiry, including non-expiring system users', async () => {
-  for (const nonExpiring of [false, true]) {
-    const s = await site({AMCP_META_CONFIG_ID: 'synthetic-business-config'});
+test('Meta callbacks secure and discover tokens with inspected expiry, including non-expiring user and system tokens', async () => {
+  const future = Math.floor(Date.now() / 1000) + 7200;
+  for (const [mode, inspected] of [
+    ['token-expiry', {type: 'USER', expires_at: future}],
+    ['data-access-expiry', {type: 'USER', expires_at: 0, data_access_expires_at: future}],
+    ['non-expiring-user', {type: 'USER', expires_at: 0, data_access_expires_at: 0}],
+    ['non-expiring-system', {type: 'SYSTEM_USER', expires_at: 0, data_access_expires_at: 0}],
+  ]) {
+    const nonExpiring = mode.startsWith('non-expiring'),
+      s = await site({AMCP_META_CONFIG_ID: 'synthetic-business-config'});
     s.control.extended = {access_token: 'synthetic-meta-access'};
-    if (nonExpiring)
-      s.control.inspected.data = {
-        ...s.control.inspected.data,
-        type: 'SYSTEM_USER',
-        expires_at: 0,
-        data_access_expires_at: 0,
-      };
+    s.control.inspected.data = {...s.control.inspected.data, ...inspected};
     try {
       const {url, progress, connection} = await s.connect();
       assert.equal(url.searchParams.get('config_id'), 'synthetic-business-config');
@@ -172,7 +173,7 @@ test('Meta callbacks secure and discover tokens with inspected expiry, including
       if (nonExpiring) assert.equal(Object.hasOwn(credentials, 'expiresAt'), false);
       else {
         assert.ok(credentials.expiresAt > Date.now());
-        assert.ok(credentials.expiresAt <= s.control.inspected.data.expires_at * 1000);
+        assert.ok(credentials.expiresAt <= future * 1000);
       }
       const listed = await (await s.request('/api/platforms', 'GET', undefined, s.headers)).json();
       const shown = listed.platforms.find(p => p.id === 'meta').connections[0];

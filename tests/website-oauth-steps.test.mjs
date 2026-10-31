@@ -578,30 +578,36 @@ test('Meta accepts the provider expires alias without inheriting the short-lived
 });
 
 test('Meta verifies a missing lifetime with the app and uses the earlier native token or data-access expiry', async () => {
-  for (const expires_in of [undefined, 0, '0']) {
-    const now = Math.floor(Date.now() / 1000),
-      expiry = now + 3600,
-      f = await fixture({}, (u, init) => {
-        if (u.pathname.endsWith('/debug_token')) {
-          assert.equal(u.searchParams.get('input_token'), 'meta-long');
-          assert.equal(u.searchParams.has('access_token'), false);
-          assert.deepEqual(init.headers, {Authorization: 'Bearer meta-client|meta-secret'});
-          return Response.json({
-            data: {
-              is_valid: true,
-              app_id: 'meta-client',
-              type: 'USER',
-              expires_at: now + 7200,
-              data_access_expires_at: expiry,
-            },
-          });
-        }
-        return Response.json(
-          u.searchParams.get('grant_type') === 'fb_exchange_token'
-            ? {access_token: 'meta-long', ...(expires_in === undefined ? {} : {expires_in})}
-            : {access_token: 'meta-short', expires_in: 60},
-        );
-      });
+  const now = Math.floor(Date.now() / 1000),
+    expiry = now + 3600;
+  for (const [expires_in, expires_at] of [
+    [undefined, now + 7200],
+    [0, now + 7200],
+    ['0', now + 7200],
+    [undefined, 0],
+    [0, 0],
+  ]) {
+    const f = await fixture({}, (u, init) => {
+      if (u.pathname.endsWith('/debug_token')) {
+        assert.equal(u.searchParams.get('input_token'), 'meta-long');
+        assert.equal(u.searchParams.has('access_token'), false);
+        assert.deepEqual(init.headers, {Authorization: 'Bearer meta-client|meta-secret'});
+        return Response.json({
+          data: {
+            is_valid: true,
+            app_id: 'meta-client',
+            type: 'USER',
+            expires_at,
+            data_access_expires_at: expiry,
+          },
+        });
+      }
+      return Response.json(
+        u.searchParams.get('grant_type') === 'fb_exchange_token'
+          ? {access_token: 'meta-long', ...(expires_in === undefined ? {} : {expires_in})}
+          : {access_token: 'meta-short', expires_in: 60},
+      );
+    });
     try {
       const result = await f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'});
       assert.equal(result.credentials.accessToken, 'meta-long');
@@ -616,23 +622,25 @@ test('Meta verifies a missing lifetime with the app and uses the earlier native 
   }
 });
 
-test('Meta keeps no invented expiry only for a verified non-expiring system-user token', async () => {
-  const f = await fixture({}, u =>
-    Response.json(
-      u.pathname.endsWith('/debug_token')
-        ? {data: {is_valid: true, app_id: 'meta-client', type: 'SYSTEM_USER', expires_at: 0, data_access_expires_at: 0}}
-        : u.searchParams.get('grant_type') === 'fb_exchange_token'
-          ? {access_token: 'meta-long', expires_in: 0}
-          : {access_token: 'meta-short', expires_in: 60},
-    ),
-  );
-  try {
-    const result = await f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'});
-    assert.equal(result.credentials.accessToken, 'meta-long');
-    assert.equal(Object.hasOwn(result.credentials, 'expiresAt'), false);
-    assert.equal(f.sent.length, 3);
-  } finally {
-    f.store.close();
+test('Meta keeps no invented expiry for verified non-expiring user or system-user tokens', async () => {
+  for (const type of ['USER', 'SYSTEM_USER', 'BUSINESS_ASSET_USER']) {
+    const f = await fixture({}, u =>
+      Response.json(
+        u.pathname.endsWith('/debug_token')
+          ? {data: {is_valid: true, app_id: 'meta-client', type, expires_at: 0, data_access_expires_at: 0, error: null}}
+          : u.searchParams.get('grant_type') === 'fb_exchange_token'
+            ? {access_token: 'meta-long', expires_in: 0}
+            : {access_token: 'meta-short', expires_in: 60},
+      ),
+    );
+    try {
+      const result = await f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'});
+      assert.equal(result.credentials.accessToken, 'meta-long');
+      assert.equal(Object.hasOwn(result.credentials, 'expiresAt'), false);
+      assert.equal(f.sent.length, 3);
+    } finally {
+      f.store.close();
+    }
   }
 });
 
@@ -649,8 +657,8 @@ test('Meta refuses invalid, foreign, expired, wrong-kind and incomplete token in
     {...valid, type: 'APP'},
     {...valid, expires_at: now - 1},
     {...valid, expires_at: undefined},
-    {...valid, expires_at: 0},
     {...valid, expires_at: '3600'},
+    {...valid, expires_at: 0, data_access_expires_at: now - 1},
     {...valid, data_access_expires_at: now - 1},
     {...valid, data_access_expires_at: 'unknown'},
     {...valid, error: {message: 'meta-long meta-secret synthetic-private-error'}},

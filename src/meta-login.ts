@@ -122,7 +122,7 @@ async function metaLongLived(result: JsonObject, c: OAuthContext & {assertActive
   if (lifetimes.length && lifetimes.every(n => n! > 0))
     return {...token, expires_in: Math.min(...(lifetimes as number[]))};
 
-  // A zero or absent lifetime can be a business system-user token, or a token already extended.
+  // A zero or absent lifetime can be a business or user token with no fixed token expiry, or a token already extended.
   // Only Meta can establish validity, app binding and expiry. Do not expose the inspection result or app secret.
   const debugUrl = new URL(metaGraphUrl('debug_token'));
   debugUrl.searchParams.set('input_token', extended.access_token);
@@ -130,28 +130,29 @@ async function metaLongLived(result: JsonObject, c: OAuthContext & {assertActive
     await c.send(debugUrl, {method: 'GET', headers: {Authorization: 'Bearer ' + c.clientId + '|' + c.clientSecret}}),
   );
   c.assertActive();
-  const data = inspected.data;
+  const data = inspected.data,
+    deadlines: number[] = [];
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    for (const raw of [data.expires_at, data.data_access_expires_at]) {
+      if (raw === undefined || raw === null) continue;
+      const parsed = seconds(raw);
+      if (parsed === undefined) throw invalid();
+      deadlines.push(parsed);
+    }
+  }
   if (
     !data ||
     typeof data !== 'object' ||
     Array.isArray(data) ||
     data.is_valid !== true ||
-    data.app_id !== c.clientId ||
-    data.error !== undefined ||
-    !['USER', 'SYSTEM_USER'].includes(data.type) ||
-    typeof data.expires_at !== 'number' ||
-    seconds(data.expires_at) === undefined ||
-    (data.expires_at === 0 && data.type !== 'SYSTEM_USER')
+    String(data.app_id) !== c.clientId ||
+    (data.error !== undefined && data.error !== null) ||
+    !['USER', 'SYSTEM_USER', 'BUSINESS_ASSET_USER'].includes(String(data.type)) ||
+    !deadlines.length
   )
     throw invalid();
-  const deadlines = [data.expires_at];
-  if (data.data_access_expires_at !== undefined) {
-    if (typeof data.data_access_expires_at !== 'number' || seconds(data.data_access_expires_at) === undefined)
-      throw invalid();
-    deadlines.push(data.data_access_expires_at);
-  }
   const finite = deadlines.filter(n => n > 0);
-  if (!finite.length) return token; // Meta verified a system-user token with no scheduled expiry.
+  if (!finite.length) return token; // Meta verified a token with no scheduled expiry.
   const remaining = Math.floor((Math.min(...finite) * 1000 - Date.now()) / 1000);
   if (remaining <= 0) throw invalid();
   return {...token, expires_in: remaining};
