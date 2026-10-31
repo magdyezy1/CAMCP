@@ -222,6 +222,45 @@ export const targets = Object.freeze({
   'dist/src/meta-asset-usage.js': {functions: ['metaAssetUsage']},
   'dist/src/google-image-usage.js': {functions: ['googleImageUsage']},
   'dist/src/snapchat-asset-usage.js': {functions: ['snapchatAssetUsage']},
+  // Wave 4c round 6 (w4c-arc6-tables): the shared tables whose provider rows moved into the adapters and registries,
+  // and the functions that read them (the provider job contracts are read by saveReportJobAccess and the capability
+  // graph; the wire contracts by every transport request).
+  'dist/src/unavailable-operations.js': {
+    functions: ['unavailableOperation', 'unavailableOperationNames', 'unavailableRefusal'],
+  },
+  'dist/src/connection-diagnostics.js': {
+    functions: ['redactConnectionInput', 'connectionDiagnosticKind', 'connectionDiagnostics'],
+  },
+  'dist/src/discovery-programs.js': {
+    functions: ['discoveryOnlyProgram', 'withheldWriteProgram', 'discoveryOnlyListing'],
+  },
+  'dist/src/parameters.js': {
+    functions: ['parameterHandling', 'parameterBag', 'nativeFields', 'nativeTopLevel', 'assertSameAlias'],
+  },
+  'dist/src/provider-jobs.js': {functions: ['saveReportJobAccess', 'reportJobAccounts']},
+  'dist/src/capability-graph.js': {functions: ['providerJobCapability', 'capabilityGraph', 'capabilities']},
+  'dist/src/retired-provider-actions.js': {
+    functions: [
+      'retiredProviderAction',
+      'unsupportedProviderAlias',
+      'assertProviderAliasAvailable',
+      'assertProviderActionAvailable',
+    ],
+  },
+  'dist/src/provider-validation.js': {
+    functions: ['providerValidationRequest', 'runProviderValidation', 'validateProviderRequest'],
+  },
+  'dist/src/wire-contracts.js': {
+    functions: [
+      'wireContractCheck',
+      'wireContractEvidence',
+      'assertWireContract',
+      'enforceWireContract',
+      'dataManagerContract',
+      'assertDataManagerContract',
+    ],
+  },
+  'dist/src/audit-repository.js': {functions: ['googleAdsRequestActions']},
 });
 /** Pure functions whose recorded calls replay through the current build (arguments and results are plain data). */
 export const replayable = Object.freeze([
@@ -282,6 +321,25 @@ export const replayable = Object.freeze([
   'dist/src/write-impact.js#writeImpact',
   'dist/src/access-sets.js#accountKey',
   'dist/src/provider-revocation.js#revocationTarget',
+  // Wave 4c round 6 (w4c-arc6-tables): the shared tables' lookups and checks.
+  'dist/src/unavailable-operations.js#unavailableOperation',
+  'dist/src/unavailable-operations.js#unavailableOperationNames',
+  'dist/src/unavailable-operations.js#unavailableRefusal',
+  'dist/src/connection-diagnostics.js#redactConnectionInput',
+  'dist/src/connection-diagnostics.js#connectionDiagnosticKind',
+  'dist/src/discovery-programs.js#discoveryOnlyProgram',
+  'dist/src/discovery-programs.js#withheldWriteProgram',
+  'dist/src/discovery-programs.js#discoveryOnlyListing',
+  'dist/src/parameters.js#parameterHandling',
+  'dist/src/parameters.js#parameterBag',
+  'dist/src/parameters.js#nativeFields',
+  'dist/src/parameters.js#nativeTopLevel',
+  'dist/src/parameters.js#assertSameAlias',
+  'dist/src/retired-provider-actions.js#retiredProviderAction',
+  'dist/src/retired-provider-actions.js#unsupportedProviderAlias',
+  'dist/src/retired-provider-actions.js#assertProviderAliasAvailable',
+  'dist/src/retired-provider-actions.js#assertProviderActionAvailable',
+  'dist/src/provider-validation.js#providerValidationRequest',
 ]);
 
 const posix = file => file.replaceAll('\\', '/');
