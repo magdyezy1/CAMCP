@@ -82,7 +82,7 @@ and an outcome renders in the write journeys. Report panels and evidence control
 The final state of every case also checks (design review 2026-10) that no control lies past the page's start edge,
 where no scrolling reaches it (WCAG 1.4.10; the end-side `scrollWidth` check never saw Reporting's "New report" at
 -114 px on a 375 px phone), and that a primary or danger button and an online or attention status badge are not
-coloured exactly like their plain counterparts (in dark mode a shared `theme.css` group had erased all four), and that
+coloured exactly like their plain counterparts, and that
 every visible checkbox sits beside the first line of its own words (a workspace form's label grid had put the plan
 filters' boxes alone above them). Period comparison in dark mode also runs axe over the checked metric pills: their
 formulas measured 1.01:1 on an iris fill the design review's branch had unmasked; in the merged dark layer a checked

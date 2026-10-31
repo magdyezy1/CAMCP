@@ -301,10 +301,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // shows for the reviewers' shared sign-in (web/operations-center.js), not an owned reason: 11,531 entries.
   // OWNER-REVIEWER-QA adds the Arabic of four connection progress messages the result page shows
   // (server/platform-routes.ts), none an owned reason: 11,534 entries on its base. Merged with "Reviewer": 11,535.
+  // Its follow-up adds the Arabic of the note a test account reads on /account instead of the sign-in forms
+  // (web/identity.js), not an owned reason: 11,535 on its base, 11,536 merged with "Reviewer".
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
-  assert.equal(Object.keys(catalog).length, 11535);
+  assert.equal(Object.keys(catalog).length, 11536);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
