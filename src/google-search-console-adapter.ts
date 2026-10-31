@@ -132,4 +132,11 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
     // A sitemap submission takes effect for everyone at once (src/write-effects.ts).
     publishesLive: (plan: CompiledRequest) => plan.method === 'PUT' && plan.path.includes('/sitemaps/'),
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts); its
+  // catalog has write actions, which its gateway previews or refuses.
+  notes: Object.freeze({
+    description: 'Google Search Console gateway for sites, sitemaps, URL inspection and search analytics.',
+    connectedOnWebsite: true as const,
+    delegatedWrites: true as const,
+  }),
 });

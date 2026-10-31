@@ -852,6 +852,19 @@ export interface ProviderHooks {
   readonly campaign?: CampaignHooks;
   /** Its parts of the reviewed write lifecycle (wave 4c, writes and campaigns). */
   readonly writes?: WriteReviewHooks;
+  // Wave 4c round 6 (w4c-arc6-versions).
+  /** Its API version as AMCP sends it, from its version module (src/<provider>-version.ts). */
+  readonly versions?: ProviderVersions;
+  /** What tools/list and amcp_tool_help say of its gateway beyond the captured text (src/tool-notes.ts). */
+  readonly notes?: ToolNotes;
+  /** Its part of LIST_ACTIONS and DESCRIBE_ACTION (src/introspection.ts). */
+  readonly listing?: CatalogListing;
+  /** Its provider jobs no reviewed family declares (src/effect-class.ts). */
+  readonly jobs?: ProviderJobHooks;
+  /** A setting the owner keeps for it per workspace, which owner operations list and save (src/owner-operations.ts). */
+  readonly ownerSetting?: OwnerSetting;
+  /** Its legacy action alias names, which the owner's alias usage baseline counts (src/legacy-alias-usage.ts). */
+  legacyAliases?(): readonly string[];
 }
 
 export interface ProviderAdapter {
@@ -1364,4 +1377,105 @@ export interface CreatedLookup {
   match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
   /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
   receipt(found: JsonObject[]): JsonObject;
+}
+
+// Wave 4c round 6 (w4c-arc6-versions): a provider's API version, tool notes, catalog listing, provider jobs outside
+// the reviewed families, owner setting and legacy alias names, which shared modules ask its hooks for instead of
+// importing its modules (ARC-01).
+
+/** A version AMCP reviewed, with the first month or day it is no longer sent (LinkedIn's version table). */
+export interface ReviewedVersion {
+  readonly version: string;
+  readonly sunset: string;
+  readonly basis: 'official' | 'policy';
+  /** The day the provider's changes were read for what AMCP sends and reads. */
+  readonly reviewed: string;
+}
+
+/**
+ * A provider's API version as AMCP sends it (ProviderHooks.versions). Each answer is its version module's own value
+ * or function (src/<provider>-version.ts), which keeps every rule: the environment it reads and when, the reviewed
+ * versions and the refusals.
+ */
+export interface ProviderVersions {
+  /** The version a listing, description or contract names; it never throws (LinkedIn: the reviewed default then). */
+  current(): string;
+  /** A request path at the version sent: path('/customers/') for Google Ads, path('/') for Meta's prefix. */
+  path?(rest: string): string;
+  /** The request header that carries the version (LinkedIn-Version): a contract names the version a plan sent there. */
+  readonly header?: string;
+  /**
+   * The version a request sends: an explicit one (a call's api_version), else the configured one, else the default;
+   * an unreviewed or sunset version is refused.
+   */
+  request?(explicit?: unknown, now?: number): string;
+  /** A stored request's version (a saved report's or source's) as AMCP sends it now. */
+  stored?(stored: unknown, now?: number): string;
+  /** The versions AMCP reviewed, each with its sunset. */
+  readonly reviewed?: readonly ReviewedVersion[];
+  /** Every version its configuration may name (AMCP_META_API_VERSION), each one the sunset registry must record. */
+  readonly configurable?: readonly string[];
+  /** The owner-operations view of its version configuration: the version sent, the override and the alarm. */
+  status?(now?: number, configured?: string): JsonObject;
+  /** The warning its deployment configuration earns (a Google developer token AMCP no longer sends), or undefined. */
+  warning?(env?: NodeJS.ProcessEnv): string | undefined;
+  /** The URL of one of its guides at the version sent. */
+  docs?(page: string): string;
+}
+
+/**
+ * What tools/list and amcp_tool_help say of a provider's gateway beyond its captured text (MCP-10), which
+ * src/tool-notes.ts composes, in its order and with AMCP's own sentences.
+ */
+export interface ToolNotes {
+  /**
+   * AMCP's description where the captured one names a tool, provider, version or behaviour AMCP does not have, or a
+   * function correcting named sentences of a long captured one and keeping the rest.
+   */
+  readonly description?: string | ((captured: string) => string);
+  /** The description ends with AMCP's routing sentence: which AMCP tools launch, change, upload and report. */
+  readonly routing?: true;
+  /** The description ends by saying the provider is connected on the AMCP website. */
+  readonly connectedOnWebsite?: true;
+  /** What tools/list shows of a gateway whose whole description is long; amcp_tool_help {gateway} has the rest. */
+  readonly summary?: string;
+  /** Its catalog holds no action AMCP can run, so it has no AMCP note (tests hold this equal to the contracts ledger). */
+  readonly withoutExecutableActions?: true;
+  /** An operation-mode gateway whose catalog has write actions: its note says a write is previewed or refused. */
+  readonly delegatedWrites?: true;
+  /** The note's last sentence: the version AMCP sends where the captured action names another. */
+  readonly version?: string;
+}
+
+/** A provider's part of LIST_ACTIONS and DESCRIBE_ACTION; src/introspection.ts keeps the filters, bounds and envelope. */
+export interface CatalogListing {
+  /** DESCRIBE_ACTION's answer for an action the provider describes itself (Meta's ad label read), or undefined. */
+  describe?(action: Action): JsonObject | undefined;
+  /** LIST_ACTIONS' page size when neither the call nor the schema names one (50 without). */
+  readonly defaultLimit?: number;
+  /**
+   * Its native listing pages by `cursor` and answers {actions, total, returned, next_cursor} unless the catalog
+   * envelope is on (Snapchat).
+   */
+  readonly cursorPages?: true;
+  /** What its listing adds about its whole catalog (Google Ads' RPC and legacy action counts). */
+  totals?(actions: readonly Action[]): JsonObject;
+}
+
+/** A provider's jobs that no reviewed family declares (the effect taxonomy, src/effect-class.ts). */
+export interface ProviderJobHooks {
+  /** A request compiled as a read that submits a provider job (Microsoft's report submission). */
+  submission?(plan: CompiledRequest): boolean;
+}
+
+/**
+ * A setting the owner keeps for a provider per workspace (GA4's realtime test properties, MSR-04): owner health lists
+ * it under `field`, in the place src/owner-operations.ts gives it, and the owner operation `action` saves one.
+ */
+export interface OwnerSetting {
+  readonly field: string;
+  readonly action: string;
+  list(store: Store, tenant: string): JsonObject[];
+  /** Saves one with its checks and audit record; the owner operation's answer. */
+  save(store: Store, actor: Actor, input: JsonObject): JsonObject;
 }

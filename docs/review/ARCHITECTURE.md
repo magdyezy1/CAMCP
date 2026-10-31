@@ -331,17 +331,18 @@ credential health (`src/connection-health.ts`, which reads each provider's renew
 and catalog package (70 and 157 on its own branch) counts the provider workflows registry (`src/provider-workflows.ts`,
 §9) with the registries and empties the catalog compiler, the delegated compiler, the action contract ledger, the
 service, the token renewal, the help tool and the catalog versions of provider names and imports; merged with the
-other four packages, the falls add up again: 34 and 53.
+other four packages, the falls add up again: 34 and 53. Wave 4c round 6's versions package lowers them to 32 and 37:
+nine shared modules ask the provider hooks (§9) instead of importing provider modules.
 
 <!-- architecture-map:baseline:begin -->
 | Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 34 |
-| `shared_to_provider_runtime_imports` | 53 |
+| `shared_modules_with_gateway_literals` | 32 |
+| `shared_to_provider_runtime_imports` | 37 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 164 |
+| `shared_gateway_literals` (reported) | 149 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -442,6 +443,10 @@ anywhere: the suites' synthetic fetchers answer.
 | Action contract ledger (wave 4c) | hooks `contracts`: what a provider's own native reads add to their rows (DV360's targeting search, X's audience estimate and report status, TikTok's report tasks, Google's draft generation), the raw steps of Snapchat's chunked upload, Google Ads' legacy actions; the provider workflows registry (`src/provider-workflows.ts`, counted with the providers, §8) holds each workflow's row at the stage the ledger applied it (WooCommerce's store listing, Tag Manager's diagnostics, GA4's and Search Console's sync, Business Profile's sync, Adjust's reporting, Meta's Ad Library and existing posts, Business Profile's place-action reads). The localization inventory reads the moved reasons (`contractDeclarationTypes` in `tools/check-locales.mjs`). `tests/provider-action-contracts.test.mjs` pins the seam. | `actionContracts` keeps how every captured, supplemental and delegated action is classified, in what order, and every shared row | the whole-branch comparison below |
 | Service steps (wave 4c) | the provider workflows registry: the workflow that answers a provider tool's operation (or AMCP's native tool's, on a provider's behalf) at its dispatch stage; a native read's provider steps (`nativeReadSteps`: Snapchat's result IDs and by-ID checks, Google's draft generation, DV360's targeting search, X's audience estimate, Business Profile's place actions, Apple's and Microsoft's response contracts, Reddit's account history without people, Google Ads' legacy limit disclosure); the asset usage readers; the campaign runner's provider steps; the audit redactors; the website's store connection; hooks `scope.lapsedResource` (Snapchat's scoped entities). `tests/provider-workflows.test.mjs` pins the seam. | `MirrorService` keeps the call order, AMCP's own operations, the connection disconnect and diagnostics, the Drive inspection and the platform upload, the report jobs' steps, pagination and every refusal | the whole-branch comparison below |
 | Token renewal (wave 4c) | hooks `refresh`: Apple's own client-credentials request (its login holds no app secret a renewal must check), X's OAuth 1.0a consumer secret as the app secret a renewal after an app change needs, and the provider's parts of the refresh-token request: Microsoft's scope with `offline_access`, Snapchat's registered callback (refused without it), Reddit's descriptive User-Agent and HTTP Basic authentication (refused without the User-Agent). `tests/provider-refresh.test.mjs` pins the seam and the request each provider sends. | `CredentialProvider` keeps the expiry window, one renewal per connection and its store lock, the refresh gate, the app-change refusal, the refresh-token grant and its endpoint (`refreshEndpoints`), the single attempt, the response checks, the health records and the order of every step | the package's final comparison |
+| Provider versions (wave 4c round 6) | hooks `versions` (`ProviderVersions`), each answer its version module's own: Google Ads' version, paths and developer-token warning; Meta's version (read at load), paths and configurable versions; LinkedIn's described, requested and stored version (read at each call), header, reviewed table and owner status; Criteo's version and guides. Shared modules ask `providerVersions(id)`; `tests/provider-versions.test.mjs` pins each answer against its module. | `providerContracts`, `effectiveProviderContract`, `providerContractView`, `acceptedVersions` and `ownerOperations` keep every rule and field order | the versions comparison (below) |
+| Tool notes and listings (wave 4c round 6) | hooks `notes` (`ToolNotes`): a gateway's own description (DV360's corrects its captured text), the sentences it asks for, its listed summary, Google Ads' version note, and whether its catalog has no executable action or previewed writes (Commerce's in `src/woocommerce-adapter.ts`); hooks `listing` (`CatalogListing`): Google Ads' counts, Meta's ad label record, Snapchat's cursor pages of 25. `tests/tool-surface-golden.test.mjs` pins every text and listing byte for byte. | `src/tool-notes.ts` keeps AMCP's own descriptions and every sentence's order; `Introspection` the paging, limits and envelopes | the versions comparison (below) |
+| Owner settings, provider jobs and legacy names (wave 4c round 6) | hooks `ownerSetting` (GA4's realtime test properties, MSR-04), `jobs` (Microsoft's report submission) and `legacyAliases` (Google Ads'); `tests/provider-versions.test.mjs` pins each. | `ownerOperations`, `effectClass` and `legacyAliasUsage` keep every rule, field and count | the versions comparison (below) |
+| Meta creative check (wave 4c round 6) | not a hook: `validateMetaCreative` moved verbatim to `src/meta-creative-features.ts`; `src/creative-validation.ts` keeps the contract's fields and imports nothing | Meta's write shape and preflight call it where they did | the versions comparison (below) |
 | Workbook resource selectors (reporting) | hooks `reportScope`: which account a saved native report query's resource selector names (GA4's property selectors and `properties/{property}/...` resource names, Search Console's domain and URL-prefix sites, Reddit's ad account, Tag Manager's account selectors and `accounts/{id}/...` resources, Business Profile's accounts, locations and resources with its location consistency rule) and the selector kind of a run's resource-form account anchor. `tests/reporting-architecture.test.mjs` pins the seam. | `reportingResourceAccount` keeps the selector bounds first and the one refusal (REPORT_SCOPE_UNAVAILABLE, 403); `reportingResourceAccounts` and `reportRunScope` the order of the checks; the workbook selectors' SQL projections stay in `src/workbook-repository.ts` (ARC-02) | the reporting branch's comparison with `Work-here` (194 reporting test files, both recorded on one UTC date): 350,705 records before, 350,678 after, 0 differences beyond calibration but 27 `breakdownValue` calls the moved Meta breakdown key no longer makes; the 353 `reportingResourceAccount`, 3,020 `reportingResourceAccounts` and 3,020 `reportRunScope` records identical; 2,713 selector cases give the same results and refusals on both builds; 34,932 distinct pure calls (154 of the selectors) replay with 0 differences |
 | Entity writes | facts `entityWrites`: the generic entity writes of seven platforms (Google Ads, Meta, TikTok, Snapchat, LinkedIn, X and DV360), the creations, edits and deletions of their campaigns, ad groups, ads and creatives that no registered family claims: each the ledger name of its reviewed route (`google_entities`, ...) and `claims`, which reads only the write's method, path and action, in one table of the registry by provider ID. `tests/provider-entity-writes.test.mjs` compares every reviewed route with the branches as they were. | `reviewedWriteFamily` (`src/reviewed-routes.ts`) keeps the read-only and special-transport exclusions and the registered families first (with their conflict refusal), then asks the write's adapter, and names no gateway; `assertWriteShape`, the structural spend effects and the action ledger consult it unchanged | one comparison of the branch with `Work-here` for this row, the four below and the family kit (§13), in the paragraph after this table |
 | Offline-upload rehearsal | not an adapter: the conversion families' facts, `rehearsal` of their personal-data specs (`OfflineRehearsal`, `src/personal-data.ts`), frozen in `src/google-data-manager.ts` and `src/meta-offline-conversions.ts`: the provider request an offline conversion upload rehearses, its documented no-execution flag (Data Manager's `validateOnly` on `events:ingest`) or none (Meta's `test_event_code` events are production events), and what the review says of it. `tests/offline-upload-rehearsal-route.test.mjs` compares every rehearsal with the function as it was. | `offlineUploadRehearsal` (`src/offline-upload-rehearsal.ts`, MSR-03 slice E) takes the rehearsal of the family whose request it is (`familyOf`, the registry) whatever spec its caller passes, and keeps the dry run: the people hashed with the provider's time limits, the execution and rehearsal bodies built and hashed, nothing sent, reviewed or saved; it imports no provider module | the same comparison: its records differ only in the spec argument, which now carries the moved `rehearsal` |
@@ -512,6 +517,17 @@ Adjust's `date_period`); recorded back to back on both builds, twice each, those
 beyond calibration and no outcome flip, and the one record left unsettled is the `platform()` count, which varies
 between two runs of Work-here. The direct check above is byte-identical on the final head too.
 
+**The versions comparison (wave 4c round 6).** One comparison of the package's head with Work-here proves its rows:
+the 809 test files related to its changes (the four it adds or changes run apart), recorded twice on Work-here (with
+the branch's recording targets) and once on the head on one UTC day, the 14 that failed or differed under that load
+(LinkedIn's media resume, owner health's five-second FFmpeg probe and run times, a clock-derived wait, random plan
+hashes) again back to back: 9,248,057 records before, 9,248,056 after. With the build's release identity masked and
+the moved `validateMetaCreative` compared apart (its 74 distinct calls answer the same through Work-here's function):
+0 request differences beyond calibration, no allow-versus-refuse flip, the same outcomes per action in every test
+file, and one `platform()` lookup of `tests/measurement-apple.test.ts` fewer (49 and 51 in Work-here's runs).
+349,100 distinct pure calls replay with 0 differences but one recorded under `AMCP_WIRE_CONTRACTS=enforce` (likewise
+on Work-here's build); `tests/tool-surface-golden.test.mjs` passes on both builds.
+
 Seven exports moved with their code and are not re-exported from the shared modules that held them, since a re-export
 would import the provider module again and raise the ratchet's counts: `metaImageSources` and `metaConversionRecipes`
 (from `src/campaign-recipes.ts` to `src/meta-website-recipes.ts`), `googleConversionRecipes` (from
@@ -522,7 +538,9 @@ would import the provider module again and raise the ratchet's counts: `metaImag
 wave 4c nothing in `tests/`, `tools/`, `server/` or `web/` imported them, and their callers in `src/` import the new
 modules. No other export left a module that wave 4c's writes, reporting and family packages changed (the exports of
 every changed `src/` and `server/` module compared with the base), so every other move keeps its import path through a
-re-export, as ARC-04's manual criterion asks.
+re-export, as ARC-04's manual criterion asks. Wave 4c round 6's versions package moves one more the same way,
+`validateMetaCreative` (from `src/creative-validation.ts` to `src/meta-creative-features.ts`, which its two callers in
+`src/` import); no other module it changes lost an export.
 
 One more path is removed on purpose, for the manual reviewer to sign off with the `src/scope.ts` diff: `src/scope.ts`
 no longer re-exports `snapchatScopedResource` and `snapchatOrganizationPixels` (wave 4c's transport and catalog
@@ -533,24 +551,24 @@ them through `src/scope.ts`. Compared the same way, none of the 41 `src/` and `s
 package changed or added, nor any of the other 27 of its transport and catalog package, lost an export.
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): phase B
-moves one concern at a time (the rows above), so on the merged wave 4c tree 34 shared modules still name a gateway
-(target 20 or fewer) and 53 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts
+moves one concern at a time (the rows above), so after wave 4c round 6's versions package 32 shared modules still name a
+gateway (target 20 or fewer) and 37 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since phase B counts
 it as a registry (§8), and 9 are ARC-04's report job registry and website route modules; the rest are phase B's
 migrations, after which the shared stages consult the provider registries (the provider hooks, `src/provider-hooks.ts`,
-which imports the 17 adapter modules; the provider workflows, `src/provider-workflows.ts`; the website login steps,
+which imports the 18 adapter modules; the provider workflows, `src/provider-workflows.ts`; the website login steps,
 `src/provider-logins.ts`; the startup checks, `src/provider-startup.ts`), or the family registry for a family's own
 facts, instead of provider modules. The transport and catalog modules (`src/transport.ts`, `src/compiler.ts`,
 `src/delegated-native.ts`, `src/catalog.ts`, `src/action-contracts.ts`, `src/service.ts`, `src/scope.ts`,
 `src/auth.ts`, `src/tool-help.ts`, `src/catalog-versions.ts`), the review's stages and `server/` name no gateway and
 import no provider module. The largest remaining are the workspace tool (`src/workspace.ts`, 11 of the imports), the
-provider tables of shared modules (`src/retired-provider-actions.ts`, `src/tool-notes.ts`, `src/parameters.ts`,
-`src/wire-contracts.ts`, `src/provider-validation.ts`), the allocation plan (`src/allocation-plan.ts`), the ad
-previews (`src/ad-previews.ts`), the workbook selectors' SQL projections (`src/workbook-repository.ts`, ARC-02) and the
-shared modules that read a provider's version module (`src/media-upload.ts`, `src/owner-operations.ts`,
-`src/provider-contracts.ts`). The whole suite also passes with `AMCP_PROVIDERS=criteo,woocommerce`, where the
-tool-surface suites count the tools it offers. ARC-01's native and manual criteria are
-the owner's: read-only `verify-reads` per migrated gateway on existing test accounts, and a security reviewer's
-sign-off of every `src/scope.ts` and `src/transport.ts` diff.
+provider tables of shared modules (`src/retired-provider-actions.ts`, `src/parameters.ts`, `src/wire-contracts.ts`,
+`src/provider-validation.ts`), the allocation plan (`src/allocation-plan.ts`), the ad previews (`src/ad-previews.ts`),
+the workbook selectors' SQL projections (`src/workbook-repository.ts`, ARC-02) and the shared modules that still read
+a provider's version module (`src/media-upload.ts`, `src/allocation-plan.ts`, `src/catalog-comparison.ts`,
+`src/conditional-programs.ts`, `src/overview-parents.ts`), which can ask `providerVersions` instead. The whole suite
+also passes with `AMCP_PROVIDERS=criteo,woocommerce`, where the tool-surface suites count the tools it offers. ARC-01's
+native and manual criteria are the owner's: read-only `verify-reads` per migrated gateway on existing test accounts,
+and a security reviewer's sign-off of every `src/scope.ts` and `src/transport.ts` diff.
 
 ## 10. Import cycles and leaf modules
 

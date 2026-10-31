@@ -17,4 +17,11 @@ export const amazonHooks: ProviderHooks = Object.freeze({
       if (plan.accountId) headers['Amazon-Advertising-API-Scope'] = plan.accountId;
     },
   }),
+  // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts): its
+  // catalog holds no action AMCP can run, so it has no AMCP note.
+  notes: Object.freeze({
+    description:
+      'Amazon Ads gateway, listed for compatibility with the captured catalog: AMCP has no executable Amazon Ads action yet. Its catalog is empty, so every call is refused and nothing reaches Amazon.',
+    withoutExecutableActions: true as const,
+  }),
 });

@@ -7,7 +7,7 @@
  * every string literal of a Meta module as a name AMCP may send, and accepts this one name in this module only because
  * it checks that the write-shape stage refuses a Meta write that carries it.
  */
-import {validateMetaCreative} from './creative-validation.js';
+import {validateMetaCreative} from './meta-creative-features.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {fail} from './write-common.js';
 

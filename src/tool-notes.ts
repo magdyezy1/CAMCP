@@ -1,6 +1,7 @@
 import {refusedParameters} from './parameters.js';
-import {googleAdsVersion} from './google-version.js';
 import {unavailableOperations} from './unavailable-operations.js';
+import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
+import type {ToolNotes} from './provider-adapter.js';
 import type {ToolDefinition} from './types.js';
 
 const named =
@@ -9,89 +10,60 @@ const named =
 const readOnlyNamed =
   'For performance use amcp_reporting; amcp_write inspect checks whether a change has a reviewed write contract.';
 const connectedOnWebsite = 'Providers are connected on the AMCP website (Connections).';
+/** The gateways whose adapter's tool notes (ToolNotes, src/<provider>-adapter.ts) say so, in name order. */
+const noted = (flag: 'withoutExecutableActions' | 'delegatedWrites'): ReadonlySet<string> =>
+  new Set(
+    registeredProviderHooks
+      .filter(hooks => hooks.notes?.[flag])
+      .map(hooks => hooks.gateway)
+      .sort(),
+  );
 /** Gateways whose catalog holds no action AMCP can run; tests hold this equal to the contracts ledger. */
-export const withoutExecutableActions: ReadonlySet<string> = new Set(['amazon_native_action']);
+export const withoutExecutableActions: ReadonlySet<string> = noted('withoutExecutableActions');
 /**
  * Operation-mode gateways whose catalog has write actions (reviewed or blocked): like the action-mode gateways, they
  * preview or refuse a write and name amcp_write inspect as its next call (MCP-09), and their listing now says so.
  * tests/truthful-surface.test.mjs holds this equal to the contracts ledger.
  */
-export const delegatedWriteGateways: ReadonlySet<string> = new Set([
-  'criteo_native_action',
-  'ga4_native_action',
-  'google_business_native_action',
-  'google_search_console_native_action',
-  'gtm_native_action',
-  'reddit_native_action',
-]);
+export const delegatedWriteGateways: ReadonlySet<string> = noted('delegatedWrites');
+/** A gateway's tool notes, as its provider's adapter declares them (wave 4c round 6, w4c-arc6-versions). */
+const toolNotes = (gateway: string): ToolNotes | undefined => providerHooks(gateway)?.notes;
+/**
+ * A provider's own description of its gateway (its tool notes), ended with the AMCP sentences the notes ask for: the
+ * routing of changes, uploads and performance, and where providers are connected.
+ */
+function providerDescription(gateway: string, captured: string): string | undefined {
+  const notes = toolNotes(gateway),
+    own = notes?.description;
+  if (own === undefined) return undefined;
+  return [
+    typeof own === 'function' ? own(captured) : own,
+    ...(notes!.routing ? [named] : []),
+    ...(notes!.connectedOnWebsite ? [connectedOnWebsite] : []),
+  ].join(' ');
+}
 /**
  * AMCP-owned descriptions (MCP-10). Where a captured gateway description names a tool, provider, version or behaviour
  * AMCP does not have, AMCP's own text replaces it; the captured text stays available under captured_catalog in gateway
- * help, and the listed schemas stay byte-identical (owner decision D17). A function corrects named sentences of a
- * long captured description and keeps the rest.
+ * help, and the listed schemas stay byte-identical (owner decision D17). These are AMCP's own tools; a provider's
+ * gateway has its description in its adapter's tool notes, where a function corrects named sentences of a long
+ * captured description and keeps the rest.
  */
-const ownedDescriptions: Readonly<Record<string, string | ((captured: string) => string)>> = {
-  meta_native_action:
-    'Run one Meta Graph Marketing API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it. ' + named,
-  tiktok_native_action:
-    'Run one TikTok Business API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it. ' + named,
-  snapchat_native_action:
-    'Run one Snapchat Marketing API action by name; LIST_ACTIONS and DESCRIBE_ACTION find it. ' + named,
-  amazon_native_action:
-    'Amazon Ads gateway, listed for compatibility with the captured catalog: AMCP has no executable Amazon Ads action yet. Its catalog is empty, so every call is refused and nothing reaches Amazon.',
-  apple_ads_native_action:
-    'Run one Apple Ads Platform API v1 action by name (names begin apple_ads_v1_; amcp_tool_help {gateway:"apple_ads_native_action"} lists them). Legacy Campaign Management API v5 routes are unavailable. Reads support result projection and bounded pagination.',
-  dv360_native_action: captured =>
-    captured
-      .replace('with create_campaign or DV360_', 'with amcp_native_action create_campaign or DV360_')
-      .replace(
-        'create display/video/audio/Demand Gen or explicit YouTube & Partners line items with create_adset or DV360_',
-        'create display/video/audio/Demand Gen line items with amcp_native_action create_adset or DV360_',
-      )
-      .replace(
-        /For YouTube & Partners line item writes, provide the exact lineItemType and bidStrategy\.youtubeAndPartnersBid\. Existing DV360 accounts can return YouTube & Partners line items through read\/list, so MCP does not locally block explicit payloads; Google remains the final authority for account\/type-specific write support\./,
-        'YouTube & Partners line items cannot be created or updated through the API, so AMCP refuses those writes; reads still return them.',
-      )
-      .replace('or the semantic create_creative tool,', 'or amcp_native_action create_creative,')
-      .replace(
-        /For Bid Manager reports, standard report runs, query runs, report retrieval, or report listing, use dv360_reporting_ops instead of this generic REST tool\./,
-        'AMCP has no DV360 reporting: Bid Manager reports, query runs and report retrieval are not available.',
-      )
-      .replace(/ ?Write actions default to dry_run: true and require confirmed: true when dry_run is false\./, ''),
+const ownedDescriptions: Readonly<Record<string, string>> = {
   amcp_native_action:
     'Shared AMCP workflows for Google Ads, LinkedIn, X and DV360 (Meta, TikTok and Snapchat use their own gateways): workspace context and accounts, entity reads and previewed changes (amcp_write makes them), audits, audience estimates, reporting queries, schedules, runs and exports, the Meta Ad Library and existing Meta posts, and media imports.',
-  ga4_native_action:
-    'Google Analytics 4 gateway for properties, metadata, reports, asynchronous report tasks and audience exports. ' +
-    connectedOnWebsite,
-  google_search_console_native_action:
-    'Google Search Console gateway for sites, sitemaps, URL inspection and search analytics. ' + connectedOnWebsite,
-  google_business_native_action:
-    'Google Business Profile gateway for accounts, locations, catalogs, verification, engagement, performance, notifications and lodging. ' +
-    connectedOnWebsite,
-  adjust_native_action:
-    'Adjust gateway: adjust_reporting (apps, events, filters, reports and pivots) and adjust_list_assets (the Adjust bindings configured in AMCP) run.',
   // Wave 4b MCP quality pass: the captured texts only named a "gateway" and "native operations".
   amcp_platform_workspace:
     'The workspace and its connected accounts from AMCP’s own records, with no provider request: get_workspace_context (the workspace, your role, each enabled connection), list_accounts (each bound account with its platform, connection, write grant and the name, currency and time zone of its last live read) and list_workspace_assets. Pass the operation’s input in arguments.',
-  gtm_native_action:
-    'Google Tag Manager gateway: gtm_ops runs one Tag Manager API operation on accounts, containers, workspaces, versions, tags, triggers and variables; gtm_audit_ops audits a workspace’s configuration and consent settings; gtm_action_job_status reads the verification job of a reviewed Tag Manager write.',
-  commerce_native_action:
-    'Commerce gateway: woocommerce_list_stores lists the WooCommerce stores configured in AMCP, without a store request; store products are read through amcp_workspace catalog_sources and catalog_source. Shopify and Salla have no AMCP connection, and Shopify, Salla and WooCommerce expansion is parked.',
 };
 /**
- * What tools/list shows of a gateway whose whole description is long (MCP-10): a routing summary; amcp_tool_help
- * {gateway} returns the whole text.
- */
-const listedSummaries: Readonly<Record<string, string>> = {
-  dv360_native_action:
-    'Run one Display & Video 360 v4 REST action by name: a canonical DV360_* action such as DV360_ADVERTISERS_LIST, or resource and method (resource=advertisers, method=list); LIST_ACTIONS and DESCRIBE_ACTION find it. Path and query parameters go in params, pathParams or query, request bodies in body or payload. YouTube & Partners line items cannot be created or updated through the API, so AMCP refuses those writes, and AMCP has no DV360 reporting. The campaign flow, targeting and audience search, inventory and creative assignment: amcp_tool_help {gateway:"dv360_native_action"}.',
-};
-/**
- * What tools/list shows of a gateway before its note: a routing summary, or the description itself. A read-only
- * deployment routes to what it lists (wave 4b MCP quality pass: it named amcp_write and amcp_media as change paths).
+ * What tools/list shows of a gateway before its note: the routing summary of a gateway whose whole description is long
+ * (its tool notes' summary, MCP-10; amcp_tool_help {gateway} returns the whole text), or the description itself. A
+ * read-only deployment routes to what it lists (wave 4b MCP quality pass: it named amcp_write and amcp_media as change
+ * paths).
  */
 export const listedDescription = (tool: ToolDefinition, readOnly = false): string => {
-  const text = listedSummaries[tool.name] ?? ownedDescription(tool);
+  const text = toolNotes(tool.name)?.summary ?? ownedDescription(tool);
   return readOnly ? text.replace(named, readOnlyNamed) : text;
 };
 /** Said where a read-only deployment's description still names amcp_write as a change path (owner decision D15). */
@@ -125,8 +97,7 @@ export function unavailableSentence(gateway: string): string | undefined {
 }
 /** A gateway's AMCP-owned description, or its captured one where that is accurate. */
 export function ownedDescription(tool: ToolDefinition, captured = tool.description ?? ''): string {
-  const owned = ownedDescriptions[tool.name],
-    text = typeof owned === 'function' ? owned(captured) : (owned ?? captured),
+  const text = ownedDescriptions[tool.name] ?? providerDescription(tool.name, captured) ?? captured,
     unavailable = unavailableSentence(tool.name);
   return unavailable ? text + ' ' + unavailable : text;
 }
@@ -157,12 +128,9 @@ export function amcpNote(tool: ToolDefinition): string | undefined {
       (refused.length > 1 ? refused.slice(0, -1).join(', ') + ' and ' + refused.at(-1) + ' are' : refused[0] + ' is') +
         ' refused unless false.',
     );
-  if (tool.name === 'google_ads_native_action')
-    notes.push(
-      'Requests go to Google Ads API ' +
-        googleAdsVersion +
-        '; action names keep their recorded google_ads_v23_ spelling.',
-    );
+  // The version its adapter states (Google Ads': the version sent, where the recorded action names spell another).
+  const version = toolNotes(tool.name)?.version;
+  if (version) notes.push(version);
   return notes.length ? 'AMCP note: ' + notes.join(' ') : undefined;
 }
 /**

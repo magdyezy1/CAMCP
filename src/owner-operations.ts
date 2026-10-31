@@ -1,5 +1,4 @@
 import {operationsHealth} from './operations-health.js';
-import {linkedinVersionStatus} from './linkedin-version.js';
 import {sunsetStatus} from './provider-sunsets.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -9,10 +8,8 @@ import {recallAccountMetadata} from './account-metadata.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy, spendPolicyKey, workspaceOwner} from './spend-policy.js';
-import {googleAdsVersion, googleDeveloperTokenWarning} from './google-version.js';
-import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
-import {ga4TestProperties, saveGa4TestProperty} from './measurement-test-properties.js';
+import {providerVersions, registeredProviderHooks} from './provider-hooks.js';
 import {storageDetails} from './storage-health.js';
 import {isDeploymentTenant, limitDiagnostics} from './limit-diagnostics.js';
 import {mcpClientCapacity} from './mcp-clients.js';
@@ -74,6 +71,13 @@ const accountCurrencyOf = (metadata: JsonObject | undefined) =>
   typeof metadata?.currency === 'string' && /^[A-Z]{3}$/.test(metadata.currency)
     ? {account_currency: metadata.currency as string}
     : {};
+/** Owner health's field of each setting the owner keeps for a provider (its adapter's ownerSetting), in hooks order. */
+const providerOwnerSettings = (store: Store, tenant: string): JsonObject =>
+  Object.fromEntries(
+    registeredProviderHooks.flatMap(h =>
+      h.ownerSetting ? [[h.ownerSetting.field, h.ownerSetting.list(store, tenant)]] : [],
+    ),
+  );
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
   return store.repo('write_pause', tenant).payload(writePauseId);
@@ -177,7 +181,7 @@ export function ownerOperations(
           refresh_available: !!credentials.refreshToken,
         };
       }),
-      linkedinVersion = linkedinVersionStatus();
+      linkedinVersion = providerVersions('linkedin')!.status!();
     // Deployment-wide rate-limit attribution, for the deployment workspace's owner only (SEC-01).
     const rateLimits = limitDiagnostics(store, tenant);
     return {
@@ -210,7 +214,10 @@ export function ownerOperations(
       // Whether Meta caps can be stated in account currency: only with a pinned capture of Meta's offsets (WRT-07).
       meta_currency_offsets: metaCurrencyOffsetsPinned() ? 'pinned' : 'not_pinned',
       ...(metaCurrencySource() ? {meta_currency_source: metaCurrencySource()} : {}),
-      configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
+      // Each provider's version configuration warning (a Google developer token AMCP no longer sends), its adapter's.
+      configuration_problems: [mediaLimitProblem, ...registeredProviderHooks.map(h => h.versions?.warning?.())].filter(
+        Boolean,
+      ),
       // Workbook runs and schedules the Operations feed cannot show, counted by reason (B13, DOC-02).
       withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,
       // How often Google requests still use the legacy alias names, before the owner decides on them (MCP-10, Q23).
@@ -233,8 +240,9 @@ export function ownerOperations(
       provider_jobs: providerJobHealth(store, tenant, sources.providerJobs),
       export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
       personal_data_accounts: personalDataAccounts(store, tenant),
-      // GA4 properties the owner marked for the realtime test-identity mode (MSR-04, P4).
-      ga4_test_properties: ga4TestProperties(store, tenant),
+      // The settings the owner keeps for a provider (its adapter's ownerSetting): GA4 properties the owner marked for the
+      // realtime test-identity mode, ga4_test_properties (MSR-04, P4).
+      ...providerOwnerSettings(store, tenant),
       storage: {
         ...storageDetails(store),
         database_bytes: databaseBytes(store),
@@ -267,8 +275,8 @@ export function ownerOperations(
       linkedin_version: linkedinVersion,
       provider_version_alarms: sunsetStatus().filter(s => s.alarm),
       api_versions: {
-        google: googleAdsVersion,
-        meta: metaApiVersion,
+        google: providerVersions('google')!.current(),
+        meta: providerVersions('meta')!.current(),
         tiktok: 'v1.3',
         snapchat: 'v1',
         linkedin: linkedinVersion.version ?? 'invalid AMCP_LINKEDIN_API_VERSION',
@@ -280,7 +288,9 @@ export function ownerOperations(
   }
   if (input.action === 'enable_personal_data') return enablePersonalData(store, actor, input);
   if (input.action === 'disable_personal_data') return disablePersonalData(store, actor, input);
-  if (input.action === 'save_ga4_test_property') return saveGa4TestProperty(store, actor, input);
+  // A provider's owner setting (save_ga4_test_property: GA4's, MSR-04).
+  const setting = registeredProviderHooks.find(h => h.ownerSetting?.action === input.action)?.ownerSetting;
+  if (setting) return setting.save(store, actor, input);
   if (input.action === 'pause_writes') {
     const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
     if (input.confirmed !== true || !reason || reason.length > 500)

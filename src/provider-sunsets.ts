@@ -1,5 +1,5 @@
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
-import {metaApiVersions} from './meta-version.js';
+import {providerVersions} from './provider-hooks.js';
 
 /**
  * When each provider API version AMCP sends stops working, as far as AMCP has evidence (F-56). The basis says how the
@@ -179,10 +179,13 @@ export function sentVersion(id: string): string | undefined {
   const contract = providerContracts.find(c => c.id === id);
   return contract ? String(effectiveProviderContract(id)?.api_version ?? contract.api_version) : undefined;
 }
-/** Every version AMCP can be configured to send: the Meta rollback adds v25.0 (src/meta-version.ts). */
+/**
+ * Every version AMCP can be configured to send: the one sent and those its configuration may name (its adapter's
+ * versions.configurable: the Meta rollback adds v25.0, src/meta-version.ts).
+ */
 export function acceptedVersions(id: string): string[] {
   const sent = sentVersion(id);
-  return [...new Set([...(sent ? [sent] : []), ...(id === 'meta' ? metaApiVersions : [])])];
+  return [...new Set([...(sent ? [sent] : []), ...(providerVersions(id)?.configurable ?? [])])];
 }
 /**
  * Each recorded version with the days left before its sunset; an alarm within `days` days, or once it has passed.
