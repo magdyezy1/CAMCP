@@ -8,6 +8,9 @@ import fs from 'node:fs';
 import {Script, createContext} from 'node:vm';
 import {workspaceCapabilities} from '../dist/src/capabilities.js';
 import {reportPlatforms} from '../dist/src/report-metrics.js';
+import {reportPresets} from '../dist/src/report-presets.js';
+import {loadRouteRegistry} from '../tools/check-routes.mjs';
+import {chunkDirectory, chunksWith, loaderFiles} from '../tools/locale-chunks.mjs';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 
@@ -134,6 +137,30 @@ test('the Home capability vocabulary and reporting workflow names match the serv
     );
     assert.ok(Object.hasOwn(catalog, provider.name + ' reporting'), platform);
   }
+});
+
+// OWNER-REVIEWER-QA: an Arabic Capabilities page showed "Meta ad performance" in English. The guided presets build
+// some capture names from their level (src/meta-guided-reports.ts and the TikTok and Snapchat ones), so no script of
+// that page wrote them and only the Evidence & analysis chunk carried their Arabic.
+test('every report capture the Capabilities page lists has its Arabic name in a chunk that page loads', () => {
+  const {dependencies} = loaderFiles(),
+    route = [...loadRouteRegistry()].find(entry => entry.path === '/capabilities'),
+    loaded = {};
+  assert.ok(route?.assets?.length, 'the registry lists the Capabilities page’s scripts');
+  for (const chunk of new Set([...route.assets].flatMap(file => [...chunksWith(file, dependencies)])))
+    Object.assign(loaded, JSON.parse(fs.readFileSync(chunkDirectory + '/' + chunk + '.json', 'utf8')));
+  const names = reportPresets.map(preset => preset.name);
+  assert.ok(names.length >= 29, 'the guided presets: ' + names.length);
+  assert.deepEqual(
+    names.filter(name => !Object.hasOwn(loaded, name)),
+    [],
+  );
+  // The labels that carry the built names into the page's chunk are the server's names.
+  const labels = JSON.parse(page('en', {capabilityCenter: true}).run('JSON.stringify(capabilityLabels)')),
+    captures = Object.entries(labels).filter(([id]) => id.startsWith('capture:'));
+  assert.ok(captures.length > 0);
+  for (const [id, name] of captures)
+    assert.equal(name, reportPresets.find(preset => 'capture:' + preset.id === id)?.name, id);
 });
 
 test('Arabic Home renders the capability block in Arabic; English Home is unchanged', async () => {

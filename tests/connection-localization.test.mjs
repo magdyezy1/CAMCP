@@ -250,6 +250,59 @@ test('Arabic consent retains client identity, redirect URI, permission scopes an
   ]);
 });
 
+// OWNER-REVIEWER-QA: an Arabic consent page named the workspace "Synthetic reviewer’s workspace" in English. The
+// unedited default name reads in the interface language, as the shell names it, and a name its owner wrote is isolated.
+test('the consent page names the workspace in the interface language and isolates the name', async () => {
+  for (const [locale, name, expected] of [
+    ['ar', 'Person’s workspace', 'مساحة عمل Person'],
+    ['en', 'Person’s workspace', 'Person’s workspace'],
+    ['ar', 'Northwind <b> مكتب', 'Northwind &lt;b&gt; مكتب'],
+    ['ar', undefined, catalog['AMCP workspace']],
+  ]) {
+    const f = fixture(locale);
+    f.context.location.pathname = '/oauth/consent';
+    f.context.location.search = '?request=001-original';
+    f.run("session.name='Person'");
+    f.context.api = async () => ({
+      name: 'Claude',
+      scope: 'mcp:read',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      redirectHost: 'claude.ai',
+      ...(name === undefined ? {} : {workspace: {id: 'tenant-001', name}}),
+    });
+    await f.run('renderConsent()');
+    const html = f.node('#content').innerHTML;
+    // <bdi> takes its direction from its own text: an Arabic page keeps a Latin name's words in order.
+    assert.ok(html.includes('<h2><bdi>' + expected + '</bdi></h2>'), locale + ' ' + name + ': ' + html);
+  }
+});
+
+// OWNER-REVIEWER-QA: the test-account gate refuses owner administration on purpose (server/website-gates.ts), so asking
+// for the instance's accounts only added a refused request to a reviewer's Settings page.
+test('Settings asks for the instance’s accounts for a member, never for a test account', async () => {
+  for (const [testAccount, expected] of [
+    [false, ['/api/owner/accounts']],
+    [true, []],
+  ]) {
+    const f = fixture('en');
+    f.context.location.pathname = '/settings';
+    f.run('renderWorkspaceSettings=()=>{}');
+    if (testAccount) f.run("session.testAccount=true;session.administrator=false;session.workspaceRole='operator'");
+    const asked = [];
+    f.context.api = async url => {
+      asked.push(url);
+      return {pending: 0, accounts: [], setup: {}, providers: []};
+    };
+    f.run(readFileSync('web/account-approvals.js', 'utf8'));
+    await f.run('renderSettings()');
+    assert.deepEqual(
+      asked.filter(url => url.startsWith('/api/owner/')),
+      expected,
+      testAccount ? 'a test account' : 'a member',
+    );
+  }
+});
+
 test('Arabic setup keeps provider variables, callback URLs, sample config and localized legal policy intact', () => {
   const legal = [];
   for (const locale of ['en', 'ar']) {

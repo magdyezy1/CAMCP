@@ -68,8 +68,7 @@ Provenance: the committed limits are those of the first passing full qualificati
 leak assertions passing across every case. Wave 3b's development runs added `period-comparison /reporting-overview` and
 `measurement-ledger /measurement` at zero, and the full qualification after the wave 3b merges (`wave3b-browser-1`,
 [Wave 3b integration qualification](records/LOCAL-BROWSER-QA-HISTORY-2026-10.md#wave-3b-integration-qualification-2026-10-17)) measured each of the 92 routes at
-exactly its limit. A limit that fails is now a regression from a measured state. (The QA-03
-review of 2026-10-11 found that no recorded run backed the limits; that run closes it.) Two known gaps make the counts a
+exactly its limit. A limit that fails is now a regression from a measured state. Two known gaps make the counts a
 lower bound: the allow-list skips `option` elements (closed select options are not visible text nodes, so they are
 never probed) and every `bdi`, not only `bdi[data-native]`.
 
@@ -108,16 +107,15 @@ report/planning POSTs. The granular reporting fixture also accepts only its owne
 cell batch and verifies its read-back and unrelated-tab preservation. All other requests and native
 advertising writes are refused. It signs into no live website or advertising account.
 
-The maintained runner selects its cases across 28 distinct page paths, including light/dark appearance and the
-additional populated/refusal/recovery cases documented below. The exact case count is the `total` field of each run's
-`results.json`; cite that record rather than a number retyped here. Its initial page selection covers:
+The runner selects its cases across 31 distinct page paths, including light/dark appearance and the additional
+populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in and signup at 320 and 1280 pixels (sign-in also at 375 and 768, where a visible About link and visible
   Privacy and Terms links are asserted), and the static Terms and Data deletion pages (`?lang=`, one script, the
   published contact) at 320 and 1280 pixels, in both selected languages.
 - The complete standalone privacy policy at all four widths in English and Arabic. Actual language
-  links, skip focus, eight sections and the original published date are checked. Both versions remain
+  links, skip focus, ten sections and the original published date are checked. Both versions remain
   complete static HTML without login or JavaScript; the optional pre-style appearance script does not supply policy content.
 - Eighteen workspace views with an empty synthetic owner workspace, in both selected languages at
   320 and 1280 pixels: home, campaigns, reports, report builder, operations, capabilities, report
@@ -125,6 +123,9 @@ additional populated/refusal/recovery cases documented below. The exact case cou
   connectors, settings, account and audit activity.
 - The members-only Help page (`/help`, DOC-03), signed in, which shows the owner guide in the interface language, at
   all four widths in English and Arabic.
+- Reviewer pass (`--kinds reviewer`): an invited test account opens each `testAccount` route and `/help` at 320 and
+  1280 pixels in both languages; its navigation lists only those, no API response fails while a page loads, and Help
+  lands on Home; `tests/reviewer-page-apis.test.mjs` checks their scripts against the test-account gate.
 - Original Snapchat top-snap references, selected WooCommerce products and Meta supplied-product
   comparisons at all four widths in English and Arabic, using actual served controllers and APIs.
 - Deploy version skew (WEB-04) at 375 and 1280 pixels in English and Arabic: a tab opened on Connections sees its
@@ -164,7 +165,7 @@ maintained source verification and full sanitized release proof. A result record
 source change does not qualify that change; run again at the clean committed source before pushing.
 
 The October 4 run uses local Chromium 148.0.7778.96 and Playwright 1.62.1 with an explicit existing
-test executable. It establishes those observed local cases. It does not establish another browser,
+test executable. It does not establish another browser,
 touch device, assistive technology, complete Arabic editorial acceptance, production deployment,
 live provider acceptance or current Linux/Docker qualification. The screen-reader and touch acceptance is the finite
 manual protocol of ACC-07 ([assistive-technology acceptance](acceptance/ASSISTIVE-TECHNOLOGY.md): 28 sessions, none
@@ -179,7 +180,7 @@ described by the [official Playwright BrowserType API](https://playwright.dev/do
 
 ## Appearance and immediate detail export
 
-All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results; manual/physical-assistive acceptance remains separate. See [batch 191](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
+All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results. See [batch 191](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
 
 ## Pending rendered journeys
 

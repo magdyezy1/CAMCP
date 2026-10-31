@@ -254,10 +254,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Overview's native parent reads to src/<platform>-detail-parents.ts (TikTok, Snapchat, LinkedIn), without wrapper
   // reasons: seven modules. Merged with the versions, tables, workspace and catalog packages, the modules add up: 759,
   // the same wrapper reasons.
+  // The owner's decisions of 2026-10-31 (w4c-qualify-fixes) add one catalog entry ("Reviewer"), not a wrapper reason.
+  // OWNER-REVIEWER-QA adds four catalog entries (connection progress messages), none a wrapper reason. Merged with
+  // "Reviewer": 11,535 entries.
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11531);
+  assert.equal(Object.keys(catalog).length, 11535);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

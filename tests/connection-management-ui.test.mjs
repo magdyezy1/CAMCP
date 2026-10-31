@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+import {parsers} from 'prettier/plugins/babel';
 
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 function fixture(locale, {authenticated = true} = {}) {
@@ -188,6 +189,100 @@ test('a callback refusal renders a fixed localized message, links to Connections
   await f.run('platforms=[];renderCallback()');
   assert.match(f.node('#content').innerHTML, /The platform was not connected/);
   assert.doesNotMatch(f.node('#content').innerHTML, /PRIVATE/);
+});
+
+/**
+ * The sentences server/platform-routes.ts writes as a connection attempt's progress message, which the result page
+ * shows: the literals of each progress record's message, and those its own function assigns to a variable it names.
+ */
+function progressMessages() {
+  const nodes = [],
+    messages = new Set(),
+    skipped = new Set(['loc', 'extra', 'comments', 'leadingComments', 'trailingComments', 'innerComments']);
+  const visit = node => {
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (!node || typeof node.type !== 'string') return;
+    nodes.push(node);
+    for (const [key, value] of Object.entries(node)) if (!skipped.has(key)) visit(value);
+  };
+  visit(
+    parsers['babel-ts'].parse(readFileSync('server/platform-routes.ts', 'utf8'), {filepath: 'platform-routes.ts'})
+      .program,
+  );
+  const within = (node, outer) => node.start >= outer.start && node.end <= outer.end;
+  const read = (node, scope) => {
+    if (node?.type === 'StringLiteral') messages.add(node.value);
+    else if (node?.type === 'ConditionalExpression') [node.consequent, node.alternate].forEach(n => read(n, scope));
+    else if (node?.type === 'LogicalExpression') [node.left, node.right].forEach(n => read(n, scope));
+    else if (node?.type === 'Identifier')
+      for (const set of nodes)
+        if (within(set, scope) && set.type === 'AssignmentExpression' && set.left.name === node.name)
+          read(set.right, scope);
+        else if (within(set, scope) && set.type === 'VariableDeclarator' && set.id.name === node.name)
+          read(set.init, scope);
+  };
+  for (const call of nodes) {
+    const record =
+      call.type === 'CallExpression' &&
+      (call.callee.name === 'progress' ||
+        (call.callee.property?.name === 'putDocument' && call.arguments[1]?.value === 'oauth_progress'))
+        ? call.arguments.at(-1)
+        : null;
+    if (record?.type !== 'ObjectExpression') continue;
+    const scope = nodes.filter(node => /Function/.test(node.type) && within(call, node)).at(-1);
+    for (const property of record.properties) if (property.key?.name === 'message') read(property.value, scope);
+  }
+  return messages;
+}
+
+// OWNER-REVIEWER-QA: an Arabic connection result showed "Connection secured. Choose the assets AMCP can use." in
+// English. The progress message is AMCP's own sentence, so it reads in the interface language.
+test('the connection result shows AMCP’s progress message in the interface language', async () => {
+  const messages = progressMessages(),
+    shell = JSON.parse(readFileSync('web/locales/ar/shell.json', 'utf8'));
+  for (const known of [
+    'Connection secured. Choose the assets AMCP can use.',
+    'Asset sync could not be completed. Retry from the connection manager.',
+    'The connection could not be completed. Start again from AMCP.',
+  ])
+    assert.ok(messages.has(known), 'the reading finds ' + known);
+  for (const message of messages) {
+    assert.ok(Object.hasOwn(catalog, message), 'Arabic for the progress message: ' + message);
+    assert.equal(shell[message], catalog[message], 'the shell chunk, which the result page loads, carries ' + message);
+  }
+  for (const [locale, message, expected] of [
+    [
+      'ar',
+      'Connection secured. Choose the assets AMCP can use.',
+      catalog['Connection secured. Choose the assets AMCP can use.'],
+    ],
+    [
+      'en',
+      'Connection secured. Choose the assets AMCP can use.',
+      'Connection secured. Choose the assets AMCP can use.',
+    ],
+    // A provider's own sentence, which AMCP does not translate, is shown as it came.
+    ['ar', 'Provider <limit> reached', 'Provider &lt;limit&gt; reached'],
+  ]) {
+    const f = fixture(locale);
+    f.context.platform = platform();
+    f.context.location.pathname = '/oauth/result';
+    f.context.location.search = '?attempt=attempt-001';
+    f.context.api = async url => {
+      assert.equal(url, '/api/oauth/progress/attempt-001');
+      return {
+        platform: 'meta',
+        state: 'complete',
+        authorization: true,
+        exchange: true,
+        sync: true,
+        connectionId: 'login-001',
+        message,
+      };
+    };
+    await f.run('platforms=[platform];renderCallback()');
+    assert.ok(f.node('#content').innerHTML.includes('<p>' + expected + '</p>'), locale + ': ' + message);
+  }
 });
 
 test('a selection that adds write access names the resources and sends confirmed only after consent', async () => {

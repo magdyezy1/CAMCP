@@ -31,6 +31,7 @@ import {overviewGranularityFixture} from './overview-granularity-data.mjs';
 import {periodComparisonFixture} from './period-comparison-data.mjs';
 import {measurementLedgerFixture} from './measurement-ledger-data.mjs';
 import {syntheticWriteJourneyFixture, spendPolicyEditFixture, exportOutcomesFixture} from './synthetic-writes-data.mjs';
+import {reviewerWorkspace} from './reviewer-workspace-data.mjs';
 import {offerParkedProviders} from '../helpers/parked-providers.mjs';
 
 // The browser journeys were written with WooCommerce offered, and fixture sites share one process: they run with it
@@ -45,6 +46,8 @@ export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      // OWNER-REVIEWER-QA: an invited test account in its own workspace, the view Meta's app reviewers use.
+      'reviewer',
       ...syntheticWriteKinds,
       'granular-reporting',
       'period-comparison',
@@ -451,8 +454,10 @@ export async function browserWorkflowSite(kind) {
       authEnv: {},
       fetcher: kind === 'granular-reporting' ? fixture.fetcher : blocked,
     },
-    {web, accounts} = createWebsite(fixture.store, options, false, fixture.service),
-    user = accounts.newUser('Synthetic browser reader', null, null, true),
+    {web, accounts, mcpOAuth} = createWebsite(fixture.store, options, false, fixture.service),
+    // OWNER-REVIEWER-QA: the reviewer is the invited test account of its own workspace, never a deployment member.
+    reviewer = kind === 'reviewer' ? await reviewerWorkspace({accounts, store: fixture.store, mcpOAuth}) : undefined,
+    user = reviewer?.user ?? accounts.newUser('Synthetic browser reader', null, null, true),
     // COM-03: a mapped supplier preview first saves the catalog's versioned column mapping, which only operators do
     // (readers are refused), so catalog-groups signs in as the owner; the canonical `catalog` journey stays a viewer's.
     role =
@@ -466,9 +471,10 @@ export async function browserWorkflowSite(kind) {
       ].includes(kind) || kind.startsWith('woocommerce-connection')
         ? 'owner'
         : 'viewer';
-  fixture.store.db
-    .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
-    .run(fixture.actor.tenantId, user.id, role, Date.now());
+  if (!reviewer)
+    fixture.store.db
+      .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(fixture.actor.tenantId, user.id, role, Date.now());
   // SEC-05: report files are for operators unless the workspace owner allows viewer downloads. The retained-evidence
   // and Google evidence journeys download the evidence workbook as this viewer, so their synthetic owner has allowed
   // it (the account_settings/exports record that saveExportPolicy writes).
@@ -478,7 +484,7 @@ export async function browserWorkflowSite(kind) {
       updated_at: Date.now(),
       updated_by: 'synthetic-owner',
     });
-  const session = accounts.session(user, fixture.actor.tenantId);
+  const session = reviewer ? accounts.session(user) : accounts.session(user, fixture.actor.tenantId);
   const workerHealth =
     kind === 'worker-health' ? workerHealthBrowserFixture(fixture.store, fixture.actor.tenantId) : undefined;
   app = createHttpApp(fixture.service, fixture.store, {website: options});
@@ -503,10 +509,15 @@ export async function browserWorkflowSite(kind) {
   const webActor = session.actor;
   return {
     origin,
-    tenantId: fixture.actor.tenantId,
+    // The reviewer signs in to its own workspace, so that is the tenant its cases use.
+    tenantId: reviewer?.tenantId ?? fixture.actor.tenantId,
     cookie: {name: web.cookieName, value: session.id, url: origin},
     // For Playwright-free HTTP checks of the same journeys (tests/browser-synthetic-writes.test.mjs).
     csrf: session.csrf,
+    // OWNER-REVIEWER-QA: the reviewer's own workspace, its connection result and fresh consent requests.
+    reviewer: reviewer
+      ? {tenantId: reviewer.tenantId, attemptId: reviewer.attemptId, consentRequest: reviewer.consentRequest}
+      : undefined,
     syntheticWrites: syntheticWriteKinds.includes(kind),
     writeJourney:
       kind === 'write-journey'

@@ -297,10 +297,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // shared module's helpers, so the files with reasons and the reasons are the same.
   // Merged with the versions, tables, workspace and catalog packages, the files add up: 759, 285 of them with reasons,
   // the same reasons.
+  // The owner's decisions of 2026-10-31 (w4c-qualify-fixes) add the Arabic of "Reviewer", the name the approval page
+  // shows for the reviewers' shared sign-in (web/operations-center.js), not an owned reason: 11,531 entries.
+  // OWNER-REVIEWER-QA adds the Arabic of four connection progress messages the result page shows
+  // (server/platform-routes.ts), none an owned reason: 11,534 entries on its base. Merged with "Reviewer": 11,535.
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
-  assert.equal(Object.keys(catalog).length, 11531);
+  assert.equal(Object.keys(catalog).length, 11535);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
