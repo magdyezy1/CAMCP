@@ -677,9 +677,10 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         'The complete privacy content stays static; only appearance uses a script',
       );
       assert.match(await page.locator('script').getAttribute('src'), /^\/assets\/v\/[0-9a-f]{64}\/theme\.js$/);
-      // SEC-07 revised the privacy policy on 2026-10-12 (retention and erasure, owner decision P3).
-      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-10-12');
-      assert.equal(await page.locator('article section').count(), 8);
+      // The reviewer change revised the privacy policy on 2026-10-30 (Meta data and authorities sections), after SEC-07's
+      // retention and erasure revision; tests/privacy-language.test.mjs pins the same date and sections.
+      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-10-30');
+      assert.equal(await page.locator('article section').count(), 10);
       const other = locale === 'ar' ? 'en' : 'ar';
       await page.locator('.policy-languages a[hreflang=' + other + ']').click();
       assert.equal(await page.locator('html').getAttribute('lang'), other);

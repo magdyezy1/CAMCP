@@ -116,7 +116,7 @@ populated/refusal/recovery cases documented below. Its initial page selection co
   Privacy and Terms links are asserted), and the static Terms and Data deletion pages (`?lang=`, one script, the
   published contact) at 320 and 1280 pixels, in both selected languages.
 - The complete standalone privacy policy at all four widths in English and Arabic. Actual language
-  links, skip focus, eight sections and the original published date are checked. Both versions remain
+  links, skip focus, ten sections and the original published date are checked. Both versions remain
   complete static HTML without login or JavaScript; the optional pre-style appearance script does not supply policy content.
 - Eighteen workspace views with an empty synthetic owner workspace, in both selected languages at
   320 and 1280 pixels: home, campaigns, reports, report builder, operations, capabilities, report
