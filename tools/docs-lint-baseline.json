@@ -34,10 +34,16 @@
       "raised": [
         "reference_words 143221 → 143230"
       ]
+    },
+    {
+      "reason": "w4c-arc6-tables: ARCHITECTURE.md section 9 gains one row per shared-table concern moved into the adapters (unavailable operations and programs, parameter tables, provider jobs)",
+      "raised": [
+        "reference_words 143230 → 143470"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143230
+    "reference_words": 143470
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
