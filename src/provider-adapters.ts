@@ -12,6 +12,9 @@ import type {
   ProviderStatus,
 } from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+// Wave 4c round 6 (w4c-arc6-tables): the retired actions' facts and their freezing.
+import type {RetiredActions} from './provider-adapter.js';
+import {deepFrozen} from './frozen-facts.js';
 
 /**
  * The provider adapter registry (ARC-01): one adapter per provider gateway, each with its lifecycle status. This module
@@ -140,6 +143,8 @@ function adapter(
     // ARC-01 phase B, the login and connection modules: how its logins renew without the user (CON-02).
     ...(options.renewal ? {renewal: Object.freeze({...options.renewal})} : {}),
     ...(options.listsActions ? {listsActions: true as const} : {}),
+    // Wave 4c round 6 (w4c-arc6-tables): its withdrawn methods and unsupported aliases, the table below's entry for its ID.
+    ...(Object.hasOwn(retiredActionFacts, id) ? {retired: deepFrozen(retiredActionFacts[id]!)} : {}),
   });
 }
 
@@ -256,6 +261,216 @@ const reviewStageFacts: Readonly<
       field: 'is_adset_budget_sharing_enabled',
       value: false,
     }),
+  },
+};
+
+// Wave 4c round 6 (w4c-arc6-tables): each provider's withdrawn methods and unsupported aliases, moved unchanged from
+// src/retired-provider-actions.ts, which lists them in this table's key order, each row after its provider's gateway;
+// each adapter takes its ID's entry, frozen. tests/provider-tables.test.mjs compares the listed tables with the old ones.
+const lifecycleReplacement =
+  'In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). Both are reviewed writes: create the goal with google_ads_v23_goal_mutate_goals, then link each campaign with google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs.';
+const retiredActionFacts: Readonly<Record<string, RetiredActions>> = {
+  // X Ads API v5 reached end of life on 2020-03-03 (X Ads API Versioning, read 2026-10-08); AMCP sends v12, yet the
+  // captured catalog still routed the two recommendation reads to /5/ (PRV-04, src/provider-deprecations.ts).
+  x: {
+    actions: (
+      [
+        ['x_accounts_account_id_recommendations_get', '^/5/accounts/[^/]+/recommendations$'],
+        ['x_accounts_account_id_recommendations_recommendation_id_get', '^/5/accounts/[^/]+/recommendations/[^/]+$'],
+      ] as const
+    ).map(([action, path]) => ({
+      action,
+      method: 'GET',
+      path: new RegExp(path),
+      source: 'https://docs.x.com/x-ads-api/fundamentals/versioning',
+      updated: '2020-03-03',
+      checked: '2026-10-08',
+      reason: 'X Ads API v5 reached end of life on 2020-03-03; AMCP sends v12, and v12 has no recommendations route.',
+      replacement:
+        'No current X Ads API equivalent has been established; review the account in X Ads Manager. AMCP does not invent a v12 route.',
+    })),
+  },
+  // Google documents these Tag Manager methods as no longer supported; their refusal says the provider's words below.
+  gtm: {
+    actions: [
+      {
+        action: 'COMBINE_CONTAINERS',
+        method: 'POST',
+        path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+:combine$/,
+        source:
+          'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers/combine',
+        updated: '2026-08-25',
+      },
+      {
+        action: 'MOVE_TAG_ID',
+        method: 'POST',
+        path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+:move_tag_id$/,
+        source:
+          'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers/move_tag_id',
+        updated: '2026-08-25',
+      },
+      {
+        action: 'LINK_DESTINATION',
+        method: 'POST',
+        path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+\/destinations:link$/,
+        source:
+          'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/link',
+        updated: '2026-06-04',
+      },
+      {
+        action: 'GET_DESTINATION',
+        method: 'GET',
+        path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+\/destinations\/[^/:]+$/,
+        source:
+          'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/get',
+        updated: '2026-06-04',
+      },
+    ],
+    checked: '2026-09-19',
+    reason: 'Google documents this method as no longer supported. A historical mapping cannot make it executable.',
+    replacement:
+      'Use the current Google tag management interface and supported list/get workflows; no equivalent API mutation has been established.',
+  },
+  google: {
+    // Google Ads API v25 has no lifecycle goal methods, schemas or GAQL rows (pinned v25 Discovery document, revision
+    // 20260923, compared with the v23 one); its Goal and CampaignGoalConfig resources gained new customer acquisition.
+    actions: (['customer', 'campaign'] as const).map(kind => ({
+      action: 'google_ads_v23_' + kind + '_lifecycle_goal_configure_' + kind + '_lifecycle_goals',
+      method: 'POST',
+      path: new RegExp(
+        '^/v\\d+/customers/[^/]+/' +
+          kind +
+          'LifecycleGoal:configure' +
+          (kind === 'customer' ? 'Customer' : 'Campaign') +
+          'LifecycleGoals$',
+      ),
+      source: 'https://googleads.googleapis.com/$discovery/rest?version=v25',
+      updated: '2026-09-23',
+      reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
+      replacement: lifecycleReplacement,
+    })),
+    // Legacy names that do not correspond to an operation of the current version: captured aliases that never did, and
+    // aliases whose operation a newer version removed.
+    aliases: [
+      {
+        action: 'UPDATE_CUSTOMIZER_ATTRIBUTE',
+        version: 'v25',
+        source:
+          'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customizer_attribute_service.proto (sha256 7eb3650bd6eee98d0ec2d60b785e2934cf91c8dc07ae75a42447bac779c1b2aa)',
+        checked_at: '2026-09-28',
+        reason:
+          'The v25 CustomizerAttributeOperation oneof contains create and remove only. An update_mask field or broad service comment does not define an update operation.',
+        replacement:
+          'Create a new attribute with the correct name/type. Separately review replacement customizer associations and affected ads before considering removal of the old attribute. AMCP does not automatically migrate or delete it.',
+      },
+      ...(['CUSTOMER', 'CAMPAIGN'] as const).flatMap(kind => [
+        {
+          action: 'CONFIGURE_' + kind + '_LIFECYCLE_GOAL',
+          version: 'v25',
+          source: 'https://googleads.googleapis.com/$discovery/rest?version=v25',
+          checked_at: '2026-09-28',
+          reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
+          replacement: lifecycleReplacement,
+        },
+        {
+          action: 'LIST_' + kind + '_LIFECYCLE_GOALS',
+          version: 'v25',
+          source:
+            'https://googleads.googleapis.com/$discovery/rest?version=v25 (GoogleAdsRow has no lifecycle goal rows)',
+          checked_at: '2026-09-28',
+          reason: 'Google Ads API v25 no longer has lifecycle goals to read.',
+          replacement:
+            'Read goals and their campaign settings with RUN_GAQL_QUERY: FROM goal, and FROM campaign_goal_config.',
+        },
+      ]),
+      {
+        action: 'SET_CAMPAIGN_BRAND_SAFETY',
+        version: 'v25',
+        source:
+          'https://googleads.googleapis.com/$discovery/rest?version=v25 (Campaign has no videoBrandSafetySuitability)',
+        checked_at: '2026-09-28',
+        reason:
+          'Google Ads API v25 removed the campaign-level video brand safety setting; only the account-level one remains.',
+        replacement:
+          "Set the account's videoBrandSafetySuitability with a reviewed customer change (google_ads_v23_customer_mutate_customer), or exclude content labels per campaign (SET_CAMPAIGN_CONTENT_LABEL_EXCLUSIONS).",
+      },
+    ],
+    checked: '2026-09-28',
+  },
+  // LinkedIn deprecated its unversioned Marketing APIs on 2024-12-16; the current pages (li-lms-2026-05) for these
+  // resources document only the versioned /rest routes, and the Content APIs replace adCreativesV2 (read 2026-09-29).
+  // Other /v2 routes stay: geo is still documented under /v2, and me, people, endorsement, shares, ugcPosts and
+  // adLiftTestBenchmark were not confirmed withdrawn (F-58).
+  linkedin: {
+    actions: (
+      [
+        [
+          'ad_campaigns_v2_post',
+          'POST',
+          '^/v2/adCampaignsV2$',
+          'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',
+        ],
+        [
+          'ad_campaigns_v2_campaign_id_post',
+          'POST',
+          '^/v2/adCampaignsV2/[^/]+$',
+          'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+        ],
+        [
+          'ad_creatives_v2_post',
+          'POST',
+          '^/v2/adCreativesV2$',
+          'linkedin_rest_ad_accounts_ad_account_id_creatives_post',
+        ],
+        ['dmp_segments_post', 'POST', '^/v2/dmpSegments$', 'linkedin_rest_dmp_segments_post'],
+        [
+          'dmp_segments_segment_id_companies_post',
+          'POST',
+          '^/v2/dmpSegments/[^/]+/companies$',
+          'linkedin_rest_dmp_segments_segment_id_companies_post',
+        ],
+        [
+          'dmp_segments_segment_id_users_post',
+          'POST',
+          '^/v2/dmpSegments/[^/]+/users$',
+          'linkedin_rest_dmp_segments_segment_id_users_post',
+        ],
+        [
+          'dmp_segments_segment_id_destinations_destination_id_get',
+          'GET',
+          '^/v2/dmpSegments/[^/]+/destinations/[^/]+$',
+          'linkedin_rest_dmp_segments_segment_id_destinations_destination_id_get',
+        ],
+        [
+          'dmp_segments_dmp_segment_id_list_uploads_list_id_delete',
+          'DELETE',
+          '^/v2/dmpSegments/[^/]+/listUploads/[^/]+$',
+          'linkedin_rest_dmp_segments_dmp_segment_id_list_uploads_list_id_get (read); AMCP’s catalog has no versioned list upload deletion',
+        ],
+        [
+          'organizational_entity_acls_get',
+          'GET',
+          '^/v2/organizationalEntityAcls$',
+          'linkedin_rest_organization_acls_get',
+        ],
+        [
+          'organizational_entity_acls_post',
+          'POST',
+          '^/v2/organizationalEntityAcls$',
+          'linkedin_rest_organization_acls_organization_organization_urn_role_direct_content_poster_role_assignee_person_urn_put (not yet a reviewed write in AMCP)',
+        ],
+      ] as const
+    ).map(([action, method, path, replacement]) => ({
+      action: 'linkedin_v2_' + action,
+      method,
+      path: new RegExp(path),
+      source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/migrations?view=li-lms-2026-05',
+      updated: '2024-12-16',
+      reason:
+        'LinkedIn deprecated its unversioned Marketing APIs on 2024-12-16; the current documentation has only the versioned /rest route.',
+      replacement: 'Use ' + replacement + '.',
+    })),
+    checked: '2026-09-19',
   },
 };
 
@@ -656,6 +871,30 @@ if (
   providerAdapters.filter(a => a.grant).length !== grantOrder.length
 )
   throw new Error('The grant order must name every provider adapter that declares a grant exactly once.');
+
+/**
+ * Wave 4c round 6 (w4c-arc6-tables): the providers whose withdrawn methods and unsupported aliases
+ * src/retired-provider-actions.ts lists, in its table's order (the key order of their facts above). A load-time check:
+ * each withdrawn method's refusal can say why, what instead and when it was checked, in its row's words or its
+ * provider's.
+ */
+export const retiredActionProviders: readonly ProviderAdapter[] = Object.freeze(
+  Object.keys(retiredActionFacts).map(id => {
+    const provider = byId.get(id);
+    if (!provider?.retired) throw new Error('Retired actions name no provider adapter: ' + id + '.');
+    return provider;
+  }),
+);
+for (const {id, retired} of retiredActionProviders)
+  for (const row of retired!.actions ?? [])
+    if (
+      !(row.reason ?? retired!.reason) ||
+      !(row.replacement ?? retired!.replacement) ||
+      !(row.checked ?? retired!.checked)
+    )
+      throw new Error(
+        'The withdrawn method ' + row.action + ' of ' + id + ' must say why, what instead and when it was checked.',
+      );
 
 /** The adapter of a gateway tool name, or undefined for AMCP's own tools and unknown names. */
 export function providerOf(gateway: unknown): ProviderAdapter | undefined {

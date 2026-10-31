@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import {inspectBackendContractFailures} from '../tools/check-locales.mjs';
-import {providerAdapters} from '../dist/src/provider-adapters.js';
+import {providerAdapters, retiredActionProviders} from '../dist/src/provider-adapters.js';
 import {providerHooks, providerJobFamilies, registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {
   unavailableOperation,
@@ -27,6 +28,37 @@ import {
 } from '../dist/src/parameters.js';
 import {providerJobContracts, providerJobGateways, reviewedJobFamily} from '../dist/src/provider-jobs.js';
 import {campaignRecipes, recipeGateway} from '../dist/src/campaign-recipes.js';
+import {
+  assertProviderActionAvailable,
+  assertProviderAliasAvailable,
+  retiredGoogleAdsActions,
+  retiredProviderAction,
+  retiredProviderActions,
+  unsupportedProviderAlias,
+  unsupportedProviderAliases,
+} from '../dist/src/retired-provider-actions.js';
+import {
+  providerValidationRequest,
+  providerValidationScope,
+  runProviderValidation,
+  validateProviderRequest,
+} from '../dist/src/provider-validation.js';
+import {redact} from '../dist/src/security.js';
+import {validate, writer} from '../dist/src/workspace-core.js';
+import {assertWriteShape} from '../dist/src/write-shape.js';
+import {
+  dataManagerContract,
+  dataManagerContractName,
+  discoveryIssues,
+  sealedVendorDocument,
+  wireContractCheck,
+  wireContractResolver,
+} from '../dist/src/wire-contracts.js';
+import {microsoftWireContract} from '../dist/src/microsoft-wire-contract.js';
+import {dataManagerOrigin} from '../dist/src/google-data-manager-routes.js';
+import {pinnedJson} from '../dist/src/pinned-json.js';
+import {Store} from '../dist/src/store.js';
+import {googleAdsRequestActions} from '../dist/src/audit-repository.js';
 
 // ARC-01, wave 4c round 6 (w4c-arc6-tables): the provider rows of the shared tables moved into the adapters, and each
 // shared module lists them in the order src/provider-hooks.ts declares. Each table as it was is transcribed below, and
@@ -811,4 +843,1095 @@ test('the provider job contracts, their gateways and the job capability filter a
       oldRecipeGateways[recipe.platform] ?? recipe.platform + '_native_action',
       recipe.id,
     );
+});
+
+// src/retired-provider-actions.ts as it was: the withdrawn methods and unsupported aliases, and their refusals.
+const oldRetired = (() => {
+  const tagManagerReplacement =
+    'Use the current Google tag management interface and supported list/get workflows; no equivalent API mutation has been established.';
+  const lifecycleReplacement =
+    'In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). Both are reviewed writes: create the goal with google_ads_v23_goal_mutate_goals, then link each campaign with google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs.';
+  /** Official withdrawal overrides a historical catalog or Discovery mapping.
+   * Keep these entries discoverable; never turn them into executable contracts. */
+  const retiredProviderActions = [
+    // X Ads API v5 reached end of life on 2020-03-03 (X Ads API Versioning, read 2026-10-08); AMCP sends v12, yet the
+    // captured catalog still routed the two recommendation reads to /5/ (PRV-04, src/provider-deprecations.ts).
+    ...[
+      ['x_accounts_account_id_recommendations_get', '^/5/accounts/[^/]+/recommendations$'],
+      ['x_accounts_account_id_recommendations_recommendation_id_get', '^/5/accounts/[^/]+/recommendations/[^/]+$'],
+    ].map(([action, path]) => ({
+      gateway: 'x_ads_native_action',
+      action,
+      method: 'GET',
+      path: new RegExp(path),
+      source: 'https://docs.x.com/x-ads-api/fundamentals/versioning',
+      updated: '2020-03-03',
+      checked: '2026-10-08',
+      reason: 'X Ads API v5 reached end of life on 2020-03-03; AMCP sends v12, and v12 has no recommendations route.',
+      replacement:
+        'No current X Ads API equivalent has been established; review the account in X Ads Manager. AMCP does not invent a v12 route.',
+    })),
+    {
+      gateway: 'gtm_native_action',
+      action: 'COMBINE_CONTAINERS',
+      method: 'POST',
+      path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+:combine$/,
+      source:
+        'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers/combine',
+      updated: '2026-08-25',
+    },
+    {
+      gateway: 'gtm_native_action',
+      action: 'MOVE_TAG_ID',
+      method: 'POST',
+      path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+:move_tag_id$/,
+      source:
+        'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers/move_tag_id',
+      updated: '2026-08-25',
+    },
+    {
+      gateway: 'gtm_native_action',
+      action: 'LINK_DESTINATION',
+      method: 'POST',
+      path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+\/destinations:link$/,
+      source:
+        'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/link',
+      updated: '2026-06-04',
+    },
+    {
+      gateway: 'gtm_native_action',
+      action: 'GET_DESTINATION',
+      method: 'GET',
+      path: /^\/tagmanager\/v2\/accounts\/[^/]+\/containers\/[^/:]+\/destinations\/[^/:]+$/,
+      source:
+        'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/get',
+      updated: '2026-06-04',
+    },
+    // Google Ads API v25 has no lifecycle goal methods, schemas or GAQL rows (pinned v25 Discovery document, revision
+    // 20260923, compared with the v23 one); its Goal and CampaignGoalConfig resources gained new customer acquisition.
+    ...['customer', 'campaign'].map(kind => ({
+      gateway: 'google_ads_native_action',
+      action: 'google_ads_v23_' + kind + '_lifecycle_goal_configure_' + kind + '_lifecycle_goals',
+      method: 'POST',
+      path: new RegExp(
+        '^/v\\d+/customers/[^/]+/' +
+          kind +
+          'LifecycleGoal:configure' +
+          (kind === 'customer' ? 'Customer' : 'Campaign') +
+          'LifecycleGoals$',
+      ),
+      source: 'https://googleads.googleapis.com/$discovery/rest?version=v25',
+      updated: '2026-09-23',
+      reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
+      replacement: lifecycleReplacement,
+    })),
+    // LinkedIn deprecated its unversioned Marketing APIs on 2024-12-16; the current pages (li-lms-2026-05) for these
+    // resources document only the versioned /rest routes, and the Content APIs replace adCreativesV2 (read 2026-09-29).
+    // Other /v2 routes stay: geo is still documented under /v2, and me, people, endorsement, shares, ugcPosts and
+    // adLiftTestBenchmark were not confirmed withdrawn (F-58).
+    ...[
+      [
+        'ad_campaigns_v2_post',
+        'POST',
+        '^/v2/adCampaignsV2$',
+        'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',
+      ],
+      [
+        'ad_campaigns_v2_campaign_id_post',
+        'POST',
+        '^/v2/adCampaignsV2/[^/]+$',
+        'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+      ],
+      ['ad_creatives_v2_post', 'POST', '^/v2/adCreativesV2$', 'linkedin_rest_ad_accounts_ad_account_id_creatives_post'],
+      ['dmp_segments_post', 'POST', '^/v2/dmpSegments$', 'linkedin_rest_dmp_segments_post'],
+      [
+        'dmp_segments_segment_id_companies_post',
+        'POST',
+        '^/v2/dmpSegments/[^/]+/companies$',
+        'linkedin_rest_dmp_segments_segment_id_companies_post',
+      ],
+      [
+        'dmp_segments_segment_id_users_post',
+        'POST',
+        '^/v2/dmpSegments/[^/]+/users$',
+        'linkedin_rest_dmp_segments_segment_id_users_post',
+      ],
+      [
+        'dmp_segments_segment_id_destinations_destination_id_get',
+        'GET',
+        '^/v2/dmpSegments/[^/]+/destinations/[^/]+$',
+        'linkedin_rest_dmp_segments_segment_id_destinations_destination_id_get',
+      ],
+      [
+        'dmp_segments_dmp_segment_id_list_uploads_list_id_delete',
+        'DELETE',
+        '^/v2/dmpSegments/[^/]+/listUploads/[^/]+$',
+        'linkedin_rest_dmp_segments_dmp_segment_id_list_uploads_list_id_get (read); AMCP’s catalog has no versioned list upload deletion',
+      ],
+      [
+        'organizational_entity_acls_get',
+        'GET',
+        '^/v2/organizationalEntityAcls$',
+        'linkedin_rest_organization_acls_get',
+      ],
+      [
+        'organizational_entity_acls_post',
+        'POST',
+        '^/v2/organizationalEntityAcls$',
+        'linkedin_rest_organization_acls_organization_organization_urn_role_direct_content_poster_role_assignee_person_urn_put (not yet a reviewed write in AMCP)',
+      ],
+    ].map(([action, method, path, replacement]) => ({
+      gateway: 'linkedin_native_action',
+      action: 'linkedin_v2_' + action,
+      method,
+      path: new RegExp(path),
+      source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/migrations?view=li-lms-2026-05',
+      updated: '2024-12-16',
+      reason:
+        'LinkedIn deprecated its unversioned Marketing APIs on 2024-12-16; the current documentation has only the versioned /rest route.',
+      replacement: 'Use ' + replacement + '.',
+    })),
+  ];
+  /** The catalog actions whose Google Ads method v25 removed; tools/fetch-vendor-specs.mjs keeps the same list. */
+  const retiredGoogleAdsActions = retiredProviderActions
+    .filter(r => r.gateway === 'google_ads_native_action')
+    .map(r => r.action);
+  const retiredProviderAction = p =>
+    retiredProviderActions.find(r => r.gateway === p.gateway && r.method === p.method && r.path.test(p.path));
+  /** Legacy names that do not correspond to an operation of the current provider version: captured aliases that never
+   * did, and aliases whose operation a newer version removed. Match the alias, not its shared route. */
+  const unsupportedProviderAliases = [
+    {
+      gateway: 'google_ads_native_action',
+      action: 'UPDATE_CUSTOMIZER_ATTRIBUTE',
+      version: 'v25',
+      source:
+        'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customizer_attribute_service.proto (sha256 7eb3650bd6eee98d0ec2d60b785e2934cf91c8dc07ae75a42447bac779c1b2aa)',
+      checked_at: '2026-09-28',
+      reason:
+        'The v25 CustomizerAttributeOperation oneof contains create and remove only. An update_mask field or broad service comment does not define an update operation.',
+      replacement:
+        'Create a new attribute with the correct name/type. Separately review replacement customizer associations and affected ads before considering removal of the old attribute. AMCP does not automatically migrate or delete it.',
+    },
+    ...['CUSTOMER', 'CAMPAIGN'].flatMap(kind => [
+      {
+        gateway: 'google_ads_native_action',
+        action: 'CONFIGURE_' + kind + '_LIFECYCLE_GOAL',
+        version: 'v25',
+        source: 'https://googleads.googleapis.com/$discovery/rest?version=v25',
+        checked_at: '2026-09-28',
+        reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
+        replacement: lifecycleReplacement,
+      },
+      {
+        gateway: 'google_ads_native_action',
+        action: 'LIST_' + kind + '_LIFECYCLE_GOALS',
+        version: 'v25',
+        source:
+          'https://googleads.googleapis.com/$discovery/rest?version=v25 (GoogleAdsRow has no lifecycle goal rows)',
+        checked_at: '2026-09-28',
+        reason: 'Google Ads API v25 no longer has lifecycle goals to read.',
+        replacement:
+          'Read goals and their campaign settings with RUN_GAQL_QUERY: FROM goal, and FROM campaign_goal_config.',
+      },
+    ]),
+    {
+      gateway: 'google_ads_native_action',
+      action: 'SET_CAMPAIGN_BRAND_SAFETY',
+      version: 'v25',
+      source:
+        'https://googleads.googleapis.com/$discovery/rest?version=v25 (Campaign has no videoBrandSafetySuitability)',
+      checked_at: '2026-09-28',
+      reason:
+        'Google Ads API v25 removed the campaign-level video brand safety setting; only the account-level one remains.',
+      replacement:
+        "Set the account's videoBrandSafetySuitability with a reviewed customer change (google_ads_v23_customer_mutate_customer), or exclude content labels per campaign (SET_CAMPAIGN_CONTENT_LABEL_EXCLUSIONS).",
+    },
+  ];
+  const unsupportedProviderAlias = (gateway, action) =>
+    unsupportedProviderAliases.find(r => r.gateway === gateway && r.action === action);
+  function assertProviderAliasAvailable(gateway, action) {
+    const unavailable = unsupportedProviderAlias(gateway, action);
+    if (unavailable) throw new MirrorError('PROVIDER_ACTION_UNSUPPORTED', unavailable.reason, unavailable);
+  }
+  function assertProviderActionAvailable(p) {
+    assertProviderAliasAvailable(p.gateway, p.action);
+    const retired = retiredProviderAction(p);
+    if (retired)
+      throw new MirrorError(
+        'PROVIDER_ACTION_UNSUPPORTED',
+        retired.reason ??
+          'Google documents this method as no longer supported. A historical mapping cannot make it executable.',
+        {
+          action: retired.action,
+          source: retired.source,
+          documentation_updated: retired.updated,
+          checked_at: retired.checked ?? (retired.gateway === 'google_ads_native_action' ? '2026-09-28' : '2026-09-19'),
+          replacement: retired.replacement ?? tagManagerReplacement,
+        },
+      );
+  }
+  return {
+    retiredProviderActions,
+    retiredGoogleAdsActions,
+    retiredProviderAction,
+    unsupportedProviderAliases,
+    unsupportedProviderAlias,
+    assertProviderAliasAvailable,
+    assertProviderActionAvailable,
+  };
+})();
+
+// src/provider-validation.ts as it was: which requests the provider validates, how, what its refusal names, and the
+// checks before a validation request is sent.
+const oldValidation = (() => {
+  /** Meta's campaign and ad set edits, by compiled (canonical) action: the meta_campaign_update and meta_adset_update
+   * aliases compile to these. Creates are recognized by their account-edge path. */
+  const metaValidatedEdits = new Set(['meta_campaign_id_update', 'meta_ad_set_id_update']);
+  const providerValidationScope =
+    'Google Ads mutate requests, and Meta campaign and ad set creates and edits (meta_campaign_create, meta_adset_create, meta_campaign_id_update, meta_ad_set_id_update)';
+  /** The provider's own validation of `plan`, or undefined when the route has no qualified validation path. */
+  function providerValidationRequest(plan) {
+    if (
+      plan.gateway === 'google_ads_native_action' &&
+      plan.method === 'POST' &&
+      /^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path)
+    ) {
+      const body = {...plan.body, validate_only: true};
+      delete body.validateOnly;
+      return {...plan, body};
+    }
+    if (
+      plan.gateway === 'meta_native_action' &&
+      plan.method === 'POST' &&
+      (/^\/v[^/]+\/act_\d+\/(?:campaigns|adsets)$/.test(plan.path) ||
+        (metaValidatedEdits.has(plan.action) && /^\/v[^/]+\/\d+$/.test(plan.path)))
+    )
+      return {...plan, body: {...plan.body, execution_options: ['validate_only']}};
+    return undefined;
+  }
+  /** Where the provider refused the request: field paths only, which name the request's own fields. */
+  function fieldPaths(gateway, data) {
+    const paths = new Set();
+    const error = data?.error ?? data;
+    if (gateway === 'google_ads_native_action')
+      for (const detail of Array.isArray(error?.details) ? error.details : [])
+        for (const e of Array.isArray(detail?.errors) ? detail.errors : []) {
+          const path = (Array.isArray(e?.location?.fieldPathElements) ? e.location.fieldPathElements : [])
+            .map(p => String(p.fieldName) + (Number.isInteger(p.index) ? '[' + p.index + ']' : ''))
+            .join('.');
+          if (path) paths.add(path);
+        }
+    if (gateway === 'meta_native_action') {
+      const blame = error?.error_data?.blame_field_specs;
+      for (const spec of Array.isArray(blame) ? blame : []) paths.add([spec].flat().map(String).join('.'));
+    }
+    return [...paths].slice(0, 50);
+  }
+
+  /**
+   * Sends the validation request through `send` (which applies the caller's authority checks) and classifies the reply.
+   * A provider refusal of the request itself (HTTP 400 or 422, or an unsuccessful 200 reply) is a rejection; any other
+   * failure (permission, rate, outage) is raised unchanged, since it says nothing about the request.
+   */
+  async function runProviderValidation(plan, request, send) {
+    let response;
+    try {
+      response = await send();
+    } catch (e) {
+      if (
+        e instanceof MirrorError &&
+        (e.code === 'PLATFORM_ERROR' || [400, 422].includes(Number(e.details.http_status)))
+      )
+        return {
+          status: 'provider_rejected',
+          checked_at: Date.now(),
+          field_paths: fieldPaths(plan.gateway, e.details.upstream),
+          ...(typeof e.details.http_status === 'number' ? {http_status: e.details.http_status} : {}),
+          ...(typeof e.details.request_id === 'string' ? {request_id: e.details.request_id} : {}),
+          response: redact(e.details.upstream),
+        };
+      // The transport words a lost reply to any non-read request as a write whose outcome is uncertain. A validation
+      // applies nothing, so its lost reply only means the check did not finish.
+      if (e instanceof MirrorError && e.code === 'WRITE_OUTCOME_UNCERTAIN')
+        throw new MirrorError(
+          'UPSTREAM_UNAVAILABLE',
+          'The provider did not answer the validation request. Validation applies nothing, so nothing changed; it can be sent again.',
+          {validation_only: true},
+          502,
+          true,
+        );
+      throw e;
+    }
+    const data = response.data;
+    if (
+      response.status >= 300 ||
+      data?.error ||
+      data?.partialFailureError ||
+      (request.gateway === 'meta_native_action' && data?.success === false)
+    )
+      return {
+        status: 'provider_rejected',
+        checked_at: Date.now(),
+        field_paths: fieldPaths(plan.gateway, data),
+        http_status: response.status,
+        response: redact(data),
+      };
+    return {status: 'provider_validated', checked_at: Date.now()};
+  }
+  async function validateProviderRequest(service, actor, input) {
+    writer(service.store, actor);
+    if (!['google_ads_native_action', 'meta_native_action'].includes(input.gateway))
+      return {
+        status: 'unsupported',
+        executed: false,
+        reason: 'Provider validation is qualified only for ' + providerValidationScope + '.',
+      };
+    // A provider request that uses write permission: allowed where reviewed writes are, or by the deployment owner's
+    // explicit opt-in (owner decision D18). Refused before any account, credential or network access.
+    if (!service.policy.allowWrites && service.policy.providerValidation !== true)
+      throw new MirrorError(
+        'LIVE_WRITES_DISABLED',
+        'This deployment permits reads and dry-run previews only, and its owner has not allowed provider validation (AMCP_PROVIDER_VALIDATION=true). Nothing was sent.',
+        {},
+        403,
+      );
+    const args = input.arguments;
+    validate(args ?? {}, Object.keys(service.registry.tools.get(input.gateway).inputSchema.properties ?? {}));
+    service.registry.validate(input.gateway, args, service.options);
+    const plan = service.compiler.compile(input.gateway, args, service.options);
+    if (plan.gateway === 'meta_native_action' && plan.body?.execution_options !== undefined)
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'Omit execution_options: provider validation adds validate_only itself.',
+        {field: 'execution_options'},
+      );
+    assertWriteShape(plan);
+    const request = providerValidationRequest(plan);
+    if (!request)
+      throw new MirrorError(
+        'PROVIDER_VALIDATION_UNSUPPORTED',
+        'Select a supported request: ' + providerValidationScope + '.',
+      );
+    // Its connection, account, credential and network steps follow, unchanged; the fake service below refuses the
+    // connection, so the comparison ends where the provider rules end.
+    service.store.resolveConnection(actor, plan.gateway, plan.accountId, input.connection_id ?? args.connection_id);
+    throw new Error('The fake service resolves no connection.');
+  }
+  return {providerValidationScope, providerValidationRequest, runProviderValidation, validateProviderRequest};
+})();
+
+// src/wire-contracts.ts as it was: the contract each gateway's requests resolved to.
+const oldWire = (() => {
+  const record = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  // Delegated Google routes (Tag Manager, GA4, Search Console, Business Profile): the route's request schema in
+  // generated/vendor-routes.json, whose $refs resolve in the pinned Discovery document it was generated from.
+  const delegatedGateways = new Set([
+    'gtm_native_action',
+    'ga4_native_action',
+    'google_search_console_native_action',
+    'google_business_native_action',
+  ]);
+  let delegatedIndex;
+  function delegatedRoute(plan) {
+    if (!delegatedIndex) {
+      delegatedIndex = new Map();
+      for (const r of pinnedJson('generated/vendor-routes.json').routes)
+        if (delegatedGateways.has(r.gateway) && r.requestSchema)
+          delegatedIndex.set(r.gateway + '/' + r.operation + '/' + r.action, r);
+    }
+    const action = plan.action.includes('/') ? plan.action : plan.action + '/';
+    const r = delegatedIndex.get(plan.gateway + '/' + action);
+    return r && r.method === plan.method ? r : undefined;
+  }
+  function discoveryContract(name, vendorMethod, root, label) {
+    const pinned = sealedVendorDocument(name);
+    if (!pinned) return {contract: name, vendor_method: vendorMethod};
+    const schemas = pinned.envelope.document.schemas ?? {};
+    return {
+      contract: name,
+      vendor_method: vendorMethod,
+      sealed: pinned.sealed,
+      document_sha256: pinned.envelope.document_sha256,
+      check: (body, readOnly) =>
+        root
+          ? discoveryIssues(schemas, root, body, {readOnly, label})
+          : record(body) && Object.keys(body).length
+            ? [{field: '', reason: 'The vendor method takes no request body'}]
+            : [],
+    };
+  }
+  /** Every method of a Discovery document, with a matcher of its flat path. */
+  const methodCache = new Map();
+  function discoveryMethods(name) {
+    if (!methodCache.has(name)) {
+      const document = sealedVendorDocument(name)?.envelope.document,
+        found = [];
+      const visit = r => {
+        for (const m of Object.values(r.methods ?? {})) {
+          const path = '/' + (document.servicePath ?? '') + (m.flatPath ?? m.path);
+          found.push({
+            method: m,
+            verb: m.httpMethod,
+            pattern: new RegExp(
+              '^' +
+                path
+                  .split(/(\{[^}]+\})/)
+                  .map(p => (p.startsWith('{') ? '[^/:]+' : p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+                  .join('') +
+                '$',
+            ),
+          });
+        }
+        for (const nested of Object.values(r.resources ?? {})) visit(nested);
+      };
+      if (document) visit(document);
+      methodCache.set(name, found);
+    }
+    return methodCache.get(name);
+  }
+  function dv360Contract(plan) {
+    // Media and asset uploads are multipart transports with their own contracts (src/transport.ts).
+    if (plan.path.startsWith('/upload/')) return undefined;
+    const matches = discoveryMethods('dv360-v4').filter(m => m.verb === plan.method && m.pattern.test(plan.path));
+    if (matches.length !== 1) return undefined;
+    const m = matches[0].method;
+    return discoveryContract('dv360-v4', m.id, m.request, 'Display & Video 360');
+  }
+
+  // Data Manager v1 (src/google-data-manager-routes.ts): its methods in the pinned Discovery document.
+  const dataManagerMethods = {
+    DATA_MANAGER_INGEST_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.ingest',
+    DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.remove',
+    DATA_MANAGER_INGEST_EVENTS: 'datamanager.events.ingest',
+    DATA_MANAGER_RETRIEVE_REQUEST_STATUS: 'datamanager.requestStatus.retrieve',
+  };
+  const dataManagerContractName = 'datamanager-v1';
+  /** The Data Manager contract of `plan`, from `envelope` (tests) or the pinned document. */
+  function dataManagerContract(plan, envelope) {
+    const vendorMethod = dataManagerMethods[plan.action];
+    if (plan.gateway !== 'google_ads_native_action' || plan.origin !== dataManagerOrigin || !vendorMethod)
+      return undefined;
+    const pinned = envelope
+      ? {
+          envelope,
+          sealed:
+            createHash('sha256').update(JSON.stringify(envelope.document)).digest('hex') === envelope.document_sha256,
+        }
+      : sealedVendorDocument(dataManagerContractName);
+    if (!pinned) return {contract: dataManagerContractName, vendor_method: vendorMethod};
+    const document = pinned.envelope.document,
+      found = [];
+    const visit = r => {
+      for (const m of Object.values(r.methods ?? {})) found.push(m);
+      for (const nested of Object.values(r.resources ?? {})) visit(nested);
+    };
+    visit(document);
+    const method = found.find(m => m.id === vendorMethod);
+    const schemas = document.schemas ?? {};
+    return {
+      contract: dataManagerContractName,
+      vendor_method: vendorMethod,
+      sealed: pinned.sealed,
+      document_sha256: pinned.envelope.document_sha256,
+      check: (body, readOnly) =>
+        method
+          ? method.request
+            ? discoveryIssues(schemas, method.request, body, {readOnly, label: 'Data Manager'})
+            : []
+          : [{field: '', reason: 'The pinned Data Manager document has no method ' + vendorMethod}],
+    };
+  }
+  // Microsoft Advertising: the pinned WSDL type model, moved verbatim to src/microsoft-wire-contract.ts without its
+  // gateway check, which stays here.
+  const microsoftContract = plan =>
+    plan.gateway !== 'microsoft_ads_native_action' ? undefined : microsoftWireContract(plan);
+  /** The contract of `plan`'s route, or undefined when no pinned request schema covers it. */
+  function resolveContract(plan) {
+    if (delegatedGateways.has(plan.gateway)) {
+      const r = delegatedRoute(plan);
+      return r ? discoveryContract(r.sourceFile, r.vendorMethod, r.requestSchema, 'Google') : undefined;
+    }
+    if (plan.gateway === 'dv360_native_action') return dv360Contract(plan);
+    if (plan.gateway === 'microsoft_ads_native_action') return microsoftContract(plan);
+    return dataManagerContract(plan);
+  }
+  return {resolveContract, dataManagerContract, dataManagerContractName, dataManagerMethods};
+})();
+
+// Wave 4c round 7 (w4c-arc6-tables): the four tables below moved too. Answers are compared as JSON text, so every key's
+// order counts, and a refusal is compared with its status and retryability.
+const text = value => JSON.stringify(value, (key, v) => (v instanceof RegExp ? {regexp: v.source, flags: v.flags} : v));
+const thrown = error => ({
+  name: error?.name,
+  code: error?.code,
+  message: error?.message,
+  details: error?.details,
+  status: error?.status,
+  retryable: error?.retryable,
+});
+const answer = fn => {
+  try {
+    return text({returns: fn()});
+  } catch (error) {
+    return text({throws: thrown(error)});
+  }
+};
+const settled = async fn => {
+  try {
+    const value = await fn();
+    return text({returns: value?.checked_at === undefined ? value : {...value, checked_at: typeof value.checked_at}});
+  } catch (error) {
+    return text({throws: thrown(error)});
+  }
+};
+/** A path a withdrawn method's pattern matches: its parameters filled in. */
+const samplePath = pattern => {
+  const path = pattern.source
+    .replace(/^\^/, '')
+    .replace(/\$$/, '')
+    .replace(/\[\^\\?\/:?\]\+/g, '1')
+    .replace(/\\d\+/g, '25')
+    .replace(/\\\//g, '/');
+  assert.ok(pattern.test(path), pattern.source + ' ' + path);
+  return path;
+};
+
+test('the withdrawn methods and unsupported aliases are the same rows in the same order, refused as before', () => {
+  assert.equal(text(retiredProviderActions), text(oldRetired.retiredProviderActions));
+  assert.equal(text(retiredGoogleAdsActions), text(oldRetired.retiredGoogleAdsActions));
+  assert.equal(text(unsupportedProviderAliases), text(oldRetired.unsupportedProviderAliases));
+  for (const row of [...retiredProviderActions, ...unsupportedProviderAliases]) {
+    assert.equal(Object.isFrozen(row), false, row.action);
+    assert.equal(Object.getPrototypeOf(row), Object.prototype, row.action);
+  }
+  for (const row of retiredProviderActions) {
+    assert.ok(row.path instanceof RegExp && !row.path.global && !row.path.sticky, row.action);
+    assert.equal(Object.isFrozen(row.path), false, row.action);
+  }
+  // The providers in the table's order, each one's facts frozen in its adapter.
+  assert.deepEqual(
+    retiredActionProviders.map(a => a.id),
+    ['x', 'gtm', 'google', 'linkedin'],
+  );
+  assert.deepEqual(
+    providerAdapters
+      .filter(a => a.retired)
+      .map(a => a.id)
+      .sort(),
+    ['google', 'gtm', 'linkedin', 'x'],
+  );
+  for (const adapter of retiredActionProviders) {
+    assert.ok(Object.isFrozen(adapter.retired), adapter.id);
+    for (const row of [...(adapter.retired.actions ?? []), ...(adapter.retired.aliases ?? [])])
+      assert.ok(Object.isFrozen(row), adapter.id + ' ' + row.action);
+  }
+  // Every gateway with: each withdrawn method's route under its action, another action and another verb; a longer
+  // path; each alias; an alias whose route is also withdrawn (the alias refuses first); and names an object answers.
+  const lifecycle = oldRetired.retiredProviderActions.find(r => r.action.includes('_customer_lifecycle_goal_'));
+  const plans = [
+    ...oldRetired.retiredProviderActions.flatMap(row => [
+      {action: row.action, method: row.method, path: samplePath(row.path)},
+      {action: 'another_action', method: row.method, path: samplePath(row.path)},
+      {action: row.action, method: row.method === 'GET' ? 'POST' : 'GET', path: samplePath(row.path)},
+      {action: row.action, method: row.method, path: samplePath(row.path) + '/more'},
+    ]),
+    ...oldRetired.unsupportedProviderAliases.map(row => ({
+      action: row.action,
+      method: 'POST',
+      path: '/v25/customers/1/campaigns:mutate',
+    })),
+    {action: 'CONFIGURE_CUSTOMER_LIFECYCLE_GOAL', method: lifecycle.method, path: samplePath(lifecycle.path)},
+    ...['constructor', '__proto__', 'toString', 'hasOwnProperty'].map(action => ({action, method: 'GET', path: '/'})),
+  ];
+  let compared = 0,
+    refused = 0;
+  for (const gateway of gateways)
+    for (const plan of plans) {
+      const p = {...plan, gateway},
+        label = gateway + ' ' + p.method + ' ' + p.path + ' ' + p.action;
+      compared++;
+      assert.equal(text(retiredProviderAction(p)), text(oldRetired.retiredProviderAction(p)), label);
+      const now = answer(() => assertProviderActionAvailable(p));
+      assert.equal(
+        now,
+        answer(() => oldRetired.assertProviderActionAvailable(p)),
+        label,
+      );
+      if (now.startsWith('{"throws"')) refused++;
+      assert.equal(
+        text(unsupportedProviderAlias(gateway, p.action)),
+        text(oldRetired.unsupportedProviderAlias(gateway, p.action)),
+        label,
+      );
+      assert.equal(
+        answer(() => assertProviderAliasAvailable(gateway, p.action)),
+        answer(() => oldRetired.assertProviderAliasAvailable(gateway, p.action)),
+        label,
+      );
+    }
+  assert.ok(compared > 1900, String(compared));
+  // The refusals compared: each withdrawn method under its own and another action, each alias on every route, and the
+  // alias whose route is also withdrawn.
+  assert.ok(
+    refused >= 2 * oldRetired.retiredProviderActions.length + oldRetired.unsupportedProviderAliases.length,
+    String(refused),
+  );
+});
+
+/** Plans of validation's two providers, and others, each under every gateway. */
+const validationShapes = [
+  {
+    method: 'POST',
+    path: '/v23/customers/123/campaignBudgets:mutate',
+    action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+    accountId: '123',
+    body: {operations: [{create: {name: 'B'}}], validateOnly: false},
+  },
+  {
+    method: 'POST',
+    path: '/v23/customers/123/campaigns:mutate',
+    action: 'CREATE_CAMPAIGN',
+    accountId: '123',
+    body: {validate_only: false, partial_failure: true},
+  },
+  {method: 'POST', path: '/v23/customers/abc/campaigns:mutate', action: 'CREATE_CAMPAIGN', accountId: 'abc', body: {}},
+  {
+    method: 'POST',
+    path: '/v23/customers/123/googleAds:search',
+    action: 'RUN_GAQL_QUERY',
+    accountId: '123',
+    body: {query: 'SELECT campaign.id FROM campaign'},
+  },
+  {method: 'GET', path: '/v23/customers/123/campaigns:mutate', action: 'CREATE_CAMPAIGN', accountId: '123'},
+  {
+    method: 'POST',
+    path: '/v26.0/act_123/campaigns',
+    action: 'meta_campaign_create',
+    accountId: '123',
+    body: {name: 'C', status: 'PAUSED'},
+  },
+  {
+    method: 'POST',
+    path: '/v26.0/act_123/adsets',
+    action: 'meta_adset_create',
+    accountId: '123',
+    body: {name: 'A', execution_options: ['include_recommendations']},
+  },
+  {method: 'POST', path: '/v26.0/act_123/ads', action: 'meta_ad_create', accountId: '123', body: {name: 'Ad'}},
+  {method: 'POST', path: '/v26.0/987', action: 'meta_campaign_id_update', accountId: '123', body: {status: 'PAUSED'}},
+  {
+    method: 'POST',
+    path: '/v26.0/987',
+    action: 'meta_ad_set_id_update',
+    accountId: '123',
+    body: {status: 'PAUSED', execution_options: null},
+  },
+  {method: 'POST', path: '/v26.0/987', action: 'meta_ad_id_update', accountId: '123', body: {status: 'PAUSED'}},
+  {method: 'POST', path: '/v26.0/abc', action: 'meta_campaign_id_update', accountId: '123', body: {}},
+  {method: 'DELETE', path: '/v26.0/987', action: 'meta_campaign_id_update', accountId: '123'},
+  {method: 'POST', path: '/v26.0/act_123/campaigns', action: 'meta_campaign_create', accountId: '123'},
+];
+const googleDetails = [
+  {
+    errors: [
+      {
+        location: {
+          fieldPathElements: [{fieldName: 'operations', index: 0}, {fieldName: 'create'}, {fieldName: 'name'}],
+        },
+      },
+      {location: {fieldPathElements: [{fieldName: 'operations', index: 1.5}, {fieldName: 'update'}]}},
+      {location: {fieldPathElements: []}},
+      {location: {fieldPathElements: 'operations'}},
+      {},
+      null,
+    ],
+  },
+  {
+    errors: [
+      {
+        location: {
+          fieldPathElements: [{fieldName: 'operations', index: 0}, {fieldName: 'create'}, {fieldName: 'name'}],
+        },
+      },
+    ],
+  },
+  {errors: 'none'},
+  null,
+  7,
+];
+const blame = [['name'], 'daily_budget', [['targeting', 'geo_locations'], 'countries'], 7, null, []];
+const manyDetails = Array.from({length: 60}, (_, i) => ({
+  errors: [{location: {fieldPathElements: [{fieldName: 'operations', index: i}]}}],
+}));
+const validationReplies = [
+  async () => ({status: 200, data: {results: []}}),
+  async () => ({status: 200, data: {success: false}}),
+  async () => ({status: 200, data: {success: true}}),
+  async () => ({status: 200, data: {success: 'false'}}),
+  async () => ({status: 200, data: null}),
+  async () => ({status: 200, data: 'accepted'}),
+  async () => ({status: 204}),
+  async () => ({status: 302, data: {}}),
+  async () => ({status: 200, data: {partialFailureError: {code: 3, details: googleDetails}}}),
+  async () => ({
+    status: 400,
+    data: {error: {code: 400, details: googleDetails, error_data: {blame_field_specs: blame}}},
+  }),
+  async () => ({status: 400, data: {details: googleDetails, error_data: {blame_field_specs: blame}}}),
+  async () => ({status: 200, data: {success: false, error_data: {blame_field_specs: blame}}}),
+  async () => ({status: 500, data: {error: {details: manyDetails}}}),
+  async () => {
+    throw new MirrorError('PLATFORM_ERROR', 'Refused.', {
+      http_status: 400,
+      request_id: 'req-1',
+      upstream: {error: {details: googleDetails, error_data: {blame_field_specs: blame}}},
+    });
+  },
+  async () => {
+    throw new MirrorError('UPSTREAM_ERROR', 'Refused.', {
+      http_status: 422,
+      upstream: {error: {error_data: {blame_field_specs: blame}}},
+    });
+  },
+  async () => {
+    throw new MirrorError('UPSTREAM_ERROR', 'Refused.', {
+      http_status: '400',
+      request_id: 7,
+      upstream: {details: googleDetails},
+    });
+  },
+  async () => {
+    throw new MirrorError('PLATFORM_ERROR', 'Refused.');
+  },
+  async () => {
+    throw new MirrorError('WRITE_OUTCOME_UNCERTAIN', 'Lost.', {http_status: 400});
+  },
+  async () => {
+    throw new MirrorError('WRITE_OUTCOME_UNCERTAIN', 'Lost.');
+  },
+  async () => {
+    throw new MirrorError('RATE_LIMITED', 'Slow down.', {http_status: 429}, 429, true);
+  },
+  async () => {
+    throw new Error('socket hang up');
+  },
+];
+/** A service with no connection: validation's checks before the connection run, and the connection is refused. */
+function unconnectedService(policy, plan, lookups) {
+  return {
+    store: {
+      assertActorActive() {},
+      resolveConnection(...args) {
+        lookups.push(args);
+        throw new Error('No connection in this test.');
+      },
+    },
+    policy,
+    registry: {tools: {get: () => ({inputSchema: {properties: {connection_id: {}}}})}, validate() {}},
+    compiler: {compile: () => structuredClone(plan)},
+    options: {},
+  };
+}
+
+test('provider validation builds, classifies and refuses every gateway’s requests as before', async () => {
+  assert.equal(providerValidationScope, oldValidation.providerValidationScope);
+  let requests = 0;
+  for (const gateway of gateways)
+    for (const shape of validationShapes) {
+      const plan = {...shape, gateway},
+        now = answer(() => providerValidationRequest(plan));
+      assert.equal(
+        now,
+        answer(() => oldValidation.providerValidationRequest(plan)),
+        gateway + ' ' + plan.path + ' ' + plan.action,
+      );
+      if (now !== '{}') requests++;
+    }
+  // Google's two mutate routes, and Meta's two creates, two edits and a create without a body, under their own gateway.
+  assert.equal(requests, 7);
+  let replies = 0;
+  for (const planGateway of gateways)
+    for (const requestGateway of new Set([
+      planGateway,
+      'google_ads_native_action',
+      'meta_native_action',
+      'unknown_native_action',
+    ]))
+      for (const send of validationReplies) {
+        const plan = {...validationShapes[0], gateway: planGateway},
+          request = {...plan, gateway: requestGateway};
+        replies++;
+        assert.equal(
+          await settled(() => runProviderValidation(plan, request, send)),
+          await settled(() => oldValidation.runProviderValidation(plan, request, send)),
+          planGateway + ' ' + requestGateway + ' ' + validationReplies.indexOf(send),
+        );
+      }
+  assert.ok(replies > 1900, String(replies));
+  // validateProviderRequest up to the connection: its gateway gate, the owner's opt-in, the provider's refusal of the
+  // plan, the write shape and the validation request, in that order, for every gateway's input and plan.
+  const actors = [
+    {tenantId: 'validation', userId: 'owner', role: 'admin'},
+    {tenantId: 'validation', userId: 'viewer', role: 'reader'},
+  ];
+  const policies = [
+    {allowWrites: false},
+    {allowWrites: false, providerValidation: true},
+    {allowWrites: false, providerValidation: 'true'},
+    {allowWrites: true},
+  ];
+  const cases = [
+    ...gateways.flatMap(gateway =>
+      validationShapes.flatMap(shape =>
+        policies.flatMap(policy => actors.map(actor => ({input: gateway, plan: {...shape, gateway}, policy, actor}))),
+      ),
+    ),
+    ...['google_ads_native_action', 'meta_native_action'].flatMap(input =>
+      gateways.flatMap(gateway =>
+        validationShapes.map(shape => ({input, plan: {...shape, gateway}, policy: policies[3], actor: actors[0]})),
+      ),
+    ),
+  ];
+  const outcomes = new Map();
+  for (const {input, plan, policy, actor} of cases) {
+    const lookups = {now: [], then: []},
+      args = {
+        input: {gateway: input, arguments: {connection_id: 'c1'}},
+        label: input + ' ' + plan.gateway + ' ' + plan.path,
+      };
+    const now = await settled(() =>
+      validateProviderRequest(unconnectedService(policy, plan, lookups.now), actor, args.input),
+    );
+    const then = await settled(() =>
+      oldValidation.validateProviderRequest(unconnectedService(policy, plan, lookups.then), actor, args.input),
+    );
+    assert.equal(now, then, args.label + ' ' + JSON.stringify(policy) + ' ' + actor.role);
+    assert.equal(text(lookups.now), text(lookups.then), args.label);
+    const kind = JSON.parse(now).throws?.code ?? JSON.parse(now).throws?.message ?? JSON.parse(now).returns?.status;
+    outcomes.set(kind, (outcomes.get(kind) ?? 0) + 1);
+  }
+  // Each refusal and the connection lookup were reached.
+  for (const kind of [
+    'unsupported',
+    'FORBIDDEN',
+    'LIVE_WRITES_DISABLED',
+    'INVALID_ARGUMENT',
+    'PROVIDER_VALIDATION_UNSUPPORTED',
+    'No connection in this test.',
+  ])
+    assert.ok(outcomes.get(kind) > 0, kind + ' ' + JSON.stringify([...outcomes]));
+});
+
+test('every gateway’s requests resolve to the same wire contract, checked the same way, as before', () => {
+  assert.equal(dataManagerContractName, oldWire.dataManagerContractName);
+  // Which kind each provider declares: the old dispatch, provider by provider.
+  assert.deepEqual(
+    Object.fromEntries(
+      registeredProviderHooks.filter(h => h.wireContract).map(h => [h.gateway, Object.keys(h.wireContract)]),
+    ),
+    {
+      gtm_native_action: ['routes'],
+      ga4_native_action: ['routes'],
+      google_search_console_native_action: ['routes'],
+      google_business_native_action: ['routes'],
+      dv360_native_action: ['discovery'],
+      microsoft_ads_native_action: ['model'],
+      google_ads_native_action: ['dataManager'],
+    },
+  );
+  for (const hooks of registeredProviderHooks.filter(h => h.wireContract))
+    assert.ok(
+      Object.isFrozen(hooks.wireContract) &&
+        Object.values(hooks.wireContract).every(v => typeof v === 'function' || Object.isFrozen(v)),
+      hooks.gateway,
+    );
+  const fill = path => String(path ?? '').replace(/\{[^}]+\}/g, '1');
+  const routes = pinnedJson('generated/vendor-routes.json').routes;
+  const dv360 = sealedVendorDocument('dv360-v4')?.envelope.document;
+  const methods = [];
+  const visit = r => {
+    for (const m of Object.values(r.methods ?? {})) methods.push(m);
+    for (const nested of Object.values(r.resources ?? {})) visit(nested);
+  };
+  if (dv360) visit(dv360);
+  const microsoft = pinnedJson('generated/microsoft-contracts.json');
+  const dataManagerActions = [
+    ...Object.keys(oldWire.dataManagerMethods),
+    'DATA_MANAGER_UNKNOWN',
+    'constructor',
+    'toString',
+    '__proto__',
+  ];
+  const bases = [
+    ...routes.map(r => ({
+      action: r.action ? r.operation + '/' + r.action : r.operation,
+      method: r.method,
+      path: fill(r.path),
+      origin: r.origin,
+      readOnly: r.readOnly === true,
+    })),
+    ...methods.flatMap(m => [
+      {
+        action: m.id,
+        method: m.httpMethod,
+        path: '/' + (dv360.servicePath ?? '') + fill(m.flatPath ?? m.path),
+        readOnly: m.httpMethod === 'GET',
+      },
+      {action: m.id, method: m.httpMethod, path: '/upload/' + fill(m.flatPath ?? m.path), readOnly: false},
+    ]),
+    ...Object.values(microsoft.services)
+      .flatMap(s => Object.keys(s.operations))
+      .map(operation => ({
+        action: operation,
+        method: 'POST',
+        path: '/' + operation,
+        readOnly: operation.startsWith('Get'),
+      })),
+    ...dataManagerActions.flatMap(action =>
+      [dataManagerOrigin, 'https://googleads.googleapis.com', undefined].map(origin => ({
+        action,
+        method: 'POST',
+        path: '/v1/audienceMembers:ingest',
+        origin,
+        readOnly: false,
+      })),
+    ),
+  ];
+  assert.ok(routes.length > 400 && methods.length > 100, routes.length + ' ' + methods.length);
+  const original = wireContractResolver.resolve,
+    resolved = new Map();
+  let compared = 0;
+  try {
+    for (const base of bases)
+      for (const body of [{bogus_field: 1}, {}])
+        for (const gateway of gateways) {
+          const plan = {...base, gateway, body};
+          const now = text(wireContractCheck(plan, 'shadow'));
+          wireContractResolver.resolve = oldWire.resolveContract;
+          const then = text(wireContractCheck(plan, 'shadow'));
+          wireContractResolver.resolve = original;
+          assert.equal(now, then, gateway + ' ' + base.method + ' ' + base.path + ' ' + base.action);
+          compared++;
+          if (now !== undefined) resolved.set(gateway, (resolved.get(gateway) ?? 0) + 1);
+        }
+  } finally {
+    wireContractResolver.resolve = original;
+  }
+  assert.ok(compared > 50000, String(compared));
+  assert.deepEqual(
+    [...resolved.keys()].sort(),
+    [
+      'dv360_native_action',
+      'ga4_native_action',
+      'google_ads_native_action',
+      'google_business_native_action',
+      'google_search_console_native_action',
+      'gtm_native_action',
+      'microsoft_ads_native_action',
+    ].filter(gateway => gateways.includes(gateway)),
+  );
+  // The Data Manager contract from a test's own envelope, sealed or not, and from the pinned document.
+  const document = {
+    resources: {
+      audienceMembers: {
+        methods: {
+          ingest: {id: 'datamanager.audienceMembers.ingest', request: {$ref: 'Ingest'}},
+          remove: {id: 'datamanager.audienceMembers.remove'},
+        },
+      },
+    },
+    schemas: {
+      Ingest: {
+        id: 'Ingest',
+        type: 'object',
+        properties: {destinations: {type: 'array', items: {type: 'string'}}, validateOnly: {type: 'boolean'}},
+      },
+    },
+  };
+  const envelopes = [
+    {document, document_sha256: createHash('sha256').update(JSON.stringify(document)).digest('hex')},
+    {document, document_sha256: 'f'.repeat(64)},
+    undefined,
+  ];
+  const view = r =>
+    text(
+      r && {
+        ...r,
+        check: r.check && [
+          r.check({destinations: ['a'], validateOnly: true}, false),
+          r.check({bogus: 1}, true),
+          r.check({destinations: [1]}, false),
+        ],
+      },
+    );
+  for (const envelope of envelopes)
+    for (const action of dataManagerActions)
+      for (const origin of [dataManagerOrigin, 'https://googleads.googleapis.com', undefined])
+        for (const gateway of gateways) {
+          const plan = {gateway, action, origin, method: 'POST', path: '/v1/audienceMembers:ingest', readOnly: false};
+          assert.equal(
+            view(dataManagerContract(plan, envelope)),
+            view(oldWire.dataManagerContract(plan, envelope)),
+            gateway + ' ' + action,
+          );
+        }
+});
+
+test('the Google Ads request query reads the same audit rows, through the same index, as the query that named it', () => {
+  // src/audit-repository.ts as it was: its query named the gateway twice; the gateway is bound to it now.
+  const old =
+    "SELECT request_id, json_extract(event,'$.request.action') AS action FROM audit WHERE tenant_id=? AND created_at>=? AND instr(event,'google_ads_native_action')>0 AND json_extract(event,'$.request.gateway')='google_ads_native_action' ORDER BY seq LIMIT ?";
+  const store = new Store(':memory:', Buffer.alloc(32, 41).toString('base64'));
+  const events = [
+    ...gateways.map(gateway => ({event: 'native_request', request: {gateway, action: 'ACTION_OF_' + gateway}})),
+    {event: 'native_request', request: {gateway: 'google_ads_native_action'}},
+    {event: 'native_request', request: {gateway: 'google_ads_native_action', action: 7}},
+    {event: 'native_request', request: {gateway: 'google_ads_native_action', action: {nested: true}}},
+    {event: 'native_request', request: {gateway: 'meta_native_action', action: 'A', note: 'google_ads_native_action'}},
+    {event: 'native_request', gateway: 'google_ads_native_action', request: {action: 'B'}},
+    {event: 'native_request', request: {gateway: 'GOOGLE_ADS_NATIVE_ACTION', action: 'C'}},
+    {event: 'native_request', request: {gateway: 'google_ads_native_action ', action: 'D'}},
+    {event: 'native_request', request: [{gateway: 'google_ads_native_action'}]},
+    'google_ads_native_action',
+    {event: 'native_request', request: {gateway: 'google_ads_native_action', action: 'LAST'}},
+  ];
+  for (const tenant of ['first', 'second'])
+    events.forEach((event, i) => store.appendAudit(tenant, tenant + '-' + i, event));
+  let rows = 0;
+  for (const tenant of ['first', 'second', 'none'])
+    for (const since of [0, Date.now() - 600000, Date.now() + 600000])
+      for (const limit of [1, 2, 3, 1000]) {
+        const now = googleAdsRequestActions(store, tenant, since, limit);
+        assert.equal(
+          text(now),
+          text(store.sql().prepare(old).all(tenant, since, limit)),
+          tenant + ' ' + since + ' ' + limit,
+        );
+        rows += now.length;
+      }
+  assert.ok(rows > 0);
+  // The same query plan: the gateway, bound or named, reaches no index.
+  const prepared = [];
+  googleAdsRequestActions(
+    {
+      sql: () => ({
+        prepare: sql => {
+          const statement = store.sql().prepare(sql);
+          return {all: (...params) => (prepared.push({sql, params}), statement.all(...params))};
+        },
+      }),
+    },
+    'first',
+    0,
+    1000,
+  );
+  const plan = (sql, params) =>
+    store
+      .sql()
+      .prepare('EXPLAIN QUERY PLAN ' + sql)
+      .all(...params)
+      .map(row => row.detail);
+  assert.equal(prepared.length, 1);
+  assert.deepEqual(plan(prepared[0].sql, prepared[0].params), plan(old, ['first', 0, 1000]));
 });

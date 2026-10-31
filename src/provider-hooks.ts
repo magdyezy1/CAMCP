@@ -117,6 +117,12 @@ export const encodedBodyProviders: readonly ProviderHooks[] = tableOrder(
   ['dv360', 'linkedin', 'x'],
   hooks => hooks.parameters?.encodedBody,
 );
+/** src/provider-validation.ts: the providers whose mutations it validates. */
+export const providerValidationProviders: readonly ProviderHooks[] = tableOrder(
+  'provider validation',
+  ['google', 'meta'],
+  hooks => hooks.validation,
+);
 /**
  * src/provider-jobs.ts providerJobContracts, whose rows follow the job families' order (a provider's families need not
  * be adjacent): each family with the hooks entry that declares it. Checked at load like the provider orders.

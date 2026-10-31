@@ -25,6 +25,8 @@ import {recordedWriteGrant} from './provider-grants.js';
 import {fail} from './write-common.js';
 import {microsoftLocationsUnpinned} from './microsoft-location-pin.js';
 import {nameCandidates, searchTerm} from './name-candidates.js';
+// Wave 4c round 6 (w4c-arc6-tables): its wire contract, the pinned WSDL type model.
+import {microsoftWireContract} from './microsoft-wire-contract.js';
 
 /**
  * Wave 4c (transport and catalog): Microsoft's part of the catalog registry (src/catalog.ts). Its tool and catalog are
@@ -237,6 +239,8 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
       pipeline: true as const,
     }),
   ]),
+  // Its wire contract (src/wire-contracts.ts): the operation's request element of the pinned WSDL type model.
+  wireContract: Object.freeze({model: microsoftWireContract}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.access (src/write-review.ts).

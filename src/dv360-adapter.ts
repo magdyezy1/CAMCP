@@ -193,6 +193,9 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
       retrieval: 'The original operation is read until done; its files are then downloaded with media.download.',
     },
   ]),
+  // Its wire contract (src/wire-contracts.ts): the pinned v4 Discovery method with the request's verb and path; media
+  // and asset uploads are multipart transports with their own contracts.
+  wireContract: deepFrozen({discovery: {document: 'dv360-v4', label: 'Display & Video 360', uploads: '/upload/'}}),
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

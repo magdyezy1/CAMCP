@@ -29,6 +29,7 @@ import type {ToolCall} from './workspace-core.js';
 import type {MirrorService} from './service.js';
 // Wave 4c round 6 (w4c-arc6-tables): the shared tables' row types.
 import type {Alternative} from './unavailable-operations.js';
+import type {Resolved} from './wire-contracts.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -866,6 +867,10 @@ export interface ProviderHooks {
   readonly parameters?: ParameterFacts;
   /** Its provider job families and what each guarantees (src/provider-jobs.ts providerJobContracts). */
   readonly jobs?: readonly ProviderJobFacts[];
+  /** Its own validation of a mutation, which applies nothing (src/provider-validation.ts, WRT-06). */
+  readonly validation?: ProviderValidation;
+  /** The pinned contract its requests are checked against before they are sent (src/wire-contracts.ts, PRV-05). */
+  readonly wireContract?: WireContractFacts;
 }
 
 export interface ProviderAdapter {
@@ -905,6 +910,8 @@ export interface ProviderAdapter {
   readonly renewal?: ProviderRenewal;
   /** Its captured schema lacks LIST_ACTIONS, but AMCP lists its actions from its catalog (DV360, MCP-05; wave 4c). */
   readonly listsActions?: true;
+  /** Wave 4c round 6 (w4c-arc6-tables): its withdrawn methods and unsupported aliases (src/retired-provider-actions.ts). */
+  readonly retired?: RetiredActions;
 }
 
 /**
@@ -1445,4 +1452,75 @@ export interface ProviderJobFacts {
   readonly retrieval: string;
   /** The reporting pipeline's jobs (Microsoft's): no reviewed family creates them, so no report-job grant applies. */
   readonly pipeline?: true;
+}
+/**
+ * A provider's validation of a mutation (src/provider-validation.ts, WRT-06): the request that has the provider check it
+ * without applying it, and what the provider's refusal says. The shared module keeps who may send it, the audit, the
+ * classification of the reply and every refusal of its own.
+ */
+export interface ProviderValidation {
+  /** The validation request of `plan`, or undefined when its route has no qualified validation path. */
+  request(plan: CompiledRequest): CompiledRequest | undefined;
+  /** The request fields a refusal names, in its order: `error` is the reply's error, or the reply, of any type. */
+  fieldPaths(error: JsonObject): string[];
+  /** A reply under 300 that still refuses the request (Meta's `success: false`). */
+  unsuccessful?(data: JsonObject): boolean;
+  /** Its refusal of a request before it is checked (Meta's caller-set execution_options), or undefined. */
+  refusal?(plan: CompiledRequest): MirrorError | undefined;
+}
+/**
+ * A provider's withdrawn methods and unsupported aliases (src/retired-provider-actions.ts), which AMCP refuses and never
+ * executes, whatever a historical catalog or Discovery mapping says. A withdrawn method's refusal says why, what to use
+ * instead and when the withdrawal was checked: its row's own words, or else the provider's below (checked at load).
+ */
+export interface RetiredActions {
+  readonly actions?: readonly RetiredActionFacts[];
+  readonly aliases?: readonly UnsupportedAliasFacts[];
+  readonly checked?: string;
+  readonly reason?: string;
+  readonly replacement?: string;
+}
+/** A withdrawn method, matched by its method and path. */
+export interface RetiredActionFacts {
+  readonly action: string;
+  readonly method: string;
+  /** Never global or sticky, so it keeps no position between requests. */
+  readonly path: RegExp;
+  readonly source: string;
+  /** When the provider's documentation recorded the withdrawal. */
+  readonly updated: string;
+  readonly checked?: string;
+  readonly reason?: string;
+  readonly replacement?: string;
+}
+/** A legacy action name that matches no operation of the provider's current version; the alias is matched, not its route. */
+export interface UnsupportedAliasFacts {
+  readonly action: string;
+  readonly version: string;
+  readonly source: string;
+  readonly checked_at: string;
+  readonly reason: string;
+  readonly replacement: string;
+}
+/**
+ * The pinned vendor contract a provider's requests are checked against (src/wire-contracts.ts, PRV-05): exactly one of
+ * these kinds, checked at load. The wire contracts keep the modes, the seals, the checks and every refusal.
+ */
+export interface WireContractFacts {
+  /** Its routes' request schemas in generated/vendor-routes.json, resolved in their pinned Discovery documents. */
+  readonly routes?: {readonly label: string};
+  /**
+   * The pinned Discovery document whose one method with the request's verb and path is its contract; a path under
+   * `uploads` is a multipart upload with its own contract (src/transport.ts) and is not checked.
+   */
+  readonly discovery?: {readonly document: string; readonly label: string; readonly uploads: string};
+  /** Its own contract model, which resolves a request's contract (Microsoft's WSDL types). */
+  model?(plan: CompiledRequest): Resolved | undefined;
+  /** Its Data Manager routes (Google Ads): their origin, the pinned document and its method of each action. */
+  readonly dataManager?: {
+    readonly origin: string;
+    readonly document: string;
+    readonly label: string;
+    readonly methods: Readonly<Record<string, string>>;
+  };
 }

@@ -6,6 +6,7 @@ import {assertWriteShape} from './write-shape.js';
 import {assertAccountWrite} from './write-access.js';
 import {redact} from './security.js';
 import {audit, fingerprint, validate, writer} from './workspace-core.js';
+import {providerHooks, providerValidationProviders} from './provider-hooks.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -16,48 +17,21 @@ import type {TransportResult} from './transport.js';
  * it does not permit execute. It runs where reviewed writes are allowed or where the deployment owner opted in
  * (AMCP_PROVIDER_VALIDATION=true, owner decision D18), always needs the account's write grant, and is audited before
  * it is sent.
+ *
+ * Each provider declares its validation request and what its refusal says (hooks `validation`, ARC-01 wave 4c round 6:
+ * src/google-ads-adapter.ts, src/meta-adapter.ts); this module keeps every rule and its order.
  */
-/** Meta's campaign and ad set edits, by compiled (canonical) action: the meta_campaign_update and meta_adset_update
- * aliases compile to these. Creates are recognized by their account-edge path. */
-const metaValidatedEdits = new Set(['meta_campaign_id_update', 'meta_ad_set_id_update']);
 export const providerValidationScope =
   'Google Ads mutate requests, and Meta campaign and ad set creates and edits (meta_campaign_create, meta_adset_create, meta_campaign_id_update, meta_ad_set_id_update)';
 /** The provider's own validation of `plan`, or undefined when the route has no qualified validation path. */
 export function providerValidationRequest(plan: CompiledRequest): CompiledRequest | undefined {
-  if (
-    plan.gateway === 'google_ads_native_action' &&
-    plan.method === 'POST' &&
-    /^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path)
-  ) {
-    const body: JsonObject = {...(plan.body as JsonObject), validate_only: true};
-    delete body.validateOnly;
-    return {...plan, body};
-  }
-  if (
-    plan.gateway === 'meta_native_action' &&
-    plan.method === 'POST' &&
-    (/^\/v[^/]+\/act_\d+\/(?:campaigns|adsets)$/.test(plan.path) ||
-      (metaValidatedEdits.has(plan.action) && /^\/v[^/]+\/\d+$/.test(plan.path)))
-  )
-    return {...plan, body: {...(plan.body as JsonObject), execution_options: ['validate_only']}};
-  return undefined;
+  return providerHooks(plan.gateway)?.validation?.request(plan);
 }
 /** Where the provider refused the request: field paths only, which name the request's own fields. */
 function fieldPaths(gateway: string, data: unknown): string[] {
   const paths = new Set<string>();
   const error = (data as JsonObject)?.error ?? data;
-  if (gateway === 'google_ads_native_action')
-    for (const detail of Array.isArray(error?.details) ? error.details : [])
-      for (const e of Array.isArray(detail?.errors) ? detail.errors : []) {
-        const path = (Array.isArray(e?.location?.fieldPathElements) ? e.location.fieldPathElements : [])
-          .map((p: JsonObject) => String(p.fieldName) + (Number.isInteger(p.index) ? '[' + p.index + ']' : ''))
-          .join('.');
-        if (path) paths.add(path);
-      }
-  if (gateway === 'meta_native_action') {
-    const blame = error?.error_data?.blame_field_specs;
-    for (const spec of Array.isArray(blame) ? blame : []) paths.add([spec].flat().map(String).join('.'));
-  }
+  for (const path of providerHooks(gateway)?.validation?.fieldPaths(error) ?? []) paths.add(path);
   return [...paths].slice(0, 50);
 }
 export type ProviderCheck =
@@ -110,7 +84,7 @@ export async function runProviderValidation(
     response.status >= 300 ||
     data?.error ||
     data?.partialFailureError ||
-    (request.gateway === 'meta_native_action' && data?.success === false)
+    providerHooks(request.gateway)?.validation?.unsuccessful?.(data)
   )
     return {
       status: 'provider_rejected',
@@ -127,7 +101,7 @@ export async function validateProviderRequest(
   input: JsonObject,
 ): Promise<JsonObject> {
   writer(service.store, actor);
-  if (!['google_ads_native_action', 'meta_native_action'].includes(input.gateway))
+  if (!providerValidationProviders.some(hooks => hooks.gateway === input.gateway))
     return {
       status: 'unsupported',
       executed: false,
@@ -146,12 +120,8 @@ export async function validateProviderRequest(
   validate(args ?? {}, Object.keys(service.registry.tools.get(input.gateway)!.inputSchema.properties ?? {}));
   service.registry.validate(input.gateway, args, service.options);
   const plan = service.compiler.compile(input.gateway, args, service.options);
-  if (plan.gateway === 'meta_native_action' && (plan.body as JsonObject)?.execution_options !== undefined)
-    throw new MirrorError(
-      'INVALID_ARGUMENT',
-      'Omit execution_options: provider validation adds validate_only itself.',
-      {field: 'execution_options'},
-    );
+  const refused = providerHooks(plan.gateway)?.validation?.refusal?.(plan);
+  if (refused) throw refused;
   assertWriteShape(plan);
   const request = providerValidationRequest(plan);
   if (!request)

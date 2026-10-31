@@ -263,4 +263,6 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
       ],
     },
   }),
+  // Its wire contract (src/wire-contracts.ts): each route's request schema in its pinned Google Discovery document.
+  wireContract: Object.freeze({routes: Object.freeze({label: 'Google'})}),
 });

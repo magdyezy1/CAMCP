@@ -139,4 +139,6 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
       retrieval: 'Bounded pages of the original report task.',
     }),
   ]),
+  // Its wire contract (src/wire-contracts.ts): each route's request schema in its pinned Google Discovery document.
+  wireContract: Object.freeze({routes: Object.freeze({label: 'Google'})}),
 });

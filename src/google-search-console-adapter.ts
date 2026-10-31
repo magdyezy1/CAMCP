@@ -135,4 +135,6 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
   // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables (src/provider-hooks.ts orders them). Its connection
   // operation, whose OAuth steps run on the website (src/unavailable-operations.ts, src/connection-diagnostics.ts).
   connection: Object.freeze({operation: 'gsc_connection_ops', provider: 'Search Console'}),
+  // Its wire contract (src/wire-contracts.ts): each route's request schema in its pinned Google Discovery document.
+  wireContract: Object.freeze({routes: Object.freeze({label: 'Google'})}),
 });

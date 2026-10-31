@@ -262,8 +262,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/woocommerce-adapter.ts, none with an owned reason: the moved rows are facts, and the one refusal a moved rule
   // raises (LinkedIn's body format, from src/parameters.ts) is constructed in src/linkedin-adapter.ts, which owns
   // reasons: 739 files, as many with reasons, the same reasons.
-  assert.equal(files.length, 739);
-  assert.equal(selected.filter(row => row.messages.size).length, 285);
+  // Its wire contracts add src/discovery-issues.ts, the Discovery check, whose refusals name their label (it owns no
+  // reason), and src/microsoft-wire-contract.ts, to which Microsoft's bounds refusal moves from src/wire-contracts.ts
+  // (which keeps its others); its provider validation moves Meta's execution_options refusal from
+  // src/provider-validation.ts (which keeps its others) to src/meta-adapter.ts, which owns reasons: 741 files, one more
+  // with reasons, the same reasons.
+  assert.equal(files.length, 741);
+  assert.equal(selected.filter(row => row.messages.size).length, 286);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
