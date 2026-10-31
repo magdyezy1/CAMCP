@@ -6,9 +6,9 @@ import type {Actor} from './types.js';
  * - a website account session, and the OAuth keys and connector tokens that account authorized, carry ownerUserId:
  *   that account is the person;
  * - a password door signs in as `workspace-admin` (the administrator's) or `workspace-test` (the reviewers'), each to
- *   its own workspace; the OAuth keys and connector tokens approved from a door carry no ownerUserId, or the door's
- *   subject: their person is the door's. This principal is derived, never written to credential_owners, which holds
- *   account IDs that assertActorActive checks;
+ *   its own workspace; the OAuth keys and connector tokens approved from the administrator's door carry no
+ *   ownerUserId, and those approved from the reviewers' carry its subject, which credential_owners records so that a
+ *   new reviewer password revokes them (assertActorActive checks no account for it): their person is the door's;
  * - any other key (a local or command-line key) is its own person.
  * Write reviews stay bound to the credential that prepared them, `user_id` stays in records and audit, and the
  * administrator exemption at each check is unchanged: this decides who owns a person-scoped record, nothing else.
