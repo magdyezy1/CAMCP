@@ -935,7 +935,7 @@ test('the access line names the person’s role and the deployment, not the depl
     [{authenticated: false}, 'Not signed in'],
     [
       {authenticated: true, testAccount: true, workspaceRole: 'owner', writesEnabled: true},
-      'Test workspace · read access',
+      'Test account · Read + reviewed writes',
     ],
     [{authenticated: true, workspaceRole: 'viewer', writesEnabled: true}, 'Viewer · read-only access'],
     [{authenticated: true, workspaceRole: 'operator', writesEnabled: true}, 'Operator · read + reviewed writes'],

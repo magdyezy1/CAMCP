@@ -385,10 +385,10 @@ export function assertCapOverrideOwner(
     403,
   );
 }
-/** Who may see and approve reviews on the website: an active member who can change things, never a test account. */
+/** Who may see and approve reviews: active members and reviewers with write-capable access. */
 function assertApprover(store: Store, actor: Actor): void {
   store.assertActorActive(actor);
-  if (actor.role === 'reader' || actor.membershipRole === 'viewer' || actor.testAccount === true)
+  if (actor.role === 'reader' || actor.membershipRole === 'viewer')
     throw new MirrorError('FORBIDDEN', 'Only a member who can approve changes may open or approve reviews.', {}, 403);
 }
 /** A member's name for the approval page, when the workspace keeps one; the person's ID otherwise. */

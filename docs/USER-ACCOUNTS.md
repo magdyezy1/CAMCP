@@ -74,7 +74,7 @@ People with two-step verification can create ten new recovery codes in Account (
 
 Report-file downloads (Overview CSV and source evidence, PDF and Excel packs, retained report files and detailed evidence workbooks) need an operator role or higher. The workspace owner can let viewers download them too, from Settings → Report file downloads (`POST /api/export-policy`, stored as `account_settings/exports`, audited as `export_policy_saved`); it is off by default. Viewers always read the same reports on screen, and the website hides the download controls they cannot use (SEC-05, review 2026-10-08).
 
-Every active member may authorize an AI client or create a connector token for themselves (owner decision D16, review 2026-10-08). The access granted is capped by the member's role, and the consent screen offers read-only access to everyone. A member sees and revokes their own tokens and clients; owners and administrators revoke any of the workspace. Reviewer test accounts cannot connect AI clients.
+Every active member may authorize an AI client or create a connector token for themselves (owner decision D16, review 2026-10-08). The access granted is capped by the member's role, and the consent screen offers read-only access to everyone. A member sees and revokes their own tokens and clients; owners and administrators revoke any of the workspace. Reviewer test accounts connect AI clients in their test workspace, with operator access at most ([test accounts](TEST-ACCOUNTS.md)).
 
 ### Clients in one workspace: working client and client access sets
 

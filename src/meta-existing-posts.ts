@@ -67,6 +67,22 @@ export function metaPostPermalink(value: unknown): Lookup {
   }
   if (!['facebook.com', 'www.facebook.com', 'm.facebook.com', 'mbasic.facebook.com'].includes(u.hostname))
     fail('Only canonical Facebook and Instagram post permalinks are supported.');
+  // Meta also returns media permalinks for Page-owned posts. Their media IDs
+  // need not equal the Page post's story ID; ownership still comes from `from`.
+  const reel = /^\/reel\/([1-9][0-9]{0,39})\/?$/.exec(u.pathname);
+  if (reel)
+    return {
+      network: 'facebook',
+      key: 'media:reel:' + reel[1],
+      url: 'https://www.facebook.com/reel/' + reel[1] + '/',
+    };
+  const photo = u.searchParams.getAll('fbid');
+  if (['/photo', '/photo/', '/photo.php'].includes(u.pathname) && photo.length === 1 && id(photo[0]))
+    return {
+      network: 'facebook',
+      key: 'media:photo:' + photo[0],
+      url: 'https://www.facebook.com/photo/?fbid=' + photo[0],
+    };
   const story = u.searchParams.getAll('story_fbid'),
     page = u.searchParams.getAll('id');
   if (
@@ -485,6 +501,7 @@ export async function fetchMetaExistingPosts(
           );
         const numericFacebookMatch =
           v.lookup?.network === 'facebook' &&
+          (v.lookup.key.startsWith('story:') || v.lookup.key.startsWith('path:')) &&
           id(v.lookup.key.split(':').at(-1)) &&
           row.id === v.page + '_' + v.lookup.key.split(':').at(-1);
         if (!v.lookup) rows.push(row);

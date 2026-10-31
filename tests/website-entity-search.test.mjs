@@ -147,7 +147,7 @@ for (const locale of ['en', 'ar'])
     },
   );
 
-test('a newer query wins over an older answer, and a short query or a test account never searches', async () => {
+test('a newer query wins, short queries stay local, and reviewers can search their workspace', async () => {
   const f = fixture();
   let release;
   f.respond(({q}) => (q === 'acme' ? new Promise(r => (release = () => r(found))) : Promise.resolve({results: []})));
@@ -164,11 +164,11 @@ test('a newer query wins over an older answer, and a short query or a test accou
   f.type('a');
   assert.doesNotMatch(f.results(), /command-entities/);
   assert.equal(f.timers.length, before);
-  // A test account keeps the page list only: its areas are limited, and the route refuses it.
+  // A reviewer can search product entities inside the isolated workspace.
   const reviewer = fixture('en', {authenticated: true, id: 'reviewer', testAccount: true, workspaceRole: 'owner'});
   reviewer.type('acme');
-  assert.doesNotMatch(reviewer.results(), /command-entities/);
-  assert.equal(reviewer.timers.length, 0);
+  assert.match(reviewer.results(), /command-entities/);
+  assert.equal(reviewer.timers.length, 1);
   assert.equal(reviewer.requests.length, 0);
   // Signed out: no search either.
   const visitor = fixture('en', {authenticated: false});

@@ -628,6 +628,100 @@ test('canonical permalink conversion strips tracking and refuses URL ambiguity',
   assert.equal(metaPostPermalink('https://www.instagram.com/reel/A-b_c/').key, 'A-b_c');
   assert.throws(() => metaPostPermalink('https://www.facebook.com/story.php?id=77&id=88&story_fbid=1'));
 });
+
+test('Page Reel and photo permalinks survive scoped reads without leaking tracking parameters', async () => {
+  for (const [permalink_url, expected] of [
+    ['https://www.facebook.com/reel/901/?access_token=synthetic-private-link', 'https://www.facebook.com/reel/901/'],
+    [
+      'https://m.facebook.com/photo.php?fbid=902&set=a.77&access_token=synthetic-private-link',
+      'https://www.facebook.com/photo/?fbid=902',
+    ],
+    ['https://www.facebook.com/photo/?fbid=903&set=a.77&type=3', 'https://www.facebook.com/photo/?fbid=903'],
+  ]) {
+    const f = fixture();
+    try {
+      f.hook(u => (u.pathname.endsWith('/posts') ? {data: [{...fb(), permalink_url}]} : undefined));
+      const r = await f.call();
+      assert.equal(r.success, true, JSON.stringify(r));
+      assert.equal(r.data.posts[0].permalink, expected);
+      assert.deepEqual(r.data.posts[0].creative_reference, {object_story_id: '77_1'});
+      assert.ok(!JSON.stringify(r).includes('synthetic-private-link'));
+      assert.ok(!JSON.stringify(f.store.audit(actor.tenantId)).includes('synthetic-private-link'));
+      assert.ok(f.calls.every(c => c.method === 'GET' && !c.query.access_token));
+      assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM resource_ownership').get()!.n, 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('media permalink lookup matches the owned media link rather than an unrelated story ID', async () => {
+  for (const [url, wrong, right] of [
+    [
+      'https://www.facebook.com/reel/1/',
+      'https://www.facebook.com/reel/9/',
+      'https://m.facebook.com/reel/1/?tracking=ignored',
+    ],
+    [
+      'https://www.facebook.com/photo.php?fbid=1',
+      'https://www.facebook.com/photo/?fbid=9',
+      'https://www.facebook.com/photo/?fbid=1&set=a.77',
+    ],
+  ]) {
+    const f = fixture();
+    try {
+      f.hook(u =>
+        u.pathname.endsWith('/posts')
+          ? {
+              data: [
+                {...fb('1'), permalink_url: wrong},
+                {...fb('2'), permalink_url: right},
+              ],
+            }
+          : undefined,
+      );
+      const r = await f.call({action: 'LOOKUP_POST_BY_URL', url});
+      assert.equal(r.success, true, JSON.stringify(r));
+      assert.equal(r.data.found, true);
+      assert.equal(r.data.posts[0].id, '77_2');
+      assert.equal(f.calls.length, 3);
+      assert.ok(f.calls.every(c => !c.path.includes('/reel/') && !c.path.includes('/photo')));
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('new media permalink formats retain URL and owner refusal checks', async () => {
+  for (const url of [
+    'https://www.facebook.com/photo/?fbid=1&fbid=2',
+    'https://www.facebook.com/photo/?fbid=not-an-id',
+    'https://www.facebook.com/photo/?fbid=1%26access_token%3Dsynthetic-private-link',
+    'https://www.facebook.com/reel/1/extra',
+    'https://www.facebook.com/reel/1/#synthetic-private-link',
+    'https://www.facebook.com:444/reel/1/',
+    'https://www.facebook.com@evil.invalid/reel/1/',
+    'https://facebook.com.evil.invalid/photo/?fbid=1',
+    'https://www.facebook.com/share/r/synthetic-private-link',
+  ])
+    assert.throws(() => metaPostPermalink(url), {code: 'INVALID_META_POST_INPUT'}, url);
+  for (const [row, code] of [
+    [{...fb(), permalink_url: 'https://evil.invalid/reel/1/'}, 'META_POST_RESPONSE_INVALID'],
+    [{...fb(), permalink_url: 'https://www.instagram.com/reel/Code1/'}, 'META_POST_RESPONSE_INVALID'],
+    [{...fb(), permalink_url: 'https://www.facebook.com/reel/1/', from: {id: '99'}}, 'ACCOUNT_SCOPE_MISMATCH'],
+  ] as const) {
+    const f = fixture();
+    try {
+      f.hook(u => (u.pathname.endsWith('/posts') ? {data: [row]} : undefined));
+      const r = await f.call();
+      assert.equal(r.success, false);
+      assert.equal(r.error.code, code);
+      assert.equal(r.data, undefined);
+    } finally {
+      f.store.close();
+    }
+  }
+});
 test('provider read timeout bounds are checked with a monotonic clock', async t => {
   const f = fixture();
   try {

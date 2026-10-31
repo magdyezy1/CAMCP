@@ -182,6 +182,36 @@ test('WRT-09 website_approval: execute without a website approval is refused wit
   }
 });
 
+test('reviewers can approve and execute a reviewed product change while owner policy stays restricted', async () => {
+  const f = tiktok(),
+    reviewer = {...operator, userId: 'workspace-test', testAccount: true};
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const prepared = await f.prepare(1100, reviewer);
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    const blocked = await f.execute(prepared.data.review_id, {}, reviewer);
+    assert.equal(blocked.error.code, 'HUMAN_APPROVAL_REQUIRED');
+    assert.equal(f.writes.length, 0);
+    const view = approvalView(f.store, reviewer, prepared.data.review_id);
+    assert.equal(view.may_approve, true);
+    approveReview(f.store, reviewer, prepared.data.review_id, {fingerprint: view.fingerprint, confirmed: true});
+    const executed = await f.execute(prepared.data.review_id, {}, reviewer);
+    assert.equal(executed.success, true, JSON.stringify(executed.error));
+    assert.equal(f.writes.length, 1);
+    assert.throws(
+      () =>
+        saveSpendPolicy(f.store, reviewer, {
+          scope: 'workspace',
+          confirmed: true,
+          policy: {approval_mode: 'assistant_ack'},
+        }),
+      {code: 'OWNER_REQUIRED'},
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
 test('WRT-09: an approval bound to another fingerprint is refused at execute and nothing is sent', async () => {
   const f = tiktok();
   try {

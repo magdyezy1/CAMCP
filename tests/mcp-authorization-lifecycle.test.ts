@@ -529,32 +529,67 @@ test('MCP-08: members create role-capped connector tokens and revoke only their 
   }
 });
 
-test('MCP-08: reviewer test accounts cannot authorize AI clients', async () => {
-  const store = new Store(':memory:', master);
+test('reviewer AI clients keep operator access, workspace isolation and password-change revocation', async () => {
+  const testPassword = 'synthetic-reviewer-client-password',
+    f = await fixture({testPassword});
   try {
-    const web = new WebStore(store, {origin, masterKey: master, adminPassword: password}),
-      oauth = new McpOAuth(web, true);
-    const client = await oauth.clientsStore.registerClient({
-      client_name: 'Claude',
-      redirect_uris: [redirect],
-      token_endpoint_auth_method: 'none',
-    });
-    let location = '';
-    await oauth.authorize(
-      client,
-      {redirectUri: redirect, codeChallenge: 'c'.repeat(43), scopes: ['mcp:read'], state: 's'},
-      {redirect: (_status: number, url: string) => (location = url)} as never,
+    const reviewer = await f.web.signInTest(testPassword, '127.0.0.1'),
+      headers = {Cookie: f.web.cookie(reviewer.id), 'X-AMCP-CSRF': reviewer.csrf},
+      {client, credentials} = await f.connect(headers),
+      actor = f.store.authenticate(credentials.access_token);
+    assert.equal(actor.role, 'operator');
+    assert.equal(actor.testAccount, true);
+    assert.equal(actor.ownerUserId, 'workspace-test');
+    assert.equal(actor.tenantId, f.web.testTenantId);
+    assert.notEqual(actor.tenantId, f.web.tenantId);
+    assert.equal(await f.mcp(credentials.access_token), 200);
+    const refreshed = await f.refresh(client, credentials.refresh_token);
+    assert.equal(refreshed.status, 200);
+    const next = await refreshed.json();
+    assert.equal(f.store.authenticate(next.access_token).testAccount, true);
+    assert.throws(() => f.store.createKey({...actor, role: 'admin'}), /administrator/);
+    const scoped = await f.web.signInTest(testPassword, '127.0.0.1');
+    const policy = await f.request(
+      '/api/workspace/workspace',
+      'POST',
+      {action: 'save_retention', days: 30, confirmed: true},
+      {Cookie: f.web.cookie(scoped.id), 'X-AMCP-CSRF': scoped.csrf},
     );
-    const consentRequest = new URL(location).searchParams.get('request')!;
-    const reviewer = {
-      id: 'x',
-      csrf: 'y',
-      expiresAt: Date.now() + 1000,
-      actor: {tenantId: web.testTenantId, userId: 'workspace-test', role: 'admin' as const, testAccount: true},
-    };
-    assert.throws(() => oauth.consent(consentRequest, reviewer), /Reviewer test accounts/);
+    assert.equal((await policy.json()).error.code, 'OWNER_REQUIRED');
+    new WebStore(f.store, {
+      origin,
+      masterKey: master,
+      adminPassword: password,
+      testPassword: testPassword + '-changed',
+    });
+    assert.equal(await f.mcp(next.access_token), 401);
+    assert.equal((await f.refresh(client, next.refresh_token)).status, 400);
   } finally {
-    store.close();
+    await f.close();
+  }
+});
+
+test('invited reviewer AI clients inherit the account reviewer flag and cannot use owner controls', async () => {
+  const f = await fixture();
+  try {
+    const user = f.accounts.newUser('Invited reviewer', 'reviewer-client@example.test', null, true, true),
+      session = f.accounts.session(user),
+      {credentials} = await f.connect({Cookie: f.web.cookie(session.id), 'X-AMCP-CSRF': session.csrf}),
+      actor = f.store.authenticate(credentials.access_token);
+    assert.equal(actor.role, 'operator');
+    assert.equal(actor.testAccount, true);
+    assert.equal(actor.ownerUserId, user.id);
+    assert.equal(actor.tenantId, user.tenant_id);
+    assert.equal(await f.mcp(credentials.access_token), 200);
+    const policy = await f.request(
+      '/api/workspace/workspace',
+      'POST',
+      {action: 'save_retention', confirmed: true, days: 30},
+      {Cookie: f.web.cookie(session.id), 'X-AMCP-CSRF': session.csrf},
+    );
+    assert.equal((await policy.json()).error.code, 'OWNER_REQUIRED');
+  } finally {
+    await f.close();
   }
 });
 
