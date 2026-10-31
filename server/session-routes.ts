@@ -35,8 +35,9 @@ export function sessionRoutes({
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
-        // RPT-06: the deployment owner's switch for provider report and export jobs (AMCP_PROVIDER_JOBS).
-        providerJobs,
+        // RPT-06: the deployment owner's switch for provider report and export jobs (AMCP_PROVIDER_JOBS). Provider jobs
+        // stay outside a test account's scope (docs/TEST-ACCOUNTS.md), so its pages do not offer them.
+        providerJobs: providerJobs && !session?.actor.testAccount,
       });
     }),
   );

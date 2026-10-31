@@ -155,7 +155,7 @@ draft", supported gateways with write access) and `/reports?connection_id=&accou
 (Portfolio "Capture evidence for this campaign"; Snapchat opens the parent-scoped ad-squad preset). A value the
 person cannot use is named ("Previously selected account — check access"), never replaced by another. Portfolio keeps
 the account and drill-down in its address: Back returns to the parent level, and a reload restores the selection and
-waits for *Read inventory*. Google, Snapchat and X micros show the exact account-currency decimal beside the native
+waits for _Read inventory_. Google, Snapchat and X micros show the exact account-currency decimal beside the native
 value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
 `tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these. Since the design review of
 2026-10 each navigation label takes the row beside its icon and reads from its start (the icon's 20 px box had held
@@ -169,14 +169,14 @@ and review code they never call.
 extend the shell through `AMCP` (`web/routes.js`): `AMCP.routes.register(path, {render})` gives a workspace page its
 body (one per page; a second is refused; Live portfolio, Measurement and Commerce register theirs from their own
 modules, see [website feature loading](../operations/OPERATING-CONTROLS.md#website-feature-loading)), `AMCP.routes.extend(path, part,
-{order})` adds a part after the page in a declared order (the owner's Settings sections at 10, account access at 20;
-account security on `/account`), and
+{order})` adds a part after the page in a declared order (Settings: owner sections at 10, account access at 20;
+`/account`: security, then deletion at 10, each given the page's account), and
 `AMCP.hooks.beforeRender`/`afterRender` run around every render (test-account scope). Nothing reassigns `render`,
-`renderSettings` or `renderAccountPage` any more, and identity.js's replaced sign-in builders are gone;
+`renderSettings` or `renderAccountPage`, and identity.js's replaced sign-in builders are gone;
 `tools/check-extensions.mjs` refuses the pattern in `check-web` and `tests/web-extensions.test.mjs` covers the order.
 New markup is escape-by-default: in `` html`…` `` (`web/localization.js`) every `${}` value is escaped unless it is
 already markup (another `` html`…` ``, a list of them, or `raw()` for a fragment AMCP escaped itself); `null`,
-`undefined` and `false` insert nothing, so `` ${condition && html`…`} `` shows nothing when the condition fails (an
+`undefined` and `false` insert nothing, so ``${condition && html`…`}`` shows nothing when the condition fails (an
 attribute that must read "false" interpolates `String(value)`). The result reads as its markup wherever a string is
 expected, and `setHtml` and `insertHtml` refuse a plain string. `tools/check-markup.mjs` counts, per script, the HTML
 writes and values still
@@ -240,18 +240,18 @@ See the [workbook schedule delivery record](../records/DELIVERY-2026-10-01-WORKB
 
 **Move to Reporting overview (EXP-04, owner policy P6).** A local schedule can move into Reporting overview, which
 delivers to the workbook's own spreadsheet. The move is explicit and reversible, and it never changes the saved query
-or its revision. *Check whether it can move* (`amcp_reporting_overview preview_workbook_move` with the schedule `id`)
+or its revision. _Check whether it can move_ (`amcp_reporting_overview preview_workbook_move` with the schedule `id`)
 is a dry run: it saves nothing, makes no network request, converts the saved campaign query into one Overview report
 source (platform, account, login, rolling window, native metrics; compileReport's day, month and all grouping become
 daily, monthly and total rows) with the schedule's own clock, and lists the Google Sheets report tabs that Reporting
 overview bound for the workbook's spreadsheet (`bind_destination` verified each with an authenticated read). A query
 without an exact equivalent is refused with its reasons and stays local: a native provider request, fixed dates, an
 ad set or ad level, another grouping, campaign filters or other settings, or unusable metric names. With a tab chosen
-(`destination_id`), the preview returns `move_version`; *Move to Reporting overview*
+(`destination_id`), the preview returns `move_version`; _Move to Reporting overview_
 (`move_workbook_schedule` with `move_version` and `confirmed:true`, operator role) creates the report and its schedule
 on that tab and pauses the local schedule in the same transaction (`pause_reason: migrated_to_overview`). A paused
 local schedule moves as a paused Overview schedule; an active one delivers at its next occurrence under the mover's
-current access. While moved, the local schedule cannot be enabled (`WORKBOOK_SCHEDULE_MIGRATED`). *Undo the move*
+current access. While moved, the local schedule cannot be enabled (`WORKBOOK_SCHEDULE_MIGRATED`). _Undo the move_
 (`undo_workbook_move`, `confirmed:true`) pauses the Overview schedule, keeping its report and snapshots, and restores
 the local schedule as it was; one whose saved query changed meanwhile stays paused for review
 (`query_definition_changed`). A changed schedule, query or tab after the preview is `STALE_WORKBOOK_MIGRATION`; a tab

@@ -27,6 +27,7 @@ const pageAssetOrder = [
   'commerce.js',
   'vendor/qrcode-generator-2.0.4.js',
   'mfa-qr.js',
+  'account-deletion.js',
   'report-quality.js',
   'report-reference.js',
   'report-library.js',

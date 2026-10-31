@@ -618,6 +618,7 @@ test('RPT-06: a pause covering provider jobs stops the Microsoft submission; an 
   }
 });
 
+const reviewerPassword = 'synthetic-report-job-reviewer-password';
 async function website(providerJobs: boolean) {
   const origin = 'https://amcp.shop',
     master = Buffer.alloc(32, 81).toString('base64'),
@@ -633,7 +634,9 @@ async function website(providerJobs: boolean) {
     throw Error('No vendor network requests are permitted in access tests.');
   };
   const listener = await listenForFetch(
-    createHttpApp(service, store, {website: {origin, masterKey: master, adminPassword: password, fetcher: blocked}}),
+    createHttpApp(service, store, {
+      website: {origin, masterKey: master, adminPassword: password, testPassword: reviewerPassword, fetcher: blocked},
+    }),
   );
   const base = 'http://127.0.0.1:' + (listener.address() as {port: number}).port;
   const request = (url: string, method = 'GET', body?: unknown, headers: Record<string, string> = {}) =>
@@ -705,5 +708,23 @@ test('RPT-06 website: an administrator grants report jobs only under the switch,
     assert.equal((await refused.json()).error.code, 'PROVIDER_JOBS_DISABLED');
   } finally {
     await off.close();
+  }
+});
+
+test('RPT-06 website: a test account’s session never offers report jobs, even where the deployment allows them', async () => {
+  // Provider jobs stay outside a test account's scope (docs/TEST-ACCOUNTS.md): the gate refuses report-job access,
+  // so its pages must not offer it. Before, its session reported the deployment's switch like everyone else's.
+  const s = await website(true);
+  try {
+    const login = await s.request('/api/session/test', 'POST', {password: reviewerPassword});
+    assert.equal(login.status, 200);
+    const reviewer = {Cookie: login.headers.get('set-cookie')!.split(';')[0]!};
+    const state = await (await s.request('/api/session', 'GET', undefined, reviewer)).json();
+    assert.equal(state.testAccount, true);
+    assert.equal(state.providerJobs, false);
+    const owner = await (await s.request('/api/session', 'GET', undefined, s.headers)).json();
+    assert.equal(owner.providerJobs, true, 'the administrator still sees the deployment switch');
+  } finally {
+    await s.close();
   }
 });

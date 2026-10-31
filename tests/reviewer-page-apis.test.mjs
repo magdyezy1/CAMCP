@@ -8,6 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {Script, createContext} from 'node:vm';
 import {parsers} from 'prettier/plugins/babel';
 import {testAccountScope} from '../dist/server/website-gates.js';
 import {loadRouteRegistry, pageAssetPlan} from '../tools/check-routes.mjs';
@@ -337,7 +338,7 @@ export const refusedOnPurpose = {
   },
   'POST /api/signin/x/start': {
     control:
-      'Continue with a provider on /login and /signup (account-security.js); Connect, under Your sign-in methods on /account (identity.js); Confirm with a provider, in Confirm it’s you (app.js)',
+      'Continue with a provider on /login and /signup (account-security.js); Connect, under Your sign-in methods on /account (identity.js), which a test account is not shown; Confirm with a provider, in Confirm it’s you (app.js)',
     why: 'social sign-in and linking an identity; Confirm it’s you offers a test account no provider',
   },
   'POST /api/account/register': {control: 'Send verification email, on /signup', why: 'signing up'},
@@ -349,7 +350,8 @@ export const refusedOnPurpose = {
     why: 'finishing a signup, a password reset, an email change or an invitation',
   },
   'POST /api/account/mfa/login': {control: 'the two-step code form at sign-in', why: 'signing in'},
-  // The account's own security, on /account (identity.js and account-security.js).
+  // The account's own security, on /account (identity.js and account-security.js). A test account is shown none of
+  // these controls, only a note that the owner manages its sign-in.
   'POST /api/account/profile': {control: 'Save changes, under The essentials', why: 'the account profile'},
   'DELETE /api/account/identities/x': {control: 'Remove, under Your sign-in methods', why: 'a linked identity'},
   'POST /api/account/email': {control: 'Send verification link, under Recovery email', why: 'the account email'},
@@ -374,8 +376,9 @@ export const refusedOnPurpose = {
     why: 'moving the administrator workspace to an owner account',
   },
   'POST /api/workspaces/switch': {
-    control: 'Switch workspace, under Your workspaces on /account, and the shell’s workspace menu (app.js)',
-    why: 'switching workspaces; the current workspace’s button is disabled, so a reviewer in one workspace has none to use',
+    control:
+      'Switch workspace, under Your workspaces on /account, and the shell’s workspace menu (app.js), neither shown to a test account',
+    why: 'switching workspaces; outside its own test workspace a test account is a viewer',
   },
   // Owner administration. Workspace members and client access sets are shown to owners and administrators, and a test
   // account's role reads as operator (server/user-accounts.ts).
@@ -421,16 +424,15 @@ export const refusedOnPurpose = {
     control: 'Remove local connection, in the same panel',
     why: 'removing a store connection',
   },
+  'PATCH /api/connections/x/report-job-access': {
+    control:
+      'Save report jobs and Revoke report jobs, in the Report jobs panel of a connection on /connections: a test account’s session reports providerJobs false (server/session-routes.ts), so reportJobPanel (app.js) shows it neither while its workspace holds no report-job grant, which only an administrator makes',
+    why: 'provider jobs, which stay outside a test account’s scope',
+  },
 };
 
 /** Calls a reviewer page names whose refusal is an open owner question, kept here until the owner decides. */
-export const openOwnerQuestions = {
-  'PATCH /api/connections/x/report-job-access': {
-    control:
-      'Save report jobs and Revoke report jobs, in the Report jobs panel of a connection on /connections (app.js reportJobPanel)',
-    why: 'the gate admits the other connection settings (assets, write access, label) but not this one, and the panel shows while the deployment allows provider report jobs or the login already has report-job grants',
-  },
-};
+export const openOwnerQuestions = {};
 
 const admits = testAccountGate(),
   registry = [...loadRouteRegistry()],
@@ -698,4 +700,109 @@ test('every listed refusal names its control and its reason', () => {
     Object.keys(refusedOnPurpose).filter(key => key in openOwnerQuestions),
     [],
   );
+});
+
+test('a test account sees no account-page control the gate refuses, only that the owner manages its sign-in', async () => {
+  const nodes = new Map(),
+    node = selector => {
+      if (!nodes.has(selector))
+        nodes.set(selector, {
+          innerHTML: '',
+          textContent: '',
+          insertAdjacentHTML(_where, markup) {
+            this.innerHTML += markup;
+          },
+          classList: {add() {}, remove() {}, toggle() {}, contains: () => false},
+          style: {},
+          dataset: {},
+          setAttribute() {},
+          removeAttribute() {},
+          getAttribute: () => null,
+          append() {},
+          appendChild() {},
+          querySelector: () => null,
+          querySelectorAll: () => [],
+          closest: () => null,
+          addEventListener() {},
+          focus() {},
+        });
+      return nodes.get(selector);
+    },
+    answers = {
+      '/api/account': {
+        name: 'Reviewer',
+        email: 'reviewer@example.test',
+        identities: [],
+        hasPassword: true,
+        administrator: false,
+        testAccount: true,
+        workspaceId: 'own',
+        mfaEnabled: false,
+      },
+      '/api/account/options': {providers: [{id: 'google', name: 'Google', configured: true}], emailEnabled: true},
+      '/api/account/sessions': {sessions: []},
+      '/api/workspaces': {
+        workspaces: [
+          {id: 'own', name: 'Test', role: 'owner'},
+          {id: 'other', name: 'Other', role: 'viewer'},
+        ],
+      },
+    };
+  const context = createContext({
+    document: {
+      documentElement: {lang: 'en', dir: 'ltr'},
+      querySelectorAll: () => [],
+      querySelector: node,
+      getElementById: id => node('#' + id),
+      body: node('body'),
+      createElement: tag => node('new ' + tag + ' ' + nodes.size),
+      addEventListener() {},
+    },
+    localStorage: {getItem: () => null, setItem() {}},
+    matchMedia: () => ({matches: false, addEventListener() {}}),
+    navigationGeneration: 1,
+    identityGeneration: 1,
+    Intl,
+    Date,
+    URLSearchParams,
+    location: {pathname: '/account', search: '', hash: ''},
+    history: {replaceState() {}},
+    session: {authenticated: true, testAccount: true, workspaceId: 'own'},
+    content: node('#content'),
+    $: node,
+    esc: value =>
+      String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('"', '&quot;'),
+    header: (title, lead) => `<h1>${title}</h1><p>${lead}</p>`,
+    glyph: () => '',
+    formField: () => '<input>',
+    date: () => '',
+    uiRole: role => role,
+    showLogin() {},
+    authBind() {},
+    toast() {},
+    render: async () => {},
+    api: async url => answers[url] ?? {},
+  });
+  const run = code => new Script(code).runInContext(context);
+  run(fs.readFileSync('web/localization.js', 'utf8'));
+  await run('initializeUILocale()');
+  run(fs.readFileSync('web/routes.js', 'utf8'));
+  run(fs.readFileSync('web/identity.js', 'utf8'));
+  run(fs.readFileSync('web/account-security.js', 'utf8'));
+  await run('renderAccountPage()');
+  await run('renderAccountSecurity()');
+  const page = node('#content').innerHTML;
+  assert.match(page, /The AMCP owner manages this test account’s sign-in/);
+  for (const control of [
+    'profile-form',
+    'data-link-social',
+    'Send verification link',
+    'Update password',
+    'mfa-start',
+    'data-switch-workspace',
+  ])
+    assert.equal(page.includes(control), false, control);
 });
