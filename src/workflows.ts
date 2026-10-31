@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
-import {xAnalyticsTime} from './x-report-jobs.js';
+import {providerById} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Registry} from './catalog.js';
 import type {Store} from './store.js';
@@ -23,12 +24,15 @@ export interface WorkflowDependencies {
   runNative(gateway: string, input: JsonObject, actor: Actor): Promise<unknown>;
 }
 type Platform = 'google' | 'linkedin' | 'x' | 'dv360';
+// Each platform's gateway is its provider adapter's (ARC-01 phase B; the platforms are adapter IDs).
 const gateways: Record<Platform, string> = {
-  google: 'google_ads_native_action',
-  linkedin: 'linkedin_native_action',
-  x: 'x_ads_native_action',
-  dv360: 'dv360_native_action',
+  google: providerById('google')!.gateway,
+  linkedin: providerById('linkedin')!.gateway,
+  x: providerById('x')!.gateway,
+  dv360: providerById('dv360')!.gateway,
 };
+/** X's analytics times, whole UTC hours, from its adapter's generic workflow hooks (src/x-adapter.ts). */
+const xStatsTime = (ms: number): string => providerHooks(gateways.x)!.genericWorkflows!.statsTime(ms);
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? structuredClone(v) : {});
 function unsupported(message: string, details: JsonObject = {}): never {
   throw new MirrorError('WORKFLOW_UNSUPPORTED', message, details);
@@ -1385,7 +1389,7 @@ export class WorkflowEngine {
       return unsupported(
         'Use explicit entity_ids without campaign_ids for X child-level reporting; native analytics cannot validate both filters.',
       );
-    // X counts whole UTC hours (xAnalyticsTime). Where the account's days start on a half hour, the range widens to
+    // X counts whole UTC hours (xStatsTime). Where the account's days start on a half hour, the range widens to
     // whole hours and each boundary hour belongs to the day holding its midpoint, so no hour is counted twice.
     const first = zonedMidnight(range.since, timezone),
       last = zonedMidnight(new Date(Date.parse(range.until) + 86400000).toISOString().slice(0, 10), timezone),
@@ -1413,8 +1417,8 @@ export class WorkflowEngine {
               query: {
                 entity: level === 'campaign' ? 'CAMPAIGN' : level === 'adset' ? 'LINE_ITEM' : 'PROMOTED_TWEET',
                 entity_ids: ids.slice(offset, offset + 20).join(','),
-                start_time: xAnalyticsTime(at),
-                end_time: xAnalyticsTime(stop),
+                start_time: xStatsTime(at),
+                end_time: xStatsTime(stop),
                 granularity: 'HOUR',
                 metric_groups: 'ENGAGEMENT,BILLING',
                 placement: 'ALL_ON_TWITTER',

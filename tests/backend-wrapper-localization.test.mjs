@@ -239,7 +239,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/microsoft-wire-contract.ts, without wrapper reasons: 741.
   // Merged with the versions package, both add the one WooCommerce adapter module (it holds both packages' hooks), so
   // the modules add up: 741, the same wrapper reasons.
-  assert.equal(files.length, 741);
+  // ARC-01 phase B (wave 4c round 6) adds Tag Manager's measurement audit and WooCommerce's workspace actions
+  // (src/gtm-measurement-audit.ts, src/woocommerce-workspace.ts), without wrapper reasons. Merged with the versions and
+  // tables packages, the modules add up: 743, the same wrapper reasons.
+  assert.equal(files.length, 743);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11530);

@@ -53,6 +53,15 @@ import {
 import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 // Wave 4c round 6 (w4c-arc6-tables): its rows of the shared tables.
 import {linkedinPrograms} from './linkedin-programs.js';
+// Wave 4c round 6 (w4c-arc6-workspace): its steps of the reviewed media upload.
+import {assertLinkedInOrganization} from './linkedin-posts.js';
+import {
+  assertLinkedInResume,
+  assertLinkedInWaiting,
+  linkedInPartId,
+  linkedInResumeReason,
+  linkedInTransfer,
+} from './linkedin-media-resume.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -461,6 +470,16 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
           },
         ),
     }),
+  }),
+  // Wave 4c round 6 (w4c-arc6-workspace): the reviewed media upload's organization owners and resumable video transfers
+  // (src/media-upload.ts).
+  media: Object.freeze({
+    assertOrganization: assertLinkedInOrganization,
+    transfer: linkedInTransfer,
+    resumeReason: linkedInResumeReason,
+    assertResume: assertLinkedInResume,
+    assertWaiting: assertLinkedInWaiting,
+    partId: linkedInPartId,
   }),
 });
 

@@ -39,6 +39,20 @@ import {validateAppleResponse} from './apple-native.js';
 import {projectRedditAccountHistory, redditAccountHistoryRead} from './reddit-extensions.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {legacyLimitDisclosure} from './google-legacy.js';
+// Wave 4c round 6 (w4c-arc6-workspace): the providers' actions of the workspace tool.
+import {measurementEvents} from './measurement-events.js';
+import {createConsentPlan, previewConsentPlan} from './gtm-consent-plans.js';
+import {measurementEventIdentity} from './measurement-event-identity.js';
+import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
+import {measurementGoogleGoals} from './measurement-google-goals.js';
+import {googleChangeHistory} from './google-change-history.js';
+import {ga4AdminConfig} from './ga4-admin-config.js';
+import {measurementLedger} from './measurement-ledger.js';
+import {wooCommerceSource, type WooCommerceRequest} from './woocommerce-source.js';
+import {wooCommerceInventory} from './woocommerce-inventory.js';
+import {wooCommerceSourceList, wooCommerceSourcePath} from './woocommerce-workspace.js';
+import {createCatalogRemoval, previewCatalogRemoval} from './x-catalog-removal.js';
+import {gtmMeasurementAudit} from './gtm-measurement-audit.js';
 export type {WooCommerceRequest} from './woocommerce-source.js';
 export type {ResultIds} from './snapchat-result-ids.js';
 
@@ -437,3 +451,101 @@ export const providerInputRedactors: readonly ((tool: string, input: JsonObject)
 
 /** The website's administrator setup of a store connection (WooCommerce's, through its guarded GET transport). */
 export const connectStore = connectWooCommerce;
+
+// Wave 4c round 6 (w4c-arc6-workspace): the providers' actions of the workspace tool.
+
+/** What a provider's action of the workspace tool is given: the service's context and the tool's nested call. */
+export interface WorkspaceContext extends WorkflowContext {
+  readonly call: ToolCall;
+  /** The WooCommerce store request the service was given in place of the guarded one, else undefined. */
+  readonly wooCommerceRequest?: WooCommerceRequest;
+}
+/** A provider's action of the workspace tool, called with the tool's input once the tool's own checks passed. */
+export type WorkspaceAction = (
+  c: WorkspaceContext,
+  actor: Actor,
+  input: JsonObject,
+) => Promise<JsonObject> | JsonObject;
+/** One provider's actions of the workspace tool, by action name, and the website page of a record they return. */
+export interface WorkspaceWorkflow {
+  /** The gateway of the provider whose actions they are; `measurement` for the ledger of several providers' assets. */
+  readonly provider: string;
+  readonly actions: Readonly<Record<string, WorkspaceAction>>;
+  /** The page of a record its actions return (src/workflow-outcomes.ts): `{}` for its record without a page. */
+  readonly websitePath?: (data: JsonObject) => {readonly path?: string} | undefined;
+}
+const workspaceEntry = (
+  provider: string,
+  actions: Record<string, WorkspaceAction>,
+  websitePath?: WorkspaceWorkflow['websitePath'],
+): WorkspaceWorkflow =>
+  Object.freeze({provider, actions: Object.freeze(actions), ...(websitePath ? {websitePath} : {})});
+
+/**
+ * The providers' actions of the workspace tool (src/workspace.ts WorkspaceService.handle), which were branches of its
+ * dispatch until wave 4c. Each calls its provider's workflow with the arguments its branch gave it; the tool keeps its
+ * own checks and their order, and consults this table where it named these actions. An action belongs to one provider
+ * (a load-time check below); the tool's own actions are not here.
+ */
+export const workspaceWorkflows: readonly WorkspaceWorkflow[] = Object.freeze([
+  workspaceEntry('ga4_native_action', {
+    measurement_events: (c, actor, input) => measurementEvents(c.store, c.call, actor, input),
+    measurement_event_identity: (c, actor, input) => measurementEventIdentity(c.store, c.call, actor, input),
+    measurement_ga4_config: (c, actor, input) =>
+      ga4AdminConfig(c.store, c.registry, c.transport, c.credentials, actor, input),
+  }),
+  workspaceEntry('gtm_native_action', {
+    preview_consent_plan: (c, actor, input) => previewConsentPlan(c.store, c.call, actor, input),
+    create_consent_plan: (c, actor, input) => createConsentPlan(c.store, c.call, actor, input),
+    measurement_audit: (c, actor, input) => gtmMeasurementAudit(c.store, c.call, actor, input),
+  }),
+  workspaceEntry('linkedin_native_action', {
+    measurement_conversions: (c, actor, input) => linkedInConversionEvidence(c.store, c.call, actor, input),
+  }),
+  workspaceEntry('google_ads_native_action', {
+    measurement_google_goals: (c, actor, input) =>
+      measurementGoogleGoals(c.store, c.registry, c.transport, c.credentials, actor, input),
+    // PRV-07: a bounded read-only diagnosis read; nothing is saved.
+    change_history: (c, actor, input) => googleChangeHistory(c.store, c.call, actor, input),
+  }),
+  workspaceEntry('measurement', {
+    measurement_ledger: (c, actor, input) =>
+      measurementLedger(c.store, c.registry, c.transport, c.credentials, c.call, actor, input),
+  }),
+  workspaceEntry(
+    'commerce_native_action',
+    {
+      // A complete inventory collection is its own read; selected products or variations are the source read.
+      catalog_source: (c, actor, input) =>
+        input.requirements?.source_kind === 'inventory'
+          ? wooCommerceInventory(c.store, actor, input, c.wooCommerceRequest, c.transport.commerceSourceEnvironment())
+          : wooCommerceSource(c.store, actor, input, c.wooCommerceRequest, c.transport.commerceSourceEnvironment()),
+      catalog_sources: (c, actor, input) => wooCommerceSourceList(c.store, actor, input),
+    },
+    wooCommerceSourcePath,
+  ),
+  workspaceEntry('x_ads_native_action', {
+    preview_catalog_removal: (c, actor, input) => previewCatalogRemoval(c.store, c.call, actor, input),
+    create_catalog_removal: (c, actor, input) => createCatalogRemoval(c.store, c.call, actor, input),
+  }),
+]);
+const workspaceActions = new Map<string, WorkspaceAction>();
+for (const {provider, actions} of workspaceWorkflows)
+  for (const [action, run] of Object.entries(actions)) {
+    if (workspaceActions.has(action))
+      throw new Error('Two providers declare the workspace action ' + action + ' (' + provider + ').');
+    workspaceActions.set(action, run);
+  }
+
+/** The provider's action of this workspace action name, or undefined for the tool's own actions and other names. */
+export const workspaceAction = (action: unknown): WorkspaceAction | undefined =>
+  typeof action === 'string' ? workspaceActions.get(action) : undefined;
+
+/** The website page of a provider's record of a workspace action, or undefined when no provider's record it is. */
+export function workspaceWebsitePath(data: JsonObject): {readonly path?: string} | undefined {
+  for (const {websitePath} of workspaceWorkflows) {
+    const page = websitePath?.(data);
+    if (page) return page;
+  }
+  return undefined;
+}

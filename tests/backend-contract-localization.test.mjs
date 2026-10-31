@@ -274,7 +274,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged with the versions package, both add the one WooCommerce adapter module (it holds both packages' hooks), and
   // the versions package's move leaves src/creative-validation.ts without reasons: 741 files, 285 of them with reasons,
   // the same reasons.
-  assert.equal(files.length, 741);
+  // ARC-01 phase B (wave 4c round 6): the workspace tool's provider actions add Tag Manager's measurement audit
+  // (src/gtm-measurement-audit.ts) and WooCommerce's workspace actions (src/woocommerce-workspace.ts), neither owning a
+  // reason. Merged with the versions and tables packages: 743 files, 285 of them with reasons, the same reasons.
+  assert.equal(files.length, 743);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

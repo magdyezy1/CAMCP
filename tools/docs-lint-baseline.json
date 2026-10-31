@@ -64,10 +64,52 @@
       "raised": [
         "reference_words 143989 → 144551"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the workspace tool's provider actions as the provider workflows registry's workspace entries (ARC-01, 79 words)",
+      "raised": [
+        "reference_words 143230 → 143309"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the generic workflows' gateways and X's stats times as adapter facts and hooks (ARC-01, 54 words)",
+      "raised": [
+        "reference_words 143309 → 143363"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the launch check's gateways as adapter facts (ARC-01, 38 words)",
+      "raised": [
+        "reference_words 143363 → 143401"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the paused-parent rule's child creates as adapter facts (ARC-01, 44 words)",
+      "raised": [
+        "reference_words 143401 → 143445"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the budget units' currency offset rule and the media upload's LinkedIn steps as adapter facts and hooks (ARC-01, 101 words)",
+      "raised": [
+        "reference_words 143445 → 143546"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the workspace package's call-replay comparison, which proves its six rows (ARC-01, 216 words)",
+      "raised": [
+        "reference_words 143546 → 143762"
+      ]
+    },
+    {
+      "reason": "w4c-arc6-workspace merged after w4c-arc6-versions and w4c-arc6-tables: docs/review/ARCHITECTURE.md holds the three packages' section 9 rows and comparisons, the workspace package's fall and the merged one (15 and 22) in section 8, and ARC-01's remainder after the three packages",
+      "raised": [
+        "reference_words 144551 → 145162"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 144551
+    "reference_words": 145162
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

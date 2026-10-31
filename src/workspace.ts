@@ -1,14 +1,6 @@
 import {operationKinds} from './operation-types.js';
 import {auditHistoryPage} from './audit-history.js';
-import {measurementEvents} from './measurement-events.js';
-import {createConsentPlan, previewConsentPlan} from './gtm-consent-plans.js';
-import {measurementEventIdentity} from './measurement-event-identity.js';
-import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
-import {measurementGoogleGoals} from './measurement-google-goals.js';
-import {googleChangeHistory} from './google-change-history.js';
 import {searchOverlap} from './search-overlap.js';
-import {ga4AdminConfig} from './ga4-admin-config.js';
-import {measurementLedger} from './measurement-ledger.js';
 import {nativeAuthority} from './native-authority.js';
 import {ownerOperations, writesPausedFor} from './owner-operations.js';
 import {withheldWorkbookRecords} from './withheld-workbook-records.js';
@@ -35,8 +27,7 @@ import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
 import {catalogIngestion, catalogRetirement} from './catalog-ingestion.js';
-import {wooCommerceSource, wooCommerceSources, type WooCommerceRequest} from './woocommerce-source.js';
-import {wooCommerceInventory} from './woocommerce-inventory.js';
+import {workspaceAction, type WooCommerceRequest, type WorkspaceContext} from './provider-workflows.js';
 import {catalogComparison} from './catalog-comparison.js';
 import {assertCatalogRequirements, catalogRequirement} from './catalog-requirements.js';
 import {catalogDestination} from './catalog-destinations.js';
@@ -52,7 +43,6 @@ import {
   storeCatalogLineageBinding,
 } from './catalog-lineage.js';
 import {activePlanCount, activePlanLimit} from './campaign-inventory.js';
-import {createCatalogRemoval, previewCatalogRemoval} from './x-catalog-removal.js';
 import {operationsPage} from './operations-feed.js';
 import {reportRunStatus, resumeReportRun} from './report-runs.js';
 import {workbookSchedule, previewWorkbookSchedule, saveWorkbookSchedule} from './workbook-schedules.js';
@@ -74,8 +64,7 @@ import {
 } from './workbook-bindings.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
-import {MirrorError, providerFactDetails} from './errors.js';
-import {assertGatewayOffered} from './provider-offering.js';
+import {MirrorError} from './errors.js';
 import {providerHooks} from './provider-hooks.js';
 import {reportSourceError} from './report-errors.js';
 import {reportPlatforms} from './report-metrics.js';
@@ -317,6 +306,11 @@ export class WorkspaceService {
     /** The deployment owner's provider-job switch (AMCP_PROVIDER_JOBS, RPT-06), shown in capabilities and health. */
     private providerJobs = false,
   ) {}
+  /** What a provider's action of this tool is given (src/provider-workflows.ts). */
+  private workspaceContext(): WorkspaceContext {
+    const {store, registry, transport, credentials, call, wooCommerceRequest} = this;
+    return {store, registry, transport, credentials, call, wooCommerceRequest};
+  }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
     this.store.assertActorActive(actor);
@@ -362,21 +356,12 @@ export class WorkspaceService {
     if (input.action === 'portfolio')
       return {record_kind: 'portfolio', ...(await portfolioPage(this.store, this.call, actor, input))};
     if (input.action === 'portfolio_reconcile') return reconcilePortfolio(this.store, this.call, actor, input);
-    if (input.action === 'measurement_events') return measurementEvents(this.store, this.call, actor, input);
-    if (input.action === 'preview_consent_plan') return previewConsentPlan(this.store, this.call, actor, input);
-    if (input.action === 'create_consent_plan') return createConsentPlan(this.store, this.call, actor, input);
-    if (input.action === 'measurement_event_identity')
-      return measurementEventIdentity(this.store, this.call, actor, input);
-    if (input.action === 'measurement_conversions')
-      return linkedInConversionEvidence(this.store, this.call, actor, input);
-    if (input.action === 'measurement_google_goals')
-      return measurementGoogleGoals(this.store, this.registry, this.transport, this.credentials, actor, input);
-    if (input.action === 'measurement_ga4_config')
-      return ga4AdminConfig(this.store, this.registry, this.transport, this.credentials, actor, input);
-    if (input.action === 'measurement_ledger')
-      return measurementLedger(this.store, this.registry, this.transport, this.credentials, this.call, actor, input);
-    // PRV-07: bounded read-only diagnosis reads; nothing is saved.
-    if (input.action === 'change_history') return googleChangeHistory(this.store, this.call, actor, input);
+    // The providers' actions (ARC-01 phase B): Tag Manager's, GA4's, Google Ads', LinkedIn's, WooCommerce's and X's,
+    // and the measurement ledger, from the provider workflows registry (src/provider-workflows.ts). No branch of this
+    // method names them and none before or after their branches acted on another action, so each keeps its checks.
+    const providerAction = workspaceAction(input.action);
+    if (providerAction) return providerAction(this.workspaceContext(), actor, input);
+    // PRV-07: a bounded read-only diagnosis read; nothing is saved.
     if (input.action === 'search_overlap') return searchOverlap(this.store, this.call, actor, input);
     // COM-03: a CSV source is projected on the server into supplied products; its lineage follows them.
     let catalogSource: CatalogSource | undefined;
@@ -398,31 +383,6 @@ export class WorkspaceService {
         token = comparisonLineageToken(this.store, actor, out, input.products, source);
       return {...out, ...(catalogSource ? {source: catalogSource} : {}), ...(token ? {lineage_token: token} : {})};
     }
-    if (input.action === 'catalog_source') {
-      if (input.requirements?.source_kind === 'inventory')
-        return wooCommerceInventory(
-          this.store,
-          actor,
-          input,
-          this.wooCommerceRequest,
-          this.transport.commerceSourceEnvironment(),
-        );
-      return wooCommerceSource(
-        this.store,
-        actor,
-        input,
-        this.wooCommerceRequest,
-        this.transport.commerceSourceEnvironment(),
-      );
-    }
-    if (input.action === 'catalog_sources') {
-      validate(input, ['action']);
-      // The store sources are WooCommerce's, which is parked (ARC-01, P9) unless AMCP_PROVIDERS names it.
-      assertGatewayOffered('commerce_native_action');
-      return wooCommerceSources(this.store, actor);
-    }
-    if (input.action === 'preview_catalog_removal') return previewCatalogRemoval(this.store, this.call, actor, input);
-    if (input.action === 'create_catalog_removal') return createCatalogRemoval(this.store, this.call, actor, input);
     if (['catalog_preview', 'catalog_plan'].includes(input.action)) {
       const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
       const source = catalogSource ?? suppliedCatalogSource(Array.isArray(input.products) ? input.products : []),
@@ -458,48 +418,6 @@ export class WorkspaceService {
           retire ? {retailer_ids: [...retire.ids], availability: retire.availability} : undefined,
         );
       return {...created, source_hash: result.source_hash, item_count: result.item_count, lineage};
-    }
-    if (input.action === 'measurement_audit') {
-      const requirements = input.requirements ?? {};
-      validate(requirements, ['container_id', 'workspace_id']);
-      const connection = this.store.resolveConnection(
-        actor,
-        'gtm_native_action',
-        input.account_id,
-        input.connection_id,
-      );
-      const result = await this.call(
-        'gtm_native_action',
-        {
-          operation: 'gtm_audit_ops',
-          arguments: {
-            connection_id: connection.id,
-            account_id: input.account_id,
-            ...requirements,
-            include_versions: true,
-            include_resources: false,
-          },
-        },
-        actor,
-      );
-      // A provider refusal keeps its allow-listed facts (status, request ID, code, layer; never its body), so the
-      // website can name them (WEB-03, owner decision D21).
-      if (!result.success)
-        bad(
-          result.error?.message ?? 'Measurement audit failed.',
-          result.error?.code ?? 'MEASUREMENT_AUDIT_FAILED',
-          providerFactDetails(result.error),
-        );
-      this.store.resolveConnection(actor, 'gtm_native_action', input.account_id, connection.id);
-      return {
-        record_kind: 'measurement_audit',
-        scope: {connection_id: connection.id, account_id: input.account_id ?? null, ...requirements},
-        configuration: result.data,
-        event_delivery: 'not_measured',
-        meaning:
-          'Configuration evidence only. This audit does not establish that real events fire, deduplicate, satisfy consent or attribute correctly.',
-        advertising_writes: 0,
-      };
     }
     if (input.action === 'contracts') return actionContractPage(this.registry, input);
     if (input.action === 'capabilities')
