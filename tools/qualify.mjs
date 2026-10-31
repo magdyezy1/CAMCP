@@ -173,9 +173,10 @@ async function ffmpegFacts(root, env = {}, probe) {
   const variables = {...process.env, ...env};
   try {
     probe ??= (await importDist(root, 'dist/src/runtime-toolchain.js')).probeMediaProcessor;
+    // Each program prints its own name first, so ffprobe's line is matched as ffprobe's.
     const [ffmpeg, ffprobe] = await Promise.all([
-      probe({command: variables.AMCP_FFMPEG_PATH ?? 'ffmpeg'}),
-      probe({command: variables.AMCP_FFPROBE_PATH ?? 'ffprobe'}),
+      probe({command: variables.AMCP_FFMPEG_PATH ?? 'ffmpeg', program: 'ffmpeg'}),
+      probe({command: variables.AMCP_FFPROBE_PATH ?? 'ffprobe', program: 'ffprobe'}),
     ]);
     return {ffmpeg: ffmpeg.version, ffprobe: ffprobe.status};
   } catch {

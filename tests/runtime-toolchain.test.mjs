@@ -75,6 +75,24 @@ test('the media-processor probe reports only the validated first line, and unava
   assert.ok(Date.now() - started < 10000, 'the deadline bounds the probe');
 });
 
+test('ffprobe is matched by its own version line, so an installed ffprobe probes as available', async () => {
+  const probeLine = 'ffprobe version n9.0.2-22-g46d8f462ee-20261003 Copyright (c) 2007-2026 the FFmpeg developers';
+  assert.equal(ffmpegVersionLine(probeLine + '\nbuilt with gcc 15.2.0', 'ffprobe'), probeLine);
+  // Regression: matched as ffmpeg's line, an installed ffprobe was reported unavailable to full qualification.
+  assert.deepEqual(await probeMediaProcessor({...printing(probeLine + '\n'), program: 'ffprobe'}), {
+    status: 'available',
+    version: probeLine,
+  });
+  // Each program accepts only its own name, and the strict pattern still applies to ffprobe's line.
+  assert.equal(ffmpegVersionLine(probeLine), 'unavailable');
+  assert.equal(ffmpegVersionLine(line, 'ffprobe'), 'unavailable');
+  for (const program of ['ffplay', '__proto__', 'toString'])
+    assert.equal(ffmpegVersionLine(line, program), 'unavailable', program);
+  for (const value of ['ffprobe version C:\\Users\\owner\\ffprobe.exe', 'ffprobe version ' + 'x'.repeat(200)])
+    assert.equal(ffmpegVersionLine(value, 'ffprobe'), 'unavailable');
+  assert.deepEqual(await probeMediaProcessor(printing(probeLine)), {status: 'unavailable', version: 'unavailable'});
+});
+
 test('the startup probe is cached for health: not_checked until it finishes, then its status', async () => {
   resetMediaProcessorProbe();
   try {

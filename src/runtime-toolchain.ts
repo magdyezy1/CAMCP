@@ -13,19 +13,27 @@ export interface RuntimeToolchain {
   os: {id: string; version_id: string} | 'unavailable';
 }
 const nodePattern = /^v\d{1,3}\.\d{1,3}\.\d{1,3}$/;
-const ffmpegPattern =
-  /^ffmpeg version [A-Za-z0-9][A-Za-z0-9._+~-]{0,79}(?: Copyright \(c\) \d{4}-\d{4} the FFmpeg developers)?$/;
+/** The first `-version` line of each FFmpeg program, which prints its own name first. */
+const versionPatterns = {
+  ffmpeg: /^ffmpeg version [A-Za-z0-9][A-Za-z0-9._+~-]{0,79}(?: Copyright \(c\) \d{4}-\d{4} the FFmpeg developers)?$/,
+  ffprobe: /^ffprobe version [A-Za-z0-9][A-Za-z0-9._+~-]{0,79}(?: Copyright \(c\) \d{4}-\d{4} the FFmpeg developers)?$/,
+};
+export type MediaProgram = keyof typeof versionPatterns;
 const osValuePattern = /^[a-z0-9][a-z0-9._-]{0,31}$/;
 
 /** The validated Node version, or `unavailable`. */
 export function nodeVersion(value: unknown = process.version): string {
   return typeof value === 'string' && nodePattern.test(value) ? value : 'unavailable';
 }
-/** The first line of `ffmpeg -version` when it matches the strict pattern, or `unavailable`. */
-export function ffmpegVersionLine(output: unknown): string {
+/**
+ * The first line of `ffmpeg -version`, or of the named program's (`ffprobe -version`), when it matches that program's
+ * strict pattern, or `unavailable`. Matched as ffmpeg's, every ffprobe line was unavailable, so full qualification
+ * reported ffprobe missing wherever it was installed.
+ */
+export function ffmpegVersionLine(output: unknown, program: MediaProgram = 'ffmpeg'): string {
   if (typeof output !== 'string' || output.length > 64 * 1024) return 'unavailable';
   const line = output.split(/\r?\n/, 1)[0]?.trim() ?? '';
-  return ffmpegPattern.test(line) ? line : 'unavailable';
+  return Object.hasOwn(versionPatterns, program) && versionPatterns[program].test(line) ? line : 'unavailable';
 }
 /** ID and VERSION_ID from /etc/os-release text when both are bounded tokens, or `unavailable`. */
 export function osRelease(text: unknown): RuntimeToolchain['os'] {
@@ -54,14 +62,15 @@ export interface MediaProcessorProbe {
   version: string;
 }
 /**
- * Runs `ffmpeg -version` once, asynchronously, with a deadline. The result never includes the binary path, stderr or
- * any other output than the validated first version line.
+ * Runs `ffmpeg -version` (or `program`'s, such as ffprobe's) once, asynchronously, with a deadline. The result never
+ * includes the binary path, stderr or any other output than the validated first version line.
  */
 export function probeMediaProcessor({
   command = ffmpegPath(),
   args = ['-version'],
   timeoutMs = 5000,
-}: {command?: string; args?: string[]; timeoutMs?: number} = {}): Promise<MediaProcessorProbe> {
+  program = 'ffmpeg',
+}: {command?: string; args?: string[]; timeoutMs?: number; program?: MediaProgram} = {}): Promise<MediaProcessorProbe> {
   return new Promise(resolve => {
     let output = '',
       settled = false,
@@ -86,7 +95,7 @@ export function probeMediaProcessor({
         if (output.length < 64 * 1024) output += chunk;
       });
       child.once('error', () => done('unavailable'));
-      child.once('close', code => done(code === 0 ? ffmpegVersionLine(output) : 'unavailable'));
+      child.once('close', code => done(code === 0 ? ffmpegVersionLine(output, program) : 'unavailable'));
     } catch {
       done('unavailable');
     }
