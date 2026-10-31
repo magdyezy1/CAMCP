@@ -23,9 +23,9 @@
     <label class="theme-control"><span data-ui-text="Appearance">Appearance</span><select data-theme-select aria-label="Appearance" data-ui-label="Appearance"><option value="system" data-ui-text="System">System</option><option value="light" data-ui-text="Light">Light</option><option value="dark" data-ui-text="Dark">Dark</option></select></label>
   </header>
   <main id="privacy" tabindex="-1">
-    <div class="policy-heading"><p class="eyebrow">Your data, considered.</p><h1>Privacy policy<span aria-hidden="true">✳</span></h1><p>How we handle the information you entrust to AMCP.</p><p class="updated">Last updated: <time datetime="2026-10-12">12 October 2026</time></p></div>
+    <div class="policy-heading"><p class="eyebrow">Your data, considered.</p><h1>Privacy policy<span aria-hidden="true">✳</span></h1><p>How we handle the information you entrust to AMCP.</p><p class="updated">Last updated: <time datetime="2026-10-30">30 October 2026</time></p></div>
     <div class="policy-layout">
-      <nav class="contents" aria-label="Privacy policy sections"><strong>On this page</strong><a href="#data">Information we access</a><a href="#google">Google permissions</a><a href="#use">How we use data</a><a href="#protection">Data protection</a><a href="#sharing">Sharing and limited use</a><a href="#retention">Retention and deletion</a><a href="#choices">Your choices</a><a href="#contact">Contact and changes</a></nav>
+      <nav class="contents" aria-label="Privacy policy sections"><strong>On this page</strong><a href="#data">Information we access</a><a href="#google">Google permissions</a><a href="#use">How we use data</a><a href="#protection">Data protection</a><a href="#sharing">Sharing and limited use</a><a href="#retention">Retention and deletion</a><a href="#choices">Your choices</a><a href="#contact">Contact and changes</a><a href="#meta">Meta data</a><a href="#authorities">Public authorities</a></nav>
       <article>
         <p class="intro">This policy applies to AMCP at <a href="https://amcp.shop/">amcp.shop</a>, including its reporting workspace, platform connections, and integrations. It explains how AMCP processes information you provide and data retrieved from accounts you authorize.</p>
         <section id="data"><h2>1. Information we access and store</h2>
@@ -59,7 +59,7 @@
           <p>Report snapshots, account identifiers, and audit records are stored in the server database and protected by application access controls and restrictions on server access. The credential encryption described above does not mean that every report field is individually encrypted at rest. No system can guarantee absolute security.</p>
         </section>
         <section id="sharing"><h2>5. Sharing, service providers, and Google Limited Use</h2>
-          <p>Data is available to authorized members of your workspace according to their access. Hosting and network providers process data needed to operate and protect the service; on amcp.shop these include Railway and Cloudflare. The configured transactional email provider processes account verification, invitation, and recovery messages.</p>
+          <p>Data is available to authorized members of your workspace according to their access. Hosting and network providers process data needed to operate and protect the service; on amcp.shop these include Railway and Cloudflare. The configured transactional email provider processes account verification, invitation and recovery messages, and the report alerts you set up.</p>
           <p>Google and other platforms receive the requests necessary for the service you connect. When you choose a Google Sheets destination, exported data is subject to that spreadsheet's sharing settings. When you authorize an MCP client or another connected tool, it can receive results within its granted access. That tool's processing is also governed by its own terms and privacy policy. AMCP does not send Google user data to an external tool simply because you connect a Google account.</p>
           <p>AMCP does not sell Google user data, use it to serve targeted advertisements or build advertising audiences, or use it to train or improve generalized artificial intelligence or machine-learning models. This includes data obtained through Google Workspace APIs and data derived from Google API results.</p>
           <p>AMCP's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements. Transfers are limited to delivering user-requested features with consent, security needs, applicable legal obligations, or a business transfer with prior explicit consent. Human access to Google data is limited to your affirmative agreement for specific data, necessary security investigation, legal obligations, or permitted internal operations using aggregated data.</p>
@@ -78,6 +78,59 @@
         <section id="contact"><h2>8. Contact and policy changes</h2>
           <p>For privacy questions, access requests, or deletion of retained workspace data, contact the administrator who manages your AMCP workspace, or write to <!--email_off--><a href="mailto:privacy@amcp.shop">privacy@amcp.shop</a><!--/email_off-->. Identify your workspace and the records concerned; do not include passwords, access tokens, or client secrets.</p>
           <p>We publish changes on this page and update the date above. If we introduce a materially different use of Google user data, we will explain that use and obtain any required consent before the new use begins.</p>
+        </section>
+        <section id="meta"><h2>9. Meta (Facebook and Instagram) data</h2>
+          <p><strong>When AMCP receives Meta data.</strong> Only when you choose to: when you sign in to AMCP with Facebook, or when you connect your Meta advertising accounts in Connections. Each is a separate Facebook authorization.</p>
+          <p><strong>Signing in with Facebook.</strong> AMCP receives your Facebook user ID and name. It uses them only to sign you in and to show which identity is linked to your AMCP account. AMCP does not read or store the email address of your Facebook account.</p>
+          <p><strong>Connecting Meta advertising accounts.</strong> Depending on the features you authorize, AMCP uses permissions such as <code>ads_read</code>, <code>ads_management</code>, <code>business_management</code>, <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_ads</code> and <code>catalog_management</code>. With your authorization, AMCP receives:</p>
+          <ul>
+            <li>your Meta user ID and name, and the list of permissions you granted, to label the login and check what it may do;</li>
+            <li>an access token, stored encrypted as described in section 4;</li>
+            <li>the ad accounts you can access (ID, name, status, currency and time zone) and, for the ones you select, their pixels, custom conversions and apps (IDs and names);</li>
+            <li>the Facebook Pages you manage (ID and name) and the Instagram professional account linked to each Page (ID and username);</li>
+            <li>the settings and results of your campaigns, ad sets, ads and creatives. Results are aggregated figures such as spend, impressions, clicks and conversions, which can be broken down by date, placement, country, age group and gender. They do not identify individual people;</li>
+            <li>when you ask to promote an existing post: that Page's posts (ID, text, date and link), so you can choose one.</li>
+          </ul>
+          <ul>
+            <li>when you use catalog features: the catalogs, product details, feeds and product sets of the business you authorize.</li>
+          </ul>
+          <p><strong>How AMCP uses Meta data.</strong> AMCP uses it to:</p>
+          <ul>
+            <li>show your accounts, Pages, settings and reports;</li>
+            <li>run the scheduled reports, exports and alerts you set up;</li>
+            <li>check your tracking and campaign setup;</li>
+            <li>make the changes you ask for.</li>
+          </ul>
+          <p>AMCP changes a Meta ad account only after you, or a member of your workspace with write access, review and confirm the exact change. AMCP supports creating campaigns, ad sets and ads paused; activation requires explicit review and approval.</p>
+          <p><strong>What AMCP does not do with Meta data.</strong> AMCP does not sell it, use it for AMCP’s own advertising or audience building, or use it to train or improve generalized artificial intelligence or machine-learning models. AMCP does not publish posts, read messages or change Page settings.</p>
+          <p><strong>Who can see it.</strong></p>
+          <ul>
+            <li>Members of your workspace, according to their access.</li>
+            <li>The service providers in section 5: Railway and Cloudflare for hosting and the network, and our email provider for account messages and the report alerts you set up. Those alerts can include campaign names and figures.</li>
+            <li>Destinations you choose yourself, such as a Google Sheet, a CSV download, or an AI assistant you connect to AMCP through MCP.</li>
+          </ul>
+          <p>Meta receives the requests needed to provide the features you use.</p>
+          <p><strong>Keeping and deleting it.</strong> AMCP keeps the access token while the Meta login stays connected.</p>
+          <ul>
+            <li><strong>Disconnecting:</strong> disconnecting the login in Connections removes the token, the Meta user name, the synchronized account and Page list, and the selections made through it.</li>
+            <li><strong>Saved reports:</strong> saved reports and audit history follow the retention rules in section 6.</li>
+            <li><strong>Deleting everything:</strong> delete your account in Account, or follow the <a href="/data-deletion?lang=en">Data deletion page</a>. You can also send a deletion request to <!--email_off--><a href="mailto:privacy@amcp.shop">privacy@amcp.shop</a><!--/email_off-->.</li>
+          </ul>
+          <p><strong>Removing AMCP's access at Meta.</strong> In Facebook, open Settings &amp; privacy → Settings, then remove AMCP:</p>
+          <ul>
+            <li>under Business integrations, for the advertising connection;</li>
+            <li>under Apps and websites, for Facebook sign-in.</li>
+          </ul>
+          <p>This stops further requests. It does not delete data already saved in AMCP; use the steps above for that.</p>
+        </section>
+        <section id="authorities"><h2>10. Requests from public authorities</h2>
+          <p>If a public authority asks us for personal data of AMCP users, including data received from Meta, we:</p>
+          <ul>
+            <li>review whether the request is lawful and valid before responding;</li>
+            <li>challenge requests we consider unlawful, using the legal remedies available;</li>
+            <li>disclose only the minimum data the request legally requires;</li>
+            <li>document each request, our response, the legal reasoning and the people involved.</li>
+          </ul>
         </section>
       </article>
     </div>

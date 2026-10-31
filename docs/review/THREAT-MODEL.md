@@ -39,7 +39,7 @@ Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).
 | Owner | Everything in their workspace, including policies and grants | Mistakes; a stolen owner session |
 | Operator (human or MCP token) | Prepare and execute reviewed writes within grants and policies | Over-spending, wrong target, prompt-injected actions |
 | Reader | Reads and dry runs | Must never mutate |
-| Reviewer test account | Disposable test workspace, `role: admin`, `testAccount: true` | Must never change policies or real accounts |
+| Reviewer test account | Disposable test workspace, `role: admin`, `testAccount: true`; tools and AI clients act as operator at most | Must never change owner policies or reach the owner's accounts |
 | Other tenant | Their own workspace on the same deployment | Cross-tenant read or write |
 | Anonymous web user | Public pages, sign-in, sign-up, OAuth endpoints, DCR | Brute force, enumeration, denial of service |
 | Compromised or confused MCP client | Arbitrary tool calls with a valid operator token | The strongest in-scope adversary for spending |

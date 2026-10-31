@@ -696,7 +696,7 @@ test('native upload actions and platform_media_upload take any public link, not 
   }
 });
 
-test('the website takes an upload in parts behind the session and CSRF token; test accounts cannot upload', async () => {
+test('the website takes uploads behind the session and CSRF token, including an isolated reviewer upload', async () => {
   const master = Buffer.alloc(32, 29).toString('base64'),
     password = 'synthetic-test-password-only',
     origin = 'https://amcp.shop',
@@ -763,23 +763,52 @@ test('the website takes an upload in parts behind the session and CSRF token; te
     const removed = await send('/api/media/sources/' + id, {method: 'DELETE', headers: json});
     assert.equal(removed.status, 200);
     assert.equal((await send('/api/media/sources/' + id + '/complete', {method: 'POST', headers: json})).status, 404);
-    // A reviewer test account cannot reach the upload routes at all.
+    // Reviewers can upload in their isolated workspace, with the same CSRF checks.
     const reviewer = await fetch(base + '/api/session/test', {
       method: 'POST',
       headers: {Origin: origin, 'Content-Type': 'application/json'},
       body: JSON.stringify({password: reviewerPassword}),
     });
-    const refused = await send('/api/media/sources', {
+    const reviewerCookie = reviewer.headers.get('set-cookie')!.split(';')[0]!,
+      reviewerCsrf = (await reviewer.json()).csrf,
+      reviewerHeaders = {'Content-Type': 'application/json', Cookie: reviewerCookie, 'X-AMCP-CSRF': reviewerCsrf};
+    const reviewerNoCsrf = await send('/api/media/sources', {
       method: 'POST',
-      headers: {
-        ...json,
-        Cookie: reviewer.headers.get('set-cookie')!.split(';')[0]!,
-        'X-AMCP-CSRF': (await reviewer.json()).csrf,
-      },
-      body: JSON.stringify({size: 10}),
+      headers: {'Content-Type': 'application/json', Cookie: reviewerCookie},
+      body: JSON.stringify({size: png.length}),
     });
-    assert.equal(refused.status, 403);
-    assert.match(refused.body, /TEST_ACCOUNT_SCOPE/);
+    assert.equal(reviewerNoCsrf.status, 403);
+    const reviewerStarted = await send('/api/media/sources', {
+      method: 'POST',
+      headers: reviewerHeaders,
+      body: JSON.stringify({filename: 'reviewer.png', size: png.length, type: 'image/png'}),
+    });
+    assert.equal(reviewerStarted.status, 201, reviewerStarted.body);
+    const reviewerId = JSON.parse(reviewerStarted.body).source_id;
+    const reviewerPart = await send('/api/media/sources/' + reviewerId + '/parts/0', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/octet-stream', Cookie: reviewerCookie, 'X-AMCP-CSRF': reviewerCsrf},
+      body: new Uint8Array(png),
+    });
+    assert.equal(reviewerPart.status, 200, reviewerPart.body);
+    const reviewerComplete = await send('/api/media/sources/' + reviewerId + '/complete', {
+      method: 'POST',
+      headers: reviewerHeaders,
+    });
+    assert.equal(reviewerComplete.status, 200, reviewerComplete.body);
+    assert.equal(JSON.parse(reviewerComplete.body).sha256, sha256(png));
+    const reviewerListed = await send('/api/media/sources', {headers: {Cookie: reviewerCookie}});
+    assert.deepEqual(
+      JSON.parse(reviewerListed.body).sources.map((source: JsonObject) => source.source_id),
+      [reviewerId],
+    );
+    const ownerListed = await send('/api/media/sources', {headers: {Cookie: cookie}});
+    assert.deepEqual(JSON.parse(ownerListed.body).sources, []);
+    const reviewerRemoved = await send('/api/media/sources/' + reviewerId, {
+      method: 'DELETE',
+      headers: reviewerHeaders,
+    });
+    assert.equal(reviewerRemoved.status, 200, reviewerRemoved.body);
   } finally {
     const closed = new Promise<void>(r => listener.close(() => r()));
     listener.closeAllConnections();

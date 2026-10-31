@@ -233,10 +233,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merged with the ARC packages, the Help page's module is one more: 736.
   // Wave 4c round 6 (reporting) adds the four allocation models' native budget drafts
   // (src/<platform>-allocation-draft.ts), moved from src/allocation-plan.ts without wrapper reasons: 740.
+  // Reviewer connector authority adds one catalog entry, without adding a wrapper reason.
   assert.equal(files.length, 740);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11529);
+  assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -480,21 +480,23 @@ test('the provider refusals of a token exchange, each before what it guards', as
     ),
     1,
   );
-  // Meta: a long-lived token without its lifetime is refused, never given an invented one.
+  // Meta: a missing lifetime needs provider verification, never an invented one.
   assert.equal(
     await refused(
       {},
       u =>
-        u.searchParams.get('grant_type') === 'fb_exchange_token'
-          ? Response.json({access_token: 'meta-long'})
-          : Response.json({access_token: 'meta-short', expires_in: 3600}),
+        u.pathname.endsWith('/debug_token')
+          ? Response.json({data: {is_valid: false}})
+          : u.searchParams.get('grant_type') === 'fb_exchange_token'
+            ? Response.json({access_token: 'meta-long'})
+            : Response.json({access_token: 'meta-short', expires_in: 3600}),
       'meta',
       stored('meta'),
       {code: 'meta-code'},
       'OAUTH_RESPONSE_INVALID',
       'Meta did not return a valid long-lived token and lifetime.',
     ),
-    2,
+    3,
   );
   // Microsoft must grant offline access with a lifetime.
   assert.equal(
@@ -553,6 +555,204 @@ test('the provider refusals of a token exchange, each before what it guards', as
     await refused({}, tokenAnswers, 'tiktok', stored('tiktok'), {code: 'wrong-name'}, 'OAUTH_CODE_REQUIRED'),
     0,
   );
+});
+
+test('Meta accepts the provider expires alias without inheriting the short-lived lifetime', async () => {
+  const f = await fixture({}, u =>
+    Response.json(
+      u.searchParams.get('grant_type') === 'fb_exchange_token'
+        ? {access_token: 'meta-long', expires: '7200'}
+        : {access_token: 'meta-short', expires_in: 60},
+    ),
+  );
+  try {
+    const before = Date.now(),
+      result = await f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'});
+    assert.equal(result.credentials.accessToken, 'meta-long');
+    assert.ok(result.credentials.expiresAt >= before + 7200 * 1000);
+    assert.ok(result.credentials.expiresAt <= Date.now() + 7200 * 1000);
+    assert.equal(f.sent.length, 2);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('Meta verifies a missing lifetime with the app and uses the earlier native token or data-access expiry', async () => {
+  const now = Math.floor(Date.now() / 1000),
+    expiry = now + 3600;
+  for (const [expires_in, expires_at] of [
+    [undefined, now + 7200],
+    [0, now + 7200],
+    ['0', now + 7200],
+    [undefined, 0],
+    [0, 0],
+  ]) {
+    const f = await fixture({}, (u, init) => {
+      if (u.pathname.endsWith('/debug_token')) {
+        assert.equal(u.searchParams.get('input_token'), 'meta-long');
+        assert.equal(u.searchParams.has('access_token'), false);
+        assert.deepEqual(init.headers, {Authorization: 'Bearer meta-client|meta-secret'});
+        return Response.json({
+          data: {
+            is_valid: true,
+            app_id: 'meta-client',
+            type: 'USER',
+            expires_at,
+            data_access_expires_at: expiry,
+          },
+        });
+      }
+      return Response.json(
+        u.searchParams.get('grant_type') === 'fb_exchange_token'
+          ? {access_token: 'meta-long', ...(expires_in === undefined ? {} : {expires_in})}
+          : {access_token: 'meta-short', expires_in: 60},
+      );
+    });
+    try {
+      const result = await f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'});
+      assert.equal(result.credentials.accessToken, 'meta-long');
+      assert.ok(result.credentials.expiresAt > Date.now() + 3500 * 1000);
+      assert.ok(result.credentials.expiresAt <= expiry * 1000);
+      assert.equal(f.sent.length, 3);
+      assert.ok(f.sent.every(request => request.method === 'GET' && request.redirect === 'error'));
+      assert.ok(!JSON.stringify(result).includes('data_access_expires_at'));
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('Meta keeps no invented expiry for verified non-expiring user or system-user tokens', async () => {
+  for (const type of ['USER', 'SYSTEM_USER', 'BUSINESS_ASSET_USER']) {
+    const f = await fixture({}, u =>
+      Response.json(
+        u.pathname.endsWith('/debug_token')
+          ? {data: {is_valid: true, app_id: 'meta-client', type, expires_at: 0, data_access_expires_at: 0, error: null}}
+          : u.searchParams.get('grant_type') === 'fb_exchange_token'
+            ? {access_token: 'meta-long', expires_in: 0}
+            : {access_token: 'meta-short', expires_in: 60},
+      ),
+    );
+    try {
+      const result = await f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'});
+      assert.equal(result.credentials.accessToken, 'meta-long');
+      assert.equal(Object.hasOwn(result.credentials, 'expiresAt'), false);
+      assert.equal(f.sent.length, 3);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('Meta refuses invalid, foreign, expired, wrong-kind and incomplete token inspection without exposing secrets', async () => {
+  const now = Math.floor(Date.now() / 1000),
+    valid = {is_valid: true, app_id: 'meta-client', type: 'USER', expires_at: now + 3600};
+  for (const data of [
+    undefined,
+    [],
+    {...valid, is_valid: false},
+    {...valid, is_valid: 'true'},
+    {...valid, app_id: 'foreign-app'},
+    {...valid, type: 'PAGE'},
+    {...valid, type: 'APP'},
+    {...valid, expires_at: now - 1},
+    {...valid, expires_at: undefined},
+    {...valid, expires_at: '3600'},
+    {...valid, expires_at: 0, data_access_expires_at: now - 1},
+    {...valid, data_access_expires_at: now - 1},
+    {...valid, data_access_expires_at: 'unknown'},
+    {...valid, error: {message: 'meta-long meta-secret synthetic-private-error'}},
+  ]) {
+    const f = await fixture({}, u =>
+      Response.json(
+        u.pathname.endsWith('/debug_token')
+          ? {data}
+          : u.searchParams.get('grant_type') === 'fb_exchange_token'
+            ? {access_token: 'meta-long'}
+            : {access_token: 'meta-short', expires_in: 3600},
+      ),
+    );
+    try {
+      await assert.rejects(f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'}), error => {
+        assert.equal(error.code, 'OAUTH_RESPONSE_INVALID');
+        assert.doesNotMatch(
+          error.message + JSON.stringify(error.details),
+          /meta-long|meta-secret|synthetic-private-error/,
+        );
+        return true;
+      });
+      assert.equal(f.store.listConnections('local').length, 0);
+      assert.equal(f.sent.length, 3);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('Meta refuses malformed explicit lifetimes and unusable extended tokens without extra provider reads', async () => {
+  for (const extended of [
+    {expires_in: 3600},
+    {access_token: '', expires_in: 3600},
+    ...[-1, 1.5, true, null, '', 'invalid', [], {}, Number.MAX_SAFE_INTEGER].map(expires_in => ({
+      access_token: 'meta-long',
+      expires_in,
+    })),
+  ]) {
+    const f = await fixture({}, u =>
+      Response.json(
+        u.searchParams.get('grant_type') === 'fb_exchange_token'
+          ? extended
+          : {access_token: 'meta-short', expires_in: 3600},
+      ),
+    );
+    try {
+      await assert.rejects(f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'}), {
+        code: 'OAUTH_RESPONSE_INVALID',
+      });
+      assert.equal(f.sent.length, 2);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('Meta inspection retains the session fence and provider failures without falling back to the short token', async () => {
+  for (const mode of ['session-ended', 'provider-error', 'malformed']) {
+    let inspected = false;
+    const f = await fixture({}, u => {
+      if (u.pathname.endsWith('/debug_token')) {
+        inspected = true;
+        if (mode === 'provider-error') return Response.json({error: {message: 'meta-secret'}}, {status: 400});
+        if (mode === 'malformed') return new Response('not JSON: meta-secret');
+        return Response.json({
+          data: {is_valid: true, app_id: 'meta-client', type: 'USER', expires_at: Math.floor(Date.now() / 1000) + 3600},
+        });
+      }
+      return Response.json({
+        access_token: u.searchParams.get('grant_type') === 'fb_exchange_token' ? 'meta-long' : 'meta-short',
+      });
+    });
+    try {
+      await assert.rejects(
+        f.oauth.exchange('meta', stored('meta'), {code: 'meta-code'}, () => {
+          if (mode === 'session-ended' && inspected)
+            throw Object.assign(new Error('Synthetic ended session'), {code: 'SIGN_IN_REQUIRED'});
+        }),
+        {
+          code:
+            mode === 'session-ended'
+              ? 'SIGN_IN_REQUIRED'
+              : mode === 'provider-error'
+                ? 'OAUTH_EXCHANGE_FAILED'
+                : 'OAUTH_RESPONSE_INVALID',
+        },
+      );
+      assert.equal(f.sent.length, 3);
+      assert.equal(f.store.listConnections('local').length, 0);
+    } finally {
+      f.store.close();
+    }
+  }
 });
 
 test('X’s request token must confirm the callback; Meta’s long-lived exchange can be switched off', async () => {

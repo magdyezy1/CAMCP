@@ -261,10 +261,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/<platform>-allocation-draft.ts (Google, Meta, LinkedIn, Snapchat): four more files. Their three refusals are
   // still raised through bad() and still authored allocation copy (tools/check-locales.mjs), so the files with
   // reasons and the reasons are the same.
+  // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
   assert.equal(files.length, 740);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
-  assert.equal(owned.size, 1590);
-  assert.equal(Object.keys(catalog).length, 11529);
+  assert.equal(owned.size, 1591);
+  assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

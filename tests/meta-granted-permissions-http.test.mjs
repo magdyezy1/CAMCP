@@ -26,7 +26,18 @@ async function site(env = {}) {
     authEnv = {AMCP_MICROSOFT_DEVELOPER_TOKEN: 'synthetic-developer-token', ...env},
     calls = [],
     native = [],
-    control = {permissions: granted([...basic, 'ads_management'])};
+    control = {
+      permissions: granted([...basic, 'ads_management']),
+      extended: {access_token: 'synthetic-meta-access', expires_in: 5184000},
+      inspected: {
+        data: {
+          is_valid: true,
+          app_id: 'synthetic-meta-client',
+          type: 'USER',
+          expires_at: Math.floor(Date.now() / 1000) + 7200,
+        },
+      },
+    };
   for (const p of platforms) {
     authEnv['AMCP_' + p.env + '_CLIENT_ID'] = 'synthetic-' + p.id + '-client';
     authEnv['AMCP_' + p.env + '_CLIENT_SECRET'] = 'synthetic-' + p.id + '-secret';
@@ -37,7 +48,19 @@ async function site(env = {}) {
     assert.equal(url.origin, 'https://graph.facebook.com');
     assert.equal(init?.method ?? 'GET', 'GET', 'connecting never mutates advertising resources');
     if (url.pathname === '/v26.0/oauth/access_token')
-      return Response.json({access_token: 'synthetic-meta-access', expires_in: 5184000});
+      return Response.json(
+        url.searchParams.get('grant_type') === 'fb_exchange_token'
+          ? control.extended
+          : {access_token: 'synthetic-meta-access', expires_in: 3600},
+      );
+    if (url.pathname === '/v26.0/debug_token') {
+      assert.equal(url.searchParams.get('input_token'), control.extended.access_token);
+      assert.equal(
+        new Headers(init.headers).get('Authorization'),
+        'Bearer synthetic-meta-client|synthetic-meta-secret',
+      );
+      return Response.json(control.inspected);
+    }
     if (url.pathname === '/v26.0/me/adaccounts')
       return Response.json({
         data: [{id: 'act_111', account_id: '111', name: 'Client account', currency: 'USD', timezone_name: 'UTC'}],
@@ -124,6 +147,72 @@ async function site(env = {}) {
     },
   };
 }
+
+test('Meta callbacks secure and discover tokens with inspected expiry, including non-expiring user and system tokens', async () => {
+  const future = Math.floor(Date.now() / 1000) + 7200;
+  for (const [mode, inspected] of [
+    ['token-expiry', {type: 'USER', expires_at: future}],
+    ['data-access-expiry', {type: 'USER', expires_at: 0, data_access_expires_at: future}],
+    ['non-expiring-user', {type: 'USER', expires_at: 0, data_access_expires_at: 0}],
+    ['non-expiring-system', {type: 'SYSTEM_USER', expires_at: 0, data_access_expires_at: 0}],
+  ]) {
+    const nonExpiring = mode.startsWith('non-expiring'),
+      s = await site({AMCP_META_CONFIG_ID: 'synthetic-business-config'});
+    s.control.extended = {access_token: 'synthetic-meta-access'};
+    s.control.inspected.data = {...s.control.inspected.data, ...inspected};
+    try {
+      const {url, progress, connection} = await s.connect();
+      assert.equal(url.searchParams.get('config_id'), 'synthetic-business-config');
+      assert.equal(progress.state, 'complete', JSON.stringify(progress));
+      assert.equal(progress.authorization, true);
+      assert.equal(progress.exchange, true);
+      assert.equal(progress.sync, true);
+      assert.ok(connection);
+      const credentials = s.store.credentials('local', connection.id);
+      assert.equal(credentials.accessToken, 'synthetic-meta-access');
+      if (nonExpiring) assert.equal(Object.hasOwn(credentials, 'expiresAt'), false);
+      else {
+        assert.ok(credentials.expiresAt > Date.now());
+        assert.ok(credentials.expiresAt <= future * 1000);
+      }
+      const listed = await (await s.request('/api/platforms', 'GET', undefined, s.headers)).json();
+      const shown = listed.platforms.find(p => p.id === 'meta').connections[0];
+      assert.equal(shown.credentialHealth.state, nonExpiring ? 'healthy' : 'expiring');
+      assert.equal(shown.credentialHealth.access_expires_at, credentials.expiresAt ?? null);
+      assert.doesNotMatch(
+        JSON.stringify({progress, listed, audit: s.store.audit('local')}),
+        /synthetic-meta-access|synthetic-meta-secret/,
+      );
+      assert.equal(s.calls.filter(c => c.endsWith('/debug_token')).length, 1);
+      assert.equal(s.native.length, 0, 'only OAuth and discovery reads, no advertising operations');
+    } finally {
+      await s.close();
+    }
+  }
+});
+
+test('an unverified Meta token fails before storage and preserves an existing selected login', async () => {
+  const s = await site();
+  try {
+    const first = await s.connect(),
+      selected = s.select(first.connection),
+      before = s.store.credentials('local', selected.id);
+    s.control.extended = {access_token: 'synthetic-unverified-token'};
+    s.control.inspected.data.app_id = 'foreign-app';
+    const next = await s.connect();
+    assert.equal(next.progress.state, 'failed');
+    assert.equal(next.progress.authorization, true);
+    assert.equal(next.progress.exchange, false);
+    assert.equal(next.progress.sync, false);
+    assert.equal(next.progress.message, 'Meta did not return a valid long-lived token and lifetime.');
+    assert.equal(s.store.listConnections('local').length, 1);
+    assert.deepEqual(s.store.credentials('local', selected.id), before);
+    assert.deepEqual(s.store.listConnections('local')[0].accounts, ['111']);
+    assert.doesNotMatch(JSON.stringify(next.progress), /synthetic-unverified-token|synthetic-meta-secret/);
+  } finally {
+    await s.close();
+  }
+});
 
 test('a Meta login that declined ads_management records only granted permissions and refuses a write before Meta', async () => {
   const s = await site();

@@ -301,8 +301,8 @@ const commandEntityKinds = {
   media: 'Uploaded media',
   account: 'Account',
 };
-/** Whether this session searches the workspace: a signed-in member, not a test account (whose areas are limited). */
-const commandSearchable = q => session.authenticated === true && session.testAccount !== true && q.length >= 2;
+/** Whether this session searches the workspace: anyone signed in, a reviewer within its own test workspace. */
+const commandSearchable = q => session.authenticated === true && q.length >= 2;
 function commandEntityView(found) {
   if (found === 'loading') return `<p class="form-note">${esc(uiText('Searching this workspace…'))}</p>`;
   if (found === 'unavailable')
