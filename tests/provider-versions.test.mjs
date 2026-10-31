@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {isProviderModule, providerRegistries, runtimeGraph} from '../tools/architecture-map.mjs';
 import {providerHooks, providerVersions, registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {providerAdapters, providerById} from '../dist/src/provider-adapters.js';
@@ -211,6 +212,30 @@ test('the deployment’s version settings reach the registry’s answers as they
     assert.equal(providerVersions('meta').current(), meta.metaApiVersion);
     assert.equal(providerVersions('meta').path('/'), meta.metaPrefix);
   });
+});
+
+test('the tool-surface golden pins AMCP’s defaults in a process started with the deployment’s version settings', () => {
+  // Wave 4c-r7 review: the golden read the settings its process started with, so a gate or worker that set the Meta
+  // rollback failed it. Its first import now unsets them (tests/helpers/default-version-settings.mjs).
+  const env = {
+    ...process.env,
+    AMCP_META_API_VERSION: 'v25.0',
+    AMCP_GOOGLE_DEVELOPER_TOKEN: 'synthetic-developer-token',
+    AMCP_LINKEDIN_API_VERSION: '202605',
+  };
+  // Its own run, not a child of this runner (which would exit 0 whatever failed), and never one that rewrites the golden.
+  delete env.NODE_TEST_CONTEXT;
+  delete env.AMCP_UPDATE_GOLDEN;
+  const golden = fileURLToPath(new URL('./tool-surface-golden.test.mjs', import.meta.url)),
+    result = spawnSync(process.execPath, ['--test-reporter=tap', golden], {
+      cwd: process.cwd(),
+      env,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  assert.equal(result.status, 0, (result.stdout + result.stderr).slice(-4000));
+  assert.match(result.stdout, /^# pass 1$/m);
+  assert.match(result.stdout, /^# fail 0$/m);
 });
 
 test('Google Ads, Meta, LinkedIn and Criteo declare a version, frozen; no other provider declares one', () => {

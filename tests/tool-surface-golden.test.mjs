@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+// First of the AMCP imports: it unsets the deployment's version settings before any dist module loads (Meta's is read
+// at load), so the golden pins AMCP's defaults whatever settings the process starts with.
+import './helpers/default-version-settings.mjs';
 import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
