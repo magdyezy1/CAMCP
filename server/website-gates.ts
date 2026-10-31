@@ -14,10 +14,10 @@ export function securityHeaders({router}: WebsiteSite) {
     next();
   });
 }
-/** The test-account scope (SEC-06): a reviewer test account reaches only the APIs of the tabs an evaluator needs. */
+/** Reviewers may use product workflows in their isolated workspace, excluding account and owner administration. */
 export function testAccountScope({router, web}: WebsiteSite) {
-  // A test account is limited to the tabs an evaluator needs. Hiding navigation is presentation
-  // only, so every API behind an excluded tab refuses it here, at one chokepoint.
+  // Keep the shared sign-in's security and owner controls closed. Product workflows,
+  // including reviewed writes and AI clients, retain their normal authority checks.
   //
   // Evaluators can connect their own platform logins and manage their workspace's selections.
   // Connection mutations retain session, administrator, CSRF and tenant checks; callbacks retain
@@ -35,8 +35,25 @@ export function testAccountScope({router, web}: WebsiteSite) {
     [/^\/api\/connections\/[^/]+\/(reauthorize|sync|default|credential-retry)$/, ['POST']],
     [/^\/api\/connections\/[^/]+\/(assets|write-access|label)$/, ['PATCH']],
     [/^\/api\/activity$/, ['GET']], // Activity tab
-    [/^\/api\/reporting-overview\/[^/]+$/, ['GET']], // Reporting overview: CSV export
+    [/^\/api\/reporting-(overview|files|evidence)\/[^/]+$/, ['GET']],
     [/^\/api\/workspace\/[a-z]+$/, ['POST']], // narrowed further by testAccountTools below
+    [/^\/api\/workspace-search$/, ['POST']],
+    [/^\/api\/working-clients$/, ['GET']],
+    [/^\/api\/access-sets$/, ['GET']],
+    [/^\/api\/connector-tokens$/, ['GET', 'POST']],
+    [/^\/api\/connector-tokens\/[^/]+$/, ['DELETE']],
+    [/^\/api\/mcp\/consent$/, ['GET', 'POST']],
+    [/^\/api\/mcp\/authorizations$/, ['GET']],
+    [/^\/api\/mcp\/authorizations\/[^/]+$/, ['DELETE']],
+    [/^\/api\/write-approvals\/[^/]+$/, ['GET', 'POST']],
+    [/^\/api\/media\/sources$/, ['GET', 'POST']],
+    [/^\/api\/media\/sources\/[^/]+$/, ['GET', 'DELETE']],
+    [/^\/api\/media\/sources\/(link|drive)$/, ['POST']],
+    [/^\/api\/media\/sources\/[^/]+\/(retain|complete)$/, ['POST']],
+    [/^\/api\/media\/sources\/[^/]+\/parts\/[^/]+$/, ['PUT']],
+    [/^\/api\/media\/sources\/[^/]+\/thumbnail$/, ['GET']],
+    [/^\/api\/media\/drive\/folder$/, ['POST']],
+    [/^\/api\/media\/variants\/[^/]+\/preview$/, ['GET']],
     [/^\/api\/account$/, ['GET']], // Settings: read own profile
     [/^\/api\/account\/(options|delivery|sessions)$/, ['GET']],
     [/^\/api\/account\/sessions\/[^/]+$/, ['DELETE']], // Settings: end one's own sessions
@@ -46,7 +63,7 @@ export function testAccountScope({router, web}: WebsiteSite) {
   // Deliberately absent, because the reviewer password is shared: changing the password, email,
   // MFA or linked identities would let one evaluator lock every other one out, and owner
   // administration is not part of an evaluation.
-  const testAccountTools = new Set(['workspace', 'overview']);
+  const testAccountTools = new Set(['workspace', 'overview', 'campaign', 'reporting', 'media', 'write', 'previews']);
   // The gate compares a lower-cased path, and the router above matches case-sensitively. Express
   // routes case-insensitively by default, so a case-sensitive prefix test here let `/API/...`
   // skip the gate while still reaching the handler — five endpoints, connector tokens among

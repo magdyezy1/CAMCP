@@ -38,7 +38,7 @@ test('both full static privacy policies are public without login, content script
         );
         assert.match(body, locale === 'ar' ? /<html lang="ar" dir="rtl">/ : /<html lang="en" dir="ltr">/);
         // Updated for the retention periods and self-service deletion of owner decision P3 (SEC-07).
-        assert.match(body, /datetime="2026-10-12"/);
+        assert.match(body, /datetime="2026-10-30"/);
         assert.match(body, /<a href="\/privacy\?lang=en"/);
         assert.match(body, /<a href="\/privacy\?lang=ar"/);
       }
@@ -58,7 +58,18 @@ test('static privacy translations retain every section, technical scope, destina
     tags = html => [...article(html).matchAll(/<[^>]+>/g)].map(m => m[0].replace(/\?lang=(?:en|ar)"/, '?lang="')),
     sections = html => [...html.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]),
     scopes = html => [...html.matchAll(/<code>(.*?)<\/code>/g)].map(m => m[1]);
-  assert.deepEqual(sections(ar), ['data', 'google', 'use', 'protection', 'sharing', 'retention', 'choices', 'contact']);
+  assert.deepEqual(sections(ar), [
+    'data',
+    'google',
+    'use',
+    'protection',
+    'sharing',
+    'retention',
+    'choices',
+    'contact',
+    'meta',
+    'authorities',
+  ]);
   assert.deepEqual(sections(ar), sections(en));
   assert.deepEqual(scopes(ar), scopes(en));
   assert.deepEqual(

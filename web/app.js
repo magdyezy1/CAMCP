@@ -1513,7 +1513,8 @@ async function renderConsent() {
  */
 function accessLine(s) {
   if (!s?.authenticated) return uiText('Not signed in');
-  if (s.testAccount) return uiText('Test workspace · read access');
+  if (s.testAccount)
+    return uiText('Test account') + ' · ' + uiText(s.writesEnabled ? 'Read + reviewed writes' : 'Read-only access');
   // A member limited to a client access set (SEC-08) sees which client their access covers.
   if (s.accessSet)
     return s.accessSet.removed
@@ -1620,14 +1621,10 @@ function workingClientForget() {
   } catch {}
 }
 /**
- * The client profiles with accounts this person can reach, as the session lists them; none for a reviewer test account
- * or while a required two-step setup is pending.
+ * The client profiles with accounts this person can reach, unless a required two-step setup is pending.
  */
 function workingClientList() {
-  return session.authenticated &&
-    !session.testAccount &&
-    !session.mfaEnrollmentRequired &&
-    Array.isArray(session.workingClients)
+  return session.authenticated && !session.mfaEnrollmentRequired && Array.isArray(session.workingClients)
     ? session.workingClients
     : [];
 }

@@ -158,10 +158,8 @@ const doorForms: PasswordForm[] = ['scrypt-v3', 'scrypt'],
     'workspace-admin': 'AMCP_ADMIN_PASSWORD_HASH',
     'workspace-test': 'AMCP_TEST_PASSWORD_HASH',
   };
-/** The sessions and MCP grants a door issued: grants approved from its sessions carry no owner account of their own.
- * The reviewer door's clause matches nothing today: test accounts cannot consent (route gate and McpOAuth.consent),
- * and a grant owned by 'workspace-test' would fail assertActorActive. It stays so a reviewer password change would
- * still end such a grant if consent were ever opened to test accounts. */
+/** The sessions and MCP grants issued by each password door. Reviewer grants carry the door subject so password
+ * changes revoke them independently of the deployment owner's grants and personal member accounts. */
 const doorGrants: Record<Door, string> = {
   'workspace-admin': "json_extract(data,'$.ownerUserId') IS NULL",
   'workspace-test': "json_extract(data,'$.ownerUserId')='workspace-test'",
@@ -402,6 +400,10 @@ export class WebStore {
           'DELETE FROM amcp_oauth_states WHERE session_hash NOT IN (SELECT hash FROM amcp_web_sessions)',
         ).run();
         endMcpGrants(this.store, 'tenant_id=? AND ' + grants, [tenant], 'door_password_change');
+        if (door === 'workspace-test')
+          db.prepare(
+            'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash IN (SELECT hash FROM credential_owners WHERE user_id=?)',
+          ).run(tenant, door);
         this.store.appendAudit(tenant, randomUUID(), {
           event: door === 'workspace-admin' ? 'administrator_password_changed' : 'reviewer_password_changed',
         });

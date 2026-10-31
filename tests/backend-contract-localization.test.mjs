@@ -260,10 +260,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ARC-01 phase B (wave 4c round 6): the workspace tool's provider actions add Tag Manager's measurement audit
   // (src/gtm-measurement-audit.ts) and WooCommerce's workspace actions (src/woocommerce-workspace.ts), neither owning a
   // reason: 738 files, the same reasons.
+  // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
   assert.equal(files.length, 738);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
-  assert.equal(owned.size, 1590);
-  assert.equal(Object.keys(catalog).length, 11529);
+  assert.equal(owned.size, 1591);
+  assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

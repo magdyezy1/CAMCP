@@ -5,6 +5,7 @@ import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {createHttpApp} from '../server/http-app.js';
+import {WebStore} from '../server/web-store.js';
 
 const master = Buffer.alloc(32, 91).toString('base64');
 const origin = 'https://amcp.shop';
@@ -17,6 +18,12 @@ const blocked: typeof fetch = async () => {
 async function site() {
   const store = new Store(':memory:', master),
     service = new MirrorService(new Registry(), store);
+  const toolActors: {tool: string; role: string; testAccount: boolean}[] = [],
+    invoke = service.call.bind(service);
+  service.call = (...args) => {
+    toolActors.push({tool: args[0], role: args[2].role, testAccount: args[2].testAccount === true});
+    return invoke(...args);
+  };
   const listener = await listenForFetch(
     createHttpApp(service, store, {
       website: {origin, masterKey: master, adminPassword: password, testPassword, fetcher: blocked},
@@ -44,6 +51,7 @@ async function site() {
   const headers = {Cookie: cookie, 'X-AMCP-CSRF': csrf};
   return {
     store,
+    toolActors,
     request,
     headers,
     close: async () => {
@@ -63,13 +71,12 @@ const refused: [string, string][] = [
   ['POST', '/api/signin/google/start'],
   ['POST', '/api/account/password'],
   ['POST', '/api/owner/accounts/test-invite'],
-  ['POST', '/api/mcp/consent'],
+  ['POST', '/api/access-sets'],
+  ['DELETE', '/api/access-sets/test'],
+  ['POST', '/api/workspaces/member'],
+  ['POST', '/api/workspaces/security-policy'],
   ['POST', '/api/connections/synthetic/future-operation'],
   ['PATCH', '/api/connections/synthetic'],
-  ['GET', '/api/connector-tokens'],
-  ['POST', '/api/connector-tokens'],
-  ['GET', '/api/mcp/authorizations'],
-  ['GET', '/api/media/variants/abc/preview'],
 ];
 
 test('a reviewer test account is refused every route outside its allow-list', async () => {
@@ -115,7 +122,7 @@ test('the reviewer areas an evaluator needs still work', async () => {
 
 // WEB-06: Clients & templates is a test-account page, but it needed the campaign tool for its recipe list, which this
 // gate refuses. The profiles response now carries the recipe fields; the campaign tool stays refused.
-test('a reviewer opens Clients & templates and saves a playbook in its own workspace; campaigns stay refused', async () => {
+test('a reviewer opens Clients & templates and saves a playbook in its own workspace; campaign workflows are available', async () => {
   const s = await site();
   try {
     const profiles = await s.request('/api/workspace/workspace', 'POST', {action: 'profiles'}, s.headers);
@@ -180,11 +187,38 @@ test('a reviewer opens Clients & templates and saves a playbook in its own works
       briefs.briefs.map((b: {name: string}) => b.name),
       ['Reviewer brief'],
     );
-    for (const args of [{action: 'recipes'}, {action: 'list'}, {action: 'create', name: 'x', brief: 'x', steps: []}]) {
-      const refused = await s.request('/api/workspace/campaign', 'POST', args, s.headers);
-      assert.equal(refused.status, 403, args.action);
-      assert.equal((await refused.json()).error?.code, 'TEST_ACCOUNT_SCOPE', args.action);
+    for (const action of ['recipes', 'list']) {
+      const response = await s.request('/api/workspace/campaign', 'POST', {action}, s.headers);
+      assert.equal(response.status, 200, action);
+      assert.equal((await response.json()).success, true, action);
     }
+    assert.ok(s.toolActors.some(actor => actor.tool === 'amcp_campaign'));
+    assert.ok(s.toolActors.every(actor => actor.role === 'operator' && actor.testAccount));
+    assert.equal((await s.request('/api/connector-tokens', 'GET', undefined, s.headers)).status, 200);
+    const issued = await s.request('/api/connector-tokens', 'POST', {name: 'Reviewer LLM', role: 'reader'}, s.headers);
+    assert.equal(issued.status, 200, await issued.clone().text());
+    const token = await issued.json();
+    const actor = s.store.authenticate(token.token);
+    assert.equal(actor.role, 'reader');
+    assert.equal(actor.testAccount, true);
+    assert.equal(actor.ownerUserId, 'workspace-test');
+    assert.equal(actor.tenantId, 'local-test');
+    const escalated = await s.request('/api/connector-tokens', 'POST', {name: 'Invalid', role: 'admin'}, s.headers);
+    assert.equal((await escalated.json()).error.code, 'INVALID_ROLE');
+    assert.equal((await s.request('/api/connector-tokens/' + token.id, 'DELETE', undefined, s.headers)).status, 200);
+    assert.throws(() => s.store.authenticate(token.token), {code: 'UNAUTHORIZED'});
+    const second = await s.request('/api/connector-tokens', 'POST', {name: 'Next reviewer', role: 'reader'}, s.headers);
+    const rotating = await second.json();
+    assert.equal(s.store.authenticate(rotating.token).testAccount, true);
+    new WebStore(s.store, {
+      origin,
+      masterKey: master,
+      adminPassword: password,
+      testPassword: testPassword + '-changed',
+    });
+    assert.throws(() => s.store.authenticate(rotating.token), {code: 'UNAUTHORIZED'});
+    assert.equal((await s.request('/api/session', 'GET', undefined, s.headers)).status, 200);
+    assert.equal((await s.request('/api/connector-tokens', 'GET', undefined, s.headers)).status, 401);
   } finally {
     await s.close();
   }
@@ -228,14 +262,14 @@ test('the reviewer scope holds however the path is spelled', async () => {
   const s = await site();
   try {
     const spellings: [string, string][] = [
-      ['POST', '/API/workspace/write'],
-      ['POST', '/Api/Workspace/write'],
-      ['POST', '/api/workspace/WRITE'],
-      ['POST', '/api/workspace/%77rite'],
-      ['POST', '/api/workspace/write/'],
-      ['POST', '/api//workspace/write'],
-      ['GET', '/API/connector-tokens'],
-      ['GET', '/api/CONNECTOR-TOKENS'],
+      ['POST', '/API/owner/accounts/access'],
+      ['POST', '/Api/Owner/accounts/access'],
+      ['POST', '/api/owner/ACCOUNTS/access'],
+      ['POST', '/api/owner/accounts/%61ccess'],
+      ['POST', '/api/owner/accounts/access/'],
+      ['POST', '/api//owner/accounts/access'],
+      ['POST', '/API/access-sets'],
+      ['POST', '/api/ACCESS-SETS'],
     ];
     for (const [method, url] of spellings) {
       const response = await s.request(url, method, method === 'GET' ? undefined : {}, s.headers);
