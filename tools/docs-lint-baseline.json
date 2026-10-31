@@ -40,10 +40,16 @@
       "raised": [
         "reference_words 143230 → 143542"
       ]
+    },
+    {
+      "reason": "w4c-arc6-versions: docs/review/ARCHITECTURE.md section 9 records the versions comparison, the whole-branch call-replay proof its four rows cite",
+      "raised": [
+        "reference_words 143542 → 143704"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143542
+    "reference_words": 143704
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

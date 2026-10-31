@@ -517,6 +517,17 @@ Adjust's `date_period`); recorded back to back on both builds, twice each, those
 beyond calibration and no outcome flip, and the one record left unsettled is the `platform()` count, which varies
 between two runs of Work-here. The direct check above is byte-identical on the final head too.
 
+**The versions comparison (wave 4c round 6).** One comparison of the versions package's head with Work-here proves its
+rows: the 809 test files related to its changes (the four it adds or changes run on their own), recorded twice on
+Work-here (with the branch's recording targets) and once on the head on one UTC day, the 14 that failed or differed
+under that load (LinkedIn's media resume, owner health's five-second FFmpeg probe and run times, a clock-derived wait,
+random plan hashes) again back to back: 9,248,057 records before, 9,248,056 after. With the build's release identity
+masked and the moved `validateMetaCreative` compared apart (its 74 distinct calls answer the same through Work-here's
+function): 0 request differences, no allow-versus-refuse flip, the same outcomes per action in every test file, and
+one `platform()` lookup of `tests/measurement-apple.test.ts` fewer (49 and 51 in Work-here's runs). 349,100 distinct
+pure calls replay with 0 differences but one recorded under `AMCP_WIRE_CONTRACTS=enforce` (likewise on Work-here's
+build); `tests/tool-surface-golden.test.mjs` passes on both builds.
+
 Seven exports moved with their code and are not re-exported from the shared modules that held them, since a re-export
 would import the provider module again and raise the ratchet's counts: `metaImageSources` and `metaConversionRecipes`
 (from `src/campaign-recipes.ts` to `src/meta-website-recipes.ts`), `googleConversionRecipes` (from
