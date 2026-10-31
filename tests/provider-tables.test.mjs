@@ -1342,8 +1342,8 @@ const oldWire = (() => {
           : [{field: '', reason: 'The pinned Data Manager document has no method ' + vendorMethod}],
     };
   }
-  // Microsoft Advertising: the pinned WSDL type model, moved verbatim to src/microsoft-wire-contract.ts without its
-  // gateway check, which stays here.
+  // Microsoft Advertising: the pinned WSDL type model, moved verbatim to src/microsoft-wire-contract.ts, its gateway
+  // check included; the old dispatch's own check stays here as it was.
   const microsoftContract = plan =>
     plan.gateway !== 'microsoft_ads_native_action' ? undefined : microsoftWireContract(plan);
   /** The contract of `plan`'s route, or undefined when no pinned request schema covers it. */
@@ -1864,6 +1864,18 @@ test('every gateway’s requests resolve to the same wire contract, checked the 
       'microsoft_ads_native_action',
     ].filter(gateway => gateways.includes(gateway)),
   );
+  // Regression (wave 4c-r7 review): the moved model keeps the gateway check the function had in src/wire-contracts.ts.
+  // Called directly, a plan of any other gateway whose action names a Microsoft operation has no Microsoft contract;
+  // the wire contracts' dispatch reaches it with Microsoft's plans only.
+  const operations = Object.values(microsoft.services).flatMap(s => Object.keys(s.operations));
+  let modelled = 0;
+  for (const action of operations)
+    for (const gateway of [...gateways, undefined, '']) {
+      const plan = {gateway, action, method: 'POST', path: '/' + action, readOnly: false, body: {}};
+      if (gateway === 'microsoft_ads_native_action') modelled += microsoftWireContract(plan) ? 1 : 0;
+      else assert.equal(microsoftWireContract(plan), undefined, String(gateway) + ' ' + action);
+    }
+  assert.ok(operations.length > 200 && modelled === operations.length, operations.length + ' ' + modelled);
   // The Data Manager contract from a test's own envelope, sealed or not, and from the pinned document.
   const document = {
     resources: {

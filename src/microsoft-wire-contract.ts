@@ -3,11 +3,13 @@ import {pinnedJson} from './pinned-json.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {Resolved} from './wire-contracts.js';
 import type {WireIssue} from './discovery-issues.js';
+import {microsoftGateway} from './microsoft-native.js';
 
 /**
- * Microsoft Advertising's wire contract (PRV-05), moved unchanged from src/wire-contracts.ts (ARC-01, wave 4c round 6):
- * the operation's request element of the pinned WSDL type model (generated/microsoft-contracts.json). Its adapter
- * declares it (hooks `wireContract`), and the wire contracts keep the modes, the seal and every refusal.
+ * Microsoft Advertising's wire contract (PRV-05), moved unchanged from src/wire-contracts.ts (ARC-01, wave 4c round 6),
+ * its gateway check included: the operation's request element of the pinned WSDL type model
+ * (generated/microsoft-contracts.json). Its adapter declares it (hooks `wireContract`), and the wire contracts keep the
+ * modes, the seal and every refusal.
  */
 const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -17,8 +19,12 @@ const record = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
 const xs = '{http://www.w3.org/2001/XMLSchema}';
 type Node = {attributes: Record<string, string>; children: Node[]; kind: string};
 const local = (q: string) => q.replace(/^\{[^}]*\}/, '');
-/** The contract of a Microsoft Advertising request: its operation's request element, or undefined. */
+/**
+ * The contract of a Microsoft Advertising request: its operation's request element, or undefined. Another gateway's
+ * plan has none, whatever operation its action names.
+ */
 export function microsoftWireContract(plan: CompiledRequest): Resolved | undefined {
+  if (plan.gateway !== microsoftGateway) return undefined;
   const model = pinnedJson<JsonObject>('generated/microsoft-contracts.json');
   const services = Object.entries(model.services as Record<string, JsonObject>).filter(
     ([, s]) => s.operations[plan.action],
