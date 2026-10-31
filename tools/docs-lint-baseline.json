@@ -64,10 +64,16 @@
       "raised": [
         "reference_words 143445 → 143546"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the workspace package's call-replay comparison, which proves its six rows (ARC-01, 216 words)",
+      "raised": [
+        "reference_words 143546 → 143762"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143546
+    "reference_words": 143762
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
