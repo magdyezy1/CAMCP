@@ -58,6 +58,16 @@ import {metaCatalogComparison} from './meta-catalog-comparison.js';
 import {xCatalogComparison, xCatalogListedSelection} from './x-catalog-comparison.js';
 import {snapchatCatalogComparison} from './snapchat-catalog-comparison.js';
 import {catalogInventoryRequested, listedSelectionRequested} from './x-catalog-selection-inventory.js';
+// Wave 4c round 6 (w4c-arc6-reporting): the Overview's Sheets delivery (sheetsDelivery, at the end).
+import {
+  GoogleSheetsExports,
+  abandonSheetsDelivery,
+  assertSheetsSettled,
+  deliveryProjection,
+  sheetsDeliveriesForReport,
+  unresolvedSheetsDelivery,
+  unresolvedStates,
+} from './google-sheets.js';
 export type {WooCommerceRequest} from './woocommerce-source.js';
 export type {ResultIds} from './snapchat-result-ids.js';
 
@@ -579,4 +589,20 @@ export const catalogComparisonSteps = Object.freeze({
     // COM-02 D: Snapchat changes products only through feeds, so its comparison names what to fix there.
     snapchat_native_action: snapchatCatalogComparison,
   }) as Readonly<Record<string, CatalogComparison>>,
+});
+
+/**
+ * Wave 4c round 6 (w4c-arc6-reporting): the Overview's Google Sheets delivery (src/google-sheets.ts), which
+ * src/reporting-overview.ts consults instead of importing it: the export client of the service's store and fetcher,
+ * the delivery states that stay unresolved, and the delivery receipts the Overview lists, projects, rechecks and
+ * releases, each the module's own export under its own name.
+ */
+export const sheetsDelivery = Object.freeze({
+  exports: (store: Store, fetcher: typeof fetch) => new GoogleSheetsExports(store, fetcher),
+  unresolvedStates,
+  unresolvedSheetsDelivery,
+  sheetsDeliveriesForReport,
+  deliveryProjection,
+  assertSheetsSettled,
+  abandonSheetsDelivery,
 });

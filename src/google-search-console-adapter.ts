@@ -125,6 +125,19 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
       }
       return undefined;
     },
+    // Wave 4c round 6 (w4c-arc6-reporting): the selectors src/workbook-repository.ts projects: a site URL, site or
+    // property URL field of the arguments, their params, path_params or payload, the body.
+    selectors: Object.freeze({
+      order: 2,
+      groups: Object.freeze([
+        Object.freeze({
+          paths: Object.freeze(['$', '$.params', '$."path_params"', '$.payload']),
+          keys: Object.freeze(['siteurl', 'site', 'propertyurl']),
+        }),
+      ]),
+      otherwise: 'site',
+      body: 'payload',
+    }),
   }),
   // Writes and campaigns (wave 4c): a review's write needs the Search Console write permission (src/write-review.ts).
   writes: Object.freeze({

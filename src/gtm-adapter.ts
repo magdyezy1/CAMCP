@@ -54,6 +54,20 @@ export const gtmHooks: ProviderHooks = Object.freeze({
       return /^accounts\/([A-Za-z0-9_-]{1,200})(?:\/[^/\x00-\x20\\?#%]+)*$/.exec(value)?.[1];
     },
     anchorKind: (anchor: string) => (anchor.startsWith('accounts/') ? 'account' : undefined),
+    // Wave 4c round 6 (w4c-arc6-reporting): the selectors src/workbook-repository.ts projects: a path, parent or
+    // account ID field of the arguments, their params or path_params; the payload is the body.
+    selectors: Object.freeze({
+      order: 3,
+      groups: Object.freeze([
+        Object.freeze({
+          paths: Object.freeze(['$', '$.params', '$."path_params"']),
+          keys: Object.freeze(['path', 'parent', 'accountid']),
+        }),
+      ]),
+      kinds: Object.freeze({accountid: 'account'}),
+      otherwise: 'resource',
+      body: 'payload',
+    }),
   }),
   // Writes and campaigns (wave 4c): its parts of the reviewed write lifecycle (src/write-review.ts): the Tag Manager
   // permission a write needs, and the workspace fingerprint a route takes from the state read.

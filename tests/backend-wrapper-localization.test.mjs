@@ -249,7 +249,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/linkedin-conditional-programs.ts and src/dv360-conditional-programs.ts: three more. Merged with the versions,
   // tables and workspace packages, the modules add up: 751, the same wrapper reasons. The merge then moves the declared
   // effects of a suggested call to the leaf src/call-effects.ts, without wrapper reasons: 752.
-  assert.equal(files.length, 752);
+  // Wave 4c round 6 (reporting) adds the four allocation models' native budget drafts
+  // (src/<platform>-allocation-draft.ts), moved from src/allocation-plan.ts without wrapper reasons, and moves the
+  // Overview's native parent reads to src/<platform>-detail-parents.ts (TikTok, Snapchat, LinkedIn), without wrapper
+  // reasons: seven modules. Merged with the versions, tables, workspace and catalog packages, the modules add up: 759,
+  // the same wrapper reasons.
+  assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11530);

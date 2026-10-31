@@ -225,6 +225,18 @@ export const redditHooks: ProviderHooks = Object.freeze({
   reportScope: Object.freeze({
     account: (kind: unknown, value: string) =>
       kind === 'account' && /^[A-Za-z0-9_-]{1,200}$/.test(value) ? value : undefined,
+    // Wave 4c round 6 (w4c-arc6-reporting): the selectors src/workbook-repository.ts projects: an account ID or ad
+    // account ID field of the arguments, their params or path_params; no body makes them invalid.
+    selectors: Object.freeze({
+      order: 5,
+      groups: Object.freeze([
+        Object.freeze({
+          paths: Object.freeze(['$', '$.params', '$."path_params"']),
+          keys: Object.freeze(['accountid', 'adaccountid']),
+        }),
+      ]),
+      otherwise: 'account',
+    }),
   }),
   // Writes and campaigns (wave 4c): its write contract decides alone, and its state check is the exact-target check.
   // Its family reads pages with src/reddit-paging.ts, not src/pagination.ts, so this adapter imports them in no cycle.

@@ -4,6 +4,7 @@ import {metaWindowsMessage, metaWindowsOrdered, metaWindowsValid} from './meta-a
 import {undocumentedBreakdownValue, type GuidedReporting} from './report-source.js';
 import {collectMetaEvidence} from './meta-evidence.js';
 import type {JsonObject} from './types.js';
+import {metaAllocationDraft} from './meta-allocation-draft.js';
 
 /**
  * Meta's guided reporting (ARC-04 stage F): what the shared guided modules (src/report-breakdowns.ts,
@@ -241,4 +242,6 @@ export const metaGuidedReporting: GuidedReporting = {
     'Meta account currency and timezone verified before and after complete Insights pages; action/window/report-time settings come from the retained request, native account/parent/day grain is checked, and reporting-window completeness remains declared. Collection is not a point-in-time snapshot.',
   // RPT-04 (owner policy P6): guided Meta pages are complete and Meta omits zero-valued action entries.
   omittedAsZero: true,
+  // Wave 4c round 6 (w4c-arc6-reporting): DEC-02's native budget draft of the allocation model (campaign or ad set).
+  allocationDraft: metaAllocationDraft,
 };

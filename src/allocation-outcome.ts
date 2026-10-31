@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {audit, bad, fingerprint, optional, read} from './workspace-core.js';
 import {reportAllocation} from './report-allocation.js';
+// ARC-01 (reporting, wave 4c round 6): a binding that names no gateway is the fallback draft's (src/allocation-plan.ts).
+import {allocationGateway} from './allocation-plan.js';
 import {planRight} from './campaign-inventory.js';
 import {zonedMidnight} from './workflows.js';
 import type {Store} from './store.js';
@@ -242,7 +244,7 @@ export function scheduleAllocationOutcome(store: Store, actor: Actor, run: JsonO
         version: 1,
         plan_id: run.id,
         report_id: b.report_id,
-        gateway: b.gateway ?? 'google_ads_native_action',
+        gateway: allocationGateway(b),
         account_id: b.account_id,
         connection_id: b.connection_id,
         currency: b.currency,
@@ -316,7 +318,7 @@ function accessiblePlan(store: Store, actor: Actor, planId: string) {
   if (!run.allocation)
     bad('This campaign plan did not come from an allocation proposal.', 'ALLOCATION_OUTCOME_UNQUALIFIED');
   const b = run.allocation;
-  store.resolveConnection(actor, b.gateway ?? 'google_ads_native_action', b.account_id, b.connection_id);
+  store.resolveConnection(actor, allocationGateway(b), b.account_id, b.connection_id);
   return run;
 }
 /**

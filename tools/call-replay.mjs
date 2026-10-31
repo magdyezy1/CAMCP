@@ -130,6 +130,44 @@ export const targets = Object.freeze({
   },
   'dist/src/report-file-delivery.js': {classes: {ReportFileDelivery: ['bind', 'queue', 'work', 'download']}},
   'dist/src/reporting-overview.js': {classes: {ReportingOverview: ['handle', 'work']}},
+  // Wave 4c round 6 (w4c-arc6-reporting, ARC-01): the reporting modules whose gateways, budget drafts, workbook
+  // selector projections and detail parents move to the provider registries: the allocation plan and its outcome, the
+  // ad previews, the portfolio comparison, linked-ad performance, the search overlap and exclusions and the workbook
+  // records (the projections' SQL text is their result).
+  'dist/src/allocation-plan.js': {
+    functions: ['previewAllocationPlan', 'createAllocationPlan', 'allocationCreationBinding', 'assertAllocationStep'],
+  },
+  'dist/src/allocation-outcome.js': {
+    functions: ['scheduleAllocationOutcome', 'allocationOutcomeView', 'captureAllocationOutcome'],
+  },
+  'dist/src/ad-previews.js': {classes: {AdPreviews: ['handle']}},
+  'dist/src/portfolio-reconciliation.js': {functions: ['reconcilePortfolio']},
+  'dist/src/creative-performance.js': {
+    functions: ['linkedPerformanceSupported', 'linkedAdStep', 'linkedPlanAdIds', 'creativePerformance'],
+  },
+  'dist/src/search-overlap.js': {functions: ['searchOverlap']},
+  'dist/src/search-exclusion-plan.js': {
+    functions: [
+      'searchExclusionCandidates',
+      'searchExclusionCreationBinding',
+      'previewSearchExclusions',
+      'createSearchExclusionPlan',
+      'assertSearchExclusionStep',
+    ],
+  },
+  'dist/src/workbook-repository.js': {
+    functions: [
+      'reportResourceFieldsSQL',
+      'reportScopeFieldsSQL',
+      'configurationScope',
+      'savedQuery',
+      'bindingQueries',
+      'savedQueryPage',
+      'workbookScheduleRow',
+      'reportRunRow',
+      'workbookFeedRows',
+    ],
+  },
   // Writes and campaigns (ARC-01 phase B, ARC-04; wave 4c): the outputs of amcp_write and amcp_campaign, the review's
   // access and state stages, and the campaign, recipe, spending-policy and write stages whose provider branches move to
   // adapter hooks or whose long functions become staged steps.
@@ -391,6 +429,12 @@ export const replayable = Object.freeze([
   'dist/src/overview-levels.js#campaignAttributionProfile',
   'dist/src/overview-levels.js#overviewSourceLevel',
   'dist/src/overview-parents.js#detailParentKind',
+  // Wave 4c round 6 (w4c-arc6-reporting): the workbook selector projections' SQL text, and linked-ad performance's
+  // platform and step checks.
+  'dist/src/workbook-repository.js#reportResourceFieldsSQL',
+  'dist/src/workbook-repository.js#reportScopeFieldsSQL',
+  'dist/src/creative-performance.js#linkedPerformanceSupported',
+  'dist/src/creative-performance.js#linkedAdStep',
   // Writes and campaigns (wave 4c): builders and stage helpers that read neither the clock nor the environment.
   'dist/src/campaign-recipes.js#campaignRecipe',
   'dist/src/campaign-recipes.js#recipeMissing',

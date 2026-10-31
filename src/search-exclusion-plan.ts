@@ -5,8 +5,10 @@ import {fingerprint, obj, validate, writer, type ToolCall} from './workspace-cor
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {storedLogin} from './connection-authority.js';
 import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {providerById} from './provider-adapters.js';
 
-const gateway = 'google_ads_native_action',
+// ARC-01 (reporting): the exclusions are Google Ads', under its provider adapter's gateway (src/provider-adapters.ts).
+const gateway = providerById('google')!.gateway,
   day = 86400000;
 const fail: ReasonFirstRefusal = familyErrors('SEARCH_EXCLUSION_EVIDENCE_REQUIRED');
 const keyText = (value: string) => value.trim().replace(/\s+/gu, ' ').toLowerCase();

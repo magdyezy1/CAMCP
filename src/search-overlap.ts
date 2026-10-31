@@ -4,6 +4,7 @@ import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.j
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {storedLogin} from './connection-authority.js';
 import {normalizeAccount} from './scope.js';
+import {providerById} from './provider-adapters.js';
 
 /**
  * Organic/paid search overlap (PRV-07 D): Search Console queries (searchAnalytics.query, dimension query, dataState
@@ -13,8 +14,9 @@ import {normalizeAccount} from './scope.js';
  * negative-keyword plans: paid rows name their native search_term_view resources, the ids the reviewed exclusion
  * preview takes. It never changes an account by itself.
  */
-const adsGateway = 'google_ads_native_action',
-  gscGateway = 'google_search_console_native_action',
+// ARC-01 (reporting): the two gateways are the Google Ads and Search Console provider adapters' (src/provider-adapters.ts).
+const adsGateway = providerById('google')!.gateway,
+  gscGateway = providerById('gsc')!.gateway,
   dayMs = 86400000,
   // Search Console final data usually trails by two to three days.
   finalDataLagDays = 3,

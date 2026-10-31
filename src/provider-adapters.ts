@@ -12,6 +12,7 @@ import type {
   ProviderParking,
   ProviderRenewal,
   ProviderStatus,
+  ReportAttributionWindows,
 } from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 // Wave 4c round 6 (w4c-arc6-tables): the retired actions' facts and their freezing.
@@ -153,6 +154,8 @@ function adapter(
     ...(Object.hasOwn(catalogDestinationFacts, id)
       ? {catalogDestination: Object.freeze({...catalogDestinationFacts[id]!})}
       : {}),
+    // Wave 4c round 6 (w4c-arc6-reporting): its reports' explicit attribution windows, the table below's entry.
+    ...(Object.hasOwn(reportWindowFacts, id) ? {reportWindows: reportWindowFacts[id]} : {}),
   });
 }
 
@@ -662,6 +665,32 @@ const catalogDestinationFacts: Readonly<Record<string, CatalogDestinationFacts>>
     removal: 'none',
     destinationOnlyValues: 'note',
   },
+};
+
+/**
+ * Wave 4c round 6 (w4c-arc6-reporting): the attribution windows a provider's reports take as an explicit selection
+ * (RPT-07), by provider ID, moved unchanged from src/meta-attribution-windows.ts, which re-exports Meta's. The Meta
+ * Insights windows: Meta removed the 7-day and 28-day view windows on 2026-01-12 and retains 1-day, 7-day and 28-day
+ * click, 1-day view and 1-day engaged-view (`1d_ev`) (Meta for Developers blog, 2025-10-16). A selection names at most
+ * one click window, plus the optional view and engaged-view windows; the canonical order below is the order AMCP sends
+ * and labels them in. tests/overview-attribution-windows.test.mjs compares them with the module as it was.
+ */
+const metaAttributionWindows = Object.freeze(['1d_click', '7d_click', '28d_click', '1d_view', '1d_ev']);
+const metaClickWindows = Object.freeze(['1d_click', '7d_click', '28d_click']);
+const reportWindowFacts: Readonly<Record<string, ReportAttributionWindows>> = {
+  meta: Object.freeze({
+    windows: metaAttributionWindows,
+    clickWindows: metaClickWindows,
+    message:
+      'Choose at most one click window (1d_click, 7d_click or 28d_click), with optional 1d_view and 1d_ev (engaged view), or view windows alone.',
+    valid: (windows: unknown): windows is string[] =>
+      Array.isArray(windows) &&
+      windows.length > 0 &&
+      windows.length <= 3 &&
+      new Set(windows).size === windows.length &&
+      windows.every(v => typeof v === 'string' && metaAttributionWindows.includes(v)) &&
+      windows.filter(v => metaClickWindows.includes(v)).length <= 1,
+  }),
 };
 
 // The account fields, references and path patterns ScopeGuard compares (ARC-01 phase B: they were tables in

@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
-import {portfolioPage} from './portfolio.js';
+import {portfolioAdapters, portfolioPage} from './portfolio.js';
 import {normalizeAccount} from './scope.js';
 import {fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {stable} from './security.js';
@@ -8,15 +8,9 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {storedLogin} from './connection-authority.js';
 
-const gateways = [
-  'google_ads_native_action',
-  'meta_native_action',
-  'linkedin_native_action',
-  'snapchat_native_action',
-  'tiktok_native_action',
-  'x_ads_native_action',
-  'microsoft_ads_native_action',
-];
+// ARC-01 (reporting): the qualified inventory providers are the portfolio adapters' gateways (src/portfolio.ts), the
+// seven this module listed, in its order.
+const qualified = (gateway: unknown) => portfolioAdapters.some(adapter => adapter.gateway === gateway);
 function incomplete(message: string): never {
   throw new MirrorError('PORTFOLIO_RECONCILIATION_INCOMPLETE', message, {}, 422);
 }
@@ -32,7 +26,7 @@ export async function reconcilePortfolio(store: Store, call: ToolCall, actor: Ac
     'max_entities',
     'max_pages',
   ]);
-  if (!gateways.includes(input.gateway))
+  if (!qualified(input.gateway))
     throw new MirrorError(
       'PORTFOLIO_UNQUALIFIED',
       'Choose a qualified inventory provider before comparing observations.',

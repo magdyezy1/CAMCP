@@ -3,6 +3,7 @@ import type {JsonObject} from './types.js';
 import type {GuidedReporting} from './report-source.js';
 import {collectSnapchatEvidence, snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
 import {snapchatAllocationEvidence} from './snapchat-allocation-evidence.js';
+import {snapchatAllocationDraft} from './snapchat-allocation-draft.js';
 
 /**
  * Snapchat's guided reporting (ARC-04 stage F): its capture presets (purchases and native lead submissions by
@@ -120,4 +121,6 @@ export const snapchatGuidedReporting: GuidedReporting = {
     request.arguments.query.fields === 'spend,impressions,swipes,native_leads'
       ? 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Native submitted-form counts use native_leads; every page confirms non-conversion metric finalization through the selected end. Swipes are clicks; spend is native micros. No submitted lead records are read. Collection is not a point-in-time snapshot; off-platform attribution, lead quality and measurement setup remain unverified.'
       : 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Explicit swipe/view windows, conversion-time reporting and total conversion sources come from the retained request; each page confirms delivery and conversion processing through the selected end. Swipes are clicks; spend is native micros. Collection is not a point-in-time snapshot or proof of measurement setup.',
+  // Wave 4c round 6 (w4c-arc6-reporting): DEC-02's native budget draft of the allocation model (ad squad budgets).
+  allocationDraft: snapchatAllocationDraft,
 };

@@ -153,6 +153,20 @@ const businessReportScope: ReportResourceScope = Object.freeze({
     }
     return accounts.length || existing.length ? accounts : locations;
   },
+  // Wave 4c round 6 (w4c-arc6-reporting): the selectors src/workbook-repository.ts projects: a name, parent, account
+  // ID or location ID field of the arguments, their params or path_params; the payload is the body.
+  selectors: Object.freeze({
+    order: 4,
+    groups: Object.freeze([
+      Object.freeze({
+        paths: Object.freeze(['$', '$.params', '$."path_params"']),
+        keys: Object.freeze(['name', 'parent', 'accountid', 'locationid']),
+      }),
+    ]),
+    kinds: Object.freeze({accountid: 'account', locationid: 'location'}),
+    otherwise: 'resource',
+    body: 'payload',
+  }),
 });
 
 /**

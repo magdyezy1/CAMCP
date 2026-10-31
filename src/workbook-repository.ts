@@ -1,6 +1,8 @@
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
+import type {ReportSelectorGroup, ReportSelectors} from './provider-adapter.js';
 import {accountAliases, encodedBodyGateways} from './parameters.js';
+import {registeredProviderHooks} from './provider-hooks.js';
 
 /**
  * Workbook reporting records in the store layer (ARC-02): saved queries (`reporting_query`), workbook schedules
@@ -83,6 +85,43 @@ const revision =
 const jobState =
   "CASE WHEN j.state IN ('queued','running','failed','cancelled','complete') THEN j.state ELSE 'unknown' END";
 
+/**
+ * The providers whose saved queries name their accounts by resource selectors, with where the selectors are, in
+ * their branches' order (ARC-01, reporting: the selectors of the reportScope hooks, src/<provider>-adapter.ts). They
+ * are data: each value is a plain name, checked here before the projection quotes it as a SQL string.
+ */
+export function reportSelectorProviders(
+  hooks: readonly {gateway: string; reportScope?: {selectors?: ReportSelectors}}[],
+) {
+  const name = /^[a-z0-9_]+$/,
+    path = /^\$(?:\.(?:[a-z]+|"[a-z_]+"))*$/,
+    providers = hooks.flatMap(({gateway, reportScope}) =>
+      reportScope?.selectors ? [{gateway, selectors: reportScope.selectors}] : [],
+    );
+  for (const {gateway, selectors} of providers) {
+    const {order, groups, kinds = {}, otherwise, body} = selectors;
+    const plain =
+      name.test(gateway) &&
+      Number.isInteger(order) &&
+      order > 0 &&
+      providers.filter(other => other.selectors.order === order).length === 1 &&
+      groups.length > 0 &&
+      groups.every(
+        group =>
+          (group.paths ? group.paths.length > 0 && group.within === undefined : typeof group.within === 'string') &&
+          [...(group.paths ?? []), ...(group.within === undefined ? [] : [group.within])].every(p => path.test(p)) &&
+          group.keys.length > 0 &&
+          group.keys.every(key => name.test(key)),
+      ) &&
+      [...Object.entries(kinds).flat(), otherwise, ...(body === undefined ? [] : [body])].every(value =>
+        name.test(value),
+      );
+    if (!plain) throw new Error('The report selectors of ' + gateway + ' are not plain, ordered names.');
+  }
+  return providers.sort((a, b) => a.selectors.order - b.selectors.order);
+}
+const selectorProviders = reportSelectorProviders(registeredProviderHooks);
+
 /** SQLite projects at most nine native scope selectors from a bounded argument object.
  * json_tree preserves repeated keys; the compiler's alias comparison is shared through a pure SQLite function.
  * Complete definitions, unrelated body fields and native child resources never leave the metadata endpoint.
@@ -105,33 +144,41 @@ export function reportResourceFieldsSQL(native: string) {
     valid = `${envelopeValid} AND ${argsType}='object' AND length(CAST(${args} AS BLOB))<=65536`,
     bounded = `CASE WHEN ${valid} THEN ${args} ELSE '{}' END`,
     key = 'native_parameter_key(r.key)',
-    direct = `r.path IN ('$','$.params','$."path_params"')`,
-    ga4 = `(${direct} AND ${key} IN ('property','name','parent'))
-      OR (r.path IN ('$','$.params') AND ${key} IN ('reporttaskname','audienceexportname')
-        AND (r.type!='text' OR instr(r.value,'/')>0))
-      OR ((r.path='$.request' OR substr(r.path,1,10) IN ('$.request.','$.request[')) AND ${key}='property')`,
-    gsc = `r.path IN ('$','$.params','$."path_params"','$.payload') AND ${key} IN ('siteurl','site','propertyurl')`,
-    gtm = `${direct} AND ${key} IN ('path','parent','accountid')`,
-    business = `${direct} AND ${key} IN ('name','parent','accountid','locationid')`,
-    reddit = `${direct} AND ${key} IN ('accountid','adaccountid')`,
+    // A provider's selector fields (its reportScope hook's selectors) as the json_tree condition that finds them.
+    quoted = (values: readonly string[]) => values.map(value => `'${value}'`).join(','),
+    keyed = (keys: readonly string[]) => (keys.length === 1 ? `${key}='${keys[0]}'` : `${key} IN (${quoted(keys)})`),
+    located = ({paths, within}: ReportSelectorGroup) =>
+      within === undefined
+        ? `r.path IN (${quoted(paths!)})`
+        : `(r.path='${within}' OR substr(r.path,1,${within.length + 1}) IN ('${within}.','${within}['))`,
+    selected = (group: ReportSelectorGroup) =>
+      `${located(group)} AND ${keyed(group.keys)}` +
+      (group.resourceNames ? `\n        AND (r.type!='text' OR instr(r.value,'/')>0)` : ''),
+    condition = ({groups}: ReportSelectors) =>
+      groups.length === 1 ? selected(groups[0]!) : groups.map(group => `(${selected(group)})`).join('\n      OR '),
+    kindOf = ({kinds = {}, otherwise}: ReportSelectors) => {
+      const named = Object.entries(kinds);
+      if (!named.length) return `'${otherwise}'`;
+      if (named.length === 1)
+        return `CASE WHEN ${key}='${named[0]![0]}' THEN '${named[0]![1]}' ELSE '${otherwise}' END`;
+      return `CASE ${key} ${named.map(([field, kind]) => `WHEN '${field}' THEN '${kind}'`).join(' ')} ELSE '${otherwise}' END`;
+    },
     project = (where: string, kind: string) => `(SELECT json_group_array(json_object('kind',v.kind,'value',
       CASE WHEN v.type='text' THEN substr(v.value,1,513) ELSE json('{"invalid":true}') END))
       FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v)`,
     invalidBody = (body: string) => `EXISTS(SELECT 1 FROM json_tree(${bounded}) r
-      WHERE r.path='$' AND r.key='${body}' AND r.type!='object')`;
-  return `'resource_account_anchors',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
-      WHEN 'ga4_native_action' THEN json_array(${project(ga4, `CASE WHEN ${key}='property' THEN 'property' ELSE 'resource' END`)})
-      WHEN 'google_search_console_native_action' THEN json_array(${project(gsc, "'site'")})
-      WHEN 'gtm_native_action' THEN json_array(${project(gtm, `CASE WHEN ${key}='accountid' THEN 'account' ELSE 'resource' END`)})
-      WHEN 'google_business_native_action' THEN json_array(${project(business, `CASE ${key} WHEN 'accountid' THEN 'account' WHEN 'locationid' THEN 'location' ELSE 'resource' END`)})
-      WHEN 'reddit_native_action' THEN json_array(${project(reddit, "'account'")})
+      WHERE r.path='$' AND r.key='${body}' AND r.type!='object')`,
+    anchors = selectorProviders.map(
+      ({gateway, selectors}) => `
+      WHEN '${gateway}' THEN json_array(${project(condition(selectors), kindOf(selectors))})`,
+    ),
+    invalid = selectorProviders.map(
+      ({gateway, selectors: {body}}) => `
+      WHEN '${gateway}' THEN CASE WHEN NOT coalesce((${valid}),0)${body === undefined ? '' : ' OR ' + invalidBody(body)} THEN 1 ELSE 0 END`,
+    );
+  return `'resource_account_anchors',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')${anchors.join('')}
       ELSE json_array() END ELSE json_array() END,
-    'resource_body_invalid',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
-      WHEN 'ga4_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('request')} THEN 1 ELSE 0 END
-      WHEN 'google_search_console_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
-      WHEN 'gtm_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
-      WHEN 'google_business_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) OR ${invalidBody('payload')} THEN 1 ELSE 0 END
-      WHEN 'reddit_native_action' THEN CASE WHEN NOT coalesce((${valid}),0) THEN 1 ELSE 0 END
+    'resource_body_invalid',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')${invalid.join('')}
       ELSE 0 END ELSE 0 END`;
 }
 /** The bounded account-scope metadata of a stored configuration column (a run's input or a query's data). */

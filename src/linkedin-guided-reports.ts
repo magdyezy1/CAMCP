@@ -10,6 +10,7 @@ import {
 } from './linkedin-conversion-windows.js';
 import {collectLinkedInEvidence} from './linkedin-evidence.js';
 import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
+import {linkedinAllocationDraft} from './linkedin-allocation-draft.js';
 
 /**
  * LinkedIn's guided reporting (ARC-04 stage F): its capture presets (UTC daily analytics by campaign group, campaign
@@ -215,4 +216,6 @@ export const linkedinGuidedReporting: GuidedReporting = {
       };
     },
   },
+  // Wave 4c round 6 (w4c-arc6-reporting): DEC-02's native budget draft of the allocation model (campaign budgets).
+  allocationDraft: linkedinAllocationDraft,
 };

@@ -203,7 +203,12 @@ export function inspectReportExplanations(source, file) {
       [
         'reason',
         'limitations',
-        ...(['allocation-plan.ts', 'allocation-calibration.ts'].some(name => file.endsWith(name)) ? ['meaning'] : []),
+        // A platform's allocation draft (src/<platform>-allocation-draft.ts) holds its preview's meaning (wave 4c round 6).
+        ...(['allocation-plan.ts', 'allocation-calibration.ts', '-allocation-draft.ts'].some(name =>
+          file.endsWith(name),
+        )
+          ? ['meaning']
+          : []),
       ].includes(node.key?.name)
     )
       collect(node.value);
@@ -228,6 +233,10 @@ export function inspectReportExplanations(source, file) {
         'linkedin-allocation-budgets.ts',
         'meta-allocation-budgets.ts',
         'allocation-calibration.ts',
+        // The platforms' allocation drafts' own checks (wave 4c round 6: moved from allocation-plan.ts).
+        'linkedin-allocation-draft.ts',
+        'meta-allocation-draft.ts',
+        'snapchat-allocation-draft.ts',
       ].some(name => file.endsWith(name))
     )
       collect(node.arguments[0]);
@@ -1334,6 +1343,11 @@ export function checkWebLocales(root = process.cwd()) {
     'src/linkedin-allocation-budgets.ts',
     'src/meta-allocation-budgets.ts',
     'src/provider-decimal.ts',
+    // Wave 4c round 6: the platforms' allocation drafts (moved from src/allocation-plan.ts).
+    'src/google-allocation-draft.ts',
+    'src/linkedin-allocation-draft.ts',
+    'src/meta-allocation-draft.ts',
+    'src/snapchat-allocation-draft.ts',
   ])
     for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       explanations.add(message);

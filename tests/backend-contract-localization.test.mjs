@@ -288,7 +288,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // reasons. The merge then moves the declared effects of a suggested call to the leaf src/call-effects.ts (the
   // conditional programs label their calls there, without the workspace package's import of the providers' workflows
   // that would close a cycle), which raises no reason: 752, 285 of them with reasons, the same reasons.
-  assert.equal(files.length, 752);
+  // Wave 4c round 6 (reporting) moves each allocation model's native budget draft from src/allocation-plan.ts to
+  // src/<platform>-allocation-draft.ts (Google, Meta, LinkedIn, Snapchat): four more files. Their three refusals are
+  // still raised through bad() and still authored allocation copy (tools/check-locales.mjs), so the files with
+  // reasons and the reasons are the same.
+  // It moves the Overview's native parent reads of TikTok, Snapchat and LinkedIn rows from src/overview-parents.ts,
+  // which keeps its two reasons, to src/<platform>-detail-parents.ts: three more files, whose refusals go through the
+  // shared module's helpers, so the files with reasons and the reasons are the same.
+  // Merged with the versions, tables, workspace and catalog packages, the files add up: 759, 285 of them with reasons,
+  // the same reasons.
+  assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

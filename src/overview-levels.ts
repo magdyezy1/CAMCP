@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
 import {fingerprint} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
-import {metaWindowsMessage, metaWindowsValid} from './meta-attribution-windows.js';
+import {providerById} from './provider-adapters.js';
 import type {JsonObject} from './types.js';
 
 /**
@@ -57,6 +57,8 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);
 }
+// Wave 4c round 6 (w4c-arc6-reporting): Meta's explicit attribution windows are its adapter's facts (RPT-07).
+const metaWindows = providerById('meta')!.reportWindows!;
 const snapchatWindowsValid = (options: JsonObject) =>
   ['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) &&
   ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) &&
@@ -81,7 +83,7 @@ export function campaignAttributionProfile(source: JsonObject): JsonObject | und
     invalid(
       'Campaign reporting accepts only an attribution profile: attribution_windows for Meta, or swipe_up_attribution_window and view_attribution_window for Snapchat.',
     );
-  if (source.platform === 'meta' && !metaWindowsValid(options.attribution_windows)) invalid(metaWindowsMessage);
+  if (source.platform === 'meta' && !metaWindows.valid(options.attribution_windows)) invalid(metaWindows.message);
   if (source.platform === 'snapchat' && !snapchatWindowsValid(options))
     invalid('Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.');
   return options;
@@ -129,7 +131,7 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
     source.platform === 'meta' &&
     (typeof options.result_action_type !== 'string' ||
       !/^[a-z][a-z0-9_.]{0,159}$/.test(options.result_action_type) ||
-      !metaWindowsValid(options.attribution_windows))
+      !metaWindows.valid(options.attribution_windows))
   )
     invalid(
       'Choose one exact Meta result action and at most one click window (1d_click, 7d_click or 28d_click), with optional 1d_view and 1d_ev (engaged view), or view windows alone.',
