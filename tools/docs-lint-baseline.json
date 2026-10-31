@@ -38,12 +38,12 @@
     {
       "reason": "w4c-arc6-catalog: docs/review/ARCHITECTURE.md section 9 adds the rows of ARC-01's catalog destinations and catalog projections (wave 4c round 6)",
       "raised": [
-        "reference_words 143230 → 143354"
+        "reference_words 143230 → 143335"
       ]
     }
   ],
   "totals": {
-    "reference_words": 143354
+    "reference_words": 143335
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
