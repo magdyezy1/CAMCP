@@ -35,13 +35,10 @@ import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {MediaSources} from './media-sources.js';
 import {retainedMediaId} from './retained-media.js';
 import {assertAccountWrite} from './write-access.js';
-import {linkedinVersion} from './linkedin-version.js';
 import {providerById} from './provider-adapters.js';
-import {providerHooks} from './provider-hooks.js';
+import {providerHooks, providerVersions} from './provider-hooks.js';
 import type {MediaUploadHooks} from './provider-adapter.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {googleAdsCustomers} from './google-version.js';
-import {metaPrefix} from './meta-version.js';
 import {creativeLibrary} from './creative-library.js';
 import {optionalClientView} from './client-scope.js';
 import {cancelJobLease, writeClaim, writeClaimFingerprint} from './job-repository.js';
@@ -53,6 +50,14 @@ const platforms = mediaPlatforms;
  * (src/linkedin-adapter.ts, ARC-01 phase B), read through the hooks registry when a step runs.
  */
 const linkedInMedia = (): MediaUploadHooks => providerHooks(providerById('linkedin')!.gateway)!.media!;
+/**
+ * The API versions Meta's, Google Ads' and LinkedIn's media requests carry are their adapters' version facts, asked
+ * through providerVersions (src/provider-hooks.ts, ARC-01 phase B) when a request is built: Meta's Graph prefix,
+ * Google Ads' customers path and the LinkedIn-Version header, as their version modules give them.
+ */
+const metaPrefix = (): string => providerVersions('meta')!.path!('/'),
+  googleAdsCustomers = (): string => providerVersions('google')!.path!('/customers/'),
+  linkedinVersion = (): string => providerVersions('linkedin')!.request!();
 /** Google Ads' gateway, its adapter's: the asset of a processed video upload is prepared through it. */
 const googleAdsGateway = providerById('google')!.gateway;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -462,7 +467,7 @@ export class MediaUploadService {
     };
     switch (platform) {
       case 'meta':
-        p.path = metaPrefix + 'act_' + account;
+        p.path = metaPrefix() + 'act_' + account;
         p.query = {fields: 'id,account_status,currency'};
         break;
       case 'snapchat':
@@ -473,7 +478,7 @@ export class MediaUploadService {
         p.query = {advertiser_ids: [account]};
         break;
       case 'google_ads':
-        p.path = googleAdsCustomers + account + '/googleAds:search';
+        p.path = googleAdsCustomers() + account + '/googleAds:search';
         p.method = 'POST';
         p.body = {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};
         break;
@@ -2082,7 +2087,7 @@ export class MediaUploadService {
     if (p.library_media) return this.attachLibrary(actor, p, p.library_media.id, p.library_media.key);
     if (p.platform === 'meta') {
       const r = await send(
-          metaPrefix + 'act_' + p.account_id + '/' + (p.kind === 'image' ? 'adimages' : 'advideos'),
+          metaPrefix() + 'act_' + p.account_id + '/' + (p.kind === 'image' ? 'adimages' : 'advideos'),
           p.kind === 'image' ? {bytes: bytes.toString('base64'), name: p.name} : {title: p.name},
           {...(p.kind === 'video' ? {upload: binary('source')} : {})},
         ),
@@ -2108,7 +2113,7 @@ export class MediaUploadService {
         const started = session
           ? {headers: {'x-goog-upload-url': session.url, 'x-goog-upload-chunk-granularity': session.granularity}}
           : await send(
-              '/resumable/upload' + googleAdsCustomers + p.account_id + '/youTubeVideoUploads:create',
+              '/resumable/upload' + googleAdsCustomers() + p.account_id + '/youTubeVideoUploads:create',
               {
                 customerId: p.account_id,
                 youTubeVideoUpload: {videoTitle: p.name, videoDescription: '', videoPrivacy: 'UNLISTED'},
@@ -2161,7 +2166,7 @@ export class MediaUploadService {
         return {media_id: id, ready: false, processing_status: 'UPLOADED'};
       }
       const d = (
-        await send(googleAdsCustomers + p.account_id + '/assets:mutate', {
+        await send(googleAdsCustomers() + p.account_id + '/assets:mutate', {
           operations: [{create: {name: p.name, type: 'IMAGE', imageAsset: {data: bytes.toString('base64')}}}],
           partialFailure: false,
         })
@@ -2599,7 +2604,7 @@ export class MediaUploadService {
     if (p.platform === 'meta' && p.kind === 'image') {
       const hash = responseId(receipt.media_id);
       const d = (
-        await this.send(actor, p, metaPrefix + 'act_' + p.account_id + '/adimages', undefined, {
+        await this.send(actor, p, metaPrefix() + 'act_' + p.account_id + '/adimages', undefined, {
           method: 'GET',
           readOnly: true,
           query: {hashes: [hash], fields: 'hash', limit: 100},
@@ -2622,7 +2627,7 @@ export class MediaUploadService {
           await this.send(
             actor,
             p,
-            googleAdsCustomers + p.account_id + '/googleAds:search',
+            googleAdsCustomers() + p.account_id + '/googleAds:search',
             {query: "SELECT asset.resource_name, asset.type FROM asset WHERE asset.resource_name = '" + resource + "'"},
             {readOnly: true},
           )
@@ -2674,7 +2679,7 @@ export class MediaUploadService {
       r = await this.send(
         actor,
         p,
-        googleAdsCustomers + p.account_id + '/googleAds:search',
+        googleAdsCustomers() + p.account_id + '/googleAds:search',
         {
           query:
             "SELECT you_tube_video_upload.resource_name, you_tube_video_upload.video_id, you_tube_video_upload.state FROM you_tube_video_upload WHERE you_tube_video_upload.resource_name = '" +
@@ -2718,7 +2723,7 @@ export class MediaUploadService {
     if (p.platform === 'snapchat')
       r = await this.send(actor, p, '/v1/media/' + receipt.media_id, undefined, {method: 'GET', readOnly: true});
     else if (p.platform === 'meta' && p.kind === 'video')
-      r = await this.send(actor, p, metaPrefix + receipt.media_id, undefined, {
+      r = await this.send(actor, p, metaPrefix() + receipt.media_id, undefined, {
         method: 'GET',
         readOnly: true,
         query: {fields: 'id,status'},

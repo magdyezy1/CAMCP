@@ -345,8 +345,8 @@ packages: 9 and 12, with 11 modules in a cycle as before (the merge's leaf `src/
 reporting package lowers them to 26 and 44 on its own branch: the portfolio comparison, linked-ad performance, the
 search overlap and exclusions, the ad previews, the allocation plan and its outcome, the workbook selectors' SQL
 projections and the Overview's detail parents, attribution windows and Sheets delivery name no gateway and import no
-provider module (they consult the registries). Merged with the other four packages: 1 and 3, with 11 modules in a
-cycle.
+provider module (they consult the registries). Merged with the other four packages: 1 and 3 (1 and 0 once the media
+upload asks `providerVersions`), with 11 modules in a cycle.
 
 <!-- architecture-map:baseline:begin -->
 | Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
@@ -354,7 +354,7 @@ cycle.
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
 | `shared_modules_with_gateway_literals` | 1 |
-| `shared_to_provider_runtime_imports` | 3 |
+| `shared_to_provider_runtime_imports` | 0 |
 | `local_fail_copies` | 0 |
 | `shared_gateway_literals` (reported) | 1 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
@@ -461,7 +461,7 @@ anywhere: the suites' synthetic fetchers answer.
 | Launch checks (wave 4c) | each guided launch platform's gateway (Meta, Snapchat), read from its adapter by ID. `tests/shared-provider-seams.test.mjs` pins the seam. | `launchCheck` keeps its platforms, reads, checks and refusals | the workspace comparison (below) |
 | Paused parents (wave 4c) | facts `pausedParents`: the child creates a paused parent covers (Snapchat's ad squads and ads, Meta's ad sets and ads, TikTok's ad groups and ads), with their status values, parent records and an ad's campaign read. `tests/shared-provider-seams.test.mjs` pins the seam. | `validatePausedParents` and `pausedParentFollowUp` keep the POST check, the rule and its refusal | the workspace comparison (below) |
 | Budget units (wave 4c) | facts `currencyOffsetBudgets`: the provider whose amounts count its pinned currency capture's per-currency offset (Meta). `tests/shared-provider-seams.test.mjs` pins the seam. | `nativeAmount` and `policyNativeUnit` keep the documented units, the offsets and their capture | the workspace comparison (below) |
-| Media upload (wave 4c) | hooks `media`: LinkedIn's organization owner check and resumable video transfer receipts; Drive's and Google Ads' gateways, read from their adapters. `tests/shared-provider-seams.test.mjs` pins the seam. | `MediaUploadService` keeps every step, check and refusal; its Google Ads, LinkedIn and Meta version reads wait for the providers' version fact | the workspace comparison (below) |
+| Media upload (wave 4c) | hooks `media`: LinkedIn's organization owner check and resumable video transfer receipts; Drive's and Google Ads' gateways, read from their adapters. `tests/shared-provider-seams.test.mjs` pins the seam. | `MediaUploadService` keeps every step, check and refusal; its Google Ads, LinkedIn and Meta versions are the providers' version facts (`providerVersions`) | the workspace comparison (below) |
 | Token renewal (wave 4c) | hooks `refresh`: Apple's own client-credentials request (its login holds no app secret a renewal must check), X's OAuth 1.0a consumer secret as the app secret a renewal after an app change needs, and the provider's parts of the refresh-token request: Microsoft's scope with `offline_access`, Snapchat's registered callback (refused without it), Reddit's descriptive User-Agent and HTTP Basic authentication (refused without the User-Agent). `tests/provider-refresh.test.mjs` pins the seam and the request each provider sends. | `CredentialProvider` keeps the expiry window, one renewal per connection and its store lock, the refresh gate, the app-change refusal, the refresh-token grant and its endpoint (`refreshEndpoints`), the single attempt, the response checks, the health records and the order of every step | the package's final comparison |
 | Provider versions (wave 4c round 6) | hooks `versions` (`ProviderVersions`), each answer its version module's own: Google Ads' version, paths and developer-token warning; Meta's version (read at load), paths and configurable versions; LinkedIn's described, requested and stored version (read at each call), header, reviewed table and owner status; Criteo's version and guides. Shared modules ask `providerVersions(id)`; `tests/provider-versions.test.mjs` pins each answer against its module. | `providerContracts`, `effectiveProviderContract`, `providerContractView`, `acceptedVersions` and `ownerOperations` keep every rule and field order | the versions comparison (below) |
 | Tool notes and listings (wave 4c round 6) | hooks `notes` (`ToolNotes`): a gateway's own description (DV360's corrects its captured text), the sentences it asks for, its listed summary, Google Ads' version note, and whether its catalog has no executable action or previewed writes (Commerce's in `src/woocommerce-adapter.ts`); hooks `listing` (`CatalogListing`): Google Ads' counts, Meta's ad label record, Snapchat's cursor pages of 25. `tests/tool-surface-golden.test.mjs` pins every text and listing byte for byte. | `src/tool-notes.ts` keeps AMCP's own descriptions and every sentence's order; `Introspection` the paging, limits and envelopes | the versions comparison (below) |
@@ -641,7 +641,7 @@ package changed or added, nor any of the other 27 of its transport and catalog p
 
 ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): phase B moves one
 concern at a time (the rows above), so after wave 4c round 6's versions, tables, workspace, catalog and reporting
-packages one shared module still names a gateway and 3 shared-to-provider imports remain, within the targets (20 or
+packages one shared module still names a gateway and no shared-to-provider import remains, within the targets (20 or
 fewer and 30 or fewer). Of the fall from 496 imports, 163 are the reviewed-family registry's, no longer counted since
 phase B counts it as a registry (§8), and 9 are ARC-04's report job registry and website route modules; the rest are phase B's
 migrations, after which the shared stages consult the provider registries (the provider hooks, `src/provider-hooks.ts`,
@@ -653,8 +653,8 @@ facts, instead of provider modules. The transport and catalog modules (`src/tran
 import no provider module, and neither do the ten shared modules whose provider tables rounds 6 and 7 moved into the
 adapters, the seven of the workspace package, the six of the catalog package or the eleven of the reporting package.
 What remains is one gateway name, the example in the campaign runner's refusal of a write step without a gateway
-(`src/campaign-runner.ts`), and the media upload's three reads of a provider's version module (`src/media-upload.ts`:
-LinkedIn's, Google's and Meta's), which can ask `providerVersions` instead. The whole suite
+(`src/campaign-runner.ts`); since the integration the media upload (`src/media-upload.ts`) asks `providerVersions` for
+LinkedIn's, Google's and Meta's versions. The whole suite
 also passes with `AMCP_PROVIDERS=criteo,woocommerce`, where the tool-surface suites count the tools it offers. ARC-01's
 native and manual criteria are the owner's: read-only `verify-reads` per migrated gateway on existing test accounts,
 and a security reviewer's sign-off of every `src/scope.ts` and `src/transport.ts` diff.

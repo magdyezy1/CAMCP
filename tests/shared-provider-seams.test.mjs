@@ -204,8 +204,9 @@ test('the budget units read which platform counts a per-currency offset from its
 });
 
 test('the media upload reaches LinkedIn’s organization owners and resumable transfers through its adapter’s hooks', () => {
-  // Its Google Ads, LinkedIn and Meta version reads stay until the versions package's typed version fact replaces them.
-  assertNamesNoProvider('src/media-upload.ts', {versionReads: ['linkedin-version', 'google-version', 'meta-version']});
+  // Its Google Ads, LinkedIn and Meta versions are their adapters' version facts, asked through providerVersions, so it
+  // imports no version module (tests/provider-versions.test.mjs pins each answer against the module's own export).
+  assertNamesNoProvider('src/media-upload.ts');
   // Only LinkedIn declares media steps, its own functions, frozen; tests/linkedin-media-resume.test.mjs,
   // tests/linkedin-media-authority.test.mjs and tests/media-upload.test.ts exercise them through the tool.
   assert.deepEqual(
