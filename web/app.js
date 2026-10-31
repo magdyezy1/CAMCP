@@ -1513,8 +1513,13 @@ async function renderConsent() {
  */
 function accessLine(s) {
   if (!s?.authenticated) return uiText('Not signed in');
+  // Outside its own test workspace a test account is a viewer (the owner's decision of 2026-10-31).
   if (s.testAccount)
-    return uiText('Test account') + ' · ' + uiText(s.writesEnabled ? 'Read + reviewed writes' : 'Read-only access');
+    return (
+      uiText('Test account') +
+      ' · ' +
+      uiText(s.writesEnabled && s.workspaceRole !== 'viewer' ? 'Read + reviewed writes' : 'Read-only access')
+    );
   // A member limited to a client access set (SEC-08) sees which client their access covers.
   if (s.accessSet)
     return s.accessSet.removed

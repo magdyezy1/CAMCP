@@ -937,6 +937,11 @@ test('the access line names the person’s role and the deployment, not the depl
       {authenticated: true, testAccount: true, workspaceRole: 'owner', writesEnabled: true},
       'Test account · Read + reviewed writes',
     ],
+    // Outside its own test workspace a test account is a viewer (/api/account reports it): no reviewed writes there.
+    [
+      {authenticated: true, testAccount: true, workspaceRole: 'viewer', writesEnabled: true},
+      'Test account · Read-only access',
+    ],
     [{authenticated: true, workspaceRole: 'viewer', writesEnabled: true}, 'Viewer · read-only access'],
     [{authenticated: true, workspaceRole: 'operator', writesEnabled: true}, 'Operator · read + reviewed writes'],
     [{authenticated: true, workspaceRole: 'admin', writesEnabled: true}, 'Admin · read + reviewed writes'],

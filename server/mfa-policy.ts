@@ -17,8 +17,11 @@ import {MirrorError} from '../src/errors.js';
  *   website also requires a two-step-verified session for owner-only changes and personal-data uploads.
  *
  * After the grace period a covered member without two-step verification can reach only sign-in, account and
- * enrollment routes. The administrator and reviewer doors and reviewer test accounts are never covered: they cannot
- * enroll (the administrator moves the workspace to an owner account instead, docs/USER-ACCOUNTS.md).
+ * enrollment routes. The administrator and reviewer doors, and test accounts in their own test workspace, are never
+ * covered: they cannot enroll (the administrator moves the workspace to an owner account instead,
+ * docs/USER-ACCOUNTS.md). In any other workspace a test account is a viewer that workspace's rule covers (the owner's
+ * decision of 2026-10-31): a workspace that requires it of everyone stays closed to the account
+ * (docs/TEST-ACCOUNTS.md).
  */
 export const mfaScopes = ['off', 'admins', 'everyone'] as const;
 export type MfaScope = (typeof mfaScopes)[number];

@@ -1024,6 +1024,94 @@ test('WRT-09 approval page: it posts back the fingerprint it showed, after the p
   assert.doesNotMatch(root.innerHTML, /write-approval-approve/);
 });
 
+test("WRT-09 approval page: the reviewers' shared sign-in reads Reviewer in English and Arabic, never the door's ID", async () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  assert.equal(catalog.Reviewer, 'المراجع');
+  for (const [locale, prepared, approved] of [
+    ['en', 'Prepared by Reviewer', 'Approved by Reviewer at 1.'],
+    ['ar', 'حضّره المراجع', 'وافق عليه المراجع في 1.'],
+  ]) {
+    const requests = [];
+    const status = {textContent: ''},
+      root = {innerHTML: '', isConnected: true, setAttribute() {}, removeAttribute() {}, querySelector: () => status};
+    const escape = v =>
+      String(v ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('"', '&quot;');
+    const c = createContext({
+      document: {addEventListener() {}},
+      $: () => ({focus() {}}),
+      navigationGeneration: 1,
+      identityGeneration: 1,
+      session: {workspaceRole: 'operator', testAccount: true},
+      esc: escape,
+      pretty: String,
+      date: String,
+      badge: escape,
+      errorMessage: e => e.message,
+      recordDetails: () => '',
+      toast() {},
+      workspaceBind() {},
+      api: url => new Promise(resolve => requests.push({url, resolve})),
+      confirmAction: async () => false,
+      root,
+      catalog,
+    });
+    new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+    if (locale === 'ar') new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog))").runInContext(c);
+    new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
+    const controller = new Script("writeApprovalController(root, 'review-1')").runInContext(c);
+    // What approvalView returns to the reviewers' door for a review prepared and approved there (src/write-approval.ts):
+    // the recorded person is the door's, with no name, and the kind says who it was.
+    const view = {
+      review_id: 'review-1',
+      group: false,
+      gateway: 'tiktok_native_action',
+      account_id: '123',
+      action: 'update_campaign',
+      summary: null,
+      classes: [],
+      reasons: [],
+      prepared_by: 'workspace-admin',
+      prepared_by_name: null,
+      prepared_by_kind: 'reviewer',
+      expires_at: '2026-10-31T10:05:00.000Z',
+      fingerprint: 'f'.repeat(64),
+      owner_required: false,
+      approval: {
+        approver: 'workspace-admin',
+        approver_name: null,
+        approver_kind: 'reviewer',
+        approver_is_owner: false,
+        approved_at: 1,
+      },
+      approval_pending: true,
+      may_approve: false,
+    };
+    let loaded = controller.load();
+    requests[0].resolve(view);
+    await loaded;
+    assert.ok(root.innerHTML.includes(prepared), locale + ': ' + root.innerHTML);
+    assert.ok(root.innerHTML.includes(approved), locale + ': ' + root.innerHTML);
+    assert.equal(root.innerHTML.includes('workspace-admin'), false, locale);
+    if (locale === 'ar') assert.equal(root.innerHTML.includes('Reviewer'), false);
+    // Without a kind, a person the workspace keeps no name for is still shown by the ID the page received.
+    loaded = controller.load();
+    requests[1].resolve({
+      ...view,
+      prepared_by: 'colleague-id',
+      prepared_by_kind: undefined,
+      approval: {...view.approval, approver: 'colleague-id', approver_kind: undefined},
+    });
+    await loaded;
+    const byId = text => text.replace(locale === 'ar' ? 'المراجع' : 'Reviewer', 'colleague-id');
+    assert.ok(root.innerHTML.includes(byId(prepared)), locale + ': ' + root.innerHTML);
+    assert.ok(root.innerHTML.includes(byId(approved)), locale + ': ' + root.innerHTML);
+    assert.equal(root.innerHTML.includes(prepared) || root.innerHTML.includes(approved), false, locale);
+  }
+});
+
 test('WRT-09 website review: the destructive acknowledgement is asked for and the approval page is linked only on this site', () => {
   const nodes = new Map(),
     focused = [];

@@ -311,8 +311,10 @@ export class UserAccounts {
     const membership = this.web.store.db
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(session.actor.tenantId, u.id) as JsonObject | undefined;
+    // A test account is a viewer outside its own test workspace while it is a member there; without a membership it
+    // has no role, as session() and the per-request refresh in web-store refuse it.
     const elsewhere = testAccountElsewhere(u, session.actor.tenantId),
-      role = elsewhere ? 'viewer' : membership?.role,
+      role = elsewhere && membership ? 'viewer' : membership?.role,
       mfaEnabled = this.hasMfa(u.id),
       // Two-step requirement of this workspace for this member (SEC-06): from when it is enforced, and whether it is.
       requirement =

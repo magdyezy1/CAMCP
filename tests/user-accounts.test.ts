@@ -815,6 +815,68 @@ test('outside its own test workspace a test account is a viewer, and its keys th
     await f.close();
   }
 });
+test('a test account removed from another workspace has no role there, not the viewer role', async () => {
+  const f = await fixture();
+  try {
+    const host = await f.create('host@example.test'),
+      evaluator = await f.create('evaluator@example.test');
+    f.store.db
+      .prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'admin',?)")
+      .run(host.tenant_id, evaluator.id, Date.now());
+    f.store.db.prepare('UPDATE amcp_users SET test_account=1 WHERE id=?').run(evaluator.id);
+    const there = f.accounts.session(f.accounts.user(evaluator.id), host.tenant_id);
+    assert.equal(f.accounts.profile(there).workspaceRole, 'viewer');
+    // The host removes it: without a membership it has no role, and its session there ends at its next request.
+    f.store.db
+      .prepare('UPDATE workspace_memberships SET active=0 WHERE tenant_id=? AND user_id=?')
+      .run(host.tenant_id, evaluator.id);
+    assert.equal(f.accounts.profile(there).workspaceRole, undefined);
+    assert.equal((await f.request('/api/account', 'GET', undefined, f.credentials(there))).status, 401);
+  } finally {
+    await f.close();
+  }
+});
+test('a test account cannot set up two-step verification, so a workspace whose rule covers it stays closed to it', async () => {
+  const f = await fixture();
+  try {
+    const host = await f.create('host@example.test'),
+      evaluator = await f.create('evaluator@example.test');
+    f.store.db
+      .prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'admin',?)")
+      .run(host.tenant_id, evaluator.id, Date.now());
+    // The host workspace requires two-step verification of everyone, and its grace period has ended.
+    f.store.putDocument(host.tenant_id, 'account_settings', 'security', {
+      require_mfa: 'everyone',
+      grace_until: Date.now() - 60000,
+    });
+    f.store.db.prepare('UPDATE amcp_users SET test_account=1 WHERE id=?').run(evaluator.id);
+    const tested = f.accounts.user(evaluator.id),
+      there = f.credentials(f.accounts.session(tested, host.tenant_id));
+    const profile = await (await f.request('/api/account', 'GET', undefined, there)).json();
+    assert.deepEqual(
+      [profile.workspaceRole, profile.mfaRequired, profile.mfaEnrollmentRequired],
+      ['viewer', true, true],
+    );
+    const refusal = async (path: string, body: unknown = {}) =>
+      (await (await f.request(path, 'POST', body, there)).json()).error?.code;
+    // That workspace's product routes wait for enrollment, which the test-account gate refuses, as it refuses
+    // switching to another workspace; signing out still works.
+    assert.equal(await refusal('/api/workspace/campaign', {action: 'list'}), 'MFA_ENROLLMENT_REQUIRED');
+    assert.equal(await refusal('/api/account/mfa/start'), 'TEST_ACCOUNT_SCOPE');
+    assert.equal(await refusal('/api/workspaces/switch', {workspaceId: tested.tenant_id}), 'TEST_ACCOUNT_SCOPE');
+    assert.equal((await f.request('/api/session', 'DELETE', undefined, there)).status, 200);
+    // Signing in again opens its own test workspace, where no two-step rule applies to it.
+    const own = f.credentials(f.accounts.session(tested)),
+      mine = await (await f.request('/api/account', 'GET', undefined, own)).json();
+    assert.deepEqual(
+      [mine.workspaceId, mine.mfaRequired, mine.mfaEnrollmentRequired],
+      [tested.tenant_id, false, false],
+    );
+    assert.notEqual((await f.request('/api/workspace/campaign', 'POST', {action: 'list'}, own)).status, 403);
+  } finally {
+    await f.close();
+  }
+});
 test("two reviewers signed in with the test password cannot see or end each other's sessions", async () => {
   const testPassword = 'reviewer-password-for-google-review';
   const f = await fixture({}, {testPassword});
