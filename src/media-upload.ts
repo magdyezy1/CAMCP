@@ -13,7 +13,7 @@ import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
-import {downloadDriveFile, downloadPrivateDrive, driveAccess, listDriveFolder} from './private-drive.js';
+import {downloadDriveFile, downloadPrivateDrive, driveAccess, driveGateway, listDriveFolder} from './private-drive.js';
 import {createMediaVariant, variantPresets, inspectMediaPlacement} from './media-variants.js';
 import {placementPreflight} from './media-specs.js';
 import {downloadDriveMedia, mediaType, driveDownloadUrl} from './drive-media.js';
@@ -36,14 +36,9 @@ import {MediaSources} from './media-sources.js';
 import {retainedMediaId} from './retained-media.js';
 import {assertAccountWrite} from './write-access.js';
 import {linkedinVersion} from './linkedin-version.js';
-import {assertLinkedInOrganization} from './linkedin-posts.js';
-import {
-  linkedInTransfer,
-  linkedInPartId,
-  linkedInResumeReason,
-  assertLinkedInResume,
-  assertLinkedInWaiting,
-} from './linkedin-media-resume.js';
+import {providerById} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
+import type {MediaUploadHooks} from './provider-adapter.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
@@ -53,6 +48,13 @@ import {cancelJobLease, writeClaim, writeClaimFingerprint} from './job-repositor
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 
 const platforms = mediaPlatforms;
+/**
+ * LinkedIn's media steps, its organization owners and resumable video transfers, are its adapter's hooks
+ * (src/linkedin-adapter.ts, ARC-01 phase B), read through the hooks registry when a step runs.
+ */
+const linkedInMedia = (): MediaUploadHooks => providerHooks(providerById('linkedin')!.gateway)!.media!;
+/** Google Ads' gateway, its adapter's: the asset of a processed video upload is prepared through it. */
+const googleAdsGateway = providerById('google')!.gateway;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
 const snapchatSimpleLimit = 32_000_000,
   snapchatPartSize = 16 * 1024 * 1024;
@@ -519,7 +521,8 @@ export class MediaUploadService {
         'LINKEDIN_VIDEO_OWNER_REQUIRED',
         'Prepare LinkedIn video with an explicit organization/person owner and its exact binding.',
       );
-    if (p.owner_urn?.startsWith('urn:li:organization:')) assertLinkedInOrganization(c, p.account_id, p.owner_urn);
+    if (p.owner_urn?.startsWith('urn:li:organization:'))
+      linkedInMedia().assertOrganization(c, p.account_id, p.owner_urn);
     if (p.owner_urn && p.owner_urn !== 'urn:li:sponsoredAccount:' + p.account_id) {
       const [, kind, id] = /^urn:li:([^:]+):(.+)$/.exec(p.owner_urn)!;
       new ScopeGuard(this.registry, this.store).authorize(
@@ -604,7 +607,7 @@ export class MediaUploadService {
       const id = driveDownloadUrl(input.drive_url).searchParams.get('id')!,
         matches = this.store
           .connectionsFor(actor)
-          .filter(c => c.gateway === 'google_drive_native_action' && c.enabled && c.accounts.includes(id)),
+          .filter(c => c.gateway === driveGateway && c.enabled && c.accounts.includes(id)),
         defaults = matches.filter(c => c.isDefault);
       if (matches.length > 1 && defaults.length !== 1)
         fail(
@@ -808,7 +811,7 @@ export class MediaUploadService {
           typeof d.owner_urn === 'string' &&
           d.owner_urn.startsWith('urn:li:organization:')
         )
-          assertLinkedInOrganization(c, account, d.owner_urn);
+          linkedInMedia().assertOrganization(c, account, d.owner_urn);
         const {file, transform, width, height, fit_staged} = await this.platformFile(
             {...d, fit_to_platform: input.fit_to_platform},
             source,
@@ -918,7 +921,7 @@ export class MediaUploadService {
       typeof input.owner_urn === 'string' &&
       input.owner_urn.startsWith('urn:li:organization:')
     )
-      assertLinkedInOrganization(c, account, input.owner_urn);
+      linkedInMedia().assertOrganization(c, account, input.owner_urn);
     const record = this.sources.describe(actor, input.source_id);
     let file: {sha256: string; size: number; mime: string; kind: 'image' | 'video'} = {
         sha256: record.sha256,
@@ -999,7 +1002,7 @@ export class MediaUploadService {
     let reason: string | undefined;
     if (p.platform === 'linkedin' && p.kind === 'video') {
       const c = this.access(actor, p.platform, p.account_id, p.connection_id);
-      reason = linkedInResumeReason(p, session, this.store.connectionCredentials(c), c.scopes);
+      reason = linkedInMedia().resumeReason(p, session, this.store.connectionCredentials(c), c.scopes);
       if (!reason) {
         try {
           this.ownerScope(p, c);
@@ -1287,7 +1290,7 @@ export class MediaUploadService {
         );
       if (p.platform === 'linkedin') {
         const c = this.access(actor, p.platform, p.account_id, p.connection_id);
-        assertLinkedInResume(p, resumable, this.store.connectionCredentials(c), c.scopes);
+        linkedInMedia().assertResume(p, resumable, this.store.connectionCredentials(c), c.scopes);
       }
     }
     // The five-minute review governs confirmation only. A resume continues within the transfer window set at the
@@ -1505,7 +1508,7 @@ export class MediaUploadService {
       typeof input.owner_urn === 'string' &&
       input.owner_urn.startsWith('urn:li:organization:')
     )
-      assertLinkedInOrganization(c, account, input.owner_urn);
+      linkedInMedia().assertOrganization(c, account, input.owner_urn);
     if (
       input.platform === 'linkedin' &&
       input.media_type === 'video' &&
@@ -2300,14 +2303,14 @@ export class MediaUploadService {
         ...(p.kind === 'video' ? {fileSizeBytes: p.size, uploadCaptions: false, uploadThumbnail: false} : {}),
       };
       if (session) {
-        assertLinkedInResume(p, session, auth, c.scopes);
+        linkedInMedia().assertResume(p, session, auth, c.scopes);
         access();
         const response = await send('/rest/videos/' + encodeURIComponent(session.media_id), undefined, {
           method: 'GET',
           readOnly: true,
           beforeAttempt: access,
         });
-        assertLinkedInWaiting(p, session, response.data);
+        linkedInMedia().assertWaiting(p, session, response.data);
         access();
       }
       const d = session
@@ -2346,7 +2349,7 @@ export class MediaUploadService {
       if (offset !== bytes.length) fail('MEDIA_RESPONSE_INVALID', 'LinkedIn upload ranges omit file bytes.');
       if (p.kind === 'video' && typeof v.uploadToken !== 'string')
         fail('MEDIA_RESPONSE_INVALID', 'LinkedIn did not return its upload token.');
-      const transfer: JsonObject = session ?? linkedInTransfer(p, auth, c.scopes, id, v, instructions),
+      const transfer: JsonObject = session ?? linkedInMedia().transfer(p, auth, c.scopes, id, v, instructions),
         ids: string[] = transfer.uploaded_part_ids;
       // Keep signed instructions and part receipts encrypted. Public progress contains counts only.
       record({
@@ -2377,7 +2380,7 @@ export class MediaUploadService {
           p.kind === 'image' ? auth.accessToken : undefined,
         );
         if (p.kind === 'video') {
-          if (!linkedInPartId(etag))
+          if (!linkedInMedia().partId(etag))
             fail('MEDIA_RESPONSE_INVALID', 'LinkedIn upload did not return a valid part identifier.');
           ids.push(etag!);
         }
@@ -2690,7 +2693,7 @@ export class MediaUploadService {
         tool: 'amcp_write',
         arguments: {
           action: 'prepare',
-          gateway: 'google_ads_native_action',
+          gateway: googleAdsGateway,
           connection_id: p.connection_id,
           arguments: {
             action: 'google_ads_v23_asset_mutate_assets',

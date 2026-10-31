@@ -6,6 +6,15 @@ import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks
 import {launchCheckPlatforms} from '../dist/src/launch-check.js';
 import {providerAdapters, providerById} from '../dist/src/provider-adapters.js';
 import {pausedParentChildStatuses, pausedParentFollowUp, validatePausedParents} from '../dist/src/paused-parents.js';
+import {nativeAmount, policyNativeUnit, setMetaCurrencyOffsetsForTest} from '../dist/src/budget-units.js';
+import {assertLinkedInOrganization} from '../dist/src/linkedin-posts.js';
+import {
+  assertLinkedInResume,
+  assertLinkedInWaiting,
+  linkedInPartId,
+  linkedInResumeReason,
+  linkedInTransfer,
+} from '../dist/src/linkedin-media-resume.js';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 
 // ARC-01 phase B, wave 4c round 6: shared modules that named providers' gateways or imported their modules take those
@@ -156,4 +165,105 @@ test('the paused-parent rule reads each platform’s child creates from its adap
     ),
     undefined,
   );
+});
+
+test('the budget units read which platform counts a per-currency offset from its adapter’s facts', () => {
+  assertNamesNoProvider('src/budget-units.ts');
+  assert.deepEqual(
+    providerAdapters.filter(a => a.currencyOffsetBudgets).map(a => a.id),
+    ['meta'],
+  );
+  setMetaCurrencyOffsetsForTest({USD: 100, JPY: 1});
+  try {
+    // Meta's caps convert with the currency's offset in its capture; without a currency, or for one the capture does
+    // not list, they have no native amount.
+    assert.equal(nativeAmount('meta_native_action', 12.5, 'USD'), 1250);
+    assert.equal(nativeAmount('meta_native_action', 500, 'JPY'), 500);
+    assert.equal(nativeAmount('meta_native_action', 12.5), undefined);
+    assert.equal(nativeAmount('meta_native_action', 12.5, 'KWD'), undefined);
+    // A documented unit stays the platform's own; an undocumented platform and an inherited name have none.
+    assert.equal(nativeAmount('google_ads_native_action', 12.5, 'USD'), 12_500_000);
+    assert.equal(nativeAmount('tiktok_native_action', 12.5, 'USD'), undefined);
+    assert.equal(nativeAmount('toString', 12.5, 'USD'), undefined);
+    assert.deepEqual(policyNativeUnit('meta_native_action', 'USD'), {
+      perCurrencyUnit: 100,
+      unit: '1/100 USD',
+      evidence: 'Meta currency offset 100 for USD, synthetic test capture (test)',
+    });
+    assert.equal(policyNativeUnit('meta_native_action', 'JPY').unit, 'whole JPY');
+    assert.equal(policyNativeUnit('meta_native_action', 7), undefined);
+    assert.equal(policyNativeUnit('tiktok_native_action', 'USD'), undefined);
+    assert.equal(policyNativeUnit('google_ads_native_action', 'USD').unit, 'micros');
+    // Without a valid capture, Meta's caps stay native.
+    setMetaCurrencyOffsetsForTest(null);
+    assert.equal(nativeAmount('meta_native_action', 12.5, 'USD'), undefined);
+    assert.equal(policyNativeUnit('meta_native_action', 'USD'), undefined);
+  } finally {
+    setMetaCurrencyOffsetsForTest(undefined);
+  }
+});
+
+test('the media upload reaches LinkedIn’s organization owners and resumable transfers through its adapter’s hooks', () => {
+  // Its Google Ads, LinkedIn and Meta version reads stay until the versions package's typed version fact replaces them.
+  assertNamesNoProvider('src/media-upload.ts', {versionReads: ['linkedin-version', 'google-version', 'meta-version']});
+  // Only LinkedIn declares media steps, its own functions, frozen; tests/linkedin-media-resume.test.mjs,
+  // tests/linkedin-media-authority.test.mjs and tests/media-upload.test.ts exercise them through the tool.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.media).map(h => h.gateway),
+    ['linkedin_native_action'],
+  );
+  const media = providerHooks('linkedin_native_action').media;
+  assert.ok(Object.isFrozen(media));
+  assert.deepEqual(media, {
+    assertOrganization: assertLinkedInOrganization,
+    transfer: linkedInTransfer,
+    resumeReason: linkedInResumeReason,
+    assertResume: assertLinkedInResume,
+    assertWaiting: assertLinkedInWaiting,
+    partId: linkedInPartId,
+  });
+  // An organization owner must be bound to the selected account and connection.
+  const connection = {
+    id: 'login',
+    accounts: ['123'],
+    resourceBindings: [{accountId: '123', pathPrefix: '/rest/organizations/500'}],
+  };
+  assert.equal(media.assertOrganization(connection, '123', 'urn:li:organization:500'), undefined);
+  assert.throws(
+    () => media.assertOrganization(connection, '123', 'urn:li:organization:501'),
+    e => e.code === 'LINKEDIN_ORGANIZATION_BINDING_REQUIRED',
+  );
+  // A transfer resumes only with its own receipt, login and scopes, while LinkedIn still waits for its parts.
+  const binding = {
+      account_id: '123',
+      connection_id: 'login',
+      owner_urn: 'urn:li:organization:500',
+      sha256: 'a'.repeat(64),
+      size: 10,
+    },
+    auth = {accessToken: 'synthetic'},
+    part = {uploadUrl: 'https://www.linkedin.com/dms-uploads/part', firstByte: 0, lastByte: 9},
+    session = media.transfer(
+      binding,
+      auth,
+      ['w_organization_social'],
+      'urn:li:video:C1',
+      {uploadToken: 't', uploadUrlsExpireAt: Date.now() + 600000},
+      [part],
+    );
+  assert.equal(media.resumeReason(binding, session, auth, ['w_organization_social']), undefined);
+  assert.equal(media.resumeReason(binding, session, auth, []), 'login_changed');
+  assert.equal(media.resumeReason(binding, undefined), 'legacy_or_missing_transfer');
+  assert.throws(
+    () => media.assertResume(binding, undefined),
+    e => e.code === 'RECOVERY_NOT_SAFE' && e.details.reason === 'legacy_or_missing_transfer',
+  );
+  const record = {id: 'urn:li:video:C1', owner: binding.owner_urn};
+  assert.equal(media.assertWaiting(binding, session, {...record, status: 'WAITING_UPLOAD'}), undefined);
+  assert.throws(
+    () => media.assertWaiting(binding, session, {...record, status: 'AVAILABLE'}),
+    e => e.code === 'RECOVERY_NOT_SAFE' && e.details.reason === 'provider_not_waiting',
+  );
+  assert.equal(media.partId('etag-1'), true);
+  assert.equal(media.partId('etag"1'), false);
 });

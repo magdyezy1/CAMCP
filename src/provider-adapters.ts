@@ -284,11 +284,11 @@ const metaRow = (states: unknown[], id: unknown): JsonObject | undefined =>
 const statusesOf = (rows: unknown, field: string) =>
   Array.isArray(rows) ? rows.map(r => (parentRecord(r) ? r[field] : undefined)) : [];
 /**
- * The facts of shared rules (ARC-01 phase B, wave 4c round 6: they were branches of src/paused-parents.ts), by provider
- * ID, moved unchanged; each adapter takes its ID's entry. `pausedParents` reads a POST child create (src/paused-parents.ts
- * checks the method first).
+ * The facts of shared rules (ARC-01 phase B, wave 4c round 6: they were branches of src/paused-parents.ts and
+ * src/budget-units.ts), by provider ID, moved unchanged; each adapter takes its ID's entry. `pausedParents` reads a POST
+ * child create (src/paused-parents.ts checks the method first).
  */
-const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedParents'>>> = {
+const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedParents' | 'currencyOffsetBudgets'>>> = {
   snapchat: {
     pausedParents: plan => {
       const squad = /^\/v1\/campaigns\/([^/]+)\/adsquads$/.exec(plan.path)?.[1];
@@ -351,6 +351,8 @@ const sharedRuleFacts: Readonly<Record<string, Pick<ProviderAdapter, 'pausedPare
         };
       return undefined;
     },
+    // Its money counts the account currency's minor unit, the offset of its pinned currency capture (WRT-07 Stage C).
+    currencyOffsetBudgets: true,
   },
   tiktok: {
     pausedParents: plan => {

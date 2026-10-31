@@ -855,6 +855,8 @@ export interface ProviderHooks {
   // Wave 4c round 6 (w4c-arc6-workspace).
   /** Its parts of AMCP's generic workflows of amcp_native_action (src/workflows.ts). */
   readonly genericWorkflows?: GenericWorkflowHooks;
+  /** Its steps of AMCP's reviewed media upload (src/media-upload.ts). */
+  readonly media?: MediaUploadHooks;
 }
 
 export interface ProviderAdapter {
@@ -897,6 +899,11 @@ export interface ProviderAdapter {
   // Wave 4c round 6 (w4c-arc6-workspace).
   /** The child create of a POST that a paused parent covers (Snapchat, Meta, TikTok), src/paused-parents.ts. */
   readonly pausedParents?: (plan: CompiledRequest) => PausedParentLevel | undefined;
+  /**
+   * Its budget, bid and spend-cap amounts are the account currency times a per-currency offset that only its pinned
+   * currency capture gives (Meta's minor units, WRT-07 Stage C), src/budget-units.ts.
+   */
+  readonly currencyOffsetBudgets?: true;
 }
 
 /**
@@ -1402,4 +1409,49 @@ export interface PausedParentLevel {
     read: (parentRead: CompiledRequest, id: string) => CompiledRequest;
     row: (states: unknown[], id: unknown) => JsonObject | undefined;
   };
+}
+
+/** What a resumable media transfer is bound to: the reviewed account, connection, owner and file. */
+export interface MediaTransferBinding {
+  account_id: string;
+  connection_id: string;
+  owner_urn?: string;
+  sha256: string;
+  size: number;
+}
+
+/**
+ * A provider's steps of AMCP's reviewed media upload (src/media-upload.ts: LinkedIn's), which the upload calls where it
+ * named the provider's modules; it keeps every other step, check and refusal of its own.
+ */
+export interface MediaUploadHooks {
+  /** Refuses an organization owner that is not bound to the selected account and connection. */
+  assertOrganization(connection: Connection, account: string, owner: string): void;
+  /** The encrypted receipt of a new resumable video transfer, derived on the server, never taken from MCP arguments. */
+  transfer(
+    binding: MediaTransferBinding,
+    auth: Credentials,
+    scopes: string[],
+    id: string,
+    value: JsonObject,
+    instructions: JsonObject[],
+  ): JsonObject;
+  /** Why a recorded transfer cannot resume safely, or undefined when it can. */
+  resumeReason(
+    binding: MediaTransferBinding,
+    session: JsonObject | undefined,
+    auth?: Credentials,
+    scopes?: string[],
+  ): string | undefined;
+  /** Refuses a recorded transfer that cannot resume safely (RECOVERY_NOT_SAFE). */
+  assertResume(
+    binding: MediaTransferBinding,
+    session: JsonObject | undefined,
+    auth?: Credentials,
+    scopes?: string[],
+  ): void;
+  /** Refuses the provider's record of a retained upload that is not this one, still waiting for its parts. */
+  assertWaiting(binding: MediaTransferBinding, session: JsonObject, response: unknown): void;
+  /** Whether an uploaded part's receipt is a well-formed part identifier. */
+  partId(value: unknown): value is string;
 }

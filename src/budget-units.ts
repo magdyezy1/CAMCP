@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {pinnedJson} from './pinned-json.js';
+import {providerOf} from './provider-adapters.js';
 
 /**
  * How a platform's API counts budget and bid amounts, so an owner can state a cap in account currency and the spending
@@ -115,6 +116,12 @@ export function lifetimeAmount(gateway: string, path: string, key: string): bool
 }
 
 /**
+ * Whether a gateway's amounts are the account currency times a per-currency offset (Meta's minor units): its adapter's
+ * fact (ARC-01 phase B, src/provider-adapters.ts `currencyOffsetBudgets`).
+ */
+const countsCurrencyOffset = (gateway: string) => providerOf(gateway)?.currencyOffsetBudgets === true;
+
+/**
  * The native amount for a cap stated in account currency, or undefined where the platform's unit is not documented.
  * Meta counts money in the account currency's minor unit (its "offset"), so a Meta cap converts only with the account
  * currency and a pinned offset table (WRT-07 Stage C, metaCurrencyOffset).
@@ -122,7 +129,7 @@ export function lifetimeAmount(gateway: string, path: string, key: string): bool
 export function nativeAmount(gateway: string, currencyAmount: number, currency?: string | null): number | undefined {
   const perUnit =
     budgetUnits[gateway]?.perCurrencyUnit ??
-    (gateway === 'meta_native_action' && currency ? metaCurrencyOffset(currency) : undefined);
+    (countsCurrencyOffset(gateway) && currency ? metaCurrencyOffset(currency) : undefined);
   return perUnit ? Math.round(currencyAmount * perUnit * 1e6) / 1e6 : undefined;
 }
 
@@ -280,7 +287,7 @@ export function setMetaCurrencyOffsetsForTest(offsets: Record<string, number> | 
  */
 export function policyNativeUnit(gateway: string, currency: unknown): BudgetUnit | undefined {
   const unit = budgetUnits[gateway];
-  if (unit || gateway !== 'meta_native_action' || typeof currency !== 'string') return unit;
+  if (unit || !countsCurrencyOffset(gateway) || typeof currency !== 'string') return unit;
   const offset = metaCurrencyOffset(currency),
     source = metaCurrencySource();
   return offset && source
