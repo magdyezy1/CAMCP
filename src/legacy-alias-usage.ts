@@ -15,8 +15,9 @@ let legacyNames: Set<string> | undefined;
  * request sent) and changes nothing; the owner decides on hiding the aliases once the baseline exists.
  */
 export function legacyAliasUsage(store: Store, actor: Actor, now = Date.now(), days = 30): JsonObject {
-  // The legacy alias names Google Ads' adapter declares (its legacy coverage, src/google-legacy.ts).
-  legacyNames ??= new Set(providerHooks(providerById('google')?.gateway)?.legacyAliases?.() ?? []);
+  // The legacy alias names Google Ads' adapter declares (its legacy coverage, src/google-legacy.ts). The lookup is
+  // asserted, as the provider contracts' versions are: a registry without them fails here instead of counting none.
+  legacyNames ??= new Set(providerHooks(providerById('google')!.gateway)!.legacyAliases!());
   const since = now - days * day,
     rows = googleAdsRequestActions(store, actor.tenantId, since, aliasScanLimit + 1);
   // One request is counted once, under the action it was planned with, however many events it recorded.
