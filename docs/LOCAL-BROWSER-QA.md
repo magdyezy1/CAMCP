@@ -63,34 +63,29 @@ route without a limit is report-only. After a passing run, `node tools/browser-a
 a rise.
 
 Provenance: the committed limits are those of the first passing full qualification after the wave 1, 2 and 3a merges
-(`wave3a-browser-2`, 2026-10-16, recorded under
-[Wave 3a integration qualification](records/LOCAL-BROWSER-QA-HISTORY-2026-10.md#wave-3a-integration-qualification-2026-10-16)), which also showed the focus and
-leak assertions passing across every case. Wave 3b's development runs added `period-comparison /reporting-overview` and
-`measurement-ledger /measurement` at zero, and the full qualification after the wave 3b merges (`wave3b-browser-1`,
-[Wave 3b integration qualification](records/LOCAL-BROWSER-QA-HISTORY-2026-10.md#wave-3b-integration-qualification-2026-10-17)) measured each of the 92 routes at
+([Wave 3a integration qualification](records/LOCAL-BROWSER-QA-HISTORY-2026-10.md#wave-3a-integration-qualification-2026-10-16)); the full qualification after the wave 3b merges
+([Wave 3b integration qualification](records/LOCAL-BROWSER-QA-HISTORY-2026-10.md#wave-3b-integration-qualification-2026-10-17)) measured each of the 92 routes at
 exactly its limit. A limit that fails is now a regression from a measured state. Two known gaps make the counts a
 lower bound: the allow-list skips `option` elements (closed select options are not visible text nodes, so they are
 never probed) and every `bdi`, not only `bdi[data-native]`.
 
 Every case also focuses the skip link, a sidebar link, a primary button, a form field, the landing page's closing call
-to action and a focusable command block in its own appearance (the last two since the design review of 2026-10, where
-they measured 2.32:1 and 1.21:1). It requires each focus ring to reach 3:1 against the opaque surface behind it, with
-the worst gradient stop counting (WCAG 1.4.11). A focused control with no outline and no shadow fails. Accessibility
-semantics, the pinned WCAG rules (when configured) and the leak probe also run after a dialog opens, an alert is shown
-and an outcome renders in the write journeys. Report panels and evidence controls use the theme focus colour.
+to action and a focusable command block in its own appearance. It requires each focus ring to reach 3:1 against the
+opaque surface behind it, with the worst gradient stop counting (WCAG 1.4.11). A focused control with no outline and no
+shadow fails. Accessibility semantics, the pinned WCAG rules (when configured) and the leak probe also run after a
+dialog opens, an alert is shown and an outcome renders in the write journeys. Report panels and evidence controls use
+the theme focus colour.
 
 The final state of every case also checks (design review 2026-10) that no control lies past the page's start edge,
 where no scrolling reaches it (WCAG 1.4.10; the end-side `scrollWidth` check never saw Reporting's "New report" at
 -114 px on a 375 px phone), and that a primary or danger button and an online or attention status badge are not
-coloured exactly like their plain counterparts, and that
-every visible checkbox sits beside the first line of its own words (a workspace form's label grid had put the plan
-filters' boxes alone above them). Period comparison in dark mode also runs axe over the checked metric pills: their
-formulas measured 1.01:1 on an iris fill the design review's branch had unmasked; in the merged dark layer a checked
-pill takes `--surface-selected`, and its formula 6.03:1. The export journey checks that the
-authorization box sits beside its text and that the status after an export covers
-neither the box nor the export button (WCAG 2.4.11). The shell chrome cases (851 to 1,280 px) open every navigation
-group and require each label to take the row beside its icon (wider than 40 px, not centred, at most two lines); the
-icon's 20 px box had broken "Evidence & analysis" into three centred lines.
+coloured exactly like their plain counterparts, and that every visible checkbox sits beside the first line of its own
+words (a workspace form's label grid had put the plan filters' boxes alone above them). Period comparison in dark mode
+also runs axe over the checked metric pills: their formulas measured 1.01:1 on an iris fill the design review's branch
+had unmasked; in the merged dark layer a checked pill takes `--surface-selected`, and its formula 6.03:1. The export
+journey checks that the authorization box sits beside its text and that the status after an export covers neither the
+box nor the export button (WCAG 2.4.11). The shell chrome cases (851 to 1,280 px) open every navigation group and
+require each label to take the row beside its icon (wider than 40 px, not centred, at most two lines).
 
 The qualification records of waves 2 to 4a below stay where they were written. Record the next run in
 `docs/records/` (for example `QUALIFICATION-<wave>-<date>.md`, with its revision, digests and figures) and link
@@ -108,7 +103,8 @@ cell batch and verifies its read-back and unrelated-tab preservation. All other 
 advertising writes are refused. It signs into no live website or advertising account.
 
 The runner selects its cases across 31 distinct page paths, including light/dark appearance and the additional
-populated/refusal/recovery cases documented below. Its initial page selection covers:
+populated/refusal/recovery cases documented below. The exact case count is the `total` field of each run's
+`results.json`; cite that record rather than a number retyped here. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
 - Sign-in and signup at 320 and 1280 pixels (sign-in also at 375 and 768, where a visible About link and visible
@@ -165,7 +161,7 @@ maintained source verification and full sanitized release proof. A result record
 source change does not qualify that change; run again at the clean committed source before pushing.
 
 The October 4 run uses local Chromium 148.0.7778.96 and Playwright 1.62.1 with an explicit existing
-test executable. It does not establish another browser,
+test executable. It establishes those observed local cases. It does not establish another browser,
 touch device, assistive technology, complete Arabic editorial acceptance, production deployment,
 live provider acceptance or current Linux/Docker qualification. The screen-reader and touch acceptance is the finite
 manual protocol of ACC-07 ([assistive-technology acceptance](acceptance/ASSISTIVE-TECHNOLOGY.md): 28 sessions, none
@@ -180,7 +176,7 @@ described by the [official Playwright BrowserType API](https://playwright.dev/do
 
 ## Appearance and immediate detail export
 
-All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results. See [batch 191](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
+All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results; manual/physical-assistive acceptance remains separate. See [batch 191](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
 
 ## Pending rendered journeys
 
