@@ -435,13 +435,7 @@ for (const allowWrites of [false, true])
       const revoked = await s.request(route + '/write-access', 'PATCH', {accounts: []}, s.headers);
       assert.equal(revoked.status, 200);
       assert.deepEqual((await revoked.json()).writeAccounts, []);
-      for (const path of [
-        '/api/workspace/write',
-        '/api/workspace/campaign',
-        '/api/workspace/media',
-        '/api/connector-tokens',
-        '/api/mcp/consent',
-      ]) {
+      for (const path of ['/api/owner/accounts/access', '/api/access-sets', '/api/workspaces/security-policy']) {
         const r = await s.request(path, 'POST', {}, s.headers);
         assert.equal(r.status, 403);
         assert.equal((await r.json()).error.code, 'TEST_ACCOUNT_SCOPE');
