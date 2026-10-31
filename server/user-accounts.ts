@@ -282,7 +282,7 @@ export class UserAccounts {
         administrator: false,
         workspaceName: 'AMCP test workspace',
         workspaceId: session.actor.tenantId,
-        workspaceRole: 'owner',
+        workspaceRole: 'operator',
         mfaEnabled: false,
         testAccount: true,
       };
@@ -324,7 +324,7 @@ export class UserAccounts {
       administrator: false,
       workspaceName,
       workspaceId: session.actor.tenantId,
-      workspaceRole: membership?.role,
+      workspaceRole: u.test_account && ['owner', 'admin'].includes(membership?.role) ? 'operator' : membership?.role,
       mfaEnabled,
       mfaRequired: requirement.required,
       mfaRequiredBy: requirement.by,

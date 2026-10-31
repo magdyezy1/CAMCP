@@ -91,7 +91,7 @@ async function metaDiscovery(kind: string, c: DiscoveryContext): Promise<Workspa
 }
 
 const metaToken = metaGraphUrl('oauth/access_token');
-/** The long-lived token for the short-lived one the code gave; Meta's own lifetime is trusted, never an invented one. */
+/** Meta's token and provider-stated lifetime; missing expiry needs app-bound inspection, never an invented lifetime. */
 async function metaLongLived(result: JsonObject, c: OAuthContext & {assertActive(): void}): Promise<JsonObject> {
   if (c.env.AMCP_META_LONG_LIVED_TOKEN === 'false') return result;
   if (typeof result.access_token !== 'string' || !result.access_token)
@@ -105,20 +105,57 @@ async function metaLongLived(result: JsonObject, c: OAuthContext & {assertActive
   }).toString();
   const extended = await c.readResponse(await c.send(exchangeUrl, {method: 'GET'}));
   c.assertActive();
-  // Trust only the provider's actual lifetime; never invent a 60-day expiration.
+  const invalid = () =>
+    new MirrorError('OAUTH_RESPONSE_INVALID', 'Meta did not return a valid long-lived token and lifetime.', {}, 502);
+  if (typeof extended.access_token !== 'string' || !extended.access_token) throw invalid();
+  const seconds = (value: unknown): number | undefined => {
+    if (typeof value !== 'number' && !(typeof value === 'string' && /^[0-9]+$/.test(value))) return;
+    const n = Number(value);
+    return n >= 0 && Number.isSafeInteger(n) && Number.isSafeInteger(n * 1000) ? n : undefined;
+  };
+  const lifetimes = ['expires_in', 'expires']
+    .filter(key => extended[key] !== undefined)
+    .map(key => seconds(extended[key]));
+  if (lifetimes.some(n => n === undefined)) throw invalid();
+  // Facebook's SDK also recognizes `expires`. Neither form may inherit the short token's expiry.
+  const {expires_in: _shortExpiry, expires: _shortAlias, ...token} = {...result, ...extended};
+  if (lifetimes.length && lifetimes.every(n => n! > 0))
+    return {...token, expires_in: Math.min(...(lifetimes as number[]))};
+
+  // A zero or absent lifetime can be a business or user token with no fixed token expiry, or a token already extended.
+  // Only Meta can establish validity, app binding and expiry. Do not expose the inspection result or app secret.
+  const debugUrl = new URL(metaGraphUrl('debug_token'));
+  debugUrl.searchParams.set('input_token', extended.access_token);
+  const inspected = await c.readResponse(
+    await c.send(debugUrl, {method: 'GET', headers: {Authorization: 'Bearer ' + c.clientId + '|' + c.clientSecret}}),
+  );
+  c.assertActive();
+  const data = inspected.data,
+    deadlines: number[] = [];
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    for (const raw of [data.expires_at, data.data_access_expires_at]) {
+      if (raw === undefined || raw === null) continue;
+      const parsed = seconds(raw);
+      if (parsed === undefined) throw invalid();
+      deadlines.push(parsed);
+    }
+  }
   if (
-    typeof extended.access_token !== 'string' ||
-    !extended.access_token ||
-    !Number.isFinite(Number(extended.expires_in)) ||
-    Number(extended.expires_in) <= 0
+    !data ||
+    typeof data !== 'object' ||
+    Array.isArray(data) ||
+    data.is_valid !== true ||
+    String(data.app_id) !== c.clientId ||
+    (data.error !== undefined && data.error !== null) ||
+    !['USER', 'SYSTEM_USER', 'BUSINESS_ASSET_USER'].includes(String(data.type)) ||
+    !deadlines.length
   )
-    throw new MirrorError(
-      'OAUTH_RESPONSE_INVALID',
-      'Meta did not return a valid long-lived token and lifetime.',
-      {},
-      502,
-    );
-  return {...result, ...extended};
+    throw invalid();
+  const finite = deadlines.filter(n => n > 0);
+  if (!finite.length) return token; // Meta verified a token with no scheduled expiry.
+  const remaining = Math.floor((Math.min(...finite) * 1000 - Date.now()) / 1000);
+  if (remaining <= 0) throw invalid();
+  return {...token, expires_in: remaining};
 }
 
 export const metaLogin: ProviderLogin = Object.freeze({

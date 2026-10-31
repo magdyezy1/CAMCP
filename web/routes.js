@@ -32,6 +32,7 @@ const routeRegistry = [
   },
   {
     path: '/campaigns',
+    testAccount: true,
     label: 'Campaigns',
     nav: true,
     palette: true,
@@ -41,6 +42,7 @@ const routeRegistry = [
   },
   {
     path: '/portfolio',
+    testAccount: true,
     label: 'Live portfolio',
     group: 'Campaign tools',
     nav: true,
@@ -51,6 +53,7 @@ const routeRegistry = [
   },
   {
     path: '/commerce',
+    testAccount: true,
     label: 'Commerce',
     group: 'Campaign tools',
     nav: true,
@@ -61,6 +64,7 @@ const routeRegistry = [
   },
   {
     path: '/media',
+    testAccount: true,
     label: 'Creative',
     nav: true,
     palette: true,
@@ -70,6 +74,7 @@ const routeRegistry = [
   },
   {
     path: '/report-library',
+    testAccount: true,
     label: 'Reporting',
     nav: true,
     palette: true,
@@ -96,6 +101,7 @@ const routeRegistry = [
   },
   {
     path: '/reports',
+    testAccount: true,
     label: 'Evidence & analysis',
     group: 'Reporting tools',
     nav: true,
@@ -106,6 +112,7 @@ const routeRegistry = [
   },
   {
     path: '/schedules',
+    testAccount: true,
     label: 'Schedules',
     group: 'Reporting tools',
     nav: true,
@@ -134,6 +141,7 @@ const routeRegistry = [
   },
   {
     path: '/measurement',
+    testAccount: true,
     label: 'Measurement',
     group: 'Connection tools',
     nav: true,
@@ -144,6 +152,7 @@ const routeRegistry = [
   },
   {
     path: '/connectors',
+    testAccount: true,
     label: 'AI connectors',
     group: 'Connection tools',
     nav: true,
@@ -153,6 +162,7 @@ const routeRegistry = [
   },
   {
     path: '/capabilities',
+    testAccount: true,
     label: 'Capabilities',
     group: 'Connection tools',
     nav: true,
@@ -162,6 +172,7 @@ const routeRegistry = [
   },
   {
     path: '/operations',
+    testAccount: true,
     label: 'Operations',
     nav: true,
     palette: true,
@@ -170,6 +181,7 @@ const routeRegistry = [
   },
   {
     path: '/monitors',
+    testAccount: true,
     label: 'Monitoring inbox',
     group: 'Management',
     nav: true,
@@ -215,7 +227,13 @@ const routeRegistry = [
     description: 'The owner guide, task by task',
     assets: ['help.js'],
   },
-  {path: '/report-pack', label: 'Report pack', parent: '/report-library', assets: ['evidence-workflows.js']},
+  {
+    path: '/report-pack',
+    testAccount: true,
+    label: 'Report pack',
+    parent: '/report-library',
+    assets: ['evidence-workflows.js'],
+  },
   {
     path: '/oauth/consent',
     label: 'Authorize access',

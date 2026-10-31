@@ -423,13 +423,11 @@ export class McpOAuth implements OAuthServerProvider {
     res.redirect(303, this.web.origin + '/oauth/consent?request=' + encodeURIComponent(request));
   }
   /**
-   * What the consent screen shows, for any active member except reviewer test accounts. The scope is what the client
+   * What the consent screen shows, including reviewers in their isolated workspace. The scope is what the client
    * requested, capped by the member's role; `choices` are the scopes the member may approve instead (read only, or
    * read and reviewed changes). Names and return addresses come from the client and are not verified by AMCP.
    */
   consent(request: string, session: WebSession) {
-    if (session.actor.testAccount === true)
-      throw new InvalidGrantError('Reviewer test accounts cannot authorize AI clients.');
     const row = this.get(request, 'request'),
       requested = this.validateScopes(row.data.scope?.split(' ')),
       cap = memberScopeCap(session.actor.role),

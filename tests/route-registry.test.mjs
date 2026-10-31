@@ -271,42 +271,19 @@ function scopedShell(session, pathname) {
   return {run, context, navLinks, groupNodes, note, inserted, location};
 }
 
-test('a test account sees no empty group, an in-scope palette, no connectors link and why it landed on Home', async () => {
+test('a reviewer sees every product navigation group and can open portfolio and AI connectors', async () => {
   const f = scopedShell({authenticated: true, testAccount: true}, '/portfolio');
   await f.run('render()');
-  const visible = f.navLinks.filter(link => !link.hidden).map(link => '/' + link.dataset.route);
-  assert.deepEqual(visible, [
-    '/dashboard',
-    '/reporting-overview',
-    '/profiles',
-    '/connections',
-    '/activity',
-    '/settings',
-  ]);
-  // Campaign tools and Connection tools have nothing in scope; Reporting tools and Management keep one link each.
-  assert.deepEqual(
-    f.groupNodes.filter(group => group.hidden).map(group => group.label),
-    ['Campaign tools', 'Connection tools'],
-  );
-  assert.equal(f.note.hidden, true, 'the sidebar note link to /connectors is out of scope');
-  assert.equal(f.location.pathname, '/dashboard');
-  assert.deepEqual(Array.from(f.run('renders')), ['/dashboard']);
-  assert.equal(f.inserted.length, 1);
-  assert.match(f.inserted[0], /role="status"/);
-  assert.match(f.inserted[0], /This test workspace does not include Live portfolio\./);
-  // The palette lists only pages the test workspace includes.
-  assert.deepEqual(Array.from(f.run("routeMatches('').map(entry => entry.path)")), [
-    '/dashboard',
-    '/reporting-overview',
-    '/profiles',
-    '/connections',
-    '/activity',
-    '/settings',
-    '/account',
-  ]);
-  // The notice is shown once, for the redirect that caused it.
-  await f.run('render()');
-  assert.equal(f.inserted.length, 1);
+  assert.ok(f.navLinks.every(link => !link.hidden));
+  assert.ok(f.groupNodes.every(group => !group.hidden));
+  assert.equal(f.note.hidden, false);
+  assert.equal(f.location.pathname, '/portfolio');
+  assert.deepEqual(Array.from(f.run('renders')), ['/portfolio']);
+  assert.equal(f.inserted.length, 0);
+  const offered = Array.from(f.run("routeMatches('').map(entry => entry.path)"));
+  for (const path of ['/campaigns', '/portfolio', '/commerce', '/media', '/reports', '/connectors', '/operations'])
+    assert.ok(offered.includes(path), path);
+  assert.ok(!offered.includes('/help'), 'owner documentation remains outside the reviewer scope');
 });
 
 test('a test account is redirected from a path the registry does not list (regression: unknown paths were allowed)', async () => {
@@ -321,14 +298,12 @@ test('a test account is redirected from a path the registry does not list (regre
 });
 
 test('the scoped redirect notice reads in Arabic', async () => {
-  const f = scopedShell({authenticated: true, testAccount: true}, '/media');
+  const f = scopedShell({authenticated: true, testAccount: true}, '/help');
   f.run("uiLocale='ar'; uiMessages=new Map(Object.entries(catalog))");
   await f.run('render()');
   assert.equal(f.inserted.length, 1);
   assert.ok(
-    f.inserted[0].includes(
-      catalog['This test workspace does not include {page}.'].replace('{page}', catalog['Creative']),
-    ),
+    f.inserted[0].includes(catalog['This test workspace does not include {page}.'].replace('{page}', catalog['Help'])),
   );
 });
 

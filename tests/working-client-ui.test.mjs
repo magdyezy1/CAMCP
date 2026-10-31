@@ -459,8 +459,8 @@ test('the report library offers the working client’s saved reports and keeps t
   assert.match(f.run('overviewLibraryOptions(b)'), /Report of A[\s\S]*Report of B|Report of B[\s\S]*Report of A/);
 });
 
-test('reviewer test accounts, and members with a two-step setup pending, have no working clients', () => {
-  for (const flags of [{testAccount: true}, {mfaEnrollmentRequired: true}]) {
+test('members with a two-step setup pending have no working clients', () => {
+  for (const flags of [{mfaEnrollmentRequired: true}]) {
     const f = shell({
       search: '?client=profile-a',
       session: {authenticated: true, id: 'person-t', workspaceId: 't', workingClients: clients, ...flags},
@@ -499,4 +499,13 @@ test('ad previews require an explicit account when several remain (regression: t
   node('#preview-form').elements = {target: {value: ''}, ad_ids: {value: ''}};
   new Script('bindAdPreviews()').runInContext(context);
   return assert.rejects(bound(node('#preview-form')), /Choose the advertising account to preview/);
+});
+
+test('reviewers can use the working clients available in their isolated workspace', () => {
+  const f = shell({
+    search: '?client=profile-a',
+    session: {authenticated: true, id: 'reviewer', workspaceId: 't-test', testAccount: true, workingClients: clients},
+  });
+  assert.deepEqual(plain(f.run('workingClientList()')), clients);
+  assert.equal(f.run('workingClient().profile_id'), 'profile-a');
 });

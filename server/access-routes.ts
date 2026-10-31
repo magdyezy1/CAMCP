@@ -61,7 +61,13 @@ export function accessRoutes({router, store, web, accounts, allowWrites, connect
       const {accessSetId: _member, ...actor} = s.actor,
         id = randomUUID(),
         token = store.createKey(
-          {...actor, userId: 'connector/' + id, role, ...(accessSetId !== undefined ? {accessSetId} : {})},
+          {
+            ...actor,
+            userId: 'connector/' + id,
+            role,
+            ...(s.actor.userId === 'workspace-test' ? {ownerUserId: 'workspace-test'} : {}),
+            ...(accessSetId !== undefined ? {accessSetId} : {}),
+          },
           30 * 86400000,
         ),
         expiresAt = Date.now() + 30 * 86400000;

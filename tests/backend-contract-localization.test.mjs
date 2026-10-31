@@ -261,10 +261,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // notes, no owned reason): 737 files. It moves the Meta creative check's reasons from src/creative-validation.ts,
   // which keeps none, to src/meta-creative-features.ts, which already owns reasons: 284 files with reasons, the same
   // reasons.
+  // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
   assert.equal(files.length, 737);
   assert.equal(selected.filter(row => row.messages.size).length, 284);
-  assert.equal(owned.size, 1590);
-  assert.equal(Object.keys(catalog).length, 11529);
+  assert.equal(owned.size, 1591);
+  assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

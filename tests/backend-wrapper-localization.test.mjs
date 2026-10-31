@@ -233,10 +233,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merged with the ARC packages, the Help page's module is one more: 736.
   // ARC-01 wave 4c round 6 (w4c-arc6-versions) adds WooCommerce's adapter module (src/woocommerce-adapter.ts, its tool
   // notes), without wrapper reasons, and moves the Meta creative check's reasons to src/meta-creative-features.ts: 737.
+  // Reviewer connector authority adds one catalog entry, without adding a wrapper reason.
   assert.equal(files.length, 737);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11529);
+  assert.equal(Object.keys(catalog).length, 11530);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
