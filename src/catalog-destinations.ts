@@ -9,10 +9,10 @@ import {bad} from './workspace-core.js';
  * (explicit upsert intent, explicit removal intent, per-item receipts, or feeds only). The destinations are facts of
  * their providers' adapters (src/provider-adapters.ts, ARC-01), listed here under their gateways in the registry's
  * catalogDestinationOrder; each provider registers its projection (src/catalog-ingestion.ts) and its comparison
- * (src/catalog-comparison.ts) under the same gateway. Product sources plug in on the other side
- * (src/catalog-sources.ts, with column mappings in src/catalog-mapping.ts): whatever produced the products, a
- * destination sees the same supplied rows. tests/catalog-destination-contract.test.mjs holds each projection and the
- * website to this contract.
+ * (src/catalog-comparison.ts, through src/provider-workflows.ts) under the same gateway. Product sources plug in on
+ * the other side (src/catalog-sources.ts, with column mappings in src/catalog-mapping.ts): whatever produced the
+ * products, a destination sees the same supplied rows. tests/catalog-destination-contract.test.mjs holds each
+ * projection and the website to this contract.
  *
  * Every destination returns the shared comparison item (`catalog-comparison-item-v2`): `state`, `changes`,
  * `unknown_fields`, `unsent_fields`, `blocked`/`blocked_reason` and `serving_notes`, beside its own evidence. The v2

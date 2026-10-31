@@ -39,6 +39,11 @@ import {validateAppleResponse} from './apple-native.js';
 import {projectRedditAccountHistory, redditAccountHistoryRead} from './reddit-extensions.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {legacyLimitDisclosure} from './google-legacy.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {metaCatalogComparison} from './meta-catalog-comparison.js';
+import {xCatalogComparison, xCatalogListedSelection} from './x-catalog-comparison.js';
+import {snapchatCatalogComparison} from './snapchat-catalog-comparison.js';
+import {catalogInventoryRequested, listedSelectionRequested} from './x-catalog-selection-inventory.js';
 export type {WooCommerceRequest} from './woocommerce-source.js';
 export type {ResultIds} from './snapchat-result-ids.js';
 
@@ -437,3 +442,29 @@ export const providerInputRedactors: readonly ((tool: string, input: JsonObject)
 
 /** The website's administrator setup of a store connection (WooCommerce's, through its guarded GET transport). */
 export const connectStore = connectWooCommerce;
+
+// Wave 4c round 6 (w4c-arc6-catalog): the catalog comparison's provider steps (src/catalog-comparison.ts), moved with
+// their order.
+type CatalogComparison = (
+  store: Store,
+  registry: Registry,
+  transport: NativeTransport,
+  credentials: CredentialProvider,
+  actor: Actor,
+  input: JsonObject,
+) => Promise<JsonObject>;
+export const catalogComparisonSteps = Object.freeze({
+  /** First, whatever the gateway: X's check of an explicit inspection of other listed products. */
+  inventoryRequested: catalogInventoryRequested,
+  /** X's explicit selection of listed products by native key (COM-02 B): its keys, or undefined. */
+  listedSelectionRequested,
+  /** X's read of a listed selection, which reads only the selected products. */
+  listedSelection: xCatalogListedSelection,
+  /** Each catalog destination's read-only comparison of supplied products with its current catalog (COM-03). */
+  comparisons: Object.freeze({
+    meta_native_action: metaCatalogComparison,
+    x_ads_native_action: xCatalogComparison,
+    // COM-02 D: Snapchat changes products only through feeds, so its comparison names what to fix there.
+    snapchat_native_action: snapchatCatalogComparison,
+  }) as Readonly<Record<string, CatalogComparison>>,
+});

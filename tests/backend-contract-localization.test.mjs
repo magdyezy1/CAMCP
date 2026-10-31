@@ -261,8 +261,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/meta-catalog-ingestion.ts and its X and Snapchat siblings, the rules they share to
   // src/supplied-catalog-ingestion.ts, and the X removal's plan binding to src/x-catalog-removal-binding.ts; their
   // refusals are raised through bad(), as they were: five more files, the same reasons.
+  // Its comparisons then move Meta's comparison from src/catalog-comparison.ts to src/meta-catalog-comparison.ts, with
+  // its refusals: one more file, the same reasons.
   // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
-  assert.equal(files.length, 741);
+  assert.equal(files.length, 742);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

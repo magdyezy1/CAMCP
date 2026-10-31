@@ -12,6 +12,13 @@ import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks
 import * as removal from '../dist/src/x-catalog-removal.js';
 import * as removalBinding from '../dist/src/x-catalog-removal-binding.js';
 import {MirrorError} from '../dist/src/errors.js';
+import fs from 'node:fs';
+import {catalogComparison} from '../dist/src/catalog-comparison.js';
+import {catalogComparisonSteps} from '../dist/src/provider-workflows.js';
+import {metaCatalogComparison} from '../dist/src/meta-catalog-comparison.js';
+import {xCatalogComparison, xCatalogListedSelection} from '../dist/src/x-catalog-comparison.js';
+import {snapchatCatalogComparison} from '../dist/src/snapchat-catalog-comparison.js';
+import {catalogInventoryRequested, listedSelectionRequested} from '../dist/src/x-catalog-selection-inventory.js';
 
 /**
  * ARC-01 (wave 4c round 6): the catalog destinations (COM-03) are facts of their providers' adapters, and the shared
@@ -208,4 +215,79 @@ test('the shared ingestion keeps its refusal for a gateway that is no destinatio
     },
   ])
     assert.equal(refusal(input).message, 'A sale start or end needs a sale price.');
+});
+
+// The shared module names no gateway and imports only shared modules and the provider workflows registry.
+const sharedSource = file => fs.readFileSync(new URL('../src/' + file, import.meta.url), 'utf8');
+const importsOf = source => [...source.matchAll(/from '\.\/([^']+)\.js'/g)].map(m => m[1]);
+
+test('each catalog destination compares through its provider workflows step, after the X selection checks', async () => {
+  const steps = catalogComparisonSteps;
+  assert.deepEqual(Object.keys(steps.comparisons), Object.keys(catalogDestinations));
+  assert.equal(steps.comparisons.meta_native_action, metaCatalogComparison);
+  assert.equal(steps.comparisons.x_ads_native_action, xCatalogComparison);
+  assert.equal(steps.comparisons.snapchat_native_action, snapchatCatalogComparison);
+  assert.equal(steps.inventoryRequested, catalogInventoryRequested);
+  assert.equal(steps.listedSelectionRequested, listedSelectionRequested);
+  assert.equal(steps.listedSelection, xCatalogListedSelection);
+  assert.ok(Object.isFrozen(steps) && Object.isFrozen(steps.comparisons));
+  const source = sharedSource('catalog-comparison.ts');
+  assert.doesNotMatch(source, /_native_action/);
+  assert.deepEqual(importsOf(source), [
+    'provider-workflows',
+    'catalog-destinations',
+    'store',
+    'catalog',
+    'transport',
+    'auth',
+    'types',
+  ]);
+  // Success: a Meta comparison passes its checks and resolves the connection next (the store here stops it).
+  const reached = new Error('connection resolved'),
+    store = {
+      resolveConnection() {
+        throw reached;
+      },
+    };
+  const product = {
+      retailer_id: 'sku-1',
+      name: 'Product 1',
+      price: '20',
+      currency: 'SAR',
+      image_url: 'https://shop.example.test/i/1.jpg',
+    },
+    meta = {
+      gateway: 'meta_native_action',
+      account_id: '123',
+      connection_id: 'm',
+      catalog_id: '555',
+      allow_upsert: true,
+      products: [product],
+    };
+  await assert.rejects(catalogComparison(store, null, null, null, {}, meta), reached);
+  // Refusals, in the order they were checked: X's inspection check first, whatever the gateway, then X's listed
+  // selection check, then the fallback destination's (Meta's) catalog ID, then the shared projection's refusal of a
+  // gateway that is no destination.
+  const refused = async (input, message) => {
+    await assert.rejects(catalogComparison(store, null, null, null, {}, input), error => {
+      assert.ok(error instanceof MirrorError);
+      assert.deepEqual({code: error.code, message: error.message}, {code: 'INVALID_ARGUMENT', message});
+      return true;
+    });
+  };
+  const listed = {requirements: {selection_source: 'listed_inventory', product_keys: ['1']}};
+  await refused(
+    {...meta, inspect_other_listed_products: true, ...listed},
+    'Inspection of other listed products is qualified for X catalogs only.',
+  );
+  await refused(
+    {...meta, gateway: 'snapchat_native_action', ...listed},
+    'Selection of listed products is qualified for X catalogs only.',
+  );
+  await refused(
+    {...meta, gateway: 'google_ads_native_action', catalog_id: 'x1'},
+    'Choose an exact positive numeric Meta product catalog ID.',
+  );
+  for (const gateway of ['google_ads_native_action', 'toString', undefined])
+    await refused({...meta, gateway}, 'Choose a numeric Meta product catalog ID and selected Meta ad account.');
 });
