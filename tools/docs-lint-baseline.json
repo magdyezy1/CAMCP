@@ -34,10 +34,16 @@
       "raised": [
         "reference_words 143221 → 143230"
       ]
+    },
+    {
+      "reason": "w4c-arc6-versions: docs/review/ARCHITECTURE.md records the versions package (section 9: four rows for the provider versions, tool notes and listings, owner settings, jobs and legacy names, and the Meta creative check; section 8: the ratchet's fall to 32 and 37; the moved export and the remainders)",
+      "raised": [
+        "reference_words 143230 → 143542"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143230
+    "reference_words": 143542
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
