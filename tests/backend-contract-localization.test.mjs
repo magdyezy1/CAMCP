@@ -262,7 +262,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // still raised through bad() and still authored allocation copy (tools/check-locales.mjs), so the files with
   // reasons and the reasons are the same.
   // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
-  assert.equal(files.length, 740);
+  // Wave 4c round 6 (reporting) moves the Overview's native parent reads of TikTok, Snapchat and LinkedIn rows from
+  // src/overview-parents.ts, which keeps its two reasons, to src/<platform>-detail-parents.ts: three more files, whose
+  // refusals go through the shared module's helpers, so the files with reasons and the reasons are the same.
+  assert.equal(files.length, 743);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

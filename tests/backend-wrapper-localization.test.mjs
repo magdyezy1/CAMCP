@@ -234,7 +234,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Wave 4c round 6 (reporting) adds the four allocation models' native budget drafts
   // (src/<platform>-allocation-draft.ts), moved from src/allocation-plan.ts without wrapper reasons: 740.
   // Reviewer connector authority adds one catalog entry, without adding a wrapper reason.
-  assert.equal(files.length, 740);
+  // Wave 4c round 6 (reporting) moves the Overview's native parent reads to src/<platform>-detail-parents.ts (TikTok,
+  // Snapchat, LinkedIn), without wrapper reasons: 743.
+  assert.equal(files.length, 743);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11530);
