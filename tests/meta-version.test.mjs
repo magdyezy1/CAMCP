@@ -157,6 +157,20 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
   // execution_options parameter.
   const validationRefusal = {execution_options: 'src/meta-adapter.ts'};
   assert.ok(sent.get('execution_options')?.has('src/meta-adapter.ts'));
+  // The exemption covers that hook only. Counted as this scan reads a module's literals, the adapter names
+  // execution_options twice, the refusal's message and the field it names, both inside its `validation` hook, and in no
+  // other literal: one added elsewhere in the module fails here instead of passing under the exemption.
+  const adapter = readFileSync('src/meta-adapter.ts', 'utf8'),
+    hookStart = adapter.indexOf('\n  validation: Object.freeze({'),
+    hookEnd = adapter.indexOf('\n  }),', hookStart);
+  assert.ok(
+    hookStart > 0 && hookEnd > hookStart && adapter.indexOf('\n  validation: Object.freeze({', hookStart + 1) < 0,
+    'src/meta-adapter.ts declares one validation hook',
+  );
+  const naming = text =>
+    [...text.matchAll(/'([^'\n]*)'/g)].filter(m => m[1].split(/[^A-Za-z0-9_]+/).includes('execution_options')).length;
+  assert.equal(naming(adapter.slice(hookStart, hookEnd)), 2);
+  assert.equal(naming(adapter.slice(0, hookStart) + adapter.slice(hookEnd)), 0);
   assert.deepEqual(
     changes.removed.params.filter(p => p.endsWith(' execution_options')),
     [],
