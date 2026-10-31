@@ -58,10 +58,16 @@
       "raised": [
         "reference_words 143401 → 143445"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the budget units' currency offset rule and the media upload's LinkedIn steps as adapter facts and hooks (ARC-01, 101 words)",
+      "raised": [
+        "reference_words 143445 → 143546"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143445
+    "reference_words": 143546
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
