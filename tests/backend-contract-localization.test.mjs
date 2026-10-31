@@ -258,10 +258,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
   // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
+  // OWNER-REVIEWER-QA adds the Arabic of four connection progress messages the result page shows
+  // (server/platform-routes.ts), none an owned reason: 11,534 entries.
   assert.equal(files.length, 736);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
-  assert.equal(Object.keys(catalog).length, 11530);
+  assert.equal(Object.keys(catalog).length, 11534);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
