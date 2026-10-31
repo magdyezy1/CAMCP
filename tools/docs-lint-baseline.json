@@ -52,10 +52,16 @@
       "raised": [
         "reference_words 143396 → 143590"
       ]
+    },
+    {
+      "reason": "w4c-arc6-reporting: the attribution windows and Sheets delivery rows of section 9, the reporting package's last two concerns",
+      "raised": [
+        "reference_words 143590 → 143671"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143590
+    "reference_words": 143671
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

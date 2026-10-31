@@ -177,3 +177,36 @@ test('the ad previews read each platform under the gateway its switch named, and
     e => e.code === 'INVALID_ARGUMENT' && e.message === 'Choose a platform from the schema.',
   );
 });
+
+test('the Overview’s Sheets delivery is the Sheets client’s own, reached through the provider workflows registry', async () => {
+  // src/reporting-overview.ts imported the Sheets client and its delivery receipts from src/google-sheets.ts; it now
+  // consults the registry's sheetsDelivery and the Sheets adapter's gateway. One value, two import paths.
+  const sheets = await import('../dist/src/google-sheets.js'),
+    {sheetsDelivery} = await import('../dist/src/provider-workflows.js'),
+    {Store} = await import('../dist/src/store.js'),
+    receipts = [
+      'unresolvedStates',
+      'unresolvedSheetsDelivery',
+      'sheetsDeliveriesForReport',
+      'deliveryProjection',
+      'assertSheetsSettled',
+      'abandonSheetsDelivery',
+    ];
+  assert.deepEqual(Object.keys(sheetsDelivery), ['exports', ...receipts]);
+  assert.equal(Object.isFrozen(sheetsDelivery), true);
+  for (const name of receipts) assert.equal(sheetsDelivery[name], sheets[name], name);
+  assert.deepEqual(sheetsDelivery.unresolvedStates, ['pending', 'uncertain']);
+  assert.equal(providerById('sheets').gateway, sheets.sheetsGateway);
+  // The export client is the Sheets module's, over the store and fetcher the Overview gives it.
+  const store = new Store(':memory:', Buffer.alloc(32, 57).toString('base64')),
+    fetcher = async () => Response.json({});
+  try {
+    const client = sheetsDelivery.exports(store, fetcher);
+    assert.ok(client instanceof sheets.GoogleSheetsExports);
+    assert.equal(client.store, store);
+    assert.equal(client.fetcher, fetcher);
+    assert.notEqual(sheetsDelivery.exports(store, fetcher), client, 'a new client per Overview');
+  } finally {
+    store.close();
+  }
+});
