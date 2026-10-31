@@ -1147,6 +1147,7 @@
   "That password is incorrect.": "كلمة المرور هذه غير صحيحة.",
   "That social account belongs to another AMCP account.": "حساب التواصل الاجتماعي هذا مرتبط بحساب AMCP آخر.",
   "That social account is already connected to another AMCP account.": "هذا الحساب الاجتماعي مرتبط بحساب AMCP آخر بالفعل.",
+  "The AMCP owner manages this test account’s sign-in.": "يدير مالك AMCP تسجيل الدخول لهذا الحساب التجريبي.",
   "The AMCP owner’s account cannot be deleted from Account. Move the deployment to another owner first.": "لا يمكن حذف حساب مالك AMCP من صفحة الحساب. انقل النشر إلى مالك آخر أولًا.",
   "The MCP request headers are missing or do not match the request body. Send MCP-Protocol-Version and Mcp-Method, and Mcp-Name for tools/call, resources/read and prompts/get, equal to the body.": "ترويسات طلب MCP مفقودة أو لا تطابق جسم الطلب. أرسل MCP-Protocol-Version وMcp-Method، وكذلك Mcp-Name مع tools/call وresources/read وprompts/get، بقيم مطابقة لجسم الطلب.",
   "The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.": "طلب التطبيق أيضًا إجراء تغييرات بعد المراجعة. يسمح دورك في مساحة العمل بالقراءة فقط، لذلك سيحصل على وصول للقراءة فقط.",

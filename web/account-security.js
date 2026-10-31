@@ -166,7 +166,7 @@ async function renderAccountSecurity() {
       toast(uiText(r.message));
       f.reset();
     });
-  } else {
+  } else if (!account.testAccount) {
     // A workspace two-step requirement (SEC-06) says when it applies, and that nothing else opens once it does.
     const mfaNotice =
       account.mfaRequired && !account.mfaEnabled
