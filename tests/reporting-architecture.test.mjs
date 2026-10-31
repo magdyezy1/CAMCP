@@ -13,7 +13,6 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
  * providers' modules lowers it here, and nothing may raise it (tools/architecture-map.mjs ratchets the totals).
  */
 const remaining = {
-  'src/overview-levels.ts': {literals: 0, imports: 1},
   'src/reporting-overview.ts': {literals: 0, imports: 1},
 };
 const gatewayLiteral = /['"]([a-z0-9]+(?:_[a-z0-9]+)*)_native_action['"]/g;

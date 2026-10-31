@@ -569,6 +569,21 @@ export interface ReportSelectors {
   readonly body?: string;
 }
 
+/**
+ * Wave 4c round 6 (w4c-arc6-reporting): the attribution windows a provider's reports take as an explicit selection
+ * (Meta's, RPT-07), with which src/overview-levels.ts and the provider's reporting check a source's attribution profile.
+ */
+export interface ReportAttributionWindows {
+  /** Every window, in the canonical order AMCP sends and labels a selection in. */
+  readonly windows: readonly string[];
+  /** The click windows, of which one selection names at most one. */
+  readonly clickWindows: readonly string[];
+  /** The refusal's reason for a selection the windows do not support. */
+  readonly message: string;
+  /** Whether `windows` is one supported explicit selection. */
+  readonly valid: (windows: unknown) => windows is string[];
+}
+
 // ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog compiler. The shared module
 // keeps every rule and the order of every step; a hook answers only where it named the provider before.
 
@@ -926,6 +941,8 @@ export interface ProviderAdapter {
   readonly renewal?: ProviderRenewal;
   /** Its captured schema lacks LIST_ACTIONS, but AMCP lists its actions from its catalog (DV360, MCP-05; wave 4c). */
   readonly listsActions?: true;
+  /** Wave 4c round 6 (w4c-arc6-reporting): the explicit attribution windows its reports take (Meta, RPT-07). */
+  readonly reportWindows?: ReportAttributionWindows;
 }
 
 /**

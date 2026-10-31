@@ -24,6 +24,7 @@ const reportingPackage = {
   'src/ad-previews.ts': {literals: 0, imports: 0},
   'src/workbook-repository.ts': {literals: 0, imports: 0},
   'src/overview-parents.ts': {literals: 0, imports: 0},
+  'src/overview-levels.ts': {literals: 0, imports: 0},
 };
 
 test('the reporting package’s shared modules name no gateway and import no provider module but through a registry', () => {
