@@ -953,6 +953,26 @@ test('bound accounts are grouped by platform; files and sheets appear on request
   assert.match(g.node('#profile-accounts').innerHTML, /&quot;sheet&quot;\}" checked/);
 });
 
+// OWNER-REVIEWER-QA: on an Arabic Clients & templates page a bound account's label ("Meta · 1200000000000001") was
+// laid out in the page's direction. It is the platform's own name and ID, isolated so it keeps its own order.
+test('a bound account’s label is isolated from the page’s direction', async () => {
+  const f = agencyFixture();
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  const accounts = f.node('#profile-accounts').innerHTML;
+  for (const id of ['1', '2'])
+    assert.match(
+      accounts,
+      new RegExp(
+        'data-profile-binding value="[^"]*&quot;' +
+          id +
+          '&quot;[^"]*"[^>]*> <bdi dir="auto">Meta · ' +
+          id +
+          '</bdi></label>',
+      ),
+    );
+});
+
 test('shared defaults are edited once for every workflow and kept out of Advanced settings (CMP-06)', async () => {
   const f = agencyFixture();
   f.recipes.push(
