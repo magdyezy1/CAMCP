@@ -1,15 +1,17 @@
 import {MirrorError} from './errors.js';
 import {fingerprint} from './report-quality.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
-import {linkedinVersion} from './linkedin-version.js';
-import {linkedInCampaignMetadata} from './linkedin-reporting.js';
+import {accessRefusalCodes, detailParentsUnavailableWarning, optionalReadRefused} from './report-source.js';
+import {reportSource} from './report-sources.js';
 import {reportPlatforms} from './report-metrics.js';
 import {storedLogin} from './connection-authority.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
 /**
- * RPT-07: native parent identity for detailed Overview rows whose report response carries none.
+ * RPT-07: native parent identity for detailed Overview rows whose report response carries none. The platform's report
+ * source reads them (`detailParents`, ARC-01 reporting: src/tiktok-detail-parents.ts, src/snapchat-detail-parents.ts,
+ * src/linkedin-detail-parents.ts):
  *  - TikTok ad groups (campaign) and ads (campaign and ad group): the advertiser's own ad group and ad reads filtered by
  *    the reported IDs with primary_status STATUS_ALL, so a deleted entity with history keeps its parents; then the
  *    parents' names. At most 100 IDs per request.
@@ -32,23 +34,14 @@ export interface DetailParentCache {
 }
 /** Distinct entities per source and job whose parents are read. */
 export const detailParentLimit = 1000;
-export const detailParentsUnavailableWarning =
-  'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.';
+// The optional-read rules moved to the report-source contract (wave 4c round 6), which the platforms' sources share.
+export {accessRefusalCodes, detailParentsUnavailableWarning, optionalReadRefused} from './report-source.js';
 export const detailParentsLimitedWarning =
   'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.';
-type Kind = 'tiktok_adgroup' | 'tiktok_ad' | 'snapchat_ad' | 'linkedin_creative';
-/** The detailed levels whose report rows carry no parents of their own. */
-export function detailParentKind(platform: string, level: string, scoped = false): Kind | undefined {
-  if (platform === 'tiktok') return level === 'adset' ? 'tiktok_adgroup' : level === 'ad' ? 'tiktok_ad' : undefined;
-  if (platform === 'snapchat' && level === 'ad' && !scoped) return 'snapchat_ad';
-  if (platform === 'linkedin' && level === 'ad') return 'linkedin_creative';
-  return undefined;
+/** The detailed levels whose report rows carry no parents of their own (the platform's report source says which). */
+export function detailParentKind(platform: string, level: string, scoped = false): string | undefined {
+  return reportSource(platform)?.detailParents?.kind(level, scoped);
 }
-const tiktokId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
-const snapchatId = (v: unknown): v is string =>
-  typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
-const creativeUrn = /^urn:li:sponsoredCreative:([1-9][0-9]{0,31})$/,
-  campaignUrn = /^urn:li:sponsoredCampaign:([1-9][0-9]{0,31})$/;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const name = (v: unknown) => (typeof v === 'string' && v.length <= 1000 ? v : null);
 const shape = (message: string): never => {
@@ -61,34 +54,6 @@ const foreign = (message: string): never => {
 const refused = (message: string): never => {
   throw new MirrorError('DETAIL_PARENTS_REFUSED', message, {}, 400);
 };
-const batches = <T>(values: T[], size: number) =>
-  Array.from({length: Math.ceil(values.length / size)}, (_, i) => values.slice(i * size, i * size + size));
-/** AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. */
-export const accessRefusalCodes: ReadonlySet<string> = new Set([
-  'CONNECTION_REQUIRED',
-  'CONNECTION_AUTHORITY_CHANGED',
-  'RESOURCE_SCOPE_REQUIRED',
-  'ACCOUNT_SCOPE_MISMATCH',
-  'ACCOUNT_REQUIRED',
-  'UNAUTHORIZED',
-  'FORBIDDEN',
-  'MEMBERSHIP_REVOKED',
-  'ACCOUNT_ACCESS_REVOKED',
-]);
-/**
- * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),
- * after which the rows stay with unknown values and a warning. A malformed or partial response (REPORT_*), a retryable
- * failure, or a removed connection, changed login or scope refusal (accessRefusalCodes) fails the source instead.
- */
-export function optionalReadRefused(e: unknown): e is MirrorError {
-  return (
-    e instanceof MirrorError &&
-    !e.retryable &&
-    !e.code.startsWith('REPORT_') &&
-    !accessRefusalCodes.has(e.code) &&
-    [400, 403, 404].includes(e.status)
-  );
-}
 
 /**
  * Reads the parents of `ids` not yet in `cache` and returns the parents of every requested ID, the lineage of the
@@ -104,6 +69,8 @@ export async function detailParents(
 ): Promise<{parents: Record<string, JsonObject>; lineage: JsonObject[]; warnings: string[]}> {
   const kind = detailParentKind(String(source.platform), level, !!source.campaign_id);
   if (!kind) return {parents: {}, lineage: [], warnings: []};
+  const reports = reportSource(String(source.platform))!,
+    reader = reports.detailParents!;
   const known = cache.lineage.map(entry => ({...entry, cached: true})),
     wanted = [...new Set(ids)].filter(id => !Object.hasOwn(cache.parents, id)),
     room = Math.max(0, detailParentLimit - Object.keys(cache.parents).length),
@@ -139,14 +106,7 @@ export async function detailParents(
         path,
         query,
         body,
-        headers:
-          source.platform === 'linkedin'
-            ? {
-                'LinkedIn-Version': linkedinVersion(),
-                'X-Restli-Protocol-Version': '2.0.0',
-                'X-RestLi-Method': 'FINDER',
-              }
-            : {},
+        headers: reader.headers?.() ?? {},
         readOnly: true,
         destructive: false,
         requiresConfirmation: false,
@@ -168,7 +128,9 @@ export async function detailParents(
         path: plan.path,
         origin: null,
         api_version:
-          plan.headers?.['LinkedIn-Version'] ?? plan.path.match(/\/(v?\d+(?:\.\d+)?)(?:\/|$)/)?.[1] ?? 'native',
+          (reports.versionHeader ? plan.headers?.[reports.versionHeader] : undefined) ??
+          plan.path.match(/\/(v?\d+(?:\.\d+)?)(?:\/|$)/)?.[1] ??
+          'native',
         query_fingerprint: fingerprint({method: plan.method, path: plan.path, query: plan.query, body: plan.body}),
         response_fingerprint: fingerprint(out.data),
         captured_at: Date.now(),
@@ -183,176 +145,7 @@ export async function detailParents(
       found[id] = parents;
     };
     try {
-      if (kind === 'tiktok_adgroup' || kind === 'tiktok_ad') {
-        const list = async (entity: 'campaign' | 'adgroup' | 'ad', wantedIds: string[], fields: string[]) => {
-          const rows: JsonObject[] = [];
-          for (const batch of batches(wantedIds, 100)) {
-            const d = await read('tiktok_' + entity + '_get', '/v1.3/' + entity + '/get/', {
-              advertiser_id: account,
-              filtering: {[entity + '_ids']: batch, primary_status: 'STATUS_ALL'},
-              fields: ['advertiser_id', ...fields],
-              page: 1,
-              page_size: 100,
-            });
-            if (d.code !== 0) refused('TikTok refused the parent read.');
-            const page = d.data;
-            if (
-              !obj(page) ||
-              !Array.isArray(page.list) ||
-              page.list.length > batch.length ||
-              (page.page_info !== undefined &&
-                (!obj(page.page_info) ||
-                  Number(page.page_info.total_number) > batch.length ||
-                  Number(page.page_info.total_page) > 1))
-            )
-              shape('TikTok returned malformed or incomplete parent evidence.');
-            const seen = new Set<string>();
-            for (const row of page.list as JsonObject[]) {
-              const id = row?.[entity + '_id'];
-              if (!obj(row) || !tiktokId(id) || !batch.includes(id) || seen.has(id))
-                shape('TikTok returned an unrequested or repeated parent record.');
-              if (row.advertiser_id !== undefined && row.advertiser_id !== account)
-                foreign('TikTok returned a parent record of another advertiser.');
-              seen.add(id);
-              rows.push(row);
-            }
-          }
-          return rows;
-        };
-        const child = kind === 'tiktok_ad' ? 'ad' : 'adgroup',
-          children = await list(
-            child,
-            reading,
-            child === 'ad' ? ['campaign_id', 'adgroup_id', 'ad_id'] : ['campaign_id', 'adgroup_id'],
-          );
-        for (const row of children)
-          if (!tiktokId(row.campaign_id) || (child === 'ad' && !tiktokId(row.adgroup_id)))
-            shape('TikTok returned a record without its exact native parents.');
-        const groupIds = child === 'ad' ? [...new Set(children.map(row => String(row.adgroup_id)))] : [],
-          groups = new Map<string, JsonObject>();
-        for (const row of groupIds.length
-          ? await list('adgroup', groupIds, ['campaign_id', 'adgroup_id', 'adgroup_name'])
-          : [])
-          groups.set(String(row.adgroup_id), row);
-        const campaigns = new Map<string, JsonObject>();
-        for (const row of await list(
-          'campaign',
-          [...new Set(children.map(row => String(row.campaign_id)))],
-          ['campaign_id', 'campaign_name'],
-        ))
-          campaigns.set(String(row.campaign_id), row);
-        for (const row of children) {
-          const group = groups.get(String(row.adgroup_id));
-          // An ad whose ad group names another campaign is a changed hierarchy, never a choice between the two.
-          if (child === 'ad' && group && group.campaign_id !== row.campaign_id)
-            foreign('The detailed entity changed native parents during collection.');
-          record(String(row[child + '_id']), {
-            campaign_id: String(row.campaign_id),
-            campaign_name: name(campaigns.get(String(row.campaign_id))?.campaign_name),
-            ...(child === 'ad' ? {adset_id: String(row.adgroup_id), adset_name: name(group?.adgroup_name)} : {}),
-          });
-        }
-      } else if (kind === 'snapchat_ad') {
-        const byIds = async (entities: 'ads' | 'adsquads' | 'campaigns', wantedIds: string[]) => {
-          const rows: JsonObject[] = [],
-            singular = {ads: 'ad', adsquads: 'adsquad', campaigns: 'campaign'}[entities];
-          for (const batch of batches(wantedIds, 1000)) {
-            const d = await read(
-              'snapchat_' + singular + '_get_by_ids',
-              '/v1/adaccounts/' + account + '/get_' + entities + '_by_ids',
-              {},
-              {entity_ids: batch.map(id => ({id}))},
-            );
-            if (d.request_status !== undefined && d.request_status !== 'SUCCESS')
-              refused('Snapchat refused the parent read.');
-            if (!Array.isArray(d[entities]) || d[entities].length > batch.length)
-              shape('Snapchat returned malformed parent evidence.');
-            const seen = new Set<string>();
-            for (const entry of d[entities] as JsonObject[]) {
-              if (!obj(entry)) shape('Snapchat returned malformed parent evidence.');
-              // An entity Snapchat reports as not found stays unknown; it never borrows another record.
-              if (entry.sub_request_status !== undefined && entry.sub_request_status !== 'SUCCESS') continue;
-              const row = entry[singular];
-              if (!obj(row) || !snapchatId(row.id) || !batch.includes(row.id) || seen.has(row.id))
-                shape('Snapchat returned an unrequested or repeated parent record.');
-              seen.add(row.id);
-              rows.push(row);
-            }
-          }
-          return rows;
-        };
-        const ads = await byIds('ads', reading);
-        for (const ad of ads) if (!snapchatId(ad.ad_squad_id)) shape('Snapchat returned an ad without its ad squad.');
-        const squads = new Map<string, JsonObject>();
-        for (const squad of await byIds('adsquads', [...new Set(ads.map(ad => String(ad.ad_squad_id)))])) {
-          if (!snapchatId(squad.campaign_id)) shape('Snapchat returned an ad squad without its campaign.');
-          squads.set(String(squad.id), squad);
-        }
-        const campaigns = new Map<string, JsonObject>();
-        for (const campaign of await byIds('campaigns', [
-          ...new Set([...squads.values()].map(s => String(s.campaign_id))),
-        ])) {
-          if (campaign.ad_account_id !== account) foreign('Snapchat returned a parent campaign of another ad account.');
-          campaigns.set(String(campaign.id), campaign);
-        }
-        for (const ad of ads) {
-          const squad = squads.get(String(ad.ad_squad_id)),
-            campaign = squad && campaigns.get(String(squad.campaign_id));
-          // Without its ad squad and an owned campaign, the ad's parents stay unknown.
-          if (!squad || !campaign) continue;
-          record(String(ad.id), {
-            campaign_id: String(campaign.id),
-            campaign_name: name(campaign.name),
-            adset_id: String(squad.id),
-            adset_name: name(squad.name),
-          });
-        }
-      } else {
-        const owner = 'urn:li:sponsoredAccount:' + account,
-          creatives: JsonObject[] = [];
-        for (const batch of batches(reading, 100)) {
-          for (const urn of batch) if (!creativeUrn.test(urn)) shape('LinkedIn did not report a native creative URN.');
-          const d = await read(
-            'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
-            '/rest/adAccounts/' + account + '/creatives',
-            {q: 'criteria', creatives: batch, pageSize: 100},
-          );
-          if (
-            !Array.isArray(d.elements) ||
-            d.elements.length > batch.length ||
-            (d.metadata !== undefined && (!obj(d.metadata) || d.metadata.nextPageToken)) ||
-            d.paging?.links?.some?.((link: JsonObject) => link?.rel === 'next')
-          )
-            shape('LinkedIn returned malformed or incomplete creative parents.');
-          const seen = new Set<string>();
-          for (const row of d.elements as JsonObject[]) {
-            if (!obj(row) || typeof row.id !== 'string' || !batch.includes(row.id) || seen.has(row.id))
-              shape('LinkedIn returned an unrequested or repeated creative.');
-            if (row.account !== owner) foreign('LinkedIn returned a creative of another advertising account.');
-            if (typeof row.campaign !== 'string' || !campaignUrn.test(row.campaign))
-              shape('LinkedIn returned a creative without its exact campaign.');
-            seen.add(row.id);
-            creatives.push(row);
-          }
-        }
-        const named = creatives.length
-          ? await linkedInCampaignMetadata(
-              account,
-              creatives.map(row => String(row.campaign)),
-              query =>
-                read(
-                  'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get',
-                  '/rest/adAccounts/' + account + '/adCampaigns',
-                  query,
-                ),
-            )
-          : {campaigns: {} as Record<string, JsonObject>};
-        for (const row of creatives)
-          record(String(row.id), {
-            campaign_id: campaignUrn.exec(String(row.campaign))![1]!,
-            campaign_name: name(named.campaigns[String(row.campaign)]?.name),
-          });
-      }
+      await reader.read(kind, reading, {account, read, record, shape, foreign, refused, name});
       for (const id of reading) cache.parents[id] = found[id] ?? {};
       cache.lineage.push(...lineage);
     } catch (e) {

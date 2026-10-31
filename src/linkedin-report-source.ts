@@ -2,8 +2,8 @@ import {MirrorError} from './errors.js';
 import {linkedinGuidedReporting} from './linkedin-guided-reports.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {linkedinVersion} from './linkedin-version.js';
-import {optionalReadRefused} from './overview-parents.js';
-import {invalidReportSource, type ReportSource} from './report-source.js';
+import {linkedinDetailParents} from './linkedin-detail-parents.js';
+import {invalidReportSource, optionalReadRefused, type ReportSource} from './report-source.js';
 
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
 export const linkedinCampaignsUnavailableWarning =
@@ -120,4 +120,6 @@ export const linkedinReportSource: ReportSource = {
       },
     };
   },
+  // Wave 4c round 6 (w4c-arc6-reporting): the native parents of its detailed creative rows (RPT-07).
+  detailParents: linkedinDetailParents,
 };

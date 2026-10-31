@@ -5,7 +5,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
 import {MirrorError} from './errors.js';
-import {accessRefusalCodes} from './overview-parents.js';
+import {accessRefusalCodes} from './report-source.js';
 
 const gateway = 'google_ads_native_action';
 /**

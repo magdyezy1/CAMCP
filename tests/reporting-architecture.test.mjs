@@ -13,7 +13,6 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
  * providers' modules lowers it here, and nothing may raise it (tools/architecture-map.mjs ratchets the totals).
  */
 const remaining = {
-  'src/overview-parents.ts': {literals: 0, imports: 2},
   'src/overview-levels.ts': {literals: 0, imports: 1},
   'src/reporting-overview.ts': {literals: 0, imports: 1},
 };

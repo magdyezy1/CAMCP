@@ -1,5 +1,6 @@
 import {objectiveGroup} from './report-metrics.js';
 import {invalidReportSource, nextDay, reportList, type ReportSource} from './report-source.js';
+import {snapchatDetailParents} from './snapchat-detail-parents.js';
 import {snapchatGuidedReporting} from './snapchat-guided-reports.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
@@ -95,4 +96,6 @@ export const snapchatReportSource: ReportSource = {
             : null;
     return {id: raw.id, name: raw.name, objective, metrics};
   },
+  // Wave 4c round 6 (w4c-arc6-reporting): the native parents of its detailed ad rows (RPT-07).
+  detailParents: snapchatDetailParents,
 };

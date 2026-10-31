@@ -307,6 +307,12 @@ export interface ReportSource {
   collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */
   normalize(raw: JsonObject, row: ReportRowReader): ReportSourceRow;
+  // Wave 4c round 6 (w4c-arc6-reporting).
+  /**
+   * RPT-07: the native parent reads of the source's detailed Overview rows whose report response carries no parents
+   * (TikTok's ad groups and ads, Snapchat's ads, LinkedIn's creatives), which src/overview-parents.ts runs.
+   */
+  readonly detailParents?: DetailParentReader;
 }
 
 /** A provider collection of report rows, refused unless every item is an object. */
@@ -388,4 +394,68 @@ export interface AllocationDraft {
   readonly meaning: string;
   /** True for the one draft of a binding that names no gateway (Google Ads', which qualified first). */
   readonly fallback?: true;
+}
+
+// Wave 4c round 6 (w4c-arc6-reporting): a platform's native parent reads of detailed Overview rows (RPT-07), and the
+// optional-read rules its collection shares with them, which src/overview-parents.ts re-exports from here.
+
+/** What src/overview-parents.ts gives a platform's parent reads of one source; it keeps every check and refusal. */
+export interface DetailParentReads {
+  /** The source's native account. */
+  readonly account: string;
+  /** One read of the platform's catalog action under the source's connection (its checks and lineage are shared). */
+  read(action: string, path: string, query: JsonObject, body?: JsonObject): Promise<JsonObject>;
+  /** Records a detailed entity's native parents; a second, different record of the entity refuses the source. */
+  record(id: string, parents: JsonObject): void;
+  /** Refuses the source: the response is malformed or incomplete (REPORT_SHAPE_CHANGED). */
+  shape(message: string): never;
+  /** Refuses the source: a parent of another account, or a changed hierarchy (REPORT_ACCOUNT_MISMATCH). */
+  foreign(message: string): never;
+  /** The provider refused the read in its response, so the rows keep unknown parents (DETAIL_PARENTS_REFUSED). */
+  refused(message: string): never;
+  /** A parent's name as the rows keep it: a text of at most 1000 characters, else null. */
+  name(value: unknown): string | null;
+}
+
+/** RPT-07: how a platform reads the native parents of detailed rows whose report response carries none. */
+export interface DetailParentReader {
+  /** The parent read a detailed level needs (`scoped`: the source names one campaign), or undefined for none. */
+  kind(level: string, scoped: boolean): string | undefined;
+  /** The headers of each read (LinkedIn's version and finder headers); none when absent. */
+  headers?(): Record<string, string>;
+  /** Reads the parents of the entities `ids` of `kind` and records each one it finds. */
+  read(kind: string, ids: string[], reads: DetailParentReads): Promise<void>;
+}
+
+/** `values` in consecutive batches of at most `size`. */
+export const inBatches = <T>(values: T[], size: number) =>
+  Array.from({length: Math.ceil(values.length / size)}, (_, i) => values.slice(i * size, i * size + size));
+
+export const detailParentsUnavailableWarning =
+  'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.';
+/** AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. */
+export const accessRefusalCodes: ReadonlySet<string> = new Set([
+  'CONNECTION_REQUIRED',
+  'CONNECTION_AUTHORITY_CHANGED',
+  'RESOURCE_SCOPE_REQUIRED',
+  'ACCOUNT_SCOPE_MISMATCH',
+  'ACCOUNT_REQUIRED',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'MEMBERSHIP_REVOKED',
+  'ACCOUNT_ACCESS_REVOKED',
+]);
+/**
+ * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),
+ * after which the rows stay with unknown values and a warning. A malformed or partial response (REPORT_*), a retryable
+ * failure, or a removed connection, changed login or scope refusal (accessRefusalCodes) fails the source instead.
+ */
+export function optionalReadRefused(e: unknown): e is MirrorError {
+  return (
+    e instanceof MirrorError &&
+    !e.retryable &&
+    !e.code.startsWith('REPORT_') &&
+    !accessRefusalCodes.has(e.code) &&
+    [400, 403, 404].includes(e.status)
+  );
 }

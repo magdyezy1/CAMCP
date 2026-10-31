@@ -1,8 +1,7 @@
 import {MirrorError} from './errors.js';
 import {nativeDetailLookupLimit, nativeDetailLookupLimitedWarning, redditDetail} from './overview-native-detail.js';
-import {optionalReadRefused} from './overview-parents.js';
 import {redditConversionValueDivisor} from './report-metrics.js';
-import {nextDay, reportList, type ReportSource} from './report-source.js';
+import {nextDay, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import {redditReportWarning, savedRedditReportProblems} from './reddit-report-rules.js';
 import type {JsonObject} from './types.js';
 
