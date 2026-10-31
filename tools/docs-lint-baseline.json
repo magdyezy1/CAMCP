@@ -52,10 +52,16 @@
       "raised": [
         "reference_words 143363 → 143401"
       ]
+    },
+    {
+      "reason": "w4c-arc6-workspace: docs/review/ARCHITECTURE.md section 9 records the paused-parent rule's child creates as adapter facts (ARC-01, 44 words)",
+      "raised": [
+        "reference_words 143401 → 143445"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143401
+    "reference_words": 143445
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
