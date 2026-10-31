@@ -234,8 +234,8 @@ async function renderAccountPage() {
       navigate('/login');
     } else await renderAccountPage();
   });
-  // Parts registered for the account page (WEB-07).
-  await AMCP.routes.renderParts('/account');
+  // Parts registered for the account page (WEB-07), given its account.
+  await AMCP.routes.renderParts('/account', account);
 }
 const menuMatch = matchMedia('(max-width:850px)');
 function closeNavigation() {

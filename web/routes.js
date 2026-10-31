@@ -216,7 +216,7 @@ const routeRegistry = [
     palette: true,
     testAccount: true,
     description: 'Profile, social sign-in, and security',
-    assets: ['mfa-qr.js'],
+    assets: ['mfa-qr.js', 'account-deletion.js'],
   },
   // DOC-03: members only, opened from the shell footer and the palette (server/help-routes.ts).
   {
@@ -346,9 +346,9 @@ const AMCP = (() => {
         );
       },
       parts: path => (parts.get(path) ?? []).map(entry => entry.part),
-      // A failing part stops the rest, as an unfinished page would.
-      async renderParts(path) {
-        for (const {part} of [...(parts.get(path) ?? [])]) await part();
+      // A failing part stops the rest, as an unfinished page would. Each part gets what the page passes (its data).
+      async renderParts(path, ...page) {
+        for (const {part} of [...(parts.get(path) ?? [])]) await part(...page);
       },
     }),
     hooks: Object.freeze({

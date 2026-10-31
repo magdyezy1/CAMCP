@@ -112,8 +112,9 @@ test('a network failure or a current snapshot keeps the retryable download error
       throw TypeError('Failed to fetch');
     },
   ]) {
-    // /account requests the QR vendor file and the QR script together: neither captures the other while it
-    // initializes any more (WEB-07), and scripts inserted with async=false still run in the order they were requested.
+    // /account requests the QR vendor file, the QR script and the deletion part together: none captures another
+    // while it initializes any more (WEB-07), and scripts inserted with async=false still run in the order they were
+    // requested.
     const page = loader(answer),
       pending = page.load('/account'),
       refused = assert.rejects(
@@ -121,16 +122,17 @@ test('a network failure or a current snapshot keeps the retryable download error
         error => error.code === 'PAGE_ASSET_UNAVAILABLE' && error.updated === undefined,
       );
     await tick();
-    assert.equal(page.appended.length, 2);
+    assert.equal(page.appended.length, 3);
     await page.appended[0].onerror();
     await refused;
     assert.equal(page.requests.length, 1);
     const retry = page.load('/account');
     await tick();
-    assert.equal(page.appended.length, 3, 'A retryable failure inserts that script again, and only that one');
-    assert.equal(page.appended[2].src, page.appended[0].src);
+    assert.equal(page.appended.length, 4, 'A retryable failure inserts that script again, and only that one');
+    assert.equal(page.appended[3].src, page.appended[0].src);
     page.appended[1].onload();
     page.appended[2].onload();
+    page.appended[3].onload();
     await retry;
   }
 });

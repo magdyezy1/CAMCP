@@ -99,10 +99,29 @@ test('the shipped Settings scripts declare their order, so access follows the ow
       order.join(' then '),
     );
   }
-  const {run} = registry({document: {addEventListener() {}}, $: () => null});
-  run(fs.readFileSync('web/localization.js', 'utf8'));
-  run(fs.readFileSync('web/account-security.js', 'utf8'));
-  assert.deepEqual(Array.from(run("AMCP.routes.parts('/account').map(part => part.name)")), ['renderAccountSecurity']);
+  // Account: the shell's security part, then the deletion part its own /account asset adds (WEB-07).
+  for (const order of [
+    ['account-security.js', 'account-deletion.js'],
+    ['account-deletion.js', 'account-security.js'],
+  ]) {
+    const {run} = registry({document: {addEventListener() {}}, $: () => null});
+    run(fs.readFileSync('web/localization.js', 'utf8'));
+    for (const file of order) run(fs.readFileSync('web/' + file, 'utf8'));
+    assert.deepEqual(
+      Array.from(run("AMCP.routes.parts('/account').map(part => part.name)")),
+      ['renderAccountSecurity', 'renderAccountDeletion'],
+      order.join(' then '),
+    );
+  }
+});
+
+test("a page's parts receive what the page passes them", async () => {
+  const {context, run} = registry();
+  context.seen = [];
+  run("AMCP.routes.extend('/account', (...page) => seen.push(page))");
+  await run("AMCP.routes.renderParts('/account', {email: 'person@example.test'})");
+  await run("AMCP.routes.renderParts('/account')");
+  assert.deepEqual(JSON.parse(JSON.stringify(context.seen)), [[{email: 'person@example.test'}], []]);
 });
 
 test('render() runs the before hooks, then the page, then the after hooks; the shell pages end with their parts', async () => {
@@ -129,5 +148,5 @@ test('render() runs the before hooks, then the page, then the after hooks; the s
   assert.match(settings, /renderWorkspaceSettings\(\);\s*await AMCP\.routes\.renderParts\('\/settings'\);/);
   const identity = fs.readFileSync('web/identity.js', 'utf8'),
     account = identity.slice(identity.indexOf('async function renderAccountPage()'));
-  assert.match(account.slice(0, account.indexOf('\n}\n')), /await AMCP\.routes\.renderParts\('\/account'\);$/);
+  assert.match(account.slice(0, account.indexOf('\n}\n')), /await AMCP\.routes\.renderParts\('\/account', account\);$/);
 });

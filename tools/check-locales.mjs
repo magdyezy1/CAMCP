@@ -30,6 +30,8 @@ export const shellScripts = new Set([
   'routes.js',
   'workspace.js',
   'account-security.js',
+  // Account deletion, which WEB-07 moved from account-security.js to an /account asset, keeps the shell's rule.
+  'account-deletion.js',
   'account-scope.js',
   'route-assets.js',
   'capability-center.js',

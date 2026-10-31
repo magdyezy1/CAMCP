@@ -1,24 +1,28 @@
 // SEC-07, owner decision P3 (2026-10-11): Account offers "Delete your account". Before this change the page had no way
-// to delete an account. The real web/account-security.js functions run in a VM with a minimal DOM: the preview shows
-// what goes or why it cannot, the deletion asks for the consequence dialog before sending anything, and the receipt
-// replaces the page once this tab forgot the person. No server is involved.
+// to delete an account. The real web/account-deletion.js (an /account asset since WEB-07 moved it out of the shell)
+// runs in a VM with a minimal DOM and the shell's escape-by-default markup: the preview shows what goes or why it
+// cannot, the deletion asks for the consequence dialog before sending anything, and the receipt replaces the page once
+// this tab forgot the person. No server is involved.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
-const source = readFileSync('web/account-security.js', 'utf8');
-const slice = (from, to) => {
-  const start = source.indexOf(from),
-    end = source.indexOf(to, start);
-  assert.ok(start >= 0 && end > start, 'web/account-security.js still defines ' + from);
-  return source.slice(start, end);
-};
+const source = readFileSync('web/account-deletion.js', 'utf8'),
+  localization = readFileSync('web/localization.js', 'utf8');
+// html`…`, setHtml and insertHtml as the shell defines them (web/localization.js).
+const markup = (() => {
+  const start = localization.indexOf('const uiEscape'),
+    end = localization.indexOf('/**', localization.indexOf('const {html, raw, setHtml, insertHtml'));
+  assert.ok(start >= 0 && end > start, 'web/localization.js still defines the escape-by-default markup');
+  return localization.slice(start, end);
+})();
 
 function fixture(responses, confirmations = []) {
   const nodes = new Map(),
     calls = [],
-    events = [];
+    events = [],
+    parts = [];
   const node = id => {
     if (!nodes.has(id)) {
       const listeners = new Map();
@@ -65,10 +69,9 @@ function fixture(responses, confirmations = []) {
     ],
     uiText: (text, values = {}) => text.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? ''),
     uiNumber: n => String(n),
-    esc: String,
     date: v => 'date:' + v,
-    formField: (label, name) => `<label>${label}<input name="${name}"></label>`,
     errorMessage: e => e.message,
+    AMCP: {routes: {extend: (path, part, options) => parts.push({path, part, options})}},
     confirmAction: async options => {
       events.push('confirm:' + options.title);
       return confirmations.shift() ?? false;
@@ -103,11 +106,8 @@ function fixture(responses, confirmations = []) {
     },
     setTimeout() {},
   });
-  new Script(
-    slice('/** The platform name of a saved login', '// Reviewer sign-in.') +
-      ';globalThis.panel = accountDeletionPanel;',
-  ).runInContext(context);
-  return {context, node, content, calls, events};
+  new Script(markup + source + ';globalThis.panel = accountDeletionPanel;').runInContext(context);
+  return {context, node, content, calls, events, parts};
 }
 const plan = {
   available: true,
@@ -123,6 +123,21 @@ const plan = {
   },
   platforms: ['meta_native_action', 'tiktok_native_action'],
 };
+
+test('P3: the deletion part follows account security on /account, for a personal account only', () => {
+  const f = fixture([]);
+  assert.equal(f.parts.length, 1);
+  assert.equal(f.parts[0].path, '/account');
+  assert.equal(f.parts[0].options.order, 10, 'after the security part (order 0)');
+  // Never a door or reviewer sign-in, and not before a required two-step setup: the page gives the part its account.
+  for (const account of [{administrator: true}, {testAccount: true}, {mfaEnrollmentRequired: true}]) {
+    f.parts[0].part(account);
+    assert.equal(f.content.innerHTML, '', JSON.stringify(account));
+  }
+  f.parts[0].part({administrator: false, testAccount: false, mfaEnrollmentRequired: false});
+  assert.match(f.content.innerHTML, /id="account-deletion"/);
+  assert.match(f.content.innerHTML, /Delete your account/);
+});
 
 test('P3: the preview lists what goes, and a refused preview offers no deletion form', async () => {
   const refused = fixture([
