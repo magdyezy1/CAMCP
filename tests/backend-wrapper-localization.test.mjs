@@ -232,7 +232,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // its Home copy nine website entries (the capability outcomes), none a wrapper reason.
   // Merged with the ARC packages, the Help page's module is one more: 736.
   // Reviewer connector authority adds one catalog entry, without adding a wrapper reason.
-  assert.equal(files.length, 736);
+  // ARC-01 (wave 4c round 6, the shared tables) adds src/frozen-facts.ts, src/linkedin-programs.ts and
+  // src/woocommerce-adapter.ts, without wrapper reasons: 739.
+  assert.equal(files.length, 739);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11530);

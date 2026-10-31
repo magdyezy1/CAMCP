@@ -1428,8 +1428,11 @@ export interface ParameterFacts {
   readonly everyActionFields?: true;
   /** Its actions whose path matches take a native `limit` (Snapchat's stats and reports). */
   readonly nativeLimit?: RegExp;
-  /** A parameter that takes one value only, refused with `refusal` otherwise (LinkedIn's JSON body format). */
-  readonly onlyValue?: {readonly parameter: string; readonly value: string; readonly refusal: string};
+  /**
+   * A parameter that takes one value only, refused otherwise (LinkedIn's JSON body format). The provider constructs the
+   * refusal, so its reason stays a literal the localization inventory owns (tools/check-locales.mjs).
+   */
+  readonly onlyValue?: {readonly parameter: string; readonly value: string; refusal(parameter: string): MirrorError};
   /** Parameters dropped while another is true (X's offset and limit of a report download). */
   readonly droppedWhile?: {readonly parameter: string; readonly dropped: readonly string[]};
 }

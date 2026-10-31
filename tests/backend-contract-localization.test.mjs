@@ -258,7 +258,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged with the ARC packages, the Help page's module is one more file, without reasons: 736, 285 of them with
   // reasons, and the owned reasons stay 1,590.
   // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
-  assert.equal(files.length, 736);
+  // ARC-01 (wave 4c round 6, the shared tables) adds src/frozen-facts.ts, src/linkedin-programs.ts and
+  // src/woocommerce-adapter.ts, none with an owned reason: the moved rows are facts, and the one refusal a moved rule
+  // raises (LinkedIn's body format, from src/parameters.ts) is constructed in src/linkedin-adapter.ts, which owns
+  // reasons: 739 files, as many with reasons, the same reasons.
+  assert.equal(files.length, 739);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

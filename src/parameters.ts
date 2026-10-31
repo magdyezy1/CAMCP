@@ -102,8 +102,7 @@ export function nativeTopLevel(gateway: string, action: Action, input: JsonObjec
       throw new MirrorError('UNSUPPORTED_PARAMETER', unsupported[key]!, {parameter: key, gateway});
     }
     const only = facts?.onlyValue;
-    if (only !== undefined && key === only.parameter && value !== only.value)
-      throw new MirrorError('UNSUPPORTED_PARAMETER', only.refusal, {parameter: key});
+    if (only !== undefined && key === only.parameter && value !== only.value) throw only.refusal(key);
     if (controls.has(key) && key !== 'fields') continue;
     if (pathKeys.has(key) || nativeKeys.has(key)) {
       out[key] = joinedFields && key === 'fields' && Array.isArray(value) ? value.join(',') : value;

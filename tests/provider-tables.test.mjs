@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {inspectBackendContractFailures} from '../tools/check-locales.mjs';
 import {providerAdapters} from '../dist/src/provider-adapters.js';
 import {providerHooks, providerJobFamilies, registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {
@@ -674,6 +676,24 @@ test('the parameter tables and checks answer every gateway, action and top-level
       for (const list of [hooks.parameters.accountAliases, hooks.parameters.platformControls])
         if (list) assert.ok(Object.isFrozen(list), hooks.gateway);
     }
+});
+
+test('the refusal a moved parameter rule raises is still a reason the localization inventory owns', () => {
+  // Regression (wave 4c round 6): LinkedIn's body-format refusal left src/parameters.ts as a string fact, which the
+  // inventory of directly owned reasons (and so its Arabic check) no longer saw; its adapter constructs it now.
+  const reason = 'LinkedIn form query tunneling is not implemented; use JSON requests.';
+  const owned = file => inspectBackendContractFailures(fs.readFileSync(file, 'utf8'), file);
+  assert.ok(owned('src/linkedin-adapter.ts').has(reason));
+  assert.ok(!owned('src/parameters.ts').has(reason));
+  const refused = outcome(() =>
+    nativeTopLevel('linkedin_native_action', {path: '/rest/adAccounts/{account_id}', raw: {}}, {body_format: 'form'}),
+  );
+  assert.deepEqual(refused.throws, {
+    name: 'MirrorError',
+    code: 'UNSUPPORTED_PARAMETER',
+    message: reason,
+    details: {parameter: 'body_format'},
+  });
 });
 
 // src/provider-jobs.ts as it was: the job families' contract, and the reviewed families' gateways.

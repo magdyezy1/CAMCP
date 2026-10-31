@@ -440,7 +440,14 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
     onlyValue: Object.freeze({
       parameter: 'body_format',
       value: 'json',
-      refusal: 'LinkedIn form query tunneling is not implemented; use JSON requests.',
+      refusal: (parameter: string) =>
+        new MirrorError(
+          'UNSUPPORTED_PARAMETER',
+          'LinkedIn form query tunneling is not implemented; use JSON requests.',
+          {
+            parameter,
+          },
+        ),
     }),
   }),
 });
