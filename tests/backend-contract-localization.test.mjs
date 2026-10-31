@@ -262,9 +262,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/supplied-catalog-ingestion.ts, and the X removal's plan binding to src/x-catalog-removal-binding.ts; their
   // refusals are raised through bad(), as they were: five more files, the same reasons.
   // Its comparisons then move Meta's comparison from src/catalog-comparison.ts to src/meta-catalog-comparison.ts, with
-  // its refusals: one more file, the same reasons.
+  // its refusals: one more file, the same reasons. Its conditional programs move LinkedIn's and DV360's programs, their
+  // requests and their evidence to src/linkedin-conditional-programs.ts and src/dv360-conditional-programs.ts: two more.
   // Reviewer connector authority adds one directly owned refusal and its Arabic entry.
-  assert.equal(files.length, 742);
+  assert.equal(files.length, 744);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

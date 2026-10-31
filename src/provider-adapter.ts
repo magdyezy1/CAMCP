@@ -863,6 +863,8 @@ export interface ProviderHooks {
    * retained metadata (src/creative-library.ts), or undefined for none.
    */
   readonly mediaUsage?: (asset: JsonObject) => MediaUsage | undefined;
+  /** Its conditional programs (CON-04) with their checks' steps, which src/conditional-programs.ts lists and checks. */
+  readonly programs?: readonly ProviderConditionalProgram[];
 }
 
 export interface ProviderAdapter {
@@ -1434,4 +1436,53 @@ export interface MediaUsage {
   readonly kind: string;
   /** The native views it reads, when it names them. */
   readonly views?: readonly string[];
+}
+/**
+ * A conditional program (CON-04): the one exact read that qualifies a provider's private product or access, with its
+ * prerequisites, refusals and setup, as capabilities lists it. A type rather than an interface, so it is a JsonObject.
+ */
+export type ConditionalProgram = {
+  id: string;
+  kind: string;
+  mode: string;
+  name: string;
+  gateway: string;
+  objective: string;
+  description: string;
+  effects: string;
+  effect_details: string;
+  required_inputs: string[];
+  prerequisite_ids: string[];
+  actions: string[];
+  recorded_scopes: string[];
+  program: {access: string; reference: string; checked_on: string; limitations: string};
+  /** The provider's documented refusal codes, each naming the prerequisite it reports. */
+  documented_refusals?: Record<string, {prerequisite_id: string; owner_action: string; resolution: string}>;
+  undocumented_refusal: {kind: string; text: string};
+  account_setup: {text: string; prerequisites: {id: string; text: string}[]};
+  next_call: JsonObject;
+  website_path: string;
+  source: string;
+};
+/** A conditional program's provider steps, which its check (src/conditional-programs.ts) takes in its own order. */
+export interface ConditionalProgramSteps {
+  /** The JSON Schema of its requirements, the ad account fixed when given; without one it takes no requirements. */
+  readonly template?: (account?: string) => JsonObject;
+  /** What a local inspection's next call adds for the live read. */
+  readonly liveArguments?: () => JsonObject;
+  /** The live read's native call from its requirements, which it refuses in its own order. */
+  readonly request: (program: ConditionalProgram, requirements: JsonObject, account: string) => JsonObject;
+  /** The evidence a live read keeps of the native data, refusing what it cannot retain; `rows` counts what it keeps. */
+  readonly evidence: (
+    program: ConditionalProgram,
+    data: JsonObject,
+    requirements: JsonObject,
+    account: string,
+    rows: (kind: string, count: number) => void,
+  ) => JsonObject;
+}
+/** A provider's conditional program with its check's steps (ProviderHooks.programs). */
+export interface ProviderConditionalProgram {
+  readonly program: ConditionalProgram;
+  readonly steps: ConditionalProgramSteps;
 }

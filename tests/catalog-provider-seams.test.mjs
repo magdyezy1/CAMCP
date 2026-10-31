@@ -16,6 +16,11 @@ import fs from 'node:fs';
 import {catalogComparison} from '../dist/src/catalog-comparison.js';
 import {assetUsageReader, catalogComparisonSteps} from '../dist/src/provider-workflows.js';
 import {normalizeAccount} from '../dist/src/account-id.js';
+import {conditionalProgram, conditionalPrograms, conditionalProgramTemplate} from '../dist/src/conditional-programs.js';
+import {linkedinConditionalPrograms} from '../dist/src/linkedin-conditional-programs.js';
+import {dv360ConditionalPrograms} from '../dist/src/dv360-conditional-programs.js';
+import {linkedinPlanningTemplate} from '../dist/src/linkedin-planning-reads.js';
+import {linkedinVersion} from '../dist/src/linkedin-version.js';
 import {metaCatalogComparison} from '../dist/src/meta-catalog-comparison.js';
 import {xCatalogComparison, xCatalogListedSelection} from '../dist/src/x-catalog-comparison.js';
 import {snapchatCatalogComparison} from '../dist/src/snapchat-catalog-comparison.js';
@@ -384,4 +389,131 @@ test('a library asset offers the native usage its platform hooks name, as the cr
   });
   // The shared module names no gateway.
   assert.doesNotMatch(sharedSource('creative-library.ts'), gatewayLiteral);
+});
+
+test('each conditional program is its provider hooks, listed in the order capabilities listed them', () => {
+  assert.deepEqual(
+    conditionalPrograms.map(p => p.id),
+    ['program:linkedin_forecast', 'program:linkedin_audience_insights', 'program:dv360_advertiser'],
+  );
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.programs).map(h => h.gateway),
+    ['linkedin_native_action', 'dv360_native_action'],
+  );
+  assert.equal(providerHooks('linkedin_native_action').programs, linkedinConditionalPrograms);
+  assert.equal(providerHooks('dv360_native_action').programs, dv360ConditionalPrograms);
+  for (const hooks of registeredProviderHooks)
+    for (const {program, steps} of hooks.programs ?? []) {
+      assert.equal(program.gateway, hooks.gateway, program.id);
+      assert.equal(conditionalProgram(program.id), program);
+      assert.equal(typeof steps.request, 'function', program.id);
+      assert.equal(typeof steps.evidence, 'function', program.id);
+    }
+  // LinkedIn's planning reads take its planning templates; DV360's advertiser read takes no requirements.
+  for (const account of [undefined, '507'])
+    for (const [id, kind] of [
+      ['program:linkedin_forecast', 'forecast'],
+      ['program:linkedin_audience_insights', 'insights'],
+    ])
+      assert.deepEqual(conditionalProgramTemplate(id, account), linkedinPlanningTemplate(kind, account), id);
+  for (const id of ['program:dv360_advertiser', 'program:unknown'])
+    assert.deepEqual(conditionalProgramTemplate(id, '507'), {
+      type: 'object',
+      additionalProperties: false,
+      properties: {},
+    });
+  assert.deepEqual(dv360ConditionalPrograms[0].steps.liveArguments(), {requirements: {}});
+  assert.equal(linkedinConditionalPrograms[0].steps.liveArguments, undefined);
+  // The shared module names no gateway and imports no provider module (the hooks registry lists the programs).
+  const source = sharedSource('conditional-programs.ts');
+  assert.doesNotMatch(source, gatewayLiteral);
+  assert.deepEqual(
+    importsOf(source).filter(m => /^(linkedin|dv360)-/.test(m)),
+    [],
+  );
+});
+
+test('a conditional program check asks its provider for the native request and the evidence it keeps', () => {
+  const [forecast, insights] = linkedinConditionalPrograms,
+    [advertiser] = dv360ConditionalPrograms;
+  const refusal = (f, code, message) =>
+    assert.throws(f, error => {
+      assert.ok(error instanceof MirrorError);
+      assert.deepEqual({code: error.code, message: error.message}, {code, message});
+      return true;
+    });
+  // Success: the native calls, in the key order the check sent them.
+  const request = {targetBudgetMicros: 5000000};
+  const forecastCall = forecast.steps.request(forecast.program, {forecast: 'forecastReaches', request}, '507');
+  assert.deepEqual(Object.keys(forecastCall), ['action', 'api_version', 'query', 'payload', 'account_id']);
+  assert.deepEqual(forecastCall, {
+    action: 'linkedin_rest_media_planning_post',
+    api_version: linkedinVersion(),
+    query: {action: 'forecastReaches'},
+    payload: {request},
+    account_id: '507',
+  });
+  assert.deepEqual(insights.steps.request(insights.program, {request}, '507').query, {action: 'audienceInsights'});
+  assert.deepEqual(advertiser.steps.request(advertiser.program, {}, '507'), {
+    action: 'DV360_ADVERTISERS_GET',
+    pathParams: {advertiserId: '507'},
+  });
+  // Refusals of the requirements, in the check's order.
+  refusal(
+    () => forecast.steps.request(forecast.program, {forecast: 'forecastReaches'}, '507'),
+    'PROGRAM_INPUT_REQUIRED',
+    'Supply the exact native planning request object.',
+  );
+  refusal(
+    () => forecast.steps.request(forecast.program, {forecast: 'forecastClicks', request}, '507'),
+    'PROGRAM_INPUT_REQUIRED',
+    'Choose forecastReaches, forecastImpressions or forecastLeads.',
+  );
+  assert.throws(() => insights.steps.request(insights.program, {forecast: 'forecastReaches', request}, '507'), {
+    code: 'INVALID_ARGUMENT',
+  });
+  assert.throws(() => advertiser.steps.request(advertiser.program, {request}, '507'), {code: 'INVALID_ARGUMENT'});
+  // Evidence: DV360's exact advertiser, LinkedIn's suppressed audience (counted as no rows), and their refusals.
+  const counted = [],
+    rows = (kind, count) => counted.push([kind, count]);
+  const data = {advertiserId: '507', partnerId: '9', generalConfig: {currencyCode: 'SAR'}};
+  assert.deepEqual(advertiser.steps.evidence(advertiser.program, data, {}, '507', rows), {
+    advertiser_id: '507',
+    partner_id: '9',
+    currency: 'SAR',
+    entity_status: null,
+  });
+  refusal(
+    () => advertiser.steps.evidence(advertiser.program, data, {}, '508', rows),
+    'PROGRAM_EVIDENCE_INVALID',
+    'Retain the exact native advertiser, parent partner and currency.',
+  );
+  const suppressed = insights.steps.evidence(
+    insights.program,
+    {value: {totalAudienceCount: 0}},
+    {request: {groupBy: 'COMPANY'}},
+    '507',
+    rows,
+  );
+  assert.equal(suppressed.audience_range, 'outside_supported_range');
+  assert.equal(suppressed.segmentations, null);
+  assert.deepEqual(counted, [['audience_insights', 0]]);
+  for (const program of [forecast, insights])
+    refusal(
+      () => program.steps.evidence(program.program, {value: {}}, {forecast: 'forecastReaches', request}, '507', rows),
+      'PROGRAM_EVIDENCE_INVALID',
+      'Retain the original nonempty native planning result.',
+    );
+  refusal(
+    () =>
+      forecast.steps.evidence(
+        forecast.program,
+        {value: {reachCurve: {metricCurve: []}}},
+        {forecast: 'forecastReaches', request},
+        '507',
+        rows,
+      ),
+    'PROGRAM_EVIDENCE_INVALID',
+    'Retain the requested native forecast curve and exact budget point; missing estimates are not zero.',
+  );
 });

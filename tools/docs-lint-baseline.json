@@ -36,14 +36,14 @@
       ]
     },
     {
-      "reason": "w4c-arc6-catalog: docs/review/ARCHITECTURE.md section 9 adds the rows of ARC-01's catalog destinations and catalog projections (wave 4c round 6)",
+      "reason": "w4c-arc6-catalog: docs/review/ARCHITECTURE.md section 9 adds the rows of ARC-01's catalog destinations, projections and comparisons, the creative library's native usage and the conditional programs (wave 4c round 6)",
       "raised": [
-        "reference_words 143230 → 143335"
+        "reference_words 143230 → 143553"
       ]
     }
   ],
   "totals": {
-    "reference_words": 143335
+    "reference_words": 143553
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

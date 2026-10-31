@@ -1261,6 +1261,9 @@ export function checkWebLocales(root = process.cwd()) {
     'src/capability-eligibility.ts',
     'src/capability-graph.ts',
     'src/conditional-programs.ts',
+    // Wave 4c round 6 (w4c-arc6-catalog): the programs moved to their providers' modules with their copy (ARC-01).
+    'src/linkedin-conditional-programs.ts',
+    'src/dv360-conditional-programs.ts',
     'src/recipe-eligibility.ts',
   ]) {
     const discovery = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, file), 'utf8'));

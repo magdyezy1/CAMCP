@@ -49,6 +49,8 @@ import {
   linkedinActivationSteps,
 } from './linkedin-recipe-activation.js';
 import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {linkedinConditionalPrograms} from './linkedin-conditional-programs.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -427,6 +429,9 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
         ? {field: 'intendedStatus', active: ['ACTIVE']}
         : undefined,
   }),
+  // Wave 4c round 6 (w4c-arc6-catalog): its conditional programs, Media Planning's forecast and Audience Insights
+  // (src/conditional-programs.ts).
+  programs: linkedinConditionalPrograms,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).
