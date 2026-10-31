@@ -61,13 +61,17 @@ in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taugh
 this current-state documentation and the owner guide), was pushed to `Work-here` on 2026-10-24 once its release gate,
 container parity and rendered browser qualification had passed ([qualification
 record](records/QUALIFICATION-4b-2026-10-24.md)); no deployment of it has been reported yet. Wave 4c, which the owner
-instructed on 2026-10-24, is implemented and merged into `Work-here`: the documentation consolidation (each
-page's front matter, the generated index and status page, the findings register as data, the operations and workflow
-task pages and the size budget), the members-only Help page with the owner guide condensed in English and Arabic,
-Home's outcome labels, and the ARC-01 and ARC-04 work (provider facts and hooks in the provider adapters, and no
-backend function of 400 lines or more). Its release gate, container parity and rendered browser qualification
-passed on 2026-10-30 ([qualification record](records/QUALIFICATION-4c-2026-10-30.md)), the Help page among the pages
-qualified at every width; no deployment of it has been reported yet.
+instructed on 2026-10-24, was pushed to `Work-here` on 2026-10-30 once the same checks had passed ([qualification
+record](records/QUALIFICATION-4c-2026-10-30.md)): the documentation consolidation (each page's front matter, the
+generated index and status page, the findings register as data, the operations and workflow task pages and the size
+budget), the members-only Help page with the owner guide condensed in English and Arabic, Home's outcome labels, and
+the ARC-01 and ARC-04 work (provider facts and hooks in the provider adapters, and no backend function of 400 lines or
+more). Its last part is merged into `Work-here`: ARC-01's local targets (no shared module imports a provider module), a
+reviewer pass in the browser qualification, with a test account no longer shown the account controls and report-job
+grants it is always refused, a full qualification that finds an installed ffprobe, and reviewer approvals labelled
+Reviewer, as the owner decided on 2026-10-31; outside its own test workspace a test account is a viewer. Its release
+gate, container parity and rendered browser qualification passed on 2026-10-31 ([qualification
+record](records/QUALIFICATION-4c-r7-2026-10-31.md)); no deployment of wave 4c has been reported yet.
 
 ## 3. Package status
 
