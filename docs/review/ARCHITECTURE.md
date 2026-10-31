@@ -519,6 +519,22 @@ Adjust's `date_period`); recorded back to back on both builds, twice each, those
 beyond calibration and no outcome flip, and the one record left unsettled is the `platform()` count, which varies
 between two runs of Work-here. The direct check above is byte-identical on the final head too.
 
+**The shared tables' comparison.** The ten shared modules whose provider rows rounds 6 and 7 moved were proven by
+one comparison with Work-here: the 814 related test files both builds hold (the seam test
+`tests/provider-tables.test.mjs` and the two localization inventories whose counts the package changes run on their
+own), recorded with the package's targets twice on Work-here, for calibration, and once on the head, on one UTC day:
+11,984,756 records before and 11,984,749 after. 6,448 are within calibration (random IDs and the hashes derived from
+them, capture times, `elapsed_ms`, dated personal-data summaries) and the burst-pacing test's 10 are counted apart.
+53 are unsettled by rule: 52 outcome pairs the calibration pair flips too (plans and previews with random IDs paired
+across their outcomes) and one `platform()` lookup of `tests/measurement-apple.test.ts` (48 before, 49 after, 51 in
+the calibration). Two records differ, by the clock and by chance: a Sheets delivery's `retry_after_ms` countdown
+(659,996 against 659,997) and which of two workbook runs created in one millisecond, ordered by random IDs, the
+operations feed scopes twice; recorded again back to back, three times on each build, both vary that way on
+Work-here too and show 0 differences against a two-run calibration. Each function's results and refusal codes per
+action are the same in every test file but that count and the burst-pacing test, and the 407,422 distinct pure calls
+before (12,942 `retiredProviderAction`, 17,147 `nativeTopLevel`, 12,487 `redactConnectionInput` and 310
+`providerValidationRequest` among them) replay through the head with 0 differences.
+
 Seven exports moved with their code and are not re-exported from the shared modules that held them, since a re-export
 would import the provider module again and raise the ratchet's counts: `metaImageSources` and `metaConversionRecipes`
 (from `src/campaign-recipes.ts` to `src/meta-website-recipes.ts`), `googleConversionRecipes` (from

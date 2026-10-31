@@ -40,10 +40,16 @@
       "raised": [
         "reference_words 143230 → 143470"
       ]
+    },
+    {
+      "reason": "w4c-arc6-tables: ARCHITECTURE.md section 9 gains one row per round 7 concern moved into the adapters (withdrawn methods, provider validation, wire contracts, the audit repository) and the shared tables' comparison that the round 6 and 7 rows cite",
+      "raised": [
+        "reference_words 143470 → 143989"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 143470
+    "reference_words": 143989
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
