@@ -39,6 +39,16 @@ import {validateAppleResponse} from './apple-native.js';
 import {projectRedditAccountHistory, redditAccountHistoryRead} from './reddit-extensions.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {legacyLimitDisclosure} from './google-legacy.js';
+// Wave 4c round 6 (w4c-arc6-reporting): the Overview's Sheets delivery (sheetsDelivery, at the end).
+import {
+  GoogleSheetsExports,
+  abandonSheetsDelivery,
+  assertSheetsSettled,
+  deliveryProjection,
+  sheetsDeliveriesForReport,
+  unresolvedSheetsDelivery,
+  unresolvedStates,
+} from './google-sheets.js';
 export type {WooCommerceRequest} from './woocommerce-source.js';
 export type {ResultIds} from './snapchat-result-ids.js';
 
@@ -437,3 +447,19 @@ export const providerInputRedactors: readonly ((tool: string, input: JsonObject)
 
 /** The website's administrator setup of a store connection (WooCommerce's, through its guarded GET transport). */
 export const connectStore = connectWooCommerce;
+
+/**
+ * Wave 4c round 6 (w4c-arc6-reporting): the Overview's Google Sheets delivery (src/google-sheets.ts), which
+ * src/reporting-overview.ts consults instead of importing it: the export client of the service's store and fetcher,
+ * the delivery states that stay unresolved, and the delivery receipts the Overview lists, projects, rechecks and
+ * releases, each the module's own export under its own name.
+ */
+export const sheetsDelivery = Object.freeze({
+  exports: (store: Store, fetcher: typeof fetch) => new GoogleSheetsExports(store, fetcher),
+  unresolvedStates,
+  unresolvedSheetsDelivery,
+  sheetsDeliveriesForReport,
+  deliveryProjection,
+  assertSheetsSettled,
+  abandonSheetsDelivery,
+});

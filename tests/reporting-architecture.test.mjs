@@ -12,9 +12,7 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
  * through a provider registry. Each entry is what the module still holds; a concern that moves provider facts into the
  * providers' modules lowers it here, and nothing may raise it (tools/architecture-map.mjs ratchets the totals).
  */
-const remaining = {
-  'src/reporting-overview.ts': {literals: 0, imports: 1},
-};
+const remaining = {};
 const gatewayLiteral = /['"]([a-z0-9]+(?:_[a-z0-9]+)*)_native_action['"]/g;
 const reportingModule = id =>
   /^src\/(?:report-[\w-]+|[\w-]*reporting(?:-[\w-]+)?|overview-[\w-]+|decision-[\w-]+)\.ts$/.test(id) ||

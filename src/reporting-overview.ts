@@ -20,17 +20,10 @@ import {BACKGROUND_RUN_KIND, backgroundRunTurn} from './campaign-background.js';
 import {tool, field, writer} from './workspace-core.js';
 import {NativeCampaignReports, nativeMetricExamples, reportRange, type AccountLookupCache} from './report-native.js';
 import {assertCollectionEstimate, nativeDailyCollection, sourceRequestModel} from './report-request-estimate.js';
-import {
-  GoogleSheetsExports,
-  sheetsGateway,
-  assertReportExportable,
-  abandonSheetsDelivery,
-  assertSheetsSettled,
-  deliveryProjection,
-  sheetsDeliveriesForReport,
-  unresolvedSheetsDelivery,
-  unresolvedStates,
-} from './google-sheets.js';
+import type {GoogleSheetsExports} from './google-sheets.js';
+import {assertReportExportable} from './report-table.js';
+import {sheetsDelivery} from './provider-workflows.js';
+import {providerById} from './provider-adapters.js';
 import {
   metricDefinitions,
   reportPlatforms,
@@ -88,6 +81,17 @@ import {
   presentationProfiles,
   applyProfilePresentation,
 } from './report-packs.js';
+// Wave 4c round 6 (w4c-arc6-reporting): the Sheets delivery is the provider workflows registry's, and the Sheets
+// gateway its adapter's, so this shared module imports no provider module.
+const {
+  unresolvedStates,
+  unresolvedSheetsDelivery,
+  sheetsDeliveriesForReport,
+  deliveryProjection,
+  assertSheetsSettled,
+  abandonSheetsDelivery,
+} = sheetsDelivery;
+const sheetsGateway = providerById('sheets')!.gateway;
 export const overviewTool = tool(
   'amcp_reporting_overview',
   'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads, LinkedIn sponsored creatives and Microsoft, Reddit and Apple ad groups/ads (window totals with provider-named parents); LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn/Microsoft/Reddit/Apple; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. Campaign-level Meta/Snapchat sources may set report_options to only those attribution windows; otherwise the provider default applies. TikTok/Snapchat require complete_window:true and 1–31 closed days; complete_window:false keeps the source partial and holds recommendations. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. export_status and get exports add outcome (superseded or skipped when nothing was written; state stays the job state) and retry_available. A tab owned by another report (its active schedule or saved reports) refuses export with DESTINATION_OWNED_BY_OTHER_REPORT unless the snapshot comes from that schedule or report or has the same accounts. complete_only refuses partial exports before any job (PARTIAL_DELIVERY_BLOCKED). Scheduled deliveries run as separate export jobs; schedules record last_delivery and pause after repeated blocking delivery failures. An unconfirmed Sheets delivery blocks newer reports to its tab; its retry rechecks the tab marker and resends the identical batch only after a 10-minute settle window. resolve_delivery takes destination_id, optional delivery_id, resolution check|resend|abandon and confirmed:true: check rereads the marker, resend requeues that same report after the window, abandon releases the tab (audited); abandon also releases a tab with a conflicting marker. delete_report of a snapshot with an unconfirmed delivery needs resolution:abandon. Missing metrics remain null. GA4 and Search Console are measurement context; unattributed GA4 sessions and Search Console top rows are scope_limitations, not incompleteness. A period whose last day has not ended in the source time zone (unknown zone: UTC-12) is partial with open_window and its recommendations wait. Rolling date_range may set source_timezone:"account" to resolve each source in its own reporting time zone; preview_schedule lists each source window and when it closes. config.targets keys an objective, objective:CURRENCY (sales:SAR, same target currency) or a campaign key; campaign beats currency beats objective. direction defaults from the KPI (ROAS, CTR, conversion and video completion rates higher; CPC, CPM, CPA, CPL, CPI, CPV lower) and is required for custom, native and additive KPIs. Zero spend, or spend below minimum_spend, returns insufficient_data, never scale. Daily/weekly/monthly rows share one recommendation from each entity’s whole-window additive totals (basis entity_window). Recommendations are frozen at capture with as_of and valid_until (48 hours); exports after valid_until show expired. run with compare:"previous_period" also queues the equal-length window that ends the day before as a linked baseline snapshot with its own collection limits (both count toward the active-job limit). compare takes id and optional baseline_id (default: that pair) and returns, without a provider request, exact current, baseline, delta and delta_percent values (nine places, half to even) per entity that matches on platform, account, currency, time zone, result definition, attribution, entity level and grain: additive metrics summed, ratios recomputed, reach/frequency/users/position only for single-day windows; entities in one window or with different definitions are listed, never counted as zero. compare_candidates lists retained snapshots with eligible and reasons (finished, same grain, equal length, ending before the current window, a shared account). Deltas are observational, not causal. preview_workbook_move (id: a local workbook schedule, destination_id?) dry-runs moving it here; move_workbook_schedule adds move_version and confirmed:true; undo_workbook_move (id, confirmed:true) undoes it. The query never changes.',
@@ -302,7 +306,7 @@ export class ReportingOverview {
     fetcher: typeof fetch = fetch,
   ) {
     this.native = new NativeCampaignReports(service);
-    this.sheets = new GoogleSheetsExports(service.store, fetcher);
+    this.sheets = sheetsDelivery.exports(service.store, fetcher);
     this.library = new ReportLibrary(
       service.store,
       (c, a, t, legacy) => this.config(c, a, t, legacy),
