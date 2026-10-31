@@ -27,6 +27,8 @@ import {
   parameterHandling,
 } from '../dist/src/parameters.js';
 import {providerJobContracts, providerJobGateways, reviewedJobFamily} from '../dist/src/provider-jobs.js';
+import {effectClass, microsoftReportSubmit, providerJob} from '../dist/src/effect-class.js';
+import {microsoftHooks} from '../dist/src/microsoft-adapter.js';
 import {campaignRecipes, recipeGateway} from '../dist/src/campaign-recipes.js';
 import {
   assertProviderActionAvailable,
@@ -843,6 +845,64 @@ test('the provider job contracts, their gateways and the job capability filter a
       oldRecipeGateways[recipe.platform] ?? recipe.platform + '_native_action',
       recipe.id,
     );
+});
+
+// Regression (wave 4c-r7 review): merged with the versions package, whose ProviderHooks.jobs ({submission}) names
+// Microsoft's report submission for the effect taxonomy (src/effect-class.ts), this package's job family rows are
+// ProviderHooks.jobFamilies. Microsoft's hooks carry both, every hooks entry gives each field one shape, and the report
+// submission, compiled as a read, is still a provider job (the owner's job switch, quota and admission).
+test('the job family rows and the provider jobs no family declares are two hooks fields, and Microsoft’s hooks carry both', () => {
+  assert.equal(providerHooks('microsoft_ads_native_action'), microsoftHooks);
+  assert.equal(typeof microsoftHooks.jobs.submission, 'function');
+  assert.deepEqual(
+    microsoftHooks.jobFamilies.map(job => job.family),
+    ['microsoft_reporting_pipeline'],
+  );
+  for (const hooks of registeredProviderHooks) {
+    if ('jobs' in hooks) {
+      assert.ok(
+        typeof hooks.jobs === 'object' && !Array.isArray(hooks.jobs) && Object.isFrozen(hooks.jobs),
+        hooks.gateway,
+      );
+      assert.equal(typeof hooks.jobs.submission, 'function', hooks.gateway);
+    }
+    if ('jobFamilies' in hooks)
+      assert.ok(
+        Array.isArray(hooks.jobFamilies) && hooks.jobFamilies.length > 0 && Object.isFrozen(hooks.jobFamilies),
+        hooks.gateway,
+      );
+  }
+  const declaring = field => registeredProviderHooks.filter(hooks => field in hooks).map(hooks => hooks.gateway);
+  assert.deepEqual(declaring('jobs'), ['microsoft_ads_native_action']);
+  assert.deepEqual(declaring('jobFamilies'), [
+    'meta_native_action',
+    'tiktok_native_action',
+    'x_ads_native_action',
+    'microsoft_ads_native_action',
+    'dv360_native_action',
+    'ga4_native_action',
+    'criteo_native_action',
+  ]);
+  // The rows the job order lists are the jobFamilies rows, each with the hooks entry that declares it.
+  for (const {hooks, job} of providerJobFamilies) assert.ok(hooks.jobFamilies.includes(job), job.family);
+  assert.deepEqual(
+    providerJobFamilies.map(({hooks, job}) => [hooks.gateway, job.family]),
+    oldJobContracts.map(row => [row.gateway, row.family]),
+  );
+  const submit = {
+    gateway: 'microsoft_ads_native_action',
+    action: 'SubmitGenerateReport',
+    method: 'POST',
+    path: '/Reporting/v13/GenerateReport/Submit',
+    readOnly: true,
+    body: {},
+  };
+  assert.equal(microsoftReportSubmit(submit), true);
+  assert.equal(providerJob(submit), true);
+  assert.equal(effectClass(submit), 'provider_job');
+  assert.equal(microsoftReportSubmit({...submit, action: 'PollGenerateReport'}), false);
+  assert.equal(microsoftReportSubmit({...submit, method: 'GET'}), false);
+  assert.equal(microsoftReportSubmit({...submit, gateway: 'google_ads_native_action'}), false);
 });
 
 // src/retired-provider-actions.ts as it was: the withdrawn methods and unsupported aliases, and their refusals.
