@@ -18,7 +18,7 @@ Since 2026-10-30 (the owner's change, for Meta's app review) they also use the t
 - A test account's disconnect is always local. Where the owner turned on revocation at Google on disconnect (`AMCP_PROVIDER_REVOCATION`, CON-05), a test account is not offered it and a request for it is refused (`TEST_ACCOUNT_SCOPE`) before the login's token is read: everyone with the shared password manages the same logins, so one evaluator could otherwise end another's Google grant. Remove AMCP in the provider's own settings instead.
 - Apple Ads uses deployment-owned API credentials rather than a user's browser OAuth login. Those credentials remain restricted to the deployment administrator workspace. Supporting a reviewer's separate Apple credentials would require a workspace credential-entry feature.
 - The website shows a test account the pages its workspace includes (`testAccount` in `web/routes.js`): every product page, without the members-only Help guide. Opening another page lands on Home with "This test workspace does not include {page}."; an address the route registry does not list also lands on Home.
-- Connecting still requires configured provider application credentials, a matching registered callback and provider consent/access. This change does not configure applications, grant provider approval or deploy the branch.
+- Connecting still requires configured provider application credentials, a matching registered callback and provider consent/access.
 
 ## Verification
 

@@ -78,8 +78,7 @@ to action and a focusable command block in its own appearance (the last two sinc
 they measured 2.32:1 and 1.21:1). It requires each focus ring to reach 3:1 against the opaque surface behind it, with
 the worst gradient stop counting (WCAG 1.4.11). A focused control with no outline and no shadow fails. Accessibility
 semantics, the pinned WCAG rules (when configured) and the leak probe also run after a dialog opens, an alert is shown
-and an outcome renders in the write journeys. Report panels and evidence controls use the theme focus colour. The fixed
-purple they used measured 2.57:1 on the dark panel.
+and an outcome renders in the write journeys. Report panels and evidence controls use the theme focus colour.
 
 The final state of every case also checks (design review 2026-10) that no control lies past the page's start edge,
 where no scrolling reaches it (WCAG 1.4.10; the end-side `scrollWidth` check never saw Reporting's "New report" at
