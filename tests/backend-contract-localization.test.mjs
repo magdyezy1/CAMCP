@@ -277,7 +277,18 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ARC-01 phase B (wave 4c round 6): the workspace tool's provider actions add Tag Manager's measurement audit
   // (src/gtm-measurement-audit.ts) and WooCommerce's workspace actions (src/woocommerce-workspace.ts), neither owning a
   // reason. Merged with the versions and tables packages: 743 files, 285 of them with reasons, the same reasons.
-  assert.equal(files.length, 743);
+  // ARC-01 (wave 4c round 6, catalog) moves each catalog destination's projection from src/catalog-ingestion.ts to
+  // src/meta-catalog-ingestion.ts and its X and Snapchat siblings, the rules they share to
+  // src/supplied-catalog-ingestion.ts, and the X removal's plan binding to src/x-catalog-removal-binding.ts; their
+  // refusals are raised through bad(), as they were: five more files, the same reasons.
+  // Its comparisons then move Meta's comparison from src/catalog-comparison.ts to src/meta-catalog-comparison.ts, with
+  // its refusals: one more file, the same reasons. Its conditional programs move LinkedIn's and DV360's programs, their
+  // requests and their evidence to src/linkedin-conditional-programs.ts and src/dv360-conditional-programs.ts: two more.
+  // Merged with the versions, tables and workspace packages, the files add up: 751, 285 of them with reasons, the same
+  // reasons. The merge then moves the declared effects of a suggested call to the leaf src/call-effects.ts (the
+  // conditional programs label their calls there, without the workspace package's import of the providers' workflows
+  // that would close a cycle), which raises no reason: 752, 285 of them with reasons, the same reasons.
+  assert.equal(files.length, 752);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
   assert.equal(Object.keys(catalog).length, 11530);

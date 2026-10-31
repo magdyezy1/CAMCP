@@ -373,13 +373,17 @@ export function inspectAccountExplanations(source, file) {
         'google-pmax-image-links.ts',
         'google-pmax-brand-image-links.ts',
         'x-catalog-removal.ts',
+        // Wave 4c round 6 (w4c-arc6-catalog): the removal's saved preview and plan binding, split from it (ARC-01).
+        'x-catalog-removal-binding.ts',
         'x-catalog-selection-inventory.ts',
         'woocommerce-source.ts',
         'woocommerce-inventory.ts',
         'google-change-history.ts',
       ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
-      ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
+      ['bad', 'invalid', ...(/x-catalog-removal(?:-binding)?\.ts$/.test(file) ? ['changed'] : [])].includes(
+        node.callee?.name,
+      )
     )
       collect(node.arguments[0]);
     if (
@@ -1257,6 +1261,9 @@ export function checkWebLocales(root = process.cwd()) {
     'src/capability-eligibility.ts',
     'src/capability-graph.ts',
     'src/conditional-programs.ts',
+    // Wave 4c round 6 (w4c-arc6-catalog): the programs moved to their providers' modules with their copy (ARC-01).
+    'src/linkedin-conditional-programs.ts',
+    'src/dv360-conditional-programs.ts',
     'src/recipe-eligibility.ts',
   ]) {
     const discovery = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, file), 'utf8'));
@@ -1370,9 +1377,15 @@ export function checkWebLocales(root = process.cwd()) {
     'src/x-portfolio.ts',
     'src/workspace.ts',
     'src/catalog-ingestion.ts',
+    // Wave 4c round 6 (w4c-arc6-catalog): each destination's projection and the rules they share (ARC-01).
+    'src/supplied-catalog-ingestion.ts',
+    'src/meta-catalog-ingestion.ts',
+    'src/x-catalog-ingestion.ts',
+    'src/snapchat-catalog-ingestion.ts',
     'src/woocommerce-source.ts',
     'src/woocommerce-inventory.ts',
     'src/x-catalog-removal.ts',
+    'src/x-catalog-removal-binding.ts',
     'src/x-catalog-comparison.ts',
     'src/x-catalog-selection-inventory.ts',
     'src/gtm-diagnostics.ts',

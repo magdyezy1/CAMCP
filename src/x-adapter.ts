@@ -18,12 +18,18 @@ import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
 // Writes and campaigns (wave 4c).
 import type {MutationResponse} from './provider-adapter.js';
-import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {
+  assertCatalogRemovalStep,
+  catalogRemovalChanged,
+  catalogRemovalCreationBinding,
+} from './x-catalog-removal-binding.js';
 import {withXCatalogRemovalExpectation} from './x-catalog-products.js';
 // Wave 4c round 6 (w4c-arc6-tables).
 import {deepFrozen} from './frozen-facts.js';
 // Wave 4c round 6 (w4c-arc6-workspace).
 import {xAnalyticsTime} from './x-report-jobs.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {xCatalogIngestion} from './x-catalog-ingestion.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -248,6 +254,8 @@ export const xHooks: ProviderHooks = Object.freeze({
   // Wave 4c round 6 (w4c-arc6-workspace): the generic X report of amcp_native_action (src/workflows.ts) states its
   // range in X's whole UTC hours.
   genericWorkflows: Object.freeze({statsTime: xAnalyticsTime}),
+  // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection (src/catalog-ingestion.ts).
+  catalogProjection: xCatalogIngestion,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

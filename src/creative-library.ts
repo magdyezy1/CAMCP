@@ -5,6 +5,7 @@ import {MirrorError} from './errors.js';
 import {audit, bad, fingerprint, identifier, validate, writer} from './workspace-core.js';
 import {mediaPlatforms} from './media-routing.js';
 import {normalizeAccount} from './scope.js';
+import {providerHooks} from './provider-hooks.js';
 import {
   creativePerformance,
   linkedAdStep,
@@ -43,25 +44,10 @@ function view(row: JsonObject, actor: Actor) {
     (retained || (s.storage_kind === 'media_source' && s.expires_at > Date.now())) &&
     s.state === 'complete',
   );
-  const googleImage =
-    p.platform === 'google_ads' &&
-    p.media_type === 'image' &&
-    typeof p.account_id === 'string' &&
-    /^\d{1,20}$/.test(normalizeAccount('google_ads_native_action', p.account_id)) &&
-    typeof p.media_id === 'string' &&
-    new RegExp(
-      '^customers/' + normalizeAccount('google_ads_native_action', p.account_id) + '/assets/[1-9][0-9]{0,19}$',
-    ).test(p.media_id) &&
-    typeof p.uploaded_sha256 === 'string' &&
-    /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
-  const snapchatMedia =
-    p.platform === 'snapchat' &&
-    ['image', 'video'].includes(p.media_type) &&
-    [p.account_id, p.media_id].every(
-      v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-    ) &&
-    typeof p.uploaded_sha256 === 'string' &&
-    /^[a-f0-9]{64}$/.test(p.uploaded_sha256);
+  // The native usage an asset offers is its platform's (hooks mediaUsage: Google's image links, Snapchat's Top Snap,
+  // Meta's scalar references); a platform without it offers none.
+  const usage =
+    typeof p.platform === 'string' ? providerHooks(p.platform + '_native_action')?.mediaUsage?.(p) : undefined;
   return {
     asset_id: row.id,
     ...p,
@@ -77,17 +63,9 @@ function view(row: JsonObject, actor: Actor) {
       : {available: false},
     availability: 'requires_fresh_check',
     linked_performance_supported: linkedPerformanceSupported(p.platform),
-    native_usage_supported:
-      googleImage || snapchatMedia || (p.platform === 'meta' && ['image', 'video'].includes(p.media_type)),
-    native_usage_kind: googleImage
-      ? 'google_image_links'
-      : snapchatMedia
-        ? 'snapchat_top_snap'
-        : p.platform === 'meta'
-          ? 'meta_scalar_references'
-          : null,
-    ...(googleImage ? {native_usage_views: ['ad_images', 'performance_max', 'performance_max_brand']} : {}),
-    ...(snapchatMedia ? {native_usage_views: ['snapchat_top_snap']} : {}),
+    native_usage_supported: usage?.supported ?? false,
+    native_usage_kind: usage?.kind ?? null,
+    ...(usage?.views ? {native_usage_views: [...usage.views]} : {}),
     reuse_call: {tool: 'amcp_media', arguments: {action: 'reuse', asset_id: row.id}},
     website_path: '/media?asset_id=' + encodeURIComponent(row.id),
   };

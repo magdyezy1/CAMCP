@@ -242,7 +242,14 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ARC-01 phase B (wave 4c round 6) adds Tag Manager's measurement audit and WooCommerce's workspace actions
   // (src/gtm-measurement-audit.ts, src/woocommerce-workspace.ts), without wrapper reasons. Merged with the versions and
   // tables packages, the modules add up: 743, the same wrapper reasons.
-  assert.equal(files.length, 743);
+  // ARC-01 (wave 4c round 6, catalog) adds the catalog destinations' projections (src/meta-catalog-ingestion.ts and its
+  // X and Snapchat siblings), the rules they share (src/supplied-catalog-ingestion.ts) and the X removal's plan
+  // binding (src/x-catalog-removal-binding.ts), without wrapper reasons: five modules. Meta's comparison then moves from
+  // src/catalog-comparison.ts to src/meta-catalog-comparison.ts, and LinkedIn's and DV360's conditional programs to
+  // src/linkedin-conditional-programs.ts and src/dv360-conditional-programs.ts: three more. Merged with the versions,
+  // tables and workspace packages, the modules add up: 751, the same wrapper reasons. The merge then moves the declared
+  // effects of a suggested call to the leaf src/call-effects.ts, without wrapper reasons: 752.
+  assert.equal(files.length, 752);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11530);

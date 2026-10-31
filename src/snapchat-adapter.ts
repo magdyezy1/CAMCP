@@ -47,6 +47,8 @@ import {snapchatClone} from './snapchat-campaign-clone.js';
 import {snapchatActivationGates, snapchatActivationSteps} from './snapchat-recipe-activation.js';
 import {snapchatPreflight} from './snapchat-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {snapchatCatalogIngestion} from './snapchat-catalog-ingestion.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -502,6 +504,20 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     accountAliases: Object.freeze(['ad_account_id', 'account_id']),
     nativeLimit: Object.freeze(/stats|report/i),
   }),
+  // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection, the supplied rows its read-only
+  // comparison reads (src/catalog-ingestion.ts).
+  catalogProjection: snapchatCatalogIngestion,
+  // Moved verbatim from the creative library's asset view (src/creative-library.ts), which asks the asset's platform:
+  // an uploaded image or video of a Snapchat account has its Top Snap usage read.
+  mediaUsage: (p: JsonObject) =>
+    ['image', 'video'].includes(p.media_type) &&
+    [p.account_id, p.media_id].every(
+      v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+    ) &&
+    typeof p.uploaded_sha256 === 'string' &&
+    /^[a-f0-9]{64}$/.test(p.uploaded_sha256)
+      ? {supported: true, kind: 'snapchat_top_snap', views: ['snapchat_top_snap']}
+      : undefined,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

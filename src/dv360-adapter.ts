@@ -23,6 +23,8 @@ import type {MutationResponse} from './provider-adapter.js';
 import {extendDV360Tool} from './dv360-extensions.js';
 // Wave 4c round 6 (w4c-arc6-tables).
 import {deepFrozen} from './frozen-facts.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {dv360ConditionalPrograms} from './dv360-conditional-programs.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -219,6 +221,9 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
   // Its wire contract (src/wire-contracts.ts): the pinned v4 Discovery method with the request's verb and path; media
   // and asset uploads are multipart transports with their own contracts.
   wireContract: deepFrozen({discovery: {document: 'dv360-v4', label: 'Display & Video 360', uploads: '/upload/'}}),
+  // Wave 4c round 6 (w4c-arc6-catalog): its conditional program, the exact advertiser read
+  // (src/conditional-programs.ts).
+  conditionalPrograms: dv360ConditionalPrograms,
 });
 
 // Writes and campaigns (wave 4c): moved verbatim from confirmedMutationResult (src/write-outcome.ts).

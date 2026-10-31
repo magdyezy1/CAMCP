@@ -4,7 +4,7 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {ScopeGuard} from './scope.js';
 import {stable} from './security.js';
 import {bad, fingerprint} from './workspace-core.js';
-import {snapchatCatalogIngestion} from './catalog-ingestion.js';
+import {snapchatCatalogIngestion} from './snapchat-catalog-ingestion.js';
 import {
   catalogDestinations,
   catalogItemSchemaVersion,
@@ -361,7 +361,7 @@ export async function snapchatCatalogComparison(
       nativeAuthority(store, registry, actor, first, current, auth)();
       budget.check();
       const items = collected.map((item, i) =>
-          comparisonItemV2(item, products[i]!, catalogDestinations.snapchat_native_action),
+          comparisonItemV2(item, products[i]!, catalogDestinations.snapchat_native_action!),
         ),
         {summary, review_retailer_ids} = comparisonSummary(items),
         captured_at = Date.now();

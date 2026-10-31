@@ -310,7 +310,7 @@ export async function xCatalogComparison(
           comparisonItemV2(
             item,
             retired(input.products[i], retire),
-            catalogDestinations.x_ads_native_action,
+            catalogDestinations.x_ads_native_action!,
             !!retire?.ids.has(item.retailer_id),
           ),
         );

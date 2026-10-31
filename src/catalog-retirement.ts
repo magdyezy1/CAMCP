@@ -1,5 +1,6 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
+import {providerOf} from './provider-adapters.js';
 import type {JsonObject} from './types.js';
 
 /**
@@ -26,16 +27,14 @@ export function assertCatalogRetirementTarget(retailerId: unknown, present: bool
       409,
     );
 }
-/** The retailer ID a plan step retires, or undefined: the step's product is among the plan's retired retailer IDs. */
+/**
+ * The retailer ID a plan step retires, or undefined: the step's product is among the plan's retired retailer IDs. The
+ * step's catalog destination reads the retailer ID from its payload (its adapter's stepRetailerId, ARC-01).
+ */
 export function catalogRetirementOf(run: JsonObject, step: JsonObject): string | undefined {
   const ids: unknown = run?.catalog_retirement?.retailer_ids;
   if (!Array.isArray(ids) || step?.kind !== 'write') return undefined;
   const payload = step.arguments?.payload,
-    id =
-      step.gateway === 'meta_native_action'
-        ? payload?.retailer_id
-        : step.gateway === 'x_ads_native_action' && Array.isArray(payload?.products)
-          ? payload.products[0]?.id
-          : undefined;
+    id = providerOf(step.gateway)?.catalogDestination?.stepRetailerId?.(payload);
   return typeof id === 'string' && ids.includes(id) ? id : undefined;
 }

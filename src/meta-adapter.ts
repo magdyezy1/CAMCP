@@ -53,6 +53,8 @@ import {metaCreated, metaNamedTargets} from './meta-write-reconciliation.js';
 // Wave 4c round 6 (w4c-arc6-versions): the versions its configuration may name, and the catalog's action.
 import {metaApiVersions} from './meta-version.js';
 import type {Action} from './types.js';
+// Wave 4c round 6 (w4c-arc6-catalog).
+import {metaCatalogIngestion} from './meta-catalog-ingestion.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -445,6 +447,14 @@ export const metaHooks: ProviderHooks = Object.freeze({
             },
           )
         : undefined,
+  }),
+  // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection (src/catalog-ingestion.ts).
+  catalogProjection: metaCatalogIngestion,
+  // Moved verbatim from the creative library's asset view (src/creative-library.ts), which asks the asset's platform:
+  // a Meta image or video has its scalar references read.
+  mediaUsage: (p: JsonObject) => ({
+    supported: ['image', 'video'].includes(p.media_type),
+    kind: 'meta_scalar_references',
   }),
 });
 /** Its campaign and ad set edits, by compiled (canonical) action: the meta_campaign_update and meta_adset_update

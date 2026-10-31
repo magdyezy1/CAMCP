@@ -892,6 +892,22 @@ export interface ProviderHooks {
   readonly genericWorkflows?: GenericWorkflowHooks;
   /** Its steps of AMCP's reviewed media upload (src/media-upload.ts). */
   readonly media?: MediaUploadHooks;
+  // Wave 4c round 6 (w4c-arc6-catalog).
+  /**
+   * Its catalog destination's projection of supplied products into its native reviewed steps, or of the rows its
+   * comparison reads (COM-03), which src/catalog-ingestion.ts dispatches to by gateway: it refuses in its own order.
+   */
+  readonly catalogProjection?: (input: JsonObject) => JsonObject;
+  /**
+   * The native usage the creative library offers for one of its library assets of this provider, from the asset's
+   * retained metadata (src/creative-library.ts), or undefined for none.
+   */
+  readonly mediaUsage?: (asset: JsonObject) => MediaUsage | undefined;
+  /**
+   * Its conditional programs (CON-04) with their checks' steps, which src/conditional-programs.ts lists and checks;
+   * `programs`, above, is its discovery-only programs, which AMCP lists but never checks.
+   */
+  readonly conditionalPrograms?: readonly ProviderConditionalProgram[];
 }
 
 export interface ProviderAdapter {
@@ -941,6 +957,9 @@ export interface ProviderAdapter {
    * currency capture gives (Meta's minor units, WRT-07 Stage C), src/budget-units.ts.
    */
   readonly currencyOffsetBudgets?: true;
+  // Wave 4c round 6 (w4c-arc6-catalog).
+  /** Its catalog destination (COM-03), which src/catalog-destinations.ts lists in catalogDestinationOrder's order. */
+  readonly catalogDestination?: CatalogDestinationFacts;
 }
 
 /**
@@ -1730,4 +1749,109 @@ export interface MediaUploadHooks {
   assertWaiting(binding: MediaTransferBinding, session: JsonObject, response: unknown): void;
   /** Whether an uploaded part's receipt is a well-formed part identifier. */
   partId(value: unknown): value is string;
+}
+
+// Wave 4c round 6 (w4c-arc6-catalog): the catalog destinations (COM-03) the providers fill.
+/**
+ * A provider's catalog destination (COM-03), a fact of its adapter that src/catalog-destinations.ts lists: what a
+ * supplied product source may carry, its item identity and how product changes reach the destination.
+ */
+export interface CatalogDestinationFacts {
+  /** Source columns a product may carry; required first. Unknown columns are refused. */
+  readonly sourceFields: {required: readonly string[]; optional: readonly string[]};
+  /** The destination's native catalog ID. */
+  readonly catalogId: RegExp;
+  /**
+   * Item identity: the source's retailer_id names a product, and `native` is the destination's own key of that product
+   * in a comparison item's product_id (Meta's product ID, X's product key, Snapchat's product ID, which is the
+   * retailer_id itself).
+   */
+  readonly identity: {source: 'retailer_id'; native: 'product_id' | 'product_key' | 'retailer_id'; pattern: RegExp};
+  /**
+   * How product changes reach the destination: one reviewed native step per product, each with its own receipt and
+   * read-back (`reviewed_steps`), or only through the destination's own product feeds (`feed_only`: a comparison names
+   * what to fix in the feed and no draft is saved).
+   */
+  readonly writes: 'reviewed_steps' | 'feed_only';
+  /** How an existing retailer ID is treated: Meta asks for an explicit choice, X always updates matching IDs. */
+  readonly upsert: 'explicit_choice' | 'required' | 'none';
+  /**
+   * Explicit removal intent the destination supports: a non-destructive retirement of supplied products through the
+   * reviewed update (`retire`), also an explicit deletion of selected individual products by native key
+   * (`retire_and_selected_deletion`), or nothing (`none`). Absence from a source never selects anything.
+   */
+  readonly removal: 'retire' | 'retire_and_selected_deletion' | 'none';
+  /**
+   * What a populated attribute the source does not send means for the comparison (P9's first question): `review` puts
+   * an otherwise matching product in the review set as `unknown` (owner decision P9 of 2026-10-11, which names Meta),
+   * and `note` names it in `unsent_fields` without changing the state (COM-01's reading, kept for X, whose native
+   * review warns of such values, and for feed-only Snapchat). Either way `unsent_fields` names the attributes
+   * (docs/DECISIONS.md).
+   */
+  readonly destinationOnlyValues: 'review' | 'note';
+  /**
+   * The destination whose comparison answers a gateway that is no catalog destination, which keeps the refusal it had
+   * before the destination contract (Meta's). Exactly one destination is the fallback.
+   */
+  readonly fallback?: true;
+  /** The retailer ID one of its reviewed product steps writes, read from the step's payload (src/catalog-retirement.ts). */
+  stepRetailerId?(payload: JsonObject | undefined): unknown;
+}
+/** The native usage a library asset offers (ProviderHooks.mediaUsage), which its asset view states. */
+export interface MediaUsage {
+  /** Whether the provider's reader can read the asset's current native usage. */
+  readonly supported: boolean;
+  /** The usage kind of that reader (src/provider-workflows.ts assetUsageReader). */
+  readonly kind: string;
+  /** The native views it reads, when it names them. */
+  readonly views?: readonly string[];
+}
+/**
+ * A conditional program (CON-04): the one exact read that qualifies a provider's private product or access, with its
+ * prerequisites, refusals and setup, as capabilities lists it. A type rather than an interface, so it is a JsonObject.
+ */
+export type ConditionalProgram = {
+  id: string;
+  kind: string;
+  mode: string;
+  name: string;
+  gateway: string;
+  objective: string;
+  description: string;
+  effects: string;
+  effect_details: string;
+  required_inputs: string[];
+  prerequisite_ids: string[];
+  actions: string[];
+  recorded_scopes: string[];
+  program: {access: string; reference: string; checked_on: string; limitations: string};
+  /** The provider's documented refusal codes, each naming the prerequisite it reports. */
+  documented_refusals?: Record<string, {prerequisite_id: string; owner_action: string; resolution: string}>;
+  undocumented_refusal: {kind: string; text: string};
+  account_setup: {text: string; prerequisites: {id: string; text: string}[]};
+  next_call: JsonObject;
+  website_path: string;
+  source: string;
+};
+/** A conditional program's provider steps, which its check (src/conditional-programs.ts) takes in its own order. */
+export interface ConditionalProgramSteps {
+  /** The JSON Schema of its requirements, the ad account fixed when given; without one it takes no requirements. */
+  readonly template?: (account?: string) => JsonObject;
+  /** What a local inspection's next call adds for the live read. */
+  readonly liveArguments?: () => JsonObject;
+  /** The live read's native call from its requirements, which it refuses in its own order. */
+  readonly request: (program: ConditionalProgram, requirements: JsonObject, account: string) => JsonObject;
+  /** The evidence a live read keeps of the native data, refusing what it cannot retain; `rows` counts what it keeps. */
+  readonly evidence: (
+    program: ConditionalProgram,
+    data: JsonObject,
+    requirements: JsonObject,
+    account: string,
+    rows: (kind: string, count: number) => void,
+  ) => JsonObject;
+}
+/** A provider's conditional program with its check's steps (ProviderHooks.conditionalPrograms). */
+export interface ProviderConditionalProgram {
+  readonly program: ConditionalProgram;
+  readonly steps: ConditionalProgramSteps;
 }
