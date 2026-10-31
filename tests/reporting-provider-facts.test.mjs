@@ -22,6 +22,7 @@ const reportingPackage = {
   'src/search-overlap.ts': {literals: 0, imports: 0},
   'src/search-exclusion-plan.ts': {literals: 0, imports: 0},
   'src/ad-previews.ts': {literals: 0, imports: 0},
+  'src/workbook-repository.ts': {literals: 0, imports: 0},
 };
 
 test('the reporting package’s shared modules name no gateway and import no provider module but through a registry', () => {

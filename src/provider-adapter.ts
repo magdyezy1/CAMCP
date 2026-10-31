@@ -532,6 +532,41 @@ export interface ReportResourceScope {
    * selectors); undefined to refuse. `account` is the shared check of one selector.
    */
   accounts?(rows: JsonObject[], existing: unknown[], account: (row: JsonObject) => string): string[] | undefined;
+  /**
+   * Wave 4c round 6 (w4c-arc6-reporting): where a saved query's arguments carry the selectors `account` reads, as
+   * data: src/workbook-repository.ts writes the SQL that projects them (ARC-02's store layer).
+   */
+  readonly selectors?: ReportSelectors;
+}
+
+// Wave 4c round 6 (w4c-arc6-reporting): the resource selectors of a saved native report query, which the store layer
+// projects in SQLite (src/workbook-repository.ts). Each value is a plain name the projection quotes as a SQL string.
+
+/** One group of selector fields in a saved query's bounded native arguments. */
+export interface ReportSelectorGroup {
+  /** The argument objects whose own fields are selectors, as SQLite JSON paths (`$` the arguments themselves). */
+  readonly paths?: readonly string[];
+  /** Instead, one argument object whose fields at any depth are selectors (GA4's report request). */
+  readonly within?: string;
+  /** The selector fields' native parameter keys (lower case without separators: native_parameter_key). */
+  readonly keys: readonly string[];
+  /** Only a resource name selects: a text value with a slash (a value of another type still projects, as invalid). */
+  readonly resourceNames?: boolean;
+}
+
+/** A provider's selector fields, the selector kind each projects as, and the body that invalidates them. */
+export interface ReportSelectors {
+  /**
+   * Where the provider's branch comes among the providers' branches of the projection, first at 1. SQLite takes the
+   * one branch of the query's gateway in any order; the order keeps the stored projection's SQL text.
+   */
+  readonly order: number;
+  readonly groups: readonly ReportSelectorGroup[];
+  /** The selector kind of a field by its key; a field not named here is of kind `otherwise`. */
+  readonly kinds?: Readonly<Record<string, string>>;
+  readonly otherwise: string;
+  /** The argument that is the native request body: present and not an object, it makes the selectors invalid. */
+  readonly body?: string;
 }
 
 // ARC-01 phase B, wave 4c (transport and catalog): the provider's parts of the catalog compiler. The shared module

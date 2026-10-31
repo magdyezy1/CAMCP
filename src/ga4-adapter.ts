@@ -119,6 +119,27 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
       return match && !value.split('/').some(part => part === '.' || part === '..') ? match[1] : undefined;
     },
     anchorKind: (anchor: string) => (anchor.startsWith('properties/') ? 'property' : undefined),
+    // Wave 4c round 6 (w4c-arc6-reporting): the selectors src/workbook-repository.ts projects: a property, name or
+    // parent field of the arguments, their params or path_params; a report task's or audience export's resource name
+    // in the arguments or params; and a property field at any depth of the report request, the body.
+    selectors: Object.freeze({
+      order: 1,
+      groups: Object.freeze([
+        Object.freeze({
+          paths: Object.freeze(['$', '$.params', '$."path_params"']),
+          keys: Object.freeze(['property', 'name', 'parent']),
+        }),
+        Object.freeze({
+          paths: Object.freeze(['$', '$.params']),
+          keys: Object.freeze(['reporttaskname', 'audienceexportname']),
+          resourceNames: true,
+        }),
+        Object.freeze({within: '$.request', keys: Object.freeze(['property'])}),
+      ]),
+      kinds: Object.freeze({property: 'property'}),
+      otherwise: 'resource',
+      body: 'request',
+    }),
   }),
   // Writes and campaigns (wave 4c): a review's write needs the Analytics edit permission (src/write-review.ts).
   writes: Object.freeze({
