@@ -154,10 +154,16 @@
       "raised": [
         "reference_words 145688 → 146477"
       ]
+    },
+    {
+      "reason": "w4c-arc6-catalog review fix: docs/review/ARCHITECTURE.md section 9 lists the catalog package's three moved projection exports (metaCatalogIngestion, xCatalogIngestion and snapchatCatalogIngestion) with the intentional internal moves, eleven in all, and scopes the no-other-export check to the modules changed since round 6's base",
+      "raised": [
+        "reference_words 146477 → 146581"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 146477
+    "reference_words": 146581
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

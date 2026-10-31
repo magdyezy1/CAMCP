@@ -622,7 +622,14 @@ modules. No other export left a module that wave 4c's writes, reporting and fami
 every changed `src/` and `server/` module compared with the base), so every other move keeps its import path through a
 re-export, as ARC-04's manual criterion asks. Wave 4c round 6's versions package moves one more the same way,
 `validateMetaCreative` (from `src/creative-validation.ts` to `src/meta-creative-features.ts`, which its two callers in
-`src/` import); no other module it changes lost an export.
+`src/` import); no other module it changes lost an export. Its catalog package moves three more the same way, each
+catalog destination's projection: `metaCatalogIngestion`, `xCatalogIngestion` and `snapchatCatalogIngestion` (from
+`src/catalog-ingestion.ts` to `src/meta-catalog-ingestion.ts`, `src/x-catalog-ingestion.ts` and
+`src/snapchat-catalog-ingestion.ts`), which the three adapters register as their `catalogProjection` hooks and
+Snapchat's comparison imports from its new module; before the package nothing in `tests/`, `tools/`, `server/` or
+`web/` imported them, and a re-export would import the three provider modules into the shared ingestion again. So
+eleven exports moved without a re-export: the seven above, `validateMetaCreative` and these three. Compared the same
+way with round 6's base (`06684304`), no other export left any of the 84 `src/` and `server/` modules changed since.
 
 One more path is removed on purpose, for the manual reviewer to sign off with the `src/scope.ts` diff: `src/scope.ts`
 no longer re-exports `snapchatScopedResource` and `snapchatOrganizationPixels` (wave 4c's transport and catalog
