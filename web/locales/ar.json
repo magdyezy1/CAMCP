@@ -9899,6 +9899,7 @@
   "Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.": "لا ينفّذ تغييرًا يتجاوز حدًا للإنفاق إلا مالك مساحة العمل، أو يوافق عليه أولًا في موقع AMCP.",
   "Open the approval page": "فتح صفحة الموافقة",
   "Approved by {person} at {time}.": "وافق عليه {person} في {time}.",
+  "Reviewer": "المراجع",
   "Beyond a spending cap, the workspace owner’s approval is still needed before another member executes it.": "عند تجاوز حد للإنفاق، لا تزال موافقة مالك مساحة العمل مطلوبة قبل أن ينفّذه عضو آخر.",
   "This approval no longer meets the owner’s approval setting: another member than the one who prepared it approves it.": "لم تعد هذه الموافقة تفي بإعداد الموافقة الذي حدده المالك: يوافق عليه عضو غير الذي حضّره.",
   "One approval covers all {parts} parts of this change ({records} records).": "تشمل موافقة واحدة جميع أجزاء هذا التغيير وعددها {parts} ({records} من السجلات).",

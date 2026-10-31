@@ -212,6 +212,40 @@ test('reviewers can approve and execute a reviewed product change while owner po
   }
 });
 
+test("the approval page names the reviewers' shared sign-in as Reviewer, not by the door's ID", async () => {
+  const f = tiktok(),
+    reviewer = {...operator, userId: 'workspace-test', testAccount: true},
+    administrator = {...owner, userId: 'workspace-admin'};
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const prepared = await f.prepare(1100, reviewer);
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    const view = approvalView(f.store, reviewer, prepared.data.review_id);
+    // The person stays the door's (ownership and the distinct-approver rule are unchanged); only the name shown differs.
+    assert.equal(view.prepared_by, 'workspace-admin');
+    assert.equal(view.prepared_by_kind, 'reviewer');
+    const approved = approveReview(f.store, reviewer, prepared.data.review_id, {
+      fingerprint: view.fingerprint,
+      confirmed: true,
+    });
+    assert.equal(approved.approval.approver, 'workspace-admin');
+    assert.equal(approved.approval.approver_kind, 'reviewer');
+    assert.equal(approvalView(f.store, reviewer, prepared.data.review_id).approval.approver_kind, 'reviewer');
+    // The administrator's door and named members keep their labels.
+    const own = await f.prepare(1200, administrator),
+      seen = approvalView(f.store, administrator, own.data.review_id);
+    assert.equal(seen.prepared_by, 'workspace-admin');
+    assert.equal('prepared_by_kind' in seen, false);
+    const shown = approveReview(f.store, administrator, own.data.review_id, {
+      fingerprint: seen.fingerprint,
+      confirmed: true,
+    });
+    assert.equal('approver_kind' in shown.approval, false);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('WRT-09: an approval bound to another fingerprint is refused at execute and nothing is sent', async () => {
   const f = tiktok();
   try {

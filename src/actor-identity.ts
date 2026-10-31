@@ -22,6 +22,16 @@ export function principalOf(actor: Pick<Actor, 'userId' | 'ownerUserId'>): strin
   if (doorSubjects.has(actor.userId) || /^(?:oauth|connector)\//.test(actor.userId)) return doorPrincipal;
   return actor.userId;
 }
+/** Whether the actor came through the reviewers' door: its session, or a key or token approved from it. That door signs
+ * in to its own test workspace only, so there the door's person is the reviewers'. */
+export function viaReviewerDoor(actor: Pick<Actor, 'userId' | 'ownerUserId'>): boolean {
+  return actor.userId === 'workspace-test' || actor.ownerUserId === 'workspace-test';
+}
+/** Whether a test account (amcp_users.test_account) is in a workspace other than its own test workspace, where it is a
+ * viewer: a test account is for evaluation and skips the two-step sign-in (owner decision, 2026-10-31). */
+export function testAccountElsewhere(user: {test_account?: unknown; tenant_id?: unknown}, tenant: string): boolean {
+  return !!user.test_account && user.tenant_id !== tenant;
+}
 /** What a new person-scoped record keeps of its maker: the credential (`user_id`) and the person (`principal`). */
 export function ownership(actor: Pick<Actor, 'userId' | 'ownerUserId'>): {user_id: string; principal: string} {
   return {user_id: actor.userId, principal: principalOf(actor)};

@@ -788,6 +788,33 @@ test('a test account is scoped to the evaluator tabs and inherits no owner conne
   }
 });
 
+test('outside its own test workspace a test account is a viewer, and its keys there act as readers at most', async () => {
+  const f = await fixture();
+  try {
+    const host = await f.create('host@example.test'),
+      evaluator = await f.create('evaluator@example.test'),
+      at = {tenantId: host.tenant_id, ownerUserId: evaluator.id};
+    f.store.db
+      .prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'admin',?)")
+      .run(host.tenant_id, evaluator.id, Date.now());
+    // Keys the member authorized in that workspace before the instance owner made the account a test account.
+    const operatorKey = f.store.createKey({...at, userId: 'connector/evaluator-operator', role: 'operator'}),
+      readerKey = f.store.createKey({...at, userId: 'connector/evaluator-reader', role: 'reader'});
+    f.store.db.prepare('UPDATE amcp_users SET test_account=1 WHERE id=?').run(evaluator.id);
+    const tested = f.accounts.user(evaluator.id),
+      own = f.accounts.session(tested),
+      there = f.accounts.session(tested, host.tenant_id);
+    // Its own test workspace keeps the reviewer scope; another workspace sees a viewer, on every request too.
+    assert.equal(own.actor.role, 'admin');
+    assert.deepEqual([there.actor.role, there.actor.membershipRole], ['reader', 'viewer']);
+    const profile = await (await f.request('/api/account', 'GET', undefined, f.credentials(there))).json();
+    assert.equal(profile.workspaceRole, 'viewer');
+    assert.throws(() => f.store.assertActorActive(f.store.authenticate(operatorKey)), {code: 'MEMBERSHIP_REVOKED'});
+    f.store.assertActorActive(f.store.authenticate(readerKey));
+  } finally {
+    await f.close();
+  }
+});
 test("two reviewers signed in with the test password cannot see or end each other's sessions", async () => {
   const testPassword = 'reviewer-password-for-google-review';
   const f = await fixture({}, {testPassword});

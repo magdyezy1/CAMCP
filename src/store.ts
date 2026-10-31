@@ -7,6 +7,7 @@ import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {testAccountElsewhere} from './actor-identity.js';
 import {MirrorError} from './errors.js';
 import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from './security.js';
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
@@ -1720,6 +1721,8 @@ export class Store {
         {},
         401,
       );
+    // Outside its own test workspace a test account is a viewer, so its keys and tokens there act as readers at most.
+    let testElsewhere = false;
     if (actor.ownerUserId && !reviewerDoor) {
       const hasUsers = this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get();
       const user = hasUsers
@@ -1738,11 +1741,13 @@ export class Store {
           401,
         );
       actor.testAccount = !!user.test_account;
+      testElsewhere = testAccountElsewhere(user, actor.tenantId);
     }
     if (actor.ownerUserId && !reviewerDoor) {
-      const membership = this.db
-        .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
-        .get(actor.tenantId, actor.ownerUserId) as JsonObject | undefined;
+      const found = this.db
+          .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+          .get(actor.tenantId, actor.ownerUserId) as JsonObject | undefined,
+        membership = found && testElsewhere ? {...found, role: 'viewer'} : found;
       const memberSet = membership ? memberAccessSetId(this, actor.tenantId, actor.ownerUserId) : undefined;
       const rank: Record<string, number> = {viewer: 0, reader: 0, operator: 1, admin: 2, owner: 2};
       // A member limited to a client access set (SEC-08) acts only within that set: a token or AI client the person

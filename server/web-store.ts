@@ -2,6 +2,7 @@ import {randomBytes, timingSafeEqual, randomUUID} from 'node:crypto';
 import type {Request} from 'express';
 import {BlockList, isIP} from 'node:net';
 import {Store} from '../src/store.js';
+import {testAccountElsewhere} from '../src/actor-identity.js';
 import {SecretBox, sha256, scopeKey} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import {memberAccessSetId} from '../src/access-sets.js';
@@ -657,15 +658,18 @@ export class WebStore {
         .run(now, sha256(id));
     if (actor.userId !== 'workspace-admin' && actor.userId !== 'workspace-test') {
       const user = this.store.db
-        .prepare('SELECT version,test_account FROM amcp_users WHERE id=? AND disabled=0 AND approved=1')
+        .prepare('SELECT version,test_account,tenant_id FROM amcp_users WHERE id=? AND disabled=0 AND approved=1')
         .get(actor.userId) as JsonObject | undefined;
       if (user) actor.testAccount = !!user.test_account;
       const membership = this.store.db
         .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.userId) as JsonObject | undefined;
       if (!user || user.version !== actor.accountVersion || !membership) return;
-      actor.role = membership.role === 'viewer' ? 'reader' : membership.role === 'operator' ? 'operator' : 'admin';
-      actor.membershipRole = membership.role;
+      // Outside its own test workspace a test account is a viewer, and that workspace's two-step rule applies to it.
+      const elsewhere = testAccountElsewhere(user, actor.tenantId),
+        role = elsewhere ? 'viewer' : membership.role;
+      actor.role = role === 'viewer' ? 'reader' : role === 'operator' ? 'operator' : 'admin';
+      actor.membershipRole = role;
       actor.ownerUserId = actor.userId;
       // A member limited to a client access set (SEC-08), read on every request like the role.
       delete actor.accessSetId;
@@ -674,8 +678,8 @@ export class WebStore {
       // Two-step requirement (SEC-06): recomputed on every request from the current policy, never stored.
       delete actor.mfaPolicy;
       delete actor.mfaEnrollmentRequired;
-      if (!user.test_account) {
-        const required = mfaRequirement(this.store, this.mfaBaseline, actor.tenantId, actor.userId, membership.role);
+      if (!user.test_account || elsewhere) {
+        const required = mfaRequirement(this.store, this.mfaBaseline, actor.tenantId, actor.userId, role);
         if (required.workspacePolicy) actor.mfaPolicy = true;
         if (
           required.required &&

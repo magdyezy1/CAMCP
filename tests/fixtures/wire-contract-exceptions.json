@@ -14,6 +14,34 @@
       "field": "/name",
       "reason": "Field absent from the pinned vendor request schema",
       "evidence": "As for CREATE_GTAG_CONFIG: GtagConfig (gtm-v2, revision 20260902) has no name property; the generic CRUD fixture of tests/measurement-writes.test.ts sends one."
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "action": "gsc_analytics_ops/QUERY_SEARCH_ANALYTICS",
+      "field": "/dimensions/*",
+      "reason": "Value absent from the pinned vendor enum",
+      "evidence": "SearchAnalyticsQueryRequest in the pinned Search Console v1 Discovery document (search-console-v1, captured 2026-09-04) lists the proto names (DATE, QUERY, PAGE, COUNTRY, DEVICE, SEARCH_APPEARANCE, HOUR). Google's public reference for searchanalytics.query, re-read 2026-10-12 (src/measurement-ledger-search-console.ts), spells the wire values in lower and camel case, which AMCP sends: the measurement ledger groups by date (dimensions ['date'], asserted by tests/measurement-ledger-providers.test.mjs). A read, never enforced."
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "action": "gsc_analytics_ops/QUERY_SEARCH_ANALYTICS",
+      "field": "/type",
+      "reason": "Value absent from the pinned vendor enum",
+      "evidence": "The same document lists WEB, IMAGE, VIDEO, NEWS, DISCOVER and GOOGLE_NEWS, while its own description of the field says the default is \"web\", the value the measurement ledger sends (src/measurement-ledger-search-console.ts). A read, never enforced."
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "action": "gsc_analytics_ops/QUERY_SEARCH_ANALYTICS",
+      "field": "/dataState",
+      "reason": "Value absent from the pinned vendor enum",
+      "evidence": "The same document lists DATA_STATE_UNSPECIFIED, FINAL, ALL and HOURLY_ALL, while its own description of the response metadata names the request values `all` and `hourly_all`; the measurement ledger sends \"final\" (asserted by tests/measurement-ledger-providers.test.mjs). A read, never enforced."
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "action": "gsc_analytics_ops/QUERY_SEARCH_ANALYTICS",
+      "field": "/aggregationType",
+      "reason": "Value absent from the pinned vendor enum",
+      "evidence": "The same document lists AUTO, BY_PROPERTY, BY_PAGE and BY_NEWS_SHOWCASE_PANEL, while its own description says the default is \"auto\"; Google's public reference (re-read 2026-10-12) spells \"byProperty\", which the measurement ledger sends and expects back as responseAggregationType (asserted by tests/measurement-ledger-providers.test.mjs). A read, never enforced."
     }
   ]
 }

@@ -222,6 +222,10 @@ function approvalClassLabel(value) {
         ? uiText('Deletes or removes something')
         : value;
 }
+/** A person the workspace keeps no name for: the reviewers' shared sign-in as Reviewer, anyone else by their ID. */
+function personLabel(kind, id) {
+  return kind === 'reviewer' ? uiText('Reviewer') : (id ?? '');
+}
 /**
  * A person approves one reviewed change on the website (WRT-09, opt-in; P1 and P5 are open), outside any AI client: the
  * page shows what the review does and posts back the fingerprint it showed, so the approval covers exactly this review.
@@ -236,7 +240,9 @@ function writeApprovalController(root, id) {
     try {
       const a = await api('/api/write-approvals/' + encodeURIComponent(id));
       if (!present()) return;
-      const approver = a.approval ? (a.approval.approver_name ?? a.approval.approver ?? '') : '',
+      const approver = a.approval
+          ? (a.approval.approver_name ?? personLabel(a.approval.approver_kind, a.approval.approver))
+          : '',
         approved = a.approval
           ? a.approval_pending
             ? `<p class="notice">${esc(uiText('Approved by {person} at {time}.', {person: approver, time: date(a.approval.approved_at)}))}</p><p class="form-note">${esc(a.owner_required && !a.approval.approver_is_owner ? uiText('Beyond a spending cap, the workspace owner’s approval is still needed before another member executes it.') : uiText('This approval no longer meets the owner’s approval setting: another member than the one who prepared it approves it.'))}</p>`
@@ -247,7 +253,7 @@ function writeApprovalController(root, id) {
           !a.may_approve && a.refusal && a.refusal.code !== 'REVIEW_ALREADY_APPROVED'
             ? `<p class="notice">${esc(uiText(String(a.refusal.message ?? '')))}</p>`
             : '';
-      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Approve a reviewed change'))} · ${esc(operationGatewayLabel(a.gateway))}</small><h2 id="write-approval-heading" tabindex="-1">${esc(a.action ?? a.review_id)}</h2></div>${badge(a.approval && !a.approval_pending ? 'complete' : 'attention')}</div><p><strong>${esc(uiText('Account'))} ${esc(a.account_id)}</strong></p>${a.group ? `<p class="form-note">${esc(uiText('One approval covers all {parts} parts of this change ({records} records).', {parts: uiNumber(a.parts ?? 0), records: uiNumber(a.records ?? 0)}))}</p>` : ''}${writeSummary(a.summary)}${a.classes.length ? `<ul>${a.classes.map(c => `<li>${esc(approvalClassLabel(c))}</li>`).join('')}</ul>` : ''}${(a.reasons ?? []).map(r => `<p class="form-note">${esc(uiText(String(r.reason ?? '')))}</p>`).join('')}<p class="form-note">${esc(uiText('Prepared by {person}', {person: a.prepared_by_name ?? a.prepared_by ?? ''}))} · ${esc(uiText('Expires'))} ${date(a.expires_at)}</p><details class="workspace-details"><summary>${esc(uiText('Original review references'))}</summary><p>${esc(uiText('Review'))} <code>${esc(a.review_id)}</code></p><p>${esc(uiText('Fingerprint'))} <code>${esc(a.fingerprint)}</code></p></details>${approved}${a.may_approve ? `<div class="dialog-actions work-actions"><button id="write-approval-approve" class="button primary">${esc(uiText('Approve this change'))}</button></div>` : ''}${refused}<p data-approval-status role="status"></p>`;
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Approve a reviewed change'))} · ${esc(operationGatewayLabel(a.gateway))}</small><h2 id="write-approval-heading" tabindex="-1">${esc(a.action ?? a.review_id)}</h2></div>${badge(a.approval && !a.approval_pending ? 'complete' : 'attention')}</div><p><strong>${esc(uiText('Account'))} ${esc(a.account_id)}</strong></p>${a.group ? `<p class="form-note">${esc(uiText('One approval covers all {parts} parts of this change ({records} records).', {parts: uiNumber(a.parts ?? 0), records: uiNumber(a.records ?? 0)}))}</p>` : ''}${writeSummary(a.summary)}${a.classes.length ? `<ul>${a.classes.map(c => `<li>${esc(approvalClassLabel(c))}</li>`).join('')}</ul>` : ''}${(a.reasons ?? []).map(r => `<p class="form-note">${esc(uiText(String(r.reason ?? '')))}</p>`).join('')}<p class="form-note">${esc(uiText('Prepared by {person}', {person: a.prepared_by_name ?? personLabel(a.prepared_by_kind, a.prepared_by)}))} · ${esc(uiText('Expires'))} ${date(a.expires_at)}</p><details class="workspace-details"><summary>${esc(uiText('Original review references'))}</summary><p>${esc(uiText('Review'))} <code>${esc(a.review_id)}</code></p><p>${esc(uiText('Fingerprint'))} <code>${esc(a.fingerprint)}</code></p></details>${approved}${a.may_approve ? `<div class="dialog-actions work-actions"><button id="write-approval-approve" class="button primary">${esc(uiText('Approve this change'))}</button></div>` : ''}${refused}<p data-approval-status role="status"></p>`;
       workspaceBind('#write-approval-approve', async () => {
         if (!present() || busy) return;
         busy = true;

@@ -8,6 +8,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {profileStages, pruneDryRun, qualify, skippedTests, sourceFacts, testSummary} from '../tools/qualify.mjs';
 import {assembleRelease} from '../tools/prepare-public-release.mjs';
+import {probeMediaProcessor} from '../dist/src/runtime-toolchain.js';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const buildIdentity = path.resolve('tools/build-release-identity.mjs'),
@@ -213,6 +214,36 @@ test('qualification with FFmpeg absent fails clearly and runs nothing after the 
   assert.equal(passed.result, 'passed');
   assert.equal(passed.stages[0].ffmpeg, ffmpegLine);
   assert.equal(passed.totals.skipped, 0);
+});
+
+test('the FFmpeg stage probes ffprobe as ffprobe, so an installed ffprobe passes it', async t => {
+  const r = repository(t);
+  const printed = {
+    'synthetic-ffmpeg': ffmpegLine,
+    'synthetic-ffprobe': 'ffprobe version 9.0 Copyright (c) 2007-2026 the FFmpeg developers',
+  };
+  const asked = [];
+  // The runtime's own probe of each synthetic program's output. Regression: the stage asked for no program, so ffprobe's
+  // line was matched as ffmpeg's and full qualification failed wherever ffprobe was installed.
+  const probe = ({command, program}) => {
+    asked.push(program);
+    return probeMediaProcessor({
+      command: process.execPath,
+      args: ['-e', 'process.stdout.write(' + JSON.stringify(printed[command]) + ')'],
+      program,
+    });
+  };
+  const record = await qualify({
+    root: r.root,
+    stages: [{name: 'ffmpeg_probe', internal: 'ffmpeg', blocking: true}, suiteStage],
+    record: false,
+    env: {AMCP_FFMPEG_PATH: 'synthetic-ffmpeg', AMCP_FFPROBE_PATH: 'synthetic-ffprobe'},
+    probe,
+  });
+  assert.equal(record.stages[0].status, 'passed', JSON.stringify(record.stages[0]));
+  assert.equal(record.stages[0].ffmpeg, ffmpegLine);
+  assert.equal(record.result, 'passed');
+  assert.ok(asked.includes('ffprobe') && asked.every(program => ['ffmpeg', 'ffprobe'].includes(program)), asked);
 });
 
 test('a skipped test fails qualification unless it is named in the allow-list, and unnamed skips always fail', async t => {
