@@ -3119,6 +3119,9 @@
       "path": "/v1.3/campaign/get/",
       "query": {
        "advertiser_id": "7000",
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       },
        "page": 1,
        "page_size": 1000
       },
@@ -3200,7 +3203,7 @@
       "path": "/v1.3/campaign/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "a00661f186b558ed7eff3dd2c8bb1f681c7fc19111c1a9a8a0659f4aa38e1d88",
+      "query_fingerprint": "931d1c8d1920b36b4abab96708af7b5f602f62218ca819b2062226f09f245aa4",
       "response_fingerprint": "4d3505d86f8981a9a0f01d2372e95eafb5bcbd3bb268fed3c89a2e1a1c8127c9",
       "captured_at": "<epoch-ms>"
      },
@@ -3215,7 +3218,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "8232b800c13e8335c3e1057ce6488ff9838ef07cf012969d7a267e3d7f50ad42",
+    "query_fingerprint": "6ec2cff20a354410b043c8367c6ad18f9f957fde911ae9853f69cc7e0a2ff536",
     "rows": [
      {
       "campaign_id": "11",
@@ -3412,6 +3415,9 @@
       "path": "/v1.3/campaign/get/",
       "query": {
        "advertiser_id": "7000",
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       },
        "page": 1,
        "page_size": 1000
       },
@@ -3493,12 +3499,12 @@
       "path": "/v1.3/campaign/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "a00661f186b558ed7eff3dd2c8bb1f681c7fc19111c1a9a8a0659f4aa38e1d88",
+      "query_fingerprint": "931d1c8d1920b36b4abab96708af7b5f602f62218ca819b2062226f09f245aa4",
       "response_fingerprint": "4d3505d86f8981a9a0f01d2372e95eafb5bcbd3bb268fed3c89a2e1a1c8127c9",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "21848cc68c39c7a23bd50185dd04675f0c0a98989bc0cc210cb818dd6bba9dcb",
+    "query_fingerprint": "60a77a0eeb46dd554ec77e59dd769e0fc746720953448188d4cd7aa304469daf",
     "rows": [
      {
       "campaign_id": "11",
@@ -3686,6 +3692,9 @@
       "path": "/v1.3/campaign/get/",
       "query": {
        "advertiser_id": "7000",
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       },
        "page": 1,
        "page_size": 1000
       },
@@ -3833,6 +3842,9 @@
       "path": "/v1.3/campaign/get/",
       "query": {
        "advertiser_id": "7000",
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       },
        "page": 1,
        "page_size": 1000
       },
@@ -3936,6 +3948,9 @@
       "path": "/v1.3/campaign/get/",
       "query": {
        "advertiser_id": "7000",
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       },
        "page": 1,
        "page_size": 1000
       },
@@ -4015,7 +4030,7 @@
       "path": "/v1.3/campaign/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "a00661f186b558ed7eff3dd2c8bb1f681c7fc19111c1a9a8a0659f4aa38e1d88",
+      "query_fingerprint": "931d1c8d1920b36b4abab96708af7b5f602f62218ca819b2062226f09f245aa4",
       "response_fingerprint": "4d3505d86f8981a9a0f01d2372e95eafb5bcbd3bb268fed3c89a2e1a1c8127c9",
       "captured_at": "<epoch-ms>"
      },
@@ -4030,7 +4045,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "58bc427b35b68616514947de092ce46e94e705014306af5030e94157a29bde9f",
+    "query_fingerprint": "d1fea90c819ae604c274222a8818396b6f1b8492b4b3987e4de92cbf82e026a8",
     "rows": [
      {
       "campaign_id": "11",
@@ -4173,7 +4188,7 @@
       "path": "/v1.3/campaign/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "a00661f186b558ed7eff3dd2c8bb1f681c7fc19111c1a9a8a0659f4aa38e1d88",
+      "query_fingerprint": "931d1c8d1920b36b4abab96708af7b5f602f62218ca819b2062226f09f245aa4",
       "response_fingerprint": "4d3505d86f8981a9a0f01d2372e95eafb5bcbd3bb268fed3c89a2e1a1c8127c9",
       "captured_at": "<epoch-ms>"
      },
@@ -4189,7 +4204,7 @@
       "cached": true
      }
     ],
-    "query_fingerprint": "6178552acbc3a1198814ed702965f342a6fec7ef65314be88ff14e4cc136a4eb",
+    "query_fingerprint": "5e58191c2d42b746c12471d2310b8a6f8254086ec0642bb81e79ad3dc030cb99",
     "rows": [
      {
       "campaign_id": "11",
@@ -9174,6 +9189,8 @@
       },
       "objective": "unknown",
       "objective_group": "unknown",
+      "objective_source": "unknown",
+      "objective_reason": "Microsoft Advertising reports have no objective field; choose one in the report.",
       "currency": "AED",
       "metrics": {
        "spend": 12.5,
@@ -9499,6 +9516,8 @@
       },
       "objective": "unknown",
       "objective_group": "unknown",
+      "objective_source": "unknown",
+      "objective_reason": "Microsoft Advertising reports have no objective field; choose one in the report.",
       "currency": "AED",
       "metrics": {
        "spend": 12.5,
@@ -11652,7 +11671,9 @@
        "adset_name": "Group 601"
       },
       "objective": "unknown",
-      "objective_group": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -11919,7 +11940,9 @@
        "campaign_name": "Campaign 501"
       },
       "objective": "unknown",
-      "objective_group": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -12126,7 +12149,9 @@
       "campaign_name": null,
       "parent_ids": {},
       "objective": "unknown",
-      "objective_group": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -12728,8 +12753,10 @@
        "adset_id": "22",
        "adset_name": "Group 22"
       },
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "CONVERSIONS",
+      "objective_group": "sales",
+      "objective_source": "provider",
+      "objective_reason": null,
       "currency": "USD",
       "metrics": {
        "spend": 1.234567,
@@ -12968,8 +12995,10 @@
        "campaign_id": "11",
        "campaign_name": "Campaign 11"
       },
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "CONVERSIONS",
+      "objective_group": "sales",
+      "objective_source": "provider",
+      "objective_reason": null,
       "currency": "USD",
       "metrics": {
        "spend": 1.234567,
@@ -13201,8 +13230,10 @@
        "adset_id": "22",
        "adset_name": null
       },
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "CONVERSIONS",
+      "objective_group": "sales",
+      "objective_source": "provider",
+      "objective_reason": null,
       "currency": "USD",
       "metrics": {
        "spend": 1.234567,
