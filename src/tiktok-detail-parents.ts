@@ -71,7 +71,7 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
     for (const row of await list(
       'campaign',
       [...new Set(children.map(row => String(row.campaign_id)))],
-      ['campaign_id', 'campaign_name'],
+      ['campaign_id', 'campaign_name', 'objective_type'],
     ))
       campaigns.set(String(row.campaign_id), row);
     for (const row of children) {
@@ -82,6 +82,9 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
       record(String(row[child + '_id']), {
         campaign_id: String(row.campaign_id),
         campaign_name: name(campaigns.get(String(row.campaign_id))?.campaign_name),
+        ...(typeof campaigns.get(String(row.campaign_id))?.objective_type === 'string'
+          ? {objective: campaigns.get(String(row.campaign_id))!.objective_type}
+          : {}),
         ...(child === 'ad' ? {adset_id: String(row.adgroup_id), adset_name: name(group?.adgroup_name)} : {}),
       });
     }

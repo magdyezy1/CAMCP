@@ -299,7 +299,9 @@ export function overviewGranularityFixture() {
     if (url.hostname === 'adsapi.snapchat.com') {
       const sem = {currency: 'USD', timezone: 'Asia/Riyadh', date_from: '2026-09-01', date_to: '2026-09-02'};
       const level = url.searchParams.get('breakdown');
-      return Response.json(
+      return parent(
+        'snapchat',
+        url,
         snapchatEvidenceResponse(
           url.href,
           level ? mutate([snapchatEvidenceEntity(level, undefined, sem)], 'snapchat') : undefined,

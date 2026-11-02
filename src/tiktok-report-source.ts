@@ -109,8 +109,16 @@ export const tiktokReportSource: ReportSource = {
       c.complete = false;
     }
     const inventory = reportList(
-      (await c.run(c.plan('/v1.3/campaign/get/', {advertiser_id: c.account, page: 1, page_size: 1000}))).data?.list ??
-        [],
+      (
+        await c.run(
+          c.plan('/v1.3/campaign/get/', {
+            advertiser_id: c.account,
+            filtering: {primary_status: 'STATUS_ALL'},
+            page: 1,
+            page_size: 1000,
+          }),
+        )
+      ).data?.list ?? [],
     );
     // RPT-04: TikTok's `conversion` follows each ad group's optimization event. One bounded ad group inventory read
     // per source and job (cached across periods, like the account lookup) names the events per campaign, so

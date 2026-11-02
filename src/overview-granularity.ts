@@ -2,6 +2,7 @@ import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {detailParents} from './overview-parents.js';
 import type {AccountLookupCache} from './report-source.js';
+import type {ObjectiveTable} from './report-objectives.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
@@ -30,6 +31,7 @@ export async function collectDetailedOverview(
   timezone: string | null,
   // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
   lookup: AccountLookupCache = {},
+  objectives?: ObjectiveTable,
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -101,7 +103,7 @@ export async function collectDetailedOverview(
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),
-    rows: detailedOverviewRows(source, captured, parents.parents),
+    rows: detailedOverviewRows(source, captured, parents.parents, objectives),
     metadata,
     account_name: metadata.name ?? metadata.displayName ?? null,
     currency,

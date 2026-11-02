@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import type {ObjectiveTable} from './report-objectives.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
@@ -141,6 +142,9 @@ export function redditDetail(
     parents[id] = {
       campaign_id: row.campaign_id,
       campaign_name: name(campaigns.get(row.campaign_id)?.name),
+      ...(typeof campaigns.get(row.campaign_id)?.objective === 'string'
+        ? {objective: campaigns.get(row.campaign_id)!.objective}
+        : {}),
       ...(level === 'ad' ? {adset_id: row.ad_group_id, adset_name: name(group?.name)} : {}),
     };
     out.push(
@@ -221,6 +225,7 @@ export function nativeDetailResult(
     warnings: string[];
     context: JsonObject;
     rounding: Record<string, number>;
+    objectives?: ObjectiveTable;
   },
 ) {
   const descriptor = overviewSourceLevel(source),
@@ -246,6 +251,7 @@ export function nativeDetailResult(
       source,
       {rows: detail.rows, native_rows: native, semantics: {currency: base.currency}},
       detail.parents,
+      base.objectives,
     ),
     metadata: base.metadata,
     account_name: base.metadata.name ?? base.metadata.displayName ?? null,

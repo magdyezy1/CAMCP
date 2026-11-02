@@ -1749,9 +1749,9 @@ export class ReportingOverview {
         const resolvedObjective = resolveObjective({
             platform: source.platform,
             table: reportSource(source.platform)?.objectives,
-            native: row.entity_level && row.entity_level !== 'campaign' ? undefined : row.objective,
+            native: row.objective,
             campaignId: row.campaign_id,
-            mappedInputs: row.native,
+            mappedInputs: row.native?.daily_rows?.[0] ?? row.native,
             overrides: source.objective_overrides,
             legacy: source.objective,
             fallback: source.objective_fallback,

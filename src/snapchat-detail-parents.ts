@@ -67,6 +67,9 @@ export const snapchatDetailParents: DetailParentReader = Object.freeze({
       record(String(ad.id), {
         campaign_id: String(campaign.id),
         campaign_name: name(campaign.name),
+        ...(typeof (campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective) === 'string'
+          ? {objective: campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective}
+          : {}),
         adset_id: String(squad.id),
         adset_name: name(squad.name),
       });

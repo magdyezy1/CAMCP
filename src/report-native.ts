@@ -317,7 +317,17 @@ export class NativeCampaignReports {
     };
     if (accountLookupPlatforms(p)) await lookupAccount(c, gateway, run);
     if (detail && !reports!.nativeDetail)
-      return collectDetailedOverview(this.service, source, range, actor, c.metadata, c.currency, c.timezone, lookup);
+      return collectDetailedOverview(
+        this.service,
+        source,
+        range,
+        actor,
+        c.metadata,
+        c.currency,
+        c.timezone,
+        lookup,
+        reports!.objectives,
+      );
     // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
     await reports!.collect(c);
     if (c.raw.length > 10000)
@@ -336,6 +346,7 @@ export class NativeCampaignReports {
         warnings: c.warnings,
         context: c.context,
         rounding: c.detailRounding,
+        objectives: reports!.objectives,
       });
     return campaignResult(p, platform!.kind, c);
   }

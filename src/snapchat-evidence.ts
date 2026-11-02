@@ -159,6 +159,7 @@ export async function collectSnapchatEvidence(
   };
   const checks: JsonObject[] = [],
     parentChecks: JsonObject[] = [];
+  let parentMetadata: JsonObject = {};
   const parentRows = (data: JsonObject, limit: number): JsonObject[] => {
     if (!Array.isArray(data.campaigns) || data.campaigns.length > limit)
       shape('Snapchat did not return a bounded parent campaign collection.');
@@ -214,6 +215,12 @@ export async function collectSnapchatEvidence(
     const rows = parentRows(data, 1);
     if (rows.length !== 1 || rows[0]!.id !== parentId || snapchatNextCursor(data, '/v1/campaigns/' + parentId, {}))
       bad('Snapchat did not confirm the exact parent campaign.', 'REPORT_ACCOUNT_MISMATCH');
+    const campaign = rows[0]!,
+      objective = campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective;
+    parentMetadata = {
+      ...(typeof campaign.name === 'string' && campaign.name.length <= 1000 ? {name: campaign.name} : {}),
+      ...(typeof objective === 'string' ? {objective} : {}),
+    };
     parentChecks.push(evidence);
   };
   const verifyAccount = async () => {
@@ -368,7 +375,9 @@ export async function collectSnapchatEvidence(
       currency: sem.currency,
       timezone: sem.timezone,
       checks,
-      ...(parentId ? {parent_campaign: {id: parentId, account_id: account, checks: parentChecks}} : {}),
+      ...(parentId
+        ? {parent_campaign: {id: parentId, account_id: account, ...parentMetadata, checks: parentChecks}}
+        : {}),
     },
     assertCurrent: current,
   };

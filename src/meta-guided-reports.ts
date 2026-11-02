@@ -144,6 +144,7 @@ export const metaGuidedReporting: GuidedReporting = {
             'account_currency',
             'campaign_id',
             'campaign_name',
+            'objective',
             ...(preset.level !== 'campaign' ? ['adset_id', 'adset_name'] : []),
             ...(preset.level === 'ad' ? ['ad_id', 'ad_name'] : []),
             'date_start',

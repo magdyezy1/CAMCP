@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {resolveObjective, type ObjectiveTable} from './report-objectives.js';
 import {fingerprint} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
 import {providerById} from './provider-adapters.js';
@@ -195,6 +196,7 @@ export function detailedOverviewRows(
   source: JsonObject,
   captured: JsonObject,
   nativeParents: Record<string, JsonObject> = {},
+  objectives?: ObjectiveTable,
 ) {
   const descriptor = overviewSourceLevel(source),
     groups = new Map<string, {mapped: JsonObject[]; raw: JsonObject[]; parents: JsonObject}>();
@@ -205,6 +207,14 @@ export function detailedOverviewRows(
     captured.rows.length > 10000
   )
     invalid('The detailed preset did not return aligned bounded native rows.', 'REPORT_SHAPE_CHANGED');
+  const scopedParent = captured.native_account_evidence?.parent_campaign;
+  if (
+    source.platform === 'snapchat' &&
+    source.campaign_id &&
+    scopedParent &&
+    (scopedParent.id !== source.campaign_id || scopedParent.account_id !== source.account_id)
+  )
+    invalid('The detailed entity changed native parents during collection.', 'REPORT_ACCOUNT_MISMATCH');
   for (let index = 0; index < captured.rows.length; index++) {
     const row = captured.rows[index],
       raw = captured.native_rows[index];
@@ -222,11 +232,16 @@ export function detailedOverviewRows(
           ? {
               campaign_id: raw.campaign_id,
               campaign_name: raw.campaign_name ?? null,
+              ...(typeof raw.objective === 'string' ? {objective: raw.objective} : {}),
               adset_id: raw.adset_id,
               adset_name: raw.adset_name ?? null,
             }
           : source.platform === 'snapchat' && source.campaign_id
-            ? {campaign_id: source.campaign_id}
+            ? {
+                campaign_id: source.campaign_id,
+                campaign_name: scopedParent?.name ?? null,
+                ...(typeof scopedParent?.objective === 'string' ? {objective: scopedParent.objective} : {}),
+              }
             : (nativeParents[row.entity_id] ?? {});
     const prior = groups.get(row.entity_id);
     if (prior && fingerprint(prior.parents) !== fingerprint(parents))
@@ -239,7 +254,18 @@ export function detailedOverviewRows(
   return [...groups].map(([id, group]) => {
     const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))])),
       // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
-      omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key)));
+      omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key))),
+      {objective: nativeObjective, ...parentIds} = group.parents,
+      resolved = resolveObjective({
+        platform: source.platform,
+        table: objectives,
+        native: nativeObjective,
+        campaignId: typeof group.parents.campaign_id === 'string' ? group.parents.campaign_id : undefined,
+        mappedInputs: group.raw[0],
+        overrides: source.objective_overrides,
+        legacy: source.objective,
+        fallback: source.objective_fallback,
+      });
     return {
       ...(omitted.length ? {omitted_as_zero: omitted} : {}),
       entity_id: id,
@@ -248,9 +274,11 @@ export function detailedOverviewRows(
       native_entity_type: descriptor.native_type,
       campaign_id: group.parents.campaign_id ?? null,
       campaign_name: group.parents.campaign_name ?? null,
-      parent_ids: group.parents,
-      objective: source.objective ?? 'unknown',
-      objective_group: source.objective ?? 'unknown',
+      parent_ids: parentIds,
+      objective: resolved.native ?? 'unknown',
+      objective_group: resolved.group,
+      objective_source: resolved.source,
+      objective_reason: resolved.reason,
       currency: captured.semantics.currency,
       metrics: {
         ...Object.fromEntries(additive.map(key => [key, sums[key]!.display])),
