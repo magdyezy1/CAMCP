@@ -51,6 +51,13 @@ const reportLabels = {
   sales: 'Sales',
   app_installs: 'App Installs',
   unknown: 'Unknown',
+  mixed: 'Mixed',
+  provider: 'From the platform',
+  provider_mapped: 'Mapped from campaign settings',
+  provider_inferred: 'Inferred from the platform’s value',
+  user_override: 'Your choice',
+  'user confirmed': 'Your choice',
+  user_fallback: 'Your fallback',
   observe: 'Observe',
   needs_review: 'Needs Review',
   needs_target: 'Needs Target',
@@ -68,6 +75,52 @@ const reportLabels = {
 function reportLabel(value) {
   return Object.hasOwn(reportLabels, value) ? uiText(reportLabels[value]) : pretty(value);
 }
+function reportObjectiveValue(config = {}) {
+  return config.objective && config.objective !== 'unknown'
+    ? 'saved:' + config.objective
+    : (config.objective_fallback ?? 'provider');
+}
+function reportObjectiveFields(platform, previous) {
+  const value = $('[data-objective-for="' + CSS.escape(platform) + '"]').value,
+    initial =
+      overviewState.config?.sources.find(source => source.platform === platform) ??
+      overviewState.config?.source_defaults?.[platform];
+  // An unchanged platform control keeps each account’s saved choices.
+  if (previous && value === reportObjectiveValue(initial))
+    return Object.fromEntries(
+      ['objective', 'objective_fallback'].filter(key => Object.hasOwn(previous, key)).map(key => [key, previous[key]]),
+    );
+  return value === 'provider'
+    ? {}
+    : value.startsWith('saved:')
+      ? {objective: value.slice(6)}
+      : {objective_fallback: value};
+}
+function reportObjectiveSelect(platform, config = {}, groups) {
+  const legacy = groups.includes(config.objective) ? config.objective : null,
+    value = reportObjectiveValue(config);
+  return html`<label>${uiText('Objective when the platform gives none')}<select data-objective-for="${platform}"><option value="provider">${uiText('No fallback (show unknown)')}</option>${legacy ? html`<option value="${'saved:' + legacy}" selected>${uiText('Saved: {objective} for every campaign', {objective: reportLabel(legacy)})}</option>` : ''}${groups.map(group => html`<option value="${group}" ${value === group ? 'selected' : ''}>${reportLabel(group)}</option>`)}</select></label>`;
+}
+function reportObjectiveSource(row) {
+  if (row.objective_source !== 'unknown') return row.objective_source ? reportLabel(row.objective_source) : '';
+  const reason = String(row.objective_reason ?? ''),
+    known = /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s.exec(reason),
+    unknown = /^(.+?) returned the objective (.+), which AMCP does not group yet; choose one in the report\.$/s.exec(
+      reason,
+    );
+  return known
+    ? uiText('{platform}’s {native} has no matching AMCP objective; choose one in the report.', {
+        platform: known[1],
+        native: known[2],
+      })
+    : unknown
+      ? uiText('{platform} returned the objective {native}, which AMCP does not group yet; choose one in the report.', {
+          platform: unknown[1],
+          native: unknown[2],
+        })
+      : uiText(reason);
+}
+
 /** Each objective card's default KPI; report-metrics.ts campaignRecommendation uses the same defaults. */
 const reportDefaultKpi = {
   awareness: 'cpm',
@@ -181,7 +234,7 @@ function renderReportTable(r, keys, b) {
     const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small><small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small>${row.objective_source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
   return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
 }
@@ -311,7 +364,10 @@ function overviewConfig() {
     b = overviewState.bootstrap,
     sources = [...document.querySelectorAll('[data-report-account]:checked')].map(el => {
       const [platform, connection_id, account_id] = JSON.parse(el.value),
-        objective = $('[data-objective-for="' + CSS.escape(platform) + '"]').value,
+        previous = overviewState.config?.sources.find(
+          source =>
+            source.platform === platform && source.connection_id === connection_id && source.account_id === account_id,
+        ),
         native_metrics = $('[data-native-for="' + CSS.escape(platform) + '"]')
           .value.split(/[ ,\n]+/)
           .filter(Boolean);
@@ -324,7 +380,8 @@ function overviewConfig() {
         platform,
         connection_id,
         account_id,
-        ...(objective !== 'provider' ? {objective} : {}),
+        ...reportObjectiveFields(platform, previous),
+        ...(previous?.objective_overrides !== undefined ? {objective_overrides: previous.objective_overrides} : {}),
         native_metrics,
         ...detail,
         ...(parent ? {campaign_id: parent} : {}),
@@ -381,14 +438,17 @@ function overviewConfig() {
   const source_defaults = Object.fromEntries(
     b.platforms
       .map(p => {
-        const objective = $('[data-objective-for="' + CSS.escape(p.id) + '"]').value,
-          native_metrics = $('[data-native-for="' + CSS.escape(p.id) + '"]')
-            .value.split(/[ ,\n]+/)
-            .filter(Boolean);
+        const native_metrics = $('[data-native-for="' + CSS.escape(p.id) + '"]')
+          .value.split(/[ ,\n]+/)
+          .filter(Boolean);
         return [
           p.id,
           {
-            ...(objective !== 'provider' ? {objective} : {}),
+            ...reportObjectiveFields(
+              p.id,
+              overviewState.config?.sources.find(source => source.platform === p.id) ??
+                overviewState.config?.source_defaults?.[p.id],
+            ),
             ...(native_metrics.length ? {native_metrics} : {}),
             ...overviewGranularityConfig(p.id),
           },
@@ -460,7 +520,7 @@ async function renderReportingOverview() {
           : p.accounts.length
             ? `<p class="muted">${esc(uiText('The working client has no {platform} account.', {platform: p.name}))}</p>`
             : `<p class="muted">${esc(uiText('Connect and select an account to include {platform}.', {platform: p.name}))}</p><a href="/connections" class="text-link">${esc(uiText('Manage connections'))}</a>`
-      }${overviewGranularityFields(p, config)}<label>${esc(uiText('Objective when the API doesn’t supply it'))}<select data-objective-for="${p.id}"><option value="provider">${esc(uiText('Use provider objective'))}</option>${objectives.map(o => `<option value="${o}" ${config?.objective === o ? 'selected' : ''}>${esc(reportLabel(o))}</option>`).join('')}</select></label><details class="native-settings"><summary>${esc(uiText('Additional native metrics'))}</summary><p>${esc(uiText('Request provider metric names. Availability and compatible combinations vary by account.'))}</p><textarea data-native-for="${p.id}" rows="2" aria-label="${esc(uiText('{platform} native metric names', {platform: p.name}))}" placeholder="${esc(p.native_metrics.slice(0, 3).join(', '))}">${esc(config?.native_metrics?.join(', ') ?? '')}</textarea><small>${esc(uiText('Examples:'))} ${esc(p.native_metrics.join(', ') || uiText('The endpoint returns its native columns automatically.'))}</small></details></div></details>`;
+      }${overviewGranularityFields(p, config)}${reportObjectiveSelect(p.id, config, b.objective_fallback_groups ?? objectives)}<details class="native-settings"><summary>${esc(uiText('Additional native metrics'))}</summary><p>${esc(uiText('Request provider metric names. Availability and compatible combinations vary by account.'))}</p><textarea data-native-for="${p.id}" rows="2" aria-label="${esc(uiText('{platform} native metric names', {platform: p.name}))}" placeholder="${esc(p.native_metrics.slice(0, 3).join(', '))}">${esc(config?.native_metrics?.join(', ') ?? '')}</textarea><small>${esc(uiText('Examples:'))} ${esc(p.native_metrics.join(', ') || uiText('The endpoint returns its native columns automatically.'))}</small></details></div></details>`;
     })
     .join(
       '',

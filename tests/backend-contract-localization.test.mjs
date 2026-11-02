@@ -313,7 +313,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   assert.equal(owned.size, 1594);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
-  assert.equal(Object.keys(catalog).length, 11574);
+  // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
+  assert.equal(Object.keys(catalog).length, 11583);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

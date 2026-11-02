@@ -11572,5 +11572,14 @@
   "Use up to 500 campaign objective overrides with valid campaign IDs and objectives: awareness, traffic, engagement, video_views, leads, sales, app_installs.": "استخدم حتى 500 تخصيص لهدف الحملة بمعرّفات حملات صالحة وأهداف من awareness, traffic, engagement, video_views, leads, sales, app_installs.",
   "Objective overrides for the same campaign must agree.": "يجب أن تتطابق تخصيصات الهدف للحملة نفسها.",
   "Objective overrides matched no campaign in this snapshot: {ids}.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids}.",
-  "Objective overrides matched no campaign in this snapshot: {ids} and {count} more.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids} و{count} أخرى."
+  "Objective overrides matched no campaign in this snapshot: {ids} and {count} more.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids} و{count} أخرى.",
+  "Objective when the platform gives none": "الهدف عند عدم توفير المنصة هدفًا",
+  "No fallback (show unknown)": "بلا هدف احتياطي (إظهار غير معروف)",
+  "Saved: {objective} for every campaign": "محفوظ: {objective} لكل الحملات",
+  "From the platform": "من المنصة",
+  "Mapped from campaign settings": "محدّد من إعدادات الحملة",
+  "Inferred from the platform’s value": "مستنتج من قيمة المنصة",
+  "Your choice": "اختيارك",
+  "Your fallback": "هدفك الاحتياطي",
+  "Mixed": "مختلط"
 }

@@ -213,7 +213,8 @@ test('Arabic report builder keeps client names, custom formulas, exact account I
       platform: 'google',
       connection_id: 'login-001',
       account_id: '001',
-      objective: 'sales',
+      // V2-RPT-02: a new select choice fills a missing platform objective; it does not override every campaign.
+      objective_fallback: 'sales',
       native_metrics: ['metrics.cost_micros', 'metrics.conversions'],
     },
   ]);
