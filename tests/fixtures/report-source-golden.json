@@ -1109,8 +1109,8 @@
       "output": {
         "campaign_id": "7",
         "campaign_name": "Apple",
-        "objective": "APP_INSTALLS",
-        "objective_group": "app_installs",
+        "objective": "unknown",
+        "objective_group": "unknown",
         "currency": "USD",
         "metrics": {
           "spend": 1.5,
@@ -1153,8 +1153,8 @@
       "output": {
         "campaign_id": "8",
         "campaign_name": "8",
-        "objective": "APP_INSTALLS",
-        "objective_group": "app_installs",
+        "objective": "unknown",
+        "objective_group": "unknown",
         "currency": null,
         "metrics": {
           "spend": null,

@@ -85,7 +85,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, metrics.all_conversions, metrics.misspelled_field FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, metrics.all_conversions, metrics.misspelled_field FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -127,12 +127,12 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "origin": null,
       "api_version": "v25",
-      "query_fingerprint": "47a05268f0376b1d80e81df38991812062be8e3d91068468ac16cf9896ae22b1",
+      "query_fingerprint": "d01243f7a29ae777ad3a7761d437a8ce2dca3e7f0da516d0c1f54fe6a0a50c7d",
       "response_fingerprint": "031869c80246fa6158dd10e9a3dcc17e6797d6940ce79503ae7670ef242b232a",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "689cd60317d9504297685165686a3e1dc71d5b15682f602025763e65067072bb",
+    "query_fingerprint": "f4de819a80d8c1580fca0a9e687a8fcedbbab807ec11243deea95619d9741da2",
     "rows": [
      {
       "campaign_id": "77",
@@ -268,7 +268,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, segments.date FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, segments.date FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -311,12 +311,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [
       {
        "campaign_id": "77",
@@ -408,12 +408,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [],
      "account_name": null,
      "date_range": {
@@ -460,12 +460,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [
       {
        "campaign_id": "77",
@@ -557,12 +557,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [],
      "account_name": null,
      "date_range": {
@@ -609,12 +609,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [],
      "account_name": null,
      "date_range": {
@@ -661,12 +661,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [],
      "account_name": null,
      "date_range": {
@@ -713,12 +713,12 @@
        "path": "/v25/customers/1234567890/googleAds:search",
        "origin": null,
        "api_version": "v25",
-       "query_fingerprint": "ef48ac3265bc0fccb6ee3abcf1aa6cf961ec73a3c35f32ccf1ae6f3d9abc9c2e",
+       "query_fingerprint": "9cca85ed74ff6b3f14ea00c5a3b3d3a4357ed1a1ff42fa70266cafdc75a60d83",
        "response_fingerprint": "d6eb320b31ae260c0fb5d7da289bbffbc88af81f20b6855b667f9d97122d4d69",
        "captured_at": "<epoch-ms>"
       }
      ],
-     "query_fingerprint": "34edc0fb6a9375cd13f54d71f7d20213f9135cfa37349040afb54ea3611fceaa",
+     "query_fingerprint": "f560f0361fa1af41551d5cf6ad148a6a4289bacb26d415330c7effff5b9ecf6e",
      "rows": [
       {
        "campaign_id": "78",
@@ -824,7 +824,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, segments.date FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value, segments.date FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -891,7 +891,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -959,7 +959,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1033,7 +1033,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1101,7 +1101,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1163,7 +1163,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1225,7 +1225,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1250,7 +1250,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-08' AND '2026-08-14'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-08' AND '2026-08-14'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1316,12 +1316,12 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "origin": null,
       "api_version": "v25",
-      "query_fingerprint": "0aa29954a4cc08ed7951c8d172e2a4ab535487fe3769845f8ade91f7107a97de",
+      "query_fingerprint": "b2502d6fdce900adf6dd478b94fab2538d7d6b75010f76898ec2e513bf139dab",
       "response_fingerprint": "1fd85e9066a17d9d26c33f5efe30a3f597f14fdb919b19de3ea75b10ed6ea535",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "c0777f386edb59c48bc4831f1d1c4e907867be717b5ed59d656ae4146a40c41a",
+    "query_fingerprint": "4aff1fe7000db86a3f85491ab5c1cf7945ce6682a20c9490b4016a84493cf3d5",
     "rows": [
      {
       "campaign_id": "77",
@@ -1410,12 +1410,12 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "origin": null,
       "api_version": "v25",
-      "query_fingerprint": "a78620c537e89b585432dfd33ebe112fec648c16a20b12972ff97106104be4fc",
+      "query_fingerprint": "ea133c93708971bb10871f8ebe24f40b575c558cd00eeeb5901f6f6a001db8e4",
       "response_fingerprint": "1fd85e9066a17d9d26c33f5efe30a3f597f14fdb919b19de3ea75b10ed6ea535",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "9c0fbc9388b2b8cb9f5d421e25283aae6676fe5ff74bad876a55c681973662e2",
+    "query_fingerprint": "2b5f18924b9b57255900c9d3a575cde2c3dbcfba359dba1307c49952b77c8359",
     "rows": [
      {
       "campaign_id": "77",
@@ -1549,7 +1549,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-01' AND '2026-08-07'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1574,7 +1574,7 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "query": {},
       "body": {
-       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-08' AND '2026-08-14'"
+       "query": "SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, campaign.bidding_strategy_type, customer.currency_code, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '2026-08-08' AND '2026-08-14'"
       },
       "origin": "$undefined",
       "headers": {},
@@ -1640,12 +1640,12 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "origin": null,
       "api_version": "v25",
-      "query_fingerprint": "0aa29954a4cc08ed7951c8d172e2a4ab535487fe3769845f8ade91f7107a97de",
+      "query_fingerprint": "b2502d6fdce900adf6dd478b94fab2538d7d6b75010f76898ec2e513bf139dab",
       "response_fingerprint": "1fd85e9066a17d9d26c33f5efe30a3f597f14fdb919b19de3ea75b10ed6ea535",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "c0777f386edb59c48bc4831f1d1c4e907867be717b5ed59d656ae4146a40c41a",
+    "query_fingerprint": "4aff1fe7000db86a3f85491ab5c1cf7945ce6682a20c9490b4016a84493cf3d5",
     "rows": [
      {
       "campaign_id": "77",
@@ -1734,12 +1734,12 @@
       "path": "/v25/customers/1234567890/googleAds:search",
       "origin": null,
       "api_version": "v25",
-      "query_fingerprint": "a78620c537e89b585432dfd33ebe112fec648c16a20b12972ff97106104be4fc",
+      "query_fingerprint": "ea133c93708971bb10871f8ebe24f40b575c558cd00eeeb5901f6f6a001db8e4",
       "response_fingerprint": "1fd85e9066a17d9d26c33f5efe30a3f597f14fdb919b19de3ea75b10ed6ea535",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "9c0fbc9388b2b8cb9f5d421e25283aae6676fe5ff74bad876a55c681973662e2",
+    "query_fingerprint": "2b5f18924b9b57255900c9d3a575cde2c3dbcfba359dba1307c49952b77c8359",
     "rows": [
      {
       "campaign_id": "77",
@@ -11314,8 +11314,8 @@
      {
       "campaign_id": "7",
       "campaign_name": "Apple 7",
-      "objective": "APP_INSTALLS",
-      "objective_group": "app_installs",
+      "objective": "unknown",
+      "objective_group": "unknown",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -11347,8 +11347,8 @@
      {
       "campaign_id": "8",
       "campaign_name": "Apple 8",
-      "objective": "APP_INSTALLS",
-      "objective_group": "app_installs",
+      "objective": "unknown",
+      "objective_group": "unknown",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
