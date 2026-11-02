@@ -79,6 +79,7 @@ export class ReportLibrary {
                   {
                     ...input.config?.source_defaults?.[s.platform],
                     ...(s.objective ? {objective: s.objective} : {}),
+                    ...(s.objective_fallback !== undefined ? {objective_fallback: s.objective_fallback} : {}),
                     ...(s.native_metrics ? {native_metrics: s.native_metrics} : {}),
                     ...(s.level ? {level: s.level} : {}),
                     ...(s.report_options ? {report_options: s.report_options} : {}),

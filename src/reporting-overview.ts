@@ -44,7 +44,12 @@ import {sha256} from './security.js';
 import {optionalClientView} from './client-scope.js';
 import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
-import {resolveObjective} from './report-objectives.js';
+import {
+  resolveObjective,
+  validateObjectiveFields,
+  unusedObjectiveOverrides,
+  objectiveFallbackGroups,
+} from './report-objectives.js';
 import {reportSource} from './report-sources.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
@@ -348,6 +353,7 @@ export class ReportingOverview {
       seen.add(key);
       if (s.objective !== undefined && !objectiveGroups.includes(s.objective))
         throw new MirrorError('INVALID_OBJECTIVE', 'Choose a supported objective.');
+      validateObjectiveFields(s);
       if (
         s.native_metrics !== undefined &&
         (!Array.isArray(s.native_metrics) ||
@@ -371,12 +377,14 @@ export class ReportingOverview {
       Object.keys(defaults).some(p => !reportPlatforms[p])
     )
       throw new MirrorError('INVALID_REPORT_SOURCE', 'Template defaults must name supported reporting platforms.');
-    for (const d of Object.values(defaults) as JsonObject[])
+    for (const d of Object.values(defaults) as JsonObject[]) {
       if (
         !d ||
         typeof d !== 'object' ||
         Array.isArray(d) ||
-        Object.keys(d).some(k => !['objective', 'native_metrics', 'level', 'report_options'].includes(k)) ||
+        Object.keys(d).some(
+          k => !['objective', 'objective_fallback', 'native_metrics', 'level', 'report_options'].includes(k),
+        ) ||
         (d.objective !== undefined && !objectiveGroups.includes(d.objective)) ||
         (d.native_metrics !== undefined &&
           (!Array.isArray(d.native_metrics) ||
@@ -389,6 +397,8 @@ export class ReportingOverview {
           'INVALID_REPORT_SOURCE',
           'Use objective and native metric names for template defaults, without account identities.',
         );
+      validateObjectiveFields(d);
+    }
     for (const [platform, defaults] of Object.entries(input.source_defaults ?? {}))
       overviewSourceLevel({platform, ...(defaults as JsonObject)}, true);
     reportRange(resolveReportConfig({date_range: input.date_range}).date_range);
@@ -628,6 +638,7 @@ export class ReportingOverview {
         metrics: metricDefinitions,
         metric_sources: metricSources,
         objectives: objectiveGroups,
+        objective_fallback_groups: objectiveFallbackGroups,
         views: ownerRecords.views.map(publicRecord),
         templates: store.documents(tenant, 'overview_template').filter(reachable).map(publicRecord),
         schedules: ownerRecords.schedules.map(publicRecord),
@@ -1783,6 +1794,11 @@ export class ReportingOverview {
         if (r.config.objectives.length && !r.config.objectives.includes(objective)) continue;
         rows.push({...record, recommendation: campaignRecommendation(record, r.config.targets)});
       }
+    }
+    for (const result of results) {
+      if (result.error) continue;
+      const warning = unusedObjectiveOverrides(result.source, result.rows);
+      if (warning) result.warnings.push(warning);
     }
     // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
     if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);

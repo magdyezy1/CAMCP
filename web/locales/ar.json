@@ -11567,5 +11567,10 @@
   "Microsoft Advertising reports have no objective field; choose one in the report.": "لا تتضمن تقارير Microsoft Advertising حقلًا للهدف؛ اختر هدفًا في التقرير.",
   "X returned no shared campaign objective from its line items; choose one in the report.": "لم تُعد X هدفًا مشتركًا للحملة من بنودها الإعلانية؛ اختر هدفًا في التقرير.",
   "GA4 has no campaign objective.": "ليس لدى GA4 هدف حملة.",
-  "Search Console has no campaign objective.": "ليس لدى Search Console هدف حملة."
+  "Search Console has no campaign objective.": "ليس لدى Search Console هدف حملة.",
+  "Choose an objective fallback from awareness, traffic, engagement, video_views, leads, sales, app_installs.": "اختر هدفًا احتياطيًا من awareness, traffic, engagement, video_views, leads, sales, app_installs.",
+  "Use up to 500 campaign objective overrides with valid campaign IDs and objectives: awareness, traffic, engagement, video_views, leads, sales, app_installs.": "استخدم حتى 500 تخصيص لهدف الحملة بمعرّفات حملات صالحة وأهداف من awareness, traffic, engagement, video_views, leads, sales, app_installs.",
+  "Objective overrides for the same campaign must agree.": "يجب أن تتطابق تخصيصات الهدف للحملة نفسها.",
+  "Objective overrides matched no campaign in this snapshot: {ids}.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids}.",
+  "Objective overrides matched no campaign in this snapshot: {ids} and {count} more.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids} و{count} أخرى."
 }

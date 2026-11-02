@@ -223,6 +223,18 @@ const reportSourceWarnings = new Set([
 // another language fills the same exact value into its translated template.
 const reportSourceWarningTemplates = [
   [
+    /^Objective overrides matched no campaign in this snapshot: (.{1,2100}) and (\d+) more\.$/,
+    m =>
+      uiText('Objective overrides matched no campaign in this snapshot: {ids} and {count} more.', {
+        ids: m[1],
+        count: m[2],
+      }),
+  ],
+  [
+    /^Objective overrides matched no campaign in this snapshot: (.{1,2100})\.$/,
+    m => uiText('Objective overrides matched no campaign in this snapshot: {ids}.', {ids: m[1]}),
+  ],
+  [
     /^TikTok’s totals differ from the rows returned: (.{1,1000})\.$/,
     m =>
       uiText('TikTok’s totals differ from the rows returned: {gaps}.', {

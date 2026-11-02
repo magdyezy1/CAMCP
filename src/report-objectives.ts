@@ -1,4 +1,5 @@
 import {objectiveGroup, objectiveGroups} from './report-metrics.js';
+import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 
 export type ObjectiveSource =
@@ -43,8 +44,9 @@ export function resolveObjective(input: {
   });
   const choice = (value: unknown): value is string =>
     typeof value === 'string' && objectiveFallbackGroups.includes(value);
-  if (input.campaignId && input.overrides && Object.hasOwn(input.overrides, input.campaignId)) {
-    const group = input.overrides[input.campaignId];
+  const campaignId = input.campaignId ? objectiveCampaignId(input.campaignId) : undefined;
+  if (campaignId && input.overrides && Object.hasOwn(input.overrides, campaignId)) {
+    const group = input.overrides[campaignId];
     if (choice(group)) return resolved(group, 'user_override', 'Chosen for this campaign in the report.');
   }
   if (choice(input.legacy))
@@ -75,4 +77,56 @@ export function resolveObjective(input: {
       .replace('{platform}', () => table.name)
       .replace('{native}', () => native);
   return resolved('unknown', 'unknown', reason);
+}
+
+/** Compare override keys without rewriting the native campaign identity stored on a report row. */
+export const objectiveCampaignId = (id: string): string =>
+  id.replace(/^urn:li:sponsoredCampaign(?:Group)?:([0-9]+)$/, '$1');
+
+/** Validate and canonicalize only the new definition fields; a saved legacy choice remains untouched. */
+export function validateObjectiveFields(source: JsonObject): void {
+  if (source.objective_fallback !== undefined && !objectiveFallbackGroups.includes(source.objective_fallback))
+    throw new MirrorError(
+      'INVALID_REPORT',
+      'Choose an objective fallback from awareness, traffic, engagement, video_views, leads, sales, app_installs.',
+    );
+  if (source.objective_overrides === undefined) return;
+  const overrides = source.objective_overrides;
+  if (
+    !overrides ||
+    typeof overrides !== 'object' ||
+    Array.isArray(overrides) ||
+    ![Object.prototype, null].includes(Object.getPrototypeOf(overrides)) ||
+    Object.keys(overrides).length > 500 ||
+    Object.entries(overrides).some(
+      ([id, group]) =>
+        !/^[A-Za-z0-9_.:-]{1,200}$/.test(id) || typeof group !== 'string' || !objectiveFallbackGroups.includes(group),
+    )
+  )
+    throw new MirrorError(
+      'INVALID_REPORT',
+      'Use up to 500 campaign objective overrides with valid campaign IDs and objectives: awareness, traffic, engagement, video_views, leads, sales, app_installs.',
+    );
+  const canonical = new Map<string, string>();
+  for (const [id, value] of Object.entries(overrides) as [string, string][]) {
+    const key = objectiveCampaignId(id);
+    if (canonical.has(key) && canonical.get(key) !== value)
+      throw new MirrorError('INVALID_REPORT', 'Objective overrides for the same campaign must agree.');
+    canonical.set(key, value);
+  }
+  source.objective_overrides = Object.fromEntries(canonical);
+}
+
+/** Native rows count as a match even when an objective display filter later hides them. */
+export function unusedObjectiveOverrides(source: JsonObject, rows: JsonObject[]): string | undefined {
+  const present = new Set(
+    rows.filter(row => typeof row.campaign_id === 'string').map(row => objectiveCampaignId(row.campaign_id)),
+  );
+  const ids = Object.keys(source.objective_overrides ?? {}).filter(id => !present.has(id));
+  if (!ids.length) return;
+  return (
+    'Objective overrides matched no campaign in this snapshot: ' +
+    ids.slice(0, 10).join(', ') +
+    (ids.length > 10 ? ' and ' + (ids.length - 10) + ' more.' : '.')
+  );
 }
