@@ -902,7 +902,8 @@
           "spend": 10.5,
           "impressions": 100,
           "clicks": 2,
-          "conversions": 1,
+          "conversions": 2,
+          "reach": null,
           "conversion_value": 3,
           "leads": 2,
           "video_views": 1,
@@ -917,6 +918,7 @@
           "native_linkedin_videoCompletions": 0,
           "native_linkedin_likes": 4
         },
+        "result_definition": "LinkedIn leads (one-click)",
         "native": {
           "pivotValues": [
             "urn:li:sponsoredCampaign:123"
@@ -953,6 +955,7 @@
           "impressions": null,
           "clicks": null,
           "conversions": null,
+          "reach": null,
           "conversion_value": null,
           "leads": null,
           "video_views": null,

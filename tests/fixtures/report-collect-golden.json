@@ -5011,7 +5011,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,videoViews"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5044,7 +5044,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,videoViews,landingPageClicks,oneClickLeads,talentLeads"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5161,8 +5161,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "4b36a8d962d8d9e8de54eb0b8b97b0869fcd6a9c0113fd4b44d6ebf302d30aaf",
-      "response_fingerprint": "4dc29f0d99b40c9d5fec1a2212f4f662fd70f76cd32b30072ff29f812ad1f83a",
+      "query_fingerprint": "53f1d34ec3ed297f8f68b8c4aaf648c02203e746a761bdeeddf1bd73df94540f",
+      "response_fingerprint": "365cf87495206c65ede6ef672b22183d13057e905ad80a26906326c5f04986f0",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -5171,8 +5171,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "2c3eca0ac70e0b59098638a0e22c09e0c6d2ac3f78a7e7793d4fd793fd75eb0f",
-      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "query_fingerprint": "6ee440e3cdccbb6228f902222f2fe6da9dadeab06cdfdab5e93c29384984ec44",
+      "response_fingerprint": "ab90bc23bc4b96680b7ee07ae56ef6f0f1fbd4b77d1e70d940fa3aac7e54a1b6",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -5196,7 +5196,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "5bb067cc5191ecca9c73e0e926841e44049ac9b3b6797fe04bedab2b7cf5e66f",
+    "query_fingerprint": "fd78706c12d58f5c073341bc3e1d3c9dbcd80e3687effd8aaf7273015240a39c",
     "rows": [
      {
       "campaign_id": "1",
@@ -5208,16 +5208,25 @@
        "spend": 10.5,
        "impressions": 100,
        "clicks": 2,
-       "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "conversions": 2,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
+      "result_definition": "LinkedIn leads (one-click)",
       "native": {
        "pivotValues": [
         "urn:li:sponsoredCampaignGroup:1"
@@ -5238,6 +5247,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "LinkedIn 1",
        "objectiveType": "LEAD_GENERATION"
       }
@@ -5253,14 +5269,22 @@
        "impressions": 100,
        "clicks": 2,
        "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
       "native": {
        "pivotValues": [
@@ -5282,6 +5306,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "$undefined",
        "objectiveType": null
       }
@@ -5301,11 +5332,36 @@
     "timezone": "UTC",
     "complete": true,
     "collection_complete": true,
+    "metric_mapping": {
+     "entity_id": "/pivotValues/0",
+     "spend": "/costInLocalCurrency",
+     "impressions": "/impressions",
+     "clicks": "/clicks",
+     "conversions": {
+      "by_objective": {
+       "BRAND_AWARENESS": null,
+       "WEBSITE_VISIT": "/landingPageClicks",
+       "WEBSITE_VISITS": "/landingPageClicks",
+       "ENGAGEMENT": "/clicks",
+       "VIDEO_VIEW": "/videoViews",
+       "VIDEO_VIEWS": "/videoViews",
+       "LEAD_GENERATION": "/oneClickLeads",
+       "WEBSITE_CONVERSION": "/externalWebsiteConversions",
+       "WEBSITE_CONVERSIONS": "/externalWebsiteConversions",
+       "JOB_APPLICANT": "/landingPageClicks",
+       "JOB_APPLICANTS": "/landingPageClicks",
+       "TALENT_LEAD": "/talentLeads",
+       "unknown": "/externalWebsiteConversions",
+       "MIXED": null
+      }
+     },
+     "conversion_value": "/conversionValueInLocalCurrency",
+     "reach": "/approximateMemberReach"
+    },
     "attribution": "unknown",
     "result_definition": "Attributed external website conversions",
     "warnings": [
-     "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.",
-     "Requested native metric videoViews was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider."
+     "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time."
     ],
     "source_kind": "paid",
     "captured_at": "<epoch-ms>"
@@ -5351,7 +5407,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5384,7 +5440,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5501,8 +5557,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "e2686fbc6582afb3026a7b07ad1cf27a23093a6017f88abeb0792545e9bbc906",
-      "response_fingerprint": "4dc29f0d99b40c9d5fec1a2212f4f662fd70f76cd32b30072ff29f812ad1f83a",
+      "query_fingerprint": "53f1d34ec3ed297f8f68b8c4aaf648c02203e746a761bdeeddf1bd73df94540f",
+      "response_fingerprint": "365cf87495206c65ede6ef672b22183d13057e905ad80a26906326c5f04986f0",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -5511,8 +5567,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "5e2819b99c30aac6a026de83a316864e956698d78ce61bb46b06787807086bc2",
-      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "query_fingerprint": "6ee440e3cdccbb6228f902222f2fe6da9dadeab06cdfdab5e93c29384984ec44",
+      "response_fingerprint": "ab90bc23bc4b96680b7ee07ae56ef6f0f1fbd4b77d1e70d940fa3aac7e54a1b6",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -5526,7 +5582,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "51f126fc5472c7a4890a751b2dac84b1f4c5a9cfddc14ed012b42e4b905c09a6",
+    "query_fingerprint": "d3aa62013e4a3f4bcfd2e4501ed76051a8ae5bf2a01e668907095c9e3ae93305",
     "rows": [
      {
       "campaign_id": "1",
@@ -5538,16 +5594,25 @@
        "spend": 10.5,
        "impressions": 100,
        "clicks": 2,
-       "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "conversions": 2,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
+      "result_definition": "LinkedIn leads (one-click)",
       "native": {
        "pivotValues": [
         "urn:li:sponsoredCampaignGroup:1"
@@ -5568,6 +5633,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "$undefined",
        "objectiveType": "LEAD_GENERATION"
       }
@@ -5583,14 +5655,22 @@
        "impressions": 100,
        "clicks": 2,
        "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
       "native": {
        "pivotValues": [
@@ -5612,6 +5692,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "$undefined",
        "objectiveType": null
       }
@@ -5631,6 +5718,32 @@
     "timezone": "UTC",
     "complete": true,
     "collection_complete": true,
+    "metric_mapping": {
+     "entity_id": "/pivotValues/0",
+     "spend": "/costInLocalCurrency",
+     "impressions": "/impressions",
+     "clicks": "/clicks",
+     "conversions": {
+      "by_objective": {
+       "BRAND_AWARENESS": null,
+       "WEBSITE_VISIT": "/landingPageClicks",
+       "WEBSITE_VISITS": "/landingPageClicks",
+       "ENGAGEMENT": "/clicks",
+       "VIDEO_VIEW": "/videoViews",
+       "VIDEO_VIEWS": "/videoViews",
+       "LEAD_GENERATION": "/oneClickLeads",
+       "WEBSITE_CONVERSION": "/externalWebsiteConversions",
+       "WEBSITE_CONVERSIONS": "/externalWebsiteConversions",
+       "JOB_APPLICANT": "/landingPageClicks",
+       "JOB_APPLICANTS": "/landingPageClicks",
+       "TALENT_LEAD": "/talentLeads",
+       "unknown": "/externalWebsiteConversions",
+       "MIXED": null
+      }
+     },
+     "conversion_value": "/conversionValueInLocalCurrency",
+     "reach": "/approximateMemberReach"
+    },
     "attribution": "unknown",
     "result_definition": "Attributed external website conversions",
     "warnings": [
@@ -5681,7 +5794,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5714,7 +5827,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5966,7 +6079,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5999,7 +6112,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -6103,7 +6216,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:8),end:(year:2026,month:8,day:14))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -6136,7 +6249,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:8),end:(year:2026,month:8,day:14))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -6206,8 +6319,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "e2686fbc6582afb3026a7b07ad1cf27a23093a6017f88abeb0792545e9bbc906",
-      "response_fingerprint": "4dc29f0d99b40c9d5fec1a2212f4f662fd70f76cd32b30072ff29f812ad1f83a",
+      "query_fingerprint": "53f1d34ec3ed297f8f68b8c4aaf648c02203e746a761bdeeddf1bd73df94540f",
+      "response_fingerprint": "365cf87495206c65ede6ef672b22183d13057e905ad80a26906326c5f04986f0",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -6216,8 +6329,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "5e2819b99c30aac6a026de83a316864e956698d78ce61bb46b06787807086bc2",
-      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "query_fingerprint": "6ee440e3cdccbb6228f902222f2fe6da9dadeab06cdfdab5e93c29384984ec44",
+      "response_fingerprint": "ab90bc23bc4b96680b7ee07ae56ef6f0f1fbd4b77d1e70d940fa3aac7e54a1b6",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -6241,7 +6354,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "636879904a174c808dd48acbd1be944842d21c3ea0f8e74f74d41e7370cf41b1",
+    "query_fingerprint": "fd78706c12d58f5c073341bc3e1d3c9dbcd80e3687effd8aaf7273015240a39c",
     "rows": [
      {
       "campaign_id": "1",
@@ -6253,16 +6366,25 @@
        "spend": 10.5,
        "impressions": 100,
        "clicks": 2,
-       "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "conversions": 2,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
+      "result_definition": "LinkedIn leads (one-click)",
       "native": {
        "pivotValues": [
         "urn:li:sponsoredCampaignGroup:1"
@@ -6283,6 +6405,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "LinkedIn 1",
        "objectiveType": "LEAD_GENERATION"
       }
@@ -6298,14 +6427,22 @@
        "impressions": 100,
        "clicks": 2,
        "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
       "native": {
        "pivotValues": [
@@ -6327,6 +6464,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "$undefined",
        "objectiveType": null
       }
@@ -6346,6 +6490,32 @@
     "timezone": "UTC",
     "complete": true,
     "collection_complete": true,
+    "metric_mapping": {
+     "entity_id": "/pivotValues/0",
+     "spend": "/costInLocalCurrency",
+     "impressions": "/impressions",
+     "clicks": "/clicks",
+     "conversions": {
+      "by_objective": {
+       "BRAND_AWARENESS": null,
+       "WEBSITE_VISIT": "/landingPageClicks",
+       "WEBSITE_VISITS": "/landingPageClicks",
+       "ENGAGEMENT": "/clicks",
+       "VIDEO_VIEW": "/videoViews",
+       "VIDEO_VIEWS": "/videoViews",
+       "LEAD_GENERATION": "/oneClickLeads",
+       "WEBSITE_CONVERSION": "/externalWebsiteConversions",
+       "WEBSITE_CONVERSIONS": "/externalWebsiteConversions",
+       "JOB_APPLICANT": "/landingPageClicks",
+       "JOB_APPLICANTS": "/landingPageClicks",
+       "TALENT_LEAD": "/talentLeads",
+       "unknown": "/externalWebsiteConversions",
+       "MIXED": null
+      }
+     },
+     "conversion_value": "/conversionValueInLocalCurrency",
+     "reach": "/approximateMemberReach"
+    },
     "attribution": "unknown",
     "result_definition": "Attributed external website conversions",
     "warnings": [
@@ -6379,8 +6549,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "af5ef5c52dfbd1cf37751ae4e80681be6ac91ddb4a192e7244eb853c7c80fee0",
-      "response_fingerprint": "96b1f2c870bd007c01fff98277e01cfa4511dc37330d472f82c8d9edf0bdd1fb",
+      "query_fingerprint": "62b4a2e326187322e36cbf7f91a8134dca98353d1f867a876e14d848b0ba83cd",
+      "response_fingerprint": "c301380d3a367dd156f5830bb68e3be9a84f96e9679f5d65d266f2d1a834cfc2",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -6389,8 +6559,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "09d85ba5d619b4278a2ff9b1d2c7570a16e66e0a1309d9c1f42b792dbfe39e1f",
-      "response_fingerprint": "a95db932029c787ebec736ed8ee9315a79b3ee897b1abab565c69c9823984b83",
+      "query_fingerprint": "9974e2efb4f8df08b3cfb4b118a203d78046aa611473f77cfe851d2d0ab5c75e",
+      "response_fingerprint": "f4a6aaa1a6dde977504604463468a54f8db44169c9778567f1ceba0d0c81f2dc",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -6416,7 +6586,7 @@
       "cached": true
      }
     ],
-    "query_fingerprint": "2b23e6ed99c80e9977ee2e9ef3fe66ebc3115cbe8c1a52f46295b6b38d4c6577",
+    "query_fingerprint": "0fde274746a11d1db31adee73256d9d83773c289ad1f7a4ae7f384fd9f256549",
     "rows": [
      {
       "campaign_id": "1",
@@ -6428,16 +6598,25 @@
        "spend": 10.5,
        "impressions": 100,
        "clicks": 2,
-       "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "conversions": 2,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
+      "result_definition": "LinkedIn leads (one-click)",
       "native": {
        "pivotValues": [
         "urn:li:sponsoredCampaignGroup:1"
@@ -6458,6 +6637,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "LinkedIn 1",
        "objectiveType": "LEAD_GENERATION"
       }
@@ -6473,14 +6659,22 @@
        "impressions": 100,
        "clicks": 2,
        "conversions": 1,
-       "conversion_value": null,
-       "leads": null,
-       "video_views": null,
+       "reach": 40,
+       "conversion_value": 8,
+       "leads": 2,
+       "video_views": 3,
        "video_completions": null,
        "native_linkedin_impressions": 100,
        "native_linkedin_clicks": 2,
        "native_linkedin_costInLocalCurrency": 10.5,
-       "native_linkedin_externalWebsiteConversions": 1
+       "native_linkedin_externalWebsiteConversions": 1,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "native_linkedin_landingPageClicks": 4,
+       "native_linkedin_videoViews": 3,
+       "native_linkedin_talentLeads": 1,
+       "native_linkedin_conversionValueInLocalCurrency": 8,
+       "native_linkedin_approximateMemberReach": 40
       },
       "native": {
        "pivotValues": [
@@ -6502,6 +6696,13 @@
        "clicks": 2,
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
+       "oneClickLeads": "2",
+       "qualifiedLeads": "1",
+       "landingPageClicks": "4",
+       "videoViews": "3",
+       "talentLeads": "1",
+       "conversionValueInLocalCurrency": "8",
+       "approximateMemberReach": "40",
        "name": "$undefined",
        "objectiveType": null
       }
@@ -6521,6 +6722,32 @@
     "timezone": "UTC",
     "complete": true,
     "collection_complete": true,
+    "metric_mapping": {
+     "entity_id": "/pivotValues/0",
+     "spend": "/costInLocalCurrency",
+     "impressions": "/impressions",
+     "clicks": "/clicks",
+     "conversions": {
+      "by_objective": {
+       "BRAND_AWARENESS": null,
+       "WEBSITE_VISIT": "/landingPageClicks",
+       "WEBSITE_VISITS": "/landingPageClicks",
+       "ENGAGEMENT": "/clicks",
+       "VIDEO_VIEW": "/videoViews",
+       "VIDEO_VIEWS": "/videoViews",
+       "LEAD_GENERATION": "/oneClickLeads",
+       "WEBSITE_CONVERSION": "/externalWebsiteConversions",
+       "WEBSITE_CONVERSIONS": "/externalWebsiteConversions",
+       "JOB_APPLICANT": "/landingPageClicks",
+       "JOB_APPLICANTS": "/landingPageClicks",
+       "TALENT_LEAD": "/talentLeads",
+       "unknown": "/externalWebsiteConversions",
+       "MIXED": null
+      }
+     },
+     "conversion_value": "/conversionValueInLocalCurrency",
+     "reach": "/approximateMemberReach"
+    },
     "attribution": "unknown",
     "result_definition": "Attributed external website conversions",
     "warnings": [
@@ -6640,7 +6867,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -6791,8 +7018,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "8a7d8ed902c82a0978821d7bb372fefc4dbc2b590f90317221cdab1daf8c6274",
-      "response_fingerprint": "5c789884a7efcea535f61024c7c97efdb68818d41addc5123bf88deea1f40dcc",
+      "query_fingerprint": "bea05cdb36d9c7290e44f6a9c630da3ac6519b2c40b892fda53e7df2e6c24bd2",
+      "response_fingerprint": "1e83c168cf1a1fb852c9dec83c792166f921f655d6c3a95769818e47e98df7de",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -6826,7 +7053,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "839430655f2451b62fc44136a073e07f94fe7d09a02b1fdc458907aa5047aa01",
+    "query_fingerprint": "ba3de779e1f09aa1fc322e49ed3ab8b7e200d923afd1866d171bad7ea9bac2c0",
     "rows": [
      {
       "entity_id": "urn:li:sponsoredCreative:3",
@@ -6845,14 +7072,18 @@
       "objective_group": "leads",
       "objective_source": "provider",
       "objective_reason": null,
+      "result_definition": "LinkedIn leads (one-click)",
       "currency": "USD",
       "metrics": {
        "spend": 10.5,
        "impressions": 100,
        "clicks": 2,
-       "conversions": 1,
-       "conversion_value": null,
-       "reach": null,
+       "conversions": 2,
+       "conversion_value": 8,
+       "leads": 2,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "reach": 40,
        "frequency": null
       },
       "native": {
@@ -6878,15 +7109,25 @@
          "impressions": 100,
          "clicks": 2,
          "costInLocalCurrency": "10.5",
-         "externalWebsiteConversions": 1
+         "externalWebsiteConversions": 1,
+         "oneClickLeads": "2",
+         "qualifiedLeads": "1",
+         "landingPageClicks": "4",
+         "videoViews": "3",
+         "talentLeads": "1",
+         "conversionValueInLocalCurrency": "8",
+         "approximateMemberReach": "40"
         }
        ],
        "exact_totals": {
         "spend": "10.5",
         "impressions": "100",
         "clicks": "2",
-        "conversions": "1",
-        "conversion_value": null
+        "conversions": "2",
+        "conversion_value": "8",
+        "leads": "2",
+        "native_linkedin_oneClickLeads": "2",
+        "native_linkedin_qualifiedLeads": "1"
        }
       }
      }
@@ -6911,13 +7152,31 @@
      "spend": "/costInLocalCurrency",
      "impressions": "/impressions",
      "clicks": "/clicks",
-     "conversions": "/externalWebsiteConversions",
-     "conversion_value": "/conversionValueInLocalCurrency"
+     "conversions": {
+      "by_objective": {
+       "BRAND_AWARENESS": null,
+       "WEBSITE_VISIT": "/landingPageClicks",
+       "WEBSITE_VISITS": "/landingPageClicks",
+       "ENGAGEMENT": "/clicks",
+       "VIDEO_VIEW": "/videoViews",
+       "VIDEO_VIEWS": "/videoViews",
+       "LEAD_GENERATION": "/oneClickLeads",
+       "WEBSITE_CONVERSION": "/externalWebsiteConversions",
+       "WEBSITE_CONVERSIONS": "/externalWebsiteConversions",
+       "JOB_APPLICANT": "/landingPageClicks",
+       "JOB_APPLICANTS": "/landingPageClicks",
+       "TALENT_LEAD": "/talentLeads",
+       "unknown": "/externalWebsiteConversions",
+       "MIXED": null
+      }
+     },
+     "conversion_value": "/conversionValueInLocalCurrency",
+     "reach": "/approximateMemberReach"
     },
     "attribution": "unknown",
     "result_definition": "Attributed external website conversions",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.",
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.",
      "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time."
     ],
     "source_kind": "paid",
@@ -6964,7 +7223,7 @@
        "accounts": "List(urn:li:sponsoredAccount:507)",
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
-       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,landingPageClicks,videoViews,oneClickLeads,qualifiedLeads,externalWebsiteConversions,talentLeads,conversionValueInLocalCurrency,approximateMemberReach"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -7083,8 +7342,8 @@
       "path": "/rest/adAnalytics",
       "origin": null,
       "api_version": "202609",
-      "query_fingerprint": "296e191a75aea0d81420fcfda095099bbb2b75761eca8aa8fc5f7a7473a24a28",
-      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "query_fingerprint": "6ee440e3cdccbb6228f902222f2fe6da9dadeab06cdfdab5e93c29384984ec44",
+      "response_fingerprint": "ab90bc23bc4b96680b7ee07ae56ef6f0f1fbd4b77d1e70d940fa3aac7e54a1b6",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -7108,7 +7367,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "13dab290a4325fd7216243c7a1ca8670ef403ddf6091c212f970d72f843c6e5e",
+    "query_fingerprint": "6b52e55ca80ca2c0e9f0fa990eba056dd61d3855424d72f5db54586d9d2e9f73",
     "rows": [
      {
       "entity_id": "urn:li:sponsoredCampaign:1",
@@ -7125,14 +7384,18 @@
       "objective_group": "leads",
       "objective_source": "provider",
       "objective_reason": null,
+      "result_definition": "LinkedIn leads (one-click)",
       "currency": "USD",
       "metrics": {
        "spend": 10.5,
        "impressions": 100,
        "clicks": 2,
-       "conversions": 1,
-       "conversion_value": null,
-       "reach": null,
+       "conversions": 2,
+       "conversion_value": 8,
+       "leads": 2,
+       "native_linkedin_oneClickLeads": 2,
+       "native_linkedin_qualifiedLeads": 1,
+       "reach": 40,
        "frequency": null
       },
       "native": {
@@ -7158,15 +7421,25 @@
          "impressions": 100,
          "clicks": 2,
          "costInLocalCurrency": "10.5",
-         "externalWebsiteConversions": 1
+         "externalWebsiteConversions": 1,
+         "oneClickLeads": "2",
+         "qualifiedLeads": "1",
+         "landingPageClicks": "4",
+         "videoViews": "3",
+         "talentLeads": "1",
+         "conversionValueInLocalCurrency": "8",
+         "approximateMemberReach": "40"
         }
        ],
        "exact_totals": {
         "spend": "10.5",
         "impressions": "100",
         "clicks": "2",
-        "conversions": "1",
-        "conversion_value": null
+        "conversions": "2",
+        "conversion_value": "8",
+        "leads": "2",
+        "native_linkedin_oneClickLeads": "2",
+        "native_linkedin_qualifiedLeads": "1"
        }
       }
      }
@@ -7191,13 +7464,31 @@
      "spend": "/costInLocalCurrency",
      "impressions": "/impressions",
      "clicks": "/clicks",
-     "conversions": "/externalWebsiteConversions",
-     "conversion_value": "/conversionValueInLocalCurrency"
+     "conversions": {
+      "by_objective": {
+       "BRAND_AWARENESS": null,
+       "WEBSITE_VISIT": "/landingPageClicks",
+       "WEBSITE_VISITS": "/landingPageClicks",
+       "ENGAGEMENT": "/clicks",
+       "VIDEO_VIEW": "/videoViews",
+       "VIDEO_VIEWS": "/videoViews",
+       "LEAD_GENERATION": "/oneClickLeads",
+       "WEBSITE_CONVERSION": "/externalWebsiteConversions",
+       "WEBSITE_CONVERSIONS": "/externalWebsiteConversions",
+       "JOB_APPLICANT": "/landingPageClicks",
+       "JOB_APPLICANTS": "/landingPageClicks",
+       "TALENT_LEAD": "/talentLeads",
+       "unknown": "/externalWebsiteConversions",
+       "MIXED": null
+      }
+     },
+     "conversion_value": "/conversionValueInLocalCurrency",
+     "reach": "/approximateMemberReach"
     },
     "attribution": "unknown",
     "result_definition": "Attributed external website conversions",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.",
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.",
      "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time."
     ],
     "source_kind": "paid",
@@ -10224,7 +10515,7 @@
     "attribution": "unknown",
     "result_definition": "Microsoft conversions included in the Conversions column",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared."
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared."
     ],
     "source_kind": "paid",
     "captured_at": "<epoch-ms>"
@@ -10553,7 +10844,7 @@
     "attribution": "unknown",
     "result_definition": "Microsoft conversions included in the Conversions column",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared."
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared."
     ],
     "source_kind": "paid",
     "captured_at": "<epoch-ms>"
@@ -12707,7 +12998,7 @@
     "attribution": "unknown",
     "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared."
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared."
     ],
     "source_kind": "paid",
     "captured_at": "<epoch-ms>"
@@ -12976,7 +13267,7 @@
     "attribution": "unknown",
     "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared."
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared."
     ],
     "source_kind": "paid",
     "captured_at": "<epoch-ms>"
@@ -13185,7 +13476,7 @@
     "attribution": "unknown",
     "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.",
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.",
      "Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups."
     ],
     "source_kind": "paid",
@@ -13786,7 +14077,7 @@
     "attribution": "unknown",
     "result_definition": "unknown",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.",
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.",
      "Reddit report dates are UTC; monetary conversion values and spend retain their distinct native units in source fields."
     ],
     "source_kind": "paid",
@@ -14028,7 +14319,7 @@
     "attribution": "unknown",
     "result_definition": "unknown",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.",
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.",
      "Reddit report dates are UTC; monetary conversion values and spend retain their distinct native units in source fields."
     ],
     "source_kind": "paid",
@@ -14263,7 +14554,7 @@
     "attribution": "unknown",
     "result_definition": "unknown",
     "warnings": [
-     "Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.",
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.",
      "Reddit ad group and ad names could not be read, so rows show IDs; parents still come from the report.",
      "Reddit report dates are UTC; monetary conversion values and spend retain their distinct native units in source fields."
     ],
