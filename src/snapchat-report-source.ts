@@ -8,6 +8,27 @@ import {zonedMidnight} from './workflows.js';
 /** Snapchat campaign stats rows (micros); conversions follow the campaign objective. */
 export const snapchatReportSource: ReportSource = {
   platform: 'snapchat',
+  objectives: {
+    name: 'Snapchat',
+    values: {
+      BRAND_AWARENESS: 'awareness',
+      ENGAGEMENT: 'engagement',
+      PROMOTE_STORIES: 'engagement',
+      PROMOTE_PLACES: 'engagement',
+      VIDEO_VIEW: 'video_views',
+      LEAD_GENERATION: 'leads',
+      WEB_CONVERSION: 'sales',
+      CATALOG_SALES: 'sales',
+      APP_CONVERSION: 'sales',
+      APP_INSTALL: 'app_installs',
+      AWARENESS_AND_ENGAGEMENT: 'awareness',
+      TRAFFIC: 'traffic',
+      LEADS: 'leads',
+      SALES: 'sales',
+      APP_PROMOTION: 'app_installs',
+    },
+    missingReason: 'Snapchat returned no objective for this campaign.',
+  },
   nativeMetricExamples: [
     'video_views',
     'view_completion',
@@ -65,7 +86,9 @@ export const snapchatReportSource: ReportSource = {
     c.raw = c.raw.map(r => ({
       ...r,
       name: campaigns.find(campaign => campaign.id === r.id)?.name,
-      objective: campaigns.find(campaign => campaign.id === r.id)?.objective,
+      objective:
+        campaigns.find(campaign => campaign.id === r.id)?.objective_v2_properties?.objective_v2_type ??
+        campaigns.find(campaign => campaign.id === r.id)?.objective,
     }));
     c.attribution = profile
       ? 'Snapchat ' + swipe + ' swipe / ' + view + ' view; conversion time; total sources'

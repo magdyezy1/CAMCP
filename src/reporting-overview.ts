@@ -44,6 +44,8 @@ import {sha256} from './security.js';
 import {optionalClientView} from './client-scope.js';
 import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
+import {resolveObjective} from './report-objectives.js';
+import {reportSource} from './report-sources.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
@@ -1733,7 +1735,17 @@ export class ReportingOverview {
               : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
           );
         seen.add(rowKey);
-        const objective = source.objective ?? row.objective_group,
+        const resolvedObjective = resolveObjective({
+            platform: source.platform,
+            table: reportSource(source.platform)?.objectives,
+            native: row.entity_level && row.entity_level !== 'campaign' ? undefined : row.objective,
+            campaignId: row.campaign_id,
+            mappedInputs: row.native,
+            overrides: source.objective_overrides,
+            legacy: source.objective,
+            fallback: source.objective_fallback,
+          }),
+          objective = resolvedObjective.group,
           {period_context, report_period, ...nativeRow} = row,
           record = {
             ...nativeRow,
@@ -1746,8 +1758,10 @@ export class ReportingOverview {
             connection_id: source.connection_id,
             currency: row.currency ?? context.currency,
             timezone: context.timezone,
+            objective: resolvedObjective.native ?? 'unknown',
             objective_group: objective,
-            objective_source: source.objective ? 'user confirmed' : 'provider',
+            objective_source: resolvedObjective.source,
+            objective_reason: resolvedObjective.reason,
             date_from: period.since,
             date_to: period.until,
             source_kind: result.source_kind,

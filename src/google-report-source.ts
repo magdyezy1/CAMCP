@@ -5,6 +5,23 @@ import {reportList, type ReportSource} from './report-source.js';
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
 export const googleReportSource: ReportSource = {
   platform: 'google',
+  objectives: {
+    name: 'Google Ads',
+    values: {},
+    missingReason: 'Google Ads has no objective field; choose one in the report.',
+    mapped(inputs) {
+      const campaign = inputs.campaign ?? {};
+      const channel = campaign.advertisingChannelType;
+      const bidding = campaign.biddingStrategyType;
+      const group =
+        channel === 'MULTI_CHANNEL'
+          ? 'app_installs'
+          : ['SHOPPING', 'HOTEL'].includes(channel) || ['MAXIMIZE_CONVERSION_VALUE', 'TARGET_ROAS'].includes(bidding)
+            ? 'sales'
+            : undefined;
+      return group ? {group, reason: 'Mapped from Google Ads campaign settings.'} : undefined;
+    },
+  },
   nativeMetricExamples: [
     'metrics.all_conversions',
     'metrics.all_conversions_value',
@@ -28,6 +45,7 @@ export const googleReportSource: ReportSource = {
         'campaign.name',
         'campaign.status',
         'campaign.advertising_channel_type',
+        'campaign.bidding_strategy_type',
         'customer.currency_code',
         'metrics.cost_micros',
         'metrics.impressions',
@@ -81,6 +99,11 @@ const searchConsoleZone = 'America/Los_Angeles';
 /** Search Console rows of searchAnalytics.query: one row per first dimension key, or the whole site. */
 export const searchConsoleReportSource: ReportSource = {
   platform: 'gsc',
+  objectives: {
+    name: 'Search Console',
+    values: {},
+    missingReason: 'Search Console has no campaign objective.',
+  },
   nativeMetricExamples: [],
   // The site is the source: no account is read before collection.
   accountLookup: false,

@@ -21,6 +21,23 @@ export const tiktokEventsUnavailableWarning =
 /** TikTok integrated report rows (dimensions and metrics); conversions name the ad groups' optimization events. */
 export const tiktokReportSource: ReportSource = {
   platform: 'tiktok',
+  objectives: {
+    name: 'TikTok',
+    values: {
+      REACH: 'awareness',
+      RF_REACH: 'awareness',
+      TRAFFIC: 'traffic',
+      VIDEO_VIEWS: 'video_views',
+      LEAD_GENERATION: 'leads',
+      ENGAGEMENT: 'engagement',
+      APP_PROMOTION: 'app_installs',
+      APP_INSTALL: 'app_installs',
+      WEB_CONVERSIONS: 'sales',
+      PRODUCT_SALES: 'sales',
+      APP_RETARGETING: null,
+    },
+    missingReason: 'TikTok returned no objective for this campaign.',
+  },
   nativeMetricExamples: [
     'reach',
     'frequency',

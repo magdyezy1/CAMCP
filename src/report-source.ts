@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import type {ObjectiveTable} from './report-objectives.js';
 import type {DetailParentCache} from './overview-parents.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -261,6 +262,8 @@ export interface GuidedReporting {
 }
 
 export interface ReportSource {
+  /** Native objective values and conservative mappings owned by this reporting platform. */
+  readonly objectives?: ObjectiveTable;
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */
   readonly platform: string;
   /** Native metrics the Overview suggests for this platform's sources. */

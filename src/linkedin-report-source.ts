@@ -15,6 +15,24 @@ const reportZone = 'UTC';
 /** LinkedIn adAnalytics rows pivoted by campaign (its URN in pivotValues); money in the account currency. */
 export const linkedinReportSource: ReportSource = {
   platform: 'linkedin',
+  objectives: {
+    name: 'LinkedIn',
+    values: {
+      BRAND_AWARENESS: 'awareness',
+      WEBSITE_VISIT: 'traffic',
+      WEBSITE_VISITS: 'traffic',
+      ENGAGEMENT: 'engagement',
+      VIDEO_VIEW: 'video_views',
+      VIDEO_VIEWS: 'video_views',
+      LEAD_GENERATION: 'leads',
+      WEBSITE_CONVERSION: 'sales',
+      WEBSITE_CONVERSIONS: 'sales',
+      JOB_APPLICANT: 'traffic',
+      JOB_APPLICANTS: 'traffic',
+      TALENT_LEAD: 'leads',
+    },
+    missingReason: 'LinkedIn returned no objective for this campaign.',
+  },
   nativeMetricExamples: [
     'videoViews',
     'videoCompletions',

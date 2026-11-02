@@ -9,6 +9,18 @@ import type {JsonObject} from './types.js';
 /** Meta campaign insights rows: actions and action_values arrays; conversions follow the campaign objective. */
 export const metaReportSource: ReportSource = {
   platform: 'meta',
+  objectives: {
+    name: 'Meta',
+    values: {
+      OUTCOME_AWARENESS: 'awareness',
+      OUTCOME_TRAFFIC: 'traffic',
+      OUTCOME_ENGAGEMENT: 'engagement',
+      OUTCOME_LEADS: 'leads',
+      OUTCOME_SALES: 'sales',
+      OUTCOME_APP_PROMOTION: 'app_installs',
+    },
+    missingReason: 'Meta returned no objective for this campaign.',
+  },
   nativeMetricExamples: [
     'inline_link_clicks',
     'outbound_clicks',

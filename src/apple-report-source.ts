@@ -11,6 +11,12 @@ const reportZone = 'UTC';
 /** Apple Ads v1 campaign report rows: totalMetrics with local spend; conversions are installs. */
 export const appleReportSource: ReportSource = {
   platform: 'apple',
+  objectives: {
+    name: 'Apple Ads',
+    values: {},
+    missingReason: 'Apple Ads has no campaign objective field.',
+    mapped: () => ({group: 'app_installs', reason: 'Apple Ads campaigns promote apps.'}),
+  },
   nativeMetricExamples: [],
   // The collection reads the ad account itself (its currency; Apple reports in UTC).
   accountLookup: false,
@@ -127,7 +133,6 @@ export const appleReportSource: ReportSource = {
     return {
       id: raw.metadata?.id,
       name: raw.metadata?.name,
-      objective: 'APP_INSTALLS',
       currency: m.localSpend?.currency,
       metrics: {
         spend: value(m.localSpend?.amount),

@@ -23,6 +23,11 @@ import type {JsonObject} from './types.js';
 /** Microsoft Advertising campaign performance report rows (decimal money in the account currency). */
 export const microsoftReportSource: ReportSource = {
   platform: 'microsoft',
+  objectives: {
+    name: 'Microsoft Advertising',
+    values: {},
+    missingReason: 'Microsoft Advertising reports have no objective field; choose one in the report.',
+  },
   nativeMetricExamples: [
     'AllConversions',
     'AllRevenue',

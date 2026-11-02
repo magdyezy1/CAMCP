@@ -436,7 +436,7 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       'needs_review',
       'Refresh complete data with verified currency and timezone before recommending a change.',
     );
-  if (row.objective_group === 'unknown')
+  if (row.objective_group === 'unknown' || row.objective_group === 'mixed')
     return result('needs_review', 'Confirm this campaign’s objective and primary result metric.');
   // Campaign key, then a currency-specific objective target ("sales:SAR"), then the objective target (DEC-01).
   const p =

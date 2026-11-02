@@ -13,6 +13,11 @@ import {
 /** X campaign rows as xCampaignReport (src/x-campaign-report.ts) prepares them: the metrics are already shared ones. */
 export const xReportSource: ReportSource = {
   platform: 'x',
+  objectives: {
+    name: 'X',
+    values: {},
+    missingReason: 'X returned no shared campaign objective from its line items; choose one in the report.',
+  },
   nativeMetricExamples: ['VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'],
   // X analytics rows carry metric groups in their own shape, so requested metrics are not checked against them.
   nativeMetricCheck: false,

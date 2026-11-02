@@ -259,12 +259,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // "Reviewer": 11,535 entries. Its follow-up adds one (the note a test account reads on /account), not a wrapper
   // reason: 11,536. Wave 5 round 1 (V2-RPT-05) adds two (the provider-data retry action and "Retry"), neither a
   // wrapper reason: 11,538.
-  assert.equal(files.length, 760);
+  // V2-RPT-02 adds the shared objective resolver (no new wrapper) and objective explanations.
+  assert.equal(files.length, 761);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
-  assert.equal(Object.keys(catalog).length, 11550);
+  assert.equal(Object.keys(catalog).length, 11569);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

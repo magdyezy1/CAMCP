@@ -305,13 +305,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (web/identity.js), not an owned reason: 11,535 on its base, 11,536 merged with "Reviewer".
   // Wave 5 round 1 (V2-RPT-05) adds the provider-data retry action (src/errors.ts providerDataAction, a report source's
   // next action) and the source card's "Retry" button, neither an owned reason: 11,538.
-  assert.equal(files.length, 760);
+  // V2-RPT-02 adds the shared objective resolver (no new owned refusal) and objective explanations.
+  assert.equal(files.length, 761);
   assert.equal(selected.filter(row => row.messages.size).length, 286);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   assert.equal(owned.size, 1591);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
-  assert.equal(Object.keys(catalog).length, 11550);
+  assert.equal(Object.keys(catalog).length, 11569);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

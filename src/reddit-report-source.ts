@@ -19,6 +19,19 @@ const reportZone = 'UTC';
 /** Reddit Ads report rows, in upper- or lower-case field names; spend in micros, conversion value in cents (ACC-06). */
 export const redditReportSource: ReportSource = {
   platform: 'reddit',
+  objectives: {
+    name: 'Reddit',
+    values: {
+      IMPRESSIONS: 'awareness',
+      CLICKS: 'traffic',
+      VIDEO_VIEWABLE_IMPRESSIONS: 'video_views',
+      LEAD_GENERATION: 'leads',
+      CONVERSIONS: 'sales',
+      CATALOG_SALES: 'sales',
+      APP_INSTALLS: 'app_installs',
+    },
+    missingReason: 'Reddit returned no objective for this campaign.',
+  },
   nativeMetricExamples: [
     'VIDEO_STARTED',
     'VIDEO_VIEWABLE_IMPRESSIONS',
