@@ -1,6 +1,7 @@
-import {MirrorError} from './errors.js';
+import {MirrorError, nestedError} from './errors.js';
 import {fail} from './family-kit.js';
 import {providerById} from './provider-adapters.js';
+import {reportSourceError} from './report-errors.js';
 import type {Actor, JsonObject} from './types.js';
 
 type Call = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
@@ -104,11 +105,12 @@ export class AdPreviews {
   constructor(private call: Call) {}
   private async read(actor: Actor, gateway: string, input: JsonObject) {
     const r = await this.call(gateway, input, actor);
-    if (r.success === false)
-      throw new MirrorError(r.error?.code ?? 'PREVIEW_READ_FAILED', r.error?.message ?? 'The preview read failed.', {
-        ...(r.error?.details ?? {}),
-        read: {tool: gateway, action: input.action ?? input.arguments?.action},
-      });
+    if (r.success === false) {
+      // V2-RPT-05: the provider's own refusal (status, request ID, message) survives into the per-ad diagnostic.
+      const e = nestedError(r, {code: 'PREVIEW_READ_FAILED', message: 'The preview read failed.'});
+      e.details.read = {tool: gateway, action: input.action ?? input.arguments?.action};
+      throw e;
+    }
     // A native read answers {success, action, data: <the platform's response>, pages, truncated}.
     return r.data?.data;
   }
@@ -162,7 +164,9 @@ export class AdPreviews {
           out.push({ad_id: row.id, name: row.name, ...(await preview(row))});
         } catch (e) {
           if (!(e instanceof MirrorError)) throw e;
-          out.push({ad_id: row.id, name: row.name, links: [], error: {code: e.code, message: e.message}});
+          // The full source diagnostic (V2-RPT-05); it still opens with `code` and `message`, so the change is additive.
+          const error = reportSourceError(e, {platform, account_id: account, connection_id: connection});
+          out.push({ad_id: row.id, name: row.name, links: [], error});
         }
       return out;
     };

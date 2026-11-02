@@ -1285,6 +1285,7 @@
   "The paired previous-period baseline could not be used, so no baseline was applied.": "تعذّر استخدام خط الأساس المقترن للفترة السابقة، لذلك لم يُطبَّق أي خط أساس.",
   "The parent folder is absent from the complete workspace inventory.": "المجلد الأصل غير موجود ضمن القائمة الكاملة لعناصر مساحة العمل.",
   "The plan changed after that summary. Run approve again, show the user the current summary, and approve that.": "تغيّرت الخطة بعد ذلك الملخص. شغّل approve مجددًا، واعرض الملخص الحالي على المستخدم، واحصل على موافقته عليه.",
+  "The platform returned report data AMCP cannot accept as complete. Retry the report; if it happens again, copy the error details for support.": "أعادت المنصة بيانات تقرير لا يستطيع AMCP قبولها على أنها مكتملة. أعد محاولة التقرير؛ وإذا تكرر ذلك، فانسخ تفاصيل الخطأ وأرسلها إلى الدعم.",
   "The preview expired. Read current budgets and preview again.": "انتهت صلاحية المعاينة. اقرأ الميزانيات الحالية وأعد المعاينة.",
   "The provider answered with an unsuccessful result (its error is in the details). Correct what it names; after a submitted write, inspect the receipt and do not resubmit.": "أرجعت المنصة نتيجة غير ناجحة ويظهر خطؤها في التفاصيل. صحّح ما يسمّيه الخطأ؛ وإذا أُرسل طلب كتابة بالفعل، فافحص الإيصال ولا تُعِد إرساله.",
   "The provider denied access. Check its error details and request ID; a 403 alone does not identify a missing OAuth scope.": "رفضت المنصة الوصول. افحص تفاصيل الخطأ ومعرّف الطلب؛ فرمز 403 وحده لا يثبت غياب إذن OAuth.",

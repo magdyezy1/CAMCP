@@ -303,10 +303,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (server/platform-routes.ts), none an owned reason: 11,534 entries on its base. Merged with "Reviewer": 11,535.
   // Its follow-up adds the Arabic of the note a test account reads on /account instead of the sign-in forms
   // (web/identity.js), not an owned reason: 11,535 on its base, 11,536 merged with "Reviewer".
+  // Wave 5 round 1 (V2-RPT-05) adds the provider-data retry action (src/errors.ts providerDataAction, a report source's
+  // next action) and the source card's "Retry" button, neither an owned reason: 11,538.
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
   assert.equal(owned.size, 1591);
-  assert.equal(Object.keys(catalog).length, 11536);
+  assert.equal(Object.keys(catalog).length, 11538);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

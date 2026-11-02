@@ -134,7 +134,10 @@ function previewResults(r) {
                 )}">${esc(uiText('Open preview'))}${p.links.length > 1 ? ' ' + (i + 1) : ''} ↗</a>`,
             )
             .join(' ')
-        : `<span class="form-note">${esc(p.error?.message ?? p.note ?? uiText('The platform returned no preview link for this ad.'))}</span>`;
+        : p.error && typeof renderSourceDiagnostic === 'function'
+          ? // V2-RPT-05: the provider's own refusal (message, request ID) through the shell's diagnostic renderer.
+            renderSourceDiagnostic(p.error)
+          : `<span class="form-note">${esc(p.error?.message ?? p.note ?? uiText('The platform returned no preview link for this ad.'))}</span>`;
       const when = p.expires_at
         ? uiText(' · link expires {date}', {date: date(p.expires_at)})
         : p.expires

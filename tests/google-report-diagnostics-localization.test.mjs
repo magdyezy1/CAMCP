@@ -32,6 +32,19 @@ test('Google recovery selection excludes dynamic remedies, native details and un
     ['Owned limit hint.', 'Owned identity hint.', 'Owned shape hint.', 'Owned login hint.'],
   );
   assert.equal(inspectGoogleCaptureRemedies(sample, 'src/provider-errors.ts').size, 0);
+  const retry =
+    "export const providerDataAction = 'Owned provider-data hint.'; " +
+    "function familyRemedy(code){if(/REPORT/.test(code))return r('report','Generic report hint.');}";
+  assert.deepEqual([...inspectGoogleCaptureRemedies(retry, 'src/errors.ts')], ['Owned provider-data hint.']);
+  assert.deepEqual(
+    [
+      ...inspectGoogleCaptureRemedies(
+        retry.replace("'Owned provider-data hint.'", 'upstream.message'),
+        'src/errors.ts',
+      ),
+    ],
+    ['Generic report hint.'],
+  );
 });
 
 test('selected Google refusal copy excludes native fragments, fallback expressions, error codes and unrelated collectors', () => {

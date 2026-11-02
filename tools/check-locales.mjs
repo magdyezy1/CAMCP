@@ -1042,6 +1042,14 @@ export const providerRemedyModules = Object.freeze([
 function inspectCaptureRemedies(source, file, otherProviders, measurement = false) {
   const messages = new Set();
   if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
+  const statements = parsers['babel-ts'].parse(source).program.body;
+  // The selected capture codes use the provider-data retry hint in place of the generic report-family hint.
+  // Resolve only this authored, module-level literal; never collect a provider's dynamic message.
+  const providerDataHint = statements
+    .map(statement => (statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement))
+    .filter(declaration => declaration?.type === 'VariableDeclaration')
+    .flatMap(declaration => declaration.declarations)
+    .find(value => value.id?.name === 'providerDataAction' && value.init?.type === 'StringLiteral')?.init.value;
   const remedyFunction = declaration => errorRemedyFunctions.includes(declaration.id.name);
   const visit = (node, callback) => {
     if (!node || typeof node !== 'object') return;
@@ -1050,7 +1058,7 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) visit(child, callback);
   };
-  for (const statement of parsers['babel-ts'].parse(source).program.body) {
+  for (const statement of statements) {
     const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
     if (declaration?.type !== 'FunctionDeclaration') continue;
     visit(declaration.body, node => {
@@ -1086,7 +1094,11 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
               value.callee?.name === 'r' &&
               value.arguments[1]?.type === 'StringLiteral'
             )
-              messages.add(value.arguments[1].value);
+              messages.add(
+                value.arguments[0]?.value === 'report' && providerDataHint
+                  ? providerDataHint
+                  : value.arguments[1].value,
+              );
             if (
               remedyFunction(declaration) &&
               value.type === 'ObjectProperty' &&

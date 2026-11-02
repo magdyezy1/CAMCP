@@ -1,7 +1,90 @@
-import {MirrorError, providerHttpErrorCode} from './errors.js';
+import {MirrorError, providerDataAction, providerDataCodes, providerHttpErrorCode} from './errors.js';
 import {redact} from './security.js';
 import type {JsonObject} from './types.js';
 import {reportPlatforms} from './report-metrics.js';
+
+/** V2-RPT-05: who must act on a report error. A closed set; the website chooses each source card's actions by it. */
+export type ReportErrorCategory =
+  'provider_data' | 'connection' | 'permission' | 'rate_limit' | 'request' | 'provider' | 'internal';
+const categoryCodes: readonly [ReportErrorCategory, ReadonlySet<string>][] = [
+  ['provider_data', providerDataCodes],
+  [
+    'connection',
+    new Set([
+      'AUTH_EXPIRED',
+      'REAUTHORIZATION_REQUIRED',
+      'CREDENTIALS_REQUIRED',
+      'TOKEN_REFRESH_FAILED',
+      'CONNECTION_AUTHORITY_CHANGED',
+    ]),
+  ],
+  [
+    'permission',
+    new Set([
+      'INSUFFICIENT_SCOPE',
+      'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
+      'INSUFFICIENT_PERMISSION',
+      'PROVIDER_PERMISSION_MISSING',
+      'PROVIDER_ACCESS_DENIED',
+    ]),
+  ],
+  ['rate_limit', new Set(['PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN'])],
+  [
+    'request',
+    new Set([
+      'REPORT_COLLECTION_LIMIT',
+      'REPORT_ROW_LIMIT',
+      'REPORT_LEVEL_UNSUPPORTED',
+      'REPORT_CURRENCY_MISMATCH',
+      'REPORT_TIMEZONE_MISMATCH',
+      'INVALID_DATE_RANGE',
+      // AMCP's own pagination and row limits (lead's call, src/errors.ts providerDataCodes): narrow the request.
+      'INCOMPLETE_REPORT',
+    ]),
+  ],
+  ['provider', new Set(['UPSTREAM_ERROR', 'PLATFORM_ERROR', 'PROVIDER_REPORT_FAILED', 'PROVIDER_VERSION_UNSUPPORTED'])],
+  ['internal', new Set(['INTERNAL_ERROR', 'REPORT_FAILED'])],
+];
+const layerCategories: Record<string, ReportErrorCategory> = {
+  credential: 'connection',
+  consent: 'connection',
+  role_or_asset_access: 'permission',
+  app_eligibility: 'permission',
+  rate_limit: 'rate_limit',
+  api_version: 'provider',
+};
+/**
+ * V2-RPT-05: the category of a report error, by the first rule that matches: the explicit code sets, the transport's
+ * provider-error layer, the HTTP status (401, 403, 429), the code's request shape, a provider HTTP status or a server
+ * status, else internal.
+ */
+export function reportErrorCategory(
+  code: string,
+  details: Record<string, unknown> = {},
+  status?: number,
+): ReportErrorCategory {
+  for (const [category, codes] of categoryCodes) if (codes.has(code)) return category;
+  const layer = typeof details.layer === 'string' ? layerCategories[details.layer] : undefined;
+  if (layer) return layer;
+  if (status === 401) return 'connection';
+  if (status === 403) return 'permission';
+  if (status === 429) return 'rate_limit';
+  if (/^INVALID_|_INVALID$|_REQUIRED$|_UNSUPPORTED$/.test(code)) return 'request';
+  if (Number.isInteger(details.http_status) || (typeof status === 'number' && status >= 500)) return 'provider';
+  return 'internal';
+}
+/** The page facts a provider-data refusal keeps (no metrics, no IDs): the listed keys, with plain values only. */
+const pageFactKeys = ['page', 'page_size', 'total_number', 'total_page', 'list_length', 'rule'];
+function pageFacts(value: unknown): JsonObject | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const facts: JsonObject = {};
+  for (const key of pageFactKeys) {
+    const v = (value as JsonObject)[key];
+    if (v === null || Number.isSafeInteger(v)) facts[key] = v;
+    else if (typeof v === 'string') facts[key] = v.slice(0, 80);
+  }
+  return Object.keys(facts).length ? facts : undefined;
+}
 
 const object = (value: unknown): JsonObject =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : {};
@@ -93,11 +176,16 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
   ].includes(e.details.layer as string)
     ? (e.details.layer as string)
     : undefined;
+  const category = reportErrorCategory(errorCode, e.details, e.status);
+  // A provider-data failure is AMCP refusing the platform's answer, so it has no HTTP status of its own (V2-RPT-05).
   const diagnostic: JsonObject = {
     code: errorCode,
     message: text(e.message),
     retryable: e.retryable,
-    http_status: typeof e.details.http_status === 'number' ? e.details.http_status : e.status,
+    category,
+    ...(category === 'provider_data'
+      ? {}
+      : {http_status: typeof e.details.http_status === 'number' ? e.details.http_status : e.status}),
     ...(layer ? {layer} : {}),
     platform: source.platform,
     account_id: source.account_id,
@@ -127,8 +215,14 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     };
   if (Object.hasOwn(e.details, 'login_customer_id'))
     diagnostic.login_customer_id = e.details.login_customer_id === null ? null : text(e.details.login_customer_id, 32);
+  const facts = pageFacts(e.details.page_facts);
+  if (facts) diagnostic.page_facts = facts;
+  for (const key of ['declared_rows', 'returned_rows'])
+    if (Number.isSafeInteger(e.details[key])) diagnostic[key] = e.details[key];
   const specific = String(providerCode ?? e.code);
-  if (source.platform === 'google' && specific === 'AUTHORIZATION_ERROR')
+  // An account sync keeps its own sync wording below; the retry action names a report.
+  if (category === 'provider_data' && !syncing) diagnostic.next_action = providerDataAction;
+  else if (source.platform === 'google' && specific === 'AUTHORIZATION_ERROR')
     diagnostic.next_action =
       'Google returned a generic authorization denial, not a confirmed missing OAuth scope. Explorer Access supports account lookup and reporting. In Connections, use Reauthorize on this saved Google login, choose the Google user with access to this account and approve Google Ads access. Sync alone reuses the saved authorization. If a fresh authorization still fails and the saved OAuth client matches the approved Cloud project, contact Google Ads API support with the provider request ID, account ID and request path below.';
   else if (

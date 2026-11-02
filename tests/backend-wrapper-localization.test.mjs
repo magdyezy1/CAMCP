@@ -257,11 +257,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The owner's decisions of 2026-10-31 (w4c-qualify-fixes) add one catalog entry ("Reviewer"), not a wrapper reason.
   // OWNER-REVIEWER-QA adds four catalog entries (connection progress messages), none a wrapper reason. Merged with
   // "Reviewer": 11,535 entries. Its follow-up adds one (the note a test account reads on /account), not a wrapper
-  // reason: 11,536.
+  // reason: 11,536. Wave 5 round 1 (V2-RPT-05) adds two (the provider-data retry action and "Retry"), neither a
+  // wrapper reason: 11,538.
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11536);
+  assert.equal(Object.keys(catalog).length, 11538);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

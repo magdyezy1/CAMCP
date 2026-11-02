@@ -5,7 +5,7 @@ import {
   createSearchExclusionPlan,
 } from './search-exclusion-plan.js';
 import {Store} from './store.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, nestedError} from './errors.js';
 import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import type {Actor, JsonObject} from './types.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
@@ -714,8 +714,7 @@ export class DecisionReporting {
         : undefined;
     const nativeAccountEvidence: JsonObject | undefined = collected?.nativeAccountEvidence;
     const source: JsonObject = collected?.source ?? (await this.call(input.gateway, args, actor));
-    if (source.success !== true)
-      bad(source.error?.message ?? 'Provider report failed.', source.error?.code ?? 'REPORT_FAILED');
+    if (source.success !== true) throw nestedError(source, {code: 'REPORT_FAILED', message: 'Provider report failed.'});
     if (source.data?.executed === false || source.data?.dry_run || partial(source))
       bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
     const raw = pointer(source, input.rows_pointer ?? '/data/data/results');

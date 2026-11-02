@@ -656,6 +656,10 @@ async function loadOverviewReport(id, page = overviewState.page) {
     );
     toast(uiText('Error details copied.'));
   });
+  // V2-RPT-05: Retry on a provider-data or provider card runs the report again from the setup form.
+  authBind('[data-report-retry]', async () => {
+    document.querySelector('#overview-config')?.requestSubmit();
+  });
   authBind('#report-cancel', async () => {
     await overviewCall({action: 'cancel', id: r.job_id, confirmed: true});
     overviewState.watch = null;
@@ -1388,7 +1392,18 @@ function reportParentName(name) {
   return typeof name === 'string' && name ? ` · <span dir="auto" data-native>${esc(name)}</span>` : '';
 }
 function renderReportSourceHealth(s, platforms, index, range, report) {
-  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;
+  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? reportSourceActions(s.error, index) : ''}</details>`;
+}
+/**
+ * V2-RPT-05: a failed source card's actions follow its error's category. The platform's data or a provider failure:
+ * Retry (the run form again) and Copy. The connection or its permissions: Manage connections and Copy. A rate limit, a
+ * request AMCP refused or an internal failure: Copy only. A stored diagnostic without a category keeps its old actions.
+ */
+function reportSourceActions(error, index) {
+  const category = error.category,
+    retry = ['provider_data', 'provider'].includes(category),
+    connections = category === undefined || ['connection', 'permission'].includes(category);
+  return `<div class="report-actions">${retry ? `<button type="button" class="button small" data-report-retry="${index}">${esc(uiText('Retry'))}</button>` : ''}${connections ? `<a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a>` : ''}<button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>`;
 }
 function renderPeriodFailures(periods) {
   return periods.length

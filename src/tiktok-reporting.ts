@@ -1,4 +1,5 @@
 import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
+import {nestedError} from './errors.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
@@ -75,7 +76,7 @@ export async function collectTikTokDailyReport(
     const result = await call(gateway, request, actor);
     current();
     if (result.success !== true)
-      bad(result.error?.message ?? 'TikTok report read failed.', result.error?.code ?? 'REPORT_FAILED');
+      throw nestedError(result, {code: 'REPORT_FAILED', message: 'TikTok report read failed.'});
     const root = result.data?.data;
     if (
       result.data?.executed === false ||

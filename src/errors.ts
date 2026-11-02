@@ -33,6 +33,69 @@ export function providerFactDetails(error: unknown): Record<string, unknown> {
     ...(typeof facts.layer === 'string' && /^[a-z_]{1,40}$/.test(facts.layer) ? {layer: facts.layer} : {}),
   };
 }
+/**
+ * V2-RPT-05: the codes that mean the platform answered, but with report data AMCP cannot accept as complete (counts that
+ * do not add up, a changed shape, duplicate or misdated rows). Nothing about the connection or the request is wrong,
+ * so the remedy is a retry, never a reconnect, and these failures carry no HTTP status of their own.
+ *
+ * Lead's call (round 1, Task 1): the plan's list also named INCOMPLETE_REPORT. Every place that throws it (the native
+ * report pagination and row limits, LinkedIn's 15,000-element cap, a truncated campaign discovery) is AMCP's own size
+ * limit, whose fix is a narrower request, so it is a `request` error (src/report-errors.ts), never retried as is.
+ */
+export const providerDataCodes: ReadonlySet<string> = new Set([
+  'REPORT_INCOMPLETE',
+  'REPORT_SHAPE_CHANGED',
+  'REPORT_DUPLICATE_ROWS',
+  'REPORT_DATE_MISMATCH',
+  'REPORT_EMPTY_AMBIGUOUS',
+  'REPORT_ID_MISSING',
+  'REPORT_RESPONSE_INVALID',
+  'REPORT_ACCOUNT_MISMATCH',
+  'REPORT_METRIC_AMBIGUOUS',
+  'UNKNOWN_PAGINATION',
+  'DUPLICATE_ENTITY_ROWS',
+  'DUPLICATE_CAMPAIGN_ROWS',
+]);
+/** V2-RPT-05: what to do about a provider-data failure (website source cards and MCP remedies alike). */
+export const providerDataAction =
+  'The platform returned report data AMCP cannot accept as complete. Retry the report; if it happens again, copy the error details for support.';
+/** The details of an inner error envelope that survive a re-raise (V2-RPT-05): facts about the refusal, never a body. */
+const nestedDetailKeys = [
+  'upstream',
+  'http_status',
+  'request_id',
+  'provider_code',
+  'layer',
+  'report_request',
+  'page_facts',
+  'declared_rows',
+  'returned_rows',
+  'retry_after_ms',
+  'scope_denial',
+  'login_customer_id',
+];
+/**
+ * V2-RPT-05: re-raises the error of an inner tool result (`{success: false, error: {code, message, retryable,
+ * details}}`) without losing what the provider said. Only the allow-listed details are kept. The status is 502 for a
+ * provider-data code, else the provider's HTTP status when it is an error status, else 400.
+ */
+export function nestedError(result: unknown, fallback: {code: string; message: string}): MirrorError {
+  const plain = (v: unknown): Record<string, unknown> =>
+    v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  const error = plain(plain(result).error),
+    given = plain(error.details),
+    code = typeof error.code === 'string' && error.code ? error.code : fallback.code,
+    message = typeof error.message === 'string' && error.message ? error.message : fallback.message,
+    details: Record<string, unknown> = {};
+  for (const key of nestedDetailKeys) if (given[key] !== undefined) details[key] = given[key];
+  const http = details.http_status,
+    status = providerDataCodes.has(code)
+      ? 502
+      : Number.isInteger(http) && (http as number) >= 400 && (http as number) <= 599
+        ? (http as number)
+        : 400;
+  return new MirrorError(code, message, details, status, error.retryable === true);
+}
 /** A deployment without reviewed writes (MCP-09). The message names no operator setting. */
 export const readOnlyDeployment = (details: Record<string, unknown> = {}) =>
   new MirrorError(
@@ -276,6 +339,11 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
   const remedy = providerRemedy(e.code, e.details) ?? workflowRemedy(e) ?? reviewRemedy(e) ?? workspaceRemedy(e);
   if (remedy) return remedy;
   const family = familyRemedy(e.code);
+  // V2-RPT-05: a provider-data code that only the generic report family names is retried; its category and owner
+  // stay. Codes with their own rule (a changed response shape and its submitted-write caution, a mismatch, inconsistent
+  // pages) keep that rule's action, which already says to read again rather than to narrow the report.
+  if (family?.category === 'report' && providerDataCodes.has(e.code))
+    return {...family, action: providerDataAction, mutation_retry_safe: false};
   if (family) return {...family, mutation_retry_safe: false};
   return {
     category: e.code === 'INTERNAL_ERROR' ? 'internal' : 'request',
