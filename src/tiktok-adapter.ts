@@ -443,22 +443,37 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
           throw new MirrorError('REPORT_INCOMPLETE', 'Start a complete TikTok report collection at page one.');
         let expectedTotal: number | undefined;
         return (request: CompiledRequest, response: unknown) => {
-          const page = tiktokReportPage(response, request.query);
-          if (expectedTotal !== undefined && page.total !== expectedTotal)
-            throw new MirrorError(
-              'REPORT_INCOMPLETE',
-              'TikTok report counts changed during collection. Capture again.',
-            );
+          const page = tiktokReportPage(response, request.query, {
+            total: expectedTotal ?? null,
+            returned: nativeRows.size,
+          });
           expectedTotal = page.total;
           for (const row of page.rows) {
             const key = tiktokReportRowKey(row, dimensions);
             if (nativeRows.has(key))
-              throw new MirrorError('REPORT_DUPLICATE_ROWS', 'TikTok repeated a native reporting dimension tuple.');
+              throw new MirrorError(
+                'REPORT_DUPLICATE_ROWS',
+                'TikTok repeated a native reporting dimension tuple.',
+                {
+                  page_facts: {
+                    page: page.page,
+                    page_size: page.size,
+                    total_number: page.total,
+                    total_page: page.pages,
+                    list_length: page.rows.length,
+                    rule: 'duplicate_tuple',
+                  },
+                },
+                502,
+              );
             nativeRows.add(key);
           }
         };
       },
-      pages: (data: unknown) => Number(obj(obj(obj(data).data).page_info).total_page),
+      pages: (data: unknown) => {
+        const info = obj(obj(obj(data).data).page_info);
+        return info.total_page ?? Math.ceil(info.total_number / info.page_size);
+      },
       meaning:
         'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.',
     }),

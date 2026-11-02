@@ -497,6 +497,7 @@ export function inspectReportingFailures(source, file) {
     'src/meta-evidence.ts': ['bad', 'incomplete'],
     'src/linkedin-evidence.ts': ['bad', 'incomplete'],
     'src/tiktok-reporting.ts': ['bad', 'incomplete'],
+    'src/tiktok-report-pagination.ts': [],
     'src/snapchat-evidence.ts': ['bad', 'incomplete', 'shape'],
   }[file.replaceAll('\\', '/')];
   if (!ownedCalls) return messages;
@@ -509,6 +510,13 @@ export function inspectReportingFailures(source, file) {
       node.arguments[0]?.type === 'StringLiteral'
     )
       messages.add(node.arguments[0].value);
+    if (
+      file.replaceAll('\\', '/') === 'src/tiktok-report-pagination.ts' &&
+      node.type === 'VariableDeclarator' &&
+      node.id?.name === 'tiktokPageCountMessage' &&
+      node.init?.type === 'StringLiteral'
+    )
+      messages.add(node.init.value);
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
@@ -1471,6 +1479,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/meta-evidence.ts',
     'src/linkedin-evidence.ts',
     'src/tiktok-reporting.ts',
+    'src/tiktok-report-pagination.ts',
     'src/snapchat-evidence.ts',
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))

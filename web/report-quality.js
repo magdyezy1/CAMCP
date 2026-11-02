@@ -221,6 +221,10 @@ const reportSourceWarnings = new Set([
 // another language fills the same exact value into its translated template.
 const reportSourceWarningTemplates = [
   [
+    /^TikTok declared ([\d,]+) rows and returned ([\d,]+)\.$/,
+    m => uiText('TikTok declared {declared} rows and returned {returned}.', {declared: m[1], returned: m[2]}),
+  ],
+  [
     /^Requested native metric (\S{1,150}) was not returned as a number; formulas that use it stay unavailable\. Check the field name for this provider\.$/,
     m =>
       uiText(

@@ -62,7 +62,8 @@ export const tiktokGuidedReporting: GuidedReporting = {
     };
   },
   // ARC-01 (reporting): a capture of a TikTok preset collects complete BASIC daily pages (src/tiktok-reporting.ts).
-  collect: ({store, call, actor, args, semantics}) => collectTikTokDailyReport(store, call, actor, args, semantics),
+  collect: ({store, call, actor, args, semantics, allowPartial}) =>
+    collectTikTokDailyReport(store, call, actor, args, semantics, {allowPartial}),
   sourceCollection: 'tiktok_daily_pages',
   semanticsSource: () =>
     'TikTok advertiser currency and timezone verified before and after complete native pages; native conversion refers to each entity optimization goal and goals may differ; attribution windows and completeness declared, not independently verified. Collection is not a point-in-time snapshot.',

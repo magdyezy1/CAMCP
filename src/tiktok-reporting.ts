@@ -1,9 +1,10 @@
 import {bad, fingerprint, obj, type ToolCall} from './workspace-core.js';
-import {nestedError} from './errors.js';
+import {MirrorError, nestedError} from './errors.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {tiktokReportPageData} from './tiktok-report-pagination.js';
+import {tiktokCollectionCounts, tiktokPageCountMessage, tiktokReportPageData} from './tiktok-report-pagination.js';
+import type {GuidedCollectionState} from './report-source.js';
 import {storedLogin} from './connection-authority.js';
 
 const gateway = 'tiktok_native_action';
@@ -45,9 +46,10 @@ export function tiktokDailyRange(semantics: JsonObject) {
   )
     bad('TikTok guided evidence requires a declared complete window of 1–31 closed days in the advertiser timezone.');
 }
-function pageRows(data: JsonObject, page: number, size: number) {
-  const native = tiktokReportPageData(data, page, size);
-  if (native.total > 10000) bad('Narrow the TikTok report to at most 10000 rows.', 'REPORT_COLLECTION_LIMIT');
+function pageRows(data: JsonObject, page: number, size: number, total: number | null, returned: number) {
+  const native = tiktokReportPageData(data, page, size, {total, returned});
+  if (native.total > 10000 || native.pages > 10)
+    bad('Narrow the TikTok report to at most 10000 rows.', 'REPORT_COLLECTION_LIMIT');
   return native;
 }
 
@@ -58,6 +60,7 @@ export async function collectTikTokDailyReport(
   actor: Actor,
   args: JsonObject,
   semantics: JsonObject,
+  context: {allowPartial?: true} = {},
 ) {
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
@@ -151,9 +154,7 @@ export async function collectTikTokDailyReport(
   for (let page = 1; page <= 10; page++) {
     const request = {...args, query: {...args.query, page}},
       {data, evidence} = await read(request),
-      native = pageRows(data, page, args.query.page_size);
-    if (total !== undefined && total !== native.total)
-      incomplete('TikTok report row counts changed during collection. Capture again.');
+      native = pageRows(data, page, args.query.page_size, total ?? null, rows.length);
     total = native.total;
     for (const row of native.rows) {
       if (
@@ -171,19 +172,60 @@ export async function collectTikTokDailyReport(
       if (date < semantics.date_from || date > semantics.date_to)
         bad('TikTok returned a date outside the requested daily window.', 'REPORT_DATE_MISMATCH');
       const key = row.dimensions[idField] + ':' + date;
-      if (seen.has(key)) bad('TikTok returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS');
+      if (seen.has(key))
+        bad('TikTok returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS', {
+          page_facts: {
+            page,
+            page_size: args.query.page_size,
+            total_number: native.total,
+            total_page: native.pages,
+            list_length: native.rows.length,
+            rule: 'duplicate_tuple',
+          },
+        });
       seen.add(key);
       rows.push(row);
     }
-    pages.push({...evidence, page, row_count: native.rows.length, total_rows: native.total});
+    pages.push({
+      ...evidence,
+      page,
+      row_count: native.rows.length,
+      total_rows: native.total,
+      ...(native.facts ? {page_facts: native.facts} : {}),
+    });
     if (page >= native.pages) break;
   }
-  if (rows.length !== total) incomplete('TikTok did not return every declared report row.');
+  const counts = tiktokCollectionCounts(total ?? 0, rows.length),
+    collection: GuidedCollectionState = {
+      complete: counts.complete,
+      declared: total ?? 0,
+      returned: rows.length,
+      warnings: counts.warning ? [counts.warning] : [],
+    };
+  if (!collection.complete && !context.allowPartial)
+    throw new MirrorError(
+      'REPORT_INCOMPLETE',
+      tiktokPageCountMessage,
+      {
+        declared_rows: collection.declared,
+        returned_rows: collection.returned,
+        page_facts: {
+          page: pages.at(-1)?.page ?? 1,
+          page_size: args.query.page_size,
+          total_number: total ?? 0,
+          total_page: pages.length,
+          list_length: pages.at(-1)?.row_count ?? 0,
+          rule: 'fewer_rows_than_declared',
+        },
+      },
+      502,
+    );
   await verifyAccount();
   current();
   return {
     source: {success: true, data: {collection_kind: 'tiktok_daily_pages', data: {list: rows}, source_pages: pages}},
     sourcePages: pages,
+    collection,
     nativeAccountEvidence: {
       account_id: account,
       currency: semantics.currency,

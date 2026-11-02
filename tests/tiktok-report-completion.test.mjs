@@ -54,12 +54,6 @@ test('TikTok integrated pagination requires explicit consistent native completio
       d.data.page_info.total_number = '1';
     },
     d => {
-      d.data.page_info.total_number = 3;
-    },
-    d => {
-      d.data.page_info.total_page = 5;
-    },
-    d => {
       d.data.has_more = true;
     },
     d => {
@@ -246,7 +240,7 @@ function fixture(t, reportResponse) {
   return {actor, store, service, overview, calls, run};
 }
 test('TikTok Overview keeps malformed native completion as a failed source instead of retaining successful metrics', async t => {
-  for (const data of [{code: 0, data: {list: [row(1)]}}, response([row(1)], 1, 1000, 2)]) {
+  for (const data of [{code: 0, data: {list: [row(1)]}}]) {
     const f = fixture(t, () => data),
       report = await f.run();
     assert.equal(report.state, 'failed', JSON.stringify(report));
@@ -256,6 +250,19 @@ test('TikTok Overview keeps malformed native completion as a failed source inste
     assert.equal(report.sources[0].error.request.stage, 'campaign_report');
     assert.equal(f.calls.length, 2, 'inventory is not queried after incomplete analytics');
   }
+});
+
+test('TikTok Overview retains short collections as partial with declared and returned counts', async t => {
+  const f = fixture(t, () => response([row(1)], 1, 1000, 2));
+  const report = await f.run();
+  assert.equal(report.state, 'partial');
+  assert.equal(report.row_count, 1);
+  assert.equal(report.sources[0].complete, false);
+  assert.equal(report.sources[0].collection_complete, false);
+  assert.ok(report.sources[0].warnings.includes('TikTok declared 2 rows and returned 1.'));
+  assert.equal(report.rows[0].metrics.spend, 1);
+  assert.equal(report.rows[0].complete, false);
+  assert.equal(report.rows[0].recommendation.decision, 'needs_review');
 });
 test('TikTok Overview refuses repeated campaign rows across pages while preserving valid complete reporting', async t => {
   const first = Array.from({length: 1000}, (_, i) => row(i + 1));

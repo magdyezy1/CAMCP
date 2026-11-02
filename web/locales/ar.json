@@ -11536,5 +11536,7 @@
   "Not summed": "لا يُجمع",
   "Native field": "حقل أصلي",
   "{count} step": "عدد الخطوات: {count}",
-  "Reviewer connectors cannot have administrator access.": "لا يمكن منح موصلات المراجعين صلاحيات المسؤول."
+  "Reviewer connectors cannot have administrator access.": "لا يمكن منح موصلات المراجعين صلاحيات المسؤول.",
+  "TikTok returned missing or inconsistent native report page counts.": "أعادت TikTok أعداد صفحات للتقرير مفقودة أو غير متّسقة.",
+  "TikTok declared {declared} rows and returned {returned}.": "أعلنت TikTok عن {declared} صفًا وأعادت {returned} صفًا."
 }

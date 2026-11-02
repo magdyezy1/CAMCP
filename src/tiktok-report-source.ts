@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {reportList, type ReportSource} from './report-source.js';
 import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
+import {tiktokCollectionCounts} from './tiktok-report-pagination.js';
 
 /** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
 const tiktokAuctionOnlyWarning =
@@ -50,6 +51,12 @@ export const tiktokReportSource: ReportSource = {
       }),
     );
     c.raw = reportList(d.data?.list ?? []);
+    const counts = tiktokCollectionCounts(d.data?.page_info?.total_number ?? 0, c.raw.length);
+    if (!counts.complete) {
+      c.collectionComplete = false;
+      c.complete = false;
+      c.warnings.push(counts.warning!);
+    }
     const inventory = reportList(
       (await c.run(c.plan('/v1.3/campaign/get/', {advertiser_id: c.account, page: 1, page_size: 1000}))).data?.list ??
         [],

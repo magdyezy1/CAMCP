@@ -152,9 +152,6 @@ test('TikTok guided evidence refuses missing, partial or inconsistent native com
       d.data.page_info.total_number = '1';
     },
     d => {
-      d.data.page_info.total_page = 2;
-    },
-    d => {
       d.data.list = [];
     },
     d => {
@@ -178,6 +175,19 @@ test('TikTok guided evidence refuses missing, partial or inconsistent native com
     assert.equal(f.requests.length, 2);
     unsaved(f);
   }
+});
+
+test('TikTok guided evidence reads declared pages despite a total-page basis mismatch', async t => {
+  const f = fixture(t);
+  f.edit((u, d) => {
+    if (u.pathname.endsWith('/report/integrated/get/')) d.data.page_info.total_page = 2;
+    return d;
+  });
+  const report = ok(await f.call());
+  assert.equal(report.row_count, 1);
+  assert.equal(report.source_pages.length, 2);
+  assert.equal(report.source_pages[0].page_facts.rule, 'total_page_basis_mismatch');
+  assert.equal(f.requests.length, 4);
 });
 test('TikTok guided evidence rejects foreign or malformed row identity, daily grain, duplicate rows and unsafe money', async t => {
   for (const mutation of [

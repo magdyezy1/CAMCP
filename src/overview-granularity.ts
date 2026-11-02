@@ -38,6 +38,7 @@ export async function collectDetailedOverview(
   const captured = await reporting.collectGuided(
     {
       preset: descriptor.preset,
+      allow_partial: true,
       account_id: source.account_id,
       connection_id: source.connection_id,
       ...(source.campaign_id ? {campaign_id: source.campaign_id} : {}),
@@ -107,13 +108,14 @@ export async function collectDetailedOverview(
     // RPT-02 (detail contract v2): every page was collected, but a window declared incomplete keeps the source
     // partial and holds recommendations. Snapshots retained under v1 keep their original labels.
     detail_contract: detailContractVersion,
-    collection_complete: true,
-    complete: options.complete_window === true,
+    collection_complete: captured.collection?.complete !== false,
+    complete: options.complete_window === true && captured.collection?.complete !== false,
     attribution: captured.semantics.attribution,
     result_definition: captured.semantics.conversion_definition,
     warnings: [
       'Detailed rows retain the original native entity level and exact additive daily totals. Reach and frequency are unavailable for multi-day totals; missing days are not filled with zero. Reporting-window completeness and attribution remain explicitly declared unless native finalization proves them.',
       ...(options.complete_window === true ? [] : [declaredIncompleteWarning]),
+      ...(captured.collection?.warnings ?? []),
       ...parents.warnings,
     ],
     native_account_evidence: captured.native_account_evidence,

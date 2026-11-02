@@ -3382,7 +3382,6 @@
   "TikTok refused the parent read.": "رفضت TikTok قراءة العناصر الأم.",
   "TikTok rejected the authorization code.": "رفضت TikTok رمز التفويض.",
   "TikTok repeated a native reporting dimension tuple.": "كررت TikTok تركيبة أبعاد أصلية في التقرير.",
-  "TikTok report counts changed during collection. Capture again.": "تغيّرت أعداد تقرير TikTok أثناء الجمع. اجمع البيانات مجدداً.",
   "TikTok report creation is limited to one per second per app and 500 per account per rolling hour. Retry the same unsubmitted review after the delay.": "يقتصر إنشاء تقارير TikTok على تقرير واحد في الثانية لكل تطبيق و500 تقرير لكل حساب خلال أي ساعة متحركة. أعد محاولة المراجعة نفسها التي لم تُرسل بعد انقضاء المهلة.",
   "TikTok reports more results but supplies no usable cursor.": "تشير TikTok إلى وجود نتائج أخرى لكنها لا تقدّم مؤشر صفحات (cursor) صالحًا للاستخدام.",
   "TikTok requires a seed of at least 100 people; this one covers fewer.": "يتطلب TikTok جمهور مصدر يضم 100 شخص على الأقل؛ ويغطي هذا الجمهور عددًا أقل.",

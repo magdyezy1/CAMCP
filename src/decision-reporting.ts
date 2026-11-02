@@ -279,6 +279,7 @@ function compatibility(a: JsonObject, b: JsonObject) {
 interface ReportingCall extends ToolContext {
   readonly capturePreset?: string;
   readonly transient: boolean;
+  readonly allowPartial?: true;
 }
 /** A call on the retained evidence report its `id` names. */
 interface EvidenceCall extends ReportingCall {
@@ -332,7 +333,13 @@ export class DecisionReporting {
   ) {}
   /** Internal Overview collector: reuse the exact qualified preset without creating a second saved snapshot or budget. */
   async collectGuided(input: JsonObject, actor: Actor) {
-    return this.handle({action: 'capture', ...reportPreset(input)}, actor, input.preset, true);
+    return this.handle(
+      {action: 'capture', ...reportPreset(input)},
+      actor,
+      input.preset,
+      true,
+      input.allow_partial === true,
+    );
   }
   /** One analysable group per account, entity level, currency, time zone, attribution and result definition. */
   private overviewGroups(actor: Actor, snapshot: JsonObject) {
@@ -437,7 +444,13 @@ export class DecisionReporting {
     });
     return {...report, id};
   }
-  async handle(input: JsonObject, actor: Actor, capturePreset?: string, transient = false): Promise<JsonObject> {
+  async handle(
+    input: JsonObject,
+    actor: Actor,
+    capturePreset?: string,
+    transient = false,
+    allowPartial = false,
+  ): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
     if (
@@ -451,7 +464,13 @@ export class DecisionReporting {
     // ARC-04 stage D: each action is an entry of an action table (src/tool-actions.ts), consulted in the order of the
     // checks between them: the page bounds apply from `list` on, and the actions after those read the retained report
     // the call names, whose connection must still be accessible, before their own checks.
-    const context: ReportingCall = {input, actor, capturePreset, transient};
+    const context: ReportingCall = {
+      input,
+      actor,
+      capturePreset,
+      transient,
+      ...(transient && allowPartial ? {allowPartial: true} : {}),
+    };
     const unpaged = actionHandler(this.unpagedActions, input.action);
     if (unpaged) return unpaged(context);
     if (
@@ -619,7 +638,7 @@ export class DecisionReporting {
     };
   }
   /** capture: one complete native read mapped to evidence, retained unless the Overview collector made it. */
-  private async capture({input, actor, capturePreset, transient}: ReportingCall): Promise<JsonObject> {
+  private async capture({input, actor, capturePreset, transient, allowPartial}: ReportingCall): Promise<JsonObject> {
     const sem = semantic(input.semantics ?? {}),
       mapping = input.mapping;
     if (
@@ -709,10 +728,16 @@ export class DecisionReporting {
             args,
             semantics: sem,
             preset: capturePreset!,
+            ...(allowPartial ? {allowPartial} : {}),
             validateRows: rows => validatePresetRows(capturePreset, input, rows),
           })
         : undefined;
     const nativeAccountEvidence: JsonObject | undefined = collected?.nativeAccountEvidence;
+    if (collected?.collection?.complete === false && !allowPartial)
+      bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE', {
+        declared_rows: collected.collection.declared,
+        returned_rows: collected.collection.returned,
+      });
     const source: JsonObject = collected?.source ?? (await this.call(input.gateway, args, actor));
     if (source.success !== true) throw nestedError(source, {code: 'REPORT_FAILED', message: 'Provider report failed.'});
     if (source.data?.executed === false || source.data?.dry_run || partial(source))
@@ -885,6 +910,7 @@ export class DecisionReporting {
         ),
         ...(conversionWindows ? {conversion_windows: conversionWindows} : {}),
         ...(nativeAccountEvidence ? {native_account_evidence: nativeAccountEvidence} : {}),
+        ...(collected?.collection ? {collection: collected.collection} : {}),
         ...(collected
           ? {
               source_pages: collected.sourcePages,

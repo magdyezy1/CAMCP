@@ -60,6 +60,7 @@
   "Set a {kpi} target in {currency} for this objective or campaign.": "حدّد هدفًا لمؤشر {kpi} بعملة {currency} لهذا الهدف أو الحملة.",
   "Spend anomaly": "إنفاق غير معتاد",
   "Thresholded": "خاضع لحدود إظهار البيانات",
+  "TikTok declared {declared} rows and returned {returned}.": "أعلنت TikTok عن {declared} صفًا وأعادت {returned} صفًا.",
   "Tolerance": "هامش التفاوت",
   "Tracking verified?": "هل تم التحقق من التتبع؟",
   "Truncated by GA4": "اقتُطع بواسطة GA4",

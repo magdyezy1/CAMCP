@@ -262,7 +262,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11538);
+  // V2-RPT-01 adds the page-count diagnostic and the declared/returned warning.
+  assert.equal(Object.keys(catalog).length, 11540);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

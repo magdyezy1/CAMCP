@@ -171,11 +171,11 @@
     },
     {
       "id": "M22-granular-window-assumed-complete",
-      "guards": "RPT-02: a detailed source whose window is not declared complete stays partial",
+      "guards": "RPT-02 and V2-RPT-01: a detailed source with an undeclared window or partial collection stays partial",
       "file": "src/overview-granularity.ts",
-      "find": "complete: options.complete_window === true,",
+      "find": "complete: options.complete_window === true && captured.collection?.complete !== false,",
       "replace": "complete: true,",
-      "tests": ["tests/report-completeness.test.mjs"]
+      "tests": ["tests/report-completeness.test.mjs", "tests/tiktok-report-collection.test.mjs"]
     },
     {
       "id": "M23-provider-double-exponent-refused",

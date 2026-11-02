@@ -138,8 +138,17 @@ export interface GuidedCaptureContext {
   readonly semantics: JsonObject;
   /** The preset the capture collects. */
   readonly preset: string;
+  /** Overview may retain partial collections; evidence captures always require a whole collection. */
+  readonly allowPartial?: true;
   /** The preset's row checks (validatePresetRows), for a collector that checks its rows before its last read. */
   validateRows(rows: JsonObject[]): void;
+}
+
+export interface GuidedCollectionState {
+  complete: boolean;
+  declared: number | null;
+  returned: number;
+  warnings: string[];
 }
 
 /** What a platform's guided collector read: the provider read the capture maps, its pages, its account evidence. */
@@ -147,6 +156,7 @@ export interface GuidedCapture {
   readonly source: JsonObject;
   readonly sourcePages: unknown;
   readonly nativeAccountEvidence?: JsonObject;
+  readonly collection?: GuidedCollectionState;
   /** Checks the actor, the connection and its authorization again, before the capture is retained. */
   assertCurrent(): void;
 }

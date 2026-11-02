@@ -307,8 +307,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // next action) and the source card's "Retry" button, neither an owned reason: 11,538.
   assert.equal(files.length, 759);
   assert.equal(selected.filter(row => row.messages.size).length, 285);
-  assert.equal(owned.size, 1591);
-  assert.equal(Object.keys(catalog).length, 11538);
+  // V2-RPT-01 replaces the adapter's count-change sentence with the shared page-facts diagnostic.
+  assert.equal(owned.size, 1590);
+  // V2-RPT-01 adds the page-count diagnostic and the declared/returned warning.
+  assert.equal(Object.keys(catalog).length, 11540);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
