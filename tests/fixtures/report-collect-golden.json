@@ -5037,6 +5037,75 @@
       "accountId": "507",
       "action": "AMCP_CAMPAIGN_REPORT",
       "method": "GET",
+      "path": "/rest/adAnalytics",
+      "query": {
+       "q": "analytics",
+       "pivot": "CAMPAIGN",
+       "accounts": "List(urn:li:sponsoredAccount:507)",
+       "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
+       "timeGranularity": "ALL",
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,videoViews,landingPageClicks,oneClickLeads,talentLeads"
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "query": {
+       "q": "search",
+       "search": {
+        "id": {
+         "values": [
+          "urn:li:sponsoredCampaign:1"
+         ]
+        }
+       },
+       "pageSize": 100
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
       "path": "/rest/adAccounts/507/adCampaignGroups",
       "query": {
        "q": "search",
@@ -5097,6 +5166,26 @@
       "captured_at": "<epoch-ms>"
      },
      {
+      "stage": "campaign_report",
+      "method": "GET",
+      "path": "/rest/adAnalytics",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "2c3eca0ac70e0b59098638a0e22c09e0c6d2ac3f78a7e7793d4fd793fd75eb0f",
+      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "campaign_metadata",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "e2226afa42f4ce4160ff2c7b9104ee3590d4fb8c673390584c15d615877d975f",
+      "response_fingerprint": "11171ef820d29eb0600bd62a581254a524ba00eb39d5274823c8eabbc29ab0f3",
+      "captured_at": "<epoch-ms>"
+     },
+     {
       "stage": "campaign_group_metadata",
       "method": "GET",
       "path": "/rest/adAccounts/507/adCampaignGroups",
@@ -5107,7 +5196,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "c0ce78ef7a01053beb4471597f463ebe183b35c0dc12a89681cfc5557f31f0a5",
+    "query_fingerprint": "5bb067cc5191ecca9c73e0e926841e44049ac9b3b6797fe04bedab2b7cf5e66f",
     "rows": [
      {
       "campaign_id": "1",
@@ -5194,7 +5283,7 @@
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
        "name": "$undefined",
-       "objectiveType": "$undefined"
+       "objectiveType": null
       }
      }
     ],
@@ -5288,6 +5377,75 @@
       "accountId": "507",
       "action": "AMCP_CAMPAIGN_REPORT",
       "method": "GET",
+      "path": "/rest/adAnalytics",
+      "query": {
+       "q": "analytics",
+       "pivot": "CAMPAIGN",
+       "accounts": "List(urn:li:sponsoredAccount:507)",
+       "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
+       "timeGranularity": "ALL",
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "query": {
+       "q": "search",
+       "search": {
+        "id": {
+         "values": [
+          "urn:li:sponsoredCampaign:1"
+         ]
+        }
+       },
+       "pageSize": 100
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
       "path": "/rest/adAccounts/507/adCampaignGroups",
       "query": {
        "q": "search",
@@ -5346,15 +5504,35 @@
       "query_fingerprint": "e2686fbc6582afb3026a7b07ad1cf27a23093a6017f88abeb0792545e9bbc906",
       "response_fingerprint": "4dc29f0d99b40c9d5fec1a2212f4f662fd70f76cd32b30072ff29f812ad1f83a",
       "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "campaign_report",
+      "method": "GET",
+      "path": "/rest/adAnalytics",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "5e2819b99c30aac6a026de83a316864e956698d78ce61bb46b06787807086bc2",
+      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "campaign_metadata",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "e2226afa42f4ce4160ff2c7b9104ee3590d4fb8c673390584c15d615877d975f",
+      "response_fingerprint": "11171ef820d29eb0600bd62a581254a524ba00eb39d5274823c8eabbc29ab0f3",
+      "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "67c16f2d5376344b91c02bee7b133ea58822d62a1294d9990b47f622a7d5d0ce",
+    "query_fingerprint": "51f126fc5472c7a4890a751b2dac84b1f4c5a9cfddc14ed012b42e4b905c09a6",
     "rows": [
      {
       "campaign_id": "1",
       "campaign_name": "1",
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "LEAD_GENERATION",
+      "objective_group": "leads",
       "currency": null,
       "metrics": {
        "spend": 10.5,
@@ -5391,7 +5569,7 @@
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
        "name": "$undefined",
-       "objectiveType": "$undefined"
+       "objectiveType": "LEAD_GENERATION"
       }
      },
      {
@@ -5435,7 +5613,7 @@
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
        "name": "$undefined",
-       "objectiveType": "$undefined"
+       "objectiveType": null
       }
      }
     ],
@@ -5504,6 +5682,75 @@
        "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
        "timeGranularity": "ALL",
        "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
+      "path": "/rest/adAnalytics",
+      "query": {
+       "q": "analytics",
+       "pivot": "CAMPAIGN",
+       "accounts": "List(urn:li:sponsoredAccount:507)",
+       "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
+       "timeGranularity": "ALL",
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "query": {
+       "q": "search",
+       "search": {
+        "id": {
+         "values": [
+          "urn:li:sponsoredCampaign:1"
+         ]
+        }
+       },
+       "pageSize": 100
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5745,6 +5992,75 @@
       "accountId": "507",
       "action": "AMCP_CAMPAIGN_REPORT",
       "method": "GET",
+      "path": "/rest/adAnalytics",
+      "query": {
+       "q": "analytics",
+       "pivot": "CAMPAIGN",
+       "accounts": "List(urn:li:sponsoredAccount:507)",
+       "dateRange": "(start:(year:2026,month:8,day:1),end:(year:2026,month:8,day:7))",
+       "timeGranularity": "ALL",
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "query": {
+       "q": "search",
+       "search": {
+        "id": {
+         "values": [
+          "urn:li:sponsoredCampaign:1"
+         ]
+        }
+       },
+       "pageSize": 100
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
       "path": "/rest/adAccounts/507/adCampaignGroups",
       "query": {
        "q": "search",
@@ -5788,6 +6104,39 @@
        "dateRange": "(start:(year:2026,month:8,day:8),end:(year:2026,month:8,day:14))",
        "timeGranularity": "ALL",
        "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions"
+      },
+      "body": "$undefined",
+      "origin": "$undefined",
+      "headers": {
+       "LinkedIn-Version": "202609",
+       "X-Restli-Protocol-Version": "2.0.0"
+      },
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "linkedin_native_action",
+      "accountId": "507",
+      "action": "AMCP_CAMPAIGN_REPORT",
+      "method": "GET",
+      "path": "/rest/adAnalytics",
+      "query": {
+       "q": "analytics",
+       "pivot": "CAMPAIGN",
+       "accounts": "List(urn:li:sponsoredAccount:507)",
+       "dateRange": "(start:(year:2026,month:8,day:8),end:(year:2026,month:8,day:14))",
+       "timeGranularity": "ALL",
+       "fields": "pivotValues,dateRange,impressions,clicks,costInLocalCurrency,externalWebsiteConversions,landingPageClicks,videoViews,oneClickLeads,talentLeads"
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -5862,6 +6211,26 @@
       "captured_at": "<epoch-ms>"
      },
      {
+      "stage": "campaign_report",
+      "method": "GET",
+      "path": "/rest/adAnalytics",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "5e2819b99c30aac6a026de83a316864e956698d78ce61bb46b06787807086bc2",
+      "response_fingerprint": "61dd5f377ed800ac7876c7035ad70fa61c665561b3ec5a23af5c0a62e1643aec",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "campaign_metadata",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "e2226afa42f4ce4160ff2c7b9104ee3590d4fb8c673390584c15d615877d975f",
+      "response_fingerprint": "11171ef820d29eb0600bd62a581254a524ba00eb39d5274823c8eabbc29ab0f3",
+      "captured_at": "<epoch-ms>"
+     },
+     {
       "stage": "campaign_group_metadata",
       "method": "GET",
       "path": "/rest/adAccounts/507/adCampaignGroups",
@@ -5872,7 +6241,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "4a3fb8ddcb204328b6968b1c8ecb565acd378ffa27c98fd675aafbb31e6160d4",
+    "query_fingerprint": "636879904a174c808dd48acbd1be944842d21c3ea0f8e74f74d41e7370cf41b1",
     "rows": [
      {
       "campaign_id": "1",
@@ -5959,7 +6328,7 @@
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
        "name": "$undefined",
-       "objectiveType": "$undefined"
+       "objectiveType": null
       }
      }
     ],
@@ -6015,6 +6384,27 @@
       "captured_at": "<epoch-ms>"
      },
      {
+      "stage": "campaign_report",
+      "method": "GET",
+      "path": "/rest/adAnalytics",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "09d85ba5d619b4278a2ff9b1d2c7570a16e66e0a1309d9c1f42b792dbfe39e1f",
+      "response_fingerprint": "a95db932029c787ebec736ed8ee9315a79b3ee897b1abab565c69c9823984b83",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "campaign_metadata",
+      "method": "GET",
+      "path": "/rest/adAccounts/507/adCampaigns",
+      "origin": null,
+      "api_version": "202609",
+      "query_fingerprint": "e2226afa42f4ce4160ff2c7b9104ee3590d4fb8c673390584c15d615877d975f",
+      "response_fingerprint": "11171ef820d29eb0600bd62a581254a524ba00eb39d5274823c8eabbc29ab0f3",
+      "captured_at": "<epoch-ms>",
+      "cached": true
+     },
+     {
       "stage": "campaign_group_metadata",
       "method": "GET",
       "path": "/rest/adAccounts/507/adCampaignGroups",
@@ -6026,7 +6416,7 @@
       "cached": true
      }
     ],
-    "query_fingerprint": "7b8d5abaae3a724288b268bd76cc3448b7098076e7eebd4d12c257c297f7282b",
+    "query_fingerprint": "2b23e6ed99c80e9977ee2e9ef3fe66ebc3115cbe8c1a52f46295b6b38d4c6577",
     "rows": [
      {
       "campaign_id": "1",
@@ -6113,7 +6503,7 @@
        "costInLocalCurrency": "10.5",
        "externalWebsiteConversions": 1,
        "name": "$undefined",
-       "objectiveType": "$undefined"
+       "objectiveType": null
       }
      }
     ],
@@ -6156,8 +6546,25 @@
      "captured_at": "<epoch-ms>"
     },
     "linkedinCampaigns": {
-     "campaigns": {},
-     "lineage": []
+     "campaigns": {
+      "urn:li:sponsoredCampaign:1": {
+       "name": "LinkedIn campaign",
+       "objective_type": "LEAD_GENERATION",
+       "campaign_group": "urn:li:sponsoredCampaignGroup:1"
+      }
+     },
+     "lineage": [
+      {
+       "stage": "campaign_metadata",
+       "method": "GET",
+       "path": "/rest/adAccounts/507/adCampaigns",
+       "origin": null,
+       "api_version": "202609",
+       "query_fingerprint": "e2226afa42f4ce4160ff2c7b9104ee3590d4fb8c673390584c15d615877d975f",
+       "response_fingerprint": "11171ef820d29eb0600bd62a581254a524ba00eb39d5274823c8eabbc29ab0f3",
+       "captured_at": "<epoch-ms>"
+      }
+     ]
     },
     "linkedinGroups": {
      "groups": {
