@@ -61,6 +61,14 @@ export interface AccountLookupCache {
    * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
    */
   linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  /** LinkedIn group and creative metadata, under the same per-source authorization as campaign metadata. */
+  linkedinGroups?: {groups: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  linkedinCreatives?: {
+    creatives: Record<string, JsonObject>;
+    lineage: JsonObject[];
+    unavailable?: boolean;
+    limited?: boolean;
+  };
   /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
   detailParents?: DetailParentCache;
 }

@@ -14,7 +14,7 @@ import type {JsonObject} from './types.js';
  *  - Reddit: breakdowns CAMPAIGN_ID, AD_GROUP_ID (and AD_ID), with current names from the account's ad group and ad lists.
  *  - Apple: reports/apps/adgroups and reports/apps/ads, with parents from the account's ad group, ad and campaign queries.
  */
-export const nativeDetailPlatforms: readonly string[] = ['microsoft', 'reddit', 'apple'];
+export const nativeDetailPlatforms: readonly string[] = ['linkedin', 'microsoft', 'reddit', 'apple'];
 /** Distinct entities per source whose names or parents are read; entities beyond it keep IDs and unknown parents. */
 export const nativeDetailLookupLimit = 1000;
 export const nativeDetailLookupLimitedWarning =

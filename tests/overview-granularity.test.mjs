@@ -13,9 +13,9 @@ async function run(f, config) {
   assert.equal(await f.worker.once(), true);
   return f.overview.handle({action: 'get', id: queued.id}, f.actor);
 }
-test('every supported native ad and middle-level preset reaches Overview without inventing a LinkedIn ad set', async () => {
+test('every supported native ad and middle-level reaches Overview, including LinkedIn campaigns in the middle position', async () => {
   for (const platform of ['meta', 'google', 'tiktok', 'snapchat', 'linkedin'])
-    for (const level of platform === 'linkedin' ? ['ad'] : ['adset', 'ad']) {
+    for (const level of ['adset', 'ad']) {
       const f = overviewGranularityFixture();
       try {
         const report = await run(f, granularConfig(granularSource(platform, level)));
@@ -28,7 +28,7 @@ test('every supported native ad and middle-level preset reaches Overview without
         assert.equal(report.summary[0].campaign_count, undefined);
         assert.ok(row.entity_id);
         assert.equal(row.source_kind, 'paid');
-        assert.equal(row.native.daily_rows.length, 2);
+        assert.equal(row.native.daily_rows.length, platform === 'linkedin' ? 1 : 2);
         assert.ok(row.native.exact_totals.spend);
         assert.equal(row.metrics.reach, null);
         assert.equal(row.metrics.frequency, null);
@@ -63,16 +63,15 @@ test('every supported native ad and middle-level preset reaches Overview without
         }
         if (platform === 'linkedin') {
           assert.equal(row.timezone, 'UTC');
-          // RPT-07: a creative keeps its native campaign (this test previously asserted null, the defect it fixes);
-          // still no invented ad set between the creative and its campaign.
-          assert.equal(row.campaign_id, '555');
-          assert.equal(row.parent_ids.adset_id, undefined);
+          // LinkedIn's native group and campaign occupy the top and middle positions respectively.
+          assert.equal(row.campaign_id, '444');
+          assert.equal(row.parent_ids.adset_id, level === 'ad' ? '555' : undefined);
         }
       } finally {
         f.close();
       }
     }
-  assert.throws(() => overviewSourceLevel(granularSource('linkedin', 'adset')), {code: 'REPORT_LEVEL_UNSUPPORTED'});
+  assert.equal(overviewSourceLevel(granularSource('linkedin', 'adset')).native_type, 'sponsoredCampaign');
 });
 
 test('summary keeps hierarchy levels separate and preserves the existing campaign-only shape', () => {

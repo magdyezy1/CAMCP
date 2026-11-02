@@ -21,7 +21,7 @@ const nativeDate = date => {
   return {year, month, day};
 };
 const row = (extra = {}) => ({
-  pivotValues: ['urn:li:sponsoredCampaign:9007199254740993'],
+  pivotValues: ['urn:li:sponsoredCampaignGroup:9007199254740993'],
   dateRange: {start: nativeDate(dates.since), end: nativeDate(dates.until)},
   costInLocalCurrency: '100.123456789',
   impressions: 1000,
@@ -29,12 +29,12 @@ const row = (extra = {}) => ({
   externalWebsiteConversions: 20,
   ...extra,
 });
-// RPT-07: the Overview reads the reported campaigns' current names and objectives after the analytics response.
-const campaignsPage = url => ({
-  elements: [...url.searchParams.get('search').matchAll(/sponsoredCampaign:(\d+)/g)].map(([, id]) => ({
+// RPT-07: the Overview reads the reported groups' current names and objectives after the analytics response.
+const groupsPage = url => ({
+  elements: [...url.searchParams.get('search').matchAll(/sponsoredCampaignGroup:(\d+)/g)].map(([, id]) => ({
     id: Number.isSafeInteger(Number(id)) ? Number(id) : id,
     account: 'urn:li:sponsoredAccount:100',
-    name: 'Campaign ' + id,
+    name: 'Group ' + id,
     objectiveType: 'WEBSITE_CONVERSION',
   })),
   metadata: {},
@@ -42,7 +42,7 @@ const campaignsPage = url => ({
 function fixture(
   response = {elements: [row()]},
   account = {id: 100, currency: 'USD', name: 'Synthetic'},
-  campaigns = campaignsPage,
+  groups = groupsPage,
 ) {
   const store = new Store(':memory:', Buffer.alloc(32, 74).toString('base64')),
     calls = [];
@@ -65,10 +65,10 @@ function fixture(
       calls.push(url);
       assert.equal(init.method, 'GET');
       assert.ok(
-        ['/rest/adAccounts/100', '/rest/adAnalytics', '/rest/adAccounts/100/adCampaigns'].includes(url.pathname),
+        ['/rest/adAccounts/100', '/rest/adAnalytics', '/rest/adAccounts/100/adCampaignGroups'].includes(url.pathname),
       );
-      if (url.pathname === '/rest/adAccounts/100/adCampaigns') {
-        const out = campaigns(url);
+      if (url.pathname === '/rest/adAccounts/100/adCampaignGroups') {
+        const out = groups(url);
         afterRead(url.pathname);
         return out instanceof Response ? out : Response.json(out);
       }
@@ -163,15 +163,15 @@ test('LinkedIn Overview retains native period evidence and unknown attribution i
     assert.equal(report.rows[0].recommendation.decision, 'needs_review');
     assert.equal(report.rows[0].timezone, 'UTC');
     assert.equal(report.sources[0].contract_version, 'campaign-source-v4');
-    // RPT-07: account lookup, analytics and the campaign metadata read (previously two reads and ID-only rows).
+    // RPT-07: account lookup, analytics and the group metadata read (previously two reads and ID-only rows).
     assert.deepEqual(
       report.sources[0].lineage.map(l => l.stage),
-      ['account_lookup', 'campaign_report', 'campaign_metadata'],
+      ['account_lookup', 'campaign_report', 'campaign_group_metadata'],
     );
-    assert.equal(report.rows[0].campaign_name, 'Campaign 9007199254740993');
+    assert.equal(report.rows[0].campaign_name, 'Group 9007199254740993');
     assert.equal(report.rows[0].objective, 'WEBSITE_CONVERSION');
     assert.match(report.sources[0].warnings.join(' '), /attribution.*not.*verified/i);
-    assert.match(report.sources[0].warnings.join(' '), /current campaign metadata/);
+    assert.match(report.sources[0].warnings.join(' '), /current metadata/);
   } finally {
     f.store.close();
   }
@@ -263,36 +263,36 @@ test('an older queued LinkedIn snapshot with no previous reads adopts the curren
     assert.equal(report.state, 'complete');
     assert.equal(report.config.source_contract_version, 'campaign-source-v4');
     assert.equal(report.sources[0].contract_version, report.config.source_contract_version);
-    // Account lookup, analytics and (RPT-07) the campaign metadata read.
+    // Account lookup, analytics and (RPT-07) the group metadata read.
     assert.equal(f.calls.length, 3);
   } finally {
     f.store.close();
   }
 });
 
-test('RPT-07: LinkedIn rows carry current campaign names and objectives; foreign or partial metadata is refused', async () => {
+test('RPT-07: LinkedIn rows carry current campaign group names and objectives; foreign or partial metadata is refused', async () => {
   const f = fixture();
   try {
     const result = await f.collect();
     assert.equal(result.rows[0].campaign_id, '9007199254740993');
-    assert.equal(result.rows[0].campaign_name, 'Campaign 9007199254740993');
+    assert.equal(result.rows[0].campaign_name, 'Group 9007199254740993');
     assert.equal(result.rows[0].objective_group, 'sales');
-    const read = f.calls.find(u => u.pathname === '/rest/adAccounts/100/adCampaigns');
+    const read = f.calls.find(u => u.pathname === '/rest/adAccounts/100/adCampaignGroups');
     assert.equal(read.searchParams.get('q'), 'search');
-    assert.match(read.searchParams.get('search'), /urn:li:sponsoredCampaign:9007199254740993/);
+    assert.match(read.searchParams.get('search'), /urn:li:sponsoredCampaignGroup:9007199254740993/);
   } finally {
     f.store.close();
   }
-  for (const [campaigns, code] of [
+  for (const [groups, code] of [
     [
       () => ({elements: [{id: '9007199254740993', account: 'urn:li:sponsoredAccount:999', name: 'Foreign'}]}),
       'REPORT_ACCOUNT_MISMATCH',
     ],
-    [url => ({...campaignsPage(url), metadata: {nextPageToken: 'more'}}), 'REPORT_INCOMPLETE'],
+    [url => ({...groupsPage(url), metadata: {nextPageToken: 'more'}}), 'REPORT_INCOMPLETE'],
     [() => ({elements: 'not a list'}), 'REPORT_INCOMPLETE'],
     [() => ({elements: [null]}), 'REPORT_SHAPE_CHANGED'],
   ]) {
-    const g = fixture(undefined, undefined, campaigns);
+    const g = fixture(undefined, undefined, groups);
     try {
       await assert.rejects(g.collect(), e => e.code === code, code);
     } finally {
@@ -301,7 +301,7 @@ test('RPT-07: LinkedIn rows carry current campaign names and objectives; foreign
   }
 });
 
-test('RPT-07: a refused or empty LinkedIn campaign metadata read keeps IDs with unknown objectives', async () => {
+test('RPT-07: a refused or empty LinkedIn group metadata read keeps IDs with unknown objectives', async () => {
   for (const refused of [true, false]) {
     const f = fixture(undefined, undefined, () =>
       refused
@@ -313,7 +313,7 @@ test('RPT-07: a refused or empty LinkedIn campaign metadata read keeps IDs with 
       assert.equal(result.rows[0].campaign_name, '9007199254740993');
       assert.equal(result.rows[0].objective_group, 'unknown');
       assert.equal(
-        /campaign names and objectives could not be read/.test(result.warnings.join(' ')),
+        /metadata could not be read/.test(result.warnings.join(' ')),
         refused,
         'only a refused read is reported as unavailable',
       );
@@ -323,7 +323,7 @@ test('RPT-07: a refused or empty LinkedIn campaign metadata read keeps IDs with 
   }
 });
 
-test('RPT-07: grouped LinkedIn periods read each campaign’s metadata once per job', async () => {
+test('RPT-07: grouped LinkedIn periods read each group’s metadata once per job', async () => {
   const f = fixture(url => {
     const start = url.searchParams.get('dateRange').includes('day:1)') ? dates.since : dates.until;
     return {elements: [row({dateRange: {start: nativeDate(start), end: nativeDate(start)}})]};
@@ -333,8 +333,8 @@ test('RPT-07: grouped LinkedIn periods read each campaign’s metadata once per 
     await f.overview.work(actor.tenantId, 'report_overview', {report_id: run.id});
     const report = await f.overview.handle({action: 'get', id: run.id}, actor);
     assert.equal(report.rows.length, 2);
-    assert.ok(report.rows.every(r => r.campaign_name === 'Campaign 9007199254740993'));
-    assert.equal(f.calls.filter(u => u.pathname === '/rest/adAccounts/100/adCampaigns').length, 1);
+    assert.ok(report.rows.every(r => r.campaign_name === 'Group 9007199254740993'));
+    assert.equal(f.calls.filter(u => u.pathname === '/rest/adAccounts/100/adCampaignGroups').length, 1);
   } finally {
     f.store.close();
   }

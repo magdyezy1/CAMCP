@@ -13,6 +13,11 @@ import {assetsWithinAccess} from './access-sets.js';
 /** Independently implemented workflow semantics. Captured action routes are evidence,
  * not evidence that these composite response envelopes match AMCP byte-for-byte. */
 export const workflowEvidence = 'INDEPENDENT_DESIGN';
+export const linkedinReportPivots = Object.freeze({
+  campaign: 'CAMPAIGN_GROUP',
+  adset: 'CAMPAIGN',
+  ad: 'CREATIVE',
+} as const);
 export interface NativeStep {
   gateway: string;
   input: JsonObject;
@@ -755,7 +760,7 @@ export function compileReport(args: JsonObject): NativeStep {
     );
   }
   if (p === 'linkedin') {
-    const pivot: Record<string, string> = {campaign: 'CAMPAIGN_GROUP', adset: 'CAMPAIGN', ad: 'CREATIVE'};
+    const pivot: Readonly<Record<string, string>> = linkedinReportPivots;
     if (!pivot[level]) return unsupported('LinkedIn reporting supports campaign, adset and ad levels.');
     const tuple = (date: string) => {
       const [y, m, d] = date.split('-').map(Number);

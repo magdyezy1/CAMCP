@@ -266,7 +266,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
-  assert.equal(Object.keys(catalog).length, 11583);
+  // V2-RPT-04 adds seven direct refusals and two metadata warnings; wrapper ownership is unchanged.
+  assert.equal(Object.keys(catalog).length, 11592);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -308,13 +308,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-RPT-02 adds the shared objective resolver (no new owned refusal) and objective explanations.
   assert.equal(files.length, 761);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
-  assert.equal(selected.filter(row => row.messages.size).length, 287);
+  // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
+  assert.equal(selected.filter(row => row.messages.size).length, 288);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
-  assert.equal(owned.size, 1594);
+  // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
+  assert.equal(owned.size, 1606);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
-  assert.equal(Object.keys(catalog).length, 11583);
+  // V2-RPT-04 adds seven refusals and two metadata warnings; existing level labels are reused.
+  assert.equal(Object.keys(catalog).length, 11592);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

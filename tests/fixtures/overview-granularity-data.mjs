@@ -48,7 +48,7 @@ export function granularConfig(source = granularSource('meta'), grain = 'total')
 export const granularParents = {
   tiktok: {campaign: '9007199254740001', adgroup: '9007199254740002'},
   snapchat: {campaign: snapchatEvidenceCampaign, adsquad: '22222222-2222-4222-8222-000000000300'},
-  linkedin: {campaign: '555'},
+  linkedin: {group: '444', campaign: '555'},
 };
 const tiktokParent = (entity, id) =>
   entity === 'campaign'
@@ -257,6 +257,7 @@ export function overviewGranularityFixture() {
             id: 'urn:li:sponsoredCreative:' + id,
             account: 'urn:li:sponsoredAccount:100',
             campaign: 'urn:li:sponsoredCampaign:' + granularParents.linkedin.campaign,
+            name: 'Synthetic LinkedIn creative',
             intendedStatus: 'ACTIVE',
           })),
           metadata: {},
@@ -270,6 +271,19 @@ export function overviewGranularityFixture() {
             account: 'urn:li:sponsoredAccount:100',
             name: 'Synthetic LinkedIn campaign',
             objectiveType: 'WEBSITE_CONVERSION',
+            campaignGroup: 'urn:li:sponsoredCampaignGroup:' + granularParents.linkedin.group,
+          })),
+          metadata: {},
+        });
+      }
+      if (url.pathname === '/rest/adAccounts/100/adCampaignGroups') {
+        assert.equal(url.searchParams.get('q'), 'search');
+        return parent('linkedin', url, {
+          elements: [...url.searchParams.get('search').matchAll(/sponsoredCampaignGroup:(\d+)/g)].map(([, id]) => ({
+            id,
+            account: 'urn:li:sponsoredAccount:100',
+            name: 'Synthetic LinkedIn group',
+            objectiveType: 'WEBSITE_CONVERSION',
           })),
           metadata: {},
         });
@@ -279,21 +293,32 @@ export function overviewGranularityFixture() {
         requested = [...url.searchParams.get('dateRange').matchAll(match)].map(
           m => `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`,
         );
-      const rows = ['2026-09-01', '2026-09-02']
-        .filter(day => day >= requested[0] && day <= requested[1])
-        .map(day => {
-          const [year, month, d] = day.split('-').map(Number),
-            date = {year, month, day: d};
-          return {
-            pivotValues: ['urn:li:sponsoredCreative:9007199254740993'],
-            dateRange: {start: date, end: date},
-            costInLocalCurrency: '10.12',
-            impressions: 100,
-            clicks: 10,
-            externalWebsiteConversions: 2,
-            conversionValueInLocalCurrency: '12.5',
-          };
-        });
+      // The native source requests ALL at each position, with one exact period row rather than daily capture rows.
+      assert.equal(url.searchParams.get('timeGranularity'), 'ALL');
+      const days = ['2026-09-01', '2026-09-02'].filter(day => day >= requested[0] && day <= requested[1]).length,
+        nativeDate = text => {
+          const [year, month, day] = text.split('-').map(Number);
+          return {year, month, day};
+        },
+        pivot = url.searchParams.get('pivot'),
+        urn = {
+          CAMPAIGN_GROUP: 'urn:li:sponsoredCampaignGroup:' + granularParents.linkedin.group,
+          CAMPAIGN: 'urn:li:sponsoredCampaign:' + granularParents.linkedin.campaign,
+          CREATIVE: 'urn:li:sponsoredCreative:9007199254740993',
+        }[pivot],
+        rows = days
+          ? [
+              {
+                pivotValues: [urn],
+                dateRange: {start: nativeDate(requested[0]), end: nativeDate(requested[1])},
+                costInLocalCurrency: days === 2 ? '20.24' : '10.12',
+                impressions: 100 * days,
+                clicks: 10 * days,
+                externalWebsiteConversions: 2 * days,
+                conversionValueInLocalCurrency: days === 2 ? '25' : '12.5',
+              },
+            ]
+          : [];
       return Response.json({elements: mutate(rows, 'linkedin')});
     }
     if (url.hostname === 'adsapi.snapchat.com') {

@@ -26,6 +26,7 @@
   "Higher is better": "القيمة الأعلى أفضل",
   "Includes an in-progress day": "تتضمن يومًا لم ينتهِ بعد",
   "Legacy snapshot: measurement-quality metadata was not recorded.": "لقطة قديمة: لم تُسجّل بيانات وصفية لجودة القياس.",
+  "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.": "لم يتم التحقق بشكل مستقل من نوافذ الإسناد في قواعد تحويل LinkedIn؛ الإعداد المسبق ذو النوافذ الموثّقة هو linkedin_campaign_conversion. أسماء الحملات وأهدافها هي بياناتها الحالية، وليست القيم وقت العرض.",
   "Low": "منخفض",
   "Lower is better": "القيمة الأقل أفضل",
   "Matches": "متطابق",

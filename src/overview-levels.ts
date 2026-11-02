@@ -35,8 +35,14 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
       {id: 'ad', label: 'Ad', preset: 'snapchat_ad', native_type: 'ad'},
     ],
     linkedin: [
-      {id: 'campaign', label: 'Campaign', native_type: 'sponsoredCampaign'},
-      {id: 'ad', label: 'Creative (ad)', preset: 'linkedin_creative', native_type: 'sponsoredCreative'},
+      {
+        id: 'campaign',
+        label: 'Campaign group',
+        preset: 'linkedin_campaign_group',
+        native_type: 'sponsoredCampaignGroup',
+      },
+      {id: 'adset', label: 'Campaign', preset: 'linkedin_campaign', native_type: 'sponsoredCampaign'},
+      {id: 'ad', label: 'Creative', preset: 'linkedin_creative', native_type: 'sponsoredCreative'},
     ],
     // RPT-07 granular parity: native report collectors in overview-native-detail.ts (window totals per entity).
     microsoft: [

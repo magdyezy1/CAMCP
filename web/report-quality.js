@@ -213,7 +213,9 @@ const reportSourceWarnings = new Set([
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
   // RPT-07: LinkedIn campaign names and objectives come from a current metadata read.
   'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.',
+  'LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.',
   'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
+  'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
   'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
   // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).
   'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.',

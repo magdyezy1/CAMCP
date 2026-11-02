@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
-import type {JsonObject} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
+import {linkedinVersion} from './linkedin-version.js';
 
 // LinkedIn Reporting and Metrics Available, li-lms-2026-09, checked 2026-10-01:
 // adAnalytics has no pagination, a 15,000-element ceiling, and UTC inclusive dates.
@@ -117,14 +118,97 @@ export async function linkedInCampaignMetadata(
           typeof element.objectiveType === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(element.objectiveType)
             ? element.objectiveType
             : null,
+        campaign_group:
+          typeof element.campaignGroup === 'string' &&
+          /^urn:li:sponsoredCampaignGroup:[1-9][0-9]{0,31}$/.test(element.campaignGroup)
+            ? element.campaignGroup
+            : null,
       };
     }
   }
   return {campaigns, unmatched};
 }
 
+/** Current metadata of reported groups, from the account-owned search finder (li-lms-2026-10). */
+export async function linkedInCampaignGroupMetadata(
+  account: string,
+  urns: string[],
+  read: (plan: CompiledRequest) => Promise<JsonObject>,
+): Promise<Record<string, {name: string | null; objective_type: string | null; status: string | null}>> {
+  const wanted = [...new Set(urns)],
+    groups: Record<string, {name: string | null; objective_type: string | null; status: string | null}> = {};
+  if (wanted.length > 2000)
+    throw new MirrorError('REPORT_COLLECTION_LIMIT', 'Narrow the LinkedIn report to at most 2000 campaign groups.');
+  for (const urn of wanted)
+    if (!/^urn:li:sponsoredCampaignGroup:[1-9][0-9]{0,31}$/.test(urn))
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return a native campaign group URN.');
+  for (let start = 0; start < wanted.length; start += 100) {
+    const batch = wanted.slice(start, start + 100),
+      data = await read({
+        gateway: 'linkedin_native_action',
+        accountId: account,
+        action: 'AMCP_CAMPAIGN_REPORT',
+        method: 'GET',
+        path: '/rest/adAccounts/' + account + '/adCampaignGroups',
+        query: {q: 'search', search: {id: {values: batch}}, pageSize: 100},
+        headers: {'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'},
+        readOnly: true,
+        destructive: false,
+        requiresConfirmation: false,
+        evidence: 'Native campaign report, bounded account scope',
+        warnings: [],
+      });
+    if (
+      !object(data) ||
+      !Array.isArray(data.elements) ||
+      data.elements.length > batch.length ||
+      (data.metadata !== undefined && (!object(data.metadata) || data.metadata.nextPageToken)) ||
+      data.paging?.links?.some?.((link: JsonObject) => link?.rel === 'next')
+    )
+      throw new MirrorError('REPORT_INCOMPLETE', 'LinkedIn returned incomplete campaign group metadata.');
+    for (const element of data.elements) {
+      if (!object(element))
+        throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn returned malformed campaign group metadata.');
+      if (element.account !== 'urn:li:sponsoredAccount:' + account)
+        throw new MirrorError(
+          'REPORT_ACCOUNT_MISMATCH',
+          'LinkedIn returned campaign group metadata from another advertising account. The report was not saved.',
+        );
+      const id =
+        typeof element.id === 'number' && Number.isSafeInteger(element.id) && element.id > 0
+          ? String(element.id)
+          : typeof element.id === 'string' && /^[1-9][0-9]{0,31}$/.test(element.id)
+            ? element.id
+            : undefined;
+      const urn = id && 'urn:li:sponsoredCampaignGroup:' + id;
+      if (!urn || !batch.includes(urn) || Object.hasOwn(groups, urn))
+        throw new MirrorError(
+          'REPORT_SHAPE_CHANGED',
+          'LinkedIn returned unrequested or repeated campaign group metadata.',
+        );
+      groups[urn] = {
+        name:
+          typeof element.name === 'string' && element.name.length > 0 && element.name.length <= 1000
+            ? element.name
+            : null,
+        objective_type:
+          typeof element.objectiveType === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(element.objectiveType)
+            ? element.objectiveType
+            : null,
+        status:
+          typeof element.status === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(element.status) ? element.status : null,
+      };
+    }
+  }
+  return groups;
+}
+
 /** ALL grain must describe exactly the requested period, including older requests the provider may round. */
-export function linkedInCampaignPeriod(value: unknown, range: {since: string; until: string}): JsonObject[] {
+export function linkedInCampaignPeriod(
+  value: unknown,
+  range: {since: string; until: string},
+  pivot = 'CAMPAIGN',
+): JsonObject[] {
   const rows = linkedInAnalyticsRows(value),
     seen = new Set<string>();
   if (!rows.length)
@@ -138,9 +222,22 @@ export function linkedInCampaignPeriod(value: unknown, range: {since: string; un
       !Array.isArray(row.pivotValues) ||
       row.pivotValues.length !== 1 ||
       typeof row.pivotValues[0] !== 'string' ||
-      !/^urn:li:sponsoredCampaign:[1-9][0-9]{0,31}$/.test(row.pivotValues[0])
-    )
-      throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return a single native campaign pivot.');
+      !new RegExp(
+        '^urn:li:' +
+          (
+            {
+              CAMPAIGN_GROUP: 'sponsoredCampaignGroup',
+              CAMPAIGN: 'sponsoredCampaign',
+              CREATIVE: 'sponsoredCreative',
+            } as Record<string, string>
+          )[pivot] +
+          ':[1-9][0-9]{0,31}$',
+      ).test(row.pivotValues[0])
+    ) {
+      if (pivot === 'CAMPAIGN')
+        throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return a single native campaign pivot.');
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return the requested native entity pivot.');
+    }
     if (
       linkedInReportDate(row.dateRange?.start) !== range.since ||
       linkedInReportDate(row.dateRange?.end) !== range.until

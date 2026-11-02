@@ -12,6 +12,7 @@ import {
   optionalReadRefused,
 } from '../dist/src/overview-parents.js';
 import {MirrorError} from '../dist/src/errors.js';
+import {linkedinMetadataUnavailableWarning} from '../dist/src/linkedin-report-source.js';
 import {
   overviewGranularityFixture,
   granularSource,
@@ -40,7 +41,12 @@ const expected = {
     adset_id: granularParents.snapchat.adsquad,
     adset_name: 'Synthetic squad',
   },
-  'linkedin:ad': {campaign_id: granularParents.linkedin.campaign, campaign_name: 'Synthetic LinkedIn campaign'},
+  'linkedin:ad': {
+    campaign_id: granularParents.linkedin.group,
+    campaign_name: 'Synthetic LinkedIn group',
+    adset_id: granularParents.linkedin.campaign,
+    adset_name: 'Synthetic LinkedIn campaign',
+  },
 };
 
 test('RPT-07: TikTok ad group and ad, Snapchat ad and LinkedIn creative rows carry their exact native parents, also in the Sheets parent columns', async () => {
@@ -56,7 +62,7 @@ test('RPT-07: TikTok ad group and ad, Snapchat ad and LinkedIn creative rows car
       assert.equal(row.campaign_name, parents.campaign_name);
       assert.equal(report.sources[0].detail_contract, 'overview-detail-v3');
       assert.ok(
-        row.lineage.some(entry => entry.stage === 'detail_parents'),
+        row.lineage.some(entry => entry.stage === (platform === 'linkedin' ? 'creative_metadata' : 'detail_parents')),
         key + ': the parent reads stay in the source lineage',
       );
       const table = reportTable(report),
@@ -198,7 +204,12 @@ test('RPT-07: a parent read the provider refuses keeps the rows with unknown par
       const row = report.rows[0];
       assert.equal(row.campaign_id, null);
       assert.deepEqual(row.parent_ids, {});
-      assert.ok(report.sources[0].warnings.includes(detailParentsUnavailableWarning), platform);
+      assert.ok(
+        report.sources[0].warnings.includes(
+          platform === 'linkedin' ? linkedinMetadataUnavailableWarning : detailParentsUnavailableWarning,
+        ),
+        platform,
+      );
     } finally {
       f.close();
     }

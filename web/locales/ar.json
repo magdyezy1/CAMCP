@@ -11581,5 +11581,14 @@
   "Inferred from the platform’s value": "مستنتج من قيمة المنصة",
   "Your choice": "اختيارك",
   "Your fallback": "هدفك الاحتياطي",
-  "Mixed": "مختلط"
+  "Mixed": "مختلط",
+  "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.": "لم يتم التحقق بشكل مستقل من نوافذ الإسناد لقواعد تحويل LinkedIn؛ والإعداد المسبق ذي النوافذ المتحقق منها هو linkedin_campaign_conversion. أسماء الكيانات وأهدافها بيانات وصفية حالية وليست القيم وقت عرض الإعلانات.",
+  "LinkedIn did not return a native campaign group URN.": "لم يُرجع LinkedIn معرّف URN أصليًا لمجموعة الحملات.",
+  "LinkedIn did not return the requested native entity pivot.": "لم يُرجع LinkedIn محور الكيان الأصلي المطلوب.",
+  "LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.": "تعذّرت قراءة بيانات LinkedIn الوصفية، لذلك تظل بعض الأسماء أو العناصر الأصلية أو الأهداف غير معروفة.",
+  "LinkedIn returned campaign group metadata from another advertising account. The report was not saved.": "أرجع LinkedIn بيانات وصفية لمجموعة حملات من حساب إعلاني آخر. لم يُحفظ التقرير.",
+  "LinkedIn returned incomplete campaign group metadata.": "أرجع LinkedIn بيانات وصفية غير مكتملة لمجموعة الحملات.",
+  "LinkedIn returned malformed campaign group metadata.": "أرجع LinkedIn بيانات وصفية بتنسيق غير صالح لمجموعة الحملات.",
+  "LinkedIn returned unrequested or repeated campaign group metadata.": "أرجع LinkedIn بيانات وصفية مكررة أو غير مطلوبة لمجموعة الحملات.",
+  "Narrow the LinkedIn report to at most 2000 campaign groups.": "قلّص نطاق تقرير LinkedIn إلى 2000 مجموعة حملات كحد أقصى."
 }

@@ -40,8 +40,8 @@ test('every reporting platform has exactly one report source, in the platforms o
 });
 
 // ARC-04 stage F: NativeCampaignReports.collectSource and the request estimate named these platforms in lists; the
-// sources declare them now, and these are the lists they replaced, unchanged.
-test('the collector and the request estimate read their platform facts from the report sources, unchanged', () => {
+// sources declare them now. V2-RPT-04 also routes LinkedIn's middle and ad levels through its native source.
+test('the collector and the request estimate read their platform facts from the report sources', () => {
   const declaring = fact => reportSourceList.filter(s => s[fact] !== undefined).map(s => [s.platform, s[fact]]);
   assert.deepEqual(declaring('accountLookup'), [
     ['apple', false],
@@ -49,6 +49,7 @@ test('the collector and the request estimate read their platform facts from the 
     ['gsc', false],
   ]);
   assert.deepEqual(declaring('nativeDetail'), [
+    ['linkedin', true],
     ['microsoft', true],
     ['apple', true],
     ['reddit', true],

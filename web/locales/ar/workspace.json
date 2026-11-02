@@ -163,6 +163,7 @@
   "Campaign / resource": "الحملة / المورد",
   "Campaign discovery was truncated; specify campaign_ids.": "لم يكتمل اكتشاف الحملات بسبب حد النتائج؛ حدّد campaign_ids.",
   "Campaign evidence must have one row per campaign/day inside the declared period.": "يجب أن تتضمن الأدلة سجلًا واحدًا لكل حملة في كل يوم داخل الفترة المعلنة.",
+  "Campaign group": "مجموعة الحملات",
   "Capture Meta ad evidence": "جمع أدلة إعلانات Meta",
   "Capture a guided Google, Meta or LinkedIn campaign-by-day report, or a Snapchat ad-squad-by-day report, before modeling allocations.": "اجلب تقريرًا موجهًا يوميًا حسب الحملة من Google أو Meta أو LinkedIn، أو حسب المجموعة الإعلانية من Snapchat، قبل حساب توزيع الميزانية.",
   "Captured catalog flags are separate from AMCP’s validated read contract. Inspect this exact conditional workflow before making a provider request.": "خصائص الكتالوج المسجّلة منفصلة عن عقد القراءة الذي تتحقق منه AMCP. افحص سير العمل المشروط المحدد قبل إرسال طلب إلى المنصة.",

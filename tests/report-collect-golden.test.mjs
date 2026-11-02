@@ -22,7 +22,7 @@ test('the golden collection covers every reporting platform and level', () => {
   for (const platform of ['google', 'meta', 'tiktok', 'snapchat', 'linkedin', 'x', 'microsoft', 'apple', 'reddit'])
     assert.ok(platforms.has(platform), platform);
   for (const platform of ['ga4', 'gsc']) assert.ok(platforms.has(platform), platform);
-  for (const platform of ['microsoft', 'apple', 'reddit'])
+  for (const platform of ['microsoft', 'apple', 'reddit', 'linkedin'])
     for (const level of ['adset', 'ad'])
       assert.ok(
         collectScenarios.some(s => s.source.platform === platform && s.source.level === level),

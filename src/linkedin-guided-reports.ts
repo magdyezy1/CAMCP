@@ -1,4 +1,4 @@
-import {compileReport} from './workflows.js';
+import {compileReport, linkedinReportPivots} from './workflows.js';
 import {bad} from './workspace-core.js';
 import {linkedinAllocationEvidence} from './linkedin-allocation-evidence.js';
 import type {GuidedReporting} from './report-source.js';
@@ -112,7 +112,9 @@ export const linkedinGuidedReporting: GuidedReporting = {
         },
       };
     }
-    const level = {campaign_group: 'campaign', campaign: 'adset', creative: 'ad'}[preset.level as string];
+    const level = Object.entries(linkedinReportPivots).find(
+      ([, pivot]) => pivot === String(preset.level).toUpperCase(),
+    )?.[0];
     const native = compileReport({
       platform: 'linkedin',
       account_id: input.account_id,

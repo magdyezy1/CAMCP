@@ -204,13 +204,18 @@ const linkedinDate = text => {
   return {year: Number(y), month: Number(m), day: Number(d)};
 };
 const linkedin =
-  ({account = {id: 507, name: 'Synthetic LinkedIn', currency: 'USD'}, campaigns, urns} = {}) =>
+  ({account = {id: 507, name: 'Synthetic LinkedIn', currency: 'USD'}, groups} = {}) =>
   plan => {
     if (plan.path === '/rest/adAccounts/507') return account;
     if (plan.path === '/rest/adAnalytics') {
       const [start, end] = String(plan.query.dateRange).split('end:');
       return {
-        elements: (urns ?? ['urn:li:sponsoredCampaign:1', 'urn:li:sponsoredCampaign:2']).map(urn => ({
+        elements: (plan.query.pivot === 'CREATIVE'
+          ? ['urn:li:sponsoredCreative:3']
+          : plan.query.pivot === 'CAMPAIGN'
+            ? ['urn:li:sponsoredCampaign:1']
+            : ['urn:li:sponsoredCampaignGroup:1', 'urn:li:sponsoredCampaignGroup:2']
+        ).map(urn => ({
           pivotValues: [urn],
           dateRange: {start: linkedinDate(start), end: linkedinDate(end)},
           impressions: 100,
@@ -221,13 +226,38 @@ const linkedin =
       };
     }
     if (plan.path === '/rest/adAccounts/507/adCampaigns') {
-      if (campaigns instanceof MirrorError) return campaigns;
       return {
-        elements: campaigns ?? [
+        elements: [
+          {
+            id: 1,
+            account: 'urn:li:sponsoredAccount:507',
+            name: 'LinkedIn campaign',
+            objectiveType: 'LEAD_GENERATION',
+            campaignGroup: 'urn:li:sponsoredCampaignGroup:1',
+          },
+        ],
+      };
+    }
+    if (plan.path === '/rest/adAccounts/507/adCampaignGroups') {
+      if (groups instanceof MirrorError) return groups;
+      return {
+        elements: groups ?? [
           {id: 1, account: 'urn:li:sponsoredAccount:507', name: 'LinkedIn 1', objectiveType: 'LEAD_GENERATION'},
         ],
       };
     }
+    if (plan.path === '/rest/adAccounts/507/creatives')
+      return {
+        elements: [
+          {
+            id: 'urn:li:sponsoredCreative:3',
+            account: 'urn:li:sponsoredAccount:507',
+            campaign: 'urn:li:sponsoredCampaign:1',
+            name: 'LinkedIn creative',
+          },
+        ],
+        metadata: {},
+      };
     return new MirrorError('UNEXPECTED_REQUEST', 'Unexpected LinkedIn request ' + plan.path);
   };
 const x =
@@ -667,24 +697,24 @@ export const collectScenarios = [
   },
   // LinkedIn.
   {
-    name: 'linkedin campaign with campaign metadata',
+    name: 'linkedin group with group metadata',
     gateway: 'linkedin_native_action',
     account: '507',
     answer: linkedin(),
     source: source('linkedin', '507', {native_metrics: ['videoViews']}),
   },
   {
-    name: 'linkedin campaign metadata refused',
+    name: 'linkedin group metadata refused',
     gateway: 'linkedin_native_action',
     account: '507',
-    answer: linkedin({campaigns: refused()}),
+    answer: linkedin({groups: refused()}),
     source: source('linkedin', '507'),
   },
   {
-    name: 'linkedin campaign metadata of another account',
+    name: 'linkedin group metadata of another account',
     gateway: 'linkedin_native_action',
     account: '507',
-    answer: linkedin({campaigns: [{id: 1, account: 'urn:li:sponsoredAccount:9', name: 'Foreign'}]}),
+    answer: linkedin({groups: [{id: 1, account: 'urn:li:sponsoredAccount:9', name: 'Foreign'}]}),
     source: source('linkedin', '507'),
   },
   {
@@ -709,7 +739,7 @@ export const collectScenarios = [
     source: source('linkedin', '507', {native_metrics: Array.from({length: 15}, (_, i) => 'metric' + i)}),
   },
   {
-    name: 'linkedin two periods read only new campaigns',
+    name: 'linkedin two periods read only new groups',
     mode: 'twice',
     gateway: 'linkedin_native_action',
     account: '507',
@@ -717,11 +747,18 @@ export const collectScenarios = [
     source: source('linkedin', '507'),
   },
   {
-    name: 'linkedin creative level goes to the guided collector',
+    name: 'linkedin creatives with native campaign and group parents',
     gateway: 'linkedin_native_action',
     account: '507',
     answer: linkedin(),
     source: detailed('linkedin', '507', 'ad'),
+  },
+  {
+    name: 'linkedin campaigns in the middle position',
+    gateway: 'linkedin_native_action',
+    account: '507',
+    answer: linkedin(),
+    source: detailed('linkedin', '507', 'adset'),
   },
   // X.
   {
