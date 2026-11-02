@@ -268,7 +268,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
   // V2-RPT-04 adds seven direct refusals and two metadata warnings; wrapper ownership is unchanged.
   // V2-RPT-04 group results add seven labels and the Mixed explanation; refusal ownership is unchanged.
-  assert.equal(Object.keys(catalog).length, 11600);
+  // V2-RPT-04 results add three diagnostics and consolidate the omitted legends (net +2); wrappers unchanged.
+  assert.equal(Object.keys(catalog).length, 11602);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

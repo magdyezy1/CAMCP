@@ -40,7 +40,12 @@ test('every supported native ad and middle-level reaches Overview, including Lin
           snapchat: '/stats/conversion_purchases',
           linkedin: '/externalWebsiteConversions',
         };
-        assert.deepEqual(report.sources[0].metric_mapping.conversions, conversionFields[platform]);
+        if (platform === 'linkedin')
+          assert.equal(
+            report.sources[0].metric_mapping.conversions.by_objective.WEBSITE_CONVERSION,
+            conversionFields[platform],
+          );
+        else assert.deepEqual(report.sources[0].metric_mapping.conversions, conversionFields[platform]);
         const evidence = reportEvidence(report);
         assert.deepEqual(evidence.sources[0].metric_mapping, report.sources[0].metric_mapping);
         assert.equal(

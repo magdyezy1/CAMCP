@@ -104,7 +104,7 @@ function reportObjectiveSelect(platform, config = {}, groups) {
 function reportObjectiveSource(row) {
   if (row.results_by_objective?.length && row.objective_source === 'provider')
     return uiText('This campaign group’s campaigns have different objectives: {list}.', {
-      list: row.results_by_objective.map(result => result.objective).join(', '),
+      list: row.results_by_objective.map(reportResultObjective).join(', '),
     });
   if (row.objective_source !== 'unknown') return row.objective_source ? reportLabel(row.objective_source) : '';
   const reason = String(row.objective_reason ?? ''),
@@ -179,7 +179,7 @@ function reportRecommendationBasis(recommendation) {
     : '';
 }
 /** Omitted values keep their zero qualifier. */
-const reportOmittedNote = '* The provider omitted this value on a row with delivery; it counts as 0.';
+const reportOmittedNote = '* The platform omitted this value; it counts as 0.';
 function reportOmittedMarker(row, key) {
   return row.omitted_as_zero?.includes(key)
     ? `<abbr class="metric-qualifier" title="${esc(uiText(reportOmittedNote))}">*</abbr>`
@@ -238,7 +238,7 @@ function renderReportTable(r, keys, b) {
     const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small>${row.objective_source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportObjectiveResults(row)}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small>${row.objective_source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.platform === 'linkedin' ? uiText(row.result_definition) : row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportObjectiveResults(row)}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
   return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
 }
@@ -870,7 +870,7 @@ function reportSummaryDecisions(g) {
 function reportSummaryOmitted(g) {
   return g.omitted_as_zero
     ? `<p class="form-note">${esc(
-        uiText('Counted as 0 where the provider omitted the value on a row with delivery: {metrics}', {
+        uiText('Counted as 0 where the platform omitted the value: {metrics}', {
           metrics: Object.entries(g.omitted_as_zero)
             .map(
               ([k, n]) =>
@@ -922,11 +922,7 @@ function reportSparkline(g) {
     )
     .join('')}</svg>`;
 }
-/**
- * RPT-05: a grouped (daily, weekly or monthly) snapshot opens with one tile per account and measurement definition over
- * the whole window, keyed without dates, with a spend sparkline, instead of one card per period. The server totals only
- * additive metrics and recomputes ratios from those totals; every period stays in the table, CSV and Sheets export.
- */
+/** Whole-window cards use report-summary.ts totals and sparklines; periods remain in rows and exports. */
 function renderReportWindowSummary(r) {
   const tiles = r.window_summary,
     platforms = overviewState.bootstrap?.platforms ?? [],
@@ -1034,7 +1030,7 @@ function reportSummaryExcludes(r) {
 }
 /** How each platform in the report measures each selected metric, so columns are compared knowingly across platforms. */
 function renderMetricSources(r, keys, b) {
-  if ((r.config.sources ?? []).some(s => s.level && s.level !== 'campaign'))
+  if ((r.config.sources ?? []).some(s => s.level && s.level !== 'campaign') || r.sources?.some(s => s.metric_mapping))
     return renderDetailedMetricSources(r, keys, b);
   const sources = b.metric_sources ?? {},
     platforms = [...new Set((r.config.sources ?? []).map(s => s.platform))].filter(p => sources[p]),
@@ -1077,11 +1073,12 @@ function renderDetailedMetricSources(r, keys, b) {
         captured = (r.sources ?? []).find(s =>
           ['platform', 'connection_id', 'account_id'].every(k => s.source?.[k] === source[k]),
         ),
-        mapping = detailed ? captured?.metric_mapping : b.metric_sources?.[source.platform];
-      if (detailed && !mapping) return unavailable();
+        mapping = captured?.metric_mapping ?? b.metric_sources?.[source.platform];
+      if (detailed && !captured?.metric_mapping) return unavailable();
       const field = mapping?.[key];
       if (!field) return `<span class="muted">${esc(uiText('Not reported'))}</span>`;
-      const native = detailed ? (typeof field === 'string' ? field : field.path) : field.from;
+      const native =
+        typeof field === 'string' ? field : (field.path ?? field.from ?? JSON.stringify(field.by_objective));
       if (typeof native !== 'string') return unavailable();
       return (
         `<code>${esc(native + (detailed && field.action_type !== undefined ? '[action_type=' + field.action_type + ']' : ''))}</code>` +
@@ -1091,7 +1088,7 @@ function renderDetailedMetricSources(r, keys, b) {
     };
   if (!selected.length || !shared.length) return '';
   return (
-    `<details class="panel metric-sources"><summary>${esc(uiText('How this snapshot counts its metrics'))}</summary><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Native metric mappings by account and entity level (scrolls sideways)'))}"><table class="report-table"><caption>${esc(uiText('The saved native fields used for each account and entity level. Additive daily values are summed for each report period; reach and frequency are available only for single-day entity rows.'))}</caption><thead><tr><th scope="col">${esc(uiText('Metric'))}</th>` +
+    `<details class="panel metric-sources"><summary>${esc(uiText('How this snapshot counts its metrics'))}</summary><div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Native metric mappings by account and entity level (scrolls sideways)'))}"><table class="report-table"><caption>${esc(uiText('Saved native fields by account and level. Additive totals share a period; reach and frequency are never summed.'))}</caption><thead><tr><th scope="col">${esc(uiText('Metric'))}</th>` +
     selected
       .map(s => {
         const platform = b.platforms.find(p => p.id === s.platform),

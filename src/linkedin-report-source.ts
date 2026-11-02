@@ -1,6 +1,11 @@
 import {MirrorError} from './errors.js';
 import {linkedinGuidedReporting} from './linkedin-guided-reports.js';
-import {linkedInCampaignGroupMetadata, linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
+import {
+  linkedInCampaignGroupMetadata,
+  linkedInCampaignMetadata,
+  linkedInCampaignPeriod,
+  linkedInReportDate,
+} from './linkedin-reporting.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {linkedinDetailParents, linkedInCreativeMetadata} from './linkedin-detail-parents.js';
 import {invalidReportSource, optionalReadRefused, type ReportCollection, type ReportSource} from './report-source.js';
@@ -20,7 +25,7 @@ export const linkedinMetadataUnavailableWarning =
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
 
-/** The pinned result fields also keep mixed groups' campaign results separate (the base field union follows in Task 12). */
+/** Pinned native result fields; mixed groups keep each objective's results separate. */
 export const linkedinResults: Readonly<Record<string, {field: string | null; label: string}>> = Object.freeze({
   BRAND_AWARENESS: {field: null, label: 'LinkedIn members reached (not additive)'},
   WEBSITE_VISIT: {field: 'landingPageClicks', label: 'LinkedIn landing page clicks'},
@@ -35,6 +40,31 @@ export const linkedinResults: Readonly<Record<string, {field: string | null; lab
   JOB_APPLICANTS: {field: 'landingPageClicks', label: 'LinkedIn landing page clicks'},
   TALENT_LEAD: {field: 'talentLeads', label: 'LinkedIn talent leads'},
 });
+/** Native additive fields needed by the result table; approximate reach is valid only for short windows. */
+export function linkedinBaseMetrics(windowDays: number): string[] {
+  return [
+    'impressions',
+    'clicks',
+    'costInLocalCurrency',
+    'landingPageClicks',
+    'videoViews',
+    'oneClickLeads',
+    'qualifiedLeads',
+    'externalWebsiteConversions',
+    'talentLeads',
+    'conversionValueInLocalCurrency',
+    ...(windowDays <= 92 ? ['approximateMemberReach'] : []),
+  ];
+}
+const windowDays = (range: {since: string; until: string}) =>
+  (Date.parse(range.until) - Date.parse(range.since)) / 86400000 + 1;
+const omittedCost = (row: JsonObject) =>
+  row.costInLocalCurrency === undefined && metricNumber(row.impressions) === 0 && metricNumber(row.clicks) === 0;
+const rowReach = (row: JsonObject) =>
+  !row.dateRange ||
+  windowDays({since: linkedInReportDate(row.dateRange.start), until: linkedInReportDate(row.dateRange.end)}) <= 92
+    ? row.approximateMemberReach
+    : null;
 const nativeObjective = (value: unknown): string | null =>
   typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(value) ? value : null;
 
@@ -151,7 +181,9 @@ export function linkedinDetail(
       group = groupUrn ? meta.groups[groupUrn] : undefined,
       numericId = urn.split(':').at(-1)!,
       currentName = level === 'ad' ? creative?.name : campaign?.name,
-      name = typeof currentName === 'string' && currentName.trim() && currentName.length <= 1000 ? currentName : null;
+      name = typeof currentName === 'string' && currentName.trim() && currentName.length <= 1000 ? currentName : null,
+      result = linkedinResults[String(campaign?.objective_type)],
+      costOmitted = omittedCost(row);
     parents[urn] = {
       ...(groupUrn ? {campaign_id: groupUrn.split(':').at(-1), campaign_name: group?.name ?? null} : {}),
       ...(level === 'ad' && campaignUrn
@@ -162,13 +194,29 @@ export function linkedinDetail(
     out.push({
       entity_id: urn,
       entity_name: name ?? (level === 'ad' ? 'Ad ' + numericId : numericId),
-      spend: nativeDecimal(row.costInLocalCurrency, 'spend', rounding),
+      spend: costOmitted ? '0' : nativeDecimal(row.costInLocalCurrency, 'spend', rounding),
       impressions: nativeDecimal(row.impressions, 'impressions', rounding),
       clicks: nativeDecimal(row.clicks, 'clicks', rounding),
-      conversions: nativeDecimal(row.externalWebsiteConversions, 'conversions', rounding),
+      conversions:
+        result?.field === null
+          ? null
+          : nativeDecimal(row[result?.field ?? 'externalWebsiteConversions'], 'conversions', rounding),
       conversion_value: nativeDecimal(row.conversionValueInLocalCurrency, 'conversion_value', rounding),
-      reach: null,
+      reach: nativeDecimal(rowReach(row), 'reach', rounding),
       frequency: null,
+      additional_metrics: {
+        leads: nativeDecimal(row.oneClickLeads, 'leads', rounding),
+        ...Object.fromEntries(
+          ['oneClickLeads', 'qualifiedLeads']
+            .filter(field => Object.hasOwn(row, field))
+            .map(field => [
+              'native_linkedin_' + field,
+              nativeDecimal(row[field], 'native_linkedin_' + field, rounding),
+            ]),
+        ),
+      },
+      ...(result ? {result_definition: result.label} : {}),
+      ...(costOmitted ? {omitted_as_zero: ['spend']} : {}),
     });
   }
   return {rows: out, parents};
@@ -236,40 +284,63 @@ export const linkedinReportSource: ReportSource = {
       const [year, month, day] = s.split('-').map(Number);
       return `(year:${year},month:${month},day:${day})`;
     };
-    const fields = [
-      ...new Set(['impressions', 'clicks', 'costInLocalCurrency', 'externalWebsiteConversions', ...c.extra]),
-    ];
-    if (fields.length > 18)
-      invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
-    const campaignFields = [
-      ...new Set([
-        ...fields,
-        ...Object.values(linkedinResults).flatMap(result => (result.field ? [result.field] : [])),
-      ]),
-    ];
-    if (!c.detail && campaignFields.length > 18)
-      invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
-    const analytics = async (pivot: string, selected: string[]) =>
-      linkedInCampaignPeriod(
-        await c.run(
-          c.plan('/rest/adAnalytics', {
-            q: 'analytics',
-            pivot,
-            accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
-            dateRange: `(start:${date(c.range.since)},end:${date(c.range.until)})`,
-            timeGranularity: 'ALL',
-            fields: ['pivotValues', 'dateRange', ...selected].join(','),
-          }),
-          false,
-        ),
-        c.range,
-        pivot,
+    const days = windowDays(c.range),
+      fields = [...new Set([...linkedinBaseMetrics(days), ...c.extra])].filter(
+        field => days <= 92 || field !== 'approximateMemberReach',
       );
+    if (new Set(c.extra).size > 18)
+      invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
+    if (days > 92) c.warnings.push('LinkedIn reports reach only for windows of 92 days or less.');
+    const analytics = async (pivot: string, selected: string[]) => {
+      let joined: Map<string, JsonObject> | undefined;
+      const key = (row: JsonObject) =>
+        JSON.stringify([
+          row.pivotValues[0],
+          linkedInReportDate(row.dateRange.start),
+          linkedInReportDate(row.dateRange.end),
+        ]);
+      for (let start = 0; start < selected.length; start += 18) {
+        const batch = selected.slice(start, start + 18),
+          response = await c.run(
+            c.plan('/rest/adAnalytics', {
+              q: 'analytics',
+              pivot,
+              accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
+              dateRange: `(start:${date(c.range.since)},end:${date(c.range.until)})`,
+              timeGranularity: 'ALL',
+              fields: ['pivotValues', 'dateRange', ...batch].join(','),
+            }),
+            false,
+          );
+        let rows: JsonObject[];
+        try {
+          rows = linkedInCampaignPeriod(response, c.range, pivot);
+        } catch (error) {
+          if (joined && error instanceof MirrorError && error.code === 'REPORT_DATE_MISMATCH')
+            throw new MirrorError(
+              'REPORT_SHAPE_CHANGED',
+              'LinkedIn returned different entity or date keys between metric requests.',
+            );
+          throw error;
+        }
+        if (!joined) joined = new Map(rows.map(row => [key(row), {...row}]));
+        else {
+          if (rows.length !== joined.size || rows.some(row => !joined!.has(key(row))))
+            throw new MirrorError(
+              'REPORT_SHAPE_CHANGED',
+              'LinkedIn returned different entity or date keys between metric requests.',
+            );
+          for (const row of rows)
+            for (const field of batch) if (Object.hasOwn(row, field)) joined.get(key(row))![field] = row[field];
+        }
+      }
+      return [...joined!.values()];
+    };
     c.raw = await analytics(
       linkedinReportPivots[(c.detail ?? 'campaign') as keyof typeof linkedinReportPivots],
       fields,
     );
-    const campaignRows = c.detail ? [] : await analytics('CAMPAIGN', campaignFields);
+    const campaignRows = c.detail ? [] : await analytics('CAMPAIGN', fields);
     const reported = c.raw.map(row => String(row.pivotValues[0]));
     const creatives =
       c.detail === 'ad'
@@ -307,15 +378,6 @@ export const linkedinReportSource: ReportSource = {
       linkedInCampaignGroupMetadata(c.account, urns, plan => c.run(plan, false, 'campaign_group_metadata')),
     );
     if (c.detail) {
-      // Preserve the native metric provenance previously provided by the guided detail capture.
-      c.context.metric_mapping = {
-        entity_id: '/pivotValues/0',
-        spend: '/costInLocalCurrency',
-        impressions: '/impressions',
-        clicks: '/clicks',
-        conversions: '/externalWebsiteConversions',
-        conversion_value: '/conversionValueInLocalCurrency',
-      };
       c.detailRows = linkedinDetail(
         c.detail as 'adset' | 'ad',
         c.raw,
@@ -356,6 +418,26 @@ export const linkedinReportSource: ReportSource = {
         };
       });
     }
+    c.context.metric_mapping = {
+      entity_id: '/pivotValues/0',
+      spend: '/costInLocalCurrency',
+      impressions: '/impressions',
+      clicks: '/clicks',
+      conversions: {
+        by_objective: {
+          ...Object.fromEntries(
+            Object.entries(linkedinResults).map(([objective, result]) => [
+              objective,
+              result.field ? '/' + result.field : null,
+            ]),
+          ),
+          unknown: '/externalWebsiteConversions',
+          MIXED: null,
+        },
+      },
+      conversion_value: '/conversionValueInLocalCurrency',
+      reach: days <= 92 ? '/approximateMemberReach' : null,
+    };
     const rounded = metricRoundingRecord(c.detailRounding);
     if (rounded) c.quality.metric_rounding = rounded;
     c.attribution = 'unknown';
@@ -366,20 +448,25 @@ export const linkedinReportSource: ReportSource = {
         : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
     );
   },
-  normalize(raw, {field: n}) {
-    const mixed = raw.objectiveType === 'MIXED';
+  normalize(raw, {field: n, omitted}) {
+    const mixed = raw.objectiveType === 'MIXED',
+      result = linkedinResults[String(raw.objectiveType)],
+      costOmitted = omittedCost(raw);
+    if (costOmitted) omitted.add('spend');
     return {
       id: raw.pivotValues?.[0]?.split(':').at(-1),
       name: raw.name,
       objective: raw.objectiveType,
+      ...(result ? {resultDefinition: result.label} : {}),
       ...(mixed
         ? {objectiveGroup: mixedObjectiveGroup, resultDefinition: 'Mixed', resultsByObjective: raw.results_by_objective}
         : {}),
       metrics: {
-        spend: n('costInLocalCurrency'),
+        spend: costOmitted ? 0 : n('costInLocalCurrency'),
         impressions: n('impressions'),
         clicks: n('clicks'),
-        conversions: mixed ? null : n('externalWebsiteConversions'),
+        conversions: mixed || result?.field === null ? null : n(result?.field ?? 'externalWebsiteConversions'),
+        reach: metricNumber(rowReach(raw)),
         conversion_value: n('conversionValueInLocalCurrency'),
         leads: n('oneClickLeads'),
         video_views: n('videoViews'),

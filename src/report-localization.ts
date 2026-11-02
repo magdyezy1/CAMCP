@@ -117,6 +117,17 @@ const arabic: Record<string, string> = {
     'أدلة المصدر الكاملة مرفقة في source-evidence.json. تتوفر صفوف الحملات في تنزيلات Excel وCSV.',
   'Complete source evidence for this retained snapshot': 'أدلة المصدر الكاملة لهذه النسخة المحفوظة',
 };
+// Only authored result definitions; native and custom result words stay literal.
+const resultLabels: Record<string, string> = {
+  Mixed: 'مختلط',
+  'LinkedIn members reached (not additive)': 'أعضاء LinkedIn الذين تم الوصول إليهم (لا يُجمع)',
+  'LinkedIn landing page clicks': 'نقرات صفحة الوصول على LinkedIn',
+  'Clicks (engagement result not in the API)': 'النقرات (نتيجة التفاعل غير متاحة في واجهة API)',
+  'LinkedIn video views': 'مشاهدات الفيديو على LinkedIn',
+  'LinkedIn leads (one-click)': 'العملاء المحتملون على LinkedIn (بنقرة واحدة)',
+  'LinkedIn website conversions': 'تحويلات الموقع على LinkedIn',
+  'LinkedIn talent leads': 'العملاء المحتملون للتوظيف على LinkedIn',
+};
 const metricLabels: Record<string, string> = {
   spend: 'الإنفاق',
   impressions: 'مرات الظهور',
@@ -138,6 +149,7 @@ export function artifactLocale(presentation: JsonObject = {}) {
     rtl,
     language: rtl ? 'ar' : 'en',
     text: (value: string) => (rtl ? (arabic[value] ?? value) : value),
+    result: (value: string) => (rtl ? (resultLabels[value] ?? value) : value),
     metric: (value: string, custom: Set<string>) =>
       rtl && !custom.has(value) && metricLabels[value] ? metricLabels[value] + ' (' + value + ')' : value,
   };

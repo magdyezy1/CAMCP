@@ -222,6 +222,13 @@ const linkedin =
           clicks: 2,
           costInLocalCurrency: '10.5',
           externalWebsiteConversions: 1,
+          oneClickLeads: '2',
+          qualifiedLeads: '1',
+          landingPageClicks: '4',
+          videoViews: '3',
+          talentLeads: '1',
+          conversionValueInLocalCurrency: '8',
+          approximateMemberReach: '40',
         })),
       };
     }
@@ -736,7 +743,7 @@ export const collectScenarios = [
     gateway: 'linkedin_native_action',
     account: '507',
     answer: linkedin(),
-    source: source('linkedin', '507', {native_metrics: Array.from({length: 15}, (_, i) => 'metric' + i)}),
+    source: source('linkedin', '507', {native_metrics: Array.from({length: 19}, (_, i) => 'metric' + i)}),
   },
   {
     name: 'linkedin two periods read only new groups',

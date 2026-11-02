@@ -312,13 +312,15 @@ test('all actual directly owned backend reasons have Arabic with original native
   assert.equal(selected.filter(row => row.messages.size).length, 288);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
-  assert.equal(owned.size, 1606);
+  // V2-RPT-04 metric joins add one direct refusal.
+  assert.equal(owned.size, 1607);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
   // V2-RPT-04 adds seven refusals and two metadata warnings; existing level labels are reused.
   // V2-RPT-04 group results add seven labels and the Mixed explanation; refusal ownership is unchanged.
-  assert.equal(Object.keys(catalog).length, 11600);
+  // V2-RPT-04 results add three diagnostics and consolidate three omitted legends into two (net +2).
+  assert.equal(Object.keys(catalog).length, 11602);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

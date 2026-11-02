@@ -9276,7 +9276,6 @@
   "How this snapshot counts its metrics": "كيفية احتساب مقاييس هذه النسخة",
   "Native metric mappings by account and entity level (scrolls sideways)": "تعيين الحقول الأصلية للمقاييس حسب الحساب ومستوى الكيان (يُمرَّر أفقيًا)",
   "Native mapping unavailable": "تعيين الحقول الأصلية غير متاح",
-  "The saved native fields used for each account and entity level. Additive daily values are summed for each report period; reach and frequency are available only for single-day entity rows.": "الحقول الأصلية المحفوظة المستخدمة لكل حساب ومستوى كيان. تُجمع القيم اليومية القابلة للجمع لكل فترة تقرير؛ ويتاح الوصول والتكرار فقط لصفوف الكيانات التي تغطي يومًا واحدًا.",
   "Inspect a sanitized event trace": "فحص تسلسل أحداث منقّح",
   "Use a sanitized trace of at most 128 KiB.": "استخدم تسلسلاً منقّحاً لا يتجاوز 128 KiB.",
   "The sanitized trace is nested too deeply.": "يتجاوز عمق تداخل التسلسل المنقّح الحد المسموح.",
@@ -9576,9 +9575,6 @@
   "Includes an in-progress day": "تتضمن يومًا لم ينتهِ بعد",
   "Scope limit: sessions without a GA4 campaign ID": "حدّ النطاق: جلسات بلا معرّف حملة في GA4",
   "Scope limit: Search Console top rows only": "حدّ النطاق: أعلى صفوف Search Console فقط",
-  "Counted as 0 where the provider omitted the value: {metrics}": "احتُسبت 0 حيث أغفل المزوّد القيمة: {metrics}",
-  "Counted as 0 where the provider omitted the value on a row with delivery: {metrics}": "احتُسبت 0 حيث أغفل المزوّد القيمة في صف فيه عرض: {metrics}",
-  "* The provider omitted this value on a row with delivery; it counts as 0.": "* أغفل المزوّد هذه القيمة في صف فيه عرض؛ وتُحتسب 0.",
   "Unsupported reporting platform.": "منصة التقارير غير مدعومة.",
   "Set whether higher or lower is better for this target KPI (direction) before recommending a change.": "حدّد ما إذا كانت القيمة الأعلى أم الأقل أفضل لمؤشر هذا الهدف (direction) قبل التوصية بأي تغيير.",
   "No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.": "لا يوجد إنفاق في هذه الفترة، أو أنه أقل من الحد الأدنى للإنفاق. انتظر إنفاقًا فعليًا قبل التوصية بأي تغيير.",
@@ -11598,5 +11594,11 @@
   "LinkedIn leads (one-click)": "العملاء المحتملون على LinkedIn (بنقرة واحدة)",
   "LinkedIn website conversions": "تحويلات الموقع على LinkedIn",
   "LinkedIn talent leads": "العملاء المحتملون للتوظيف على LinkedIn",
-  "This campaign group’s campaigns have different objectives: {list}.": "لحملات مجموعة الحملات هذه أهداف مختلفة: {list}."
+  "This campaign group’s campaigns have different objectives: {list}.": "لحملات مجموعة الحملات هذه أهداف مختلفة: {list}.",
+  "Saved native fields by account and level. Additive totals share a period; reach and frequency are never summed.": "الحقول الأصلية المحفوظة حسب الحساب والمستوى. تغطي الإجماليات القابلة للجمع الفترة نفسها؛ ولا يُجمع الوصول أو التكرار.",
+  "* The platform omitted this value; it counts as 0.": "* أغفلت المنصة هذه القيمة؛ وتُحتسب 0.",
+  "Counted as 0 where the platform omitted the value: {metrics}": "تُحتسب 0 حيث أغفلت المنصة القيمة: {metrics}",
+  "LinkedIn returned different entity or date keys between metric requests.": "أرجع LinkedIn مفاتيح كيانات أو تواريخ مختلفة بين طلبات المقاييس.",
+  "LinkedIn reports reach only for windows of 92 days or less.": "يُبلغ LinkedIn عن الوصول لفترات لا تتجاوز 92 يومًا.",
+  "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.": "تحتفظ الصفوف التفصيلية بمستوى الكيان الأصلي وإجماليات الفترة الدقيقة القابلة للجمع. لا يُجمع الوصول أو التكرار؛ وتبقى القيم المفقودة غير معروفة. ويظل اكتمال فترة التقرير وإعداد الإسناد وفق التصريح الصريح."
 }

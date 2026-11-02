@@ -64,6 +64,9 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
   const accent = style.accent_color.slice(1).toUpperCase();
   const sheets: {name: string; values: unknown[][]; widths: number[]; metricStart: number; metricCount: number}[] = [];
   function sheet(name: string, values: unknown[][], widths: number[] = [], metricStart = 0, metricCount = 0) {
+    const resultColumn = values[0]!.indexOf('Primary result');
+    if (resultColumn >= 0)
+      for (const row of values.slice(1)) row[resultColumn] = locale.result(String(row[resultColumn] ?? ''));
     values[0] = values[0]!.map((value, index) =>
       index + 1 >= metricStart && index + 1 < metricStart + metricCount
         ? locale.metric(String(value), custom)
@@ -358,7 +361,7 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
           ' | ' +
           t('Result') +
           ': ' +
-          isolated(s.result_definition) +
+          isolated(locale.result(s.result_definition)) +
           ' | ' +
           t(s.complete ? 'Complete' : 'Incomplete'),
         9,

@@ -259,6 +259,10 @@ export function detailedOverviewRows(
   }
   return [...groups].map(([id, group]) => {
     const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))])),
+      additionalKeys = [...new Set<string>(group.mapped.flatMap(row => Object.keys(row.additional_metrics ?? {})))],
+      additionalSums = Object.fromEntries(
+        additionalKeys.map(key => [key, exactSum(group.mapped.map(row => row.additional_metrics?.[key]))]),
+      ),
       // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
       omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key))),
       {objective: nativeObjective, ...parentIds} = group.parents,
@@ -285,9 +289,13 @@ export function detailedOverviewRows(
       objective_group: resolved.group,
       objective_source: resolved.source,
       objective_reason: resolved.reason,
+      ...(typeof group.mapped[0]?.result_definition === 'string'
+        ? {result_definition: group.mapped[0].result_definition}
+        : {}),
       currency: captured.semantics.currency,
       metrics: {
         ...Object.fromEntries(additive.map(key => [key, sums[key]!.display])),
+        ...Object.fromEntries(additionalKeys.map(key => [key, additionalSums[key]!.display])),
         reach: group.mapped.length === 1 ? metricNumber(group.mapped[0]!.reach) : null,
         frequency: group.mapped.length === 1 ? metricNumber(group.mapped[0]!.frequency) : null,
       },
@@ -295,7 +303,10 @@ export function detailedOverviewRows(
         preset: descriptor.preset,
         entity_id: id,
         daily_rows: group.raw,
-        exact_totals: Object.fromEntries(additive.map(key => [key, sums[key]!.exact])),
+        exact_totals: {
+          ...Object.fromEntries(additive.map(key => [key, sums[key]!.exact])),
+          ...Object.fromEntries(additionalKeys.map(key => [key, additionalSums[key]!.exact])),
+        },
       },
     };
   });

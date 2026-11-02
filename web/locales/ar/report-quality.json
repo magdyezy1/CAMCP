@@ -13,7 +13,7 @@
   "Comparison sources and definitions": "مصادر المقارنة وتعريفاتها",
   "Context is supplied by you. AMCP does not infer seasonal effects or causal impact.": "أنت من يقدّم السياق. لا يستنتج AMCP التأثيرات الموسمية أو الأثر السببي.",
   "Context note": "ملاحظة عن السياق",
-  "Counted as 0 where the provider omitted the value: {metrics}": "احتُسبت 0 حيث أغفل المزوّد القيمة: {metrics}",
+  "Counted as 0 where the platform omitted the value: {metrics}": "تُحتسب 0 حيث أغفلت المنصة القيمة: {metrics}",
   "Current daily budget": "الميزانية اليومية الحالية",
   "Current report": "التقرير الحالي",
   "Data quality": "جودة البيانات",

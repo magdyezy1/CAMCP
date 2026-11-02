@@ -294,7 +294,8 @@ const reportSourceWarningTemplates = [
   ],
 ];
 function uiSourceWarning(value) {
-  if (reportSourceWarnings.has(value)) return uiText(value);
+  if (reportSourceWarnings.has(value) || /^(Detailed rows retain|LinkedIn reports reach only)/.test(value))
+    return uiText(value);
   const text = String(value ?? '');
   if (typeof uiLocale === 'string' && uiLocale !== 'en')
     for (const [pattern, translate] of reportSourceWarningTemplates) {
@@ -371,11 +372,14 @@ function readTargetContext(objective) {
   return out;
 }
 /** Separate native result totals. */
+function reportResultObjective(result) {
+  return result.objective === 'unknown' ? uiText('Unknown') : result.objective;
+}
 function reportObjectiveResults(row) {
   return (row.results_by_objective ?? [])
     .map(
       result =>
-        html`<p><bdi data-native>${result.objective}</bdi> · ${uiText(result.result_definition)}: ${result.value === null ? '—' : uiNumber(result.value)}</p>`,
+        html`<p><bdi data-native>${reportResultObjective(result)}</bdi> · ${uiText(result.result_definition)}: ${result.value === null ? '—' : uiNumber(result.value)}</p>`,
     )
     .join('');
 }
@@ -404,7 +408,7 @@ function reportQualityDetails(source, report) {
       : '',
     q.scope_limitations?.includes('search_console_top_rows') ? uiText('Scope limit: Search Console top rows only') : '',
     q.omitted_as_zero?.length
-      ? uiText('Counted as 0 where the provider omitted the value: {metrics}', {metrics: q.omitted_as_zero.join(', ')})
+      ? uiText('Counted as 0 where the platform omitted the value: {metrics}', {metrics: q.omitted_as_zero.join(', ')})
       : '',
   ].filter(Boolean);
   return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details><summary>${esc(uiText('Quality and source evidence'))}</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;

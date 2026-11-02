@@ -265,7 +265,7 @@ export function nativeDetailResult(
     attribution: options.attribution,
     result_definition: base.resultDefinition,
     warnings: [
-      'Detailed rows retain the original native entity level and exact additive window totals. Reach and frequency are unavailable; missing values are not filled with zero. Reporting-window completeness and attribution remain explicitly declared.',
+      'Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.',
       ...(options.complete_window === true
         ? []
         : [

@@ -125,9 +125,16 @@ export function reportEvidence(report: JsonObject) {
     completed_at: report.completed_at,
     sources: report.sources,
     source_contract_version: report.config?.source_contract_version ?? 'legacy-unversioned',
-    // Detailed native mappings are authoritative per account in sources[].metric_mapping; campaign rules cannot describe them.
+    // Saved native mappings are authoritative per account; legacy platform rules cannot describe them.
     metric_sources: Object.fromEntries(
-      platforms.filter(p => metricSources[p] && !detailedPlatforms.has(p)).map(p => [p, metricSources[p]]),
+      platforms
+        .filter(
+          p =>
+            metricSources[p] &&
+            !detailedPlatforms.has(p) &&
+            !(report.sources ?? []).some((s: JsonObject) => s.source?.platform === p && s.metric_mapping),
+        )
+        .map(p => [p, metricSources[p]]),
     ),
     untrusted_provider_content: true,
   };
