@@ -65,17 +65,44 @@ function fixture(
       calls.push(url);
       assert.equal(init.method, 'GET');
       assert.ok(
-        ['/rest/adAccounts/100', '/rest/adAnalytics', '/rest/adAccounts/100/adCampaignGroups'].includes(url.pathname),
+        [
+          '/rest/adAccounts/100',
+          '/rest/adAnalytics',
+          '/rest/adAccounts/100/adCampaignGroups',
+          '/rest/adAccounts/100/adCampaigns',
+        ].includes(url.pathname),
       );
       if (url.pathname === '/rest/adAccounts/100/adCampaignGroups') {
         const out = groups(url);
         afterRead(url.pathname);
         return out instanceof Response ? out : Response.json(out);
       }
+      if (url.pathname === '/rest/adAccounts/100/adCampaigns')
+        return Response.json({
+          elements: [...url.searchParams.get('search').matchAll(/sponsoredCampaign:(\d+)/g)].map(([, id]) => ({
+            id,
+            account: 'urn:li:sponsoredAccount:100',
+            name: 'Campaign ' + id,
+            campaignGroup: 'urn:li:sponsoredCampaignGroup:' + id,
+            objectiveType: 'WEBSITE_CONVERSION',
+          })),
+          metadata: {},
+        });
       const out =
         url.pathname === '/rest/adAccounts/100' ? account : typeof response === 'function' ? response(url) : response;
       afterRead(url.pathname);
-      return Response.json(out);
+      // The companion campaign pivot uses the same synthetic period and metrics, with its own native identities.
+      return Response.json(
+        url.searchParams.get('pivot') === 'CAMPAIGN' && Array.isArray(out?.elements)
+          ? {
+              ...out,
+              elements: out.elements.map(r => ({
+                ...r,
+                pivotValues: r.pivotValues?.map(id => id.replace('sponsoredCampaignGroup:', 'sponsoredCampaign:')),
+              })),
+            }
+          : out,
+      );
     }),
   );
   const native = new NativeCampaignReports(service),
@@ -166,7 +193,7 @@ test('LinkedIn Overview retains native period evidence and unknown attribution i
     // RPT-07: account lookup, analytics and the group metadata read (previously two reads and ID-only rows).
     assert.deepEqual(
       report.sources[0].lineage.map(l => l.stage),
-      ['account_lookup', 'campaign_report', 'campaign_group_metadata'],
+      ['account_lookup', 'campaign_report', 'campaign_report', 'campaign_metadata', 'campaign_group_metadata'],
     );
     assert.equal(report.rows[0].campaign_name, 'Group 9007199254740993');
     assert.equal(report.rows[0].objective, 'WEBSITE_CONVERSION');
@@ -264,7 +291,7 @@ test('an older queued LinkedIn snapshot with no previous reads adopts the curren
     assert.equal(report.config.source_contract_version, 'campaign-source-v4');
     assert.equal(report.sources[0].contract_version, report.config.source_contract_version);
     // Account lookup, analytics and (RPT-07) the group metadata read.
-    assert.equal(f.calls.length, 3);
+    assert.equal(f.calls.length, 5);
   } finally {
     f.store.close();
   }
@@ -301,7 +328,7 @@ test('RPT-07: LinkedIn rows carry current campaign group names and objectives; f
   }
 });
 
-test('RPT-07: a refused or empty LinkedIn group metadata read keeps IDs with unknown objectives', async () => {
+test('a refused or empty group metadata read keeps IDs while verified campaigns can supply the shared objective', async () => {
   for (const refused of [true, false]) {
     const f = fixture(undefined, undefined, () =>
       refused
@@ -311,7 +338,7 @@ test('RPT-07: a refused or empty LinkedIn group metadata read keeps IDs with unk
     try {
       const result = await f.collect();
       assert.equal(result.rows[0].campaign_name, '9007199254740993');
-      assert.equal(result.rows[0].objective_group, 'unknown');
+      assert.equal(result.rows[0].objective_group, 'sales');
       assert.equal(
         /metadata could not be read/.test(result.warnings.join(' ')),
         refused,

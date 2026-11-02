@@ -102,6 +102,10 @@ function reportObjectiveSelect(platform, config = {}, groups) {
   return html`<label>${uiText('Objective when the platform gives none')}<select data-objective-for="${platform}"><option value="provider">${uiText('No fallback (show unknown)')}</option>${legacy ? html`<option value="${'saved:' + legacy}" selected>${uiText('Saved: {objective} for every campaign', {objective: reportLabel(legacy)})}</option>` : ''}${groups.map(group => html`<option value="${group}" ${value === group ? 'selected' : ''}>${reportLabel(group)}</option>`)}</select></label>`;
 }
 function reportObjectiveSource(row) {
+  if (row.results_by_objective?.length && row.objective_source === 'provider')
+    return uiText('This campaign group’s campaigns have different objectives: {list}.', {
+      list: row.results_by_objective.map(result => result.objective).join(', '),
+    });
   if (row.objective_source !== 'unknown') return row.objective_source ? reportLabel(row.objective_source) : '';
   const reason = String(row.objective_reason ?? ''),
     known = /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s.exec(reason),
@@ -121,7 +125,7 @@ function reportObjectiveSource(row) {
       : uiText(reason);
 }
 
-/** Each objective card's default KPI; report-metrics.ts campaignRecommendation uses the same defaults. */
+/** Defaults mirror report-metrics.ts campaignRecommendation. */
 const reportDefaultKpi = {
   awareness: 'cpm',
   traffic: 'cpc',
@@ -131,7 +135,7 @@ const reportDefaultKpi = {
   sales: 'cpa',
   app_installs: 'cpi',
 };
-/** DEC-01: a target's direction is explicit or derived from the KPI definition; the server applies the same rule. */
+/** Target direction comes from its explicit value or the KPI definition. */
 function reportTargetDirection(kpi, explicit) {
   const better =
     explicit ?? overviewState.bootstrap?.metrics?.[kpi]?.better ?? (kpi === 'cost_per_engagement' ? 'lower' : null);
@@ -174,7 +178,7 @@ function reportRecommendationBasis(recommendation) {
     ? `<small class="recommendation-as-of">${esc(uiText('Based on the whole window: {from} – {to}', {from: reportDay(e.date_from), to: reportDay(e.date_to)}))}</small>`
     : '';
 }
-/** RPT-04: a value the provider omitted on a delivered row counts as 0; the cell and the legend say so. */
+/** Omitted values keep their zero qualifier. */
 const reportOmittedNote = '* The provider omitted this value on a row with delivery; it counts as 0.';
 function reportOmittedMarker(row, key) {
   return row.omitted_as_zero?.includes(key)
@@ -234,7 +238,7 @@ function renderReportTable(r, keys, b) {
     const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small>${row.objective_source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small>${row.objective_source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportObjectiveResults(row)}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
   return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
 }

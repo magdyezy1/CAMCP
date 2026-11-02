@@ -9,6 +9,8 @@ export type ObjectiveSource =
 export interface ObjectiveTable {
   readonly name: string;
   readonly values: Readonly<Record<string, string | null>>;
+  /** A native objective may need a row-specific explanation, such as the objectives of a mixed group. */
+  reason?(native: string, inputs: JsonObject): string | null;
   mapped?(inputs: JsonObject): {group: string; reason: string | null} | undefined;
   readonly missingReason: string;
 }
@@ -54,7 +56,8 @@ export function resolveObjective(input: {
   const table = input.table;
   const nativeGroup =
     table && native !== null && Object.hasOwn(table.values, native) ? table.values[native] : undefined;
-  if (choice(nativeGroup)) return resolved(nativeGroup, 'provider', null);
+  if (nativeGroup === mixedObjectiveGroup || choice(nativeGroup))
+    return resolved(nativeGroup, 'provider', table?.reason?.(native!, input.mappedInputs ?? {}) ?? null);
   if (table && native && nativeGroup === undefined) {
     const inferred = objectiveGroup(native);
     if (choice(inferred))

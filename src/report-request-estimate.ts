@@ -14,7 +14,10 @@ import type {JsonObject} from './types.js';
  * entities at run time) are excluded, so the estimate is a lower bound: a configuration refused here cannot fit the
  * whole-job collection budget.
  */
-const dataRequestsPerPeriod = (platform: string) => reportSource(platform)?.minimumRequestsPerPeriod ?? 1;
+const dataRequestsPerPeriod = (platform: string, level = 'campaign') => {
+  const source = reportSource(platform);
+  return source?.requestsPerPeriod?.(level) ?? (level === 'campaign' ? (source?.minimumRequestsPerPeriod ?? 1) : 1);
+};
 /** Whether the source reads its account before collection (and verifies it after a multi-period collection). */
 const accountLookup = (platform: string) => reportSource(platform)?.accountLookup !== false;
 /** Snapshots created under the current source contract collect natively segmented days (RPT-03). */
@@ -32,7 +35,7 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
     count = reportPeriods(config.date_range, grain).length,
     sources = (config.sources ?? []).map((source: JsonObject) => {
       const daily = grain === 'daily' && nativeDailyCollection(config, source),
-        detailed = overviewSourceLevel(source).id !== 'campaign',
+        level = overviewSourceLevel(source).id,
         periods = daily ? 1 : count,
         lookups = accountLookup(source.platform) ? 1 + (grain === 'total' ? 0 : 1) : 0,
         window =
@@ -42,7 +45,7 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         account_id: source.account_id,
         periods: count,
         collection: daily ? 'native_daily' : 'per_period',
-        requests: lookups + window + periods * (detailed ? 1 : dataRequestsPerPeriod(source.platform)),
+        requests: lookups + window + periods * dataRequestsPerPeriod(source.platform, level),
       };
     });
   return {

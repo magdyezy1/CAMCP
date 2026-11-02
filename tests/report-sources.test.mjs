@@ -99,7 +99,7 @@ test('the collector and the request estimate read their platform facts from the 
   assert.deepEqual(nativeDailyPlatforms, ['google', 'meta']);
   for (const source of reportSourceList) assert.equal(typeof source.collect, 'function', source.platform);
   // The request model the bootstrap publishes, as the estimate's table and lookup list had it.
-  const requests = {google: 1, meta: 1, tiktok: 3, snapchat: 2, linkedin: 1, x: 2, microsoft: 2, apple: 2, reddit: 2};
+  const requests = {google: 1, meta: 1, tiktok: 3, snapchat: 2, linkedin: 2, x: 2, microsoft: 2, apple: 2, reddit: 2};
   Object.assign(requests, {ga4: 3, gsc: 1});
   for (const [platform, minimum] of Object.entries(requests)) {
     const lookups = ['ga4', 'gsc', 'apple'].includes(platform) ? 0 : 1;

@@ -6,6 +6,9 @@ import {linkedinDetailParents, linkedInCreativeMetadata} from './linkedin-detail
 import {invalidReportSource, optionalReadRefused, type ReportCollection, type ReportSource} from './report-source.js';
 import {nativeDecimal, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
 import {linkedinReportPivots} from './workflows.js';
+import {mixedObjectiveGroup, resolveObjective} from './report-objectives.js';
+import {metricNumber} from './report-metrics.js';
+import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
 
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
@@ -16,6 +19,69 @@ export const linkedinMetadataUnavailableWarning =
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
+
+/** The pinned result fields also keep mixed groups' campaign results separate (the base field union follows in Task 12). */
+export const linkedinResults: Readonly<Record<string, {field: string | null; label: string}>> = Object.freeze({
+  BRAND_AWARENESS: {field: null, label: 'LinkedIn members reached (not additive)'},
+  WEBSITE_VISIT: {field: 'landingPageClicks', label: 'LinkedIn landing page clicks'},
+  WEBSITE_VISITS: {field: 'landingPageClicks', label: 'LinkedIn landing page clicks'},
+  ENGAGEMENT: {field: 'clicks', label: 'Clicks (engagement result not in the API)'},
+  VIDEO_VIEW: {field: 'videoViews', label: 'LinkedIn video views'},
+  VIDEO_VIEWS: {field: 'videoViews', label: 'LinkedIn video views'},
+  LEAD_GENERATION: {field: 'oneClickLeads', label: 'LinkedIn leads (one-click)'},
+  WEBSITE_CONVERSION: {field: 'externalWebsiteConversions', label: 'LinkedIn website conversions'},
+  WEBSITE_CONVERSIONS: {field: 'externalWebsiteConversions', label: 'LinkedIn website conversions'},
+  JOB_APPLICANT: {field: 'landingPageClicks', label: 'LinkedIn landing page clicks'},
+  JOB_APPLICANTS: {field: 'landingPageClicks', label: 'LinkedIn landing page clicks'},
+  TALENT_LEAD: {field: 'talentLeads', label: 'LinkedIn talent leads'},
+});
+const nativeObjective = (value: unknown): string | null =>
+  typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(value) ? value : null;
+
+/** Only delivered campaigns can supply a group's shared objective. An unknown delivered objective stays visible. */
+export function linkedinGroupObjective(
+  group: {objective_type?: unknown} | undefined,
+  campaigns: {objective_type: unknown; delivered: boolean}[],
+): {native: string | null; mixed: boolean; objectives: string[]} {
+  const own = nativeObjective(group?.objective_type);
+  if (own) return {native: own, mixed: false, objectives: [own]};
+  const objectives = [
+    ...new Set(campaigns.filter(c => c.delivered).map(c => nativeObjective(c.objective_type) ?? 'unknown')),
+  ].sort();
+  if (objectives.length > 1) return {native: 'MIXED', mixed: true, objectives};
+  return {native: objectives[0] === 'unknown' ? null : (objectives[0] ?? null), mixed: false, objectives};
+}
+const delivered = (row: JsonObject) =>
+  ['impressions', 'clicks', 'costInLocalCurrency'].some(key => (metricNumber(row[key]) ?? 0) > 0);
+function groupResults(rows: JsonObject[], campaigns: Record<string, JsonObject>, rounding: Record<string, number>) {
+  const grouped = new Map<string, JsonObject[]>();
+  for (const row of rows.filter(delivered)) {
+    const objective = nativeObjective(campaigns[String(row.pivotValues[0])]?.objective_type) ?? 'unknown';
+    grouped.set(objective, [...(grouped.get(objective) ?? []), row]);
+  }
+  return [...grouped]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([objective, values]) => {
+      const result = linkedinResults[objective] ?? {
+          field: 'externalWebsiteConversions',
+          label: 'Attributed external website conversions',
+        },
+        numbers = result.field ? values.map(row => nativeDecimal(row[result.field!], 'conversions', rounding)) : [null];
+      let value: string | null = null;
+      if (numbers.every(n => n !== null)) {
+        const sum = numbers.reduce((total, n) => total + parseProviderDecimal(n!, {field: 'conversions'}).scaled, 0n),
+          fraction = (sum % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
+        value = (sum / 1000000000n).toString() + (fraction ? '.' + fraction : '');
+      }
+      return {
+        objective,
+        group: resolveObjective({platform: 'linkedin', table: linkedinReportSource.objectives, native: objective})
+          .group,
+        result_definition: result.label,
+        value,
+      };
+    });
+}
 
 /** Each job reads current metadata once per reported entity, retaining the authorization-bracketed lineage. */
 async function metadata(
@@ -126,7 +192,14 @@ export const linkedinReportSource: ReportSource = {
       JOB_APPLICANT: 'traffic',
       JOB_APPLICANTS: 'traffic',
       TALENT_LEAD: 'leads',
+      MIXED: mixedObjectiveGroup,
     },
+    reason: (native, inputs) =>
+      native === 'MIXED'
+        ? 'This campaign group’s campaigns have different objectives: {list}.'.replace('{list}', () =>
+            (inputs.group_objectives ?? []).join(', '),
+          )
+        : null,
     missingReason: 'LinkedIn returned no objective for this campaign.',
   },
   nativeMetricExamples: [
@@ -142,6 +215,7 @@ export const linkedinReportSource: ReportSource = {
     'oneClickLeads',
   ],
   minimumRequestsPerPeriod: 1,
+  requestsPerPeriod: level => (level === 'campaign' ? 2 : 1),
   nativeDetail: true,
   fixedTimezone: reportZone,
   guided: linkedinGuidedReporting,
@@ -167,22 +241,35 @@ export const linkedinReportSource: ReportSource = {
     ];
     if (fields.length > 18)
       invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
-    const d = await c.run(
-      c.plan('/rest/adAnalytics', {
-        q: 'analytics',
-        pivot: linkedinReportPivots[(c.detail ?? 'campaign') as keyof typeof linkedinReportPivots],
-        accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
-        dateRange: `(start:${date(c.range.since)},end:${date(c.range.until)})`,
-        timeGranularity: 'ALL',
-        fields: ['pivotValues', 'dateRange', ...fields].join(','),
-      }),
-      false,
-    );
-    c.raw = linkedInCampaignPeriod(
-      d,
-      c.range,
+    const campaignFields = [
+      ...new Set([
+        ...fields,
+        ...Object.values(linkedinResults).flatMap(result => (result.field ? [result.field] : [])),
+      ]),
+    ];
+    if (!c.detail && campaignFields.length > 18)
+      invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
+    const analytics = async (pivot: string, selected: string[]) =>
+      linkedInCampaignPeriod(
+        await c.run(
+          c.plan('/rest/adAnalytics', {
+            q: 'analytics',
+            pivot,
+            accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
+            dateRange: `(start:${date(c.range.since)},end:${date(c.range.until)})`,
+            timeGranularity: 'ALL',
+            fields: ['pivotValues', 'dateRange', ...selected].join(','),
+          }),
+          false,
+        ),
+        c.range,
+        pivot,
+      );
+    c.raw = await analytics(
       linkedinReportPivots[(c.detail ?? 'campaign') as keyof typeof linkedinReportPivots],
+      fields,
     );
+    const campaignRows = c.detail ? [] : await analytics('CAMPAIGN', campaignFields);
     const reported = c.raw.map(row => String(row.pivotValues[0]));
     const creatives =
       c.detail === 'ad'
@@ -201,7 +288,7 @@ export const linkedinReportSource: ReportSource = {
         ? reported.flatMap(urn => (creatives[urn]?.campaign ? [String(creatives[urn]!.campaign)] : []))
         : c.detail
           ? reported
-          : [];
+          : campaignRows.map(row => String(row.pivotValues[0]));
     const campaigns = await metadata(
       c,
       'campaign',
@@ -235,12 +322,42 @@ export const linkedinReportSource: ReportSource = {
         {campaigns, groups, creatives},
         c.detailRounding,
       );
-    } else
-      c.raw = c.raw.map(row => ({
-        ...row,
-        name: groups[String(row.pivotValues[0])]?.name,
-        objectiveType: groups[String(row.pivotValues[0])]?.objective_type,
-      }));
+    } else {
+      const memberships = new Map<string, JsonObject[]>();
+      let unassigned = false;
+      for (const campaign of campaignRows) {
+        const parent = campaigns[String(campaign.pivotValues[0])]?.campaign_group;
+        if (typeof parent === 'string') memberships.set(parent, [...(memberships.get(parent) ?? []), campaign]);
+        else if (delivered(campaign)) unassigned = true;
+      }
+      c.raw = c.raw.map(row => {
+        const urn = String(row.pivotValues[0]),
+          members = memberships.get(urn) ?? [],
+          // Unassigned delivered campaigns prevent a confident shared objective for any group lacking its own.
+          objective = linkedinGroupObjective(
+            groups[urn],
+            unassigned
+              ? []
+              : members.map(campaign => ({
+                  objective_type: campaigns[String(campaign.pivotValues[0])]?.objective_type,
+                  delivered: delivered(campaign),
+                })),
+          );
+        return {
+          ...row,
+          name: groups[urn]?.name,
+          objectiveType: objective.native,
+          ...(objective.mixed
+            ? {
+                group_objectives: objective.objectives,
+                results_by_objective: groupResults(members, campaigns, c.detailRounding),
+              }
+            : {}),
+        };
+      });
+    }
+    const rounded = metricRoundingRecord(c.detailRounding);
+    if (rounded) c.quality.metric_rounding = rounded;
     c.attribution = 'unknown';
     c.resultDefinition = 'Attributed external website conversions';
     c.warnings.push(
@@ -250,15 +367,19 @@ export const linkedinReportSource: ReportSource = {
     );
   },
   normalize(raw, {field: n}) {
+    const mixed = raw.objectiveType === 'MIXED';
     return {
       id: raw.pivotValues?.[0]?.split(':').at(-1),
       name: raw.name,
       objective: raw.objectiveType,
+      ...(mixed
+        ? {objectiveGroup: mixedObjectiveGroup, resultDefinition: 'Mixed', resultsByObjective: raw.results_by_objective}
+        : {}),
       metrics: {
         spend: n('costInLocalCurrency'),
         impressions: n('impressions'),
         clicks: n('clicks'),
-        conversions: n('externalWebsiteConversions'),
+        conversions: mixed ? null : n('externalWebsiteConversions'),
         conversion_value: n('conversionValueInLocalCurrency'),
         leads: n('oneClickLeads'),
         video_views: n('videoViews'),

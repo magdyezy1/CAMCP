@@ -147,12 +147,13 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     campaign_id: String(id),
     campaign_name: String(name ?? id),
     objective: objective ?? 'unknown',
-    objective_group: objectiveGroup(objective),
+    objective_group: row.objectiveGroup ?? objectiveGroup(objective),
     currency: currency ?? null,
     metrics: {...row.metrics, ...numericNative(platform, raw)},
     ...(omitted.size ? {omitted_as_zero: [...omitted].sort()} : {}),
     ...(row.resultDefinition ? {result_definition: row.resultDefinition} : {}),
     ...(row.mixedResult ? {mixed_result_definition: true} : {}),
+    ...(row.resultsByObjective ? {results_by_objective: row.resultsByObjective} : {}),
     native: raw,
   };
 }

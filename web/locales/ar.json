@@ -11590,5 +11590,13 @@
   "LinkedIn returned incomplete campaign group metadata.": "أرجع LinkedIn بيانات وصفية غير مكتملة لمجموعة الحملات.",
   "LinkedIn returned malformed campaign group metadata.": "أرجع LinkedIn بيانات وصفية بتنسيق غير صالح لمجموعة الحملات.",
   "LinkedIn returned unrequested or repeated campaign group metadata.": "أرجع LinkedIn بيانات وصفية مكررة أو غير مطلوبة لمجموعة الحملات.",
-  "Narrow the LinkedIn report to at most 2000 campaign groups.": "قلّص نطاق تقرير LinkedIn إلى 2000 مجموعة حملات كحد أقصى."
+  "Narrow the LinkedIn report to at most 2000 campaign groups.": "قلّص نطاق تقرير LinkedIn إلى 2000 مجموعة حملات كحد أقصى.",
+  "LinkedIn members reached (not additive)": "أعضاء LinkedIn الذين تم الوصول إليهم (لا يُجمع)",
+  "LinkedIn landing page clicks": "نقرات صفحة الوصول على LinkedIn",
+  "Clicks (engagement result not in the API)": "النقرات (نتيجة التفاعل غير متاحة في واجهة API)",
+  "LinkedIn video views": "مشاهدات الفيديو على LinkedIn",
+  "LinkedIn leads (one-click)": "العملاء المحتملون على LinkedIn (بنقرة واحدة)",
+  "LinkedIn website conversions": "تحويلات الموقع على LinkedIn",
+  "LinkedIn talent leads": "العملاء المحتملون للتوظيف على LinkedIn",
+  "This campaign group’s campaigns have different objectives: {list}.": "لحملات مجموعة الحملات هذه أهداف مختلفة: {list}."
 }

@@ -33,6 +33,8 @@ export interface ReportSourceRow {
   name?: unknown;
   /** The native objective; the row says `unknown` without one. */
   objective?: unknown;
+  /** A source's explicit native group, when it cannot be inferred from one objective (a mixed group). */
+  objectiveGroup?: string;
   /** The currency the row reports in, when the row carries it (Google Ads, Microsoft Advertising, Apple Ads). */
   currency?: unknown;
   metrics: JsonObject;
@@ -40,6 +42,8 @@ export interface ReportSourceRow {
   resultDefinition?: string;
   /** True when the row's conversions mix result definitions (TikTok campaigns with several optimization events). */
   mixedResult?: boolean;
+  /** Different native objectives keep separate additive results instead of one combined conversions number. */
+  resultsByObjective?: JsonObject[];
 }
 
 /**
@@ -301,6 +305,8 @@ export interface ReportSource {
    * request estimate made before any egress; pages beyond the first, retries and polls are not counted).
    */
   readonly minimumRequestsPerPeriod: number;
+  /** A level-specific lower bound, when this source needs a different number of data reads by position. */
+  requestsPerPeriod?(level: string): number;
   /**
    * RPT-02: the report day boundary the source's collector fixes, independent of account metadata (LinkedIn, Apple Ads
    * and Reddit report in UTC, Search Console in Pacific time); the account time zone otherwise.

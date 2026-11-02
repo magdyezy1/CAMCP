@@ -370,6 +370,15 @@ function readTargetContext(objective) {
   if (s.kpi) out.secondary_kpi = s;
   return out;
 }
+/** Separate native result totals. */
+function reportObjectiveResults(row) {
+  return (row.results_by_objective ?? [])
+    .map(
+      result =>
+        html`<p><bdi data-native>${result.objective}</bdi> · ${uiText(result.result_definition)}: ${result.value === null ? '—' : uiNumber(result.value)}</p>`,
+    )
+    .join('');
+}
 function reportQualityDetails(source, report) {
   const q = source.quality;
   // RPT-05: a failed source records no quality metadata. "Legacy" is kept for snapshots from before source contracts.

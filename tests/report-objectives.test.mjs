@@ -144,6 +144,7 @@ const pinned = {
     JOB_APPLICANT: 'traffic',
     JOB_APPLICANTS: 'traffic',
     TALENT_LEAD: 'leads',
+    MIXED: 'mixed',
   },
   snapchat: {
     BRAND_AWARENESS: 'awareness',
