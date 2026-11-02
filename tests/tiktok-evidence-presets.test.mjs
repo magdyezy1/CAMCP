@@ -323,7 +323,7 @@ test('TikTok daily presets reject unfinished or overlong windows before egress a
     presets = ok(await f.call({action: 'capture_presets'})).presets;
   assert.equal(presets.filter(p => p.id.startsWith('tiktok_')).length, 3);
   for (const semantics of [
-    {date_from: day(33)},
+    {date_from: day(368)},
     {date_to: day(0)},
     {date_to: day(-1)},
     {date_from: '2026-02-30'},

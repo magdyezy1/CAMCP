@@ -1,8 +1,15 @@
 import {MirrorError} from './errors.js';
+import type {JsonObject} from './types.js';
 import {reportList, type ReportSource} from './report-source.js';
 import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 import {tiktokCollectionCounts} from './tiktok-report-pagination.js';
+import {
+  tiktokCampaignWindowDays,
+  tiktokStatusFilter,
+  tiktokStatusFilterRefused,
+  tiktokStatusFilterRefusedWarning,
+} from './tiktok-report-request.js';
 
 /** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
 const tiktokAuctionOnlyWarning =
@@ -32,24 +39,46 @@ export const tiktokReportSource: ReportSource = {
   // The report, the campaign inventory and the ad group optimization events (RPT-04).
   minimumRequestsPerPeriod: 3,
   guided: tiktokGuidedReporting,
+  validateRange(source, range) {
+    if (
+      (source.level ?? 'campaign') === 'campaign' &&
+      (Date.parse(range.until) - Date.parse(range.since)) / 86400000 + 1 > tiktokCampaignWindowDays
+    )
+      throw new MirrorError(
+        'INVALID_DATE_RANGE',
+        'TikTok reports up to 365 days at a time without daily rows; choose 365 days or fewer.',
+      );
+  },
   /**
    * One BASIC auction campaign report over the period, the campaign inventory for objectives, and the ad group
    * optimization events (RPT-04), read once per source and job.
    */
   async collect(c) {
-    const d = await c.run(
-      c.plan('/v1.3/report/integrated/get/', {
-        advertiser_id: c.account,
-        report_type: 'BASIC',
-        data_level: 'AUCTION_CAMPAIGN',
-        dimensions: ['campaign_id'],
-        metrics: [...new Set(['campaign_name', 'spend', 'impressions', 'clicks', 'conversion', ...c.extra])],
-        start_date: c.range.since,
-        end_date: c.range.until,
-        page: 1,
-        page_size: 1000,
-      }),
-    );
+    const query: JsonObject = {
+      advertiser_id: c.account,
+      report_type: 'BASIC',
+      data_level: 'AUCTION_CAMPAIGN',
+      dimensions: ['campaign_id'],
+      metrics: [...new Set(['campaign_name', 'spend', 'impressions', 'clicks', 'conversion', ...c.extra])],
+      start_date: c.range.since,
+      end_date: c.range.until,
+      page: 1,
+      page_size: 1000,
+      enable_total_metrics: true,
+      ...(c.lookup?.tiktokStatusFilter === 'refused' ? {} : {filtering: tiktokStatusFilter('campaign')}),
+    };
+    let d;
+    try {
+      d = await c.run(c.plan('/v1.3/report/integrated/get/', query));
+    } catch (error) {
+      if (!query.filtering || !tiktokStatusFilterRefused(error)) throw error;
+      if (c.lookup) c.lookup.tiktokStatusFilter = 'refused';
+      delete query.filtering;
+      c.warnings.push(tiktokStatusFilterRefusedWarning);
+      d = await c.run(c.plan('/v1.3/report/integrated/get/', query));
+    }
+    if (c.lookup?.tiktokStatusFilter === 'refused' && !c.warnings.includes(tiktokStatusFilterRefusedWarning))
+      c.warnings.push(tiktokStatusFilterRefusedWarning);
     c.raw = reportList(d.data?.list ?? []);
     const counts = tiktokCollectionCounts(d.data?.page_info?.total_number ?? 0, c.raw.length);
     if (!counts.complete) {
@@ -112,7 +141,8 @@ export const tiktokReportSource: ReportSource = {
     c.resultDefinition = 'TikTok conversion metric for the selected optimization goal';
     c.warnings.push(tiktokAuctionOnlyWarning);
   },
-  normalize(raw, {value}) {
+  normalize(raw, {value: readValue}) {
+    const value = (v: unknown) => readValue(v === '-' ? null : v);
     const m = raw.metrics ?? {};
     // RPT-04: the result definition names the campaign's ad group optimization events; mixed events are held.
     const events: string[] = Array.isArray(raw.optimization_events) ? raw.optimization_events : [];

@@ -46,6 +46,8 @@ export interface ReportSourceRow {
  * `verifyAccount` re-reads once after collection so a currency or time-zone change during a long run is still caught.
  */
 export interface AccountLookupCache {
+  /** TikTok refused its optional STATUS_ALL report filter; later periods use the same fallback. */
+  tiktokStatusFilter?: 'refused';
   data?: JsonObject;
   lineage?: JsonObject;
   /**
@@ -140,6 +142,8 @@ export interface GuidedCaptureContext {
   readonly preset: string;
   /** Overview may retain partial collections; evidence captures always require a whole collection. */
   readonly allowPartial?: true;
+  /** The Overview job's per-source cache; it carries provider read decisions across periods. */
+  readonly lookup?: AccountLookupCache;
   /** The preset's row checks (validatePresetRows), for a collector that checks its rows before its last read. */
   validateRows(rows: JsonObject[]): void;
 }
@@ -201,6 +205,8 @@ export interface GuidedReporting {
   semanticsSource?(preset: string, request: JsonObject): string;
   /** RPT-04: a delivered row's absent selected action counts as zero (Meta omits zero-valued action entries). */
   readonly omittedAsZero?: true;
+  /** A documented native dash means unavailable, never a zero metric (TikTok). */
+  readonly dashAsUnknown?: true;
   /** Native date formats a mapping may name for the report date, each with its parse of a native date. */
   readonly dateFormats?: Readonly<Record<string, (value: unknown) => unknown>>;
   /** The native dimensions a mapping may retain that this platform documents, by mapping key. */
@@ -313,6 +319,8 @@ export interface ReportSource {
   readonly guided?: GuidedReporting;
   /** The headers of the source's report requests (LinkedIn's versioning headers); none when absent. */
   requestHeaders?(): Record<string, string>;
+  /** Provider window limits, checked before the account lookup makes any provider request. */
+  validateRange?(source: JsonObject, range: {since: string; until: string}): void;
   /** Collects one period of the source's native report into `collection`. */
   collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */

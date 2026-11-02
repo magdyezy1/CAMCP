@@ -21,7 +21,7 @@ import {assertCompatibleBaseline, compareDeclaredReference, compareReportContext
 import {allocationOutcomeView, captureAllocationOutcome} from './allocation-outcome.js';
 import {breakdownDescriptor, breakdownDimensionKeys, breakdownValue} from './report-breakdowns.js';
 import {guidedReportSources, googleServingDiagnostics, metaAttributionWindows} from './report-sources.js';
-import type {GuidedDimension, GuidedReporting} from './report-source.js';
+import type {AccountLookupCache, GuidedDimension, GuidedReporting} from './report-source.js';
 import {evidenceIndex} from './evidence-index.js';
 import {launchCheck} from './launch-check.js';
 import {
@@ -280,6 +280,7 @@ interface ReportingCall extends ToolContext {
   readonly capturePreset?: string;
   readonly transient: boolean;
   readonly allowPartial?: true;
+  readonly lookup?: AccountLookupCache;
 }
 /** A call on the retained evidence report its `id` names. */
 interface EvidenceCall extends ReportingCall {
@@ -332,13 +333,14 @@ export class DecisionReporting {
     private readPlan?: (id: string, actor: Actor) => Promise<JsonObject>,
   ) {}
   /** Internal Overview collector: reuse the exact qualified preset without creating a second saved snapshot or budget. */
-  async collectGuided(input: JsonObject, actor: Actor) {
+  async collectGuided(input: JsonObject, actor: Actor, lookup?: AccountLookupCache) {
     return this.handle(
       {action: 'capture', ...reportPreset(input)},
       actor,
       input.preset,
       true,
       input.allow_partial === true,
+      lookup,
     );
   }
   /** One analysable group per account, entity level, currency, time zone, attribution and result definition. */
@@ -450,6 +452,7 @@ export class DecisionReporting {
     capturePreset?: string,
     transient = false,
     allowPartial = false,
+    lookup?: AccountLookupCache,
   ): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
@@ -470,6 +473,7 @@ export class DecisionReporting {
       capturePreset,
       transient,
       ...(transient && allowPartial ? {allowPartial: true} : {}),
+      ...(transient && lookup ? {lookup} : {}),
     };
     const unpaged = actionHandler(this.unpagedActions, input.action);
     if (unpaged) return unpaged(context);
@@ -638,7 +642,14 @@ export class DecisionReporting {
     };
   }
   /** capture: one complete native read mapped to evidence, retained unless the Overview collector made it. */
-  private async capture({input, actor, capturePreset, transient, allowPartial}: ReportingCall): Promise<JsonObject> {
+  private async capture({
+    input,
+    actor,
+    capturePreset,
+    transient,
+    allowPartial,
+    lookup,
+  }: ReportingCall): Promise<JsonObject> {
     const sem = semantic(input.semantics ?? {}),
       mapping = input.mapping;
     if (
@@ -729,6 +740,7 @@ export class DecisionReporting {
             semantics: sem,
             preset: capturePreset!,
             ...(allowPartial ? {allowPartial} : {}),
+            ...(lookup ? {lookup} : {}),
             validateRows: rows => validatePresetRows(capturePreset, input, rows),
           })
         : undefined;
@@ -809,7 +821,11 @@ export class DecisionReporting {
           omitted.push(key);
           omittedCounts[key] = (omittedCounts[key] ?? 0) + 1;
         }
-        if (value === null || value === undefined) {
+        if (
+          value === null ||
+          value === undefined ||
+          (guided?.dashAsUnknown && value === '-' && metrics.includes(key))
+        ) {
           out[key] = null;
           continue;
         }

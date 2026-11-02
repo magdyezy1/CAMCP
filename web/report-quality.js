@@ -198,6 +198,7 @@ function reportRecommendationAsOf(row) {
 }
 // Collector warnings AMCP authors for a source's reporting window (RPT-02); other warnings stay as written.
 const reportSourceWarnings = new Set([
+  'TikTok refused the deleted-objects filter, so campaigns deleted since this window may be missing.',
   // ACC-06 interim notice: the Reddit conversion value unit is unverified until the authorized closed-week check.
   'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.',
   'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',

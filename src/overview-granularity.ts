@@ -1,6 +1,7 @@
 import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
-import {detailParents, type DetailParentCache} from './overview-parents.js';
+import {detailParents} from './overview-parents.js';
+import type {AccountLookupCache} from './report-source.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
@@ -28,7 +29,7 @@ export async function collectDetailedOverview(
   currency: string | null,
   timezone: string | null,
   // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
-  lookup: {detailParents?: DetailParentCache} = {},
+  lookup: AccountLookupCache = {},
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -63,6 +64,7 @@ export async function collectDetailedOverview(
       },
     },
     actor,
+    lookup,
   );
   service.store.assertActorActive(actor);
   service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);

@@ -934,7 +934,7 @@ async function mountCaptureWizard(openReport) {
     declaredAttribution = form.elements.attribution.value;
   form.insertAdjacentHTML(
     'beforeend',
-    `<p id="capture-tiktok-measurement" class="form-note" hidden>${esc(uiText('TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–31 closed days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.'))}</p>`,
+    `<p id="capture-tiktok-measurement" class="form-note" hidden>${esc(uiText('TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–366 closed days, read in spans of 30 days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.'))}</p>`,
   );
   form.insertAdjacentHTML(
     'beforeend',

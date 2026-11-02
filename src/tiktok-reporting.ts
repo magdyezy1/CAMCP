@@ -4,7 +4,13 @@ import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {tiktokCollectionCounts, tiktokPageCountMessage, tiktokReportPageData} from './tiktok-report-pagination.js';
-import type {GuidedCollectionState} from './report-source.js';
+import type {AccountLookupCache, GuidedCollectionState} from './report-source.js';
+import {
+  tiktokDailySpans,
+  tiktokStatusFilter,
+  tiktokStatusFilterRefused,
+  tiktokStatusFilterRefusedWarning,
+} from './tiktok-report-request.js';
 import {storedLogin} from './connection-authority.js';
 
 const gateway = 'tiktok_native_action';
@@ -31,7 +37,7 @@ export function tiktokDailyRange(semantics: JsonObject) {
         month: '2-digit',
         day: '2-digit',
       })
-        .formatToParts()
+        .formatToParts(new Date())
         .map(p => [p.type, p.value]),
     );
     today = `${parts.year}-${parts.month}-${parts.day}`;
@@ -42,9 +48,12 @@ export function tiktokDailyRange(semantics: JsonObject) {
     semantics.complete !== true ||
     through < from ||
     through >= today ||
-    Date.parse(through) - Date.parse(from) >= 31 * 86400000
+    Date.parse(through) - Date.parse(from) >= 366 * 86400000
   )
-    bad('TikTok guided evidence requires a declared complete window of 1–31 closed days in the advertiser timezone.');
+    bad(
+      'TikTok guided evidence requires a declared complete window of 1–366 closed days in the advertiser timezone.',
+      'INVALID_DATE_RANGE',
+    );
 }
 function pageRows(data: JsonObject, page: number, size: number, total: number | null, returned: number) {
   const native = tiktokReportPageData(data, page, size, {total, returned});
@@ -60,7 +69,7 @@ export async function collectTikTokDailyReport(
   actor: Actor,
   args: JsonObject,
   semantics: JsonObject,
-  context: {allowPartial?: true} = {},
+  context: {allowPartial?: true; lookup?: AccountLookupCache} = {},
 ) {
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
@@ -74,7 +83,9 @@ export async function collectTikTokDailyReport(
       bad('The TikTok login or permissions changed. Capture a new report.', 'CONNECTION_AUTHORITY_CHANGED');
     collectionCheckpoint();
   };
+  let requestCount = 0;
   const read = async (request: JsonObject) => {
+    if (++requestCount > 120) bad('Narrow the TikTok report to at most 120 requests.', 'REPORT_COLLECTION_LIMIT');
     current();
     const result = await call(gateway, request, actor);
     current();
@@ -148,60 +159,87 @@ export async function collectTikTokDailyReport(
   await verifyAccount();
   const rows: JsonObject[] = [],
     pages: JsonObject[] = [],
+    warnings: string[] = [],
     seen = new Set<string>(),
     idField = args.query.dimensions[0];
-  let total: number | undefined;
-  for (let page = 1; page <= 10; page++) {
-    const request = {...args, query: {...args.query, page}},
-      {data, evidence} = await read(request),
-      native = pageRows(data, page, args.query.page_size, total ?? null, rows.length);
-    total = native.total;
-    for (const row of native.rows) {
-      if (
-        !obj(row) ||
-        !obj(row.dimensions) ||
-        !obj(row.metrics) ||
-        !nativeId(row.dimensions[idField]) ||
-        Object.keys(row.dimensions).length !== 2 ||
-        !Object.hasOwn(row.dimensions, 'stat_time_day') ||
-        (row.advertiser_id !== undefined && row.advertiser_id !== account) ||
-        (row.metrics.advertiser_id !== undefined && row.metrics.advertiser_id !== account)
-      )
-        bad('TikTok returned an unbound or different native entity/day grain.', 'REPORT_SHAPE_CHANGED');
-      const date = tiktokReportDate(row.dimensions.stat_time_day);
-      if (date < semantics.date_from || date > semantics.date_to)
-        bad('TikTok returned a date outside the requested daily window.', 'REPORT_DATE_MISMATCH');
-      const key = row.dimensions[idField] + ':' + date;
-      if (seen.has(key))
-        bad('TikTok returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS', {
-          page_facts: {
-            page,
-            page_size: args.query.page_size,
-            total_number: native.total,
-            total_page: native.pages,
-            list_length: native.rows.length,
-            rule: 'duplicate_tuple',
-          },
-        });
-      seen.add(key);
-      rows.push(row);
+  let declared = 0,
+    complete = true,
+    filterRefused = context.lookup?.tiktokStatusFilter === 'refused';
+  let failureFacts: JsonObject | undefined;
+  for (const span of tiktokDailySpans(semantics.date_from, semantics.date_to)) {
+    let total: number | null = null,
+      returned = 0;
+    let lastFacts: JsonObject = {};
+    for (let page = 1; page <= 10; page++) {
+      const request = {
+        ...args,
+        query: {...args.query, start_date: span.from, end_date: span.to, enable_total_metrics: true, page},
+      };
+      if (filterRefused) delete request.query.filtering;
+      else request.query.filtering ??= tiktokStatusFilter(idField.replace(/_id$/, ''));
+      let answer;
+      try {
+        answer = await read(request);
+      } catch (error) {
+        if (!request.query.filtering || !tiktokStatusFilterRefused(error)) throw error;
+        filterRefused = true;
+        if (context.lookup) context.lookup.tiktokStatusFilter = 'refused';
+        delete request.query.filtering;
+        answer = await read(request);
+      }
+      const {data, evidence} = answer;
+      const native = pageRows(data, page, args.query.page_size, total, returned);
+      total = native.total;
+      lastFacts = {
+        page,
+        page_size: args.query.page_size,
+        total_number: native.total,
+        total_page: native.pages,
+        list_length: native.rows.length,
+      };
+      for (const row of native.rows) {
+        if (
+          !obj(row) ||
+          !obj(row.dimensions) ||
+          !obj(row.metrics) ||
+          !nativeId(row.dimensions[idField]) ||
+          Object.keys(row.dimensions).length !== 2 ||
+          !Object.hasOwn(row.dimensions, 'stat_time_day') ||
+          (row.advertiser_id !== undefined && row.advertiser_id !== account) ||
+          (row.metrics.advertiser_id !== undefined && row.metrics.advertiser_id !== account)
+        )
+          bad('TikTok returned an unbound or different native entity/day grain.', 'REPORT_SHAPE_CHANGED');
+        const date = tiktokReportDate(row.dimensions.stat_time_day);
+        if (date < span.from || date > span.to)
+          bad('TikTok returned a date outside the requested daily window.', 'REPORT_DATE_MISMATCH');
+        const key = row.dimensions[idField] + ':' + date;
+        if (seen.has(key))
+          bad('TikTok returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS', {
+            page_facts: {...lastFacts, rule: 'duplicate_tuple'},
+          });
+        seen.add(key);
+        rows.push(row);
+      }
+      returned += native.rows.length;
+      pages.push({
+        ...evidence,
+        page,
+        row_count: native.rows.length,
+        total_rows: native.total,
+        ...(native.facts ? {page_facts: native.facts} : {}),
+      });
+      if (page >= native.pages) break;
     }
-    pages.push({
-      ...evidence,
-      page,
-      row_count: native.rows.length,
-      total_rows: native.total,
-      ...(native.facts ? {page_facts: native.facts} : {}),
-    });
-    if (page >= native.pages) break;
+    declared += total ?? 0;
+    const counts = tiktokCollectionCounts(total ?? 0, returned);
+    if (!counts.complete) {
+      complete = false;
+      warnings.push(counts.warning!);
+      failureFacts ??= {...lastFacts, rule: 'fewer_rows_than_declared'};
+    }
   }
-  const counts = tiktokCollectionCounts(total ?? 0, rows.length),
-    collection: GuidedCollectionState = {
-      complete: counts.complete,
-      declared: total ?? 0,
-      returned: rows.length,
-      warnings: counts.warning ? [counts.warning] : [],
-    };
+  if (filterRefused) warnings.unshift(tiktokStatusFilterRefusedWarning);
+  const collection: GuidedCollectionState = {complete, declared, returned: rows.length, warnings};
   if (!collection.complete && !context.allowPartial)
     throw new MirrorError(
       'REPORT_INCOMPLETE',
@@ -209,14 +247,7 @@ export async function collectTikTokDailyReport(
       {
         declared_rows: collection.declared,
         returned_rows: collection.returned,
-        page_facts: {
-          page: pages.at(-1)?.page ?? 1,
-          page_size: args.query.page_size,
-          total_number: total ?? 0,
-          total_page: pages.length,
-          list_length: pages.at(-1)?.row_count ?? 0,
-          rule: 'fewer_rows_than_declared',
-        },
+        page_facts: failureFacts,
       },
       502,
     );

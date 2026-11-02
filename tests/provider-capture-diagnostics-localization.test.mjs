@@ -9,7 +9,7 @@ import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
 const collectors = {
   'src/meta-evidence.ts': 16,
   'src/linkedin-evidence.ts': 6,
-  'src/tiktok-reporting.ts': 14,
+  'src/tiktok-reporting.ts': 15,
   'src/snapchat-evidence.ts': 38,
 };
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
@@ -79,7 +79,7 @@ test('provider refusal ownership includes exact collector literals and only Snap
     assert.equal(inspectReportingFailures(sample, file).size, 0);
 });
 
-test('all 74 selected provider refusal sentences have authored Arabic without codes or native fallbacks', () => {
+test('all 75 selected provider refusal sentences have authored Arabic without codes or native fallbacks', () => {
   let count = 0;
   for (const [file, expected] of Object.entries(collectors)) {
     const messages = inspectReportingFailures(readFileSync(file, 'utf8'), file);
@@ -92,7 +92,7 @@ test('all 74 selected provider refusal sentences have authored Arabic without co
     }
     count += messages.size;
   }
-  assert.equal(count, 74);
+  assert.equal(count, 75);
 });
 
 test('additional capture remedy ownership selects required, argument and scope hints without dynamic or unrelated families', () => {
@@ -108,8 +108,8 @@ test('additional capture remedy ownership selects required, argument and scope h
 test('all actual selected refusal codes format in English and Arabic with authored hints and unchanged structured retry semantics', () => {
   const values = ownedCodes(),
     remedies = inspectProviderCaptureRemedies(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts');
-  assert.equal(values.length, 75);
-  assert.equal(new Set(values.map(value => value.message)).size, 74);
+  assert.equal(values.length, 76);
+  assert.equal(new Set(values.map(value => value.message)).size, 75);
   assert.equal(remedies.size, 8);
   assert.deepEqual(localeProblems(catalog, remedies), []);
   const reached = new Set();

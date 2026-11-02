@@ -275,6 +275,7 @@ export class NativeCampaignReports {
       extra = source.native_metrics ?? [];
     if (!nativeMetricNames(extra, reports!)) bad('Native metrics must be provider field names (at most 30).');
     this.service.store.resolveConnection(actor, gateway, account, connection);
+    reports!.validateRange?.(source, range);
     const lineage: JsonObject[] = [],
       {run, plan} = reportReadPath(this.service, actor, gateway, account, connection, reports!, lineage);
     // RPT-07: the detail levels of a source with native detail (Microsoft, Reddit, Apple) reuse its own reports.

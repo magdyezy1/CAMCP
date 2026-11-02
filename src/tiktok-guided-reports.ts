@@ -1,6 +1,7 @@
 import {bad} from './workspace-core.js';
 import type {GuidedReporting} from './report-source.js';
 import {collectTikTokDailyReport, tiktokDailyRange, tiktokReportDate} from './tiktok-reporting.js';
+import {tiktokStatusFilter} from './tiktok-report-request.js';
 
 /**
  * TikTok's guided reporting (ARC-04 stage F): its capture presets (BASIC auction daily reports by campaign, ad group
@@ -16,7 +17,7 @@ const presets = ['campaign', 'adgroup', 'ad'].map(level => ({
   max_rows: 10000,
   max_requests: 120,
   meaning:
-    'Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate.',
+    'Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–366 closed days in the advertiser time zone; read in spans of 30 days. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate.',
 }));
 
 export const tiktokGuidedReporting: GuidedReporting = {
@@ -42,7 +43,8 @@ export const tiktokGuidedReporting: GuidedReporting = {
           end_date: range.until,
           query_lifetime: false,
           multi_adv_report_in_utc_time: false,
-          enable_total_metrics: false,
+          enable_total_metrics: true,
+          filtering: tiktokStatusFilter(preset.level),
           page: 1,
           page_size: 1000,
         },
@@ -62,8 +64,9 @@ export const tiktokGuidedReporting: GuidedReporting = {
     };
   },
   // ARC-01 (reporting): a capture of a TikTok preset collects complete BASIC daily pages (src/tiktok-reporting.ts).
-  collect: ({store, call, actor, args, semantics, allowPartial}) =>
-    collectTikTokDailyReport(store, call, actor, args, semantics, {allowPartial}),
+  collect: ({store, call, actor, args, semantics, allowPartial, lookup}) =>
+    collectTikTokDailyReport(store, call, actor, args, semantics, {allowPartial, lookup}),
+  dashAsUnknown: true,
   sourceCollection: 'tiktok_daily_pages',
   semanticsSource: () =>
     'TikTok advertiser currency and timezone verified before and after complete native pages; native conversion refers to each entity optimization goal and goals may differ; attribution windows and completeness declared, not independently verified. Collection is not a point-in-time snapshot.',
