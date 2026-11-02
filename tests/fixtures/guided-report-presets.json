@@ -167,7 +167,7 @@
     "gateway": "tiktok_native_action",
     "max_rows": 10000,
     "max_requests": 120,
-    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
+    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–366 closed days in the advertiser time zone; read in spans of 30 days. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
   },
   {
     "id": "tiktok_adgroup",
@@ -177,7 +177,7 @@
     "gateway": "tiktok_native_action",
     "max_rows": 10000,
     "max_requests": 120,
-    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
+    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–366 closed days in the advertiser time zone; read in spans of 30 days. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
   },
   {
     "id": "tiktok_ad",
@@ -187,7 +187,7 @@
     "gateway": "tiktok_native_action",
     "max_rows": 10000,
     "max_requests": 120,
-    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–31 closed days, complete native pagination and stable row counts. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
+    "meaning": "Standard BASIC auction daily reporting in the verified advertiser currency and timezone. Requires 1–366 closed days in the advertiser time zone; read in spans of 30 days. Uses the native conversion metric for each entity optimization goal; these goals may differ. Attribution remains declared. Smart+, GMV Max and other specialized reports are separate."
   },
   {
     "id": "linkedin_campaign_group",

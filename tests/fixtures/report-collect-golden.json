@@ -3085,7 +3085,15 @@
        "start_date": "2026-08-01",
        "end_date": "2026-08-07",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "enable_total_metrics": true,
+       "filtering": [
+        {
+         "field_name": "campaign_status",
+         "filter_type": "IN",
+         "filter_value": "[\"STATUS_ALL\"]"
+        }
+       ]
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3182,7 +3190,7 @@
       "path": "/v1.3/report/integrated/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "5ce19f313e81fd264737ae2d73acdd3adad73e1e50b8856cbb7da1a81d04f2e6",
+      "query_fingerprint": "9a5d07a44595e0f5bf7170892fea9b8bb88197c7445e9757611ff021c0309975",
       "response_fingerprint": "02594f82057aaac265b67476d2ad816055ff96f7703a95a629f2e8e034a28048",
       "captured_at": "<epoch-ms>"
      },
@@ -3207,7 +3215,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "33b5d50f0dfdd536dad3c22fbdf8b0a051f3a7b7a7ba4d3e69e5a7c518ef68a4",
+    "query_fingerprint": "8232b800c13e8335c3e1057ce6488ff9838ef07cf012969d7a267e3d7f50ad42",
     "rows": [
      {
       "campaign_id": "11",
@@ -3370,7 +3378,15 @@
        "start_date": "2026-08-01",
        "end_date": "2026-08-07",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "enable_total_metrics": true,
+       "filtering": [
+        {
+         "field_name": "campaign_status",
+         "filter_type": "IN",
+         "filter_value": "[\"STATUS_ALL\"]"
+        }
+       ]
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3467,7 +3483,7 @@
       "path": "/v1.3/report/integrated/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "bb8ac12a00db5534c6b5ea79c434b8b67cfbc61d8fe214b38241465a0a772685",
+      "query_fingerprint": "9fd426d4370c851a3b3e159b94ba0db281e36c97966ccb81ece32f45f358ccb0",
       "response_fingerprint": "02594f82057aaac265b67476d2ad816055ff96f7703a95a629f2e8e034a28048",
       "captured_at": "<epoch-ms>"
      },
@@ -3482,7 +3498,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "ff5999926f6e432ad4f78b18ef63ad53de8b4a0434e1bc5f15d4ece5abc26cad",
+    "query_fingerprint": "21848cc68c39c7a23bd50185dd04675f0c0a98989bc0cc210cb818dd6bba9dcb",
     "rows": [
      {
       "campaign_id": "11",
@@ -3636,7 +3652,15 @@
        "start_date": "2026-08-01",
        "end_date": "2026-08-07",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "enable_total_metrics": true,
+       "filtering": [
+        {
+         "field_name": "campaign_status",
+         "filter_type": "IN",
+         "filter_value": "[\"STATUS_ALL\"]"
+        }
+       ]
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3775,7 +3799,15 @@
        "start_date": "2026-08-01",
        "end_date": "2026-08-07",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "enable_total_metrics": true,
+       "filtering": [
+        {
+         "field_name": "campaign_status",
+         "filter_type": "IN",
+         "filter_value": "[\"STATUS_ALL\"]"
+        }
+       ]
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3870,7 +3902,15 @@
        "start_date": "2026-08-08",
        "end_date": "2026-08-14",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "enable_total_metrics": true,
+       "filtering": [
+        {
+         "field_name": "campaign_status",
+         "filter_type": "IN",
+         "filter_value": "[\"STATUS_ALL\"]"
+        }
+       ]
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3965,7 +4005,7 @@
       "path": "/v1.3/report/integrated/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "bb8ac12a00db5534c6b5ea79c434b8b67cfbc61d8fe214b38241465a0a772685",
+      "query_fingerprint": "9fd426d4370c851a3b3e159b94ba0db281e36c97966ccb81ece32f45f358ccb0",
       "response_fingerprint": "02594f82057aaac265b67476d2ad816055ff96f7703a95a629f2e8e034a28048",
       "captured_at": "<epoch-ms>"
      },
@@ -3990,7 +4030,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "3d431f7b278463faa2489db7d115a868afc4b8e46fb028b12d9d04909f64e16d",
+    "query_fingerprint": "58bc427b35b68616514947de092ce46e94e705014306af5030e94157a29bde9f",
     "rows": [
      {
       "campaign_id": "11",
@@ -4123,7 +4163,7 @@
       "path": "/v1.3/report/integrated/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "60c93aa5d7a00ad2ce9c568346ab2dd669c7c7d4e78507b999438bc0179a6357",
+      "query_fingerprint": "3554317ee21aaf1106fdad89f648b5e4759ea8a41d13618dfbd7440ae89fd861",
       "response_fingerprint": "02594f82057aaac265b67476d2ad816055ff96f7703a95a629f2e8e034a28048",
       "captured_at": "<epoch-ms>"
      },
@@ -4149,7 +4189,7 @@
       "cached": true
      }
     ],
-    "query_fingerprint": "b6a593da5a3055fb28a1131d65768016fb69cc8e676f2687a4a752a4c0cc5e0b",
+    "query_fingerprint": "6178552acbc3a1198814ed702965f342a6fec7ef65314be88ff14e4cc136a4eb",
     "rows": [
      {
       "campaign_id": "11",
@@ -4366,7 +4406,15 @@
        "start_date": "2026-08-01",
        "end_date": "2026-08-07",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "enable_total_metrics": true,
+       "filtering": [
+        {
+         "field_name": "campaign_status",
+         "filter_type": "IN",
+         "filter_value": "[\"STATUS_ALL\"]"
+        }
+       ]
       },
       "body": "$undefined",
       "origin": "$undefined",
