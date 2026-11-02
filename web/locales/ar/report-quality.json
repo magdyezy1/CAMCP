@@ -66,5 +66,6 @@
   "Truncated by GA4": "اقتُطع بواسطة GA4",
   "Within tolerance": "ضمن هامش التفاوت",
   "X campaigns with activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet: {count}. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.": "حملات X التي لها نشاط على شبكة الناشرين (PUBLISHER_NETWORK)، وهو موضع عرض لا يطلبه هذا التقرير بعد: {count}. لا يدخل ذلك العرض وإنفاقه في هذه الإجماليات، لذلك تكون التغطية جزئية وتُحجب إرشادات الميزانية.",
-  "X campaigns with no reported activity in this window (X active entities): {count}. They are not listed and are never counted as zero.": "حملات X التي لا يوجد لها نشاط مُبلَّغ عنه في هذه الفترة (الكيانات النشطة في X): {count}. لا تُدرج ولا تُحسب صفرًا أبدًا."
+  "X campaigns with no reported activity in this window (X active entities): {count}. They are not listed and are never counted as zero.": "حملات X التي لا يوجد لها نشاط مُبلَّغ عنه في هذه الفترة (الكيانات النشطة في X): {count}. لا تُدرج ولا تُحسب صفرًا أبدًا.",
+  "{metric}: {rows} of {total}": "{metric}: {rows} من {total}"
 }

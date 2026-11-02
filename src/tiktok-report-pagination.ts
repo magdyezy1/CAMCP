@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
+import {parseProviderDecimal} from './provider-decimal.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -19,6 +20,7 @@ export type TikTokPageRule =
   | 'duplicate_tuple'
   | 'fewer_rows_than_declared'
   | 'total_page_basis_mismatch'
+  | 'totals_mismatch'
   | 'empty_report';
 export interface TikTokPageFacts {
   page: number | null;
@@ -35,6 +37,10 @@ export interface TikTokPage {
   facts: TikTokPageFacts | null;
 }
 export const tiktokPageCountMessage = 'TikTok returned missing or inconsistent native report page counts.';
+export const tiktokTotalsMismatchMessage = 'TikTok’s totals differ from the rows returned.';
+export const tiktokTotalsMatchWarning =
+  'TikTok’s page counts disagreed with its rows; its totals match, so the collection is complete.';
+export const tiktokTotalsGapTemplate = 'TikTok’s totals differ from the rows returned: {gaps}.';
 
 /** Native counts bound collection; a short page alone does not prove that the whole report is incomplete. */
 export function tiktokPageCheck(
@@ -105,6 +111,81 @@ export function tiktokCollectionCounts(declared: number, returned: number): {com
           returned.toLocaleString('en-US') +
           '.',
       };
+}
+
+/** Unavailable totals fall back to counts; native decimal text is compared without floating-point sums. */
+export function tiktokTotalsCheck(
+  rows: JsonObject[],
+  totals: unknown,
+  metrics: readonly string[],
+): {verdict: 'match' | 'gap' | 'absent'; gaps: {metric: string; rows: string; total: string}[]} {
+  const gaps: {metric: string; rows: string; total: string}[] = [];
+  if (!object(totals)) return {verdict: 'absent', gaps};
+  const value = (raw: unknown): bigint | null => {
+    if (raw === null || raw === undefined || raw === '-') return null;
+    try {
+      return parseProviderDecimal(raw, {field: 'TikTok report total'}).scaled;
+    } catch (error) {
+      if (error instanceof MirrorError && ['REPORT_SHAPE_CHANGED', 'METRIC_PRECISION_LOSS'].includes(error.code))
+        return null;
+      throw error;
+    }
+  };
+  const formatted = (units: bigint, money: boolean) => {
+    if (money) {
+      const cents = (units + 5000000n) / 10000000n;
+      return (cents / 100n).toLocaleString('en-US') + '.' + (cents % 100n).toString().padStart(2, '0');
+    }
+    const fraction = (units % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
+    return (units / 1000000000n).toLocaleString('en-US') + (fraction ? '.' + fraction : '');
+  };
+  let compared = 0;
+  for (const metric of new Set(metrics)) {
+    if (!['spend', 'impressions', 'clicks', 'conversion'].includes(metric)) continue;
+    const nativeTotal = value(totals[metric]);
+    if (nativeTotal === null) continue;
+    let sum = 0n,
+      available = true;
+    for (const row of rows) {
+      const native = value(row.metrics?.[metric]);
+      if (native === null) {
+        available = false;
+        break;
+      }
+      sum += native;
+    }
+    if (!available) continue;
+    compared++;
+    const difference = sum > nativeTotal ? sum - nativeTotal : nativeTotal - sum;
+    if (difference > (metric === 'spend' ? 5000000n * BigInt(rows.length) : 0n))
+      gaps.push({metric, rows: formatted(sum, metric === 'spend'), total: formatted(nativeTotal, metric === 'spend')});
+  }
+  return {verdict: compared === 0 ? 'absent' : gaps.length ? 'gap' : 'match', gaps};
+}
+
+/** Both report paths apply the same completeness decision to each requested native window. */
+export function tiktokCollectionCheck(
+  rows: JsonObject[],
+  declared: number,
+  totals: unknown,
+  metrics: readonly string[],
+) {
+  const counts = tiktokCollectionCounts(declared, rows.length),
+    checked = tiktokTotalsCheck(rows, totals, metrics);
+  if (checked.verdict === 'match')
+    return {complete: true, warnings: counts.complete ? [] : [tiktokTotalsMatchWarning], totals: checked.verdict};
+  if (checked.verdict === 'gap')
+    return {
+      complete: false,
+      warnings: [
+        tiktokTotalsGapTemplate.replace(
+          '{gaps}',
+          checked.gaps.map(gap => gap.metric + ' ' + gap.rows + ' of ' + gap.total).join('; '),
+        ),
+      ],
+      totals: checked.verdict,
+    };
+  return {complete: counts.complete, warnings: counts.warning ? [counts.warning] : [], totals: checked.verdict};
 }
 export function tiktokReportPage(
   response: unknown,

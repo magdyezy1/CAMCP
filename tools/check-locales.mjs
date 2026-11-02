@@ -513,7 +513,7 @@ export function inspectReportingFailures(source, file) {
     if (
       file.replaceAll('\\', '/') === 'src/tiktok-report-pagination.ts' &&
       node.type === 'VariableDeclarator' &&
-      node.id?.name === 'tiktokPageCountMessage' &&
+      ['tiktokPageCountMessage', 'tiktokTotalsMismatchMessage'].includes(node.id?.name) &&
       node.init?.type === 'StringLiteral'
     )
       messages.add(node.init.value);

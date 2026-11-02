@@ -3,7 +3,12 @@ import {MirrorError, nestedError} from './errors.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {tiktokCollectionCounts, tiktokPageCountMessage, tiktokReportPageData} from './tiktok-report-pagination.js';
+import {
+  tiktokCollectionCheck,
+  tiktokPageCountMessage,
+  tiktokReportPageData,
+  tiktokTotalsMismatchMessage,
+} from './tiktok-report-pagination.js';
 import type {AccountLookupCache, GuidedCollectionState} from './report-source.js';
 import {
   tiktokDailySpans,
@@ -166,9 +171,12 @@ export async function collectTikTokDailyReport(
     complete = true,
     filterRefused = context.lookup?.tiktokStatusFilter === 'refused';
   let failureFacts: JsonObject | undefined;
+  let failureMessage = tiktokPageCountMessage;
   for (const span of tiktokDailySpans(semantics.date_from, semantics.date_to)) {
     let total: number | null = null,
       returned = 0;
+    const spanStart = rows.length;
+    let totalMetrics: unknown;
     let lastFacts: JsonObject = {};
     for (let page = 1; page <= 10; page++) {
       const request = {
@@ -188,6 +196,7 @@ export async function collectTikTokDailyReport(
         answer = await read(request);
       }
       const {data, evidence} = answer;
+      if (page === 1) totalMetrics = data.total_metrics;
       const native = pageRows(data, page, args.query.page_size, total, returned);
       total = native.total;
       lastFacts = {
@@ -231,11 +240,14 @@ export async function collectTikTokDailyReport(
       if (page >= native.pages) break;
     }
     declared += total ?? 0;
-    const counts = tiktokCollectionCounts(total ?? 0, returned);
-    if (!counts.complete) {
+    const checked = tiktokCollectionCheck(rows.slice(spanStart), total ?? 0, totalMetrics, args.query.metrics ?? []);
+    warnings.push(...checked.warnings);
+    if (!checked.complete) {
       complete = false;
-      warnings.push(counts.warning!);
-      failureFacts ??= {...lastFacts, rule: 'fewer_rows_than_declared'};
+      if (checked.totals === 'gap') {
+        failureMessage = tiktokTotalsMismatchMessage;
+        failureFacts = {...lastFacts, rule: 'totals_mismatch'};
+      } else failureFacts ??= {...lastFacts, rule: 'fewer_rows_than_declared'};
     }
   }
   if (filterRefused) warnings.unshift(tiktokStatusFilterRefusedWarning);
@@ -243,7 +255,7 @@ export async function collectTikTokDailyReport(
   if (!collection.complete && !context.allowPartial)
     throw new MirrorError(
       'REPORT_INCOMPLETE',
-      tiktokPageCountMessage,
+      failureMessage,
       {
         declared_rows: collection.declared,
         returned_rows: collection.returned,

@@ -3,7 +3,7 @@ import type {JsonObject} from './types.js';
 import {reportList, type ReportSource} from './report-source.js';
 import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
-import {tiktokCollectionCounts} from './tiktok-report-pagination.js';
+import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
 import {
   tiktokCampaignWindowDays,
   tiktokStatusFilter,
@@ -80,11 +80,16 @@ export const tiktokReportSource: ReportSource = {
     if (c.lookup?.tiktokStatusFilter === 'refused' && !c.warnings.includes(tiktokStatusFilterRefusedWarning))
       c.warnings.push(tiktokStatusFilterRefusedWarning);
     c.raw = reportList(d.data?.list ?? []);
-    const counts = tiktokCollectionCounts(d.data?.page_info?.total_number ?? 0, c.raw.length);
-    if (!counts.complete) {
+    const checked = tiktokCollectionCheck(
+      c.raw,
+      d.data?.page_info?.total_number ?? 0,
+      d.data?.total_metrics,
+      query.metrics,
+    );
+    c.warnings.push(...checked.warnings);
+    if (!checked.complete) {
       c.collectionComplete = false;
       c.complete = false;
-      c.warnings.push(counts.warning!);
     }
     const inventory = reportList(
       (await c.run(c.plan('/v1.3/campaign/get/', {advertiser_id: c.account, page: 1, page_size: 1000}))).data?.list ??

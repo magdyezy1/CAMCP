@@ -198,6 +198,7 @@ function reportRecommendationAsOf(row) {
 }
 // Collector warnings AMCP authors for a source's reporting window (RPT-02); other warnings stay as written.
 const reportSourceWarnings = new Set([
+  'TikTok’s page counts disagreed with its rows; its totals match, so the collection is complete.',
   'TikTok refused the deleted-objects filter, so campaigns deleted since this window may be missing.',
   // ACC-06 interim notice: the Reddit conversion value unit is unverified until the authorized closed-week check.
   'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.',
@@ -221,6 +222,26 @@ const reportSourceWarnings = new Set([
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.
 const reportSourceWarningTemplates = [
+  [
+    /^TikTok’s totals differ from the rows returned: (.{1,1000})\.$/,
+    m =>
+      uiText('TikTok’s totals differ from the rows returned: {gaps}.', {
+        gaps: uiList(
+          m[1].split('; ').map(value => {
+            const gap = /^(spend|impressions|clicks|conversion) ([\d,.]+) of ([\d,.]+)$/.exec(value);
+            return gap
+              ? uiText('{metric}: {rows} of {total}', {
+                  metric: uiText(
+                    {spend: 'Spend', impressions: 'Impressions', clicks: 'Clicks', conversion: 'Conversions'}[gap[1]],
+                  ),
+                  rows: gap[2],
+                  total: gap[3],
+                })
+              : value;
+          }),
+        ),
+      }),
+  ],
   [
     /^TikTok declared ([\d,]+) rows and returned ([\d,]+)\.$/,
     m => uiText('TikTok declared {declared} rows and returned {returned}.', {declared: m[1], returned: m[2]}),

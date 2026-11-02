@@ -310,7 +310,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   assert.equal(owned.size, 1591);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
-  assert.equal(Object.keys(catalog).length, 11546);
+  // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
+  assert.equal(Object.keys(catalog).length, 11550);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
