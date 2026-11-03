@@ -11600,5 +11600,18 @@
   "Counted as 0 where the platform omitted the value: {metrics}": "تُحتسب 0 حيث أغفلت المنصة القيمة: {metrics}",
   "LinkedIn returned different entity or date keys between metric requests.": "أرجع LinkedIn مفاتيح كيانات أو تواريخ مختلفة بين طلبات المقاييس.",
   "LinkedIn reports reach only for windows of 92 days or less.": "يُبلغ LinkedIn عن الوصول لفترات لا تتجاوز 92 يومًا.",
-  "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.": "تحتفظ الصفوف التفصيلية بمستوى الكيان الأصلي وإجماليات الفترة الدقيقة القابلة للجمع. لا يُجمع الوصول أو التكرار؛ وتبقى القيم المفقودة غير معروفة. ويظل اكتمال فترة التقرير وإعداد الإسناد وفق التصريح الصريح."
+  "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.": "تحتفظ الصفوف التفصيلية بمستوى الكيان الأصلي وإجماليات الفترة الدقيقة القابلة للجمع. لا يُجمع الوصول أو التكرار؛ وتبقى القيم المفقودة غير معروفة. ويظل اكتمال فترة التقرير وإعداد الإسناد وفق التصريح الصريح.",
+  "LinkedIn returned no rows for {from}–{to}. Check that the account delivered in those dates.": "لم يُعد LinkedIn أي صفوف للفترة {from}–{to}. تحقق من وجود نشاط إعلاني للحساب خلال هذه التواريخ.",
+  "LinkedIn returned dates {first}–{last} for {from}–{to}. With whole-period rows LinkedIn rounds dates older than six months to whole months; choose whole calendar months or a recent window.": "أعاد LinkedIn التواريخ {first}–{last} للفترة {from}–{to}. عند طلب صفوف للفترة كاملة، يقرّب LinkedIn التواريخ الأقدم من ستة أشهر إلى أشهر كاملة؛ اختر أشهرًا تقويمية كاملة أو فترة حديثة.",
+  "LinkedIn’s creative level covers the current month and the previous five calendar months; choose a later start.": "يغطي مستوى المواد الإعلانية في LinkedIn الشهر الحالي والأشهر التقويمية الخمسة السابقة؛ اختر تاريخ بداية أحدث.",
+  "LinkedIn creative reporting cannot include future UTC days.": "لا يمكن لتقارير المواد الإعلانية في LinkedIn أن تشمل أيامًا مستقبلية بتوقيت UTC.",
+  "LinkedIn keeps this data for a limited time, and this window starts too early. Choose a later start.": "يحتفظ LinkedIn بهذه البيانات لفترة محدودة، وتبدأ الفترة المطلوبة قبل المدة المتاحة. اختر تاريخ بداية أحدث.",
+  "LinkedIn returned 15,000 rows for one day, its response limit; rows beyond it are missing.": "أعاد LinkedIn عدد 15,000 صف ليوم واحد، وهو حد الاستجابة؛ الصفوف التي تتجاوز هذا الحد غير متاحة.",
+  "LinkedIn’s split request limit was reached; some periods are missing.": "بلغت طلبات تقسيم الفترة في LinkedIn حدها؛ بعض الفترات غير متاحة.",
+  "AMCP retained the first 10,000 LinkedIn entities; entities beyond that bound are missing.": "احتفظ AMCP بأول 10,000 عنصر في LinkedIn؛ العناصر التي تتجاوز هذا الحد غير متاحة.",
+  "LinkedIn did not return every entity in every split period; totals for those entities are unknown.": "لم يُعد LinkedIn كل عنصر في كل فترة مقسّمة؛ إجماليات هذه العناصر غير معروفة.",
+  "LinkedIn metrics without an additive rule are unavailable after splitting the window.": "مقاييس LinkedIn التي لا تخضع لقاعدة جمع غير متاحة بعد تقسيم الفترة.",
+  "LinkedIn’s 15,000-row limit split this window, so reach is unavailable.": "قُسّمت هذه الفترة بسبب حد LinkedIn البالغ 15,000 صف، لذا لا تتوفر بيانات الوصول.",
+  "This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.": "يتضمن مصدر LinkedIn هذا أكثر من 2000 عنصر، لذا تبقى أسماء العناصر وتسلسلها وأهدافها خارج هذا الحد غير معروفة.",
+  "LinkedIn split requests need a budget from 1 to 32.": "تتطلب طلبات تقسيم الفترة في LinkedIn حدًا للطلبات من 1 إلى 32."
 }

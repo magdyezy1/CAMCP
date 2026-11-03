@@ -416,10 +416,11 @@ function reportReadPath(
       if (e instanceof MirrorError)
         throw new MirrorError(
           e.code,
-          e.message,
+          e.localization?.key ?? e.message,
           {...e.details, report_request: {stage, method: plan.method, path: plan.path}},
           e.status,
           e.retryable,
+          e.localization?.values,
         );
       throw e;
     }

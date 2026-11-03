@@ -19,18 +19,25 @@ function uiText(message, values = {}) {
   );
 }
 /**
- * An error's text for display (WEB-05). Its next action is always AMCP's guidance and is translated. Its message is
- * AMCP's own unless the error carries a provider object: then the provider's message is shown exactly as written and
- * nothing in it is translated.
+ * First-party templates use the interface language. Provider messages stay literal, with AMCP's explanation below.
  */
 function uiOwnedError(error) {
   if (!error || typeof error !== 'object') return {message: '', nextAction: ''};
-  const provider = error.provider && typeof error.provider === 'object' ? error.provider : null,
+  const local = error.message_localization,
+    provider = error.provider && typeof error.provider === 'object' ? error.provider : null,
     message =
       typeof provider?.message === 'string' ? provider.message : typeof error.message === 'string' ? error.message : '';
   return {
-    message: provider ? message : uiText(message),
-    nextAction: typeof error.next_action === 'string' ? uiText(error.next_action) : '',
+    message:
+      provider && (typeof provider.message === 'string' || !local)
+        ? message
+        : uiText(local?.key ?? message, local?.values),
+    nextAction:
+      local && typeof provider?.message === 'string'
+        ? uiText(local.key, local.values)
+        : typeof error.next_action === 'string'
+          ? uiText(error.next_action)
+          : '',
   };
 }
 /**

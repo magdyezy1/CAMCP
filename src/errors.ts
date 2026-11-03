@@ -1,14 +1,24 @@
 import {providerRemedy} from './provider-remedies.js';
 
 export class MirrorError extends Error {
+  declare readonly localization?: {key: string; values: Record<string, string | number>};
   constructor(
     public code: string,
     message: string,
     public details: Record<string, unknown> = {},
     public status = 400,
     public retryable = false,
+    messageValues?: Record<string, string | number>,
   ) {
-    super(message);
+    const values = messageValues ? {...messageValues} : undefined;
+    super(
+      values
+        ? message.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (slot, key: string) =>
+            Object.hasOwn(values, key) ? String(values[key]) : slot,
+          )
+        : message,
+    );
+    if (values) this.localization = {key: message, values};
     this.name = 'MirrorError';
   }
 }
@@ -1123,6 +1133,7 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     error: {
       code: e.code,
       message,
+      ...(e.localization ? {message_localization: e.localization} : {}),
       ...(Object.keys(e.details).length ? {details: e.details} : {}),
       retryable: e.retryable,
       category: remedy.category,

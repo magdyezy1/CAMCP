@@ -64,9 +64,19 @@ export interface AccountLookupCache {
    * RPT-07: current LinkedIn campaign names and objectives by URN, read once per source per job for the URNs reported
    * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
    */
-  linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  linkedinCampaigns?: {
+    campaigns: Record<string, JsonObject>;
+    lineage: JsonObject[];
+    unavailable?: boolean;
+    limited?: boolean;
+  };
   /** LinkedIn group and creative metadata, under the same per-source authorization as campaign metadata. */
-  linkedinGroups?: {groups: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  linkedinGroups?: {
+    groups: Record<string, JsonObject>;
+    lineage: JsonObject[];
+    unavailable?: boolean;
+    limited?: boolean;
+  };
   linkedinCreatives?: {
     creatives: Record<string, JsonObject>;
     lineage: JsonObject[];

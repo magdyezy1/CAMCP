@@ -211,12 +211,8 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
-  // RPT-07: LinkedIn campaign names and objectives come from a current metadata read.
-  'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.',
-  'LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.',
-  'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
-  'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
-  'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
+  'AMCP retained the first 10,000 LinkedIn entities; entities beyond that bound are missing.',
+  'This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.',
   // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).
   'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.',
   'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.',
@@ -294,8 +290,7 @@ const reportSourceWarningTemplates = [
   ],
 ];
 function uiSourceWarning(value) {
-  if (reportSourceWarnings.has(value) || /^(Detailed rows retain|LinkedIn reports reach only)/.test(value))
-    return uiText(value);
+  if (reportSourceWarnings.has(value) || /^(Detailed rows retain|LinkedIn[ ’])/.test(value)) return uiText(value);
   const text = String(value ?? '');
   if (typeof uiLocale === 'string' && uiLocale !== 'en')
     for (const [pattern, translate] of reportSourceWarningTemplates) {
@@ -376,12 +371,10 @@ function reportResultObjective(result) {
   return result.objective === 'unknown' ? uiText('Unknown') : result.objective;
 }
 function reportObjectiveResults(row) {
-  return (row.results_by_objective ?? [])
-    .map(
-      result =>
-        html`<p><bdi data-native>${reportResultObjective(result)}</bdi> · ${uiText(result.result_definition)}: ${result.value === null ? '—' : uiNumber(result.value)}</p>`,
-    )
-    .join('');
+  return html`${(row.results_by_objective ?? []).map(
+    result =>
+      html`<p><bdi data-native>${reportResultObjective(result)}</bdi> · ${uiText(result.result_definition)}: ${result.value === null ? '—' : uiNumber(result.value)}</p>`,
+  )}`;
 }
 function reportQualityDetails(source, report) {
   const q = source.quality;

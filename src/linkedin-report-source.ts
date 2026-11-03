@@ -4,7 +4,12 @@ import {
   linkedInCampaignGroupMetadata,
   linkedInCampaignMetadata,
   linkedInCampaignPeriod,
+  linkedInCreativeOldestDay,
   linkedInReportDate,
+  linkedInSplitRead,
+  linkedInRetainedRowsWarning,
+  linkedInSplitMetricsWarning,
+  linkedInSplitReachWarning,
 } from './linkedin-reporting.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {linkedinDetailParents, linkedInCreativeMetadata} from './linkedin-detail-parents.js';
@@ -21,6 +26,8 @@ export const linkedinCampaignsUnavailableWarning =
   'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
 export const linkedinMetadataUnavailableWarning =
   'LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.';
+export const linkedinMetadataLimitedWarning =
+  'This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.';
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
@@ -129,8 +136,9 @@ async function metadata(
     records: Record<string, JsonObject> = known[field];
   for (const entry of known.lineage) c.lineage.push({...entry, cached: true});
   let missing = known.unavailable ? [] : [...new Set(urns)].filter(urn => !Object.hasOwn(records, urn));
-  if (kind === 'creative') {
-    const room = Math.max(0, nativeDetailLookupLimit - Object.keys(records).length);
+  {
+    const limit = kind === 'creative' ? nativeDetailLookupLimit : 2000,
+      room = Math.max(0, limit - Object.keys(records).length);
     if (missing.length > room) known.limited = true;
     missing = missing.slice(0, room);
   }
@@ -146,7 +154,8 @@ async function metadata(
       known.unavailable = true;
     }
   if (c.lookup) Object.assign(c.lookup, {[key]: known});
-  if (known.limited) c.warnings.push(nativeDetailLookupLimitedWarning);
+  if (known.limited)
+    c.warnings.push(kind === 'creative' ? nativeDetailLookupLimitedWarning : linkedinMetadataLimitedWarning);
   if (known.unavailable)
     c.warnings.push(kind === 'campaign' ? linkedinCampaignsUnavailableWarning : linkedinMetadataUnavailableWarning);
   return records;
@@ -216,7 +225,7 @@ export function linkedinDetail(
         ),
       },
       ...(result ? {result_definition: result.label} : {}),
-      ...(costOmitted ? {omitted_as_zero: ['spend']} : {}),
+      ...(costOmitted || row.omitted_as_zero?.includes('spend') ? {omitted_as_zero: ['spend']} : {}),
     });
   }
   return {rows: out, parents};
@@ -270,6 +279,17 @@ export const linkedinReportSource: ReportSource = {
   requestHeaders: () => ({'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'}),
   // LinkedIn versions its API by header, not by path, so lineage names that header's value.
   versionHeader: 'LinkedIn-Version',
+  validateRange(source, range) {
+    if (source.level !== 'ad') return;
+    const now = new Date();
+    if (range.since < linkedInCreativeOldestDay(now))
+      throw new MirrorError(
+        'INVALID_DATE_RANGE',
+        'LinkedIn’s creative level covers the current month and the previous five calendar months; choose a later start.',
+      );
+    if (range.until > now.toISOString().slice(0, 10))
+      throw new MirrorError('INVALID_DATE_RANGE', 'LinkedIn creative reporting cannot include future UTC days.');
+  },
   /**
    * One complete ALL analytics response over the UTC period, after the account identity and currency checks,
    * then the reported entities' current metadata, read once per entity and job.
@@ -291,8 +311,13 @@ export const linkedinReportSource: ReportSource = {
     if (new Set(c.extra).size > 18)
       invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
     if (days > 92) c.warnings.push('LinkedIn reports reach only for windows of 92 days or less.');
+    const warn = (message: string) => {
+      if (!c.warnings.includes(message)) c.warnings.push(message);
+    };
     const analytics = async (pivot: string, selected: string[]) => {
-      let joined: Map<string, JsonObject> | undefined;
+      let joined: Map<string, JsonObject> | undefined,
+        complete = true,
+        split = false;
       const key = (row: JsonObject) =>
         JSON.stringify([
           row.pivotValues[0],
@@ -300,28 +325,64 @@ export const linkedinReportSource: ReportSource = {
           linkedInReportDate(row.dateRange.end),
         ]);
       for (let start = 0; start < selected.length; start += 18) {
-        const batch = selected.slice(start, start + 18),
-          response = await c.run(
-            c.plan('/rest/adAnalytics', {
-              q: 'analytics',
-              pivot,
-              accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
-              dateRange: `(start:${date(c.range.since)},end:${date(c.range.until)})`,
-              timeGranularity: 'ALL',
-              fields: ['pivotValues', 'dateRange', ...batch].join(','),
-            }),
-            false,
-          );
-        let rows: JsonObject[];
+        const batch = selected.slice(start, start + 18);
+        let result: Awaited<ReturnType<typeof linkedInSplitRead>>;
         try {
-          rows = linkedInCampaignPeriod(response, c.range, pivot);
+          result = await linkedInSplitRead(c.range, async range => {
+            const response = await c.run(
+              c.plan('/rest/adAnalytics', {
+                q: 'analytics',
+                pivot,
+                accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
+                dateRange: `(start:${date(range.since)},end:${date(range.until)})`,
+                timeGranularity: 'ALL',
+                fields: ['pivotValues', 'dateRange', ...batch].join(','),
+              }),
+              false,
+            );
+            return linkedInCampaignPeriod(response, range, pivot, true);
+          });
         } catch (error) {
+          const upstream =
+            error instanceof MirrorError ? (error.details.upstream as JsonObject | undefined) : undefined;
+          if (
+            error instanceof MirrorError &&
+            (error.details.http_status ?? error.status) === 400 &&
+            [error.details.provider_code, upstream?.code, upstream?.message, upstream?.error?.code].includes(
+              'DATE_TOO_EARLY',
+            )
+          )
+            throw new MirrorError(
+              'INVALID_DATE_RANGE',
+              'LinkedIn keeps this data for a limited time, and this window starts too early. Choose a later start.',
+              error.details,
+              error.status,
+              false,
+              {},
+            );
           if (joined && error instanceof MirrorError && error.code === 'REPORT_DATE_MISMATCH')
             throw new MirrorError(
               'REPORT_SHAPE_CHANGED',
               'LinkedIn returned different entity or date keys between metric requests.',
             );
           throw error;
+        }
+        const rows = result.rows;
+        if (result.partial || result.limited) {
+          complete = c.complete = c.collectionComplete = false;
+          c.quality.pages_collected = false;
+          if (result.partial) warn(result.partial);
+          if (result.limited) warn(linkedInRetainedRowsWarning);
+        }
+        if (result.split) {
+          split = true;
+          warn(linkedInSplitReachWarning);
+        }
+        if (result.unavailable) warn(linkedInSplitMetricsWarning);
+        for (const [field, count] of Object.entries(result.rounding ?? {})) {
+          if (!batch.includes(field)) continue;
+          const metric = 'native_linkedin_' + field;
+          c.detailRounding[metric] = (c.detailRounding[metric] ?? 0) + count;
         }
         if (!joined) joined = new Map(rows.map(row => [key(row), {...row}]));
         else {
@@ -334,13 +395,17 @@ export const linkedinReportSource: ReportSource = {
             for (const field of batch) if (Object.hasOwn(row, field)) joined.get(key(row))![field] = row[field];
         }
       }
-      return [...joined!.values()];
+      const rows = [...joined!.values()];
+      if (split) for (const row of rows) row.approximateMemberReach = null;
+      return {rows, complete, split};
     };
-    c.raw = await analytics(
+    const primary = await analytics(
       linkedinReportPivots[(c.detail ?? 'campaign') as keyof typeof linkedinReportPivots],
       fields,
     );
-    const campaignRows = c.detail ? [] : await analytics('CAMPAIGN', fields);
+    c.raw = primary.rows;
+    const companion = c.detail ? undefined : await analytics('CAMPAIGN', fields),
+      campaignRows = companion?.rows ?? [];
     const reported = c.raw.map(row => String(row.pivotValues[0]));
     const creatives =
       c.detail === 'ad'
@@ -386,7 +451,7 @@ export const linkedinReportSource: ReportSource = {
       );
     } else {
       const memberships = new Map<string, JsonObject[]>();
-      let unassigned = false;
+      let unassigned = companion?.complete === false;
       for (const campaign of campaignRows) {
         const parent = campaigns[String(campaign.pivotValues[0])]?.campaign_group;
         if (typeof parent === 'string') memberships.set(parent, [...(memberships.get(parent) ?? []), campaign]);
@@ -436,7 +501,7 @@ export const linkedinReportSource: ReportSource = {
         },
       },
       conversion_value: '/conversionValueInLocalCurrency',
-      reach: days <= 92 ? '/approximateMemberReach' : null,
+      reach: days <= 92 && !primary.split ? '/approximateMemberReach' : null,
     };
     const rounded = metricRoundingRecord(c.detailRounding);
     if (rounded) c.quality.metric_rounding = rounded;
@@ -452,7 +517,7 @@ export const linkedinReportSource: ReportSource = {
     const mixed = raw.objectiveType === 'MIXED',
       result = linkedinResults[String(raw.objectiveType)],
       costOmitted = omittedCost(raw);
-    if (costOmitted) omitted.add('spend');
+    if (costOmitted || raw.omitted_as_zero?.includes('spend')) omitted.add('spend');
     return {
       id: raw.pivotValues?.[0]?.split(':').at(-1),
       name: raw.name,

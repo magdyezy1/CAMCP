@@ -181,6 +181,7 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
   const diagnostic: JsonObject = {
     code: errorCode,
     message: text(e.message),
+    ...(e.localization ? {message_localization: redact(e.localization)} : {}),
     retryable: e.retryable,
     category,
     ...(category === 'provider_data'

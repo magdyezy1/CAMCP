@@ -238,7 +238,7 @@ export function nativeDetailResult(
     contract_version: reportContractVersion,
     quality: {
       version: 1,
-      pages_collected: true,
+      pages_collected: base.providerComplete,
       measurement_complete: options.complete_window === false || !base.providerComplete ? false : null,
       reporting_window_declared_complete: options.complete_window,
       status: 'declared_measurement',

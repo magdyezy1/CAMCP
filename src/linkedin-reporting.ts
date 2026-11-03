@@ -1,18 +1,20 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {linkedinVersion} from './linkedin-version.js';
+import {parseProviderDecimal} from './provider-decimal.js';
 
 // LinkedIn Reporting and Metrics Available, li-lms-2026-09, checked 2026-10-01:
 // adAnalytics has no pagination, a 15,000-element ceiling, and UTC inclusive dates.
 // A missing paging.total is normal. Empty data does not distinguish no activity from denied reporting access.
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-export function linkedInAnalyticsRows(value: unknown): JsonObject[] {
+export const linkedInElementCap = 15000;
+export function linkedInAnalyticsRows(value: unknown, allowCap = false): JsonObject[] {
   if (!object(value) || !Array.isArray(value.elements))
     throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return an analytics row collection.');
   const rows = value.elements,
     p = value.paging;
   if (
-    rows.length >= 15000 ||
+    (!allowCap && rows.length >= linkedInElementCap) ||
     value.truncated === true ||
     value.has_more === true ||
     value.metadata?.nextPageToken ||
@@ -53,12 +55,155 @@ export function linkedInDailyRange(since: string, until: string) {
   const now = new Date(),
     today = now.toISOString().slice(0, 10);
   // First day of the following month is a conservative edge of the six-month daily retention window.
-  const oldest = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)).toISOString().slice(0, 10);
+  const oldest = linkedInCreativeOldestDay(now);
   if (since < oldest || until > today)
     throw new MirrorError(
       'INVALID_DATE_RANGE',
       'LinkedIn daily evidence must be within the current month and previous five calendar months, through today in UTC.',
     );
+}
+
+export const linkedInCreativeOldestDay = (now: Date): string =>
+  new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)).toISOString().slice(0, 10);
+export const linkedInSingleDayCapWarning =
+  'LinkedIn returned 15,000 rows for one day, its response limit; rows beyond it are missing.';
+export const linkedInSplitBudgetWarning = 'LinkedIn’s split request limit was reached; some periods are missing.';
+export const linkedInRetainedRowsWarning =
+  'AMCP retained the first 10,000 LinkedIn entities; entities beyond that bound are missing.';
+export const linkedInSplitCoverageWarning =
+  'LinkedIn did not return every entity in every split period; totals for those entities are unknown.';
+export const linkedInSplitMetricsWarning =
+  'LinkedIn metrics without an additive rule are unavailable after splitting the window.';
+export const linkedInSplitReachWarning = 'LinkedIn’s 15,000-row limit split this window, so reach is unavailable.';
+const additiveFields = new Set([
+  'impressions',
+  'clicks',
+  'costInLocalCurrency',
+  'landingPageClicks',
+  'videoViews',
+  'videoCompletions',
+  'oneClickLeads',
+  'qualifiedLeads',
+  'externalWebsiteConversions',
+  'externalWebsitePostClickConversions',
+  'externalWebsitePostViewConversions',
+  'talentLeads',
+  'conversionValueInLocalCurrency',
+  'likes',
+  'comments',
+  'shares',
+]);
+const decimalText = (value: bigint) => {
+  const fraction = (value % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
+  return (value / 1000000000n).toString() + (fraction ? '.' + fraction : '');
+};
+/** The Overview can subdivide a capped window; evidence captures still call the strict reader above. */
+export async function linkedInSplitRead(
+  range: {since: string; until: string},
+  read: (r: {since: string; until: string}) => Promise<JsonObject[]>,
+  budget = 32,
+): Promise<{
+  rows: JsonObject[];
+  split: boolean;
+  partial: string | null;
+  rounding?: Record<string, number>;
+  limited?: boolean;
+  unavailable?: boolean;
+}> {
+  const pending = [range],
+    grouped = new Map<string, {row: JsonObject; count: number; fields: Map<string, {sum: bigint; known: number}>}>(),
+    rounding: Record<string, number> = {};
+  let used = 0,
+    leaves = 0,
+    split = false,
+    limited = false,
+    unavailable = false,
+    partial: string | null = null;
+  if (!Number.isSafeInteger(budget) || budget < 1 || budget > 32)
+    throw new MirrorError('INVALID_ARGUMENT', 'LinkedIn split requests need a budget from 1 to 32.');
+  while (pending.length) {
+    const r = pending.shift()!;
+    used++;
+    const rows = await read(r),
+      days = (Date.parse(r.until) - Date.parse(r.since)) / 86400000 + 1;
+    if (!Array.isArray(rows) || rows.some(row => !object(row)))
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return an analytics row collection.');
+    if (rows.length >= linkedInElementCap) {
+      if (days <= 1) partial ??= linkedInSingleDayCapWarning;
+      // Reserve one read for every pending half before spending two more on this half.
+      else if (used + pending.length + 2 > budget) partial = linkedInSplitBudgetWarning;
+      else {
+        split = true;
+        const middle = Date.parse(r.since) + Math.floor(days / 2) * 86400000;
+        pending.push(
+          {since: r.since, until: new Date(middle - 86400000).toISOString().slice(0, 10)},
+          {since: new Date(middle).toISOString().slice(0, 10), until: r.until},
+        );
+        continue;
+      }
+    }
+    if (!split) {
+      limited = rows.length > 10000;
+      return {rows: rows.slice(0, 10000), split, partial, ...(limited ? {limited} : {})};
+    }
+    leaves++;
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (!Array.isArray(row.pivotValues) || row.pivotValues.length !== 1 || typeof row.pivotValues[0] !== 'string')
+        throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return the requested native entity pivot.');
+      const key = row.pivotValues[0];
+      if (seen.has(key))
+        throw new MirrorError(
+          'REPORT_DUPLICATE_ROWS',
+          'LinkedIn returned duplicate campaign totals for the requested period.',
+        );
+      seen.add(key);
+      let group = grouped.get(key);
+      if (!group) {
+        if (grouped.size >= 10000) {
+          limited = true;
+          continue;
+        }
+        group = {row: {pivotValues: row.pivotValues}, count: 0, fields: new Map()};
+        grouped.set(key, group);
+      }
+      group.count++;
+      const costOmitted =
+        row.costInLocalCurrency === undefined && String(row.impressions) === '0' && String(row.clicks) === '0';
+      if (costOmitted) group.row.omitted_as_zero = ['spend'];
+      for (const field of new Set([...Object.keys(row), ...(costOmitted ? ['costInLocalCurrency'] : [])])) {
+        if (['pivotValues', 'dateRange', 'omitted_as_zero'].includes(field)) continue;
+        if (!additiveFields.has(field)) {
+          group.row[field] = null;
+          if (field !== 'approximateMemberReach') unavailable = true;
+          continue;
+        }
+        const sum = group.fields.get(field) ?? {sum: 0n, known: 0};
+        group.fields.set(field, sum);
+        const value = costOmitted && field === 'costInLocalCurrency' ? '0' : row[field];
+        if (value === null || value === undefined || value === '' || value === '--') continue;
+        const parsed = parseProviderDecimal(typeof value === 'string' ? value.trim() : value, {field});
+        sum.sum += parsed.scaled;
+        sum.known++;
+        if (parsed.rounded) rounding[field] = (rounding[field] ?? 0) + 1;
+      }
+    }
+  }
+  const nativeDate = (s: string) => {
+    const [year, month, day] = s.split('-').map(Number);
+    return {year, month, day};
+  };
+  const rows = [...grouped.values()].map(group => {
+    const out: JsonObject = {
+      ...group.row,
+      dateRange: {start: nativeDate(range.since), end: nativeDate(range.until)},
+      approximateMemberReach: null,
+    };
+    if (group.count !== leaves) partial ??= linkedInSplitCoverageWarning;
+    for (const [field, total] of group.fields) out[field] = total.known === leaves ? decimalText(total.sum) : null;
+    return out;
+  });
+  return {rows, split, partial, rounding, limited, unavailable};
 }
 
 /**
@@ -208,13 +353,18 @@ export function linkedInCampaignPeriod(
   value: unknown,
   range: {since: string; until: string},
   pivot = 'CAMPAIGN',
+  allowCap = false,
 ): JsonObject[] {
-  const rows = linkedInAnalyticsRows(value),
+  const rows = linkedInAnalyticsRows(value, allowCap),
     seen = new Set<string>();
   if (!rows.length)
     throw new MirrorError(
       'REPORT_EMPTY_AMBIGUOUS',
-      'LinkedIn returned no rows. No activity and missing reporting access cannot be distinguished.',
+      'LinkedIn returned no rows for {from}–{to}. Check that the account delivered in those dates.',
+      {},
+      400,
+      false,
+      {from: range.since, to: range.until},
     );
   for (const row of rows) {
     if (
@@ -244,7 +394,16 @@ export function linkedInCampaignPeriod(
     )
       throw new MirrorError(
         'REPORT_DATE_MISMATCH',
-        'LinkedIn returned dates outside the requested period. Older daily dates may be rounded; select whole calendar months or a recent window.',
+        'LinkedIn returned dates {first}–{last} for {from}–{to}. With whole-period rows LinkedIn rounds dates older than six months to whole months; choose whole calendar months or a recent window.',
+        {},
+        400,
+        false,
+        {
+          first: linkedInReportDate(row.dateRange?.start),
+          last: linkedInReportDate(row.dateRange?.end),
+          from: range.since,
+          to: range.until,
+        },
       );
     if (seen.has(row.pivotValues[0]))
       throw new MirrorError(
