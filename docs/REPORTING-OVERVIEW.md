@@ -75,6 +75,38 @@ period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per sourc
   `bootstrap` lists each platform's `request_model`. For example, 30 Meta accounts over a year: weekly needs at least
   1,650 requests and is refused; daily needs 90.
 
+## Reporting levels and measurement settings
+
+The shared positions are campaign, middle level (`adset`) and ad. Labels retain the platform's native hierarchy:
+
+<!-- overview-levels:start -->
+| Platform | Campaign position | Middle position | Ad position |
+|---|---|---|---|
+| `google` | Campaign | Ad group | Ad |
+| `meta` | Campaign | Ad set | Ad |
+| `tiktok` | Campaign | Ad group | Ad |
+| `snapchat` | Campaign | Ad squad | Ad |
+| `linkedin` | Campaign group | Campaign | Creative |
+| `microsoft` | Campaign | Ad group | Ad |
+| `reddit` | Campaign | Ad group | Ad |
+| `apple` | Campaign | Ad group | Ad |
+<!-- overview-levels:end -->
+
+X Ads, GA4 and Search Console use the campaign/resource position; no qualified middle or ad collector is offered.
+`bootstrap.platforms[].entity_levels` supplies the available levels. A detailed source must explicitly declare
+`report_options.complete_window` as a boolean and its measurement settings. TikTok and Snapchat require
+`complete_window:true` and a closed reporting window. Other supported detailed sources can declare an incomplete
+window, which keeps the source partial and holds recommendations.
+
+Snapchat ad-squad reporting (`level:"adset"`) also requires `campaign_id`, the exact parent campaign UUID. A reusable
+template can defer selecting it until a report is created. Other detailed presets, including Snapchat ads, refuse
+`campaign_id`. Campaign-level sources accept no parent filter and only Meta/Snapchat accept their optional native
+attribution profile there; detailed settings do not apply to campaign totals.
+
+Detailed sources use their preset metrics. Additional `native_metrics` at those levels are refused with
+`INVALID_NATIVE_METRICS`; clear them before selecting a detailed level. Campaign-level native metrics retain their
+existing platform-specific validation. Missing metrics remain unavailable.
+
 ## Completeness labels
 
 A source is complete only when every page was collected (`collection_complete`), its measurement is not known to be
@@ -107,9 +139,9 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   [write operations](WRITE-OPERATIONS.md#provider-report-and-export-jobs)). An administrator grants report jobs in
   Connections: `PROVIDER_JOBS_DISABLED` while the switch is off, `WRITE_ACCOUNT_NOT_SELECTED` for an account the login
   does not select; an invalid `AMCP_PROVIDER_JOB_HOURLY_LIMIT` refuses jobs with `CONFIGURATION_INVALID`.
-- **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
-  (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
-  original labels.
+- **Declared incomplete.** A supported detailed source that accepts `complete_window:false` is partial
+  (`detail_contract:"overview-detail-v3"`) and its recommendations need review.
+  Older snapshots with `overview-detail-v2` retain their original stamps and labels.
 - **Native parents and more detailed providers (RPT-07, `overview-detail-v3`).** TikTok ad groups and ads, Snapchat
   ads and LinkedIn creatives carry their exact native parents from one bounded parent read per entity and job (drift,
   foreign or repeated parents refuse the source; a refused read keeps unknown parents with a warning). Microsoft,
@@ -309,6 +341,13 @@ For Google HTTP 403, distinguish `USER_PERMISSION_DENIED` (identity/account acce
 Open **Reporting overview** in workspace navigation (/reporting-overview). Select multiple platforms/accounts, a date range, objectives and metrics. Save a report setup or pull a new snapshot. Durable jobs freeze account selection and dates for each run.
 
 ## Metrics and decisions
+
+<!-- overview-default-metrics:start -->
+When `metrics` is omitted, the default selection is `spend`, `impressions`, `clicks`, `conversions`, `cpa` and `roas`.
+Clicks include the platform's taps or swipes; conversions use the source's primary-result definition. CPA is spend
+divided by conversions, and ROAS is conversion value divided by spend. Missing operands and zero denominators stay
+unavailable. These definitions and the other supported metrics are supplied by `bootstrap.metrics`.
+<!-- overview-default-metrics:end -->
 
 - Common metrics include spend, impressions, clicks/taps/swipes, primary conversions, revenue, reach, video views, CTR, CPC, CPM, CPA and ROAS where available. Missing data stays blank, not zero.
 - **Additional native metrics** accepts supported provider field identifiers, with examples per platform. Returned native fields retain a platform prefix and become selectable and usable in formulas. Incompatible metric/breakdown combinations return a source error.
@@ -546,7 +585,47 @@ Schedules recheck the creator's membership, credential and account version. Revo
 
 ## MCP
 
-`amcp_reporting_overview` exposes bootstrap, save, save_template, delete_view, delete_template, delete_report, run, get, list, create_spreadsheet, bind_destination, export, export_status, resolve_delivery, schedule, update_schedule, pause_schedule, remove_schedule, resume_schedule, retry and cancel. `delete_schedule` is retained as the legacy **pause** alias. Use the schema/bootstrap for exact identifiers. Website and MCP share the implementation, permission checks and structured results.
+`amcp_reporting_overview` exposes the following actions. Website and MCP share the implementation, permission checks
+and structured results; use bootstrap and action help for exact identifiers.
+
+<!-- overview-actions:start -->
+- Help and discovery: `help`, `bootstrap`.
+- Saved reports and snapshots: `save`, `save_template`, `delete_template`, `delete_view`, `delete_report`, `list`,
+  `get`, `run`, `cancel`, `retry`.
+- Presentation and comparison: `report_pack`, `save_presentation`, `presentation_profiles`,
+  `apply_profile_presentation`, `compare`, `compare_candidates`.
+- Destinations and delivery: `create_spreadsheet`, `bind_destination`, `bind_file_destination`, `export`,
+  `export_status`, `resolve_delivery`.
+- Schedules: `preview_schedule`, `schedule`, `update_schedule`, `pause_schedule`, `delete_schedule`,
+  `resume_schedule`, `remove_schedule`.
+- Workbook migration: `preview_workbook_move`, `move_workbook_schedule`, `undo_workbook_move`.
+<!-- overview-actions:end -->
+
+`delete_schedule` retains its legacy **pause** meaning; `remove_schedule` removes a schedule. Use
+`amcp_reporting_overview {action:"help"}` for the full description and examples, or add `topic:"<action>"` for that
+action's argument schema, defaults, limits, effects and least role. Workflow guides are available through
+`amcp_workspace {action:"help",topic:"guides/reporting-overview"}`. Help is local and read-only.
+
+### Page sizes and argument notes
+
+Page sizes are explicit integers. A value above an action's maximum is refused, even when the tool's shared flat
+schema allows a larger limit. Offsets are non-negative and start at 0.
+
+<!-- overview-pages:start -->
+| Action | Minimum limit | Maximum limit | Default limit |
+|---|---|---|---|
+| `list` | 1 | 100 | 50 |
+| `get` | 1 | 500 | 100 |
+| `compare_candidates` | 1 | 100 | 50 |
+| `compare` | 1 | 500 | 100 |
+| `presentation_profiles` | 1 | 100 | 30 |
+<!-- overview-pages:end -->
+
+Presentation-profile results carry `next_offset`; continue even when an account-access filter leaves a page empty.
+`bind_destination.tab_name` is at most 80 characters and defaults to `AMCP Overview`. Arguments not used by an action
+are reported under `meta.argument_warnings` by default. With `MIRROR_FLAGS {"actionArguments":"enforce"}`, they are
+refused with `INVALID_ARGUMENT`. Action help names the accepted arguments; missing required inputs and invalid
+values still receive the handler's specific refusal.
 
 Finished snapshots also support `report_pack`, `save_presentation`, `presentation_profiles` and
 `apply_profile_presentation`. Report packs offer HTML, PDF and Excel. Approved client profiles can retain a brand

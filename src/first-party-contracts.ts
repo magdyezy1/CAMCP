@@ -2195,9 +2195,10 @@ export function contractsMarkdown(tools: ToolLike[]): string {
     '',
     '## AMCP tool actions',
     '',
-    'Generated from `src/first-party-contracts.ts`; `amcp_tool_help {gateway: "<tool>", operation: "<action>"}` returns',
+    'Generated from `src/first-party-contracts.ts`; `<tool> {action:"help", topic:"<action>"}` returns',
     'one row whole, with each argument’s JSON Schema. Arguments in bold are required. An argument an action does not',
-    'list is reported under `meta.argument_warnings` and will be refused with `INVALID_ARGUMENT`. Effects are the most a',
+    'list is reported under `meta.argument_warnings` by default. It is refused with `INVALID_ARGUMENT` only with',
+    '`MIRROR_FLAGS {"actionArguments":"enforce"}`. Effects are the most a',
     'call can do; roles are the least that can succeed (reader, operator, admin, owner).',
   ];
   for (const tool of tools.filter(t => firstPartyContractTools.includes(t.name))) {

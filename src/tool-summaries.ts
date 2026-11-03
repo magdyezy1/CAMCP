@@ -174,5 +174,5 @@ const contractView = (c: FirstPartyContract): JsonObject => ({
   requires_role: c.requires_role,
   next: c.next.map(n => ({tool: n.tool, arguments: {action: n.action}})),
   meaning:
-    'Arguments outside arguments_schema are not read by this action: they draw a meta.argument_warnings entry now and are refused with INVALID_ARGUMENT in a later release. effects are the most a call can do; annotations are this action’s MCP hints.',
+    'Arguments outside arguments_schema are not read by this action: they draw a meta.argument_warnings entry by default and are refused with INVALID_ARGUMENT with MIRROR_FLAGS {"actionArguments":"enforce"}. effects are the most a call can do; annotations are this action’s MCP hints.',
 });
