@@ -227,6 +227,35 @@ test('a split budget preserves partial Overview output without an unbounded anal
   assert.ok(out.warnings.includes('LinkedIn’s split request limit was reached; some periods are missing.'));
 });
 
+for (const extra of [
+  [],
+  [
+    'likes',
+    'comments',
+    'shares',
+    'videoCompletions',
+    'externalWebsitePostClickConversions',
+    'externalWebsitePostViewConversions',
+    'syntheticRatio',
+    'syntheticCount',
+  ],
+])
+  test(
+    'one period shares its 32-read budget across pivots and ' +
+      (extra.length ? 'multiple metric batches' : 'one metric batch'),
+    async t => {
+      const f = fixture(t, (q, r) => analytics(q, r, 15000), false),
+        out = await f.collect('campaign', {since: '2026-07-01', until: '2026-09-01'}, extra),
+        reads = f.requests.filter(plan => plan.path === '/rest/adAnalytics');
+      assert.ok(reads.length <= 32, 'one period made ' + reads.length + ' analytics reads');
+      assert.equal(out.collection_complete, false);
+      assert.equal(out.complete, false);
+      assert.ok(out.rows.length > 0, 'bounded primary results are retained');
+      assert.ok(out.warnings.includes('LinkedIn’s split request limit was reached; some periods are missing.'));
+      assert.equal(out.rows[0].objective, 'unknown', 'an incomplete companion cannot establish a group objective');
+    },
+  );
+
 test('an empty split period stays ambiguous instead of contributing invented zeros', async t => {
   const f = fixture(t, (q, r) =>
     r.since === range.since && r.until === range.until ? analytics(q, r, 15000) : {elements: []},

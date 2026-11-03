@@ -10,6 +10,7 @@ import {
   linkedInRetainedRowsWarning,
   linkedInSplitMetricsWarning,
   linkedInSplitReachWarning,
+  linkedInSplitBudgetWarning,
 } from './linkedin-reporting.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {linkedinDetailParents, linkedInCreativeMetadata} from './linkedin-detail-parents.js';
@@ -322,6 +323,8 @@ export const linkedinReportSource: ReportSource = {
     const warn = (message: string) => {
       if (!c.warnings.includes(message)) c.warnings.push(message);
     };
+    // One period shares the split allowance across metric fragments and its group/campaign projections.
+    let analyticsRemaining = 32;
     const analytics = async (pivot: string, selected: string[]) => {
       let joined: Map<string, JsonObject> | undefined,
         complete = true,
@@ -333,23 +336,34 @@ export const linkedinReportSource: ReportSource = {
           linkedInReportDate(row.dateRange.end),
         ]);
       for (let start = 0; start < selected.length; start += 18) {
+        if (analyticsRemaining === 0) {
+          complete = c.complete = c.collectionComplete = false;
+          c.quality.pages_collected = false;
+          warn(linkedInSplitBudgetWarning);
+          break;
+        }
         const batch = selected.slice(start, start + 18);
         let result: Awaited<ReturnType<typeof linkedInSplitRead>>;
         try {
-          result = await linkedInSplitRead(c.range, async range => {
-            const response = await c.run(
-              c.plan('/rest/adAnalytics', {
-                q: 'analytics',
-                pivot,
-                accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
-                dateRange: `(start:${date(range.since)},end:${date(range.until)})`,
-                timeGranularity: 'ALL',
-                fields: ['pivotValues', 'dateRange', ...batch].join(','),
-              }),
-              false,
-            );
-            return linkedInCampaignPeriod(response, range, pivot, true);
-          });
+          result = await linkedInSplitRead(
+            c.range,
+            async range => {
+              analyticsRemaining--;
+              const response = await c.run(
+                c.plan('/rest/adAnalytics', {
+                  q: 'analytics',
+                  pivot,
+                  accounts: 'List(urn:li:sponsoredAccount:' + c.account + ')',
+                  dateRange: `(start:${date(range.since)},end:${date(range.until)})`,
+                  timeGranularity: 'ALL',
+                  fields: ['pivotValues', 'dateRange', ...batch].join(','),
+                }),
+                false,
+              );
+              return linkedInCampaignPeriod(response, range, pivot, true);
+            },
+            analyticsRemaining,
+          );
         } catch (error) {
           const upstream =
             error instanceof MirrorError ? (error.details.upstream as JsonObject | undefined) : undefined;
@@ -403,7 +417,7 @@ export const linkedinReportSource: ReportSource = {
             for (const field of batch) if (Object.hasOwn(row, field)) joined.get(key(row))![field] = row[field];
         }
       }
-      const rows = [...joined!.values()];
+      const rows = [...(joined?.values() ?? [])];
       if (split) for (const row of rows) row.approximateMemberReach = null;
       return {rows, complete, split};
     };
