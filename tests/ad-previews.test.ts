@@ -220,13 +220,16 @@ test('LinkedIn: a creative preview needs the account’s creatives list first, t
     );
     const r = await f.previews({platform: 'linkedin', ad_ids: ['42']});
     assert.equal(r.success, true, JSON.stringify(r));
-    assert.deepEqual(r.data.previews, [
-      {
-        ad_id: 'urn:li:sponsoredCreative:42',
-        name: 'Carousel',
-        links: ['https://www.linkedin.com/ads/preview?creative=42'],
-      },
-    ]);
+    assert.deepEqual(
+      r.data.previews.map(({ad_id, name, links}: JsonObject) => ({ad_id, name, links})),
+      [
+        {
+          ad_id: 'urn:li:sponsoredCreative:42',
+          name: 'Carousel',
+          links: ['https://www.linkedin.com/ads/preview?creative=42'],
+        },
+      ],
+    );
     const finder = f.calls.find(c => c.path === '/rest/adAccounts/505/creatives')!;
     assert.match(finder.query, /q=criteria/);
     // A creative the list did not return stays out of scope.

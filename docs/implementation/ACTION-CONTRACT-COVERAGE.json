@@ -13,7 +13,7 @@
       "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
       "src/acceptance-ledger.json": "bd349c43a8039831620a4df23fb14c83577447ba6170596357bce8762d9ebfe4",
       "src/google-legacy-mapping.json": "eaba43d7f2d51c6310b3417f1b98a2e1941219c9e49543144a0ea6c0d88997b2",
-      "tools/route-anchor-documents.json": "ee744ef99b75e747a8b9e0d5fed74dbd81e3d97ba4a9bef481f664d2815fe4f4"
+      "tools/route-anchor-documents.json": "f690ab9a241eff29d9ca8653619d494d65203650c82fd00a9441225c224d83f8"
     },
     "vendor_documents": "The SHA-256 of every pinned vendor document is in VENDOR-METHOD-COVERAGE.json summary.",
     "code": "The built classification modules under dist/src; the check reruns them, so a code change also makes it stale."
@@ -32460,10 +32460,10 @@
         "tests/linkedin-engagement-audiences.test.mjs"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "captured_only",
+      "anchor_status": "documented_url",
       "anchor": {
-        "capture": ".mirror/RAW/linkedin_native_action/catalog-0000.json",
-        "reason": "captured_catalog_only"
+        "source": "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10",
+        "checked_at": "2026-11-03"
       }
     },
     {

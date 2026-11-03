@@ -1,6 +1,7 @@
 import {MirrorError, nestedError} from './errors.js';
 import {fail} from './family-kit.js';
 import {providerById} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 import {reportSourceError} from './report-errors.js';
 import {fingerprint} from './workspace-core.js';
 import {portfolioAuthority} from './portfolio-runner.js';
@@ -914,16 +915,29 @@ export class AdPreviews {
           paging = selected.paging;
         }
         return result(
-          await each(chosen, async row => ({
-            links: previewLinks(
-              'linkedin',
-              await read(gatewayOf('linkedin'), {
+          await each(chosen, async row => {
+            const response = await read(gatewayOf('linkedin'), {
                 action: 'linkedin_rest_ad_previews_get',
                 ...base,
-                query: {q: 'creative', creative: row.id},
+                query: {q: 'creative', creative: row.id, account: 'urn:li:sponsoredAccount:' + account},
               }),
-            ),
-          })),
+              parse = providerHooks(gatewayOf('linkedin'))!.adPreviewLinks!,
+              now = Date.now(),
+              placements = parse(response?.elements, now),
+              links = [...new Set(placements.map(link => link.url))],
+              rejected =
+                !Array.isArray(response?.elements) ||
+                response.elements.length > 100 ||
+                response.elements.some((element: unknown) => parse([element], now).length === 0);
+            return {
+              links,
+              link: links[0] ?? null,
+              placements,
+              expires_at: placements[0]?.expires_at ?? null,
+              expires: 'LinkedIn keeps this preview for up to 3 hours.',
+              ...(rejected ? {note: 'LinkedIn returned no safe iframe preview link for one or more placements.'} : {}),
+            };
+          }),
           {...paging, ...notListed(missing)},
         );
       }

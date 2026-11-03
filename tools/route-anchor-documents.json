@@ -3,6 +3,15 @@
   "meaning": "Vendor documentation pages that state the exact method and path of a route AMCP maps, with the date each was read (ARC-03). An entry anchors its route as documented_url in generated/route-anchors.json. tools/route-anchors.ts refuses an entry whose method and path no longer match its route, or that names no routed ledger action. Add pages only from primary vendor documentation you read; a captured listing is not documentation.",
   "routes": [
     {
+      "gateway": "linkedin_native_action",
+      "action": "linkedin_rest_ad_previews_get",
+      "method": "GET",
+      "path": "/rest/adPreviews",
+      "url": "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10",
+      "checked_at": "2026-11-03",
+      "note": "q=creative&creative={sponsoredCreativeUrn}&account={sponsoredAccountUrn}; preview iframe sources are valid up to 3 hours (src/linkedin-ad-previews.ts)."
+    },
+    {
       "gateway": "meta_native_action",
       "action": "meta_ad_rule_id_update",
       "method": "POST",

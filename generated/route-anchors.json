@@ -17,7 +17,7 @@
     "generated/registry.json": "cf5c03c51e57d9a80c18ac83ca0ead24f2fd4ddb674779d99869a33b31119e09",
     "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
     "tests/fixtures/meta-sdk-changes-v26.json": "2524545545ff2a93893d314162c349d44111036c4ba0a70975ff1e0b67abb922",
-    "tools/route-anchor-documents.json": "ee744ef99b75e747a8b9e0d5fed74dbd81e3d97ba4a9bef481f664d2815fe4f4"
+    "tools/route-anchor-documents.json": "f690ab9a241eff29d9ca8653619d494d65203650c82fd00a9441225c224d83f8"
   },
   "sources": {
     "apple-ads-platform-api-node@f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1": {
@@ -146,6 +146,10 @@
     "https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/": {
       "kind": "documented_url",
       "url": "https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/"
+    },
+    "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10": {
+      "kind": "documented_url",
+      "url": "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10"
     },
     "microsoft-campaign-management-v13": {
       "kind": "vendor_spec",
@@ -378,13 +382,15 @@
       "gateway": "linkedin_native_action",
       "routes": 287,
       "executable": 214,
-      "anchored_executable": 0,
-      "read_unanchored": 146,
+      "anchored_executable": 1,
+      "read_unanchored": 145,
       "by_anchor_status": {
-        "captured_only": 287
+        "captured_only": 286,
+        "documented_url": 1
       },
       "executable_by_anchor_status": {
-        "captured_only": 214
+        "captured_only": 213,
+        "documented_url": 1
       },
       "target": {
         "anchored_executable": 214,
@@ -1562,7 +1568,7 @@
     "linkedin_native_action//linkedin_rest_ad_lift_tests_lift_test_id_post": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_rest_ad_lift_tests_post": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_rest_ad_page_sets_post": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
-    "linkedin_native_action//linkedin_rest_ad_previews_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_rest_ad_previews_get": {"status":"native_read","anchor_status":"documented_url","anchor":{"source":"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10","checked_at":"2026-11-03"}},
     "linkedin_native_action//linkedin_rest_ad_previews_post": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_rest_ad_publisher_restrictions_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_rest_ad_publisher_restrictions_post": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0000.json","reason":"captured_catalog_only"}},

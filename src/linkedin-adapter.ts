@@ -21,7 +21,12 @@ import {linkedinDomainPlan} from './linkedin-insight-domains.js';
 import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
 import {linkedinMessagePlan} from './linkedin-message-ads.js';
 import {authorizeLinkedInConversionEvidenceRead} from './linkedin-conversion-evidence.js';
-import {authorizeLinkedInAdPreview, linkedinAdPreviewRead, observeLinkedInCreatives} from './linkedin-ad-previews.js';
+import {
+  authorizeLinkedInAdPreview,
+  linkedinAdPreviewRead,
+  observeLinkedInCreatives,
+  linkedInPreviewLinks,
+} from './linkedin-ad-previews.js';
 import {authorizeLinkedInSpecial, linkedinSpecialRequest} from './linkedin-posts.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
@@ -235,6 +240,7 @@ const linkedinCompile: CompileHooks = Object.freeze({
 });
 
 export const linkedinHooks: ProviderHooks = Object.freeze({
+  adPreviewLinks: linkedInPreviewLinks,
   gateway: 'linkedin_native_action',
   compile: linkedinCompile,
   // Wave 4c (transport and catalog): its captured catalog reports 202605 (its li-lms-2026-05 snapshot); it is read at

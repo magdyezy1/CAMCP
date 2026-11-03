@@ -96,7 +96,7 @@ test('each authorizer claims its own documented requests, and none of another pr
       query: {q: 'account', account: 'urn:li:sponsoredAccount:123'},
     }),
     linkedin_ad_preview: plan('linkedin_native_action', 'GET', '/rest/adPreviews', {
-      query: {q: 'creative', creative: 'urn:li:sponsoredCreative:1'},
+      query: {q: 'creative', creative: 'urn:li:sponsoredCreative:1', account: 'urn:li:sponsoredAccount:123'},
     }),
     linkedin_dsc_media_and_post_reads: plan('linkedin_native_action', 'GET', '/rest/posts/urn:li:share:1'),
     x_audience_estimate: plan('x_ads_native_action', 'POST', '/12/accounts/abc/audience_estimate'),

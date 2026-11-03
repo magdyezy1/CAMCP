@@ -161,7 +161,7 @@ test('the ad previews read each platform under the gateway its switch named, and
     linkedin_rest_ad_accounts_ad_account_id_creatives_get: {
       elements: [{id: 'urn:li:sponsoredCreative:1', name: 'C', intendedStatus: 'ACTIVE'}],
     },
-    linkedin_rest_ad_previews_get: {elements: [{preview: '<iframe src="https://www.linkedin.com/embed/1">'}]},
+    linkedin_rest_ad_previews_get: {elements: [{preview: '<iframe src="https://www.linkedin.com/embed/1"></iframe>'}]},
     LIST_ADS: {
       data: [
         {
