@@ -43,6 +43,7 @@ Staging checks remain pending until staging is available. Production promotion b
 | 27: final reference coverage | `7dc93e20` |
 | 26: evaluation baseline (D14) | `a26860b2` |
 | 26: reference-word total (D13) | `89966db9` |
+| 28: delivery-history fixture dependency and notice escaping | `d0566cd7` |
 
 ## Decisions and compatibility
 
@@ -116,16 +117,19 @@ reach success with `handoff_success:true`.
 | Static web and route checks | Pass, 58/58 routes within their existing baselines |
 | Closing fast qualification | Pass, no failed stages |
 | Closing help correction | 44/44 affected help/preset tests, then 14/14 golden/version/docs checks |
-| Full public candidate gate | Pending |
+| Full public candidate gate | First run: 8,678 passed of 8,679; isolated delivery-history VM omitted a declared script dependency. Corrected in `d0566cd7`; full rerun pending |
 | Browser qualification | Pending |
 | Container layout parity | Pending |
 | MCP evaluation | 60 synthetic runs pass after the approved baseline recording, no regressions |
 | Differential review | Manual source review of T, R, P, M and W against the base completed; split allowance and stale help findings fixed; rendered qualification pending |
-| Pre-push scan and remote reconciliation | Preliminary scan clean across 33 commits; GitHub confirms the expected base; final scan and push transport pending |
+| Pre-push scan and remote reconciliation | Preliminary scan clean across 33 commits; GitHub and the closing Git fetch confirm the expected base; final scan/push pending |
 | Staging live reads | Pending owner staging availability |
 
 The full gate will use a filtered public candidate with a literal empty live sample and the reviewed local
 dependencies. Synthetic provider requests, fixture writes and local HTTP tests are not live acceptance evidence.
+The fixture correction loads the same notice renderer required by the real route and adds a markup-escaping check;
+all original download security assertions remain. Its focused delivery/notice suite passes 14/14. Browser input-map
+and compiled release-identity hashes are unchanged, so the rendered run continues against its original qualified tree.
 No provider/OAuth/production request, advertising mutation, real Sheets export or deployment was performed.
 The protected local prompt was never read, staged or copied into a candidate. Arabic copy still requires the
 owner/native-speaker review at the planned later sign-off.
