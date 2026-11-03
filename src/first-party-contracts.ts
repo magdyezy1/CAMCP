@@ -87,6 +87,15 @@ const row = (
   next: [string, string][] = [],
   bounds?: ActionBounds,
 ): Row => ({action, summary, required, optional, effects: e, role, next, bounds});
+const helpRow = () =>
+  row(
+    'help',
+    'Full description, argument notes, limits and examples of this tool; read-only.',
+    [],
+    ['topic'],
+    reads(),
+    'reader',
+  );
 
 const W = 'amcp_workspace',
   C = 'amcp_campaign',
@@ -100,6 +109,7 @@ const nativeScope = ['gateway', 'account_id', 'connection_id', 'requirements'];
 
 const rows: Record<string, Row[]> = {
   [W]: [
+    helpRow(),
     row(
       'dashboard',
       'Counts per provider and account; sections with gateway, connection_id and account_id return bounded detail.',
@@ -768,6 +778,7 @@ const rows: Record<string, Row[]> = {
     ),
   ],
   [C]: [
+    helpRow(),
     row(
       'create',
       'Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template.',
@@ -1079,6 +1090,7 @@ const rows: Record<string, Row[]> = {
     ),
   ],
   [R]: [
+    helpRow(),
     row(
       'capture',
       'A bounded native read kept with its source hash, under declared semantics and a metric mapping.',
@@ -1294,6 +1306,7 @@ const rows: Record<string, Row[]> = {
     ),
   ],
   [O]: [
+    helpRow(),
     row(
       'bootstrap',
       'Accounts, metrics, entity levels, saved reports, schedules and destinations for building a report.',
@@ -1593,6 +1606,7 @@ const rows: Record<string, Row[]> = {
     ),
   ],
   [M]: [
+    helpRow(),
     row(
       'prepare',
       'Fetches and encrypts the exact file for a five-minute upload review.',
@@ -1792,6 +1806,7 @@ const rows: Record<string, Row[]> = {
     ),
   ],
   [X]: [
+    helpRow(),
     row(
       'inspect',
       'Checks local reviewed-write contract support for the exact native arguments, with no credentials, request or save.',
@@ -1866,6 +1881,7 @@ const rows: Record<string, Row[]> = {
     ),
   ],
   [P]: [
+    helpRow(),
     row(
       null,
       'Bounded native previews of existing ads; nothing is saved.',
@@ -2052,7 +2068,9 @@ export function firstPartyContract(tool: ToolLike, action: string | null): First
 /** Every action of a listed first-party tool, with its contract (undefined when a row is missing). */
 export function toolActions(tool: ToolLike): (string | null)[] {
   const actions = tool.inputSchema.properties?.action?.enum;
-  return Array.isArray(actions) ? actions : [null];
+  return Array.isArray(actions)
+    ? [...(tool.inputSchema.required?.includes('action') ? [] : [null]), ...actions]
+    : [null];
 }
 export function firstPartyContracts(tools: ToolLike[]): FirstPartyContract[] {
   return tools
@@ -2083,7 +2101,7 @@ export interface ArgumentFinding {
 export function actionArgumentFindings(tool: ToolLike, input: JsonObject): ArgumentFinding[] {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return [];
   const actions = toolActions(tool),
-    action = actions[0] === null ? null : input.action;
+    action = input.action === undefined && actions.includes(null) ? null : input.action;
   if (action !== null && (typeof action !== 'string' || !actions.includes(action))) return [];
   const contract = firstPartyContract(tool, action);
   if (!contract) return [];
@@ -2115,10 +2133,10 @@ export function actionArgumentCheck(
 ): JsonObject[] {
   const findings = actionArgumentFindings(tool, input);
   if (!findings.length) return [];
-  const action = toolActions(tool)[0] === null ? null : String(input.action),
+  const action = input.action === undefined && toolActions(tool).includes(null) ? null : String(input.action),
     contract = firstPartyContract(tool, action)!,
     accepted = Object.keys(contract.argumentsSchema.properties),
-    help = {tool: 'amcp_tool_help', arguments: {gateway: tool.name, ...(action ? {operation: action} : {})}},
+    help = {tool: tool.name, arguments: {action: 'help', ...(action ? {topic: action} : {})}},
     foreign = findings.find(f => f.kind === 'not_an_argument');
   if (mode === 'enforce' && foreign)
     throw new MirrorError(

@@ -42,7 +42,7 @@ const refused =
   e =>
     e.code === code && e.message === message;
 
-test('every amcp_write action has one place, in the stage whose checks the if-chain ran before it', () => {
+test('every amcp_write business action has one place, in the stage whose checks the if-chain ran before it', () => {
   const f = fixture();
   try {
     const placed = [
@@ -51,7 +51,11 @@ test('every amcp_write action has one place, in the stage whose checks the if-ch
       // The one action left after both tables: call checks it and its review_id, then executes.
       ['execute', 'call'],
     ];
-    assert.deepEqual(placed.map(([action]) => action).sort(), [...writeTool.inputSchema.properties.action.enum].sort());
+    // Help is dispatched by MirrorService before reviewed writes; mcp-own-help covers all deployment modes.
+    assert.deepEqual(
+      placed.map(([action]) => action).sort(),
+      writeTool.inputSchema.properties.action.enum.filter(action => action !== 'help').sort(),
+    );
     assert.deepEqual(Object.fromEntries(placed), {
       status: 'retained',
       reconcile: 'retained',

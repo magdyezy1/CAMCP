@@ -189,13 +189,17 @@ export async function checkApplication({base, origin, password, writes, restart}
   for (const parked of ['amazon_native_action', 'criteo_native_action', 'commerce_native_action'])
     assert.ok(!tools.tools.some(t => t.name === parked), parked);
   if (!writes)
-    assert.deepEqual(tools.tools.find(t => t.name === 'amcp_write').inputSchema.properties.action.enum, ['inspect']);
+    assert.deepEqual(tools.tools.find(t => t.name === 'amcp_write').inputSchema.properties.action.enum, [
+      'help',
+      'inspect',
+    ]);
   assert.ok(tools.tools.some(t => t.name === 'amcp_reporting_overview'));
   assert.ok(tools.tools.some(t => t.name === 'amcp_ad_previews'));
   const media = tools.tools.find(t => t.name === 'amcp_media');
   assert.ok(media, 'Media reads remain discoverable in a read-only deployment');
   if (!writes)
     assert.deepEqual(media.inputSchema.properties.action.enum, [
+      'help',
       'list',
       'library',
       'asset',

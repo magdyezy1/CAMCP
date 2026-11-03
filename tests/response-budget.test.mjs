@@ -130,7 +130,7 @@ test('guides are readable through a tool call, a section at a time, within the s
       data = list.data ?? list;
     assert.equal(data.guides.length, 13);
     for (const guide of data.guides) {
-      const index = await help(guide.index.arguments),
+      const index = await f.service.call(guide.index.tool, guide.index.arguments, f.actor),
         body = index.data ?? index;
       assert.ok(Buffer.byteLength(JSON.stringify(index)) <= 8 * kb, guide.name);
       const section = await help({topic: 'guides/' + guide.name + '/' + body.sections[0].id}),

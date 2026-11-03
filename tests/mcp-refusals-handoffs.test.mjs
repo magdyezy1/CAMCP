@@ -162,7 +162,7 @@ test('a workflow mutation (amcp_native_action) is refused first with the inspect
     f.close();
   }
 });
-test('a read-only deployment refuses prepare and execute first, names no setting, and lists inspect only', async () => {
+test('a read-only deployment refuses prepare and execute first, names no setting, and lists inspect and help', async () => {
   const f = fixture({allowWrites: false});
   try {
     for (const input of [
@@ -187,7 +187,7 @@ test('a read-only deployment refuses prepare and execute first, names no setting
     assert.equal(native.error.details.next_call.arguments.action, 'inspect');
     // Owner decision D15: the tool is listed, truthfully, with inspect only; inspect still works.
     const listed = f.service.listTools().find(t => t.name === 'amcp_write');
-    assert.deepEqual(listed.inputSchema.properties.action.enum, ['inspect']);
+    assert.deepEqual(listed.inputSchema.properties.action.enum, ['help', 'inspect']);
     assert.equal(listed.annotations.readOnlyHint, true);
     const inspected = await f.service.call(
       'amcp_write',

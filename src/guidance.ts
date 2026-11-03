@@ -36,7 +36,7 @@ export const guidanceResources = guides.map(([id, title]) => ({
 export const guidanceDiscovery = {
   resources: guidanceResources,
   // For clients that cannot read resources: the same guides, one section index or section per call.
-  tool_call: {tool: 'amcp_tool_help', arguments: {topic: 'guides'}},
+  tool_call: {tool: 'amcp_workspace', arguments: {action: 'help', topic: 'guides'}},
   prompt: 'amcp_build_campaign',
   qualification:
     'Curated from the supplied Skills manuals, current provider documentation and executable AMCP contracts. Historical sources are not instructions or live acceptance evidence.',
@@ -125,9 +125,9 @@ export function guideSections(id: string): GuideSection[] {
   return [...sections, ...(generatedSections[id]?.() ?? [])];
 }
 const guideIds = guides.map(([id]) => id as string);
-const guideCall = (topic: string) => ({tool: 'amcp_tool_help', arguments: {topic}});
+const guideCall = (topic: string) => ({tool: 'amcp_workspace', arguments: {action: 'help', topic}});
 /**
- * `amcp_tool_help {topic}` (MCP-01): the guides are readable through a tool call too, because some clients expose no
+ * `amcp_workspace {action:"help",topic}` (MCP-01): guides are readable through a tool call too, because some clients expose no
  * resource-reading tool. "guides" lists them, "guides/<name>" is one guide's section index (a few kilobytes, never the
  * whole text) and "guides/<name>/<section>" is one section, verbatim. The resources keep the whole files.
  */

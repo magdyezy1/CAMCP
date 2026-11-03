@@ -34,7 +34,7 @@ function fixture() {
   return {store, media, requests: () => requests, run: input => media.call(input, actor)};
 }
 
-test('every amcp_media action has one table entry, in the stage whose checks the if-chain ran before it', () => {
+test('every amcp_media business action has one table entry, in the stage whose checks the if-chain ran before it', () => {
   const f = fixture();
   try {
     const stages = {
@@ -45,10 +45,10 @@ test('every amcp_media action has one table entry, in the stage whose checks the
     const placed = Object.entries(stages).flatMap(([stage, table]) =>
       Object.keys(table).map(action => [action, stage]),
     );
-    // asset_usage is answered by MirrorService (src/service.ts) before amcp_media is called.
+    // asset_usage and help are answered by MirrorService before amcp_media is called; own help has SDK coverage.
     assert.deepEqual(
       placed.map(([action]) => action).sort(),
-      mediaTool.inputSchema.properties.action.enum.filter(action => action !== 'asset_usage').sort(),
+      mediaTool.inputSchema.properties.action.enum.filter(action => !['asset_usage', 'help'].includes(action)).sort(),
     );
     assert.equal(new Set(placed.map(([action]) => action)).size, placed.length);
     assert.deepEqual(Object.fromEntries(placed), {

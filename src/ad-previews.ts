@@ -46,8 +46,11 @@ export const previewTool = {
     'Use this to get preview links for ads that already exist in an account instead of opening each platform; for new media use amcp_media, and for changes amcp_write. AMCP reads the account’s ads (or the ad_ids given; for Snapchat and LinkedIn, creatives) and then each one’s preview through the platform’s own read routes, with the connection’s account scope, ownership checks and audit. Meta (ad_format placement, default MOBILE_FEED_STANDARD), TikTok, Snapchat, LinkedIn and Reddit return links. A Google Ads preview is a shareable link created by a reviewed write: the result names the amcp_write call. X previews and Microsoft, DV360, Criteo and Apple Ads have no preview AMCP can read. Preview links open for anyone who has them and expire (TikTok after 30 days, Reddit at preview_expiry, others when the platform decides); AMCP returns them without storing them. Nothing in the account changes.',
   inputSchema: {
     type: 'object',
-    required: ['platform', 'account_id'],
+    required: [],
+    anyOf: [{required: ['action'], properties: {action: {const: 'help'}}}, {required: ['platform', 'account_id']}],
     properties: {
+      action: {type: 'string', enum: ['help']},
+      topic: {type: 'string', maxLength: 300},
       platform: {
         type: 'string',
         enum: ['meta', 'tiktok', 'snapchat', 'linkedin', 'reddit', 'google_ads', 'x_ads', ...Object.keys(noRoute)],
@@ -150,6 +153,7 @@ export class AdPreviews {
     return r.data?.data;
   }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
+    if (input.action !== undefined) fail('INVALID_ARGUMENT', 'Unknown preview action.', {field: 'action'});
     for (const key of Object.keys(input))
       if (!Object.hasOwn(previewTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown preview parameter.', {parameter: key});

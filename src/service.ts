@@ -33,7 +33,7 @@ import {amcpDescribed} from './execution-status.js';
 import {checkContextOptions, contextOperation} from './context-operations.js';
 import {unqualifiedUsage, usageKind} from './native-usage.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
-import {surfaceRevision, toolHelp} from './tool-help.js';
+import {ownToolHelp, surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
 import {toolPresentation} from './tool-annotations.js';
 import {randomUUID} from 'node:crypto';
@@ -555,6 +555,10 @@ export class MirrorService {
           this.options.flags.actionArguments === 'enforce' ? 'enforce' : 'report',
         );
         if (warnings.length) this.argumentWarnings.set(requestId, warnings);
+        if (input.action === 'help') {
+          guardInput(input);
+          return this.wrap(ownToolHelp(own, input.topic), requestId, start, tool, 'help');
+        }
       }
       // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.
       const call = (t: string, a: JsonObject, u: Actor) => {

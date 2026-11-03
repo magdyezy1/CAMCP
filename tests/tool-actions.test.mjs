@@ -62,7 +62,7 @@ test('an action table answers only its own entries: an inherited name or a non-s
     assert.equal(actionHandler(table, action), undefined, String(action));
 });
 
-test('every amcp_reporting action has one table entry, in the stage whose checks the if-chain ran before it', () => {
+test('every amcp_reporting business action has one table entry, in the stage whose checks the if-chain ran before it', () => {
   const f = fixture();
   try {
     const stages = {
@@ -75,7 +75,8 @@ test('every amcp_reporting action has one table entry, in the stage whose checks
     );
     assert.deepEqual(
       placed.map(([action]) => action).sort(),
-      [...decisionTool.inputSchema.properties.action.enum].sort(),
+      // Help is dispatched by MirrorService before this handler; mcp-own-help covers its listing and execution.
+      decisionTool.inputSchema.properties.action.enum.filter(action => action !== 'help').sort(),
     );
     assert.equal(new Set(placed.map(([action]) => action)).size, placed.length);
     // Before the page bounds; after them; after the read of the report the call names.

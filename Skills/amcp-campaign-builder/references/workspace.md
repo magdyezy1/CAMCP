@@ -1288,6 +1288,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 | `dashboard` | Counts per provider and account; sections with gateway, connection_id and account_id return bounded detail. | `view`, `sections`, `gateway`, `connection_id`, `account_id`, `limit`, `cursor` | no provider request | reader |
 | `operations` | Metadata-only feed of retained work across engines, each with a read-only next_call to its record. | `kind`, `state`, `search`, `account_id`, `connection_id`, `profile_id`, `limit` (1–100, default 30), `cursor` | no provider request | reader |
 | `report_run` | One workbook report run: its bounded, currently scoped status. | **`id`** | no provider request | reader |
@@ -1370,6 +1371,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 | `create` | Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template. | **`name`**, **`brief`**, `steps`, `profile_id`, `template`, `variables`, `idempotency_key`, `acknowledge_temporary_sources`, `allocation_preview_id`, `allocation_preview_hash`, `consent_preview_id`, `consent_preview_hash`, `catalog_binding`, `search_exclusion_preview_id`, `search_exclusion_preview_hash`, `id`, `expected_revision`, `confirmed`, `detail` | no provider request; saves campaign_run | operator |
 | `get` | One plan, compact; step_id returns one step whole, detail:"full" the whole plan. | **`id`**, `step_id`, `detail` | no provider request | reader |
 | `list` | Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor. | `offset`, `limit` (1–100, default 50), `cursor`, `state`, `archived`, `awaiting_approval`, `search`, `gateway`, `account_id`, `connection_id`, `profile_id` | no provider request | reader |
@@ -1403,6 +1405,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 | `capture` | A bounded native read kept with its source hash, under declared semantics and a metric mapping. | **`gateway`**, **`arguments`**, **`semantics`**, **`mapping`**, `connection_id`, `account_id`, `campaign_id`, `rows_pointer` | provider reads; saves decision_report | reader |
 | `capture_presets` | The guided report presets. | — | no provider request | reader |
 | `capture_preset` | Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report. | **`preset`**, **`account_id`**, **`semantics`**, `connection_id`, `campaign_id`, `result_action_type`, `attribution_windows`, `swipe_up_attribution_window`, `view_attribution_window` | provider reads; saves decision_report | reader |
@@ -1432,6 +1435,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 | `bootstrap` | Accounts, metrics, entity levels, saved reports, schedules and destinations for building a report. | `profile_id` | no provider request | reader |
 | `preview_schedule` | The next three deliveries of a saved or proposed schedule, with each source’s window. | `id`, `schedule`, `config` | no provider request | reader |
 | `report_pack` | A snapshot’s summary, source evidence and PDF/XLSX download paths. | **`id`** | no provider request | reader |
@@ -1470,6 +1474,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 | `prepare` | Fetches and encrypts the exact file for a five-minute upload review. | **`platform`**, **`account_id`**, `connection_id`, `source_id`, `source_url`, `drive_url`, `drive_connection_id`, `variant_id`, `expected_sha256`, `expected_mime`, `expected_size`, `fit_to_platform`, `reuse_existing`, `existing_media_id`, `name`, `media_type`, `owner_urn`, `dv360_target`, `synthetic_content` | no provider request; saves media_review | operator |
 | `prepare_library` | Prepares the review of a library asset’s retained original. | **`review_id`** | no provider request; saves media_review | operator |
 | `execute` | Uploads the frozen bytes after the user’s explicit confirmation. | **`review_id`**, **`confirmed`**, `idempotency_key` | reviewed provider write; saves media_receipt; changes an advertising account | operator |
@@ -1496,6 +1501,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 | `inspect` | Checks local reviewed-write contract support for the exact native arguments, with no credentials, request or save. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data` | no provider request | reader |
 | `prepare` | Reads current state and freezes the request into a five-minute, actor-bound review with before_state, impact and spend. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data`, `provider_check`, `creative_edit_confirmed`, `supersedes_review_id` | provider reads; saves write_review | operator |
 | `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key` (Defaults to the review_id; any other value is refused.), `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
@@ -1507,5 +1513,6 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
 | — | Bounded native previews of existing ads; nothing is saved. | **`platform`**, **`account_id`**, `connection_id`, `ad_ids`, `limit`, `ad_format`, `statuses`, `campaign_ids`, `adset_ids`, `cursor` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
 
 <!-- first-party-contracts:end -->

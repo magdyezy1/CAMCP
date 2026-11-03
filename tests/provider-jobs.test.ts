@@ -259,7 +259,7 @@ test('RPT-06: with the switch off, a read-only deployment refuses report jobs fi
     assert.ok(p.error.details.next_call, 'the early refusal still names the inspection');
     assert.equal(f.calls.length, 0);
     const listed = f.service.listTools().find(t => t.name === 'amcp_write')!;
-    assert.deepEqual(listed.inputSchema.properties.action.enum, ['inspect']);
+    assert.deepEqual(listed.inputSchema.properties.action.enum, ['help', 'inspect']);
     assert.equal(listed.annotations.readOnlyHint, true);
   } finally {
     f.store.close();
@@ -270,7 +270,7 @@ test('RPT-06: a read-only deployment with the switch lists job prepare and execu
   const f = xFixture({allowWrites: false, providerJobs: true});
   try {
     const listed = f.service.listTools().find(t => t.name === 'amcp_write')!;
-    assert.deepEqual(listed.inputSchema.properties.action.enum, ['inspect', 'prepare', 'execute', 'status']);
+    assert.deepEqual(listed.inputSchema.properties.action.enum, ['help', 'inspect', 'prepare', 'execute', 'status']);
     assert.notEqual(listed.annotations.readOnlyHint, true);
     // inspect names the job's authority without a network call.
     const i = await f.service.call(

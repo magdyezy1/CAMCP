@@ -6,19 +6,20 @@ import {firstPartyActionHints} from './tool-annotations.js';
  * What tools/list shows of each tool (MCP-01). Clients truncate a description at 2,048 characters, and under tool search
  * only names load at session start, so a description is a routing summary: when to use the tool, its safety contract,
  * its core actions and where the rest lives. The full text and the per-action detail are unchanged and returned by
- * amcp_tool_help {gateway: <tool>, operation: <action>}. MIRROR_FLAGS {"compactDescriptions":false} lists the full text.
+ * the tool's own action:"help". MIRROR_FLAGS {"compactDescriptions":false} lists the full text.
  */
 export const descriptionBudget = 2000;
 const help = (tool: string) =>
-  'Per-action arguments: amcp_tool_help {gateway:"' + tool + '",operation:"<action>"} or {topic:"guides"}.';
+  'Full text: ' + tool + ' {action:"help"}; action rules: ' + tool + ' {action:"help",topic:"<action>"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
-    'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
-    'Safety: no advertising changes. Previews and saves are local; confirmed saves need confirmed:true and the current revision/version. Drafts need amcp_write or amcp_campaign review. Missing evidence stays unknown. ' +
-    'Core: capabilities (account readiness, paging/filtering; view:"graph"), check and program_check (only live:true reads providers), contracts (action classes), operations (next_call), history (audit metadata), dashboard (counts). ' +
-    'Also: portfolio/portfolio_reconcile, measurement_* and catalog_* evidence/plans, consent drafts, local workbook runs/queries/bindings, clients, incidents/monitors and owner policies. ' +
+    'Use this before planning a change for account readiness and write contracts, and afterwards for history. ' +
+    'Safety: no advertising changes. Local saves need confirmed:true and the current revision/version. Drafts need amcp_write or amcp_campaign review. Missing evidence stays unknown. ' +
+    'Core: capabilities (readiness; view:"graph"), check and program_check (only live:true reads providers), contracts, operations (next_call), history, dashboard. ' +
+    'Also: portfolio, measurement/catalog evidence and plans, consent drafts, local workbook records, clients, monitors and owner policies. ' +
     'Confirmation: confirmed:true for resume_report_run, save_report_schedule, save_report_query, move_report_query, save_report_binding, save_report_binding_state, save_profile, save_monitor, set_monitor_state, create_consent_plan, create_catalog_removal, delete_profile, delete_brief (operator); set_monitor_notifications, retry_monitor_notification (reader); save_spend_policy, save_retention, save_plan_policy, pause_writes, resume_writes, enable_personal_data, disable_personal_data, save_ga4_test_property (owner). ' +
-    help('amcp_workspace'),
+    help('amcp_workspace') +
+    ' Guides: amcp_workspace {action:"help",topic:"guides"}.',
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +
     'It saves a durable dependency plan (native steps, approved templates or recipes) and runs it step by step. ' +
@@ -126,7 +127,7 @@ export function firstPartyHelp(
 ): JsonObject {
   const actions: string[] = tool.inputSchema.properties?.action?.enum ?? [];
   if (operation === undefined) {
-    const single = actions.length ? undefined : firstPartyContract(tool, null);
+    const single = tool.inputSchema.required?.includes('action') ? undefined : firstPartyContract(tool, null);
     return {
       gateway: tool.name,
       mode: 'amcp_workflow',
@@ -137,7 +138,7 @@ export function firstPartyHelp(
         ? {
             actions,
             action_summaries: actionSummaries(tool),
-            operation_help: {tool: 'amcp_tool_help', arguments: {gateway: tool.name, operation: '<action>'}},
+            operation_help: {tool: tool.name, arguments: {action: 'help', topic: '<action>'}},
           }
         : {}),
       inputSchema: tool.inputSchema,
@@ -158,7 +159,7 @@ export function firstPartyHelp(
           meaning: 'The tool description has no text specific to this action; its contract lists its arguments.',
         }),
     call: {tool: tool.name, arguments: {action: operation}},
-    see: {tool: 'amcp_tool_help', arguments: {gateway: tool.name}},
+    see: {tool: tool.name, arguments: {action: 'help'}},
   };
 }
 /**

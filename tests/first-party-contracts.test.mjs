@@ -208,8 +208,8 @@ test('an argument of another action draws a report-only warning; it was accepted
     assert.equal(extra.meta.argument_warnings[0].code, 'ARGUMENT_NOT_USED_BY_ACTION');
     assert.equal(extra.meta.argument_warnings[0].field, 'live');
     assert.deepEqual(extra.meta.argument_warnings[0].help_call, {
-      tool: 'amcp_tool_help',
-      arguments: {gateway: 'amcp_workspace', operation: 'contracts'},
+      tool: 'amcp_workspace',
+      arguments: {action: 'help', topic: 'contracts'},
     });
     // amcp_write and amcp_media are checked the same way.
     const inspect = await f.call('amcp_write', {

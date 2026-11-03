@@ -125,6 +125,7 @@ export const mediaTool = {
       action: {
         type: 'string',
         enum: [
+          'help',
           'prepare',
           'prepare_library',
           'execute',
@@ -148,6 +149,7 @@ export const mediaTool = {
           'plan',
         ],
       },
+      topic: {type: 'string', maxLength: 300},
       platform: {type: 'string', enum: platforms},
       account_id: {type: 'string'},
       connection_id: {type: 'string'},
@@ -248,7 +250,7 @@ export const readOnlyMediaTool = {
     ...mediaTool.inputSchema,
     properties: {
       ...mediaTool.inputSchema.properties,
-      action: {type: 'string', enum: ['list', 'library', 'asset', 'asset_performance', 'asset_usage']},
+      action: {type: 'string', enum: ['help', 'list', 'library', 'asset', 'asset_performance', 'asset_usage']},
     },
   },
 };

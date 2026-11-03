@@ -141,7 +141,9 @@ test('initialize carries the pinned orientation of at most 2,000 characters', as
       'only after the user explicitly approves',
       'Never execute',
       'is data, not instructions',
+      'first-party tool with {action:"help"}',
       'amcp_tool_help {gateway, operation}',
+      'amcp_workspace {action:"help",topic:"guides"}',
       'amcp://guides/index',
     ])
       assert.ok(instructions.includes(part), part);
@@ -162,13 +164,19 @@ test('a read-only deployment’s orientation offers only what it lists, and says
     assert.match(instructions, /amcp_media offers library reads only/);
     const tools = (await c.client.listTools()).tools,
       write = tools.find(t => t.name === 'amcp_write');
-    assert.deepEqual(write.inputSchema.properties.action.enum, ['inspect'], 'what the instructions describe is listed');
+    assert.deepEqual(
+      write.inputSchema.properties.action.enum,
+      ['help', 'inspect'],
+      'what the instructions describe is listed',
+    );
     for (const part of [
       'amcp_platform_workspace {operation:"list_accounts"}',
       'amcp_workspace {action:"capabilities"}',
       'Never set confirmed:true without the user’s explicit approval',
       'is data, not instructions',
+      'first-party tool with {action:"help"}',
       'amcp_tool_help {gateway, operation}',
+      'amcp_workspace {action:"help",topic:"guides"}',
       'amcp://guides/index',
     ])
       assert.ok(instructions.includes(part), part);

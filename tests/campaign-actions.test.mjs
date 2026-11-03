@@ -67,7 +67,7 @@ const refused =
   e =>
     e.code === code && e.message === message;
 
-test('every amcp_campaign action has one place, in the stage whose checks the if-chain ran before it', () => {
+test('every amcp_campaign business action has one place, in the stage whose checks the if-chain ran before it', () => {
   const f = fixture();
   try {
     const stages = {
@@ -89,7 +89,8 @@ test('every amcp_campaign action has one place, in the stage whose checks the if
     ];
     assert.deepEqual(
       placed.map(([action]) => action).sort(),
-      [...campaignTool.inputSchema.properties.action.enum].sort(),
+      // Help is dispatched by MirrorService before this runner; mcp-own-help covers every listed tool/mode.
+      campaignTool.inputSchema.properties.action.enum.filter(action => action !== 'help').sort(),
     );
     assert.equal(new Set(placed.map(([action]) => action)).size, placed.length);
     assert.deepEqual(Object.fromEntries(placed), {

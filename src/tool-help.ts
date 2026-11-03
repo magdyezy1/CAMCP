@@ -12,11 +12,43 @@ import {nameCandidates} from './name-candidates.js';
 import {amcpDescribed, amcpExecution} from './execution-status.js';
 import {unavailableOperations} from './unavailable-operations.js';
 import {contextOperation, contextOperationHelp} from './context-operations.js';
+import {firstPartyContract, toolActions} from './first-party-contracts.js';
 
 export interface ListedTool {
   name: string;
   description: string;
   inputSchema: JsonObject;
+}
+/** A first-party tool's own read-only help; the captured help schema remains unchanged (D17-bis). */
+export function ownToolHelp(tool: ListedTool, topic?: string): JsonObject {
+  if (topic !== undefined && (typeof topic !== 'string' || !topic || topic.length > 300))
+    throw new MirrorError('INVALID_ARGUMENT', 'Use a topic of 1–300 characters.', {field: 'topic'});
+  if (tool.name === 'amcp_workspace' && (topic === 'guides' || topic?.startsWith('guides/'))) return guideTopic(topic);
+  const actions = toolActions(tool);
+  if (topic !== undefined && !actions.includes(topic))
+    throw new MirrorError('UNKNOWN_OPERATION', 'Unknown action of this AMCP tool.', {
+      field: 'topic',
+      ...nameCandidates(
+        topic,
+        actions.filter((a): a is string => a !== null),
+      ),
+      list_call: {tool: tool.name, arguments: {action: 'help'}},
+    });
+  const help = firstPartyHelp(tool, '', topic),
+    examples = (topic === undefined ? actions : [topic]).map(action => {
+      const contract = firstPartyContract(tool, action)!,
+        args: JsonObject = action === null ? {} : {action};
+      for (const name of contract.argumentsSchema.required)
+        if (name !== 'action') args[name] = name === 'confirmed' ? true : '<' + name + '>';
+      return {tool: tool.name, arguments: args};
+    });
+  // The full description and examples already explain every action. Avoid repeating the routing/action summaries
+  // on this new endpoint so the workspace help still fits one 40 KB call. Legacy gateway help keeps those fields.
+  if (topic === undefined) {
+    delete help.summary;
+    delete help.action_summaries;
+  }
+  return {...help, examples};
 }
 export interface HelpContext {
   registry: Registry;
@@ -123,7 +155,7 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
         field: 'operation',
         gateway: own.name,
         ...nameCandidates(input.operation, actions),
-        list_call: {tool: 'amcp_tool_help', arguments: {gateway: own.name}},
+        list_call: {tool: own.name, arguments: {action: 'help'}},
       });
     return {...firstPartyHelp(own, listed.find(t => t.name === own.name)!.description, input.operation), ...extras};
   }
