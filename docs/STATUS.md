@@ -54,12 +54,4 @@ acceptance is run.
 
 ## Latest qualification
 
-[Wave 4c round 7 integration qualification of 2026-10-31](records/QUALIFICATION-4c-r7-2026-10-31.md), 2026-10-31.
-
-| Run | Revision | Result |
-| --- | --- | --- |
-| Whole suite with `AMCP_PROVIDERS=criteo,woocommerce` | `ebfedb42` | Passed on a clean public candidate with FFmpeg required and eight workers: 8,386 tests, 8,385 passed, 0 failed, 1 skipped (the entrypoint test that needs a POSIX `sh`, absent from that run's PATH), 447 s. ARC-01: the suites pass with the parked providers offered and without. |
-| Release gate `wave4c-r7-gate-1` | `a6826b6f` | Passed: 8,386 of 8,386 tests and 4 of 4 capture tests in 478 s, every `npm run check` stage with FFmpeg required. The public reports regenerated from the empty sample matched the tracked ones. |
-| Full-profile stages on `wave4c-r7-gate-1` | `a6826b6f` | Passed, each with exit 0: the FFmpeg probe (status passed: FFmpeg n9.0.2 and ffprobe both found, QA-01), the capture core 4 of 4, the mutant catalogue 33 of 33 killed, the wire-contract sweep (71 test files; six fixture violations, each a reviewed exception with its vendor evidence: two of Tag Manager and the four Search Console spellings of PRV-05), the pinned Meta creative features, the website checks, the journey evaluation without regression, and the offline provider drift, lifecycle and sunset checks. |
-| Container parity on `wave4c-r7-gate-1` | `a6826b6f` | Passed outside any Git repository, with two test workers and FFmpeg required, as Railway's Dockerfile build runs: 8,389 passed, 0 failed, 1 skipped (the entrypoint test that needs a POSIX `sh`, absent from this Windows layout; Railway's Linux build runs it), `npm run check` in 1,238 s. |
-| Browser `wave4c-r7-browser-1` (`--qualification`) | `a6826b6f` | Passed 1,392 of 1,392 cases, 2026-10-31 20:30 to 21:25 UTC, 55.0 minutes against the 75-minute budget. `results.json` SHA-256 `59938e95317f7290e51335f68a03b62ec44e08945edf3bf3cafe3bfd5ca1a0a2`. |
+[V2 round 1 qualification of 2026-11-03](records/QUALIFICATION-V2-R1-2026-11-03.md), 2026-11-03.
