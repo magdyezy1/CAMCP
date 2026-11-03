@@ -199,8 +199,10 @@ test('delivery history names stored formats and binds downloads to the original 
     source = process.env.AMCP_TEST_WEB_ROOT ?? 'web';
   const separate = createContext({esc: f.c.esc, document: {addEventListener() {}}});
   new Script(readFileSync(join(source, 'localization.js'), 'utf8')).runInContext(separate);
+  new Script(readFileSync(join(source, 'report-library.js'), 'utf8')).runInContext(separate);
   new Script(readFileSync(join(source, 'reporting-overview.js'), 'utf8')).runInContext(separate);
   separate.record = {
+    notices: [{message: 'Collection changed <img src=notice>'}],
     exports: [
       {
         id: 'original export',
@@ -215,5 +217,6 @@ test('delivery history names stored formats and binds downloads to the original 
   assert.match(html, /Download PDF/);
   assert.match(html, /original%20export\.pdf/);
   assert.match(html, /&lt;img/);
+  assert.match(html, /Collection changed &lt;img src=notice&gt;/);
   assert.doesNotMatch(html, /javascript:|<img/);
 });
