@@ -22,7 +22,7 @@ export interface ListedTool {
 /** A first-party tool's own read-only help; the captured help schema remains unchanged (D17-bis). */
 export function ownToolHelp(tool: ListedTool, topic?: string): JsonObject {
   if (topic !== undefined && (typeof topic !== 'string' || !topic || topic.length > 300))
-    throw new MirrorError('INVALID_ARGUMENT', 'Use a topic of 1–300 characters.', {field: 'topic'});
+    throw new MirrorError('INVALID_ARGUMENT', 'Use a name of at most 300 characters.', {field: 'topic'});
   if (tool.name === 'amcp_workspace' && (topic === 'guides' || topic?.startsWith('guides/'))) return guideTopic(topic);
   const actions = toolActions(tool);
   if (topic !== undefined && !actions.includes(topic))

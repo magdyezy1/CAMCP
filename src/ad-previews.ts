@@ -153,7 +153,7 @@ export class AdPreviews {
     return r.data?.data;
   }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
-    if (input.action !== undefined) fail('INVALID_ARGUMENT', 'Unknown preview action.', {field: 'action'});
+    if (input.action !== undefined) fail('INVALID_ARGUMENT', 'Unknown action of this AMCP tool.', {field: 'action'});
     for (const key of Object.keys(input))
       if (!Object.hasOwn(previewTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown preview parameter.', {parameter: key});
