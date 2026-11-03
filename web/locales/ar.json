@@ -11618,5 +11618,17 @@
   "Notes": "ملاحظات",
   "LinkedIn reports now show campaign groups in the campaign position, LinkedIn campaigns in the ad set position and creatives in the ad position. Earlier snapshots keep the levels they recorded.": "تعرض تقارير LinkedIn الآن مجموعات الحملات في موضع الحملة، وحملات LinkedIn في موضع المجموعة الإعلانية، والمواد الإعلانية في موضع الإعلان. تحتفظ النسخ السابقة بالمستويات التي سُجلت فيها.",
   "TikTok reports now include campaigns deleted since the window and check TikTok’s own totals, so past windows can show more spend than before.": "تشمل تقارير TikTok الآن الحملات التي حُذفت بعد الفترة وتتحقق من إجماليات TikTok نفسها، لذا قد تعرض الفترات السابقة إنفاقًا أكبر من قبل.",
-  "This snapshot contains collection state from an earlier platform contract. Its retained evidence is preserved; start a new snapshot from the saved definition.": "تحتوي هذه النسخة على حالة جمع وفق عقد سابق للمنصة. تُحفظ أدلتها الأصلية؛ ابدأ نسخة جديدة من الإعدادات المحفوظة."
+  "This snapshot contains collection state from an earlier platform contract. Its retained evidence is preserved; start a new snapshot from the saved definition.": "تحتوي هذه النسخة على حالة جمع وفق عقد سابق للمنصة. تُحفظ أدلتها الأصلية؛ ابدأ نسخة جديدة من الإعدادات المحفوظة.",
+  "Ad {ad} · Creative {creative}": "الإعلان {ad} · التصميم الإعلاني {creative}",
+  "No ads match this preview selection.": "لا توجد إعلانات تطابق خيارات المعاينة هذه.",
+  "Not in this account": "غير موجود في هذا الحساب",
+  "statuses lists active, paused, archived or all.": "تتضمن statuses القيم active أو paused أو archived أو all.",
+  "Preview campaign and ad set filters each list 1 to 50 identifiers.": "يجب أن تتضمن كل قائمة لتصفية الحملات والمجموعات الإعلانية من معرّف واحد إلى 50 معرّفًا.",
+  "LinkedIn preview filters use campaign group IDs in campaign_ids and campaign IDs in adset_ids.": "تستخدم فلاتر معاينة LinkedIn معرّفات مجموعات الحملات في campaign_ids ومعرّفات الحملات في adset_ids.",
+  "The preview cursor is invalid or expired; list the previews again without it.": "مؤشر متابعة المعاينة غير صالح أو منتهي الصلاحية؛ اعرض المعاينات مجددًا من دونه.",
+  "The preview login lost permissions. List the previews again.": "فقد اتصال المعاينة صلاحياته. اعرض المعاينات مجددًا.",
+  "The preview login changed. List the previews again.": "تغيّر اتصال المعاينة. اعرض المعاينات مجددًا.",
+  "The platform returned an invalid preview list or continuation.": "أعادت المنصة قائمة معاينات أو مؤشر متابعة غير صالح.",
+  "No matching ad in this account for the selected campaign and ad set filters.": "لا يوجد إعلان مطابق في هذا الحساب لفلاتر الحملات والمجموعات الإعلانية المحددة.",
+  "Creative ownership or matching parents could not be established within the ten-page account scan. Narrow the selection and try again.": "تعذّر التحقق من ملكية التصميم الإعلاني أو مطابقة الحملات والمجموعات ضمن فحص الحساب المحدود بعشر صفحات. ضيّق نطاق الاختيار ثم أعد المحاولة."
 }

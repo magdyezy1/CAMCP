@@ -72,6 +72,7 @@ function adPreviewsPanel() {
       : `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`)
   }</select></label>
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
+<label>${esc(uiText('Status'))}<select name="statuses">${['active', 'paused', 'archived', 'all'].map((value, index) => `<option value="${esc(value)}">${esc(uiText(['Active', 'Paused', 'Archived', 'All'][index]))}</option>`).join('')}</select></label>
 <label id="preview-format" hidden>${esc(uiText('Placement'))}<select name="ad_format">${previewFormats
     .map(([v, l]) => `<option value="${v}">${esc(uiText(l))}</option>`)
     .join('')}</select></label>
@@ -85,11 +86,59 @@ function bindAdPreviews() {
   if (!form) return;
   // An empty choice is no account: Number('') would have picked the first one.
   const chosen = value => (value === '' ? undefined : targets[Number(value)]);
+  let generation = 0,
+    selection = null,
+    accumulated = [],
+    pending = false;
+  const reset = () => {
+    generation++;
+    selection = null;
+    accumulated = [];
+    pending = false;
+    $('#preview-results').textContent = '';
+  };
   const syncFormat = () => {
     $('#preview-format').hidden = chosen(form.elements.target.value)?.platform !== 'meta';
+    reset();
   };
   form.addEventListener('change', syncFormat);
+  form.addEventListener('input', reset);
   syncFormat();
+  const load = async (args, more = false) => {
+    const version = generation;
+    pending = true;
+    const button = $('#preview-load-more');
+    if (button) button.disabled = true;
+    try {
+      const r = await workspaceCall('previews', args);
+      if (version !== generation) return;
+      const seen = new Set(more ? accumulated.map(p => p.source_ad_id ?? p.ad_id) : []);
+      accumulated = (more ? accumulated : []).concat(
+        (r.previews ?? []).filter(p => {
+          const key = p.source_ad_id ?? p.ad_id;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }),
+      );
+      selection = {args: {...args, cursor: undefined}, cursor: r.has_more ? r.next_cursor : null};
+      $('#preview-results').innerHTML = previewResults({...r, previews: accumulated});
+    } catch (e) {
+      if (version !== generation) return;
+      $('#preview-results').innerHTML =
+        `<p class="form-note">${esc(uiText('No previews:'))} ${esc(errorMessage(e))}</p>`;
+      throw e;
+    } finally {
+      if (version === generation) {
+        pending = false;
+        if (button) button.disabled = false;
+      }
+    }
+  };
+  $('#preview-results').addEventListener('click', event => {
+    if (!event.target.closest('#preview-load-more') || pending || !selection?.cursor) return;
+    void load({...selection.args, cursor: selection.cursor}, true).catch(() => {});
+  });
   workspaceBind('#preview-form', async f => {
     const target = chosen(f.elements.target.value);
     if (!targets.length) throw Error(previewNoTarget(hidden));
@@ -98,28 +147,23 @@ function bindAdPreviews() {
       .split(/[\s,]+/)
       .map(s => s.trim())
       .filter(Boolean);
+    reset();
     $('#preview-results').innerHTML =
       `<p class="form-note">${esc(uiText('Reading the account’s ads and their previews…'))}</p>`;
-    try {
-      const r = await workspaceCall('previews', {
-        platform: target.platform,
-        account_id: target.account_id,
-        connection_id: target.connection_id,
-        ...(ids.length ? {ad_ids: ids.slice(0, 10)} : {}),
-        ...(target.platform === 'meta' ? {ad_format: f.elements.ad_format.value} : {}),
-      });
-      $('#preview-results').innerHTML = previewResults(r);
-    } catch (e) {
-      $('#preview-results').innerHTML =
-        `<p class="form-note">${esc(uiText('No previews:'))} ${esc(errorMessage(e))}</p>`;
-      throw e;
-    }
+    await load({
+      platform: target.platform,
+      account_id: target.account_id,
+      connection_id: target.connection_id,
+      statuses: [f.elements.statuses?.value ?? 'active'],
+      ...(ids.length ? {ad_ids: ids.slice(0, 10)} : {}),
+      ...(target.platform === 'meta' ? {ad_format: f.elements.ad_format.value} : {}),
+    });
   });
 }
 
 function previewResults(r) {
   if (r.explanation)
-    return `<p>${esc(r.explanation)}</p>${r.next_call ? recordDetails(r.next_call, uiText('The reviewed call that creates it')) : ''}${r.next_step ? `<p class="form-note">${esc(r.next_step)}</p>` : ''}`;
+    return `<p>${esc(uiText(r.explanation))}</p>${r.next_call ? recordDetails(r.next_call, uiText('The reviewed call that creates it')) : ''}${r.next_step ? `<p class="form-note">${esc(uiText(r.next_step))}</p>` : ''}`;
   const rows = r.previews
     .map(p => {
       const links = p.links.length
@@ -137,21 +181,25 @@ function previewResults(r) {
         : p.error && typeof renderSourceDiagnostic === 'function'
           ? // V2-RPT-05: the provider's own refusal (message, request ID) through the shell's diagnostic renderer.
             renderSourceDiagnostic(p.error)
-          : `<span class="form-note">${esc(p.error?.message ?? p.note ?? uiText('The platform returned no preview link for this ad.'))}</span>`;
+          : `<span class="form-note">${esc(p.error?.message ?? uiText(p.note ?? 'The platform returned no preview link for this ad.'))}</span>`;
       const when = p.expires_at
         ? uiText(' · link expires {date}', {date: date(p.expires_at)})
         : p.expires
-          ? ' · ' + p.expires
+          ? ' · ' + uiText(p.expires)
           : '';
-      return `<div class="token-row"><div><strong>${esc(p.name ?? uiText('Untitled'))}</strong><small>${esc(p.ad_id)}${esc(when)}</small></div><div class="preview-links">${links}</div></div>`;
+      return `<div class="token-row"><div><strong>${esc(p.name ?? uiText('Untitled'))}</strong><small>${esc(p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id)}${esc(when)}</small></div><div class="preview-links">${links}</div></div>`;
     })
     .join('');
   const missing = r.not_found?.length
-    ? `<p class="form-note">${esc(uiText('Not found:'))} ${esc(r.not_found.join(', '))}. ${esc(r.not_found_reason ?? '')}</p>`
+    ? `<p class="form-note">${esc(uiText('Not found:'))} ${esc(r.not_found.join(', '))}. ${esc(uiText(r.not_found_reason ?? ''))}</p>`
     : '';
   return (
-    (rows || blank(uiText('The account has no ads to preview.'))) +
+    (rows || blank(uiText('No ads match this preview selection.'))) +
     missing +
-    `<p class="form-note">${esc(r.meaning)}</p>`
+    `<p class="form-note">${esc(uiText(r.meaning))}</p>` +
+    (r.selection_note ? `<p class="form-note">${esc(uiText(r.selection_note))}</p>` : '') +
+    (r.has_more && r.next_cursor
+      ? `<button class="button" id="preview-load-more" type="button">${esc(uiText('Load more'))}</button>`
+      : '')
   );
 }

@@ -41,6 +41,8 @@ test('the read authorizers are the chain’s, each its provider’s, at the stag
     [
       ['google_ads_native_action', 'google_ads_global_planning_read', 'after_families'],
       ['google_business_native_action', 'google_business_place_action_discovery', 'before_families'],
+      // V2-PRV-01 admits only the two-field ad identity probe; the observer refuses foreign ownership.
+      ['meta_native_action', 'meta_ad_identity_read', 'before_families'],
       ['meta_native_action', 'meta_dataset_read', 'before_families'],
       ['tiktok_native_action', 'tiktok_qualified_read', 'before_families'],
       ['snapchat_native_action', 'snapchat_catalog_comparison_read', 'before_families'],
@@ -76,6 +78,10 @@ test('each authorizer claims its own documented requests, and none of another pr
         action: 'gmb_engagement_ops/LIST_PLACE_ACTION_TYPE_METADATA',
       },
     ),
+    meta_ad_identity_read: plan('meta_native_action', 'GET', '/v26.0/150', {
+      action: 'meta_ad_id_get',
+      query: {fields: 'id,account_id'},
+    }),
     meta_dataset_read: plan('meta_native_action', 'GET', '/v26.0/123456/stats', {query: {aggregation: 'event'}}),
     tiktok_qualified_read: plan('tiktok_native_action', 'GET', '/v1.3/catalog/set/get/'),
     snapchat_catalog_comparison_read: plan('snapchat_native_action', 'GET', '/v1/adaccounts/123', {

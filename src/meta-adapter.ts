@@ -114,10 +114,32 @@ const typedLists: Record<string, string> = {
   creative_id: 'meta_creative_list',
   custom_audience_id: 'meta_custom_audience_list',
 };
-/** Meta's ownership learning from a successful account-scoped read. */
+/** A minimal identity probe for named ads; every other unknown node still needs collection ownership. */
+function metaAdIdentityRead(plan: CompiledRequest): string | undefined {
+  if (
+    plan.gateway !== 'meta_native_action' ||
+    plan.action !== 'meta_ad_id_get' ||
+    plan.method !== 'GET' ||
+    !plan.readOnly ||
+    plan.specialTransport ||
+    (plan.body !== undefined && plan.body !== null) ||
+    (plan.origin && plan.origin !== 'https://graph.facebook.com') ||
+    Object.keys(plan.query).length !== 1 ||
+    plan.query.fields !== 'id,account_id'
+  )
+    return undefined;
+  return metaRoute('([1-9][0-9]{0,31})$').exec(plan.path)?.[1];
+}
+/** Meta's ownership learning from a successful account-scoped read or an exact identity proof. */
 function observeMeta(plan: CompiledRequest, connection: Connection, id: string, data: unknown, store: Store) {
   observeMetaPixels(plan, connection, id, data, store);
   const d = data as JsonObject;
+  const probe = metaAdIdentityRead(plan);
+  if (probe) {
+    if (!d || d.id !== probe || d.account_id !== id)
+      throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
+    store.rememberResource(connection, id, probe);
+  }
   if (ownedCollections.test(plan.path) && Array.isArray(d?.data)) {
     // Explicit foreign ownership can never grant access, even on an account edge. Audience lists additionally
     // show shared resources, so they require an explicit matching account rather than relying on the edge.
@@ -251,6 +273,13 @@ export const metaHooks: ProviderHooks = Object.freeze({
         assertMetaLabelScope(connection);
     },
     authorizers: Object.freeze([
+      Object.freeze({
+        name: 'meta_ad_identity_read',
+        stage: 'before_families' as const,
+        claims: (plan: CompiledRequest) => metaAdIdentityRead(plan) !== undefined,
+        // The observer withholds a mismatched identity before the native read can return or be cached.
+        authorize: (plan: CompiledRequest) => metaAdIdentityRead(plan) !== undefined,
+      }),
       Object.freeze({
         name: 'meta_dataset_read',
         stage: 'before_families' as const,

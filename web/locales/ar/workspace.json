@@ -1194,6 +1194,7 @@
   "The X account timezone must be returned before interpreting reporting dates.": "يجب الحصول على المنطقة الزمنية لحساب X قبل تفسير تواريخ التقارير.",
   "The X line item belongs to another campaign.": "يتبع بند X الإعلاني حملة أخرى.",
   "The X login or permissions changed. Restart inventory.": "تغيّر تسجيل دخول X أو صلاحياته. ابدأ الاستعراض من جديد.",
+  "The account has no ads to preview.": "لا توجد إعلانات في الحساب لمعاينتها.",
   "The account timezone is not recognized.": "المنطقة الزمنية للحساب غير معروفة.",
   "The account-scoped native collection confirmed access to this exact resource.": "أكدت مجموعة الموارد الأصلية ضمن نطاق الحساب إمكانية الوصول إلى هذا المورد تحديداً.",
   "The ad account lists more pixels than one ledger reads.": "يدرج الحساب الإعلاني وحدات بكسل أكثر مما يقرؤه سجل واحد.",

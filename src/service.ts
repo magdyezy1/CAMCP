@@ -396,7 +396,7 @@ export class MirrorService {
     [previewTool.name]: {
       category: 'preview',
       run: async ({input, actor, tool, requestId, start, call}) =>
-        this.wrap(await new AdPreviews(call).handle(input, actor), requestId, start, tool),
+        this.wrap(await new AdPreviews(call, this.store).handle(input, actor), requestId, start, tool),
     },
     [workspaceTool.name]: {
       category: 'workspace',

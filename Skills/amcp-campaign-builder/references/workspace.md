@@ -1506,6 +1506,6 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| — | Bounded native previews of existing ads; nothing is saved. | **`platform`**, **`account_id`**, `connection_id`, `ad_ids`, `limit`, `ad_format` | provider reads | reader |
+| — | Bounded native previews of existing ads; nothing is saved. | **`platform`**, **`account_id`**, `connection_id`, `ad_ids`, `limit`, `ad_format`, `statuses`, `campaign_ids`, `adset_ids`, `cursor` | provider reads | reader |
 
 <!-- first-party-contracts:end -->

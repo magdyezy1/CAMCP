@@ -5,46 +5,53 @@ tier: operator
 
 # Ad previews
 
-`amcp_ad_previews` gathers each platform's own preview links for ads that already exist in an account. On the
-website, *Preview your ads* on the Media library page does the same. It is read-only: nothing in the account changes.
+`amcp_ad_previews` returns existing ads' preview links without changing the account. The website's Media library
+offers the same reads through *Preview your ads*, with status selection and Load more.
 
 ```json
 {"platform": "meta", "account_id": "111", "ad_format": "INSTAGRAM_STORY", "limit": 5}
 ```
 
-Without `ad_ids`, AMCP previews the first `limit` ads (at most 10). With `ad_ids`, it previews those, and lists any it
-could not find. Each result gives the ad's ID and name, its preview links, and the link's expiry where the platform
-states one.
+Without `ad_ids`, `limit` defaults to 5 (maximum 10), and `statuses` to `["active"]`. Other choices are `paused`,
+`archived` and `all`. Named IDs ignore statuses. Optional `campaign_ids` and `adset_ids` each accept 1–50 IDs;
+both filters must match, including for named IDs. LinkedIn uses campaign groups and native campaigns respectively;
+Snapchat uses ad squads in `adset_ids`. Parent filters are tool inputs.
+
+`ad_ids` name ads on Meta, TikTok and Reddit, creatives on Snapchat and LinkedIn. Bare LinkedIn numbers become
+creative URNs. Google accepts asset-group IDs/resources or video `adGroupAds` resources. Named reads search beyond
+the first list page. Missing IDs have `not_found` and `not_found_reason`.
+
+Results include `previews`, `next_cursor`, `has_more` and `order`. Continue with `cursor: next_cursor` and the same
+selection. Five-minute signed cursors bind workspace, user, connection, account, permissions, filters, limit and
+Meta placement. Changed logins, permissions or surplus-page identities invalidate continuation. Each call scans
+at most ten native list pages. LinkedIn uses native creative-ID order. Snapchat requests `created_desc` unless
+reading deleted entities: its API forbids combining that flag with sorting. Other reads report native order.
+
+Snapchat must prove creative ownership through the account creative list before previewing an ad's `creative_id`.
+The shared scan budget reserves ownership reads. `selection_incomplete` and `selection_note` disclose an unresolved
+proof or parent match; an incomplete search does not prove foreign ownership. Listed items include `source_ad_id`,
+preserving separate ads that share a creative.
 
 ## Per platform
 
-| Platform | How AMCP reads it | Evidence |
-|---|---|---|
-| Meta | The account's ads (`meta_ad_list`), then `GET /{ad_id}/previews` with `ad_format` (default `MOBILE_FEED_STANDARD`) | Placement values: the captured catalog's `get_ad_preview` contract |
-| TikTok | The account's ads (`/ad/get/`), then `POST /creative/ads_preview/create/` with `preview_type: AD` | `src/tiktok-preview-reads.ts` (API for Business v1.3, checked 2026-09-27); links last 30 days |
-| Snapchat | The account's creatives, then `GET /creatives/{id}/creative_preview` | Captured catalog route |
-| LinkedIn | The account's creatives (`q=criteria` finder), then `GET /rest/adPreviews?q=creative&creative=urn:li:sponsoredCreative:…` | The creatives finder as `src/linkedin-dsc-edits.ts` uses it; the preview parameters of AMCP's `get_ad_preview` workflow |
-| Reddit | The account's ads (`LIST_ADS`); each ad carries `preview_url` while `preview_expiry` is ahead | Pinned Reddit v3 OpenAPI |
-| Google Ads | Not a read: shareable previews are created by `generateShareablePreviews`, which AMCP reviews as a write. The result names the `amcp_write` call to prepare | `src/google-preview-writes.ts` |
-| X | Not called: the Tweet preview route exists, but its parameters are not pinned in AMCP's evidence | — |
-| Microsoft Advertising, DV360, Criteo, Apple Ads | No preview route in their APIs | — |
-
-**Limitation.** The response shapes of the Meta, Snapchat and LinkedIn preview reads are not pinned in AMCP's vendor
-documents, and the official pages could not be fetched from the review environment. So AMCP does not depend on field
-names there. It returns the HTTPS links on the platform's own hosts that appear in the response, including the
-`src` of preview iframe markup. It never returns the markup itself, and never a link to another host (an ad's copy can
-contain arbitrary links).
+| Platform | Read and evidence |
+|---|---|
+| Meta | Account ads, or named `id,account_id` proof followed by metadata; `GET /{ad_id}/previews`. Captured placement enum, default `MOBILE_FEED_STANDARD`. |
+| TikTok | Filtered `/ad/get/`, then `POST /creative/ads_preview/create/`, `preview_type: AD`. Qualified contract: `src/tiktok-preview-reads.ts`; 30-day links. |
+| Snapchat | Ads → account creatives (ownership search limit 1000) → `GET /creatives/{id}/creative_preview`. [Ads](https://developers.snap.com/marketing-api/Ads-API/ads), [paging](https://developers.snap.com/marketing-api/Ads-API/api-patterns). |
+| LinkedIn | Account creatives `q=criteria` → `GET /rest/adPreviews?q=creative&creative=urn:li:sponsoredCreative:…`. Captured preview workflow. |
+| Reddit | Scoped `LIST_ADS`; `preview_url` works while `preview_expiry` is ahead. Pinned v3 OpenAPI. |
+| Google Ads | `generateShareablePreviews` is a reviewed write; result supplies the `amcp_write` preparation call. `src/google-preview-writes.ts`. |
+| X | Preview parameters remain unqualified; no automatic call. |
+| Microsoft, DV360, Criteo, Apple Ads | No readable preview route. |
 
 ## Access and safety
 
-- Every read goes through the ordinary native read path: the connection's accounts, the owner's grants, ownership
-  checks, rate limits and the audit, which records each read by size and hash, not content. Preview links are
-  returned and never stored.
-- Listing the account's ads first establishes that each ad belongs to the account (the same ownership rule as every
-  single-object read). An ID the list does not return is not previewed. TikTok scopes both reads by `advertiser_id`
-  itself, so named TikTok ads need no list.
-- LinkedIn previews are scoped by the new ownership rule in `src/linkedin-ad-previews.ts`: a creative is previewable
-  through the connection for five minutes after the account's creatives list returned it. Before that, the refusal
-  names that list as the read to run.
-- Preview links open for anyone who has them and expire (TikTok after 30 days, Reddit at `preview_expiry`, others when
-  the platform decides). Share them only with people who may see those ads.
+Native reads enforce connection accounts, grants, ownership, rate limits and audit. Audit stores sizes/hashes;
+preview links are returned without storage. Named Meta identity must match before broader reads or caching;
+full unknown-node reads remain refused. TikTok and Reddit use account-scoped filters. Explicit foreign ownership
+is refused. LinkedIn finder ownership lasts five minutes.
+
+Only HTTPS platform-host links are returned, including iframe sources; markup itself is withheld. Meta preview
+response fields remain unpinned. Links can be shared and expire: Reddit states its expiry, TikTok lasts 30 days,
+and other providers decide theirs. Share only with authorized viewers.

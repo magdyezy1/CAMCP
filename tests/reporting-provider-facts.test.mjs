@@ -7,6 +7,7 @@ import {portfolioAdapters} from '../dist/src/portfolio.js';
 import {reconcilePortfolio} from '../dist/src/portfolio-reconciliation.js';
 import {linkedAdStep, linkedPlanAdIds, linkedPerformanceSupported} from '../dist/src/creative-performance.js';
 import {AdPreviews} from '../dist/src/ad-previews.js';
+import {Store} from '../dist/src/store.js';
 
 /**
  * ARC-01 (reporting, wave 4c round 6): the reporting package's shared modules (the allocation plan and its outcome,
@@ -117,18 +118,60 @@ test('linked-ad performance joins the steps of the gateways and creation actions
   );
 });
 
-test('the ad previews read each platform under the gateway its switch named, and Google’s write is prepared under its own', async () => {
+test('the ad previews read each platform under the gateway its switch named, and Google’s write is prepared under its own', async t => {
+  const actor = {tenantId: 't', userId: 'u', role: 'reader'},
+    store = new Store(':memory:', Buffer.alloc(32, 15).toString('base64'));
+  t.after(() => store.close());
+  for (const [index, gateway] of [
+    'meta_native_action',
+    'tiktok_native_action',
+    'snapchat_native_action',
+    'linkedin_native_action',
+    'reddit_native_action',
+  ].entries())
+    store.putConnection(
+      {...actor, role: 'admin'},
+      {
+        id: 'aaaaaaaa-1111-4111-8111-00000000000' + index,
+        tenantId: 't',
+        gateway,
+        accounts: ['7'],
+        enabled: true,
+        label: 'Synthetic',
+        scopes: ['r_ads', 'ads_read'],
+      },
+      {accessToken: 'synthetic'},
+    );
   const responses = {
-    meta_ad_list: {data: [{id: '1', name: 'Ad'}]},
+    meta_ad_list: {data: [{id: '1', name: 'Ad', effective_status: 'ACTIVE'}]},
     meta_ad_id_previews_get: {data: [{body: '<iframe src="https://www.facebook.com/ads/api/preview_iframe.php?d=1">'}]},
-    tiktok_ad_list: {data: {list: [{ad_id: '1', ad_name: 'Ad'}]}},
+    tiktok_ad_list: {
+      data: {
+        list: [{ad_id: '1', ad_name: 'Ad', operation_status: 'ENABLE'}],
+        page_info: {page: 1, page_size: 5, total_number: 1, total_page: 1},
+      },
+    },
     tiktok_ad_preview: {data: {preview_link: 'https://ads.tiktok.com/hc/preview/1'}},
-    snapchat_creative_list: {creatives: [{creative: {id: 'c1', name: 'Creative'}}]},
+    snapchat_ad_list: {
+      request_status: 'SUCCESS',
+      ads: [{ad: {id: 'a1', creative_id: 'c1', name: 'Ad', status: 'ACTIVE'}}],
+    },
+    snapchat_creative_list: {request_status: 'SUCCESS', creatives: [{creative: {id: 'c1', name: 'Creative'}}]},
     snapchat_creatives_creative_id_creative_preview_get: {snap_preview_link: 'https://www.snapchat.com/preview/1'},
-    linkedin_rest_ad_accounts_ad_account_id_creatives_get: {elements: [{id: 'urn:li:sponsoredCreative:1', name: 'C'}]},
+    linkedin_rest_ad_accounts_ad_account_id_creatives_get: {
+      elements: [{id: 'urn:li:sponsoredCreative:1', name: 'C', intendedStatus: 'ACTIVE'}],
+    },
     linkedin_rest_ad_previews_get: {elements: [{preview: '<iframe src="https://www.linkedin.com/embed/1">'}]},
     LIST_ADS: {
-      data: [{id: 'a1', name: 'Ad', preview_url: 'https://www.reddit.com/preview/1', preview_expiry: '2999-01-01'}],
+      data: [
+        {
+          id: 'a1',
+          name: 'Ad',
+          configured_status: 'ACTIVE',
+          preview_url: 'https://www.reddit.com/preview/1',
+          preview_expiry: '2999-01-01',
+        },
+      ],
     },
   };
   const reads = [],
@@ -136,8 +179,7 @@ test('the ad previews read each platform under the gateway its switch named, and
       const action = input.action ?? input.arguments?.action;
       reads.push([tool, action]);
       return {success: true, data: {data: responses[action]}};
-    }),
-    actor = {tenantId: 't', userId: 'u', role: 'reader'};
+    }, store);
   const expected = {
     meta: [
       ['meta_native_action', 'meta_ad_list'],
@@ -148,6 +190,7 @@ test('the ad previews read each platform under the gateway its switch named, and
       ['tiktok_native_action', 'tiktok_ad_preview'],
     ],
     snapchat: [
+      ['snapchat_native_action', 'snapchat_ad_list'],
       ['snapchat_native_action', 'snapchat_creative_list'],
       ['snapchat_native_action', 'snapchat_creatives_creative_id_creative_preview_get'],
     ],

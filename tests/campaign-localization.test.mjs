@@ -635,6 +635,7 @@ test('Arabic preview labels preserve placement enums and exact requested ad IDs'
         account_id: '001',
         connection_id: 'login-001',
         ad_ids: ['0001', '0002'],
+        statuses: ['active'],
         ad_format: 'INSTAGRAM_STORY',
       },
     },

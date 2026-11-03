@@ -1,5 +1,6 @@
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {MirrorError} from './errors.js';
 
 /**
  * A LinkedIn ad preview names its creative in the query (GET /rest/adPreviews?q=creative&creative=urn:li:sponsoredCreative:…,
@@ -42,6 +43,16 @@ export function observeLinkedInCreatives(
   if (!plainRead(p) || decode(p.path) !== '/rest/adAccounts/' + selected + '/creatives') return;
   const elements = (data as JsonObject)?.elements;
   if (p.query.q !== 'criteria' || !Array.isArray(elements)) return;
+  if (
+    elements.some(
+      row =>
+        row &&
+        typeof row === 'object' &&
+        (row as JsonObject).account !== undefined &&
+        (row as JsonObject).account !== 'urn:li:sponsoredAccount:' + selected,
+    )
+  )
+    throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
   for (const row of elements) {
     const creative = creativeUrn.exec(String((row as JsonObject)?.id ?? ''))?.[1];
     if (creative) store.rememberResource(c, selected, 'creatives/' + creative);

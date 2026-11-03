@@ -147,7 +147,8 @@ test('RPT-07: drifting, foreign, repeated or parentless parent records refuse th
         url.pathname.endsWith('/creatives')
           ? {...body, elements: body.elements.map(c => ({...c, account: 'urn:li:sponsoredAccount:999'}))}
           : body,
-      ['REPORT_ACCOUNT_MISMATCH'],
+      // V2-PRV-01 refuses explicit foreign ownership at observation, before the report's parent join.
+      ['ACCOUNT_SCOPE_MISMATCH'],
     ],
     [
       'linkedin',

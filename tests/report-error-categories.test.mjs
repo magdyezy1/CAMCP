@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {MirrorError, errorRemedy, nestedError, providerDataAction, providerDataCodes} from '../dist/src/errors.js';
 import {reportErrorCategory, reportSourceError} from '../dist/src/report-errors.js';
 import {AdPreviews} from '../dist/src/ad-previews.js';
+import {Store} from '../dist/src/store.js';
 
 const tiktok = {platform: 'tiktok', account_id: '1', connection_id: 'c'};
 
@@ -146,11 +147,30 @@ test('MCP keeps category report for provider-data codes and gives them the retry
   assert.match(errorRemedy(new MirrorError('INCOMPLETE_REPORT', 'm')).action, /Narrow it/);
 });
 
-test('a preview error keeps the upstream detail', async () => {
+test('a preview error keeps the upstream detail', async t => {
+  const actor = {tenantId: 't', userId: 'u', role: 'reader'},
+    store = new Store(':memory:', Buffer.alloc(32, 14).toString('base64'));
+  t.after(() => store.close());
+  store.putConnection(
+    {...actor, role: 'admin'},
+    {
+      id: 'aaaaaaaa-1111-4111-8111-000000000001',
+      tenantId: 't',
+      gateway: 'linkedin_native_action',
+      accounts: ['7'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: ['r_ads'],
+    },
+    {accessToken: 'synthetic'},
+  );
   const previews = new AdPreviews(async (tool, input) => {
     const action = input.action ?? input.arguments?.action;
     if (action === 'linkedin_rest_ad_accounts_ad_account_id_creatives_get')
-      return {success: true, data: {data: {elements: [{id: 'urn:li:sponsoredCreative:1', name: 'C'}]}}};
+      return {
+        success: true,
+        data: {data: {elements: [{id: 'urn:li:sponsoredCreative:1', name: 'C', intendedStatus: 'ACTIVE'}]}},
+      };
     return {
       success: false,
       error: {
@@ -159,8 +179,7 @@ test('a preview error keeps the upstream detail', async () => {
         details: {http_status: 400, request_id: 'abc', upstream: {message: 'Invalid account'}},
       },
     };
-  });
-  const actor = {tenantId: 't', userId: 'u', role: 'reader'};
+  }, store);
   const result = await previews.handle({platform: 'linkedin', account_id: '7'}, actor);
   const item = result.previews[0];
   assert.equal(item.error.code, 'UPSTREAM_ERROR');

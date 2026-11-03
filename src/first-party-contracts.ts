@@ -1822,7 +1822,7 @@ const rows: Record<string, Row[]> = {
       null,
       'Bounded native previews of existing ads; nothing is saved.',
       ['platform', 'account_id'],
-      ['connection_id', 'ad_ids', 'limit', 'ad_format'],
+      ['connection_id', 'ad_ids', 'limit', 'ad_format', 'statuses', 'campaign_ids', 'adset_ids', 'cursor'],
       reads(),
       'reader',
     ),

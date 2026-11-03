@@ -343,9 +343,11 @@ test('the cursor lists keep has_more and next_cursor, and a followed cursor neve
 // tests/portfolio-adapter-contract.test.mjs; asset_usage: tests/meta-asset-usage.test.mjs,
 // tests/google-image-usage.test.mjs and tests/snapchat-asset-usage.test.mjs assert has_more and next_cursor). compare
 // was listed here with a suite that never checked its paging fields; it is covered above.
+// Preview pages and native continuations: tests/ad-previews-selection.test.mjs (V2-PRV-01).
 const pagedElsewhere = {
   amcp_workspace: ['portfolio'],
   amcp_media: ['asset_usage'],
+  amcp_ad_previews: [null],
 };
 test('every paged AMCP action is held to the convention here, or named with the suite that pages it', t => {
   const f = fixture(t);

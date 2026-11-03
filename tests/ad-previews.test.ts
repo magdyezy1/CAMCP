@@ -18,7 +18,7 @@ function fixture(gateway: string, account: string, respond: (url: URL, init?: Re
   store.putConnection(
     {tenantId: 't', userId: 'admin', role: 'admin'},
     {
-      id: 'c',
+      id: 'aaaaaaaa-1111-4111-8111-000000000001',
       tenantId: 't',
       gateway,
       accounts: [account],
@@ -73,10 +73,18 @@ test('Meta: lists the account’s ads, then reads each preview for the placement
     if (url.pathname === '/v26.0/act_111/ads')
       return Response.json({
         data: [
-          {id: '901', name: 'Spring'},
-          {id: '902', name: 'Summer'},
-        ],
+          {id: '901', name: 'Spring', effective_status: 'ACTIVE'},
+          {id: '902', name: 'Summer', effective_status: 'ACTIVE'},
+        ].slice(0, Number(url.searchParams.get('limit'))),
       });
+    if (/^\/v26\.0\/90[12]$/.test(url.pathname))
+      return Response.json({
+        id: url.pathname.split('/').at(-1),
+        name: 'Summer',
+        account_id: '111',
+        effective_status: 'PAUSED',
+      });
+    if (url.pathname === '/v26.0/999') return Response.json({id: '999', account_id: '222'});
     if (/^\/v26\.0\/90[12]\/previews$/.test(url.pathname))
       return Response.json({
         data: [
@@ -100,7 +108,7 @@ test('Meta: lists the account’s ads, then reads each preview for the placement
     // Ad names are provider content, and the result says so.
     assert.match(r.meta.untrusted_provider_content, /third-party text/);
     assert.match(f.calls[1]!.query, /ad_format=INSTAGRAM_STORY/);
-    // An ad not in the account's list is never read.
+    // A named ID is checked directly, and a foreign identity never reaches a preview read.
     const other = await f.previews({platform: 'meta', ad_ids: ['902', '999']});
     assert.deepEqual(
       other.data.previews.map((p: JsonObject) => p.ad_id),
@@ -116,7 +124,14 @@ test('Meta: lists the account’s ads, then reads each preview for the placement
 test('TikTok: previews each ad by advertiser and returns the preview link', async () => {
   const f = fixture('tiktok_native_action', '777', url => {
     if (url.pathname === '/open_api/v1.3/ad/get/')
-      return Response.json({code: 0, message: 'OK', data: {list: [{ad_id: '5001', ad_name: 'Launch'}], page_info: {}}});
+      return Response.json({
+        code: 0,
+        message: 'OK',
+        data: {
+          list: [{ad_id: '5001', ad_name: 'Launch', operation_status: 'ENABLE'}],
+          page_info: {page: 1, page_size: 5, total_number: 1, total_page: 1},
+        },
+      });
     if (url.pathname === '/open_api/v1.3/creative/ads_preview/create/')
       return Response.json({
         code: 0,
@@ -138,6 +153,11 @@ test('TikTok: previews each ad by advertiser and returns the preview link', asyn
 
 test('Snapchat: previews the account’s creatives', async () => {
   const f = fixture('snapchat_native_action', 'acct1', url => {
+    if (url.pathname === '/v1/adaccounts/acct1/ads')
+      return Response.json({
+        request_status: 'SUCCESS',
+        ads: [{ad: {id: 'a1', creative_id: 'cr1', name: 'Snap one', status: 'ACTIVE'}}],
+      });
     if (url.pathname === '/v1/adaccounts/acct1/creatives')
       return Response.json({
         request_status: 'SUCCESS',
@@ -153,7 +173,12 @@ test('Snapchat: previews the account’s creatives', async () => {
     const r = await f.previews({platform: 'snapchat'});
     assert.equal(r.success, true, JSON.stringify(r));
     assert.deepEqual(r.data.previews, [
-      {ad_id: 'cr1', name: 'Snap one', links: ['https://app.snapchat.com/web/deeplink/snapcode?x=1']},
+      {
+        ad_id: 'cr1',
+        source_ad_id: 'a1',
+        name: 'Snap one',
+        links: ['https://app.snapchat.com/web/deeplink/snapcode?x=1'],
+      },
     ]);
   } finally {
     f.store.close();
@@ -163,7 +188,11 @@ test('Snapchat: previews the account’s creatives', async () => {
 test('LinkedIn: a creative preview needs the account’s creatives list first, then works', async () => {
   const f = fixture('linkedin_native_action', '505', url => {
     if (url.pathname === '/rest/adAccounts/505/creatives')
-      return Response.json({elements: [{id: 'urn:li:sponsoredCreative:42', name: 'Carousel'}]});
+      return Response.json({
+        elements: url.searchParams.get('creatives')?.includes(':43')
+          ? []
+          : [{id: 'urn:li:sponsoredCreative:42', name: 'Carousel'}],
+      });
     if (url.pathname === '/rest/adPreviews')
       return Response.json({
         elements: [{preview: '<iframe src="https://www.linkedin.com/ads/preview?creative=42"></iframe>'}],
@@ -216,8 +245,20 @@ test('Reddit: the ad itself carries its preview link while preview_expiry is ahe
     if (url.pathname === '/api/v3/ad_accounts/a2_111/ads')
       return Response.json({
         data: [
-          {id: '71', name: 'Live', preview_url: 'https://www.reddit.com/?ad=abc', preview_expiry: later},
-          {id: '72', name: 'Expired', preview_url: 'https://www.reddit.com/?ad=def', preview_expiry: earlier},
+          {
+            id: '71',
+            name: 'Live',
+            configured_status: 'ACTIVE',
+            preview_url: 'https://www.reddit.com/?ad=abc',
+            preview_expiry: later,
+          },
+          {
+            id: '72',
+            name: 'Expired',
+            configured_status: 'ACTIVE',
+            preview_url: 'https://www.reddit.com/?ad=def',
+            preview_expiry: earlier,
+          },
         ],
         pagination: {next_url: null},
       });
