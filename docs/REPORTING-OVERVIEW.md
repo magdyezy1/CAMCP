@@ -107,6 +107,96 @@ Detailed sources use their preset metrics. Additional `native_metrics` at those 
 `INVALID_NATIVE_METRICS`; clear them before selecting a detailed level. Campaign-level native metrics retain their
 existing platform-specific validation. Missing metrics remain unavailable.
 
+## Objective sources
+
+Each row retains the native `objective`, its AMCP `objective_group`, `objective_source` and `objective_reason`.
+Resolution follows this order: an explicit campaign-position override; a saved legacy hand-chosen `objective`;
+the provider's declared objective; conservative inference or mapping where supported; the report's fallback;
+otherwise unknown with a reason. The server supplies the platform tables and available choices through bootstrap.
+
+- `objective_fallback` applies when the platform gives no usable objective. The website labels it **Objective when
+  the platform gives none** and writes it only after the user changes that selection. Leaving it unset preserves
+  provider-led resolution.
+- `objective_overrides` is a per-source map of campaign-position IDs to chosen groups, with at most 500 entries.
+  For LinkedIn, the campaign position is a campaign group. Unmatched overrides are retained and reported; native IDs
+  on rows remain unchanged.
+- A legacy `objective` other than `unknown` keeps overriding the source for saved-report compatibility. A legacy
+  `unknown` is treated as absent. No saved definition is silently converted.
+
+| Source label | Meaning |
+|---|---|
+| `user_override` | A campaign override or saved hand-chosen objective |
+| `provider` | An objective the platform declares and AMCP groups explicitly |
+| `provider_mapped` | A group mapped from other declared platform facts |
+| `provider_inferred` | A group inferred conservatively from an unlisted native objective |
+| `user_fallback` | The chosen fallback after the provider paths gave no usable group |
+| `unknown` | No usable objective; the row explains why |
+
+`mixed` is a row label for a LinkedIn group with different delivered objectives. It cannot be a fallback, override
+or filter choice. Unknown stays unknown; neither the website nor MCP invents a default. Objective regrouping can
+change monitor incident fingerprints, so an earlier incident can remain open beside one for the new group.
+
+## TikTok collection
+
+Both campaign totals and guided daily detail use the same page rules. Every page must echo its requested page and
+size. Missing page metadata, changing totals, duplicate dimensional tuples, oversized pages or more returned rows
+than declared refuse the source. A different `total_page` basis is recorded while the declared pages are read.
+Fewer rows than declared can remain partial, with both declared and returned counts.
+
+TikTok's own additive totals decide completeness when comparable: spend matches within half a cent per returned
+row; impressions, clicks and conversions match exactly. Matching totals can establish completeness despite a row
+count disagreement, with a warning. A gap makes the source partial and names the two values. Missing, non-numeric
+or `-` totals fall back to row counts; unavailable row metrics stay unavailable. Overview retains partial sources;
+`amcp_reporting` evidence captures require complete collections.
+
+Requests include the level's `STATUS_ALL` filter to include deleted objects. If TikTok explicitly refuses that
+optional filter, AMCP retries the read once without it and warns that deleted campaigns may be missing. Daily detail
+can cover 1–366 closed advertiser-local days in inclusive, non-overlapping spans of at most 30 days; campaign totals
+are limited to 365 days. The existing row, page and request bounds still apply. Cross-level agreement is separate
+work; matching native totals does not claim that campaign, ad-group and ad reports reconcile.
+
+## LinkedIn reporting
+
+The campaign position reads campaign groups and their delivered campaigns; the middle position reads native
+campaigns; the ad position reads creatives. A group's own objective wins. Without one, only delivered campaigns
+establish a shared objective; different delivered values produce Mixed, while incomplete companion coverage keeps
+the objective unknown. Names and parents are current metadata, not historical delivery-time values.
+
+| Native objective | Result used for advice |
+|---|---|
+| Brand awareness | Members reached, non-additive; conversions remain unavailable |
+| Website visits; job applicants | Landing-page clicks |
+| Engagement | Clicks, explicitly labelled because the engagement result is not in the API |
+| Video views | Video views |
+| Lead generation | `oneClickLeads`; `qualifiedLeads` is shown separately and never added |
+| Website conversions | `externalWebsiteConversions` |
+| Talent leads | `talentLeads` |
+
+Mixed groups retain additive spend and impressions and separate results by objective instead of combining unlike
+results. Spend omitted alongside explicit zero impressions and clicks is zero under the LinkedIn D3 rule and is
+marked `omitted_as_zero`; other absent cost stays unavailable. Reach is unavailable for windows over 92 days and
+after a window is split. Frequency stays unavailable.
+
+Every position uses inclusive UTC report days, including a rolling window resolved near midnight in another zone.
+Creative detail is limited to the current UTC month and previous five calendar months; too-old or rounded windows
+explain the requested and returned dates. Empty periods remain ambiguous, and are refused rather than zero-filled.
+The current provider attribution line is retained; conversion-rule windows are not joined into Overview yet.
+
+At 15,000 rows, AMCP halves the date window down to one day. One period shares at most 32 analytics reads across
+all metric batches and campaign/group pivots; metadata reads retain their own bounds. A capped day or exhausted
+budget remains partial with its reason. Additive fields sum exactly across disjoint spans; an absent entity or metric
+in a span keeps its total unknown. At most 10,000 entities are retained, with a warning at that bound. Native metric
+selections remain limited to 18; when base/result fields plus selected metrics need two requests, their entity/date
+keys must agree before joining.
+
+## Contract stamps and notices
+
+New runs freeze a stamp per platform in `platform_contracts`: TikTok uses `tiktok-collection-v2`, LinkedIn
+`linkedin-levels-v2`. A saved view or schedule whose previous finished snapshot used another stamp receives one
+`notices` entry for the relevant change. TikTok's notice explains that including deleted campaigns can increase
+past spend; LinkedIn's explains the new native positions. The next finished run with the same stamps needs no new
+notice. Existing snapshots keep their recorded rows, levels and labels; saved definitions are not rewritten.
+
 ## Completeness labels
 
 A source is complete only when every page was collected (`collection_complete`), its measurement is not known to be
@@ -320,8 +410,9 @@ Use a stable `idempotency_key` for creation. `update_schedule` needs the schedul
 report. `remove_schedule` requires its current revision. A creation key belonging
 to a deleted schedule cannot resurrect it. An explicit new schedule uses a new key.
 
-`source_defaults` optionally stores account-free per-platform `objective` and
-`native_metrics`; unsupported fields or embedded account identities are rejected.
+`source_defaults` optionally stores account-free per-platform `objective_fallback`, `native_metrics`, `level` and
+`report_options`, plus the legacy `objective`. Campaign-specific overrides and embedded account identities are
+excluded from these reusable defaults; unsupported fields are rejected.
 Schedules keep their original identity, destination ownership and actor checks.
 
 ## Dates and empty reports
@@ -335,6 +426,24 @@ Meta Insights must return an explicit `data` array. Missing or malformed collect
 ## Troubleshooting source failures
 
 Failed sources expand automatically and show the provider error code/message, account, failed request stage, request ID and a suggested next step. Use **Copy error details** to share the sanitized diagnostic. The Activity page also shows provider diagnostics from earlier failed reads, without needing another provider request. A failed source is never reported as zero performance; successful sources in a mixed report remain explicitly partial.
+
+The diagnostic's closed `category` determines the source card's actions:
+
+| Category | Meaning and source-card action |
+|---|---|
+| `provider_data` | AMCP refused incomplete, inconsistent or malformed platform data: Retry and Copy |
+| `connection` | The login needs attention: Manage connections and Copy |
+| `permission` | Account, role or API access is missing: Manage connections and Copy |
+| `rate_limit` | The provider cooldown applies: Copy; the worker's bounded retry policy remains in effect |
+| `request` | Correct or narrow the request: Copy |
+| `provider` | A provider failure: Retry and Copy |
+| `internal` | AMCP needs investigation: Copy |
+
+Provider-data diagnostics keep the provider message/request ID and safe page facts (`page`, `page_size`,
+`total_number`, `total_page`, `list_length`, `rule`), plus `declared_rows` and `returned_rows` where available.
+They omit `http_status`: a successful HTTP response whose data AMCP refused is not a provider HTTP outage. MCP's
+existing error family remains `report`; its generic provider-data remedy asks for a retry while codes with their
+own specific advice keep it. Saved diagnostics without a category retain their previous rendering and actions.
 
 For Google HTTP 403, distinguish `USER_PERMISSION_DENIED` (identity/account access or manager routing) from developer-token/project restrictions such as `DEVELOPER_TOKEN_NOT_APPROVED` or `DEVELOPER_TOKEN_PROHIBITED`. With direct customer access, an unrelated `AMCP_GOOGLE_LOGIN_CUSTOMER_ID` should be omitted; manager access needs the correct manager ID. Website logins use the manager route their sync recorded, not this variable (CON-05). After changing server OAuth settings, reconnect Google Ads because existing connections retain their saved credentials/settings. The report displays the login customer ID actually sent. AMCP does not bypass a provider denial or automatically change routing. See [Google's error guide](https://developers.google.com/google-ads/api/docs/get-started/common-errors) and [Google's access model](https://developers.google.com/google-ads/api/docs/oauth/access-model).
 
@@ -510,16 +619,11 @@ schedule) offer no **Retry** (`retry_available:false`) and `retry` refuses them 
 
 CSV is also available to operators, administrators and owners (viewers only when the owner allows viewer downloads). Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness. Every CSV AMCP writes (this export and the workflow report file) uses one formula guard, `src/csv-safety.ts`: a text cell that starts with a tab, carriage return or line feed, or whose first character after any leading whitespace or control characters is `=`, `+`, `-`, `@` or one of their full-width forms, gains a leading apostrophe and opens as literal text. Numbers are not text, so a negative amount stays a number; a name such as `-20% sale` shows the apostrophe.
 
-LinkedIn source rows must identify one native campaign and cover exactly the requested UTC period. Empty responses
-are ambiguous between no activity and missing reporting access, so an empty calendar period is a source error,
-not a zero-performance day. Continuation metadata, provider ceilings and duplicate or wrong-period rows are refused.
-Older requests may be rounded by LinkedIn; use whole calendar months or recent dates when actual dates differ.
-Conversion-rule windows are not independently read, so attribution remains `unknown` and recommendations remain
-held. A snapshot with successful and failed periods retains marked partial coverage; complete-only delivery stays
-blocked. New snapshots use `campaign-source-v4` (v3 LinkedIn state stays resumable). Older LinkedIn runs with
-collection state from before v3 require a new snapshot
-from their saved definition, leaving retained counters/checkpoints intact. Untouched queued runs adopt the new
-version before collection. Completed historical snapshots are not rewritten or retroactively requalified.
+LinkedIn rows must identify the requested native entity and exact UTC period; see
+[LinkedIn reporting](#linkedin-reporting) for levels, result definitions, retention and capped-window subdivision.
+A snapshot with successful and failed periods keeps marked partial coverage, and complete-only delivery stays
+blocked. New snapshots use `campaign-source-v4`; v3 state remains resumable. Older LinkedIn collection state from
+before v3 needs a new snapshot from its saved definition. Retained snapshots are not retroactively requalified.
 
 ## Scheduled delivery
 

@@ -251,6 +251,10 @@ them (`accessibility.css`).
 
 Page titles and display type (26 to 75px) stay with their page. The interface font is Aptos (Aptos Display for
 headings) with Segoe UI as fallback; Arabic uses Noto Sans Arabic (`localization.css`), with letter spacing reset.
+The website's local WOFF2 subset is 68,180 bytes and covers the declared Arabic ranges, with weights 100–900 and
+width fixed at 100. Latin text uses the system stack. The original TTF remains the PDF font; its bytes are unchanged.
+Both browser font faces swap on load. Tool versions, glyph coverage and hashes are in
+[the font reference](../web/fonts/README.md).
 Some decorative text (the landing illustrations, the sidebar's section labels) is still below 12px; new readable text
 uses `--type-xs` or larger.
 

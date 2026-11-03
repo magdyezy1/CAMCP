@@ -8,6 +8,9 @@ tier: operator
 `amcp_ad_previews` reads existing ads' preview links. The Media library's *Preview your ads* offers status selection
 and Load more. No account changes.
 
+Use `amcp_ad_previews {action:"help"}` for the full description and examples, or add `topic:"help"` for the local
+help contract. Ordinary preview calls retain the platform/account inputs below and omit `action`.
+
 ```json
 {"platform": "meta", "account_id": "111", "ad_format": "INSTAGRAM_STORY", "limit": 5}
 ```
