@@ -345,6 +345,16 @@ const snapchatContracts: ContractHooks = Object.freeze({
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
+  signedLinkFields: (plan: CompiledRequest) =>
+    plan.gateway === 'snapchat_native_action' &&
+    plan.method === 'GET' &&
+    plan.readOnly &&
+    !plan.specialTransport &&
+    (plan.body === undefined || plan.body === null) &&
+    (!plan.origin || plan.origin === 'https://adsapi.snapchat.com') &&
+    /^\/v1\/creatives\/[\w-]{1,64}\/creative_preview$/.test(plan.path)
+      ? Object.freeze(['creative_preview_link'])
+      : [],
   // Wave 4c (transport and catalog): its targeting insight and forecast POSTs are planned as reviewed reads.
   compile: Object.freeze({afterJob: snapchatPlanningPlan}),
   contracts: snapchatContracts,

@@ -107,7 +107,16 @@ function snapFixture(t, {ads = [], creatives = [], creativePageSize = 1000, fore
       };
     else if (input.action === 'snapchat_creatives_creative_id_creative_preview_get') {
       assert.ok(reads.some(r => r.action === 'snapchat_creative_list' && r.result_ids.includes(input.creative_id)));
-      data = {creative_preview_link: 'https://ads.snapchat.com/preview/' + input.creative_id};
+      data = {
+        creative_id: input.creative_id,
+        expires_at: '2999-01-01T00:00:00Z',
+        creative_preview_link:
+          'https://adsapi.snapchat.com/media/creative_preview?creative_id=' +
+          input.creative_id +
+          '&expires_at=' +
+          Date.parse('2999-01-01T00:00:00Z') +
+          '&signature=synthetic',
+      };
     } else throw Error('Unexpected synthetic Snap action ' + input.action);
     return {success: true, data: {data}};
   }, store);
@@ -680,7 +689,15 @@ test('native Snapchat selection learns creative ownership only from its account 
     if (url.pathname === '/v1/adaccounts/100/creatives')
       return Response.json({request_status: 'SUCCESS', creatives: [{creative: {id: 'cr1', ad_account_id: '100'}}]});
     if (url.pathname === '/v1/creatives/cr1/creative_preview')
-      return Response.json({request_status: 'SUCCESS', creative_preview_link: 'https://ads.snapchat.com/preview/cr1'});
+      return Response.json({
+        request_status: 'SUCCESS',
+        creative_id: 'cr1',
+        expires_at: '2999-01-01T00:00:00Z',
+        creative_preview_link:
+          'https://adsapi.snapchat.com/media/creative_preview?creative_id=cr1&expires_at=' +
+          Date.parse('2999-01-01T00:00:00Z') +
+          '&signature=synthetic',
+      });
     throw Error('Unexpected synthetic Snapchat request ' + url.pathname);
   });
   const service = new MirrorService(new Registry(), store, transport, undefined, {

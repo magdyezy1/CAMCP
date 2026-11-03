@@ -326,7 +326,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-RPT-04 contract notices add two notices, two artifact labels and one restart explanation.
   // V2-PRV-01 adds twelve selection, paging and ownership explanations.
   // V2-PRV-02 adds the documented iframe lifetime and rejected-placement note.
-  assert.equal(Object.keys(catalog).length, 11634);
+  // V2-PRV-03 adds Snapchat's lifetime and unusable-link note.
+  assert.equal(Object.keys(catalog).length, 11636);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

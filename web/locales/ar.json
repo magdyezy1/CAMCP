@@ -11632,5 +11632,7 @@
   "No matching ad in this account for the selected campaign and ad set filters.": "لا يوجد إعلان مطابق في هذا الحساب لفلاتر الحملات والمجموعات الإعلانية المحددة.",
   "Creative ownership or matching parents could not be established within the ten-page account scan. Narrow the selection and try again.": "تعذّر التحقق من ملكية التصميم الإعلاني أو مطابقة الحملات والمجموعات ضمن فحص الحساب المحدود بعشر صفحات. ضيّق نطاق الاختيار ثم أعد المحاولة.",
   "LinkedIn keeps this preview for up to 3 hours.": "تحتفظ LinkedIn بهذه المعاينة لمدة تصل إلى 3 ساعات.",
-  "LinkedIn returned no safe iframe preview link for one or more placements.": "لم تُرجع LinkedIn رابط معاينة آمنًا من إطار العرض لواحد أو أكثر من مواضع الإعلان."
+  "LinkedIn returned no safe iframe preview link for one or more placements.": "لم تُرجع LinkedIn رابط معاينة آمنًا من إطار العرض لواحد أو أكثر من مواضع الإعلان.",
+  "Snapchat keeps this preview link for 90 days.": "تحتفظ Snapchat برابط المعاينة هذا لمدة 90 يومًا.",
+  "Snapchat returned an expired or invalid preview link.": "أعادت Snapchat رابط معاينة منتهي الصلاحية أو غير صالح."
 }

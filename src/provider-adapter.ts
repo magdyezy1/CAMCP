@@ -878,11 +878,7 @@ export interface RefreshHooks {
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
 
-/**
- * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
- * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
- * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
- */
+/** A documented preview placement whose URL and expiry can be returned without provider markup. */
 export interface AdPreviewLink {
   placement: string;
   device: string | null;
@@ -890,6 +886,11 @@ export interface AdPreviewLink {
   expires_at: string;
 }
 
+/**
+ * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
+ * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
+ * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
+ */
 export interface ProviderHooks {
   /** The gateway of the provider adapter these hooks belong to. */
   readonly gateway: string;
@@ -951,6 +952,8 @@ export interface ProviderHooks {
   readonly media?: MediaUploadHooks;
   /** Its documented preview response links and expiry, with provider HTML withheld. */
   readonly adPreviewLinks?: (elements: unknown, now: number) => AdPreviewLink[];
+  /** Exact read-scoped URL fields whose signatures are capabilities; credentials are still scrubbed. */
+  readonly signedLinkFields?: (plan: CompiledRequest) => readonly string[];
   // Wave 4c round 6 (w4c-arc6-catalog).
   /**
    * Its catalog destination's projection of supplied products into its native reviewed steps, or of the rows its

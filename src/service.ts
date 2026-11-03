@@ -1219,7 +1219,10 @@ export class MirrorService {
       }
       const generation = nativeReadSteps.produced(plan, result.data);
       // Secrets in provider URLs (paging links, permalinks) never reach the caller; other provider text stays verbatim.
-      const scrubbed = redactUrlSecrets(projected.data, signedLinkFields);
+      const scrubbed = redactUrlSecrets(
+        projected.data,
+        new Set([...signedLinkFields, ...(providerHooks(plan.gateway)?.signedLinkFields?.(plan) ?? [])]),
+      );
       const outcome = {
         success: true,
         action: plan.action,

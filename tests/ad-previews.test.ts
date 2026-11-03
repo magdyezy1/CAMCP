@@ -166,20 +166,32 @@ test('Snapchat: previews the account’s creatives', async () => {
     if (url.pathname === '/v1/creatives/cr1/creative_preview')
       return Response.json({
         request_status: 'SUCCESS',
-        snapcode_link: 'https://app.snapchat.com/web/deeplink/snapcode?x=1',
+        creative_id: 'cr1',
+        expires_at: '2999-01-01T00:00:00Z',
+        creative_preview_link:
+          'https://adsapi.snapchat.com/media/creative_preview?creative_id=cr1&expires_at=' +
+          Date.parse('2999-01-01T00:00:00Z') +
+          '&signature=synthetic',
       });
   });
   try {
     const r = await f.previews({platform: 'snapchat'});
     assert.equal(r.success, true, JSON.stringify(r));
-    assert.deepEqual(r.data.previews, [
-      {
-        ad_id: 'cr1',
-        source_ad_id: 'a1',
-        name: 'Snap one',
-        links: ['https://app.snapchat.com/web/deeplink/snapcode?x=1'],
-      },
-    ]);
+    assert.deepEqual(
+      r.data.previews.map(({ad_id, source_ad_id, name, links}: JsonObject) => ({ad_id, source_ad_id, name, links})),
+      [
+        {
+          ad_id: 'cr1',
+          source_ad_id: 'a1',
+          name: 'Snap one',
+          links: [
+            'https://ad-preview.snapchat.com/?creative_id=cr1&expires_at=' +
+              Date.parse('2999-01-01T00:00:00Z') +
+              '&signature=synthetic',
+          ],
+        },
+      ],
+    );
   } finally {
     f.store.close();
   }

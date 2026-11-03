@@ -273,7 +273,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-RPT-04 contract notices add five entries without changing wrapper refusal ownership.
   // V2-PRV-01 adds twelve selection/paging entries without changing wrapper ownership.
   // V2-PRV-02 adds two iframe/lifetime notes, with no wrapper ownership change.
-  assert.equal(Object.keys(catalog).length, 11634);
+  // V2-PRV-03 adds two Snapchat notes, with no wrapper ownership change.
+  assert.equal(Object.keys(catalog).length, 11636);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -157,7 +157,14 @@ test('the ad previews read each platform under the gateway its switch named, and
       ads: [{ad: {id: 'a1', creative_id: 'c1', name: 'Ad', status: 'ACTIVE'}}],
     },
     snapchat_creative_list: {request_status: 'SUCCESS', creatives: [{creative: {id: 'c1', name: 'Creative'}}]},
-    snapchat_creatives_creative_id_creative_preview_get: {snap_preview_link: 'https://www.snapchat.com/preview/1'},
+    snapchat_creatives_creative_id_creative_preview_get: {
+      creative_id: 'c1',
+      expires_at: '2999-01-01T00:00:00Z',
+      creative_preview_link:
+        'https://adsapi.snapchat.com/media/creative_preview?creative_id=c1&expires_at=' +
+        Date.parse('2999-01-01T00:00:00Z') +
+        '&signature=synthetic',
+    },
     linkedin_rest_ad_accounts_ad_account_id_creatives_get: {
       elements: [{id: 'urn:li:sponsoredCreative:1', name: 'C', intendedStatus: 'ACTIVE'}],
     },

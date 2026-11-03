@@ -769,20 +769,57 @@ export class AdPreviews {
             .filter(row => owned.has(row.id))
             .map(row => ({...row, name: text(owned.get(row.id)!.name) ?? row.name}));
         return result(
-          await each(chosen, async row =>
-            owned.has(row.id)
-              ? {
-                  links: previewLinks(
-                    'snapchat',
-                    await read(gatewayOf('snapchat'), {
-                      action: 'snapchat_creatives_creative_id_creative_preview_get',
-                      ...base,
-                      creative_id: row.id,
-                    }),
-                  ),
-                }
-              : {links: [], note: ownershipIncomplete ? boundedNote : 'Not in this account'},
-          ),
+          await each(chosen, async row => {
+            if (!owned.has(row.id)) return {links: [], note: ownershipIncomplete ? boundedNote : 'Not in this account'};
+            const response = await read(gatewayOf('snapchat'), {
+                action: 'snapchat_creatives_creative_id_creative_preview_get',
+                ...base,
+                creative_id: row.id,
+              }),
+              expiry = typeof response?.expires_at === 'string' ? Date.parse(response.expires_at) : NaN,
+              links: string[] = [];
+            // Snap's signed endpoint returns JSON. Its documented browser page takes only these three values.
+            try {
+              if (typeof response?.creative_preview_link !== 'string' || response.creative_preview_link.length > 8192)
+                throw Error();
+              const native = new URL(response.creative_preview_link),
+                params = native.searchParams,
+                signature = params.get('signature'),
+                timestamp = params.get('expires_at');
+              if (
+                native.origin !== 'https://adsapi.snapchat.com' ||
+                native.username ||
+                native.password ||
+                native.hash ||
+                native.pathname !== '/media/creative_preview' ||
+                (response.creative_id !== undefined && response.creative_id !== row.id) ||
+                ['creative_id', 'expires_at', 'signature'].some(key => params.getAll(key).length !== 1) ||
+                params.get('creative_id') !== row.id ||
+                !signature ||
+                !/^[A-Za-z0-9._~+/=-]{1,4096}$/.test(signature) ||
+                !timestamp ||
+                !/^[0-9]{1,16}$/.test(timestamp) ||
+                !Number.isSafeInteger(Number(timestamp)) ||
+                !Number.isFinite(expiry) ||
+                expiry <= Date.now() ||
+                Number(timestamp) !== expiry
+              )
+                throw Error();
+              const hosted = new URL('https://ad-preview.snapchat.com/');
+              hosted.searchParams.set('creative_id', row.id);
+              hosted.searchParams.set('expires_at', timestamp);
+              hosted.searchParams.set('signature', signature);
+              links.push(hosted.href);
+            } catch {
+              /* No usable link is returned for an unverified, expired or malformed capability. */
+            }
+            return {
+              links,
+              expires_at: Number.isFinite(expiry) ? response.expires_at : null,
+              expires: 'Snapchat keeps this preview link for 90 days.',
+              ...(!links.length ? {note: 'Snapchat returned an expired or invalid preview link.'} : {}),
+            };
+          }),
           {
             ...paging,
             ...notListed(missing),
