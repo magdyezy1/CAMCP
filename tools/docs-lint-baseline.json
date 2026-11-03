@@ -160,10 +160,16 @@
       "raised": [
         "reference_words 146477 → 146581"
       ]
+    },
+    {
+      "reason": "V2-R1 required reference coverage: complete reporting actions, native levels, objective provenance, collector completeness and limits, diagnostics and notices, plus the 45 V2 tokens and local Arabic font. Reviewed after final reference edits (D13).",
+      "raised": [
+        "reference_words 146579 → 148921"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 146579
+    "reference_words": 148921
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
