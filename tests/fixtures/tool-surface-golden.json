@@ -1845,8 +1845,8 @@
     "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Per-action arguments: amcp_tool_help {gateway:\"amcp_media\",operation:\"<action>\"} or {topic:\"guides\"}."
    },
    "whole": {
-    "sha256": "30f111cfb5bd41a0d19e44204a67c8b7540096e5e211052400be7d19ea148c38",
-    "length": 89131
+    "sha256": "b54a8877ff7472bcb8beff4bdb181a0132119fa962408a5e585972ee5c94004b",
+    "length": 89765
    }
   },
   "read_only/full_descriptions": {
@@ -1885,8 +1885,8 @@
     "length": 76660
    },
    "whole": {
-    "sha256": "6106da31a05e55d955f09a46e3b43ae00768dac100e8063873d73e96e3ca8316",
-    "length": 147347
+    "sha256": "5189bcabf50bdeaa01ec707761ccd3573582c5bfe303bcbdc320b847973f9313",
+    "length": 147981
    }
   },
   "read_only/enhanced_all": {
@@ -1925,8 +1925,8 @@
     "length": 18444
    },
    "whole": {
-    "sha256": "efbd8f1d0b2f436783b101b53a8ac329fc8489d07e4c5f38c04dcf3473b84701",
-    "length": 85343
+    "sha256": "ce71479850137423d52c57a263f178cae5bed2f74d8c67d6b934aa21f25a2c9b",
+    "length": 85977
    }
   },
   "writes/strict": {
@@ -2021,8 +2021,8 @@
     }
    },
    "whole": {
-    "sha256": "5679b858dcb6779bf36249ae286545e41698e219d5fd0f0dcc900fa0c00b8349",
-    "length": 91666
+    "sha256": "03b08e458bdee97632ae98b30251e0eaa5928618498abee53e48e81547e1326c",
+    "length": 92300
    }
   },
   "writes/full_descriptions": {
@@ -2061,8 +2061,8 @@
     "length": 81317
    },
    "whole": {
-    "sha256": "997d1329a4cf5ee580e3d8c072d285ddf86575e81e8ea127b7d86107f4031194",
-    "length": 153199
+    "sha256": "304d5f7d06f91b370186ce90236b984cd0ee017fa01417c2ba69ac399d6424c2",
+    "length": 153833
    }
   },
   "writes/enhanced_all": {
@@ -2101,8 +2101,8 @@
     "length": 19784
    },
    "whole": {
-    "sha256": "67d9aee43ddd2834a4e0c171004d4ace5ce3ecfcbd0037493fc2422eeb46d2cc",
-    "length": 87878
+    "sha256": "a3df367694d2c64fb380e96d33a04d0919e85198e23db2ec1e21d61484395d3e",
+    "length": 88512
    }
   },
   "provider_jobs/strict": {
@@ -2194,8 +2194,8 @@
     "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Per-action arguments: amcp_tool_help {gateway:\"amcp_media\",operation:\"<action>\"} or {topic:\"guides\"}."
    },
    "whole": {
-    "sha256": "df6ae51d5622aa79f8ad1b1b1c63702ed9daa6d243f00a928be889d05824d8d0",
-    "length": 89737
+    "sha256": "66be88493f4c42054fd786499b57cbb47670f8db5055fad0331c66a383564d07",
+    "length": 90371
    }
   },
   "provider_jobs/full_descriptions": {
@@ -2234,8 +2234,8 @@
     "length": 77050
    },
    "whole": {
-    "sha256": "7e2d5814fe74dd79bcfe3e872a0ed9462efdcbe5fddcd25ec976a7ded025b0a0",
-    "length": 147839
+    "sha256": "4e13623bb301e467c176255473b686a59a0833135ece8609ad3d3178c04dde64",
+    "length": 148473
    }
   },
   "provider_jobs/enhanced_all": {
@@ -2274,8 +2274,8 @@
     "length": 18948
    },
    "whole": {
-    "sha256": "6b0f48a57b4b0fcfe2417a94017a6017baff10a2fa2dea46c9b5b53b7ee6e632",
-    "length": 85949
+    "sha256": "943a92ae9e744fc64e1695bd988ccc475f8c3dc4e797e8aaae215e1b1868184b",
+    "length": 86583
    }
   }
  },
