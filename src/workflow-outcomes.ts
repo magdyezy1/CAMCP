@@ -81,6 +81,7 @@ export const outcomeSchema = {
     automatic_retry_of_mutation: {const: false},
     website_path: {type: 'string'},
     next_call: {type: 'object'},
+    poll_after_ms: {type: 'integer', minimum: 0},
   },
   required: ['version', 'state', 'automatic_retry_of_mutation'],
 };
@@ -439,6 +440,7 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
   const record = handoffRecord(tool!, action, data);
   if (record) result.website_path = record;
   if (data.next_call) result.next_call = data.next_call;
+  if (data.poll_after_ms !== undefined) result.poll_after_ms = data.poll_after_ms;
   if (data.execute_requirements)
     result.required_acknowledgements = Object.keys(data.execute_requirements).filter(
       k => data.execute_requirements[k] === true,

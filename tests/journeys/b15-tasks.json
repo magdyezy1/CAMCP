@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "QA-04 MCP evaluation tasks for B15 (PRODUCT-BLUEPRINT section 7): the six named jobs plus hold-out tasks. Each task has a prompt for external AI clients, the synthetic scenario it runs in, the client's first call, and the reference: the shortest correct sequence of calls. Hold-out tasks are measured but must never be used to tune tool descriptions, so the measured set cannot be overfitted.",
+  "purpose": "QA-04 MCP evaluation tasks for B15 (PRODUCT-BLUEPRINT section 7): the named jobs, snapshot collection and hold-out tasks. Each task has a prompt for external AI clients, the synthetic scenario it runs in, the client's first call, and the reference: the shortest correct sequence of calls. Hold-out tasks are measured but must never be used to tune tool descriptions, so the measured set cannot be overfitted.",
   "measures": [
     "correct_tool_choice: the first productive MCP call matches the reference's first call",
     "unnecessary_calls: calls beyond the reference's count",
@@ -91,6 +91,21 @@
       ],
       "goal": "The asset's detail with its retained usage evidence and its reuse call was read.",
       "handoff": true
+    },
+    {
+      "id": "T7",
+      "job": "snapshot then rows",
+      "holdout": false,
+      "prompt": "Pull a snapshot of Client A's saved reporting selection and show its first row.",
+      "scenario": "snapshot_then_rows",
+      "approval_allowed": true,
+      "entry": {"tool": "amcp_reporting_overview", "action": "run"},
+      "reference": [
+        {"tool": "amcp_reporting_overview", "action": "run"},
+        {"tool": "amcp_reporting_overview", "action": "get"}
+      ],
+      "goal": "The queued snapshot was read with its collected rows.",
+      "handoff": false
     },
     {
       "id": "H1",

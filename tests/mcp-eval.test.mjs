@@ -393,7 +393,7 @@ test('external clients are measured as ranges over repeated runs, from sanitized
   await assert.rejects(measureExternal({schema_version: 1, runs: []}), /EXTERNAL_INVALID/);
 });
 
-test('the B15 task set names the six blueprint jobs plus hold-outs, each runnable from its scenario', () => {
+test('the B15 task set names the blueprint jobs, snapshot collection and hold-outs, each runnable from its scenario', () => {
   const measured = taskSet.tasks.filter(task => !task.holdout);
   assert.deepEqual(
     measured.map(task => task.job),
@@ -404,6 +404,7 @@ test('the B15 task set names the six blueprint jobs plus hold-outs, each runnabl
       'recover an uncertain execution',
       'interpret a partial report',
       'reuse a verified asset',
+      'snapshot then rows',
     ],
   );
   assert.ok(

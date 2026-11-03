@@ -108,6 +108,12 @@ export const scenarios = {
     f.providers.state.sheetsRefusal = false;
     return {snapshot, export: queued.data.id};
   },
+  async snapshot_then_rows(f) {
+    const id = f.snapshot('selection-reference'),
+      config = f.store.document(f.actor.tenantId, 'overview_report', id).config;
+    f.approve();
+    return {config};
+  },
   async two_client_plans(f) {
     const a = (await direct(f, 'amcp_campaign', createArguments('Client A plan'))).data.id,
       b = (await direct(f, 'amcp_campaign', createArguments('Client B plan', step('789', otherConnection)))).data.id;
@@ -128,6 +134,7 @@ const entries = {
   T4: () => ({action: 'operations', state: 'attention'}),
   T5: ctx => ({action: 'analyze', id: ctx.report}),
   T6: () => ({action: 'library', search: 'launch'}),
+  T7: ctx => ({action: 'run', config: ctx.config, confirmed: true}),
   H1: ctx => ({action: 'export_status', id: ctx.export}),
   H2: () => ({action: 'operations', connection_id: otherConnection}),
 };
@@ -159,6 +166,9 @@ const references = {
   },
   async T6(f, ctx) {
     return [await f.call('amcp_media', {action: 'asset', asset_id: ctx.asset})];
+  },
+  async T7(f, ctx, entry) {
+    return [await f.call('amcp_reporting_overview', {action: 'get', id: entry.data.id, limit: 1})];
   },
   async H1(f, ctx, entry) {
     // Retry takes the delivery job's identifier, which the export status names (not the export's own id).
@@ -194,6 +204,13 @@ const goals = {
     ),
   T6: (f, ctx, responses) =>
     responses.some(r => r.success && r.data?.asset_id === ctx.asset && r.data?.usage_evidence && r.data?.reuse_call),
+  T7: (f, ctx, responses) => {
+    const id = responses[0]?.data?.id;
+    return (
+      f.providers.state.mutations === 0 &&
+      responses.some(r => r.success && r.data?.id === id && Array.isArray(r.data?.rows) && r.data.rows.length > 0)
+    );
+  },
   H1: (f, ctx, responses) =>
     f.providers.state.tab.report === ctx.snapshot &&
     responses.some(r => r.success && r.data?.id === ctx.export && r.data?.outcome === 'complete'),
@@ -260,8 +277,13 @@ export async function runTask(f, task, mode, {maxCalls = 8} = {}) {
     while (f.transcript.length < maxCalls && !goal(f, ctx, responses)) {
       const next = discoverNextCall(current);
       if (!next || (needsApproval(next) && !task.approval_allowed)) break;
-      if (needsApproval(next)) f.approve();
-      current = await f.call(next.tool, next.arguments, {followed: true});
+      const approved = needsApproval(next);
+      if (approved) f.approve();
+      const args = {
+        ...next.arguments,
+        ...(approved && next.add_after_user_approval?.confirmed === true ? {confirmed: true} : {}),
+      };
+      current = await f.call(next.tool, args, {followed: true});
       responses.push(current);
       await f.work();
     }
