@@ -234,6 +234,14 @@ export function linkedinDetail(
 /** LinkedIn adAnalytics at each native position; money in the verified account currency. */
 export const linkedinReportSource: ReportSource = {
   platform: 'linkedin',
+  contract: {
+    stamp: 'linkedin-levels-v2',
+    notice: {
+      id: 'linkedin_levels_v2',
+      message:
+        'LinkedIn reports now show campaign groups in the campaign position, LinkedIn campaigns in the ad set position and creatives in the ad position. Earlier snapshots keep the levels they recorded.',
+    },
+  },
   objectives: {
     name: 'LinkedIn',
     values: {

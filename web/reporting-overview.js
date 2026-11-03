@@ -1241,6 +1241,7 @@ function scheduleOccurrencesTable(out, caption = uiText('Next 3 deliveries')) {
 function renderExportHistory(r) {
   return (r.exports ?? []).length
     ? `<section class="panel"><h3>${esc(uiText('Delivery history'))}</h3>` +
+        html`${reportNotices(r)}` +
         r.exports
           .map(
             e =>

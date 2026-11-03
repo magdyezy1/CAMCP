@@ -59,6 +59,7 @@ import {ReportCollectionBudget, reportCollectionLimits} from './report-collectio
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
 import {
   comparisonCandidates,
+  latestDefinitionContracts,
   recentFinishedSnapshots,
   recentSnapshotSources,
   snapshotPage,
@@ -255,6 +256,13 @@ const linkedinEvidenceContracts = ['campaign-source-v3', reportContractVersion];
 /** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
 const finishedSnapshot = (r: JsonObject) =>
   ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
+const platformContracts = (config: JsonObject): Record<string, string> =>
+  Object.fromEntries(
+    config.sources.flatMap((source: JsonObject) => {
+      const stamp = reportSource(source.platform)?.contract?.stamp;
+      return stamp ? [[source.platform, stamp]] : [];
+    }),
+  );
 /** Rollback switches (EXP-03): ownership refusal (B) and the separate scheduled Sheets delivery job (D). */
 export const destinationOwnershipEnforced = () => process.env.AMCP_SHEETS_DESTINATION_OWNERSHIP !== 'off';
 export const scheduledSheetsInline = () => process.env.AMCP_SCHEDULED_SHEETS_DELIVERY === 'inline';
@@ -563,8 +571,18 @@ export class ReportingOverview {
     config = {...resolveReportConfig(config, at), source_contract_version: reportContractVersion};
     // RPT-03: a configuration whose minimum request count exceeds the whole-job budget is refused before any egress.
     const estimate = assertCollectionEstimate(config);
+    const platform_contracts = platformContracts(config),
+      previous = latestDefinitionContracts(store, actor.tenantId, viewId, scheduleId),
+      notices = previous
+        ? Object.keys(platform_contracts).flatMap(platform => {
+            const notice = reportSource(platform)?.contract?.notice;
+            return notice && previous[platform] !== platform_contracts[platform] ? [{...notice}] : [];
+          })
+        : [];
     store.putDocument(actor.tenantId, 'overview_report', id, {
       config,
+      platform_contracts,
+      ...(notices.length ? {notices} : {}),
       estimated_requests: estimate.estimated_requests,
       state: 'queued',
       captured_at: at,
@@ -1581,6 +1599,28 @@ export class ReportingOverview {
         throw new MirrorError(error.code, error.message);
       }
       r = {...r, config: {...r.config, source_contract_version: reportContractVersion}};
+      store.putDocument(tenant, 'overview_report', r.id, r);
+    }
+    const contracts = platformContracts(r.config),
+      retainedParts = new ReportParts(store, tenant, r);
+    if (
+      r.config.sources.some(
+        (source: JsonObject, i: number) =>
+          contracts[source.platform] &&
+          r.platform_contracts?.[source.platform] !== contracts[source.platform] &&
+          Object.keys(retainedParts.source(String(i), r.checkpoints?.[String(i)])).length > 0,
+      )
+    ) {
+      const error = {
+        code: 'REPORT_RESTART_REQUIRED',
+        message:
+          'This snapshot contains collection state from an earlier platform contract. Its retained evidence is preserved; start a new snapshot from the saved definition.',
+      };
+      store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
+      throw new MirrorError(error.code, error.message);
+    }
+    if (fingerprint(r.platform_contracts ?? {}) !== fingerprint(contracts)) {
+      r = {...r, platform_contracts: contracts};
       store.putDocument(tenant, 'overview_report', r.id, r);
     }
     // OPS-08: under an enforced shared app quota, a run (scheduled or not) whose issuer is already spent for today is

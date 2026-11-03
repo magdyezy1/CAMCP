@@ -509,6 +509,7 @@ test('EXP-03 website: Superseded history, Retry only for retryable failures, loc
     location: {pathname: '/'},
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/report-library.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-delivery.js', 'utf8')).runInContext(context);
   new Script('overviewState.destinationId = ""').runInContext(context);

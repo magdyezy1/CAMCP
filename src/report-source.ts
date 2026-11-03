@@ -284,6 +284,8 @@ export interface GuidedReporting {
 }
 
 export interface ReportSource {
+  /** A platform's collection semantics, stamped on snapshots independently of saved definitions. */
+  readonly contract?: {readonly stamp: string; readonly notice?: {readonly id: string; readonly message: string}};
   /** Native objective values and conservative mappings owned by this reporting platform. */
   readonly objectives?: ObjectiveTable;
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */

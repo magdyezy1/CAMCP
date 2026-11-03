@@ -244,10 +244,13 @@ function renderOverviewHistory(history, reader) {
     (history
       .map(
         r =>
-          `<div class="report-history-item"><button class="report-history-row" data-report-open="${esc(r.id)}"><span><strong dir="auto" data-native>${esc(overviewLabel(r.config))}</strong><small>${esc(reportRangeLabel(r.config.date_range))} · ${esc(reportLabel(r.config.grain ?? 'total'))} · ${date(r.created_at)}</small></span><span class="status">${reportDisplayState(r)}</span><span>${esc(uiPlural(r.row_count ?? 0, '{count} row ↗', '{count} rows ↗'))}</span></button><button class="button small danger" data-report-delete="${esc(r.id)}" aria-label="${esc(uiText('Delete'))} · ${esc(overviewLabel(r.config))}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete'))}</button></div>`,
+          `<div class="report-history-item"><button class="report-history-row" data-report-open="${esc(r.id)}"><span><strong dir="auto" data-native>${esc(overviewLabel(r.config))}</strong><small>${esc(reportRangeLabel(r.config.date_range))} · ${esc(reportLabel(r.config.grain ?? 'total'))} · ${date(r.created_at)}</small></span><span class="status">${reportDisplayState(r)}</span><span>${esc(uiPlural(r.row_count ?? 0, '{count} row ↗', '{count} rows ↗'))}</span></button><button class="button small danger" data-report-delete="${esc(r.id)}" aria-label="${esc(uiText('Delete'))} · ${esc(overviewLabel(r.config))}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete'))}</button>${html`${reportNotices(r)}`}</div>`,
       )
       .join('') || `<p class="empty">${esc(uiText('Choose accounts and pull your first report.'))}</p>`)
   );
+}
+function reportNotices(report) {
+  return html`${(report.notices ?? []).map(notice => html`<p class="notice">${uiText(notice.message)}</p>`)}`;
 }
 async function openOverviewHistory(id) {
   if (!(await overviewMayLeave())) return;

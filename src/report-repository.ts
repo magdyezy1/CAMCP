@@ -18,6 +18,23 @@ export const reportPartsCleanupSQL = `CREATE TRIGGER IF NOT EXISTS overview_repo
 END`;
 
 // Overview snapshots (src/reporting-overview.ts).
+/** The newest finished snapshot of a saved definition, in History order, without loading its rows or checkpoints. */
+export function latestDefinitionContracts(
+  store: Store,
+  tenant: string,
+  viewId?: string,
+  scheduleId?: string,
+): JsonObject | undefined {
+  if (!viewId && !scheduleId) return undefined;
+  const row = store
+    .sql()
+    .prepare(
+      "SELECT json_extract(data,'$.platform_contracts') AS contracts FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.state') IN ('complete','partial') AND json_type(data,'$.completed_at') IN ('integer','real') AND ((? IS NOT NULL AND json_extract(data,'$.view_id')=?) OR (? IS NOT NULL AND json_extract(data,'$.schedule_id')=?)) ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 1",
+    )
+    .get(tenant, viewId ?? null, viewId ?? null, scheduleId ?? null, scheduleId ?? null) as
+    {contracts: string | null} | undefined;
+  return row ? JSON.parse(row.contracts ?? '{}') : undefined;
+}
 /** The 50 newest finished snapshots with a completion time: id, configuration (JSON text) and completion time. */
 export function recentFinishedSnapshots(store: Store, tenant: string): JsonObject[] {
   return store

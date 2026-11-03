@@ -21,6 +21,14 @@ export const tiktokEventsUnavailableWarning =
 /** TikTok integrated report rows (dimensions and metrics); conversions name the ad groups' optimization events. */
 export const tiktokReportSource: ReportSource = {
   platform: 'tiktok',
+  contract: {
+    stamp: 'tiktok-collection-v2',
+    notice: {
+      id: 'tiktok_collection_v2',
+      message:
+        'TikTok reports now include campaigns deleted since the window and check TikTok’s own totals, so past windows can show more spend than before.',
+    },
+  },
   objectives: {
     name: 'TikTok',
     values: {

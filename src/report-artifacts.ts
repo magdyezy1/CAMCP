@@ -76,7 +76,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
       for (const row of values.slice(1)) {
         const label = String(row[0]);
         row[0] = t(label);
-        if (['Interpretation', 'Evidence', 'Values', 'Limitation'].includes(label)) row[1] = t(String(row[1]));
+        if (['Interpretation', 'Evidence', 'Values', 'Note', 'Limitation'].includes(label)) row[1] = t(String(row[1]));
       }
     sheets.push({name: t(name), values, widths, metricStart, metricCount});
   }
@@ -105,6 +105,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
         'These are retained snapshot values, including already-calculated ratios; editing rows does not recalculate the saved summaries.',
       ],
       ['Prepared by', style.footer],
+      ...pack.notes.map((message: string) => ['Note', message]),
       ...pack.limitations.map(t => ['Limitation', t]),
     ],
     [24, 100],
@@ -405,6 +406,10 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
     }
     room(160);
     text(t('Reading this report'), 15);
+    if (pack.notes.length) {
+      text(t('Notes'), 12);
+      for (const note of pack.notes) text('- ' + t(note), 9);
+    }
     for (const limitation of pack.limitations) text('- ' + t(limitation), 9);
     text(
       t(

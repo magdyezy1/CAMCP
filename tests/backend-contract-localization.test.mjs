@@ -322,7 +322,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-RPT-04 group results add seven labels and the Mixed explanation; refusal ownership is unchanged.
   // V2-RPT-04 results add three diagnostics and consolidate three omitted legends into two (net +2).
   // V2-RPT-04 windows add thirteen templates, partial-coverage notices and guards.
-  assert.equal(Object.keys(catalog).length, 11615);
+  // V2-RPT-04 contract notices add two notices, two artifact labels and one restart explanation.
+  assert.equal(Object.keys(catalog).length, 11620);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

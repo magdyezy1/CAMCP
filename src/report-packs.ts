@@ -213,6 +213,7 @@ export function reportPack(
     evidence_path: '/api/reporting-overview/' + encodeURIComponent(report.id) + '.metadata.json',
     recommendations_valid_until: validUntil === null ? null : new Date(validUntil).toISOString(),
     recommendations_expired: expired,
+    notes: (report.notices ?? []).map((notice: JsonObject) => notice.message),
     limitations: [
       'Account currencies, timezones, attribution and conversion definitions remain separate.',
       'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.',
