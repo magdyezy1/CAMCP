@@ -14,14 +14,10 @@ const help = (tool: string) =>
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
-    'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review (amcp_write, amcp_campaign). Missing evidence stays unknown, never passed. ' +
-    'Core actions: capabilities (per-account readiness and blockers, paged and filtered; view:"graph" adds the graph), ' +
-    'check (exact account prerequisites; only live:true reads the account, saving that evidence), ' +
-    'program_check (one conditional program; only live:true reads the provider), ' +
-    'contracts (read/write/media/blocked class of every action, no network), ' +
-    'operations (feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
-    'dashboard (bounded counts per provider and account). ' +
-    'Other actions: portfolio and portfolio_reconcile, measurement_* evidence reads, catalog_* reads and plans, consent and catalog-removal drafts, local workbook report runs and schedules (no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch, GA4 test property). ' +
+    'Safety: no advertising changes. Previews and saves are local; confirmed saves need confirmed:true and the current revision/version. Drafts need amcp_write or amcp_campaign review. Missing evidence stays unknown. ' +
+    'Core: capabilities (account readiness, paging/filtering; view:"graph"), check and program_check (only live:true reads providers), contracts (action classes), operations (next_call), history (audit metadata), dashboard (counts). ' +
+    'Also: portfolio/portfolio_reconcile, measurement_* and catalog_* evidence/plans, consent drafts, local workbook runs/queries/bindings, clients, incidents/monitors and owner policies. ' +
+    'Confirmation: confirmed:true for resume_report_run, save_report_schedule, save_report_query, move_report_query, save_report_binding, save_report_binding_state, save_profile, save_monitor, set_monitor_state, create_consent_plan, create_catalog_removal, delete_profile, delete_brief (operator); set_monitor_notifications, retry_monitor_notification (reader); save_spend_policy, save_retention, save_plan_policy, pause_writes, resume_writes, enable_personal_data, disable_personal_data, save_ga4_test_property (owner). ' +
     help('amcp_workspace'),
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +
@@ -31,11 +27,13 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person; run_background runs an approved plan of media uploads on the server); ' +
     'recover_step, reconcile_step, confirm_absent and continue_as_new for blocked, refused or uncertain steps; activation_plan; archive, unarchive, assign and unassign; clone (Snapchat, Google Search, TikTok or LinkedIn into a paused draft); validate_provider; cancel. ' +
     'Get with step_id or detail:"full" returns more. ' +
+    'Confirmation: confirmed:true for execute_next, continue_as_new, archive (operator). ' +
     help('amcp_campaign'),
   amcp_write:
     'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. ' +
     'Safety: inspect needs no credentials or network; prepare reads state and freezes a five-minute, actor-bound review whose execute_requirements name every acknowledgement; execute sends it once after confirmed:true (idempotency_key defaults to the review_id) and never retries it; operator role and account write grants apply. ' +
     'Core actions: inspect, prepare and execute (a Google Ads or Snapchat batch over 25 records is one review of parts of 25), status (a retained review read back without a provider request) and reconcile (read-only checks of an uncertain write; accept_applied with its reconciliation_id records what was observed). ' +
+    'Confirmation: confirmed:true for execute (operator). ' +
     help('amcp_write'),
   amcp_reporting:
     'Use this to analyse captured native report metrics: reconciliation, comparisons and recommendations. ' +
@@ -44,6 +42,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Core actions: capture_presets, capture_preset and capture (bounded, source-hashed native reads), overview_sources and capture_overview, list and get (row_query, xlsx_path), ' +
     'analyze (pacing, anomaly, fatigue and search-waste recommendations), reconcile_report and reconcile, combine, scenarios, ' +
     'calibrate_allocation, allocation_candidates, allocation, preview_allocation_plan and create_allocation_plan, allocation_outcome and capture_allocation_outcome (a verified plan’s next closed period), search_exclusion_candidates, preview_search_exclusions and create_search_exclusion_plan. ' +
+    'Confirmation: confirmed:true for create_allocation_plan, create_search_exclusion_plan (operator). ' +
     help('amcp_reporting'),
   amcp_reporting_overview:
     'Use this for saved client reports across accounts, their schedules and Sheets or file exports; to analyse one captured native report, use amcp_reporting. ' +
@@ -52,13 +51,19 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'run (a bounded native snapshot, total to monthly, campaign to ad level where qualified), compare and compare_candidates (deltas against an earlier equal window), report_pack (summaries, evidence and PDF/XLSX), ' +
     'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule; ' +
     'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted local PDF/XLSX); save_presentation, presentation_profiles and apply_profile_presentation. ' +
+    'Confirmation: confirmed:true for save_presentation, apply_profile_presentation, save, save_template, delete_template, delete_view, delete_report, update_schedule, remove_schedule, run, export, schedule, pause_schedule, delete_schedule, resume_schedule, retry, cancel, bind_destination, bind_file_destination, resolve_delivery, move_workbook_schedule, undo_workbook_move (operator); create_spreadsheet (admin). ' +
     help('amcp_reporting_overview'),
+  amcp_ad_previews:
+    'Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. ' +
+    'Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, ' +
+    'limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:"help"}.',
   amcp_media:
     'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). ' +
     'Safety: the MCP client never downloads bytes; nothing publishes ads or posts; operator role, account write grants and durable idempotency apply; website uploads expire 30 minutes after the upload starts. ' +
     'prepare fetches and encrypts the exact file for a five-minute review (fit_to_platform:true scales or converts it; request.transform says what changed); execute uploads those frozen bytes after explicit confirmation; execute_async and job_status queue and follow it; status reads provider processing; recovery and resume continue an interrupted upload within its original review, never an uncertain part. ' +
     'Other actions: plan (per-account variants), variant, inspect_eligibility (checks a file against a placement before any upload), prepare_library, reuse, cancel, list, library, asset, asset_usage (current Meta, Google and Snapchat references to an uploaded asset), asset_performance, save_asset_metadata, and retain_source and remove_source (workspace owner only). ' +
     'Supports PNG/JPEG and MP4/MOV for Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360. ' +
+    'Confirmation: confirmed:true for execute, resume, execute_async, save_asset_metadata (operator); retain_source, remove_source (owner). ' +
     help('amcp_media'),
   'amcp_media:read_only':
     'Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. ' +

@@ -1405,7 +1405,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 |---|---|---|---|---|
 | `capture` | A bounded native read kept with its source hash, under declared semantics and a metric mapping. | **`gateway`**, **`arguments`**, **`semantics`**, **`mapping`**, `connection_id`, `account_id`, `campaign_id`, `rows_pointer` | provider reads; saves decision_report | reader |
 | `capture_presets` | The guided report presets. | — | no provider request | reader |
-| `capture_preset` | Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report. | **`preset`**, **`account_id`**, `connection_id`, `campaign_id`, `semantics`, `result_action_type`, `attribution_windows`, `swipe_up_attribution_window`, `view_attribution_window` | provider reads; saves decision_report | reader |
+| `capture_preset` | Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report. | **`preset`**, **`account_id`**, **`semantics`**, `connection_id`, `campaign_id`, `result_action_type`, `attribution_windows`, `swipe_up_attribution_window`, `view_attribution_window` | provider reads; saves decision_report | reader |
 | `overview_sources` | The source groups of a completed Overview snapshot, with no provider request. | **`id`** | no provider request | reader |
 | `capture_overview` | Keeps one Overview source group as analysable evidence, with no provider request. | **`id`**, **`group_id`** | no provider request; saves decision_report | reader |
 | `get` | One captured report with a page of rows (row_query searches them) and its xlsx_path. | **`id`**, `row_query`, `offset`, `limit` | no provider request | reader |
@@ -1455,7 +1455,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `resume_schedule` | Resumes a paused schedule. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_schedule | operator |
 | `retry` | Retries a failed or cancelled report, Sheets export or file export job. | **`id`**, **`confirmed`** | provider reads; saves overview_report, overview_export; Google Sheets write | operator |
 | `cancel` | Cancels a queued or running report or export job. | **`id`**, **`confirmed`** | no provider request; saves overview_report | operator |
-| `create_spreadsheet` | Creates a Google spreadsheet for delivery and binds it as a destination. | **`connection_id`**, **`confirmed`**, `name`, `tab_name`, `idempotency_key` | no provider request; saves sheets_destination; Google Sheets write | operator |
+| `create_spreadsheet` | Creates a Google spreadsheet for delivery and binds it as a destination. | **`connection_id`**, **`confirmed`**, **`name`**, **`idempotency_key`**, `tab_name` | no provider request; saves sheets_destination; Google Sheets write | admin |
 | `bind_destination` | Binds an existing editable Google spreadsheet tab as a destination. | **`connection_id`**, **`confirmed`**, `spreadsheet_id`, `spreadsheet_url`, `tab_name`, `name`, `idempotency_key` | no provider request; saves sheets_destination; Google Sheets write | operator |
 | `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`confirmed`**, `idempotency_key` | no provider request; saves report_file_destination | operator |
 | `export_status` | One export’s state, outcome and retry availability. | **`id`** | no provider request | reader |

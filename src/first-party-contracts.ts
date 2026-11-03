@@ -1064,11 +1064,10 @@ const rows: Record<string, Row[]> = {
     row(
       'capture_preset',
       'Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report.',
-      ['preset', 'account_id'],
+      ['preset', 'account_id', 'semantics'],
       [
         'connection_id',
         'campaign_id',
-        'semantics',
         'result_action_type',
         'attribution_windows',
         'swipe_up_attribution_window',
@@ -1485,10 +1484,10 @@ const rows: Record<string, Row[]> = {
     row(
       'create_spreadsheet',
       'Creates a Google spreadsheet for delivery and binds it as a destination.',
-      ['connection_id', 'confirmed'],
-      ['name', 'tab_name', 'idempotency_key'],
+      ['connection_id', 'confirmed', 'name', 'idempotency_key'],
+      ['tab_name'],
       effects('none', ['sheets_destination'], {remote_writes: true}),
-      'operator',
+      'admin',
       [[O, 'export']],
     ),
     row(
