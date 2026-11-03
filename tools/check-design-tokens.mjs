@@ -84,7 +84,8 @@ export function pageStylesheets(root = process.cwd()) {
 /**
  * Custom properties a stylesheet reads that are defined in no token sheet, or only in a token sheet one of the pages
  * loading it does not load (a workspace sheet reading a --policy-* token of public-tokens.css, which the workspace never
- * downloads, falls back silently). A sheet no page links can rely on tokens.css only, which every page loads first.
+ * downloads, falls back silently). An unlinked component sheet can rely on tokens.css only; a token sheet can also
+ * reference its own definitions, which are available whenever that sheet is loaded.
  */
 export function undefinedTokenProblems(root = process.cwd()) {
   const definedIn = new Map(
@@ -118,7 +119,7 @@ export function undefinedTokenProblems(root = process.cwd()) {
               d.selector +
               ')',
           );
-        else if (!loading.length && !owners.includes('tokens.css'))
+        else if (!loading.length && !owners.includes('tokens.css') && !owners.includes(file))
           problems.push(
             at + 'only in ' + owners.join(', ') + ', and no page links this sheet to load it (' + d.selector + ')',
           );

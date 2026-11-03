@@ -16,6 +16,7 @@ import {
   undefinedTokenProblems,
 } from '../tools/check-design-tokens.mjs';
 import {cssDeclarations} from '../tools/check-colours.mjs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const baseline = JSON.parse(fs.readFileSync('tools/web-design-token-baseline.json', 'utf8'));
 
@@ -88,6 +89,7 @@ test('a new hand-written value and an undefined token are refused', () => {
     fs.mkdirSync(path.join(directory, 'web'));
     fs.writeFileSync(path.join(directory, 'web/tokens.css'), ':root { --radius-md: 10px; --line: #e5e1eb; }\n');
     fs.writeFileSync(path.join(directory, 'web/public-tokens.css'), ':root { --policy-surface: #f8f6fb; }\n');
+    fs.writeFileSync(path.join(directory, 'web/tokens-v2.css'), ':root {}\n');
     fs.writeFileSync(
       path.join(directory, 'web/a.css'),
       '.a { border-radius: var(--radius-md); border: 1px solid var(--line); }\n.b { border-color: var(--border, #ddd); }\n',
@@ -113,6 +115,7 @@ test('a stylesheet reads only tokens that every page loading it also loads', () 
     const link = sheet => '<link rel="stylesheet" href="/assets/' + sheet + '">';
     write('tokens.css', ':root { --line: #e5e1eb; }\n');
     write('public-tokens.css', ':root { --policy-surface: #f8f6fb; --policy-text: var(--line); }\n');
+    write('tokens-v2.css', ':root {}\n');
     write('index.html', [link('tokens.css'), link('w.css'), link('shared.css')].join(''));
     write('p.html', [link('tokens.css'), link('public-tokens.css'), link('p.css'), link('shared.css')].join(''));
     write('a.html', link('tokens.css') + '<noscript>' + link('public-tokens.css') + '</noscript>' + link('a.css'));
@@ -133,7 +136,24 @@ test('a stylesheet reads only tokens that every page loading it also loads', () 
   }
 });
 
-// docs/DESIGN-SYSTEM.md documents the tokens: a token added to tokens.css or public-tokens.css without a line there fails.
+test('an unloaded token sheet can reference itself without making its tokens global', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-token-own-definitions-'));
+  try {
+    fs.mkdirSync(path.join(directory, 'web'));
+    const write = (file, text) => fs.writeFileSync(path.join(directory, 'web', file), text);
+    write('tokens.css', ':root { --line: #e5e1eb; }\n');
+    write('public-tokens.css', ':root {}\n');
+    write('tokens-v2.css', ':root { --v2-only: #17141f; --v2-alias: var(--v2-only); }\n');
+    write('orphan.css', '.o { color: var(--v2-only); }\n');
+    assert.deepEqual(undefinedTokenProblems(directory), [
+      'web/orphan.css:1: --v2-only is defined only in tokens-v2.css, and no page links this sheet to load it (.o)',
+    ]);
+  } finally {
+    removeTestDirectory(directory, 'amcp-token-own-definitions-');
+  }
+});
+
+// docs/DESIGN-SYSTEM.md documents the loaded tokens; web-tokens-v2 separately pins the unloaded sheet.
 test('every token the token sheets define is documented in docs/DESIGN-SYSTEM.md', () => {
   const doc = fs.readFileSync('docs/DESIGN-SYSTEM.md', 'utf8');
   const defined = new Set(

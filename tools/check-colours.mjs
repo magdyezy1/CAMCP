@@ -23,8 +23,8 @@ import {fileURLToPath} from 'node:url';
 //              in style text), not in prose.
 
 export const baselinePath = 'tools/web-colour-baseline.json';
-/** The stylesheets that define tokens, in the order a page loads them. */
-export const tokenSheets = Object.freeze(['tokens.css', 'public-tokens.css']);
+/** Stylesheets allowed to define tokens. V2 is checked independently and remains unloaded until page adoption. */
+export const tokenSheets = Object.freeze(['tokens.css', 'public-tokens.css', 'tokens-v2.css']);
 export const allowlistPath = 'tools/web-colour-allowlist.json';
 /**
  * Tokens that keep one value in both themes: the surfaces that stay dark in the light theme and what sits on them, the
@@ -437,9 +437,13 @@ export function checkColours(
     allowed,
     problems: [
       ...tokenParityProblems(
-        tokenSheets.map(file => fs.readFileSync(path.join(root, 'web', file), 'utf8')).join('\n'),
-        tokenSheets.map(file => 'web/' + file).join(' + '),
+        tokenSheets
+          .filter(file => file !== 'tokens-v2.css')
+          .map(file => fs.readFileSync(path.join(root, 'web', file), 'utf8'))
+          .join('\n'),
+        'web/tokens.css + web/public-tokens.css',
       ),
+      ...tokenParityProblems(fs.readFileSync(path.join(root, 'web/tokens-v2.css'), 'utf8'), 'web/tokens-v2.css'),
       ...problems,
       ...colourRatchet(counts, baseline, allowlist),
       ...markupColourProblems(root, allowlist, baseline),

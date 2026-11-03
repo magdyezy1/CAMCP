@@ -54,6 +54,75 @@ theme. Its groups take the specificity of their most specific member, so one ID 
 rule that names a class. Do not add to it: give the component a token whose dark value is right. What it still decides,
 and what left it, is [below](#the-dark-override-layer-themecss).
 
+## V2 token sheet
+
+`web/tokens-v2.css` is the foundation for page adoption from round 2. No page loads it yet. It contains every legacy
+token with its existing value, so adopting the sheet alone preserves the current appearance. Redesigned components
+choose the V2 names below. Its explicit dark theme and system-dark theme have equal declarations; both are checked
+independently of the loaded token sheets.
+
+### V2 colour
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--v2-paper` | #fffdf8 | #17141f | Main surface |
+| `--v2-violet` | #7462e7 | #9085e9 | Primary control fill |
+| `--v2-on-violet` | #ffffff | #17141f | Text on that fill |
+| `--v2-violet-text` | #5a43bd | #c7adff | Accent text on paper |
+| `--v2-peach` | #ffbd96 | #ffbf9b | Marker only |
+| `--v2-ink` | #222137 | #f2edf8 | Main text |
+| `--v2-ink-2` | #696678 | #c0b5ce | Secondary text |
+| `--v2-rule` | #e5e1eb | #51475f | Decorative rule |
+| `--v2-rule-strong` | #8e87a0 | #988aab | Control boundary |
+| `--v2-data-1` | #6250d6 | #9085e9 | Data series |
+| `--v2-data-2` | #eb6834 | #d95926 | Data series |
+| `--v2-data-3` | #1baf7a | #199e70 | Data series requiring direct labels |
+
+Text pairs meet 4.5:1 in both themes, including on-violet on violet. Strong rules and the first two data series meet
+3:1 against paper. Data-3 has about 2.77:1 in light mode: use direct labels and another distinguishing cue; never rely
+on that colour alone. Peach is a marker, with an icon or text beside it. The approved mark and its three brand colours
+remain unchanged.
+
+Legacy `--ink`, `--muted`, `--line`, `--line-strong` and `--apricot` alias the corresponding V2 token in both themes.
+`--iris-700` aliases violet-text in light, and `--iris` does so in dark. Other legacy values, including `--paper`, retain
+their current definitions.
+
+### V2 scales
+
+| Token | Value |
+|---|---|
+| `--v2-space-1`, `--v2-space-2`, `--v2-space-3`, `--v2-space-4` | 4px, 8px, 12px, 16px |
+| `--v2-space-5` | clamp(16px, 13.71px + 0.714vw, 24px) |
+| `--v2-space-6` | clamp(24px, 21.71px + 0.714vw, 32px) |
+| `--v2-space-7` | clamp(32px, 27.43px + 1.429vw, 48px) |
+| `--v2-space-8` | clamp(40px, 33.14px + 2.143vw, 64px) |
+| `--v2-text-xs`, `--v2-text-sm`, `--v2-text-md` | 12px, 14px, 16px |
+| `--v2-text-lg` | clamp(18px, 16.86px + 0.357vw, 22px) |
+| `--v2-text-xl` | clamp(22px, 20.29px + 0.536vw, 28px) |
+| `--v2-text-2xl` | clamp(28px, 24.57px + 1.071vw, 40px) |
+| `--v2-text-kpi` | clamp(32px, 25.14px + 2.143vw, 56px) |
+| `--v2-numeric` | tabular-nums |
+| `--v2-radius-control`, `--v2-radius-card`, `--v2-radius-round` | 8px, 12px, 999px |
+| `--v2-shadow-overlay` | 0 10px 35px var(--shadow-soft), equal to the legacy elevation-2 |
+| `--v2-elevation-overlay` | var(--v2-shadow-overlay) |
+| `--v2-duration-fast`, `--v2-duration`, `--v2-duration-slow` | 120ms, 180ms, 280ms |
+| `--v2-ease` | cubic-bezier(0.2, 0, 0, 1) |
+| `--v2-z-raised`, `--v2-z-sticky`, `--v2-z-drawer` | 10, 20, 30 |
+| `--v2-z-overlay`, `--v2-z-dialog`, `--v2-z-toast` | 40, 50, 60 |
+| `--v2-control-height` | 40px by default; 32px in compact density |
+| `--v2-row-height` | 44px by default; 32px in compact density |
+
+The larger spacing and type steps clamp between 320px and 1440px; 12px is the type floor. Under
+`prefers-reduced-motion: reduce`, all three V2 durations are 0s. Use tabular numerals for comparable numbers.
+
+### Viewport tiers and density
+
+The V2 layout tiers are compact below 600px, medium at 600–1023px, and wide from 1024px. Components use container
+queries where possible. Qualification at 320px, 768px and 1280px samples those tiers. The density preference is
+independent of viewport width: `:root[data-density='compact']` selects the compact control and row heights, while the
+default keeps 40px controls and 44px rows. The sheet supplies this switch; pages add its user control when they adopt
+V2.
+
 ## Tokens
 
 ### Colour

@@ -66,7 +66,7 @@ for (const html of fs.readdirSync('web').filter(f => f.endsWith('.html'))) {
 for (const sheet of stylesheets)
   if (/(?:^|[{;\s])--[\w-]+\s*:/.test(fs.readFileSync('web/' + sheet, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')))
     problems.push(
-      sheet + ': defines a design token; tokens belong in the token sheets (' + tokenSheets.join(', ') + ')',
+      sheet + ': defines a design token; use the token sheets (' + tokenSheets.join(', ') + '); V2 is not loaded yet',
     );
 // A colour equal to a light token's value uses the token, so a palette change reaches it (F-40). Reviewed literals
 // (tools/web-colour-allowlist.json) are brand marks and print colours that never follow the palette.
