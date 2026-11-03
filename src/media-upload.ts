@@ -198,7 +198,7 @@ export const mediaTool = {
         type: 'string',
       },
       search: {type: 'string', maxLength: 200},
-      tag: {type: 'string', maxLength: 40},
+      tag: {type: 'string', maxLength: 200},
       original_sha256: {type: 'string'},
       cursor: {
         type: 'string',

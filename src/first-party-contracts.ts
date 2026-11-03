@@ -9,8 +9,8 @@ import {operationStates} from './operation-types.js';
  * call it. A tool still lists one flat input schema (a per-action oneOf would enlarge tools/list); this table narrows it
  * per action, is served whole by amcp_tool_help {gateway, operation}, and checks each call.
  *
- * - `arguments` are authored from the handler code: an action reads these names and no others. Their JSON Schemas are the
- *   tool's own flat property schemas, so the table can never contradict tools/list.
+ * - `arguments` are authored from the handler code: an action reads these names and no others. Their JSON Schemas start
+ *   from the tool's flat properties; action bounds may narrow limits and supply the handler's defaults and notes.
  * - `effects` are the most a call can do: provider requests (none, read_only, or reviewed_write for a mutation sent after
  *   review), the AMCP records it may save, provider-side jobs, non-advertising remote writes (Google Sheets) and
  *   advertising writes. They describe; the safeguards that enforce them (review gate, spending policy, grants,
@@ -47,6 +47,10 @@ interface ToolLike {
   name: string;
   inputSchema: JsonObject;
 }
+type ActionBounds = Record<
+  string,
+  {minimum?: number; maximum?: number; default?: unknown; maxLength?: number; note?: string}
+>;
 interface Row {
   action: string | null;
   summary: string;
@@ -55,6 +59,7 @@ interface Row {
   effects: ActionEffects;
   role: RequiredRole;
   next: [string, string][];
+  bounds?: ActionBounds;
 }
 const effects = (
   provider_requests: ProviderRequests = 'none',
@@ -80,7 +85,8 @@ const row = (
   e: ActionEffects,
   role: RequiredRole,
   next: [string, string][] = [],
-): Row => ({action, summary, required, optional, effects: e, role, next});
+  bounds?: ActionBounds,
+): Row => ({action, summary, required, optional, effects: e, role, next, bounds});
 
 const W = 'amcp_workspace',
   C = 'amcp_campaign',
@@ -114,6 +120,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[W, 'report_run']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 30}},
     ),
     row('report_run', 'One workbook report run: its bounded, currently scoped status.', ['id'], [], local, 'reader', [
       [W, 'resume_report_run'],
@@ -165,6 +172,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[W, 'report_query']],
+      {'limit': {'default': 50}},
     ),
     row('report_query', 'One workbook query and its query_version.', ['id'], [], local, 'reader', [
       [W, 'preview_report_query'],
@@ -213,6 +221,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[W, 'report_binding']],
+      {'limit': {'default': 20}},
     ),
     row(
       'report_binding',
@@ -267,6 +276,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[X, 'inspect']],
+      {'limit': {'default': 50}},
     ),
     row(
       'capabilities',
@@ -279,6 +289,7 @@ const rows: Record<string, Row[]> = {
         [W, 'check'],
         [W, 'program_check'],
       ],
+      {'limit': {'minimum': 1, 'maximum': 25, 'default': 20}},
     ),
     row(
       'program_check',
@@ -344,9 +355,16 @@ const rows: Record<string, Row[]> = {
       'reader',
       [[W, 'monitor_notifications']],
     ),
-    row('monitors', 'Lists report monitors.', [], ['state', 'search', ...scope, 'offset', 'limit'], local, 'reader', [
-      [W, 'monitor'],
-    ]),
+    row(
+      'monitors',
+      'Lists report monitors.',
+      [],
+      ['state', 'search', ...scope, 'offset', 'limit'],
+      local,
+      'reader',
+      [[W, 'monitor']],
+      {'limit': {'default': 50}},
+    ),
     row('monitor', 'One report monitor.', ['id'], [], local, 'reader', [[W, 'set_monitor_state']]),
     row(
       'save_monitor',
@@ -374,6 +392,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[W, 'incident']],
+      {'limit': {'default': 50}},
     ),
     row('incident', 'One monitor incident.', ['id'], [], local, 'reader', [[W, 'acknowledge_incident']]),
     row(
@@ -420,6 +439,7 @@ const rows: Record<string, Row[]> = {
       reads(),
       'reader',
       [[W, 'portfolio_reconcile']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 50, 'note': 'Snapchat accepts 50–100.'}},
     ),
     row(
       'portfolio_reconcile',
@@ -429,6 +449,11 @@ const rows: Record<string, Row[]> = {
       reads(),
       'reader',
       [[W, 'portfolio']],
+      {
+        'limit': {'minimum': 1, 'maximum': 100, 'default': 50},
+        'max_entities': {'minimum': 1, 'maximum': 1000, 'default': 500},
+        'max_pages': {'minimum': 1, 'maximum': 25, 'default': 20},
+      },
     ),
     row(
       'measurement_audit',
@@ -666,6 +691,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[W, 'operations']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 100}},
     ),
     row('health', 'Owner (or administrator) health summary of jobs, storage and deliveries.', [], [], local, 'admin', [
       [W, 'support_bundle'],
@@ -690,6 +716,7 @@ const rows: Record<string, Row[]> = {
       saves('retention_policy'),
       'owner',
       [[W, 'health']],
+      {'days': {'minimum': 7, 'maximum': 365}, 'archived_campaign_plans_days': {'note': '0, or 7–3650.'}},
     ),
     row(
       'save_plan_policy',
@@ -800,6 +827,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[C, 'get']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 50}},
     ),
     row(
       'archive',
@@ -1103,6 +1131,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[R, 'analyze']],
+      {'limit': {'default': 50}},
     ),
     row(
       'list',
@@ -1112,6 +1141,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[R, 'get']],
+      {'limit': {'default': 30, 'note': 'offset must be 0.'}},
     ),
     row(
       'reconcile',
@@ -1160,6 +1190,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[R, 'preview_allocation_plan']],
+      {'limit': {'default': 20}},
     ),
     row(
       'calibrate_allocation',
@@ -1223,6 +1254,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[R, 'preview_search_exclusions']],
+      {'limit': {'default': 50}},
     ),
     row(
       'preview_search_exclusions',
@@ -1306,6 +1338,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[O, 'apply_profile_presentation']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 30}},
     ),
     row(
       'apply_profile_presentation',
@@ -1396,6 +1429,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[R, 'capture_overview']],
+      {'limit': {'minimum': 1, 'maximum': 500, 'default': 100}},
     ),
     row(
       'compare_candidates',
@@ -1405,6 +1439,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[O, 'compare']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 50}},
     ),
     row(
       'get',
@@ -1414,10 +1449,18 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[O, 'report_pack']],
+      {'limit': {'minimum': 1, 'maximum': 500, 'default': 100}},
     ),
-    row('list', 'Report snapshots you can access, newest first.', [], ['offset', 'limit'], local, 'reader', [
-      [O, 'get'],
-    ]),
+    row(
+      'list',
+      'Report snapshots you can access, newest first.',
+      [],
+      ['offset', 'limit'],
+      local,
+      'reader',
+      [[O, 'get']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 50}},
+    ),
     row(
       'export',
       'Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files.',
@@ -1498,6 +1541,7 @@ const rows: Record<string, Row[]> = {
       effects('none', ['sheets_destination'], {remote_writes: true}),
       'operator',
       [[O, 'export']],
+      {'tab_name': {'maxLength': 80, 'default': 'AMCP Overview'}},
     ),
     row(
       'bind_file_destination',
@@ -1678,6 +1722,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[M, 'plan']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 50}},
     ),
     row(
       'library',
@@ -1687,6 +1732,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[M, 'asset']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 30}, 'cursor': {'maxLength': 1024}},
     ),
     row(
       'asset',
@@ -1714,6 +1760,7 @@ const rows: Record<string, Row[]> = {
       local,
       'reader',
       [[M, 'asset']],
+      {'limit': {'minimum': 1, 'maximum': 100, 'default': 30}},
     ),
     row(
       'asset_usage',
@@ -1723,6 +1770,7 @@ const rows: Record<string, Row[]> = {
       reads(),
       'reader',
       [[M, 'asset']],
+      {'limit': {'default': 50, 'note': 'Meta 1–100; Google and Snapchat 1–1000.'}},
     ),
     row(
       'reuse',
@@ -1790,6 +1838,7 @@ const rows: Record<string, Row[]> = {
         [C, 'verify'],
         [X, 'status'],
       ],
+      {'idempotency_key': {'note': 'Defaults to the review_id; any other value is refused.'}},
     ),
     row(
       'status',
@@ -1980,12 +2029,12 @@ export function firstPartyContract(tool: ToolLike, action: string | null): First
     notes = argumentNotes[tool.name] ?? {},
     names = [...(action === null ? [] : ['action']), ...r.required, ...r.optional].filter(k => Object.hasOwn(flat, k)),
     properties = Object.fromEntries(
-      names.map(k => [
-        k,
-        k === 'action'
-          ? {type: 'string', const: action}
-          : {...structuredClone(flat[k]), ...(notes[k] ? {description: notes[k]} : {})},
-      ]),
+      names.map(k => {
+        if (k === 'action') return [k, {type: 'string', const: action}];
+        const {note, ...bounds} = r.bounds?.[k] ?? {},
+          description = [notes[k] ?? flat[k].description, note].filter(Boolean).join(' ');
+        return [k, {...structuredClone(flat[k]), ...bounds, ...(description ? {description} : {})}];
+      }),
     ),
     required = [...(action === null ? [] : ['action']), ...r.required].filter(k => Object.hasOwn(flat, k));
   const contract: FirstPartyContract = {
@@ -2109,6 +2158,19 @@ const effectText = (e: ActionEffects) =>
     ...(e.advertising_writes ? ['changes an advertising account'] : []),
   ].join('; ');
 /** The action reference of the AMCP tools as guide Markdown, generated from the table (MCP-07). */
+const boundsText = (bounds: ActionBounds[string] | undefined): string => {
+  if (!bounds) return '';
+  const parts: string[] = [];
+  if (bounds.minimum !== undefined && bounds.maximum !== undefined) parts.push(bounds.minimum + '–' + bounds.maximum);
+  else {
+    if (bounds.minimum !== undefined) parts.push('minimum ' + bounds.minimum);
+    if (bounds.maximum !== undefined) parts.push('maximum ' + bounds.maximum);
+  }
+  if (bounds.maxLength !== undefined) parts.push('maxLength ' + bounds.maxLength);
+  if (bounds.default !== undefined) parts.push('default ' + JSON.stringify(bounds.default));
+  if (bounds.note) parts.push(bounds.note);
+  return parts.length ? ' (' + parts.join(', ') + ')' : '';
+};
 export function contractsMarkdown(tools: ToolLike[]): string {
   const lines = [
     contractsGuideMarkers[0],
@@ -2132,7 +2194,14 @@ export function contractsMarkdown(tools: ToolLike[]): string {
       const c = firstPartyContract(tool, action)!,
         required = new Set<string>(c.argumentsSchema.required),
         names = Object.keys(c.argumentsSchema.properties).filter(k => k !== 'action'),
-        args = names.map(k => (required.has(k) ? '**`' + k + '`**' : '`' + k + '`')).join(', ') || '—';
+        args =
+          names
+            .map(
+              k =>
+                (required.has(k) ? '**`' + k + '`**' : '`' + k + '`') +
+                boundsText(authored(tool.name, action)?.bounds?.[k]),
+            )
+            .join(', ') || '—';
       lines.push(
         '| ' +
           [action === null ? '—' : '`' + action + '`', c.summary, args, effectText(c.effects), c.requires_role].join(

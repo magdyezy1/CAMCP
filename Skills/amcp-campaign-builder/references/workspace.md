@@ -1289,26 +1289,26 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
 | `dashboard` | Counts per provider and account; sections with gateway, connection_id and account_id return bounded detail. | `view`, `sections`, `gateway`, `connection_id`, `account_id`, `limit`, `cursor` | no provider request | reader |
-| `operations` | Metadata-only feed of retained work across engines, each with a read-only next_call to its record. | `kind`, `state`, `search`, `account_id`, `connection_id`, `profile_id`, `limit`, `cursor` | no provider request | reader |
+| `operations` | Metadata-only feed of retained work across engines, each with a read-only next_call to its record. | `kind`, `state`, `search`, `account_id`, `connection_id`, `profile_id`, `limit` (1–100, default 30), `cursor` | no provider request | reader |
 | `report_run` | One workbook report run: its bounded, currently scoped status. | **`id`** | no provider request | reader |
 | `resume_report_run` | Requeues a prepared, failed or cancelled read-only workbook report under its original run ID. | **`id`**, **`run_version`**, **`confirmed`** | provider reads; saves report_run | operator |
 | `report_schedule` | One workbook schedule with its next three clock times and schedule_version. | **`id`** | no provider request | reader |
 | `preview_report_schedule` | Checks proposed schedule settings against the current schedule_version without saving anything. | **`id`**, **`schedule_version`**, `active`, `schedule` | no provider request | reader |
 | `save_report_schedule` | Saves the previewed schedule settings; the query and existing jobs are unchanged. | **`id`**, **`schedule_version`**, **`confirmed`**, `active`, `schedule` | no provider request; saves workbook_schedule | operator |
-| `report_queries` | Lists currently authorized workbook query metadata. | `search`, `account_id`, `connection_id`, `spreadsheet_id`, `offset`, `limit` | no provider request | reader |
+| `report_queries` | Lists currently authorized workbook query metadata. | `search`, `account_id`, `connection_id`, `spreadsheet_id`, `offset`, `limit` (default 50) | no provider request | reader |
 | `report_query` | One workbook query and its query_version. | **`id`** | no provider request | reader |
 | `preview_report_query` | Reviews a changed query definition (name, query_config) against query_version without saving. | **`id`**, **`query_version`**, **`query`** | no provider request | reader |
 | `save_report_query` | Saves the reviewed query revision, pausing changed schedules and preparing one unsubmitted run. | **`id`**, **`query_version`**, **`query`**, **`confirmed`** | no provider request; saves workbook_query, report_run | operator |
 | `preview_report_query_move` | Shows the source and target binding, schedule impact and rebinding_version of moving a query. | **`id`**, **`query_version`**, **`target_binding_id`** | no provider request | reader |
 | `move_report_query` | Moves the query and its schedules to another binding, pausing them for separate review. | **`id`**, **`query_version`**, **`target_binding_id`**, **`rebinding_version`**, **`confirmed`** | no provider request; saves workbook_query, workbook_schedule, report_run | operator |
-| `report_bindings` | Lists scoped local workbook associations (active by default). | `search`, `spreadsheet_id`, `state`, `offset`, `limit` | no provider request | reader |
+| `report_bindings` | Lists scoped local workbook associations (active by default). | `search`, `spreadsheet_id`, `state`, `offset`, `limit` (default 20) | no provider request | reader |
 | `report_binding` | One binding with up to 100 linked queries and binding_version; external access is not verified. | **`id`** | no provider request | reader |
 | `preview_report_binding` | Reviews a binding rename (binding.spreadsheet_name) against binding_version. | **`id`**, **`binding_version`**, **`binding`** | no provider request | reader |
 | `save_report_binding` | Renames the binding’s local metadata only. | **`id`**, **`binding_version`**, **`binding`**, **`confirmed`** | no provider request; saves workbook_binding | operator |
 | `preview_report_binding_state` | Reviews retiring (active:false) or restoring (active:true) an empty binding. | **`id`**, **`binding_version`**, **`active`** | no provider request | reader |
 | `save_report_binding_state` | Retires or restores an empty binding; nothing is deleted. | **`id`**, **`binding_version`**, **`active`**, **`confirmed`** | no provider request; saves workbook_binding | operator |
-| `contracts` | Read/write/media/blocked classification of every native action and what its route rests on (anchor_status), with no network request. | `gateway`, `search`, `offset`, `limit` | no provider request | reader |
-| `capabilities` | Workflows with per-account readiness and blockers: a paged summary, or the whole graph with view:"graph". | `workflow_id`, `gateway`, `connection_id`, `account_id`, `view`, `limit`, `cursor`, `offset` | no provider request | reader |
+| `contracts` | Read/write/media/blocked classification of every native action and what its route rests on (anchor_status), with no network request. | `gateway`, `search`, `offset`, `limit` (default 50) | no provider request | reader |
+| `capabilities` | Workflows with per-account readiness and blockers: a paged summary, or the whole graph with view:"graph". | `workflow_id`, `gateway`, `connection_id`, `account_id`, `view`, `limit` (1–25, default 20), `cursor`, `offset` | no provider request | reader |
 | `program_check` | One conditional program of capabilities: live:false checks contracts and recorded permissions; live:true makes one bounded read. | **`workflow_id`**, **`connection_id`**, **`account_id`**, `live`, `requirements` | provider reads; saves conditional_program_observation | reader |
 | `check` | Exact account prerequisites of account_id, or of 1–20 account_ids of one login: live:false saves nothing; live:true reads each account and saves its read evidence. | **`connection_id`**, `account_id`, `account_ids`, `live`, `requirements` | provider reads; saves readiness, account_metadata | reader |
 | `profiles` | Lists the approved client profiles. | — | no provider request | reader |
@@ -1317,18 +1317,18 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `monitor_notifications` | Your email subscription to one monitor and its 20 recent deliveries. | **`id`** | no provider request | reader |
 | `set_monitor_notifications` | Turns your verified-email notices for one monitor on or off. | **`id`**, **`enabled`**, **`subscription_version`**, **`confirmed`** | no provider request; saves monitor_subscription | reader |
 | `retry_monitor_notification` | Retries one failed notice with its original recipient and payload within 24 hours. | **`notification_id`**, **`notification_version`**, **`confirmed`** | no provider request; saves monitor_notification | reader |
-| `monitors` | Lists report monitors. | `state`, `search`, `gateway`, `connection_id`, `account_id`, `offset`, `limit` | no provider request | reader |
+| `monitors` | Lists report monitors. | `state`, `search`, `gateway`, `connection_id`, `account_id`, `offset`, `limit` (default 50) | no provider request | reader |
 | `monitor` | One report monitor. | **`id`** | no provider request | reader |
 | `save_monitor` | Saves a report monitor rule; monitors never change an advertising account. | **`monitor`**, **`confirmed`**, `id`, `revision` | no provider request; saves report_monitor | operator |
 | `set_monitor_state` | Pauses or resumes a monitor at its current revision. | **`id`**, **`active`**, **`revision`**, **`confirmed`** | no provider request; saves report_monitor | operator |
-| `incidents` | Lists monitor incidents. | `state`, `search`, `gateway`, `connection_id`, `account_id`, `offset`, `limit` | no provider request | reader |
+| `incidents` | Lists monitor incidents. | `state`, `search`, `gateway`, `connection_id`, `account_id`, `offset`, `limit` (default 50) | no provider request | reader |
 | `incident` | One monitor incident. | **`id`** | no provider request | reader |
 | `acknowledge_incident` | Acknowledges an incident at its current revision. | **`id`**, **`revision`**, `confirmed` | no provider request; saves report_incident | operator |
 | `snooze_incident` | Snoozes an incident for 1–168 hours; a snooze never resolves its evidence. | **`id`**, **`revision`**, **`snooze_hours`**, `confirmed` | no provider request; saves report_incident | operator |
 | `resume_incident` | Ends an acknowledgement or snooze at the current revision. | **`id`**, **`revision`**, `confirmed` | no provider request; saves report_incident | operator |
 | `evaluate_monitors` | Evaluates the monitors of one retained report against its evidence, opening or resolving incidents. | **`report_id`** | no provider request; saves report_incident | operator |
-| `portfolio` | One bounded inventory page (campaigns, ad sets/groups, ads) of a Google, Meta, LinkedIn, Snapchat, TikTok, X or Microsoft account. | **`gateway`**, **`account_id`**, `connection_id`, `requirements`, `limit`, `cursor` | provider reads | reader |
-| `portfolio_reconcile` | Two complete bounded observations of one inventory hierarchy, compared; saves nothing. | **`gateway`**, **`account_id`**, `connection_id`, `requirements`, `limit`, `max_entities`, `max_pages` | provider reads | reader |
+| `portfolio` | One bounded inventory page (campaigns, ad sets/groups, ads) of a Google, Meta, LinkedIn, Snapchat, TikTok, X or Microsoft account. | **`gateway`**, **`account_id`**, `connection_id`, `requirements`, `limit` (1–100, default 50, Snapchat accepts 50–100.), `cursor` | provider reads | reader |
+| `portfolio_reconcile` | Two complete bounded observations of one inventory hierarchy, compared; saves nothing. | **`gateway`**, **`account_id`**, `connection_id`, `requirements`, `limit` (1–100, default 50), `max_entities` (1–1000, default 500), `max_pages` (1–25, default 20) | provider reads | reader |
 | `measurement_audit` | Tag Manager workspace configuration and consent evidence for requirements {container_id, workspace_id}. | **`account_id`**, **`requirements`**, `gateway`, `connection_id` | provider reads | reader |
 | `preview_consent_plan` | Reads 1–10 selected tags and previews additional-consent changes for a 10-minute, session-bound window. | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads; saves gtm_consent_preview | operator |
 | `create_consent_plan` | Saves the previewed consent changes as one unapproved native UPDATE_TAG plan; nothing is published. | **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
@@ -1354,11 +1354,11 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `brief` | One saved client brief. | **`id`** | no provider request | reader |
 | `save_brief` | Saves a client brief ({name, recipe, profile_id?, business}) for recipes to reuse by brief_id. | **`brief`**, `id`, `revision` | no provider request; saves client_brief | operator |
 | `delete_brief` | Deletes a saved client brief at its current revision. | **`id`**, **`revision`**, **`confirmed`** | no provider request; saves client_brief | operator |
-| `history` | Bounded audit metadata of changes (never raw requests or receipts), filtered and paged. | `search`, `gateway`, `connection_id`, `account_id`, `profile_id`, `limit`, `cursor` | no provider request | reader |
+| `history` | Bounded audit metadata of changes (never raw requests or receipts), filtered and paged. | `search`, `gateway`, `connection_id`, `account_id`, `profile_id`, `limit` (1–100, default 100), `cursor` | no provider request | reader |
 | `health` | Owner (or administrator) health summary of jobs, storage and deliveries. | — | no provider request | admin |
 | `support_bundle` | The owner’s metadata-only operations bundle for support. | — | no provider request | owner |
 | `save_spend_policy` | Saves the owner spending policy for the workspace or one account (expected_revision guards against a stale read). | **`policy`**, **`confirmed`**, `scope`, `gateway`, `account_id`, `connection_id`, `expected_revision` | no provider request; saves spend_policy | owner |
-| `save_retention` | Sets how many days (7–365) report records are kept, and optionally when archived campaign plans are deleted. | **`confirmed`**, `days`, `archived_campaign_plans_days` | no provider request; saves retention_policy | owner |
+| `save_retention` | Sets how many days (7–365) report records are kept, and optionally when archived campaign plans are deleted. | **`confirmed`**, `days` (7–365), `archived_campaign_plans_days` (0, or 7–3650.) | no provider request; saves retention_policy | owner |
 | `save_plan_policy` | Sets whether a plan that changes spending or activates a launch needs an approver other than its owner. | **`require_distinct_approver`**, **`confirmed`** | no provider request; saves plan_policy | owner |
 | `pause_writes` | Pauses every reviewed write of the workspace, with a reason; pause_scope narrows it to advertising writes or to provider report and export jobs. | **`reason`**, **`confirmed`**, `pause_scope` | no provider request; saves write_pause | owner |
 | `resume_writes` | Resumes reviewed writes. | **`confirmed`** | no provider request; saves write_pause | owner |
@@ -1372,7 +1372,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 |---|---|---|---|---|
 | `create` | Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template. | **`name`**, **`brief`**, `steps`, `profile_id`, `template`, `variables`, `idempotency_key`, `acknowledge_temporary_sources`, `allocation_preview_id`, `allocation_preview_hash`, `consent_preview_id`, `consent_preview_hash`, `catalog_binding`, `search_exclusion_preview_id`, `search_exclusion_preview_hash`, `id`, `expected_revision`, `confirmed`, `detail` | no provider request; saves campaign_run | operator |
 | `get` | One plan, compact; step_id returns one step whole, detail:"full" the whole plan. | **`id`**, `step_id`, `detail` | no provider request | reader |
-| `list` | Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor. | `offset`, `limit`, `cursor`, `state`, `archived`, `awaiting_approval`, `search`, `gateway`, `account_id`, `connection_id`, `profile_id` | no provider request | reader |
+| `list` | Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor. | `offset`, `limit` (1–100, default 50), `cursor`, `state`, `archived`, `awaiting_approval`, `search`, `gateway`, `account_id`, `connection_id`, `profile_id` | no provider request | reader |
 | `prepare_next` | Prepares the native review of the next step whose predecessors are verified. | **`id`**, `detail` | provider reads; saves campaign_run, write_review | operator |
 | `execute_next` | Executes that exact review after the user’s approval and reads the result back. | **`id`**, **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `detail`, `expected_revision` | reviewed provider write; saves campaign_run, write_receipt; changes an advertising account | operator |
 | `verify` | Reads back a completed write (a plan step’s or a single reviewed write’s review_id). | **`review_id`** | provider reads; saves write_verification | reader |
@@ -1408,21 +1408,21 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `capture_preset` | Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report. | **`preset`**, **`account_id`**, **`semantics`**, `connection_id`, `campaign_id`, `result_action_type`, `attribution_windows`, `swipe_up_attribution_window`, `view_attribution_window` | provider reads; saves decision_report | reader |
 | `overview_sources` | The source groups of a completed Overview snapshot, with no provider request. | **`id`** | no provider request | reader |
 | `capture_overview` | Keeps one Overview source group as analysable evidence, with no provider request. | **`id`**, **`group_id`** | no provider request; saves decision_report | reader |
-| `get` | One captured report with a page of rows (row_query searches them) and its xlsx_path. | **`id`**, `row_query`, `offset`, `limit` | no provider request | reader |
-| `list` | Captured reports, filtered and paged. | `search`, `gateway`, `connection_id`, `account_id`, `preset`, `cursor`, `offset`, `limit` | no provider request | reader |
+| `get` | One captured report with a page of rows (row_query searches them) and its xlsx_path. | **`id`**, `row_query`, `offset`, `limit` (default 50) | no provider request | reader |
+| `list` | Captured reports, filtered and paged. | `search`, `gateway`, `connection_id`, `account_id`, `preset`, `cursor`, `offset`, `limit` (default 30, offset must be 0.) | no provider request | reader |
 | `reconcile` | Compares a captured report with a declared reference. | **`id`**, **`reference`**, `options` | no provider request | reader |
 | `reconcile_report` | Compares a captured report with another retained report. | **`id`**, **`reference_id`**, `options` | no provider request | reader |
 | `analyze` | Pacing, anomaly, fatigue and search-waste recommendations from retained evidence. | **`id`**, `baseline_id`, `options` | no provider request | reader |
 | `combine` | Combines compatible captured reports (same currency, timezone, attribution and definition). | **`ids`**, `id`, `options` | no provider request; saves decision_report | reader |
 | `scenarios` | Budget scenarios from a linear sensitivity model. | **`id`**, **`options`** | no provider request | reader |
-| `allocation_candidates` | Entities of a report that a budget allocation could change. | **`id`**, `options`, `offset`, `limit` | no provider request | reader |
+| `allocation_candidates` | Entities of a report that a budget allocation could change. | **`id`**, `options`, `offset`, `limit` (default 20) | no provider request | reader |
 | `calibrate_allocation` | Calibrates allocation efficiency from comparable retained reports. | **`id`**, **`ids`**, `options` | no provider request | reader |
 | `allocation` | A constrained allocation proposal; never a budget change. | **`id`**, **`options`** | no provider request | reader |
 | `preview_allocation_plan` | Reads current budgets and previews the allocation as draft steps. | **`id`**, **`options`**, `conversion` | provider reads; saves allocation_preview | operator |
 | `create_allocation_plan` | Saves the previewed allocation as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
 | `allocation_outcome` | The outcome review of a verified allocation plan (id): its closed-period window, state and, once captured, realized results beside the proposal. | **`id`** | no provider request; saves allocation_outcome | reader |
 | `capture_allocation_outcome` | After the outcome window closes, captures the same entities with the proposal’s guided preset and saves the observational comparison. | **`id`** | provider reads; saves decision_report, allocation_outcome | reader |
-| `search_exclusion_candidates` | Search terms of a Google report that could be excluded. | **`id`**, `options`, `offset`, `limit` | no provider request | reader |
+| `search_exclusion_candidates` | Search terms of a Google report that could be excluded. | **`id`**, `options`, `offset`, `limit` (default 50) | no provider request | reader |
 | `preview_search_exclusions` | Reads the original ad groups and previews exact-negative exclusions. | **`id`**, **`ids`**, `options` | provider reads; saves search_exclusion_preview | operator |
 | `create_search_exclusion_plan` | Saves the previewed exclusions as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
 | `serving_diagnostics` | Google primary status, reasons, policy summary and ad strength per level; native symbols, unknowns listed. | **`account_id`**, **`connection_id`**, `gateway`, `campaign_id`, `options` | provider reads | reader |
@@ -1436,7 +1436,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `preview_schedule` | The next three deliveries of a saved or proposed schedule, with each source’s window. | `id`, `schedule`, `config` | no provider request | reader |
 | `report_pack` | A snapshot’s summary, source evidence and PDF/XLSX download paths. | **`id`** | no provider request | reader |
 | `save_presentation` | Saves a snapshot’s presentation (labels, order, notes). | **`id`**, **`presentation`**, **`confirmed`**, `presentation_revision` | no provider request; saves report_presentation | operator |
-| `presentation_profiles` | Client profiles whose report presentation can apply to a snapshot. | **`id`**, `offset`, `limit` | no provider request | reader |
+| `presentation_profiles` | Client profiles whose report presentation can apply to a snapshot. | **`id`**, `offset`, `limit` (1–100, default 30) | no provider request | reader |
 | `apply_profile_presentation` | Applies a client profile’s report presentation to a snapshot. | **`id`**, **`profile_id`**, **`confirmed`**, `profile_revision`, `presentation_revision` | no provider request; saves report_presentation | operator |
 | `save` | Saves a named client report definition (edits need expected_revision). | **`config`**, **`confirmed`**, `id`, `name`, `expected_revision`, `view_id`, `expected_view_revision` | no provider request; saves overview_view | operator |
 | `save_template` | Saves a reusable report template. | **`config`**, **`confirmed`**, `id`, `name`, `expected_revision` | no provider request; saves overview_template | operator |
@@ -1446,8 +1446,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `update_schedule` | Changes a delivery schedule’s settings. | **`id`**, **`schedule`**, **`confirmed`**, `config`, `destination_id`, `view_id`, `expected_revision`, `expected_view_revision` | no provider request; saves overview_schedule | operator |
 | `remove_schedule` | Removes a delivery schedule; its snapshots stay. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_schedule | operator |
 | `run` | Queues a bounded native report snapshot of a saved definition (id) or a config; compare:previous_period also queues the equal previous window as its paired baseline. | **`confirmed`**, `id`, `config`, `compare` | provider reads; saves overview_report | operator |
-| `get` | One snapshot with a page of rows, its exports and deliveries. | **`id`**, `offset`, `limit` | no provider request | reader |
-| `list` | Report snapshots you can access, newest first. | `offset`, `limit` | no provider request | reader |
+| `get` | One snapshot with a page of rows, its exports and deliveries. | **`id`**, `offset`, `limit` (1–500, default 100) | no provider request | reader |
+| `list` | Report snapshots you can access, newest first. | `offset`, `limit` (1–100, default 50) | no provider request | reader |
 | `export` | Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files. | **`report_id`**, **`destination_id`**, **`confirmed`**, `idempotency_key` | no provider request; saves overview_export; Google Sheets write | operator |
 | `schedule` | Creates a recurring delivery of a saved report. | **`schedule`**, **`confirmed`**, `id`, `config`, `destination_id`, `view_id`, `expected_view_revision`, `idempotency_key` | no provider request; saves overview_schedule | operator |
 | `pause_schedule` | Pauses a schedule. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_schedule | operator |
@@ -1456,15 +1456,15 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `retry` | Retries a failed or cancelled report, Sheets export or file export job. | **`id`**, **`confirmed`** | provider reads; saves overview_report, overview_export; Google Sheets write | operator |
 | `cancel` | Cancels a queued or running report or export job. | **`id`**, **`confirmed`** | no provider request; saves overview_report | operator |
 | `create_spreadsheet` | Creates a Google spreadsheet for delivery and binds it as a destination. | **`connection_id`**, **`confirmed`**, **`name`**, **`idempotency_key`**, `tab_name` | no provider request; saves sheets_destination; Google Sheets write | admin |
-| `bind_destination` | Binds an existing editable Google spreadsheet tab as a destination. | **`connection_id`**, **`confirmed`**, `spreadsheet_id`, `spreadsheet_url`, `tab_name`, `name`, `idempotency_key` | no provider request; saves sheets_destination; Google Sheets write | operator |
+| `bind_destination` | Binds an existing editable Google spreadsheet tab as a destination. | **`connection_id`**, **`confirmed`**, `spreadsheet_id`, `spreadsheet_url`, `tab_name` (maxLength 80, default "AMCP Overview"), `name`, `idempotency_key` | no provider request; saves sheets_destination; Google Sheets write | operator |
 | `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`confirmed`**, `idempotency_key` | no provider request; saves report_file_destination | operator |
 | `export_status` | One export’s state, outcome and retry availability. | **`id`** | no provider request | reader |
 | `resolve_delivery` | Resolves an unconfirmed Sheets delivery after its settle window (release the tab, or keep it). | **`delivery_id`**, **`resolution`**, **`confirmed`** | no provider request; saves sheets_delivery | operator |
 | `preview_workbook_move` | Dry run of moving a local workbook schedule into an Overview report and schedule, with usable report tabs and blockers. | **`id`**, `destination_id` | no provider request | reader |
 | `move_workbook_schedule` | Creates the previewed Overview report and schedule and pauses the local workbook schedule; its query is unchanged. | **`id`**, **`destination_id`**, **`move_version`**, **`confirmed`** | no provider request; saves overview_view, overview_schedule, workbook_schedule | operator |
 | `undo_workbook_move` | Pauses the Overview schedule a workbook move created and restores the local workbook schedule. | **`id`**, **`confirmed`** | no provider request; saves overview_schedule, workbook_schedule | operator |
-| `compare` | Compares a finished snapshot with an earlier equal-length snapshot (baseline_id, or its previous-period pair): exact deltas for matching entities, with no provider request. | **`id`**, `baseline_id`, `offset`, `limit` | no provider request | reader |
-| `compare_candidates` | Retained snapshots that could be the baseline of a snapshot, each with the rules it fails. | **`id`**, `offset`, `limit` | no provider request | reader |
+| `compare` | Compares a finished snapshot with an earlier equal-length snapshot (baseline_id, or its previous-period pair): exact deltas for matching entities, with no provider request. | **`id`**, `baseline_id`, `offset`, `limit` (1–500, default 100) | no provider request | reader |
+| `compare_candidates` | Retained snapshots that could be the baseline of a snapshot, each with the rules it fails. | **`id`**, `offset`, `limit` (1–100, default 50) | no provider request | reader |
 
 ### amcp_media
 
@@ -1483,12 +1483,12 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `inspect_eligibility` | Checks a file against a placement preset before any upload; nothing is kept. | **`preset`**, `source_id`, `source_url`, `drive_url`, `drive_connection_id`, `variant_id` | no provider request | operator |
 | `retain_source` | Keeps an imported link or Drive original beyond its 30-minute window (workspace owner). | **`source_id`**, **`expected_sha256`**, **`confirmed`** | no provider request; saves media_source | owner |
 | `remove_source` | Removes a retained original (workspace owner). | **`source_id`**, **`expected_sha256`**, **`confirmed`** | no provider request; saves media_source | owner |
-| `list` | Upload receipts, recovery reviews, variants, presets and website sources. | `platform`, `account_id`, `connection_id`, `profile_id`, `offset`, `limit`, `recovery_offset`, `include_assets` | no provider request | reader |
-| `library` | Account-scoped retained media metadata. | `platform`, `account_id`, `connection_id`, `profile_id`, `search`, `tag`, `original_sha256`, `cursor`, `limit` | no provider request | reader |
+| `list` | Upload receipts, recovery reviews, variants, presets and website sources. | `platform`, `account_id`, `connection_id`, `profile_id`, `offset`, `limit` (1–100, default 50), `recovery_offset`, `include_assets` | no provider request | reader |
+| `library` | Account-scoped retained media metadata. | `platform`, `account_id`, `connection_id`, `profile_id`, `search`, `tag`, `original_sha256`, `cursor` (maxLength 1024), `limit` (1–100, default 30) | no provider request | reader |
 | `asset` | One retained asset with its versions and verified plan usage. | **`asset_id`**, `cursor`, `limit` | no provider request | reader |
 | `save_asset_metadata` | Saves an asset’s name, tags and notes at its revision. | **`asset_id`**, **`metadata`**, **`revision`**, **`confirmed`** | no provider request; saves creative_asset | operator |
-| `asset_performance` | Retained ad performance compatible with an asset (plan_id, report_id). | **`asset_id`**, `plan_id`, `report_id`, `cursor`, `offset`, `limit` | no provider request | reader |
-| `asset_usage` | Current Meta, Google image or Snapchat references to an uploaded asset, through an explicit reference_view. | **`asset_id`**, `reference_view`, `limit`, `cursor` | provider reads | reader |
+| `asset_performance` | Retained ad performance compatible with an asset (plan_id, report_id). | **`asset_id`**, `plan_id`, `report_id`, `cursor`, `offset`, `limit` (1–100, default 30) | no provider request | reader |
+| `asset_usage` | Current Meta, Google image or Snapchat references to an uploaded asset, through an explicit reference_view. | **`asset_id`**, `reference_view`, `limit` (default 50, Meta 1–100; Google and Snapchat 1–1000.), `cursor` | provider reads | reader |
 | `reuse` | Reuses an existing upload receipt in an accessible account instead of uploading again. | **`asset_id`**, `platform`, `account_id`, `connection_id` | no provider request | reader |
 | `plan` | Per-account variants and review steps for sending one source to 1–20 accounts. | **`source_id`**, **`destinations`**, `fit_to_platform`, `stage_fits` | no provider request; saves media_variant | operator |
 
@@ -1498,7 +1498,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 |---|---|---|---|---|
 | `inspect` | Checks local reviewed-write contract support for the exact native arguments, with no credentials, request or save. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data` | no provider request | reader |
 | `prepare` | Reads current state and freezes the request into a five-minute, actor-bound review with before_state, impact and spend. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data`, `provider_check`, `creative_edit_confirmed`, `supersedes_review_id` | provider reads; saves write_review | operator |
-| `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
+| `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key` (Defaults to the review_id; any other value is refused.), `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
 | `status` | Reads a retained review back without a provider request: its state, claim, receipt, read-back and next call. | **`review_id`** | no provider request | reader |
 | `reconcile` | Checks an uncertain write with read-only provider lookups, never sending it again; accept_applied records what it saw. | **`review_id`**, `accept_applied`, `reconciliation_id` | provider reads; saves write_reconciliation, write_receipt | operator |
 

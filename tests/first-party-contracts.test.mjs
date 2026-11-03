@@ -115,12 +115,25 @@ test('every action of every AMCP tool has a contract row, and every row names ar
           assert.equal(c.argumentsSchema.additionalProperties, false);
           assert.ok(['reader', 'operator', 'admin', 'owner'].includes(c.requires_role));
           assert.ok(['none', 'read_only', 'reviewed_write'].includes(c.effects.provider_requests));
-          // Each argument keeps the schema tools/list advertises for it.
+          // Action schemas may narrow a flat bound and add defaults/notes, while keeping its type and other fields.
           for (const [key, schema] of Object.entries(c.argumentsSchema.properties))
             if (key !== 'action') {
               const {description: _note, ...listed} = tool.inputSchema.properties[key];
               const {description: _own, ...own} = schema;
-              assert.deepEqual(own, listed, tool.name + ' ' + name + ' ' + key);
+              const label = tool.name + ' ' + name + ' ' + key,
+                bounds = new Set(['minimum', 'maximum', 'maxLength', 'default']);
+              for (const field of Object.keys(own))
+                assert.ok(Object.hasOwn(listed, field) || bounds.has(field), label + ' extra ' + field);
+              for (const [field, value] of Object.entries(listed))
+                if (!bounds.has(field)) assert.deepEqual(own[field], value, label + ' ' + field);
+              for (const field of ['minimum', 'maximum', 'maxLength']) {
+                if (listed[field] !== undefined) assert.equal(typeof own[field], 'number', label + ' ' + field);
+                if (own[field] !== undefined && listed[field] !== undefined)
+                  assert.ok(
+                    field === 'minimum' ? own[field] >= listed[field] : own[field] <= listed[field],
+                    label + ' narrows ' + field,
+                  );
+              }
             }
           for (const next of c.next) assert.ok(firstPartyContractTools.includes(next.tool), JSON.stringify(next));
           new Ajv({strict: false}).compile(c.argumentsSchema);
