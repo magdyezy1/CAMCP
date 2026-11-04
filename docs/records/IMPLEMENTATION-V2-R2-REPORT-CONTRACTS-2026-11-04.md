@@ -31,6 +31,11 @@ rollback forms, saved/scheduled execution and website integration remain in prog
   correctly rejected three untranslated Meta diagnostics. The diagnostics, their Arabic translations and result
   labels are now included. That earlier broad run predates the final alias correction and v4 foundation; it is not
   qualification of the final Round 2 runtime. The complete round closing gates remain required.
+- The final committed foundation (`24ecee72`) then passed a fresh filtered candidate: 8,257 related tests in 922 files,
+  zero failures/skips, all six freshness stages, fast qualification, static browser checks and all 58 route budgets.
+  This candidate binds source tree `102b348cf32dcdcf9f857069ef73b388dbd0d2ffb1af64b7a8187f4c5c27b586`.
+  Later uncommitted collector/worker wiring is outside this acceptance. No full browser, deployment or Round 2
+  completion claim is made for the foundation.
 - Localization discovery now covers four additional source modules, three additional direct Meta diagnostics and
   eight additional unique v4 wrapper refusals. Catalog counts reflect these additions; no assertion was removed.
 - No new dependencies, tool/listing baselines, security exemptions, route budgets or legacy goldens were introduced.
