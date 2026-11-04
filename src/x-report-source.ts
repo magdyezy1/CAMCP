@@ -3,6 +3,7 @@ import {invalidReportSource, nextDay, optionalReadRefused, reportList, type Repo
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
+import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {
   xCampaignObjectives,
   xCampaignReport,
@@ -10,9 +11,46 @@ import {
   xObjectivesUnavailableWarning,
 } from './x-campaign-report.js';
 
+/** Native analytics fields. App/web conversions are structured attribution channels, not a scalar to guess. */
+export const xResultRules: ReportResultRules = {
+  selectors: [
+    {
+      field: 'objective',
+      required: true,
+      values: Object.fromEntries(
+        [
+          ['REACH', 'impressions', 'Impressions'],
+          ['ENGAGEMENTS', 'engagements', 'Engagements'],
+          ['WEBSITE_CLICKS', 'url_clicks', 'Link clicks'],
+          ['FOLLOWERS', 'follows', 'Follows'],
+          ['VIDEO_VIEWS', 'video_total_views', 'Video views'],
+        ].map(([objective, metric, label]) => [
+          objective!,
+          {
+            id: 'x:' + metric,
+            metric: metric!,
+            label: label!,
+            native_metric: 'native_metrics.' + metric,
+            aggregation: 'sum' as const,
+            unit: 'number' as const,
+            ...(objective === 'REACH' ? {cost_multiplier: 1000 as const} : {}),
+          },
+        ]),
+      ),
+    },
+  ],
+};
+
 /** X campaign rows as xCampaignReport (src/x-campaign-report.ts) prepares them: the metrics are already shared ones. */
 export const xReportSource: ReportSource = {
   platform: 'x',
+  resultRules: xResultRules,
+  readResult(raw, context) {
+    return mappedReportResult(xResultRules, {objective: context.objective ?? raw.objective}, raw, {
+      spend: raw.native_metrics?.billed_charge_local_micro,
+      spend_divisor: 1e6,
+    });
+  },
   objectives: {
     name: 'X',
     values: {},

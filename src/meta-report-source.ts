@@ -5,10 +5,13 @@ import {metaPrefix} from './meta-version.js';
 import {metricNumber, objectiveGroup} from './report-metrics.js';
 import type {ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
+import {metaMappedResult, metaResultRules} from './meta-report-results.js';
 
 /** Meta campaign insights rows: actions and action_values arrays; conversions follow the campaign objective. */
 export const metaReportSource: ReportSource = {
   platform: 'meta',
+  resultRules: metaResultRules,
+  readResult: metaMappedResult,
   objectives: {
     name: 'Meta',
     values: {

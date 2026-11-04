@@ -1,10 +1,28 @@
 import {googleAdsCustomers} from './google-version.js';
 import {googleGuidedReporting} from './google-guided-reports.js';
 import {reportList, type ReportSource} from './report-source.js';
+import {mappedReportResult} from './report-results.js';
 
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
 export const googleReportSource: ReportSource = {
   platform: 'google',
+  resultRules: {
+    selectors: [],
+    default: {
+      id: 'google:primary_conversions',
+      metric: 'conversions',
+      label: 'Primary conversions',
+      native_metric: 'metrics.conversions',
+      aggregation: 'sum',
+      unit: 'number',
+    },
+  },
+  readResult(raw) {
+    return mappedReportResult(googleReportSource.resultRules!, {}, raw, {
+      spend: raw.metrics?.costMicros,
+      spend_divisor: 1e6,
+    });
+  },
   objectives: {
     name: 'Google Ads',
     values: {},

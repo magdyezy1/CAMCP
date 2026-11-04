@@ -260,9 +260,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // reason: 11,536. Wave 5 round 1 (V2-RPT-05) adds two (the provider-data retry action and "Retry"), neither a
   // wrapper reason: 11,538.
   // V2-RPT-02 adds the shared objective resolver (no new wrapper) and objective explanations.
-  assert.equal(files.length, 761);
-  assert.equal(selected.filter(row => row.messages.size).length, 186);
-  assert.equal(owned.size, 2849);
+  // Result readers add three modules; the v4 boundary adds one.
+  assert.equal(files.length, 765);
+  assert.equal(selected.filter(row => row.messages.size).length, 187);
+  // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
+  assert.equal(owned.size, 2857);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -274,7 +276,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-PRV-01 adds twelve selection/paging entries without changing wrapper ownership.
   // V2-PRV-02 adds two iframe/lifetime notes, with no wrapper ownership change.
   // V2-PRV-03 adds two Snapchat notes, with no wrapper ownership change.
-  assert.equal(Object.keys(catalog).length, 11636);
+  // Sixteen result labels/diagnostics and eight v4 boundary refusals.
+  assert.equal(Object.keys(catalog).length, 11660);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

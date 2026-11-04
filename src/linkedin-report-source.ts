@@ -21,6 +21,12 @@ import {mixedObjectiveGroup, resolveObjective} from './report-objectives.js';
 import {metricNumber} from './report-metrics.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
+import {
+  mappedReportResult,
+  selectReportResultDefinition,
+  resolveReportResult,
+  unavailableReportResult,
+} from './report-results.js';
 
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
 export const linkedinCampaignsUnavailableWarning =
@@ -235,6 +241,54 @@ export function linkedinDetail(
 /** LinkedIn adAnalytics at each native position; money in the verified account currency. */
 export const linkedinReportSource: ReportSource = {
   platform: 'linkedin',
+  resultRules: {
+    selectors: [
+      {
+        field: 'format',
+        values: {
+          SPONSORED_INMAILS: {
+            id: 'linkedin:sends',
+            metric: 'sends',
+            label: 'Sends',
+            native_metric: 'sends',
+            aggregation: 'sum',
+            unit: 'number',
+          },
+        },
+      },
+      {
+        field: 'objective',
+        required: true,
+        values: Object.fromEntries(
+          Object.entries(linkedinResults).map(([objective, rule]) => {
+            const reach = objective === 'BRAND_AWARENESS',
+              field = reach ? 'approximateMemberReach' : rule.field!;
+            return [
+              objective,
+              {
+                id: 'linkedin:' + field,
+                metric: reach ? 'reach' : field,
+                label: rule.label,
+                native_metric: field,
+                aggregation: reach ? 'non_additive' : 'sum',
+                unit: 'number',
+                ...(reach ? {cost_multiplier: 1000} : {}),
+              },
+            ];
+          }),
+        ),
+      },
+    ],
+  },
+  readResult(raw, context) {
+    const selection = {objective: context.objective ?? raw.objectiveType, format: context.format ?? raw.format},
+      selected = selectReportResultDefinition(linkedinReportSource.resultRules!, selection),
+      spend = omittedCost(raw) || raw.omitted_as_zero?.includes('spend') ? '0' : raw.costInLocalCurrency;
+    if (selected.definition?.native_metric === 'approximateMemberReach' && windowDays(context.range) > 92)
+      return resolveReportResult(selected.definition, {value: null, spend}, 'mapped');
+    if (!selected.definition) return unavailableReportResult(selected.unavailable_reason!);
+    return mappedReportResult(linkedinReportSource.resultRules!, selection, raw, {spend});
+  },
   contract: {
     stamp: 'linkedin-levels-v2',
     notice: {

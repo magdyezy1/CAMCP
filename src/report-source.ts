@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import type {ObjectiveTable} from './report-objectives.js';
+import type {ReportResultContext, ReportResultRules, ResolvedReportResult} from './report-results.js';
 import type {DetailParentCache} from './overview-parents.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -288,6 +289,10 @@ export interface ReportSource {
   readonly contract?: {readonly stamp: string; readonly notice?: {readonly id: string; readonly message: string}};
   /** Native objective values and conservative mappings owned by this reporting platform. */
   readonly objectives?: ObjectiveTable;
+  /** V4 result semantics declared by this provider for shared readers and bootstrap. */
+  readonly resultRules?: ReportResultRules;
+  /** Objective/goal-led exact results for the v4 boundary; legacy row normalization is unchanged. */
+  readResult?(raw: JsonObject, context: ReportResultContext): ResolvedReportResult;
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */
   readonly platform: string;
   /** Native metrics the Overview suggests for this platform's sources. */

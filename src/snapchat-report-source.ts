@@ -4,10 +4,55 @@ import {snapchatDetailParents} from './snapchat-detail-parents.js';
 import {snapchatGuidedReporting} from './snapchat-guided-reports.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
+import {mappedReportResult, type ReportResultRules} from './report-results.js';
+
+/** Native optimization goals, not broad campaign objectives. Unpinned/app-source-specific goals stay unknown. */
+export const snapchatResultRules: ReportResultRules = {
+  selectors: [
+    {
+      field: 'goal',
+      required: true,
+      values: Object.fromEntries(
+        [
+          ['IMPRESSIONS', 'impressions', 'Impressions'],
+          ['SWIPES', 'swipes', 'Swipes'],
+          ['APP_INSTALLS', 'total_installs', 'Installs'],
+          ['VIDEO_VIEWS', 'video_views', 'Video views'],
+          ['VIDEO_VIEWS_15_SEC', 'video_views_15s', '15-second video views'],
+          ['STORY_OPENS', 'story_opens', 'Story opens'],
+          ['LANDING_PAGE_VIEW', 'landing_page_views', 'Landing page views'],
+          ['LEAD_FORM_SUBMISSIONS', 'native_leads', 'Lead form submissions'],
+          ['PIXEL_PAGE_VIEW', 'conversion_page_views', 'Pixel page views'],
+          ['PIXEL_ADD_TO_CART', 'conversion_add_cart', 'Pixel adds to cart'],
+          ['PIXEL_PURCHASE', 'conversion_purchases', 'Pixel purchases'],
+          ['PIXEL_SIGNUP', 'conversion_sign_ups', 'Pixel sign-ups'],
+        ].map(([goal, metric, label]) => [
+          goal!,
+          {
+            id: 'snapchat:' + goal,
+            metric: metric!,
+            label: label!,
+            native_metric: 'stats.' + metric,
+            aggregation: 'sum' as const,
+            unit: 'number' as const,
+            ...(goal === 'IMPRESSIONS' ? {cost_multiplier: 1000 as const} : {}),
+          },
+        ]),
+      ),
+    },
+  ],
+};
 
 /** Snapchat campaign stats rows (micros); conversions follow the campaign objective. */
 export const snapchatReportSource: ReportSource = {
   platform: 'snapchat',
+  resultRules: snapchatResultRules,
+  readResult(raw, context) {
+    return mappedReportResult(snapchatResultRules, {goal: context.goal ?? raw.optimization_goal}, raw, {
+      spend: raw.stats?.spend,
+      spend_divisor: 1e6,
+    });
+  },
   objectives: {
     name: 'Snapchat',
     values: {

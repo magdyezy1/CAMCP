@@ -1,0 +1,62 @@
+{
+  "evidence_kind": "synthetic field-pairing assertions from primary schemas and documentation; no live samples",
+  "reviewed_at": "2026-11-04",
+  "sources": {
+    "snapchat": [
+      "https://developers.snap.com/marketing-api/Ads-API/ad-squads",
+      "https://developers.snap.com/marketing-api/Ads-API/measurement"
+    ],
+    "reddit": [".mirror/VENDOR/reddit-v3.json:document.components.schemas.components_enums_report_field"],
+    "x": ["https://docs.x.com/x-ads-api/analytics"],
+    "meta": [
+      "tests/fixtures/meta-insights-sdk-v26.json",
+      "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adset.py"
+    ],
+    "tiktok": ["https://business-api.tiktok.com/portal/docs/basic-reports-supported-metrics/v1.3"]
+  },
+  "snapchat": [
+    ["IMPRESSIONS", "stats.impressions", 1000],
+    ["SWIPES", "stats.swipes", 1],
+    ["APP_INSTALLS", "stats.total_installs", 1],
+    ["VIDEO_VIEWS", "stats.video_views", 1],
+    ["VIDEO_VIEWS_15_SEC", "stats.video_views_15s", 1],
+    ["STORY_OPENS", "stats.story_opens", 1],
+    ["LANDING_PAGE_VIEW", "stats.landing_page_views", 1],
+    ["LEAD_FORM_SUBMISSIONS", "stats.native_leads", 1],
+    ["PIXEL_PAGE_VIEW", "stats.conversion_page_views", 1],
+    ["PIXEL_ADD_TO_CART", "stats.conversion_add_cart", 1],
+    ["PIXEL_PURCHASE", "stats.conversion_purchases", 1],
+    ["PIXEL_SIGNUP", "stats.conversion_sign_ups", 1]
+  ],
+  "reddit": [
+    ["IMPRESSIONS", "IMPRESSIONS", 1000],
+    ["CLICKS", "CLICKS", 1],
+    ["VIDEO_VIEWABLE_IMPRESSIONS", "VIDEO_VIEWABLE_IMPRESSIONS", 1],
+    ["CONVERSIONS", null, null],
+    ["CATALOG_SALES", null, null],
+    ["LEAD_GENERATION", null, null],
+    ["APP_INSTALLS", null, null]
+  ],
+  "x": [
+    ["REACH", "native_metrics.impressions", 1000],
+    ["ENGAGEMENTS", "native_metrics.engagements", 1],
+    ["WEBSITE_CLICKS", "native_metrics.url_clicks", 1],
+    ["FOLLOWERS", "native_metrics.follows", 1],
+    ["VIDEO_VIEWS", "native_metrics.video_total_views", 1]
+  ],
+  "meta": [
+    ["LINK_CLICKS", "inline_link_clicks", 1],
+    ["IMPRESSIONS", "impressions", 1000],
+    ["REACH", "reach", 1000],
+    ["POST_ENGAGEMENT", "actions.post_engagement", 1],
+    ["LEAD_GENERATION", "actions.lead", 1],
+    ["APP_INSTALLS", "actions.mobile_app_install", 1]
+  ],
+  "limitations": [
+    "Meta AdsInsightsResult inner shape has not been pinned; native results are never parsed from an invented shape.",
+    "Snap app-specific conversion goals need independently pinned source filters; broad objectives do not choose a result.",
+    "Reddit conversion/app/lead objectives lack a generic scalar total in the pinned enum; purchase is not substituted.",
+    "X app/web conversions remain structured attribution channels, never a guessed scalar sum.",
+    "TikTok reach and unpinned goals retain native row values but do not acquire additive campaign totals."
+  ]
+}

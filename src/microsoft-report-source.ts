@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {mappedReportResult} from './report-results.js';
 import {compileMicrosoft, microsoftGateway} from './microsoft-native.js';
 import {
   assertMicrosoftWindowClosed,
@@ -23,6 +24,20 @@ import type {JsonObject} from './types.js';
 /** Microsoft Advertising campaign performance report rows (decimal money in the account currency). */
 export const microsoftReportSource: ReportSource = {
   platform: 'microsoft',
+  resultRules: {
+    selectors: [],
+    default: {
+      id: 'microsoft:conversions',
+      metric: 'conversions',
+      label: 'Primary conversions',
+      native_metric: 'Conversions',
+      aggregation: 'sum',
+      unit: 'number',
+    },
+  },
+  readResult(raw) {
+    return mappedReportResult(microsoftReportSource.resultRules!, {}, raw, {spend: raw.Spend});
+  },
   objectives: {
     name: 'Microsoft Advertising',
     values: {},

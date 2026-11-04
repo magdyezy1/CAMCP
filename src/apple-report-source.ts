@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {mappedReportResult} from './report-results.js';
 import {appleDetail, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
 import {detailParentsUnavailableWarning, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
@@ -11,6 +12,20 @@ const reportZone = 'UTC';
 /** Apple Ads v1 campaign report rows: totalMetrics with local spend; conversions are installs. */
 export const appleReportSource: ReportSource = {
   platform: 'apple',
+  resultRules: {
+    selectors: [],
+    default: {
+      id: 'apple:total_installs',
+      metric: 'installs',
+      label: 'Installs',
+      native_metric: 'totalMetrics.totalInstalls',
+      aggregation: 'sum',
+      unit: 'number',
+    },
+  },
+  readResult(raw) {
+    return mappedReportResult(appleReportSource.resultRules!, {}, raw, {spend: raw.totalMetrics?.localSpend?.amount});
+  },
   objectives: {
     name: 'Apple Ads',
     values: {},

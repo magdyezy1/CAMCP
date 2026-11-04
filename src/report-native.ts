@@ -10,6 +10,12 @@ import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
 import type {AccountLookupCache, ReportCollection, ReportSource, ReportSourceRow} from './report-source.js';
 import {reportRange} from './report-periods.js';
+import {unavailableReportResult, type ReportResultContext} from './report-results.js';
+
+/** The v4 boundary calls only the registered source; no provider result facts live in this shared adapter. */
+export function nativeReportResult(platform: string, raw: JsonObject, context: ReportResultContext) {
+  return reportSource(platform)?.readResult?.(raw, context) ?? unavailableReportResult('unsupported_goal');
+}
 
 /** Native metrics the Overview suggests per platform, from each platform's report source (ARC-04 stage F). */
 export const nativeMetricExamples: Record<string, string[]> = Object.fromEntries(

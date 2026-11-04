@@ -4,6 +4,48 @@ import {redditConversionValueDivisor} from './report-metrics.js';
 import {nextDay, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import {redditReportWarning, savedRedditReportProblems} from './reddit-report-rules.js';
 import type {JsonObject} from './types.js';
+import {mappedReportResult, type ReportResultRules} from './report-results.js';
+
+/** Only native fields in the captured v3 report enum. A conversion objective alone does not identify its event. */
+export const redditResultRules: ReportResultRules = {
+  selectors: [
+    {
+      field: 'objective',
+      required: true,
+      values: {
+        IMPRESSIONS: {
+          id: 'reddit:impressions',
+          metric: 'impressions',
+          label: 'Impressions',
+          native_metric: 'IMPRESSIONS',
+          aggregation: 'sum',
+          unit: 'number',
+          cost_multiplier: 1000,
+        },
+        CLICKS: {
+          id: 'reddit:clicks',
+          metric: 'clicks',
+          label: 'Clicks',
+          native_metric: 'CLICKS',
+          aggregation: 'sum',
+          unit: 'number',
+        },
+        VIDEO_VIEWABLE_IMPRESSIONS: {
+          id: 'reddit:viewable_video_impressions',
+          metric: 'video_viewable_impressions',
+          label: 'Viewable video impressions',
+          native_metric: 'VIDEO_VIEWABLE_IMPRESSIONS',
+          aggregation: 'sum',
+          unit: 'number',
+        },
+        CONVERSIONS: null,
+        CATALOG_SALES: null,
+        LEAD_GENERATION: null,
+        APP_INSTALLS: null,
+      },
+    },
+  ],
+};
 
 /**
  * ACC-06 interim: AMCP reads Reddit's CONVERSION_PURCHASE_TOTAL_VALUE as cents (redditConversionValueDivisor) while
@@ -19,6 +61,14 @@ const reportZone = 'UTC';
 /** Reddit Ads report rows, in upper- or lower-case field names; spend in micros, conversion value in cents (ACC-06). */
 export const redditReportSource: ReportSource = {
   platform: 'reddit',
+  resultRules: redditResultRules,
+  readResult(raw, context) {
+    const native = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key.toUpperCase(), value]));
+    return mappedReportResult(redditResultRules, {objective: context.objective ?? raw.objective}, native, {
+      spend: raw.SPEND ?? raw.spend,
+      spend_divisor: 1e6,
+    });
+  },
   objectives: {
     name: 'Reddit',
     values: {

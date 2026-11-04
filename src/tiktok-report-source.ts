@@ -4,6 +4,7 @@ import {reportList, type ReportSource} from './report-source.js';
 import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
+import {tiktokNativeResult} from './tiktok-report-results.js';
 import {
   tiktokCampaignWindowDays,
   tiktokStatusFilter,
@@ -21,6 +22,7 @@ export const tiktokEventsUnavailableWarning =
 /** TikTok integrated report rows (dimensions and metrics); conversions name the ad groups' optimization events. */
 export const tiktokReportSource: ReportSource = {
   platform: 'tiktok',
+  readResult: tiktokNativeResult,
   contract: {
     stamp: 'tiktok-collection-v2',
     notice: {
