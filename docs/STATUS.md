@@ -54,4 +54,4 @@ acceptance is run.
 
 ## Latest qualification
 
-[Round 2 report scope checkpoint qualification — 2026-11-05](records/QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md), 2026-11-05.
+[Round 2 selected descendant rollup qualification — 2026-11-05](records/QUALIFICATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md), 2026-11-05.

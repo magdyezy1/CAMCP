@@ -45,6 +45,7 @@ golden was relaxed.
 Targeted native-transport and arithmetic regressions cover selected/unselected siblings, requested and supporting
 levels, missing native parent performance, unknown parent identities, LinkedIn aliases/hierarchy, raw checkpoint
 retries, mixed-pipeline refusal, measurement provenance, coverage, mixed meanings, currency/window separation and
-row/byte limits. Fresh filtered-candidate qualification is pending. This is not full B/C or Round 2 acceptance.
+row/byte limits. The subsequent [filtered qualification receipt](QUALIFICATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md)
+records the passing checkpoint. This is not full B/C or Round 2 acceptance.
 Automatic legacy migration, schedule/template/UI completion, remaining packages and final release gates remain.
 All live provider/OAuth, amcp.shop, Railway, actual Sheets and deployment acceptance stays owner-deferred.
