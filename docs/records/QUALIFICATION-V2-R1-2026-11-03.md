@@ -10,7 +10,8 @@ V2-MCP-01 and V2-WEB-01. Implementation started from `4035ad7c` on `impl/v2-roun
 implementation, review and integration roles to one session; work was committed serially in the main checkout.
 No lane merge was necessary. Existing detached reviewer worktrees were left alone.
 
-**Local closing qualification passed on 2026-11-04 (Africa/Cairo).** GitHub publication awaits the final record scan.
+**Local closing qualification passed on 2026-11-04 (Africa/Cairo).** Qualified head `ac9c5f48` was pushed to GitHub
+and verified remotely. This receipt follow-up changes only the record.
 The owner explicitly deferred live deployment and Task 29's staging checks and requested the GitHub push only.
 No live provider acceptance is claimed. Production promotion belongs to the owner (D21).
 
@@ -123,7 +124,7 @@ reach success with `handoff_success:true`.
 | Container layout parity | Passed outside Git with two workers and required FFmpeg: 8,682 passed, 0 failed, 1 POSIX-entrypoint skip, 8,683 total including capture; 1,331,019 ms. The skipped case passed in the Git Bash candidate. This is layout parity, not a Docker/Linux-image run |
 | MCP evaluation | Canonical clean build: 60 synthetic runs pass, 0 regressions, no harness fault, 5,338 ms |
 | Differential review | Manual source review of T, R, P, M and W against the base and representative rendered review completed; split allowance and stale help findings fixed; no unresolved source finding |
-| Pre-push scan and remote reconciliation | Clean across 42 commits and 13,383 added lines; retained live sample unchanged; all commits carry the CI-skip marker. Fresh branch-scoped fetch confirms the expected base is an ancestor. Final record scan/push pending |
+| Pre-push scan and remote reconciliation | Clean across all 43 published commits and 13,418 added lines; retained live sample unchanged; all required CI-skip/model endings verified. Fresh fetch confirmed an ancestor; push and remote head verification succeeded. The record-only receipt is scanned separately |
 | Staging live reads and deployment | Deferred by the owner; no live qualification or deployment operation performed |
 
 The full gate used a filtered public candidate with a literal empty live sample and the reviewed local dependencies.
@@ -169,6 +170,8 @@ synthetic write outcomes are unchanged; duration is 52.09 rather than 55.0 minut
 
 ## Push boundary
 
-The only authorized target is `origin Work-here-V2`, after the round's closing gates. No other branch or tag is
-authorized. The run journal and Git remote verification will record the pushed head after a successful push.
-Live deployment and Task 29 remain deferred by the owner.
+Qualified head `ac9c5f487baa4509500e1204899744ab4890d28f` was pushed to `origin Work-here-V2` and verified by a
+remote-head read at 2026-11-04 00:22:48 UTC. The update fast-forwarded the base; no force, other branch or tag was
+pushed. This record-only receipt follows that publication; the local run journal records the final published head
+including this receipt. Runtime and browser input digests remain those recorded above. No hosted CI or deployment
+result is claimed. Live deployment and Task 29 remain deferred by the owner.
