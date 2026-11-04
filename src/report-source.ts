@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {ObjectiveTable} from './report-objectives.js';
 import type {ReportResultContext, ReportResultRules, ResolvedReportResult} from './report-results.js';
+import type {OverviewV4Capabilities} from './overview-v4.js';
 import type {DetailParentCache} from './overview-parents.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -18,9 +19,9 @@ import type {ToolCall} from './workspace-core.js';
  */
 export interface ReportRowReader {
   /** A metric of the row: the number a provider value holds (metricNumber), divided by `divisor`, or null. */
-  value(v: unknown, divisor?: number): number | null;
+  value(v: unknown, divisor?: number): number | string | null;
   /** The metric at a top-level key of the row, as `value` reads it. */
-  field(key: string, divisor?: number): number | null;
+  field(key: string, divisor?: number): number | string | null;
   /**
    * The requested metrics a delivered row left out and that count as zero (Meta omits zero-valued actions, RPT-04);
    * the row names them in `omitted_as_zero`.
@@ -60,7 +61,12 @@ export interface AccountLookupCache {
    * RPT-04: TikTok ad group optimization events per campaign, read once per source per job like the account lookup
    * (not once per period). `unavailable` records a non-retryable failure of this optional read.
    */
-  tiktokEvents?: {events: Record<string, string[]>; lineage?: JsonObject; unavailable?: boolean};
+  tiktokEvents?: {
+    events: Record<string, string[]>;
+    groups?: Record<string, JsonObject>;
+    lineage?: JsonObject;
+    unavailable?: boolean;
+  };
   /**
    * RPT-07: current LinkedIn campaign names and objectives by URN, read once per source per job for the URNs reported
    * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
@@ -86,6 +92,7 @@ export interface AccountLookupCache {
   };
   /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
   detailParents?: DetailParentCache;
+  detailParentsByLevel?: Record<string, DetailParentCache>;
 }
 
 /**
@@ -262,7 +269,12 @@ export interface GuidedReporting {
    * the native read's arguments, the declared semantics, the rows pointer and the field mapping, over the validated
    * reporting window `range`. It refuses what the preset does not accept, after the shared checks.
    */
-  presetRequest?(preset: JsonObject, input: JsonObject, range: {since: string; until: string}): JsonObject;
+  presetRequest?(
+    preset: JsonObject,
+    input: JsonObject,
+    range: {since: string; until: string},
+    context?: {overviewV4?: true},
+  ): JsonObject;
   /** Checks the native rows of a capture of one of the platform's presets before they are mapped (LinkedIn, Meta). */
   validateRows?(preset: string, input: JsonObject, rows: JsonObject[]): void;
   /**
@@ -285,6 +297,9 @@ export interface GuidedReporting {
 }
 
 export interface ReportSource {
+  /** Provider-owned levels and option defaults for the v4 boundary and bootstrap. */
+  readonly overview?: OverviewV4Capabilities;
+  readonly requiresCompleteWindowDeclaration?: true;
   /** A platform's collection semantics, stamped on snapshots independently of saved definitions. */
   readonly contract?: {readonly stamp: string; readonly notice?: {readonly id: string; readonly message: string}};
   /** Native objective values and conservative mappings owned by this reporting platform. */
@@ -323,7 +338,7 @@ export interface ReportSource {
    */
   readonly minimumRequestsPerPeriod: number;
   /** A level-specific lower bound, when this source needs a different number of data reads by position. */
-  requestsPerPeriod?(level: string): number;
+  requestsPerPeriod?(level: string, contract?: string): number;
   /**
    * RPT-02: the report day boundary the source's collector fixes, independent of account metadata (LinkedIn, Apple Ads
    * and Reddit report in UTC, Search Console in Pacific time); the account time zone otherwise.
@@ -365,6 +380,23 @@ export interface ReportSource {
    * (TikTok's ad groups and ads, Snapchat's ads, LinkedIn's creatives), which src/overview-parents.ts runs.
    */
   readonly detailParents?: DetailParentReader;
+}
+
+/** Shared declaration shape; providers supply the native names, levels, extra options and any validation. */
+export function overviewCapabilities(
+  levels: OverviewV4Capabilities['levels'],
+  defaults: JsonObject = {},
+  optionNames: string[] = [],
+  validateOptions?: OverviewV4Capabilities['validateOptions'],
+  legacy?: OverviewV4Capabilities['legacy'],
+): OverviewV4Capabilities {
+  return {
+    levels,
+    defaults: {attribution: 'unknown', complete_window: null, ...defaults},
+    option_names: [...new Set(['attribution', 'complete_window', ...Object.keys(defaults), ...optionNames])],
+    ...(validateOptions ? {validateOptions} : {}),
+    ...(legacy ? {legacy} : {}),
+  };
 }
 
 /** A provider collection of report rows, refused unless every item is an object. */
@@ -453,6 +485,7 @@ export interface AllocationDraft {
 
 /** What src/overview-parents.ts gives a platform's parent reads of one source; it keeps every check and refusal. */
 export interface DetailParentReads {
+  readonly reportingContract?: string;
   /** The source's native account. */
   readonly account: string;
   /** One read of the platform's catalog action under the source's connection (its checks and lineage are shared). */

@@ -23,10 +23,10 @@ const presets = ['campaign', 'adgroup', 'ad'].map(level => ({
 export const tiktokGuidedReporting: GuidedReporting = {
   presets,
   presetPrefix: 'tiktok_',
-  presetRequest(preset, input, range) {
+  presetRequest(preset, input, range, context) {
     if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
       bad('Use the exact TikTok advertiser ID.');
-    tiktokDailyRange(input.semantics);
+    tiktokDailyRange(input.semantics, context?.overviewV4 === true);
     return {
       gateway: preset.gateway,
       account_id: input.account_id,
@@ -38,7 +38,14 @@ export const tiktokGuidedReporting: GuidedReporting = {
           report_type: 'BASIC',
           data_level: 'AUCTION_' + preset.level.toUpperCase(),
           dimensions: [preset.level + '_id', 'stat_time_day'],
-          metrics: [preset.level + '_name', 'spend', 'impressions', 'clicks', 'conversion'],
+          metrics: [
+            preset.level + '_name',
+            'spend',
+            'impressions',
+            'clicks',
+            'conversion',
+            ...(context?.overviewV4 && preset.level !== 'campaign' ? ['result', 'cost_per_result', 'result_rate'] : []),
+          ],
           start_date: range.since,
           end_date: range.until,
           query_lifetime: false,

@@ -444,7 +444,7 @@ const arabic = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 // "non_additive", "native field"), left to right and in English on the Arabic page.
 test('a base metric says how it combines in words, in both languages; a formula stays a literal', () => {
   const source = readFileSync('web/reporting-overview.js', 'utf8'),
-    map = source.match(/^const metricAggregations = (\{[^\n]*\});$/m);
+    map = source.match(/^const metricAggregations = (\{[^{}]*\});$/m);
   assert.ok(map, 'reporting-overview.js names each aggregation');
   const labels = new Function('return ' + map[1])();
   // Every aggregation the server assigns to a base metric (src/report-metrics.ts) has words and Arabic.

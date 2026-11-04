@@ -4,6 +4,7 @@ import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from '
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
+import type {ReportSource} from './report-source.js';
 
 /**
  * RPT-07 granular parity: ad-group and ad levels for Microsoft, Reddit and Apple through their existing report compile
@@ -226,6 +227,7 @@ export function nativeDetailResult(
     context: JsonObject;
     rounding: Record<string, number>;
     objectives?: ObjectiveTable;
+    resultReader?: ReportSource['readResult'];
   },
 ) {
   const descriptor = overviewSourceLevel(source),
@@ -249,16 +251,26 @@ export function nativeDetailResult(
     query_fingerprint: fingerprint(base.lineage.map(l => l.query_fingerprint)),
     rows: detailedOverviewRows(
       source,
-      {rows: detail.rows, native_rows: native, semantics: {currency: base.currency}},
+      {
+        rows: detail.rows,
+        native_rows: native,
+        semantics: {
+          currency: base.currency,
+          date_from: base.range.since,
+          date_to: base.range.until,
+          attribution: options.attribution,
+        },
+      },
       detail.parents,
       base.objectives,
+      base.resultReader,
     ),
     metadata: base.metadata,
     account_name: base.metadata.name ?? base.metadata.displayName ?? null,
     currency: base.currency,
     timezone: base.timezone,
     date_range: base.range,
-    detail_contract: detailContractVersion,
+    detail_contract: source.reporting_contract === 'overview-config-v4' ? 'overview-detail-v4' : detailContractVersion,
     collection_complete: base.providerComplete,
     complete,
     ...base.context,

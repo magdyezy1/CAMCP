@@ -11658,5 +11658,17 @@
   "Choose active, paused, archived, or all report statuses.": "اختر حالات نشطة أو متوقفة مؤقتًا أو مؤرشفة أو جميع الحالات للتقرير.",
   "Use true or false for delivered_only.": "استخدم true أو false للحقل delivered_only.",
   "This report metric is not declared additive.": "لم يُعرَّف مقياس التقرير هذا بوصفه قابلًا للجمع.",
-  "Use a supported report ratio unit.": "استخدم وحدة نسبة مدعومة للتقرير."
+  "Use a supported report ratio unit.": "استخدم وحدة نسبة مدعومة للتقرير.",
+  "TikTok returned unbound or repeated ad group result rows.": "أعادت TikTok صفوف نتائج لمجموعات إعلانية غير مرتبطة أو مكررة.",
+  "TikTok returned malformed ad group result metadata.": "أعادت TikTok بيانات وصفية غير صالحة لنتائج المجموعات الإعلانية.",
+  "The reporting window was not declared complete. Results remain partial and recommendations are withheld.": "لم يُصرَّح باكتمال فترة التقرير. تبقى النتائج جزئية وتُحجب التوصيات.",
+  "Use native and lineage include flags set to true or false.": "اضبط علامتَي التضمين native وlineage على true أو false.",
+  "Saved report objectives now fill gaps in the platform's objective. Numbers may change.": "تُستخدم أهداف التقارير المحفوظة الآن عند غياب هدف من المنصة. قد تتغير الأرقام.",
+  "The calculated metric exceeds the report precision limit.": "يتجاوز المقياس المحسوب حد الدقة المدعوم للتقرير.",
+  "Some report metrics are incomplete. Review their coverage before recommending a change.": "بعض مقاييس التقرير غير مكتملة. راجع تغطيتها قبل التوصية بتغيير.",
+  "This objective contains different result definitions. Set a campaign-specific target before comparing costs.": "يتضمن هذا الهدف تعريفات مختلفة للنتائج. حدّد هدف أداء خاصًا بكل حملة قبل مقارنة التكاليف.",
+  "Primary result": "النتيجة الأساسية",
+  "Cost per result": "التكلفة لكل نتيجة",
+  "By result definition": "حسب تعريف النتيجة",
+  "Native cost or paired ratio": "تكلفة المنصة أو نسبة محسوبة من قيم متاحة معًا"
 }

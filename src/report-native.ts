@@ -11,6 +11,7 @@ import {reportSource, reportSourceList} from './report-sources.js';
 import type {AccountLookupCache, ReportCollection, ReportSource, ReportSourceRow} from './report-source.js';
 import {reportRange} from './report-periods.js';
 import {unavailableReportResult, type ReportResultContext} from './report-results.js';
+import {parseProviderDecimal, providerDecimalText, metricRoundingRecord} from './provider-decimal.js';
 
 /** The v4 boundary calls only the registered source; no provider result facts live in this shared adapter. */
 export function nativeReportResult(platform: string, raw: JsonObject, context: ReportResultContext) {
@@ -110,6 +111,7 @@ function numericNative(
   prefix = '',
   output: JsonObject = {},
   depth = 0,
+  exact = false,
 ): JsonObject {
   if (depth > 4) return output;
   const keepNull = reportSource(platform)?.nullNativeMetrics === true;
@@ -117,15 +119,19 @@ function numericNative(
     const key = (prefix ? prefix + '_' : '') + k;
     const s = snake(k);
     if (identityKey.test(s) || contextKeys.has(s)) continue;
-    if (v && typeof v === 'object' && !Array.isArray(v)) numericNative(platform, v, key, output, depth + 1);
+    if (v && typeof v === 'object' && !Array.isArray(v)) numericNative(platform, v, key, output, depth + 1, exact);
     else if (Array.isArray(v)) {
       for (const a of v)
         if (a && typeof a === 'object' && typeof a.action_type === 'string')
           output['native_' + platform + '_' + (key + '_' + a.action_type).replace(/[^a-zA-Z0-9_]/g, '_')] =
-            metricNumber(a.value);
+            exact && a.value !== undefined && a.value !== null && a.value !== '-' && a.value !== '--'
+              ? providerDecimalText(a.value, {field: key})
+              : metricNumber(a.value);
     } else if (keepNull && v === null) output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = null;
     else if (typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)))
-      output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = metricNumber(v);
+      output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = exact
+        ? providerDecimalText(v, {field: key})
+        : metricNumber(v);
   }
   return output;
 }
@@ -141,6 +147,14 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
       field: (key: string, divisor = 1) => value(raw[key], divisor),
       omitted,
     }) ?? {id: undefined, metrics: {}};
+  return nativeRowEnvelope(raw, row, omitted, {...row.metrics, ...numericNative(platform, raw)});
+}
+function nativeRowEnvelope(
+  raw: JsonObject,
+  row: ReportSourceRow,
+  omitted: Set<string>,
+  metrics: JsonObject,
+): JsonObject {
   const {id, name, objective, currency} = row;
   if (id === undefined || id === null || (typeof id === 'number' && !Number.isSafeInteger(id)))
     throw new MirrorError(
@@ -155,12 +169,47 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     objective: objective ?? 'unknown',
     objective_group: row.objectiveGroup ?? objectiveGroup(objective),
     currency: currency ?? null,
-    metrics: {...row.metrics, ...numericNative(platform, raw)},
+    metrics,
     ...(omitted.size ? {omitted_as_zero: [...omitted].sort()} : {}),
     ...(row.resultDefinition ? {result_definition: row.resultDefinition} : {}),
     ...(row.mixedResult ? {mixed_result_definition: true} : {}),
     ...(row.resultsByObjective ? {results_by_objective: row.resultsByObjective} : {}),
     native: raw,
+  };
+}
+
+/** Exact v4 campaign values. Provider normalization still owns names/units; float display values never supply totals. */
+export function normalizeNativeRowV4(
+  platform: string,
+  raw: JsonObject,
+  rounding: Record<string, number> = {},
+): JsonObject {
+  const omitted = new Set<string>(),
+    read = (value: unknown, divisor = 1) =>
+      value === undefined || value === null || (typeof value === 'string' && ['', '-', '--'].includes(value.trim()))
+        ? null
+        : providerDecimalText(typeof value === 'string' ? value.trim() : value, {field: 'native_metric', divisor}),
+    exact = reportSource(platform)?.normalize(raw, {
+      value: read,
+      field: (key, divisor) => read(raw[key], divisor),
+      omitted,
+    }) ?? {id: undefined, metrics: {}},
+    metrics = Object.fromEntries(
+      Object.entries(exact.metrics).map(([key, value]) => {
+        if (value === undefined || value === null) return [key, null];
+        if (['reach', 'frequency', 'position'].includes(key)) return [key, providerDecimalText(value, {field: key})];
+        const parsed = parseProviderDecimal(value, {field: key});
+        if (parsed.rounded) rounding[key] = (rounding[key] ?? 0) + 1;
+        const fraction = (parsed.scaled % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
+        return [key, (parsed.scaled / 1000000000n).toString() + (fraction ? '.' + fraction : '')];
+      }),
+    );
+  const additive = Object.fromEntries(
+    Object.entries(metrics).filter(([key]) => !['reach', 'frequency', 'position'].includes(key)),
+  );
+  return {
+    ...nativeRowEnvelope(raw, exact, omitted, {...metrics, ...numericNative(platform, raw, '', {}, 0, true)}),
+    native: {...raw, exact_totals: additive},
   };
 }
 // The per-source per-job lookup cache is part of the report source contract (src/report-source.ts, ARC-04 stage F).
@@ -334,6 +383,7 @@ export class NativeCampaignReports {
         c.timezone,
         lookup,
         reports!.objectives,
+        reports!.readResult,
       );
     // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
     await reports!.collect(c);
@@ -354,6 +404,7 @@ export class NativeCampaignReports {
         context: c.context,
         rounding: c.detailRounding,
         objectives: reports!.objectives,
+        resultReader: reports!.readResult,
       });
     return campaignResult(p, platform!.kind, c);
   }
@@ -469,7 +520,37 @@ async function lookupAccount(c: ReportCollection, gateway: string, run: ReportCo
 }
 /** One collected campaign-level period: the normalized rows, the missing-metric warnings and the source's state. */
 function campaignResult(p: string, kind: string, c: ReportCollection): JsonObject {
-  const rows = c.raw.map(r => normalizeNativeRow(p, r));
+  const v4 = c.source.reporting_contract === 'overview-config-v4',
+    rounding: Record<string, number> = {},
+    rows = c.raw.map(r => {
+      const row = v4 ? normalizeNativeRowV4(p, r, rounding) : normalizeNativeRow(p, r);
+      if (v4) {
+        const resolved = nativeReportResult(p, r, {
+          level: c.source.level ?? 'campaign',
+          range: c.range,
+          objective: row.objective,
+          report_options: c.source.report_options,
+        });
+        const {result, ...context} = resolved;
+        row.result = result;
+        row.result_context = context;
+        if (Array.isArray(r.amcp_result_groups)) row.result_groups = r.amcp_result_groups;
+      }
+      return row;
+    });
+  const rounded = metricRoundingRecord(rounding);
+  if (rounded) c.quality.metric_rounding = rounded;
+  if (v4) {
+    const declaration = c.source.report_options.complete_window;
+    c.quality.reporting_window_declared_complete = declaration;
+    if (reportSource(p)?.requiresCompleteWindowDeclaration && declaration !== true) {
+      c.complete = false;
+      c.quality.measurement_complete = false;
+      c.warnings.push(
+        'The reporting window was not declared complete. Results remain partial and recommendations are withheld.',
+      );
+    }
+  }
   for (const name of missingNativeMetrics(p, c.extra, rows))
     c.warnings.push(
       'Requested native metric ' +

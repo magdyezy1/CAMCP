@@ -4,6 +4,7 @@ import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
+import {overviewCapabilities} from './report-source.js';
 import {
   xCampaignObjectives,
   xCampaignReport,
@@ -44,6 +45,7 @@ export const xResultRules: ReportResultRules = {
 /** X campaign rows as xCampaignReport (src/x-campaign-report.ts) prepares them: the metrics are already shared ones. */
 export const xReportSource: ReportSource = {
   platform: 'x',
+  overview: overviewCapabilities([{id: 'campaign', label: 'Campaign', native_type: 'campaign'}]),
   resultRules: xResultRules,
   readResult(raw, context) {
     return mappedReportResult(xResultRules, {objective: context.objective ?? raw.objective}, raw, {
@@ -138,10 +140,11 @@ export const xReportSource: ReportSource = {
       inventory,
       start,
       end,
-      c.extra,
+      c.source.reporting_contract === 'overview-config-v4' ? [...new Set(['VIDEO', ...c.extra])] : c.extra,
       q => c.run(c.plan('/12/stats/accounts/' + c.account, q), false),
       {
         checkpoint: checkpoint.x_report,
+        ...(c.source.reporting_contract === 'overview-config-v4' ? {exact: true as const} : {}),
         save: x_report => save({...state, x_report}),
         ...(active ? {active, windows: mode === 'on'} : {}),
       },
@@ -152,7 +155,21 @@ export const xReportSource: ReportSource = {
     c.context.no_activity_count = report.no_activity_count;
     c.warnings.push(...report.warnings);
   },
-  normalize(raw) {
-    return {id: raw.id, name: raw.name, objective: raw.objective, metrics: raw.metrics ?? {}};
+  normalize(raw, reader) {
+    const fields: Record<string, string> = {
+      spend: 'billed_charge_local_micro',
+      impressions: 'impressions',
+      clicks: 'clicks',
+      engagements: 'engagements',
+      video_views: 'video_total_views',
+    };
+    for (const [common, native] of Object.entries(fields))
+      if (raw.provider_omitted?.includes(native)) reader.omitted.add(common);
+    return {
+      id: raw.id,
+      name: raw.name,
+      objective: raw.objective,
+      metrics: Object.fromEntries(Object.entries(raw.metrics ?? {}).map(([key, value]) => [key, reader.value(value)])),
+    };
   },
 };

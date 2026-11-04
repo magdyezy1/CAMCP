@@ -7,6 +7,7 @@ import {overviewSourceLevel} from './overview-granularity.js';
 import {fixedReportTimezones} from './report-windows.js';
 import {reportSource} from './report-sources.js';
 import type {JsonObject} from './types.js';
+import {expandOverviewV4Sources} from './overview-v4.js';
 
 /**
  * RPT-03: the fewest provider requests a source can need, before any egress, from its report source
@@ -14,9 +15,11 @@ import type {JsonObject} from './types.js';
  * entities at run time) are excluded, so the estimate is a lower bound: a configuration refused here cannot fit the
  * whole-job collection budget.
  */
-const dataRequestsPerPeriod = (platform: string, level = 'campaign') => {
+const dataRequestsPerPeriod = (platform: string, level = 'campaign', contract?: string) => {
   const source = reportSource(platform);
-  return source?.requestsPerPeriod?.(level) ?? (level === 'campaign' ? (source?.minimumRequestsPerPeriod ?? 1) : 1);
+  return (
+    source?.requestsPerPeriod?.(level, contract) ?? (level === 'campaign' ? (source?.minimumRequestsPerPeriod ?? 1) : 1)
+  );
 };
 /** Whether the source reads its account before collection (and verifies it after a multi-period collection). */
 const accountLookup = (platform: string) => reportSource(platform)?.accountLookup !== false;
@@ -31,21 +34,26 @@ export const sourceRequestModel = (platform: string) => ({
   native_daily_segmentation: nativeDailySegmentation({platform}),
 });
 export function estimateCollectionRequests(config: JsonObject, limit = reportCollectionLimits.requests) {
+  const seenAccounts = new Set<string>();
   const grain = config.grain ?? 'total',
     count = reportPeriods(config.date_range, grain).length,
-    sources = (config.sources ?? []).map((source: JsonObject) => {
+    sources = expandOverviewV4Sources({...config, sources: config.sources ?? []}).map((source: JsonObject) => {
       const daily = grain === 'daily' && nativeDailyCollection(config, source),
         level = overviewSourceLevel(source).id,
         periods = daily ? 1 : count,
-        lookups = accountLookup(source.platform) ? 1 + (grain === 'total' ? 0 : 1) : 0,
+        lookupKey = source.source_ref === undefined ? null : String(source.source_ref),
+        firstLookup = lookupKey === null || !seenAccounts.has(lookupKey),
+        lookups = accountLookup(source.platform) ? (firstLookup ? 1 : 0) + (grain === 'total' ? 0 : 1) : 0,
         window =
           config.date_range_rule?.source_timezone === 'account' && !fixedReportTimezones[source.platform] ? 1 : 0;
+      if (lookupKey !== null) seenAccounts.add(lookupKey);
       return {
         platform: source.platform,
         account_id: source.account_id,
+        ...(source.source_ref !== undefined ? {source_ref: source.source_ref, level} : {}),
         periods: count,
         collection: daily ? 'native_daily' : 'per_period',
-        requests: lookups + window + periods * dataRequestsPerPeriod(source.platform, level),
+        requests: lookups + window + periods * dataRequestsPerPeriod(source.platform, level, source.reporting_contract),
       };
     });
   return {

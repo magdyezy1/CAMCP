@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {nativeReportResult} from '../dist/src/report-native.js';
 import {reportSource} from '../dist/src/report-sources.js';
 import {selectReportResultDefinition, reportResultField} from '../dist/src/report-results.js';
-import {tiktokCampaignResultGroups} from '../dist/src/tiktok-report-results.js';
+import {tiktokCampaignResultGroups, collectTikTokCampaignResults} from '../dist/src/tiktok-report-results.js';
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/report-result-pairings-v1.json', import.meta.url), 'utf8'));
 const context = {level: 'adset', range: {since: '2026-10-01', until: '2026-10-07'}};
@@ -83,7 +83,7 @@ test('LinkedIn preserves one-click leads separately from qualified leads and use
   assert.equal(
     result('linkedin', {
       objectiveType: 'WEBSITE_VISIT',
-      format: 'SPONSORED_INMAILS',
+      type: 'SPONSORED_INMAILS',
       sends: '10',
       landingPageClicks: '3',
     }).result.metric,
@@ -181,6 +181,16 @@ test('TikTok uses native result and cost, never a campaign dash or legacy conver
   assert.equal(result('tiktok', {...raw, metrics: {conversion: '999', result: '-'}}).result.value, null);
   assert.equal(result('tiktok', {...raw, optimization_goal: undefined}).unavailable_reason, 'missing_goal');
   assert.equal(result('tiktok', {...raw, optimization_goal: 'FUTURE_GOAL'}).definition.aggregation, 'non_additive');
+  const future = result('tiktok', {...raw, optimization_goal: 'FUTURE_GOAL'});
+  assert.equal(future.result.value, '4', 'retain the native row figure without inventing its meaning');
+  assert.equal(future.result.cost_per_result, '1.25', 'native cost remains native evidence');
+  assert.equal(future.unavailable_reason, 'unsupported_goal');
+  assert.equal(
+    result('tiktok', {...raw, optimization_goal: 'FUTURE_GOAL', metrics: {result: '4', spend: '10'}}).result
+      .cost_per_result,
+    null,
+    'an unpinned result never acquires an invented derived cost',
+  );
 });
 
 test('TikTok campaign results combine only the same known goal and event; reach and missing values stay explicit', () => {
@@ -209,4 +219,111 @@ test('TikTok campaign results combine only the same known goal and event; reach 
   assert.equal(groups.find(g => g.definition?.id.startsWith('tiktok:REACH')).unavailable_reason, 'non_additive');
   assert.equal(groups.find(g => g.definition?.id === 'tiktok:CONVERT:unspecified').result.value, null);
   assert.equal(groups.find(g => !g.definition).unavailable_reason, 'missing_goal');
+});
+
+const campaignResultFixture = (overrides = {}) => {
+  const rows = [
+      {
+        dimensions: {adgroup_id: '1'},
+        metrics: {
+          result: '4',
+          cost_per_result: '1',
+          result_rate: '10',
+          spend: '10',
+          impressions: '100',
+          clicks: '2',
+          conversion: '999',
+        },
+      },
+      {
+        dimensions: {adgroup_id: '2'},
+        metrics: {
+          result: '6',
+          cost_per_result: '2',
+          result_rate: '10',
+          spend: '20',
+          impressions: '100',
+          clicks: '2',
+          conversion: '999',
+        },
+      },
+    ],
+    calls = [],
+    collection = {
+      account: '500',
+      lookup: {},
+      currency: 'SAR',
+      range: context.range,
+      attribution: 'Synthetic window',
+      raw: [{dimensions: {campaign_id: '123'}, metrics: {result: '-', spend: '30'}}],
+      complete: true,
+      collectionComplete: true,
+      warnings: [],
+      plan: (path, query) => ({path, query}),
+      run: async plan => {
+        calls.push(plan);
+        return {
+          data: {
+            list: rows,
+            page_info: {total_number: 2},
+            total_metrics: {spend: '30', impressions: '200', clicks: '4', conversion: '1998'},
+            ...overrides,
+          },
+        };
+      },
+    },
+    metadata = Object.fromEntries(
+      ['1', '2'].map(id => [
+        id,
+        {campaign_id: '123', optimization_goal: 'CONVERT', optimization_event: 'COMPLETE_PAYMENT'},
+      ]),
+    );
+  return {collection, metadata, calls, rows};
+};
+test('TikTok campaign collector requests native ad-group result fields and combines same-goal results exactly', async () => {
+  const f = campaignResultFixture();
+  await collectTikTokCampaignResults(f.collection, f.metadata);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].query.data_level, 'AUCTION_ADGROUP');
+  assert.equal(
+    ['result', 'cost_per_result', 'result_rate'].every(metric => f.calls[0].query.metrics.includes(metric)),
+    true,
+  );
+  const native = result('tiktok', f.collection.raw[0], {level: 'campaign'});
+  assert.equal(native.result.value, '10');
+  assert.equal(native.result.cost_per_result, '3');
+  assert.equal(native.cost_source, 'derived');
+  assert.equal(f.collection.raw[0].amcp_result_groups[0].coverage.known, 2);
+  assert.equal(f.collection.complete, true);
+});
+test('TikTok campaign collection holds mixed goals, partial pages and unbound native entities', async () => {
+  const mixed = campaignResultFixture();
+  mixed.metadata['2'].optimization_event = 'SUBMIT_FORM';
+  await collectTikTokCampaignResults(mixed.collection, mixed.metadata);
+  assert.equal(mixed.collection.raw[0].amcp_result_groups.length, 2);
+  assert.equal(result('tiktok', mixed.collection.raw[0], {level: 'campaign'}).unavailable_reason, 'mixed_goals');
+  const partial = campaignResultFixture({
+    page_info: {total_number: 3},
+    total_metrics: {spend: '31', impressions: '200', clicks: '4', conversion: '1998'},
+  });
+  await collectTikTokCampaignResults(partial.collection, partial.metadata);
+  assert.equal(partial.collection.complete, false);
+  assert.equal(partial.collection.collectionComplete, false);
+  const countsOnly = campaignResultFixture({page_info: {total_number: 3}});
+  await collectTikTokCampaignResults(countsOnly.collection, countsOnly.metadata);
+  assert.equal(
+    countsOnly.collection.complete,
+    true,
+    'approved native totals proof can resolve inconsistent page counts',
+  );
+  assert.equal(
+    countsOnly.collection.warnings.some(warning => warning.includes('totals match')),
+    true,
+  );
+  const foreign = campaignResultFixture();
+  foreign.rows[1].dimensions.adgroup_id = '999';
+  await assert.rejects(
+    collectTikTokCampaignResults(foreign.collection, foreign.metadata),
+    error => error.code === 'REPORT_SHAPE_CHANGED',
+  );
 });

@@ -5,6 +5,7 @@ import {nextDay, optionalReadRefused, reportList, type ReportSource} from './rep
 import {redditReportWarning, savedRedditReportProblems} from './reddit-report-rules.js';
 import type {JsonObject} from './types.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
+import {overviewCapabilities} from './report-source.js';
 
 /** Only native fields in the captured v3 report enum. A conversion objective alone does not identify its event. */
 export const redditResultRules: ReportResultRules = {
@@ -61,6 +62,11 @@ const reportZone = 'UTC';
 /** Reddit Ads report rows, in upper- or lower-case field names; spend in micros, conversion value in cents (ACC-06). */
 export const redditReportSource: ReportSource = {
   platform: 'reddit',
+  overview: overviewCapabilities([
+    {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+    {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'reddit_ad_group'},
+    {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'reddit_ad'},
+  ]),
   resultRules: redditResultRules,
   readResult(raw, context) {
     const native = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key.toUpperCase(), value]));

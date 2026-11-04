@@ -22,7 +22,10 @@ const groupUrn = 'urn:li:sponsoredCampaignGroup:20',
   campaignUrn = 'urn:li:sponsoredCampaign:30',
   creativeUrn = creative.id;
 const actor = {tenantId: 'synthetic-linkedin-levels', userId: 'owner', role: 'admin'};
-function fixture(t, {groupRow = group, campaignRow = campaign, creativeRow = creative, refused} = {}) {
+function fixture(
+  t,
+  {groupRow = group, campaignRow = campaign, creativeRow = creative, analyticsExtra = {}, refused} = {},
+) {
   const store = new Store(':memory:', Buffer.alloc(32, 123).toString('base64'));
   t.after(() => store.close());
   store.putConnection(
@@ -48,7 +51,7 @@ function fixture(t, {groupRow = group, campaignRow = campaign, creativeRow = cre
         throw new MirrorError('UPSTREAM_ERROR', 'Synthetic metadata refusal.', {http_status: 403}, 403);
       let data;
       if (plan.path === '/rest/adAccounts/100') data = account;
-      else if (plan.path === '/rest/adAnalytics') data = analytics(plan.query.pivot);
+      else if (plan.path === '/rest/adAnalytics') data = analytics(plan.query.pivot, analyticsExtra);
       else if (plan.path.endsWith('/adCampaignGroups')) data = {elements: [groupRow], metadata: {}};
       else if (plan.path.endsWith('/adCampaigns')) data = {elements: [campaignRow], metadata: {}};
       else if (plan.path.endsWith('/creatives')) data = {elements: [creativeRow], metadata: {}};
@@ -59,14 +62,15 @@ function fixture(t, {groupRow = group, campaignRow = campaign, creativeRow = cre
   const native = new NativeCampaignReports(service);
   return {
     requests,
-    collect: (level, lookup) =>
+    collect: (level, lookup, v4 = false) =>
       native.collect(
         {
           platform: 'linkedin',
           account_id: '100',
           connection_id: 'login',
           level,
-          ...(level === 'campaign' ? {} : {report_options: {complete_window: true, attribution: 'unknown'}}),
+          ...(v4 ? {reporting_contract: 'overview-config-v4'} : {}),
+          ...(!v4 && level === 'campaign' ? {} : {report_options: {complete_window: true, attribution: 'unknown'}}),
         },
         range,
         actor,
@@ -127,6 +131,47 @@ for (const level of ['campaign', 'adset', 'ad'])
       }
     }
   });
+
+for (const level of ['campaign', 'adset', 'ad'])
+  test(
+    'v4 ' + level + ' selects sponsored-message sends from native campaign type and requests that field',
+    async t => {
+      const f = fixture(t, {
+        groupRow: {...group, objectiveType: 'WEBSITE_VISIT'},
+        campaignRow: {...campaign, objectiveType: 'WEBSITE_VISIT', type: 'SPONSORED_INMAILS'},
+        analyticsExtra: {sends: '10', landingPageClicks: '999'},
+      });
+      const result = await f.collect(level, undefined, true);
+      assert.equal(result.complete, true);
+      assert.equal(result.rows[0].result.metric, 'sends');
+      assert.equal(result.rows[0].result.value, '10');
+      assert.equal(result.rows[0].result.cost_per_result, '10.012345679');
+      for (const request of f.requests.filter(p => p.path === '/rest/adAnalytics')) {
+        assert.ok(request.query.fields.split(',').includes('sends'));
+        assert.ok(request.query.fields.split(',').length <= 20);
+      }
+    },
+  );
+
+test('v4 campaign metadata binds native type/status and refuses a repeated identity', async () => {
+  const native = {...campaign, type: 'SPONSORED_INMAILS'},
+    read = async () => ({elements: [native], metadata: {}}),
+    v4 = await reporting.linkedInCampaignMetadata('100', [campaignUrn], read, true),
+    legacy = await reporting.linkedInCampaignMetadata('100', [campaignUrn], read);
+  assert.equal(v4.campaigns[campaignUrn].campaign_type, 'SPONSORED_INMAILS');
+  assert.equal(v4.campaigns[campaignUrn].status, 'PAUSED');
+  assert.equal(legacy.campaigns[campaignUrn].campaign_type, undefined);
+  await assert.rejects(
+    () =>
+      reporting.linkedInCampaignMetadata(
+        '100',
+        [campaignUrn],
+        async () => ({elements: [native, native], metadata: {}}),
+        true,
+      ),
+    error => error.code === 'REPORT_INCOMPLETE',
+  );
+});
 
 test('creative names use the native name, otherwise Ad and the exact numeric ID', async t => {
   for (const name of [undefined, '', '   ']) {

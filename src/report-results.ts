@@ -21,6 +21,7 @@ export interface ReportResultValue {
 export type ResultUnavailableReason =
   | 'missing_metric'
   | 'missing_goal'
+  | 'mixed_goals'
   | 'unsupported_goal'
   | 'unverified_native_shape'
   | 'non_additive'
@@ -173,14 +174,21 @@ export interface ReportResultGroupInput {
   scope: string;
   /** Already normalized to the account currency's major units. */
   spend: string | null;
+  cost_basis?: {spend: string | null; result: string | null};
+  /** Preserve native measurement coverage when an already grouped entity is grouped again. */
+  coverage?: {known: number; total: number};
+  cost_coverage?: {known_pairs: number; total: number};
 }
 export interface ReportResultGroup {
+  source: 'provider' | 'mapped' | 'unknown';
   definition: ReportResultDefinition | null;
   currency: string | null;
   scope: string;
   result: ReportResultValue;
   coverage: {known: number; total: number};
   cost_coverage: {known_pairs: number; total: number};
+  cost_source: 'provider' | 'derived' | 'unknown';
+  cost_basis: {spend: string | null; result: string | null};
   unavailable_reason: ResultUnavailableReason | null;
   rounding: Record<string, number>;
 }
@@ -210,20 +218,23 @@ export function groupReportResults(rows: ReportResultGroupInput[]): ReportResult
       rounding: Record<string, number> = {};
     let known = 0,
       pairs = 0,
+      total = 0,
       value = 0n,
       pairedValue = 0n,
       pairedSpend = 0n;
     for (const row of items) {
+      total += row.coverage?.total ?? 1;
       for (const [metric, count] of Object.entries(row.resolved.rounding))
         rounding[metric] = (rounding[metric] ?? 0) + count;
       const current = decimal(row.resolved.result.value, 'result', rounding),
-        spend = decimal(row.spend, 'spend', rounding);
+        spend = decimal(row.cost_basis ? row.cost_basis.spend : row.spend, 'spend', rounding),
+        costValue = row.cost_basis ? decimal(row.cost_basis.result, 'result', rounding) : current;
       if (current !== null) {
-        known++;
+        known += row.coverage?.known ?? 1;
         value += current;
-        if (spend !== null) {
-          pairs++;
-          pairedValue += current;
+        if (spend !== null && costValue !== null) {
+          pairs += row.cost_coverage?.known_pairs ?? 1;
+          pairedValue += costValue;
           pairedSpend += spend;
         }
       }
@@ -236,12 +247,20 @@ export function groupReportResults(rows: ReportResultGroupInput[]): ReportResult
             : definition.unit === 'currency' && currency === null && items.length > 1
               ? 'unknown_currency'
               : null,
+      unverified = items.some(row => row.resolved.unavailable_reason === 'unsupported_goal'),
       nativeCost = items.length === 1 ? decimal(result.cost_per_result, 'cost_per_result', rounding) : null,
       aggregateCost =
         blocked || currency === null
           ? null
-          : (nativeCost ?? (pairs ? cost(pairedSpend, pairedValue, definition?.cost_multiplier ?? 1, rounding) : null));
+          : (nativeCost ??
+            (!unverified && pairs ? cost(pairedSpend, pairedValue, definition?.cost_multiplier ?? 1, rounding) : null));
     return {
+      source:
+        items.length === 1
+          ? items[0]!.resolved.source
+          : definition && known
+            ? ('mapped' as const)
+            : ('unknown' as const),
       definition,
       currency,
       scope,
@@ -250,9 +269,12 @@ export function groupReportResults(rows: ReportResultGroupInput[]): ReportResult
         value: blocked ? null : text(value),
         cost_per_result: aggregateCost === null ? null : text(aggregateCost),
       },
-      coverage: {known, total: items.length},
-      cost_coverage: {known_pairs: pairs, total: items.length},
-      unavailable_reason: blocked,
+      coverage: {known, total},
+      cost_coverage: {known_pairs: pairs, total},
+      cost_basis: {spend: pairs ? text(pairedSpend) : null, result: pairs ? text(pairedValue) : null},
+      cost_source:
+        aggregateCost === null ? 'unknown' : nativeCost !== null ? items[0]!.resolved.cost_source : 'derived',
+      unavailable_reason: blocked ?? (unverified ? 'unsupported_goal' : null),
       rounding,
     };
   });

@@ -1,11 +1,16 @@
 import {googleAdsCustomers} from './google-version.js';
 import {googleGuidedReporting} from './google-guided-reports.js';
-import {reportList, type ReportSource} from './report-source.js';
+import {overviewCapabilities, reportList, type ReportSource} from './report-source.js';
 import {mappedReportResult} from './report-results.js';
 
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
 export const googleReportSource: ReportSource = {
   platform: 'google',
+  overview: overviewCapabilities([
+    {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+    {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'google_adset'},
+    {id: 'ad', label: 'Ad', native_type: 'ad_group_ad', preset: 'google_ad'},
+  ]),
   resultRules: {
     selectors: [],
     default: {
@@ -52,6 +57,7 @@ export const googleReportSource: ReportSource = {
   // Requested native metrics may name GAQL metric fields (`metrics.all_conversions`).
   nativeMetricName: /^metrics\.[a-z][a-z0-9_]{0,80}$/,
   minimumRequestsPerPeriod: 1,
+  requestsPerPeriod: (level, contract) => (level !== 'campaign' && contract === 'overview-config-v4' ? 3 : 1),
   // RPT-03: one request segmented by `segments.date`.
   daily: {day: native => native?.segments?.date},
   guided: googleGuidedReporting,
@@ -117,6 +123,7 @@ const searchConsoleZone = 'America/Los_Angeles';
 /** Search Console rows of searchAnalytics.query: one row per first dimension key, or the whole site. */
 export const searchConsoleReportSource: ReportSource = {
   platform: 'gsc',
+  overview: overviewCapabilities([{id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'}]),
   objectives: {
     name: 'Search Console',
     values: {},

@@ -22,7 +22,7 @@ function instant(v: unknown): number {
     return bad('Snapchat returned an invalid native report timestamp.', 'REPORT_DATE_MISMATCH');
   return Date.parse(v);
 }
-export function snapchatDailyRange(sem: JsonObject) {
+export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
   for (const key of ['date_from', 'date_to'])
     if (
       typeof sem[key] !== 'string' ||
@@ -46,7 +46,12 @@ export function snapchatDailyRange(sem: JsonObject) {
   }
   const start = Date.parse(sem.date_from),
     end = Date.parse(sem.date_to);
-  if (sem.complete !== true || end < start || end - start >= 31 * 86400000 || sem.date_to >= today)
+  if (
+    (!allowUndeclared && sem.complete !== true) ||
+    end < start ||
+    end - start >= 31 * 86400000 ||
+    sem.date_to >= today
+  )
     bad('Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.');
   const days: {date: string; start: number; end: number}[] = [];
   for (let at = start; at <= end; at += 86400000) {
@@ -118,6 +123,7 @@ export async function collectSnapchatEvidence(
   actor: Actor,
   args: JsonObject,
   sem: JsonObject,
+  context: {allowPartial?: true} = {},
 ) {
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
@@ -125,7 +131,7 @@ export async function collectSnapchatEvidence(
       login: storedLogin(store, connection),
       scopes: [...connection.scopes].sort(),
     }),
-    days = snapchatDailyRange(sem),
+    days = snapchatDailyRange(sem, context.allowPartial === true),
     from = days[0]!.start,
     through = days.at(-1)!.end,
     level = args.query.breakdown,

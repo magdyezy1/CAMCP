@@ -1,6 +1,8 @@
 import {fingerprint, formulaVersion, reportContractVersion} from './report-quality.js';
 import {validateRecommendationContext} from './recommendation-context.js';
-import {reportSummary, reportWindowSummary} from './report-summary.js';
+import {reportSummary, reportWindowSummary, reportMetricsSummaryV4} from './report-summary.js';
+import {calculateMetricsV4} from './report-math-v4.js';
+import {recommendationV4, assignRecommendationsV4} from './report-advice-v4.js';
 import {cleanupReports} from './owner-operations.js';
 import {
   dueScheduleTenants,
@@ -26,6 +28,7 @@ import {sheetsDelivery} from './provider-workflows.js';
 import {providerById} from './provider-adapters.js';
 import {
   metricDefinitions,
+  reportMetricDefinitionsV4,
   reportPlatforms,
   objectiveGroups,
   validateCustomMetrics,
@@ -82,6 +85,16 @@ import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqua
 import {allocationOutcomeJob, allocationOutcomeKind} from './allocation-outcome.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
+import {
+  overviewConfigV4,
+  normalizeOverviewV4Source,
+  expandOverviewV4Sources,
+  overviewV4Scope,
+  overviewV4Sources,
+  projectOverviewV4Rows,
+  projectOverviewV4Sources,
+  overviewDefinitionConfig,
+} from './overview-v4.js';
 import {
   reportPack,
   retainedPresentation,
@@ -166,6 +179,7 @@ export const overviewTool = tool(
     idempotency_key: field.id,
     offset: {type: 'integer', minimum: 0},
     limit: {type: 'integer', minimum: 1, maximum: 500},
+    include: {type: 'object', additionalProperties: false, properties: {native: field.bool, lineage: field.bool}},
     delivery_id: field.id,
     resolution: {type: 'string', enum: ['check', 'resend', 'abandon']},
     move_version: field.id,
@@ -180,7 +194,8 @@ const optional = (service: MirrorService, tenant: string, kind: string, id: stri
   }
 };
 const recordWithBudget = (r: JsonObject, budget: JsonObject | undefined) => {
-  const {actor_binding, checkpoints, collection_budget, ...visible} = r;
+  const {actor_binding, checkpoints, collection_budget, config_v4, ...visible} = r;
+  if (config_v4) visible.config = config_v4;
   if (!budget) return visible;
   const {row_counts, active_since, ...usage} = budget;
   return {...visible, collection_budget: usage};
@@ -259,13 +274,19 @@ const linkedinEvidenceContracts = ['campaign-source-v3', reportContractVersion];
 /** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
 const finishedSnapshot = (r: JsonObject) =>
   ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
-const platformContracts = (config: JsonObject): Record<string, string> =>
-  Object.fromEntries(
+const platformContracts = (config: JsonObject): Record<string, string> => ({
+  ...Object.fromEntries(
     config.sources.flatMap((source: JsonObject) => {
       const stamp = reportSource(source.platform)?.contract?.stamp;
       return stamp ? [[source.platform, stamp]] : [];
     }),
-  );
+  ),
+  ...(config.contract_version === overviewConfigV4 ? {overview_config: overviewConfigV4} : {}),
+});
+export const objectiveMigrationNotice = {
+  id: 'objective-fallback-v4',
+  message: "Saved report objectives now fill gaps in the platform's objective. Numbers may change.",
+};
 /** Rollback switches (EXP-03): ownership refusal (B) and the separate scheduled Sheets delivery job (D). */
 export const destinationOwnershipEnforced = () => process.env.AMCP_SHEETS_DESTINATION_OWNERSHIP !== 'off';
 export const scheduledSheetsInline = () => process.env.AMCP_SCHEDULED_SHEETS_DELIVERY === 'inline';
@@ -350,6 +371,10 @@ export class ReportingOverview {
       throw new MirrorError('REPORT_SOURCES_REQUIRED', 'Choose between 1 and 30 platform accounts.');
     const seen = new Set<string>();
     input = structuredClone(input);
+    // Explicit v4 during staged integration; old snapshots and legacy execution retain their existing boundary.
+    const v4 =
+      input.contract_version === overviewConfigV4 ||
+      input.sources.some((source: JsonObject) => source?.levels !== undefined);
     for (const s of input.sources) {
       if (!s || !reportPlatforms[s.platform] || typeof s.account_id !== 'string' || typeof s.connection_id !== 'string')
         throw new MirrorError('INVALID_REPORT_SOURCE', 'Choose a platform, connection and account.');
@@ -365,6 +390,10 @@ export class ReportingOverview {
       if (s.objective !== undefined && !objectiveGroups.includes(s.objective))
         throw new MirrorError('INVALID_OBJECTIVE', 'Choose a supported objective.');
       validateObjectiveFields(s);
+      if (v4) {
+        Object.assign(s, normalizeOverviewV4Source(s, reportSource(s.platform)!.overview!));
+        delete s.objective;
+      } else delete s.reporting_contract;
       if (
         s.native_metrics !== undefined &&
         (!Array.isArray(s.native_metrics) ||
@@ -422,8 +451,15 @@ export class ReportingOverview {
     for (const m of input.custom_metrics ?? [])
       for (const d of parseMetricFormula(m.formula).dependencies)
         if (/^native_[a-z][a-zA-Z0-9_]{1,150}$/.test(d)) nativeNames.add(d);
-    const custom = validateCustomMetrics(input.custom_metrics, [...nativeNames]),
-      known = new Set([...Object.keys(metricDefinitions), ...custom.map(m => m.id)]);
+    const custom = validateCustomMetrics(input.custom_metrics, [
+        ...nativeNames,
+        ...(v4 ? ['primary_result', 'cost_per_result'] : []),
+      ]),
+      known = new Set([
+        ...Object.keys(metricDefinitions),
+        ...custom.map(m => m.id),
+        ...(v4 ? ['primary_result', 'cost_per_result'] : []),
+      ]);
     const metrics = input.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
     if (
       !Array.isArray(metrics) ||
@@ -490,6 +526,7 @@ export class ReportingOverview {
     if (input.partial_delivery !== undefined && !['allow_marked', 'complete_only'].includes(input.partial_delivery))
       throw new MirrorError('INVALID_REPORT', 'Choose marked partial delivery or complete reports only.');
     return {
+      ...(v4 ? {contract_version: overviewConfigV4} : {}),
       formula_version: formulaVersion,
       formula_fingerprint: fingerprint(custom),
       source_contract_version: reportContractVersion,
@@ -639,6 +676,12 @@ export class ReportingOverview {
           id,
           ...p,
           native_metrics: nativeMetricExamples[id] ?? [],
+          reporting_v4: {
+            levels: reportSource(id)?.overview?.levels ?? [],
+            defaults: reportSource(id)?.overview?.defaults ?? {},
+            option_names: reportSource(id)?.overview?.option_names ?? [],
+            requires_complete_window_declaration: reportSource(id)?.requiresCompleteWindowDeclaration === true,
+          },
           request_model: sourceRequestModel(id),
           entity_levels: overviewEntityLevels[id] ?? [
             {id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'},
@@ -664,6 +707,7 @@ export class ReportingOverview {
         })),
         ...(client ? {client: {profile_id: client.profile_id, name: client.name}} : {}),
         metrics: metricDefinitions,
+        metrics_v4: reportMetricDefinitionsV4,
         metric_sources: metricSources,
         objectives: objectiveGroups,
         objective_fallback_groups: objectiveFallbackGroups,
@@ -706,7 +750,12 @@ export class ReportingOverview {
     if (input.action === 'preview_schedule') {
       const schedule = input.id ? store.document(tenant, 'overview_schedule', String(input.id)) : input.schedule;
       if (!schedule) throw new MirrorError('INVALID_SCHEDULE', 'Supply a saved schedule or schedule settings.');
-      const config = this.config(input.config ?? schedule.config, actor, false, input.config === undefined);
+      const config = this.config(
+        input.config ?? overviewDefinitionConfig(schedule),
+        actor,
+        false,
+        input.config === undefined,
+      );
       if (!config.date_range.preset)
         throw new MirrorError('ROLLING_WINDOW_REQUIRED', 'Preview a rolling report window.');
       const occurrences: JsonObject[] = [],
@@ -827,6 +876,16 @@ export class ReportingOverview {
       return reportPack(report, retainedPresentation(store, tenant, report.id));
     }
     if (input.action === 'get') {
+      if (
+        input.include !== undefined &&
+        (!input.include ||
+          typeof input.include !== 'object' ||
+          Array.isArray(input.include) ||
+          Object.entries(input.include).some(
+            ([key, value]) => !['native', 'lineage'].includes(key) || typeof value !== 'boolean',
+          ))
+      )
+        throw new MirrorError('INVALID_REPORT', 'Use native and lineage include flags set to true or false.');
       const r = store.document(tenant, 'overview_report', String(input.id));
       this.access(actor, r.config);
       const offset = input.offset ?? 0,
@@ -838,7 +897,8 @@ export class ReportingOverview {
         active = ['queued', 'running'].includes(job.state);
       return {
         ...publicReport(store, tenant, r),
-        rows: r.rows.slice(offset, offset + limit),
+        rows: projectOverviewV4Rows(r, r.rows.slice(offset, offset + limit), input.include),
+        sources: projectOverviewV4Sources(r, input.include),
         row_count: r.rows.length,
         // The paging fields every AMCP list carries (MCP-07): total, has_more and next_offset while it is true.
         total: r.rows.length,
@@ -925,7 +985,7 @@ export class ReportingOverview {
     if (input.action === 'run') {
       // A saved definition runs as saved; target rules added later apply when it is edited (DEC-01).
       const view = input.config == null ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
-        config = this.config(input.config ?? view!.config, actor, false, view !== undefined);
+        config = this.config(input.config ?? overviewDefinitionConfig(view!), actor, false, view !== undefined);
       if (input.compare !== undefined && input.compare !== 'previous_period')
         throw new MirrorError('INVALID_REPORT', 'Use compare: previous_period, or omit it.');
       if (input.compare === 'previous_period')
@@ -1480,7 +1540,7 @@ export class ReportingOverview {
             // EXP-02: the following occurrence is computed first and can never roll back or pause this due run.
             const following = followingOccurrence(s),
               actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
-              run = this.queue(actor, s.config, s.destination_id, s.id, s.next_run_at, s.view_id);
+              run = this.queue(actor, overviewDefinitionConfig(s), s.destination_id, s.id, s.next_run_at, s.view_id);
             store.putDocument(
               tenant,
               'overview_schedule',
@@ -1639,9 +1699,10 @@ export class ReportingOverview {
       store.putDocument(tenant, 'overview_report', r.id, r);
     }
     const contracts = platformContracts(r.config),
+      executionSources = expandOverviewV4Sources(r.config),
       retainedParts = new ReportParts(store, tenant, r);
     if (
-      r.config.sources.some(
+      executionSources.some(
         (source: JsonObject, i: number) =>
           contracts[source.platform] &&
           r.platform_contracts?.[source.platform] !== contracts[source.platform] &&
@@ -1674,6 +1735,7 @@ export class ReportingOverview {
       started_at: r.started_at ?? Date.now(),
     });
     const results: JsonObject[] = [];
+    const sourceLookups = new Map<string, AccountLookupCache>();
     let retry: MirrorError | undefined;
     // OPS-08: counters and checkpoints are saved in their own small documents, so a save no longer rewrites the whole
     // report; a report started by an older release resumes from its inline counters and checkpoints.
@@ -1683,9 +1745,9 @@ export class ReportingOverview {
         parts.saveBudget(state);
       });
     try {
-      for (let i = 0; i < r.config.sources.length; i++) {
+      for (let i = 0; i < executionSources.length; i++) {
         access();
-        const source = r.config.sources[i],
+        const source = executionSources[i]!,
           key = String(i),
           checkpoint = parts.source(key, r.checkpoints?.[key]);
         if (checkpoint.result) {
@@ -1697,7 +1759,9 @@ export class ReportingOverview {
             const window = await this.sourceWindow(r.config, source, actor),
               grain = r.config.grain ?? 'total',
               // RPT-03: one account read per source per job, verified again after a multi-period collection.
-              lookup: AccountLookupCache = {};
+              lookupKey = String(source.source_ref ?? key),
+              lookup: AccountLookupCache = sourceLookups.get(lookupKey) ?? {};
+            sourceLookups.set(lookupKey, lookup);
             // OPS-08: progress is saved in the source's own checkpoint documents, never by rewriting the report.
             const saveCheckpoint = (v: JsonObject) => {
               access();
@@ -1743,7 +1807,14 @@ export class ReportingOverview {
             return window.resolution ? {...collected, window_resolution: window.resolution} : collected;
           });
           access();
-          const result = {...captured, source};
+          const result: JsonObject = {...captured, source};
+          if (r.config.contract_version === overviewConfigV4) {
+            const scoped = overviewV4Scope(source, result.rows);
+            result.rows = scoped.rows;
+            result.scope = scoped.scope;
+            result.quality = {...result.quality, scope: scoped.scope};
+            if (scoped.scope.excluded_unknown_rows) result.complete = false;
+          }
           results.push(result);
           parts.complete(key, result);
           if (captured.collection_limit) {
@@ -1751,7 +1822,7 @@ export class ReportingOverview {
               'REPORT_COLLECTION_LIMIT',
               'Collection stopped at the whole-job limit. Narrow the accounts, date window or grouping for a new run.',
             );
-            for (const pending of r.config.sources.slice(i + 1))
+            for (const pending of executionSources.slice(i + 1))
               results.push({source: pending, rows: [], complete: false, error: reportSourceError(limited, pending)});
             break;
           }
@@ -1759,7 +1830,7 @@ export class ReportingOverview {
           const diagnostic = reportSourceError(e, source);
           results.push({source, rows: [], complete: false, error: diagnostic});
           if (e instanceof MirrorError && ['REPORT_COLLECTION_LIMIT', 'REPORT_BUDGET_INVALID'].includes(e.code)) {
-            for (const pending of r.config.sources.slice(i + 1))
+            for (const pending of executionSources.slice(i + 1))
               results.push({source: pending, rows: [], complete: false, error: reportSourceError(e, pending)});
             break;
           }
@@ -1801,7 +1872,11 @@ export class ReportingOverview {
     const nativeDependencies = r.config.custom_metrics
       .flatMap((m: JsonObject) => parseMetricFormula(m.formula).dependencies)
       .filter((d: string) => /^native_[a-z][a-zA-Z0-9_]{1,150}$/.test(d));
-    const custom = validateCustomMetrics(r.config.custom_metrics, [...nativeFields, ...nativeDependencies]);
+    const custom = validateCustomMetrics(r.config.custom_metrics, [
+      ...nativeFields,
+      ...nativeDependencies,
+      ...(r.config.contract_version === overviewConfigV4 ? ['primary_result', 'cost_per_result'] : []),
+    ]);
     for (const result of results) {
       const seen = new Set<string>();
       for (const row of result.rows) {
@@ -1835,8 +1910,9 @@ export class ReportingOverview {
           }),
           objective = resolvedObjective.group,
           {period_context, report_period, ...nativeRow} = row,
-          record = {
+          record: JsonObject = {
             ...nativeRow,
+            ...(r.config.contract_version === overviewConfigV4 ? {source_ref: source.source_ref} : {}),
             row_key: rowKey,
             grain: r.config.grain ?? 'total',
             campaign_key: key,
@@ -1858,7 +1934,7 @@ export class ReportingOverview {
               ...(context.quality ?? {version: 0, status: 'unknown'}),
               ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
             },
-            lineage: context.lineage ?? [],
+            ...(r.config.contract_version === overviewConfigV4 ? {} : {lineage: context.lineage ?? []}),
             query_fingerprint: context.query_fingerprint ?? null,
             formula_version: r.config.formula_version ?? 'legacy-unversioned',
             attribution: context.attribution,
@@ -1866,10 +1942,40 @@ export class ReportingOverview {
             result_definition: row.result_definition ?? context.result_definition,
             complete: result.complete,
             captured_at: result.captured_at,
-            metrics: calculateMetrics(row.metrics, custom),
+            metrics:
+              r.config.contract_version === overviewConfigV4
+                ? calculateMetricsV4(
+                    {
+                      ...row.metrics,
+                      primary_result: row.result?.value ?? null,
+                      cost_per_result: row.result?.cost_per_result ?? null,
+                    },
+                    custom,
+                  ).metrics
+                : calculateMetrics(row.metrics, custom),
           };
+        if (r.config.contract_version === overviewConfigV4) {
+          record.result_definition = row.result?.label ?? 'unknown';
+          const normalized = reportMetricsSummaryV4([record], custom);
+          for (const [name, value] of Object.entries(normalized.metrics))
+            if (
+              metricDefinitions[name]?.aggregation === 'sum' ||
+              metricDefinitions[name]?.formula ||
+              !Object.hasOwn(metricDefinitions, name)
+            )
+              record.metrics[name] = value;
+          record.metrics_coverage = normalized.metrics_coverage;
+          if (normalized.metric_calculation_rounding)
+            record.quality.metric_calculation_rounding = normalized.metric_calculation_rounding;
+        }
         if (r.config.objectives.length && !r.config.objectives.includes(objective)) continue;
-        rows.push({...record, recommendation: campaignRecommendation(record, r.config.targets)});
+        rows.push({
+          ...record,
+          recommendation:
+            r.config.contract_version === overviewConfigV4
+              ? recommendationV4(record, r.config.targets, custom)
+              : campaignRecommendation(record, r.config.targets),
+        });
       }
     }
     for (const result of results) {
@@ -1878,20 +1984,25 @@ export class ReportingOverview {
       if (warning) result.warnings.push(warning);
     }
     // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
-    if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
+    if (r.config.contract_version === overviewConfigV4)
+      assignRecommendationsV4(rows, r.config.targets, custom, (r.config.grain ?? 'total') !== 'total');
+    else if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
     const sourceRowCount = results.reduce((n, s) => n + s.rows.length, 0),
       filteredRowCount = sourceRowCount - rows.length;
     const failures = results.filter(s => s.error),
-      sources = results.map(({rows: sourceRows, metadata, ...data}) => ({
-        ...data,
-        row_count: sourceRows.length,
-        visible_row_count: rows.filter(
-          row =>
-            row.platform === data.source.platform &&
-            row.account_id === data.source.account_id &&
-            row.connection_id === data.source.connection_id,
-        ).length,
-      })),
+      sources =
+        r.config.contract_version === overviewConfigV4
+          ? overviewV4Sources(results, rows, r.config.sources)
+          : results.map(({rows: sourceRows, metadata, ...data}) => ({
+              ...data,
+              row_count: sourceRows.length,
+              visible_row_count: rows.filter(
+                row =>
+                  row.platform === data.source.platform &&
+                  row.account_id === data.source.account_id &&
+                  row.connection_id === data.source.connection_id,
+              ).length,
+            })),
       state =
         failures.length === results.length
           ? 'failed'
@@ -1912,13 +2023,25 @@ export class ReportingOverview {
               ? 'objective_filter'
               : 'no_provider_rows',
         completed_at: Date.now(),
-        summary: reportSummary(rows, custom),
+        summary: reportSummary(rows, custom, r.config.contract_version === overviewConfigV4),
         // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
-        ...((r.config.grain ?? 'total') !== 'total' ? {window_summary: reportWindowSummary(rows, custom)} : {}),
+        ...((r.config.grain ?? 'total') !== 'total'
+          ? {window_summary: reportWindowSummary(rows, custom, r.config.contract_version === overviewConfigV4)}
+          : {}),
         native_metrics: [...nativeFields],
         row_count: rows.length,
       };
-    store.putDocument(tenant, 'overview_report', r.id, record);
+    store.transaction(() => {
+      if (
+        state !== 'failed' &&
+        r.config.contract_version === overviewConfigV4 &&
+        (r.view_id || r.schedule_id) &&
+        r.config.sources.some((source: JsonObject) => source.objective_migrated_from_v3) &&
+        latestDefinitionContracts(store, tenant, r.view_id, r.schedule_id)?.overview_config !== overviewConfigV4
+      )
+        Object.assign(record, {notices: [...(r.notices ?? []), objectiveMigrationNotice]});
+      store.putDocument(tenant, 'overview_report', r.id, record);
+    });
     evaluateMonitors(store, actor, r.id);
     store.journal(tenant, r.id, state === 'failed' ? 'failed' : 'responded', {report_id: r.id, rows: rows.length});
     if (state === 'failed') {

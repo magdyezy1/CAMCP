@@ -337,7 +337,10 @@ export class DecisionReporting {
   /** Internal Overview collector: reuse the exact qualified preset without creating a second saved snapshot or budget. */
   async collectGuided(input: JsonObject, actor: Actor, lookup?: AccountLookupCache) {
     return this.handle(
-      {action: 'capture', ...reportPreset(input)},
+      {
+        action: 'capture',
+        ...reportPreset(input, input.reporting_contract === 'overview-config-v4' ? {overviewV4: true} : undefined),
+      },
       actor,
       input.preset,
       true,

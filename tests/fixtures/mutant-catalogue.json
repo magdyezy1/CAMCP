@@ -37,9 +37,9 @@
       "id": "M5-granular-reach-summed-across-days",
       "guards": "Reach and frequency are never summed across days in detailed Overview rows",
       "file": "src/overview-levels.ts",
-      "find": "reach: group.mapped.length === 1 ? metricNumber(group.mapped[0].reach) : null,",
-      "replace": "reach: group.mapped.reduce((n, row) => n + (Number(row.reach) || 0), 0),",
-      "tests": ["tests/overview-granularity.test.mjs"]
+      "find": "group.mapped.length !== 1 || value == null ? null : v4 ? providerDecimalText(value, { field: key }) : metricNumber(value)",
+      "replace": "key === 'reach' ? group.mapped.reduce((n, row) => n + (Number(row.reach) || 0), 0) : group.mapped.length !== 1 || value == null ? null : v4 ? providerDecimalText(value, { field: key }) : metricNumber(value)",
+      "tests": ["tests/overview-granularity.test.mjs", "tests/overview-v4-contract.test.mjs"]
     },
     {
       "id": "M6-dst-gap-skipped",

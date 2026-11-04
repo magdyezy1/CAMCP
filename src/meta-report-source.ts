@@ -3,13 +3,36 @@ import {metaGuidedReporting} from './meta-guided-reports.js';
 import {metaCampaignRows} from './meta-report.js';
 import {metaPrefix} from './meta-version.js';
 import {metricNumber, objectiveGroup} from './report-metrics.js';
-import type {ReportSource} from './report-source.js';
+import {overviewCapabilities, invalidReportSource, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {metaMappedResult, metaResultRules} from './meta-report-results.js';
+import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
 
 /** Meta campaign insights rows: actions and action_values arrays; conversions follow the campaign objective. */
 export const metaReportSource: ReportSource = {
   platform: 'meta',
+  overview: overviewCapabilities(
+    [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad set', native_type: 'adset', preset: 'meta_adset'},
+      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'meta_ad'},
+    ],
+    {attribution_windows: ['7d_click', '1d_view']},
+    ['result_action_type'],
+    options => {
+      if (!metaWindowsValid(options.attribution_windows)) invalidReportSource(metaWindowsMessage);
+      if (
+        options.result_action_type !== undefined &&
+        (typeof options.result_action_type !== 'string' || !/^[a-z][a-z0-9_.]{0,159}$/.test(options.result_action_type))
+      )
+        invalidReportSource('Choose one exact Meta result action.');
+    },
+    {
+      campaign_options: ['attribution_windows'],
+      detail_options: ['complete_window', 'result_action_type', 'attribution_windows'],
+      requires_action: true,
+    },
+  ),
   resultRules: metaResultRules,
   readResult: metaMappedResult,
   objectives: {
@@ -36,6 +59,7 @@ export const metaReportSource: ReportSource = {
     'cost_per_action_type',
   ],
   minimumRequestsPerPeriod: 1,
+  requestsPerPeriod: (level, contract) => (level !== 'campaign' && contract === 'overview-config-v4' ? 3 : 1),
   // RPT-03: one request with time_increment=1; a row that names its last day must end on the day it starts.
   daily: {
     day: native => native?.date_start,
@@ -71,6 +95,9 @@ export const metaReportSource: ReportSource = {
               'frequency',
               'actions',
               'action_values',
+              ...(c.source.reporting_contract === 'overview-config-v4'
+                ? ['optimization_goal', 'results', 'cost_per_result', 'result_rate', 'inline_link_clicks']
+                : []),
               ...c.extra,
             ]),
           ].join(','),
@@ -116,7 +143,7 @@ export const metaReportSource: ReportSource = {
     const leads = action('leads', ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
       purchases = action('purchases', ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
       installs = action('installs', ['mobile_app_install', 'app_install']),
-      result: [number | null, string] | undefined =
+      result: [number | string | null, string] | undefined =
         objectiveGroup(objective) === 'leads'
           ? [leads, 'leads']
           : objectiveGroup(objective) === 'app_installs'

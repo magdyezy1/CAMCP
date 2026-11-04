@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {parseProviderDecimal} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
+import {reportLevelReconciliation} from './report-level-reconciliation.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
@@ -11,6 +12,74 @@ export interface OverviewV4Capabilities {
   defaults: Readonly<JsonObject>;
   option_names: readonly string[];
   validateOptions?(options: JsonObject): void;
+  legacy?: {
+    campaign_options?: readonly string[];
+    detail_options?: readonly string[];
+    requires_action?: true;
+    requires_complete?: true;
+  };
+}
+
+/** Current readers use the sidecar; an older binary continues to read the original config field. */
+export const overviewDefinitionConfig = (record: JsonObject): JsonObject => record.config_v4 ?? record.config;
+/** Do not expose both definition forms to clients or let an old renderer accidentally edit the wrong one. */
+export function publicOverviewDefinition(record: JsonObject): JsonObject {
+  const {config_v4, ...visible} = record;
+  return config_v4 ? {...visible, config: config_v4} : visible;
+}
+/**
+ * Keep account authorization identical in both forms. New scope/multi-level/undeclared semantics that v3 cannot
+ * express receive an unsupported level: an old binary can list the definition but refuses it before provider egress.
+ * Existing v3 definitions are never rewritten by this helper or by a run.
+ */
+export function overviewDefinitionForms(
+  config: JsonObject,
+  capabilitiesFor: (platform: string) => OverviewV4Capabilities,
+): JsonObject {
+  if (config.contract_version !== overviewConfigV4) return {config, config_v4: undefined};
+  const {rollback_v3, ...current} = structuredClone(config),
+    legacy: JsonObject = {...current};
+  delete legacy.contract_version;
+  legacy.sources = current.sources.map((source: JsonObject) => {
+    const {
+        levels,
+        reporting_contract,
+        source_ref,
+        campaign_ids,
+        adset_ids,
+        ad_ids,
+        statuses,
+        delivered_only,
+        objective_migrated_from_v3,
+        ...old
+      } = source,
+      rules = capabilitiesFor(source.platform).legacy ?? {},
+      level = levels[0],
+      options = source.report_options,
+      optionNames =
+        level === 'campaign'
+          ? (rules.campaign_options ?? [])
+          : (rules.detail_options ?? ['complete_window', 'attribution']),
+      unavailable =
+        levels.length !== 1 ||
+        [campaign_ids, adset_ids, ad_ids].some(ids => ids?.length) ||
+        !statuses.includes('all') ||
+        (level === 'campaign' &&
+          (options.complete_window === false || (rules.requires_complete && options.complete_window !== true))) ||
+        (level !== 'campaign' &&
+          (typeof options.complete_window !== 'boolean' ||
+            (rules.requires_complete && options.complete_window !== true) ||
+            (rules.requires_action && !options.result_action_type)));
+    old.level = unavailable ? 'v4_required' : level;
+    if (source.objective_fallback !== undefined) old.objective = source.objective_fallback;
+    const selected = Object.fromEntries(
+      optionNames.filter(key => options[key] !== undefined).map(key => [key, options[key]]),
+    );
+    if (Object.keys(selected).length) old.report_options = selected;
+    else delete old.report_options;
+    return old;
+  });
+  return {config: legacy, config_v4: current};
 }
 function invalid(message: string, code = 'INVALID_REPORT_SOURCE'): never {
   throw new MirrorError(code, message);
@@ -214,10 +283,81 @@ export function overviewV4Ratio(rows: JsonObject[], numerator: string, denominat
 /** Projection changes only v4 snapshots. Retained legacy snapshots keep their recorded representation. */
 export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], include: JsonObject = {}) {
   if (snapshot.config?.contract_version !== overviewConfigV4) return rows;
+  const references = (snapshot.sources ?? []).map(
+    (source: JsonObject) =>
+      new Map<string, number>(
+        (source.result_definitions ?? []).map((definition: JsonObject, index: number) => [
+          JSON.stringify(definition),
+          index,
+        ]),
+      ),
+  );
+  const resultContext = (context: JsonObject | undefined, sourceRef: number): JsonObject | undefined => {
+    if (!context) return undefined;
+    return {
+      result_ref: context.definition ? references[sourceRef]?.get(JSON.stringify(context.definition)) : undefined,
+      source: context.source,
+      cost_source: context.cost_source,
+      ...(context.unavailable_reason ? {unavailable_reason: context.unavailable_reason} : {}),
+      ...(context.coverage && context.coverage.known < context.coverage.total ? {coverage: context.coverage} : {}),
+      ...(context.cost_coverage && context.cost_coverage.known_pairs < context.cost_coverage.total
+        ? {cost_coverage: context.cost_coverage}
+        : {}),
+      ...(Object.keys(context.rounding ?? {}).length ? {rounding: context.rounding} : {}),
+    };
+  };
   return rows.map(row => {
     const {native, lineage, objective_source, objective_group, objective_reason, ...visible} = row;
+    const fields = snapshot.config.metrics
+        ? [
+            ...new Set<string>([
+              ...snapshot.config.metrics,
+              ...(snapshot.config.custom_metrics ?? []).map((metric: JsonObject) => metric.id),
+            ]),
+          ]
+        : Object.keys(row.metrics ?? {}),
+      partial = Object.fromEntries(
+        Object.entries(row.metrics_coverage ?? {}).filter(
+          ([name, value]: [string, any]) =>
+            fields.includes(name) && (value.known ?? value.known_pairs ?? value.known_rows) < value.total,
+        ),
+      ),
+      recommendation =
+        row.recommendation &&
+        Object.fromEntries(Object.entries(row.recommendation).filter(([key]) => key !== 'evidence'));
     return {
-      ...visible,
+      ...(include.native === true
+        ? visible
+        : {
+            row_key: row.row_key,
+            source_ref: row.source_ref,
+            entity_id: row.entity_id ?? row.campaign_id,
+            entity_name: row.entity_name ?? row.campaign_name,
+            native_entity_type: row.native_entity_type,
+            currency: row.currency,
+            date_from: row.date_from,
+            date_to: row.date_to,
+            complete: row.complete,
+            result: row.result,
+            result_context: resultContext(row.result_context, row.source_ref),
+            ...(row.result_groups?.length > 1
+              ? {
+                  result_groups: row.result_groups.map((group: JsonObject) => ({
+                    ...resultContext(group, row.source_ref),
+                    result: group.result,
+                    coverage: group.coverage,
+                    cost_coverage: group.cost_coverage,
+                  })),
+                }
+              : {}),
+            metrics: Object.fromEntries(fields.map(key => [key, row.metrics?.[key] ?? null])),
+            ...(Object.keys(partial).length ? {metrics_coverage: partial} : {}),
+            ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
+            ...(row.quality?.metric_calculation_rounding
+              ? {quality: {metric_calculation_rounding: row.quality.metric_calculation_rounding}}
+              : {}),
+            recommendation,
+          }),
       level: row.entity_level ?? 'campaign',
       objective: {
         native: row.objective === 'unknown' ? null : row.objective,
@@ -234,7 +374,84 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
           : {}),
       },
       ...(include.native === true ? {native} : {}),
-      ...(include.lineage === true ? {lineage: snapshot.sources?.[row.source_ref]?.lineage ?? lineage ?? []} : {}),
     };
   });
+}
+
+/** Account sources own lineage once; level/period evidence retains its context without copied lineage arrays. */
+export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], configured: JsonObject[]) {
+  const withoutLineage = (value: any): any =>
+    Array.isArray(value)
+      ? value.map(withoutLineage)
+      : object(value)
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(([key]) => key !== 'lineage')
+              .map(([key, child]) => [key, withoutLineage(child)]),
+          )
+        : value;
+  return configured.map((source, sourceRef) => {
+    const packets = results.filter(result => result.source.source_ref === sourceRef),
+      lineage = new Map<string, JsonObject>();
+    for (const packet of packets) {
+      for (const entry of [
+        ...(packet.lineage ?? []),
+        ...(packet.periods ?? []).flatMap((period: JsonObject) => period.lineage ?? []),
+      ])
+        lineage.set(JSON.stringify(entry), entry);
+    }
+    const {rows: ignoredRows, source: ignoredSource, metadata, ...first} = packets[0] ?? {};
+    const definitions = new Map<string, JsonObject>();
+    for (const row of rows.filter(row => row.source_ref === sourceRef))
+      for (const context of [row.result_context, ...(row.result_groups ?? [])])
+        if (context?.definition) definitions.set(JSON.stringify(context.definition), context.definition);
+    return {
+      ...withoutLineage(first),
+      source,
+      source_ref: sourceRef,
+      complete: packets.length === source.levels.length && packets.every(packet => packet.complete),
+      collection_complete:
+        packets.length === source.levels.length &&
+        packets.every(packet => packet.collection_complete !== false && !packet.error),
+      lineage: [...lineage.values()],
+      result_definitions: [...definitions.values()],
+      projection: {
+        quality: 'source_level_period',
+        metric_coverage: 'partial_rows_only',
+        advice_evidence: 'include_native',
+      },
+      row_count: packets.reduce((sum, packet) => sum + packet.rows.length, 0),
+      visible_row_count: rows.filter(row => row.source_ref === sourceRef).length,
+      warnings: [...new Set(packets.flatMap(packet => packet.warnings ?? []))],
+      cross_level: reportLevelReconciliation(
+        rows.filter(row => row.source_ref === sourceRef),
+        packets,
+        source.levels,
+      ),
+      level_results: packets.map(({rows: packetRows, source: packetSource, metadata: packetMetadata, ...data}) => ({
+        ...withoutLineage(data),
+        level: packetSource.level,
+        row_count: packetRows.length,
+      })),
+    };
+  });
+}
+
+export function projectOverviewV4Sources(snapshot: JsonObject, include: JsonObject = {}) {
+  if (snapshot.config?.contract_version !== overviewConfigV4) return snapshot.sources;
+  const project = (value: any): any =>
+    Array.isArray(value)
+      ? value.map(project)
+      : object(value)
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(
+                ([key]) =>
+                  (key !== 'lineage' || include.lineage === true) &&
+                  (!['native', 'native_account_evidence'].includes(key) || include.native === true),
+              )
+              .map(([key, child]) => [key, project(child)]),
+          )
+        : value;
+  return project(snapshot.sources);
 }

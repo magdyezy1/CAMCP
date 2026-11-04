@@ -261,7 +261,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // wrapper reason: 11,538.
   // V2-RPT-02 adds the shared objective resolver (no new wrapper) and objective explanations.
   // Result readers add three modules; the v4 boundary adds one.
-  assert.equal(files.length, 765);
+  // Exact formula and advisory adapters add two further source modules.
+  // V4 delivery-level reconciliation adds one source module without a new diagnostic.
+  assert.equal(files.length, 768);
   assert.equal(selected.filter(row => row.messages.size).length, 187);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   assert.equal(owned.size, 2857);
@@ -277,7 +279,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-PRV-02 adds two iframe/lifetime notes, with no wrapper ownership change.
   // V2-PRV-03 adds two Snapchat notes, with no wrapper ownership change.
   // Sixteen result labels/diagnostics and eight v4 boundary refusals.
-  assert.equal(Object.keys(catalog).length, 11660);
+  // Collector/undeclared-window/include diagnostics add four more entries.
+  // One durable objective-migration notice.
+  // One formula refusal and two advisory coverage/definition messages.
+  // The v4 aggregation explanations add two bilingual interface entries.
+  assert.equal(Object.keys(catalog).length, 11672);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

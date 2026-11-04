@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   overviewConfigV4,
+  overviewDefinitionForms,
   normalizeOverviewV4Source,
   expandOverviewV4Sources,
   overviewV4Scope,
@@ -9,6 +10,13 @@ import {
   overviewV4Ratio,
   projectOverviewV4Rows,
 } from '../dist/src/overview-v4.js';
+import {objectiveReportFixture} from './helpers/objective-report.mjs';
+import {reportSource} from '../dist/src/report-sources.js';
+import {estimateCollectionRequests} from '../dist/src/report-request-estimate.js';
+import {normalizeNativeRowV4} from '../dist/src/report-native.js';
+import {overviewGranularityFixture, granularConfig, granularSource} from './fixtures/overview-granularity-data.mjs';
+import {reportPreset} from '../dist/src/report-presets.js';
+import {overviewSourceLevel, detailedOverviewRows} from '../dist/src/overview-levels.js';
 const capabilities = {
   levels: ['campaign', 'adset', 'ad'].map(id => ({id, label: id, native_type: id})),
   defaults: {attribution: 'unknown', complete_window: null},
@@ -173,6 +181,37 @@ test('known additive values retain exact decimal text and coverage; non-additive
     );
 });
 
+test('v4 native campaign normalization keeps large decimal strings exact before deriving any totals', () => {
+  const rounding = {},
+    row = normalizeNativeRowV4(
+      'google',
+      {
+        campaign: {id: '9007199254740993', name: 'Synthetic'},
+        metrics: {
+          costMicros: '9007199254740993123456.789',
+          conversions: '0.0000000015',
+          conversionsValue: '27.987654321',
+          clicks: '0',
+          impressions: '100',
+        },
+      },
+      rounding,
+    );
+  assert.equal(row.campaign_id, '9007199254740993');
+  assert.equal(row.metrics.spend, '9007199254740993.123456789');
+  assert.equal(row.native.exact_totals.spend, '9007199254740993.123456789');
+  assert.equal(row.metrics.native_google_metrics_costMicros, '9007199254740993123456.789');
+  assert.equal(row.metrics.conversions, '0.000000002');
+  assert.equal(rounding.conversions, 1);
+  assert.throws(
+    () => normalizeNativeRowV4('google', {campaign: {id: '1'}, metrics: {costMicros: 9007199254740992}}),
+    error => error.code === 'METRIC_PRECISION_LOSS',
+  );
+  const reach = normalizeNativeRowV4('meta', {campaign_id: '1', reach: '2000', frequency: '1.1234567890123'});
+  assert.equal(reach.metrics.frequency, '1.1234567890123');
+  assert.equal(reach.native.exact_totals.reach, undefined);
+});
+
 test('ratios only use known numerator-denominator pairs, including zero numerators and half-even rounding', () => {
   const rows = [
     metrics({spend: '10', clicks: '5'}),
@@ -224,8 +263,443 @@ test('v4 get projection omits repeated native/lineage, exposes structured object
   assert.deepEqual(projected[0].parents.campaign, {id: 'c1', name: 'Campaign'});
   assert.equal(projected[0].level, 'campaign');
   const included = projectOverviewV4Rows(snapshot, rows, {native: true, lineage: true});
-  assert.deepEqual(included[0].lineage, lineage);
+  assert.equal(
+    included[0].lineage,
+    undefined,
+    'lineage is returned once in the source capsule, including explicit reads',
+  );
   assert.deepEqual(included[0].native, rows[0].native);
   assert.equal(projectOverviewV4Rows({config: {version: 1}}, rows), rows);
   assert.equal(rows[0].objective, 'TRAFFIC', 'projection never rewrites retained rows');
+});
+
+test('real v4 queue/worker/get collects three levels for one account and retains one source lineage', async t => {
+  const f = objectiveReportFixture(t),
+    calls = [];
+  f.overview.native.collect = async (configured, range, actor, checkpoint, save, lookup) => {
+    calls.push({level: configured.level, lookup});
+    const id = {campaign: '1', adset: '2', ad: '3'}[configured.level];
+    return {
+      rows: [
+        {
+          entity_id: id,
+          entity_level: configured.level,
+          campaign_id: '1',
+          entity_name: configured.level,
+          parent_ids:
+            configured.level === 'campaign'
+              ? {}
+              : {
+                  campaign_id: '1',
+                  campaign_name: 'Campaign',
+                  ...(configured.level === 'ad' ? {adset_id: '2', adset_name: 'Group'} : {}),
+                },
+          objective: 'OUTCOME_TRAFFIC',
+          metrics: {spend: 10, impressions: 100, clicks: 2},
+          native: {exact_totals: {spend: '10', impressions: '100', clicks: '2'}},
+        },
+      ],
+      complete: true,
+      collection_complete: true,
+      currency: 'USD',
+      timezone: 'UTC',
+      date_range: range,
+      warnings: [],
+      source_kind: 'paid',
+      result_definition: 'Synthetic result',
+      attribution: 'Synthetic window',
+      captured_at: 1,
+      lineage: [
+        {stage: 'account', response_fingerprint: 'shared'},
+        {stage: configured.level, response_fingerprint: id},
+      ],
+    };
+  };
+  const config = {
+    ...f.config,
+    contract_version: overviewConfigV4,
+    sources: [{...f.config.sources[0], levels: ['campaign', 'adset', 'ad']}],
+  };
+  const normalized = f.overview.config(config, f.actor);
+  assert.equal(normalized.sources.length, 1);
+  assert.deepEqual(normalized.sources[0].report_options.attribution_windows, ['7d_click', '1d_view']);
+  assert.equal(normalized.sources[0].report_options.complete_window, null);
+  assert.deepEqual(
+    estimateCollectionRequests(normalized).sources.map(row => row.level),
+    ['campaign', 'adset', 'ad'],
+  );
+  const snapshot = await f.run(config);
+  assert.equal(snapshot.rows.length, 3, JSON.stringify(snapshot.error));
+  assert.deepEqual(
+    calls.map(row => row.level),
+    ['campaign', 'adset', 'ad'],
+  );
+  assert.equal(calls[0].lookup, calls[1].lookup, 'account-level cache is shared across native levels');
+  assert.equal(calls[1].lookup, calls[2].lookup);
+  assert.equal(snapshot.sources.length, 1);
+  assert.equal(snapshot.sources[0].level_results.length, 3);
+  assert.equal(JSON.stringify(snapshot).includes('"lineage"'), false, 'default v4 get carries no lineage anywhere');
+  assert.equal(
+    snapshot.rows.every(row => row.source_ref === 0 && row.native === undefined),
+    true,
+  );
+  const included = await f.overview.handle(
+    {action: 'get', id: snapshot.id, include: {native: true, lineage: true}},
+    f.actor,
+  );
+  assert.equal(included.sources[0].lineage.length, 4, 'shared account evidence deduplicates');
+  assert.equal(included.rows[2].parents.adset.id, '2');
+  assert.equal(included.rows[2].objective.source, 'provider');
+  assert.equal(included.rows[2].native.exact_totals.spend, '10');
+  const stored = f.store.document(f.actor.tenantId, 'overview_report', snapshot.id);
+  assert.equal(
+    stored.rows.every(row => !Object.hasOwn(row, 'lineage')),
+    true,
+  );
+  assert.deepEqual(stored.config.sources[0].levels, ['campaign', 'adset', 'ad']);
+});
+
+test('v4 bootstrap owns provider names/defaults; legacy input cannot forge the normalized marker', async t => {
+  const f = objectiveReportFixture(t);
+  const bootstrap = await f.overview.handle({action: 'bootstrap'}, f.actor);
+  assert.equal(bootstrap.metrics_v4.primary_result.aggregation, 'result_definition');
+  assert.equal(bootstrap.metrics_v4.cost_per_result.better, 'lower');
+  assert.equal(bootstrap.metrics.primary_result, undefined, 'legacy metric discovery keeps its contract');
+  for (const platform of [
+    'meta',
+    'tiktok',
+    'snapchat',
+    'linkedin',
+    'google',
+    'microsoft',
+    'apple',
+    'reddit',
+    'x',
+    'ga4',
+    'gsc',
+  ])
+    assert.ok(reportSource(platform).overview.levels.length > 0, platform);
+  const legacy = f.overview.config(
+    {...f.config, sources: [{...f.config.sources[0], reporting_contract: overviewConfigV4}]},
+    f.actor,
+  );
+  assert.equal(legacy.sources[0].reporting_contract, undefined);
+  assert.equal(legacy.contract_version, undefined);
+  assert.throws(
+    () =>
+      f.overview.config(
+        {
+          ...f.config,
+          contract_version: overviewConfigV4,
+          sources: [
+            {...f.config.sources[0], levels: ['campaign']},
+            {...f.config.sources[0], levels: ['ad']},
+          ],
+        },
+        f.actor,
+      ),
+    error => error.code === 'DUPLICATE_REPORT_ACCOUNT',
+  );
+});
+
+test('v4 TikTok detail collects native result fields without a completeness declaration and holds recommendations', async t => {
+  const f = overviewGranularityFixture();
+  t.after(() => f.close());
+  f.parents((platform, url, body) => {
+    if (platform === 'tiktok' && url.pathname.includes('/adgroup/get/'))
+      body.data.list = body.data.list.map(row => ({
+        ...row,
+        optimization_goal: 'CONVERT',
+        optimization_event: 'COMPLETE_PAYMENT',
+      }));
+    return body;
+  });
+  f.mutate((rows, platform) =>
+    platform === 'tiktok'
+      ? rows.map((row, index) => ({
+          ...row,
+          metrics: {...row.metrics, result: index === 0 ? '3' : '7', cost_per_result: '99', result_rate: '12'},
+        }))
+      : rows,
+  );
+  const source = {...granularSource('tiktok'), report_options: undefined, levels: ['ad']},
+    queued = await f.overview.handle(
+      {action: 'run', confirmed: true, config: {...granularConfig(source), contract_version: overviewConfigV4}},
+      f.actor,
+    );
+  await f.worker.once();
+  const snapshot = await f.overview.handle({action: 'get', id: queued.id}, f.actor);
+  assert.equal(snapshot.state, 'partial', JSON.stringify(snapshot.sources));
+  assert.equal(snapshot.rows.length, 1);
+  assert.equal(snapshot.rows[0].result.value, '10');
+  assert.equal(snapshot.rows[0].result.cost_per_result, '2.024');
+  assert.equal(
+    snapshot.rows[0].result_context.source,
+    'mapped',
+    'a multi-day total is computed from native result rows',
+  );
+  assert.equal(snapshot.rows[0].complete, false);
+  assert.equal(snapshot.sources[0].quality.reporting_window_declared_complete, null);
+  assert.equal(snapshot.sources[0].detail_contract, 'overview-detail-v4');
+  const request = f.requests.find(row => row.url.pathname.includes('/report/integrated/get/'));
+  assert.equal(JSON.parse(request.url.searchParams.get('metrics')).includes('result'), true);
+  const groupRead = f.requests.find(row => row.url.pathname.includes('/adgroup/get/'));
+  assert.equal(JSON.parse(groupRead.url.searchParams.get('fields')).includes('optimization_goal'), true);
+});
+
+test('v4 Meta detail accepts no action override and retains honest mapped results while native shape is unverified', async t => {
+  const f = overviewGranularityFixture();
+  t.after(() => f.close());
+  f.mutate((rows, platform) =>
+    platform === 'meta'
+      ? rows.map((row, index) => ({
+          ...row,
+          optimization_goal: 'LINK_CLICKS',
+          inline_link_clicks: index === 0 ? '3' : '6',
+          results: [{unverified: '999'}],
+        }))
+      : rows,
+  );
+  const source = {...granularSource('meta'), report_options: undefined, levels: ['ad']},
+    queued = await f.overview.handle(
+      {action: 'run', confirmed: true, config: {...granularConfig(source), contract_version: overviewConfigV4}},
+      f.actor,
+    );
+  await f.worker.once();
+  const snapshot = await f.overview.handle({action: 'get', id: queued.id}, f.actor);
+  assert.equal(snapshot.state, 'partial', JSON.stringify(snapshot.sources));
+  assert.equal(snapshot.rows.length, 1);
+  assert.equal(snapshot.rows[0].result.metric, 'link_clicks');
+  assert.equal(snapshot.rows[0].result.value, '9');
+  assert.equal(snapshot.rows[0].result_context.source, 'mapped');
+  assert.equal(snapshot.rows[0].metrics.conversions, null, 'no invented conversion action');
+  const request = f.requests.find(row => row.url.pathname.endsWith('/insights'));
+  assert.equal(request.url.searchParams.get('fields').split(',').includes('results'), true);
+  assert.equal(request.url.searchParams.get('fields').split(',').includes('inline_link_clicks'), true);
+});
+
+test('a client cannot use a JSON flag to bypass legacy guided declarations, and v4 still requires closed dates', () => {
+  const sem = {
+      currency: 'USD',
+      timezone: 'UTC',
+      date_from: '2026-09-01',
+      date_to: '2026-09-02',
+      attribution: 'unknown',
+      conversion_definition: 'unknown',
+      source_name: 'Synthetic',
+      complete: false,
+    },
+    input = {
+      preset: 'tiktok_ad',
+      account_id: '100',
+      connection_id: 'synthetic',
+      reporting_contract: overviewConfigV4,
+      allow_partial: true,
+      semantics: sem,
+    };
+  assert.throws(
+    () => reportPreset(input),
+    error => error.code === 'INVALID_DATE_RANGE',
+  );
+  assert.equal(reportPreset(input, {overviewV4: true}).arguments.query.metrics.includes('result'), true);
+  assert.throws(
+    () => reportPreset({...input, semantics: {...sem, date_to: '2099-01-01'}}, {overviewV4: true}),
+    error => error.code === 'INVALID_DATE_RANGE',
+  );
+  assert.throws(
+    () => reportPreset({...input, preset: 'meta_ad', attribution_windows: ['7d_click']}),
+    /exact native Meta result action_type/,
+  );
+});
+
+test('D22 notice is claimed once by the first completed linked snapshot and persists in History without editing v3', async t => {
+  const f = objectiveReportFixture(t, {
+      rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10, impressions: 100, clicks: 2}}],
+    }),
+    legacy = {...f.config, sources: [{...f.config.sources[0], objective: 'sales'}]},
+    saved = await f.overview.handle({action: 'save', confirmed: true, config: legacy}, f.actor),
+    original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id)),
+    migrated = f.overview.config({...legacy, contract_version: overviewConfigV4}, f.actor);
+  const first = f.overview.queue(f.actor, migrated, undefined, undefined, Date.now(), saved.id),
+    second = f.overview.queue(f.actor, migrated, undefined, undefined, Date.now() + 1, saved.id);
+  await f.worker.once();
+  await f.worker.once();
+  const a = await f.overview.handle({action: 'get', id: first.id}, f.actor),
+    b = await f.overview.handle({action: 'get', id: second.id}, f.actor),
+    notices = snapshot => (snapshot.notices ?? []).filter(notice => notice.id === 'objective-fallback-v4');
+  assert.equal(a.state, 'complete');
+  assert.equal(b.state, 'complete');
+  assert.equal(
+    notices(a).length + notices(b).length,
+    1,
+    'concurrently queued snapshots do not duplicate the migration notice',
+  );
+  assert.equal(a.rows[0].objective.group, 'traffic', 'provider objective now takes precedence over the saved fallback');
+  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id)), original);
+  const history = await f.overview.handle({action: 'list'}, f.actor);
+  assert.equal(history.reports.flatMap(notices).length, 1);
+  assert.equal(
+    notices(await f.overview.handle({action: 'get', id: first.id}, f.actor)).length +
+      notices(await f.overview.handle({action: 'get', id: second.id}, f.actor)).length,
+    1,
+  );
+});
+
+test('saved v4 definitions keep an independently readable v3 form and the current public form', async t => {
+  const f = objectiveReportFixture(t, {
+      rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10, impressions: 100, clicks: 2}}],
+    }),
+    saved = await f.overview.handle(
+      {
+        action: 'save',
+        confirmed: true,
+        config: {
+          ...f.config,
+          contract_version: overviewConfigV4,
+          sources: [{...f.config.sources[0], objective: 'sales', levels: ['campaign']}],
+        },
+      },
+      f.actor,
+    ),
+    stored = f.store.document(f.actor.tenantId, 'overview_view', saved.id);
+  assert.equal(saved.config.contract_version, overviewConfigV4);
+  assert.equal(saved.config_v4, undefined, 'public definition has only the current form');
+  assert.equal(stored.config.contract_version, undefined);
+  assert.equal(stored.config.sources[0].objective, 'sales');
+  assert.equal(stored.config.sources[0].levels, undefined);
+  assert.deepEqual(stored.config.sources[0].report_options, {attribution_windows: ['7d_click', '1d_view']});
+  assert.equal(overviewSourceLevel(stored.config.sources[0]).id, 'campaign', 'old validation accepts the v3 form');
+  assert.equal(stored.config_v4.sources[0].objective, undefined);
+  assert.equal(stored.config_v4.sources[0].objective_fallback, 'sales');
+  assert.deepEqual(
+    stored.config_v4.sources.map(row => [row.account_id, row.connection_id]),
+    stored.config.sources.map(row => [row.account_id, row.connection_id]),
+  );
+  const snapshot = await f.finish(await f.overview.handle({action: 'run', id: saved.id, confirmed: true}, f.actor));
+  assert.equal(snapshot.rows[0].objective.group, 'traffic');
+  assert.equal(snapshot.config.contract_version, overviewConfigV4);
+});
+
+test('an old binary refuses unrepresentable v4 scopes instead of silently widening a saved report', async t => {
+  const f = objectiveReportFixture(t),
+    saved = await f.overview.handle(
+      {
+        action: 'save',
+        confirmed: true,
+        config: {
+          ...f.config,
+          contract_version: overviewConfigV4,
+          sources: [{...f.config.sources[0], levels: ['campaign', 'ad'], campaign_ids: ['1']}],
+        },
+      },
+      f.actor,
+    ),
+    stored = f.store.document(f.actor.tenantId, 'overview_view', saved.id);
+  assert.equal(stored.config.sources.length, 1, 'old account authorization remains mandatory');
+  assert.equal(stored.config.sources[0].account_id, '100');
+  assert.equal(stored.config.sources[0].level, 'v4_required');
+  assert.throws(
+    () => overviewSourceLevel(stored.config.sources[0]),
+    error => error.code === 'INVALID_REPORT_LEVEL',
+  );
+  const bootstrap = await f.overview.handle({action: 'bootstrap'}, f.actor),
+    current = bootstrap.views.find(view => view.id === saved.id);
+  assert.deepEqual(current.config.sources[0].levels, ['campaign', 'ad']);
+  assert.equal(current.config_v4, undefined);
+});
+
+test('v4 rollback preserves incomplete campaign declarations instead of silently restoring advice', () => {
+  const legacy = (platform, level, complete) => {
+    const source = normalizeOverviewV4Source(
+      {platform, account_id: '100', connection_id: 'login', level, report_options: {complete_window: complete}},
+      reportSource(platform).overview,
+    );
+    return overviewDefinitionForms(
+      {contract_version: overviewConfigV4, sources: [source]},
+      platform => reportSource(platform).overview,
+    ).config.sources[0];
+  };
+  for (const platform of ['meta', 'google', 'linkedin', 'tiktok', 'snapchat', 'microsoft', 'reddit', 'apple', 'x']) {
+    const projected = legacy(platform, 'campaign', false);
+    assert.equal(projected.level, 'v4_required', platform + ': an explicit incomplete declaration is not discarded');
+    assert.throws(
+      () => overviewSourceLevel(projected),
+      error => error.code === 'INVALID_REPORT_LEVEL',
+    );
+    assert.equal(legacy(platform, 'campaign', true).level, 'campaign');
+  }
+  for (const platform of ['tiktok', 'snapchat'])
+    assert.equal(legacy(platform, 'campaign', null).level, 'v4_required', platform + ': missing required declaration');
+  assert.equal(
+    legacy('google', 'adset', false).level,
+    'adset',
+    'v3 detail already represents declared-incomplete windows',
+  );
+});
+
+test('the real v4 worker retains large decimal strings through row formulas, summaries and advisory review', async t => {
+  const raw = {
+      campaign: {id: '1'},
+      metrics: {
+        costMicros: '9007199254740993123456.789',
+        conversions: '3',
+        conversionsValue: '9007199254740994.123456789',
+        impressions: '100',
+        clicks: '30',
+      },
+    },
+    normalized = normalizeNativeRowV4('google', raw),
+    resolved = reportSource('google').readResult(raw, {
+      level: 'campaign',
+      range: {since: '2026-09-01', until: '2026-09-02'},
+    }),
+    f = objectiveReportFixture(t, {
+      platform: 'google',
+      rows: [{...normalized, result: resolved.result, result_context: resolved}],
+    }),
+    snapshot = await f.run({
+      contract_version: overviewConfigV4,
+      sources: [{...f.config.sources[0], objective_fallback: 'sales'}],
+      metrics: [...f.config.metrics, 'cpa'],
+      custom_metrics: [{id: 'profit', label: 'Profit', formula: 'conversion_value - spend'}],
+    });
+  assert.equal(snapshot.state, 'complete', JSON.stringify(snapshot.error));
+  assert.equal(snapshot.rows[0].metrics.spend, '9007199254740993.123456789');
+  assert.equal(snapshot.rows[0].metrics.cpa, '3002399751580331.041152263');
+  assert.equal(snapshot.rows[0].metrics.profit, '1');
+  assert.equal(snapshot.summary[0].metrics.spend, '9007199254740993.123456789');
+  assert.equal(snapshot.rows[0].recommendation.decision, 'needs_review');
+});
+
+test('v4 single-measurement reach and frequency preserve native decimal text without summing or unsafe display numbers', () => {
+  const source = {...granularSource('meta', 'adset'), reporting_contract: overviewConfigV4},
+    metrics = {
+      entity_id: '201',
+      entity_name: 'Synthetic set',
+      spend: '1',
+      impressions: '10',
+      clicks: '2',
+      conversions: null,
+      reach: '9007199254740993',
+      frequency: '1.123456789012345',
+    },
+    raw = {campaign_id: '101', adset_id: '201'},
+    capture = {rows: [metrics], native_rows: [raw], semantics: {currency: 'USD'}},
+    row = detailedOverviewRows(source, capture)[0];
+  assert.equal(row.metrics.reach, '9007199254740993');
+  assert.equal(row.metrics.frequency, '1.123456789012345');
+  assert.equal(row.native.exact_totals.reach, undefined);
+  const multiple = detailedOverviewRows(source, {...capture, rows: [metrics, metrics], native_rows: [raw, raw]})[0];
+  assert.equal(multiple.metrics.reach, null);
+  assert.equal(multiple.metrics.frequency, null);
+  assert.throws(
+    () => detailedOverviewRows(source, {...capture, rows: [{...metrics, reach: 9007199254740992}]}),
+    error => error.code === 'METRIC_PRECISION_LOSS',
+  );
+  const group = normalizeNativeRowV4('linkedin', {
+    pivotValues: ['urn:li:sponsoredCampaignGroup:20'],
+    objectiveType: 'BRAND_AWARENESS',
+    approximateMemberReach: '9007199254740993',
+  });
+  assert.equal(group.metrics.reach, '9007199254740993');
 });

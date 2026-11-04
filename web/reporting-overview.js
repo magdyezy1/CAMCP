@@ -474,8 +474,14 @@ function overviewConfig() {
     objectives: [...document.querySelectorAll('[data-report-objective]:checked')].map(el => el.value),
   };
 }
-// A metric without a formula: how it combines across rows (src/report-metrics.ts).
-const metricAggregations = {sum: 'Summed', non_additive: 'Not summed', 'native field': 'Native field'};
+// Labels for base metrics.
+const metricAggregations = {
+  sum: 'Summed',
+  non_additive: 'Not summed',
+  'native field': 'Native field',
+  result_definition: 'By result definition',
+  result_ratio: 'Native cost or paired ratio',
+};
 async function renderReportingOverview() {
   if (!session.authenticated) {
     showLogin();

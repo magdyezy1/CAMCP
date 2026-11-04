@@ -19,6 +19,7 @@ import {nativeDecimal, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning
 import {linkedinReportPivots} from './workflows.js';
 import {mixedObjectiveGroup, resolveObjective} from './report-objectives.js';
 import {metricNumber} from './report-metrics.js';
+import {overviewCapabilities} from './report-source.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
 import {
@@ -26,6 +27,7 @@ import {
   selectReportResultDefinition,
   resolveReportResult,
   unavailableReportResult,
+  groupReportResults,
 } from './report-results.js';
 
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
@@ -55,7 +57,7 @@ export const linkedinResults: Readonly<Record<string, {field: string | null; lab
   TALENT_LEAD: {field: 'talentLeads', label: 'LinkedIn talent leads'},
 });
 /** Native additive fields needed by the result table; approximate reach is valid only for short windows. */
-export function linkedinBaseMetrics(windowDays: number): string[] {
+export function linkedinBaseMetrics(windowDays: number, overviewV4 = false): string[] {
   return [
     'impressions',
     'clicks',
@@ -67,6 +69,7 @@ export function linkedinBaseMetrics(windowDays: number): string[] {
     'externalWebsiteConversions',
     'talentLeads',
     'conversionValueInLocalCurrency',
+    ...(overviewV4 ? ['sends'] : []),
     ...(windowDays <= 92 ? ['approximateMemberReach'] : []),
   ];
 }
@@ -206,6 +209,7 @@ export function linkedinDetail(
         ? {adset_id: campaignUrn.split(':').at(-1), adset_name: campaign?.name ?? null}
         : {}),
       ...(typeof campaign?.objective_type === 'string' ? {objective: campaign.objective_type} : {}),
+      ...(campaign?.campaign_type ? {format: campaign.campaign_type} : {}),
     };
     out.push({
       entity_id: urn,
@@ -241,6 +245,11 @@ export function linkedinDetail(
 /** LinkedIn adAnalytics at each native position; money in the verified account currency. */
 export const linkedinReportSource: ReportSource = {
   platform: 'linkedin',
+  overview: overviewCapabilities([
+    {id: 'campaign', label: 'Campaign group', native_type: 'sponsoredCampaignGroup', preset: 'linkedin_campaign_group'},
+    {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
+    {id: 'ad', label: 'Creative', native_type: 'sponsoredCreative', preset: 'linkedin_creative'},
+  ]),
   resultRules: {
     selectors: [
       {
@@ -281,7 +290,12 @@ export const linkedinReportSource: ReportSource = {
     ],
   },
   readResult(raw, context) {
-    const selection = {objective: context.objective ?? raw.objectiveType, format: context.format ?? raw.format},
+    if (Array.isArray(raw.amcp_result_groups)) {
+      if (raw.amcp_result_groups.length !== 1) return unavailableReportResult('mixed_goals');
+      const {definition, result, source, cost_source, unavailable_reason, rounding} = raw.amcp_result_groups[0];
+      return {definition, result, source, cost_source, unavailable_reason, rounding};
+    }
+    const selection = {objective: context.objective ?? raw.objectiveType, format: context.format ?? raw.type},
       selected = selectReportResultDefinition(linkedinReportSource.resultRules!, selection),
       spend = omittedCost(raw) || raw.omitted_as_zero?.includes('spend') ? '0' : raw.costInLocalCurrency;
     if (selected.definition?.native_metric === 'approximateMemberReach' && windowDays(context.range) > 92)
@@ -368,9 +382,9 @@ export const linkedinReportSource: ReportSource = {
       return `(year:${year},month:${month},day:${day})`;
     };
     const days = windowDays(c.range),
-      fields = [...new Set([...linkedinBaseMetrics(days), ...c.extra])].filter(
-        field => days <= 92 || field !== 'approximateMemberReach',
-      );
+      fields = [
+        ...new Set([...linkedinBaseMetrics(days, c.source?.reporting_contract === 'overview-config-v4'), ...c.extra]),
+      ].filter(field => days <= 92 || field !== 'approximateMemberReach');
     if (new Set(c.extra).size > 18)
       invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
     if (days > 92) c.warnings.push('LinkedIn reports reach only for windows of 92 days or less.');
@@ -507,8 +521,11 @@ export const linkedinReportSource: ReportSource = {
       campaignUrns,
       async urns =>
         (
-          await linkedInCampaignMetadata(c.account, urns, query =>
-            c.run(c.plan('/rest/adAccounts/' + c.account + '/adCampaigns', query), false, 'campaign_metadata'),
+          await linkedInCampaignMetadata(
+            c.account,
+            urns,
+            query => c.run(c.plan('/rest/adAccounts/' + c.account + '/adCampaigns', query), false, 'campaign_metadata'),
+            c.source?.reporting_contract === 'overview-config-v4',
           )
         ).campaigns,
     );
@@ -546,10 +563,34 @@ export const linkedinReportSource: ReportSource = {
                   delivered: delivered(campaign),
                 })),
           );
+        const v4 = c.source?.reporting_contract === 'overview-config-v4',
+          types = new Set(members.map(member => campaigns[String(member.pivotValues[0])]?.campaign_type)),
+          type = types.size === 1 ? [...types][0] : null,
+          nativeGroups = v4
+            ? groupReportResults(
+                members.map(member => {
+                  const metadata = campaigns[String(member.pivotValues[0])];
+                  return {
+                    resolved: linkedinReportSource.readResult!(
+                      {...member, type: metadata?.campaign_type},
+                      {
+                        level: 'adset',
+                        range: c.range,
+                        objective: metadata?.objective_type,
+                      },
+                    ),
+                    currency: c.currency,
+                    scope: JSON.stringify([c.account, urn, c.range, c.attribution, metadata?.objective_type]),
+                    spend: omittedCost(member) ? '0' : (member.costInLocalCurrency ?? null),
+                  };
+                }),
+              )
+            : [];
         return {
           ...row,
           name: groups[urn]?.name,
           objectiveType: objective.native,
+          ...(v4 ? {type, amcp_result_groups: nativeGroups.length > 1 ? nativeGroups : undefined} : {}),
           ...(objective.mixed
             ? {
                 group_objectives: objective.objectives,
@@ -589,7 +630,7 @@ export const linkedinReportSource: ReportSource = {
         : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
     );
   },
-  normalize(raw, {field: n, omitted}) {
+  normalize(raw, {value, field: n, omitted}) {
     const mixed = raw.objectiveType === 'MIXED',
       result = linkedinResults[String(raw.objectiveType)],
       costOmitted = omittedCost(raw);
@@ -607,7 +648,7 @@ export const linkedinReportSource: ReportSource = {
         impressions: n('impressions'),
         clicks: n('clicks'),
         conversions: mixed || result?.field === null ? null : n(result?.field ?? 'externalWebsiteConversions'),
-        reach: metricNumber(rowReach(raw)),
+        reach: value(rowReach(raw)),
         conversion_value: n('conversionValueInLocalCurrency'),
         leads: n('oneClickLeads'),
         video_views: n('videoViews'),

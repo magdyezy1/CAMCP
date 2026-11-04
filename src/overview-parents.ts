@@ -145,7 +145,16 @@ export async function detailParents(
       found[id] = parents;
     };
     try {
-      await reader.read(kind, reading, {account, read, record, shape, foreign, refused, name});
+      await reader.read(kind, reading, {
+        account,
+        read,
+        record,
+        shape,
+        foreign,
+        refused,
+        name,
+        reportingContract: source.reporting_contract,
+      });
       for (const id of reading) cache.parents[id] = found[id] ?? {};
       cache.lineage.push(...lineage);
     } catch (e) {

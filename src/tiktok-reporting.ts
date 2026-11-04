@@ -29,7 +29,7 @@ export function tiktokReportDate(value: unknown): string {
     bad('TikTok returned an invalid daily date.', 'REPORT_DATE_MISMATCH');
   return date;
 }
-export function tiktokDailyRange(semantics: JsonObject) {
+export function tiktokDailyRange(semantics: JsonObject, allowUndeclared = false) {
   const from = tiktokReportDate(semantics.date_from),
     through = tiktokReportDate(semantics.date_to);
   let today: string;
@@ -50,7 +50,7 @@ export function tiktokDailyRange(semantics: JsonObject) {
     return bad('Declare the native advertiser IANA timezone.');
   }
   if (
-    semantics.complete !== true ||
+    (!allowUndeclared && semantics.complete !== true) ||
     through < from ||
     through >= today ||
     Date.parse(through) - Date.parse(from) >= 366 * 86400000

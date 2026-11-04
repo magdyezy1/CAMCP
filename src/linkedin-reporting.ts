@@ -216,6 +216,7 @@ export async function linkedInCampaignMetadata(
   account: string,
   urns: string[],
   read: (query: JsonObject) => Promise<unknown>,
+  overviewV4 = false,
 ): Promise<{campaigns: Record<string, JsonObject>; unmatched: number}> {
   const owner = 'urn:li:sponsoredAccount:' + account,
     wanted = [...new Set(urns)],
@@ -254,6 +255,7 @@ export async function linkedInCampaignMetadata(
       const urn = id && 'urn:li:sponsoredCampaign:' + id;
       // An inexact or unrequested identity is never matched to a reported row.
       if (!urn || !batch.includes(urn) || campaigns[urn]) {
+        if (overviewV4) throw new MirrorError('REPORT_INCOMPLETE', 'LinkedIn returned incomplete campaign metadata.');
         unmatched++;
         continue;
       }
@@ -268,6 +270,16 @@ export async function linkedInCampaignMetadata(
           /^urn:li:sponsoredCampaignGroup:[1-9][0-9]{0,31}$/.test(element.campaignGroup)
             ? element.campaignGroup
             : null,
+        ...(overviewV4
+          ? {
+              campaign_type:
+                typeof element.type === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(element.type) ? element.type : null,
+              status:
+                typeof element.status === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(element.status)
+                  ? element.status
+                  : null,
+            }
+          : {}),
       };
     }
   }

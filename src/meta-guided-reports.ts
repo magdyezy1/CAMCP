@@ -121,10 +121,13 @@ export const metaGuidedReporting: GuidedReporting = {
   presetPrefix: 'meta_',
   // DEC-01: an allocation models campaign × day evidence by native campaign ID.
   allocation: {preset: 'meta_campaign', entity: id => typeof id === 'string' && /^\d{1,40}$/.test(id)},
-  presetRequest(preset, input, range) {
+  presetRequest(preset, input, range, context) {
     const account = normalizeAccount(preset.gateway, input.account_id ?? '');
     if (!/^[1-9][0-9]{0,31}$/.test(account)) bad('Use the exact Meta advertising account ID.');
-    if (typeof input.result_action_type !== 'string' || !/^[a-z][a-z0-9_.]{0,159}$/.test(input.result_action_type))
+    if (
+      (!context?.overviewV4 || input.result_action_type !== undefined) &&
+      (typeof input.result_action_type !== 'string' || !/^[a-z][a-z0-9_.]{0,159}$/.test(input.result_action_type))
+    )
       bad('Choose the exact native Meta result action_type; overlapping aliases are never combined.');
     const windows = input.attribution_windows;
     // RPT-07: 28d_click and 1d_ev are explicit Meta windows too (central rule in meta-attribution-windows.ts).
@@ -156,6 +159,9 @@ export const metaGuidedReporting: GuidedReporting = {
             'frequency',
             'actions',
             'action_values',
+            ...(context?.overviewV4
+              ? ['optimization_goal', 'results', 'cost_per_result', 'result_rate', 'inline_link_clicks']
+              : []),
           ].join(','),
           level: preset.level,
           ...(pack ? {breakdowns: pack.breakdowns} : {}),
@@ -173,7 +179,7 @@ export const metaGuidedReporting: GuidedReporting = {
       semantics: {
         ...input.semantics,
         attribution: 'Meta ' + selected.join(' + ') + '; impression time',
-        conversion_definition: input.result_action_type,
+        conversion_definition: input.result_action_type ?? 'unknown',
       },
       rows_pointer: '/data/data/data',
       mapping: {
@@ -186,8 +192,12 @@ export const metaGuidedReporting: GuidedReporting = {
         clicks: '/clicks',
         reach: '/reach',
         frequency: '/frequency',
-        conversions: {path: '/actions', action_type: input.result_action_type},
-        conversion_value: {path: '/action_values', action_type: input.result_action_type},
+        ...(input.result_action_type !== undefined
+          ? {
+              conversions: {path: '/actions', action_type: input.result_action_type},
+              conversion_value: {path: '/action_values', action_type: input.result_action_type},
+            }
+          : {}),
       },
     };
   },

@@ -1,7 +1,7 @@
 import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {detailParents} from './overview-parents.js';
-import type {AccountLookupCache} from './report-source.js';
+import type {AccountLookupCache, ReportSource} from './report-source.js';
 import type {ObjectiveTable} from './report-objectives.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import type {MirrorService} from './service.js';
@@ -32,6 +32,7 @@ export async function collectDetailedOverview(
   // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
   lookup: AccountLookupCache = {},
   objectives?: ObjectiveTable,
+  resultReader?: ReportSource['readResult'],
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -41,6 +42,7 @@ export async function collectDetailedOverview(
   const captured = await reporting.collectGuided(
     {
       preset: descriptor.preset,
+      ...(source.reporting_contract === 'overview-config-v4' ? {reporting_contract: 'overview-config-v4'} : {}),
       allow_partial: true,
       account_id: source.account_id,
       connection_id: source.connection_id,
@@ -62,7 +64,7 @@ export async function collectDetailedOverview(
         attribution: options.attribution ?? 'unknown',
         conversion_definition: 'selected native result',
         source_name: descriptor.label,
-        complete: options.complete_window,
+        complete: options.complete_window === true,
       },
     },
     actor,
@@ -73,6 +75,10 @@ export async function collectDetailedOverview(
   // RPT-07: parents of the reported entities where the report rows carry none (TikTok, Snapchat ads, LinkedIn
   // creatives), read after the report under the same login; IDs stay exact and an unread parent stays unknown.
   lookup.detailParents ??= {parents: {}, lineage: []};
+  const parentCache =
+    source.reporting_contract === 'overview-config-v4'
+      ? ((lookup.detailParentsByLevel ??= {})[descriptor.id] ??= {parents: {}, lineage: []})
+      : lookup.detailParents;
   const parents = await detailParents(
     service,
     source,
@@ -81,7 +87,7 @@ export async function collectDetailedOverview(
       .map((row: JsonObject) => row.entity_id)
       .filter((id: unknown): id is string => typeof id === 'string' && !!id),
     actor,
-    lookup.detailParents,
+    parentCache,
   );
   service.store.assertActorActive(actor);
   service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
@@ -95,7 +101,7 @@ export async function collectDetailedOverview(
     quality: {
       version: 1,
       pages_collected: true,
-      measurement_complete: options.complete_window === false ? false : source.platform === 'snapchat' ? true : null,
+      measurement_complete: options.complete_window !== true ? false : source.platform === 'snapchat' ? true : null,
       reporting_window_declared_complete: options.complete_window,
       status: 'declared_measurement',
       entity_level: descriptor.id,
@@ -103,7 +109,7 @@ export async function collectDetailedOverview(
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),
-    rows: detailedOverviewRows(source, captured, parents.parents, objectives),
+    rows: detailedOverviewRows(source, captured, parents.parents, objectives, resultReader),
     metadata,
     account_name: metadata.name ?? metadata.displayName ?? null,
     currency,
@@ -111,14 +117,20 @@ export async function collectDetailedOverview(
     date_range: range,
     // RPT-02 (detail contract v2): every page was collected, but a window declared incomplete keeps the source
     // partial and holds recommendations. Snapshots retained under v1 keep their original labels.
-    detail_contract: detailContractVersion,
+    detail_contract: source.reporting_contract === 'overview-config-v4' ? 'overview-detail-v4' : detailContractVersion,
     collection_complete: captured.collection?.complete !== false,
     complete: options.complete_window === true && captured.collection?.complete !== false,
     attribution: captured.semantics.attribution,
     result_definition: captured.semantics.conversion_definition,
     warnings: [
       'Detailed rows retain the original native entity level and exact additive daily totals. Reach and frequency are unavailable for multi-day totals; missing days are not filled with zero. Reporting-window completeness and attribution remain explicitly declared unless native finalization proves them.',
-      ...(options.complete_window === true ? [] : [declaredIncompleteWarning]),
+      ...(options.complete_window === true
+        ? []
+        : [
+            options.complete_window === false
+              ? declaredIncompleteWarning
+              : 'The reporting window was not declared complete. Results remain partial and recommendations are withheld.',
+          ]),
       ...(captured.collection?.warnings ?? []),
       ...parents.warnings,
     ],

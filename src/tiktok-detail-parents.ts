@@ -15,8 +15,9 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
   async read(
     kind: string,
     reading: string[],
-    {account, read, record, shape, foreign, refused, name}: DetailParentReads,
+    {account, read, record, shape, foreign, refused, name, reportingContract}: DetailParentReads,
   ) {
+    const resultFields = reportingContract === 'overview-config-v4' ? ['optimization_goal', 'optimization_event'] : [];
     const list = async (entity: 'campaign' | 'adgroup' | 'ad', wantedIds: string[], fields: string[]) => {
       const rows: JsonObject[] = [];
       for (const batch of inBatches(wantedIds, 100)) {
@@ -56,7 +57,7 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
       children = await list(
         child,
         reading,
-        child === 'ad' ? ['campaign_id', 'adgroup_id', 'ad_id'] : ['campaign_id', 'adgroup_id'],
+        child === 'ad' ? ['campaign_id', 'adgroup_id', 'ad_id'] : ['campaign_id', 'adgroup_id', ...resultFields],
       );
     for (const row of children)
       if (!tiktokId(row.campaign_id) || (child === 'ad' && !tiktokId(row.adgroup_id)))
@@ -64,7 +65,7 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
     const groupIds = child === 'ad' ? [...new Set(children.map(row => String(row.adgroup_id)))] : [],
       groups = new Map<string, JsonObject>();
     for (const row of groupIds.length
-      ? await list('adgroup', groupIds, ['campaign_id', 'adgroup_id', 'adgroup_name'])
+      ? await list('adgroup', groupIds, ['campaign_id', 'adgroup_id', 'adgroup_name', ...resultFields])
       : [])
       groups.set(String(row.adgroup_id), row);
     const campaigns = new Map<string, JsonObject>();
@@ -80,6 +81,12 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
       if (child === 'ad' && group && group.campaign_id !== row.campaign_id)
         foreign('The detailed entity changed native parents during collection.');
       record(String(row[child + '_id']), {
+        ...(reportingContract === 'overview-config-v4'
+          ? {
+              optimization_goal: (child === 'ad' ? group : row)?.optimization_goal ?? null,
+              optimization_event: (child === 'ad' ? group : row)?.optimization_event ?? null,
+            }
+          : {}),
         campaign_id: String(row.campaign_id),
         campaign_name: name(campaigns.get(String(row.campaign_id))?.campaign_name),
         ...(typeof campaigns.get(String(row.campaign_id))?.objective_type === 'string'

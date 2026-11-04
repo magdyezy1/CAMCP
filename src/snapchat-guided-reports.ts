@@ -49,7 +49,7 @@ export const snapchatGuidedReporting: GuidedReporting = {
     evidence: snapchatAllocationEvidence,
     entity: snapchatReportId,
   },
-  presetRequest(preset, input) {
+  presetRequest(preset, input, _range, context) {
     const leads = leadPresets.includes(preset.id),
       parent = parentScoped(preset);
     if (!snapchatReportId(input.account_id)) bad('Use the exact Snapchat advertising account UUID.');
@@ -67,7 +67,7 @@ export const snapchatGuidedReporting: GuidedReporting = {
       bad(
         'Choose explicit supported Snapchat swipe and view attribution windows; a seven-day view requires at least a seven-day swipe window.',
       );
-    const days = snapchatDailyRange(input.semantics);
+    const days = snapchatDailyRange(input.semantics, context?.overviewV4 === true);
     return {
       gateway: preset.gateway,
       account_id: input.account_id,
@@ -81,7 +81,24 @@ export const snapchatGuidedReporting: GuidedReporting = {
           breakdown: preset.level,
           start_time: new Date(days[0]!.start).toISOString(),
           end_time: new Date(days.at(-1)!.end).toISOString(),
-          fields: 'spend,impressions,swipes,' + (leads ? 'native_leads' : 'conversion_purchases'),
+          fields:
+            context?.overviewV4 && !leads
+              ? [
+                  'spend',
+                  'impressions',
+                  'swipes',
+                  'total_installs',
+                  'video_views',
+                  'video_views_15s',
+                  'story_opens',
+                  'landing_page_views',
+                  'native_leads',
+                  'conversion_page_views',
+                  'conversion_add_cart',
+                  'conversion_purchases',
+                  'conversion_sign_ups',
+                ].join(',')
+              : 'spend,impressions,swipes,' + (leads ? 'native_leads' : 'conversion_purchases'),
           ...(!leads
             ? {
                 swipe_up_attribution_window: swipe,
@@ -115,7 +132,8 @@ export const snapchatGuidedReporting: GuidedReporting = {
     };
   },
   // ARC-01 (reporting): a capture of a Snapchat preset collects complete daily stats pages (src/snapchat-evidence.ts).
-  collect: ({store, call, actor, args, semantics}) => collectSnapchatEvidence(store, call, actor, args, semantics),
+  collect: ({store, call, actor, args, semantics, allowPartial}) =>
+    collectSnapchatEvidence(store, call, actor, args, semantics, {allowPartial}),
   sourceCollection: 'snapchat_daily_pages',
   semanticsSource: (_preset, request) =>
     request.arguments.query.fields === 'spend,impressions,swipes,native_leads'

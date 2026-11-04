@@ -1,5 +1,5 @@
 import {objectiveGroup} from './report-metrics.js';
-import {invalidReportSource, nextDay, reportList, type ReportSource} from './report-source.js';
+import {overviewCapabilities, invalidReportSource, nextDay, reportList, type ReportSource} from './report-source.js';
 import {snapchatDetailParents} from './snapchat-detail-parents.js';
 import {snapchatGuidedReporting} from './snapchat-guided-reports.js';
 import type {JsonObject} from './types.js';
@@ -46,6 +46,31 @@ export const snapchatResultRules: ReportResultRules = {
 /** Snapchat campaign stats rows (micros); conversions follow the campaign objective. */
 export const snapchatReportSource: ReportSource = {
   platform: 'snapchat',
+  requiresCompleteWindowDeclaration: true,
+  overview: overviewCapabilities(
+    [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad squad', native_type: 'adsquad', preset: 'snapchat_adsquad'},
+      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'snapchat_ad'},
+    ],
+    {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
+    [],
+    options => {
+      if (
+        !['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
+        !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) ||
+        (options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY')
+      )
+        invalidReportSource(
+          'Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.',
+        );
+    },
+    {
+      campaign_options: ['swipe_up_attribution_window', 'view_attribution_window'],
+      detail_options: ['complete_window', 'swipe_up_attribution_window', 'view_attribution_window'],
+      requires_complete: true,
+    },
+  ),
   resultRules: snapchatResultRules,
   readResult(raw, context) {
     return mappedReportResult(snapchatResultRules, {goal: context.goal ?? raw.optimization_goal}, raw, {

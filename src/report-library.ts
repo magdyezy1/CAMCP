@@ -8,6 +8,11 @@ import {currencyTargetKey} from './report-metrics.js';
 import {deleteSettledDeliveries, hasUnconfirmedDelivery} from './report-repository.js';
 import {cancelReportJobs, deleteReportJobs} from './job-repository.js';
 import type {Actor, JsonObject} from './types.js';
+import {overviewDefinitionConfig, overviewDefinitionForms, publicOverviewDefinition} from './overview-v4.js';
+import {reportSource} from './report-sources.js';
+
+const definitionForms = (config: JsonObject) =>
+  overviewDefinitionForms(config, platform => reportSource(platform)!.overview!);
 
 const optional = (store: Store, tenant: string, kind: string, id: string) => {
   try {
@@ -30,7 +35,8 @@ export class ReportLibrary {
    * snapshots and schedules whose accounts it reaches; it never lists the others, and here it cannot alter one by ID.
    */
   private changeable(actor: Actor, record: JsonObject | undefined) {
-    if (record && actor.accessSetId !== undefined) this.access(actor, record.config ?? {sources: []});
+    if (record && actor.accessSetId !== undefined)
+      this.access(actor, overviewDefinitionConfig(record) ?? {sources: []});
   }
   private revision(input: JsonObject, record: JsonObject, required = true) {
     if ((required || input.expected_revision !== undefined) && input.expected_revision !== record.revision)
@@ -136,7 +142,7 @@ export class ReportLibrary {
           schedule.id,
           {
             ...schedule,
-            config,
+            ...definitionForms(config),
             name: config.name,
             destination_id: destination,
             definition_version: (schedule.definition_version ?? 0) + 1,
@@ -152,7 +158,7 @@ export class ReportLibrary {
         id,
         {
           ...old,
-          config,
+          ...definitionForms(config),
           ...(destinationId ? {destination_id: destinationId} : {}),
           created_at: old?.created_at ?? Date.now(),
           updated_at: Date.now(),
@@ -160,7 +166,7 @@ export class ReportLibrary {
         old?.revision,
       );
       this.audit(actor, template ? 'report_template_saved' : 'report_definition_saved', id);
-      return this.store.document(tenant, kind, id);
+      return publicOverviewDefinition(this.store.document(tenant, kind, id));
     });
   }
   schedule(actor: Actor, input: JsonObject, update = false) {
@@ -185,7 +191,7 @@ export class ReportLibrary {
       if (view && old && input.expected_view_revision !== undefined)
         this.revision({expected_revision: input.expected_view_revision}, view);
       const config = this.validate(
-        input.config ?? view?.config ?? old?.config,
+        input.config ?? (view ? overviewDefinitionConfig(view) : old ? overviewDefinitionConfig(old) : undefined),
         actor,
         false,
         input.config === undefined,
@@ -264,7 +270,7 @@ export class ReportLibrary {
         linkedView,
         {
           ...view,
-          config,
+          ...definitionForms(config),
           destination_id: s.destination_id,
           schedule_id: id,
           created_at: view?.created_at ?? Date.now(),
@@ -279,6 +285,7 @@ export class ReportLibrary {
         {
           ...old,
           ...settings,
+          ...definitionForms(config),
           is_active: old?.is_active ?? true,
           view_id: linkedView,
           request_fingerprint: old?.request_fingerprint ?? fingerprint,
@@ -318,7 +325,7 @@ export class ReportLibrary {
       }
       const resume = input.action === 'resume_schedule';
       if (resume) {
-        this.validate(s.config, actor, false, true);
+        this.validate(overviewDefinitionConfig(s), actor, false, true);
         this.destination(actor, s.destination_id);
         if (
           this.store

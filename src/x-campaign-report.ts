@@ -5,6 +5,21 @@ import {reportSourceError} from './report-errors.js';
 import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
 import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
+import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
+import {reportScaledText} from './report-math-v4.js';
+
+/** Add native decimal text before applying the retained nine-place precision or native-unit conversion. */
+function exactNativeAdd(total: string, value: unknown, field: string): string {
+  const right = providerDecimalText(value, {field}),
+    [a, af = ''] = total.split('.'),
+    [b, bf = ''] = right.split('.'),
+    places = Math.max(af.length, bf.length),
+    digits = (BigInt(a! + af.padEnd(places, '0')) + BigInt(b! + bf.padEnd(places, '0')))
+      .toString()
+      .padStart(places + 1, '0'),
+    fraction = places ? digits.slice(-places).replace(/0+$/, '') : '';
+  return (places ? digits.slice(0, -places) : digits) + (fraction ? '.' + fraction : '');
+}
 
 /**
  * X's publisher-network placement (ACC-06). AMCP's line-item writes accept it, X's analytics guide lists it, but the
@@ -74,7 +89,13 @@ export async function xCampaignReport(
   end: number,
   extra: string[],
   read: (query: JsonObject) => Promise<JsonObject>,
-  options: {checkpoint?: JsonObject; save?: (value: JsonObject) => void; active?: XActiveSet; windows?: boolean} = {},
+  options: {
+    checkpoint?: JsonObject;
+    save?: (value: JsonObject) => void;
+    active?: XActiveSet;
+    windows?: boolean;
+    exact?: true;
+  } = {},
 ): Promise<{rows: JsonObject[]; complete: boolean; warnings: string[]; no_activity_count: number; requests: number}> {
   // Fetch covering UTC hours, then assign each indivisible hour by its midpoint. Adjacent local calendar periods
   // must own disjoint buckets, including half/quarter-hour timezones. Never fractionally invent provider counts.
@@ -123,7 +144,7 @@ export async function xCampaignReport(
   // Version 3 (RPT-03): the active-entities response and the conversion group split are part of the definition, so a
   // resumed run never mixes request plans.
   const definition = fingerprint({
-      version: 3,
+      version: options.exact ? 4 : 3,
       inventory,
       active: active ? active.fingerprint : null,
       windows,
@@ -226,21 +247,31 @@ export async function xCampaignReport(
               continue;
             }
             if (v === null) {
-              old.native_metrics[key] ??= 0;
+              old.native_metrics[key] ??= options.exact ? '0' : 0;
+              if (options.exact) old.provider_omitted = [...new Set([...(old.provider_omitted ?? []), key])];
               continue;
             }
             if (!Array.isArray(v) || v.length !== (stop - t) / 3600000)
               throw new MirrorError('REPORT_BUCKET_MISMATCH', 'X returned inconsistent hourly buckets.');
-            let sum = 0;
+            let sum: number | string = options.exact ? '0' : 0;
             for (const [bucket, item] of v.entries()) {
               const midpoint = t + (bucket + 0.5) * hour;
               if (midpoint < requestedStart || midpoint >= requestedEnd) continue;
-              if (item === null) continue;
+              if (item === null) {
+                if (options.exact) old.provider_omitted = [...new Set([...(old.provider_omitted ?? []), key])];
+                continue;
+              }
+              if (options.exact) {
+                sum = exactNativeAdd(String(sum), item, key);
+                continue;
+              }
               const n = metricNumber(item);
               if (n === null) throw new MirrorError('REPORT_SHAPE_CHANGED', 'X returned a nonnumeric analytics value.');
-              sum += n;
+              sum = Number(sum) + n;
             }
-            old.native_metrics[key] = (old.native_metrics[key] ?? 0) + sum;
+            old.native_metrics[key] = options.exact
+              ? exactNativeAdd(old.native_metrics[key] ?? '0', sum, key)
+              : (old.native_metrics[key] ?? 0) + sum;
           }
         };
         add(segment.metrics ?? {});
@@ -280,6 +311,10 @@ export async function xCampaignReport(
         ' shown by ID.',
     );
   const n = (v: unknown, divisor = 1) => {
+    if (options.exact)
+      return v === undefined || v === null
+        ? null
+        : reportScaledText(parseProviderDecimal(v, {field: 'x_total', divisor}).scaled);
     const value = metricNumber(v);
     return value === null ? null : value / divisor;
   };

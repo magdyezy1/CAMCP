@@ -307,17 +307,21 @@ test('all actual directly owned backend reasons have Arabic with original native
   // next action) and the source card's "Retry" button, neither an owned reason: 11,538.
   // V2-RPT-02 adds the shared objective resolver (no new owned refusal) and objective explanations.
   // Result readers add three modules; the v4 boundary adds one.
-  assert.equal(files.length, 765);
+  // Exact formula and advisory adapters add two further source modules.
+  // V4 delivery-level reconciliation adds one source module without a new diagnostic.
+  assert.equal(files.length, 768);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
-  assert.equal(selected.filter(row => row.messages.size).length, 290);
+  assert.equal(selected.filter(row => row.messages.size).length, 292);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
   // V2-RPT-04 windows add the split-budget bound, creative retention/future guards and provider retention guidance.
   // The Meta result reader owns three new diagnostics.
-  assert.equal(owned.size, 1615);
+  // Two TikTok native result diagnostics and one include-flags refusal are now direct reasons too.
+  // The bounded exact formula evaluator owns one precision refusal.
+  assert.equal(owned.size, 1619);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -330,7 +334,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-PRV-02 adds the documented iframe lifetime and rejected-placement note.
   // V2-PRV-03 adds Snapchat's lifetime and unusable-link note.
   // Sixteen result labels/diagnostics and eight v4 boundary refusals.
-  assert.equal(Object.keys(catalog).length, 11660);
+  // Collector/undeclared-window/include diagnostics add four more entries.
+  // One durable objective-migration notice.
+  // One formula refusal and two advisory coverage/definition messages.
+  // The v4 aggregation explanations add two bilingual interface entries.
+  assert.equal(Object.keys(catalog).length, 11672);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

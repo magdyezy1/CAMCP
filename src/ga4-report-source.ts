@@ -1,11 +1,12 @@
 import {MirrorError} from './errors.js';
 import {ga4Quality, summarizeGA4Quality} from './report-quality.js';
-import {invalidReportSource, reportList, type ReportSource} from './report-source.js';
+import {overviewCapabilities, invalidReportSource, reportList, type ReportSource} from './report-source.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /** GA4 runReport rows by session campaign; conversions are key events. */
 export const ga4ReportSource: ReportSource = {
   platform: 'ga4',
+  overview: overviewCapabilities([{id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'}]),
   objectives: {
     name: 'GA4',
     values: {},

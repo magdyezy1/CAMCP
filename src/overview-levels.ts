@@ -2,8 +2,15 @@ import {MirrorError} from './errors.js';
 import {resolveObjective, type ObjectiveTable} from './report-objectives.js';
 import {fingerprint} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
+import {providerDecimalText} from './provider-decimal.js';
 import {providerById} from './provider-adapters.js';
 import type {JsonObject} from './types.js';
+import {
+  groupReportResults,
+  unavailableReportResult,
+  type ReportResultContext,
+  type ResolvedReportResult,
+} from './report-results.js';
 
 /**
  * The Overview's entity levels and its detailed rows (RPT-07): what a source's level means, the validation of a source's
@@ -77,6 +84,15 @@ const snapchatWindowsValid = (options: JsonObject) =>
  */
 export function campaignAttributionProfile(source: JsonObject): JsonObject | undefined {
   const options = source.report_options;
+  if (source.reporting_contract === 'overview-config-v4') {
+    if (source.platform === 'meta') return {attribution_windows: options.attribution_windows};
+    if (source.platform === 'snapchat')
+      return {
+        swipe_up_attribution_window: options.swipe_up_attribution_window,
+        view_attribution_window: options.view_attribution_window,
+      };
+    return undefined;
+  }
   if (options === undefined) return undefined;
   const keys =
     source.platform === 'meta' ? ['attribution_windows'] : ['swipe_up_attribution_window', 'view_attribution_window'];
@@ -105,6 +121,9 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
       'This reporting source does not have a qualified collector for the selected entity level.',
       'REPORT_LEVEL_UNSUPPORTED',
     );
+  // The v4 boundary has validated levels/options against the source's declaration. Legacy callers keep their rules.
+  if (source.reporting_contract === 'overview-config-v4')
+    return selected ?? {id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'};
   if (level === 'campaign') {
     if (
       source.campaign_id !== undefined ||
@@ -180,10 +199,12 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
  */
 export const detailContractVersion = 'overview-detail-v3';
 const additive = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value'];
-function exactSum(values: unknown[]) {
-  if (values.some(value => value === null || value === undefined)) return {exact: null, display: null};
+function exactSum(values: unknown[], knownOnly = false) {
+  const known = values.filter(value => value !== null && value !== undefined),
+    coverage = {known: known.length, total: values.length};
+  if (!known.length || (!knownOnly && known.length !== values.length)) return {exact: null, display: null, coverage};
   let sum = 0n;
-  for (const value of values) {
+  for (const value of known) {
     if (typeof value !== 'string' || !/^\d+(?:\.\d{1,9})?$/.test(value))
       invalid('The detailed metric is not an exact native decimal.', 'REPORT_SHAPE_CHANGED');
     const [whole, fraction = ''] = String(value).split('.');
@@ -192,7 +213,7 @@ function exactSum(values: unknown[]) {
   const exact =
     (sum / 1000000000n).toString() +
     (sum % 1000000000n ? '.' + (sum % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '') : '');
-  return {exact, display: metricNumber(exact)};
+  return {exact, display: knownOnly ? exact : metricNumber(exact), coverage};
 }
 /**
  * `nativeParents` holds the parents a bounded parent read returned for levels whose report rows carry none (RPT-07);
@@ -203,6 +224,7 @@ export function detailedOverviewRows(
   captured: JsonObject,
   nativeParents: Record<string, JsonObject> = {},
   objectives?: ObjectiveTable,
+  resultReader?: (raw: JsonObject, context: ReportResultContext) => ResolvedReportResult,
 ) {
   const descriptor = overviewSourceLevel(source),
     groups = new Map<string, {mapped: JsonObject[]; raw: JsonObject[]; parents: JsonObject}>();
@@ -258,10 +280,25 @@ export function detailedOverviewRows(
     groups.set(row.entity_id, group);
   }
   return [...groups].map(([id, group]) => {
-    const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))])),
+    const v4 = source.reporting_contract === 'overview-config-v4',
+      sums = Object.fromEntries(
+        additive.map(key => [
+          key,
+          exactSum(
+            group.mapped.map(row => row[key]),
+            v4,
+          ),
+        ]),
+      ),
       additionalKeys = [...new Set<string>(group.mapped.flatMap(row => Object.keys(row.additional_metrics ?? {})))],
       additionalSums = Object.fromEntries(
-        additionalKeys.map(key => [key, exactSum(group.mapped.map(row => row.additional_metrics?.[key]))]),
+        additionalKeys.map(key => [
+          key,
+          exactSum(
+            group.mapped.map(row => row.additional_metrics?.[key]),
+            v4,
+          ),
+        ]),
       ),
       // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
       omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key))),
@@ -276,6 +313,64 @@ export function detailedOverviewRows(
         legacy: source.objective,
         fallback: source.objective_fallback,
       });
+    let resultFields: JsonObject = {};
+    let measurementRows: JsonObject[] | undefined;
+    if (v4 && resultReader) {
+      const resolvedRows = group.raw.map(raw =>
+        resultReader(raw, {
+          level: descriptor.id,
+          range: {since: captured.semantics.date_from, until: captured.semantics.date_to},
+          objective: nativeObjective,
+          goal: group.parents.optimization_goal,
+          event: group.parents.optimization_event,
+          format: group.parents.format,
+          report_options: source.report_options,
+        }),
+      );
+      measurementRows = group.mapped.map((row, index) => ({
+        ...Object.fromEntries([...additive, 'reach', 'frequency'].map(key => [key, row[key] ?? null])),
+        ...row.additional_metrics,
+        primary_result: resolvedRows[index]!.result.value,
+        cost_per_result: resolvedRows[index]!.result.cost_per_result,
+      }));
+      const scope = JSON.stringify([
+          source.platform,
+          source.account_id,
+          descriptor.id,
+          id,
+          captured.semantics.date_from,
+          captured.semantics.date_to,
+          captured.semantics.attribution,
+        ]),
+        resultGroups = groupReportResults(
+          group.raw.map((_raw, index) => ({
+            resolved: resolvedRows[index]!,
+            scope,
+            currency: captured.semantics.currency,
+            spend: group.mapped[index]!.spend ?? null,
+          })),
+        ),
+        one = resultGroups.length === 1 ? resultGroups[0] : undefined;
+      resultFields = {
+        result: one?.result ?? unavailableReportResult('mixed_goals').result,
+        result_groups: resultGroups,
+        result_context: one
+          ? {
+              definition: one.definition,
+              source: one.source,
+              cost_source: one.cost_source,
+              unavailable_reason: one.unavailable_reason,
+              coverage: one.coverage,
+              cost_coverage: one.cost_coverage,
+              cost_basis: one.cost_basis,
+              rounding: one.rounding,
+            }
+          : {unavailable_reason: 'mixed_goals'},
+        result_definition: one?.definition?.label ?? 'unknown',
+        ...(resultGroups.length > 1 ? {mixed_result_definition: true} : {}),
+        metrics_coverage: Object.fromEntries(additive.map(key => [key, sums[key]!.coverage])),
+      };
+    }
     return {
       ...(omitted.length ? {omitted_as_zero: omitted} : {}),
       entity_id: id,
@@ -296,18 +391,31 @@ export function detailedOverviewRows(
       metrics: {
         ...Object.fromEntries(additive.map(key => [key, sums[key]!.display])),
         ...Object.fromEntries(additionalKeys.map(key => [key, additionalSums[key]!.display])),
-        reach: group.mapped.length === 1 ? metricNumber(group.mapped[0]!.reach) : null,
-        frequency: group.mapped.length === 1 ? metricNumber(group.mapped[0]!.frequency) : null,
+        ...Object.fromEntries(
+          ['reach', 'frequency'].map(key => {
+            const value = group.mapped[0]![key];
+            return [
+              key,
+              group.mapped.length !== 1 || value == null
+                ? null
+                : v4
+                  ? providerDecimalText(value, {field: key})
+                  : metricNumber(value),
+            ];
+          }),
+        ),
       },
       native: {
         preset: descriptor.preset,
         entity_id: id,
         daily_rows: group.raw,
+        ...(measurementRows ? {exact_rows: measurementRows} : {}),
         exact_totals: {
           ...Object.fromEntries(additive.map(key => [key, sums[key]!.exact])),
           ...Object.fromEntries(additionalKeys.map(key => [key, additionalSums[key]!.exact])),
         },
       },
+      ...resultFields,
     };
   });
 }

@@ -66,12 +66,18 @@ export const metricDefinitions: Record<string, JsonObject> = {
     better: 'higher',
   },
 };
+/** The v4 result is selected by the source's native definition, never by summing a generic result column. */
+export const reportMetricDefinitionsV4: Record<string, JsonObject> = {
+  ...metricDefinitions,
+  primary_result: {label: 'Primary result', format: 'number', aggregation: 'result_definition'},
+  cost_per_result: {label: 'Cost per result', format: 'currency', aggregation: 'result_ratio', better: 'lower'},
+};
 /**
  * The derivable target direction of a KPI, or null when a target must declare it (custom, native and additive
  * metrics). cost_per_engagement is the engagement objective's built-in cost KPI.
  */
 export function kpiDirection(kpi: unknown): 'higher' | 'lower' | null {
-  if (kpi === 'cost_per_engagement') return 'lower';
+  if (kpi === 'cost_per_engagement' || kpi === 'cost_per_result') return 'lower';
   const better =
     typeof kpi === 'string' && Object.hasOwn(metricDefinitions, kpi) ? metricDefinitions[kpi]!.better : null;
   return better === 'higher' || better === 'lower' ? better : null;
@@ -400,7 +406,17 @@ export function objectiveGroup(value: unknown): string {
   if (/AWARENESS|REACH|IMPRESSION|BRAND/.test(s)) return 'awareness';
   return 'unknown';
 }
-export function campaignRecommendation(row: JsonObject, policy: JsonObject = {}, now = Date.now()): JsonObject {
+export interface ReportAdviceMath {
+  formula(formula: string, values: JsonObject): string | null;
+  compare(a: unknown, b: unknown, factor?: unknown): number;
+  primaryResult?: true;
+}
+export function campaignRecommendation(
+  row: JsonObject,
+  policy: JsonObject = {},
+  now = Date.now(),
+  math?: ReportAdviceMath,
+): JsonObject {
   const result = (decision: string, reason: string, evidence: JsonObject = {}) => ({
     decision,
     reason,
@@ -443,6 +459,7 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       policy[row.campaign_key] ?? policy[row.objective_group + ':' + row.currency] ?? policy[row.objective_group] ?? {},
     metric =
       p.kpi ??
+      (math?.primaryResult ? 'cost_per_result' : undefined) ??
       (
         {
           awareness: 'cpm',
@@ -459,9 +476,11 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
   const m = row.metrics,
     actual =
       metric === 'cost_per_engagement'
-        ? m.spend != null && m.engagements > 0
-          ? m.spend / m.engagements
-          : null
+        ? math
+          ? math.formula('spend / engagements', m)
+          : m.spend != null && m.engagements > 0
+            ? m.spend / m.engagements
+            : null
         : m[metric],
     target = metricNumber(p.target);
   if (target === null || target <= 0)
@@ -479,7 +498,8 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       currency: row.currency,
     });
   // DEC-01: the direction comes from the target or the KPI definition, never from a single special case.
-  const direction = p.direction ?? kpiDirection(metric);
+  const direction =
+    p.direction ?? (metric === 'cost_per_result' && math?.primaryResult ? 'lower' : kpiDirection(metric));
   if (direction !== 'higher' && direction !== 'lower')
     return result(
       'needs_review',
@@ -488,6 +508,7 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
     );
   const resultField =
       p.result_metric ??
+      (math?.primaryResult ? 'primary_result' : undefined) ??
       (
         {
           awareness: 'impressions',
@@ -543,7 +564,18 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
       {spend: m.spend ?? null, minimum_spend: minimumSpend, kpi: metric},
     );
-  if (n === 0 && m.spend >= target * 3 && ['cpa', 'cpl', 'cpi'].includes(metric))
+  if (
+    n === 0 &&
+    (math ? math.compare(m.spend, target, 3) >= 0 : m.spend >= target * 3) &&
+    [
+      'cpa',
+      'cpl',
+      'cpi',
+      ...(math?.primaryResult && ['sales', 'leads', 'app_installs'].includes(row.objective_group)
+        ? ['cost_per_result']
+        : []),
+    ].includes(metric)
+  )
     return result(
       'reconsider_pause',
       'Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',
@@ -565,6 +597,14 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
     });
   const higher = direction === 'higher',
     relative = higher ? target / actual : actual / target,
+    atMost = (limit: number) =>
+      math
+        ? (higher ? math.compare(target, actual, limit) : math.compare(actual, target, limit)) <= 0
+        : relative <= limit,
+    atLeast = (limit: number) =>
+      math
+        ? (higher ? math.compare(target, actual, limit) : math.compare(actual, target, limit)) >= 0
+        : relative >= limit,
     evidence = {
       kpi: metric,
       actual,
@@ -573,7 +613,7 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       results: n,
       maximum_budget_change_percent: Math.min(20, p.maximum_change_percent ?? 10),
     };
-  if (relative <= 0.85) {
+  if (atMost(0.85)) {
     const c = p.context ?? {};
     if (c.capacity_available === false || c.budget_available === false)
       return result(
@@ -582,7 +622,17 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
         {...evidence, business_context: c},
       );
     if (c.current_daily_budget !== undefined && c.maximum_daily_budget !== undefined) {
-      const headroom = c.current_daily_budget > 0 ? (c.maximum_daily_budget / c.current_daily_budget - 1) * 100 : 0;
+      const headroom =
+        c.current_daily_budget > 0
+          ? math
+            ? Number(
+                math.formula('(maximum / current - 1) * 100', {
+                  maximum: c.maximum_daily_budget,
+                  current: c.current_daily_budget,
+                }),
+              )
+            : (c.maximum_daily_budget / c.current_daily_budget - 1) * 100
+          : 0;
       if (headroom <= 0)
         return result('maintain', 'The supplied daily budget limit leaves no room for an increase.', {
           ...evidence,
@@ -591,19 +641,19 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
       evidence.maximum_budget_change_percent = Math.min(evidence.maximum_budget_change_percent, headroom);
     }
   }
-  if (relative <= 0.85)
+  if (atMost(0.85))
     return result(
       'scale',
       'Performance is comfortably above target. Consider a bounded budget increase after checking capacity and recent changes.',
       evidence,
     );
-  if (relative >= 1.5)
+  if (atLeast(1.5))
     return result(
       'reconsider_pause',
       'Performance is materially below target. Review tracking, targeting and creative before deciding whether to pause.',
       evidence,
     );
-  if (relative >= 1.15)
+  if (atLeast(1.15))
     return result(
       'pull_back',
       'Performance is below target. Consider a bounded budget reduction and diagnose the cause.',
@@ -624,9 +674,24 @@ export function windowRecommendations(
   policy: JsonObject = {},
   custom: JsonObject[] = [],
   now = Date.now(),
+  adapter?: {
+    aggregate(rows: JsonObject[], custom: JsonObject[]): JsonObject;
+    recommend(row: JsonObject, policy: JsonObject, now: number): JsonObject;
+  },
 ): JsonObject[] {
   const groups = new Map<string, JsonObject[]>();
-  for (const row of rows) groups.set(row.campaign_key, [...(groups.get(row.campaign_key) ?? []), row]);
+  for (const row of rows) {
+    const key = adapter
+      ? JSON.stringify([
+          row.campaign_key,
+          row.currency,
+          row.attribution,
+          row.objective_group,
+          row.result?.definition_id ?? null,
+        ])
+      : row.campaign_key;
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
   for (const group of groups.values()) {
     if (group.length < 2) continue;
     const base: JsonObject = {},
@@ -659,9 +724,9 @@ export function windowRecommendations(
             ? true
             : null,
       },
-      metrics: calculateMetrics(base, custom),
+      ...(adapter ? adapter.aggregate(group, custom) : {metrics: calculateMetrics(base, custom)}),
     };
-    const shared = campaignRecommendation(aggregate, policy, now);
+    const shared = adapter ? adapter.recommend(aggregate, policy, now) : campaignRecommendation(aggregate, policy, now);
     for (const row of group)
       row.recommendation = {
         ...shared,

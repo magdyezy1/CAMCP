@@ -18,12 +18,12 @@ export function validatePresetRows(preset: string | undefined, input: JsonObject
   // The platform whose presets the capture's preset is named under checks its rows (LinkedIn, Meta).
   guided.find(platform => preset?.startsWith(platform.presetPrefix!))?.validateRows?.(preset!, input, rows);
 }
-export function reportPreset(input: JsonObject): JsonObject {
+export function reportPreset(input: JsonObject, context?: {overviewV4?: true}): JsonObject {
   const preset = reportPresets.find(p => p.id === input.preset);
   if (!preset) bad('Choose a supported capture preset.');
   const platform = presetPlatform.get(preset.id)!;
   if (input.campaign_id !== undefined && !platform.campaignFilter?.(preset))
     bad('A campaign filter requires a qualified parent-scoped Snapchat preset.');
   const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to});
-  return platform.presetRequest!(preset, input, range);
+  return platform.presetRequest!(preset, input, range, context);
 }

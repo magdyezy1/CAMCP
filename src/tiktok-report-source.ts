@@ -1,10 +1,10 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {reportList, type ReportSource} from './report-source.js';
+import {overviewCapabilities, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
-import {tiktokNativeResult} from './tiktok-report-results.js';
+import {tiktokNativeResult, collectTikTokCampaignResults} from './tiktok-report-results.js';
 import {
   tiktokCampaignWindowDays,
   tiktokStatusFilter,
@@ -22,6 +22,18 @@ export const tiktokEventsUnavailableWarning =
 /** TikTok integrated report rows (dimensions and metrics); conversions name the ad groups' optimization events. */
 export const tiktokReportSource: ReportSource = {
   platform: 'tiktok',
+  requiresCompleteWindowDeclaration: true,
+  overview: overviewCapabilities(
+    [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', native_type: 'adgroup', preset: 'tiktok_adgroup'},
+      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'tiktok_ad'},
+    ],
+    {},
+    [],
+    undefined,
+    {requires_complete: true},
+  ),
   readResult: tiktokNativeResult,
   contract: {
     stamp: 'tiktok-collection-v2',
@@ -65,6 +77,8 @@ export const tiktokReportSource: ReportSource = {
   nativeMetricContainer: 'metrics',
   // The report, the campaign inventory and the ad group optimization events (RPT-04).
   minimumRequestsPerPeriod: 3,
+  requestsPerPeriod: (level, contract) =>
+    level === 'campaign' ? (contract === 'overview-config-v4' ? 4 : 3) : contract === 'overview-config-v4' ? 3 : 1,
   guided: tiktokGuidedReporting,
   validateRange(source, range) {
     if (
@@ -81,6 +95,8 @@ export const tiktokReportSource: ReportSource = {
    * optimization events (RPT-04), read once per source and job.
    */
   async collect(c) {
+    const v4 = c.source?.reporting_contract === 'overview-config-v4';
+    if (v4) c.attribution = c.source.report_options.attribution;
     const query: JsonObject = {
       advertiser_id: c.account,
       report_type: 'BASIC',
@@ -142,16 +158,38 @@ export const tiktokReportSource: ReportSource = {
         const adgroups = reportList(
           (
             await c.run(
-              c.plan('/v1.3/adgroup/get/', {advertiser_id: c.account, page: 1, page_size: 1000}),
+              c.plan('/v1.3/adgroup/get/', {
+                advertiser_id: c.account,
+                page: 1,
+                page_size: 1000,
+                ...(v4 ? {filtering: {primary_status: 'STATUS_ALL'}} : {}),
+              }),
               true,
               'adgroups',
             )
           ).data?.list ?? [],
         );
-        const events = new Map<string, Set<string>>();
+        const events = new Map<string, Set<string>>(),
+          groups: Record<string, JsonObject> = {};
         for (const group of adgroups) {
           const campaign = String(group.campaign_id ?? '');
           if (!campaign) continue;
+          if (v4) {
+            if (
+              typeof group.adgroup_id !== 'string' ||
+              !/^[1-9][0-9]{0,31}$/.test(group.adgroup_id) ||
+              !/^[1-9][0-9]{0,31}$/.test(campaign) ||
+              Object.hasOwn(groups, group.adgroup_id) ||
+              (group.advertiser_id !== undefined && group.advertiser_id !== c.account)
+            )
+              throw new MirrorError(
+                'REPORT_SHAPE_CHANGED',
+                'TikTok returned malformed ad group result metadata.',
+                {},
+                502,
+              );
+            groups[group.adgroup_id] = group;
+          }
           const event =
             [group.optimization_goal, group.optimization_event]
               .filter(v => typeof v === 'string' && /^[A-Za-z0-9_.]{1,80}$/.test(v))
@@ -161,9 +199,11 @@ export const tiktokReportSource: ReportSource = {
         adgroupEvents = {
           events: Object.fromEntries([...events].map(([campaign, set]) => [campaign, [...set].sort()])),
           lineage: c.lineage.at(-1),
+          ...(v4 ? {groups} : {}),
         };
       } catch (e) {
         if (!(e instanceof MirrorError) || e.retryable) throw e;
+        if (v4 && e.code !== 'INCOMPLETE_REPORT' && !optionalReadRefused(e)) throw e;
         adgroupEvents = {events: {}, unavailable: true};
       }
       if (c.lookup) c.lookup.tiktokEvents = adgroupEvents;
@@ -179,6 +219,7 @@ export const tiktokReportSource: ReportSource = {
         : [],
     }));
     c.resultDefinition = 'TikTok conversion metric for the selected optimization goal';
+    if (v4 && adgroupEvents.groups) await collectTikTokCampaignResults(c, adgroupEvents.groups);
     c.warnings.push(tiktokAuctionOnlyWarning);
   },
   normalize(raw, {value: readValue}) {

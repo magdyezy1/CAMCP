@@ -15,7 +15,7 @@ export const snapchatDetailParents: DetailParentReader = Object.freeze({
   async read(
     _kind: string,
     reading: string[],
-    {account, read, record, shape, foreign, refused, name}: DetailParentReads,
+    {account, read, record, shape, foreign, refused, name, reportingContract}: DetailParentReads,
   ) {
     const byIds = async (entities: 'ads' | 'adsquads' | 'campaigns', wantedIds: string[]) => {
       const rows: JsonObject[] = [],
@@ -65,6 +65,7 @@ export const snapchatDetailParents: DetailParentReader = Object.freeze({
       // Without its ad squad and an owned campaign, the ad's parents stay unknown.
       if (!squad || !campaign) continue;
       record(String(ad.id), {
+        ...(reportingContract === 'overview-config-v4' ? {optimization_goal: squad.optimization_goal ?? null} : {}),
         campaign_id: String(campaign.id),
         campaign_name: name(campaign.name),
         ...(typeof (campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective) === 'string'
