@@ -96,7 +96,8 @@ export function overviewGranularityFixture() {
     const url = new URL(String(raw)),
       method = init?.method ?? 'GET';
     requests.push({url, method, body: init?.body ? JSON.parse(String(init.body)) : null});
-    await hook(url);
+    const intercepted = await hook(url);
+    if (intercepted instanceof Response) return intercepted;
     // RPT-07: Snapchat's documented by-ID reads are POST reads of the account's ads, ad squads and campaigns.
     const byIds = /^\/v1\/adaccounts\/([^/]+)\/get_(ads|adsquads|campaigns)_by_ids$/.exec(url.pathname);
     if (url.hostname === 'adsapi.snapchat.com' && method === 'POST' && byIds) {

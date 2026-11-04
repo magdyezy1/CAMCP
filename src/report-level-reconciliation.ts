@@ -51,21 +51,24 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
           packet =>
             Array.isArray(packet?.rows) &&
             packet.rows.length > rows.filter(row => (row.entity_level ?? 'campaign') === packet.source.level).length,
-        );
+        ),
+        derived = !!baseline?.scope?.rollup || !!comparison?.scope?.rollup;
       for (const metric of metrics) {
         const a = totals(baselineLevel, metric),
           b = totals(comparisonLevel, metric),
-          unavailable = !sameWindow
-            ? 'different_or_unavailable_windows'
-            : differentStatuses
-              ? 'different_status_populations'
-              : differentObjectives
-                ? 'different_objective_populations'
-                : a.value === null || b.value === null
-                  ? metric === 'spend' && !currency
-                    ? 'unknown_currency'
-                    : 'missing_metric'
-                  : null,
+          unavailable = derived
+            ? 'derived_parent_population'
+            : !sameWindow
+              ? 'different_or_unavailable_windows'
+              : differentStatuses
+                ? 'different_status_populations'
+                : differentObjectives
+                  ? 'different_objective_populations'
+                  : a.value === null || b.value === null
+                    ? metric === 'spend' && !currency
+                      ? 'unknown_currency'
+                      : 'missing_metric'
+                    : null,
           partial = !collected || a.coverage.known < a.coverage.total || b.coverage.known < b.coverage.total,
           delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value;
         comparisons.push({

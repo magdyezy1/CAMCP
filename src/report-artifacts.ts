@@ -11,6 +11,7 @@ import {reportPack, presentationStyle} from './report-packs.js';
 import type {JsonObject} from './types.js';
 import {artifactLocale} from './report-localization.js';
 import {drawPdfText} from './pdf-text.js';
+import {reportRollupLabel} from './report-scope-rollups.js';
 
 const limits = {
   rows: 25000,
@@ -67,6 +68,9 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     const resultColumn = values[0]!.indexOf('Primary result');
     if (resultColumn >= 0)
       for (const row of values.slice(1)) row[resultColumn] = locale.result(String(row[resultColumn] ?? ''));
+    const aggregationColumn = values[0]!.indexOf('Aggregation');
+    if (aggregationColumn >= 0)
+      for (const row of values.slice(1)) row[aggregationColumn] = t(String(row[aggregationColumn] ?? ''));
     values[0] = values[0]!.map((value, index) =>
       index + 1 >= metricStart && index + 1 < metricStart + metricCount
         ? locale.metric(String(value), custom)
@@ -331,6 +335,7 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       style.accent_color,
     );
     text(t('Collected') + ' ' + isolated(new Date(pack.created_at ?? 0).toISOString()), 9);
+    for (const label of new Set<string>(report.rows.map(reportRollupLabel).filter(Boolean))) text(t(label), 10);
     doc.moveDown(0.5);
     if (pack.state === 'partial') {
       text(

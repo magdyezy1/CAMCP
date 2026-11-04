@@ -4,6 +4,7 @@ import {metaPrefix} from './meta-version.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {storedLogin} from './connection-authority.js';
+import {nestedError} from './errors.js';
 
 const gateway = 'meta_native_action';
 const incomplete = (message: string): never => bad(message, 'REPORT_INCOMPLETE');
@@ -36,7 +37,7 @@ export async function collectMetaEvidence(
     const result = await call(gateway, request, actor);
     current();
     if (result.success !== true)
-      bad(result.error?.message ?? 'Meta report read failed.', result.error?.code ?? 'REPORT_FAILED');
+      throw nestedError(result, {code: 'REPORT_FAILED', message: 'Meta report read failed.'});
     const data = result.data?.data;
     if (
       result.data?.executed === false ||

@@ -310,11 +310,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Exact formula and advisory adapters add two further source modules.
   // V4 delivery-level reconciliation adds one source module without a new diagnostic.
   // Scope/status metadata adds three modules.
-  assert.equal(files.length, 771);
+  // Adds the bounded selected-descendant rollup module.
+  assert.equal(files.length, 772);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
-  assert.equal(selected.filter(row => row.messages.size).length, 293);
+  assert.equal(selected.filter(row => row.messages.size).length, 294);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -323,7 +324,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Two TikTok native result diagnostics and one include-flags refusal are now direct reasons too.
   // The bounded exact formula evaluator owns one precision refusal.
   // V4 request-estimate guidance and the native metadata account refusal retain both old and new reasons.
-  assert.equal(owned.size, 1621);
+  // Meta capture preserves its nested error fallback; mixed-pipeline checkpoints have a recovery refusal.
+  assert.equal(owned.size, 1623);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -341,7 +343,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // One formula refusal and two advisory coverage/definition messages.
   // The v4 aggregation explanations add two bilingual interface entries.
   // Seven v4 scope/status and request-estimate explanations.
-  assert.equal(Object.keys(catalog).length, 11679);
+  // Five selected-descendant scope, recovery and aggregation labels.
+  assert.equal(Object.keys(catalog).length, 11684);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

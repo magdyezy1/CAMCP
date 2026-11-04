@@ -11677,5 +11677,10 @@
   "The native entity belongs to another advertising account.": "ينتمي الكيان الأصلي إلى حساب إعلاني آخر.",
   "Native entity metadata pagination is malformed.": "بيانات ترقيم صفحات البيانات الوصفية للكيان الأصلي غير سليمة.",
   "Current native entity status could not be read. Status filters exclude unknown entities and keep the source partial.": "تعذرت قراءة الحالة الحالية للكيان من المنصة. تستبعد عوامل تصفية الحالة الكيانات ذات الحالة غير المعروفة وتُبقي المصدر جزئيًا.",
-  "The first-page request estimate exceeds this report’s collection limit. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.": "يتجاوز تقدير طلبات الصفحة الأولى حد جمع هذا التقرير. استخدم حسابات أقل أو فترة أقصر أو تجميعًا أوسع. لم يُرسل أي طلب."
+  "The first-page request estimate exceeds this report’s collection limit. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.": "يتجاوز تقدير طلبات الصفحة الأولى حد جمع هذا التقرير. استخدم حسابات أقل أو فترة أقصر أو تجميعًا أوسع. لم يُرسل أي طلب.",
+  "Choose ID scopes supported by this report source.": "اختر نطاقات معرّفات يدعمها مصدر التقرير هذا.",
+  "Aggregation": "التجميع",
+  "Rolled up from selected ads": "مجمّع من الإعلانات المحددة",
+  "Rolled up from selected child entities": "مجمّع من الكيانات الفرعية المحددة",
+  "The retained scope was already filtered by an earlier report pipeline. Start a new snapshot; its existing evidence is preserved.": "سبق أن صُفّيت البيانات المحفوظة للنطاق عبر مسار تقارير أقدم. ابدأ نسخة جديدة؛ تظل الأدلة الحالية محفوظة."
 }

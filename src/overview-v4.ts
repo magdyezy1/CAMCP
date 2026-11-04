@@ -6,6 +6,7 @@ import {reportLevelReconciliation} from './report-level-reconciliation.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
+export const overviewV4ScopeContract = 'selected-descendants-v1';
 export interface OverviewV4Capabilities {
   levels: readonly {id: string; label: string; native_type: string; preset?: string}[];
   /** The provider source owns these facts; this module only validates/applies the supplied declaration. */
@@ -15,6 +16,8 @@ export interface OverviewV4Capabilities {
   delivery_metrics: readonly string[];
   supported_statuses: readonly string[];
   status_basis: 'current_configuration' | 'provider_report_status' | 'not_applicable';
+  /** A provider-owned URN prefix when reports and parent metadata spell the same native identity differently. */
+  scope_id_prefixes?: Readonly<Record<string, string>>;
   validateOptions?(options: JsonObject): void;
   legacy?: {
     campaign_options?: readonly string[];
@@ -106,6 +109,7 @@ const ids = (value: unknown): string[] => {
 export function normalizeOverviewV4Source(input: JsonObject, capabilities: OverviewV4Capabilities): JsonObject {
   const source = structuredClone(input),
     levels = source.levels ?? [source.level ?? 'campaign'];
+  delete source.scope_supporting;
   if (
     !Array.isArray(levels) ||
     !levels.length ||
@@ -155,14 +159,29 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
   delete source.objective;
   if (source.objective_fallback === undefined && objectiveFallbackGroups.includes(legacyObjective))
     source.objective_fallback = legacyObjective;
+  const campaignIds = ids(source.campaign_ids),
+    adsetIds = ids(source.adset_ids),
+    adIds = ids(source.ad_ids);
+  if (
+    (adIds.length && !capabilities.levels.some(level => level.id === 'ad')) ||
+    (adsetIds.length && !capabilities.levels.some(level => level.id === 'adset')) ||
+    [
+      [campaignIds, 'campaign'],
+      [adsetIds, 'adset'],
+      [adIds, 'ad'],
+    ].some(([values, level]) =>
+      (values as string[]).some(id => overviewV4ScopeIdentity(capabilities, level as string, id) === undefined),
+    )
+  )
+    invalid('Choose ID scopes supported by this report source.');
   return {
     ...source,
     levels: [...levels],
     level: levels[0],
     report_options: options,
-    campaign_ids: ids(source.campaign_ids),
-    adset_ids: ids(source.adset_ids),
-    ad_ids: ids(source.ad_ids),
+    campaign_ids: campaignIds,
+    adset_ids: adsetIds,
+    ad_ids: adIds,
     statuses: [...statuses],
     delivered_only: source.delivered_only ?? true,
     delivery_metrics: [...capabilities.delivery_metrics],
@@ -172,12 +191,47 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
   };
 }
 
-/** One configured account; each requested level gets its own deterministic checkpoint and row budget key. */
-export function expandOverviewV4Sources(config: JsonObject): JsonObject[] {
+const scopeLevelOrder = ['campaign', 'adset', 'ad'];
+export function overviewV4MeasurementLevel(source: JsonObject): 'ad' | 'adset' | undefined {
+  if (source.ad_ids?.length) return 'ad';
+  if (source.adset_ids?.length) return 'adset';
+  return undefined;
+}
+/** A parent-only request still measures the selected descendants; supporting rows are disclosed separately. */
+export function overviewV4CollectionLevels(source: JsonObject): string[] {
+  const levels: string[] = [...source.levels],
+    measurement = overviewV4MeasurementLevel(source);
+  if (
+    measurement &&
+    levels.some(level => scopeLevelOrder.indexOf(level) < scopeLevelOrder.indexOf(measurement)) &&
+    !levels.includes(measurement)
+  )
+    levels.push(measurement);
+  return levels;
+}
+export function overviewV4ScopeIdentity(
+  capabilities: OverviewV4Capabilities | undefined,
+  level: string,
+  value: unknown,
+): string | undefined {
+  if (typeof value !== 'string' || !value) return undefined;
+  const prefix = capabilities?.scope_id_prefixes?.[level],
+    id = prefix && value.startsWith(prefix) ? value.slice(prefix.length) : value;
+  return id || undefined;
+}
+
+/** One configured account; requested and supporting levels each get a deterministic checkpoint and row budget key. */
+export function expandOverviewV4Sources(config: JsonObject, rollups = true): JsonObject[] {
   if (config.contract_version !== overviewConfigV4) return config.sources;
-  return config.sources.flatMap((source: JsonObject, index: number) =>
-    source.levels.map((level: string) => ({...source, level, source_ref: index})),
-  );
+  return config.sources.flatMap((source: JsonObject, index: number) => {
+    const {scope_supporting: _untrusted, ...owned} = source;
+    return (rollups ? overviewV4CollectionLevels(source) : source.levels).map((level: string) => ({
+      ...owned,
+      level,
+      source_ref: index,
+      ...(!source.levels.includes(level) ? {scope_supporting: true} : {}),
+    }));
+  });
 }
 
 /** Observe activity before retained metric rounding. Any positive field proves it; missing no-positive fields do not. */
@@ -205,12 +259,19 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
         adset_ids: level === 'adset' ? own : parents.adset_id,
         ad_ids: level === 'ad' ? own : undefined,
       };
-    for (const [field, value] of Object.entries(values))
-      if (source[field]?.length && !source[field].includes(value)) {
+    for (const [field, value] of Object.entries(values)) {
+      const scopeLevel = {campaign_ids: 'campaign', adset_ids: 'adset', ad_ids: 'ad'}[field]!,
+        identity = overviewV4ScopeIdentity(capabilities, scopeLevel, value);
+      if (
+        source[field]?.length &&
+        (identity === undefined ||
+          !source[field].some((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id) === identity))
+      ) {
         excluded++;
-        if (value === undefined || value === null) unknown++;
+        if (identity === undefined) unknown++;
         return false;
       }
+    }
     if (!source.statuses.includes('all') && !source.statuses.includes(row.status)) {
       excluded++;
       statusExcluded++;
@@ -371,6 +432,7 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
             entity_name: row.entity_name ?? row.campaign_name,
             native_entity_type: row.native_entity_type,
             ...(row.status !== undefined ? {status: row.status} : {}),
+            ...(row.aggregation ? {aggregation: row.aggregation} : {}),
             currency: row.currency,
             date_from: row.date_from,
             date_to: row.date_to,
@@ -429,6 +491,9 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
         : value;
   return configured.map((source, sourceRef) => {
     const packets = results.filter(result => result.source.source_ref === sourceRef),
+      requested = packets.filter(packet => !packet.source.scope_supporting),
+      supporting = packets.filter(packet => packet.source.scope_supporting),
+      rollups = requested.some(packet => packet.scope?.rollup),
       lineage = new Map<string, JsonObject>();
     for (const packet of packets) {
       for (const entry of [
@@ -446,9 +511,9 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
       ...withoutLineage(first),
       source,
       source_ref: sourceRef,
-      complete: packets.length === source.levels.length && packets.every(packet => packet.complete),
+      complete: requested.length === source.levels.length && packets.every(packet => packet.complete),
       collection_complete:
-        packets.length === source.levels.length &&
+        requested.length === source.levels.length &&
         packets.every(packet => packet.collection_complete !== false && !packet.error),
       lineage: [...lineage.values()],
       result_definitions: [...definitions.values()],
@@ -457,8 +522,22 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
         metric_coverage: 'partial_rows_only',
         advice_evidence: 'include_native',
       },
-      row_count: packets.reduce((sum, packet) => sum + (packet.scope?.returned_rows ?? packet.rows.length), 0),
-      scoped_row_count: packets.reduce((sum, packet) => sum + packet.rows.length, 0),
+      row_count: requested.reduce((sum, packet) => sum + (packet.scope?.returned_rows ?? packet.rows.length), 0),
+      scoped_row_count: requested.reduce((sum, packet) => sum + packet.rows.length, 0),
+      ...(rollups
+        ? {
+            scope_input_row_count: requested.reduce(
+              (sum, packet) => sum + (packet.scope?.input_rows ?? packet.scope?.returned_rows ?? packet.rows.length),
+              0,
+            ),
+            derived_row_count: requested.reduce((sum, packet) => sum + (packet.scope?.rollup?.derived_rows ?? 0), 0),
+            collection_row_count: packets.reduce(
+              (sum, packet) => sum + (packet.scope?.returned_rows ?? packet.rows.length),
+              0,
+            ),
+          }
+        : {}),
+      ...(supporting.length ? {supporting_levels: supporting.map(packet => packet.source.level)} : {}),
       visible_row_count: rows.filter(row => row.source_ref === sourceRef).length,
       warnings: [...new Set(packets.flatMap(packet => packet.warnings ?? []))],
       cross_level: reportLevelReconciliation(
@@ -469,6 +548,7 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
       level_results: packets.map(({rows: packetRows, source: packetSource, metadata: packetMetadata, ...data}) => ({
         ...withoutLineage(data),
         level: packetSource.level,
+        ...(packetSource.scope_supporting ? {purpose: 'scope_rollup', visible: false} : {}),
         row_count: data.scope?.returned_rows ?? packetRows.length,
         scoped_row_count: packetRows.length,
       })),

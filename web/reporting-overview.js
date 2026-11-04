@@ -52,6 +52,8 @@ const reportLabels = {
   app_installs: 'App Installs',
   unknown: 'Unknown',
   mixed: 'Mixed',
+  rolled_up_ads: 'Rolled up from selected ads',
+  rolled_up_children: 'Rolled up from selected child entities',
   provider: 'From the platform',
   provider_mapped: 'Mapped from campaign settings',
   provider_inferred: 'Inferred from the platform’s value',
@@ -1430,17 +1432,17 @@ function renderReportEmpty(r) {
     filtered = r.empty_reason === 'objective_filter' || r.filtered_row_count > 0 || count > 0;
   return `<div class="empty panel report-empty"><h3>${filtered ? uiText('Your objective filters excluded the returned rows') : uiText('No campaign rows returned')}</h3><p>${esc(reportRangeLabel(r.config.date_range))}</p><p>${filtered ? esc(uiText('{count} rows were returned before filtering. Review the objective selections above.', {count})) : uiText('Check that the selected account and reporting year match Ads Manager. No performance values have been assumed.')}</p><p>${esc(uiText('There is nothing to export. CSV downloads and Google Sheets updates are disabled for this report.'))}</p><a class="button" href="#overview-config">${esc(uiText('Review dates, account and filters'))}</a></div>`;
 }
-/** A row's reporting level: AMCP's level label in the interface language, otherwise the provider's native type. */
 function reportLevelLabel(b, row) {
   const label = (b.platforms.find(p => p.id === row.platform)?.entity_levels ?? []).find(
     level => level.id === row.entity_level,
   )?.label;
-  return label ? uiText(label) : String(row.native_entity_type ?? '');
+  return (
+    (label ? uiText(label) : String(row.native_entity_type ?? '')) +
+    (row.aggregation?.kind === 'rolled_up'
+      ? ' · ' + reportLabel(row.aggregation.scope_field === 'ad_ids' ? 'rolled_up_ads' : 'rolled_up_children')
+      : '')
+  );
 }
-/**
- * RPT-07: the exact parent campaign of Snapchat ad-squad detail. The campaigns of the newest retained campaign-level
- * snapshot of this login and account are offered as choices; any UUID can still be entered, and collection checks it.
- */
 function reportParentField(key, parent, account) {
   const choices = account.parent_campaigns?.campaigns ?? [],
     completed = account.parent_campaigns?.completed_at,

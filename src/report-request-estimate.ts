@@ -60,6 +60,7 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         platform: source.platform,
         account_id: source.account_id,
         ...(source.source_ref !== undefined ? {source_ref: source.source_ref, level} : {}),
+        ...(source.scope_supporting ? {purpose: 'scope_rollup', visible: false} : {}),
         periods: count,
         collection: daily ? 'native_daily' : 'per_period',
         requests:

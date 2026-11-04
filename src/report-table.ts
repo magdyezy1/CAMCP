@@ -3,6 +3,7 @@ import {exportedRecommendation} from './report-metrics.js';
 import {MirrorError} from './errors.js';
 import {csvField} from './csv-safety.js';
 import type {JsonObject} from './types.js';
+import {reportRollupLabel} from './report-scope-rollups.js';
 
 /**
  * The report table every export of a saved report uses: the Google Sheets tab (src/google-sheets.ts, which re-exports
@@ -55,6 +56,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
   const status = JSON.stringify(exportSourceStatus(report));
   const fields = reportTableFields(report);
   const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
+  const rolled = report.rows.some((row: JsonObject) => row.aggregation?.kind === 'rolled_up');
   const values: any[][] = [
     [
       'Platform',
@@ -84,6 +86,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       'Formula version',
       'Formula fingerprint',
       ...(version >= 2 ? ['Recommendation basis'] : []),
+      ...(rolled ? ['Aggregation'] : []),
     ],
   ];
   for (const r of report.rows)
@@ -121,6 +124,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       report.config.formula_version ?? 'legacy-unversioned',
       report.config.formula_fingerprint ?? '',
       ...(version >= 2 ? [recommendationBasis(r)] : []),
+      ...(rolled ? [reportRollupLabel(r)] : []),
     ]);
   if (values.some(row => row.some(v => typeof v === 'string' && v.length > 48000)))
     throw new MirrorError(

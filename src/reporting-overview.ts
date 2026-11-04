@@ -94,7 +94,9 @@ import {
   projectOverviewV4Rows,
   projectOverviewV4Sources,
   overviewDefinitionConfig,
+  overviewV4ScopeContract,
 } from './overview-v4.js';
+import {applyScopedRollups} from './report-scope-rollups.js';
 import {
   reportPack,
   retainedPresentation,
@@ -639,6 +641,7 @@ export class ReportingOverview {
         : null,
       checkpoints: {},
       ...extra,
+      ...(config.contract_version === overviewConfigV4 ? {scope_contract: overviewV4ScopeContract} : {}),
     });
     const jobId = store.enqueue(actor.tenantId, 'report_overview', {report_id: id});
     store.putDocument(actor.tenantId, 'overview_report', id, {
@@ -1702,8 +1705,27 @@ export class ReportingOverview {
       store.putDocument(tenant, 'overview_report', r.id, r);
     }
     const contracts = platformContracts(r.config),
-      executionSources = expandOverviewV4Sources(r.config),
+      scopeRollups = r.config.contract_version === overviewConfigV4 && r.scope_contract === overviewV4ScopeContract,
+      executionSources = expandOverviewV4Sources(r.config, scopeRollups),
       retainedParts = new ReportParts(store, tenant, r);
+    if (
+      scopeRollups &&
+      executionSources.some(
+        (_source: JsonObject, i: number) =>
+          retainedParts.source(String(i), r.checkpoints?.[String(i)]).result?.scope?.filtering === 'after_collection',
+      )
+    ) {
+      const refusal = new MirrorError(
+        'REPORT_RESTART_REQUIRED',
+        'The retained scope was already filtered by an earlier report pipeline. Start a new snapshot; its existing evidence is preserved.',
+      );
+      store.putDocument(tenant, 'overview_report', r.id, {
+        ...r,
+        state: 'failed',
+        error: {code: refusal.code, message: refusal.message},
+      });
+      throw refusal;
+    }
     if (
       executionSources.some(
         (source: JsonObject, i: number) =>
@@ -1737,7 +1759,7 @@ export class ReportingOverview {
       state: 'running',
       started_at: r.started_at ?? Date.now(),
     });
-    const results: JsonObject[] = [];
+    let results: JsonObject[] = [];
     const sourceLookups = new Map<string, AccountLookupCache>();
     let retry: MirrorError | undefined;
     // OPS-08: counters and checkpoints are saved in their own small documents, so a save no longer rewrites the whole
@@ -1811,7 +1833,7 @@ export class ReportingOverview {
           });
           access();
           const result: JsonObject = {...captured, source};
-          if (r.config.contract_version === overviewConfigV4) {
+          if (r.config.contract_version === overviewConfigV4 && !scopeRollups) {
             const scoped = overviewV4Scope(source, result.rows, reportSource(source.platform)?.overview);
             result.rows = scoped.rows;
             result.scope = scoped.scope;
@@ -1852,6 +1874,7 @@ export class ReportingOverview {
           }
         }
       }
+      if (scopeRollups) results = applyScopedRollups(results, platform => reportSource(platform)!.overview!, budget);
     } finally {
       budget.close();
     }
@@ -1881,6 +1904,7 @@ export class ReportingOverview {
       ...(r.config.contract_version === overviewConfigV4 ? ['primary_result', 'cost_per_result'] : []),
     ]);
     for (const result of results) {
+      if (scopeRollups && result.source.scope_supporting) continue;
       const seen = new Set<string>();
       for (const row of result.rows) {
         const source = result.source,
@@ -1892,7 +1916,20 @@ export class ReportingOverview {
           ].join(':'),
           period = row.report_period ?? result.date_range ?? r.config.date_range,
           context = row.period_context ?? result,
-          rowKey = key + ':' + period.since + ':' + period.until;
+          rowKey =
+            key +
+            ':' +
+            period.since +
+            ':' +
+            period.until +
+            (row.aggregation?.kind === 'rolled_up'
+              ? ':' +
+                fingerprint({
+                  currency: row.currency ?? context.currency,
+                  timezone: context.timezone,
+                  attribution: context.attribution,
+                })
+              : '');
         if (seen.has(rowKey))
           throw new MirrorError(
             row.entity_level ? 'DUPLICATE_ENTITY_ROWS' : 'DUPLICATE_CAMPAIGN_ROWS',
@@ -1991,12 +2028,19 @@ export class ReportingOverview {
       assignRecommendationsV4(rows, r.config.targets, custom, (r.config.grain ?? 'total') !== 'total');
     else if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
     const v4 = r.config.contract_version === overviewConfigV4,
-      scopedRowCount = results.reduce((n, s) => n + s.rows.length, 0),
-      sourceRowCount = results.reduce(
+      requestedResults = scopeRollups ? results.filter(packet => !packet.source.scope_supporting) : results,
+      scopedRowCount = requestedResults.reduce((n, s) => n + s.rows.length, 0),
+      sourceRowCount = requestedResults.reduce(
         (n, s) => n + (v4 ? (s.scope?.returned_rows ?? s.rows.length) : s.rows.length),
         0,
       ),
-      filteredRowCount = sourceRowCount - rows.length;
+      scopeInputRowCount = requestedResults.reduce(
+        (n, s) => n + (s.scope?.input_rows ?? s.scope?.returned_rows ?? s.rows.length),
+        0,
+      ),
+      filteredRowCount = scopeInputRowCount - rows.length,
+      derivedRows = requestedResults.reduce((n, s) => n + (s.scope?.rollup?.derived_rows ?? 0), 0),
+      hasRollups = requestedResults.some(packet => packet.scope?.rollup);
     const failures = results.filter(s => s.error),
       sources =
         r.config.contract_version === overviewConfigV4
@@ -2027,16 +2071,25 @@ export class ReportingOverview {
         ...(v4
           ? {
               scoped_row_count: scopedRowCount,
-              scope_filtered_row_count: sourceRowCount - scopedRowCount,
+              scope_filtered_row_count: scopeInputRowCount - scopedRowCount,
               objective_filtered_row_count: scopedRowCount - rows.length,
+              ...(hasRollups
+                ? {
+                    scope_input_row_count: scopeInputRowCount,
+                    derived_row_count: derivedRows,
+                    supporting_row_count: results
+                      .filter(packet => packet.source.scope_supporting)
+                      .reduce((n, packet) => n + (packet.scope?.returned_rows ?? packet.rows.length), 0),
+                  }
+                : {}),
             }
           : {}),
         empty_reason:
           rows.length || failures.length === results.length
             ? null
-            : v4 && sourceRowCount && !scopedRowCount
+            : v4 && (sourceRowCount || scopeInputRowCount) && !scopedRowCount
               ? 'scope_filter'
-              : sourceRowCount
+              : scopeInputRowCount
                 ? 'objective_filter'
                 : 'no_provider_rows',
         completed_at: Date.now(),

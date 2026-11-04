@@ -263,11 +263,23 @@ export const linkedinReportSource: ReportSource = {
       PENDING_DELETION: 'archived',
     });
   },
-  overview: overviewCapabilities([
-    {id: 'campaign', label: 'Campaign group', native_type: 'sponsoredCampaignGroup', preset: 'linkedin_campaign_group'},
-    {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
-    {id: 'ad', label: 'Creative', native_type: 'sponsoredCreative', preset: 'linkedin_creative'},
-  ]),
+  overview: {
+    ...overviewCapabilities([
+      {
+        id: 'campaign',
+        label: 'Campaign group',
+        native_type: 'sponsoredCampaignGroup',
+        preset: 'linkedin_campaign_group',
+      },
+      {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
+      {id: 'ad', label: 'Creative', native_type: 'sponsoredCreative', preset: 'linkedin_creative'},
+    ]),
+    scope_id_prefixes: {
+      campaign: 'urn:li:sponsoredCampaignGroup:',
+      adset: 'urn:li:sponsoredCampaign:',
+      ad: 'urn:li:sponsoredCreative:',
+    },
+  },
   resultRules: {
     selectors: [
       {
