@@ -54,4 +54,4 @@ acceptance is run.
 
 ## Latest qualification
 
-[V2 round 2 SDK foundation qualification of 2026-11-04](records/QUALIFICATION-V2-R2-SDK-2026-11-04.md), 2026-11-04.
+[Round 2 report scope checkpoint qualification — 2026-11-05](records/QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md), 2026-11-05.

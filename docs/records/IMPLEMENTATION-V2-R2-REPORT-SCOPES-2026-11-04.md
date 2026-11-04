@@ -83,6 +83,7 @@ verified the fix at campaign, ad set and ad levels. A refused metadata read also
 that read. The latest seven-file focused run passes 67 tests. Earlier candidate inputs are preserved separately;
 acceptance requires a fresh filtered candidate containing these follow-up fixes.
 
-Focused verification passes locally. Fresh filtered-candidate qualification is pending; this record must not be
-read as full B/C or Round 2 acceptance. No dependency or tool input schema was changed. All live provider/OAuth,
-amcp.shop, Railway, actual Sheets and deployment work remains owner-deferred.
+The corrected checkpoint subsequently passed fresh filtered qualification, recorded in the
+[2026-11-05 receipt](QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md). This record must not be read as full B/C or
+Round 2 acceptance. No dependency or tool input schema was changed. All live provider/OAuth, amcp.shop, Railway,
+actual Sheets and deployment work remains owner-deferred.
