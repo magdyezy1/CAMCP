@@ -3,15 +3,16 @@ status: record
 tier: engineering
 ---
 
-# V2 round 1 qualification of 2026-11-03
+# V2 round 1 qualification completed 2026-11-04
 
 This record covers V2-RPT-01, V2-RPT-02, V2-RPT-04, V2-RPT-05, V2-PRV-01, V2-PRV-02, V2-PRV-03,
 V2-MCP-01 and V2-WEB-01. Implementation started from `4035ad7c` on `impl/v2-round1`. The owner assigned all
 implementation, review and integration roles to one session; work was committed serially in the main checkout.
 No lane merge was necessary. Existing detached reviewer worktrees were left alone.
 
-**Closing qualification is in progress.** No push, deployment or live provider acceptance is claimed by this draft.
-Staging checks remain pending until staging is available. Production promotion belongs to the owner (D21).
+**Local closing qualification passed on 2026-11-04 (Africa/Cairo).** GitHub publication awaits the final record scan.
+The owner explicitly deferred live deployment and Task 29's staging checks and requested the GitHub push only.
+No live provider acceptance is claimed. Production promotion belongs to the owner (D21).
 
 ## Implementation commits
 
@@ -117,24 +118,57 @@ reach success with `handoff_success:true`.
 | Static web and route checks | Pass, 58/58 routes within their existing baselines |
 | Closing fast qualification | Pass, no failed stages |
 | Closing help correction | 44/44 affected help/preset tests, then 14/14 golden/version/docs checks |
-| Full public candidate gate | First run: 8,678 passed of 8,679; isolated delivery-history VM omitted a declared script dependency. Corrected in `d0566cd7`; full rerun pending |
-| Browser qualification | Pending |
-| Container layout parity | Pending |
-| MCP evaluation | 60 synthetic runs pass after the approved baseline recording, no regressions |
-| Differential review | Manual source review of T, R, P, M and W against the base completed; split allowance and stale help findings fixed; rendered qualification pending |
-| Pre-push scan and remote reconciliation | Preliminary scan clean across 33 commits; GitHub and the closing Git fetch confirm the expected base; final scan/push pending |
-| Staging live reads | Pending owner staging availability |
+| Full public candidate gate | `wave5-r1-gate-2`, source `1a7d7722`: 8,679/8,679 main tests and 4/4 capture tests, 0 failures/skips; every check stage passed with FFmpeg required in 515 s. First run had one isolated VM dependency omission, corrected in `d0566cd7` |
+| Browser qualification | `wave5-r1-browser-3 --qualification`, source `1a7d7722`: 1,392/1,392 cases, 0 failures, 52.09 minutes of the unchanged 75-minute budget; exact candidate binding verified |
+| Container layout parity | Passed outside Git with two workers and required FFmpeg: 8,682 passed, 0 failed, 1 POSIX-entrypoint skip, 8,683 total including capture; 1,331,019 ms. The skipped case passed in the Git Bash candidate. This is layout parity, not a Docker/Linux-image run |
+| MCP evaluation | Canonical clean build: 60 synthetic runs pass, 0 regressions, no harness fault, 5,338 ms |
+| Differential review | Manual source review of T, R, P, M and W against the base and representative rendered review completed; split allowance and stale help findings fixed; no unresolved source finding |
+| Pre-push scan and remote reconciliation | Clean across 42 commits and 13,383 added lines; retained live sample unchanged; all commits carry the CI-skip marker. Fresh branch-scoped fetch confirms the expected base is an ancestor. Final record scan/push pending |
+| Staging live reads and deployment | Deferred by the owner; no live qualification or deployment operation performed |
 
-The full gate will use a filtered public candidate with a literal empty live sample and the reviewed local
-dependencies. Synthetic provider requests, fixture writes and local HTTP tests are not live acceptance evidence.
+The full gate used a filtered public candidate with a literal empty live sample and the reviewed local dependencies.
+Its regenerated public reports matched the checkout. Synthetic requests and fixture writes are local evidence.
 The fixture correction loads the same notice renderer required by the real route and adds a markup-escaping check;
-all original download security assertions remain. Its focused delivery/notice suite passes 14/14. Browser input-map
-and compiled release-identity hashes are unchanged, so the rendered run continues against its original qualified tree.
-No provider/OAuth/production request, advertising mutation, real Sheets export or deployment was performed.
+all original download security assertions remain. Its focused delivery/notice suite passes 14/14. The differential
+review was manual: no differential-review tool was exposed in the available catalogue.
+No live provider/OAuth/production request, advertising mutation or real Sheets export was performed.
 The protected local prompt was never read, staged or copied into a candidate. Arabic copy still requires the
 owner/native-speaker review at the planned later sign-off.
 
+## Rendered qualification and package binding
+
+The accepted run started at 2026-11-03 23:26:49 UTC and finished at 2026-11-04 00:18:54 UTC. It ran every fixture kind:
+120 distinct scenarios, 70 kinds and 22 presentation variants, matching the previous accepted round's coverage.
+Playwright 1.62.1 used Chromium headless shell 148.0.7778.96 and pinned axe-core 4.14.0, engine SHA-256
+`20c09fe157a8a34a30e241aaa1fcdade657734f08ab379ecfbeb7d45cc46e878`.
+
+- Results SHA-256: `ee78fe4ced61d95c2cbcf701d4529bdba0bf524c35a2d26fd4ba7e9124126b42`.
+- Package SHA-256: `90eb0d785dc5ecd453af21779bf2750412138078e4469d3b512a9c360433e8bb`, 2,166 files / 61,662,558 bytes.
+- Browser input-map SHA-256: `dade19a5fbf76e057feb322ffd24a8456216c3be4ee3537641dc1cee7bfdc3ae`.
+- The official browser attachment reports `bound_to_package:true` for the passing public candidate. Earlier
+  interrupted runs are not accepted qualification. The browser's tracked tree was unchanged; `working_tree_clean`
+  is false only because of an untracked file outside the release scope.
+
+No selected automated WCAG A/AA rule was violated. All 3,878 measured focus indicators reached 3:1, with none missing;
+the twelve unchanged `not_focus_visible` samples are the non-scrolling Connectors command block in empty/reviewer
+fixtures. All six critical Arabic routes were probed at zero leaks. Accepted, refused and uncertain write journeys
+each completed four times: 28 synthetic writes, 0 provider writes, 0 external provider requests and 0 unhandled
+rejections. The slowest WCAG inspection took 685 ms of its 20-second deadline.
+
+Incomplete rule counts match the previous accepted run exactly: color-contrast 2,648 and
+label-content-name-mismatch 2,688. The icon-only navigation toggle and avatar initial retain their localized
+accessible names; contrast checks that could not determine obscured backgrounds remain incomplete. The 33 new literal
+selectors in the comparison are worker-health timing titles whose elapsed values vary between runs; no other new
+incomplete target was found. These automated checks do not establish complete accessibility certification.
+
+Representative English/Arabic, light/dark, narrow/desktop public and reporting screenshots were inspected, including
+the Arabic export outcome. Arabic glyphs join and the sampled controls and tables remain contained and legible.
+The later native-speaker, screen-reader and zoom sign-offs remain separate. Compared with the
+[previous accepted round](QUALIFICATION-4c-r7-2026-10-31.md), coverage, incomplete-rule counts, focus results and
+synthetic write outcomes are unchanged; duration is 52.09 rather than 55.0 minutes.
+
 ## Push boundary
 
-The only authorized target is `origin Work-here-V2`, after the round's closing gates. `Work-here` and production
-remain untouched. The run journal and Git remote verification will record the pushed head after a successful push.
+The only authorized target is `origin Work-here-V2`, after the round's closing gates. No other branch or tag is
+authorized. The run journal and Git remote verification will record the pushed head after a successful push.
+Live deployment and Task 29 remain deferred by the owner.

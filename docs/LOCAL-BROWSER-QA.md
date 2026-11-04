@@ -91,7 +91,7 @@ The qualification records of waves 2 to 4a below stay where they were written. R
 `docs/records/` (for example `QUALIFICATION-<wave>-<date>.md`, with its revision, digests and figures) and link
 it from here: since the documentation freeze (DOC-03), a current page cites no commit and repeats no long line of
 another current page, and `npm run docs:index:check` refuses one (`tools/docs-lint.mjs`). The latest is the
-[wave 4c round 7 qualification of 2026-10-31](records/QUALIFICATION-4c-r7-2026-10-31.md).
+[V2 round 1 qualification completed 2026-11-04](records/QUALIFICATION-V2-R1-2026-11-03.md).
 
 ## What it exercises
 

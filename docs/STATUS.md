@@ -54,4 +54,4 @@ acceptance is run.
 
 ## Latest qualification
 
-[V2 round 1 qualification of 2026-11-03](records/QUALIFICATION-V2-R1-2026-11-03.md), 2026-11-03.
+[V2 round 1 qualification completed 2026-11-04](records/QUALIFICATION-V2-R1-2026-11-03.md), 2026-11-03.
