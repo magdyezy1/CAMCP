@@ -203,8 +203,8 @@ async function collectInChild(root) {
       'dist/src/app-credentials.js',
     ].map(load),
   );
-  const {Client} = await import('@modelcontextprotocol/sdk/client/index.js'),
-    {InMemoryTransport} = await import('@modelcontextprotocol/sdk/inMemory.js');
+  const {Client} = await import('@modelcontextprotocol/client'),
+    {InMemoryTransport} = await import('@modelcontextprotocol/client');
   const surface = async allowWrites => {
     const store = new Store(':memory:', Buffer.alloc(32, 41).toString('base64')),
       actor = {tenantId: 'documentation-facts', userId: 'owner', role: 'admin'};

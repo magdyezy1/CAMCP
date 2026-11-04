@@ -1,16 +1,19 @@
 import type {IncomingHttpHeaders} from 'node:http';
-import type {Server} from '@modelcontextprotocol/sdk/server/index.js';
-import type {Transport} from '@modelcontextprotocol/sdk/shared/transport.js';
-import {SUPPORTED_PROTOCOL_VERSIONS, type JSONRPCMessage} from '@modelcontextprotocol/sdk/types.js';
+import {
+  createMcpHandler,
+  SdkError,
+  SdkErrorCode,
+  SUPPORTED_PROTOCOL_VERSIONS,
+  type Server,
+} from '@modelcontextprotocol/server';
 import {MirrorError} from '../src/errors.js';
 import type {JsonObject} from '../src/types.js';
 import {mcpServerCapabilities, mcpServerInfo, mcpServerInstructions} from './mcp.js';
 
 /**
- * MCP revision 2026-07-28 next to the legacy revisions (MCP-03 phase 3). The bundled SDK (1.32.1, the v1 line) speaks
- * only the initialize-based revisions up to 2025-11-25; its v2 line adds 2026-07-28 but is a dependency change the
- * owner has not approved. This module serves the modern revision on top of the same per-request MCP server, so both
- * eras share every handler, check and envelope; only the framing differs:
+ * MCP revision 2026-07-28 next to the legacy revisions (MCP-03 phase 3, V2-MCP-13). SDK v2's native per-request handler
+ * supplies modern framing and handler context; AMCP retains its published ingress errors, private caching rules and
+ * legacy discovery list. Both eras share every tool/resource/prompt handler and authority check:
  * - every request carries its version in `params._meta` and the `MCP-Protocol-Version` header, with `Mcp-Method` and,
  *   for tools/call, resources/read and prompts/get, `Mcp-Name` mirroring the body; a mismatch is 400 with -32020;
  * - an unsupported version is 400 with -32022 and the supported versions; an unknown method is 404 with -32601;
@@ -32,10 +35,7 @@ export type ModernProtocolMode = (typeof modernProtocolModes)[number];
 
 const versionKey = 'io.modelcontextprotocol/protocolVersion',
   capabilitiesKey = 'io.modelcontextprotocol/clientCapabilities',
-  clientInfoKey = 'io.modelcontextprotocol/clientInfo',
   serverInfoKey = 'io.modelcontextprotocol/serverInfo';
-/** Per-request protocol fields of `_meta` that the shared handlers do not read. */
-const requestFields = new Set([versionKey, capabilitiesKey, clientInfoKey, 'io.modelcontextprotocol/logLevel']);
 /** Caching hints: lists and guides change only with a release, but what a caller sees depends on their role. */
 const privateList = {ttlMs: 300000, cacheScope: 'private'} as const;
 /** The methods served in the modern era, the body field `Mcp-Name` mirrors, and the caching hints of the result. */
@@ -101,39 +101,6 @@ const invalidRequest = () =>
   );
 
 /**
- * One request handed to the shared MCP server and its one response taken back. Request-scoped notifications (progress
- * and log messages) are not forwarded: a modern request is answered with a single JSON object. When the connection
- * closes first (the client went away), the SDK aborts the handler and sends nothing, so the exchange ends with the
- * SDK's connection-closed error instead of waiting for good.
- */
-class SingleExchange implements Transport {
-  onclose?: () => void;
-  onerror?: (error: Error) => void;
-  onmessage?: (message: JSONRPCMessage) => void;
-  private reply?: (message: JsonObject) => void;
-  private id?: unknown;
-  async start() {}
-  async close() {
-    this.onclose?.();
-    this.reply?.({jsonrpc: '2.0', id: this.id as string, error: {code: -32000, message: 'Connection closed'}});
-  }
-  async send(message: JSONRPCMessage) {
-    if ('id' in message && ('result' in message || 'error' in message)) this.reply?.(message as JsonObject);
-  }
-  exchange(request: JsonObject): Promise<JsonObject> {
-    return new Promise(resolve => {
-      // The first answer wins: a response, or the closed connection.
-      this.reply = message => {
-        this.reply = undefined;
-        resolve(message);
-      };
-      this.id = request.id;
-      this.onmessage?.(request as JSONRPCMessage);
-    });
-  }
-}
-
-/**
  * The `server/discover` result: the same capabilities and instructions as the legacy `initialize` answer, whose
  * instructions follow the deployment's mode (a read-only deployment has its own).
  */
@@ -182,7 +149,7 @@ function validate(headers: IncomingHttpHeaders, message: JsonObject) {
       404,
     );
   if (method.name && mirroredHeader(headers['mcp-name']) !== params[method.name]) throw headerMismatch('Mcp-Name');
-  return {method, params, meta};
+  return {method};
 }
 
 /**
@@ -194,14 +161,16 @@ export async function serveModernRequest(
   server: Server,
   headers: IncomingHttpHeaders,
   message: unknown,
+  requestUrl = 'http://localhost/mcp',
 ): Promise<{status: number; body?: JsonObject}> {
   if (!isObject(message) || message.jsonrpc !== '2.0' || typeof message.method !== 'string') throw invalidRequest();
   // A notification is accepted without a response; this revision defines none on Streamable HTTP, and AMCP needs none.
   if (!('id' in message)) return {status: 202};
   if (!(typeof message.id === 'string' || Number.isSafeInteger(message.id))) throw invalidRequest();
-  const {method, params, meta} = validate(headers, message),
+  const {method} = validate(headers, message),
     identity = {[serverInfoKey]: mcpServerInfo()};
-  let response: JsonObject;
+  let response: JsonObject,
+    status = 200;
   if (message.method === 'server/discover') {
     // The instructions createMcpServer gave this server in its deployment's mode. A server without them was not made for
     // a deployment; answering with another mode's text could send a read-only deployment's client to prepare and execute.
@@ -211,25 +180,41 @@ export async function serveModernRequest(
   } else if (message.method === 'resources/templates/list')
     response = {jsonrpc: '2.0', id: message.id, result: {resourceTemplates: []}};
   else {
-    const rest = Object.fromEntries(Object.entries(params).filter(([key]) => key !== '_meta')),
-      forwarded = Object.fromEntries(Object.entries(meta).filter(([key]) => !requestFields.has(key))),
-      transport = new SingleExchange();
-    await server.connect(transport);
-    response = await transport.exchange({
-      jsonrpc: '2.0',
-      id: message.id,
-      method: message.method,
-      params: Object.keys(forwarded).length ? {...rest, _meta: forwarded} : rest,
-    });
+    const handler = createMcpHandler(() => server, {legacy: 'reject', responseMode: 'json'}),
+      requestHeaders = new Headers({'Content-Type': 'application/json', Accept: 'application/json, text/event-stream'});
+    for (const [name, value] of Object.entries(headers)) {
+      // Express already parsed this body. Its former transfer framing does not describe the new framing request.
+      if (['content-length', 'transfer-encoding', 'connection', 'keep-alive'].includes(name.toLowerCase())) continue;
+      if (Array.isArray(value)) for (const item of value) requestHeaders.append(name, item);
+      else if (value !== undefined) requestHeaders.set(name, value);
+    }
+    try {
+      const answer = await handler.fetch(
+        new Request(requestUrl, {method: 'POST', headers: requestHeaders, body: JSON.stringify(message)}),
+        {parsedBody: message},
+      );
+      // The SDK represents a disconnected exchange as an empty 499; keep AMCP's existing cancellation result.
+      if (answer.status === 499 && answer.body === null)
+        response = {jsonrpc: '2.0', id: message.id, error: {code: -32000, message: 'Connection closed'}};
+      else {
+        status = answer.status;
+        response = (await answer.json()) as JsonObject;
+      }
+    } catch (error) {
+      if (!(error instanceof SdkError && error.code === SdkErrorCode.ConnectionClosed)) throw error;
+      response = {jsonrpc: '2.0', id: message.id, error: {code: -32000, message: 'Connection closed'}};
+    } finally {
+      await handler.close();
+    }
   }
   if (isObject(response.error)) {
     // 2026-07-28 reports an unknown resource with -32602; -32002 belongs to the earlier revisions.
     const error = response.error.code === -32002 ? {...response.error, code: -32602} : response.error;
-    return {status: 200, body: {jsonrpc: '2.0', id: message.id, error}};
+    return {status, body: {jsonrpc: '2.0', id: message.id, error}};
   }
   const result = isObject(response.result) ? response.result : {};
   return {
-    status: 200,
+    status,
     body: {
       jsonrpc: '2.0',
       id: message.id,

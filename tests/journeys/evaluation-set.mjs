@@ -5,8 +5,8 @@
 // XML, every call read-only by its own hints, the store unchanged and egress at zero. The owner runs the same questions
 // through the skill's LLM runner (docs/OPERATIONS.md, "MCP evaluation set"); skillReport() measures its report.
 import fs from 'node:fs';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../../dist/server/mcp.js';
 import {actionContracts} from '../../dist/src/action-contracts.js';
 import {ledgerRowHints} from '../../dist/src/execution-status.js';

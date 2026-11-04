@@ -1,5 +1,5 @@
 import express from 'express';
-import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
+import {mcpAuthRouter} from '@modelcontextprotocol/server-legacy/auth';
 import {mcpOAuthProtocolRoutes} from './mcp-oauth-routes.js';
 import type {WebsiteSite} from './website-site.js';
 

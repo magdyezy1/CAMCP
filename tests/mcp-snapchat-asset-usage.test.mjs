@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Ajv from 'ajv';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {snapchatAssetUsageFixture, snapUsageIds as ids} from './fixtures/snapchat-asset-usage-data.mjs';
 import {fullDescription} from './fixtures/tool-help.mjs';

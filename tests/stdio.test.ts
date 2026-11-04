@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StdioClientTransport, getDefaultEnvironment} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {Client} from '@modelcontextprotocol/client';
+import {StdioClientTransport, getDefaultEnvironment} from '@modelcontextprotocol/client/stdio';
 import {removeTestDirectory} from './temp.js';
 test('standalone stdio process initializes, serves metadata and compiles a preview without credentials', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-stdio-'));

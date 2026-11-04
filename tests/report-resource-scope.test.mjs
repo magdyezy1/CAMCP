@@ -6,8 +6,8 @@ import {operationsPage} from '../dist/src/operations-feed.js';
 import {resumeReportRun} from '../dist/src/report-runs.js';
 import {DelegatedNativeCompiler} from '../dist/src/delegated-native.js';
 import Ajv from 'ajv';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {
   ga4ResourceConfig,

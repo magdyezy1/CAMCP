@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Ajv from 'ajv';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {linkedinAllocationFixture, linkedinAllocationIds} from './fixtures/linkedin-allocation-data.mjs';
 test('real MCP client captures LinkedIn campaign evidence, models and saves source-bound decimal budgets without provider mutations', async t => {

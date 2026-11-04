@@ -1,4 +1,4 @@
-import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {serveStdio} from '@modelcontextprotocol/server/stdio';
 import {createMcpServer} from './mcp.js';
 import {createRuntime} from './runtime.js';
 import {loadConfig} from './config.js';
@@ -11,8 +11,7 @@ const {store, service} = createRuntime(loadConfig(process.env, 'stdio'));
 const tenantId = process.env.MIRROR_TENANT_ID ?? 'local';
 store.ensureTenant(tenantId);
 const actor: Actor = {tenantId, userId: process.env.MIRROR_USER_ID ?? 'local-operator', role};
-const server = createMcpServer(service, actor);
-await server.connect(new StdioServerTransport());
+const server = serveStdio(context => createMcpServer(service, actor, {legacyGuideErrors: context.era === 'legacy'}));
 process.on('SIGTERM', () => {
   void server.close().finally(() => {
     store.close();

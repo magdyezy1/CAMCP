@@ -10,8 +10,8 @@ import {reportRunStatus, resumeReportRun} from '../dist/src/report-runs.js';
 import {operationsPage} from '../dist/src/operations-feed.js';
 import {ReportingService} from '../dist/src/reporting.js';
 import {createMcpServer} from '../dist/server/mcp.js';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 
 const gateway = 'reddit_native_action',
   connection = '11111111-1111-4111-8111-111111111119';

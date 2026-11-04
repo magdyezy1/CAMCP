@@ -14,8 +14,8 @@ import {
 import {normalize, differing, verificationContractVersion} from '../dist/src/verification-reads.js';
 import {metaPrefix} from '../dist/src/meta-version.js';
 import Ajv from 'ajv';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 
 /**

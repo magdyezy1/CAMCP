@@ -4,7 +4,7 @@
 // It needs a built dist (npm run build) and nothing else: no database file, key, credential or network. Every provider
 // is a synthetic fake, the global fetch is refused, and the workspace serves a reader, so a session can change nothing.
 // The store is in memory and discarded when the runner closes the process. Logs go to stderr; stdout is the protocol.
-import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {StdioServerTransport} from '@modelcontextprotocol/server/stdio';
 import {createMcpServer} from '../../../dist/server/mcp.js';
 import {evaluationWorkspace} from './workspace.mjs';
 

@@ -14,6 +14,12 @@ out-of-band spend approval, are recorded rather than reopened.
 Canonical IDs: `D`, `R` and `P` are the owner questions of the 2026-10-08 engineering review; three-letter IDs
 (`OPS-04`) are its register items; `B01`–`B32` are packages.
 
+## November 2026: V2 delivery
+
+| Date | Instruction | Outcome | Revisit trigger | Governs |
+|---|---|---|---|---|
+| 2026-11-04 | Continue Round 2 of the approved V2 plan; live deployment stays deferred | SDK v2 foundation first, preserving existing clients; [qualification](records/QUALIFICATION-V2-R2-SDK-2026-11-04.md) records its state. Publish only to Work-here-V2 after the round gates | Owner changes scope | V2-MCP-13, D15, D21 |
+
 ## October 2026: delivery instructions
 
 How the review's items are delivered, as the owner instructed. These govern the work, not product behaviour.

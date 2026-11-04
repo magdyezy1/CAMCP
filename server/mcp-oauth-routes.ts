@@ -1,6 +1,6 @@
 import express from 'express';
-import {createOAuthMetadata, type AuthRouterOptions} from '@modelcontextprotocol/sdk/server/auth/router.js';
-import {metadataHandler} from '@modelcontextprotocol/sdk/server/auth/handlers/metadata.js';
+import {createOAuthMetadata, type AuthRouterOptions} from '@modelcontextprotocol/server-legacy/auth';
+import {metadataHandler} from '@modelcontextprotocol/server-legacy/auth';
 import type {McpOAuth} from './mcp-oauth.js';
 
 /**

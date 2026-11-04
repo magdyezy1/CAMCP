@@ -1,14 +1,7 @@
-import {Server} from '@modelcontextprotocol/sdk/server/index.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema,
-  ErrorCode,
-  McpError,
-} from '@modelcontextprotocol/sdk/types.js';
+import {PerRequestHTTPServerTransport, Server} from '@modelcontextprotocol/server';
+import type {Transport} from '@modelcontextprotocol/server';
+
+import {ProtocolErrorCode, ProtocolError} from '@modelcontextprotocol/server';
 import type {Actor, JsonObject} from '../src/types.js';
 import {outcomeSchema, workflowTools} from '../src/workflow-outcomes.js';
 import {MirrorService, withExactIntegers} from '../src/service.js';
@@ -22,8 +15,21 @@ import {
 import {MirrorError} from '../src/errors.js';
 import {serverIdentity} from '../src/server-identity.js';
 import {serverInstructionsFor} from '../src/tool-annotations.js';
-/** JSON-RPC's "resource not found" (MCP-05); the SDK names only the generic codes. */
+/** AMCP's published legacy guide-error code; SDK v2 emits Invalid Params unless the legacy adapter restores it. */
 const resourceNotFound = -32002;
+/** SDK v2 normalizes resource errors in both eras. Preserve AMCP's published legacy guide error on legacy wires. */
+function keepLegacyGuideErrors<T extends Transport>(transport: T): T {
+  const send = transport.send.bind(transport);
+  transport.send = (message, options) => {
+    if ('error' in message && message.error.code === -32602) {
+      const data = message.error.data;
+      if (data && typeof data === 'object' && 'index' in data && data.index === 'amcp://guides/index')
+        return send({...message, error: {...message.error, code: resourceNotFound}}, options);
+    }
+    return send(message, options);
+  };
+  return transport;
+}
 /**
  * The one result envelope every tool returns (MCP-05): {success, data, meta} or {success:false, error, meta}. The AMCP
  * workflow tools also declare meta.workflow, the typed outcome a client can plan its next call from (MCP-07); the
@@ -48,6 +54,8 @@ export function toolOutputSchema(tool: string): JsonObject {
 /** Per-request hooks of the HTTP endpoint: `track` sees each tool call's work until it settles (SEC-02 in-flight cap). */
 export interface McpServerHooks {
   track?: <T>(work: Promise<T>) => Promise<T>;
+  /** A stdio factory selects modern framing before connecting its shared transport. */
+  legacyGuideErrors?: boolean;
 }
 /** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). */
 export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
@@ -61,32 +69,39 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
   // amcp_write inspect only, so its instructions never send a client to prepare or execute.
   const instructions = serverInstructionsFor(service.policy),
     server = new Server(mcpServerInfo(), {capabilities: mcpServerCapabilities(), instructions});
+  const connect = server.connect.bind(server);
+  server.connect = transport =>
+    connect(
+      hooks.legacyGuideErrors !== false && !(transport instanceof PerRequestHTTPServerTransport)
+        ? keepLegacyGuideErrors(transport)
+        : transport,
+    );
   createdInstructions.set(server, instructions);
-  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  server.setRequestHandler('resources/list', async () => {
     service.store.assertActorActive(actor);
     return {resources: guidanceResources};
   });
-  server.setRequestHandler(ReadResourceRequestSchema, async request => {
+  server.setRequestHandler('resources/read', async request => {
     service.store.assertActorActive(actor);
     try {
       return {contents: [readGuidance(request.params.uri)]};
     } catch (e) {
       if (e instanceof MirrorError && e.code === 'GUIDE_NOT_FOUND')
-        throw new McpError(resourceNotFound, 'Unknown AMCP guide URI.', {
+        throw new ProtocolError(resourceNotFound, 'Unknown AMCP guide URI.', {
           uri: String(request.params.uri).slice(0, 300),
           index: 'amcp://guides/index',
         });
       throw e;
     }
   });
-  server.setRequestHandler(ListPromptsRequestSchema, async () => {
+  server.setRequestHandler('prompts/list', async () => {
     service.store.assertActorActive(actor);
     return {prompts: [campaignPrompt]};
   });
-  server.setRequestHandler(GetPromptRequestSchema, async request => {
+  server.setRequestHandler('prompts/get', async request => {
     service.store.assertActorActive(actor);
     if (request.params.name !== campaignPrompt.name)
-      throw new McpError(ErrorCode.InvalidParams, 'Unknown AMCP prompt.', {
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, 'Unknown AMCP prompt.', {
         name: String(request.params.name).slice(0, 200),
         allowed: [campaignPrompt.name],
       });
@@ -94,16 +109,16 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
       return buildCampaignPrompt(request.params.arguments ?? {});
     } catch (e) {
       if (e instanceof MirrorError && e.code === 'INVALID_ARGUMENT')
-        throw new McpError(ErrorCode.InvalidParams, e.message, {allowed: {platform: campaignPlatforms}});
+        throw new ProtocolError(ProtocolErrorCode.InvalidParams, e.message, {allowed: {platform: campaignPlatforms}});
       throw e;
     }
   });
   // Like every other handler, the catalog is listed only to a credential that is still active (SEC-05).
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
+  server.setRequestHandler('tools/list', async () => {
     service.store.assertActorActive(actor);
     return {tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any};
   });
-  server.setRequestHandler(CallToolRequestSchema, async request => {
+  server.setRequestHandler('tools/call', async request => {
     // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
     const work = withExactIntegers(() => service.call(request.params.name, request.params.arguments ?? {}, actor)),
       result = await (hooks.track ? hooks.track(work) : work),

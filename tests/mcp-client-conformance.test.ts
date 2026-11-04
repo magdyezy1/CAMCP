@@ -3,21 +3,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import http from 'node:http';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import {auth, extractWWWAuthenticateParams, type OAuthClientProvider} from '@modelcontextprotocol/sdk/client/auth.js';
-import type {
-  OAuthClientInformationMixed,
-  OAuthClientMetadata,
-  OAuthTokens,
-} from '@modelcontextprotocol/sdk/shared/auth.js';
+import {Client} from '@modelcontextprotocol/client';
+import {StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
+import {auth, extractWWWAuthenticateParams, type OAuthClientProvider} from '@modelcontextprotocol/client';
+import type {OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens} from '@modelcontextprotocol/client';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService, strictOptions} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {createHttpApp} from '../server/http-app.js';
-import {Server} from '@modelcontextprotocol/sdk/server/index.js';
-import {CallToolRequestSchema} from '@modelcontextprotocol/sdk/types.js';
+import {Server} from '@modelcontextprotocol/server';
+
 import {
   dualEraProtocolVersions,
   isModernRequest,
@@ -705,8 +701,8 @@ test('MCP-03 phase 3: a 2026-07-28 request whose client goes away mid-call ends 
     aborted = false;
   const running = new Promise<void>(r => (started = r)),
     held = new Promise<void>(r => (finish = r));
-  server.setRequestHandler(CallToolRequestSchema, async (_request, extra) => {
-    extra.signal.addEventListener('abort', () => (aborted = true));
+  server.setRequestHandler('tools/call', async (_request, extra) => {
+    extra.mcpReq.signal.addEventListener('abort', () => (aborted = true));
     started();
     await held;
     return {content: [{type: 'text', text: 'late'}]};
@@ -866,7 +862,7 @@ test('MCP-03 conformance: each must-pass client profile (D14) discovers, registe
       assert.equal(challenge.status, 401, label);
       const {resourceMetadataUrl, scope} = extractWWWAuthenticateParams(challenge);
       assert.equal(scope, 'mcp:read', label);
-      // 2. Registration or metadata document, and the authorization request (SDK 1.32.1 client).
+      // 2. Registration or metadata document, and the authorization request through the SDK client.
       const provider = new SyntheticProvider(
         profile.redirect,
         {
@@ -915,13 +911,14 @@ test('MCP-03 conformance: each must-pass client profile (D14) discovers, registe
           serverUrl,
           resourceMetadataUrl,
           authorizationCode: callback.searchParams.get('code')!,
+          iss: callback.searchParams.get('iss')!,
           fetchFn: f.fetchFn,
         }),
         'AUTHORIZED',
         label,
       );
       assert.equal(provider.saved!.scope, 'mcp:read', label);
-      // SDK 1.32 keys stored credentials by the authorization server that discovery named (2026-07-28: credentials
+      // The SDK keys stored credentials by the authorization server that discovery named (2026-07-28: credentials
       // keyed by issuer). That stamp is the metadata issuer and the iss above, byte for byte, so a client that checks
       // iss against its stored binding accepts AMCP's responses and presents its stored credentials here again.
       assert.equal(provider.info!.issuer, metadata.issuer, label);

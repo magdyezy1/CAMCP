@@ -1,19 +1,15 @@
 import {randomBytes, randomUUID, createHash} from 'node:crypto';
 import type {Response} from 'express';
-import type {OAuthServerProvider, AuthorizationParams} from '@modelcontextprotocol/sdk/server/auth/provider.js';
-import type {
-  OAuthClientInformationFull,
-  OAuthTokens,
-  OAuthTokenRevocationRequest,
-} from '@modelcontextprotocol/sdk/shared/auth.js';
+import type {OAuthServerProvider, AuthorizationParams} from '@modelcontextprotocol/server-legacy/auth';
+import type {OAuthClientInformationFull, OAuthTokens, OAuthTokenRevocationRequest} from '@modelcontextprotocol/client';
 import {
   InvalidClientMetadataError,
   InvalidClientError,
   InvalidGrantError,
   InvalidScopeError,
   InvalidTargetError,
-} from '@modelcontextprotocol/sdk/server/auth/errors.js';
-import {redirectUriMatches} from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
+} from '@modelcontextprotocol/server-legacy/auth';
+import {redirectUriMatches} from '@modelcontextprotocol/server-legacy/auth';
 import {WebStore, type WebSession} from './web-store.js';
 import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
 import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';

@@ -4,8 +4,8 @@ import {reportingConfigScope, validateReportingConfig, reportQueryPage} from '..
 import {reportRunStatus, resumeReportRun} from '../dist/src/report-runs.js';
 import {operationsPage} from '../dist/src/operations-feed.js';
 import {DelegatedNativeCompiler} from '../dist/src/delegated-native.js';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 import Ajv from 'ajv';
 import {

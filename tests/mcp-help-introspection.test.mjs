@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {surfaceFixture} from '../tools/measure-tool-list.mjs';
 
@@ -14,6 +14,12 @@ async function connected(allowWrites = true) {
     client = new Client({name: 'Synthetic help evaluator', version: '1'}),
     [a, b] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(b), client.connect(a)]);
+  const wire = [],
+    receive = a.onmessage;
+  a.onmessage = (message, extra) => {
+    wire.push(message);
+    receive?.(message, extra);
+  };
   const call = async (name, args) => {
     const r = await client.callTool({name, arguments: args});
     assert.deepEqual(JSON.parse(r.content[0].text), r.structuredContent);
@@ -23,6 +29,7 @@ async function connected(allowWrites = true) {
   return {
     f,
     client,
+    wire,
     call,
     close: async () => {
       await client.close();
@@ -187,15 +194,20 @@ test('introspection shares the envelope, pages alike, and DV360 gains LIST_ACTIO
     await c.close();
   }
 });
-test('unknown guides and prompts use the protocol codes, and serverInfo names this build', async () => {
+test('unknown guides and prompts preserve wire codes, and serverInfo names this build', async () => {
   const c = await connected();
   try {
     await assert.rejects(c.client.readResource({uri: 'amcp://guides/nothing'}), e => {
-      assert.equal(e.code, -32002);
+      // SDK v2 reconstructs a ResourceNotFoundError after receipt, normalizing its code and retaining only the URI.
+      assert.equal(e.code, -32602);
       assert.equal(e.data.uri, 'amcp://guides/nothing');
-      assert.equal(e.data.index, 'amcp://guides/index');
       return true;
     });
+    const missing = c.wire.find(message => message.error?.data?.uri === 'amcp://guides/nothing');
+    assert.ok(missing, 'The legacy missing-guide reply is captured before SDK client normalization');
+    assert.equal(missing.error.code, -32002);
+    assert.equal(missing.error.data.uri, 'amcp://guides/nothing');
+    assert.equal(missing.error.data.index, 'amcp://guides/index');
     await assert.rejects(c.client.getPrompt({name: 'amcp_unknown', arguments: {}}), e => {
       assert.equal(e.code, -32602);
       assert.deepEqual(e.data.allowed, ['amcp_build_campaign']);

@@ -10,8 +10,8 @@
 // client's sanitized transcript (tools/mcp-eval.mjs --transcript) is measured by the same code.
 import assert from 'node:assert/strict';
 import {createHmac, randomBytes} from 'node:crypto';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../../dist/server/mcp.js';
 import {createWebsite} from '../../dist/server/website.js';
 import {createHttpApp} from '../../dist/server/http-app.js';

@@ -6,8 +6,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash, randomBytes} from 'node:crypto';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import {Client} from '@modelcontextprotocol/client';
+import {StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';

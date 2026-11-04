@@ -2,10 +2,10 @@ import {randomUUID} from 'node:crypto';
 import type {Server} from 'node:http';
 import path from 'node:path';
 import express, {type ErrorRequestHandler, type RequestHandler} from 'express';
-import {hostHeaderValidation} from '@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js';
-import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {hostHeaderValidation} from '@modelcontextprotocol/express';
+import {NodeStreamableHTTPServerTransport} from '@modelcontextprotocol/node';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
+import {Client} from '@modelcontextprotocol/client';
 import {createMcpServer} from './mcp.js';
 import {MirrorService} from '../src/service.js';
 import {Store} from '../src/store.js';
@@ -14,9 +14,9 @@ import {createWebsite} from './website.js';
 import {validateMcpToken} from './mcp-oauth.js';
 import type {WebsiteOptions} from './web-store.js';
 import type {Actor, JsonObject} from '../src/types.js';
-import {OAuthError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import {OAuthError} from '@modelcontextprotocol/server-legacy/auth';
 import {createReleaseStatus} from '../src/release-status.js';
-import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/sdk/types.js';
+import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/server';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
@@ -374,12 +374,22 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         if (dualEra && isModernRequest(req.headers, req.body)) {
           // The modern era: stateless, one JSON answer per request, no session (MCP-03 phase 3).
           res.on('close', () => void server.close());
-          const answer = await serveModernRequest(server, req.headers, req.body);
+          const answer = await runWithRequestId(res.locals.requestId, () =>
+            serveModernRequest(
+              server,
+              req.headers,
+              req.body,
+              new URL(req.originalUrl, options.publicOrigin ?? options.website?.origin ?? 'http://localhost').href,
+            ),
+          );
           if (answer.body) res.status(answer.status).json(answer.body);
           else res.status(answer.status).end();
           return;
         }
-        const transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
+        const transport = new NodeStreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+          enableJsonResponse: true,
+        });
         res.on('close', () => {
           void Promise.allSettled([transport.close(), server.close()]);
         });

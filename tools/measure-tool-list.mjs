@@ -3,8 +3,8 @@
 // transport refuses every request. Usage: npm run build && node tools/measure-tool-list.mjs
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {Client} from '@modelcontextprotocol/client';
+import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';

@@ -6,8 +6,8 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
-import {Client} from '@modelcontextprotocol/sdk/client/index.js';
-import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import {Client} from '@modelcontextprotocol/client';
+import {StreamableHTTPClientTransport} from '@modelcontextprotocol/client';
 import {creativePerformanceCases, seedCreativePerformance} from './fixtures/creative-performance-data.mjs';
 const actor = {tenantId: 'linked-performance-fixture', userId: 'operator', role: 'operator'};
 test('an unsafe numeric retained ad receipt cannot acquire another exact TikTok report identity', async () => {

@@ -1,8 +1,8 @@
 import https from 'node:https';
 import net from 'node:net';
 import {Readable} from 'node:stream';
-import type {OAuthClientInformationFull} from '@modelcontextprotocol/sdk/shared/auth.js';
-import {InvalidClientError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import type {OAuthClientInformationFull} from '@modelcontextprotocol/client';
+import {InvalidClientError} from '@modelcontextprotocol/server-legacy/auth';
 import {guardedLookup, type LinkRequest, type Resolver} from '../src/media-link.js';
 import {MirrorError} from '../src/errors.js';
 
