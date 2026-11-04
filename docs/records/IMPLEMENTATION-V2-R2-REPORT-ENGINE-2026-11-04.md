@@ -67,13 +67,24 @@ v4 response is 76,308 bytes (31.6%). The original one-third target failed before
 The fixture retains one shared account lookup plus four independent detail verification reads and sixteen unique
 source references. These values describe the fixture, not a live account or a universal compression guarantee.
 
-Focused reporting, exact arithmetic, LinkedIn compatibility and localization checks pass. The fresh filtered
-regression/fast/static checkpoint result is still pending; complete browser/container/evaluation qualification
-remains a closing-round gate. No legacy golden, route budget, architecture allowance, tool-size budget or security
-baseline has been relaxed.
+Implementation `0d40db01` and its separate D13/D14 recording `b045748c` passed a fresh filtered checkpoint:
+8,308 tests in 930 files, zero failures/skips, all six freshness checks, fast qualification, static browser checks
+and all 58 route budgets. The frozen public input tree is
+`8af3449f7cd60bbf74d0fe56fd07600c7ece887d958ec60b82e9001c6f97418c`; its packaged runtime is
+`1cc9195c3a26e7bd4af0ba764cf6bf43a65e01e6aaa0e1dd40f7e2907fc635c8`. The candidate was assembled from the reviewed
+working bytes before those commits. This later documentation receipt changes no executable input. Complete
+browser/container/evaluation/full-round qualification remains required; this is not B/C acceptance.
+
+The only golden recording changes nine whole service-list hashes/lengths, each by 129 bytes for optional native
+and lineage inclusion. Eight normal golden/version tests pass with updating disabled. D17's captured help schema
+remains 593 bytes with its original fingerprint. No legacy row golden, route/size budget, architecture allowance or
+security assertion was relaxed. The reporting page remains below its existing English budget (177,606/177,616).
+
 The reach mutation binding was updated for exact v4 display, preserving the deliberate multi-day reach-summing
-defect and its existing killing suite, with the v4 suite added. Catalogue applicability is checked; the isolated
-M5 experiment is part of the next filtered checkpoint, not a full mutation campaign.
+defect and its existing killing suite, with the v4 suite added. The unmutated named suites pass and catch M5's
+deliberate defect: one killed, zero survived, invalid or timed out. This was one isolated mutation in the filtered
+candidate; no full mutation campaign was run. Further status/scoped-empty/delivery-uncertainty cases, automatic
+migration, schedules/templates and complete website integration remain in progress.
 
 Meta's native result inner shape remains unverified and owner-live-deferred. Honest pinned scalar/action mappings
 remain labelled mapped. Unknown Reddit conversion and structured X attribution-channel results are not fabricated.
