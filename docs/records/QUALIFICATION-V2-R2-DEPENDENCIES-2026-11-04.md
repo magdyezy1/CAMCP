@@ -6,8 +6,9 @@ tier: engineering
 # V2 round 2 compatible dependency remediation of 2026-11-04
 
 This separate change follows the independently qualified SDK foundation (`3b950b2d`, record `9d94bf81`). It addresses
-existing advisory findings before Round 2 publication. Qualification of this patch is in progress; no push, deployment
-or live provider acceptance is claimed. The SDK package versions remain unchanged.
+existing advisory findings before Round 2 publication. The patch is locally qualified at
+`f32c79b1e04a600f648774ece739ee3adfcb74fc`; no push, deployment or live provider acceptance is claimed. The SDK package
+versions remain unchanged.
 
 ## Scope and supply-chain review
 
@@ -47,7 +48,7 @@ case also passes. These are synthetic local fixtures, not attempts against a dep
 | Actual SDK 1.32.1 clients | HTTP and stdio pass at 2025-11-25; frozen help and legacy guide code/index retained |
 | Canonical MCP evaluation | 60 runs pass, no regressions, 8,368 ms |
 | Filtered candidate related/fast/static/routes | 11 related files / 92 tests pass, all six freshness stages pass; fast/static and 58 routes pass with the generated empty sample |
-| Full backend gate | Pending after the isolated security commit, to cover the shared validator/HTTP dependency changes beyond the related selector |
+| Full filtered backend gate | 8,689 main tests plus four capture tests pass, zero failures/skips; every check stage passes in 483 seconds |
 
 The decoder cleanup addresses [body-parser's compressed-body advisory](https://github.com/advisories/GHSA-27r3-jxmh-p828).
 The proxy trust guard addresses [mapped-subnet trust](https://github.com/advisories/GHSA-jqcg-44mw-7w3h), and the collection
@@ -72,3 +73,7 @@ Live deployment, provider/OAuth reads and actual Sheets exports remain owner-def
 The lockfile is normalized to repository LF line endings before the full gate; its parsed graph is unchanged. This
 changes the package fingerprint from the earlier preflight's metadata bytes, so full qualification uses a fresh
 candidate assembled after normalization.
+
+The checkout and the full candidate have identical runtime artifact SHA-256
+`73c7fd6a7ad9d3814a4003307a59520589982cf4d6f359fb2f9e7c067209b0c7`. All regenerated reports match the checkout.
+No oracle, budget or golden was changed for this remediation.
