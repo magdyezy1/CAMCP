@@ -13,6 +13,7 @@ export async function linkedInCreativeMetadata(
   account: string,
   reading: string[],
   read: (query: JsonObject) => Promise<JsonObject>,
+  overviewV4 = false,
 ): Promise<JsonObject[]> {
   const owner = 'urn:li:sponsoredAccount:' + account,
     creatives: JsonObject[] = [];
@@ -61,6 +62,7 @@ export async function linkedInCreativeMetadata(
         id: row.id,
         campaign: row.campaign,
         name: typeof row.name === 'string' && row.name.trim() && row.name.length <= 1000 ? row.name : null,
+        ...(overviewV4 ? {status: row.status ?? null} : {}),
       });
     }
   }

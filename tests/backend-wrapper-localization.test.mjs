@@ -263,10 +263,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Result readers add three modules; the v4 boundary adds one.
   // Exact formula and advisory adapters add two further source modules.
   // V4 delivery-level reconciliation adds one source module without a new diagnostic.
-  assert.equal(files.length, 768);
+  // Scope/status metadata adds three modules.
+  assert.equal(files.length, 771);
   assert.equal(selected.filter(row => row.messages.size).length, 187);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
-  assert.equal(owned.size, 2857);
+  // Source-owned status applicability adds one refusal.
+  assert.equal(owned.size, 2858);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -283,7 +285,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // One durable objective-migration notice.
   // One formula refusal and two advisory coverage/definition messages.
   // The v4 aggregation explanations add two bilingual interface entries.
-  assert.equal(Object.keys(catalog).length, 11672);
+  // Seven v4 scope/status and request-estimate explanations.
+  assert.equal(Object.keys(catalog).length, 11679);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

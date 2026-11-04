@@ -5,6 +5,7 @@ import {zonedMidnight} from './workflows.js';
 import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
+import {reportStatus} from './report-status.js';
 import {
   xCampaignObjectives,
   xCampaignReport,
@@ -45,6 +46,14 @@ export const xResultRules: ReportResultRules = {
 /** X campaign rows as xCampaignReport (src/x-campaign-report.ts) prepares them: the metrics are already shared ones. */
 export const xReportSource: ReportSource = {
   platform: 'x',
+  readStatus(raw, {metadata = raw.entity_metadata}) {
+    return reportStatus(
+      metadata?.entity_status,
+      {ACTIVE: 'active', PAUSED: 'paused'},
+      metadata?.effective_status,
+      metadata?.deleted === true,
+    );
+  },
   overview: overviewCapabilities([{id: 'campaign', label: 'Campaign', native_type: 'campaign'}]),
   resultRules: xResultRules,
   readResult(raw, context) {
@@ -63,6 +72,8 @@ export const xReportSource: ReportSource = {
   nativeMetricCheck: false,
   // The campaign inventory and the active entities; the analytics requests are planned from them at run time.
   minimumRequestsPerPeriod: 2,
+  requestsPerPeriod: (_level, contract) =>
+    contract === 'overview-config-v4' ? (xActiveEntitiesMode() === 'off' ? 4 : 5) : 2,
   /**
    * The account's campaign inventory, the campaigns X reports as active (RPT-03), their line item objectives (RPT-07)
    * and the bounded analytics of those campaigns, each kept with the checkpoint so a resumed run asks X the same.
@@ -149,7 +160,13 @@ export const xReportSource: ReportSource = {
         ...(active ? {active, windows: mode === 'on'} : {}),
       },
     );
-    c.raw = report.rows.map(row => ({...row, objective: objectives!.campaigns?.[row.id] ?? row.objective}));
+    c.raw = report.rows.map(row => ({
+      ...row,
+      objective: objectives!.campaigns?.[row.id] ?? row.objective,
+      ...(c.source.reporting_contract === 'overview-config-v4'
+        ? {entity_metadata: inventory.find((entity: JsonObject) => entity.id === row.id)}
+        : {}),
+    }));
     c.complete = report.complete;
     c.collectionComplete = report.complete;
     c.context.no_activity_count = report.no_activity_count;

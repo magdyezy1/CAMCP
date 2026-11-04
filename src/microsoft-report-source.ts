@@ -21,15 +21,26 @@ import {
 import {reportList, type ReportSource} from './report-source.js';
 import {accountTimezone} from './account-metadata.js';
 import type {JsonObject} from './types.js';
+import {reportStatus} from './report-status.js';
 
 /** Microsoft Advertising campaign performance report rows (decimal money in the account currency). */
 export const microsoftReportSource: ReportSource = {
   platform: 'microsoft',
-  overview: overviewCapabilities([
-    {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-    {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'microsoft_ad_group'},
-    {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'microsoft_ad'},
-  ]),
+  readStatus(raw, {level}) {
+    return reportStatus(raw[level === 'ad' ? 'AdStatus' : level === 'adset' ? 'AdGroupStatus' : 'CampaignStatus'], {
+      Active: 'active',
+      Paused: 'paused',
+      Deleted: 'archived',
+    });
+  },
+  overview: {
+    ...overviewCapabilities([
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'microsoft_ad_group'},
+      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'microsoft_ad'},
+    ]),
+    status_basis: 'provider_report_status',
+  },
   resultRules: {
     selectors: [],
     default: {
@@ -62,6 +73,7 @@ export const microsoftReportSource: ReportSource = {
   nativeDetail: true,
   // The submission and the first poll.
   minimumRequestsPerPeriod: 2,
+  requestsPerPeriod: (level, contract) => (contract === 'overview-config-v4' || level === 'campaign' ? 2 : 1),
   // RPT-04 (owner policy P6): report days follow the account time zone, as Microsoft's report zone names it.
   timezoneRead: {zone: (data, gateway) => microsoftReportZone(accountTimezone(gateway, data)).timezone},
   /**
@@ -136,6 +148,9 @@ export const microsoftReportSource: ReportSource = {
                       'AccountId',
                       'CampaignId',
                       'CampaignName',
+                      ...(c.source.reporting_contract === 'overview-config-v4'
+                        ? [c.detail === 'ad' ? 'AdStatus' : c.detail === 'adset' ? 'AdGroupStatus' : 'CampaignStatus']
+                        : []),
                       ...(c.detail ? ['AdGroupId', 'AdGroupName'] : []),
                       ...(c.detail === 'ad' ? ['AdId', 'AdTitle'] : []),
                       'CurrencyCode',

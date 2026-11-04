@@ -71,3 +71,41 @@ test('X v4 refuses unsafe numeric inputs and binds exact checkpoints separately 
     error => error.code === 'REPORT_DEFINITION_CHANGED',
   );
 });
+
+test('X v4 campaign collection retains current inventory status beside historical performance', async () => {
+  for (const deleted of [false, true]) {
+    const requests = [],
+      c = {
+        source: {reporting_contract: 'overview-config-v4'},
+        account: 'synthetic',
+        range: {since: '2026-09-01', until: '2026-09-01'},
+        timezone: 'UTC',
+        extra: [],
+        checkpoint: {x_active_fallback: true},
+        warnings: [],
+        context: {},
+        save() {},
+        plan: (path, query = {}) => ({path, query, accountId: 'synthetic'}),
+        async run(plan) {
+          requests.push(plan);
+          assert.equal(plan.accountId, 'synthetic');
+          if (plan.path.endsWith('/campaigns'))
+            return {
+              data: [{id: 'one', name: 'Synthetic', entity_status: 'PAUSED', effective_status: 'ACTIVE', deleted}],
+            };
+          if (plan.path.endsWith('/line_items'))
+            return {data: [{id: 'line', campaign_id: 'one', objective: 'WEBSITE_CLICKS'}]};
+          assert.equal(plan.path, '/12/stats/accounts/synthetic');
+          return analytics({impressions: Array(24).fill('1'), billed_charge_local_micro: Array(24).fill('1')})(
+            plan.query,
+          );
+        },
+      };
+    await xReportSource.collect(c);
+    const row = normalizeNativeRowV4('x', c.raw[0]);
+    assert.equal(row.status, deleted ? 'archived' : 'paused');
+    assert.equal(row.native.status_evidence.effective_status, 'ACTIVE');
+    assert.equal(row.metrics.impressions, '24');
+    assert.equal(requests.find(request => request.path.endsWith('/campaigns')).query.with_deleted, true);
+  }
+});

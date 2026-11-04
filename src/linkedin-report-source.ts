@@ -20,6 +20,7 @@ import {linkedinReportPivots} from './workflows.js';
 import {mixedObjectiveGroup, resolveObjective} from './report-objectives.js';
 import {metricNumber} from './report-metrics.js';
 import {overviewCapabilities} from './report-source.js';
+import {reportStatus} from './report-status.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
 import {
@@ -75,6 +76,10 @@ export function linkedinBaseMetrics(windowDays: number, overviewV4 = false): str
 }
 const windowDays = (range: {since: string; until: string}) =>
   (Date.parse(range.until) - Date.parse(range.since)) / 86400000 + 1;
+const selectedMetrics = (days: number, v4: boolean, extra: string[] = []) =>
+  [...new Set([...linkedinBaseMetrics(days, v4), ...extra])].filter(
+    field => days <= 92 || field !== 'approximateMemberReach',
+  );
 const omittedCost = (row: JsonObject) =>
   row.costInLocalCurrency === undefined && metricNumber(row.impressions) === 0 && metricNumber(row.clicks) === 0;
 const rowReach = (row: JsonObject) =>
@@ -181,6 +186,7 @@ export function linkedinDetail(
     creatives: Record<string, JsonObject>;
   },
   rounding: Record<string, number>,
+  overviewV4 = false,
 ): {rows: JsonObject[]; parents: Record<string, JsonObject>} {
   const out: JsonObject[] = [],
     parents: Record<string, JsonObject> = {};
@@ -204,6 +210,7 @@ export function linkedinDetail(
       result = linkedinResults[String(campaign?.objective_type)],
       costOmitted = omittedCost(row);
     parents[urn] = {
+      ...(overviewV4 ? {entity_metadata: level === 'ad' ? creative : campaign} : {}),
       ...(groupUrn ? {campaign_id: groupUrn.split(':').at(-1), campaign_name: group?.name ?? null} : {}),
       ...(level === 'ad' && campaignUrn
         ? {adset_id: campaignUrn.split(':').at(-1), adset_name: campaign?.name ?? null}
@@ -245,6 +252,17 @@ export function linkedinDetail(
 /** LinkedIn adAnalytics at each native position; money in the verified account currency. */
 export const linkedinReportSource: ReportSource = {
   platform: 'linkedin',
+  readStatus(raw, {metadata = raw.entity_metadata}) {
+    return reportStatus(metadata?.status, {
+      ACTIVE: 'active',
+      PAUSED: 'paused',
+      ARCHIVED: 'archived',
+      CANCELED: 'archived',
+      CANCELLED: 'archived',
+      REMOVED: 'archived',
+      PENDING_DELETION: 'archived',
+    });
+  },
   overview: overviewCapabilities([
     {id: 'campaign', label: 'Campaign group', native_type: 'sponsoredCampaignGroup', preset: 'linkedin_campaign_group'},
     {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
@@ -349,7 +367,12 @@ export const linkedinReportSource: ReportSource = {
     'oneClickLeads',
   ],
   minimumRequestsPerPeriod: 1,
-  requestsPerPeriod: level => (level === 'campaign' ? 2 : 1),
+  requestsPerPeriod(level, contract, context) {
+    if (contract !== 'overview-config-v4') return level === 'campaign' ? 2 : 1;
+    const fields = selectedMetrics(context ? windowDays(context.range) : 1, true, context?.source.native_metrics),
+      fragments = Math.ceil(fields.length / 18);
+    return fragments * (level === 'campaign' ? 2 : 1) + (level === 'ad' ? 3 : 2);
+  },
   nativeDetail: true,
   fixedTimezone: reportZone,
   guided: linkedinGuidedReporting,
@@ -382,9 +405,7 @@ export const linkedinReportSource: ReportSource = {
       return `(year:${year},month:${month},day:${day})`;
     };
     const days = windowDays(c.range),
-      fields = [
-        ...new Set([...linkedinBaseMetrics(days, c.source?.reporting_contract === 'overview-config-v4'), ...c.extra]),
-      ].filter(field => days <= 92 || field !== 'approximateMemberReach');
+      fields = selectedMetrics(days, c.source?.reporting_contract === 'overview-config-v4', c.extra);
     if (new Set(c.extra).size > 18)
       invalidReportSource('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
     if (days > 92) c.warnings.push('LinkedIn reports reach only for windows of 92 days or less.');
@@ -502,8 +523,12 @@ export const linkedinReportSource: ReportSource = {
         ? await metadata(c, 'creative', reported, async urns =>
             Object.fromEntries(
               (
-                await linkedInCreativeMetadata(c.account, urns, query =>
-                  c.run(c.plan('/rest/adAccounts/' + c.account + '/creatives', query), false, 'creative_metadata'),
+                await linkedInCreativeMetadata(
+                  c.account,
+                  urns,
+                  query =>
+                    c.run(c.plan('/rest/adAccounts/' + c.account + '/creatives', query), false, 'creative_metadata'),
+                  c.source?.reporting_contract === 'overview-config-v4',
                 )
               ).map(row => [row.id, row]),
             ),
@@ -541,6 +566,7 @@ export const linkedinReportSource: ReportSource = {
         c.raw,
         {campaigns, groups, creatives},
         c.detailRounding,
+        c.source?.reporting_contract === 'overview-config-v4',
       );
     } else {
       const memberships = new Map<string, JsonObject[]>();
@@ -590,7 +616,13 @@ export const linkedinReportSource: ReportSource = {
           ...row,
           name: groups[urn]?.name,
           objectiveType: objective.native,
-          ...(v4 ? {type, amcp_result_groups: nativeGroups.length > 1 ? nativeGroups : undefined} : {}),
+          ...(v4
+            ? {
+                type,
+                entity_metadata: groups[urn],
+                amcp_result_groups: nativeGroups.length > 1 ? nativeGroups : undefined,
+              }
+            : {}),
           ...(objective.mixed
             ? {
                 group_objectives: objective.objectives,

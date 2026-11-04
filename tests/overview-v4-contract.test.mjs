@@ -21,6 +21,9 @@ const capabilities = {
   levels: ['campaign', 'adset', 'ad'].map(id => ({id, label: id, native_type: id})),
   defaults: {attribution: 'unknown', complete_window: null},
   option_names: ['attribution', 'complete_window'],
+  delivery_metrics: ['spend', 'impressions', 'clicks'],
+  supported_statuses: ['active', 'paused', 'archived', 'all'],
+  status_basis: 'current_configuration',
 };
 const source = {platform: 'fixture', account_id: '9007199254740993', connection_id: 'private-login'};
 const normalize = value => normalizeOverviewV4Source({...source, ...value}, capabilities);
@@ -143,13 +146,31 @@ test('v4 scope keeps exact IDs, validates statuses, and requires observed delive
     retained_rows: 1,
     excluded_rows: 3,
     excluded_unknown_rows: 1,
+    excluded_status_rows: 1,
     filtering: 'after_collection',
+    status_basis: 'current_configuration',
   });
   assert.equal(overviewV4Scope(normalize({delivered_only: false}), [metrics({})]).rows.length, 1);
   assert.equal(overviewV4Scope(normalize({}), [metrics({})]).scope.excluded_unknown_rows, 1);
   assert.equal(
     overviewV4Scope(normalize({}), [metrics({spend: null, impressions: '0', clicks: '0'})]).scope.excluded_unknown_rows,
+    1,
+  );
+  assert.equal(
+    overviewV4Scope(normalize({}), [metrics({spend: '0', impressions: '0', clicks: '0'})]).scope.excluded_unknown_rows,
     0,
+    'known zero activity is distinct from partly unknown activity',
+  );
+  assert.equal(overviewV4Scope(normalize({}), [metrics({spend: null, impressions: '1'})]).rows.length, 1);
+  assert.equal(
+    overviewV4Scope(normalize({}), [metrics({spend: '0.0000000001', impressions: '0', clicks: '0'})]).rows.length,
+    1,
+    'positive native activity is observed before display rounding',
+  );
+  assert.equal(
+    overviewV4Scope(normalize({statuses: ['active']}), [metrics({spend: '1'}, {status: 'UNMAPPED_NATIVE'})]).scope
+      .excluded_unknown_rows,
+    1,
   );
 });
 
@@ -556,7 +577,7 @@ test('saved v4 definitions keep an independently readable v3 form and the curren
         config: {
           ...f.config,
           contract_version: overviewConfigV4,
-          sources: [{...f.config.sources[0], objective: 'sales', levels: ['campaign']}],
+          sources: [{...f.config.sources[0], objective: 'sales', levels: ['campaign'], delivered_only: false}],
         },
       },
       f.actor,
@@ -608,10 +629,41 @@ test('an old binary refuses unrepresentable v4 scopes instead of silently wideni
   assert.equal(current.config_v4, undefined);
 });
 
+test('rollback refuses delivered-only scope unless the v3 form can retain every provider row', () => {
+  const legacy = delivered_only =>
+    overviewDefinitionForms(
+      {
+        contract_version: overviewConfigV4,
+        sources: [
+          normalizeOverviewV4Source(
+            {platform: 'google', account_id: '100', connection_id: 'login', delivered_only},
+            reportSource('google').overview,
+          ),
+        ],
+      },
+      platform => reportSource(platform).overview,
+    ).config.sources[0];
+  assert.equal(legacy(true).level, 'v4_required');
+  assert.throws(
+    () => overviewSourceLevel(legacy(true)),
+    error => error.code === 'INVALID_REPORT_LEVEL',
+  );
+  assert.equal(legacy(false).level, 'campaign');
+  assert.equal(legacy(false).delivery_metrics, undefined);
+  assert.equal(legacy(false).status_basis, undefined);
+});
+
 test('v4 rollback preserves incomplete campaign declarations instead of silently restoring advice', () => {
   const legacy = (platform, level, complete) => {
     const source = normalizeOverviewV4Source(
-      {platform, account_id: '100', connection_id: 'login', level, report_options: {complete_window: complete}},
+      {
+        platform,
+        account_id: '100',
+        connection_id: 'login',
+        level,
+        delivered_only: false,
+        report_options: {complete_window: complete},
+      },
       reportSource(platform).overview,
     );
     return overviewDefinitionForms(

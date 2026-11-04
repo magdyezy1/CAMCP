@@ -161,6 +161,19 @@ export function overviewGranularityFixture() {
     }
     assert.equal(method, 'GET', 'Advertising fixtures refuse mutations');
     if (url.hostname === 'graph.facebook.com') {
+      const metadataKind = /\/act_100\/(campaigns|adsets|ads)$/.exec(url.pathname)?.[1];
+      if (metadataKind)
+        return parent('meta', url, {
+          data: [
+            {
+              id: {campaigns: '101', adsets: '201', ads: '9007199254740993'}[metadataKind],
+              account_id: '100',
+              status: 'ACTIVE',
+              configured_status: 'ACTIVE',
+              effective_status: 'ACTIVE',
+            },
+          ],
+        });
       if (!url.pathname.endsWith('/insights'))
         return Response.json({
           id: 'act_100',

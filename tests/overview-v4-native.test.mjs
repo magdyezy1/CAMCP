@@ -6,10 +6,11 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
+import {estimateCollectionRequests} from '../dist/src/report-request-estimate.js';
 
 // Synthetic native transport, not a collector stub: exact request scopes, page metadata, hierarchy, result goals
 // and two account-local days exercise the same queue and provider boundary as production. No external requests.
-function fixture(t) {
+function fixture(t, {status = 'ENABLE'} = {}) {
   const actor = {tenantId: 'synthetic-v4-native', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 127).toString('base64')),
     connection = 'aaaaaaaa-1111-4111-8111-000000000003',
@@ -19,6 +20,7 @@ function fixture(t) {
       campaign_id: '101',
       campaign_name: 'Synthetic campaign',
       objective_type: 'WEB_CONVERSIONS',
+      operation_status: status,
     },
     groups = Array.from({length: 5}, (_, index) => ({
       advertiser_id: account,
@@ -27,6 +29,7 @@ function fixture(t) {
       adgroup_name: 'Synthetic group ' + index,
       optimization_goal: 'CONVERT',
       optimization_event: 'COMPLETE_PAYMENT',
+      operation_status: status,
     })),
     ads = groups.flatMap((group, index) =>
       Array.from({length: 8}, (_, ad) => ({
@@ -35,6 +38,7 @@ function fixture(t) {
         adgroup_id: group.adgroup_id,
         ad_id: String(1000 + index * 8 + ad),
         ad_name: 'Synthetic ad ' + (index * 8 + ad),
+        operation_status: status,
       })),
     ),
     requests = [],
@@ -219,6 +223,13 @@ test('real three-level TikTok collection reconciles native totals and returns un
   assert.equal(included.rows[0].metrics.cpa, '0.125', 'explicit native inclusion retains the full normalized metrics');
   assert.equal(included.rows[0].recommendation.evidence !== undefined, true);
   assert.equal(included.sources[0].lineage.length, 16);
+  const estimate = estimateCollectionRequests(current.config);
+  assert.equal(estimate.basis, 'conservative_first_page');
+  assert.equal(
+    estimate.estimated_requests,
+    f.requests.length,
+    'the first-page estimate includes native status/parent reads',
+  );
   assert.equal(
     included.rows.some(row => Object.hasOwn(row, 'lineage')),
     false,
@@ -237,4 +248,44 @@ test('real three-level TikTok collection reconciles native totals and returns un
         sourceReads: stored.sources[0].lineage.length,
       }),
   );
+});
+
+test('real native rows removed by an exact campaign scope remain counted as provider rows', async t => {
+  const f = fixture(t),
+    snapshot = await f.run({
+      contract_version: 'overview-config-v4',
+      sources: [{...f.source, levels: ['campaign'], campaign_ids: ['999']}],
+    });
+  assert.equal(snapshot.rows.length, 0);
+  assert.equal(snapshot.state, 'complete');
+  assert.equal(snapshot.empty_reason, 'scope_filter');
+  assert.equal(snapshot.source_row_count, 1);
+  assert.equal(snapshot.scoped_row_count, 0);
+  assert.equal(snapshot.sources[0].row_count, 1);
+  assert.equal(snapshot.sources[0].scope.excluded_rows, 1);
+});
+
+test('native TikTok status scope uses current entity configuration across all three levels', async t => {
+  for (const [native, status] of [
+    ['ENABLE', 'active'],
+    ['DISABLE', 'paused'],
+    ['DELETE', 'archived'],
+  ]) {
+    const f = fixture(t, {status: native}),
+      snapshot = await f.run({
+        contract_version: 'overview-config-v4',
+        sources: [{...f.source, levels: ['campaign', 'adset', 'ad'], statuses: [status]}],
+      });
+    assert.equal(snapshot.rows.length, 46);
+    assert.ok(snapshot.rows.every(row => row.status === status));
+    assert.equal(snapshot.sources[0].scope.excluded_unknown_rows, 0);
+    for (const path of ['/adgroup/get/', '/ad/get/'])
+      assert.ok(
+        f.requests.some(
+          url =>
+            url.pathname.endsWith(path) &&
+            JSON.parse(url.searchParams.get('fields') ?? '[]').includes('operation_status'),
+        ),
+      );
+  }
 });

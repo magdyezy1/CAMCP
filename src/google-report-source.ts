@@ -2,10 +2,15 @@ import {googleAdsCustomers} from './google-version.js';
 import {googleGuidedReporting} from './google-guided-reports.js';
 import {overviewCapabilities, reportList, type ReportSource} from './report-source.js';
 import {mappedReportResult} from './report-results.js';
+import {reportStatus} from './report-status.js';
 
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
 export const googleReportSource: ReportSource = {
   platform: 'google',
+  readStatus(raw, {level}) {
+    const entity = level === 'ad' ? raw.adGroupAd : level === 'adset' ? raw.adGroup : raw.campaign;
+    return reportStatus(entity?.status, {ENABLED: 'active', PAUSED: 'paused', REMOVED: 'archived'});
+  },
   overview: overviewCapabilities([
     {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
     {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'google_adset'},
@@ -123,7 +128,12 @@ const searchConsoleZone = 'America/Los_Angeles';
 /** Search Console rows of searchAnalytics.query: one row per first dimension key, or the whole site. */
 export const searchConsoleReportSource: ReportSource = {
   platform: 'gsc',
-  overview: overviewCapabilities([{id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'}]),
+  overview: {
+    ...overviewCapabilities([{id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'}]),
+    delivery_metrics: ['impressions', 'clicks'],
+    supported_statuses: ['all'],
+    status_basis: 'not_applicable',
+  },
   objectives: {
     name: 'Search Console',
     values: {},

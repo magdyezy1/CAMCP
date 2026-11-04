@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {ObjectiveTable} from './report-objectives.js';
 import type {ReportResultContext, ReportResultRules, ResolvedReportResult} from './report-results.js';
 import type {OverviewV4Capabilities} from './overview-v4.js';
+import type {ReportStatusReader} from './report-status.js';
 import type {DetailParentCache} from './overview-parents.js';
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -308,6 +309,8 @@ export interface ReportSource {
   readonly resultRules?: ReportResultRules;
   /** Objective/goal-led exact results for the v4 boundary; legacy row normalization is unchanged. */
   readResult?(raw: JsonObject, context: ReportResultContext): ResolvedReportResult;
+  /** Current native configured status, distinct from delivery observed during the report's date window. */
+  readonly readStatus?: ReportStatusReader;
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */
   readonly platform: string;
   /** Native metrics the Overview suggests for this platform's sources. */
@@ -337,8 +340,12 @@ export interface ReportSource {
    * request estimate made before any egress; pages beyond the first, retries and polls are not counted).
    */
   readonly minimumRequestsPerPeriod: number;
-  /** A level-specific lower bound, when this source needs a different number of data reads by position. */
-  requestsPerPeriod?(level: string, contract?: string): number;
+  /** Legacy lower bound, or the v4 first-page baseline including the source's nonempty metadata reads. */
+  requestsPerPeriod?(
+    level: string,
+    contract?: string,
+    context?: {source: JsonObject; range: {since: string; until: string}},
+  ): number;
   /**
    * RPT-02: the report day boundary the source's collector fixes, independent of account metadata (LinkedIn, Apple Ads
    * and Reddit report in UTC, Search Console in Pacific time); the account time zone otherwise.
@@ -392,6 +399,9 @@ export function overviewCapabilities(
 ): OverviewV4Capabilities {
   return {
     levels,
+    delivery_metrics: ['spend', 'impressions', 'clicks'],
+    supported_statuses: ['active', 'paused', 'archived', 'all'],
+    status_basis: 'current_configuration',
     defaults: {attribution: 'unknown', complete_window: null, ...defaults},
     option_names: [...new Set(['attribution', 'complete_window', ...Object.keys(defaults), ...optionNames])],
     ...(validateOptions ? {validateOptions} : {}),
@@ -504,8 +514,12 @@ export interface DetailParentReads {
 
 /** RPT-07: how a platform reads the native parents of detailed rows whose report response carries none. */
 export interface DetailParentReader {
+  readonly unavailableWarning?: string;
+  readonly limitedWarning?: string;
+  /** A source's proven legacy refusal envelope inside HTTP 200; other unmapped body failures still fail. */
+  readonly bodyRefused?: (error: MirrorError) => boolean;
   /** The parent read a detailed level needs (`scoped`: the source names one campaign), or undefined for none. */
-  kind(level: string, scoped: boolean): string | undefined;
+  kind(level: string, scoped: boolean, contract?: string): string | undefined;
   /** The headers of each read (LinkedIn's version and finder headers); none when absent. */
   headers?(): Record<string, string>;
   /** Reads the parents of the entities `ids` of `kind` and records each one it finds. */
@@ -540,6 +554,7 @@ export function optionalReadRefused(e: unknown): e is MirrorError {
     e instanceof MirrorError &&
     !e.retryable &&
     !e.code.startsWith('REPORT_') &&
+    e.details.layer !== 'credential' &&
     !accessRefusalCodes.has(e.code) &&
     [400, 403, 404].includes(e.status)
   );

@@ -7,18 +7,26 @@ import {overviewSourceLevel} from './overview-granularity.js';
 import {fixedReportTimezones} from './report-windows.js';
 import {reportSource} from './report-sources.js';
 import type {JsonObject} from './types.js';
-import {expandOverviewV4Sources} from './overview-v4.js';
+import {expandOverviewV4Sources, overviewConfigV4} from './overview-v4.js';
+import type {ReportSource} from './report-source.js';
 
 /**
  * RPT-03: the fewest provider requests a source can need, before any egress, from its report source
  * (src/report-sources.ts, ARC-04 stage F). Pages beyond the first, retries, polls and X analytics (planned from active
  * entities at run time) are excluded, so the estimate is a lower bound: a configuration refused here cannot fit the
- * whole-job collection budget.
+ * whole-job collection budget. V4 instead includes first-page metadata for nonempty results; its disclosed baseline
+ * can be conservative when no entities are returned or another level has already cached their metadata.
  */
-const dataRequestsPerPeriod = (platform: string, level = 'campaign', contract?: string) => {
+const dataRequestsPerPeriod = (
+  platform: string,
+  level = 'campaign',
+  contract?: string,
+  context?: Parameters<NonNullable<ReportSource['requestsPerPeriod']>>[2],
+) => {
   const source = reportSource(platform);
   return (
-    source?.requestsPerPeriod?.(level, contract) ?? (level === 'campaign' ? (source?.minimumRequestsPerPeriod ?? 1) : 1)
+    source?.requestsPerPeriod?.(level, contract, context) ??
+    (level === 'campaign' ? (source?.minimumRequestsPerPeriod ?? 1) : 1)
   );
 };
 /** Whether the source reads its account before collection (and verifies it after a multi-period collection). */
@@ -36,7 +44,8 @@ export const sourceRequestModel = (platform: string) => ({
 export function estimateCollectionRequests(config: JsonObject, limit = reportCollectionLimits.requests) {
   const seenAccounts = new Set<string>();
   const grain = config.grain ?? 'total',
-    count = reportPeriods(config.date_range, grain).length,
+    windows = reportPeriods(config.date_range, grain),
+    count = windows.length,
     sources = expandOverviewV4Sources({...config, sources: config.sources ?? []}).map((source: JsonObject) => {
       const daily = grain === 'daily' && nativeDailyCollection(config, source),
         level = overviewSourceLevel(source).id,
@@ -53,25 +62,40 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         ...(source.source_ref !== undefined ? {source_ref: source.source_ref, level} : {}),
         periods: count,
         collection: daily ? 'native_daily' : 'per_period',
-        requests: lookups + window + periods * dataRequestsPerPeriod(source.platform, level, source.reporting_contract),
+        requests:
+          lookups +
+          window +
+          periods *
+            dataRequestsPerPeriod(source.platform, level, source.reporting_contract, {
+              source,
+              range: daily ? config.date_range : windows[0]!,
+            }),
       };
     });
   return {
-    basis: 'minimum',
+    basis: config.contract_version === overviewConfigV4 ? 'conservative_first_page' : 'minimum',
     estimated_requests: sources.reduce((n: number, s: JsonObject) => n + s.requests, 0),
     limit,
     sources,
   };
 }
-/** Refuses a snapshot whose minimum request count already exceeds the whole-job budget, before any provider read. */
+/** Refuses a snapshot whose disclosed request estimate exceeds the whole-job budget, before any provider read. */
 export function assertCollectionEstimate(config: JsonObject) {
   const estimate = estimateCollectionRequests(config);
-  if (estimate.estimated_requests > estimate.limit)
+  if (estimate.estimated_requests > estimate.limit) {
+    if (config.contract_version === overviewConfigV4)
+      throw new MirrorError(
+        'REPORT_COLLECTION_LIMIT',
+        'The first-page request estimate exceeds this report’s collection limit. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.',
+        {dimension: 'requests', estimate},
+        422,
+      );
     throw new MirrorError(
       'REPORT_COLLECTION_LIMIT',
       'This report needs more provider requests than one snapshot may use. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.',
       {dimension: 'requests', estimate},
       422,
     );
+  }
   return estimate;
 }

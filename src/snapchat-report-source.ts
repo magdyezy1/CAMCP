@@ -5,6 +5,7 @@ import {snapchatGuidedReporting} from './snapchat-guided-reports.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
+import {reportStatus} from './report-status.js';
 
 /** Native optimization goals, not broad campaign objectives. Unpinned/app-source-specific goals stay unknown. */
 export const snapchatResultRules: ReportResultRules = {
@@ -46,6 +47,9 @@ export const snapchatResultRules: ReportResultRules = {
 /** Snapchat campaign stats rows (micros); conversions follow the campaign objective. */
 export const snapchatReportSource: ReportSource = {
   platform: 'snapchat',
+  readStatus(raw, {metadata = raw.entity_metadata}) {
+    return reportStatus(metadata?.status, {ACTIVE: 'active', PAUSED: 'paused'}, metadata?.delivery_status);
+  },
   requiresCompleteWindowDeclaration: true,
   overview: overviewCapabilities(
     [
@@ -110,6 +114,8 @@ export const snapchatReportSource: ReportSource = {
   nativeMetricContainer: 'stats',
   // The stats and the campaign inventory.
   minimumRequestsPerPeriod: 2,
+  requestsPerPeriod: (level, contract) =>
+    level === 'campaign' ? 2 : contract === 'overview-config-v4' ? (level === 'ad' ? 6 : 8) : 1,
   guided: snapchatGuidedReporting,
   /**
    * One account stats read by campaign over the account-local period, with the default windows or a campaign-level
@@ -155,6 +161,9 @@ export const snapchatReportSource: ReportSource = {
     ).map(r => r.campaign);
     c.raw = c.raw.map(r => ({
       ...r,
+      ...(c.source?.reporting_contract === 'overview-config-v4'
+        ? {entity_metadata: campaigns.find(campaign => campaign.id === r.id)}
+        : {}),
       name: campaigns.find(campaign => campaign.id === r.id)?.name,
       objective:
         campaigns.find(campaign => campaign.id === r.id)?.objective_v2_properties?.objective_v2_type ??

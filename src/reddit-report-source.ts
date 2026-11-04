@@ -6,6 +6,7 @@ import {redditReportWarning, savedRedditReportProblems} from './reddit-report-ru
 import type {JsonObject} from './types.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
+import {reportStatus} from './report-status.js';
 
 /** Only native fields in the captured v3 report enum. A conversion objective alone does not identify its event. */
 export const redditResultRules: ReportResultRules = {
@@ -62,6 +63,13 @@ const reportZone = 'UTC';
 /** Reddit Ads report rows, in upper- or lower-case field names; spend in micros, conversion value in cents (ACC-06). */
 export const redditReportSource: ReportSource = {
   platform: 'reddit',
+  readStatus(raw, {metadata = raw.entity_metadata}) {
+    return reportStatus(
+      metadata?.configured_status,
+      {ACTIVE: 'active', PAUSED: 'paused', ARCHIVED: 'archived', DELETED: 'archived'},
+      metadata?.effective_status,
+    );
+  },
   overview: overviewCapabilities([
     {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
     {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'reddit_ad_group'},
@@ -98,6 +106,8 @@ export const redditReportSource: ReportSource = {
   nativeDetail: true,
   // The report and the campaign inventory.
   minimumRequestsPerPeriod: 2,
+  requestsPerPeriod: (level, contract) =>
+    level === 'campaign' ? 2 : contract === 'overview-config-v4' ? (level === 'ad' ? 4 : 3) : 1,
   fixedTimezone: reportZone,
   // PRV-04: saved report queries that Reddit's 2026-12-08 breakdown rules will refuse.
   savedQueryRules: {
@@ -170,10 +180,20 @@ export const redditReportSource: ReportSource = {
           'Reddit ad group and ad names could not be read, so rows show IDs; parents still come from the report.',
         );
       }
-      c.detailRows = redditDetail(detail, c.raw, lists, c.account, c.detailRounding);
+      c.detailRows = redditDetail(
+        detail,
+        c.raw,
+        lists,
+        c.account,
+        c.detailRounding,
+        c.source.reporting_contract === 'overview-config-v4',
+      );
     }
     c.raw = c.raw.map(r => ({
       ...r,
+      ...(c.source.reporting_contract === 'overview-config-v4'
+        ? {entity_metadata: campaigns.find(campaign => campaign.id === r.campaign_id)}
+        : {}),
       campaign_name: campaigns.find(campaign => campaign.id === r.campaign_id)?.name,
       objective: campaigns.find(campaign => campaign.id === r.campaign_id)?.objective,
     }));

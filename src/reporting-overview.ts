@@ -680,6 +680,9 @@ export class ReportingOverview {
             levels: reportSource(id)?.overview?.levels ?? [],
             defaults: reportSource(id)?.overview?.defaults ?? {},
             option_names: reportSource(id)?.overview?.option_names ?? [],
+            delivery_metrics: reportSource(id)?.overview?.delivery_metrics ?? [],
+            supported_statuses: reportSource(id)?.overview?.supported_statuses ?? ['all'],
+            status_basis: reportSource(id)?.overview?.status_basis ?? 'not_applicable',
             requires_complete_window_declaration: reportSource(id)?.requiresCompleteWindowDeclaration === true,
           },
           request_model: sourceRequestModel(id),
@@ -1809,7 +1812,7 @@ export class ReportingOverview {
           access();
           const result: JsonObject = {...captured, source};
           if (r.config.contract_version === overviewConfigV4) {
-            const scoped = overviewV4Scope(source, result.rows);
+            const scoped = overviewV4Scope(source, result.rows, reportSource(source.platform)?.overview);
             result.rows = scoped.rows;
             result.scope = scoped.scope;
             result.quality = {...result.quality, scope: scoped.scope};
@@ -1987,7 +1990,12 @@ export class ReportingOverview {
     if (r.config.contract_version === overviewConfigV4)
       assignRecommendationsV4(rows, r.config.targets, custom, (r.config.grain ?? 'total') !== 'total');
     else if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
-    const sourceRowCount = results.reduce((n, s) => n + s.rows.length, 0),
+    const v4 = r.config.contract_version === overviewConfigV4,
+      scopedRowCount = results.reduce((n, s) => n + s.rows.length, 0),
+      sourceRowCount = results.reduce(
+        (n, s) => n + (v4 ? (s.scope?.returned_rows ?? s.rows.length) : s.rows.length),
+        0,
+      ),
       filteredRowCount = sourceRowCount - rows.length;
     const failures = results.filter(s => s.error),
       sources =
@@ -2016,12 +2024,21 @@ export class ReportingOverview {
         sources,
         source_row_count: sourceRowCount,
         filtered_row_count: filteredRowCount,
+        ...(v4
+          ? {
+              scoped_row_count: scopedRowCount,
+              scope_filtered_row_count: sourceRowCount - scopedRowCount,
+              objective_filtered_row_count: scopedRowCount - rows.length,
+            }
+          : {}),
         empty_reason:
           rows.length || failures.length === results.length
             ? null
-            : sourceRowCount
-              ? 'objective_filter'
-              : 'no_provider_rows',
+            : v4 && sourceRowCount && !scopedRowCount
+              ? 'scope_filter'
+              : sourceRowCount
+                ? 'objective_filter'
+                : 'no_provider_rows',
         completed_at: Date.now(),
         summary: reportSummary(rows, custom, r.config.contract_version === overviewConfigV4),
         // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.

@@ -1,5 +1,6 @@
 import {inBatches, type DetailParentReader, type DetailParentReads} from './report-source.js';
 import type {JsonObject} from './types.js';
+import type {MirrorError} from './errors.js';
 
 const tiktokId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -11,6 +12,11 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
  * names. At most 100 IDs per request.
  */
 export const tiktokDetailParents: DetailParentReader = Object.freeze({
+  // Preserve the existing optional parent refusal case, without guessing other undocumented TikTok codes.
+  bodyRefused: (error: MirrorError) =>
+    error.code === 'PLATFORM_ERROR' &&
+    (error.details.http_status ?? error.status) === 200 &&
+    (error.details.provider_code === 40001 || error.details.provider_code === '40001'),
   kind: (level: string) => (level === 'adset' ? 'tiktok_adgroup' : level === 'ad' ? 'tiktok_ad' : undefined),
   async read(
     kind: string,
@@ -18,6 +24,7 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
     {account, read, record, shape, foreign, refused, name, reportingContract}: DetailParentReads,
   ) {
     const resultFields = reportingContract === 'overview-config-v4' ? ['optimization_goal', 'optimization_event'] : [];
+    const statusFields = reportingContract === 'overview-config-v4' ? ['operation_status', 'secondary_status'] : [];
     const list = async (entity: 'campaign' | 'adgroup' | 'ad', wantedIds: string[], fields: string[]) => {
       const rows: JsonObject[] = [];
       for (const batch of inBatches(wantedIds, 100)) {
@@ -57,7 +64,9 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
       children = await list(
         child,
         reading,
-        child === 'ad' ? ['campaign_id', 'adgroup_id', 'ad_id'] : ['campaign_id', 'adgroup_id', ...resultFields],
+        child === 'ad'
+          ? ['campaign_id', 'adgroup_id', 'ad_id', ...statusFields]
+          : ['campaign_id', 'adgroup_id', ...resultFields, ...statusFields],
       );
     for (const row of children)
       if (!tiktokId(row.campaign_id) || (child === 'ad' && !tiktokId(row.adgroup_id)))
@@ -83,6 +92,7 @@ export const tiktokDetailParents: DetailParentReader = Object.freeze({
       record(String(row[child + '_id']), {
         ...(reportingContract === 'overview-config-v4'
           ? {
+              entity_metadata: {operation_status: row.operation_status, secondary_status: row.secondary_status},
               optimization_goal: (child === 'ad' ? group : row)?.optimization_goal ?? null,
               optimization_event: (child === 'ad' ? group : row)?.optimization_event ?? null,
             }

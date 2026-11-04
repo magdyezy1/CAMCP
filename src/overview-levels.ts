@@ -3,6 +3,7 @@ import {resolveObjective, type ObjectiveTable} from './report-objectives.js';
 import {fingerprint} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
 import {providerDecimalText} from './provider-decimal.js';
+import type {ReportStatusReader} from './report-status.js';
 import {providerById} from './provider-adapters.js';
 import type {JsonObject} from './types.js';
 import {
@@ -225,6 +226,8 @@ export function detailedOverviewRows(
   nativeParents: Record<string, JsonObject> = {},
   objectives?: ObjectiveTable,
   resultReader?: (raw: JsonObject, context: ReportResultContext) => ResolvedReportResult,
+  statusReader?: ReportStatusReader,
+  activityReader?: (raw: JsonObject) => boolean | null,
 ) {
   const descriptor = overviewSourceLevel(source),
     groups = new Map<string, {mapped: JsonObject[]; raw: JsonObject[]; parents: JsonObject}>();
@@ -245,7 +248,8 @@ export function detailedOverviewRows(
     invalid('The detailed entity changed native parents during collection.', 'REPORT_ACCOUNT_MISMATCH');
   for (let index = 0; index < captured.rows.length; index++) {
     const row = captured.rows[index],
-      raw = captured.native_rows[index];
+      raw = captured.native_rows[index],
+      metadataParents = nativeParents[row.entity_id] ?? {};
     if (typeof row.entity_id !== 'string' || !row.entity_id)
       invalid('The detailed report did not return its native entity identity.', 'REPORT_ID_MISSING');
     const parents: JsonObject =
@@ -263,14 +267,18 @@ export function detailedOverviewRows(
               ...(typeof raw.objective === 'string' ? {objective: raw.objective} : {}),
               adset_id: raw.adset_id,
               adset_name: raw.adset_name ?? null,
+              ...(metadataParents.entity_metadata ? {entity_metadata: metadataParents.entity_metadata} : {}),
             }
           : source.platform === 'snapchat' && source.campaign_id
             ? {
+                ...metadataParents,
                 campaign_id: source.campaign_id,
                 campaign_name: scopedParent?.name ?? null,
                 ...(typeof scopedParent?.objective === 'string' ? {objective: scopedParent.objective} : {}),
               }
-            : (nativeParents[row.entity_id] ?? {});
+            : metadataParents;
+    if (source.campaign_id && metadataParents.campaign_id && metadataParents.campaign_id !== source.campaign_id)
+      invalid('The detailed entity changed native parents during collection.', 'REPORT_ACCOUNT_MISMATCH');
     const prior = groups.get(row.entity_id);
     if (prior && fingerprint(prior.parents) !== fingerprint(parents))
       invalid('The detailed entity changed native parents during collection.', 'REPORT_ACCOUNT_MISMATCH');
@@ -302,7 +310,9 @@ export function detailedOverviewRows(
       ),
       // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
       omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key))),
-      {objective: nativeObjective, ...parentIds} = group.parents,
+      {objective: nativeObjective, entity_metadata: entityMetadata, ...parentIds} = group.parents,
+      status = v4 ? statusReader?.(group.raw[0]!, {level: descriptor.id, metadata: entityMetadata}) : undefined,
+      activity = v4 && activityReader ? group.raw.map(activityReader) : undefined,
       resolved = resolveObjective({
         platform: source.platform,
         table: objectives,
@@ -372,6 +382,7 @@ export function detailedOverviewRows(
       };
     }
     return {
+      ...(status ? {status: status.status} : {}),
       ...(omitted.length ? {omitted_as_zero: omitted} : {}),
       entity_id: id,
       entity_name: group.mapped.find(row => row.entity_name !== null)?.entity_name ?? id,
@@ -406,6 +417,10 @@ export function detailedOverviewRows(
         ),
       },
       native: {
+        ...(status ? {status_evidence: status} : {}),
+        ...(activity
+          ? {delivery_activity: activity.includes(true) ? true : activity.includes(null) ? null : false}
+          : {}),
         preset: descriptor.preset,
         entity_id: id,
         daily_rows: group.raw,

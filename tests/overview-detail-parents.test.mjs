@@ -38,10 +38,12 @@ test('the detailed levels with parent reads are the ones the module named, read 
         );
   assert.deepEqual(
     reportSourceList.filter(source => source.detailParents).map(source => source.platform),
-    ['tiktok', 'snapchat', 'linkedin'],
+    ['meta', 'tiktok', 'snapchat', 'linkedin'],
   );
   for (const source of reportSourceList.filter(source => source.detailParents))
     assert.ok(Object.isFrozen(source.detailParents), source.platform);
+  assert.equal(parents.detailParentKind('meta', 'campaign', false, 'overview-config-v4'), 'meta_campaign');
+  assert.equal(parents.detailParentKind('snapchat', 'adset', true, 'overview-config-v4'), 'snapchat_adsquad');
 });
 
 test('each parent read sends the headers the module sent: LinkedIn’s version and finder headers, none elsewhere', () => {

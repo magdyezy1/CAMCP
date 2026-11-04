@@ -5,6 +5,7 @@ import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
 import {tiktokNativeResult, collectTikTokCampaignResults} from './tiktok-report-results.js';
+import {reportStatus} from './report-status.js';
 import {
   tiktokCampaignWindowDays,
   tiktokStatusFilter,
@@ -22,6 +23,15 @@ export const tiktokEventsUnavailableWarning =
 /** TikTok integrated report rows (dimensions and metrics); conversions name the ad groups' optimization events. */
 export const tiktokReportSource: ReportSource = {
   platform: 'tiktok',
+  readStatus(raw, {level, metadata = raw.entity_metadata}) {
+    const entity = level === 'ad' ? 'AD' : level === 'adset' ? 'ADGROUP' : 'CAMPAIGN';
+    return reportStatus(
+      metadata?.operation_status,
+      {ENABLE: 'active', DISABLE: 'paused', DELETE: 'archived'},
+      metadata?.secondary_status,
+      metadata?.secondary_status === entity + '_STATUS_DELETE',
+    );
+  },
   requiresCompleteWindowDeclaration: true,
   overview: overviewCapabilities(
     [
@@ -78,7 +88,15 @@ export const tiktokReportSource: ReportSource = {
   // The report, the campaign inventory and the ad group optimization events (RPT-04).
   minimumRequestsPerPeriod: 3,
   requestsPerPeriod: (level, contract) =>
-    level === 'campaign' ? (contract === 'overview-config-v4' ? 4 : 3) : contract === 'overview-config-v4' ? 3 : 1,
+    level === 'campaign'
+      ? contract === 'overview-config-v4'
+        ? 4
+        : 3
+      : contract === 'overview-config-v4'
+        ? level === 'ad'
+          ? 6
+          : 5
+        : 1,
   guided: tiktokGuidedReporting,
   validateRange(source, range) {
     if (
@@ -203,7 +221,8 @@ export const tiktokReportSource: ReportSource = {
         };
       } catch (e) {
         if (!(e instanceof MirrorError) || e.retryable) throw e;
-        if (v4 && e.code !== 'INCOMPLETE_REPORT' && !optionalReadRefused(e)) throw e;
+        if (v4 && e.code !== 'INCOMPLETE_REPORT' && !optionalReadRefused(e) && !tiktokDetailParents.bodyRefused?.(e))
+          throw e;
         adgroupEvents = {events: {}, unavailable: true};
       }
       if (c.lookup) c.lookup.tiktokEvents = adgroupEvents;
@@ -212,6 +231,7 @@ export const tiktokReportSource: ReportSource = {
     const campaignEvents = adgroupEvents.events;
     c.raw = c.raw.map(r => ({
       ...r,
+      ...(v4 ? {entity_metadata: inventory.find(campaign => campaign.campaign_id === r.dimensions?.campaign_id)} : {}),
       objective_type: inventory.find(campaign => String(campaign.campaign_id) === String(r.dimensions?.campaign_id))
         ?.objective_type,
       optimization_events: Object.hasOwn(campaignEvents, String(r.dimensions?.campaign_id))

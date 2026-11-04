@@ -11670,5 +11670,12 @@
   "Primary result": "النتيجة الأساسية",
   "Cost per result": "التكلفة لكل نتيجة",
   "By result definition": "حسب تعريف النتيجة",
-  "Native cost or paired ratio": "تكلفة المنصة أو نسبة محسوبة من قيم متاحة معًا"
+  "Native cost or paired ratio": "تكلفة المنصة أو نسبة محسوبة من قيم متاحة معًا",
+  "Choose statuses supported by this report source.": "اختر حالات يدعمها مصدر التقرير هذا.",
+  "The native metadata level is unsupported.": "مستوى البيانات الوصفية الأصلي غير مدعوم.",
+  "Native entity metadata is malformed.": "بيانات الكيان الوصفية الأصلية غير سليمة.",
+  "The native entity belongs to another advertising account.": "ينتمي الكيان الأصلي إلى حساب إعلاني آخر.",
+  "Native entity metadata pagination is malformed.": "بيانات ترقيم صفحات البيانات الوصفية للكيان الأصلي غير سليمة.",
+  "Current native entity status could not be read. Status filters exclude unknown entities and keep the source partial.": "تعذرت قراءة الحالة الحالية للكيان من المنصة. تستبعد عوامل تصفية الحالة الكيانات ذات الحالة غير المعروفة وتُبقي المصدر جزئيًا.",
+  "The first-page request estimate exceeds this report’s collection limit. Use fewer accounts, a shorter window or a coarser grouping. Nothing was sent.": "يتجاوز تقدير طلبات الصفحة الأولى حد جمع هذا التقرير. استخدم حسابات أقل أو فترة أقصر أو تجميعًا أوسع. لم يُرسل أي طلب."
 }

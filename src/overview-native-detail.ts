@@ -113,6 +113,7 @@ export function redditDetail(
   lists: {campaigns: JsonObject[]; adGroups: JsonObject[]; ads: JsonObject[]},
   account: string,
   rounding: Record<string, number>,
+  overviewV4 = false,
 ) {
   const owned = (row: JsonObject) => row.ad_account_id === undefined || String(row.ad_account_id) === account;
   for (const row of [...lists.adGroups, ...lists.ads])
@@ -141,6 +142,7 @@ export function redditDetail(
     )
       foreign('The detailed entity changed native parents during collection.');
     parents[id] = {
+      ...(overviewV4 ? {entity_metadata: level === 'ad' ? ad : group} : {}),
       campaign_id: row.campaign_id,
       campaign_name: name(campaigns.get(row.campaign_id)?.name),
       ...(typeof campaigns.get(row.campaign_id)?.objective === 'string'
@@ -167,7 +169,13 @@ export function appleDetail(
   lists: {campaigns: JsonObject[]; adGroups: JsonObject[]; ads: JsonObject[]},
   currency: string | null,
   rounding: Record<string, number>,
+  v4?: {account: string},
 ) {
+  if (v4)
+    for (const row of [...lists.campaigns, ...lists.adGroups, ...lists.ads]) {
+      if (row.adAccountId === undefined) shape('Native entity metadata is malformed.');
+      if (String(row.adAccountId) !== v4.account) foreign('The native entity belongs to another advertising account.');
+    }
   const campaigns = new Map(lists.campaigns.map(c => [idText(c.id), c])),
     groups = new Map(lists.adGroups.map(g => [idText(g.id), g])),
     ads = new Map(lists.ads.map(a => [idText(a.id), a])),
@@ -194,6 +202,7 @@ export function appleDetail(
       campaignId === undefined
         ? {}
         : {
+            ...(v4 ? {entity_metadata: level === 'ad' ? ad : group} : {}),
             campaign_id: campaignId,
             campaign_name: name(campaigns.get(campaignId)?.name),
             ...(level === 'ad' && group ? {adset_id: idText(group.id), adset_name: name(group.name)} : {}),
@@ -228,6 +237,8 @@ export function nativeDetailResult(
     rounding: Record<string, number>;
     objectives?: ObjectiveTable;
     resultReader?: ReportSource['readResult'];
+    statusReader?: ReportSource['readStatus'];
+    activityReader?: (raw: JsonObject) => boolean | null;
   },
 ) {
   const descriptor = overviewSourceLevel(source),
@@ -264,6 +275,8 @@ export function nativeDetailResult(
       detail.parents,
       base.objectives,
       base.resultReader,
+      base.statusReader,
+      base.activityReader,
     ),
     metadata: base.metadata,
     account_name: base.metadata.name ?? base.metadata.displayName ?? null,

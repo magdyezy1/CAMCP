@@ -39,8 +39,13 @@ export {accessRefusalCodes, detailParentsUnavailableWarning, optionalReadRefused
 export const detailParentsLimitedWarning =
   'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.';
 /** The detailed levels whose report rows carry no parents of their own (the platform's report source says which). */
-export function detailParentKind(platform: string, level: string, scoped = false): string | undefined {
-  return reportSource(platform)?.detailParents?.kind(level, scoped);
+export function detailParentKind(
+  platform: string,
+  level: string,
+  scoped = false,
+  contract?: string,
+): string | undefined {
+  return reportSource(platform)?.detailParents?.kind(level, scoped, contract);
 }
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const name = (v: unknown) => (typeof v === 'string' && v.length <= 1000 ? v : null);
@@ -67,7 +72,7 @@ export async function detailParents(
   actor: Actor,
   cache: DetailParentCache = {parents: {}, lineage: []},
 ): Promise<{parents: Record<string, JsonObject>; lineage: JsonObject[]; warnings: string[]}> {
-  const kind = detailParentKind(String(source.platform), level, !!source.campaign_id);
+  const kind = detailParentKind(String(source.platform), level, !!source.campaign_id, source.reporting_contract);
   if (!kind) return {parents: {}, lineage: [], warnings: []};
   const reports = reportSource(String(source.platform))!,
     reader = reports.detailParents!;
@@ -158,6 +163,7 @@ export async function detailParents(
       for (const id of reading) cache.parents[id] = found[id] ?? {};
       cache.lineage.push(...lineage);
     } catch (e) {
+      current();
       // Only a provider refusal of this optional read keeps unknown parents (an HTTP 400/403/404, or a refusal the
       // provider states in its response body). A foreign, malformed or partial record, a retryable failure, a scope
       // guard refusal, or a revoked connection or credential fails the source.
@@ -165,7 +171,8 @@ export async function detailParents(
         !(e instanceof MirrorError) ||
         e.retryable ||
         accessRefusalCodes.has(e.code) ||
-        (e.code !== 'DETAIL_PARENTS_REFUSED' && e.code !== 'PLATFORM_ERROR' && !optionalReadRefused(e))
+        e.details.layer === 'credential' ||
+        (e.code !== 'DETAIL_PARENTS_REFUSED' && !optionalReadRefused(e) && !reader.bodyRefused?.(e))
       )
         throw e;
       cache.unavailable = true;
@@ -175,8 +182,8 @@ export async function detailParents(
     parents: Object.fromEntries(ids.filter(id => Object.hasOwn(cache.parents, id)).map(id => [id, cache.parents[id]!])),
     lineage: [...known, ...lineage],
     warnings: [
-      ...(cache.unavailable ? [detailParentsUnavailableWarning] : []),
-      ...(cache.limited ? [detailParentsLimitedWarning] : []),
+      ...(cache.unavailable ? [reader.unavailableWarning ?? detailParentsUnavailableWarning] : []),
+      ...(cache.limited ? [reader.limitedWarning ?? detailParentsLimitedWarning] : []),
     ],
   };
 }

@@ -51,6 +51,7 @@ const refusal = async (promise, code) => {
     return true;
   });
 };
+const currentSource = (...args) => ({...source(...args), reporting_contract: 'overview-config-v4'});
 
 // ---- Microsoft ----
 function microsoft(rows) {
@@ -403,5 +404,71 @@ test('the three providers expose ad-group and ad levels with the guided detailed
     }
     // Campaign sources keep their original shape: no detailed settings.
     assert.equal(overviewSourceLevel({platform, account_id: account, connection_id: 'login'}).id, 'campaign');
+  }
+});
+
+test('Microsoft v4 selects and retains the current status column for each native detail level', async () => {
+  for (const level of ['adset', 'ad']) {
+    const f = microsoft([msGroup('41', {AdId: '51', AdGroupStatus: 'Paused', AdStatus: 'Deleted'})]);
+    try {
+      const result = await f.native.collect(currentSource('microsoft', '123', level), range, actor),
+        submit = f.plans.find(plan => plan.action === 'SubmitGenerateReport');
+      assert.equal(result.rows[0].status, level === 'ad' ? 'archived' : 'paused');
+      assert.ok(JSON.stringify(submit).includes(level === 'ad' ? 'AdStatus' : 'AdGroupStatus'));
+    } finally {
+      f.close();
+    }
+  }
+});
+
+test('Reddit v4 uses current configured child status even when effective status or parent status differs', async () => {
+  for (const level of ['adset', 'ad']) {
+    const f = reddit([redditRow(level === 'adset' ? {ad_id: undefined} : {})], {
+      adGroups: redditGroups.map(row => ({...row, configured_status: 'ACTIVE'})),
+      ads: redditAds.map(row => ({...row, configured_status: 'PAUSED', effective_status: 'ACTIVE'})),
+    });
+    try {
+      const result = await f.native.collect(currentSource('reddit', 't2_acct', level), range, actor);
+      assert.equal(result.rows[0].status, level === 'ad' ? 'paused' : 'active');
+      assert.equal(result.rows[0].parent_ids.entity_metadata, undefined);
+    } finally {
+      f.close();
+    }
+  }
+});
+
+test('Apple v4 reads advertiser-controlled current status rather than the report display label', async () => {
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const entity = {campaign: 501, adset: 601, ad: 701}[level],
+      row = {...appleRow(entity), metadata: {id: entity, name: 'Synthetic', status: 'RUNNING'}},
+      records = Object.fromEntries(
+        Object.entries(appleRecords).map(([key, values]) => [
+          key,
+          values.map(value => ({...value, status: 'PAUSED', systemStatus: 'RUNNING'})),
+        ]),
+      ),
+      f = apple([row], records);
+    try {
+      const result = await f.native.collect(currentSource('apple', '500', level), range, actor);
+      assert.equal(result.rows[0].status, 'paused');
+      assert.equal(result.rows[0].native.status_evidence.native_status, 'PAUSED');
+      assert.ok(f.plans.some(plan => plan.action === 'apple_ads_v1_campaigns_query'));
+    } finally {
+      f.close();
+    }
+  }
+});
+
+test('Apple v4 refuses foreign current metadata at campaign and ad levels', async () => {
+  for (const level of ['campaign', 'ad']) {
+    const records = structuredClone(appleRecords),
+      key = level === 'ad' ? 'ads' : 'campaigns';
+    records[key][0].adAccountId = 999;
+    const f = apple([appleRow(level === 'ad' ? 701 : 501)], records);
+    try {
+      await refusal(f.native.collect(currentSource('apple', '500', level), range, actor), 'REPORT_ACCOUNT_MISMATCH');
+    } finally {
+      f.close();
+    }
   }
 });

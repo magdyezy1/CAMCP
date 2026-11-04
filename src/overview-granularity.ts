@@ -33,6 +33,8 @@ export async function collectDetailedOverview(
   lookup: AccountLookupCache = {},
   objectives?: ObjectiveTable,
   resultReader?: ReportSource['readResult'],
+  statusReader?: ReportSource['readStatus'],
+  activityReader?: (raw: JsonObject) => boolean | null,
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -109,7 +111,15 @@ export async function collectDetailedOverview(
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),
-    rows: detailedOverviewRows(source, captured, parents.parents, objectives, resultReader),
+    rows: detailedOverviewRows(
+      source,
+      captured,
+      parents.parents,
+      objectives,
+      resultReader,
+      statusReader,
+      activityReader,
+    ),
     metadata,
     account_name: metadata.name ?? metadata.displayName ?? null,
     currency,

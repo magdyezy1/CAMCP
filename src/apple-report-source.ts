@@ -4,6 +4,8 @@ import {overviewCapabilities} from './report-source.js';
 import {appleDetail, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
 import {detailParentsUnavailableWarning, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
+import {reportStatus, currentStatusUnavailableWarning} from './report-status.js';
+import {appleCampaignMetadata} from './apple-report-metadata.js';
 
 const appleOrigin = 'https://api.ads.apple.com';
 
@@ -13,6 +15,14 @@ const reportZone = 'UTC';
 /** Apple Ads v1 campaign report rows: totalMetrics with local spend; conversions are installs. */
 export const appleReportSource: ReportSource = {
   platform: 'apple',
+  readStatus(raw, {metadata = raw.entity_metadata}) {
+    return reportStatus(
+      metadata?.status,
+      {ENABLED: 'active', PAUSED: 'paused'},
+      metadata?.displayStatus ?? metadata?.systemStatus,
+      metadata?.deleted === true || metadata?.displayStatus === 'DELETED',
+    );
+  },
   overview: overviewCapabilities([
     {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
     {id: 'adset', label: 'Ad group', native_type: 'adgroup', preset: 'apple_adgroup'},
@@ -47,6 +57,16 @@ export const appleReportSource: ReportSource = {
   nativeMetricCheck: false,
   // The account and the report.
   minimumRequestsPerPeriod: 2,
+  requestsPerPeriod: (level, contract) =>
+    contract === 'overview-config-v4'
+      ? level === 'campaign'
+        ? 3
+        : level === 'ad'
+          ? 5
+          : 4
+      : level === 'campaign'
+        ? 2
+        : 1,
   fixedTimezone: reportZone,
   /**
    * The ad account (its currency; Apple reports in UTC), then one bounded campaign report page, or for the RPT-07 ad
@@ -124,7 +144,14 @@ export const appleReportSource: ReportSource = {
         c.warnings.push(detailParentsUnavailableWarning);
       }
       c.resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
-      c.detailRows = appleDetail(detail, c.raw, lists, c.currency, c.detailRounding);
+      c.detailRows = appleDetail(
+        detail,
+        c.raw,
+        lists,
+        c.currency,
+        c.detailRounding,
+        c.source.reporting_contract === 'overview-config-v4' ? {account: c.account} : undefined,
+      );
     } else {
       const d = await c.run({
         ...c.plan(
@@ -140,6 +167,16 @@ export const appleReportSource: ReportSource = {
         action: 'apple_ads_v1_reports_apps_campaigns',
       });
       c.raw = reportList(d.result?.rows ?? d.result ?? []);
+      if (c.source.reporting_contract === 'overview-config-v4') {
+        let metadata: Record<string, JsonObject> = {};
+        try {
+          metadata = await appleCampaignMetadata(c);
+        } catch (error) {
+          if (!optionalReadRefused(error)) throw error;
+          c.warnings.push(currentStatusUnavailableWarning);
+        }
+        c.raw = c.raw.map(row => ({...row, entity_metadata: metadata[String(row.metadata?.id)]}));
+      }
       c.resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
       if (c.extra.length)
         c.warnings.push(

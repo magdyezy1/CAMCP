@@ -1,5 +1,6 @@
 import {inBatches, type DetailParentReader, type DetailParentReads} from './report-source.js';
 import type {JsonObject} from './types.js';
+import type {MirrorError} from './errors.js';
 
 const snapchatId = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -11,9 +12,27 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
  * their ad squads and their campaigns in the source account; every campaign must name the source account.
  */
 export const snapchatDetailParents: DetailParentReader = Object.freeze({
-  kind: (level: string, scoped: boolean) => (level === 'ad' && !scoped ? 'snapchat_ad' : undefined),
+  bodyRefused(error: MirrorError) {
+    const body = error.details.upstream;
+    return (
+      error.code === 'PLATFORM_ERROR' &&
+      (error.details.http_status ?? error.status) === 200 &&
+      error.details.provider_code === undefined &&
+      obj(body) &&
+      body.request_status === 'ERROR' &&
+      !Object.hasOwn(body, 'error_code') &&
+      !Object.hasOwn(body, 'error') &&
+      !Object.hasOwn(body, 'errors')
+    );
+  },
+  kind: (level: string, scoped: boolean, contract?: string) =>
+    contract === 'overview-config-v4' && level === 'adset'
+      ? 'snapchat_adsquad'
+      : level === 'ad' && (!scoped || contract === 'overview-config-v4')
+        ? 'snapchat_ad'
+        : undefined,
   async read(
-    _kind: string,
+    kind: string,
     reading: string[],
     {account, read, record, shape, foreign, refused, name, reportingContract}: DetailParentReads,
   ) {
@@ -45,6 +64,22 @@ export const snapchatDetailParents: DetailParentReader = Object.freeze({
       }
       return rows;
     };
+    if (kind === 'snapchat_adsquad') {
+      const squads = await byIds('adsquads', reading),
+        campaigns = new Map<string, JsonObject>();
+      for (const squad of squads)
+        if (!snapchatId(squad.campaign_id)) shape('Snapchat returned an ad squad without its campaign.');
+      for (const campaign of await byIds('campaigns', [...new Set(squads.map(squad => String(squad.campaign_id)))])) {
+        if (campaign.ad_account_id !== account) foreign('Snapchat returned a parent campaign of another ad account.');
+        campaigns.set(campaign.id, campaign);
+      }
+      for (const squad of squads) {
+        const campaign = campaigns.get(squad.campaign_id);
+        if (!campaign) continue;
+        record(squad.id, {campaign_id: campaign.id, campaign_name: name(campaign.name), entity_metadata: squad});
+      }
+      return;
+    }
     const ads = await byIds('ads', reading);
     for (const ad of ads) if (!snapchatId(ad.ad_squad_id)) shape('Snapchat returned an ad without its ad squad.');
     const squads = new Map<string, JsonObject>();
@@ -65,7 +100,9 @@ export const snapchatDetailParents: DetailParentReader = Object.freeze({
       // Without its ad squad and an owned campaign, the ad's parents stay unknown.
       if (!squad || !campaign) continue;
       record(String(ad.id), {
-        ...(reportingContract === 'overview-config-v4' ? {optimization_goal: squad.optimization_goal ?? null} : {}),
+        ...(reportingContract === 'overview-config-v4'
+          ? {optimization_goal: squad.optimization_goal ?? null, entity_metadata: ad}
+          : {}),
         campaign_id: String(campaign.id),
         campaign_name: name(campaign.name),
         ...(typeof (campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective) === 'string'

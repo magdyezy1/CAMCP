@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {parseProviderDecimal} from './provider-decimal.js';
+import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
 import {reportLevelReconciliation} from './report-level-reconciliation.js';
@@ -11,6 +11,10 @@ export interface OverviewV4Capabilities {
   /** The provider source owns these facts; this module only validates/applies the supplied declaration. */
   defaults: Readonly<JsonObject>;
   option_names: readonly string[];
+  /** A positive observation of any of these source-owned metrics proves delivery or measurement activity. */
+  delivery_metrics: readonly string[];
+  supported_statuses: readonly string[];
+  status_basis: 'current_configuration' | 'provider_report_status' | 'not_applicable';
   validateOptions?(options: JsonObject): void;
   legacy?: {
     campaign_options?: readonly string[];
@@ -50,6 +54,8 @@ export function overviewDefinitionForms(
         ad_ids,
         statuses,
         delivered_only,
+        delivery_metrics,
+        status_basis,
         objective_migrated_from_v3,
         ...old
       } = source,
@@ -63,6 +69,7 @@ export function overviewDefinitionForms(
       unavailable =
         levels.length !== 1 ||
         [campaign_ids, adset_ids, ad_ids].some(ids => ids?.length) ||
+        delivered_only === true ||
         !statuses.includes('all') ||
         (level === 'campaign' &&
           (options.complete_window === false || (rules.requires_complete && options.complete_window !== true))) ||
@@ -140,6 +147,8 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
     (statuses.includes('all') && statuses.length !== 1)
   )
     invalid('Choose active, paused, archived, or all report statuses.');
+  if (statuses.some(status => !capabilities.supported_statuses.includes(status)))
+    invalid('Choose statuses supported by this report source.');
   if (source.delivered_only !== undefined && typeof source.delivered_only !== 'boolean')
     invalid('Use true or false for delivered_only.');
   const legacyObjective = source.objective;
@@ -156,6 +165,8 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
     ad_ids: ids(source.ad_ids),
     statuses: [...statuses],
     delivered_only: source.delivered_only ?? true,
+    delivery_metrics: [...capabilities.delivery_metrics],
+    status_basis: capabilities.status_basis,
     reporting_contract: overviewConfigV4,
     ...(legacyObjective !== undefined ? {objective_migrated_from_v3: true} : {}),
   };
@@ -169,10 +180,22 @@ export function expandOverviewV4Sources(config: JsonObject): JsonObject[] {
   );
 }
 
+/** Observe activity before retained metric rounding. Any positive field proves it; missing no-positive fields do not. */
+export function overviewV4Activity(metrics: JsonObject, fields: readonly string[]): boolean | null {
+  const values = fields.map(key => metrics[key]),
+    known = values.filter(value => value !== undefined && value !== null);
+  if (known.some(value => providerDecimalText(value, {field: 'delivery'}) !== '0')) return true;
+  return known.length === values.length ? false : null;
+}
+
 /** Unknown delivery/status cannot satisfy a positive filter. The caller discloses excluded unknowns in scope quality. */
-export function overviewV4Scope(source: JsonObject, rows: JsonObject[]) {
+export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabilities?: OverviewV4Capabilities) {
+  const deliveryMetrics = capabilities?.delivery_metrics ?? source.delivery_metrics,
+    statusBasis = capabilities?.status_basis ?? source.status_basis;
+  if (!Array.isArray(deliveryMetrics) || !deliveryMetrics.length) invalid('Use supported report options.');
   let excluded = 0,
-    unknown = 0;
+    unknown = 0,
+    statusExcluded = 0;
   const selected = rows.filter(row => {
     const parents = row.parent_ids ?? {},
       level = row.entity_level ?? source.level ?? 'campaign',
@@ -190,16 +213,26 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[]) {
       }
     if (!source.statuses.includes('all') && !source.statuses.includes(row.status)) {
       excluded++;
-      if (row.status == null || row.status === 'unknown') unknown++;
+      statusExcluded++;
+      if (!['active', 'paused', 'archived'].includes(row.status)) unknown++;
       return false;
     }
     if (source.delivered_only) {
-      const metrics = row.native?.exact_totals ?? row.metrics ?? {},
-        delivery = ['spend', 'impressions', 'clicks'].map(key => metrics[key]);
-      const known = delivery.filter(value => value !== undefined && value !== null);
-      if (!known.some(value => parseProviderDecimal(value, {field: 'delivery'}).scaled > 0n)) {
+      const exact = row.native?.exact_totals ?? {},
+        activity = Object.hasOwn(row.native ?? {}, 'delivery_activity')
+          ? row.native.delivery_activity
+          : overviewV4Activity(
+              Object.fromEntries(
+                deliveryMetrics.map((key: string) => [
+                  key,
+                  Object.hasOwn(exact, key) ? exact[key] : row.metrics?.[key],
+                ]),
+              ),
+              deliveryMetrics,
+            );
+      if (activity !== true) {
         excluded++;
-        if (!known.length) unknown++;
+        if (activity !== false) unknown++;
         return false;
       }
     }
@@ -212,7 +245,10 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[]) {
       retained_rows: selected.length,
       excluded_rows: excluded,
       excluded_unknown_rows: unknown,
+      excluded_status_rows: statusExcluded,
       filtering: 'after_collection',
+      status_basis: statusBasis,
+      ...(source.delivery_metrics === undefined ? {delivery_metrics: deliveryMetrics} : {}),
     },
   };
 }
@@ -334,6 +370,7 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
             entity_id: row.entity_id ?? row.campaign_id,
             entity_name: row.entity_name ?? row.campaign_name,
             native_entity_type: row.native_entity_type,
+            ...(row.status !== undefined ? {status: row.status} : {}),
             currency: row.currency,
             date_from: row.date_from,
             date_to: row.date_to,
@@ -420,7 +457,8 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
         metric_coverage: 'partial_rows_only',
         advice_evidence: 'include_native',
       },
-      row_count: packets.reduce((sum, packet) => sum + packet.rows.length, 0),
+      row_count: packets.reduce((sum, packet) => sum + (packet.scope?.returned_rows ?? packet.rows.length), 0),
+      scoped_row_count: packets.reduce((sum, packet) => sum + packet.rows.length, 0),
       visible_row_count: rows.filter(row => row.source_ref === sourceRef).length,
       warnings: [...new Set(packets.flatMap(packet => packet.warnings ?? []))],
       cross_level: reportLevelReconciliation(
@@ -431,7 +469,8 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
       level_results: packets.map(({rows: packetRows, source: packetSource, metadata: packetMetadata, ...data}) => ({
         ...withoutLineage(data),
         level: packetSource.level,
-        row_count: packetRows.length,
+        row_count: data.scope?.returned_rows ?? packetRows.length,
+        scoped_row_count: packetRows.length,
       })),
     };
   });

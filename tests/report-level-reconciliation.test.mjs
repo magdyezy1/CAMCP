@@ -62,3 +62,26 @@ test('cross-level checks split currencies, report zero honestly and are absent f
   assert.equal(comparisons[0].coverage_percent, null, '0/0 is unknown, never invented as 100 percent');
   assert.deepEqual(reportLevelReconciliation(rows, packets, ['ad']), []);
 });
+
+test('status-filtered levels cannot present different entity populations as provider collection gaps', () => {
+  const comparisons = reportLevelReconciliation(
+    [row('campaign', '100'), row('adset', '80')],
+    [packet('campaign', {scope: {excluded_status_rows: 0}}), packet('adset', {scope: {excluded_status_rows: 1}})],
+    ['campaign', 'adset'],
+  );
+  assert.ok(comparisons.every(value => value.state === 'unavailable'));
+  assert.ok(comparisons.every(value => value.unavailable_reason === 'different_status_populations'));
+  assert.ok(comparisons.every(value => value.delta === null && value.coverage_percent === null));
+});
+
+test('objective-filtered native groups and children cannot claim equivalent delivery populations', () => {
+  const rows = [row('campaign', '100'), row('adset', '80')],
+    comparisons = reportLevelReconciliation(
+      rows,
+      [packet('campaign', {rows: [rows[0]]}), packet('adset', {rows: [rows[1], row('adset', '20')]})],
+      ['campaign', 'adset'],
+    );
+  assert.ok(comparisons.every(value => value.state === 'unavailable'));
+  assert.ok(comparisons.every(value => value.unavailable_reason === 'different_objective_populations'));
+  assert.ok(comparisons.every(value => value.delta === null));
+});

@@ -12,6 +12,8 @@ import type {AccountLookupCache, ReportCollection, ReportSource, ReportSourceRow
 import {reportRange} from './report-periods.js';
 import {unavailableReportResult, type ReportResultContext} from './report-results.js';
 import {parseProviderDecimal, providerDecimalText, metricRoundingRecord} from './provider-decimal.js';
+import {detailParentKind, detailParents} from './overview-parents.js';
+import {overviewV4Activity} from './overview-v4.js';
 
 /** The v4 boundary calls only the registered source; no provider result facts live in this shared adapter. */
 export function nativeReportResult(platform: string, raw: JsonObject, context: ReportResultContext) {
@@ -62,6 +64,8 @@ const contextKeys = new Set([
   'account_timezone',
   'date_range',
   'time_range',
+  'entity_metadata',
+  'status_evidence',
 ]);
 const snake = (k: string) => k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 /** A native field path in one spelling: `metrics.allConversions`, `metrics_all_conversions` → `metrics_all_conversions`. */
@@ -178,12 +182,7 @@ function nativeRowEnvelope(
   };
 }
 
-/** Exact v4 campaign values. Provider normalization still owns names/units; float display values never supply totals. */
-export function normalizeNativeRowV4(
-  platform: string,
-  raw: JsonObject,
-  rounding: Record<string, number> = {},
-): JsonObject {
+function exactNativeValues(platform: string, raw: JsonObject) {
   const omitted = new Set<string>(),
     read = (value: unknown, divisor = 1) =>
       value === undefined || value === null || (typeof value === 'string' && ['', '-', '--'].includes(value.trim()))
@@ -193,7 +192,24 @@ export function normalizeNativeRowV4(
       value: read,
       field: (key, divisor) => read(raw[key], divisor),
       omitted,
-    }) ?? {id: undefined, metrics: {}},
+    }) ?? {id: undefined, metrics: {}};
+  return {exact, omitted};
+}
+/** Detailed readers use the same provider-owned field/unit normalization before their retained totals are rounded. */
+function nativeDeliveryActivity(platform: string, raw: JsonObject): boolean | null {
+  return overviewV4Activity(
+    exactNativeValues(platform, raw).exact.metrics,
+    reportSource(platform)!.overview!.delivery_metrics,
+  );
+}
+
+/** Exact v4 campaign values. Provider normalization still owns names/units; float display values never supply totals. */
+export function normalizeNativeRowV4(
+  platform: string,
+  raw: JsonObject,
+  rounding: Record<string, number> = {},
+): JsonObject {
+  const {exact, omitted} = exactNativeValues(platform, raw),
     metrics = Object.fromEntries(
       Object.entries(exact.metrics).map(([key, value]) => {
         if (value === undefined || value === null) return [key, null];
@@ -205,11 +221,18 @@ export function normalizeNativeRowV4(
       }),
     );
   const additive = Object.fromEntries(
-    Object.entries(metrics).filter(([key]) => !['reach', 'frequency', 'position'].includes(key)),
-  );
+      Object.entries(metrics).filter(([key]) => !['reach', 'frequency', 'position'].includes(key)),
+    ),
+    status = reportSource(platform)?.readStatus?.(raw, {level: 'campaign'});
   return {
     ...nativeRowEnvelope(raw, exact, omitted, {...metrics, ...numericNative(platform, raw, '', {}, 0, true)}),
-    native: {...raw, exact_totals: additive},
+    ...(status ? {status: status.status} : {}),
+    native: {
+      ...raw,
+      ...(status ? {status_evidence: status} : {}),
+      delivery_activity: overviewV4Activity(exact.metrics, reportSource(platform)!.overview!.delivery_metrics),
+      exact_totals: additive,
+    },
   };
 }
 // The per-source per-job lookup cache is part of the report source contract (src/report-source.ts, ARC-04 stage F).
@@ -384,6 +407,8 @@ export class NativeCampaignReports {
         lookup,
         reports!.objectives,
         reports!.readResult,
+        reports!.readStatus,
+        raw => nativeDeliveryActivity(p, raw),
       );
     // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
     await reports!.collect(c);
@@ -405,8 +430,41 @@ export class NativeCampaignReports {
         rounding: c.detailRounding,
         objectives: reports!.objectives,
         resultReader: reports!.readResult,
+        statusReader: reports!.readStatus,
+        activityReader: raw => nativeDeliveryActivity(p, raw),
       });
-    return campaignResult(p, platform!.kind, c);
+    const result = campaignResult(p, platform!.kind, c);
+    if (
+      source.reporting_contract === 'overview-config-v4' &&
+      detailParentKind(p, 'campaign', false, source.reporting_contract)
+    ) {
+      const cache = lookup ?? {},
+        metadata = await detailParents(
+          this.service,
+          source,
+          'campaign',
+          result.rows.map((row: JsonObject) => row.campaign_id),
+          actor,
+          ((cache.detailParentsByLevel ??= {}).campaign ??= {parents: {}, lineage: []}),
+        );
+      result.rows = result.rows.map((row: JsonObject) => {
+        const entity = metadata.parents[row.campaign_id]?.entity_metadata,
+          status = reports!.readStatus?.(row.native, {level: 'campaign', metadata: entity});
+        return {
+          ...row,
+          ...(status
+            ? {status: status.status, native: {...row.native, entity_metadata: entity, status_evidence: status}}
+            : {}),
+        };
+      });
+      result.lineage.push(...metadata.lineage);
+      result.warnings.push(...metadata.warnings);
+      result.query_fingerprint = fingerprint(result.lineage.map((entry: JsonObject) => entry.query_fingerprint));
+      result.captured_at = Date.now();
+    }
+    this.service.store.assertActorActive(actor);
+    this.service.store.resolveConnection(actor, gateway, account, connection);
+    return result;
   }
 }
 /** RPT-04: requested native metrics are provider field names (or the source's own metric paths), at most 30. */

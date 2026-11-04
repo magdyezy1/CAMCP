@@ -6,7 +6,12 @@ import type {CompiledRequest, JsonObject} from './types.js';
 /** GA4 runReport rows by session campaign; conversions are key events. */
 export const ga4ReportSource: ReportSource = {
   platform: 'ga4',
-  overview: overviewCapabilities([{id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'}]),
+  overview: {
+    ...overviewCapabilities([{id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'}]),
+    delivery_metrics: ['sessions', 'users'],
+    supported_statuses: ['all'],
+    status_basis: 'not_applicable',
+  },
   objectives: {
     name: 'GA4',
     values: {},

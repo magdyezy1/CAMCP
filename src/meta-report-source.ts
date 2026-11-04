@@ -7,10 +7,20 @@ import {overviewCapabilities, invalidReportSource, type ReportSource} from './re
 import type {JsonObject} from './types.js';
 import {metaMappedResult, metaResultRules} from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
+import {reportStatus} from './report-status.js';
+import {metaReportMetadata} from './meta-report-metadata.js';
 
 /** Meta campaign insights rows: actions and action_values arrays; conversions follow the campaign objective. */
 export const metaReportSource: ReportSource = {
   platform: 'meta',
+  readStatus(raw, {metadata = raw.entity_metadata}) {
+    return reportStatus(
+      metadata?.configured_status ?? metadata?.status,
+      {ACTIVE: 'active', PAUSED: 'paused', ARCHIVED: 'archived', DELETED: 'archived'},
+      metadata?.effective_status,
+    );
+  },
+  detailParents: metaReportMetadata,
   overview: overviewCapabilities(
     [
       {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
@@ -59,7 +69,7 @@ export const metaReportSource: ReportSource = {
     'cost_per_action_type',
   ],
   minimumRequestsPerPeriod: 1,
-  requestsPerPeriod: (level, contract) => (level !== 'campaign' && contract === 'overview-config-v4' ? 3 : 1),
+  requestsPerPeriod: (level, contract) => (contract === 'overview-config-v4' ? (level === 'campaign' ? 2 : 4) : 1),
   // RPT-03: one request with time_increment=1; a row that names its last day must end on the day it starts.
   daily: {
     day: native => native?.date_start,
