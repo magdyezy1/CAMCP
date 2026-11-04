@@ -7,8 +7,9 @@ tier: engineering
 
 V2-MCP-13 is the first, isolated package of Round 2. The owner approved the SDK v2 download with the V2 plan on
 2026-11-01 and requested Round 2 on 2026-11-04. Source starts at published `bdda0cbd`, on `codex/v2-round2`.
-**Qualification is in progress; no Round 2 push or live acceptance is claimed.** Live deployment and provider checks
-remain explicitly deferred by the owner. Other Round 2 feature packages follow this foundation's qualification.
+**The isolated SDK foundation is locally qualified at `3b950b2df14a3af3b83383e3588c47a079070841`.** No Round 2 push
+or live acceptance is claimed. Live deployment and provider checks remain explicitly deferred by the owner. Other
+Round 2 feature packages follow this foundation; the existing dependency findings are addressed separately.
 
 ## Dependency scope and review
 
@@ -75,9 +76,26 @@ free of vulnerabilities. Raw reports and the exact lock delta are retained as lo
 | Candidate fast/static/routes | Pass; all 58 language/route combinations remain within existing budgets |
 | Tool-list bytes | Unchanged: reader 94,468 and operator 97,119 bytes, 25 tools each; zero provider requests during measurement |
 | Source/dependency differential review | Manual review completed for the isolated migration; 65 test/tool files verified as exact import substitutions, remaining source and SDK API adaptations reviewed separately; existing advisory remediation remains before round publication |
-| Full gate/browser/container qualification | Pending after the isolated local SDK commit; preflight is not full qualification |
+| Full filtered candidate gate | 8,685 main tests and four capture tests pass, zero failures/skips; all check stages pass in 590 seconds; regenerated reports match the checkout |
+| Full rendered browser qualification | 1,392/1,392 pass, 120 scenarios, 70 fixture kinds and 22 presentation variants; 57.83 minutes within the unchanged 75-minute budget |
+| Browser safety/accessibility | Zero automated axe violations, critical Arabic workflow leaks, external requests, provider writes or unhandled rejections; 3,878 focus measurements with no missing/below-threshold indicators |
+| Container-layout parity | 8,688 pass, one existing POSIX-shell skip, zero failures out of 8,689; 1,405,813 ms with required FFmpeg and two workers. The skipped entrypoint passes in the Git Bash candidate |
 
-The broader candidate checks use a generated literal empty live sample and the reviewed v2 dependency folder.
-The original live sample and protected local prompt are never read, staged or copied. No provider/OAuth/production
-request, advertising mutation or real Sheets export was performed. No budget or golden was re-recorded to absorb
-these compatibility failures. Final gate results and source revision will be appended after qualification.
+The candidate and container-layout checks use a generated literal empty live sample and reviewed v2 dependencies.
+Container parity reproduces the public file layout outside Git on Windows; it is not a Docker/Linux-image or
+deployment test. The browser's incomplete axe findings are unchanged from the accepted Round 1 run (color contrast
+and label/name inspection); representative Arabic mobile and dark desktop screenshots were reviewed. Automated
+checks do not establish complete WCAG conformance or replace the planned native-speaker review.
+
+Runtime artifact SHA-256 is `790362ef1e5481956598b83daba01c74861784d039f55c61094ec110dbef7633`, identical between
+the checkout and full candidate. Browser input-map SHA-256 is
+`dade19a5fbf76e057feb322ffd24a8456216c3be4ee3537641dc1cee7bfdc3ae`, unchanged from accepted Round 1 inputs.
+The runner's generic Git cleanliness flag is false because an excluded local file remains untracked; tracked inputs
+and the index are clean. Artifact/input fingerprints bind these results to the tested bytes.
+
+The original live sample and protected local prompt are never read, staged or copied. No live provider/OAuth/
+production request, advertising mutation or real Sheets export was performed. The browser records 28 synthetic
+fixture writes; none reaches a provider. No budget or golden was re-recorded to absorb compatibility failures.
+The SDK-only commit and the preserved complete v1 offline dependency tree provide the foundation's rollback before
+later SDK-dependent features. Existing advisory remediation and the remaining Round 2 packages are not qualified
+by this record.
