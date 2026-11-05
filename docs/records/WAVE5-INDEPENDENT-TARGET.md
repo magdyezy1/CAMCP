@@ -1,3 +1,8 @@
+---
+status: record
+tier: engineering
+---
+
 # Wave 5 rounds 1 and 2: independent engineering target
 
 Written by the principal engineer (Claude Opus 5.5) on 2026-11-05, before reading `Codex changes.md`, the round 2 plan,
