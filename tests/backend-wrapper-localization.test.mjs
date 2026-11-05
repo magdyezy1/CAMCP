@@ -292,7 +292,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Seven v4 scope/status and request-estimate explanations.
   // Five selected-descendant scope, recovery and aggregation labels.
   // One migration-notice export column label.
-  assert.equal(Object.keys(catalog).length, 11685);
+  // Twelve per-account v4 control labels and explanations.
+  // Thirteen truthful source-count and empty-scope explanations.
+  assert.equal(Object.keys(catalog).length, 11710);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

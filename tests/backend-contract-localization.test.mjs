@@ -346,7 +346,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Seven v4 scope/status and request-estimate explanations.
   // Five selected-descendant scope, recovery and aggregation labels.
   // One migration-notice export column label.
-  assert.equal(Object.keys(catalog).length, 11685);
+  // Twelve per-account v4 control labels and explanations.
+  // Thirteen truthful source-count and empty-scope explanations.
+  assert.equal(Object.keys(catalog).length, 11710);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

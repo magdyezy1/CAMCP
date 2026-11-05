@@ -842,6 +842,7 @@ for (const locale of ['en', 'ar'])
       const p = page(locale);
       for (const file of [
         'report-library',
+        'report-source-settings',
         'report-quality',
         'report-workflows',
         'report-delivery',

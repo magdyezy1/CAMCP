@@ -125,6 +125,7 @@ function fixture(locale) {
   for (const file of [
     'localization',
     'report-library',
+    'report-source-settings',
     'report-quality',
     'report-workflows',
     'report-delivery',
@@ -192,6 +193,8 @@ test('Arabic report builder keeps client names, custom formulas, exact account I
     f.lists.set('[data-report-metric]:checked', [{value: 'spend'}]);
     f.node('[data-objective-for="google"]').value = 'sales';
     f.node('[data-report-level="google"]').value = 'campaign';
+    f.node('[data-report-delivered="google"]').checked = false;
+    f.node('[data-report-attribution="google"]').value = 'unknown';
     f.node('[data-native-for="google"]').value = 'metrics.cost_micros,metrics.conversions';
     f.run(
       "overviewState.selection={kind:'view',id:'view-001',revision:7};overviewState.destinationId='destination-001'",
@@ -208,6 +211,7 @@ test('Arabic report builder keeps client names, custom formulas, exact account I
   const saved = transcripts[0][0];
   assert.equal(saved.expected_revision, 7);
   assert.equal(saved.destination_id, 'destination-001');
+  assert.equal(saved.config.contract_version, 'overview-config-v4');
   assert.deepEqual(saved.config.sources, [
     {
       platform: 'google',
@@ -216,6 +220,14 @@ test('Arabic report builder keeps client names, custom formulas, exact account I
       // V2-RPT-02: a new select choice fills a missing platform objective; it does not override every campaign.
       objective_fallback: 'sales',
       native_metrics: ['metrics.cost_micros', 'metrics.conversions'],
+      level: 'campaign',
+      levels: ['campaign'],
+      statuses: ['all'],
+      delivered_only: false,
+      report_options: {complete_window: null, attribution: 'unknown'},
+      campaign_ids: [],
+      adset_ids: [],
+      ad_ids: [],
     },
   ]);
   assert.deepEqual(saved.config.custom_metrics, [

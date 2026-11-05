@@ -10,6 +10,8 @@ import {
 import {sha256, stable} from '../dist/src/security.js';
 import {documentKind} from '../dist/src/document-kinds.js';
 import {overviewConfigV4} from '../dist/src/overview-v4.js';
+import {upgradeOverviewV3Config} from '../dist/src/overview-v4.js';
+import {reportSource} from '../dist/src/report-sources.js';
 
 const rolling = {preset: 'last_complete_days', days: 7, timezone: 'UTC'};
 const notices = report => (report.notices ?? []).filter(n => n.id === objectiveMigrationNotice.id);
@@ -359,4 +361,57 @@ test('a comparison baseline cannot consume the numbers-changed notice intended f
   assert.equal(current.state, 'complete');
   assert.deepEqual(notices(current), [objectiveMigrationNotice]);
   assert.equal(f.ledger('view:' + f.viewId).announced_report_id, pair.id);
+});
+
+test('editing a legacy choice as its equivalent v4 fallback cannot lose a pending server-owned notice', async t => {
+  const f = await legacySchedule(t, {linked: true}),
+    config = upgradeOverviewV3Config(f.config, platform => reportSource(platform).overview);
+  delete config.sources[0].objective;
+  config.sources[0].objective_fallback = 'leads';
+  await f.overview.handle({action: 'save', id: f.viewId, expected_revision: 1, config, confirmed: true}, f.actor);
+  const current = f.store.document(f.actor.tenantId, 'overview_view', f.viewId);
+  assert.equal(current.config_v4.sources[0].objective_migrated_from_v3, undefined);
+  assert.equal(f.ledger('view:' + f.viewId).announced_report_id, null);
+  const report = await f.finish(await f.overview.handle({action: 'run', id: f.viewId, confirmed: true}, f.actor));
+  assert.deepEqual(notices(report), [objectiveMigrationNotice]);
+});
+
+test('a new v4 definition cannot forge migration eligibility using a client-supplied source flag', async t => {
+  const f = objectiveReportFixture(t, {rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10}}]});
+  const view = await f.overview.handle(
+    {
+      action: 'save',
+      confirmed: true,
+      config: {
+        ...f.config,
+        contract_version: overviewConfigV4,
+        sources: [
+          {...f.config.sources[0], levels: ['campaign'], objective_fallback: 'leads', objective_migrated_from_v3: true},
+        ],
+      },
+    },
+    f.actor,
+  );
+  const report = await f.finish(await f.overview.handle({action: 'run', id: view.id, confirmed: true}, f.actor));
+  assert.deepEqual(notices(report), []);
+  assert.equal(f.store.documents(f.actor.tenantId, objectiveMigrationKind).length, 0);
+});
+
+test('a saved run returns the migrated view revision so its next intentional edit does not conflict with its own upgrade', async t => {
+  const f = await legacySchedule(t, {linked: true});
+  const queued = await f.overview.handle({action: 'run', id: f.viewId, confirmed: true}, f.actor);
+  const stored = f.store.document(f.actor.tenantId, 'overview_view', f.viewId);
+  assert.equal(queued.view_revision, stored.revision);
+  assert.equal(queued.view_revision, 2);
+  const edited = await f.overview.handle(
+    {
+      action: 'save',
+      id: f.viewId,
+      expected_revision: queued.view_revision,
+      config: {...stored.config_v4, name: 'Edited after my capture'},
+      confirmed: true,
+    },
+    f.actor,
+  );
+  assert.equal(edited.revision, stored.revision + 1);
 });

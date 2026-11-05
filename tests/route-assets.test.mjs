@@ -232,6 +232,17 @@ test('every route dependency is local, shipped, and initialized once, including 
       }
   }
   await all;
+  assert(
+    !f.appended.some(script => script.src.endsWith('/report-delivery.js')),
+    'Delivery stays deferred on cold routes',
+  );
+  const delivery = f.run("loadPageAsset('report-delivery.js')");
+  await tick();
+  const script = f.appended.find(script => script.src.endsWith('/report-delivery.js'));
+  assert(script, 'Explicit delivery loads its shipped module');
+  script.onload();
+  await delivery;
+  await f.run("loadPageAsset('report-delivery.js')");
   const loaded = f.appended.map(s => s.src.slice(8));
   assert.equal(new Set(loaded).size, loaded.length);
   const publicScripts = new Set(
@@ -343,7 +354,9 @@ test('each cold route initializes its real scripts and required handlers in Engl
     ],
     '/reporting-overview': [
       'renderReportingOverview',
-      'renderReportDelivery',
+      'openReportDelivery',
+      'overviewGranularityFields',
+      'overviewGranularityConfig',
       'bindSnapshotAnalysis',
       'refreshRecentReports',
     ],
@@ -372,6 +385,8 @@ test('each cold route initializes its real scripts and required handlers in Engl
   // The report builder's script is no longer part of every page either.
   const builder = ['renderReportingOverview', 'overviewState'];
   const absent = {
+    '/reporting-overview': ['renderReportDelivery'],
+    '/report-library': ['overviewGranularityFields', 'renderReportDelivery'],
     '/': builder,
     '/login': builder,
     '/campaigns': builder,

@@ -66,8 +66,7 @@ export function claimObjectiveMigration(store: Store, tenant: string, report: Js
     report.config?.contract_version !== overviewConfigV4 ||
     report.comparison?.role === 'baseline' ||
     !report.rows?.length ||
-    !['complete', 'partial'].includes(report.state) ||
-    !report.config.sources.some((source: JsonObject) => source.objective_migrated_from_v3)
+    !['complete', 'partial'].includes(report.state)
   )
     return undefined;
   const key = objectiveMigrationKey(report.view_id, report.schedule_id);
@@ -76,6 +75,7 @@ export function claimObjectiveMigration(store: Store, tenant: string, report: Js
   const definitionKind = report.view_id ? 'overview_view' : 'overview_schedule',
     definition = optional(store, tenant, definitionKind, report.view_id ?? report.schedule_id);
   if (definition) registerObjectiveMigration(store, tenant, definition, definitionKind);
+  // The server-owned ledger retains eligibility across edits that replace the legacy alias with a v4 fallback.
   const migration = optional(store, tenant, objectiveMigrationKind, key);
   if (!migration || migration.announced_report_id) return undefined;
   store.putDocument(

@@ -708,6 +708,7 @@ export class ReportingOverview {
             levels: reportSource(id)?.overview?.levels ?? [],
             defaults: reportSource(id)?.overview?.defaults ?? {},
             option_names: reportSource(id)?.overview?.option_names ?? [],
+            provider_configured_options: reportSource(id)?.overview?.legacy?.provider_configured_options ?? [],
             delivery_metrics: reportSource(id)?.overview?.delivery_metrics ?? [],
             supported_statuses: reportSource(id)?.overview?.supported_statuses ?? ['all'],
             status_basis: reportSource(id)?.overview?.status_basis ?? 'not_applicable',
@@ -1022,9 +1023,11 @@ export class ReportingOverview {
           config = view
             ? this.library.migrateDefinition(actor, view, 'overview_view')
             : this.config(input.config, actor);
-        return input.compare === 'previous_period'
-          ? this.queueComparison(actor, config, view?.id)
-          : this.queue(actor, config, undefined, undefined, Date.now(), view?.id);
+        const run =
+          input.compare === 'previous_period'
+            ? this.queueComparison(actor, config, view?.id)
+            : this.queue(actor, config, undefined, undefined, Date.now(), view?.id);
+        return view ? {...run, view_revision: store.document(tenant, 'overview_view', view.id).revision} : run;
       });
     }
     if (input.action === 'export') {

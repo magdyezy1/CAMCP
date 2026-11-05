@@ -467,7 +467,8 @@ test('the website names the packs and offers the new Meta windows in English and
     }
   }
   const c = ctx('ar');
-  new Script(extract('web/report-library.js', 'overviewGranularityFields')).runInContext(c);
+  new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(c);
+  new Script(readFileSync('web/report-source-settings.js', 'utf8')).runInContext(c);
   c.platform = {
     id: 'meta',
     entity_levels: [
@@ -476,7 +477,7 @@ test('the website names the packs and offers the new Meta windows in English and
     ],
   };
   const html = new Script(
-    "overviewGranularityFields(platform, {level: 'adset', report_options: {attribution_windows: ['28d_click', '1d_ev']}})",
+    "String(overviewGranularityFields(platform, {level: 'adset', report_options: {attribution_windows: ['28d_click', '1d_ev']}}))",
   ).runInContext(c);
   assert.match(html, /<option value="28d_click" selected>28d_click<\/option>/);
   assert.match(html, /data-report-engaged-view-window="meta" checked> 1d_ev \(مشاهدة تفاعلية\)/);

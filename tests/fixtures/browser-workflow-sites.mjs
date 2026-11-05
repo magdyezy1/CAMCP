@@ -42,7 +42,8 @@ offerParkedProviders('woocommerce');
 export const syntheticWriteKinds = Object.freeze(['write-journey', 'spend-policy-edit', 'export-outcomes']);
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
-export async function browserWorkflowSite(kind) {
+export async function browserWorkflowSite(kind, {listen = listenForFetch, protocol = 'http'} = {}) {
+  assert.ok(['http', 'https'].includes(protocol), 'Synthetic fixtures use HTTP or HTTPS only');
   assert.ok(
     [
       'empty',
@@ -442,11 +443,11 @@ export async function browserWorkflowSite(kind) {
     }
   }
   let app;
-  const listener = await listenForFetch((req, res) => {
+  const listener = await listen((req, res) => {
     if (app) app(req, res);
     else res.writeHead(503).end();
   });
-  const origin = 'http://127.0.0.1:' + listener.address().port,
+  const origin = protocol + '://127.0.0.1:' + listener.address().port,
     options = {
       origin,
       masterKey: Buffer.alloc(32, keyByte).toString('base64'),

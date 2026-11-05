@@ -194,6 +194,56 @@ test('a late bootstrap cannot paint delivery details on a newer route', async ()
   assert.equal(f.dialog.open, false);
 });
 
+test('a dialog refresh disables old controls before its async bootstrap so a click cannot disappear into stale handlers', async () => {
+  const f = fixture(),
+    oldButton = {disabled: false};
+  f.root.querySelectorAll = () => [oldButton];
+  let release;
+  f.pending.push(
+    () =>
+      new Promise(resolve => {
+        release = resolve;
+      }),
+  );
+  const loading = f.run('renderReportDelivery()');
+  assert.equal(oldButton.disabled, true);
+  assert.equal(f.root.innerHTML, '');
+  release(f.bootstrap);
+  await loading;
+  assert.ok(f.root.innerHTML.includes('report-schedule'));
+  assert.equal(f.dialog.open, true);
+});
+
+test('a failed dialog refresh closes inactive content and a new explicit opening can recover', async () => {
+  const f = fixture();
+  f.dialog.open = true;
+  f.pending.push(async () => {
+    throw new Error('Synthetic bootstrap failure');
+  });
+  await assert.rejects(f.run('renderReportDelivery()'), /Synthetic bootstrap failure/);
+  assert.equal(f.dialog.open, false);
+  await f.run('renderReportDelivery()');
+  assert.equal(f.dialog.open, true);
+});
+
+test('a snapshot replacement during dialog bootstrap cannot change the snapshot offered for export', async () => {
+  const f = fixture();
+  f.c.overviewState.report = {id: 'first', config: f.c.overviewState.config};
+  let release;
+  f.pending.push(
+    () =>
+      new Promise(resolve => {
+        release = resolve;
+      }),
+  );
+  const loading = f.run("renderReportDelivery('sheets_now')");
+  f.c.overviewState.report = {id: 'second', config: f.c.overviewState.config};
+  release(f.bootstrap);
+  await loading;
+  assert.equal(f.root.innerHTML, '');
+  assert.equal(f.dialog.open, false);
+});
+
 test('delivery history names stored formats and binds downloads to the original export without trusting supplied URLs', () => {
   const f = fixture(),
     source = process.env.AMCP_TEST_WEB_ROOT ?? 'web';

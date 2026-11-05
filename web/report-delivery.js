@@ -119,17 +119,39 @@ async function renderReportDelivery(mode = 'delivery') {
   const sheetsNow = mode === 'sheets_now';
   const generation = navigationGeneration,
     identity = identityGeneration,
-    sequence = (overviewState.deliverySequence = (overviewState.deliverySequence ?? 0) + 1);
+    sequence = (overviewState.deliverySequence = (overviewState.deliverySequence ?? 0) + 1),
+    report = overviewState.report,
+    selection = overviewState.selection,
+    load = overviewState.loadSequence,
+    dialog = $('#report-delivery-dialog'),
+    content = $('#report-delivery-content');
   const present = () => generation === navigationGeneration && identity === identityGeneration;
-  const current = () => present() && sequence === overviewState.deliverySequence;
-  const b = await overviewCall({action: 'bootstrap'}),
-    r = overviewState.report,
-    config = structuredClone((sheetsNow ? r?.config : overviewState.config) ?? overviewDefault()),
-    dialog = $('#report-delivery-dialog');
-  if (!current()) return;
+  const current = () =>
+    present() &&
+    sequence === overviewState.deliverySequence &&
+    selection === overviewState.selection &&
+    (!sheetsNow || (report === overviewState.report && load === overviewState.loadSequence));
+  // A refresh invalidates old handlers immediately. Keep the old controls inactive until their replacements bind.
+  content?.setAttribute?.('aria-busy', 'true');
+  for (const control of content?.querySelectorAll?.('button, input, select, textarea') ?? []) control.disabled = true;
+  let b;
+  try {
+    b = await overviewCall({action: 'bootstrap'});
+  } catch (error) {
+    content?.removeAttribute?.('aria-busy');
+    if (present() && sequence === overviewState.deliverySequence) dialog?.close();
+    throw error;
+  }
+  if (!current()) {
+    content?.removeAttribute?.('aria-busy');
+    if (present() && sequence === overviewState.deliverySequence) dialog?.close();
+    return;
+  }
+  const r = report,
+    config = structuredClone((sheetsNow ? r?.config : overviewState.config) ?? overviewDefault());
+  content?.removeAttribute?.('aria-busy');
   const reader = session.workspaceRole === 'viewer',
-    admin = !['operator', 'viewer'].includes(session.workspaceRole),
-    selection = overviewState.selection;
+    admin = !['operator', 'viewer'].includes(session.workspaceRole);
   const view = selection?.kind === 'view' ? b.views.find(v => v.id === selection.id) : null,
     existing = b.schedules.find(s => s.id === view?.schedule_id);
   overviewState.bootstrap = b;

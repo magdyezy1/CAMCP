@@ -31,6 +31,7 @@ const pageAssetOrder = [
   'report-quality.js',
   'report-reference.js',
   'report-library.js',
+  'report-source-settings.js',
   'report-delivery.js',
   'owner-operations.js',
   'account-approvals.js',

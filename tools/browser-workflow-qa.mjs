@@ -24,6 +24,7 @@ import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnosti
 import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
 import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program-browser.mjs';
 import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
+import {exerciseOverviewV4} from '../tests/fixtures/overview-v4-browser.mjs';
 import {exercisePeriodComparison} from '../tests/fixtures/period-comparison-browser.mjs';
 import {
   inspectBrowserAccessibility,
@@ -736,6 +737,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await exerciseExportOutcomes({page, site, locale, result, checks: {intermediate}});
     } else if (workflow === 'granular-reporting') {
       await exerciseGranularOverview({page, site, locale, result, checks: {tables: checkTables}});
+      await exerciseOverviewV4({page, site, locale, result});
     } else if (workflow === 'period-comparison') {
       await exercisePeriodComparison({page, site, locale, result, checks: {intermediate, tables: checkTables}});
     } else if (workflow?.startsWith('conditional-programs')) {

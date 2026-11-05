@@ -95,7 +95,7 @@ const routeRegistry = [
       'reporting-overview.js',
       'report-quality.js',
       'report-library.js',
-      'report-delivery.js',
+      'report-source-settings.js',
       'report-workflows.js',
     ],
   },

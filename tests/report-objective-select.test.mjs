@@ -41,7 +41,14 @@ function page(locale = 'en', sources = []) {
     sources,
   });
   const run = code => new Script(code).runInContext(context);
-  for (const file of ['localization', 'report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
+  for (const file of [
+    'localization',
+    'report-library',
+    'report-source-settings',
+    'report-quality',
+    'report-workflows',
+    'reporting-overview',
+  ])
     run(readFileSync('web/' + file + '.js', 'utf8'));
   run(
     `uiLocale=${JSON.stringify(locale)}; uiMessages = new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'}); overviewState.bootstrap={platforms:[{id:'meta',name:'Meta',accounts:[]}],metrics:{},objectives:[...groups,'unknown'],objective_fallback_groups:groups}; overviewState.config={sources,targets:{},source_defaults:{}};`,
@@ -79,10 +86,13 @@ test('choosing a fallback writes objective_fallback on sources and defaults, nev
   const config = plain(f.run('overviewConfig()'));
   assert.equal(config.sources[0].objective_fallback, 'leads');
   assert.equal(Object.hasOwn(config.sources[0], 'objective'), false);
-  assert.deepEqual(config.source_defaults.meta, {objective_fallback: 'leads'});
+  assert.equal(config.contract_version, 'overview-config-v4');
+  assert.equal(config.source_defaults.meta.objective_fallback, 'leads');
+  assert.deepEqual(config.source_defaults.meta.levels, ['campaign']);
+  assert.equal(config.source_defaults.meta.campaign_ids, undefined);
 });
 
-test('a saved choice is selected and remains a legacy choice until the select changes', () => {
+test('a saved choice is presented and serialized as a fallback while explicit fallback and campaign overrides survive', () => {
   const previous = {
     ...source,
     objective: 'leads',
@@ -92,10 +102,11 @@ test('a saved choice is selected and remains a legacy choice until the select ch
   const f = page('en', [previous]);
   f.context.previous = previous;
   const html = f.run('String(reportObjectiveSelect("meta", previous, groups))');
-  assert.match(html, /value="saved:leads" selected>Saved: Leads for every campaign<\/option>/);
-  f.node('[data-objective-for="meta"]').value = 'saved:leads';
+  assert.match(html, /value="traffic" selected>Traffic<\/option>/);
+  assert.doesNotMatch(html, /saved:/);
+  f.node('[data-objective-for="meta"]').value = 'traffic';
   let config = plain(f.run('overviewConfig()'));
-  assert.equal(config.sources[0].objective, 'leads');
+  assert.equal(config.sources[0].objective, undefined);
   assert.equal(config.sources[0].objective_fallback, 'traffic');
   assert.deepEqual(config.sources[0].objective_overrides, {'101': 'sales'});
   assert.equal(Object.hasOwn(config.source_defaults.meta, 'objective_overrides'), false);
@@ -118,10 +129,12 @@ test('an unchanged platform select preserves different choices for each existing
     {...source, account_id: '300', objective_fallback: 'traffic'},
   ];
   const f = page('en', originals);
-  f.node('[data-objective-for="meta"]').value = 'saved:leads';
+  f.node('[data-objective-for="meta"]').value = 'leads';
   const config = plain(f.run('overviewConfig()'));
-  assert.equal(config.sources[0].objective, 'leads');
-  assert.equal(config.sources[1].objective, 'sales');
+  assert.equal(config.sources[0].objective, undefined);
+  assert.equal(config.sources[1].objective, undefined);
+  assert.equal(config.sources[0].objective_fallback, 'leads');
+  assert.equal(config.sources[1].objective_fallback, 'sales');
   assert.equal(Object.hasOwn(config.sources[2], 'objective'), false);
   assert.equal(config.sources[2].objective_fallback, 'traffic');
 });
@@ -181,7 +194,7 @@ for (const locale of ['en', 'ar'])
     if (locale === 'ar') {
       assert.ok(html.includes(catalog['Objective when the platform gives none']));
       assert.ok(html.includes(catalog['No fallback (show unknown)']));
-      assert.ok(html.includes(catalog['Saved: {objective} for every campaign'].replace('{objective}', catalog.Leads)));
+      assert.ok(html.includes('value="leads" selected>' + catalog.Leads));
       assert.doesNotMatch(html, /Saved:|No fallback/);
     }
     assert.equal(f.run('reportLabel("mixed")'), locale === 'ar' ? catalog.Mixed : 'Mixed');
