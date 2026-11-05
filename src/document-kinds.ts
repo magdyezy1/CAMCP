@@ -444,6 +444,16 @@ export const documentKindSpecs = {
       'Kept while the workspace exists; deleted with its snapshot when a person deletes the snapshot.',
     ),
   },
+  overview_objective_migration: {
+    scope: 'tenant',
+    owner: 'src/report-definition-migration.ts',
+    version: 1,
+    summary: 'The durable once-only notice claim for a saved report objective upgraded to a fallback.',
+    fields: {},
+    retention: workspace(
+      'Kept with the saved view or standalone schedule; its owner deletes the claim with that definition. Deleting report History does not reset it.',
+    ),
+  },
   overview_report: {
     scope: 'tenant',
     owner: 'src/reporting-overview.ts',

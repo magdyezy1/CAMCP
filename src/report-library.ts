@@ -8,8 +8,19 @@ import {currencyTargetKey} from './report-metrics.js';
 import {deleteSettledDeliveries, hasUnconfirmedDelivery} from './report-repository.js';
 import {cancelReportJobs, deleteReportJobs} from './job-repository.js';
 import type {Actor, JsonObject} from './types.js';
-import {overviewDefinitionConfig, overviewDefinitionForms, publicOverviewDefinition} from './overview-v4.js';
+import {
+  overviewDefinitionConfig,
+  overviewDefinitionForms,
+  publicOverviewDefinition,
+  upgradeOverviewV3Config,
+  overviewConfigV4,
+} from './overview-v4.js';
 import {reportSource} from './report-sources.js';
+import {
+  registerObjectiveMigration,
+  deleteObjectiveMigration,
+  linkObjectiveMigration,
+} from './report-definition-migration.js';
 
 const definitionForms = (config: JsonObject) =>
   overviewDefinitionForms(config, platform => reportSource(platform)!.overview!);
@@ -30,6 +41,33 @@ export class ReportLibrary {
     // Whether the actor may read every source of a definition (ReportingOverview.access); throws when not.
     readonly access: (actor: Actor, config: JsonObject) => void = () => {},
   ) {}
+  /** Validate a stored definition as v4 while preserving its original rollback config. The caller owns the write. */
+  prepareDefinition(
+    actor: Actor,
+    record: JsonObject,
+    kind: 'overview_view' | 'overview_schedule' | 'overview_template',
+  ) {
+    const original = overviewDefinitionConfig(record),
+      config = this.validate(
+        upgradeOverviewV3Config(original, platform => reportSource(platform)?.overview),
+        actor,
+        kind === 'overview_template',
+        true,
+      ),
+      migrated = !record.config_v4;
+    if (kind !== 'overview_template') registerObjectiveMigration(this.store, actor.tenantId, record, kind);
+    return {config, migrated};
+  }
+  migrateDefinition(
+    actor: Actor,
+    record: JsonObject,
+    kind: 'overview_view' | 'overview_schedule' | 'overview_template',
+  ) {
+    const prepared = this.prepareDefinition(actor, record, kind);
+    if (prepared.migrated)
+      this.store.putDocument(actor.tenantId, kind, record.id, {...record, config_v4: prepared.config}, record.revision);
+    return prepared.config;
+  }
   /**
    * Access limited to a client access set (SEC-08) changes, deletes or pauses only the saved reports, templates,
    * snapshots and schedules whose accounts it reaches; it never lists the others, and here it cannot alter one by ID.
@@ -80,17 +118,27 @@ export class ReportLibrary {
             source_defaults: {
               ...input.config?.source_defaults,
               ...Object.fromEntries(
-                (input.config?.sources ?? []).map((s: JsonObject) => [
-                  s.platform,
-                  {
-                    ...input.config?.source_defaults?.[s.platform],
-                    ...(s.objective ? {objective: s.objective} : {}),
-                    ...(s.objective_fallback !== undefined ? {objective_fallback: s.objective_fallback} : {}),
-                    ...(s.native_metrics ? {native_metrics: s.native_metrics} : {}),
-                    ...(s.level ? {level: s.level} : {}),
-                    ...(s.report_options ? {report_options: s.report_options} : {}),
-                  },
-                ]),
+                (input.config?.sources ?? []).map((s: JsonObject) => {
+                  const defaults = {...input.config?.source_defaults?.[s.platform]};
+                  if (s.level !== undefined || s.levels !== undefined) {
+                    delete defaults.level;
+                    delete defaults.levels;
+                  }
+                  return [
+                    s.platform,
+                    {
+                      ...defaults,
+                      ...(s.objective ? {objective: s.objective} : {}),
+                      ...(s.objective_fallback !== undefined ? {objective_fallback: s.objective_fallback} : {}),
+                      ...(s.native_metrics ? {native_metrics: s.native_metrics} : {}),
+                      ...(s.level ? {level: s.level} : {}),
+                      ...(s.levels ? {levels: s.levels} : {}),
+                      ...(s.statuses ? {statuses: s.statuses} : {}),
+                      ...(s.delivered_only !== undefined ? {delivered_only: s.delivered_only} : {}),
+                      ...(s.report_options ? {report_options: s.report_options} : {}),
+                    },
+                  ];
+                }),
               ),
             },
             // Templates are account-free: objective and objective:CURRENCY targets stay, campaign targets do not.
@@ -110,9 +158,14 @@ export class ReportLibrary {
             ),
           }
         : input.config;
-      const config = this.validate(raw, actor, template),
+      const modern =
+          old && raw?.contract_version !== overviewConfigV4
+            ? upgradeOverviewV3Config(raw, platform => reportSource(platform)?.overview)
+            : raw,
+        config = this.validate(modern, actor, template),
         id = old?.id ?? randomUUID(),
         destinationId = template ? undefined : (input.destination_id ?? old?.destination_id);
+      if (old && !template) registerObjectiveMigration(this.store, tenant, old, 'overview_view');
       if (destinationId !== undefined) this.destination(actor, destinationId);
       if (old?.schedule_id) {
         const schedule = this.store.document(tenant, 'overview_schedule', old.schedule_id);
@@ -184,18 +237,24 @@ export class ReportLibrary {
       const old = update ? this.store.document(tenant, 'overview_schedule', String(input.id)) : undefined;
       this.changeable(actor, old);
       if (old) this.revision(input, old);
-      const viewId = old?.view_id ?? input.view_id ?? (input.config ? undefined : input.id),
+      const viewId = old?.view_id ?? input.view_id ?? (!old && !input.config ? input.id : undefined),
         view = viewId ? this.store.document(tenant, 'overview_view', String(viewId)) : undefined;
       this.changeable(actor, view);
       if (view && !old && input.expected_revision !== undefined) this.revision(input, view);
       if (view && old && input.expected_view_revision !== undefined)
         this.revision({expected_revision: input.expected_view_revision}, view);
-      const config = this.validate(
-        input.config ?? (view ? overviewDefinitionConfig(view) : old ? overviewDefinitionConfig(old) : undefined),
-        actor,
-        false,
-        input.config === undefined,
-      );
+      const inherited = view ?? old,
+        raw = input.config ?? (inherited ? overviewDefinitionConfig(inherited) : undefined),
+        config = this.validate(
+          inherited ? upgradeOverviewV3Config(raw, platform => reportSource(platform)?.overview) : raw,
+          actor,
+          false,
+          input.config === undefined,
+        ),
+        forms =
+          input.config === undefined && inherited && !inherited.config_v4
+            ? {config: inherited.config, config_v4: config}
+            : definitionForms(config);
       if (!config.date_range.preset)
         throw new MirrorError(
           'ROLLING_WINDOW_REQUIRED',
@@ -233,7 +292,28 @@ export class ReportLibrary {
             grain === 'total' &&
             !Object.keys(source_defaults).length &&
             prior.request_fingerprint === legacyFingerprint;
-          if (prior.request_fingerprint !== fingerprint && !legacyMatch)
+          let formatMatch = false;
+          if (prior.config?.contract_version !== overviewConfigV4) {
+            const upgraded = this.validate(
+              upgradeOverviewV3Config(prior.config, platform => reportSource(platform)?.overview),
+              actor,
+              false,
+              true,
+            );
+            formatMatch =
+              sha256(
+                stable({
+                  name: upgraded.name,
+                  config: upgraded,
+                  schedule_kind: prior.schedule_kind,
+                  schedule_config: prior.schedule_config ?? {},
+                  timezone: prior.timezone,
+                  destination_id: prior.destination_id,
+                  view_id: prior.view_id ?? null,
+                }),
+              ) === fingerprint;
+          }
+          if (prior.request_fingerprint !== fingerprint && !legacyMatch && !formatMatch)
             throw new MirrorError('IDEMPOTENCY_CONFLICT', 'This key belongs to another scheduled report.');
           return {
             id,
@@ -263,6 +343,11 @@ export class ReportLibrary {
       const linkedView = view?.id ?? id,
         clock = scheduleClockFields(settings),
         next = clock.next_run_at;
+      if (view) registerObjectiveMigration(this.store, tenant, view, 'overview_view');
+      if (old) {
+        registerObjectiveMigration(this.store, tenant, old, 'overview_schedule');
+        if (!old.view_id) linkObjectiveMigration(this.store, tenant, old.id, linkedView);
+      }
       if (old) this.cancelRuns(tenant, id);
       this.store.putDocument(
         tenant,
@@ -270,7 +355,7 @@ export class ReportLibrary {
         linkedView,
         {
           ...view,
-          ...definitionForms(config),
+          ...forms,
           destination_id: s.destination_id,
           schedule_id: id,
           created_at: view?.created_at ?? Date.now(),
@@ -285,7 +370,7 @@ export class ReportLibrary {
         {
           ...old,
           ...settings,
-          ...definitionForms(config),
+          ...forms,
           is_active: old?.is_active ?? true,
           view_id: linkedView,
           request_fingerprint: old?.request_fingerprint ?? fingerprint,
@@ -314,6 +399,7 @@ export class ReportLibrary {
       this.cancelRuns(tenant, s.id);
       if (remove) {
         this.store.repo('overview_schedule', tenant).delete(s.id);
+        deleteObjectiveMigration(this.store, tenant, 'overview_schedule', s.id);
         this.store.putDocument(tenant, 'overview_schedule_deleted', s.id, {deleted_at: Date.now()});
         const view = optional(this.store, tenant, 'overview_view', s.view_id);
         if (view) {
@@ -323,9 +409,11 @@ export class ReportLibrary {
         this.audit(actor, 'report_schedule_deleted', s.id);
         return {id: s.id, deleted: true};
       }
-      const resume = input.action === 'resume_schedule';
+      const resume = input.action === 'resume_schedule',
+        prepared = resume ? this.prepareDefinition(actor, s, 'overview_schedule') : undefined;
       if (resume) {
-        this.validate(overviewDefinitionConfig(s), actor, false, true);
+        const view = s.view_id ? optional(this.store, tenant, 'overview_view', s.view_id) : undefined;
+        if (view) this.migrateDefinition(actor, view, 'overview_view');
         this.destination(actor, s.destination_id);
         if (
           this.store
@@ -341,6 +429,7 @@ export class ReportLibrary {
       }
       const data: JsonObject = {
         ...s,
+        ...(prepared?.migrated ? {config_v4: prepared.config} : {}),
         updated_at: Date.now(),
         is_active: resume,
         definition_version: (s.definition_version ?? 0) + 1,
@@ -389,6 +478,7 @@ export class ReportLibrary {
         deleteReportJobs(this.store, tenant, r.id);
       }
       this.store.deleteDocument(tenant, kind, r.id);
+      if (kind === 'overview_view') deleteObjectiveMigration(this.store, tenant, kind, r.id);
       this.audit(actor, kind + '_deleted', r.id);
       return {id: r.id, deleted: true, external_spreadsheet_unchanged: true};
     });

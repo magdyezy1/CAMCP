@@ -18,12 +18,14 @@ export interface OverviewV4Capabilities {
   status_basis: 'current_configuration' | 'provider_report_status' | 'not_applicable';
   /** A provider-owned URN prefix when reports and parent metadata spell the same native identity differently. */
   scope_id_prefixes?: Readonly<Record<string, string>>;
-  validateOptions?(options: JsonObject): void;
+  validateOptions?(options: JsonObject, context: {levels: readonly string[]}): void;
   legacy?: {
     campaign_options?: readonly string[];
     detail_options?: readonly string[];
     requires_action?: true;
     requires_complete?: true;
+    /** Null retains a legacy campaign's provider-configured profile, including its original report-time mode. */
+    provider_configured_options?: readonly string[];
   };
 }
 
@@ -47,7 +49,7 @@ export function overviewDefinitionForms(
   const {rollback_v3, ...current} = structuredClone(config),
     legacy: JsonObject = {...current};
   delete legacy.contract_version;
-  legacy.sources = current.sources.map((source: JsonObject) => {
+  const legacySource = (source: JsonObject) => {
     const {
         levels,
         reporting_contract,
@@ -83,13 +85,65 @@ export function overviewDefinitionForms(
     old.level = unavailable ? 'v4_required' : level;
     if (source.objective_fallback !== undefined) old.objective = source.objective_fallback;
     const selected = Object.fromEntries(
-      optionNames.filter(key => options[key] !== undefined).map(key => [key, options[key]]),
+      optionNames
+        .filter(
+          key =>
+            options[key] !== undefined &&
+            !(level === 'campaign' && options[key] === null && rules.provider_configured_options?.includes(key)),
+        )
+        .map(key => [key, options[key]]),
     );
     if (Object.keys(selected).length) old.report_options = selected;
     else delete old.report_options;
     return old;
-  });
+  };
+  legacy.sources = current.sources.map(legacySource);
+  if (current.source_defaults)
+    legacy.source_defaults = Object.fromEntries(
+      Object.entries(current.source_defaults).map(([platform, value]) => {
+        const {platform: _platform, ...defaults} = legacySource({platform, ...(value as JsonObject)});
+        return [platform, defaults];
+      }),
+    );
   return {config: legacy, config_v4: current};
+}
+/** Pure read-old conversion. The caller validates the result and keeps the original stored config as rollback. */
+export function upgradeOverviewV3Config(
+  config: JsonObject,
+  capabilitiesFor: (platform: string) => OverviewV4Capabilities | undefined,
+): JsonObject {
+  const upgraded = structuredClone(config);
+  if (upgraded.contract_version === overviewConfigV4) return upgraded;
+  if (
+    (Array.isArray(upgraded.sources) && upgraded.sources.some((value: JsonObject) => value?.levels !== undefined)) ||
+    Object.values(upgraded.source_defaults ?? {}).some((value: any) => value?.levels !== undefined)
+  )
+    return {...upgraded, contract_version: overviewConfigV4};
+  const source = (original: JsonObject, platform: string, defaults = false): JsonObject => {
+    const capabilities = capabilitiesFor(platform);
+    if (!capabilities) invalid('Choose a platform, connection and account.');
+    const level = original.level ?? 'campaign',
+      options = {...original.report_options};
+    if (level === 'campaign' && original.report_options === undefined)
+      for (const key of capabilities!.legacy?.provider_configured_options ?? []) options[key] = null;
+    return {
+      ...original,
+      levels: [level],
+      statuses: ['all'],
+      delivered_only: false,
+      ...(!defaults ? {campaign_ids: [], adset_ids: [], ad_ids: []} : {}),
+      report_options: options,
+    };
+  };
+  upgraded.sources = (upgraded.sources ?? []).map((value: JsonObject) => source(value, value.platform));
+  upgraded.source_defaults = Object.fromEntries(
+    Object.entries(upgraded.source_defaults ?? {}).map(([platform, value]) => [
+      platform,
+      source(value as JsonObject, platform, true),
+    ]),
+  );
+  upgraded.contract_version = overviewConfigV4;
+  return upgraded;
 }
 function invalid(message: string, code = 'INVALID_REPORT_SOURCE'): never {
   throw new MirrorError(code, message);
@@ -141,7 +195,7 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
       /[\x00-\x1f\x7f]/.test(options.attribution))
   )
     invalid('Declare the detailed report attribution or use unknown.');
-  capabilities.validateOptions?.(options);
+  capabilities.validateOptions?.(options, {levels: overviewV4CollectionLevels({...source, levels})});
   const statuses = source.statuses ?? ['all'];
   if (
     !Array.isArray(statuses) ||
@@ -157,6 +211,7 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
     invalid('Use true or false for delivered_only.');
   const legacyObjective = source.objective;
   delete source.objective;
+  if (legacyObjective !== undefined) delete source.objective_migrated_from_v3;
   if (source.objective_fallback === undefined && objectiveFallbackGroups.includes(legacyObjective))
     source.objective_fallback = legacyObjective;
   const campaignIds = ids(source.campaign_ids),
@@ -187,7 +242,7 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
     delivery_metrics: [...capabilities.delivery_metrics],
     status_basis: capabilities.status_basis,
     reporting_contract: overviewConfigV4,
-    ...(legacyObjective !== undefined ? {objective_migrated_from_v3: true} : {}),
+    ...(objectiveFallbackGroups.includes(legacyObjective) ? {objective_migrated_from_v3: true} : {}),
   };
 }
 

@@ -139,8 +139,15 @@ test('a KPI without a derivable direction needs one: refused in new targets, hel
     );
     const report = await f.runSaved(saved.id);
     assert.equal(report.state, 'complete', JSON.stringify(report.sources));
+    assert.equal(report.config.contract_version, 'overview-config-v4');
     assert.equal(report.rows[0].recommendation.decision, 'needs_review');
-    assert.equal(report.rows[0].recommendation.evidence.field, 'direction');
+    assert.equal(report.rows[0].recommendation.evidence, undefined, 'v4 compact responses keep advice evidence opt-in');
+    const detail = await f.overview.handle({action: 'get', id: report.id, include: {native: true}}, f.actor);
+    assert.equal(
+      detail.rows[0].recommendation.evidence?.field,
+      'direction',
+      JSON.stringify(detail.rows[0].recommendation),
+    );
     // Editing it applies the rule.
     const current = f.store.document(f.actor.tenantId, 'overview_view', saved.id);
     await assert.rejects(
@@ -402,6 +409,11 @@ function metaFixture(values) {
     const url = new URL(String(raw));
     assert.equal(init?.method ?? 'GET', 'GET', 'Synthetic Meta refuses mutations');
     if (url.hostname !== 'graph.facebook.com') throw Error('Synthetic fixture refuses egress: ' + url.hostname);
+    // Stored definitions now upgrade to v4, whose bounded current-status read is a native collection envelope.
+    if (url.pathname.endsWith('/act_100/campaigns'))
+      return Response.json({
+        data: [{id: '101', account_id: '100', configured_status: 'ACTIVE', effective_status: 'ACTIVE'}],
+      });
     if (!url.pathname.endsWith('/insights'))
       return Response.json({id: 'act_100', account_id: '100', currency: 'USD', timezone_name: 'UTC'});
     const range = JSON.parse(url.searchParams.get('time_range'));
@@ -419,6 +431,9 @@ function metaFixture(values) {
         campaign_id: '101',
         campaign_name: 'Synthetic traffic',
         objective: 'OUTCOME_TRAFFIC',
+        // Supply the documented scalar result requested by v4, without inventing native Results inner shapes.
+        optimization_goal: 'LINK_CLICKS',
+        inline_link_clicks: values.clicks,
         date_start: period.since,
         date_stop: period.until,
         impressions: '10000',

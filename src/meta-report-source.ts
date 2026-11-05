@@ -29,8 +29,9 @@ export const metaReportSource: ReportSource = {
     ],
     {attribution_windows: ['7d_click', '1d_view']},
     ['result_action_type'],
-    options => {
-      if (!metaWindowsValid(options.attribution_windows)) invalidReportSource(metaWindowsMessage);
+    (options, context) => {
+      const configured = options.attribution_windows === null && context?.levels.every(level => level === 'campaign');
+      if (!configured && !metaWindowsValid(options.attribution_windows)) invalidReportSource(metaWindowsMessage);
       if (
         options.result_action_type !== undefined &&
         (typeof options.result_action_type !== 'string' || !/^[a-z][a-z0-9_.]{0,159}$/.test(options.result_action_type))
@@ -41,6 +42,7 @@ export const metaReportSource: ReportSource = {
       campaign_options: ['attribution_windows'],
       detail_options: ['complete_window', 'result_action_type', 'attribution_windows'],
       requires_action: true,
+      provider_configured_options: ['attribution_windows'],
     },
   ),
   resultRules: metaResultRules,

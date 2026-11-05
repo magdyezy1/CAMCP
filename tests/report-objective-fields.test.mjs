@@ -105,16 +105,16 @@ test('an unmatched override is retained in the definition and disclosed on the s
     },
     f.actor,
   );
-  const before = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', view.id));
+  const before = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', view.id).config);
   const result = await f.finish(await f.overview.handle({action: 'run', confirmed: true, id: view.id}, f.actor));
-  assert.equal(result.rows[0].objective_group, 'leads');
-  assert.equal(result.rows[0].objective_source, 'user_override');
+  assert.equal(result.rows[0].objective.group, 'leads');
+  assert.equal(result.rows[0].objective.source, 'user_override');
   assert.ok(
     result.sources[0].warnings.includes(
       'Objective overrides matched no campaign in this snapshot: unused-00, unused-01, unused-02, unused-03, unused-04, unused-05, unused-06, unused-07, unused-08, unused-09 and 2 more.',
     ),
   );
-  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', view.id)), before);
+  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', view.id).config), before);
 });
 
 test('campaigns excluded by the display filter still count as matched overrides', async t => {
@@ -149,22 +149,20 @@ for (const fixture of savedObjectiveViews)
     const rows = [normalizeNativeRow('meta', {campaign_id: '1', objective: 'OUTCOME_TRAFFIC'})];
     const f = objectiveReportFixture(t, {rows});
     f.store.putDocument(f.actor.tenantId, 'overview_view', fixture.id, structuredClone(fixture));
-    const before = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', fixture.id));
+    const before = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', fixture.id).config);
     const result = await f.finish(await f.overview.handle({action: 'run', confirmed: true, id: fixture.id}, f.actor));
+    assert.equal(result.rows[0].objective.group, 'traffic');
+    assert.equal(result.rows[0].objective.source, 'provider');
+    const stored = f.store.document(f.actor.tenantId, 'overview_view', fixture.id);
+    assert.equal(JSON.stringify(stored.config), before);
+    assert.equal(stored.config_v4.contract_version, 'overview-config-v4');
     assert.equal(
-      result.rows[0].objective_group,
-      fixture.config.sources[0].objective === 'unknown' ? 'traffic' : 'leads',
+      stored.config_v4.sources[0].objective_fallback,
+      fixture.config.sources[0].objective === 'unknown' ? undefined : 'leads',
     );
-    assert.equal(
-      result.rows[0].objective_source,
-      fixture.config.sources[0].objective === 'unknown' ? 'provider' : 'user_override',
-    );
-    if (fixture.config.sources[0].objective !== 'unknown')
-      assert.equal(result.rows[0].objective_reason, 'Chosen for every campaign of this source in the saved report.');
-    assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', fixture.id)), before);
   });
 
-test('new and edited definitions retain fallbacks and overrides, and preserve legacy choices until explicitly removed', async t => {
+test('editing a legacy definition converts its choice to a fallback and retains campaign overrides', async t => {
   const f = objectiveReportFixture(t);
   let view = await f.overview.handle(
     {
@@ -187,7 +185,7 @@ test('new and edited definitions retain fallbacks and overrides, and preserve le
     },
     f.actor,
   );
-  assert.equal(view.config.sources[0].objective, 'leads');
+  assert.equal(view.config.sources[0].objective, undefined);
   assert.equal(view.config.sources[0].objective_fallback, 'sales');
   assert.deepEqual(view.config.sources[0].objective_overrides, {'1': 'traffic'});
   const {objective, ...replacement} = view.config.sources[0];

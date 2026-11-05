@@ -59,11 +59,16 @@ export const snapchatReportSource: ReportSource = {
     ],
     {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
     [],
-    options => {
+    (options, context) => {
+      const configured =
+        options.swipe_up_attribution_window === null &&
+        options.view_attribution_window === null &&
+        context?.levels.every(level => level === 'campaign');
       if (
-        !['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
-        !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) ||
-        (options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY')
+        !configured &&
+        (!['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
+          !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) ||
+          (options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY'))
       )
         invalidReportSource(
           'Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.',
@@ -73,6 +78,7 @@ export const snapchatReportSource: ReportSource = {
       campaign_options: ['swipe_up_attribution_window', 'view_attribution_window'],
       detail_options: ['complete_window', 'swipe_up_attribution_window', 'view_attribution_window'],
       requires_complete: true,
+      provider_configured_options: ['swipe_up_attribution_window', 'view_attribution_window'],
     },
   ),
   resultRules: snapchatResultRules,

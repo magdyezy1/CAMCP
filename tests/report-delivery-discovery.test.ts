@@ -445,6 +445,19 @@ test('multiple scheduled account reports save independent views, run once and wr
             },
           ],
         });
+      // Scheduled legacy definitions now use v4's owned current-status metadata read.
+      const campaigns = /\/act_(100|200)\/campaigns$/.exec(u.pathname);
+      if (campaigns)
+        return json({
+          data: [
+            {
+              id: campaigns[1] === '100' ? '101' : '201',
+              account_id: campaigns[1],
+              configured_status: 'ACTIVE',
+              effective_status: 'ACTIVE',
+            },
+          ],
+        });
       return json({currency: 'USD', timezone_name: 'UTC'});
     };
     const service = new MirrorService(new Registry(), store, new NativeTransport(fetcher, async () => {})),

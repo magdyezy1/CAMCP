@@ -124,6 +124,9 @@ export function reportEvidence(report: JsonObject) {
     captured_at: report.captured_at,
     completed_at: report.completed_at,
     sources: report.sources,
+    ...(report.config?.contract_version === 'overview-config-v4' && report.notices?.length
+      ? {notices: report.notices}
+      : {}),
     source_contract_version: report.config?.source_contract_version ?? 'legacy-unversioned',
     // Saved native mappings are authoritative per account; legacy platform rules cannot describe them.
     metric_sources: Object.fromEntries(

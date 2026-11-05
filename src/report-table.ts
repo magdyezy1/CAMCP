@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {csvField} from './csv-safety.js';
 import type {JsonObject} from './types.js';
 import {reportRollupLabel} from './report-scope-rollups.js';
+import {overviewConfigV4} from './overview-v4.js';
 
 /**
  * The report table every export of a saved report uses: the Google Sheets tab (src/google-sheets.ts, which re-exports
@@ -48,6 +49,13 @@ export function reportTableFields(report: JsonObject): string[] {
   const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
   return [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
 }
+/** Authored notices belong to the new snapshot's delivery; retained v3 table layouts remain unchanged. */
+export function reportNoticeMessages(report: JsonObject): string[] {
+  if (report.config?.contract_version !== overviewConfigV4) return [];
+  return (report.notices ?? [])
+    .map((notice: JsonObject) => notice.message)
+    .filter((value: unknown) => typeof value === 'string');
+}
 /**
  * `now` decides whether frozen recommendations are still current or render as expired (DEC-01). `version` is the
  * Sheets tab contract the table follows; CSV and Excel use the current one.
@@ -57,6 +65,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
   const fields = reportTableFields(report);
   const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   const rolled = report.rows.some((row: JsonObject) => row.aggregation?.kind === 'rolled_up');
+  const notices = reportNoticeMessages(report);
   const values: any[][] = [
     [
       'Platform',
@@ -87,6 +96,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       'Formula fingerprint',
       ...(version >= 2 ? ['Recommendation basis'] : []),
       ...(rolled ? ['Aggregation'] : []),
+      ...(notices.length ? ['Report notices'] : []),
     ],
   ];
   for (const r of report.rows)
@@ -125,6 +135,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       report.config.formula_fingerprint ?? '',
       ...(version >= 2 ? [recommendationBasis(r)] : []),
       ...(rolled ? [reportRollupLabel(r)] : []),
+      ...(notices.length ? [values.length === 1 ? notices.join('\n') : ''] : []),
     ]);
   if (values.some(row => row.some(v => typeof v === 'string' && v.length > 48000)))
     throw new MirrorError(

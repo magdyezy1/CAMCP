@@ -86,12 +86,15 @@ const snapchatWindowsValid = (options: JsonObject) =>
 export function campaignAttributionProfile(source: JsonObject): JsonObject | undefined {
   const options = source.report_options;
   if (source.reporting_contract === 'overview-config-v4') {
-    if (source.platform === 'meta') return {attribution_windows: options.attribution_windows};
+    if (source.platform === 'meta')
+      return options.attribution_windows === null ? undefined : {attribution_windows: options.attribution_windows};
     if (source.platform === 'snapchat')
-      return {
-        swipe_up_attribution_window: options.swipe_up_attribution_window,
-        view_attribution_window: options.view_attribution_window,
-      };
+      return options.swipe_up_attribution_window === null && options.view_attribution_window === null
+        ? undefined
+        : {
+            swipe_up_attribution_window: options.swipe_up_attribution_window,
+            view_attribution_window: options.view_attribution_window,
+          };
     return undefined;
   }
   if (options === undefined) return undefined;

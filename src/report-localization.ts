@@ -20,6 +20,9 @@ const arabic: Record<string, string> = {
   Limitation: 'قيد',
   Note: 'ملاحظة',
   Notes: 'ملاحظات',
+  'Report notices': 'تنبيهات التقرير',
+  "Saved report objectives now fill gaps in the platform's objective. Numbers may change.":
+    'تُستخدم أهداف التقارير المحفوظة الآن عند غياب هدف من المنصة. قد تتغير الأرقام.',
   'LinkedIn reports now show campaign groups in the campaign position, LinkedIn campaigns in the ad set position and creatives in the ad position. Earlier snapshots keep the levels they recorded.':
     'تعرض تقارير LinkedIn الآن مجموعات الحملات في موضع الحملة، وحملات LinkedIn في موضع المجموعة الإعلانية، والمواد الإعلانية في موضع الإعلان. تحتفظ النسخ السابقة بالمستويات التي سُجلت فيها.',
   'TikTok reports now include campaigns deleted since the window and check TikTok’s own totals, so past windows can show more spend than before.':

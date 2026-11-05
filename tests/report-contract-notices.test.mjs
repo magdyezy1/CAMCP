@@ -11,6 +11,7 @@ import {fingerprint} from '../dist/src/report-quality.js';
 import {ReportParts} from '../dist/src/report-checkpoints.js';
 import {overviewGranularityFixture, granularSource, granularConfig} from './fixtures/overview-granularity-data.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
+import {objectiveMigrationNotice} from '../dist/src/report-definition-migration.js';
 
 const notices = {
   linkedin: {
@@ -73,24 +74,26 @@ test('each source declares its own contract without a provider name in the share
 });
 
 for (const platform of ['linkedin', 'tiktok'])
-  test(platform + ' saved view carries a contract notice once without changing its definition', async t => {
+  test(platform + ' saved view carries both upgrade notices once while preserving its v3 config', async t => {
     const f = fixture(t, platform);
-    const original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', 'synthetic-view'));
+    const original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', 'synthetic-view').config);
     legacy(f);
     const oldSnapshot = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_report', 'synthetic-old'));
     const first = await runView(f);
     assert.equal(first.platform_contracts[platform], reportSource(platform).contract.stamp);
-    assert.deepEqual(first.notices, [notices[platform]]);
+    assert.deepEqual(first.notices, [notices[platform], objectiveMigrationNotice]);
     const second = await runView(f);
     assert.deepEqual(second.notices ?? [], []);
-    assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', 'synthetic-view')), original);
+    const stored = f.store.document(f.actor.tenantId, 'overview_view', 'synthetic-view');
+    assert.equal(JSON.stringify(stored.config), original);
+    assert.equal(stored.config_v4.contract_version, 'overview-config-v4');
     assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_report', 'synthetic-old')), oldSnapshot);
   });
 
-test('a view with no previous run and an ad hoc report get no migration notice', async t => {
+test('a saved legacy choice gets its objective notice without a previous run; provider-contract and ad hoc notices stay absent', async t => {
   const f = fixture(t);
   const first = await runView(f);
-  assert.deepEqual(first.notices ?? [], []);
+  assert.deepEqual(first.notices, [objectiveMigrationNotice]);
   const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
   assert.deepEqual(f.store.document(f.actor.tenantId, 'overview_report', queued.id).notices ?? [], []);
 });

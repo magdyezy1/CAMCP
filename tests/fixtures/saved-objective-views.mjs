@@ -1,4 +1,4 @@
-// Stored before the fallback/override fields existed. These definitions must not be rewritten by a run.
+// Stored before fallback/override fields existed. A run preserves this config beside its upgraded v4 sidecar.
 export const savedObjectiveViews = ['leads', 'unknown'].map(objective => ({
   id: 'saved-v3-' + objective,
   config: {

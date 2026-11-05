@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {Writable} from 'node:stream';
 import {setImmediate} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
-import {reportTable} from './report-table.js';
+import {reportTable, reportNoticeMessages} from './report-table.js';
 import {reportEvidence, exportSourceStatus} from './report-quality.js';
 import {reportPack, presentationStyle} from './report-packs.js';
 import type {JsonObject} from './types.js';
@@ -58,7 +58,11 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     locale = artifactLocale(style),
     t = locale.text,
     custom = new Set<string>((report.config.custom_metrics ?? []).map((m: JsonObject) => m.id));
-  const columns = (report.config.metrics?.length ?? 6) + (report.config.custom_metrics?.length ?? 0) + 30;
+  const columns =
+    (report.config.metrics?.length ?? 6) +
+    (report.config.custom_metrics?.length ?? 0) +
+    30 +
+    (reportNoticeMessages(report).length ? 1 : 0);
   if (rows.length > limits.rows || (rows.length + pack.summary.length + 1) * columns > limits.cells)
     exceeded('Workbook rows or cells');
   const source = evidence(report);
@@ -71,6 +75,13 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     const aggregationColumn = values[0]!.indexOf('Aggregation');
     if (aggregationColumn >= 0)
       for (const row of values.slice(1)) row[aggregationColumn] = t(String(row[aggregationColumn] ?? ''));
+    const noticeColumn = values[0]!.indexOf('Report notices');
+    if (noticeColumn >= 0)
+      for (const row of values.slice(1))
+        row[noticeColumn] = String(row[noticeColumn] ?? '')
+          .split('\n')
+          .map(t)
+          .join('\n');
     values[0] = values[0]!.map((value, index) =>
       index + 1 >= metricStart && index + 1 < metricStart + metricCount
         ? locale.metric(String(value), custom)

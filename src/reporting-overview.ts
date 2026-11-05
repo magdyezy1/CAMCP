@@ -97,6 +97,8 @@ import {
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
+import {claimObjectiveMigration} from './report-definition-migration.js';
+export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
   reportPack,
   retainedPresentation,
@@ -285,10 +287,6 @@ const platformContracts = (config: JsonObject): Record<string, string> => ({
   ),
   ...(config.contract_version === overviewConfigV4 ? {overview_config: overviewConfigV4} : {}),
 });
-export const objectiveMigrationNotice = {
-  id: 'objective-fallback-v4',
-  message: "Saved report objectives now fill gaps in the platform's objective. Numbers may change.",
-};
 /** Rollback switches (EXP-03): ownership refusal (B) and the separate scheduled Sheets delivery job (D). */
 export const destinationOwnershipEnforced = () => process.env.AMCP_SHEETS_DESTINATION_OWNERSHIP !== 'off';
 export const scheduledSheetsInline = () => process.env.AMCP_SCHEDULED_SHEETS_DELIVERY === 'inline';
@@ -376,7 +374,8 @@ export class ReportingOverview {
     // Explicit v4 during staged integration; old snapshots and legacy execution retain their existing boundary.
     const v4 =
       input.contract_version === overviewConfigV4 ||
-      input.sources.some((source: JsonObject) => source?.levels !== undefined);
+      input.sources.some((source: JsonObject) => source?.levels !== undefined) ||
+      Object.values(input.source_defaults ?? {}).some((source: any) => source?.levels !== undefined);
     for (const s of input.sources) {
       if (!s || !reportPlatforms[s.platform] || typeof s.account_id !== 'string' || typeof s.connection_id !== 'string')
         throw new MirrorError('INVALID_REPORT_SOURCE', 'Choose a platform, connection and account.');
@@ -416,7 +415,7 @@ export class ReportingOverview {
       !defaults ||
       typeof defaults !== 'object' ||
       Array.isArray(defaults) ||
-      Object.keys(defaults).some(p => !reportPlatforms[p])
+      Object.keys(defaults).some(p => !Object.hasOwn(reportPlatforms, p))
     )
       throw new MirrorError('INVALID_REPORT_SOURCE', 'Template defaults must name supported reporting platforms.');
     for (const d of Object.values(defaults) as JsonObject[]) {
@@ -425,7 +424,15 @@ export class ReportingOverview {
         typeof d !== 'object' ||
         Array.isArray(d) ||
         Object.keys(d).some(
-          k => !['objective', 'objective_fallback', 'native_metrics', 'level', 'report_options'].includes(k),
+          k =>
+            ![
+              'objective',
+              'objective_fallback',
+              'native_metrics',
+              'level',
+              'report_options',
+              ...(v4 ? ['levels', 'statuses', 'delivered_only'] : []),
+            ].includes(k),
         ) ||
         (d.objective !== undefined && !objectiveGroups.includes(d.objective)) ||
         (d.native_metrics !== undefined &&
@@ -441,8 +448,26 @@ export class ReportingOverview {
         );
       validateObjectiveFields(d);
     }
-    for (const [platform, defaults] of Object.entries(input.source_defaults ?? {}))
-      overviewSourceLevel({platform, ...(defaults as JsonObject)}, true);
+    for (const [platform, value] of Object.entries(defaults)) {
+      if (v4) {
+        const normalized = normalizeOverviewV4Source(
+            {platform, ...(value as JsonObject)},
+            reportSource(platform)!.overview!,
+          ),
+          fields = [
+            'objective_fallback',
+            'native_metrics',
+            'level',
+            'levels',
+            'report_options',
+            'statuses',
+            'delivered_only',
+          ];
+        defaults[platform] = Object.fromEntries(
+          fields.filter(key => normalized[key] !== undefined).map(key => [key, normalized[key]]),
+        );
+      } else overviewSourceLevel({platform, ...(value as JsonObject)}, true);
+    }
     reportRange(resolveReportConfig({date_range: input.date_range}).date_range);
     if (
       input.objectives !== undefined &&
@@ -990,13 +1015,17 @@ export class ReportingOverview {
     if (input.action === 'remove_schedule') return this.library.changeSchedule(actor, input, true);
     if (input.action === 'run') {
       // A saved definition runs as saved; target rules added later apply when it is edited (DEC-01).
-      const view = input.config == null ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
-        config = this.config(input.config ?? overviewDefinitionConfig(view!), actor, false, view !== undefined);
       if (input.compare !== undefined && input.compare !== 'previous_period')
         throw new MirrorError('INVALID_REPORT', 'Use compare: previous_period, or omit it.');
-      if (input.compare === 'previous_period')
-        return store.transaction(() => this.queueComparison(actor, config, view?.id));
-      return store.transaction(() => this.queue(actor, config, undefined, undefined, Date.now(), view?.id));
+      return store.transaction(() => {
+        const view = input.config == null ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
+          config = view
+            ? this.library.migrateDefinition(actor, view, 'overview_view')
+            : this.config(input.config, actor);
+        return input.compare === 'previous_period'
+          ? this.queueComparison(actor, config, view?.id)
+          : this.queue(actor, config, undefined, undefined, Date.now(), view?.id);
+      });
     }
     if (input.action === 'export') {
       const report = store.document(tenant, 'overview_report', String(input.report_id));
@@ -1546,13 +1575,19 @@ export class ReportingOverview {
             // EXP-02: the following occurrence is computed first and can never roll back or pause this due run.
             const following = followingOccurrence(s),
               actor = store.restoreJobActor(tenant, s.id, s.actor_binding),
-              run = this.queue(actor, overviewDefinitionConfig(s), s.destination_id, s.id, s.next_run_at, s.view_id);
+              prepared = this.library.prepareDefinition(actor, s, 'overview_schedule');
+            if (s.view_id) {
+              const view = optional(this.service, tenant, 'overview_view', s.view_id);
+              if (view) this.library.migrateDefinition(actor, view, 'overview_view');
+            }
+            const run = this.queue(actor, prepared.config, s.destination_id, s.id, s.next_run_at, s.view_id);
             store.putDocument(
               tenant,
               'overview_schedule',
               s.id,
               {
                 ...s,
+                ...(prepared.migrated ? {config_v4: prepared.config} : {}),
                 ...following,
                 last_occurrence_at: s.next_run_at,
                 last_report_id: run.id,
@@ -2102,14 +2137,8 @@ export class ReportingOverview {
         row_count: rows.length,
       };
     store.transaction(() => {
-      if (
-        state !== 'failed' &&
-        r.config.contract_version === overviewConfigV4 &&
-        (r.view_id || r.schedule_id) &&
-        r.config.sources.some((source: JsonObject) => source.objective_migrated_from_v3) &&
-        latestDefinitionContracts(store, tenant, r.view_id, r.schedule_id)?.overview_config !== overviewConfigV4
-      )
-        Object.assign(record, {notices: [...(r.notices ?? []), objectiveMigrationNotice]});
+      const migration = claimObjectiveMigration(store, tenant, record);
+      if (migration) Object.assign(record, {notices: [...(r.notices ?? []), migration]});
       store.putDocument(tenant, 'overview_report', r.id, record);
     });
     evaluateMonitors(store, actor, r.id);

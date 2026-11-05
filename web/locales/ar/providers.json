@@ -2194,6 +2194,7 @@
   "Report has no matching column header.": "لا يتضمن التقرير عنوان أعمدة مطابقًا.",
   "Report metadata exceeds the response limit.": "تتجاوز بيانات التقرير الوصفية حد الاستجابة.",
   "Report metadata is oversized or ambiguous.": "بيانات التقرير الوصفية أكبر من الحد المسموح أو ملتبسة.",
+  "Report notices": "تنبيهات التقرير",
   "Report pages require a nonnegative offset and limit 1–100.": "تحتاج صفحات التقرير إلى offset غير سالبة وlimit من 1 إلى 100.",
   "Report pages require offset >= 0 and limit 1–100.": "تحتاج صفحات التقرير إلى offset أكبر من أو تساوي 0، وlimit من 1 إلى 100.",
   "Report pagination URL is malformed.": "عنوان URL للتنقل بين صفحات التقرير غير سليم.",

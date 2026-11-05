@@ -575,6 +575,7 @@ its consolidation moved it here.
 | 2026-11-04 | [V2 round 2 compatible dependency remediation of 2026-11-04](records/QUALIFICATION-V2-R2-DEPENDENCIES-2026-11-04.md) |
 | 2026-11-04 | [V2 round 2 SDK foundation qualification of 2026-11-04](records/QUALIFICATION-V2-R2-SDK-2026-11-04.md) |
 | 2026-11-05 | [Round 2 selected descendant rollups — 2026-11-05](records/IMPLEMENTATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md) |
+| 2026-11-05 | [Round 2 stored report migration — 2026-11-05](records/IMPLEMENTATION-V2-R2-STORED-MIGRATION-2026-11-05.md) |
 | 2026-11-05 | [Round 2 report scope checkpoint qualification — 2026-11-05](records/QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md) |
 | 2026-11-05 | [Round 2 selected descendant rollup qualification — 2026-11-05](records/QUALIFICATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md) |
 

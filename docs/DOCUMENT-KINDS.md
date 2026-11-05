@@ -18,7 +18,7 @@ long its documents are kept. Code reads and writes a kind through a repository b
 (`store.repo(kind, workspace)`) or, for a service record, to its reserved partition (`store.serviceRepo(kind)`), so
 one workspace can never read, change or delete another workspace’s documents through it.
 
-92 kinds are declared: 84 belong to a workspace and 8 to the service.
+93 kinds are declared: 85 belong to a workspace and 8 to the service.
 
 ## Retention
 
@@ -37,7 +37,7 @@ encrypted backups) expire on their own schedule; see docs/OPERATIONS.md, "Accoun
 | Fixed period | 6 | Deleted a fixed number of days after its clock field. |
 | Owner opt-in | 1 | Deleted only after a period the workspace owner opts in to; kept otherwise. |
 | Rewritten in place | 6 | One small document per key, rewritten in place: it does not grow. |
-| While the workspace exists | 50 | Kept while the workspace exists; deleted when its account and workspace are erased. |
+| While the workspace exists | 51 | Kept while the workspace exists; deleted when its account and workspace are erased. |
 | With the deployment | 2 | Kept with the deployment: needed to re-apply erasures to a restored copy or to recognise the volume. |
 
 ### The hourly report cleanup
@@ -104,6 +104,7 @@ workspace's audit, with counts per kind.
 | `operation_journal` | The phase journal of one reviewed write, keyed by its idempotency key. | **While the workspace exists**. Kept with the workspace’s write claims, for reconciliation. | `src/store.ts` | 1 |  |
 | `overview_checkpoint` | A resumable collection checkpoint of an Overview snapshot; its id starts with the snapshot id. | **With its parent** (parent `overview_report`, by a schema trigger, in the same statement). Deleted with its snapshot (trigger overview_report_parts_cleanup). | `src/report-checkpoints.ts` | 1 | Store contract: `report_id` string; Indexes: `overview_report_parts_cleanup` |
 | `overview_export` | An export of an Overview snapshot to Google Sheets or report files. | **While the workspace exists**. Kept while the workspace exists; deleted with its snapshot when a person deletes the snapshot. | `src/reporting-overview.ts` | 1 | Store contract: `report_id` string, `state` string? |
+| `overview_objective_migration` | The durable once-only notice claim for a saved report objective upgraded to a fallback. | **While the workspace exists**. Kept with the saved view or standalone schedule; its owner deletes the claim with that definition. Deleting report History does not reset it. | `src/report-definition-migration.ts` | 1 |  |
 | `overview_report` | An Overview report snapshot: its configuration, rows and delivery state. | **Report retention** (from `created_at`, order 3). Deleted once finished and older than the report retention period, from its creation, unless a job still runs for it or a Google Sheets delivery of it is unconfirmed. | `src/reporting-overview.ts` | 1 | Store contract: `created_at` number, `state` string; Deleted with its login (rows or sources); Indexes: `overview_report_parts_cleanup` |
 | `overview_report_budget` | The split collection budget of an Overview snapshot; the document id is the snapshot id. | **With its parent** (parent `overview_report`, by a schema trigger, in the same statement). Deleted with its snapshot (trigger overview_report_parts_cleanup). | `src/report-checkpoints.ts` | 1 | Store contract: `report_id` string; Indexes: `overview_report_parts_cleanup` |
 | `overview_schedule` | A saved Overview report schedule. | **While the workspace exists**. | `src/report-library.ts` | 1 | Store contract: `is_active` boolean?, `next_run_at` number?; Indexes: `overview_schedule_due`, `overview_schedule_due_global` |

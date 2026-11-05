@@ -294,7 +294,11 @@ test('the overview tick at the last run before a gap queues the due run and stay
       timezone: 'Africa/Cairo',
       schedule_kind: 'weekly',
       schedule_config: {hour: 0, minute: 30, weekday: 5},
-      config: {sources: [], date_range: {since: '2026-04-01', until: '2026-04-07'}},
+      config: {
+        name: 'Synthetic weekly overview',
+        sources: [{platform: 'meta', account_id: '123', connection_id: 'meta'}],
+        date_range: {since: '2026-04-01', until: '2026-04-07'},
+      },
       destination_id: null,
       definition_version: 1,
       actor_binding: store.bindJobActor(actor, 'weekly'),
@@ -341,6 +345,7 @@ test('the overview tick at the last run before a gap queues the due run and stay
     let s = store.document('t', 'overview_schedule', 'weekly');
     assert.equal(s.is_active, true);
     assert.equal(s.error, null);
+    assert.equal(s.config_v4.contract_version, 'overview-config-v4');
     assert.equal(s.next_run_at, Date.parse('2026-04-23T22:30:00Z'));
     assert.equal(s.next_run_dst_shifted, true);
     assert.equal(s.last_occurrence_at, Date.parse('2026-04-16T22:30:00Z'));
