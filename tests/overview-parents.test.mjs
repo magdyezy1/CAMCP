@@ -358,7 +358,7 @@ test('RPT-07: Snapchat ad-squad detail offers the campaigns of the newest readab
   }
 });
 
-test('RPT-07: the parent campaign field lists retained campaigns as choices, escaped, in English and Arabic', () => {
+test('RPT-07: the optional campaign reference preserves dated native IDs and escaped names in English and Arabic', () => {
   const html = (locale, account) => {
     const ctx = createContext({
       document: {addEventListener() {}},
@@ -376,10 +376,10 @@ test('RPT-07: the parent campaign field lists retained campaigns as choices, esc
       new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog))").runInContext(ctx);
     }
     const source = readFileSync('web/reporting-overview.js', 'utf8'),
-      start = source.indexOf('function reportParentField(');
+      start = source.indexOf('function reportParentChoices(');
     new Script(source.slice(start, source.indexOf('\n}\n', start) + 3)).runInContext(ctx);
     ctx.account = account;
-    return new Script("reportParentField('snapchat|c|a', '', account)").runInContext(ctx);
+    return new Script('String(reportParentChoices(account))').runInContext(ctx);
   };
   const account = {
     connection_id: 'c',
@@ -394,21 +394,14 @@ test('RPT-07: the parent campaign field lists retained campaigns as choices, esc
     },
   };
   const en = html('en', account);
-  assert.match(
-    en,
-    /<input data-report-parent="snapchat\|c\|a" value="" maxlength="36" disabled list="report-parents-c-a">/,
-  );
-  assert.match(en, /<option value="33333333-3333-4333-8333-000000000002" label="Spring &lt;launch&gt;"><\/option>/);
-  assert.match(
-    en,
-    /<option value="33333333-3333-4333-8333-000000000003" label="33333333-3333-4333-8333-000000000003"><\/option>/,
-  );
-  assert.match(en, /Choose a campaign from the report of DAY\(2026-09-03\), or enter its UUID\./);
-  assert.match(html('ar', account), /اختر حملة من تقرير DAY\(2026-09-03\)، أو أدخل معرّف UUID الخاص بها\./);
-  // Without retained choices the field stays a plain UUID input, as before.
+  assert.match(en, /<code dir="ltr">33333333-3333-4333-8333-000000000002<\/code>/);
+  assert.match(en, /<bdi dir="auto" data-native>Spring &lt;launch&gt;<\/bdi>/);
+  assert.match(en, /<bdi dir="auto" data-native>33333333-3333-4333-8333-000000000003<\/bdi>/);
+  assert.match(en, /Campaign IDs from the report of DAY\(2026-09-03\)/);
+  assert.match(html('ar', account), /معرّفات الحملات من تقرير DAY\(2026-09-03\)/);
+  assert.doesNotMatch(en, /<input|<select|required|data-report-parent/);
   const plain = html('en', {connection_id: 'c', account_id: 'a', parent_campaigns: null});
-  assert.doesNotMatch(plain, /datalist|list=/);
-  assert.match(plain, /Parent campaign UUID for ad squads/);
+  assert.equal(plain, '');
 });
 
 test('RPT-07: only a provider refusal skips an optional metadata read; AMCP access refusals and malformed answers fail the source', () => {

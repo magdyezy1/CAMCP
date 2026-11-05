@@ -11708,5 +11708,7 @@
   "Rows considered for source filters: {count}": "الصفوف قبل تصفية المصدر: {count}",
   "Rows after source filters: {count}": "الصفوف بعد تصفية المصدر: {count}",
   "Rolled-up rows: {count}": "الصفوف المجمّعة من العناصر الفرعية: {count}",
-  "Rows read at supporting levels: {count}": "الصفوف المقروءة في المستويات الداعمة: {count}"
+  "Rows read at supporting levels: {count}": "الصفوف المقروءة في المستويات الداعمة: {count}",
+  "The parent campaign filter conflicts with the selected campaign IDs.": "يتعارض عامل تصفية الحملة الرئيسية مع معرّفات الحملات المحددة.",
+  "Campaign IDs from the report of {date}": "معرّفات الحملات من تقرير {date}"
 }

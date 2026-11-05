@@ -5,6 +5,15 @@ function overviewEditorSource(platform, config = {}) {
     modern = overviewState.config?.contract_version === 'overview-config-v4' || config.levels !== undefined,
     levels = modern ? (config.levels ?? [config.level ?? 'campaign']) : [config.level ?? 'campaign'],
     report_options = {...caps.defaults, ...config.report_options};
+  const scopes = Object.fromEntries(
+    ['campaign_ids', 'adset_ids', 'ad_ids'].map(key => [key, modern ? [...(config[key] ?? [])] : []]),
+  );
+  for (const [alias, field] of Object.entries(caps.scope_aliases ?? {})) {
+    if (config[alias] === undefined) continue;
+    if (scopes[field]?.length && !scopes[field].includes(config[alias]))
+      throw new Error(uiText('The parent campaign filter conflicts with the selected campaign IDs.'));
+    scopes[field] = [config[alias]];
+  }
   if (!modern && levels.length === 1 && levels[0] === 'campaign' && config.report_options === undefined)
     for (const key of caps.provider_configured_options ?? []) report_options[key] = null;
   return {
@@ -12,9 +21,7 @@ function overviewEditorSource(platform, config = {}) {
     levels: [...levels],
     statuses: modern ? (config.statuses ?? ['all']) : ['all'],
     delivered_only: modern ? (config.delivered_only ?? true) : false,
-    ...Object.fromEntries(
-      ['campaign_ids', 'adset_ids', 'ad_ids'].map(key => [key, modern ? [...(config[key] ?? [])] : []]),
-    ),
+    ...scopes,
     report_options,
   };
 }
@@ -132,8 +139,8 @@ function overviewGranularityConfig(platform, account, previous) {
       result[key] = (query('[data-report-scope="' + key + '"]')?.value ?? '').split(/[\s,]+/).filter(Boolean);
   return result;
 }
-function overviewAccountFields(platform, source, account, selected) {
-  return html`<fieldset data-report-source="${account}" ${selected ? '' : 'hidden disabled'}><legend>${uiText('Account report settings')}</legend>${overviewGranularityFields(platform, source, true)}</fieldset>`;
+function overviewAccountFields(platform, source, account, selected, metadata = {}) {
+  return html`<fieldset data-report-source="${account}" ${selected ? '' : 'hidden disabled'}><legend>${uiText('Account report settings')}</legend>${overviewGranularityFields(platform, source, true)}${reportParentChoices(metadata)}</fieldset>`;
 }
 function updateOverviewGranularity() {
   const selected = new Set(
@@ -163,13 +170,5 @@ function updateOverviewGranularity() {
       !caps?.requires_complete_window_declaration &&
       !caps?.option_names?.includes('result_action_type');
     fieldset.disabled = fieldset.hidden;
-  });
-  document.querySelectorAll('[data-report-parent]').forEach(input => {
-    const key = input.dataset.reportParent,
-      required =
-        selected.has(key) && overviewSelectedLevels('snapchat', overviewSourceQuery('snapchat', key)).includes('adset');
-    input.disabled = !required;
-    input.required = required;
-    input.closest('[data-report-parent-field]').hidden = !required;
   });
 }

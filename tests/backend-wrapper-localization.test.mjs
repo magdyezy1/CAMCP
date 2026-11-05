@@ -266,13 +266,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Scope/status metadata adds three modules.
   // Adds the bounded selected-descendant rollup module.
   // Stored-definition migration adds its durable notice ledger module.
-  assert.equal(files.length, 773);
-  assert.equal(selected.filter(row => row.messages.size).length, 187);
+  // Package D adds the bounded Snapchat detail collector with eleven already-translated refusal sentences.
+  assert.equal(files.length, 774);
+  assert.equal(selected.filter(row => row.messages.size).length, 188);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
   // The stored-config upgrader also owns the existing platform/connection/account refusal.
-  assert.equal(owned.size, 2860);
+  // The scope-alias conflict is one new wrapper sentence.
+  assert.equal(owned.size, 2872);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -294,7 +296,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // One migration-notice export column label.
   // Twelve per-account v4 control labels and explanations.
   // Thirteen truthful source-count and empty-scope explanations.
-  assert.equal(Object.keys(catalog).length, 11710);
+  // Package D adds the scalar-scope conflict and dated optional campaign reference.
+  assert.equal(Object.keys(catalog).length, 11712);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

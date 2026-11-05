@@ -312,7 +312,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Scope/status metadata adds three modules.
   // Adds the bounded selected-descendant rollup module.
   // Stored-definition migration adds its durable notice ledger module, without a new direct refusal.
-  assert.equal(files.length, 773);
+  // Package D adds the Snapchat account-wide detail collector; its static refusals use the wrapper inventory.
+  assert.equal(files.length, 774);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -348,7 +349,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // One migration-notice export column label.
   // Twelve per-account v4 control labels and explanations.
   // Thirteen truthful source-count and empty-scope explanations.
-  assert.equal(Object.keys(catalog).length, 11710);
+  // Package D adds the scalar-scope conflict and dated optional campaign reference.
+  assert.equal(Object.keys(catalog).length, 11712);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

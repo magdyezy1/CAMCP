@@ -403,11 +403,7 @@ function overviewConfig() {
           previous && JSON.stringify(selectedNative) === JSON.stringify(initialNative)
             ? (previous.native_metrics ?? [])
             : selectedNative;
-      const detail = overviewGranularityConfig(platform, el.value, previous),
-        parent =
-          platform === 'snapchat' && detail.levels.includes('adset')
-            ? ($('[data-report-parent="' + CSS.escape(el.value) + '"]')?.value ?? previous?.campaign_id)
-            : undefined;
+      const detail = overviewGranularityConfig(platform, el.value, previous);
       return {
         platform,
         connection_id,
@@ -416,7 +412,6 @@ function overviewConfig() {
         ...(previous?.objective_overrides !== undefined ? {objective_overrides: previous.objective_overrides} : {}),
         native_metrics,
         ...detail,
-        ...(parent ? {campaign_id: parent} : {}),
       };
     }),
     metrics = [...document.querySelectorAll('[data-report-metric]:checked')].map(el => el.value),
@@ -569,13 +564,9 @@ async function renderReportingOverview() {
                       s => s.platform === p.id && s.connection_id === a.connection_id && s.account_id === a.account_id,
                     ) ??
                     c.source_defaults?.[p.id] ??
-                    {},
-                  parent =
-                    c.sources.find(
-                      s => s.platform === p.id && s.connection_id === a.connection_id && s.account_id === a.account_id,
-                    )?.campaign_id ?? '';
+                    {};
                 // The account and login names are the provider's and the person's own; they keep their direction.
-                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span><bdi dir="auto" data-native>${esc(a.label)}</bdi><small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} <bdi dir="auto" data-native>${esc(a.connection_label ?? a.label)}</bdi></small></span></label>${overviewState.selection?.kind === 'template' ? '' : html`${overviewAccountFields(p, source, key, selected.has(key))}`}${p.id === 'snapchat' ? reportParentField(key, parent, a) : ''}`;
+                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span><bdi dir="auto" data-native>${esc(a.label)}</bdi><small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} <bdi dir="auto" data-native>${esc(a.connection_label ?? a.label)}</bdi></small></span></label>${overviewState.selection?.kind === 'template' ? '' : html`${overviewAccountFields(p, source, key, selected.has(key), a)}`}`;
               })
               .join('')}`
           : p.accounts.length
@@ -1545,19 +1536,11 @@ function reportLevelLabel(b, row) {
       : '')
   );
 }
-function reportParentField(key, parent, account) {
+function reportParentChoices(account) {
   const choices = account.parent_campaigns?.campaigns ?? [],
-    completed = account.parent_campaigns?.completed_at,
-    list = 'report-parents-' + account.connection_id + '-' + account.account_id;
-  return `<label data-report-parent-field hidden>${esc(uiText('Parent campaign UUID for ad squads'))}<input data-report-parent="${esc(key)}" value="${esc(parent)}" maxlength="36" disabled${choices.length ? ` list="${esc(list)}"` : ''}>${
-    choices.length
-      ? `<datalist id="${esc(list)}">${choices.map(c => `<option value="${esc(c.id)}" label="${esc(c.name ?? c.id)}"></option>`).join('')}</datalist>${
-          Number.isFinite(completed)
-            ? `<small>${esc(uiText('Choose a campaign from the report of {date}, or enter its UUID.', {date: reportDay(new Date(completed).toISOString().slice(0, 10))}))}</small>`
-            : ''
-        }`
-      : ''
-  }</label>`;
+    completed = account.parent_campaigns?.completed_at;
+  if (!choices.length || !Number.isFinite(completed)) return '';
+  return html`<details class="native-settings"><summary>${uiText('Campaign IDs from the report of {date}', {date: reportDay(new Date(completed).toISOString().slice(0, 10))})}</summary><ul>${choices.map(c => html`<li><code dir="ltr">${c.id}</code> <bdi dir="auto" data-native>${c.name ?? c.id}</bdi></li>`)}</ul></details>`;
 }
 /** RPT-07: a native parent's name beside its ID, kept literal (current provider metadata, never translated). */
 function reportParentName(name) {

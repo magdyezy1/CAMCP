@@ -283,6 +283,7 @@ interface ReportingCall extends ToolContext {
   readonly transient: boolean;
   readonly allowPartial?: true;
   readonly lookup?: AccountLookupCache;
+  readonly overviewV4?: true;
 }
 /** A call on the retained evidence report its `id` names. */
 interface EvidenceCall extends ReportingCall {
@@ -346,6 +347,7 @@ export class DecisionReporting {
       true,
       input.allow_partial === true,
       lookup,
+      input.reporting_contract === 'overview-config-v4',
     );
   }
   /** One analysable group per account, entity level, currency, time zone, attribution and result definition. */
@@ -458,6 +460,7 @@ export class DecisionReporting {
     transient = false,
     allowPartial = false,
     lookup?: AccountLookupCache,
+    overviewV4 = false,
   ): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
@@ -479,6 +482,7 @@ export class DecisionReporting {
       transient,
       ...(transient && allowPartial ? {allowPartial: true} : {}),
       ...(transient && lookup ? {lookup} : {}),
+      ...(transient && overviewV4 ? {overviewV4: true} : {}),
     };
     const unpaged = actionHandler(this.unpagedActions, input.action);
     if (unpaged) return unpaged(context);
@@ -654,6 +658,7 @@ export class DecisionReporting {
     transient,
     allowPartial,
     lookup,
+    overviewV4,
   }: ReportingCall): Promise<JsonObject> {
     const sem = semantic(input.semantics ?? {}),
       mapping = input.mapping;
@@ -745,6 +750,7 @@ export class DecisionReporting {
             semantics: sem,
             preset: capturePreset!,
             ...(allowPartial ? {allowPartial} : {}),
+            ...(overviewV4 ? {overviewV4: true as const} : {}),
             ...(lookup ? {lookup} : {}),
             validateRows: rows => validatePresetRows(capturePreset, input, rows),
           })

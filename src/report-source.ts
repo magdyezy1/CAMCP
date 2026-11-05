@@ -174,6 +174,8 @@ export interface GuidedCaptureContext {
   readonly preset: string;
   /** Overview may retain partial collections; evidence captures always require a whole collection. */
   readonly allowPartial?: true;
+  /** Trusted internal Overview mode; never inferred from a public capture's native arguments. */
+  readonly overviewV4?: true;
   /** The Overview job's per-source cache; it carries provider read decisions across periods. */
   readonly lookup?: AccountLookupCache;
   /** The preset's row checks (validatePresetRows), for a collector that checks its rows before its last read. */
@@ -377,6 +379,11 @@ export interface ReportSource {
   requestHeaders?(): Record<string, string>;
   /** Provider window limits, checked before the account lookup makes any provider request. */
   validateRange?(source: JsonObject, range: {since: string; until: string}): void;
+  /** Provider-owned v4 population expansion that retains the qualified single-parent detail collector. */
+  collectOverviewDetail?(
+    collection: ReportCollection,
+    collectParent: (campaignId?: string) => Promise<JsonObject>,
+  ): Promise<JsonObject>;
   /** Collects one period of the source's native report into `collection`. */
   collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */

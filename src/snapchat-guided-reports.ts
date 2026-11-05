@@ -132,8 +132,8 @@ export const snapchatGuidedReporting: GuidedReporting = {
     };
   },
   // ARC-01 (reporting): a capture of a Snapchat preset collects complete daily stats pages (src/snapchat-evidence.ts).
-  collect: ({store, call, actor, args, semantics, allowPartial}) =>
-    collectSnapchatEvidence(store, call, actor, args, semantics, {allowPartial}),
+  collect: ({store, call, actor, args, semantics, allowPartial, overviewV4}) =>
+    collectSnapchatEvidence(store, call, actor, args, semantics, {allowPartial, overviewV4}),
   sourceCollection: 'snapchat_daily_pages',
   semanticsSource: (_preset, request) =>
     request.arguments.query.fields === 'spend,impressions,swipes,native_leads'

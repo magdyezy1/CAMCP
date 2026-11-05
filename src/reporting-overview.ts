@@ -709,6 +709,12 @@ export class ReportingOverview {
             defaults: reportSource(id)?.overview?.defaults ?? {},
             option_names: reportSource(id)?.overview?.option_names ?? [],
             provider_configured_options: reportSource(id)?.overview?.legacy?.provider_configured_options ?? [],
+            ...(reportSource(id)?.overview?.scope_aliases
+              ? {scope_aliases: reportSource(id)!.overview!.scope_aliases}
+              : {}),
+            ...(reportSource(id)?.overview?.scope_id_pattern
+              ? {scope_id_pattern: reportSource(id)!.overview!.scope_id_pattern}
+              : {}),
             delivery_metrics: reportSource(id)?.overview?.delivery_metrics ?? [],
             supported_statuses: reportSource(id)?.overview?.supported_statuses ?? ['all'],
             status_basis: reportSource(id)?.overview?.status_basis ?? 'not_applicable',

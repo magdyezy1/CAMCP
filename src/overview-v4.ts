@@ -18,6 +18,9 @@ export interface OverviewV4Capabilities {
   status_basis: 'current_configuration' | 'provider_report_status' | 'not_applicable';
   /** A provider-owned URN prefix when reports and parent metadata spell the same native identity differently. */
   scope_id_prefixes?: Readonly<Record<string, string>>;
+  scope_id_pattern?: string;
+  /** Old scalar parent filters become the same native ID scope used by the current editor. */
+  scope_aliases?: Readonly<Record<string, 'campaign_ids' | 'adset_ids' | 'ad_ids'>>;
   validateOptions?(options: JsonObject, context: {levels: readonly string[]}): void;
   legacy?: {
     campaign_options?: readonly string[];
@@ -26,6 +29,7 @@ export interface OverviewV4Capabilities {
     requires_complete?: true;
     /** Null retains a legacy campaign's provider-configured profile, including its original report-time mode. */
     provider_configured_options?: readonly string[];
+    parent_required_levels?: readonly string[];
   };
 }
 
@@ -76,6 +80,7 @@ export function overviewDefinitionForms(
         [campaign_ids, adset_ids, ad_ids].some(ids => ids?.length) ||
         delivered_only === true ||
         !statuses.includes('all') ||
+        (rules.parent_required_levels?.includes(level) === true && !source.campaign_id) ||
         (level === 'campaign' &&
           (options.complete_window === false || (rules.requires_complete && options.complete_window !== true))) ||
         (level !== 'campaign' &&
@@ -163,6 +168,14 @@ const ids = (value: unknown): string[] => {
 export function normalizeOverviewV4Source(input: JsonObject, capabilities: OverviewV4Capabilities): JsonObject {
   const source = structuredClone(input),
     levels = source.levels ?? [source.level ?? 'campaign'];
+  for (const [alias, field] of Object.entries(capabilities.scope_aliases ?? {})) {
+    if (source[alias] === undefined) continue;
+    const previous = source[field];
+    if (previous !== undefined && (!Array.isArray(previous) || (previous.length && !previous.includes(source[alias]))))
+      invalid('The parent campaign filter conflicts with the selected campaign IDs.');
+    source[field] = [source[alias]];
+    delete source[alias];
+  }
   delete source.scope_supporting;
   if (
     !Array.isArray(levels) ||
@@ -270,6 +283,7 @@ export function overviewV4ScopeIdentity(
   value: unknown,
 ): string | undefined {
   if (typeof value !== 'string' || !value) return undefined;
+  if (capabilities?.scope_id_pattern && !new RegExp(capabilities.scope_id_pattern).test(value)) return undefined;
   const prefix = capabilities?.scope_id_prefixes?.[level],
     id = prefix && value.startsWith(prefix) ? value.slice(prefix.length) : value;
   return id || undefined;

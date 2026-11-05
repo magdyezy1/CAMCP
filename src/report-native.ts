@@ -395,21 +395,26 @@ export class NativeCampaignReports {
       detailRounding: {},
     };
     if (accountLookupPlatforms(p)) await lookupAccount(c, gateway, run);
-    if (detail && !reports!.nativeDetail)
-      return collectDetailedOverview(
-        this.service,
-        source,
-        range,
-        actor,
-        c.metadata,
-        c.currency,
-        c.timezone,
-        lookup,
-        reports!.objectives,
-        reports!.readResult,
-        reports!.readStatus,
-        raw => nativeDeliveryActivity(p, raw),
-      );
+    if (detail && !reports!.nativeDetail) {
+      const collect = (campaignId?: string) =>
+        collectDetailedOverview(
+          this.service,
+          campaignId === undefined ? source : {...source, campaign_id: campaignId},
+          range,
+          actor,
+          c.metadata,
+          c.currency,
+          c.timezone,
+          lookup,
+          reports!.objectives,
+          reports!.readResult,
+          reports!.readStatus,
+          raw => nativeDeliveryActivity(p, raw),
+        );
+      return source.reporting_contract === 'overview-config-v4' && reports!.collectOverviewDetail
+        ? reports!.collectOverviewDetail(c, collect)
+        : collect();
+    }
     // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
     await reports!.collect(c);
     if (c.raw.length > 10000)

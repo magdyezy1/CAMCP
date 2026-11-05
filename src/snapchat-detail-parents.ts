@@ -76,7 +76,12 @@ export const snapchatDetailParents: DetailParentReader = Object.freeze({
       for (const squad of squads) {
         const campaign = campaigns.get(squad.campaign_id);
         if (!campaign) continue;
-        record(squad.id, {campaign_id: campaign.id, campaign_name: name(campaign.name), entity_metadata: squad});
+        record(squad.id, {
+          campaign_id: campaign.id,
+          campaign_name: name(campaign.name),
+          optimization_goal: squad.optimization_goal ?? null,
+          entity_metadata: squad,
+        });
       }
       return;
     }

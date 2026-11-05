@@ -29,6 +29,40 @@ const source = {platform: 'fixture', account_id: '9007199254740993', connection_
 const normalize = value => normalizeOverviewV4Source({...source, ...value}, capabilities);
 const metrics = (values, more = {}) => ({metrics: values, ...more});
 
+test('Snapchat scalar campaign scope migrates without widening and new all-campaign detail refuses old binaries', () => {
+  const caps = reportSource('snapchat').overview,
+    parent = '33333333-3333-4333-8333-000000000002',
+    other = '33333333-3333-4333-8333-000000000003',
+    original = {
+      platform: 'snapchat',
+      levels: ['adset'],
+      campaign_id: parent,
+      delivered_only: false,
+      report_options: {complete_window: true},
+    };
+  for (const campaign_ids of [undefined, [], [parent], [other, parent]]) {
+    const value = normalizeOverviewV4Source({...original, campaign_ids}, caps);
+    assert.deepEqual(value.campaign_ids, [parent]);
+    assert.equal(value.campaign_id, undefined);
+    assert.equal(original.campaign_id, parent);
+  }
+  assert.throws(
+    () => normalizeOverviewV4Source({...original, campaign_ids: [other]}, caps),
+    e => e.code === 'INVALID_REPORT_SOURCE',
+  );
+  for (const campaign_ids of [['not-a-uuid'], [null], 'invalid'])
+    assert.throws(
+      () => normalizeOverviewV4Source({...original, campaign_id: undefined, campaign_ids}, caps),
+      e => e.code === 'INVALID_REPORT_SOURCE',
+    );
+  const source = normalizeOverviewV4Source({...original, campaign_id: undefined}, caps),
+    forms = overviewDefinitionForms({contract_version: overviewConfigV4, sources: [source]}, () => caps);
+  assert.deepEqual(source.campaign_ids, []);
+  assert.equal(forms.config.sources[0].level, 'v4_required');
+  const old = {sources: [{platform: 'snapchat', level: 'adset', campaign_id: parent}]};
+  assert.deepEqual(overviewDefinitionForms(old, () => caps).config, old, 'the original v3 rollback form is untouched');
+});
+
 test('v4 level alias, several levels and provider-owned defaults are deterministic and never declare completeness', () => {
   const original = {...source, levels: ['campaign', 'adset', 'ad']};
   const normalized = normalizeOverviewV4Source(original, capabilities);

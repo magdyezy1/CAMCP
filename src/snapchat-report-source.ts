@@ -6,6 +6,7 @@ import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {reportStatus} from './report-status.js';
+import {collectSnapchatOverviewDetail} from './snapchat-overview-detail.js';
 
 /** Native optimization goals, not broad campaign objectives. Unpinned/app-source-specific goals stay unknown. */
 export const snapchatResultRules: ReportResultRules = {
@@ -48,39 +49,49 @@ export const snapchatResultRules: ReportResultRules = {
 export const snapchatReportSource: ReportSource = {
   platform: 'snapchat',
   readStatus(raw, {metadata = raw.entity_metadata}) {
-    return reportStatus(metadata?.status, {ACTIVE: 'active', PAUSED: 'paused'}, metadata?.delivery_status);
+    return reportStatus(
+      metadata?.status,
+      {ACTIVE: 'active', PAUSED: 'paused'},
+      metadata?.delivery_status,
+      metadata?.deleted === true,
+    );
   },
   requiresCompleteWindowDeclaration: true,
-  overview: overviewCapabilities(
-    [
-      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-      {id: 'adset', label: 'Ad squad', native_type: 'adsquad', preset: 'snapchat_adsquad'},
-      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'snapchat_ad'},
-    ],
-    {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
-    [],
-    (options, context) => {
-      const configured =
-        options.swipe_up_attribution_window === null &&
-        options.view_attribution_window === null &&
-        context?.levels.every(level => level === 'campaign');
-      if (
-        !configured &&
-        (!['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
-          !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) ||
-          (options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY'))
-      )
-        invalidReportSource(
-          'Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.',
-        );
-    },
-    {
-      campaign_options: ['swipe_up_attribution_window', 'view_attribution_window'],
-      detail_options: ['complete_window', 'swipe_up_attribution_window', 'view_attribution_window'],
-      requires_complete: true,
-      provider_configured_options: ['swipe_up_attribution_window', 'view_attribution_window'],
-    },
-  ),
+  overview: {
+    ...overviewCapabilities(
+      [
+        {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+        {id: 'adset', label: 'Ad squad', native_type: 'adsquad', preset: 'snapchat_adsquad'},
+        {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'snapchat_ad'},
+      ],
+      {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
+      [],
+      (options, context) => {
+        const configured =
+          options.swipe_up_attribution_window === null &&
+          options.view_attribution_window === null &&
+          context?.levels.every(level => level === 'campaign');
+        if (
+          !configured &&
+          (!['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
+            !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) ||
+            (options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY'))
+        )
+          invalidReportSource(
+            'Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.',
+          );
+      },
+      {
+        campaign_options: ['swipe_up_attribution_window', 'view_attribution_window'],
+        detail_options: ['complete_window', 'swipe_up_attribution_window', 'view_attribution_window'],
+        requires_complete: true,
+        provider_configured_options: ['swipe_up_attribution_window', 'view_attribution_window'],
+        parent_required_levels: ['adset'],
+      },
+    ),
+    scope_aliases: {campaign_id: 'campaign_ids'},
+    scope_id_pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  },
   resultRules: snapchatResultRules,
   readResult(raw, context) {
     return mappedReportResult(snapchatResultRules, {goal: context.goal ?? raw.optimization_goal}, raw, {
@@ -120,8 +131,17 @@ export const snapchatReportSource: ReportSource = {
   nativeMetricContainer: 'stats',
   // The stats and the campaign inventory.
   minimumRequestsPerPeriod: 2,
-  requestsPerPeriod: (level, contract) =>
-    level === 'campaign' ? 2 : contract === 'overview-config-v4' ? (level === 'ad' ? 6 : 8) : 1,
+  requestsPerPeriod: (level, contract, context) =>
+    level === 'campaign'
+      ? 2
+      : contract === 'overview-config-v4'
+        ? level === 'ad'
+          ? 6
+          : context?.source.campaign_id
+            ? 8
+            : 2 + 8 * Math.max(1, context?.source.campaign_ids?.length ?? 0)
+        : 1,
+  collectOverviewDetail: collectSnapchatOverviewDetail,
   guided: snapchatGuidedReporting,
   /**
    * One account stats read by campaign over the account-local period, with the default windows or a campaign-level

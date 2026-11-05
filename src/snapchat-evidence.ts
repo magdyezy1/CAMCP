@@ -5,6 +5,7 @@ import type {Actor, JsonObject} from './types.js';
 import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
+import {nestedError} from './errors.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -83,6 +84,7 @@ function metadata(v: JsonObject) {
   )
     incomplete('Snapchat returned partial, split or unrequested report dimensions.');
 }
+export {metadata as assertSnapchatReportMetadata};
 export function snapchatNextCursor(data: JsonObject, path: string, query: JsonObject) {
   if (data.paging === undefined) return undefined;
   if (!obj(data.paging) || Object.keys(data.paging).some(k => k !== 'next_link'))
@@ -123,7 +125,7 @@ export async function collectSnapchatEvidence(
   actor: Actor,
   args: JsonObject,
   sem: JsonObject,
-  context: {allowPartial?: true} = {},
+  context: {allowPartial?: true; overviewV4?: true} = {},
 ) {
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
@@ -152,7 +154,7 @@ export async function collectSnapchatEvidence(
     const result = await call(gateway, request, actor);
     current();
     if (result.success !== true)
-      bad(result.error?.message ?? 'Snapchat report read failed.', result.error?.code ?? 'REPORT_FAILED');
+      throw nestedError(result, {code: 'REPORT_FAILED', message: 'Snapchat report read failed.'});
     const data = result.data?.data;
     if (result.data?.executed === false || result.data?.dry_run || !obj(data) || !success(data.request_status))
       incomplete('Snapchat did not return a successful native read.');
@@ -184,7 +186,7 @@ export async function collectSnapchatEvidence(
   };
   const establishParent = async () => {
     const listPath = '/v1/adaccounts/' + account + '/campaigns',
-      query = {limit: 100, sort: 'created_at-desc'},
+      query = context.overviewV4 ? {limit: 100, read_deleted_entities: true} : {limit: 100, sort: 'created_at-desc'},
       seen = new Set<string>();
     let cursor: string | undefined;
     for (let page = 1; page <= 100; page++) {
@@ -215,6 +217,7 @@ export async function collectSnapchatEvidence(
       account_id: account,
       connection_id: connection.id,
       path_params: {campaign_id: parentId},
+      ...(context.overviewV4 ? {query: {read_deleted_entities: true}} : {}),
       aggregate_pages: false,
       dry_run: false,
     });

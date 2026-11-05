@@ -147,6 +147,29 @@ test('new source controls use server defaults and do not preselect a Meta purcha
   assert.match(markup, /data-report-delivered="meta" checked/);
 });
 
+test('Snapchat editor preserves a genuine legacy campaign filter while ignoring formerly inert scope fields', () => {
+  const f = fixture([], 'overview-config-v3'),
+    campaign = '33333333-3333-4333-8333-000000000002';
+  f.context.snapchat = {id: 'snapchat', reporting_v4: reportSource('snapchat').overview};
+  f.context.saved = {
+    level: 'adset',
+    campaign_id: campaign,
+    campaign_ids: ['formerly-ignored'],
+    ad_ids: ['also-ignored'],
+  };
+  const scoped = plain(f.run('overviewEditorSource(snapchat, saved)'));
+  assert.deepEqual(scoped.campaign_ids, [campaign]);
+  assert.deepEqual(scoped.ad_ids, []);
+  assert.equal(scoped.delivered_only, false);
+  const markup = f.run('String(overviewAccountFields(snapchat, saved, "account", true))');
+  assert.match(markup, /data-report-scope="campaign_ids"[^>]*>33333333-3333-4333-8333-000000000002<\/textarea>/);
+  assert.doesNotMatch(markup, /data-report-parent|formerly-ignored/);
+  const unscoped = f.run('String(overviewAccountFields(snapchat, {}, "account", true))');
+  assert.match(unscoped, /data-report-scope="campaign_ids"[^>]*><\/textarea>/);
+  f.run('overviewState.config.contract_version="overview-config-v4"');
+  assert.throws(() => f.run('overviewEditorSource(snapchat, saved)'), /conflicts with the selected campaign IDs/);
+});
+
 test('opening an unversioned saved report preserves its legacy population and configured profile despite new report defaults', () => {
   const f = fixture();
   f.context.record = {
