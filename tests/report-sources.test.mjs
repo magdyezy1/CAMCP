@@ -11,6 +11,7 @@ import {
 } from '../dist/src/report-native.js';
 import {reportRange as periodRange} from '../dist/src/report-periods.js';
 import {nativeDetailPlatforms} from '../dist/src/overview-native-detail.js';
+import {overviewSourceLevel} from '../dist/src/overview-levels.js';
 import {sourceRequestModel} from '../dist/src/report-request-estimate.js';
 import {fixedReportTimezones, sourceReportTimezone} from '../dist/src/report-windows.js';
 import {redditReportWarning, savedRedditReportProblems} from '../dist/src/reddit-report-rules.js';
@@ -39,6 +40,18 @@ test('every reporting platform has exactly one report source, in the platforms o
   );
 });
 
+test('native detail descriptors compose through the source registry without a shared provider import', () => {
+  for (const source of reportSourceList.filter(source => source.nativeDetail))
+    for (const level of source.overview.levels) {
+      const selected = overviewSourceLevel({
+        platform: source.platform,
+        level: level.id,
+        reporting_contract: 'overview-config-v4',
+      });
+      assert.deepEqual(selected, level);
+    }
+});
+
 // ARC-04 stage F: NativeCampaignReports.collectSource and the request estimate named these platforms in lists; the
 // sources declare them now. V2-RPT-04 also routes LinkedIn's middle and ad levels through its native source.
 test('the collector and the request estimate read their platform facts from the report sources', () => {
@@ -50,6 +63,7 @@ test('the collector and the request estimate read their platform facts from the 
   ]);
   assert.deepEqual(declaring('nativeDetail'), [
     ['linkedin', true],
+    ['x', true],
     ['microsoft', true],
     ['apple', true],
     ['reddit', true],

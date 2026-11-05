@@ -197,6 +197,8 @@ function exactNativeValues(platform: string, raw: JsonObject) {
 }
 /** Detailed readers use the same provider-owned field/unit normalization before their retained totals are rounded. */
 function nativeDeliveryActivity(platform: string, raw: JsonObject): boolean | null {
+  const source = reportSource(platform)!;
+  if (source.readActivity) return source.readActivity(raw);
   return overviewV4Activity(
     exactNativeValues(platform, raw).exact.metrics,
     reportSource(platform)!.overview!.delivery_metrics,
@@ -230,7 +232,9 @@ export function normalizeNativeRowV4(
     native: {
       ...raw,
       ...(status ? {status_evidence: status} : {}),
-      delivery_activity: overviewV4Activity(exact.metrics, reportSource(platform)!.overview!.delivery_metrics),
+      delivery_activity: reportSource(platform)!.readActivity
+        ? reportSource(platform)!.readActivity!(raw)
+        : overviewV4Activity(exact.metrics, reportSource(platform)!.overview!.delivery_metrics),
       exact_totals: additive,
     },
   };

@@ -15,7 +15,7 @@ import type {ReportSource} from './report-source.js';
  *  - Reddit: breakdowns CAMPAIGN_ID, AD_GROUP_ID (and AD_ID), with current names from the account's ad group and ad lists.
  *  - Apple: reports/apps/adgroups and reports/apps/ads, with parents from the account's ad group, ad and campaign queries.
  */
-export const nativeDetailPlatforms: readonly string[] = ['linkedin', 'microsoft', 'reddit', 'apple'];
+export const nativeDetailPlatforms: readonly string[] = ['linkedin', 'microsoft', 'reddit', 'apple', 'x'];
 /** Distinct entities per source whose names or parents are read; entities beyond it keep IDs and unknown parents. */
 export const nativeDetailLookupLimit = 1000;
 export const nativeDetailLookupLimitedWarning =
@@ -294,7 +294,9 @@ export function nativeDetailResult(
       ...(options.complete_window === true
         ? []
         : [
-            'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
+            options.complete_window === false
+              ? 'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.'
+              : 'The reporting window was not declared complete. Results remain partial and recommendations are withheld.',
           ]),
       ...base.warnings,
     ],

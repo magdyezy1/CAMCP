@@ -129,6 +129,7 @@ it and writes the stub.
 - [Assistive-technology acceptance: screen readers and touch, English and Arabic](acceptance/ASSISTIVE-TECHNOLOGY.md)
 - [Provider programs: LinkedIn Media Planning, Audience Insights and Display & Video 360](acceptance/PROVIDER-PROGRAMS.md)
 - [Read acceptance: measurement, TikTok, Reddit value unit, X placement](acceptance/READ-ACCEPTANCE.md)
+- [Round 2 Task 12: owner read acceptance](acceptance/ROUND2-TASK12-READ-ACCEPTANCE.md)
 - [Sheets delivery acceptance on a disposable spreadsheet](acceptance/SHEETS-DELIVERY.md)
 - [Write acceptance: zero-spend reviewed writes](acceptance/WRITE-ACCEPTANCE.md)
 
@@ -577,6 +578,7 @@ its consolidation moved it here.
 | 2026-11-05 | [Round 2 selected descendant rollups — 2026-11-05](records/IMPLEMENTATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md) |
 | 2026-11-05 | [Snapchat ad squads across account campaigns](records/IMPLEMENTATION-V2-R2-SNAPCHAT-POPULATION-2026-11-05.md) |
 | 2026-11-05 | [Round 2 stored report migration — 2026-11-05](records/IMPLEMENTATION-V2-R2-STORED-MIGRATION-2026-11-05.md) |
+| 2026-11-05 | [Round 2 Task 12: Snapchat population and X native levels](records/IMPLEMENTATION-V2-R2-TASK12-2026-11-05.md) |
 | 2026-11-05 | [Round 2 report editor integration — 2026-11-05](records/IMPLEMENTATION-V2-R2-WEBSITE-REPORTING-2026-11-05.md) |
 | 2026-11-05 | [Round 2 report scope checkpoint qualification — 2026-11-05](records/QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md) |
 | 2026-11-05 | [Round 2 selected descendant rollup qualification — 2026-11-05](records/QUALIFICATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md) |

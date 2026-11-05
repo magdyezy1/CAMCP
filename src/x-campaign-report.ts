@@ -7,6 +7,7 @@ import {xAnalyticsTime} from './x-report-jobs.js';
 import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
 import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {reportScaledText} from './report-math-v4.js';
+import type {XAnalyticsEntity} from './x-report-levels.js';
 
 /** Add native decimal text before applying the retained nine-place precision or native-unit conversion. */
 function exactNativeAdd(total: string, value: unknown, field: string): string {
@@ -95,22 +96,32 @@ export async function xCampaignReport(
     active?: XActiveSet;
     windows?: boolean;
     exact?: true;
+    entity?: XAnalyticsEntity;
   } = {},
 ): Promise<{rows: JsonObject[]; complete: boolean; warnings: string[]; no_activity_count: number; requests: number}> {
   // Fetch covering UTC hours, then assign each indivisible hour by its midpoint. Adjacent local calendar periods
   // must own disjoint buckets, including half/quarter-hour timezones. Never fractionally invent provider counts.
   const hour = 3600000,
+    entity = options.entity ?? 'CAMPAIGN',
+    detailed = entity !== 'CAMPAIGN',
     week = 7 * 86400000,
     requestedStart = start,
     requestedEnd = end,
     widened = start % hour !== 0 || end % hour !== 0;
   start = Math.floor(start / hour) * hour;
   end = Math.ceil(end / hour) * hour;
+  if (!['CAMPAIGN', 'LINE_ITEM', 'PROMOTED_TWEET'].includes(entity))
+    throw new MirrorError('INVALID_REPORT_SOURCE', 'Choose a supported X analytics entity.');
   const placements = [...xReportPlacements],
     groupSets = xGroupSets(extra),
     active = options.active,
     windows = options.windows !== false,
     names = new Map(inventory.map(c => [String(c.id), c]));
+  if (detailed && active?.entities.some(item => !names.has(item.entity_id)))
+    throw new MirrorError(
+      'REPORT_SCOPE_MISMATCH',
+      'X active detail IDs are missing from the complete native entity population.',
+    );
   const plan: {t: number; stop: number; placement: string; ids: string[]; group: string[]}[] = [];
   for (let t = start; t < end; t += week) {
     const stop = Math.min(end, t + week);
@@ -131,14 +142,14 @@ export async function xCampaignReport(
   if (plan.length > xAnalyticsRequestLimit)
     throw new MirrorError(
       'REPORT_RANGE_LIMIT',
-      active
+      active && !detailed
         ? 'X reported more active campaigns in this window than 100 analytics requests can cover. Split the X date range.'
         : 'Split the X date range or account to stay within 100 analytics requests.',
       {
         platform: 'x',
         planned_requests: plan.length,
         limit: xAnalyticsRequestLimit,
-        ...(active ? {active_campaigns: active.entities.length} : {}),
+        ...(active ? {[detailed ? 'active_entities' : 'active_campaigns']: active.entities.length} : {}),
       },
     );
   // Version 3 (RPT-03): the active-entities response and the conversion group split are part of the definition, so a
@@ -146,6 +157,7 @@ export async function xCampaignReport(
   const definition = fingerprint({
       version: options.exact ? 4 : 3,
       inventory,
+      ...(options.entity && options.entity !== 'CAMPAIGN' ? {entity: options.entity} : {}),
       active: active ? active.fingerprint : null,
       windows,
       start,
@@ -174,7 +186,11 @@ export async function xCampaignReport(
   // authorized read shows whether it returns data, activity X reports there is named and the totals are partial.
   const publisher = (active?.entities ?? []).filter(e => e.placements?.includes(xPublisherNetwork)).length;
   if (publisher) {
-    warnings.add(xPublisherNetworkWarning(publisher));
+    warnings.add(
+      detailed
+        ? 'Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.'
+        : xPublisherNetworkWarning(publisher),
+    );
     complete = false;
   }
   const failures: JsonObject[] = saved.failures ?? [];
@@ -195,7 +211,7 @@ export async function xCampaignReport(
     let response: JsonObject;
     try {
       response = await read({
-        entity: 'CAMPAIGN',
+        entity,
         entity_ids: [...expected].join(','),
         start_time: xAnalyticsTime(t),
         end_time: xAnalyticsTime(stop),
@@ -223,12 +239,58 @@ export async function xCampaignReport(
       checkpoint();
       continue;
     }
-    if (!Array.isArray(response.data))
+    if (!Array.isArray(response.data)) {
+      if (detailed) throw new MirrorError('REPORT_SHAPE_CHANGED', 'X analytics did not return an entity collection.');
       throw new MirrorError('REPORT_SHAPE_CHANGED', 'X analytics did not return a campaign collection.');
+    }
+    if (detailed) {
+      const params = response.request?.params,
+        sameList = (value: unknown, wanted: string[]) => {
+          const values = typeof value === 'string' ? value.split(',') : value;
+          return (
+            Array.isArray(values) &&
+            values.length === wanted.length &&
+            new Set(values).size === values.length &&
+            wanted.every(item => values.includes(item))
+          );
+        };
+      if (response.next_cursor !== undefined && response.next_cursor !== null && response.next_cursor !== '')
+        throw new MirrorError('REPORT_INCOMPLETE', 'X returned uncollected synchronous analytics continuation.');
+      if (
+        (response.time_series_length !== undefined && response.time_series_length !== (stop - t) / hour) ||
+        (params !== undefined &&
+          (!params ||
+            typeof params !== 'object' ||
+            Array.isArray(params) ||
+            (params.entity !== undefined && params.entity !== entity) ||
+            (params.entity_ids !== undefined && !sameList(params.entity_ids, step.ids)) ||
+            (params.start_time !== undefined &&
+              (typeof params.start_time !== 'string' || Date.parse(params.start_time) !== t)) ||
+            (params.end_time !== undefined &&
+              (typeof params.end_time !== 'string' || Date.parse(params.end_time) !== stop)) ||
+            (params.granularity !== undefined && params.granularity !== 'HOUR') ||
+            (params.placement !== undefined && params.placement !== placement) ||
+            (params.metric_groups !== undefined && !sameList(params.metric_groups, group))))
+      )
+        throw new MirrorError(
+          'REPORT_SCOPE_MISMATCH',
+          'X analytics did not retain the requested entity, window and placement.',
+        );
+    }
     const seen = new Set<string>();
     for (const r of response.data) {
-      if (!expected.has(r.id) || seen.has(r.id) || !Array.isArray(r.id_data))
+      if (
+        !r ||
+        typeof r !== 'object' ||
+        Array.isArray(r) ||
+        !expected.has(r.id) ||
+        seen.has(r.id) ||
+        !Array.isArray(r.id_data)
+      ) {
+        if (detailed)
+          throw new MirrorError('REPORT_SCOPE_MISMATCH', 'X returned an unexpected or duplicated native entity.');
         throw new MirrorError('REPORT_SCOPE_MISMATCH', 'X returned an unexpected or duplicated campaign.');
+      }
       seen.add(r.id);
       const old = rows.get(r.id) ?? {
         id: r.id,
@@ -280,7 +342,11 @@ export async function xCampaignReport(
     }
     if (seen.size !== expected.size) {
       complete = false;
-      warnings.add('X omitted requested campaign IDs; the returned subset is retained.');
+      warnings.add(
+        detailed
+          ? 'X omitted requested native entity IDs; the returned subset is retained.'
+          : 'X omitted requested campaign IDs; the returned subset is retained.',
+      );
     }
     checkpoint();
   }
@@ -294,7 +360,11 @@ export async function xCampaignReport(
   const activeIds = new Set(active?.entities.map(e => e.entity_id) ?? []),
     noActivity = active ? inventory.filter(c => !activeIds.has(String(c.id))).length : 0,
     unlisted = active ? active.entities.filter(e => !names.has(e.entity_id)).length : 0;
-  if (noActivity)
+  if (noActivity && detailed)
+    warnings.add(
+      'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
+    );
+  else if (noActivity)
     warnings.add(
       noActivity +
         ' X campaign' +

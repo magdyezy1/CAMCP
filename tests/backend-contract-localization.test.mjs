@@ -313,7 +313,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Adds the bounded selected-descendant rollup module.
   // Stored-definition migration adds its durable notice ledger module, without a new direct refusal.
   // Package D adds the Snapchat account-wide detail collector; its static refusals use the wrapper inventory.
-  assert.equal(files.length, 774);
+  // Task 12 adds the X detail collector and its provider-owned level declarations.
+  assert.equal(files.length, 776);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -327,7 +328,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // The bounded exact formula evaluator owns one precision refusal.
   // V4 request-estimate guidance and the native metadata account refusal retain both old and new reasons.
   // Meta capture preserves its nested error fallback; mixed-pipeline checkpoints have a recovery refusal.
-  assert.equal(owned.size, 1623);
+  // Eight direct X analytics entity/window/continuation refusals retain exact authored diagnostics.
+  assert.equal(owned.size, 1631);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -350,7 +352,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Twelve per-account v4 control labels and explanations.
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
-  assert.equal(Object.keys(catalog).length, 11712);
+  // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
+  assert.equal(Object.keys(catalog).length, 11737);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

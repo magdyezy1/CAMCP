@@ -80,30 +80,36 @@ period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per sourc
 The shared positions are campaign, middle level (`adset`) and ad. Labels retain the platform's native hierarchy:
 
 <!-- overview-levels:start -->
-| Platform | Campaign position | Middle position | Ad position |
-|---|---|---|---|
-| `google` | Campaign | Ad group | Ad |
-| `meta` | Campaign | Ad set | Ad |
-| `tiktok` | Campaign | Ad group | Ad |
-| `snapchat` | Campaign | Ad squad | Ad |
-| `linkedin` | Campaign group | Campaign | Creative |
-| `microsoft` | Campaign | Ad group | Ad |
-| `reddit` | Campaign | Ad group | Ad |
-| `apple` | Campaign | Ad group | Ad |
+
+| Platform    | Campaign position | Middle position | Ad position    |
+| ----------- | ----------------- | --------------- | -------------- |
+| `google`    | Campaign          | Ad group        | Ad             |
+| `meta`      | Campaign          | Ad set          | Ad             |
+| `tiktok`    | Campaign          | Ad group        | Ad             |
+| `snapchat`  | Campaign          | Ad squad        | Ad             |
+| `linkedin`  | Campaign group    | Campaign        | Creative       |
+| `microsoft` | Campaign          | Ad group        | Ad             |
+| `reddit`    | Campaign          | Ad group        | Ad             |
+| `apple`     | Campaign          | Ad group        | Ad             |
+| `x`         | Campaign          | Line item       | Promoted tweet |
+
 <!-- overview-levels:end -->
 
-X Ads, GA4 and Search Console use the campaign/resource position; no qualified middle or ad collector is offered.
-`bootstrap.platforms[].entity_levels` supplies the available levels. A detailed source must explicitly declare
+GA4 and Search Console use the resource position. X Ads additionally reports native line items and promoted tweets;
+the provider's promotion ID identifies each promoted-tweet row, including when several promotions reuse one tweet.
+`bootstrap.platforms[].entity_levels` supplies the available levels. V4 applies server defaults and permits an
+undeclared window as labelled partial, with recommendations held. A legacy detailed source must explicitly declare
 `report_options.complete_window` as a boolean and its measurement settings. TikTok and Snapchat require
 `complete_window:true` and a closed reporting window. Other supported detailed sources can declare an incomplete
 window, which keeps the source partial and holds recommendations.
 
-Snapchat ad-squad reporting (`level:"adset"`) also requires `campaign_id`, the exact parent campaign UUID. A reusable
-template can defer selecting it until a report is created. Other detailed presets, including Snapchat ads, refuse
+Legacy Snapchat ad-squad reporting (`level:"adset"`) requires `campaign_id`, the exact parent campaign UUID. V4 instead
+collects all account campaigns, or the optional exact `campaign_ids` scope, and preserves an old scalar as that scope.
+A reusable legacy template can defer selecting its parent. Other legacy detailed presets, including Snapchat ads, refuse
 `campaign_id`. Campaign-level sources accept no parent filter and only Meta/Snapchat accept their optional native
 attribution profile there; detailed settings do not apply to campaign totals.
 
-Detailed sources use their preset metrics. Additional `native_metrics` at those levels are refused with
+Legacy guided detailed sources use their preset metrics. Additional `native_metrics` at those levels are refused with
 `INVALID_NATIVE_METRICS`; clear them before selecting a detailed level. Campaign-level native metrics retain their
 existing platform-specific validation. Missing metrics remain unavailable.
 
@@ -123,14 +129,14 @@ otherwise unknown with a reason. The server supplies the platform tables and ava
 - A legacy `objective` other than `unknown` keeps overriding the source for saved-report compatibility. A legacy
   `unknown` is treated as absent. No saved definition is silently converted.
 
-| Source label | Meaning |
-|---|---|
-| `user_override` | A campaign override or saved hand-chosen objective |
-| `provider` | An objective the platform declares and AMCP groups explicitly |
-| `provider_mapped` | A group mapped from other declared platform facts |
+| Source label        | Meaning                                                           |
+| ------------------- | ----------------------------------------------------------------- |
+| `user_override`     | A campaign override or saved hand-chosen objective                |
+| `provider`          | An objective the platform declares and AMCP groups explicitly     |
+| `provider_mapped`   | A group mapped from other declared platform facts                 |
 | `provider_inferred` | A group inferred conservatively from an unlisted native objective |
-| `user_fallback` | The chosen fallback after the provider paths gave no usable group |
-| `unknown` | No usable objective; the row explains why |
+| `user_fallback`     | The chosen fallback after the provider paths gave no usable group |
+| `unknown`           | No usable objective; the row explains why                         |
 
 `mixed` is a row label for a LinkedIn group with different delivered objectives. It cannot be a fallback, override
 or filter choice. Unknown stays unknown; neither the website nor MCP invents a default. Objective regrouping can
@@ -162,15 +168,15 @@ campaigns; the ad position reads creatives. A group's own objective wins. Withou
 establish a shared objective; different delivered values produce Mixed, while incomplete companion coverage keeps
 the objective unknown. Names and parents are current metadata, not historical delivery-time values.
 
-| Native objective | Result used for advice |
-|---|---|
-| Brand awareness | Members reached, non-additive; conversions remain unavailable |
-| Website visits; job applicants | Landing-page clicks |
-| Engagement | Clicks, explicitly labelled because the engagement result is not in the API |
-| Video views | Video views |
-| Lead generation | `oneClickLeads`; `qualifiedLeads` is shown separately and never added |
-| Website conversions | `externalWebsiteConversions` |
-| Talent leads | `talentLeads` |
+| Native objective               | Result used for advice                                                      |
+| ------------------------------ | --------------------------------------------------------------------------- |
+| Brand awareness                | Members reached, non-additive; conversions remain unavailable               |
+| Website visits; job applicants | Landing-page clicks                                                         |
+| Engagement                     | Clicks, explicitly labelled because the engagement result is not in the API |
+| Video views                    | Video views                                                                 |
+| Lead generation                | `oneClickLeads`; `qualifiedLeads` is shown separately and never added       |
+| Website conversions            | `externalWebsiteConversions`                                                |
+| Talent leads                   | `talentLeads`                                                               |
 
 Mixed groups retain additive spend and impressions and separate results by objective instead of combining unlike
 results. Spend omitted alongside explicit zero impressions and clicks is zero under the LinkedIn D3 rule and is
@@ -321,49 +327,31 @@ whose zone is not fixed); rows and `sources[].date_range` then carry each source
 
 ## X cooldowns and recovery
 
-Terminal provider input/access errors (for example 400, 401, 403 or 422) retain
-their original diagnostics; they do not trip a transient-failure circuit. Repeated
-network/server failures can still open a circuit for the affected connection,
-account and origin. One request probes recovery after cooldown. Another account's
-valid access is not blocked by that circuit.
+Input/access refusals preserve native diagnostics without tripping the transient circuit. Repeated network/server
+failures can open a connection/account/origin-scoped circuit; one request probes recovery after cooldown. Other
+accounts remain independent. HTTP 429 honors account/user reset headers; 503 honors Retry-After. SQLite coordinates
+waiting workers. Completed analytics chunks survive retries without double counting. Native HTTP-200 errors fail;
+null metrics mean omitted zero, absent columns stay unknown. Advertising write permissions/retries are unchanged.
 
-HTTP 429 observes X's account/user reset headers; 503 observes Retry-After.
-Cooldowns coordinate through SQLite, and workers wait instead of immediately
-repeating the call. Completed X analytics batches are checkpointed and are not
-counted twice on resume. Null native metric values mean no reported activity;
-absent metric columns remain unavailable. Native errors inside HTTP 200 are failures.
-No advertising mutation gains permission or automatic retry from these changes.
+**Active entities (RPT-03).** `GET /12/stats/accounts/:id/active_entities` uses CAMPAIGN, LINE_ITEM or PROMOTED_TWEET,
+whole hours and at most 90 days per read. Deleted-inclusive inventories supply native names/parents; detail proves
+the complete bounded population before narrowing scope.
 
-**Active entities (RPT-03).** X's analytics guide says the Active Entities endpoint should decide which analytics are
-requested. The Overview reads `GET /12/stats/accounts/:id/active_entities` (entity `CAMPAIGN`, whole hours, at most 90
-days per read). The campaign list, including deleted campaigns, is kept only for names and objectives.
+- Analytics uses overlapping activity windows, separate placements, at most seven days/twenty IDs per request, and
+  a 100-request ceiling (`REPORT_RANGE_LIMIT`, `details.planned_requests`).
+- No-activity entities are counted in `no_activity_count`, never invented as zero rows. Separate WEB_CONVERSION and
+  MOBILE_CONVERSION requests preserve spend if conversion coverage fails.
+- Malformed/partial active sets fail. Provider refusal (400/404/422) falls back to bounded inventory with a warning.
+- Frozen checkpoints bind the request plan/active hash; detail also binds current authority. Incompatible reuse
+  refuses with `REPORT_DEFINITION_CHANGED` or an authority error.
+- `AMCP_X_ACTIVE_ENTITIES=campaigns` retains active IDs but widens their reporting window; `off` uses inventory.
 
-- Analytics are requested only for active campaigns, per placement (as X reports it) and only for the 7-day chunks
-  that overlap each activity window.
-- The 100-request ceiling is counted from that plan. A larger active set is refused with `REPORT_RANGE_LIMIT` and
-  `details.planned_requests`.
-- Campaigns with no reported activity are counted (`no_activity_count`) and named in a warning; they are never zero
-  rows.
-- `WEB_CONVERSION` and `MOBILE_CONVERSION` each have their own request, so a rejected conversion request keeps the
-  placement's spend and marks coverage partial.
-- A malformed, paginated or invalid active-entities response fails the source. If X refuses the read (400, 404 or
-  422), the bounded inventory path runs instead, with a warning.
-- The X checkpoint definition (version 3) includes the active-entities response hash, so a resumed run with another
-  active set or an older checkpoint is refused with `REPORT_DEFINITION_CHANGED`.
-- `AMCP_X_ACTIVE_ENTITIES=campaigns` keeps the active IDs but requests the whole window (widening for late conversion
-  updates). `off` restores the inventory path.
-
-The current X endpoint parameter reference lists ALL_ON_TWITTER, SPOTLIGHT and
-TREND; some historical examples on the same page still mention PUBLISHER_NETWORK.
-The adapter follows the current parameter enum. Official references checked
-2026-09-24: [analytics](https://docs.x.com/x-ads-api/analytics) and
-[rate limiting](https://docs.x.com/x-ads-api/fundamentals/rate-limiting).
-
-AMCP's line-item writes still accept `PUBLISHER_NETWORK`, and X's analytics summary (2026-10-08) lists it as a fourth
-placement. Until the authorized ACC-06 probe ([read acceptance](acceptance/READ-ACCEPTANCE.md)) shows whether X returns
-data for it, reports do not request it, and a campaign the active-entities answer lists on `PUBLISHER_NETWORK` makes the
-source partial (budget guidance is withheld) with a warning naming the count. Its delivery and spend are not in the
-totals, and a campaign active only there is not a zero row.
+Reports request ALL_ON_TWITTER, SPOTLIGHT and TREND. PUBLISHER_NETWORK remains unrequested pending
+[owner acceptance](acceptance/READ-ACCEPTANCE.md): reported activity there makes coverage partial, excludes its spend
+and holds recommendations. An entity active only there is never a zero row. See the official
+[analytics](https://docs.x.com/x-ads-api/analytics) and
+[rate-limit](https://docs.x.com/x-ads-api/fundamentals/rate-limiting) references and the
+[Task 12 runbook](acceptance/ROUND2-TASK12-READ-ACCEPTANCE.md).
 
 ## Provider error layers and throttles
 
@@ -396,7 +384,18 @@ Discover exact source and destination identifiers with `bootstrap`. The followin
 is a structure example; replace synthetic IDs with authorized bootstrap values.
 
 ```json
-{"action":"save","confirmed":true,"config":{"name":"Monthly awareness","client_name":"Client A","sources":[{"platform":"meta","connection_id":"selected-login","account_id":"123"}],"grain":"daily","date_range":{"preset":"last_complete_month","timezone":"Asia/Riyadh"},"metrics":["spend","impressions","clicks","cpc"]}}
+{
+  "action": "save",
+  "confirmed": true,
+  "config": {
+    "name": "Monthly awareness",
+    "client_name": "Client A",
+    "sources": [{"platform": "meta", "connection_id": "selected-login", "account_id": "123"}],
+    "grain": "daily",
+    "date_range": {"preset": "last_complete_month", "timezone": "Asia/Riyadh"},
+    "metrics": ["spend", "impressions", "clicks", "cpc"]
+  }
+}
 ```
 
 `save` returns `id` and `revision`. To edit, send the same `id`, its
@@ -429,15 +428,15 @@ Failed sources expand automatically and show the provider error code/message, ac
 
 The diagnostic's closed `category` determines the source card's actions:
 
-| Category | Meaning and source-card action |
-|---|---|
-| `provider_data` | AMCP refused incomplete, inconsistent or malformed platform data: Retry and Copy |
-| `connection` | The login needs attention: Manage connections and Copy |
-| `permission` | Account, role or API access is missing: Manage connections and Copy |
-| `rate_limit` | The provider cooldown applies: Copy; the worker's bounded retry policy remains in effect |
-| `request` | Correct or narrow the request: Copy |
-| `provider` | A provider failure: Retry and Copy |
-| `internal` | AMCP needs investigation: Copy |
+| Category        | Meaning and source-card action                                                           |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `provider_data` | AMCP refused incomplete, inconsistent or malformed platform data: Retry and Copy         |
+| `connection`    | The login needs attention: Manage connections and Copy                                   |
+| `permission`    | Account, role or API access is missing: Manage connections and Copy                      |
+| `rate_limit`    | The provider cooldown applies: Copy; the worker's bounded retry policy remains in effect |
+| `request`       | Correct or narrow the request: Copy                                                      |
+| `provider`      | A provider failure: Retry and Copy                                                       |
+| `internal`      | AMCP needs investigation: Copy                                                           |
 
 Provider-data diagnostics keep the provider message/request ID and safe page facts (`page`, `page_size`,
 `total_number`, `total_page`, `list_length`, `rule`), plus `declared_rows` and `returned_rows` where available.
@@ -452,6 +451,7 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 ## Metrics and decisions
 
 <!-- overview-default-metrics:start -->
+
 When `metrics` is omitted, the default selection is `spend`, `impressions`, `clicks`, `conversions`, `cpa` and `roas`.
 Clicks include the platform's taps or swipes; conversions use the source's primary-result definition. CPA is spend
 divided by conversions, and ROAS is conversion value divided by spend. Missing operands and zero denominators stay
@@ -496,7 +496,7 @@ snapshots only: no provider request and no saved change.
   counted as zero. Group totals add matched entities only.
 - **Analysis.** `amcp_reporting capture_overview` on the current snapshot of a pair also keeps the same group of its
   baseline (`pairing`), and `analyze` uses that pair as its default baseline (`baseline_source:
-  "paired_previous_period"`). A pair that was deleted or is no longer compatible is skipped with a limitation; an
+"paired_previous_period"`). A pair that was deleted or is no longer compatible is skipped with a limitation; an
   explicit `baseline_id` is still checked and refused as before.
 - **Limits of meaning.** Deltas are observational: they do not establish causality or adjust for seasonality.
 - **On the page.** The comparison is a captioned table in a named region that scrolls sideways (keyboard arrows move
@@ -511,19 +511,19 @@ shows disabled entries with their reason.
 
 ## Coverage
 
-| Source | Reporting behavior |
-|---|---|
-| Google Ads | Campaign GAQL and account metadata; micros converted to currency |
-| Meta | Campaign Insights with account attribution (or an explicit attribution profile) and objective-specific result aliases |
-| TikTok | Integrated campaign report plus objective inventory |
-| Snapchat | Campaign totals/inventory and account-local day boundaries |
-| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
-| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND (activity X lists on PUBLISHER_NETWORK makes the source partial with a warning); separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags. Campaign objectives come from one bounded read of the account's line items per job (current metadata): a campaign whose line items share one objective takes it, mixed objectives stay unknown with a warning, and a refused or oversized read keeps every objective unknown |
-| Microsoft Ads | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download |
-| Apple Ads | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records |
-| Reddit Ads | Campaign, ad group or ad metrics/inventory in UTC and spend micro-units; the campaign purchase value is read as cents, a unit not yet verified against Reddit, so a report that reads it says so; no result definition is claimed (`unknown`), so sales recommendations ask for review ([ACC-06](acceptance/READ-ACCEPTANCE.md)) |
-| GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
-| Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
+| Source         | Reporting behavior                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google Ads     | Campaign GAQL and account metadata; micros converted to currency                                                                                                                                                                                                                                                                                                                                               |
+| Meta           | Campaign Insights with account attribution (or an explicit attribution profile) and objective-specific result aliases                                                                                                                                                                                                                                                                                          |
+| TikTok         | Integrated campaign report plus objective inventory                                                                                                                                                                                                                                                                                                                                                            |
+| Snapchat       | Campaign totals/inventory and account-local day boundaries                                                                                                                                                                                                                                                                                                                                                     |
+| LinkedIn       | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
+| X Ads          | Campaigns, line items and promoted tweets; exact hourly chunks and current native parents/status. Campaign objectives come from bounded line-item metadata; mixed/refused metadata stays unknown. Planning, placement gaps and recovery are described above                                                                                                                                                    |
+| Microsoft Ads  | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download                                                                                                                                                                                                                                                                                               |
+| Apple Ads      | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records                                                                                                                                                                                                                                                                                                       |
+| Reddit Ads     | Campaign, ad group or ad metrics/inventory in UTC and spend micro-units; the campaign purchase value is read as cents, a unit not yet verified against Reddit, so a report that reads it says so; no result definition is claimed (`unknown`), so sales recommendations ask for review ([ACC-06](acceptance/READ-ACCEPTANCE.md))                                                                               |
+| GA4            | Campaign-attributed analytics context, property currency/timezone and threshold signals                                                                                                                                                                                                                                                                                                                        |
+| Search Console | Organic page context with limited top-row coverage; no paid-budget advice                                                                                                                                                                                                                                                                                                                                      |
 
 Tag Manager and storage connections have no paid campaign report. DV360, Amazon and Criteo may appear in other native/catalog tools but do not have automatic Overview adapters in this release. Provider approval, account access and entitlements remain necessary. This is not a claim of every vendor metric or live parity.
 
@@ -693,6 +693,7 @@ Schedules recheck the creator's membership, credential and account version. Revo
 and structured results; use bootstrap and action help for exact identifiers.
 
 <!-- overview-actions:start -->
+
 - Help and discovery: `help`, `bootstrap`.
 - Saved reports and snapshots: `save`, `save_template`, `delete_template`, `delete_view`, `delete_report`, `list`,
   `get`, `run`, `cancel`, `retry`.
@@ -703,6 +704,7 @@ and structured results; use bootstrap and action help for exact identifiers.
 - Schedules: `preview_schedule`, `schedule`, `update_schedule`, `pause_schedule`, `delete_schedule`,
   `resume_schedule`, `remove_schedule`.
 - Workbook migration: `preview_workbook_move`, `move_workbook_schedule`, `undo_workbook_move`.
+
 <!-- overview-actions:end -->
 
 `delete_schedule` retains its legacy **pause** meaning; `remove_schedule` removes a schedule. Use
@@ -716,13 +718,15 @@ Page sizes are explicit integers. A value above an action's maximum is refused, 
 schema allows a larger limit. Offsets are non-negative and start at 0.
 
 <!-- overview-pages:start -->
-| Action | Minimum limit | Maximum limit | Default limit |
-|---|---|---|---|
-| `list` | 1 | 100 | 50 |
-| `get` | 1 | 500 | 100 |
-| `compare_candidates` | 1 | 100 | 50 |
-| `compare` | 1 | 500 | 100 |
-| `presentation_profiles` | 1 | 100 | 30 |
+
+| Action                  | Minimum limit | Maximum limit | Default limit |
+| ----------------------- | ------------- | ------------- | ------------- |
+| `list`                  | 1             | 100           | 50            |
+| `get`                   | 1             | 500           | 100           |
+| `compare_candidates`    | 1             | 100           | 50            |
+| `compare`               | 1             | 500           | 100           |
+| `presentation_profiles` | 1             | 100           | 30            |
+
 <!-- overview-pages:end -->
 
 Presentation-profile results carry `next_offset`; continue even when an account-access filter leaves a page empty.

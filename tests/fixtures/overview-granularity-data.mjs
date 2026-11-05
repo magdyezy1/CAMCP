@@ -16,7 +16,7 @@ import {
 
 export const granularRange = {since: '2026-09-01', until: '2026-09-02'};
 export function granularSource(platform, level = 'ad') {
-  const ids = {google: 1, meta: 2, tiktok: 3, snapchat: 4, linkedin: 5};
+  const ids = {google: 1, meta: 2, tiktok: 3, snapchat: 4, linkedin: 5, x: 6};
   return {
     platform,
     connection_id: 'aaaaaaaa-1111-4111-8111-' + String(ids[platform]).padStart(12, '0'),
@@ -348,6 +348,74 @@ export function overviewGranularityFixture() {
         ),
       );
     }
+    if (url.hostname === 'ads-api.x.com') {
+      const campaigns = [{id: 'c1', name: 'Synthetic X campaign', entity_status: 'ACTIVE'}],
+        lines = [
+          {
+            id: 'l1',
+            campaign_id: 'c1',
+            name: 'Synthetic X line item',
+            objective: 'WEBSITE_CLICKS',
+            entity_status: 'ACTIVE',
+          },
+        ],
+        promoted = [
+          {
+            id: 'p1',
+            line_item_id: 'l1',
+            tweet_id: '9007199254740993',
+            name: 'Synthetic X promotion',
+            entity_status: 'ACTIVE',
+          },
+        ],
+        kind = url.pathname.split('/').at(-1);
+      if (url.pathname === '/12/accounts/100')
+        return Response.json({data: {id: '100', name: 'Synthetic X', currency: 'USD', timezone: 'UTC'}});
+      if (['campaigns', 'line_items', 'promoted_tweets'].includes(kind))
+        return Response.json({
+          data: {campaigns, line_items: lines, promoted_tweets: promoted}[kind],
+          next_cursor: null,
+        });
+      if (kind === 'active_entities')
+        return Response.json({
+          data: [
+            {
+              entity_id: {CAMPAIGN: 'c1', LINE_ITEM: 'l1', PROMOTED_TWEET: 'p1'}[url.searchParams.get('entity')],
+              placements: ['ALL_ON_TWITTER'],
+              activity_start_time: '2026-09-01T00:00:00Z',
+              activity_end_time: '2026-09-03T00:00:00Z',
+            },
+          ],
+        });
+      assert.equal(url.pathname, '/12/stats/accounts/100');
+      const query = Object.fromEntries(url.searchParams),
+        hours = (Date.parse(query.end_time) - Date.parse(query.start_time)) / 3600000;
+      assert(hours > 0 && hours <= 168 && Number.isInteger(hours));
+      const ids = query.entity_ids.split(',');
+      assert(ids.length > 0 && ids.length <= 20);
+      return Response.json({
+        time_series_length: hours,
+        request: {
+          params: {...query, account_id: '100', entity_ids: ids, metric_groups: query.metric_groups.split(',')},
+        },
+        data: ids.map(id => ({
+          id,
+          id_data: [
+            {
+              segment: null,
+              metrics: {
+                billed_charge_local_micro: Array(hours).fill('1000000'),
+                impressions: Array(hours).fill('10'),
+                clicks: Array(hours).fill('1'),
+                url_clicks: Array(hours).fill('1'),
+                engagements: Array(hours).fill('1'),
+                video_total_views: Array(hours).fill('0'),
+              },
+            },
+          ],
+        })),
+      });
+    }
     throw Error('Synthetic granular fixture refuses egress: ' + url.hostname);
   };
   for (const [platform, gateway, scopes] of [
@@ -356,6 +424,7 @@ export function overviewGranularityFixture() {
     ['tiktok', 'tiktok_native_action', ['advertiser.read', 'report.read']],
     ['linkedin', 'linkedin_native_action', ['r_ads', 'r_ads_reporting']],
     ['snapchat', 'snapchat_native_action', ['snapchat-marketing-api']],
+    ['x', 'x_ads_native_action', []],
   ]) {
     const source = granularSource(platform);
     store.putConnection(
@@ -369,7 +438,11 @@ export function overviewGranularityFixture() {
         label: 'Synthetic ' + platform,
         scopes,
       },
-      {accessToken: 'synthetic', developerToken: 'synthetic'},
+      {
+        accessToken: 'synthetic',
+        developerToken: 'synthetic',
+        ...(platform === 'x' ? {consumerKey: 'synthetic', consumerSecret: 'synthetic', tokenSecret: 'synthetic'} : {}),
+      },
     );
     store.putDocument(actor.tenantId, 'website_assets', source.connection_id, {
       groups: [{kind: 'ad_accounts', assets: [{id: source.account_id, name: 'Synthetic ' + platform + ' account'}]}],

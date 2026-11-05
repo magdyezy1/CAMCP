@@ -206,6 +206,10 @@ const reportSourceWarnings = new Set([
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
   // RPT-03 and RPT-04 collection notices.
   'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
+  'X refused the active-entities read; every scoped entity was requested instead (at most 100 analytics requests).',
+  'Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
+  'X omitted requested native entity IDs; the returned subset is retained.',
+  'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
   'The provider refused one day-segmented request, so each day was requested separately.',
   'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',

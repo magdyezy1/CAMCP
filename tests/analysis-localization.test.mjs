@@ -28,6 +28,31 @@ const nativeRow = () => ({
   result_definition: 'native purchase',
 });
 
+test('X detail warnings translate exact authored copy without translating provider data', () => {
+  const ar = fixture(),
+    en = fixture('en');
+  for (const message of [
+    'X refused the active-entities read; every scoped entity was requested instead (at most 100 analytics requests).',
+    'Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
+    'X omitted requested native entity IDs; the returned subset is retained.',
+    'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
+  ]) {
+    ar.context.message = en.context.message = message;
+    assert.equal(en.run('uiSourceWarning(message)'), message);
+    assert.equal(ar.run('uiSourceWarning(message)'), ar.context.catalog[message]);
+    assert.match(ar.context.catalog[message], /[\u0600-\u06ff]/u);
+  }
+  ar.context.message = 'Native X diagnostic <unsafe>';
+  assert.equal(ar.run('uiSourceWarning(message)'), ar.context.message);
+});
+
+test('provider-owned X hierarchy labels are required by the locale inventory', () => {
+  const result = localeChecks.checkWebLocales();
+  assert.equal(result.sources.get('server:overview-levels').has('Promoted tweet'), true);
+  assert.equal(result.sources.get('server:overview-levels').has('Line item'), true);
+  assert.deepEqual(result.problems, []);
+});
+
 test('missing-target recommendations retain the original reason and expose exact display parameters', () => {
   const row = nativeRow(),
     before = structuredClone(row),

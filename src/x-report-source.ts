@@ -6,6 +6,9 @@ import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entit
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
 import {reportStatus} from './report-status.js';
+import {xOverviewLevels} from './x-report-levels.js';
+import {collectXOverviewDetail} from './x-overview-detail.js';
+import {overviewV4Activity} from './overview-v4.js';
 import {
   xCampaignObjectives,
   xCampaignReport,
@@ -46,6 +49,11 @@ export const xResultRules: ReportResultRules = {
 /** X campaign rows as xCampaignReport (src/x-campaign-report.ts) prepares them: the metrics are already shared ones. */
 export const xReportSource: ReportSource = {
   platform: 'x',
+  readActivity(raw) {
+    return raw.native_metrics
+      ? overviewV4Activity(raw.native_metrics, ['billed_charge_local_micro', 'impressions', 'clicks'])
+      : overviewV4Activity(raw.metrics ?? {}, ['spend', 'impressions', 'clicks']);
+  },
   readStatus(raw, {metadata = raw.entity_metadata}) {
     return reportStatus(
       metadata?.entity_status,
@@ -54,7 +62,8 @@ export const xReportSource: ReportSource = {
       metadata?.deleted === true,
     );
   },
-  overview: overviewCapabilities([{id: 'campaign', label: 'Campaign', native_type: 'campaign'}]),
+  overview: {...overviewCapabilities(xOverviewLevels), scope_id_pattern: '^[A-Za-z0-9]{1,32}$'},
+  nativeDetail: true,
   resultRules: xResultRules,
   readResult(raw, context) {
     return mappedReportResult(xResultRules, {objective: context.objective ?? raw.objective}, raw, {
@@ -72,13 +81,25 @@ export const xReportSource: ReportSource = {
   nativeMetricCheck: false,
   // The campaign inventory and the active entities; the analytics requests are planned from them at run time.
   minimumRequestsPerPeriod: 2,
-  requestsPerPeriod: (_level, contract) =>
-    contract === 'overview-config-v4' ? (xActiveEntitiesMode() === 'off' ? 4 : 5) : 2,
+  requestsPerPeriod: (level, contract, context) => {
+    if (level === 'campaign') return contract === 'overview-config-v4' ? (xActiveEntitiesMode() === 'off' ? 4 : 5) : 2;
+    const days = context ? (Date.parse(context.range.until) - Date.parse(context.range.since)) / 86400000 + 1 : 1,
+      weeks = Math.ceil((days * 24 + 2) / 168),
+      scope = level === 'ad' ? context?.source.ad_ids : context?.source.adset_ids,
+      batches = Math.max(1, Math.ceil((scope?.length ?? 0) / 20));
+    // Inventory and fanout beyond the known first batch remain bounded by the running collection and sync planner.
+    return (
+      (level === 'ad' || context?.source.ad_ids?.length ? 3 : 2) +
+      weeks * batches * 3 +
+      (xActiveEntitiesMode() === 'off' ? 0 : 1)
+    );
+  },
   /**
    * The account's campaign inventory, the campaigns X reports as active (RPT-03), their line item objectives (RPT-07)
    * and the bounded analytics of those campaigns, each kept with the checkpoint so a resumed run asks X the same.
    */
   async collect(c) {
+    if (c.detail) return collectXOverviewDetail(c);
     const {checkpoint, save} = c;
     if (!c.timezone) invalidReportSource('X account timezone is required.');
     const inventory =
@@ -186,7 +207,17 @@ export const xReportSource: ReportSource = {
       id: raw.id,
       name: raw.name,
       objective: raw.objective,
-      metrics: Object.fromEntries(Object.entries(raw.metrics ?? {}).map(([key, value]) => [key, reader.value(value)])),
+      metrics: Object.fromEntries(
+        Object.entries(raw.metrics ?? {}).map(([key, value]) => {
+          const native = fields[key];
+          return [
+            key,
+            native && Object.hasOwn(raw.native_metrics ?? {}, native)
+              ? reader.value(raw.native_metrics[native], key === 'spend' ? 1e6 : 1)
+              : reader.value(value),
+          ];
+        }),
+      ),
     };
   },
 };

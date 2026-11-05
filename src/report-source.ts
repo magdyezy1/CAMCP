@@ -313,6 +313,8 @@ export interface ReportSource {
   readResult?(raw: JsonObject, context: ReportResultContext): ResolvedReportResult;
   /** Current native configured status, distinct from delivery observed during the report's date window. */
   readonly readStatus?: ReportStatusReader;
+  /** Activity from native source units when a provider collector aggregates before normalized metric rounding. */
+  readActivity?(raw: JsonObject): boolean | null;
   /** The reporting platform ID (`google`, `meta`, ...), as report sources and reportPlatforms name it. */
   readonly platform: string;
   /** Native metrics the Overview suggests for this platform's sources. */

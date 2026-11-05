@@ -9,6 +9,7 @@ import {microsoftReportSource} from './microsoft-report-source.js';
 import {appleReportSource} from './apple-report-source.js';
 import {redditReportSource} from './reddit-report-source.js';
 import {ga4ReportSource} from './ga4-report-source.js';
+import {registerNativeDetailLevels} from './overview-levels.js';
 
 /**
  * The report sources (ARC-04 stage F): one per reporting platform, in the order of reportPlatforms
@@ -28,6 +29,9 @@ export const reportSourceList: readonly ReportSource[] = Object.freeze([
   ga4ReportSource,
   searchConsoleReportSource,
 ]);
+// Native detail levels are source-owned facts; this registry is the allowed provider/shared composition boundary.
+for (const source of reportSourceList)
+  if (source.nativeDetail && source.overview) registerNativeDetailLevels(source.platform, source.overview.levels);
 const byPlatform = new Map(reportSourceList.map(source => [source.platform, source]));
 
 /**

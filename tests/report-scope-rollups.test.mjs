@@ -305,7 +305,7 @@ test('unsupported descendant filters and empty provider URNs refuse at the sourc
   for (const [platform, changes] of [
     ['ga4', {ad_ids: [selected]}],
     ['gsc', {adset_ids: ['201']}],
-    ['x', {ad_ids: [selected]}],
+    ['x', {ad_ids: ['invalid/native/id']}],
     ['linkedin', {ad_ids: ['urn:li:sponsoredCreative:']}],
   ]) {
     assert.throws(
@@ -313,6 +313,11 @@ test('unsupported descendant filters and empty provider URNs refuse at the sourc
       {code: 'INVALID_REPORT_SOURCE'},
     );
   }
+  const x = normalizeOverviewV4Source(
+    {platform: 'x', levels: ['campaign'], ad_ids: [selected]},
+    reportSource('x').overview,
+  );
+  assert.deepEqual(x.ad_ids, [selected], 'X promotion IDs now support selected-ad ancestor totals');
   const source = normalizeOverviewV4Source(
       {platform: 'meta', levels: ['campaign'], ad_ids: [selected], scope_supporting: true},
       reportSource('meta').overview,

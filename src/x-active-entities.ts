@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {fingerprint} from './report-quality.js';
 import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
+import type {XAnalyticsEntity} from './x-report-levels.js';
 
 /**
  * RPT-03: X's analytics guide says the Active Entities endpoint "should dictate how analytics requests are made":
@@ -36,7 +37,14 @@ export function xActiveEntitiesMode(): 'on' | 'campaigns' | 'off' {
   const mode = process.env.AMCP_X_ACTIVE_ENTITIES;
   return mode === 'off' || mode === 'campaigns' ? mode : 'on';
 }
-const shape = (problem: string): never => {
+const shape = (problem: string, entity: XAnalyticsEntity = 'CAMPAIGN'): never => {
+  if (entity !== 'CAMPAIGN')
+    throw new MirrorError(
+      'REPORT_SHAPE_CHANGED',
+      'X returned an invalid active-entities response, so no native entities were narrowed.',
+      {problem},
+      502,
+    );
   throw new MirrorError(
     'REPORT_SHAPE_CHANGED',
     'X returned an invalid active-entities response, so no campaigns were narrowed.',
@@ -44,47 +52,51 @@ const shape = (problem: string): never => {
     502,
   );
 };
-const time = (value: unknown, field: string) => {
-  if (typeof value !== 'string' || value.length > 40) return shape(field + ' is not a timestamp.');
+const time = (value: unknown, field: string, entity: XAnalyticsEntity) => {
+  if (typeof value !== 'string' || value.length > 40) return shape(field + ' is not a timestamp.', entity);
   const at = Date.parse(value);
-  return Number.isFinite(at) ? at : shape(field + ' is not a timestamp.');
+  return Number.isFinite(at) ? at : shape(field + ' is not a timestamp.', entity);
 };
 /** Reads and validates the campaigns X reports as active between two instants (widened to whole UTC hours). */
 export async function xActiveEntities(
   start: number,
   end: number,
   read: (query: JsonObject) => Promise<JsonObject>,
+  entity: XAnalyticsEntity = 'CAMPAIGN',
 ): Promise<XActiveSet> {
+  if (!['CAMPAIGN', 'LINE_ITEM', 'PROMOTED_TWEET'].includes(entity))
+    throw new MirrorError('INVALID_REPORT_SOURCE', 'Choose a supported X analytics entity.');
   start = Math.floor(start / hour) * hour;
   end = Math.ceil(end / hour) * hour;
   if (!(end > start)) throw new MirrorError('INVALID_REPORT_RANGE', 'Choose a nonempty X report window.');
+  const malformed = (problem: string): never => shape(problem, entity);
   const merged = new Map<string, XActiveEntity>(),
     responses: JsonObject[] = [];
   let requests = 0;
   for (let t = start; t < end; t += xActiveEntitiesChunkMs) {
     const stop = Math.min(end, t + xActiveEntitiesChunkMs);
-    const response = await read({entity: 'CAMPAIGN', start_time: xAnalyticsTime(t), end_time: xAnalyticsTime(stop)});
+    const response = await read({entity, start_time: xAnalyticsTime(t), end_time: xAnalyticsTime(stop)});
     requests++;
     if (!response || typeof response !== 'object' || !Array.isArray(response.data))
-      shape('the response has no entity collection.');
-    if (response.next_cursor) shape('the response is paginated; a partial active set is refused.');
+      malformed('the response has no entity collection.');
+    if (response.next_cursor) malformed('the response is paginated; a partial active set is refused.');
     responses.push(response.data);
     for (const item of response.data as unknown[]) {
-      if (!item || typeof item !== 'object' || Array.isArray(item)) shape('an entity is not an object.');
-      const entity = item as JsonObject,
-        id = entity.entity_id;
-      if (typeof id !== 'string' || !/^[A-Za-z0-9]{1,32}$/.test(id)) shape('an entity ID is missing or invalid.');
-      const from = time(entity.activity_start_time, 'activity_start_time'),
-        to = time(entity.activity_end_time, 'activity_end_time');
-      if (to < from) shape('an activity window ends before it starts.');
-      const named = entity.placements ?? (entity.placement === undefined ? undefined : [entity.placement]);
+      if (!item || typeof item !== 'object' || Array.isArray(item)) malformed('an entity is not an object.');
+      const native = item as JsonObject,
+        id = native.entity_id;
+      if (typeof id !== 'string' || !/^[A-Za-z0-9]{1,32}$/.test(id)) malformed('an entity ID is missing or invalid.');
+      const from = time(native.activity_start_time, 'activity_start_time', entity),
+        to = time(native.activity_end_time, 'activity_end_time', entity);
+      if (to < from) malformed('an activity window ends before it starts.');
+      const named = native.placements ?? (native.placement === undefined ? undefined : [native.placement]);
       if (
         named !== undefined &&
         (!Array.isArray(named) ||
           named.length > 10 ||
           named.some(p => typeof p !== 'string' || !/^[A-Z_]{1,40}$/.test(p)))
       )
-        shape('placements are invalid.');
+        malformed('placements are invalid.');
       const window = {
         start: Math.max(start, Math.floor(from / hour) * hour),
         end: Math.min(end, Math.max(Math.ceil(to / hour) * hour, Math.floor(from / hour) * hour + hour)),
@@ -100,17 +112,30 @@ export async function xActiveEntities(
         end: Math.max(prior?.end ?? window.end, window.end),
         placements,
       });
-      if (merged.size > maxEntities)
+      if (merged.size > maxEntities) {
+        if (entity !== 'CAMPAIGN')
+          throw new MirrorError(
+            'REPORT_RANGE_LIMIT',
+            'X reported more than 10,000 active native entities. Split the date range.',
+            {platform: 'x'},
+            422,
+          );
         throw new MirrorError(
           'REPORT_RANGE_LIMIT',
           'X reported more than 10,000 active campaigns. Split the date range.',
           {platform: 'x'},
           422,
         );
+      }
     }
   }
   const entities = [...merged.values()].sort((a, b) => (a.entity_id < b.entity_id ? -1 : 1));
-  return {version: 1, entities, fingerprint: fingerprint({start, end, responses}), requests};
+  return {
+    version: 1,
+    entities,
+    fingerprint: fingerprint({start, end, responses, ...(entity !== 'CAMPAIGN' ? {entity} : {})}),
+    requests,
+  };
 }
 /** A retained checkpoint copy is re-validated before it narrows a resumed run. */
 export function xActiveSet(value: unknown): XActiveSet | undefined {

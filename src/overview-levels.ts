@@ -69,6 +69,14 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
       {id: 'ad', label: 'Ad', preset: 'apple_ad', native_type: 'ad'},
     ],
   };
+/** Provider registries may add a native-detail source without making this shared leaf import its provider. */
+export function registerNativeDetailLevels(
+  platform: string,
+  levels: readonly {id: string; label: string; native_type: string; preset?: string}[],
+): void {
+  if (!Object.hasOwn(overviewEntityLevels, platform))
+    overviewEntityLevels[platform] = levels.map(level => ({...level}));
+}
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);
 }
