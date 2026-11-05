@@ -54,4 +54,4 @@ acceptance is run.
 
 ## Latest qualification
 
-[Round 2 stored report migration qualification — 2026-11-05](records/QUALIFICATION-V2-R2-STORED-MIGRATION-2026-11-05.md), 2026-11-05.
+[Round 2 report editor qualification — 2026-11-05](records/QUALIFICATION-V2-R2-WEBSITE-REPORTING-2026-11-05.md), 2026-11-05.
