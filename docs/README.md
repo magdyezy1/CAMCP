@@ -580,6 +580,7 @@ its consolidation moved it here.
 | 2026-11-05 | [Round 2 report editor integration — 2026-11-05](records/IMPLEMENTATION-V2-R2-WEBSITE-REPORTING-2026-11-05.md) |
 | 2026-11-05 | [Round 2 report scope checkpoint qualification — 2026-11-05](records/QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md) |
 | 2026-11-05 | [Round 2 selected descendant rollup qualification — 2026-11-05](records/QUALIFICATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md) |
+| 2026-11-05 | [Snapchat campaign population checkpoint — 2026-11-05](records/QUALIFICATION-V2-R2-SNAPCHAT-POPULATION-2026-11-05.md) |
 | 2026-11-05 | [Round 2 stored report migration qualification — 2026-11-05](records/QUALIFICATION-V2-R2-STORED-MIGRATION-2026-11-05.md) |
 | 2026-11-05 | [Round 2 report editor qualification — 2026-11-05](records/QUALIFICATION-V2-R2-WEBSITE-REPORTING-2026-11-05.md) |
 
