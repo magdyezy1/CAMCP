@@ -185,7 +185,7 @@ async function modernCall(
   };
 }
 
-/** One POST in the legacy framing (no `_meta` version), as the SDK v1 client sends after initialize. */
+/** One POST in the legacy framing (no `_meta` version), as a 1.x client sends after initialize (tests/mcp-sdk-v1-exchange.test.mjs replays a recorded one). */
 async function legacyCall(f: Fixture, path: string, token: string, message: JsonObject, version = '2025-11-25') {
   const response = await fetch(f.base + path, {
     method: 'POST',
@@ -205,7 +205,7 @@ async function legacyCall(f: Fixture, path: string, token: string, message: Json
   };
 }
 
-/** The SDK v1 (1.32.1) client over Streamable HTTP, with an API key or an OAuth provider. */
+/** The SDK v2 client over Streamable HTTP, with an API key or an OAuth provider. */
 async function sdkClient(f: Fixture, path: string, credential: {token?: string; provider?: OAuthClientProvider}) {
   const client = new Client({name: 'conformance-sdk-client', version: '1.0.0'});
   await client.connect(
@@ -333,7 +333,7 @@ test('MCP-03 phase 3: legacy initialize on 2025-11-25 and 2025-06-18 is unchange
       params: {protocolVersion: modern, capabilities: {}, clientInfo: {name: 'dual', version: '1'}},
     });
     assert.equal(negotiated.body.result.protocolVersion, '2025-11-25');
-    // The SDK v1 client still connects and calls tools.
+    // The SDK v2 client still connects and calls tools.
     const client = await sdkClient(f, '/mcp', {token});
     const help = await client.callTool({name: 'amcp_tool_help', arguments: {}});
     assert.equal((help.structuredContent as JsonObject).success, true);
