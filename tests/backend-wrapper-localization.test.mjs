@@ -329,8 +329,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
   // Web-report adds the singular forms of two row-count messages (F-L8-12); none is a wrapper reason.
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
-  // Package engine-core adds one website message: the levels of a source that could not be collected (F-L5-10).
-  assert.equal(Object.keys(catalog).length, 11816);
+  // Package engine-core adds two website messages: the levels of a source that could not be collected (F-L5-10) and the selected IDs that matched no returned row (F-L5-27).
+  assert.equal(Object.keys(catalog).length, 11817);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

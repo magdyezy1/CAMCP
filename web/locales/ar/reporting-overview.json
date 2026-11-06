@@ -161,6 +161,7 @@
   "Scale": "وسّع النطاق",
   "Scheduled export complete.": "اكتمل التصدير المجدول.",
   "Select all {platform} accounts": "حدد جميع حسابات {platform}",
+  "Selected IDs that matched no returned row ({count}):": "المعرّفات المحددة التي لم يطابقها أي صف مُعاد ({count}):",
   "Sending": "قيد الإرسال",
   "Set a direction for this KPI": "حدّد اتجاهًا لهذا المؤشر",
   "Set target": "حدد القيمة المستهدفة",

@@ -351,6 +351,15 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
 }
 
 const scopeLevelOrder = ['campaign', 'adset', 'ad'];
+/** The ID lists a scope selects by, each with the level whose entities its IDs name. */
+const scopeLists = [
+  ['campaign_ids', 'campaign'],
+  ['adset_ids', 'adset'],
+  ['ad_ids', 'ad'],
+] as const;
+/** The warning a source carries when selected IDs matched no row the provider returned (F-L5-27). */
+export const unmatchedIdsWarning = (count: number) =>
+  count + ' selected ID' + (count === 1 ? '' : 's') + ' matched no returned row.';
 export function overviewV4MeasurementLevel(source: JsonObject): 'ad' | 'adset' | undefined {
   if (source.ad_ids?.length) return 'ad';
   if (source.adset_ids?.length) return 'adset';
@@ -410,6 +419,8 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
   let excluded = 0,
     unknown = 0,
     statusExcluded = 0;
+  // The selected IDs some returned row carries, whatever else excludes that row afterwards.
+  const matched: Record<string, Set<string>> = {campaign_ids: new Set(), adset_ids: new Set(), ad_ids: new Set()};
   const selected = rows.filter(row => {
     const parents = row.parent_ids ?? {},
       level = row.entity_level ?? source.level ?? 'campaign',
@@ -419,18 +430,21 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
         adset_ids: level === 'adset' ? own : parents.adset_id,
         ad_ids: level === 'ad' ? own : undefined,
       };
-    for (const [field, value] of Object.entries(values)) {
-      const scopeLevel = {campaign_ids: 'campaign', adset_ids: 'adset', ad_ids: 'ad'}[field]!,
-        identity = overviewV4ScopeIdentity(capabilities, scopeLevel, value);
+    let refusal: 'unknown' | 'other' | undefined;
+    for (const [field, scopeLevel] of scopeLists) {
+      if (!source[field]?.length) continue;
+      const identity = overviewV4ScopeIdentity(capabilities, scopeLevel, values[field]);
       if (
-        source[field]?.length &&
-        (identity === undefined ||
-          !source[field].some((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id) === identity))
-      ) {
-        excluded++;
-        if (identity === undefined) unknown++;
-        return false;
-      }
+        identity !== undefined &&
+        source[field].some((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id) === identity)
+      )
+        matched[field]!.add(identity);
+      else refusal ??= identity === undefined ? 'unknown' : 'other';
+    }
+    if (refusal) {
+      excluded++;
+      if (refusal === 'unknown') unknown++;
+      return false;
     }
     if (!source.statuses.includes('all') && !source.statuses.includes(row.status)) {
       excluded++;
@@ -459,6 +473,18 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
     }
     return true;
   });
+  // A selected ID that no returned row of this level carries is named, so a mistyped or stale ID cannot narrow a total
+  // unnoticed. Only the lists this level can answer are checked: an ad ID is matched by ad rows alone (F-L5-27).
+  const unmatched: Record<string, string[]> = {},
+    rank = scopeLevelOrder.indexOf(source.level ?? 'campaign');
+  for (const [field, scopeLevel] of scopeLists) {
+    if (!source[field]?.length || scopeLevelOrder.indexOf(scopeLevel) > rank) continue;
+    const missing = source[field].filter((id: string) => {
+      const identity = overviewV4ScopeIdentity(capabilities, scopeLevel, id);
+      return identity === undefined || !matched[field]!.has(identity);
+    });
+    if (missing.length) unmatched[field] = missing;
+  }
   return {
     rows: selected,
     scope: {
@@ -469,6 +495,7 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
       excluded_status_rows: statusExcluded,
       filtering: 'after_collection',
       status_basis: statusBasis,
+      ...(Object.keys(unmatched).length ? {unmatched_ids: unmatched} : {}),
       ...(source.delivery_metrics === undefined ? {delivery_metrics: deliveryMetrics} : {}),
     },
   };
@@ -712,6 +739,21 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
           level: packet.source.level,
         })),
       );
+    // A selected ID is unmatched when no level able to answer for it found a row carrying it (F-L5-27).
+    const unmatched = Object.fromEntries(
+        scopeLists.flatMap(([field, scopeLevel]) => {
+          const ids: string[] = source[field] ?? [],
+            answering = packets.filter(
+              packet =>
+                !packet.error && scopeLevelOrder.indexOf(packet.source.level) >= scopeLevelOrder.indexOf(scopeLevel),
+            ),
+            missing = answering.length
+              ? ids.filter(id => answering.every(packet => packet.scope?.unmatched_ids?.[field]?.includes(id)))
+              : [];
+          return missing.length ? [[field, missing]] : [];
+        }),
+      ),
+      unmatchedCount = Object.values(unmatched).reduce((n, ids) => n + ids.length, 0);
     const definitions = new Map<string, JsonObject>();
     for (const row of rows.filter(row => row.source_ref === sourceRef))
       for (const context of [row.result_context, ...(row.result_groups ?? [])])
@@ -723,6 +765,7 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
         ? {collection_limit: packets.some(packet => packet.collection_limit)}
         : {}),
       ...(failedLevels.length ? {failed_levels: failedLevels} : {}),
+      ...(unmatchedCount ? {unmatched_ids: unmatched} : {}),
       ...(failedLevels.length && failedLevels.length === requested.length ? {error: failedLevels[0]!.error} : {}),
       source,
       source_ref: sourceRef,
@@ -754,7 +797,10 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
         : {}),
       ...(supporting.length ? {supporting_levels: supporting.map(packet => packet.source.level)} : {}),
       visible_row_count: rows.filter(row => row.source_ref === sourceRef).length,
-      warnings: [...new Set(packets.flatMap(packet => packet.warnings ?? []))],
+      warnings: [
+        ...new Set(packets.flatMap(packet => packet.warnings ?? [])),
+        ...(unmatchedCount ? [unmatchedIdsWarning(unmatchedCount)] : []),
+      ],
       cross_level: reportLevelReconciliation(
         rows.filter(row => row.source_ref === sourceRef),
         packets,

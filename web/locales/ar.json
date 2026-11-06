@@ -2537,6 +2537,7 @@
   "No rows returned": "لم تُعَد صفوف",
   "Limited coverage": "تغطية محدودة",
   "These levels could not be collected: {levels}.": "تعذّر جمع هذه المستويات: {levels}.",
+  "Selected IDs that matched no returned row ({count}):": "المعرّفات المحددة التي لم يطابقها أي صف مُعاد ({count}):",
   "Timezone unavailable": "المنطقة الزمنية غير متاحة",
   "The provider returned no campaign rows for {range}. Check the account and year.": "لم يُعد المزوّد صفوف حملات للفترة {range}. تحقق من الحساب والسنة.",
   "All returned pages captured.": "تم التقاط جميع الصفحات المعادة.",
