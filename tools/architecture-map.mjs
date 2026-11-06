@@ -10,6 +10,10 @@
 //     is larger and is compared only with its own baseline;
 //   - local fail helpers: src/ and server/ modules that declare their own fail instead of the family kit's (ARC-04
 //     stage C moved all of them onto src/family-kit.ts, so a new one is a regression).
+//   - provider-prefixed action names: string literals in shared modules that are a native action's name
+//     ('meta_ad_list', 'tiktok_ad_preview'), which a shared module writes when it holds a provider's contract instead
+//     of consulting the provider's hooks (V2-PRV-01: the previews tool had 19 of them behind `gatewayOf`, which the two
+//     measurements above do not see).
 // Reported but not ratcheted: the number of gateway literals in shared modules.
 // A ratcheted measurement may fall or stay; one that rises, or a module that joins a cycle, is a regression. `--write`
 // records the current measurements as the new baseline (after an intended improvement, or a regression the owner
@@ -173,6 +177,21 @@ function sources(root) {
 }
 
 const gatewayLiteral = /['"]([a-z0-9]+(?:_[a-z0-9]+)*)_native_action['"]/g;
+/**
+ * The prefixes of native action names (`meta_ad_list`, `snapchat_creative_list`, `linkedin_rest_ad_previews_get`): the
+ * provider groups, but the measurement group, which is a feature of several providers and not a provider.
+ */
+export const actionPrefixes = Object.freeze(providerPrefixes.filter(prefix => prefix !== 'measurement'));
+const actionLiteral = new RegExp('([\'"`])((?:' + actionPrefixes.join('|') + ')_[a-z0-9]+(?:_[a-z0-9]+)+)\\1', 'g');
+/**
+ * The provider-prefixed action names a source writes as string literals: a prefix and at least two more words, so a
+ * platform's ID ('google_ads') is not one. A gateway name ('meta_native_action') is counted by its own measurement.
+ */
+export function providerActionLiterals(source) {
+  return [...String(source).matchAll(actionLiteral)]
+    .map(match => match[2])
+    .filter(name => !name.endsWith('_native_action'));
+}
 // A module's own fail helper: a function declaration, or a const bound to a function. A const bound to a refusal the
 // family kit built (`const fail: ReasonFirstRefusal = familyErrors(...)`, ARC-04 stage C) declares codes, not a copy.
 const localFail =
@@ -187,6 +206,7 @@ export function architectureMetrics(root) {
     components = stronglyConnected(graph),
     text = sources(root);
   let literals = 0,
+    actionLiterals = 0,
     sharedToProvider = 0;
   const shared = [],
     fails = [];
@@ -194,6 +214,7 @@ export function architectureMetrics(root) {
     // The family kit's fail (ARC-04 stage C) is the one copy the others should import.
     if (declaresLocalFail(source, id)) fails.push(id);
     if (isProviderModule(id)) continue;
+    actionLiterals += providerActionLiterals(source).length;
     const named = [...source.matchAll(gatewayLiteral)].filter(m => m[1] !== 'amcp').length;
     if (named) {
       shared.push(id);
@@ -215,6 +236,7 @@ export function architectureMetrics(root) {
     reported: {
       runtime_scc_sizes: components.map(c => c.length),
       shared_gateway_literals: literals,
+      shared_provider_action_literals: actionLiterals,
     },
     local_fail_modules: fails,
     cycles: components,

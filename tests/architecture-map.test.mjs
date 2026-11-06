@@ -9,6 +9,7 @@ import {
   compareToBaseline,
   declaresLocalFail,
   isProviderModule,
+  providerActionLiterals,
   ratchetedMetrics,
   staticSpecifiers,
   stronglyConnected,
@@ -238,4 +239,33 @@ test('owner direction P11: the architecture document shows the recorded baseline
   const committed = fs.readFileSync(new URL('../' + architectureDocument, import.meta.url), 'utf8'),
     recorded = JSON.parse(fs.readFileSync(new URL('../' + baselineFile, import.meta.url), 'utf8'));
   assert.equal(withBaselineBlock(committed, recorded), committed);
+});
+
+test('V2-PRV-01: a provider-prefixed action name is a whole string literal of a prefix and two more words', () => {
+  const source = [
+    "const a = 'meta_ad_list';",
+    'const b = "tiktok_ad_preview";',
+    'const c = `snapchat_creative_list`;',
+    "const d = 'linkedin_rest_ad_previews_get';",
+    "const e = 'x_accounts_account_id_tweet_previews_get';",
+    // A platform's ID has one word after the prefix, a gateway is counted by its own measurement, a measurement
+    // module is a feature of several providers, and only a whole literal is a name.
+    "const f = 'google_ads';",
+    "const g = 'meta_native_action';",
+    "const h = 'measurement_ledger_rows';",
+    "const i = 'metadata_ad_list';",
+    "const j = 'the meta_ad_list read';",
+    "const k = 'Meta_ad_list';",
+    "const l = 'x_ads_native_action';",
+  ].join('\n');
+  assert.deepEqual(providerActionLiterals(source), [
+    'meta_ad_list',
+    'tiktok_ad_preview',
+    'snapchat_creative_list',
+    'linkedin_rest_ad_previews_get',
+    'x_accounts_account_id_tweet_previews_get',
+  ]);
+  // The previews tool held 15 of them (13 distinct) behind gatewayOf, which the gateway-literal count cannot see.
+  assert.deepEqual(providerActionLiterals(fs.readFileSync('src/ad-previews.ts', 'utf8')), []);
+  assert.equal(typeof architectureMetrics('.').reported.shared_provider_action_literals, 'number');
 });
