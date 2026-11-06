@@ -353,7 +353,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  // Web-report adds nineteen website messages: "n of m rows", the card notes and the cross-level check (F-L8-03).
+  assert.equal(Object.keys(catalog).length, 11756);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

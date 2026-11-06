@@ -423,3 +423,197 @@ function refreshRecentReports(report) {
   );
   bindOverviewHistory();
 }
+/** The platform's own word for a reporting level (Ad squad, Line item, Creative), from the server's level table. */
+function reportLevelName(platformId, levelId) {
+  const platform = (overviewState.bootstrap?.platforms ?? []).find(p => p.id === platformId),
+    label = (platform?.entity_levels ?? platform?.reporting_v4?.levels ?? []).find(
+      level => level.id === levelId,
+    )?.label;
+  return label ? uiText(label) : pretty(levelId);
+}
+/** " · Reporting level: Ad": the level a summary card covers, so cards of one account's levels are never alike. */
+function reportCardLevel(r, g) {
+  const id = g.entity_level ?? (r.config?.contract_version === 'overview-config-v4' ? 'campaign' : null);
+  return id ? ' · ' + uiText('Reporting level: {level}', {level: reportLevelName(g.platform, id)}) : '';
+}
+/** The rows a total or ratio was calculated from: a sum's known rows, or the rows that have every value a ratio needs. */
+function reportCoverageCounts(coverage) {
+  if (!coverage || typeof coverage !== 'object') return null;
+  const known = coverage.known_pairs ?? coverage.known ?? coverage.known_rows;
+  return Number.isInteger(known) && Number.isInteger(coverage.total) ? {known, total: coverage.total} : null;
+}
+/** "2 of 3 rows" for a figure calculated from some of its rows; nothing for one calculated from all, or unavailable. */
+function reportCoverageLabel(coverage) {
+  const counts = coverage?.unavailable_reason ? null : reportCoverageCounts(coverage);
+  return counts && counts.known < counts.total
+    ? uiPlural(counts.total, '{known} of {count} row', '{known} of {count} rows', {known: uiNumber(counts.known)})
+    : '';
+}
+/** One figure of a summary card, with the rows it was calculated from when that is fewer than all of them. */
+function reportSummaryFigure(g, key, label) {
+  const coverage = reportCoverageLabel(g.metrics_coverage?.[key]);
+  return html`<span>${label}<strong>${metricFormat(key, g.metrics?.[key], g.currency)}</strong>${coverage ? html`<small class="report-coverage">${coverage}</small>` : ''}</span>`;
+}
+/** Why a figure is unavailable although its rows are known (src/report-summary.ts). */
+function reportUnavailableNote(reason, labels) {
+  const metrics = uiList(labels);
+  switch (reason) {
+    case 'unknown_currency':
+      return uiText('{metrics} are not added: the rows are in different or unknown currencies.', {metrics});
+    case 'non_additive_inputs':
+      return uiText('{metrics} cannot be calculated from several rows.', {metrics});
+    default:
+      return '';
+  }
+}
+/**
+ * Says what the "n of m rows" labels of a card mean, so its figures reconcile: a sum leaves out the rows with no value
+ * (never counting them as 0), and a ratio divides only the rows that have everything it needs, so it need not equal
+ * one total divided by another.
+ */
+function reportSummaryCoverageNotes(g, figures) {
+  const sums = [],
+    ratios = [],
+    unavailable = new Map();
+  for (const [key, label] of figures) {
+    const coverage = g.metrics_coverage?.[key];
+    if (coverage?.unavailable_reason)
+      unavailable.set(coverage.unavailable_reason, [...(unavailable.get(coverage.unavailable_reason) ?? []), label]);
+    else if (reportCoverageLabel(coverage))
+      (coverage.known_pairs !== undefined || coverage.known_rows !== undefined ? ratios : sums).push(label);
+  }
+  const notes = [
+    sums.length
+      ? uiText('Some rows have no value for {metrics}. They are left out of the total and never counted as 0.', {
+          metrics: uiList(sums),
+        })
+      : '',
+    ratios.length
+      ? uiText(
+          'Ratios ({metrics}) use only the rows that have every value they need, so they can differ from one total divided by another.',
+          {metrics: uiList(ratios)},
+        )
+      : '',
+    ...[...unavailable].map(([reason, labels]) => reportUnavailableNote(reason, labels)),
+  ].filter(Boolean);
+  return html`${notes.map(note => html`<p class="report-card-footer">${note}</p>`)}`;
+}
+/**
+ * A percentage from the server's exact decimal text, cut and never rounded: whole percent, with more digits only where
+ * the cut would read as 0 or as exactly 100 although the figure is not. A figure that differs from 100 never reads as
+ * 100. Null for anything that is not a non-negative decimal.
+ */
+function reportPercent(value) {
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(String(value ?? '').trim());
+  if (!match) return null;
+  const whole = match[1].replace(/^0+(?=\d)/, ''),
+    fraction = (match[2] ?? '').replace(/0+$/, ''),
+    hides = digits => !/[1-9]/.test(fraction.slice(0, digits)) && fraction !== '' && (whole === '0' || whole === '100');
+  let digits = 0;
+  while (digits < fraction.length && hides(digits)) digits++;
+  return uiDecimal(whole + (digits ? '.' + fraction.slice(0, digits) : ''), {maximumFractionDigits: digits}) + '%';
+}
+/** The reason a cross-level pair cannot be compared (the server's closed set, src/report-level-reconciliation.ts). */
+function reportLevelCheckReason(code) {
+  switch (code) {
+    case 'derived_parent_population':
+      return uiText('the parent rows are rolled up from the selected child rows');
+    case 'different_or_unavailable_windows':
+      return uiText('the levels cover different or unavailable date windows');
+    case 'different_status_populations':
+      return uiText('the levels include different statuses');
+    case 'different_objective_populations':
+      return uiText('an objective filter hides rows at one of the levels');
+    case 'unknown_currency':
+      return uiText('the currency is unknown');
+    case 'missing_metric':
+      return uiText('a level has no value for it');
+    default:
+      return String(code ?? '').replaceAll('_', ' ');
+  }
+}
+/**
+ * One source's cross-level check in words (V2-RPT-06, D4). For each pair of levels: why metrics cannot be compared, how
+ * far one level covers the other, which metrics are only partly known, and which agree. The percentage is the server's
+ * decimal, cut and never rounded; a gap it rounds to exactly 100 is said to differ, never to cover everything.
+ */
+function reportLevelCheckLines(source, b) {
+  const platformId = source.source?.platform,
+    groups = new Map(),
+    lower = text => text.toLocaleLowerCase(uiLocale),
+    metric = item => uiText(b.metrics?.[item.metric]?.label ?? pretty(item.metric));
+  for (const item of Array.isArray(source.cross_level) ? source.cross_level : []) {
+    const key = JSON.stringify([
+      item.currency ?? null,
+      item.timezone ?? null,
+      item.baseline?.level,
+      item.comparison?.level,
+    ]);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  const lines = [];
+  for (const group of groups.values()) {
+    const baseline = reportLevelName(platformId, group[0].baseline?.level),
+      comparison = reportLevelName(platformId, group[0].comparison?.level),
+      state = name => group.filter(item => item.state === name),
+      unavailable = new Map();
+    for (const item of state('unavailable'))
+      unavailable.set(item.unavailable_reason, [...(unavailable.get(item.unavailable_reason) ?? []), item]);
+    for (const [reason, items] of unavailable)
+      lines.push({
+        text: uiText('{metrics} cannot be compared between {baseline} and {comparison} rows: {reason}.', {
+          metrics: uiList(items.map(metric)),
+          baseline,
+          comparison,
+          reason: reportLevelCheckReason(reason),
+        }),
+      });
+    for (const item of state('gap')) {
+      const exactHundred = /^100(?:\.0+)?$/.test(String(item.coverage_percent ?? '')),
+        percent = exactHundred ? null : reportPercent(item.coverage_percent),
+        values = {comparison, baseline: lower(baseline), metric: lower(metric(item)), percent};
+      lines.push(
+        percent === null
+          ? {text: uiText('{comparison} rows and {baseline} rows differ on {metric}.', values)}
+          : {
+              text: String(item.delta).startsWith('-')
+                ? uiText('{comparison} rows cover {percent} of {baseline} {metric}.', values)
+                : uiText('{comparison} rows add up to {percent} of {baseline} {metric}.', values),
+              exact: item.coverage_percent + '%',
+            },
+      );
+    }
+    if (state('partial').length)
+      lines.push({
+        text: uiText(
+          '{metrics} could not be fully compared between {baseline} and {comparison} rows: some values are unknown, or a level was not fully collected.',
+          {metrics: uiList(state('partial').map(metric)), baseline, comparison},
+        ),
+      });
+    if (state('agree').length)
+      lines.push({
+        text: uiText('Levels agree on {metrics} ({baseline} and {comparison}).', {
+          metrics: uiList(state('agree').map(item => lower(metric(item)))),
+          baseline,
+          comparison,
+        }),
+      });
+  }
+  return lines;
+}
+/** The cross-level check of each multi-level source, under the summary: do the levels agree, and where they do not, why. */
+function renderReportLevelCheck(r) {
+  const b = overviewState.bootstrap ?? {},
+    blocks = (r.sources ?? [])
+      .map(source => {
+        const lines = reportLevelCheckLines(source, b),
+          platform = (b.platforms ?? []).find(p => p.id === source.source?.platform);
+        return lines.length
+          ? html`<div class="report-level-check"><strong><bdi>${(platform?.name ?? source.source?.platform) + ' · ' + source.source?.account_id}</bdi></strong><ul>${lines.map(line => html`<li${line.exact ? html` title="${line.exact}"` : ''}>${line.text}</li>`)}</ul></div>`
+          : '';
+      })
+      .filter(Boolean);
+  return blocks.length
+    ? html`<section class="report-level-checks" aria-label="${uiText('Level check')}">${blocks}</section>`
+    : '';
+}
