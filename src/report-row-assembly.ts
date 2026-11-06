@@ -312,7 +312,9 @@ function noteUnusedObjectiveOverrides(results: JsonObject[]) {
   for (const result of results) {
     if (result.error) continue;
     const key = result.source.source_ref ?? result;
-    packetsOfSource.set(key, [...(packetsOfSource.get(key) ?? []), result]);
+    const packets = packetsOfSource.get(key);
+    if (packets) packets.push(result);
+    else packetsOfSource.set(key, [result]);
   }
   for (const packets of packetsOfSource.values()) {
     const warning = unusedObjectiveOverrides(

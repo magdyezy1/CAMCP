@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
-import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
+import {providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
 import {levelFailure, reportLevelReconciliation} from './report-level-reconciliation.js';
@@ -378,13 +378,20 @@ export function overviewV4CollectionLevels(source: JsonObject): string[] {
     levels.push(measurement);
   return levels;
 }
+/** A platform's ID pattern is compiled once; a report at the row limit asks it for every row. */
+const scopePatterns = new Map<string, RegExp>();
+const scopePattern = (source: string) => {
+  let pattern = scopePatterns.get(source);
+  if (!pattern) scopePatterns.set(source, (pattern = new RegExp(source)));
+  return pattern;
+};
 export function overviewV4ScopeIdentity(
   capabilities: OverviewV4Capabilities | undefined,
   level: string,
   value: unknown,
 ): string | undefined {
   if (typeof value !== 'string' || !value) return undefined;
-  if (capabilities?.scope_id_pattern && !new RegExp(capabilities.scope_id_pattern).test(value)) return undefined;
+  if (capabilities?.scope_id_pattern && !scopePattern(capabilities.scope_id_pattern).test(value)) return undefined;
   const prefix = capabilities?.scope_id_prefixes?.[level],
     id = prefix && value.startsWith(prefix) ? value.slice(prefix.length) : value;
   return id || undefined;
@@ -420,6 +427,15 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
   let excluded = 0,
     unknown = 0,
     statusExcluded = 0;
+  // The identities of each list of selected IDs, once, so a row is matched by a lookup and not by comparing it with every
+  // selected ID (F-L5-28).
+  const wanted = new Map<string, Set<string | undefined>>();
+  for (const [field, scopeLevel] of scopeLists)
+    if (source[field]?.length)
+      wanted.set(
+        field,
+        new Set(source[field].map((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id))),
+      );
   // The selected IDs some returned row carries, whatever else excludes that row afterwards.
   const matched: Record<string, Set<string>> = {campaign_ids: new Set(), adset_ids: new Set(), ad_ids: new Set()};
   const selected = rows.filter(row => {
@@ -435,11 +451,7 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
     for (const [field, scopeLevel] of scopeLists) {
       if (!source[field]?.length) continue;
       const identity = overviewV4ScopeIdentity(capabilities, scopeLevel, values[field]);
-      if (
-        identity !== undefined &&
-        source[field].some((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id) === identity)
-      )
-        matched[field]!.add(identity);
+      if (identity !== undefined && wanted.get(field)!.has(identity)) matched[field]!.add(identity);
       else refusal ??= identity === undefined ? 'unknown' : 'other';
     }
     if (refusal) {
@@ -499,69 +511,6 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
       ...(Object.keys(unmatched).length ? {unmatched_ids: unmatched} : {}),
       ...(source.delivery_metrics === undefined ? {delivery_metrics: deliveryMetrics} : {}),
     },
-  };
-}
-
-const scale = 1000000000n;
-const additiveMetrics = new Set([
-  'spend',
-  'impressions',
-  'clicks',
-  'conversions',
-  'conversion_value',
-  'leads',
-  'purchases',
-  'installs',
-  'video_views',
-  'video_completions',
-  'engagements',
-]);
-function decimalText(value: bigint): string {
-  const sign = value < 0n ? '-' : '',
-    magnitude = value < 0n ? -value : value,
-    fraction = (magnitude % scale).toString().padStart(9, '0').replace(/0+$/, '');
-  return sign + (magnitude / scale).toString() + (fraction ? '.' + fraction : '');
-}
-/** Known values add exactly; null/absent values have coverage rather than suppressing every known row. */
-export function overviewV4Sum(rows: JsonObject[], metric: string) {
-  if (!additiveMetrics.has(metric)) invalid('This report metric is not declared additive.', 'INVALID_METRICS');
-  let known = 0,
-    rounded = 0,
-    total = 0n;
-  for (const row of rows) {
-    const value = (row.native?.exact_totals ?? row.metrics ?? {})[metric];
-    if (value === null || value === undefined) continue;
-    const parsed = parseProviderDecimal(value, {field: metric});
-    total += parsed.scaled;
-    known++;
-    if (parsed.rounded) rounded++;
-  }
-  return {value: known ? decimalText(total) : null, coverage: {known, total: rows.length}, rounded_values: rounded};
-}
-/** Ratios share a population: never divide a numerator's known total by a different denominator's population. */
-export function overviewV4Ratio(rows: JsonObject[], numerator: string, denominator: string, multiplier = 1) {
-  let pairs = 0,
-    top = 0n,
-    bottom = 0n;
-  if (![1, 100, 1000].includes(multiplier)) invalid('Use a supported report ratio unit.');
-  for (const row of rows) {
-    const metrics = row.native?.exact_totals ?? row.metrics ?? {},
-      a = metrics[numerator],
-      b = metrics[denominator];
-    if (a === null || a === undefined || b === null || b === undefined) continue;
-    top += parseProviderDecimal(a, {field: numerator}).scaled;
-    bottom += parseProviderDecimal(b, {field: denominator}).scaled;
-    pairs++;
-  }
-  if (!pairs || bottom === 0n) return {value: null, coverage: {known_pairs: pairs, total: rows.length}, rounded: false};
-  const dividend = top * BigInt(multiplier) * scale,
-    quotient = dividend / bottom,
-    remainder = dividend % bottom,
-    up = remainder * 2n > bottom || (remainder * 2n === bottom && quotient % 2n === 1n);
-  return {
-    value: decimalText(quotient + (up ? 1n : 0n)),
-    coverage: {known_pairs: pairs, total: rows.length},
-    rounded: remainder !== 0n,
   };
 }
 

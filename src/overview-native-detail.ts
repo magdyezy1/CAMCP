@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import type {ObjectiveTable} from './report-objectives.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
@@ -244,7 +245,7 @@ export function nativeDetailResult(
   const descriptor = overviewSourceLevel(source),
     options = source.report_options,
     rounded = metricRoundingRecord(base.rounding);
-  if (detail.rows.length > 10000)
+  if (detail.rows.length > reportUnitRowLimit)
     throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
   const complete = options.complete_window === true && base.providerComplete;
   return {

@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {fingerprint} from './report-quality.js';
 import {reportSourceError} from './report-errors.js';
 import {mergeMetricRounding} from './provider-decimal.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import type {JsonObject} from './types.js';
 
 const bad = (message: string) => {
@@ -106,7 +107,7 @@ export async function collectReportPeriods(
         }
       }
     rowCount += result.rows.length;
-    if (rowCount > 10000)
+    if (rowCount > reportUnitRowLimit)
       throw new MirrorError(
         'REPORT_ROW_LIMIT',
         'The source exceeds 10,000 rows across its periods. Narrow the dates or accounts.',
@@ -155,7 +156,7 @@ export async function collectNativeDaily(
     }
     if (days.length !== periods.length || days.some((d, i) => d.date_range?.since !== periods[i]!.since))
       throw new MirrorError('REPORT_DATE_MISMATCH', 'The daily split does not match the requested days.', {}, 502);
-    if (days.reduce((n, d) => n + d.rows.length, 0) > 10000)
+    if (days.reduce((n, d) => n + d.rows.length, 0) > reportUnitRowLimit)
       throw new MirrorError(
         'REPORT_ROW_LIMIT',
         'The source exceeds 10,000 rows across its periods. Narrow the dates or accounts.',

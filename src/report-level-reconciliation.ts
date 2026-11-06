@@ -37,8 +37,10 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
   if (levels.length < 2) return [];
   const scopes = new Map<string, JsonObject[]>();
   for (const row of rows) {
-    const key = JSON.stringify([row.currency ?? null, row.timezone ?? null]);
-    scopes.set(key, [...(scopes.get(key) ?? []), row]);
+    const key = JSON.stringify([row.currency ?? null, row.timezone ?? null]),
+      members = scopes.get(key);
+    if (members) members.push(row);
+    else scopes.set(key, [row]);
   }
   if (!scopes.size) scopes.set(JSON.stringify([null, null]), []);
   const comparisons: JsonObject[] = [];

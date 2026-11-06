@@ -1,10 +1,11 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
-import {providerDecimalText} from './provider-decimal.js';
+import {providerDecimalText, providerMetricRounding} from './provider-decimal.js';
 import {metricDefinitions, parseMetricFormula} from './report-metrics.js';
 import type {JsonObject} from './types.js';
 
-const scale = 1000000000n;
+const places = providerMetricRounding.places,
+  scale = 10n ** BigInt(places);
 export type Rational = {n: bigint; d: bigint};
 /** The exact values of the metrics a calculation has already produced, so a dependent metric starts from them. */
 export type ExactValues = Map<string, Rational | null>;
@@ -158,10 +159,11 @@ function evaluate(tree: Tree, values: JsonObject, exact?: ExactValues): Rational
   if (tree.op === '*') return fraction(a.n * b.n, a.d * b.d);
   return fraction(a.n * b.d, a.d * b.n);
 }
+/** The one formatter of a nine-place scaled integer as exact decimal text: 1500000000n is "1.5", -1n is "-0.000000001". */
 export function reportScaledText(value: bigint): string {
   const negative = value < 0n,
     magnitude = negative ? -value : value,
-    fraction = (magnitude % scale).toString().padStart(9, '0').replace(/0+$/, '');
+    fraction = (magnitude % scale).toString().padStart(places, '0').replace(/0+$/, '');
   return (negative ? '-' : '') + (magnitude / scale).toString() + (fraction ? '.' + fraction : '');
 }
 /** Keep the rational expression exact between operations; round only its final value, half to even, to nine places. */

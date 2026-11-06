@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import {resolveObjective, type ObjectiveTable} from './report-objectives.js';
 import {fingerprint} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
@@ -248,7 +249,7 @@ export function detailedOverviewRows(
     !Array.isArray(captured.rows) ||
     !Array.isArray(captured.native_rows) ||
     captured.rows.length !== captured.native_rows.length ||
-    captured.rows.length > 10000
+    captured.rows.length > reportUnitRowLimit
   )
     invalid('The detailed preset did not return aligned bounded native rows.', 'REPORT_SHAPE_CHANGED');
   const scopedParent = captured.native_account_evidence?.parent_campaign;

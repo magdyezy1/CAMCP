@@ -12,6 +12,18 @@ import {
 import {groupReportResults, unavailableReportResult} from './report-results.js';
 
 /**
+ * One entry of `metrics_coverage`: the units a figure was calculated from (docs/REPORTING-OVERVIEW.md). Typed so that a
+ * producer which writes another shape does not compile (F-L5-31 found three shapes, each an untyped object).
+ */
+export interface MetricCoverage {
+  known_rows: number;
+  total_rows: number;
+  basis: 'report_rows' | 'native_measurements';
+  report_rows: number;
+  known_pairs?: number;
+  unavailable_reason?: 'unknown_currency' | 'non_additive_inputs' | 'calculation_limit';
+}
+/**
  * The summary of a group of rows. Every entry of `metrics_coverage` has one shape (F-L5-31, docs/REPORTING-OVERVIEW.md):
  * `{known_rows, total_rows, basis, report_rows, known_pairs?, unavailable_reason?}`. `basis` says what is counted:
  * `report_rows` when each counted unit is a row of the report, `native_measurements` when a row was built from the
@@ -22,9 +34,11 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
   const cells: JsonObject[] = group.flatMap(row =>
       row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
     ),
-    basis = group.some(row => row.native?.exact_rows?.length) ? 'native_measurements' : 'report_rows';
+    basis: MetricCoverage['basis'] = group.some(row => row.native?.exact_rows?.length)
+      ? 'native_measurements'
+      : 'report_rows';
   const metrics: JsonObject = {},
-    coverage: JsonObject = {},
+    coverage: Record<string, MetricCoverage> = {},
     rounding: JsonObject = {},
     definitions: Record<string, JsonObject> = {
       ...metricDefinitions,
@@ -255,7 +269,9 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       row.native_entity_type ?? null,
       ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
     ]);
-    groups.set(key, [...(groups.get(key) ?? []), row]);
+    const members = groups.get(key);
+    if (members) members.push(row);
+    else groups.set(key, [row]);
   }
   return [...groups.values()].map(group => {
     const first = group[0]!,
@@ -263,7 +279,9 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       entities = new Map<string, JsonObject>();
     for (const row of group) {
       const period = row.date_from + '/' + row.date_to;
-      periods.set(period, [...(periods.get(period) ?? []), row]);
+      const inPeriod = periods.get(period);
+      if (inPeriod) inPeriod.push(row);
+      else periods.set(period, [row]);
       const entity = String(row.entity_key ?? row.campaign_key ?? row.entity_id ?? row.campaign_id);
       if (!entities.has(entity)) entities.set(entity, row);
     }

@@ -1,4 +1,5 @@
 import {fingerprint, reportContractVersion} from './report-quality.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
@@ -461,7 +462,7 @@ export class NativeCampaignReports {
     }
     // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
     await reports!.collect(c);
-    if (c.raw.length > 10000)
+    if (c.raw.length > reportUnitRowLimit)
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
     this.service.store.resolveConnection(actor, gateway, account, connection);

@@ -175,6 +175,56 @@ test('exact advisory thresholds retain native costs, known zero results and cons
     'needs_review',
   );
 });
+// These replace the tests of overviewV4Sum and overviewV4Ratio (F-L5-28): nothing called those two, and the summary is
+// what reports use, so the properties they pinned are pinned on it.
+const cell = metrics => ({
+  platform: 'fixture',
+  account_id: '1',
+  currency: 'USD',
+  date_from: '2026-09-01',
+  date_to: '2026-09-02',
+  metrics,
+});
+test('known additive values keep exact decimal text and coverage, and non-additive metrics are never summed', () => {
+  const summary = reportMetricsSummaryV4([
+    cell({spend: '9007199254740993.123456789', reach: '10'}),
+    cell({spend: null, reach: '20'}),
+    cell({reach: '30'}),
+    cell({spend: '0.000000001'}),
+    cell({spend: '0'}),
+  ]);
+  assert.equal(summary.metrics.spend, '9007199254740993.12345679', 'beyond 2^53 and exact to the ninth place');
+  assert.deepEqual(summary.metrics_coverage.spend, {
+    known_rows: 3,
+    total_rows: 5,
+    basis: 'report_rows',
+    report_rows: 5,
+  });
+  assert.equal(summary.metrics.reach, null);
+  assert.equal(summary.metrics.frequency, null);
+  const sum = values => reportMetricsSummaryV4(values.map(spend => cell({spend}))).metrics.spend;
+  assert.equal(sum(['0.0000000015']), '0.000000002', 'half to even at the ninth place: 1.5 becomes 2');
+  assert.equal(sum(['0.0000000025']), '0.000000002', 'and 2.5 stays 2');
+  assert.equal(sum(['0.0000000005', '0.0000000010']), '0.000000002', 'the sum is exact before it is rounded');
+  assert.equal(sum([null]), null);
+  assert.deepEqual(reportMetricsSummaryV4([cell({spend: null})]).metrics_coverage.spend.known_rows, 0);
+});
+test('ratios divide only the rows that have both parts, round half to even and refuse a zero denominator', () => {
+  const ratio = rows => reportMetricsSummaryV4(rows.map(metrics => cell(metrics)));
+  const summary = ratio([
+    {spend: '10', clicks: '5'},
+    {spend: '100', clicks: null},
+    {spend: null, clicks: '995'},
+    {spend: '0', clicks: '5'},
+  ]);
+  assert.equal(summary.metrics.cpc, '1', 'only the two rows with both parts: 10 / 10');
+  assert.equal(summary.metrics_coverage.cpc.known_pairs, 2);
+  assert.equal(summary.metrics_coverage.cpc.total_rows, 4);
+  assert.equal(ratio([{spend: '1', clicks: '2000000000'}]).metrics.cpc, '0');
+  assert.equal(ratio([{spend: '3', clicks: '2000000000'}]).metrics.cpc, '0.000000002');
+  assert.equal(ratio([{spend: '10', impressions: '2000'}]).metrics.cpm, '5', 'a per-thousand ratio');
+  assert.equal(ratio([{spend: '10', clicks: '0'}]).metrics.cpc, null, 'a zero denominator has no value');
+});
 test('advice holds while a metric it needs is calculated from some of its rows only (F-L5-31 shape)', () => {
   const policy = {sales: {target: 0.1, currency: 'SAR'}},
     covered = known_rows =>
