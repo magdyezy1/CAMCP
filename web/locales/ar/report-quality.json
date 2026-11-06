@@ -40,6 +40,7 @@
   "Numerical agreement only. The reference account, dates, currency, timezone and attribution have not been checked.": "تطابق عددي فقط. لم يتم فحص حساب المرجع أو تواريخه أو عملته أو منطقته الزمنية أو إعدادات الإسناد.",
   "Objective overrides matched no campaign in this snapshot: {ids} and {count} more.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids} و{count} أخرى.",
   "Objective overrides matched no campaign in this snapshot: {ids}.": "لم تطابق تخصيصات الهدف أي حملة في هذه اللقطة: {ids}.",
+  "Other results, from campaigns with no activity in this window": "نتائج أخرى من حملات لم تشهد نشاطًا خلال هذه الفترة",
   "Possible creative fatigue": "احتمال تراجع فاعلية المادة الإعلانية مع التكرار",
   "Provider values rounded to nine decimal places": "قيم المنصة مُقرَّبة إلى تسع منازل عشرية",
   "Quality and source evidence": "الجودة وأدلة المصدر",

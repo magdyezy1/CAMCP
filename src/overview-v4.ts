@@ -518,6 +518,7 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
                   })),
                 }
               : {}),
+            ...(row.other_results?.length ? {other_results: row.other_results} : {}),
             metrics: Object.fromEntries(fields.map(key => [key, row.metrics?.[key] ?? null])),
             ...(Object.keys(partial).length ? {metrics_coverage: partial} : {}),
             ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),

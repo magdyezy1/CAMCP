@@ -5,6 +5,7 @@ import {normalizeNativeRow} from '../dist/src/report-native.js';
 import {resolveObjective} from '../dist/src/report-objectives.js';
 import {estimateCollectionRequests, sourceRequestModel} from '../dist/src/report-request-estimate.js';
 import {objectiveReportFixture} from './helpers/objective-report.mjs';
+import {linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
@@ -232,6 +233,179 @@ test('request estimates count two data reads only in LinkedIn’s campaign posit
   assertNamesNoProvider('src/report-request-estimate.ts');
 });
 
+// One campaign group with the given member campaigns, read through the real queue, worker and LinkedIn collector.
+const owner = 'urn:li:sponsoredAccount:100',
+  linkedinSource = {platform: 'linkedin', account_id: '100', connection_id: 'login'},
+  v4Source = {
+    ...linkedinSource,
+    levels: ['campaign'],
+    delivered_only: false,
+    report_options: {complete_window: true, attribution: 'unknown'},
+  };
+// The group's own analytics row is the sum of its members' rows, as LinkedIn aggregates them.
+const groupRow = members => {
+  const total = {};
+  for (const {metrics} of members)
+    for (const [key, value] of Object.entries(metrics)) total[key] = String(Number(total[key] ?? 0) + Number(value));
+  return {pivotValues: [groupUrn], ...total};
+};
+async function runGroup(t, members, changes) {
+  const f = linkedinPipeline(t, {
+    analytics: pivot =>
+      pivot === 'CAMPAIGN_GROUP'
+        ? [groupRow(members)]
+        : members.map(({id, metrics}) => ({pivotValues: ['urn:li:sponsoredCampaign:' + id], ...metrics})),
+    groups: {20: {id: 20, account: owner, name: 'Group One', status: 'ACTIVE'}},
+    campaigns: Object.fromEntries(
+      members.map(({id, objectiveType, status = 'ACTIVE'}) => [
+        id,
+        {
+          id,
+          account: owner,
+          campaignGroup: groupUrn,
+          name: 'Campaign ' + id,
+          objectiveType,
+          status,
+          type: 'SPONSORED_UPDATES',
+        },
+      ]),
+    ),
+  });
+  const report = await f.run(changes);
+  return {f, report, row: report.rows[0]};
+}
+const delivering = (id, objectiveType, metrics) => ({
+  id,
+  objectiveType,
+  metrics: {impressions: '1000', clicks: '100', costInLocalCurrency: '50', ...metrics},
+});
+// The shape of a campaign that stopped delivering but still has attributed results (12 of 28 rows in a live probe).
+const attributedOnly = (id, objectiveType, metrics) => ({
+  id,
+  objectiveType,
+  status: 'PAUSED',
+  metrics: {impressions: '0', clicks: '0', ...metrics},
+});
+const v4Run = {
+  contract_version: 'overview-config-v4',
+  metrics: ['spend', 'clicks', 'primary_result', 'cost_per_result'],
+};
+const conversions = (value, objective = 'WEBSITE_CONVERSION') => ({
+  objective,
+  group: 'sales',
+  result_definition: 'LinkedIn website conversions',
+  value,
+});
+
+test('v4: a member without delivery and another objective neither makes the group Mixed nor cancels its result', async t => {
+  const {report, row} = await runGroup(
+    t,
+    [
+      delivering(11, 'WEBSITE_VISIT', {landingPageClicks: 40}),
+      attributedOnly(12, 'WEBSITE_CONVERSION', {externalWebsiteConversions: 7}),
+    ],
+    {...v4Run, sources: [v4Source]},
+  );
+  assert.equal(report.state, 'complete');
+  assert.deepEqual(
+    [row.objective.native, row.objective.group, row.objective.source],
+    ['WEBSITE_VISIT', 'traffic', 'provider'],
+  );
+  assert.equal(row.result.label, 'LinkedIn landing page clicks');
+  assert.equal(row.metrics.primary_result, '40');
+  assert.equal(row.metrics.cost_per_result, '1.25');
+  assert.equal(row.result_context.unavailable_reason, undefined);
+  assert.equal(row.result_groups, undefined, 'one result group, so no mixed-result listing');
+  assert.doesNotMatch(row.recommendation.reason, /different result definitions/);
+  assert.equal(report.summary[0].metrics.primary_result, '40');
+  assert.equal(report.summary[0].metrics.cost_per_result, '1.25');
+  assert.deepEqual(
+    row.other_results,
+    [conversions('7')],
+    'the attributed results are listed apart from the primary one',
+  );
+});
+
+test('v4: Mixed lists one result group per delivering objective and keeps a member without delivery apart', async t => {
+  const {f, report, row} = await runGroup(
+    t,
+    [
+      delivering(11, 'LEAD_GENERATION', {oneClickLeads: 3}),
+      delivering(12, 'VIDEO_VIEW', {videoViews: 7}),
+      attributedOnly(13, 'WEBSITE_CONVERSION', {externalWebsiteConversions: 100}),
+    ],
+    {...v4Run, sources: [v4Source]},
+  );
+  assert.equal(row.objective.native, 'MIXED');
+  assert.deepEqual(
+    row.result_groups.map(group => [group.result.label, group.result.value]),
+    [
+      ['LinkedIn leads (one-click)', '3'],
+      ['LinkedIn video views', '7'],
+    ],
+  );
+  assert.deepEqual(row.other_results, [conversions('100')]);
+  // The same member set feeds the v3 listing of the very same row.
+  const full = await f.overview.handle({action: 'get', id: report.id, include: {native: true}}, f.actor);
+  assert.deepEqual(
+    full.rows[0].results_by_objective.map(result => result.objective),
+    ['LEAD_GENERATION', 'VIDEO_VIEW'],
+  );
+});
+
+test('v3: the same member set decides the objective, the results by objective and the listing of other results', async t => {
+  const {rows} = await collectGroup({
+    campaigns: [
+      {
+        objective_type: 'WEBSITE_VISIT',
+        impressions: '100',
+        clicks: '10',
+        costInLocalCurrency: '5',
+        landingPageClicks: '4',
+      },
+      {objective_type: 'WEBSITE_CONVERSION', impressions: '0', clicks: '0', externalWebsiteConversions: '7'},
+    ],
+  });
+  assert.equal(rows[0].objective, 'WEBSITE_VISIT');
+  assert.equal(rows[0].results_by_objective, undefined);
+  assert.deepEqual(rows[0].other_results, [conversions('7')]);
+  const {rows: mixed} = await collectGroup({
+    campaigns: [
+      {objective_type: 'LEAD_GENERATION', impressions: '10', clicks: '1', oneClickLeads: '1.1'},
+      {objective_type: 'VIDEO_VIEW', impressions: '20', clicks: '2', videoViews: '7'},
+      {
+        objective_type: 'WEBSITE_CONVERSION',
+        impressions: '0',
+        clicks: '0',
+        costInLocalCurrency: '0',
+        externalWebsiteConversions: '100',
+      },
+    ],
+  });
+  assert.deepEqual(
+    mixed[0].results_by_objective.map(result => result.objective),
+    ['LEAD_GENERATION', 'VIDEO_VIEW'],
+  );
+  assert.deepEqual(mixed[0].other_results, [conversions('100')]);
+});
+
+test('a member without delivery and without any result is not listed as another result', async t => {
+  const {rows} = await collectGroup({
+    campaigns: [
+      {
+        objective_type: 'WEBSITE_VISIT',
+        impressions: '100',
+        clicks: '10',
+        costInLocalCurrency: '5',
+        landingPageClicks: '4',
+      },
+      {objective_type: 'WEBSITE_CONVERSION', impressions: '0', clicks: '0', externalWebsiteConversions: '0'},
+      {objective_type: 'BRAND_AWARENESS', impressions: '0', clicks: '0'},
+    ],
+  });
+  assert.equal(rows[0].other_results, undefined);
+});
+
 test('the website shows separate Mixed results and translates the explanation and labels while escaping native text', () => {
   for (const locale of ['en', 'ar']) {
     const context = createContext({
@@ -269,5 +443,46 @@ test('the website shows separate Mixed results and translates the explanation an
       assert.doesNotMatch(output, /LinkedIn leads|LinkedIn video views/);
     } else assert.match(output, /LinkedIn leads \(one-click\)/);
     assert.equal(String(run('reportObjectiveResults({})')), '');
+  }
+});
+
+test('the website lists other results apart from the primary one, translated and with native text escaped', () => {
+  for (const locale of ['en', 'ar']) {
+    const context = createContext({
+      document: {addEventListener() {}},
+      esc: value =>
+        String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;'),
+      catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+      row: {
+        other_results: [
+          {
+            objective: '<img src=x>',
+            group: 'sales',
+            result_definition: 'LinkedIn website conversions',
+            value: '7',
+          },
+        ],
+      },
+    });
+    const run = source => new Script(source).runInContext(context);
+    for (const file of ['localization', 'report-quality', 'reporting-overview'])
+      run(readFileSync('web/' + file + '.js', 'utf8'));
+    run(`uiLocale = '${locale}'; uiMessages = new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
+    const output = String(run('reportObjectiveResults(row)'));
+    assert.match(output, /&lt;img src=x&gt;/);
+    assert.doesNotMatch(output, /<img src=x>/);
+    assert.match(output, /7/);
+    if (locale === 'ar') {
+      assert.match(output, /[\u0600-\u06ff]/u);
+      assert.doesNotMatch(output, /Other results|LinkedIn website conversions/);
+    } else
+      assert.match(
+        output,
+        /Other results, from campaigns with no activity in this window.*LinkedIn website conversions/,
+      );
   }
 });

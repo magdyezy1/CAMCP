@@ -47,6 +47,8 @@ export interface ReportSourceRow {
   mixedResult?: boolean;
   /** Different native objectives keep separate additive results instead of one combined conversions number. */
   resultsByObjective?: JsonObject[];
+  /** Results of entities that did not deliver, listed apart from the row's own result, which they never change. */
+  otherResults?: JsonObject[];
 }
 
 /**

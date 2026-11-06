@@ -107,7 +107,7 @@ const delivered = (row: JsonObject) =>
   ['impressions', 'clicks', 'costInLocalCurrency'].some(key => (metricNumber(row[key]) ?? 0) > 0);
 function groupResults(rows: JsonObject[], campaigns: Record<string, JsonObject>, rounding: Record<string, number>) {
   const grouped = new Map<string, JsonObject[]>();
-  for (const row of rows.filter(delivered)) {
+  for (const row of rows) {
     const objective = nativeObjective(campaigns[String(row.pivotValues[0])]?.objective_type) ?? 'unknown';
     grouped.set(objective, [...(grouped.get(objective) ?? []), row]);
   }
@@ -591,6 +591,9 @@ export const linkedinReportSource: ReportSource = {
       c.raw = c.raw.map(row => {
         const urn = String(row.pivotValues[0]),
           members = memberships.get(urn) ?? [],
+          // One member set decides both a group's objective and its results: the campaigns that delivered. A campaign
+          // without delivery that only carries attributed results is listed apart, as another result.
+          deliveredMembers = members.filter(delivered),
           // Unassigned delivered campaigns prevent a confident shared objective for any group lacking its own.
           objective = linkedinGroupObjective(
             groups[urn],
@@ -600,13 +603,18 @@ export const linkedinReportSource: ReportSource = {
                   objective_type: campaigns[String(campaign.pivotValues[0])]?.objective_type,
                   delivered: delivered(campaign),
                 })),
-          );
+          ),
+          otherResults = groupResults(
+            members.filter(member => !delivered(member)),
+            campaigns,
+            c.detailRounding,
+          ).filter(result => result.value !== null && result.value !== '0');
         const v4 = c.source?.reporting_contract === 'overview-config-v4',
           types = new Set(members.map(member => campaigns[String(member.pivotValues[0])]?.campaign_type)),
           type = types.size === 1 ? [...types][0] : null,
           nativeGroups = v4
             ? groupReportResults(
-                members.map(member => {
+                deliveredMembers.map(member => {
                   const metadata = campaigns[String(member.pivotValues[0])];
                   return {
                     resolved: linkedinReportSource.readResult!(
@@ -638,9 +646,10 @@ export const linkedinReportSource: ReportSource = {
           ...(objective.mixed
             ? {
                 group_objectives: objective.objectives,
-                results_by_objective: groupResults(members, campaigns, c.detailRounding),
+                results_by_objective: groupResults(deliveredMembers, campaigns, c.detailRounding),
               }
             : {}),
+          ...(otherResults.length ? {other_results: otherResults} : {}),
         };
       });
     }
@@ -687,6 +696,7 @@ export const linkedinReportSource: ReportSource = {
       ...(mixed
         ? {objectiveGroup: mixedObjectiveGroup, resultDefinition: 'Mixed', resultsByObjective: raw.results_by_objective}
         : {}),
+      ...(raw.other_results ? {otherResults: raw.other_results} : {}),
       metrics: {
         spend: costOmitted ? 0 : n('costInLocalCurrency'),
         impressions: n('impressions'),
