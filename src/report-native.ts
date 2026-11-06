@@ -607,17 +607,10 @@ function campaignResult(p: string, kind: string, c: ReportCollection): JsonObjec
     });
   const rounded = metricRoundingRecord(rounding);
   if (rounded) c.quality.metric_rounding = rounded;
-  if (v4) {
-    const declaration = c.source.report_options.complete_window;
-    c.quality.reporting_window_declared_complete = declaration;
-    if (reportSource(p)?.requiresCompleteWindowDeclaration && declaration !== true) {
-      c.complete = false;
-      c.quality.measurement_complete = false;
-      c.warnings.push(
-        'The reporting window was not declared complete. Results remain partial and recommendations are withheld.',
-      );
-    }
-  }
+  // The window declaration a source requires (requiresCompleteWindowDeclaration) belongs to the detail levels, whose
+  // collectors hold the source partial without it. A campaign-level source has never needed one, in v3 or in v4, so an
+  // upgraded v3 campaign report is complete as it was (F-L6-02); the declaration is only recorded.
+  if (v4) c.quality.reporting_window_declared_complete = c.source.report_options.complete_window;
   for (const name of missingNativeMetrics(p, c.extra, rows))
     c.warnings.push(
       'Requested native metric ' +

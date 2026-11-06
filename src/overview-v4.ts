@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {sha256, stable} from './security.js';
 import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
@@ -23,6 +24,8 @@ export interface OverviewV4Capabilities {
   scope_aliases?: Readonly<Record<string, 'campaign_ids' | 'adset_ids' | 'ad_ids'>>;
   validateOptions?(options: JsonObject, context: {levels: readonly string[]}): void;
   legacy?: {
+    /** The levels the build before V2 can collect for this platform; absent means all of the platform's levels. */
+    levels?: readonly string[];
     campaign_options?: readonly string[];
     detail_options?: readonly string[];
     requires_action?: true;
@@ -33,27 +36,72 @@ export interface OverviewV4Capabilities {
   };
 }
 
-/** Current readers use the sidecar; an older binary continues to read the original config field. */
-export const overviewDefinitionConfig = (record: JsonObject): JsonObject => record.config_v4 ?? record.config;
+/**
+ * A stored definition holds its v3 form (`config`, what the build before V2 reads and edits) and, beside it, the v4
+ * form (`config_v4`) it was made from. A build that does not know the sidecar edits `config` and leaves it behind, so
+ * the sidecar names the `config` it was made from: this fingerprint (F-L6-05).
+ */
+export const overviewSidecarBasis = (config: JsonObject): string => sha256(stable(config));
+/** The fields that write a definition's sidecar: the v4 form and the fingerprint of the v3 form it belongs to. */
+export const overviewSidecar = (record: JsonObject, config: JsonObject): JsonObject => ({
+  config_v4: config,
+  config_v4_basis: overviewSidecarBasis(record.config),
+});
+/** Whether the sidecar still belongs to `config`. An absent or older one does not: `config` is then the newer edit. */
+export const overviewSidecarCurrent = (record: JsonObject): boolean =>
+  record.config_v4 !== undefined && record.config_v4_basis === overviewSidecarBasis(record.config);
+/**
+ * The one reader of a stored definition. Listing, editing, previewing, running, the bootstrap payload and the workspace
+ * search all read this form, so they cannot disagree about which accounts a report names (F-L6-05).
+ */
+export const overviewDefinitionConfig = (record: JsonObject): JsonObject =>
+  overviewSidecarCurrent(record) ? record.config_v4 : record.config;
+/** Shown with a definition whose v3 form was edited by a build that does not know the sidecar. */
+export const overviewStaleSidecarWarning = {
+  code: 'DEFINITION_CHANGED_ELSEWHERE',
+  message:
+    'This report was edited on an earlier version of AMCP after it was last saved here. The edited version is used. Settings that only this version supports are no longer part of it; set them again if you need them.',
+} as const;
+/**
+ * Whether the build a rollback returns to (Work-here) can run this stored definition: none of its sources or template
+ * defaults carries the unsupported level that overviewDefinitionForms gives what the earlier form cannot express.
+ * Such a report refuses to run there and its schedule pauses; everything else keeps running (F-L10-11).
+ */
+export const overviewRollbackSafe = (record: JsonObject): boolean =>
+  ![...(record.config?.sources ?? []), ...Object.values(record.config?.source_defaults ?? {})].some(
+    (source: any) => source?.level === 'v4_required',
+  );
 /** Do not expose both definition forms to clients or let an old renderer accidentally edit the wrong one. */
 export function publicOverviewDefinition(record: JsonObject): JsonObject {
-  const {config_v4, ...visible} = record;
-  return config_v4 ? {...visible, config: config_v4} : visible;
+  const {config_v4, config_v4_basis, ...visible} = record,
+    rollback_safe = overviewRollbackSafe(record);
+  if (config_v4 === undefined) return {...visible, rollback_safe};
+  const current = overviewSidecarCurrent(record);
+  return {
+    ...visible,
+    config: overviewDefinitionConfig(record),
+    rollback_safe,
+    ...(current ? {} : {warnings: [overviewStaleSidecarWarning]}),
+  };
 }
 /**
- * Keep account authorization identical in both forms. New scope/multi-level/undeclared semantics that v3 cannot
- * express receive an unsupported level: an old binary can list the definition but refuses it before provider egress.
+ * Keep account authorization identical in both forms, and keep the v3 form one Work-here (the build a rollback
+ * returns to, D21) accepts. What v3 can say it keeps: one level, no status filter, the platform's scalar parent filter,
+ * and `delivered_only` is not part of it (Work-here shows rows without activity too, so its totals are the same; the
+ * flag stays in the v4 form). What v3 cannot express (several levels, ID scopes beyond the parent filter, a status
+ * filter, a declared-incomplete campaign window, an undeclared or unusable detail window) receives an unsupported
+ * level: an old binary lists the definition but refuses it before provider egress, and a schedule of it pauses.
  * Existing v3 definitions are never rewritten by this helper or by a run.
  */
 export function overviewDefinitionForms(
   config: JsonObject,
   capabilitiesFor: (platform: string) => OverviewV4Capabilities,
 ): JsonObject {
-  if (config.contract_version !== overviewConfigV4) return {config, config_v4: undefined};
-  const {rollback_v3, ...current} = structuredClone(config),
+  if (config.contract_version !== overviewConfigV4) return {config, config_v4: undefined, config_v4_basis: undefined};
+  const current = structuredClone(config),
     legacy: JsonObject = {...current};
   delete legacy.contract_version;
-  const legacySource = (source: JsonObject) => {
+  const legacySource = (source: JsonObject, defaults = false) => {
     const {
         levels,
         reporting_contract,
@@ -68,25 +116,44 @@ export function overviewDefinitionForms(
         objective_migrated_from_v3,
         ...old
       } = source,
-      rules = capabilitiesFor(source.platform).legacy ?? {},
+      capabilities = capabilitiesFor(source.platform),
+      rules = capabilities.legacy ?? {},
       level = levels[0],
       options = source.report_options,
       optionNames =
         level === 'campaign'
           ? (rules.campaign_options ?? [])
           : (rules.detail_options ?? ['complete_window', 'attribution']),
+      scopes: Record<string, string[]> = {
+        campaign_ids: campaign_ids ?? [],
+        adset_ids: adset_ids ?? [],
+        ad_ids: ad_ids ?? [],
+      },
+      parentRequired = rules.parent_required_levels?.includes(level) === true;
+    // A platform's declared scalar alias (scope_aliases) is the v3 spelling of a one-entry ID scope, at the levels whose
+    // v3 form has a parent filter. Normalization moved the scalar into the scope; the old form gets it back.
+    if (parentRequired)
+      for (const [alias, field] of Object.entries(capabilities.scope_aliases ?? {}))
+        if (scopes[field]?.length === 1) {
+          old[alias] = scopes[field]![0];
+          scopes[field] = [];
+        }
+    const parentRestored = Object.keys(capabilities.scope_aliases ?? {}).some(alias => old[alias] !== undefined),
       unavailable =
         levels.length !== 1 ||
-        [campaign_ids, adset_ids, ad_ids].some(ids => ids?.length) ||
-        delivered_only === true ||
+        // A level that exists only in this build (the platform declares the ones the earlier build has).
+        (rules.levels !== undefined && !rules.levels.includes(level)) ||
+        Object.values(scopes).some(ids => ids.length) ||
         !statuses.includes('all') ||
-        (rules.parent_required_levels?.includes(level) === true && !source.campaign_id) ||
-        (level === 'campaign' &&
-          (options.complete_window === false || (rules.requires_complete && options.complete_window !== true))) ||
+        // Template defaults carry no account, so no parent either (Work-here checks the parent of a report only).
+        (parentRequired && !defaults && !parentRestored) ||
+        (level === 'campaign' && options.complete_window === false) ||
         (level !== 'campaign' &&
           (typeof options.complete_window !== 'boolean' ||
             (rules.requires_complete && options.complete_window !== true) ||
-            (rules.requires_action && !options.result_action_type)));
+            (rules.requires_action && !options.result_action_type) ||
+            // Work-here takes the preset metrics of a detail level only.
+            source.native_metrics?.length));
     old.level = unavailable ? 'v4_required' : level;
     if (source.objective_fallback !== undefined) old.objective = source.objective_fallback;
     const selected = Object.fromEntries(
@@ -102,21 +169,45 @@ export function overviewDefinitionForms(
     else delete old.report_options;
     return old;
   };
-  legacy.sources = current.sources.map(legacySource);
+  legacy.sources = current.sources.map((source: JsonObject) => legacySource(source));
   if (current.source_defaults)
     legacy.source_defaults = Object.fromEntries(
       Object.entries(current.source_defaults).map(([platform, value]) => {
-        const {platform: _platform, ...defaults} = legacySource({platform, ...(value as JsonObject)});
+        // Work-here accepts only objective, native_metrics, level and report_options in a default: the objective
+        // fallback is already there as `objective`, and per-campaign overrides stay in the v4 form.
+        const {
+          platform: _platform,
+          objective_fallback: _fallback,
+          objective_overrides: _overrides,
+          ...defaults
+        } = legacySource({platform, ...(value as JsonObject)}, true);
         return [platform, defaults];
       }),
     );
-  return {config: legacy, config_v4: current};
+  return {config: legacy, config_v4: current, config_v4_basis: overviewSidecarBasis(legacy)};
 }
-/** Pure read-old conversion. The caller validates the result and keeps the original stored config as rollback. */
+/**
+ * Pure read-old conversion. The caller validates the result and keeps the original stored config as rollback.
+ * Total: a library edit hands it a client's body before any validation, so a body that is not a definition is refused
+ * here with the codes Work-here's validation gave (INVALID_REPORT, REPORT_SOURCES_REQUIRED, INVALID_REPORT_SOURCE)
+ * instead of crashing the request.
+ */
 export function upgradeOverviewV3Config(
   config: JsonObject,
   capabilitiesFor: (platform: string) => OverviewV4Capabilities | undefined,
 ): JsonObject {
+  if (!object(config)) invalid('Name this report (1–100 characters).', 'INVALID_REPORT');
+  if (config.sources !== undefined && !Array.isArray(config.sources))
+    invalid('Choose between 1 and 30 platform accounts.', 'REPORT_SOURCES_REQUIRED');
+  if (config.sources?.some((value: unknown) => !object(value)))
+    invalid('Choose a platform, connection and account.', 'INVALID_REPORT_SOURCE');
+  if (config.source_defaults != null && !object(config.source_defaults))
+    invalid('Template defaults must name supported reporting platforms.', 'INVALID_REPORT_SOURCE');
+  if (Object.values(config.source_defaults ?? {}).some(value => !object(value)))
+    invalid(
+      'Use objective and native metric names for template defaults, without account identities.',
+      'INVALID_REPORT_SOURCE',
+    );
   const upgraded = structuredClone(config);
   if (upgraded.contract_version === overviewConfigV4) return upgraded;
   if (

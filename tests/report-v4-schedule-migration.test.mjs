@@ -15,7 +15,14 @@ import {reportSource} from '../dist/src/report-sources.js';
 
 const rolling = {preset: 'last_complete_days', days: 7, timezone: 'UTC'};
 const notices = report => (report.notices ?? []).filter(n => n.id === objectiveMigrationNotice.id);
-async function legacySchedule(t, {linked = false, active = true, id = 'legacy-standalone'} = {}) {
+const noteOf = spent => ({
+  [objectiveMigrationNotice.id]: {registered_at: 1, first_report_id: spent, spent_report_id: spent},
+});
+/**
+ * A schedule (and, when linked, its saved report) as Work-here stored them. It has fired before (`last_occurrence_at`),
+ * so upgrading it changes numbers it already delivered; one that never ran is told nothing (F-L2-13).
+ */
+async function legacySchedule(t, {linked = false, active = true, id = 'legacy-standalone', ran = true} = {}) {
   const f = objectiveReportFixture(t, {
     rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10, impressions: 100, clicks: 2}}],
   });
@@ -51,6 +58,7 @@ async function legacySchedule(t, {linked = false, active = true, id = 'legacy-st
     next_run_at: Date.now() - 1000,
     actor_binding: f.store.bindJobActor(f.actor, id),
     created_at: 1,
+    ...(ran ? {last_occurrence_at: 1} : {}),
   });
   return {
     ...f,
@@ -60,6 +68,7 @@ async function legacySchedule(t, {linked = false, active = true, id = 'legacy-st
     viewId,
     schedule: () => f.store.document(f.actor.tenantId, 'overview_schedule', id),
     ledger: key => f.store.document(f.actor.tenantId, objectiveMigrationKind, key),
+    note: key => f.store.document(f.actor.tenantId, objectiveMigrationKind, key).notices[objectiveMigrationNotice.id],
   };
 }
 
@@ -84,65 +93,82 @@ test('updating a standalone legacy schedule without config creates its linked vi
   assert.deepEqual(view.config, f.config);
   assert.equal(schedule.config_v4.contract_version, overviewConfigV4);
   assert.equal(view.config_v4.sources[0].objective_fallback, 'leads');
-  assert.equal(f.ledger('view:' + view.id).announced_report_id, null);
+  assert.equal(f.note('view:' + view.id).spent_report_id, null, 'registered, and not yet delivered');
+  assert.equal(typeof f.note('view:' + view.id).registered_at, 'number');
   assert.throws(() => f.ledger('schedule:' + f.id), {code: 'NOT_FOUND'});
 });
 
-test('linking the same origin keeps an announced schedule claim over a pending view claim', t => {
+test('linking the same origin keeps a delivered schedule note over a pending view note', t => {
   const f = objectiveReportFixture(t),
     kind = objectiveMigrationKind;
   f.store.putDocument(f.actor.tenantId, kind, 'schedule:s', {
     origin_fingerprint: 'same-origin',
     registered_at: 1,
-    announced_report_id: 'first',
-    announced_at: 2,
+    notices: noteOf('first'),
   });
   f.store.putDocument(f.actor.tenantId, kind, 'view:v', {
     origin_fingerprint: 'same-origin',
     registered_at: 3,
-    announced_report_id: null,
+    notices: noteOf(null),
   });
   f.store.transaction(() => linkObjectiveMigration(f.store, f.actor.tenantId, 's', 'v'));
   const claim = f.store.document(f.actor.tenantId, kind, 'view:v');
   assert.equal(claim.id, 'view:v');
   assert.equal(claim.revision, 2);
-  assert.equal(claim.announced_report_id, 'first');
-  assert.equal(claim.announced_at, 2);
+  assert.equal(claim.notices[objectiveMigrationNotice.id].spent_report_id, 'first');
+  assert.equal(claim.notices[objectiveMigrationNotice.id].first_report_id, 'first');
   assert.throws(() => f.store.document(f.actor.tenantId, kind, 'schedule:s'), {code: 'NOT_FOUND'});
   f.store.transaction(() => linkObjectiveMigration(f.store, f.actor.tenantId, 's', 'v'));
   assert.deepEqual(f.store.document(f.actor.tenantId, kind, 'view:v'), claim);
 });
 
-test('linking a different origin preserves the view claim and never transfers another tenant claim', t => {
+test('linking a different origin preserves the view note and never transfers another tenant note', t => {
   const f = objectiveReportFixture(t),
     kind = objectiveMigrationKind;
   for (const [key, origin, report] of [
     ['schedule:s', 'schedule-origin', 'prior'],
     ['view:v', 'view-origin', null],
   ])
-    f.store.putDocument(f.actor.tenantId, kind, key, {origin_fingerprint: origin, announced_report_id: report});
+    f.store.putDocument(f.actor.tenantId, kind, key, {origin_fingerprint: origin, notices: noteOf(report)});
   const view = f.store.document(f.actor.tenantId, kind, 'view:v');
   f.store.putDocument('other-tenant', kind, 'schedule:s', {
     origin_fingerprint: 'schedule-origin',
-    announced_report_id: 'other',
+    notices: noteOf('other'),
   });
   f.store.transaction(() => linkObjectiveMigration(f.store, f.actor.tenantId, 's', 'v'));
   assert.deepEqual(f.store.document(f.actor.tenantId, kind, 'view:v'), view);
-  assert.equal(f.store.document('other-tenant', kind, 'schedule:s').announced_report_id, 'other');
+  assert.equal(
+    f.store.document('other-tenant', kind, 'schedule:s').notices[objectiveMigrationNotice.id].spent_report_id,
+    'other',
+  );
 });
 
-test('an announced standalone run cannot announce again after an update links it to an already registered same-origin view', async t => {
+test('a delivered standalone run cannot be announced again after an update links it to an already registered same-origin view', async t => {
   const f = await legacySchedule(t);
   f.overview.tick();
   await f.worker.once();
   const first = f.store.document(f.actor.tenantId, 'overview_report', f.schedule().last_report_id);
   assert.equal(first.state, 'complete', JSON.stringify(first.sources));
   assert.equal(notices(first).length, 1);
+  assert.equal(f.note('schedule:' + f.id).spent_report_id, null, 'recorded, and its delivery has not run');
+  await f.worker.once();
+  assert.equal(f.note('schedule:' + f.id).spent_report_id, first.id, 'its delivery reached the client');
+  // A saved report with the same stored definition, which has also been run before and so owes the same note.
   const viewId = 'same-origin-view';
   f.store.putDocument(f.actor.tenantId, 'overview_view', viewId, {config: f.config, created_at: 1});
+  f.store.putDocument(f.actor.tenantId, 'overview_report', 'view-ran-before', {
+    config: f.config,
+    view_id: viewId,
+    schedule_id: null,
+    state: 'complete',
+    created_at: 10,
+    completed_at: 20,
+    rows: [],
+    sources: [],
+  });
   const view = f.store.document(f.actor.tenantId, 'overview_view', viewId);
   registerObjectiveMigration(f.store, f.actor.tenantId, view, 'overview_view');
-  assert.equal(f.ledger('view:' + viewId).announced_report_id, null);
+  assert.equal(f.note('view:' + viewId).spent_report_id, null);
   await f.overview.handle(
     {
       action: 'update_schedule',
@@ -155,7 +181,7 @@ test('an announced standalone run cannot announce again after an update links it
     },
     f.actor,
   );
-  assert.equal(f.ledger('view:' + viewId).announced_report_id, first.id);
+  assert.equal(f.note('view:' + viewId).spent_report_id, first.id);
   // Remove the queued file export; only the next reporting collection is relevant to this assertion.
   f.store.db.prepare("UPDATE jobs SET state='cancelled' WHERE kind='report_file_export' AND state='queued'").run();
   const second = await f.finish(await f.overview.handle({action: 'run', id: viewId, confirmed: true}, f.actor));
@@ -257,7 +283,10 @@ test('durable objective migration claims are registered as tenant documents reta
   assert.equal(kind.retention.rule, 'workspace');
 });
 
-test('queued manual and scheduled runs share one durable notice claim without changing their collection contracts', async t => {
+// F-L6-03: the earlier reading, one claim taken by whichever snapshot was recorded first, let a manual run in the website
+// take the note meant for the client's scheduled delivery. The note is for the next delivery, so a manual run of a report
+// that has a scheduled delivery carries it (History shows it) but does not spend it.
+test('a manual run of a scheduled report carries the note without spending it; the scheduled delivery carries and spends it', async t => {
   const f = await legacySchedule(t, {linked: true});
   const manual = await f.overview.handle({action: 'run', id: f.viewId, confirmed: true}, f.actor);
   f.overview.tick();
@@ -270,8 +299,11 @@ test('queued manual and scheduled runs share one durable notice claim without ch
     reports.every(r => r.state === 'complete'),
     JSON.stringify(reports.map(r => [r.state, r.sources])),
   );
-  assert.equal(reports.flatMap(notices).length, 1);
-  assert.equal(f.ledger('view:' + f.viewId).announced_report_id, reports.find(r => notices(r).length).id);
+  assert.equal(reports.flatMap(notices).length, 2, 'both snapshots carry the one note');
+  assert.equal(f.note('view:' + f.viewId).first_report_id, manual.id);
+  assert.equal(f.note('view:' + f.viewId).spent_report_id, null, 'nothing has been delivered yet');
+  await f.worker.once();
+  assert.equal(f.note('view:' + f.viewId).spent_report_id, scheduledId, 'the scheduled delivery reached the client');
   assert(reports.every(r => r.config.contract_version === overviewConfigV4));
 });
 
@@ -290,7 +322,12 @@ test('a previously queued legacy run retains its objective semantics and cannot 
   assert.deepEqual(notices(oldReport), []);
   assert.equal(newReport.rows[0].objective_group, 'traffic');
   assert.equal(notices(newReport).length, 1);
-  assert.equal(f.ledger('view:' + f.viewId).announced_report_id, modern.id);
+  assert.equal(f.note('view:' + f.viewId).first_report_id, modern.id);
+  assert.equal(
+    f.note('view:' + f.viewId).spent_report_id,
+    null,
+    'a manual run of a scheduled report is not its delivery',
+  );
 });
 
 test('editing a legacy linked definition keeps its rollback projection and durable claim across subsequent edits', async t => {
@@ -355,12 +392,18 @@ test('a comparison baseline cannot consume the numbers-changed notice intended f
   const baseline = f.store.document(f.actor.tenantId, 'overview_report', pair.comparison.baseline_id);
   assert.equal(baseline.state, 'complete');
   assert.deepEqual(notices(baseline), []);
-  assert.equal(f.ledger('view:' + f.viewId).announced_report_id, null);
+  assert.equal(f.note('view:' + f.viewId).first_report_id, null);
+  assert.equal(f.note('view:' + f.viewId).spent_report_id, null);
   await f.worker.once();
   const current = f.store.document(f.actor.tenantId, 'overview_report', pair.id);
   assert.equal(current.state, 'complete');
   assert.deepEqual(notices(current), [objectiveMigrationNotice]);
-  assert.equal(f.ledger('view:' + f.viewId).announced_report_id, pair.id);
+  assert.equal(f.note('view:' + f.viewId).first_report_id, pair.id);
+  assert.equal(
+    f.note('view:' + f.viewId).spent_report_id,
+    null,
+    'a manual run of a scheduled report is not its delivery',
+  );
 });
 
 test('editing a legacy choice as its equivalent v4 fallback cannot lose a pending server-owned notice', async t => {
@@ -371,7 +414,7 @@ test('editing a legacy choice as its equivalent v4 fallback cannot lose a pendin
   await f.overview.handle({action: 'save', id: f.viewId, expected_revision: 1, config, confirmed: true}, f.actor);
   const current = f.store.document(f.actor.tenantId, 'overview_view', f.viewId);
   assert.equal(current.config_v4.sources[0].objective_migrated_from_v3, undefined);
-  assert.equal(f.ledger('view:' + f.viewId).announced_report_id, null);
+  assert.equal(f.note('view:' + f.viewId).spent_report_id, null);
   const report = await f.finish(await f.overview.handle({action: 'run', id: f.viewId, confirmed: true}, f.actor));
   assert.deepEqual(notices(report), [objectiveMigrationNotice]);
 });
@@ -394,15 +437,20 @@ test('a new v4 definition cannot forge migration eligibility using a client-supp
   );
   const report = await f.finish(await f.overview.handle({action: 'run', id: view.id, confirmed: true}, f.actor));
   assert.deepEqual(notices(report), []);
-  assert.equal(f.store.documents(f.actor.tenantId, objectiveMigrationKind).length, 0);
+  // Its record holds the contracts it ran under, and owes no note.
+  assert.deepEqual(
+    f.store.documents(f.actor.tenantId, objectiveMigrationKind).flatMap(record => Object.keys(record.notices)),
+    [],
+  );
 });
 
-test('a saved run returns the migrated view revision so its next intentional edit does not conflict with its own upgrade', async t => {
+test('a saved run returns the view revision, which its own upgrade does not advance, so the next intentional edit does not conflict', async t => {
   const f = await legacySchedule(t, {linked: true});
   const queued = await f.overview.handle({action: 'run', id: f.viewId, confirmed: true}, f.actor);
   const stored = f.store.document(f.actor.tenantId, 'overview_view', f.viewId);
   assert.equal(queued.view_revision, stored.revision);
-  assert.equal(queued.view_revision, 2);
+  // F-L6-09: writing the sidecar is not a person's edit, so the revision an editor loaded before the run still stands.
+  assert.equal(queued.view_revision, 1);
   const edited = await f.overview.handle(
     {
       action: 'save',

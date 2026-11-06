@@ -90,23 +90,30 @@ for (const platform of ['linkedin', 'tiktok'])
     assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_report', 'synthetic-old')), oldSnapshot);
   });
 
-test('a saved legacy choice gets its objective notice without a previous run; provider-contract and ad hoc notices stay absent', async t => {
+test('a saved legacy choice that never ran gets no objective notice, and ad hoc runs get no notices', async t => {
+  // F-L2-13: the note says the saved objective changed numbers; a report with no earlier run has none to change.
   const f = fixture(t);
   const first = await runView(f);
-  assert.deepEqual(first.notices, [objectiveMigrationNotice]);
+  assert.deepEqual(first.notices ?? [], []);
   const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
   assert.deepEqual(f.store.document(f.actor.tenantId, 'overview_report', queued.id).notices ?? [], []);
+  // After a retained earlier snapshot the same report is told, once.
+  const ran = fixture(t);
+  legacy(ran);
+  assert.deepEqual((await runView(ran)).notices, [notices.linkedin, objectiveMigrationNotice]);
 });
 
-test('notice lookup ignores another definition and unfinished snapshots, beyond the first History page', async t => {
+test('the first sight of a report reads its own History only, beyond the first History page', async t => {
   const f = fixture(t);
   legacy(f);
   const stamp = {linkedin: 'linkedin-levels-v2'};
   for (let i = 0; i < 505; i++)
     legacy(f, {view: 'different-view', contracts: stamp, id: 'other-' + i, created: Date.now() + i});
   legacy(f, {contracts: stamp, state: 'running', id: 'unfinished', created: Date.now() + 1000});
-  const queued = await f.overview.handle({action: 'run', id: 'synthetic-view', confirmed: true}, f.actor);
-  assert.deepEqual(f.store.document(f.actor.tenantId, 'overview_report', queued.id).notices, [notices.linkedin]);
+  // Other reports' snapshots and an unfinished one of this report say nothing about what this report last ran under,
+  // so its finished snapshot (recorded before the contract) decides and the contract note is owed.
+  const report = await runView(f);
+  assert.deepEqual(report.notices, [notices.linkedin, objectiveMigrationNotice]);
 });
 
 test('a schedule carries the notice into its pack and bilingual workbook/PDF before limitations', async t => {

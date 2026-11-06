@@ -567,16 +567,27 @@ test('a client cannot use a JSON flag to bypass legacy guided declarations, and 
   );
 });
 
-test('D22 notice is claimed once by the first completed linked snapshot and persists in History without editing v3', async t => {
+test('D22 notice is carried and spent once by the first completed snapshot of a report that ran before, and persists in History without editing v3', async t => {
   const f = objectiveReportFixture(t, {
       rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10, impressions: 100, clicks: 2}}],
     }),
     legacy = {...f.config, sources: [{...f.config.sources[0], objective: 'sales'}]},
-    saved = await f.overview.handle({action: 'save', confirmed: true, config: legacy}, f.actor),
-    original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id)),
-    migrated = f.overview.config({...legacy, contract_version: overviewConfigV4}, f.actor);
-  const first = f.overview.queue(f.actor, migrated, undefined, undefined, Date.now(), saved.id),
-    second = f.overview.queue(f.actor, migrated, undefined, undefined, Date.now() + 1, saved.id);
+    saved = await f.overview.handle({action: 'save', confirmed: true, config: legacy}, f.actor);
+  // Work-here ran this report before: a retained finished snapshot is what makes the upgrade change its numbers.
+  f.store.putDocument(f.actor.tenantId, 'overview_report', 'ran-before', {
+    config: legacy,
+    view_id: saved.id,
+    schedule_id: null,
+    state: 'complete',
+    created_at: 10,
+    completed_at: 20,
+    rows: [],
+    sources: [],
+  });
+  const original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id).config),
+    // Both runs are queued before either finishes, as two people (or a person and a schedule) can.
+    first = await f.overview.handle({action: 'run', id: saved.id, confirmed: true}, f.actor),
+    second = await f.overview.handle({action: 'run', id: saved.id, confirmed: true}, f.actor);
   await f.worker.once();
   await f.worker.once();
   const a = await f.overview.handle({action: 'get', id: first.id}, f.actor),
@@ -590,7 +601,7 @@ test('D22 notice is claimed once by the first completed linked snapshot and pers
     'concurrently queued snapshots do not duplicate the migration notice',
   );
   assert.equal(a.rows[0].objective.group, 'traffic', 'provider objective now takes precedence over the saved fallback');
-  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id)), original);
+  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id).config), original);
   const history = await f.overview.handle({action: 'list'}, f.actor);
   assert.equal(history.reports.flatMap(notices).length, 1);
   assert.equal(
@@ -663,7 +674,7 @@ test('an old binary refuses unrepresentable v4 scopes instead of silently wideni
   assert.equal(current.config_v4, undefined);
 });
 
-test('rollback refuses delivered-only scope unless the v3 form can retain every provider row', () => {
+test('rollback keeps a delivered-only report runnable: the flag stays in the v4 form, Work-here shows every row', () => {
   const legacy = delivered_only =>
     overviewDefinitionForms(
       {
@@ -677,11 +688,11 @@ test('rollback refuses delivered-only scope unless the v3 form can retain every 
       },
       platform => reportSource(platform).overview,
     ).config.sources[0];
-  assert.equal(legacy(true).level, 'v4_required');
-  assert.throws(
-    () => overviewSourceLevel(legacy(true)),
-    error => error.code === 'INVALID_REPORT_LEVEL',
-  );
+  // D21: delivered_only defaults to true, so refusing it refused every new report on the build a rollback returns to.
+  // Work-here also shows rows without activity; its totals are the same (tests/report-rollback-form.test.mjs).
+  assert.equal(legacy(true).level, 'campaign');
+  assert.equal(overviewSourceLevel(legacy(true)).id, 'campaign');
+  assert.equal(legacy(true).delivered_only, undefined);
   assert.equal(legacy(false).level, 'campaign');
   assert.equal(legacy(false).delivery_metrics, undefined);
   assert.equal(legacy(false).status_basis, undefined);
@@ -714,8 +725,12 @@ test('v4 rollback preserves incomplete campaign declarations instead of silently
     );
     assert.equal(legacy(platform, 'campaign', true).level, 'campaign');
   }
-  for (const platform of ['tiktok', 'snapchat'])
-    assert.equal(legacy(platform, 'campaign', null).level, 'v4_required', platform + ': missing required declaration');
+  // A campaign-level source has no window declaration in the v3 form, for any platform: an undeclared window is the
+  // ordinary v3 campaign report, not a v4-only one (F-L6-02, F-L6-01). Detail levels keep their declaration rule.
+  for (const platform of ['tiktok', 'snapchat']) {
+    assert.equal(legacy(platform, 'campaign', null).level, 'campaign', platform + ': undeclared campaign window');
+    assert.equal(legacy(platform, 'ad', null).level, 'v4_required', platform + ': undeclared detail window');
+  }
   assert.equal(
     legacy('google', 'adset', false).level,
     'adset',

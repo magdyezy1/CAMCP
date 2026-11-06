@@ -5,12 +5,14 @@ import {scheduleClockFields} from './reporting.js';
 import {sha256, stable} from './security.js';
 import {reportDestination} from './report-file-delivery.js';
 import {currencyTargetKey} from './report-metrics.js';
-import {deleteSettledDeliveries, hasUnconfirmedDelivery} from './report-repository.js';
+import {deleteSettledDeliveries, hasUnconfirmedDelivery, writeDefinitionSidecar} from './report-repository.js';
 import {cancelReportJobs, deleteReportJobs} from './job-repository.js';
 import type {Actor, JsonObject} from './types.js';
 import {
   overviewDefinitionConfig,
   overviewDefinitionForms,
+  overviewSidecar,
+  overviewSidecarCurrent,
   publicOverviewDefinition,
   upgradeOverviewV3Config,
   overviewConfigV4,
@@ -41,7 +43,12 @@ export class ReportLibrary {
     // Whether the actor may read every source of a definition (ReportingOverview.access); throws when not.
     readonly access: (actor: Actor, config: JsonObject) => void = () => {},
   ) {}
-  /** Validate a stored definition as v4 while preserving its original rollback config. The caller owns the write. */
+  /**
+   * Validate a stored definition as v4 while preserving its original rollback config. The caller owns the write, in the
+   * transaction that read the record, and `migrated` says it must write the sidecar (overviewSidecar): there is none, or
+   * it belongs to an older `config` (a rollback edited it). The migration is journalled here, so it commits or rolls back
+   * with that write; the journal says which definition changed, since no revision does (F-L9-02).
+   */
   prepareDefinition(
     actor: Actor,
     record: JsonObject,
@@ -54,18 +61,38 @@ export class ReportLibrary {
         kind === 'overview_template',
         true,
       ),
-      migrated = !record.config_v4;
+      migrated = !overviewSidecarCurrent(record);
+    if (migrated) this.audit(actor, 'report_definition_migrated', record.id, {kind});
     if (kind !== 'overview_template') registerObjectiveMigration(this.store, actor.tenantId, record, kind);
     return {config, migrated};
   }
+  /**
+   * Upgrade a stored definition for a run or a resume: the sidecar is written beside the untouched v3 form. This is not
+   * a person's edit, so it does not advance the revision the editor and the schedule dialog compare (F-L6-09).
+   */
   migrateDefinition(
     actor: Actor,
     record: JsonObject,
     kind: 'overview_view' | 'overview_schedule' | 'overview_template',
   ) {
     const prepared = this.prepareDefinition(actor, record, kind);
-    if (prepared.migrated)
-      this.store.putDocument(actor.tenantId, kind, record.id, {...record, config_v4: prepared.config}, record.revision);
+    if (
+      prepared.migrated &&
+      !writeDefinitionSidecar(
+        this.store,
+        actor.tenantId,
+        kind,
+        record.id,
+        record.revision,
+        overviewSidecar(record, prepared.config),
+      )
+    )
+      throw new MirrorError(
+        'REVISION_CONFLICT',
+        'This report setup changed. Reload it before saving or deleting.',
+        {revision: this.store.document(actor.tenantId, kind, record.id).revision},
+        409,
+      );
     return prepared.config;
   }
   /**
@@ -85,8 +112,8 @@ export class ReportLibrary {
         409,
       );
   }
-  private audit(actor: Actor, event: string, id: string) {
-    this.store.appendAudit(actor.tenantId, 'report-library/' + id, {event, actor: actor.userId, id});
+  private audit(actor: Actor, event: string, id: string, detail: JsonObject = {}) {
+    this.store.appendAudit(actor.tenantId, 'report-library/' + id, {event, actor: actor.userId, id, ...detail});
   }
   private destination(actor: Actor, id: unknown) {
     return reportDestination(this.store, actor, id);
@@ -252,8 +279,8 @@ export class ReportLibrary {
           input.config === undefined,
         ),
         forms =
-          input.config === undefined && inherited && !inherited.config_v4
-            ? {config: inherited.config, config_v4: config}
+          input.config === undefined && inherited && !overviewSidecarCurrent(inherited)
+            ? {config: inherited.config, ...overviewSidecar(inherited, config)}
             : definitionForms(config);
       if (!config.date_range.preset)
         throw new MirrorError(
@@ -293,26 +320,32 @@ export class ReportLibrary {
             !Object.keys(source_defaults).length &&
             prior.request_fingerprint === legacyFingerprint;
           let formatMatch = false;
-          if (prior.config?.contract_version !== overviewConfigV4) {
-            const upgraded = this.validate(
-              upgradeOverviewV3Config(prior.config, platform => reportSource(platform)?.overview),
-              actor,
-              false,
-              true,
-            );
-            formatMatch =
-              sha256(
-                stable({
-                  name: upgraded.name,
-                  config: upgraded,
-                  schedule_kind: prior.schedule_kind,
-                  schedule_config: prior.schedule_config ?? {},
-                  timezone: prior.timezone,
-                  destination_id: prior.destination_id,
-                  view_id: prior.view_id ?? null,
-                }),
-              ) === fingerprint;
-          }
+          // The creation fingerprint is the request's, so a retry normally equals it. Only a schedule stored in the v3
+          // spelling (no current v4 form beside it) can be the same request written in the newer one; the projection
+          // of a v4 definition is not a definition to validate. A prior that does not validate is not the request retried.
+          if (prior.request_fingerprint !== fingerprint && !legacyMatch && !overviewSidecarCurrent(prior))
+            try {
+              const upgraded = this.validate(
+                upgradeOverviewV3Config(prior.config, platform => reportSource(platform)?.overview),
+                actor,
+                false,
+                true,
+              );
+              formatMatch =
+                sha256(
+                  stable({
+                    name: upgraded.name,
+                    config: upgraded,
+                    schedule_kind: prior.schedule_kind,
+                    schedule_config: prior.schedule_config ?? {},
+                    timezone: prior.timezone,
+                    destination_id: prior.destination_id,
+                    view_id: prior.view_id ?? null,
+                  }),
+                ) === fingerprint;
+            } catch (error) {
+              if (!(error instanceof MirrorError)) throw error;
+            }
           if (prior.request_fingerprint !== fingerprint && !legacyMatch && !formatMatch)
             throw new MirrorError('IDEMPOTENCY_CONFLICT', 'This key belongs to another scheduled report.');
           return {
@@ -429,7 +462,7 @@ export class ReportLibrary {
       }
       const data: JsonObject = {
         ...s,
-        ...(prepared?.migrated ? {config_v4: prepared.config} : {}),
+        ...(prepared?.migrated ? overviewSidecar(s, prepared.config) : {}),
         updated_at: Date.now(),
         is_active: resume,
         definition_version: (s.definition_version ?? 0) + 1,

@@ -5,6 +5,7 @@ import {accountKey} from '../src/access-sets.js';
 import {optionalClientView} from '../src/client-scope.js';
 import {reportPlatforms} from '../src/report-metrics.js';
 import {overviewRecordListed} from '../src/reporting-overview.js';
+import {overviewDefinitionConfig} from '../src/overview-v4.js';
 
 /** One workspace entity the search found: what it is, its name, a short detail and the website page that opens it. */
 export type WorkspaceSearchHit = {
@@ -132,21 +133,23 @@ export async function workspaceSearch(
   ]);
   // Saved reports as the report builder's bootstrap lists them to this person (SEC-08), then by the working client.
   const reports = await read('report', () =>
-    store
-      .documents(tenant, 'overview_view')
-      .filter(
-        v =>
-          overviewRecordListed(store, actor, v) &&
-          ofClient(v.config) &&
-          matches(v.config?.name, v.config?.client_name, v.id),
-      )
-      .map(v => ({
-        kind: 'report' as const,
-        id: String(v.id),
-        label: reportLabel(v.config),
-        detail: Array.isArray(v.config?.sources) ? String(v.config.sources.length) : '',
-        href: '/reporting-overview?view_id=' + encodeURIComponent(String(v.id)),
-      })),
+    store.documents(tenant, 'overview_view').flatMap(v => {
+      // The form of the report the builder opens, which is the one its listing rule checks (overviewDefinitionConfig).
+      const config = overviewDefinitionConfig(v);
+      return overviewRecordListed(store, actor, v) &&
+        ofClient(config) &&
+        matches(config?.name, config?.client_name, v.id)
+        ? [
+            {
+              kind: 'report' as const,
+              id: String(v.id),
+              label: reportLabel(config),
+              detail: Array.isArray(config?.sources) ? String(config.sources.length) : '',
+              href: '/reporting-overview?view_id=' + encodeURIComponent(String(v.id)),
+            },
+          ]
+        : [];
+    }),
   );
   // Accounts of the logins as this person may see them: a client access set leaves only its accounts, and only those
   // accounts' discovered names are read, so another client's account names in the same login are never matched or shown.

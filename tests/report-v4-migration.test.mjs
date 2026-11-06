@@ -24,6 +24,9 @@ const capabilities = platform => reportSource(platform)?.overview,
   range = {since: '2026-09-01', until: '2026-09-01'};
 
 test('pure stored-definition upgrade preserves the original config, account bindings, declarations and old scope', () => {
+  // `config.version` is one stored number that both builds always write as 1 and nothing reads: there are no separate
+  // v1, v2 and v3 stored forms (the real discriminators are source_contract_version, contract_version and the sidecar).
+  // The loop shows the upgrade is indifferent to the value it carries.
   for (const version of [1, 2, 3]) {
     const original = {
         ...savedObjectiveViews[0].config,
@@ -101,8 +104,14 @@ test('Meta and Snapchat campaign upgrades preserve the actual legacy attribution
         : ['action_report_time', 'conversion_source_types', 'swipe_up_attribution_window', 'view_attribution_window'];
     for (const key of keys)
       assert.equal(reads[1].url.searchParams.get(key), reads[0].url.searchParams.get(key), platform + ':' + key);
-    if (platform === 'snapchat')
-      assert.equal(current.complete, false, 'migration cannot manufacture a settled conversion-window declaration');
+    // A campaign-level source needs no window declaration (F-L6-02): the upgrade invents none, and it changes no
+    // completeness either. Declaration rules belong to the detail levels.
+    assert.equal(
+      current.quality.reporting_window_declared_complete,
+      null,
+      platform + ': the declaration stays unknown',
+    );
+    assert.equal(current.complete, legacy.complete, platform + ': completeness is the legacy collection’s');
   }
 });
 
@@ -164,14 +173,32 @@ test('an existing v4 config or explicit multi-level input is never collapsed int
 });
 
 const migrationNotices = report => (report.notices ?? []).filter(notice => notice.id === objectiveMigrationNotice.id);
-function storedView(f, objective = 'leads', id = 'legacy-definition') {
+const noticeState = (f, id) =>
+  f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + id).notices[objectiveMigrationNotice.id];
+/**
+ * A report as Work-here stored it, with its objective chosen by hand. By default it has run before: one finished v3
+ * snapshot is retained for it. That is what makes the upgrade change its numbers; a report that never ran has no earlier
+ * numbers to change and is told nothing (F-L2-13).
+ */
+function storedView(f, objective = 'leads', id = 'legacy-definition', ran = true) {
   const config = {...f.config, version: 3, sources: [{...f.config.sources[0], objective}]};
   f.store.putDocument(f.actor.tenantId, 'overview_view', id, {config, created_at: 1, updated_at: 2});
+  if (ran)
+    f.store.putDocument(f.actor.tenantId, 'overview_report', 'ran-before-' + id, {
+      config,
+      view_id: id,
+      schedule_id: null,
+      state: 'complete',
+      created_at: 10,
+      completed_at: 20,
+      rows: [],
+      sources: [],
+    });
   return {id, config};
 }
 const runStored = async (f, id) => f.finish(await f.overview.handle({action: 'run', id, confirmed: true}, f.actor));
 
-test('running a stored v3 report writes its v4 sidecar, preserves original config/snapshots and claims the notice once', async t => {
+test('running a stored v3 report writes its v4 sidecar, preserves original config/snapshots and registers and spends the notice once', async t => {
   const f = objectiveReportFixture(t, {
       rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10, impressions: 100, clicks: 2}}],
     }),
@@ -190,10 +217,9 @@ test('running a stored v3 report writes its v4 sidecar, preserves original confi
   assert.deepEqual(migrationNotices(current), [objectiveMigrationNotice]);
   const second = await runStored(f, saved.id);
   assert.deepEqual(migrationNotices(second), []);
-  assert.equal(
-    f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + saved.id).announced_report_id,
-    current.id,
-  );
+  // The report has no scheduled delivery, so its snapshot is the delivery and spends the note when it is recorded.
+  assert.equal(noticeState(f, saved.id).first_report_id, current.id);
+  assert.equal(noticeState(f, saved.id).spent_report_id, current.id);
 });
 
 test('deleting migration History does not reset its durable notice or change the rollback form', async t => {
@@ -222,20 +248,16 @@ test('an empty capture or retryable failure cannot consume the next numbers-chan
     empty = await runStored(f, saved.id);
   assert.equal(empty.rows.length, 0);
   assert.deepEqual(migrationNotices(empty), []);
-  assert.equal(
-    f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + saved.id).announced_report_id,
-    null,
-  );
+  assert.equal(noticeState(f, saved.id).first_report_id, null);
+  assert.equal(noticeState(f, saved.id).spent_report_id, null);
   const collect = f.overview.native.collect;
   f.overview.native.collect = async () => {
     throw new MirrorError('UPSTREAM_ERROR', 'Synthetic outage', {http_status: 503}, 503, true);
   };
   const queued = await f.overview.handle({action: 'run', id: saved.id, confirmed: true}, f.actor);
   await f.worker.once();
-  assert.equal(
-    f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + saved.id).announced_report_id,
-    null,
-  );
+  assert.equal(noticeState(f, saved.id).first_report_id, null);
+  assert.equal(noticeState(f, saved.id).spent_report_id, null);
   f.overview.native.collect = collect;
   rows.push({campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10}});
   f.store.db.prepare("UPDATE jobs SET available_at=0 WHERE state='queued'").run();
@@ -250,10 +272,13 @@ test('a default unknown stored objective upgrades without a false numbers-change
     report = await runStored(f, saved.id);
   assert.equal(report.rows[0].objective.group, 'traffic');
   assert.deepEqual(migrationNotices(report), []);
-  assert.equal(f.store.documents(f.actor.tenantId, objectiveMigrationKind).length, 0);
+  // The report’s record exists (it holds the contracts it ran under) but owes no objective note.
+  assert.deepEqual(f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + saved.id).notices, {});
 });
 
-test('an objective notice from an earlier v4 binary seeds the durable ledger instead of being repeated', async t => {
+test('a note carried by a snapshot already in History is not imported: only the report’s own record says what was delivered', async t => {
+  // The earlier mechanism read History for a note an unpublished build had emitted. History is now read once, for the
+  // contracts the report last ran under and whether it ran at all, never for notes (F-L6-04, F-L6-07).
   const f = objectiveReportFixture(t, {rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10}}]}),
     saved = storedView(f);
   f.store.putDocument(f.actor.tenantId, 'overview_report', 'prior-v4', {
@@ -265,10 +290,15 @@ test('an objective notice from an earlier v4 binary seeds the durable ledger ins
     notices: [objectiveMigrationNotice],
   });
   const report = await runStored(f, saved.id);
-  assert.deepEqual(migrationNotices(report), []);
-  const ledger = f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + saved.id);
-  assert.equal(ledger.announced_report_id, 'prior-v4');
-  assert.equal(ledger.imported_from_history, true);
+  assert.deepEqual(migrationNotices(report), [objectiveMigrationNotice]);
+  assert.equal(noticeState(f, saved.id).spent_report_id, report.id);
+  assert.equal(
+    Object.hasOwn(
+      f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + saved.id),
+      'imported_from_history',
+    ),
+    false,
+  );
 });
 
 test('an earlier auxiliary baseline notice does not suppress the next primary report delivery notice', async t => {
@@ -313,6 +343,8 @@ test('a due stored schedule upgrades with its linked view in one occurrence with
     next_run_at: Date.now() - 1000,
     actor_binding: f.store.bindJobActor(f.actor, scheduleId),
     created_at: 1,
+    // It has fired before, so the upgrade changes numbers it already delivered.
+    last_occurrence_at: 1,
   });
   const before = f.store.document(f.actor.tenantId, 'overview_schedule', scheduleId);
   f.overview.tick();
@@ -331,10 +363,8 @@ test('a due stored schedule upgrades with its linked view in one occurrence with
   assert.equal(report.state, 'complete', JSON.stringify(report.sources));
   assert.equal(report.rows[0].objective_group, 'traffic');
   assert.deepEqual(migrationNotices(report), [objectiveMigrationNotice]);
-  assert.equal(
-    f.store.document(f.actor.tenantId, objectiveMigrationKind, 'view:' + viewId).announced_report_id,
-    report.id,
-  );
+  assert.equal(noticeState(f, viewId).first_report_id, report.id);
+  assert.equal(noticeState(f, viewId).spent_report_id, report.id, 'it has no delivery destination');
 });
 
 test('v4 templates retain account-free level/scope defaults and a safe legacy projection', async t => {

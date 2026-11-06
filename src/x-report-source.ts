@@ -62,7 +62,11 @@ export const xReportSource: ReportSource = {
       metadata?.deleted === true,
     );
   },
-  overview: {...overviewCapabilities(xOverviewLevels), scope_id_pattern: '^[A-Za-z0-9]{1,32}$'},
+  overview: {
+    // The build before V2 reports X campaigns only; its detail levels are new (F-L10-11).
+    ...overviewCapabilities(xOverviewLevels, {}, [], undefined, {levels: ['campaign']}),
+    scope_id_pattern: '^[A-Za-z0-9]{1,32}$',
+  },
   nativeDetail: true,
   resultRules: xResultRules,
   readResult(raw, context) {

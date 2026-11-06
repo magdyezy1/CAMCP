@@ -198,10 +198,19 @@ keys must agree before joining.
 ## Contract stamps and notices
 
 New runs freeze a stamp per platform in `platform_contracts`: TikTok uses `tiktok-collection-v2`, LinkedIn
-`linkedin-levels-v2`. A saved view or schedule whose previous finished snapshot used another stamp receives one
-`notices` entry for the relevant change. TikTok's notice explains that including deleted campaigns can increase
-past spend; LinkedIn's explains the new native positions. The next finished run with the same stamps needs no new
-notice. Existing snapshots keep their recorded rows, levels and labels; saved definitions are not rewritten.
+`linkedin-levels-v2`. Each saved report has one notice record (`overview_objective_migration`) holding the stamps it
+last ran under and the notes it owes. A finished snapshot with rows and a different stamp registers the platform's note
+once: TikTok's explains that including deleted campaigns can increase past spend; LinkedIn's explains the new native
+positions. The record also holds the D22 note, registered when a stored report with a hand-chosen objective that has
+run before is upgraded; a report that never ran is told nothing.
+
+Every snapshot recorded while a note is unspent carries it in `notices`, so History shows it. A note is spent when a
+delivery of a snapshot that carries it succeeds (a file export delivered, a Google Sheets tab written), or when the
+snapshot is recorded if the report has no scheduled delivery. A failed, skipped, cancelled or complete-only-blocked
+delivery spends nothing; a manual run of a scheduled report carries the note without spending it; a comparison
+baseline neither carries nor spends one. History is read once per report, when it is first seen; deleting it never
+repeats a spent note. Existing snapshots keep their recorded rows, levels and labels, and a stored report's v3 form is
+never rewritten.
 
 ## Completeness labels
 

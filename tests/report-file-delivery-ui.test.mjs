@@ -214,6 +214,37 @@ test('a dialog refresh disables old controls before its async bootstrap so a cli
   assert.equal(f.dialog.open, true);
 });
 
+test('the dialog’s Close button stays enabled while a refresh waits, and closing wins over a stalled refresh', async () => {
+  // F-L6-11: the refresh disabled every control, Close included, and had no timeout, so on a stalled request the visible
+  // Close was dead. It stays usable; and a close during the refresh must not be undone when the answer finally arrives.
+  const f = fixture(),
+    close = f.c.$('#report-delivery-close'),
+    handlers = {};
+  close.id = 'report-delivery-close';
+  close.disabled = false;
+  close.addEventListener = (type, handler) => (handlers[type] = handler);
+  await f.run('renderReportDelivery()');
+  assert.equal(f.dialog.open, true);
+  assert.equal(typeof handlers.click, 'function', 'the rendered Close button is bound');
+  const other = {id: 'report-schedule-submit', disabled: false};
+  f.root.querySelectorAll = () => [other, close];
+  let release;
+  f.pending.push(
+    () =>
+      new Promise(resolve => {
+        release = resolve;
+      }),
+  );
+  const refreshing = f.run('renderReportDelivery()');
+  assert.equal(other.disabled, true, 'every other control waits for the refresh');
+  assert.equal(close.disabled, false, 'Close does not');
+  handlers.click();
+  assert.equal(f.dialog.open, false);
+  release(f.bootstrap);
+  await refreshing;
+  assert.equal(f.dialog.open, false, 'the late answer does not reopen a dialog the person closed');
+});
+
 test('a failed dialog refresh closes inactive content and a new explicit opening can recover', async () => {
   const f = fixture();
   f.dialog.open = true;
