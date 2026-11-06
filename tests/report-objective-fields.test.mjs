@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {validateObjectiveFields, objectiveFallbackGroups} from '../dist/src/report-objectives.js';
-import {normalizeNativeRow} from '../dist/src/report-native.js';
+import {normalizeNativeRow, normalizeNativeRowV4} from '../dist/src/report-native.js';
 import {objectiveReportFixture} from './helpers/objective-report.mjs';
 import {savedObjectiveViews} from './fixtures/saved-objective-views.mjs';
 
@@ -128,6 +128,89 @@ test('campaigns excluded by the display filter still count as matched overrides'
   assert.equal(
     result.sources[0].warnings.some(message => message.startsWith('Objective overrides matched no campaign')),
     false,
+  );
+});
+
+// A v4 source can report several levels; its overrides belong to the source, so a campaign matched at any level counts.
+const unmatchedWarning = /^Objective overrides matched no campaign/;
+const tiktokCampaign = id =>
+  normalizeNativeRowV4('tiktok', {
+    dimensions: {campaign_id: id},
+    metrics: {campaign_name: 'Campaign ' + id, spend: '10', impressions: '100', clicks: '5', conversion: '1'},
+    objective_type: 'TRAFFIC',
+  });
+// A detailed ad row names its parent campaign, which is what an override is matched against.
+const tiktokAd = (campaign, ad) => ({
+  ...tiktokCampaign(campaign),
+  entity_level: 'ad',
+  entity_id: ad,
+  entity_name: 'Ad ' + ad,
+  native_entity_type: 'ad',
+  parent_ids: {campaign_id: campaign},
+});
+const tiktokSource = (account, overrides) => ({
+  platform: 'tiktok',
+  account_id: account,
+  connection_id: 'login',
+  levels: ['campaign', 'ad'],
+  delivered_only: false,
+  report_options: {complete_window: true, attribution: 'unknown'},
+  ...(overrides ? {objective_overrides: overrides} : {}),
+});
+const v4 = sources => ({contract_version: 'overview-config-v4', sources});
+const unmatchedIn = source => source.warnings.filter(message => unmatchedWarning.test(message));
+const perLevel = source =>
+  source.level_results.flatMap(packet => (packet.warnings ?? []).filter(message => unmatchedWarning.test(message)));
+
+test('an override matched at only one level of a multi-level source is not reported unmatched', async t => {
+  const f = objectiveReportFixture(t, {
+    platform: 'tiktok',
+    rowsFor: source => (source.level === 'campaign' ? [tiktokCampaign('555')] : [tiktokAd('666', '9001')]),
+  });
+  // Campaign 555 has no ad in the snapshot, and campaign 666 has no campaign row: each is matched at one level.
+  const result = await f.run(v4([tiktokSource('100', {'555': 'sales', '666': 'leads'})]));
+  assert.equal(result.state, 'complete', JSON.stringify(result.sources));
+  assert.deepEqual(
+    result.rows.map(row => [row.level, row.entity_id, row.objective.group, row.objective.source]),
+    [
+      ['campaign', '555', 'sales', 'user_override'],
+      ['ad', '9001', 'leads', 'user_override'],
+    ],
+  );
+  assert.deepEqual(unmatchedIn(result.sources[0]), []);
+  assert.deepEqual(perLevel(result.sources[0]), []);
+});
+
+test('an override matched at no level is reported once for its source, not once per level', async t => {
+  const f = objectiveReportFixture(t, {
+    platform: 'tiktok',
+    rowsFor: source => (source.level === 'campaign' ? [tiktokCampaign('555')] : [tiktokAd('666', '9001')]),
+  });
+  const result = await f.run(v4([tiktokSource('100', {'555': 'sales', '777': 'leads'})]));
+  const message = 'Objective overrides matched no campaign in this snapshot: 777.';
+  assert.deepEqual(unmatchedIn(result.sources[0]), [message]);
+  assert.deepEqual(perLevel(result.sources[0]), [message]);
+});
+
+test('a campaign matched in another account does not satisfy a source’s override', async t => {
+  const f = objectiveReportFixture(t, {
+    platform: 'tiktok',
+    accounts: ['100', '200'],
+    rowsFor: source => [tiktokCampaign(source.account_id === '200' ? '555' : '111')],
+  });
+  const sources = [tiktokSource('100', {'555': 'sales'}), tiktokSource('200', {'111': 'leads'})];
+  const result = await f.run(v4(sources.map(source => ({...source, levels: ['campaign']}))));
+  assert.equal(result.state, 'complete', JSON.stringify(result.sources));
+  assert.deepEqual(result.sources.map(unmatchedIn), [
+    ['Objective overrides matched no campaign in this snapshot: 555.'],
+    ['Objective overrides matched no campaign in this snapshot: 111.'],
+  ]);
+  assert.deepEqual(
+    result.rows.map(row => [row.entity_id, row.objective.source]),
+    [
+      ['111', 'provider'],
+      ['555', 'provider'],
+    ],
   );
 });
 

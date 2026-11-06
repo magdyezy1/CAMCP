@@ -2072,10 +2072,20 @@ export class ReportingOverview {
         });
       }
     }
+    // Overrides belong to a source, not to one of its level packets: a campaign matched at any level is a match, and an
+    // unmatched one is reported once, on the source's first packet.
+    const packetsOfSource = new Map<unknown, JsonObject[]>();
     for (const result of results) {
       if (result.error) continue;
-      const warning = unusedObjectiveOverrides(result.source, result.rows);
-      if (warning) result.warnings.push(warning);
+      const key = result.source.source_ref ?? result;
+      packetsOfSource.set(key, [...(packetsOfSource.get(key) ?? []), result]);
+    }
+    for (const packets of packetsOfSource.values()) {
+      const warning = unusedObjectiveOverrides(
+        packets[0]!.source,
+        packets.flatMap(packet => packet.rows),
+      );
+      if (warning) packets[0]!.warnings.push(warning);
     }
     // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
     if (r.config.contract_version === overviewConfigV4)
