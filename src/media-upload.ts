@@ -224,6 +224,7 @@ export const mediaTool = {
         type: 'integer',
         minimum: 1,
         maximum: 1000,
+        description: '1–100 for list, library and asset_performance; asset_usage 1–1000 (Meta 100); see action help.',
       },
       name: {type: 'string'},
       media_type: {type: 'string', enum: ['image', 'video']},

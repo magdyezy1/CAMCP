@@ -182,7 +182,12 @@ export const overviewTool = tool(
     name: {type: 'string'},
     idempotency_key: field.id,
     offset: {type: 'integer', minimum: 0},
-    limit: {type: 'integer', minimum: 1, maximum: 500},
+    limit: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 500,
+      description: '1–100 for list actions; get and compare up to 500; see action help.',
+    },
     include: {type: 'object', additionalProperties: false, properties: {native: field.bool, lineage: field.bool}},
     delivery_id: field.id,
     resolution: {type: 'string', enum: ['check', 'resend', 'abandon']},
