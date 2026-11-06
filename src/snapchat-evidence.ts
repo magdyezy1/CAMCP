@@ -6,6 +6,7 @@ import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
 import {nestedError} from './errors.js';
+import {snapchatContinuation} from './snapchat-paging.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -86,36 +87,12 @@ function metadata(v: JsonObject) {
 }
 export {metadata as assertSnapchatReportMetadata};
 export function snapchatNextCursor(data: JsonObject, path: string, query: JsonObject) {
-  if (data.paging === undefined) return undefined;
-  if (!obj(data.paging) || Object.keys(data.paging).some(k => k !== 'next_link'))
-    incomplete('Snapchat returned unknown report paging metadata.');
-  if (data.paging.next_link === undefined) return undefined;
-  try {
-    const link = data.paging.next_link;
-    if (typeof link !== 'string' || !link || link.length > 8192) throw Error();
-    const u = new URL(link),
-      token = u.searchParams.get('cursor');
-    if (
-      u.origin !== 'https://adsapi.snapchat.com' ||
-      u.username ||
-      u.password ||
-      u.hash ||
-      u.pathname !== path ||
-      [...u.searchParams.keys()].some(
-        k =>
-          u.searchParams.getAll(k).length !== 1 ||
-          (k !== 'cursor' && (!Object.hasOwn(query, k) || u.searchParams.get(k) !== String(query[k]))),
-      ) ||
-      typeof token !== 'string' ||
-      !token ||
-      token.length > 4096 ||
-      /[\x00-\x20\x7f]/.test(token)
-    )
-      throw Error();
-    return token;
-  } catch {
-    return incomplete('Snapchat continuation changed the account, report settings or authorized route.');
-  }
+  // The check itself is shared with the previews tool (src/snapchat-paging.ts); the refusals are this reader's.
+  const next = snapchatContinuation(data, path, query);
+  if (next.refused === 'metadata') incomplete('Snapchat returned unknown report paging metadata.');
+  if (next.refused === 'link')
+    incomplete('Snapchat continuation changed the account, report settings or authorized route.');
+  return next.token;
 }
 
 /** Bounded daily account breakdowns. Per-page finalization is not an atomic account snapshot. */

@@ -14,6 +14,17 @@ export function redditNextPage(
   response: unknown,
   next: CompiledRequest,
 ): CompiledRequest | null {
+  const token = redditNextToken(plan.path, plan.query, response);
+  if (token === null) return null;
+  next.query['page.token'] = token;
+  return next;
+}
+/**
+ * The page token of the page after `response`, or null after the last page: the check of redditNextPage on the route
+ * `path` and the parameters `query` of the request alone, which the previews tool (src/reddit-ad-previews.ts) makes
+ * without a compiled plan (V2-PRV-01 design note 4: it wrote this check a second time).
+ */
+export function redditNextToken(path: string, query: JsonObject, response: unknown): string | null {
   const d = obj(response);
   const link = d.pagination?.next_url;
   if (!link) return null;
@@ -23,24 +34,19 @@ export function redditNextPage(
   } catch {
     throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination must supply a valid absolute URL.');
   }
-  if (
-    url.origin !== 'https://ads-api.reddit.com' ||
-    url.username ||
-    url.password ||
-    url.hash ||
-    url.pathname !== plan.path
-  )
+  if (url.origin !== 'https://ads-api.reddit.com' || url.username || url.password || url.hash || url.pathname !== path)
     throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination changed upstream scope.');
   const keys = new Set<string>();
+  let token = '';
   for (const [key, value] of url.searchParams) {
     if (keys.has(key))
       throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination contains duplicate parameters.');
     keys.add(key);
     if (key === 'page.token') {
-      next.query[key] = value;
+      token = value;
       continue;
     }
-    if (plan.query[key] === undefined || String(plan.query[key]) !== value)
+    if (query[key] === undefined || String(query[key]) !== value)
       throw new MirrorError(
         'UNSAFE_PAGINATION_LINK',
         'Reddit pagination changed account scope, page size or report filters.',
@@ -49,5 +55,5 @@ export function redditNextPage(
   }
   if (!keys.has('page.token'))
     throw new MirrorError('UNKNOWN_PAGINATION', 'Reddit supplied a next URL without a page token.');
-  return next;
+  return token;
 }

@@ -99,3 +99,143 @@ test('F-L3-13: the platform links of Meta, TikTok and Reddit refuse the same spe
     ]);
   }
 });
+
+// Design note 4: Snapchat's and Reddit's continuation checks were written again in the previews tool, with their own parameter
+// sets. The tool now takes the checks of the readers that already had them (src/snapchat-paging.ts, src/reddit-paging.ts);
+// these pin what it refuses, so a link that leaves the request's origin, route or parameters is never followed.
+const loginId = 'aaaaaaaa-1111-4111-8111-000000000001';
+const connectionFor = (t, gateway, extra = {}) => {
+  const store = new Store(':memory:', Buffer.alloc(32, 94).toString('base64'));
+  t.after(() => store.close());
+  store.putConnection(
+    actor,
+    {
+      id: loginId,
+      tenantId: actor.tenantId,
+      gateway,
+      accounts: ['100'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: ['r_ads', 'ads_read'],
+      ...extra,
+    },
+    {accessToken: 'synthetic'},
+  );
+  return store;
+};
+const refusedShape = (out, what) =>
+  assertRefused(out, 'REPORT_SHAPE_CHANGED', {message: /invalid preview list or continuation/}) || what;
+
+test('Snapchat: a continuation that leaves the request’s origin, route or parameters is refused, and a valid one is taken', async t => {
+  const base = 'https://adsapi.snapchat.com/v1/adaccounts/100/ads';
+  const hostile = {
+    'another origin': 'https://example.invalid/v1/adaccounts/100/ads?limit=100&sort=created_at-desc&cursor=c2',
+    'another account': 'https://adsapi.snapchat.com/v1/adaccounts/200/ads?limit=100&sort=created_at-desc&cursor=c2',
+    'another route': 'https://adsapi.snapchat.com/v1/adaccounts/100/creatives?limit=100&sort=created_at-desc&cursor=c2',
+    'userinfo': 'https://user:pw@adsapi.snapchat.com/v1/adaccounts/100/ads?limit=100&sort=created_at-desc&cursor=c2',
+    'a fragment': base + '?limit=100&sort=created_at-desc&cursor=c2#x',
+    'a changed limit': base + '?limit=1000&sort=created_at-desc&cursor=c2',
+    'an added parameter': base + '?limit=100&sort=created_at-desc&cursor=c2&read_deleted_entities=true',
+    'a repeated cursor': base + '?limit=100&sort=created_at-desc&cursor=c2&cursor=c3',
+    'no cursor': base + '?limit=100&sort=created_at-desc',
+    'an empty cursor': base + '?limit=100&sort=created_at-desc&cursor=',
+    'a cursor with a space': base + '?limit=100&sort=created_at-desc&cursor=c%202',
+    'a cursor with a control character': base + '?limit=100&sort=created_at-desc&cursor=c%0A2',
+    'a cursor too long to seal': base + '?limit=100&sort=created_at-desc&cursor=' + 'c'.repeat(2049),
+    'a link too long to read': base + '?limit=100&sort=created_at-desc&cursor=c2&x=' + 'c'.repeat(8200),
+    'not text': 12345,
+  };
+  const answer = link => ({
+    request_status: 'SUCCESS',
+    ads: [{sub_request_status: 'SUCCESS', ad: {id: 'a1', creative_id: 'cr1', name: 'A', status: 'ACTIVE'}}],
+    paging: {next_link: link},
+  });
+  for (const [what, link] of Object.entries(hostile)) {
+    const reads = [],
+      previews = new AdPreviews(
+        async (_tool, input) => {
+          reads.push(input.action);
+          return {success: true, data: {data: answer(link)}};
+        },
+        connectionFor(t, 'snapchat_native_action'),
+      );
+    await assert.rejects(
+      previews.handle({platform: 'snapchat', account_id: '100', connection_id: loginId}, actor),
+      error => refusedShape(error, what),
+      what,
+    );
+    // Nothing was followed, and no creative or preview was read behind it.
+    assert.deepEqual(reads, ['snapchat_ad_list'], what);
+  }
+  // Paging that holds more than the link is refused too.
+  const extraKey = new AdPreviews(
+    async () => ({
+      success: true,
+      data: {
+        data: {
+          ...answer(base + '?limit=100&sort=created_at-desc&cursor=c2'),
+          paging: {next_link: base + '?limit=100&sort=created_at-desc&cursor=c2', total: 9},
+        },
+      },
+    }),
+    connectionFor(t, 'snapchat_native_action'),
+  );
+  await assert.rejects(
+    extraKey.handle({platform: 'snapchat', account_id: '100', connection_id: loginId}, actor),
+    error => refusedShape(error),
+  );
+  // The request's own link is taken: the scan goes on to the page the cursor names (and stops there, in this test).
+  let pages = 0;
+  const good = new AdPreviews(
+    async (_tool, input) => {
+      assert.equal(input.action, 'snapchat_ad_list');
+      if (pages++ === 0)
+        return {success: true, data: {data: answer(base + '?limit=100&sort=created_at-desc&cursor=c2')}};
+      assert.equal(input.query.cursor, 'c2');
+      throw new Error('stop');
+    },
+    connectionFor(t, 'snapchat_native_action'),
+  );
+  await assert.rejects(good.handle({platform: 'snapchat', account_id: '100', connection_id: loginId}, actor), /stop/);
+});
+test('Reddit: a continuation that leaves the request’s origin, route or parameters is refused, and a named read has none', async t => {
+  const base = 'https://ads-api.reddit.com/api/v3/ad_accounts/a2_100/ads';
+  const hostile = {
+    'another origin': 'https://example.invalid/api/v3/ad_accounts/a2_100/ads?page.size=100&page.token=t2',
+    'another account': 'https://ads-api.reddit.com/api/v3/ad_accounts/a2_200/ads?page.size=100&page.token=t2',
+    'another route': 'https://ads-api.reddit.com/api/v3/ad_accounts/a2_100/campaigns?page.size=100&page.token=t2',
+    'userinfo': 'https://user:pw@ads-api.reddit.com/api/v3/ad_accounts/a2_100/ads?page.size=100&page.token=t2',
+    'a fragment': base + '?page.size=100&page.token=t2#x',
+    'a changed page size': base + '?page.size=1000&page.token=t2',
+    'an added parameter': base + '?page.size=100&page.token=t2&id=1',
+    'a repeated token': base + '?page.size=100&page.token=t2&page.token=t3',
+    'no token': base + '?page.size=100',
+    'an empty token': base + '?page.size=100&page.token=',
+    'not a link': 'not a link',
+  };
+  const answer = link => ({
+    data: [
+      {
+        id: 'a1',
+        name: 'Ad',
+        configured_status: 'ACTIVE',
+        preview_url: 'https://www.reddit.com/p/1',
+        preview_expiry: '2999-01-01T00:00:00Z',
+      },
+    ],
+    pagination: {next_url: link},
+  });
+  const run = (link, extra = {}) =>
+    new AdPreviews(
+      async () => ({success: true, data: {data: answer(link)}}),
+      connectionFor(t, 'reddit_native_action', {userAgent: 'amcp-tests/1.0 (synthetic)', accounts: ['a2_100']}),
+    ).handle({platform: 'reddit', account_id: 'a2_100', connection_id: loginId, ...extra}, actor);
+  for (const [what, link] of Object.entries(hostile))
+    await assert.rejects(run(link), error => refusedShape(error, what), what);
+  // The request's own link is taken (the page is full, so the answer carries a cursor).
+  const out = await run(base + '?page.size=100&page.token=t2', {limit: 1});
+  assert.equal(out.has_more, true);
+  assert.equal(typeof out.next_cursor, 'string');
+  // A named read asks for exactly the named IDs and has no next page, so a link there is wrong.
+  await assert.rejects(run(base + '?page.size=1&id=a1&page.token=t2', {ad_ids: ['a1']}), error => refusedShape(error));
+});

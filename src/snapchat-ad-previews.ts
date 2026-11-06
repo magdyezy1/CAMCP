@@ -1,4 +1,5 @@
 import {fail} from './family-kit.js';
+import {snapchatContinuation} from './snapchat-paging.js';
 import {listPageSize, object, text} from './ad-preview-kit.js';
 import type {AdPreviewHooks, AdPreviewRequest, AdPreviewRow, AdPreviewSelection} from './provider-adapter.js';
 import type {JsonObject} from './types.js';
@@ -54,31 +55,13 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
     if (new Set(rows.map((row: JsonObject) => row.id)).size !== rows.length) invalid();
     return rows;
   };
-  // Only extract the native cursor from a same-account continuation; never follow an upstream URL.
+  // Only the native cursor of a same-account continuation is taken, by the check Snapchat's report readers share
+  // (src/snapchat-paging.ts: same origin, route and query, one cursor, never an upstream URL). Its refusal is this tool's,
+  // and the cursor is held to the printable, bounded form this tool seals into its own cursor.
   const continuation = (data: JsonObject, kind: string, query: JsonObject) => {
-    if (data.paging?.next_link === undefined) return null;
-    try {
-      const url = new URL(data.paging.next_link),
-        keys = new Set<string>();
-      if (
-        url.origin !== 'https://adsapi.snapchat.com' ||
-        url.username ||
-        url.password ||
-        url.hash ||
-        url.pathname !== '/v1/adaccounts/' + encodeURIComponent(account) + '/' + kind
-      )
-        throw Error();
-      for (const [key, value] of url.searchParams) {
-        if (keys.has(key) || (key !== 'cursor' && (query[key] === undefined || String(query[key]) !== value)))
-          throw Error();
-        keys.add(key);
-      }
-      const token = url.searchParams.get('cursor');
-      if (!token || !/^[\x21-\x7e]{1,2048}$/.test(token)) throw Error();
-      return token;
-    } catch {
-      return invalid();
-    }
+    const next = snapchatContinuation(data, '/v1/adaccounts/' + encodeURIComponent(account) + '/' + kind, query);
+    if (next.refused || (next.token !== undefined && !/^[\x21-\x7e]{1,2048}$/.test(next.token))) return invalid();
+    return next.token ?? null;
   };
   const groups = new Map<string, JsonObject>();
   const adPage = async (after: string | null) => {

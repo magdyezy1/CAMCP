@@ -1,4 +1,5 @@
 import {fail} from './family-kit.js';
+import {redditNextToken} from './reddit-paging.js';
 import {listPageSize, object, previewLinksOn, text} from './ad-preview-kit.js';
 import type {
   AdPreviewHooks,
@@ -80,30 +81,14 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         ],
       };
     });
-    const link = listed.pagination?.next_url;
+    // The next page's token, by the check Reddit's own paging uses (src/reddit-paging.ts: the request's origin, route and
+    // every parameter but the token unchanged); a named read has no next page.
     let token: string | null = null;
-    if (link) {
-      try {
-        const url = new URL(link);
-        if (
-          url.origin !== 'https://ads-api.reddit.com' ||
-          url.username ||
-          url.password ||
-          url.hash ||
-          url.pathname !== '/api/v3/ad_accounts/' + encodeURIComponent(account) + '/ads'
-        )
-          throw Error();
-        const keys = new Set<string>();
-        for (const [key, value] of url.searchParams) {
-          if (keys.has(key) || (key !== 'page.token' && (params[key] === undefined || String(params[key]) !== value)))
-            throw Error();
-          keys.add(key);
-        }
-        token = url.searchParams.get('page.token');
-        if (!token || named) throw Error();
-      } catch {
-        fail('REPORT_SHAPE_CHANGED', 'The platform returned an invalid preview list or continuation.');
-      }
+    try {
+      token = redditNextToken('/api/v3/ad_accounts/' + encodeURIComponent(account) + '/ads', params, listed);
+      if (token !== null && (!token || named)) throw Error();
+    } catch {
+      fail('REPORT_SHAPE_CHANGED', 'The platform returned an invalid preview list or continuation.');
     }
     return {rows, after: token, more: token !== null};
   };

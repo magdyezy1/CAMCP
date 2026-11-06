@@ -272,7 +272,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
   // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
   // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): 783.
-  assert.equal(files.length, 783);
+  // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: 784.
+  assert.equal(files.length, 784);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence): five more modules.
   assert.equal(selected.filter(row => row.messages.size).length, 195);
