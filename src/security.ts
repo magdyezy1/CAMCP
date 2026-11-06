@@ -26,9 +26,10 @@ export function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 /**
- * The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them. The
- * last eight are the signed-URL parameters of the object stores and CDNs that providers link to (AWS, Google Cloud,
- * TikTok's CDN and CloudFront), which carry the same secrets as `signature`.
+ * The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them. After
+ * `password` (a credential in a query, as it is under an object key) come the signed-URL parameters of the object
+ * stores and CDNs that providers link to (AWS, Google Cloud, TikTok's CDN and CloudFront), which carry the same secrets
+ * as `signature`.
  */
 const secretParameters = new Set([
   'access_token',
@@ -42,6 +43,7 @@ const secretParameters = new Set([
   'sig',
   'signature',
   'gtm_auth',
+  'password',
   'x-signature',
   'x-amz-signature',
   'x-amz-security-token',
@@ -62,26 +64,39 @@ function parameterName(raw: string): string {
   }
 }
 /**
- * A pass that hides the value of every `name=value` pair whose name is a secret parameter and which a delimiter in
- * `leads` starts. `stop` ends a value (besides white space); names are matched whole, case-insensitively and after
- * percent-decoding, and a name in `exempt` keeps its value. Each name is at most 100 characters and holds none of the
- * delimiters, so a pass is linear in the text.
+ * A pass over the `name=` heads of a text: a delimiter (`?`, `&`, `#` or `;`), a name of at most 100 characters that
+ * holds none of those or white space, and `=`. The head of a secret name hides its value, to `stop` or white space
+ * (a head that `;` starts stops at `;` too, so the next pair of a `;`-joined query survives). The head of any other name
+ * consumes the head only, so the scan goes on inside its value and finds a secret pair nested there
+ * (`?next=https://b.example/q?access_token=...`, `?a=b#access_token=...`); a scan of whole pairs would lose it, and the
+ * redaction before it never did. Names are matched whole, case-insensitively and after percent-decoding, and a name in
+ * `exempt` keeps its value. The scan is linear: a head costs at most 100 characters to read, every position is a
+ * head's start at most once, and a hidden value is skipped, not read again.
  */
-const pairPass = (leads: string, stop: string) => {
-  const pairs = new RegExp('([' + leads + '])([^=&;#?\\s]{1,100})=([^' + stop + '\\s]+)', 'g');
-  return (text: string, exempt: ReadonlySet<string>) =>
-    text.replace(pairs, (pair, lead: string, name: string) => {
-      const known = parameterName(name);
-      return secretParameters.has(known) && !exempt.has(known) ? lead + name + '=[REDACTED]' : pair;
-    });
+const pairPass = (stop: string) => {
+  const heads = new RegExp('([?&#;])([^=&;#?\\s]{1,100})=', 'g'),
+    value = new RegExp('[^' + stop + '\\s]+', 'y'),
+    joinedValue = new RegExp('[^' + stop + ';\\s]+', 'y');
+  return (text: string, exempt: ReadonlySet<string>): string => {
+    let out = '',
+      copied = 0;
+    heads.lastIndex = 0;
+    for (let head = heads.exec(text); head; head = heads.exec(text)) {
+      const name = parameterName(head[2]!);
+      if (!secretParameters.has(name) || exempt.has(name)) continue;
+      const run = head[1] === ';' ? joinedValue : value;
+      run.lastIndex = heads.lastIndex;
+      if (!run.test(text)) continue;
+      out += text.slice(copied, heads.lastIndex) + '[REDACTED]';
+      copied = heads.lastIndex = run.lastIndex;
+    }
+    return copied ? out + text.slice(copied) : text;
+  };
 };
-// Free text: a value runs to `&` or white space, so a secret that holds `;` or `#` is still hidden whole. A query
-// joined with `;` is read by a second pass, because a value that runs on to the next `;` would hide the pair after it.
-// A URL's value ends at `#` as well, where its fragment begins.
-const textPairs = pairPass('?&#', '&'),
-  textSemicolons = pairPass(';', '&;'),
-  urlPairs = pairPass('?&#', '&#'),
-  urlSemicolons = pairPass(';', '&#;'),
+// Free text: a value runs to `&` or white space, so a secret that holds `#` or `;` is still hidden whole. A URL's
+// value ends at `#` as well, where its fragment begins.
+const textPairs = pairPass('&'),
+  urlPairs = pairPass('&#'),
   noExemption: ReadonlySet<string> = new Set();
 /**
  * The names whose values redact() hides under an object key, and so also inside JSON text: `{"api_key":"..."}` in a
@@ -106,8 +121,7 @@ export function redactUrlSecrets(
   const walk = (v: unknown, signed: boolean): unknown => {
     if (typeof v === 'string') {
       if (!/^https?:\/\/[^\s]+$/i.test(v) || !/[?#;]/.test(v)) return v;
-      const exempt = signed ? signatureParameters : noExemption,
-        out = urlSemicolons(urlPairs(v, exempt), exempt);
+      const out = urlPairs(v, signed ? signatureParameters : noExemption);
       if (out !== v) redacted++;
       return out;
     }
@@ -135,11 +149,8 @@ export function redact(value: unknown): any {
       ]),
     );
   if (typeof value === 'string')
-    return textSemicolons(
-      textPairs(
-        value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(jsonSecrets, '$1"[REDACTED]"'),
-        noExemption,
-      ),
+    return textPairs(
+      value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(jsonSecrets, '$1"[REDACTED]"'),
       noExemption,
     );
   return value;

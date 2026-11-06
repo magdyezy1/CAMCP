@@ -65,6 +65,108 @@ test('ordinary text and data that only look like these forms are left alone', ()
     assert.equal(redact(text), text);
 });
 
+// A secret inside the value of another parameter, or after a fragment: the redaction reads each `name=` head, so a
+// plain pair never hides the pair nested in its value. Each has its own marker for the text that must survive.
+const nested = {
+  'a secret nested in a return URL': [
+    `https://a.example/p?next=https://b.example/q?access_token=${SECRET}1&z=1`,
+    'z=1',
+    `${SECRET}1`,
+  ],
+  'a secret nested in free text': [`see ?next=x?token=${SECRET}2 end`, ' end', `${SECRET}2`],
+  'a secret behind a plain pair': [`https://a.example/p?u=1?client_secret=${SECRET}3`, 'u=1', `${SECRET}3`],
+  'a secret nested twice': [`https://a.example/p?a=1?b=2?refresh_token=${SECRET}4&z=1`, 'z=1', `${SECRET}4`],
+  'an encoded signature nested in a return URL': [
+    `https://a.example/p?return=x?X%2DAmz%2DSignature=${SECRET}5&z=1`,
+    'z=1',
+    `${SECRET}5`,
+  ],
+  'a secret in the fragment after a plain pair': [
+    `https://a.example/p?a=b#access_token=${SECRET}6`,
+    'a=b',
+    `${SECRET}6`,
+  ],
+  'a password after a fragment pair': [`?q=1#x=2&password=${SECRET}7`, 'q=1', `${SECRET}7`],
+};
+
+test('a secret nested in the value of a plain parameter, or after a fragment, is redacted (security regression)', () => {
+  for (const [label, [form, kept, secret]] of Object.entries(nested)) {
+    const out = redact(sentence(form));
+    assert.ok(!out.includes(secret), label + ' in redact: ' + out);
+    assert.ok(out.includes(kept), label + ' keeps ' + kept + ': ' + out);
+    assert.equal(redact(out), out, label + ' is idempotent');
+    const diagnostic = reportSourceError(
+      new MirrorError(
+        'PLATFORM_ERROR',
+        sentence(form),
+        {http_status: 400, upstream: {message: form, error: {message: form}}},
+        400,
+      ),
+      tiktok,
+    );
+    assert.ok(!JSON.stringify(diagnostic).includes(secret), label + ' in the diagnostic');
+    if (form.startsWith('https://')) {
+      const link = redactUrlSecrets({link: form, nested: [{paging: {next: form}}]}).value;
+      assert.ok(!JSON.stringify(link).includes(secret), label + ' in a native result URL');
+      assert.ok(JSON.stringify(link).includes(kept), label + ' keeps ' + kept + ' in a native result URL');
+    }
+  }
+});
+
+test('a signed link still keeps only its own signature when its other parameters nest further pairs', () => {
+  const link = `https://preview.example/c?next=https://b.example/q?access_token=${SECRET}1&signature=${SECRET}2&sig=${SECRET}3&id=1`,
+    kept = redactUrlSecrets({creative_preview_link: link}, new Set(['creative_preview_link'])).value
+      .creative_preview_link;
+  assert.ok(!kept.includes(`${SECRET}1`), kept);
+  assert.ok(kept.includes(`signature=${SECRET}2`) && kept.includes(`sig=${SECRET}3`) && kept.includes('id=1'), kept);
+});
+
+test('what the redaction hid before this package it still hides, pair for pair, in text and in URLs', () => {
+  // The reference is the redaction as it was: a delimiter, one of the original names, `=`, then a value to the stop
+  // character, searched for anywhere in the text (a nested pair included). For strings without `;`, escapes, quotes
+  // or the names added since, the new passes must give the very same text.
+  const names = 'access_token|refresh_token|client_secret|secret|oauth_token|token|api_key|key|sig|signature|gtm_auth',
+    textOld = new RegExp('([?&](?:' + names + ')=)[^&\\s]+', 'gi'),
+    urlOld = new RegExp('([?&#](?:' + names + ')=)[^&#\\s]+', 'gi'),
+    signedOld = new RegExp('([?&#](?:' + names.replace('|sig|signature', '') + ')=)[^&#\\s]+', 'gi');
+  const textReference = text =>
+    text.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(textOld, '$1[REDACTED]');
+  const secretNames = names.split('|').flatMap(n => [n, n.toUpperCase(), n[0].toUpperCase() + n.slice(1)]),
+    plainNames = ['next', 'name', 'n', 'keyword', 'my_token', 'tokens', 'return', 'u', 'q', 'a', 'b', 'signatures'],
+    allNames = [...secretNames, ...plainNames, ...plainNames],
+    values = ['', 'v', 'x1', 'SECRETVALUE', 'a/b', 'a:b', '=', 'https://b.example/q'];
+  let seed = 20261106;
+  const next = n => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return Math.floor(seed / 65536) % n;
+  };
+  let nestedSecrets = 0;
+  const pair = (leads, depth) => {
+    const name = allNames[next(allNames.length)];
+    if (depth > 0 && secretNames.includes(name)) nestedSecrets++;
+    const value = values[next(values.length)] + (depth < 3 && next(3) === 0 ? pair(leads, depth + 1) : '');
+    return leads[next(leads.length)] + name + '=' + value;
+  };
+  for (let i = 0; i < 20000; i++) {
+    const free = Array.from(
+      {length: 1 + next(4)},
+      () => (next(3) ? '' : [' ', 'x', ' end ', 'Bearer abc.def '][next(4)]) + pair('?&', 0),
+    );
+    const text = free.join('');
+    assert.equal(redact(text), textReference(text), JSON.stringify(text));
+    const link = 'https://a.example/p' + Array.from({length: 1 + next(4)}, () => pair('?&#', 0)).join(''),
+      expected = link.replace(urlOld, '$1[REDACTED]'),
+      signed = link.replace(signedOld, '$1[REDACTED]');
+    assert.equal(redactUrlSecrets(link).value, /[?#]/.test(link) ? expected : link, JSON.stringify(link));
+    assert.equal(
+      redactUrlSecrets({creative_preview_link: link}, new Set(['creative_preview_link'])).value.creative_preview_link,
+      /[?#]/.test(link) ? signed : link,
+      'signed ' + JSON.stringify(link),
+    );
+  }
+  assert.ok(nestedSecrets > 1000, 'the sample held ' + nestedSecrets + ' secret pairs nested in another value');
+});
+
 test('object keys and string values redact the same credential names', () => {
   const object = redact({api_key: SECRET, nested: {access_token: SECRET}, note: `{"api_key":"${SECRET}"}`});
   assert.ok(!leaked(object), JSON.stringify(object));
@@ -171,6 +273,15 @@ test('redaction stays linear on hostile text', () => {
     '{"api_key":"' + 'x\\'.repeat(150000),
     ';token'.repeat(50000),
     '%'.repeat(300000),
+    // Many nested heads: plain pairs inside plain pairs, at the name bound, and a secret that swallows the rest.
+    '?a='.repeat(100000),
+    ('?' + 'n'.repeat(99) + '=').repeat(3000),
+    ('?' + 'n'.repeat(100) + '=').repeat(3000),
+    ('?' + 'n'.repeat(101) + '=').repeat(3000),
+    '?next=x'.repeat(60000) + '?token=' + 'v'.repeat(100000),
+    '?token='.repeat(60000),
+    '#a=1;b=2&'.repeat(40000),
+    ('?a=' + '%E0'.repeat(30)).repeat(8000),
   ]) {
     const started = performance.now();
     redact(hostile);
