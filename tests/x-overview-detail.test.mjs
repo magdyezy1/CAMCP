@@ -11,11 +11,20 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {estimateCollectionRequests, assertCollectionEstimate} from '../dist/src/report-request-estimate.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const range = {since: '2026-09-01', until: '2026-09-08'};
 function fixture(
   t,
-  {mutate = value => value, failAt = 0, observe = () => {}, collectionRange = range, realTransport = false} = {},
+  {
+    mutate = value => value,
+    failAt = 0,
+    observe = () => {},
+    collectionRange = range,
+    realTransport = false,
+    timezone = 'UTC',
+    activity = {start: '2026-09-01T00:00:00Z', end: '2026-09-09T00:00:00Z'},
+  } = {},
 ) {
   const actor = {tenantId: 'x-native-detail', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 123).toString('base64')),
@@ -76,8 +85,8 @@ function fixture(
           data: entities.map(row => ({
             entity_id: row.id,
             placements: ['ALL_ON_TWITTER'],
-            activity_start_time: '2026-09-01T00:00:00Z',
-            activity_end_time: '2026-09-09T00:00:00Z',
+            activity_start_time: activity.start,
+            activity_end_time: activity.end,
           })),
         };
       } else if (plan.path === '/12/stats/accounts/abc') {
@@ -120,7 +129,7 @@ function fixture(
         };
       } else {
         assert.equal(plan.path, '/12/accounts/abc');
-        data = {data: {id: 'abc', currency: 'USD', timezone: 'UTC', name: 'Synthetic X'}};
+        data = {data: {id: 'abc', currency: 'USD', timezone, name: 'Synthetic X'}};
       }
       return {success: true, data: mutate(data, plan)};
     },
@@ -317,13 +326,6 @@ for (const [label, mutate] of [
     'missing pagination boundary',
     (data, plan) => {
       if (plan.path.endsWith('/line_items')) delete data.next_cursor;
-      return data;
-    },
-  ],
-  [
-    'declared population mismatch',
-    (data, plan) => {
-      if (plan.path.endsWith('/line_items')) data.total_count = 99;
       return data;
     },
   ],
@@ -640,4 +642,203 @@ test('X detail traverses the real authorized transport and signs synthetic nativ
       .filter(request => request.path === '/12/stats/accounts/abc')
       .every(request => request.query.entity_ids === 'p21'),
   );
+});
+
+// F-L7-09: every other X test uses a UTC account, so a window computed from UTC midnights would still pass them.
+for (const [zone, window, first, last, hours] of [
+  [
+    'America/Los_Angeles',
+    {since: '2026-09-01', until: '2026-09-07'},
+    '2026-09-01T07:00:00Z',
+    '2026-09-08T07:00:00Z',
+    168,
+  ],
+  // The clocks go forward on 2026-03-08, so this local week has 167 hours.
+  ['America/New_York', {since: '2026-03-02', until: '2026-03-08'}, '2026-03-02T05:00:00Z', '2026-03-09T04:00:00Z', 167],
+  // The clocks go back on 2026-11-01, so this local week has 169 hours and needs two requests.
+  ['America/New_York', {since: '2026-10-26', until: '2026-11-01'}, '2026-10-26T04:00:00Z', '2026-11-02T05:00:00Z', 169],
+  ['Asia/Riyadh', {since: '2026-09-01', until: '2026-09-08'}, '2026-08-31T21:00:00Z', '2026-09-08T21:00:00Z', 192],
+  // Cairo has no 00:00 on 2026-04-24, so that local day starts at 01:00 and has 23 hours.
+  ['Africa/Cairo', {since: '2026-04-22', until: '2026-04-26'}, '2026-04-21T22:00:00Z', '2026-04-26T21:00:00Z', 119],
+])
+  test('X detail windows follow the account time zone: ' + zone + ' from ' + window.since, async t => {
+    const f = fixture(t, {
+        timezone: zone,
+        collectionRange: window,
+        activity: {start: '2026-01-01T00:00:00Z', end: '2026-12-31T00:00:00Z'},
+      }),
+      result = await f.collect('adset');
+    const spans = [...new Set(f.analytics().map(plan => plan.query.start_time + '/' + plan.query.end_time))]
+      .map(span => span.split('/').map(Date.parse))
+      .sort((a, b) => a[0] - b[0]);
+    assert.equal(spans[0][0], Date.parse(first));
+    assert.equal(spans.at(-1)[1], Date.parse(last));
+    assert.deepEqual(
+      spans.slice(1).map((span, index) => span[0] - spans[index][1]),
+      spans.slice(1).map(() => 0),
+      'the requests tile the window without a gap or an overlap',
+    );
+    assert(spans.every(([from, to]) => (to - from) / 3600000 <= 168));
+    assert.equal(
+      spans.reduce((total, [from, to]) => total + (to - from) / 3600000, 0),
+      hours,
+    );
+    assert.equal(result.rows.length, 21);
+    for (const row of result.rows)
+      assert.equal(row.native.exact_totals.impressions, String(hours), 'one hourly bucket counts once');
+  });
+
+// F-L7-04: X documents no name for a promoted tweet (docs.x.com/x-ads-api/campaign-management, promoted_tweets).
+test('X promoted tweets are labelled by their promotion ID, and line items keep their own names', async t => {
+  const f = fixture(t),
+    ads = await f.collect('ad'),
+    lines = await f.collect('adset');
+  assert.equal(ads.rows.find(row => row.entity_id === 'p1').entity_name, 'Promoted tweet p1');
+  assert.equal(ads.rows.find(row => row.entity_id === 'p21').entity_name, 'Promoted tweet p21');
+  assert.equal(lines.rows.find(row => row.entity_id === 'l1').entity_name, 'Line 1');
+});
+
+// F-L7-05: the population is proven complete before the scope narrows it, so an ID that matches nothing is known.
+test('requested IDs that match nothing in the proven X population are counted, kept and warned about', async t => {
+  const f = fixture(t),
+    result = await f.collect('ad', {
+      campaign_ids: ['c2', 'nosuchcampaign'],
+      adset_ids: ['l21', 'nosuchline'],
+      ad_ids: ['p21', 'nosuchad'],
+    });
+  assert.deepEqual(
+    result.rows.map(row => row.entity_id),
+    ['p21'],
+  );
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.quality.population.unmatched, {
+    campaign_ids: ['nosuchcampaign'],
+    adset_ids: ['nosuchline'],
+    ad_ids: ['nosuchad'],
+  });
+  assert.ok(result.warnings.includes('3 requested IDs matched no entity in this account.'));
+  const none = await f.collect('adset', {adset_ids: ['nosuchline']});
+  assert.deepEqual(none.rows, []);
+  assert.equal(none.complete, true, 'the population is complete; the request named something that is not in it');
+  assert.ok(none.warnings.includes('1 requested ID matched no entity in this account.'));
+  assert.equal(none.quality.population.unmatched_count, 1);
+  const matched = await f.collect('adset', {adset_ids: ['l1']});
+  assert.deepEqual(matched.quality.population.unmatched, {campaign_ids: [], adset_ids: [], ad_ids: []});
+  assert.equal(
+    matched.warnings.some(message => /requested IDs? matched no entity/.test(message)),
+    false,
+  );
+});
+
+// F-L7-15: a rejected or short chunk at the new levels (the campaign level was already covered).
+test('an X rejection of one detail chunk keeps the source partial with the chunks that were read', async t => {
+  let analytics = 0;
+  const f = fixture(t, {
+      observe(plan) {
+        if (plan.path === '/12/stats/accounts/abc' && ++analytics === 2)
+          throw new MirrorError('UPSTREAM_ERROR', 'X refused the request.', {http_status: 400}, 400);
+      },
+    }),
+    result = await f.collect('adset');
+  assert.equal(result.complete, false);
+  assert.equal(result.collection_complete, false);
+  assert.ok(result.rows.length > 0, 'the chunks that were read are kept');
+  assert.ok(result.warnings.some(message => message.startsWith('X rejected ALL_ON_TWITTER')));
+});
+
+test('an X detail chunk that omits requested IDs keeps the source partial and does not zero-fill them', async t => {
+  const f = fixture(t, {
+      mutate(data, plan) {
+        if (plan.path === '/12/stats/accounts/abc') data.data = data.data.filter(row => row.id !== 'l5');
+        return data;
+      },
+    }),
+    result = await f.collect('adset');
+  assert.equal(result.complete, false);
+  assert.equal(result.collection_complete, false);
+  assert.equal(
+    result.rows.some(row => row.entity_id === 'l5'),
+    false,
+  );
+  assert.ok(result.rows.length >= 20);
+  assert.ok(result.warnings.includes('X omitted requested native entity IDs; the returned subset is retained.'));
+});
+
+// F-L7-03 at the sibling sites: the active-entities read answers to the same whole-job allowance.
+test('AMCP’s own whole-job limit during the active-entities read is not mistaken for X refusing it', async t => {
+  const f = fixture(t, {
+    observe(plan) {
+      if (plan.path.endsWith('/active_entities'))
+        throw new MirrorError(
+          'REPORT_COLLECTION_LIMIT',
+          'This snapshot reached its whole-job requests limit.',
+          {},
+          422,
+        );
+    },
+  });
+  await assert.rejects(
+    () => f.collect('adset'),
+    error => assertRefused(error, 'REPORT_COLLECTION_LIMIT'),
+  );
+  assert.equal(f.analytics().length, 0, 'no analytics were requested instead');
+  assert.equal(
+    f.saved.some(value => value.x_detail_v1?.active_fallback === true),
+    false,
+    'the fallback is never recorded for a limit that is not X’s refusal',
+  );
+});
+
+// F-L7-16: the population bounds are named with the condition that reached them.
+const populationFixture = (t, handler) =>
+  fixture(t, {
+    mutate(data, plan) {
+      if (plan.path.endsWith('/line_items')) handler(data, plan);
+      return data;
+    },
+  });
+const refusalOf = async (f, code) => {
+  let caught;
+  await assert.rejects(
+    () => f.collect('adset'),
+    error => {
+      caught = error;
+      return assertRefused(error, code);
+    },
+  );
+  assert.equal(f.analytics().length, 0);
+  return caught.message;
+};
+test('an X population over 10,000 entities names the bound and the kind, and says scope does not shorten it', async t => {
+  const f = populationFixture(t, (data, plan) => {
+    const page = plan.query.cursor ? Number(plan.query.cursor) : 1;
+    data.data = Array.from({length: 1000}, (_, index) => ({id: 'p' + page + 'n' + index, campaign_id: 'c1'}));
+    data.next_cursor = String(page + 1);
+  });
+  const message = await refusalOf(f, 'REPORT_COLLECTION_LIMIT');
+  assert.match(message, /more than 10,000 line items/);
+  assert.match(message, /scope/i);
+});
+test('an X population cursor that repeats is named as a repeated cursor', async t => {
+  const f = populationFixture(t, (data, plan) => {
+    const page = plan.query.cursor ? 2 : 1;
+    data.data = [{id: 'r' + page, campaign_id: 'c1'}];
+    data.next_cursor = 'same';
+  });
+  assert.match(await refusalOf(f, 'REPORT_INCOMPLETE'), /repeated a continuation cursor while listing line items/);
+});
+test('an X population page that is empty but continues is named as stalled', async t => {
+  const f = populationFixture(t, (data, plan) => {
+    data.data = plan.query.cursor ? [] : [{id: 's1', campaign_id: 'c1'}];
+    data.next_cursor = plan.query.cursor ? 'again' : 'first';
+  });
+  assert.match(await refusalOf(f, 'REPORT_INCOMPLETE'), /empty page with a continuation while listing line items/);
+});
+test('an X population that needs over 100 pages names the page bound', async t => {
+  const f = populationFixture(t, (data, plan) => {
+    const page = plan.query.cursor ? Number(plan.query.cursor) : 1;
+    data.data = [{id: 'q' + page, campaign_id: 'c1'}];
+    data.next_cursor = String(page + 1);
+  });
+  assert.match(await refusalOf(f, 'REPORT_INCOMPLETE'), /more than 100 pages/);
 });

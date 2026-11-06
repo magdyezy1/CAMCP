@@ -210,6 +210,7 @@ const reportSourceWarnings = new Set([
   'Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
   'X omitted requested native entity IDs; the returned subset is retained.',
   'Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.',
+  'X returned metrics that are not additive counts or amounts, such as rates; they are not summed over hours and are left out.',
   'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
   'The provider refused one day-segmented request, so each day was requested separately.',
   'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
@@ -283,6 +284,11 @@ const reportSourceWarningTemplates = [
       uiText('Active X campaigns missing from the campaign list, shown by ID: {count}.', {
         count: uiNumber(Number(m[1])),
       }),
+  ],
+  // RPT-07: a detailed source's scope named IDs that match no entity of the account's proven population.
+  [
+    /^(\d{1,7}) requested IDs? matched no entity in this account\.$/,
+    m => uiText('Requested IDs that matched no entity in this account: {count}.', {count: uiNumber(Number(m[1]))}),
   ],
   // ACC-06 interim notice: X reported activity on a placement these reports do not request yet.
   [

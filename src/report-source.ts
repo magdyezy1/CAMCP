@@ -541,6 +541,12 @@ export const inBatches = <T>(values: T[], size: number) =>
 
 export const detailParentsUnavailableWarning =
   'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.';
+/**
+ * A detailed source proves its account's whole population before a scope narrows it, so an ID the scope names that is in
+ * no entity of it is known, not a silent empty result (V2-RPT-07).
+ */
+export const unmatchedScopeWarning = (count: number) =>
+  count + ' requested ID' + (count === 1 ? '' : 's') + ' matched no entity in this account.';
 /** AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. */
 export const accessRefusalCodes: ReadonlySet<string> = new Set([
   'CONNECTION_REQUIRED',

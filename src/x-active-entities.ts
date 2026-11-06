@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {fingerprint} from './report-quality.js';
+import {accessRefusalCodes} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
 import type {XAnalyticsEntity} from './x-report-levels.js';
@@ -14,6 +15,22 @@ export const xActiveEntitiesChunkMs = 90 * 86400000;
 const hour = 3600000;
 const maxEntities = 10000;
 export const xReportPlacements = ['ALL_ON_TWITTER', 'SPOTLIGHT', 'TREND'] as const;
+/**
+ * Whether X itself refused one read (HTTP 400, 404 or 422), so the report may go on without that answer. AMCP's own
+ * errors are never X's refusal even when they carry the same status: the whole-job allowance (REPORT_COLLECTION_LIMIT is
+ * a 422, REPORT_BUDGET_INVALID a 400) and every other REPORT_* refusal end the collection, as do a removed connection, a
+ * changed login or a credential failure.
+ */
+export function xRefusedRead(error: unknown): error is MirrorError {
+  return (
+    error instanceof MirrorError &&
+    !error.retryable &&
+    !error.code.startsWith('REPORT_') &&
+    !accessRefusalCodes.has(error.code) &&
+    error.details.layer !== 'credential' &&
+    [400, 404, 422].includes(error.status)
+  );
+}
 export interface XActiveEntity {
   entity_id: string;
   /** Whole-hour UTC window covering the reported activity. */

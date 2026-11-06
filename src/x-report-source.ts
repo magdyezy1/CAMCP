@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import {invalidReportSource, nextDay, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
-import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
+import {xActiveEntities, xActiveEntitiesMode, xActiveSet, xRefusedRead} from './x-active-entities.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
 import {reportStatus} from './report-status.js';
@@ -151,7 +151,7 @@ export const xReportSource: ReportSource = {
       } catch (e) {
         // A rejected read keeps the bounded inventory path (fails closed above 100 requests); a malformed or
         // partial response is never narrowed and fails the source.
-        if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
+        if (!xRefusedRead(e)) throw e;
         fallback = true;
       }
     if (fallback)

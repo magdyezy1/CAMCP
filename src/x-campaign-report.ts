@@ -4,7 +4,7 @@ import {fingerprint} from './report-quality.js';
 import {reportSourceError} from './report-errors.js';
 import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
-import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
+import {xRefusedRead, xReportPlacements, type XActiveSet} from './x-active-entities.js';
 import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {reportScaledText} from './report-math-v4.js';
 import type {XAnalyticsEntity} from './x-report-levels.js';
@@ -36,6 +36,41 @@ export const xPublisherNetworkWarning = (count: number) =>
   ' activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.';
 /** The synchronous analytics ceiling per X source (X allows 250 requests per 15 minutes per user). */
 export const xAnalyticsRequestLimit = 100;
+/**
+ * The count and amount metrics of X's ENGAGEMENT, BILLING and VIDEO groups (docs.x.com/x-ads-api/analytics, read
+ * 2026-11-06). Hourly values of these add. X's conversion groups are objects of counts and amounts named conversion_* and
+ * mobile_conversion_*, which add too. Any other metric, a rate for one, is not summed (a rate over four hours is not the sum
+ * of four hourly rates) and is left out, with a warning.
+ */
+const xAdditiveMetrics = new Set([
+  'engagements',
+  'impressions',
+  'retweets',
+  'replies',
+  'likes',
+  'follows',
+  'card_engagements',
+  'clicks',
+  'app_clicks',
+  'url_clicks',
+  'qualified_impressions',
+  'carousel_swipes',
+  'billed_engagements',
+  'billed_charge_local_micro',
+  'video_total_views',
+  'video_views_25',
+  'video_views_50',
+  'video_views_75',
+  'video_views_100',
+  'video_cta_clicks',
+  'video_content_starts',
+  'video_3s100pct_views',
+  'video_6s_views',
+  'video_15s_views',
+]);
+const xAdditiveMetric = (name: string) => xAdditiveMetrics.has(name) || /^(?:mobile_)?conversion_/.test(name);
+export const xNonAdditiveMetricsWarning =
+  'X returned metrics that are not additive counts or amounts, such as rates; they are not summed over hours and are left out.';
 /** RPT-07: shown when X refused the line item read, so campaign objectives stay unknown. */
 export const xObjectivesUnavailableWarning =
   'X line item objectives could not be read, so campaign objectives stay unknown unless set in report settings.';
@@ -225,7 +260,7 @@ export async function xCampaignReport(
       });
       successful++;
     } catch (e) {
-      if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
+      if (!xRefusedRead(e)) throw e;
       complete = false;
       const diagnostic = reportSourceError(e, {platform: 'x'});
       failures.push(diagnostic);
@@ -308,6 +343,10 @@ export async function xCampaignReport(
           if (depth > 5) throw new MirrorError('REPORT_SHAPE_CHANGED', 'X metric nesting is too deep.');
           for (const [k, v] of Object.entries(values)) {
             const key = prefix ? prefix + '_' + k : k;
+            if (!prefix && !xAdditiveMetric(k)) {
+              warnings.add(xNonAdditiveMetricsWarning);
+              continue;
+            }
             if (v && typeof v === 'object' && !Array.isArray(v)) {
               add(v, key, depth + 1);
               continue;

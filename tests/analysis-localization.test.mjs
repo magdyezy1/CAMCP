@@ -37,6 +37,7 @@ test('X detail warnings translate exact authored copy without translating provid
     'X omitted requested native entity IDs; the returned subset is retained.',
     'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
     'Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.',
+    'X returned metrics that are not additive counts or amounts, such as rates; they are not summed over hours and are left out.',
   ]) {
     ar.context.message = en.context.message = message;
     assert.equal(en.run('uiSourceWarning(message)'), message);
@@ -145,6 +146,8 @@ test('collector warnings with a count or field name translate through fixed temp
       '1 X campaign has no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
       '1',
     ],
+    ['3 requested IDs matched no entity in this account.', '3'],
+    ['1 requested ID matched no entity in this account.', '1'],
     ['2 active X campaigns are missing from the campaign list; they are shown by ID.', '2'],
     ['1 active X campaign is missing from the campaign list; it is shown by ID.', '1'],
     [

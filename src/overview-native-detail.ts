@@ -257,6 +257,8 @@ export function nativeDetailResult(
       status: 'declared_measurement',
       entity_level: descriptor.id,
       ...(rounded ? {metric_rounding: rounded} : {}),
+      // A source that proves its account's whole population says what it proved (X, as Snapchat's detail does).
+      ...(base.context.native_population ? {population: base.context.native_population} : {}),
     },
     lineage: base.lineage,
     query_fingerprint: fingerprint(base.lineage.map(l => l.query_fingerprint)),

@@ -47,6 +47,7 @@
   "Reconciliation": "المطابقة",
   "Reference": "المرجع",
   "Reporting window declared incomplete": "فترة التقرير مُعلَنة غير مكتملة",
+  "Requested IDs that matched no entity in this account: {count}.": "المعرّفات المطلوبة التي لا يطابقها أي كيان في هذا الحساب: {count}.",
   "Requested native metric {name} was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.": "لم يُرجَع المقياس الأصلي المطلوب {name} كرقم؛ لذلك تبقى الصيغ التي تستخدمه غير متاحة. تحقّق من اسم الحقل لدى هذا المزوّد.",
   "Restricted: {metrics}": "مقاييس مقيدة: {metrics}",
   "Retained report settings align. These are saved measurement declarations, not independent verification of provider attribution or an external export.": "إعدادات التقارير المحفوظة متوافقة. هذه إعدادات قياس مسجلة، وليست تحققًا مستقلاً من إسناد المنصة أو من ملف تصدير خارجي.",

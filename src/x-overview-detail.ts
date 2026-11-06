@@ -2,18 +2,22 @@ import {MirrorError} from './errors.js';
 import {collectionCheckpoint} from './report-collection-budget.js';
 import {fingerprint} from './report-quality.js';
 import {storedLogin} from './connection-authority.js';
-import {nextDay, type ReportCollection} from './report-source.js';
+import {nextDay, unmatchedScopeWarning, type ReportCollection} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
-import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
+import {xActiveEntities, xActiveEntitiesMode, xActiveSet, xRefusedRead} from './x-active-entities.js';
 import {xCampaignReport} from './x-campaign-report.js';
 import {nativeDecimal} from './overview-native-detail.js';
 
 const object = (value: unknown): value is JsonObject => !!value && typeof value === 'object' && !Array.isArray(value);
 const id = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9]{1,32}$/.test(value);
-function refuse(code: string, message: string, status = 502): never {
-  throw new MirrorError(code, message, {}, status);
+function refuse(code: string, message: string, status = 502, values?: Record<string, string>): never {
+  throw new MirrorError(code, message, {}, status, false, values);
 }
+/** The population bounds: rows of one kind, and pages of one list. */
+const populationRows = 10000,
+  populationPages = 100;
+const kindNames = {campaigns: 'campaigns', line_items: 'line items', promoted_tweets: 'promoted tweets'} as const;
 
 /** Complete native population proof, with shared synchronous analytics arithmetic and checkpoint semantics. */
 export async function collectXOverviewDetail(c: ReportCollection) {
@@ -48,9 +52,10 @@ export async function collectXOverviewDetail(c: ReportCollection) {
   const list = async (kind: 'campaigns' | 'line_items' | 'promoted_tweets'): Promise<JsonObject[]> => {
     const rows: JsonObject[] = [],
       seen = new Set<string>(),
-      cursors = new Set<string>();
-    let cursor: string | undefined, declared: number | undefined;
-    for (let page = 1; page <= 100; page++) {
+      cursors = new Set<string>(),
+      values = {kind: kindNames[kind]};
+    let cursor: string | undefined;
+    for (let page = 1; page <= populationPages; page++) {
       current();
       const response = await c.run(
         c.plan('/12/accounts/' + c.account + '/' + kind, {
@@ -71,16 +76,6 @@ export async function collectXOverviewDetail(c: ReportCollection) {
         refuse('REPORT_SHAPE_CHANGED', 'X did not return a bounded native entity collection.');
       if (!Object.hasOwn(response, 'next_cursor'))
         refuse('REPORT_INCOMPLETE', 'X did not return an explicit native pagination boundary.');
-      if (response.total_count !== undefined) {
-        if (
-          !Number.isSafeInteger(response.total_count) ||
-          response.total_count < 0 ||
-          response.total_count > 10000 ||
-          (declared !== undefined && response.total_count !== declared)
-        )
-          refuse('REPORT_INCOMPLETE', 'X native entity counts changed or exceeded the bounded collection.');
-        declared = response.total_count;
-      }
       for (const row of response.data) {
         if (
           !object(row) ||
@@ -91,24 +86,46 @@ export async function collectXOverviewDetail(c: ReportCollection) {
           refuse('REPORT_ACCOUNT_MISMATCH', 'X returned a foreign, repeated or malformed native entity.');
         seen.add(row.id);
         rows.push(row);
-        if (rows.length > 10000)
-          refuse('REPORT_COLLECTION_LIMIT', 'X entity population exceeds 10000 rows. Narrow the account scope.', 422);
+        if (rows.length > populationRows)
+          refuse(
+            'REPORT_COLLECTION_LIMIT',
+            'This X account has more than 10,000 {kind}, the most a report reads. A scope applies after the account is read in full, so it cannot bring this read under that bound.',
+            422,
+            values,
+          );
       }
       const next = response.next_cursor;
-      if (next === null || next === '') {
-        if (declared !== undefined && declared !== rows.length)
-          refuse('REPORT_INCOMPLETE', 'X native entity counts changed or exceeded the bounded collection.');
-        return rows;
-      }
-      if (
-        typeof next !== 'string' ||
-        next.length > 2000 ||
-        /[\x00-\x1f\x7f]/.test(next) ||
-        !response.data.length ||
-        cursors.has(next) ||
-        page === 100
-      )
-        refuse('REPORT_INCOMPLETE', 'X entity pagination repeated, stalled or exceeded its bounded collection.');
+      if (next === null || next === '') return rows;
+      // `with_total_count` cannot be combined with a cursor (X's documentation), so a page cannot be checked against a
+      // declared total; the list is complete only when X ends it.
+      if (typeof next !== 'string' || next.length > 2000 || /[\x00-\x1f\x7f]/.test(next))
+        refuse(
+          'REPORT_INCOMPLETE',
+          'X returned a continuation cursor AMCP cannot use while listing {kind}, so the list cannot be proven complete.',
+          502,
+          values,
+        );
+      if (!response.data.length)
+        refuse(
+          'REPORT_INCOMPLETE',
+          'X returned an empty page with a continuation while listing {kind}, so the list cannot be proven complete.',
+          502,
+          values,
+        );
+      if (cursors.has(next))
+        refuse(
+          'REPORT_INCOMPLETE',
+          'X repeated a continuation cursor while listing {kind}, so the list cannot be proven complete.',
+          502,
+          values,
+        );
+      if (page === populationPages)
+        refuse(
+          'REPORT_INCOMPLETE',
+          'X listed {kind} over more than 100 pages, the most a report reads, so the list cannot be proven complete.',
+          502,
+          values,
+        );
       cursors.add(next);
       cursor = next;
     }
@@ -189,6 +206,14 @@ export async function collectXOverviewDetail(c: ReportCollection) {
     selectedAds = new Set<string>(c.source.ad_ids ?? []),
     selectedLines = new Set<string>(c.source.adset_ids ?? []),
     selectedCampaigns = new Set<string>(c.source.campaign_ids ?? []),
+    // The population is proven complete above, so a requested ID that is in none of it is known to match nothing.
+    promotedIds = new Set(promoted.map(row => row.id)),
+    unmatched = {
+      campaign_ids: [...selectedCampaigns].filter(value => !campaigns.has(value)),
+      adset_ids: [...selectedLines].filter(value => !lines.has(value)),
+      ad_ids: [...selectedAds].filter(value => !promotedIds.has(value)),
+    },
+    unmatchedCount = unmatched.campaign_ids.length + unmatched.adset_ids.length + unmatched.ad_ids.length,
     adParents = new Set(promoted.filter(row => selectedAds.has(row.id)).map(row => row.line_item_id)),
     selected = inventory.filter(row => {
       const line = c.detail === 'ad' ? lines.get(row.line_item_id)! : row;
@@ -222,7 +247,7 @@ export async function collectXOverviewDetail(c: ReportCollection) {
       };
       state.active = active;
     } catch (error) {
-      if (!(error instanceof MirrorError) || error.retryable || ![400, 404, 422].includes(error.status)) throw error;
+      if (!xRefusedRead(error)) throw error;
       state.active_fallback = fallback = true;
     }
   if (active?.entities.some(row => !selectedIds.has(row.entity_id)))
@@ -278,7 +303,8 @@ export async function collectXOverviewDetail(c: ReportCollection) {
     parents,
     rows: c.raw.map(row => ({
       entity_id: row.id,
-      entity_name: row.name ?? null,
+      // X documents no name for a promoted tweet, so it is labelled by its promotion ID.
+      entity_name: row.name ?? (c.detail === 'ad' ? 'Promoted tweet ' + row.id : null),
       spend: nativeDecimal(row.native_metrics.billed_charge_local_micro, 'spend', c.detailRounding, 1e6),
       impressions: nativeDecimal(row.native_metrics.impressions, 'impressions', c.detailRounding),
       clicks: nativeDecimal(row.native_metrics.clicks, 'clicks', c.detailRounding),
@@ -301,6 +327,7 @@ export async function collectXOverviewDetail(c: ReportCollection) {
   };
   c.complete = c.collectionComplete = report.complete;
   c.warnings.push(...report.warnings);
+  if (unmatchedCount) c.warnings.push(unmatchedScopeWarning(unmatchedCount));
   c.context.no_activity_count = report.no_activity_count;
   c.context.native_population = {
     campaigns: campaigns.size,
@@ -309,6 +336,8 @@ export async function collectXOverviewDetail(c: ReportCollection) {
     selected: selected.length,
     includes_deleted: true,
     observed_at: state.observed_at,
+    unmatched,
+    unmatched_count: unmatchedCount,
   };
   const lineage = [...state.lineage.map((entry: JsonObject) => ({...entry, cached: true})), ...c.lineage];
   c.lineage.splice(
