@@ -302,3 +302,27 @@ test('through the queue, an account of thirty campaigns costs a request each and
   assert.equal(weekly.report.rows.length, 2 * 60);
   assert.equal(a.requests.length - before, 2 * (1 + 1 + 30 + 2), 'each calendar week reads the account again');
 });
+
+test('an account with no activity in the window is a complete empty report after the campaign report', async t => {
+  const a = appleAccount({campaigns: 3, groups: 2, idle: () => true});
+  t.after(() => a.close());
+  const result = await a.collect('adset');
+  assert.deepEqual(result.rows, []);
+  assert.equal(result.complete, true);
+  assert.equal(a.requests.length, 2, 'the account and the campaign report, nothing else');
+  assert.equal(result.quality.population.campaigns_observed, 0);
+  assert.deepEqual(a.violations, []);
+});
+
+test('a campaign report Apple refuses fails the source; it is not an optional read', async t => {
+  const a = appleAccount({
+    campaigns: 2,
+    tamper: (where, _body, response) =>
+      where === 'report:campaigns'
+        ? Response.json({error: {errors: [{messageCode: 'FORBIDDEN'}]}}, {status: 403})
+        : response,
+  });
+  t.after(() => a.close());
+  await assert.rejects(a.collect('adset'), e => e.status === 403 || e.details?.http_status === 403);
+  assert.equal(a.reads('report:adgroups').length, 0);
+});
