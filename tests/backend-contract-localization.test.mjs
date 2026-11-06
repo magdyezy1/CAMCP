@@ -314,7 +314,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Stored-definition migration adds its durable notice ledger module, without a new direct refusal.
   // Package D adds the Snapchat account-wide detail collector; its static refusals use the wrapper inventory.
   // Task 12 adds the X detail collector and its provider-owned level declarations.
-  assert.equal(files.length, 776);
+  // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
+  // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
+  // Meta's previews module and the kit are the first two.
+  assert.equal(files.length, 778);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

@@ -1,34 +1,25 @@
 import {MirrorError, nestedError} from './errors.js';
 import {fail} from './family-kit.js';
 import {providerById} from './provider-adapters.js';
-import {providerHooks} from './provider-hooks.js';
+import {adPreviewProviders, providerHooks} from './provider-hooks.js';
 import {reportSourceError} from './report-errors.js';
 import {fingerprint} from './workspace-core.js';
 import {portfolioAuthority} from './portfolio-runner.js';
 import {sealCursor, openCursor, cursorLifetimeMs} from './signed-cursor.js';
+import {object, previewLinksOn, text} from './ad-preview-kit.js';
+import type {AdPreviewRequest, AdPreviewRow, ProviderHooks} from './provider-adapter.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 
 type Call = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
 // ARC-01 (reporting): each platform's previews are read under its provider adapter's gateway (src/provider-adapters.ts).
 const gatewayOf = (provider: string) => providerById(provider)!.gateway;
+/** The provider whose hooks serve a platform value of this tool (its `previews` hooks), or undefined. */
+const previewProvider = (platform: unknown): ProviderHooks | undefined =>
+  adPreviewProviders.find(provider => provider.previews!.platform === platform);
 
-/**
- * Meta placements its ad preview read takes (`ad_format`), as recorded in the captured AMCP catalog's get_ad_preview
- * contract; MOBILE_FEED_STANDARD is that contract's default.
- */
-export const metaPreviewFormats = [
-  'MOBILE_FEED_STANDARD',
-  'DESKTOP_FEED_STANDARD',
-  'INSTAGRAM_STANDARD',
-  'INSTAGRAM_STORY',
-  'INSTAGRAM_REELS',
-  'FACEBOOK_STORY_MOBILE',
-  'AUDIENCE_NETWORK_OUTSTREAM_VIDEO',
-];
 /** Where each platform's preview links live; a link elsewhere in a response (an ad's own copy, say) is not one. */
 const previewHosts: Record<string, RegExp> = {
-  meta: /(^|\.)(facebook\.com|fb\.com|instagram\.com)$/,
   tiktok: /(^|\.)(tiktok\.com|tiktokv\.com|tiktokcdn\.com|byteoversea\.com)$/,
   snapchat: /(^|\.)(snapchat\.com|snap\.com|sc-cdn\.net)$/,
   linkedin: /(^|\.)(linkedin\.com|licdn\.com)$/,
@@ -88,51 +79,28 @@ export const previewTool = {
         description: 'Ad set or ad group IDs; Snapchat ad squad IDs; LinkedIn native campaign IDs.',
       },
       cursor: {type: 'string', maxLength: 4096},
-      ad_format: {type: 'string', enum: metaPreviewFormats, description: 'Meta only: the placement to preview.'},
+      ad_format: {
+        type: 'string',
+        enum: adPreviewProviders.flatMap(provider => provider.previews!.formats ?? []),
+        description: 'Meta only: the placement to preview.',
+      },
     },
     additionalProperties: false,
   },
 };
 
-interface Row {
-  id: string;
-  name: string | null;
-  status?: string;
-  campaign?: string;
-  adset?: string;
-  key?: string;
-  native?: JsonObject;
-}
-const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
+type Row = AdPreviewRow;
 
 /**
  * The platform links in a preview response, wherever the platform put them: string values that are HTTPS URLs, and
  * the `src`/`href` of HTML (Meta and LinkedIn return iframe markup). Only HTTPS links on the platform's own hosts
- * count; the markup itself is provider content and is never returned.
+ * count (its `linkHosts`); the markup itself is provider content and is never returned.
  */
 export function previewLinks(platform: string, data: unknown): string[] {
-  const hosts = previewHosts[platform]!,
-    found = new Set<string>();
-  const consider = (candidate: string) => {
-    let url: URL;
-    try {
-      url = new URL(candidate.replaceAll('&amp;', '&'));
-    } catch {
-      return;
-    }
-    if (url.protocol === 'https:' && !url.username && !url.password && hosts.test(url.hostname)) found.add(url.href);
-  };
-  const walk = (v: unknown, depth: number) => {
-    if (depth > 8 || found.size >= 20) return;
-    if (typeof v === 'string') {
-      if (/^https:\/\/\S+$/.test(v)) consider(v);
-      else if (v.includes('<')) for (const m of v.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)) consider(m[1]!);
-    } else if (Array.isArray(v)) for (const item of v.slice(0, 100)) walk(item, depth + 1);
-    else if (object(v)) for (const item of Object.values(v)) walk(item, depth + 1);
-  };
-  walk(data, 0);
-  return [...found];
+  const hosts =
+    previewProvider(platform)?.previews?.linkHosts ??
+    (Object.hasOwn(previewHosts, platform) ? previewHosts[platform] : undefined);
+  return hosts ? previewLinksOn(hosts, data) : [];
 }
 
 /** amcp_ad_previews: preview links of existing ads through each platform's own read routes. */
@@ -158,6 +126,11 @@ export class AdPreviews {
       if (!Object.hasOwn(previewTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown preview parameter.', {parameter: key});
     const {platform, account_id: account, connection_id: connection} = input;
+    const provider = previewProvider(platform),
+      // Platforms whose reads have not moved behind a `previews` hook yet.
+      legacyReads = ['tiktok', 'snapchat', 'linkedin', 'reddit'].includes(platform),
+      // A platform that reads native data takes a cursor and is read under the login's authority.
+      reads = !!provider?.previews?.select || legacyReads;
     if (typeof account !== 'string' || !account.trim()) fail('INVALID_ARGUMENT', 'Choose the advertising account.');
     if (connection !== undefined && typeof connection !== 'string')
       fail('INVALID_ARGUMENT', 'connection_id is a connection of this workspace.');
@@ -175,7 +148,7 @@ export class AdPreviews {
       for (const [i, id] of wanted.entries()) if (/^\d+$/.test(id)) wanted[i] = 'urn:li:sponsoredCreative:' + id;
     const limit = input.limit ?? 5;
     if (!Number.isInteger(limit) || limit < 1 || limit > 10) fail('INVALID_ARGUMENT', 'limit is 1 to 10.');
-    if (input.ad_format !== undefined && (platform !== 'meta' || !metaPreviewFormats.includes(input.ad_format)))
+    if (input.ad_format !== undefined && !provider?.previews?.formats?.includes(input.ad_format))
       fail('INVALID_ARGUMENT', 'ad_format is one of the Meta placements listed in the schema.');
     const statuses: string[] = input.statuses ?? ['active'];
     let campaigns: string[] = input.campaign_ids ?? [],
@@ -214,18 +187,14 @@ export class AdPreviews {
     }
     const invalidCursor = (): never =>
       fail('INVALID_CURSOR', 'The preview cursor is invalid or expired; list the previews again without it.');
-    if (
-      input.cursor !== undefined &&
-      (wanted || !['meta', 'tiktok', 'snapchat', 'linkedin', 'reddit'].includes(platform))
-    )
-      invalidCursor();
+    if (input.cursor !== undefined && (wanted || !reads)) invalidCursor();
     let authorization = '',
       permissions: string[] = [],
       selectedConnection = connection,
       current = () => {};
-    if (['meta', 'tiktok', 'snapchat', 'linkedin', 'reddit'].includes(platform)) {
+    if (reads) {
       try {
-        const gateway = gatewayOf(platform),
+        const gateway = provider?.gateway ?? gatewayOf(platform),
           login = this.store.resolveConnection(actor, gateway, account, connection),
           authority = portfolioAuthority(this.store, actor, gateway, account, login, {
             binds: 'login',
@@ -390,113 +359,28 @@ export class AdPreviews {
                 : 'Not in this account',
           }
         : {};
+    // A platform that reads native data is served by its `previews` hooks: its selection of ads, and how each one's
+    // preview is read. This tool keeps the cursor, the login checks, the limits and the shape of the answer.
+    if (provider?.previews?.select) {
+      const gateway = provider.gateway,
+        request: AdPreviewRequest = {
+          account,
+          wanted,
+          statuses,
+          campaigns,
+          adsets,
+          limit,
+          format: input.ad_format,
+          base,
+          read: args => read(gateway, args),
+          matches,
+          pageSelection,
+          notListed,
+        },
+        selected = await provider.previews.select(request);
+      return result(await each(selected.rows, selected.preview), selected.extra);
+    }
     switch (platform) {
-      case 'meta': {
-        const rows = (values: unknown): Row[] => {
-          if (
-            !Array.isArray(values) ||
-            values.length > limit ||
-            values.some(row => !object(row) || typeof row.id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(row.id))
-          )
-            fail('REPORT_SHAPE_CHANGED', 'The platform returned an invalid preview list or continuation.');
-          if (
-            (values as JsonObject[]).some(
-              row => row.account_id !== undefined && row.account_id !== account.replace(/^act_/, ''),
-            )
-          )
-            fail('ACCOUNT_SCOPE_MISMATCH', 'Not in this account');
-          return (values as JsonObject[]).map(row => ({
-            id: row.id,
-            name: text(row.name),
-            status: (
-              {
-                ACTIVE: 'active',
-                PAUSED: 'paused',
-                CAMPAIGN_PAUSED: 'paused',
-                ADSET_PAUSED: 'paused',
-                ARCHIVED: 'archived',
-                DELETED: 'archived',
-              } as Record<string, string>
-            )[row.effective_status],
-            campaign: row.campaign_id,
-            adset: row.adset_id,
-          }));
-        };
-        let chosen: Row[],
-          paging: JsonObject = {},
-          missing: string[] = [];
-        if (wanted) {
-          chosen = [];
-          for (const id of wanted)
-            try {
-              const identity = await read(gatewayOf('meta'), {
-                action: 'meta_ad_id_get',
-                ...base,
-                ad_id: id,
-                query: {fields: 'id,account_id'},
-              });
-              if (identity?.id !== id || identity.account_id !== account.replace(/^act_/, '')) {
-                missing.push(id);
-                continue;
-              }
-              const row = await read(gatewayOf('meta'), {
-                action: 'meta_ad_id_get',
-                ...base,
-                ad_id: id,
-                query: {
-                  fields:
-                    'id,name,account_id,effective_status' +
-                    (campaigns.length || adsets.length ? ',campaign_id,adset_id' : ''),
-                },
-              });
-              if (row?.id !== id || row.account_id !== account.replace(/^act_/, '')) {
-                missing.push(id);
-                continue;
-              }
-              const found = rows([row])[0]!;
-              if (matches(found, true)) chosen.push(found);
-            } catch (error) {
-              if (
-                !(error instanceof MirrorError) ||
-                !['ACCOUNT_SCOPE_MISMATCH', 'NOT_FOUND', 'RESOURCE_SCOPE_REQUIRED'].includes(error.code)
-              )
-                throw error;
-              missing.push(id);
-            }
-        } else {
-          const selected = await pageSelection(async after => {
-            const listed = await read(gatewayOf('meta'), {
-              action: 'meta_ad_list',
-              ...base,
-              query: {
-                fields: 'id,name,account_id,effective_status,campaign_id,adset_id',
-                limit,
-                ...(after ? {after} : {}),
-              },
-            });
-            const more = listed?.paging?.next !== undefined;
-            return {rows: rows(listed?.data), more, after: more ? listed.paging?.cursors?.after : null};
-          });
-          chosen = selected.chosen;
-          paging = selected.paging;
-        }
-        const format = input.ad_format ?? 'MOBILE_FEED_STANDARD';
-        return result(
-          await each(chosen, async row => ({
-            ad_format: format,
-            links: previewLinks(
-              'meta',
-              await read(gatewayOf('meta'), {
-                action: 'meta_ad_id_previews_get',
-                ...base,
-                ad_id: row.id,
-                query: {ad_format: format},
-              }),
-            ),
-          })),
-          {...paging, ...(missing.length ? {not_found: missing, not_found_reason: 'Not in this account'} : {})},
-        );
-      }
       case 'tiktok': {
         const primary =
           wanted || statuses.includes('all') || (statuses.includes('archived') && statuses.length > 1)

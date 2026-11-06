@@ -887,6 +887,92 @@ export interface AdPreviewLink {
 }
 
 /**
+ * One ad amcp_ad_previews considers (a creative, for Snapchat and LinkedIn), in AMCP's terms: what a platform's list
+ * or lookup says of it, once the platform's own module has validated the record and mapped its status.
+ */
+export interface AdPreviewRow {
+  /** The ID a preview is read for. */
+  id: string;
+  name: string | null;
+  /** `active`, `paused` or `archived`; absent when the platform's status is none of them. */
+  status?: string;
+  campaign?: string;
+  adset?: string;
+  /** The ad behind a creative that several ads share (Snapchat); it keeps those ads' rows apart. */
+  key?: string;
+  /** The platform's own record, when its fields are the preview (Reddit). */
+  native?: JsonObject;
+}
+
+/** One native page of a list: its rows, the token of the next page, and whether more follow. */
+export interface AdPreviewPage {
+  rows: AdPreviewRow[];
+  after: string | null;
+  more: boolean;
+  /** A platform that pages by number carries no token (TikTok): another page does not need one. */
+  byNumber?: true;
+}
+
+/**
+ * What the shared preview tool (src/ad-previews.ts) hands a platform's selection: the checked request, and the stages
+ * the tool keeps for every platform: the login check around each native read, the status and parent filters, and the
+ * signed, bounded scan of a platform's list pages.
+ */
+export interface AdPreviewRequest {
+  readonly account: string;
+  /** The ads or creatives the caller named, as the platform's `normalize` wrote them. */
+  readonly wanted?: readonly string[];
+  readonly statuses: readonly string[];
+  readonly campaigns: readonly string[];
+  readonly adsets: readonly string[];
+  readonly limit: number;
+  /** The placement or format the caller chose, for a platform that offers them (`formats`). */
+  readonly format?: string;
+  /** The arguments every native read names: the account, and the selected login. */
+  readonly base: {readonly account_id: string; readonly connection_id?: string};
+  /** One native read through the platform's own gateway, bracketed by the login checks; the answer is its data. */
+  read(args: JsonObject): Promise<any>;
+  /** Whether a row passes the status and parent filters; a named row ignores the status. */
+  matches(row: AdPreviewRow, named?: boolean): boolean;
+  /**
+   * The next `limit` matching rows of the platform's list, scanning at most `maxScans` native pages under one signed
+   * cursor, with the paging fields the answer carries (`next_cursor`, `has_more`).
+   */
+  pageSelection(
+    fetchPage: (after: string | null, page: number) => Promise<AdPreviewPage>,
+    maxScans?: number,
+  ): Promise<{chosen: AdPreviewRow[]; paging: JsonObject}>;
+  /** The `not_found` fields of the named IDs a platform did not list. */
+  notListed(missing: readonly string[]): JsonObject;
+}
+
+/** The ads a platform's selection chose, how each one's preview is read, and the rest of the answer. */
+export interface AdPreviewSelection {
+  /** The ads whose previews are read, in order. */
+  readonly rows: AdPreviewRow[];
+  /** One row's preview fields; a refusal it throws becomes that row's own diagnostic. */
+  preview(row: AdPreviewRow): Promise<JsonObject>;
+  /** The answer's other fields: paging, the IDs not found, the order read, what a bounded scan did not establish. */
+  readonly extra: JsonObject;
+}
+
+/** A platform's part of amcp_ad_previews (src/ad-previews.ts): its selection of ads and how it reads their previews. */
+export interface AdPreviewHooks {
+  /** The `platform` value of the tool that names it. */
+  readonly platform: string;
+  /** The hosts its preview links may be on; a link elsewhere in a response (an ad's own copy, say) is not one. */
+  readonly linkHosts?: RegExp;
+  /** The placements it previews (`ad_format`); the first is the default. */
+  readonly formats?: readonly string[];
+  /** Named ads and parent filters it writes in another form (LinkedIn's URNs); it refuses one it cannot read. */
+  normalize?(kind: 'ad' | 'campaign' | 'adset', values: string[]): string[];
+  /** Reads its ads and their previews; absent for a platform whose previews AMCP cannot read. */
+  select?(request: AdPreviewRequest): Promise<AdPreviewSelection>;
+  /** For a platform without a readable preview: the answer's fields (its explanation, or the write that creates one). */
+  explain?(route: {account: string; connection?: string; wanted?: readonly string[]}): JsonObject;
+}
+
+/**
  * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
  * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
  * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
@@ -952,6 +1038,8 @@ export interface ProviderHooks {
   readonly media?: MediaUploadHooks;
   /** Its documented preview response links and expiry, with provider HTML withheld. */
   readonly adPreviewLinks?: (elements: unknown, now: number) => AdPreviewLink[];
+  /** Its part of amcp_ad_previews: its ads, their previews, the links it accepts and its explanation (src/ad-previews.ts). */
+  readonly previews?: AdPreviewHooks;
   /** Exact read-scoped URL fields whose signatures are capabilities; credentials are still scrubbed. */
   readonly signedLinkFields?: (plan: CompiledRequest) => readonly string[];
   // Wave 4c round 6 (w4c-arc6-catalog).

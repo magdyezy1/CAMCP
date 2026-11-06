@@ -55,6 +55,7 @@ import {metaApiVersions} from './meta-version.js';
 import type {Action} from './types.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {metaCatalogIngestion} from './meta-catalog-ingestion.js';
+import {metaAdPreviews} from './meta-ad-previews.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -479,6 +480,8 @@ export const metaHooks: ProviderHooks = Object.freeze({
   }),
   // Wave 4c round 6 (w4c-arc6-catalog): its catalog destination's projection (src/catalog-ingestion.ts).
   catalogProjection: metaCatalogIngestion,
+  // Its ads and their previews for amcp_ad_previews (src/ad-previews.ts).
+  previews: metaAdPreviews,
   // Moved verbatim from the creative library's asset view (src/creative-library.ts), which asks the asset's platform:
   // a Meta image or video has its scalar references read.
   mediaUsage: (p: JsonObject) => ({

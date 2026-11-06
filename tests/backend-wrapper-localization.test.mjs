@@ -269,8 +269,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package D adds the bounded Snapchat detail collector with eleven already-translated refusal sentences.
   // Task 12 adds two X source modules; its collector owns thirteen new diagnostics and reuses a checkpoint refusal.
   // F-L3-10 takes src/ad-previews.ts off the never-owned list: one more module with owned reasons.
-  assert.equal(files.length, 776);
-  assert.equal(selected.filter(row => row.messages.size).length, 190);
+  // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
+  // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
+  // Meta's previews module and the kit are the first two.
+  assert.equal(files.length, 778);
+  // Meta's previews module owns the reasons it took from src/ad-previews.ts (no new sentence): one more module.
+  assert.equal(selected.filter(row => row.messages.size).length, 191);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.

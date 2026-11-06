@@ -129,6 +129,11 @@ export const encodedBodyProviders: readonly ProviderHooks[] = tableOrder(
   ['dv360', 'linkedin', 'x'],
   hooks => hooks.parameters?.encodedBody,
 );
+/**
+ * src/ad-previews.ts: the platforms amcp_ad_previews serves with a reading or an explanation, by provider ID, in the
+ * order its schema lists them (a platform's `previews.platform` is the value the tool names it by).
+ */
+export const adPreviewProviders: readonly ProviderHooks[] = tableOrder('ad preview', ['meta'], hooks => hooks.previews);
 /** src/provider-validation.ts: the providers whose mutations it validates. */
 export const providerValidationProviders: readonly ProviderHooks[] = tableOrder(
   'provider validation',
