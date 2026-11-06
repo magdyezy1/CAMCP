@@ -793,10 +793,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
     );
     toast(uiText('Error details copied.'));
   });
-  // V2-RPT-05: Retry on a provider-data or provider card runs the report again from the setup form.
-  authBind('[data-report-retry]', async () => {
-    document.querySelector('#overview-config')?.requestSubmit();
-  });
+  authBind('[data-report-retry]', retryReportRun);
   authBind('#report-cancel', async () => {
     await overviewCall({action: 'cancel', id: r.job_id, confirmed: true});
     overviewState.watch = null;
@@ -1561,14 +1558,27 @@ function renderReportSourceHealth(s, platforms, index, range, report) {
   return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${esc(reportSourceHealthLabel(s))}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(reportSourceCaptureMessage(s, range))}</p>`}${s.scoped_row_count !== undefined ? html`${reportSourceCounts(s)}` : s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? html`${reportSourceActions(s.error, index)}` : ''}</details>`;
 }
 /**
+ * V2-RPT-05: Retry on a source card runs the report again from the setup form. The form is submitted through its own
+ * submit button, so the submit event has a submitter (a bare requestSubmit() has none), and a run that is already
+ * starting is not started twice by a second click.
+ */
+async function retryReportRun() {
+  const form = $('#overview-config'),
+    submit = form?.querySelector('button[type="submit"]');
+  if (submit && submit.getAttribute('aria-busy') !== 'true') form.requestSubmit(submit);
+}
+/**
  * V2-RPT-05: a failed source card's actions follow its error's category. The platform's data or a provider failure:
  * Retry (the run form again) and Copy. The connection or its permissions: Manage connections and Copy. A rate limit, a
  * request AMCP refused or an internal failure: Copy only. A stored diagnostic without a category keeps its old actions.
+ * A credential failure the server marks (its layer) also offers Manage connections, and a login that changed during
+ * the report offers the Retry its own next step names.
  */
 function reportSourceActions(error, index) {
   const category = error.category,
-    retry = ['provider_data', 'provider'].includes(category),
-    connections = category === undefined || ['connection', 'permission'].includes(category);
+    retry = ['provider_data', 'provider'].includes(category) || error.code === 'CONNECTION_AUTHORITY_CHANGED',
+    connections =
+      category === undefined || ['connection', 'permission'].includes(category) || error.layer === 'credential';
   return html`<div class="report-actions">${retry ? html`<button type="button" class="button small" data-report-retry="${index}">${uiText('Retry')}</button>` : ''}${connections ? html`<a class="button small" href="/connections">${uiText('Manage connections')}</a>` : ''}<button type="button" class="button small" data-report-diagnostic="${index}">${uiText('Copy error details')}</button></div>`;
 }
 function renderPeriodFailures(periods) {

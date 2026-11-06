@@ -134,14 +134,18 @@ function authBind(selector, fn) {
   document.querySelectorAll(selector).forEach(el =>
     el.addEventListener(el.tagName === 'FORM' ? 'submit' : 'click', async e => {
       e.preventDefault();
-      const button = el.tagName === 'FORM' ? e.submitter : el;
+      // A form submitted from script (requestSubmit() with no argument) has no submitter: its own submit button stands in.
+      const button =
+        el.tagName === 'FORM' ? (e.submitter ?? el.querySelector('button[type="submit"], button:not([type])')) : el;
       const generation = navigationGeneration;
       const key = focusKey(button) ?? (el.tagName === 'FORM' && el.id ? '#' + CSS.escape(el.id) + ' button' : null),
         scopes = focusScopes(button);
       const error = $('#auth-error');
       if (error) error.textContent = '';
-      button.disabled = true;
-      button.setAttribute('aria-busy', 'true');
+      if (button) {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+      }
       try {
         await fn(el, e);
       } catch (err) {
@@ -150,7 +154,7 @@ function authBind(selector, fn) {
           else toast(errorMessage(err));
         }
       } finally {
-        if (button.isConnected) {
+        if (button?.isConnected) {
           button.disabled = false;
           button.removeAttribute('aria-busy');
         }
