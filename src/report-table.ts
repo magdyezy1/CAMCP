@@ -1,7 +1,7 @@
 import {exportSourceStatus, compactQuality} from './report-quality.js';
 import {exportedRecommendation} from './report-metrics.js';
 import {MirrorError} from './errors.js';
-import {csvField} from './csv-safety.js';
+import {csvDecimalField, csvField} from './csv-safety.js';
 import type {JsonObject} from './types.js';
 import {reportRollupLabel} from './report-scope-rollups.js';
 import {overviewConfigV4} from './overview-v4.js';
@@ -146,10 +146,18 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
 }
 export function exportCsv(report: JsonObject) {
   assertReportExportable(report);
+  // The metric columns follow the fixed ones: nine, and six more when the table lists entity levels (F-L9-04).
+  const first =
+      9 + (report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign') ? 6 : 0),
+    metrics = reportTableFields(report).length;
   return (
     '﻿' +
     reportTable(report)
-      .map(row => row.map(csvField).join(','))
+      .map(row =>
+        row
+          .map((cell, index) => (index >= first && index < first + metrics ? csvDecimalField(cell) : csvField(cell)))
+          .join(','),
+      )
       .join('\r\n')
   );
 }
