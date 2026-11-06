@@ -355,7 +355,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
   // Web-report adds nineteen website messages: "n of m rows", the card notes and the cross-level check (F-L8-03).
   // Web-report adds the account settings group's name (F-L8-07).
-  assert.equal(Object.keys(catalog).length, 11757);
+  // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
+  assert.equal(Object.keys(catalog).length, 11767);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
