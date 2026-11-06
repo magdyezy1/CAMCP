@@ -28,8 +28,10 @@ function message(child, event) {
   });
 }
 
+// Compatibility, not a regression: this passes on the vulnerable dependency tree as well as the patched one (F-L4-12).
+// What separates the two trees is the next test, where the decoder fails after the response.
 test(
-  'a completed compressed JSON frame with a late trailer cannot crash the Express process',
+  'compatibility: a completed deflate frame whose trailer arrives late is answered, and the Express process stays up',
   {timeout: 15000},
   async t => {
     const env = {...process.env};
@@ -172,6 +174,82 @@ test(
     assert.equal(child.exitCode, null, errors);
     const health = await fetch('http://127.0.0.1:' + port + '/health');
     assert.equal(health.status, 200, errors);
+    assert.equal(errors, '');
+  },
+);
+
+// The route that was exposed (F-L4-12): the isolated Express tests above prove the dependency, not that AMCP's own
+// application is safe. On the unpatched body-parser a valid gzip frame followed by a corrupt trailer answered 201 on
+// /register, without a token, and then ended the whole process with code 1 (audit probe P8); AMCP's app runs here
+// in a process of its own, so such an exit fails this test instead of the runner.
+test(
+  'AMCP’s own /register route answers a valid gzip frame with a large corrupt trailer and keeps running',
+  {timeout: 15000},
+  async t => {
+    const env = {...process.env};
+    delete env.NODE_TEST_CONTEXT;
+    const child = fork('tests/fixtures/amcp-http-app-server.mjs', {
+      execArgv: [],
+      env,
+      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+    });
+    let errors = '',
+      request;
+    child.stderr.on('data', chunk => (errors += chunk));
+    t.after(async () => {
+      request?.destroy();
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      const stopped = once(child, 'exit'),
+        guard = setTimeout(() => child.kill('SIGKILL'), 1000);
+      if (child.connected)
+        child.send('stop', error => {
+          if (error) child.kill();
+        });
+      else child.kill();
+      await stopped;
+      clearTimeout(guard);
+    });
+    const {port} = await message(child, 'ready');
+    const registration = Buffer.from(
+        JSON.stringify({
+          client_name: 'Synthetic trailer client',
+          redirect_uris: ['https://claude.ai/api/mcp/auth_callback'],
+          token_endpoint_auth_method: 'none',
+          grant_types: ['authorization_code'],
+          response_types: ['code'],
+        }),
+      ),
+      body = Buffer.concat([gzipSync(registration), Buffer.from([0]), Buffer.alloc(100 * 1024, 0x58)]);
+    const response = await new Promise((resolve, reject) => {
+      request = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: '/register',
+          method: 'POST',
+          agent: false,
+          headers: {'content-type': 'application/json', 'content-encoding': 'gzip', 'content-length': body.length},
+        },
+        res => {
+          let value = '';
+          res.on('data', chunk => (value += chunk));
+          res.on('end', () => resolve({status: res.statusCode, body: value}));
+          res.on('error', reject);
+        },
+      );
+      request.on('error', reject);
+      request.setTimeout(3000, () => request.destroy(Error('AMCP’s /register did not settle')));
+      request.end(body);
+    });
+    assert.equal(response.status, 201, errors + response.body);
+    assert.equal(JSON.parse(response.body).client_name, 'Synthetic trailer client');
+    // The decoder fails after the response; give that asynchronous failure time to surface in the child.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(child.exitCode, null, 'the application process ended: ' + errors);
+    assert.equal(child.signalCode, null);
+    // Still serving: an ordinary request is answered by the same process.
+    const again = await fetch('http://127.0.0.1:' + port + '/healthz');
+    assert.equal(again.status, 200, errors);
     assert.equal(errors, '');
   },
 );
