@@ -3,7 +3,7 @@ import {sha256, stable} from './security.js';
 import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
-import {reportLevelReconciliation} from './report-level-reconciliation.js';
+import {levelFailure, reportLevelReconciliation} from './report-level-reconciliation.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
@@ -638,6 +638,39 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
   });
 }
 
+/**
+ * What a source states about its account and its collection. It is taken from the first level that collected, never
+ * from the first level: a failed level has none of it, and the facts of an account are the same for every level. The
+ * fields are named, so a field added to a packet is not promoted to the source by accident (F-L5-10). Whatever varies
+ * by level is derived from the levels below, or stays in `level_results`.
+ */
+const sourceFacts = [
+  'account_name',
+  'currency',
+  'timezone',
+  'source_kind',
+  'date_range',
+  'captured_at',
+  'attribution',
+  'result_definition',
+  'contract_version',
+  'detail_contract',
+  'query_fingerprint',
+  'quality',
+  'scope',
+  'periods',
+  'collection_mode',
+  'open_window',
+  'scope_limitations',
+  'window_resolution',
+  'native_account_evidence',
+  'source_hash',
+  'metric_mapping',
+  'report_time_zone',
+  'native_population',
+  'no_activity_count',
+] as const;
+
 /** Account sources own lineage once; level/period evidence retains its context without copied lineage arrays. */
 export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], configured: JsonObject[]) {
   const withoutLineage = (value: any): any =>
@@ -663,13 +696,34 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
       ])
         lineage.set(JSON.stringify(entry), entry);
     }
-    const {rows: ignoredRows, source: ignoredSource, metadata, ...first} = packets[0] ?? {};
+    const collected = packets.find(packet => !packet.error),
+      facts = Object.fromEntries(
+        sourceFacts.flatMap(key => (collected?.[key] === undefined ? [] : [[key, withoutLineage(collected[key])]])),
+      ),
+      // A source is failed when every level it was asked for failed, and partial when only some did: those levels are
+      // named, and the source carries no error of its own, so the page does not call a source failed that has rows.
+      failedLevels = requested.flatMap(packet => {
+        const error = levelFailure(packet, packets);
+        return error ? [{level: packet.source.level, error}] : [];
+      }),
+      periodErrors = packets.flatMap(packet =>
+        (packet.period_errors ?? []).map((entry: JsonObject) => ({
+          ...withoutLineage(entry),
+          level: packet.source.level,
+        })),
+      );
     const definitions = new Map<string, JsonObject>();
     for (const row of rows.filter(row => row.source_ref === sourceRef))
       for (const context of [row.result_context, ...(row.result_groups ?? [])])
         if (context?.definition) definitions.set(JSON.stringify(context.definition), context.definition);
     return {
-      ...withoutLineage(first),
+      ...facts,
+      ...(packets.some(packet => packet.period_errors) ? {period_errors: periodErrors} : {}),
+      ...(packets.some(packet => packet.collection_limit !== undefined)
+        ? {collection_limit: packets.some(packet => packet.collection_limit)}
+        : {}),
+      ...(failedLevels.length ? {failed_levels: failedLevels} : {}),
+      ...(failedLevels.length && failedLevels.length === requested.length ? {error: failedLevels[0]!.error} : {}),
       source,
       source_ref: sourceRef,
       complete: requested.length === source.levels.length && packets.every(packet => packet.complete),

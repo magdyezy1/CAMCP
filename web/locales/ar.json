@@ -2536,6 +2536,7 @@
   "Source failed": "فشل المصدر",
   "No rows returned": "لم تُعَد صفوف",
   "Limited coverage": "تغطية محدودة",
+  "These levels could not be collected: {levels}.": "تعذّر جمع هذه المستويات: {levels}.",
   "Timezone unavailable": "المنطقة الزمنية غير متاحة",
   "The provider returned no campaign rows for {range}. Check the account and year.": "لم يُعد المزوّد صفوف حملات للفترة {range}. تحقق من الحساب والسنة.",
   "All returned pages captured.": "تم التقاط جميع الصفحات المعادة.",

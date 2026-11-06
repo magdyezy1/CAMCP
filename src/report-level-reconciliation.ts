@@ -5,6 +5,19 @@ import type {JsonObject} from './types.js';
 const metrics = ['spend', 'impressions', 'clicks'] as const;
 const order = ['campaign', 'adset', 'ad'];
 
+/**
+ * Why a requested level has no result: its own collection failed, or it is measured through another level (a scope
+ * that rolls up the selected descendants) and that level failed. Undefined when the level did not fail.
+ */
+export function levelFailure(packet: JsonObject, packets: JsonObject[]): JsonObject | undefined {
+  if (packet.error) return packet.error;
+  const rollup = packet.scope?.rollup;
+  if (!rollup || rollup.available !== false) return undefined;
+  return packets.find(
+    other => other.source.source_ref === packet.source.source_ref && other.source.level === rollup.from_level,
+  )?.error;
+}
+
 /** Evidence about visible rows, separate from the provider's page/closure/completeness declarations. */
 export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObject[], requested: string[]) {
   const levels = order.filter(level => requested.includes(level));
@@ -52,23 +65,30 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
             Array.isArray(packet?.rows) &&
             packet.rows.length > rows.filter(row => (row.entity_level ?? 'campaign') === packet.source.level).length,
         ),
-        derived = !!baseline?.scope?.rollup || !!comparison?.scope?.rollup;
+        derived = !!baseline?.scope?.rollup || !!comparison?.scope?.rollup,
+        // A level that failed has no date range, so it would read as a window problem: name the failure instead.
+        failed = [baseline, comparison].flatMap(packet => {
+          const error = packet ? levelFailure(packet, packets) : undefined;
+          return error ? [{level: packet!.source.level as string, code: error.code as string}] : [];
+        });
       for (const metric of metrics) {
         const a = totals(baselineLevel, metric),
           b = totals(comparisonLevel, metric),
-          unavailable = derived
-            ? 'derived_parent_population'
-            : !sameWindow
-              ? 'different_or_unavailable_windows'
-              : differentStatuses
-                ? 'different_status_populations'
-                : differentObjectives
-                  ? 'different_objective_populations'
-                  : a.value === null || b.value === null
-                    ? metric === 'spend' && !currency
-                      ? 'unknown_currency'
-                      : 'missing_metric'
-                    : null,
+          unavailable = failed.length
+            ? 'level_failed'
+            : derived
+              ? 'derived_parent_population'
+              : !sameWindow
+                ? 'different_or_unavailable_windows'
+                : differentStatuses
+                  ? 'different_status_populations'
+                  : differentObjectives
+                    ? 'different_objective_populations'
+                    : a.value === null || b.value === null
+                      ? metric === 'spend' && !currency
+                        ? 'unknown_currency'
+                        : 'missing_metric'
+                      : null,
           partial = !collected || a.coverage.known < a.coverage.total || b.coverage.known < b.coverage.total,
           delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value;
         comparisons.push({
@@ -83,6 +103,7 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
           delta,
           coverage_percent: unavailable ? null : evaluateReportFormulaV4('b / a * 100', {a: a.value, b: b.value}).value,
           unavailable_reason: unavailable,
+          ...(failed.length ? {failed_levels: failed} : {}),
         });
       }
     }

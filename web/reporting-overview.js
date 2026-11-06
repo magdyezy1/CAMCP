@@ -1080,7 +1080,7 @@ function reportSummaryCoverage(r, g) {
     ? `<p class="report-card-footer">${esc(uiText('Limited coverage: these totals may be incomplete.'))}</p>`
     : '';
 }
-/** RPT-05: summary totals never include a failed source; the footer names each one. */
+/** RPT-05: summary totals never include a failed source; the footer names each one. A source that only lost some levels still has rows in the totals, and is not named (its levels are on its card). */
 function reportSummaryExcludes(r) {
   const failed = (r.sources ?? []).filter(s => s.error);
   if (!failed.length || !(r.summary ?? []).length) return '';
@@ -1556,7 +1556,7 @@ function reportParentName(name) {
   return typeof name === 'string' && name ? ` · <span dir="auto" data-native>${esc(name)}</span>` : '';
 }
 function renderReportSourceHealth(s, platforms, index, range, report) {
-  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${esc(reportSourceHealthLabel(s))}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(reportSourceCaptureMessage(s, range))}</p>`}${s.scoped_row_count !== undefined ? html`${reportSourceCounts(s)}` : s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? html`${reportSourceActions(s.error, index)}` : ''}</details>`;
+  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${esc(reportSourceHealthLabel(s))}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(reportSourceCaptureMessage(s, range))}</p>`}${reportFailedLevels(s)}${s.scoped_row_count !== undefined ? html`${reportSourceCounts(s)}` : s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? html`${reportSourceActions(s.error, index)}` : ''}</details>`;
 }
 /**
  * V2-RPT-05: Retry on a source card runs the report again from the setup form. The form is submitted through its own
@@ -1581,6 +1581,33 @@ function reportSourceActions(error, index) {
     connections =
       category === undefined || ['connection', 'permission'].includes(category) || error.layer === 'credential';
   return html`<div class="report-actions">${retry ? html`<button type="button" class="button small" data-report-retry="${index}">${uiText('Retry')}</button>` : ''}${connections ? html`<a class="button small" href="/connections">${uiText('Manage connections')}</a>` : ''}<button type="button" class="button small" data-report-diagnostic="${index}">${uiText('Copy error details')}</button></div>`;
+}
+/**
+ * V2-RPT-06: the levels of a source that could not be collected, each with its own error, while the others keep their
+ * rows. A source whose every level failed shows its error instead, and a source with rows is not called failed.
+ */
+function reportFailedLevels(source) {
+  const failed = source.error ? [] : (source.failed_levels ?? []);
+  if (!failed.length) return '';
+  const platform = source.source?.platform;
+  return (
+    `<p class="source-level-failures">` +
+    esc(
+      uiText('These levels could not be collected: {levels}.', {
+        levels: uiList(failed.map(level => reportLevelName(platform, level.level))),
+      }),
+    ) +
+    `</p>` +
+    failed
+      .map(
+        level =>
+          `<p><strong>` +
+          esc(reportLevelName(platform, level.level)) +
+          `</strong></p>` +
+          renderSourceDiagnostic(level.error),
+      )
+      .join('')
+  );
 }
 function renderPeriodFailures(periods) {
   return periods.length
