@@ -115,6 +115,18 @@ export function tiktokPageFixtures() {
       pages: [{list: [], page_info: {page: '1', page_size: '1000', total_number: 0, total_page: 0}}],
       expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
     },
+    // The empty-report allowance is for the first page of a collection only: a later page that names no counts, or
+    // zero counts, cannot cut a declared collection short.
+    {
+      name: 'later page without page_info',
+      pages: [page(1000, 1), {list: []}],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_info_missing'},
+    },
+    {
+      name: 'later page with every page field zero',
+      pages: [page(1000, 1), {list: [], page_info: {page: 0, page_size: 0, total_number: 0, total_page: 0}}],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
+    },
     {
       name: 'no rows, null totals',
       pages: [{list: [], page_info: {page: 1, page_size: 1000, total_number: null, total_page: null}}],
