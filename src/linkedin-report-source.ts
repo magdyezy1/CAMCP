@@ -17,7 +17,7 @@ import {linkedinDetailParents, linkedInCreativeMetadata} from './linkedin-detail
 import {invalidReportSource, optionalReadRefused, type ReportCollection, type ReportSource} from './report-source.js';
 import {nativeDecimal, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
 import {linkedinReportPivots} from './workflows.js';
-import {mixedObjectiveGroup, resolveObjective} from './report-objectives.js';
+import {mixedObjectiveGroup, resolveObjective, type ObjectiveUnread} from './report-objectives.js';
 import {metricNumber} from './report-metrics.js';
 import {overviewCapabilities} from './report-source.js';
 import {reportStatus} from './report-status.js';
@@ -135,12 +135,16 @@ function groupResults(rows: JsonObject[], campaigns: Record<string, JsonObject>,
     });
 }
 
-/** Each job reads current metadata once per reported entity, retaining the authorization-bracketed lineage. */
+/**
+ * Each job reads current metadata once per reported entity, retaining the authorization-bracketed lineage. An entity
+ * without a record was not read when `unread` names why (the read was refused, or the entity lies beyond the bound).
+ */
 async function metadata(
   c: ReportCollection,
   kind: 'campaign' | 'group' | 'creative',
   urns: string[],
   load: (urns: string[]) => Promise<Record<string, JsonObject>>,
+  unread: LinkedInUnread = {},
 ): Promise<Record<string, JsonObject>> {
   const [key, field] = {
     campaign: ['linkedinCampaigns', 'campaigns'],
@@ -173,8 +177,11 @@ async function metadata(
     c.warnings.push(kind === 'creative' ? nativeDetailLookupLimitedWarning : linkedinMetadataLimitedWarning);
   if (known.unavailable)
     c.warnings.push(kind === 'campaign' ? linkedinCampaignsUnavailableWarning : linkedinMetadataUnavailableWarning);
+  if (known.unavailable || known.limited) unread[kind] = known.unavailable ? 'refused' : 'limited';
   return records;
 }
+/** Why the metadata of each kind of LinkedIn entity was not (fully) read, when it was not. */
+type LinkedInUnread = Partial<Record<'campaign' | 'group' | 'creative', ObjectiveUnread>>;
 
 /** LinkedIn detail retains native URN entity identities and numeric parent IDs in their shared positions. */
 export function linkedinDetail(
@@ -187,6 +194,7 @@ export function linkedinDetail(
   },
   rounding: Record<string, number>,
   overviewV4 = false,
+  unread: LinkedInUnread = {},
 ): {rows: JsonObject[]; parents: Record<string, JsonObject>} {
   const out: JsonObject[] = [],
     parents: Record<string, JsonObject> = {};
@@ -208,7 +216,15 @@ export function linkedinDetail(
       currentName = level === 'ad' ? creative?.name : campaign?.name,
       name = typeof currentName === 'string' && currentName.trim() && currentName.length <= 1000 ? currentName : null,
       result = linkedinResults[String(campaign?.objective_type)],
-      costOmitted = omittedCost(row);
+      costOmitted = omittedCost(row),
+      // No record at all for the campaign (or for the creative that names it) means it was not read, which is not the
+      // same as LinkedIn answering with a record that carries no objective.
+      objectiveUnread =
+        level === 'ad' && creative === undefined
+          ? unread.creative
+          : campaignUrn && campaign === undefined
+            ? unread.campaign
+            : undefined;
     parents[urn] = {
       ...(overviewV4 ? {entity_metadata: level === 'ad' ? creative : campaign} : {}),
       ...(groupUrn ? {campaign_id: groupUrn.split(':').at(-1), campaign_name: group?.name ?? null} : {}),
@@ -216,6 +232,7 @@ export function linkedinDetail(
         ? {adset_id: campaignUrn.split(':').at(-1), adset_name: campaign?.name ?? null}
         : {}),
       ...(typeof campaign?.objective_type === 'string' ? {objective: campaign.objective_type} : {}),
+      ...(objectiveUnread ? {objective_unread: objectiveUnread} : {}),
       ...(campaign?.campaign_type ? {format: campaign.campaign_type} : {}),
     };
     out.push({
@@ -529,21 +546,27 @@ export const linkedinReportSource: ReportSource = {
     c.raw = primary.rows;
     const companion = c.detail ? undefined : await analytics('CAMPAIGN', fields),
       campaignRows = companion?.rows ?? [];
-    const reported = c.raw.map(row => String(row.pivotValues[0]));
+    const reported = c.raw.map(row => String(row.pivotValues[0])),
+      unread: LinkedInUnread = {};
     const creatives =
       c.detail === 'ad'
-        ? await metadata(c, 'creative', reported, async urns =>
-            Object.fromEntries(
-              (
-                await linkedInCreativeMetadata(
-                  c.account,
-                  urns,
-                  query =>
-                    c.run(c.plan('/rest/adAccounts/' + c.account + '/creatives', query), false, 'creative_metadata'),
-                  c.source?.reporting_contract === 'overview-config-v4',
-                )
-              ).map(row => [row.id, row]),
-            ),
+        ? await metadata(
+            c,
+            'creative',
+            reported,
+            async urns =>
+              Object.fromEntries(
+                (
+                  await linkedInCreativeMetadata(
+                    c.account,
+                    urns,
+                    query =>
+                      c.run(c.plan('/rest/adAccounts/' + c.account + '/creatives', query), false, 'creative_metadata'),
+                    c.source?.reporting_contract === 'overview-config-v4',
+                  )
+                ).map(row => [row.id, row]),
+              ),
+            unread,
           )
         : {};
     const campaignUrns: string[] =
@@ -565,12 +588,17 @@ export const linkedinReportSource: ReportSource = {
             c.source?.reporting_contract === 'overview-config-v4',
           )
         ).campaigns,
+      unread,
     );
     const groupUrns: string[] = c.detail
       ? campaignUrns.flatMap(urn => (campaigns[urn]?.campaign_group ? [String(campaigns[urn]!.campaign_group)] : []))
       : reported;
-    const groups = await metadata(c, 'group', groupUrns, urns =>
-      linkedInCampaignGroupMetadata(c.account, urns, plan => c.run(plan, false, 'campaign_group_metadata')),
+    const groups = await metadata(
+      c,
+      'group',
+      groupUrns,
+      urns => linkedInCampaignGroupMetadata(c.account, urns, plan => c.run(plan, false, 'campaign_group_metadata')),
+      unread,
     );
     if (c.detail) {
       c.detailRows = linkedinDetail(
@@ -579,6 +607,7 @@ export const linkedinReportSource: ReportSource = {
         {campaigns, groups, creatives},
         c.detailRounding,
         c.source?.reporting_contract === 'overview-config-v4',
+        unread,
       );
     } else {
       const memberships = new Map<string, JsonObject[]>();
@@ -608,7 +637,16 @@ export const linkedinReportSource: ReportSource = {
             members.filter(member => !delivered(member)),
             campaigns,
             c.detailRounding,
-          ).filter(result => result.value !== null && result.value !== '0');
+          ).filter(result => result.value !== null && result.value !== '0'),
+          // A group with no objective of its own, or whose delivered campaigns were not read, is unread, not empty.
+          objectiveUnread =
+            objective.native !== null
+              ? undefined
+              : groups[urn] === undefined && unread.group
+                ? unread.group
+                : unassigned
+                  ? unread.campaign
+                  : undefined;
         const v4 = c.source?.reporting_contract === 'overview-config-v4',
           types = new Set(members.map(member => campaigns[String(member.pivotValues[0])]?.campaign_type)),
           type = types.size === 1 ? [...types][0] : null,
@@ -650,6 +688,7 @@ export const linkedinReportSource: ReportSource = {
               }
             : {}),
           ...(otherResults.length ? {other_results: otherResults} : {}),
+          ...(objectiveUnread ? {objective_unread: objectiveUnread} : {}),
         };
       });
     }
@@ -697,6 +736,7 @@ export const linkedinReportSource: ReportSource = {
         ? {objectiveGroup: mixedObjectiveGroup, resultDefinition: 'Mixed', resultsByObjective: raw.results_by_objective}
         : {}),
       ...(raw.other_results ? {otherResults: raw.other_results} : {}),
+      ...(raw.objective_unread ? {objectiveUnread: raw.objective_unread} : {}),
       metrics: {
         spend: costOmitted ? 0 : n('costInLocalCurrency'),
         impressions: n('impressions'),

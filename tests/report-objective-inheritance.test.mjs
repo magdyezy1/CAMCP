@@ -5,6 +5,7 @@ import {resolveObjective} from '../dist/src/report-objectives.js';
 import {normalizeNativeRow} from '../dist/src/report-native.js';
 import {redditDetail, nativeDetailResult} from '../dist/src/overview-native-detail.js';
 import {detailedOverviewRows} from '../dist/src/overview-levels.js';
+import {detailParents, detailParentLimit} from '../dist/src/overview-parents.js';
 import {objectiveReportFixture} from './helpers/objective-report.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 import {
@@ -94,6 +95,68 @@ for (const platform of ['tiktok', 'meta', 'snapchat']) {
     assert.equal(result.rows[0].objective_reason, reportSource(platform).objectives.missingReason);
   });
 }
+
+// The platform refuses the read of the parent campaigns while the report itself succeeds.
+const refusals = {
+  tiktok: url =>
+    url.pathname.endsWith('/campaign/get/')
+      ? new Response(JSON.stringify({code: 40002, message: 'No permission'}), {status: 403})
+      : undefined,
+  snapchat: url =>
+    /get_campaigns_by_ids$/.test(url.pathname)
+      ? new Response(JSON.stringify({request_status: 'ERROR', error_code: 'E1001'}), {status: 403})
+      : undefined,
+};
+for (const platform of ['tiktok', 'snapchat'])
+  test(platform + ' rows whose parent campaigns could not be read say so instead of claiming no objective', async t => {
+    const {objective, ...source} = granularSource(platform, 'ad'),
+      unread = 'AMCP could not read this campaign’s objective because the platform refused the read';
+    const f = inheritanceFixture(t, platform);
+    f.hook(refusals[platform]);
+    const plain = await run(f, source);
+    assert.equal(plain.state, 'complete', JSON.stringify(plain.sources));
+    assert.ok(plain.rows.length > 0);
+    for (const row of plain.rows) {
+      assert.equal(row.objective_source, 'unknown');
+      assert.equal(row.objective_reason, unread + '; choose one in the report.');
+      assert.notEqual(row.objective_reason, reportSource(platform).objectives.missingReason);
+    }
+    // A fallback covers the unread campaign, and the row says that this is what it did.
+    const g = inheritanceFixture(t, platform);
+    g.hook(refusals[platform]);
+    const covered = await run(g, {...source, objective_fallback: 'leads'});
+    for (const row of covered.rows) {
+      assert.equal(row.objective_group, 'leads');
+      assert.equal(row.objective_source, 'user_fallback');
+      assert.equal(row.objective_reason, unread + ', so your fallback is used.');
+    }
+    // The same fallback beside a campaign the platform did read stays the plain provider value.
+    const h = inheritanceFixture(t, platform);
+    const read = await run(h, {...source, objective_fallback: 'leads'});
+    for (const row of read.rows) assert.deepEqual([row.objective_source, row.objective_reason], ['provider', null]);
+  });
+
+test('parents AMCP did not read are marked with why, apart from parents it read or the platform left without a record', async () => {
+  const source = {platform: 'tiktok', account_id: '100', reporting_contract: 'overview-config-v4'},
+    read = {'1': {campaign_id: '10'}, '2': {}},
+    full = Object.fromEntries(Array.from({length: detailParentLimit}, (_, i) => ['9' + (100000 + i), {}]));
+  for (const [cache, cause] of [
+    [{parents: {...read}, lineage: [], unavailable: true}, 'refused'],
+    [{parents: {...read, ...full}, lineage: []}, 'limited'],
+  ]) {
+    const out = await detailParents(undefined, source, 'ad', ['1', '2', '3'], undefined, cache);
+    assert.deepEqual(out.parents, read, 'an unread entity is never given a parent');
+    assert.deepEqual(out.unread, {'3': cause});
+  }
+  const rows = detailedOverviewRows(
+    {platform: 'tiktok', level: 'ad', report_options: {complete_window: true, attribution: 'unknown'}},
+    {rows: [{entity_id: '3'}], native_rows: [{}], semantics: {currency: 'USD'}},
+    {'3': {objective_unread: 'limited'}},
+    reportSource('tiktok').objectives,
+  );
+  assert.equal(rows[0].objective_unread, 'limited');
+  assert.equal(Object.hasOwn(rows[0].parent_ids, 'objective_unread'), false);
+});
 
 test('TikTok campaign inventory includes deleted objects so their historical objectives remain available', async () => {
   const requests = [];

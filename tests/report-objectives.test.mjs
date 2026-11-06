@@ -87,6 +87,50 @@ test('fallback never replaces a native or mapped group; known ungrouped values c
   );
 });
 
+const unreadReason = {
+  refused: 'AMCP could not read this campaign’s objective because the platform refused the read',
+  limited:
+    'AMCP could not read this campaign’s objective because this report has more entities than AMCP reads campaign details for',
+};
+for (const cause of ['refused', 'limited'])
+  test('an objective AMCP could not read (' + cause + ') is never reported as one the platform did not return', () => {
+    const base = {platform: 'tiktok', table, campaignId: '1', unread: cause};
+    // Without a fallback the reason says what happened, not that the platform returned nothing.
+    assert.deepEqual(resolveObjective(base), {
+      native: null,
+      group: 'unknown',
+      source: 'unknown',
+      reason: unreadReason[cause] + '; choose one in the report.',
+    });
+    // A fallback that covers the unread value says so; it is not the plain "Your fallback".
+    assert.deepEqual(resolveObjective({...base, fallback: 'sales'}), {
+      native: null,
+      group: 'sales',
+      source: 'user_fallback',
+      reason: unreadReason[cause] + ', so your fallback is used.',
+    });
+    // Explicit choices still win and are labelled as theirs, and a value the platform did give is never unread.
+    assert.equal(resolveObjective({...base, overrides: {'1': 'leads'}, fallback: 'sales'}).source, 'user_override');
+    assert.equal(resolveObjective({...base, legacy: 'leads'}).source, 'user_override');
+    assert.deepEqual(resolveObjective({...base, native: 'TRAFFIC', fallback: 'sales'}), {
+      native: 'TRAFFIC',
+      group: 'traffic',
+      source: 'provider',
+      reason: null,
+    });
+    // The unread cause is data from collectors: anything else changes nothing.
+    assert.equal(resolveObjective({...base, unread: 'constructor'}).reason, table.missingReason);
+  });
+
+test('a fallback stays unlabelled when the platform answered with no objective', () => {
+  assert.deepEqual(resolveObjective({platform: 'tiktok', table, fallback: 'sales'}), {
+    native: null,
+    group: 'sales',
+    source: 'user_fallback',
+    reason: null,
+  });
+});
+
 test('prototype properties cannot become an objective or a campaign override', () => {
   assert.equal(resolveObjective({platform: 'tiktok', table, native: 'constructor'}).source, 'unknown');
   assert.equal(

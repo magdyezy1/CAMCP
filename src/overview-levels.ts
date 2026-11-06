@@ -321,7 +321,12 @@ export function detailedOverviewRows(
       ),
       // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
       omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key))),
-      {objective: nativeObjective, entity_metadata: entityMetadata, ...parentIds} = group.parents,
+      {
+        objective: nativeObjective,
+        entity_metadata: entityMetadata,
+        objective_unread: objectiveUnread,
+        ...parentIds
+      } = group.parents,
       status = v4 ? statusReader?.(group.raw[0]!, {level: descriptor.id, metadata: entityMetadata}) : undefined,
       activity = v4 && activityReader ? group.raw.map(activityReader) : undefined,
       resolved = resolveObjective({
@@ -333,6 +338,7 @@ export function detailedOverviewRows(
         overrides: source.objective_overrides,
         legacy: source.objective,
         fallback: source.objective_fallback,
+        unread: objectiveUnread,
       });
     let resultFields: JsonObject = {};
     let measurementRows: JsonObject[] | undefined;
@@ -406,6 +412,7 @@ export function detailedOverviewRows(
       objective_group: resolved.group,
       objective_source: resolved.source,
       objective_reason: resolved.reason,
+      ...(objectiveUnread ? {objective_unread: objectiveUnread} : {}),
       ...(typeof group.mapped[0]?.result_definition === 'string'
         ? {result_definition: group.mapped[0].result_definition}
         : {}),

@@ -1,3 +1,4 @@
+import {MirrorError} from '../../dist/src/errors.js';
 import {NativeCampaignReports} from '../../dist/src/report-native.js';
 import {objectiveReportFixture} from './objective-report.mjs';
 import {linkedinLevelAccount} from '../fixtures/linkedin-levels-docs.mjs';
@@ -18,13 +19,16 @@ const ofIds = (records, urns) => urns.map(urn => records[urn.split(':').at(-1)])
  * The real overview pipeline (queue, worker, window rule, LinkedIn collector) over a synthetic LinkedIn that answers
  * from the reporting and account-structure shapes of tests/fixtures/linkedin-levels-docs.mjs.
  * `analytics(pivot, range)` returns the analytics elements of one request, without their date range; `groups`,
- * `campaigns` and `creatives` are the metadata records by numeric ID.
+ * `campaigns` and `creatives` are the metadata records by numeric ID. A request whose path ends with one of `refused`
+ * is refused with HTTP 403, as LinkedIn does for a login without the permission.
  */
-export function linkedinPipeline(t, {analytics, groups = {}, campaigns = {}, creatives = {}}) {
+export function linkedinPipeline(t, {analytics, groups = {}, campaigns = {}, creatives = {}, refused = []}) {
   const f = objectiveReportFixture(t, {platform: 'linkedin'}),
     requests = [];
   f.service.runPlan = async plan => {
     requests.push(structuredClone(plan));
+    if (refused.some(suffix => plan.path.endsWith(suffix)))
+      throw new MirrorError('UPSTREAM_ERROR', 'Synthetic LinkedIn refusal.', {http_status: 403}, 403);
     let data;
     if (plan.path === '/rest/adAccounts/100') data = linkedinLevelAccount;
     else if (plan.path === '/rest/adAnalytics') {

@@ -108,6 +108,7 @@ function reportObjectiveSource(row) {
     return uiText('This campaign group’s campaigns have different objectives: {list}.', {
       list: row.results_by_objective.map(reportResultObjective).join(', '),
     });
+  if (row.objective_source === 'user_fallback' && row.objective_reason) return uiText(row.objective_reason);
   if (row.objective_source !== 'unknown') return row.objective_source ? reportLabel(row.objective_source) : '';
   const reason = String(row.objective_reason ?? ''),
     known = /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s.exec(reason),

@@ -179,6 +179,7 @@ function nativeRowEnvelope(
     ...(row.mixedResult ? {mixed_result_definition: true} : {}),
     ...(row.resultsByObjective ? {results_by_objective: row.resultsByObjective} : {}),
     ...(row.otherResults ? {other_results: row.otherResults} : {}),
+    ...(row.objectiveUnread ? {objective_unread: row.objectiveUnread} : {}),
     native: raw,
   };
 }

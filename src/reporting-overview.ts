@@ -2000,9 +2000,10 @@ export class ReportingOverview {
             overrides: source.objective_overrides,
             legacy: source.objective,
             fallback: source.objective_fallback,
+            unread: row.objective_unread,
           }),
           objective = resolvedObjective.group,
-          {period_context, report_period, ...nativeRow} = row,
+          {period_context, report_period, objective_unread, ...nativeRow} = row,
           record: JsonObject = {
             ...nativeRow,
             ...(r.config.contract_version === overviewConfigV4 ? {source_ref: source.source_ref} : {}),
