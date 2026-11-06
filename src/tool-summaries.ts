@@ -47,11 +47,12 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help('amcp_reporting'),
   amcp_reporting_overview:
     'Use this for saved client reports across accounts, their schedules and Sheets or file exports; to analyse one captured native report, use amcp_reporting. ' +
-    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null; GA4 and Search Console are measurement context. ' +
-    'Core actions: bootstrap (accounts, metrics, levels and saved reports), save, get, list and delete_report (client reports; edits need expected_revision), save_template, delete_template and delete_view, ' +
-    'run (a bounded native snapshot, total to monthly, campaign to ad level where qualified), compare and compare_candidates (deltas against an earlier equal window), report_pack (summaries, evidence and PDF/XLSX), ' +
-    'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule; ' +
-    'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted local PDF/XLSX); save_presentation, presentation_profiles and apply_profile_presentation. ' +
+    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; missing metrics remain null; GA4 and Search Console are measurement context. ' +
+    'Start with bootstrap (accounts, levels, defaults, metrics, saved reports, destinations). ' +
+    'run queues a bounded native snapshot (total to monthly, campaign to ad level where qualified); poll get. ' +
+    'Reads: bootstrap, get, list, compare, compare_candidates, report_pack, presentation_profiles, export_status, preview_schedule, preview_workbook_move. ' +
+    'Destinations: create_spreadsheet and bind_destination (Google Sheets), bind_file_destination (encrypted local PDF/XLSX). ' +
+    'Editing or deleting a saved report, template or schedule needs expected_revision. ' +
     'Confirmation: confirmed:true for save_presentation, apply_profile_presentation, save, save_template, delete_template, delete_view, delete_report, update_schedule, remove_schedule, run, export, schedule, pause_schedule, delete_schedule, resume_schedule, retry, cancel, bind_destination, bind_file_destination, resolve_delivery, move_workbook_schedule, undo_workbook_move (operator); create_spreadsheet (admin). ' +
     help('amcp_reporting_overview'),
   amcp_ad_previews:
