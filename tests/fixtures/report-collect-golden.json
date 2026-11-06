@@ -3150,7 +3150,10 @@
       "query": {
        "advertiser_id": "7000",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       }
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3213,12 +3216,12 @@
       "path": "/v1.3/adgroup/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "ae3d6577d1bb813a1714d619c7819fdad007538b24955aa040e1d787f90bbb10",
+      "query_fingerprint": "cb8a8fb19982433d7f59974f414dc2862210caf6c535c79edbafdc253edf1f6a",
       "response_fingerprint": "3d151fe00f0803ee1c9a5a16260bceba1289b1e2885834d10f6441926cf88165",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "6ec2cff20a354410b043c8367c6ad18f9f957fde911ae9853f69cc7e0a2ff536",
+    "query_fingerprint": "95c72dbfda7b8d39110389e980489feb344fcfb2c6ccf4b6ad37621a101ccda8",
     "rows": [
      {
       "campaign_id": "11",
@@ -3446,7 +3449,10 @@
       "query": {
        "advertiser_id": "7000",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       }
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3723,7 +3729,10 @@
       "query": {
        "advertiser_id": "7000",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       }
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -3873,7 +3882,10 @@
       "query": {
        "advertiser_id": "7000",
        "page": 1,
-       "page_size": 1000
+       "page_size": 1000,
+       "filtering": {
+        "primary_status": "STATUS_ALL"
+       }
       },
       "body": "$undefined",
       "origin": "$undefined",
@@ -4040,12 +4052,12 @@
       "path": "/v1.3/adgroup/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "ae3d6577d1bb813a1714d619c7819fdad007538b24955aa040e1d787f90bbb10",
+      "query_fingerprint": "cb8a8fb19982433d7f59974f414dc2862210caf6c535c79edbafdc253edf1f6a",
       "response_fingerprint": "3d151fe00f0803ee1c9a5a16260bceba1289b1e2885834d10f6441926cf88165",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "d1fea90c819ae604c274222a8818396b6f1b8492b4b3987e4de92cbf82e026a8",
+    "query_fingerprint": "ba23f7e71e5aada46ab841df0a416884785cf00b17330c856c60369618e1abe2",
     "rows": [
      {
       "campaign_id": "11",
@@ -4198,13 +4210,13 @@
       "path": "/v1.3/adgroup/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "ae3d6577d1bb813a1714d619c7819fdad007538b24955aa040e1d787f90bbb10",
+      "query_fingerprint": "cb8a8fb19982433d7f59974f414dc2862210caf6c535c79edbafdc253edf1f6a",
       "response_fingerprint": "3d151fe00f0803ee1c9a5a16260bceba1289b1e2885834d10f6441926cf88165",
       "captured_at": "<epoch-ms>",
       "cached": true
      }
     ],
-    "query_fingerprint": "5e58191c2d42b746c12471d2310b8a6f8254086ec0642bb81e79ad3dc030cb99",
+    "query_fingerprint": "cd0113f67a17e837355cf76346df33f045f32493ecfc244a8ec5c2bb4cf3e56a",
     "rows": [
      {
       "campaign_id": "11",
@@ -4352,7 +4364,7 @@
       "path": "/v1.3/adgroup/get/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "ae3d6577d1bb813a1714d619c7819fdad007538b24955aa040e1d787f90bbb10",
+      "query_fingerprint": "cb8a8fb19982433d7f59974f414dc2862210caf6c535c79edbafdc253edf1f6a",
       "response_fingerprint": "3d151fe00f0803ee1c9a5a16260bceba1289b1e2885834d10f6441926cf88165",
       "captured_at": "<epoch-ms>"
      }
