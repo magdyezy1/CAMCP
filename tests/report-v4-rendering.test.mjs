@@ -164,16 +164,19 @@ for (const locale of locales) {
   );
 }
 
-const adSpend = spend => row => (row.ad_id ? {...row, spend} : row);
+// The fixture's campaign spends 0.100000001 a day. The shortfalls below are scaled by a thousand (campaign 100.000001, ad
+// 97.000001...) so they stay far outside what provider rounding explains: since F-L5-25 the cross-level check allows half
+// a cent for each figure compared, and a difference of 0.006 is now agreement. The percentages are unchanged.
+const adSpend = spend => row => ({...row, spend: row.ad_id ? spend : '100.000001'});
 for (const locale of locales) {
   test(
     locale +
       ': levels that add up say so; a shortfall is a cover percentage that is cut, never rounded up to 100 (F-L8-03, F-L10-08)',
     async t => {
       const agree = await snapshot(t),
-        short = await snapshot(t, {rows: adSpend('0.097000001')}),
-        nearly = await snapshot(t, {rows: adSpend('0.0997')}),
-        above = await snapshot(t, {rows: adSpend('0.3')});
+        short = await snapshot(t, {rows: adSpend('97.000001')}),
+        nearly = await snapshot(t, {rows: adSpend('99.7')}),
+        above = await snapshot(t, {rows: adSpend('300')});
       // The server's own verdicts, so the lines below are tied to real data and not to what the page assumes.
       assert.deepEqual(
         agree.report.sources[0].cross_level.map(item => item.state),
