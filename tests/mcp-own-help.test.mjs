@@ -10,7 +10,13 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionArgumentCheck, firstPartyContract, toolActions} from '../dist/src/first-party-contracts.js';
-import {guidanceDiscovery} from '../dist/src/guidance.js';
+import {
+  buildCampaignPrompt,
+  campaignPlatforms,
+  guidanceDiscovery,
+  guidanceResources,
+  readGuidance,
+} from '../dist/src/guidance.js';
 import {serverInstructionsFor} from '../dist/src/tool-annotations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
@@ -160,6 +166,30 @@ test('descriptions, instructions and handed-out discovery calls fit their listed
     }
 });
 
+// F-L3-02: the campaign prompt told the model to call amcp_tool_help {topic: ...}, which the frozen schema (D17) does not
+// list, so a client that validates arguments refuses it. Prompts and guides are read by clients exactly as descriptions
+// are, so they are held to the same rule.
+test('the campaign prompt of every platform and every guide name only arguments their tools list', async t => {
+  for (const policy of policies) {
+    const f = fixture(t, policy),
+      tools = f.service.listTools();
+    let snippets = 0;
+    // Every prompt carries at least the workspace guide's section index, which is a call.
+    for (const platform of campaignPlatforms) {
+      const found = assertSnippetsFit(buildCampaignPrompt({platform}).messages[0].content.text, tools);
+      assert.ok(found > 0, platform + ' prompt names no tool call, so the scan proves nothing');
+      snippets += found;
+    }
+    for (const resource of guidanceResources) snippets += assertSnippetsFit(readGuidance(resource.uri).text, tools);
+    assert.ok(snippets > campaignPlatforms.length, 'the guides name tool calls too');
+  }
+});
+test('the campaign prompt reads a guide section through the listed workspace help', () => {
+  // Long guides are listed by section; the call that reads one must be valid against amcp_workspace.
+  const prompt = buildCampaignPrompt({platform: 'meta', request: 'x'.repeat(5000)}).messages[0].content.text;
+  assert.match(prompt, /Read one with amcp_workspace \{action: ?"help", ?topic: ?"guides\/[a-z0-9-]+\/<section id>"\}/);
+  assert.doesNotMatch(prompt, /amcp_tool_help \{topic/);
+});
 test('an MCP SDK client can call every listed own-help endpoint in all policy modes', async t => {
   for (const policy of policies) {
     const f = fixture(t, policy),
