@@ -25,5 +25,9 @@
   "Reading the account’s ads and their previews…": "جارٍ قراءة إعلانات الحساب ومعايناتها…",
   "The platform returned no preview link for this ad.": "لم تُرجع المنصة رابط معاينة لهذا الإعلان.",
   "The reviewed call that creates it": "الطلب الذي يُنشئه بعد المراجعة",
-  "Untitled": "بلا عنوان"
+  "Untitled": "بلا عنوان",
+  "{count} more preview": "عدد المعاينات الإضافية: {count}",
+  "{count} more previews": "عدد المعاينات الإضافية: {count}",
+  "{count} preview": "عدد المعاينات: {count}",
+  "{count} previews": "عدد المعاينات: {count}"
 }

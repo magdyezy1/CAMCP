@@ -359,7 +359,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
   // F-L3-10 adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
   // preview route (the module's other refusals already had Arabic).
-  assert.equal(Object.keys(catalog).length, 11754);
+  // F-L3-06 adds four: the count the previews panel announces for a page, one and several, first and further.
+  assert.equal(Object.keys(catalog).length, 11758);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
