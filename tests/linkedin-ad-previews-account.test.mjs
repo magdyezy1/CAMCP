@@ -138,6 +138,8 @@ test('only a safe iframe src is returned; unrelated links and hostile preview ta
     '<a href="https://www.linkedin.com/preview">Link</a>',
     '<iframe data-src="https://www.linkedin.com/preview"></iframe>',
     '<iframe srcdoc="hello" src="https://www.linkedin.com/preview"></iframe>',
+    // F-L3-13: an entity spelled as a separator is read as "/" by a browser, so this host is evil.com.
+    '<iframe src="https://evil.com&sol;.linkedin.com/preview"></iframe>',
   ])
     assert.deepEqual(linkedInPreviewLinks([{preview}], now), [], preview);
 });

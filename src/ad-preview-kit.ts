@@ -10,6 +10,14 @@ export const object = (v: unknown): v is JsonObject => !!v && typeof v === 'obje
 export const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
 
 /**
+ * Whether a link, as written, spells a separator before its query: an entity (`&sol;`) or a `;`. A browser reading the
+ * markup decodes `https://evil.com&sol;.linkedin.com/` to a link to evil.com, while the URL parser reads the whole text
+ * as a host that ends in `.linkedin.com`. Only the text before the first `?` names a host or a path, and no platform
+ * writes an entity or a `;` there (they write `&amp;` between the parameters of the query).
+ */
+export const spellsSeparator = (raw: string) => /[&;]/.test(raw.split('?', 1)[0]!);
+
+/**
  * The platform links in a preview response, wherever the platform put them: string values that are HTTPS URLs, and
  * the `src`/`href` of HTML (Meta and LinkedIn return iframe markup). Only HTTPS links on the platform's own `hosts`
  * count; the markup itself is provider content and is never returned.
@@ -17,6 +25,7 @@ export const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v : nul
 export function previewLinksOn(hosts: RegExp, data: unknown): string[] {
   const found = new Set<string>();
   const consider = (candidate: string) => {
+    if (spellsSeparator(candidate)) return;
     let url: URL;
     try {
       url = new URL(candidate.replaceAll('&amp;', '&'));

@@ -2,7 +2,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
-import {object, text} from './ad-preview-kit.js';
+import {object, spellsSeparator, text} from './ad-preview-kit.js';
 import type {
   AdPreviewHooks,
   AdPreviewLink,
@@ -85,7 +85,7 @@ export function linkedInPreviewLinks(elements: unknown, now: number): AdPreviewL
       rest = rest.slice(attr[0].length);
     }
     const src = attributes.get('src');
-    if (!valid || attributes.has('srcdoc') || !src || /[\x00-\x20<>]/.test(src)) continue;
+    if (!valid || attributes.has('srcdoc') || !src || /[\x00-\x20<>]/.test(src) || spellsSeparator(src)) continue;
     let url: URL;
     try {
       url = new URL(src.replaceAll('&amp;', '&'));
