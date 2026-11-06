@@ -69,6 +69,7 @@ import {
   writeClaimed,
 } from './job-repository.js';
 import {quotaExhausted} from './provider-quota.js';
+import {REPORT_JOB_ATTEMPT_LIMIT} from './job-leases.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqualWindow} from './report-compare.js';
 import {allocationOutcomeJob, allocationOutcomeKind} from './allocation-outcome.js';
@@ -89,7 +90,12 @@ import {
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
-import {assembleReportRows, reportCustomMetrics, reportNativeFields} from './report-row-assembly.js';
+import {
+  assembleReportRows,
+  duplicateRowsError,
+  reportCustomMetrics,
+  reportNativeFields,
+} from './report-row-assembly.js';
 import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
@@ -1395,7 +1401,10 @@ export class ReportingOverview {
     if (e instanceof MirrorError && ['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code)) return;
     const retryable = e instanceof MirrorError && e.retryable;
     recordScheduleDelivery(this.service.store, tenant, report, {
-      state: retryable && (attempts < 8 || sheetsSettleRecheck('sheets_export', e)) ? 'retrying' : 'failed',
+      state:
+        retryable && (attempts < REPORT_JOB_ATTEMPT_LIMIT || sheetsSettleRecheck('sheets_export', e))
+          ? 'retrying'
+          : 'failed',
       error_code: e instanceof MirrorError ? e.code : 'DELIVERY_FAILED',
       blocking: e instanceof MirrorError && !e.retryable,
       job_id: jobId ?? null,
@@ -1714,6 +1723,46 @@ export class ReportingOverview {
         leaseCheck,
       );
     if (kind !== 'report_overview') return this.service.verificationJob(tenant, kind, input);
+    try {
+      return await this.snapshot(tenant, input, leaseCheck);
+    } catch (e) {
+      this.abandonSnapshot(tenant, input, e);
+      throw e;
+    }
+  }
+  /**
+   * A report that its job abandons is failed with the reason, not left queued or running (F-L5-04). Not when the job is
+   * run again (the worker retries a retryable error until the last attempt, and a collection yield always), when this
+   * worker lost the job or the report was cancelled, or when the report is already a finished snapshot: a failed
+   * delivery does not undo a collected snapshot.
+   */
+  private abandonSnapshot(tenant: string, input: JsonObject, e: unknown) {
+    if (
+      e instanceof MirrorError &&
+      (['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code) ||
+        (e.retryable && (input.__last_attempt !== true || e.code === 'REPORT_COLLECTION_YIELD')))
+    )
+      return;
+    const store = this.service.store;
+    try {
+      const current = store.document(tenant, 'overview_report', input.report_id);
+      if (current.state === 'failed' || current.state === 'cancelled' || finishedSnapshot(current)) return;
+      store.putDocument(tenant, 'overview_report', current.id, {
+        ...current,
+        state: 'failed',
+        error:
+          e instanceof MirrorError
+            ? {code: e.code, message: e.message}
+            : {code: 'REPORT_FAILED', message: 'Report execution failed.'},
+      });
+    } catch {
+      // The report is gone or the store is busy: the job's own failure stands.
+    }
+  }
+  /** One report snapshot job: collects every unit of every source, assembles the rows and saves the snapshot. */
+  private async snapshot(tenant: string, input: JsonObject, leaseCheck: () => void) {
+    const store = this.service.store;
+    const lastAttempt = input.__last_attempt === true;
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
       access = () => {
@@ -1900,6 +1949,12 @@ export class ReportingOverview {
             result.quality = {...result.quality, scope: scoped.scope};
             if (scoped.scope.excluded_unknown_rows) result.complete = false;
           }
+          // A repeated entity fails this unit, before it is saved as complete (a scope that rolls up checks the rows it
+          // keeps in applyScopedRollups, once it has scoped them).
+          if (!scopeRollups) {
+            const repeated = duplicateRowsError(result, r.config.date_range);
+            if (repeated) throw repeated;
+          }
           results.push(result);
           parts.complete(key, result);
           if (captured.collection_limit) {
@@ -1919,7 +1974,9 @@ export class ReportingOverview {
               results.push({source: pending, rows: [], complete: false, error: reportSourceError(e, pending)});
             break;
           }
-          if (e instanceof MirrorError && e.retryable) {
+          // The last attempt has no later one: a retryable error fails the unit, the other units still run and the snapshot
+          // finishes partial. A collection yield is saved progress, so the worker runs the job again at any attempt.
+          if (e instanceof MirrorError && e.retryable && (!lastAttempt || e.code === 'REPORT_COLLECTION_YIELD')) {
             retry = new MirrorError(
               e.code,
               diagnostic.message,
@@ -1934,7 +1991,13 @@ export class ReportingOverview {
           }
         }
       }
-      if (scopeRollups) results = applyScopedRollups(results, platform => reportSource(platform)!.overview!, budget);
+      if (scopeRollups)
+        results = applyScopedRollups(
+          results,
+          platform => reportSource(platform)!.overview!,
+          budget,
+          packet => duplicateRowsError(packet, r.config.date_range),
+        );
     } finally {
       budget.close();
     }

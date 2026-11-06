@@ -6,6 +6,7 @@ import {
 } from './overview-v4.js';
 import {reportMetricsSummaryV4} from './report-summary.js';
 import {MirrorError} from './errors.js';
+import {failedReportUnit} from './report-errors.js';
 import type {JsonObject} from './types.js';
 
 const order = ['campaign', 'adset', 'ad'];
@@ -161,11 +162,16 @@ function rolledRows(
   return {rows, unassigned};
 }
 
-/** Scope raw checkpoint packets only after collection. A requested ancestor never keeps full-parent metrics. */
+/**
+ * Scope raw checkpoint packets only after collection. A requested ancestor never keeps full-parent metrics.
+ * A packet whose rows `validate` refuses, or whose scoping or rollup throws, fails as a unit: its levels are named in
+ * the report, the other levels keep their rows, and the job is not lost (F-L5-04).
+ */
 export function applyScopedRollups(
   packets: JsonObject[],
   capabilitiesFor: (platform: string) => OverviewV4Capabilities,
   budget?: RollupBudget,
+  validate?: (scoped: JsonObject) => MirrorError | undefined,
 ): JsonObject[] {
   const ordinary = new Map<JsonObject, JsonObject>();
   const scoped = (packet: JsonObject): JsonObject => {
@@ -177,11 +183,13 @@ export function applyScopedRollups(
         ...selection,
         complete: packet.complete && !selection.scope.excluded_unknown_rows,
         quality: {...packet.quality, scope: selection.scope},
-      };
-    ordinary.set(packet, value);
-    return value;
+      },
+      refused = validate?.(value),
+      result = refused ? failedReportUnit(refused, packet.source) : value;
+    ordinary.set(packet, result);
+    return result;
   };
-  return packets.map(packet => {
+  const rolled = (packet: JsonObject): JsonObject => {
     const measurement = overviewV4MeasurementLevel(packet.source);
     if (!measurement || order.indexOf(packet.source.level) >= order.indexOf(measurement) || packet.error)
       return scoped(packet);
@@ -222,5 +230,12 @@ export function applyScopedRollups(
       complete,
       quality: {...packet.quality, scope},
     };
+  };
+  return packets.map(packet => {
+    try {
+      return rolled(packet);
+    } catch (e) {
+      return failedReportUnit(e, packet.source);
+    }
   });
 }

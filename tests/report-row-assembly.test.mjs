@@ -2,77 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assembleReportRows, reportCustomMetrics, reportNativeFields} from '../dist/src/report-row-assembly.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {config, packet, row} from './helpers/report-packets.mjs';
 
 // Row assembly without a queue, a worker or a store: collected packets and a frozen definition in, report rows out.
-const range = {since: '2026-09-01', until: '2026-09-02'};
-const definition = {
-  id: 'meta:leads',
-  metric: 'leads',
-  label: 'Leads',
-  native_metric: 'actions.lead',
-  aggregation: 'sum',
-  unit: 'number',
-};
-/** One v4-shaped campaign or entity row, as the collectors hand it to the assembly. */
-function row(level, id, metrics = {}, more = {}) {
-  const entity =
-    level === 'campaign' ? {} : {entity_id: id, entity_name: id, entity_level: level, native_entity_type: level};
-  return {
-    campaign_id: level === 'campaign' ? id : 'c1',
-    campaign_name: level === 'campaign' ? id : 'c1',
-    ...entity,
-    ...(level === 'campaign' ? {} : {parent_ids: {campaign_id: 'c1', campaign_name: 'c1'}}),
-    objective: 'OUTCOME_LEADS',
-    currency: null,
-    status: 'active',
-    metrics: {impressions: '100', clicks: '10', spend: '1', reach: null, frequency: null, ...metrics},
-    result: {metric: 'leads', label: 'Leads', value: '2', cost_per_result: null, definition_id: definition.id},
-    result_context: {definition, source: 'mapped', cost_source: 'derived', unavailable_reason: null, rounding: {}},
-    native: {delivery_activity: true},
-    ...more,
-  };
-}
-const source = (level, more = {}) => ({
-  platform: 'meta',
-  account_id: '100',
-  connection_id: 'login',
-  level,
-  levels: ['campaign', 'ad'],
-  source_ref: 0,
-  reporting_contract: 'overview-config-v4',
-  ...more,
-});
-const packet = (level, rows, more = {}) => ({
-  source: source(level, more.source),
-  rows,
-  currency: 'USD',
-  timezone: 'UTC',
-  complete: true,
-  collection_complete: true,
-  source_kind: 'ads',
-  date_range: range,
-  warnings: [],
-  lineage: [],
-  captured_at: 1790000000000,
-  result_definition: 'Synthetic results',
-  attribution: 'Synthetic click window',
-  quality: {version: 2, status: 'complete'},
-  ...more,
-  ...(more.source ? {source: source(level, more.source)} : {}),
-});
-const config = (more = {}) => ({
-  contract_version: 'overview-config-v4',
-  name: 'Synthetic',
-  sources: [source('campaign')],
-  date_range: range,
-  grain: 'total',
-  metrics: ['spend', 'cpc'],
-  custom_metrics: [],
-  objectives: [],
-  targets: {},
-  formula_version: 'synthetic-formula',
-  ...more,
-});
 const assemble = (results, changes = {}) => {
   const c = config(changes),
     custom = reportCustomMetrics(c, reportNativeFields(results));

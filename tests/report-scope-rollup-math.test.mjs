@@ -149,12 +149,18 @@ test('native parent status applies after deriving selected totals; unknown paren
   assert.equal(report.scope.excluded_unknown_rows, 1);
 });
 
-test('a native middle-level identity cannot belong to two different ancestor campaigns', () => {
+// Package engine-core (F-L5-04): a rollup that cannot be derived fails its level as a unit, with the same error as before,
+// instead of throwing out of the whole job. The other levels keep their rows.
+test('a native middle-level identity cannot belong to two different ancestor campaigns: that level fails, the ads stay', () => {
   const rows = [child('a1', '1', '1'), child('a2', '1', '1', {parent_ids: {campaign_id: 'c2', adset_id: 'g1'}})],
-    middle = {...parent(), source: {...source, level: 'adset'}, rows: []};
-  assert.throws(() => applyScopedRollups([middle, packet('ad', rows)], () => capabilities), {
-    code: 'REPORT_ACCOUNT_MISMATCH',
-  });
+    middle = {...parent(), source: {...source, level: 'adset'}, rows: []},
+    [failed, ads] = applyScopedRollups([middle, packet('ad', rows)], () => capabilities);
+  assert.equal(failed.error.code, 'REPORT_ACCOUNT_MISMATCH');
+  assert.equal(failed.source.level, 'adset');
+  assert.deepEqual(failed.rows, []);
+  assert.equal(failed.complete, false);
+  assert.equal(ads.error, undefined);
+  assert.equal(ads.rows.length, 2);
 });
 
 test('derivation consumes the existing row and byte budgets before it can return an oversized report', () => {
@@ -164,10 +170,12 @@ test('derivation consumes the existing row and byte budgets before it can return
       [dimension]: 0,
     });
     try {
-      assert.throws(
-        () => apply([child('a1', '1', '1')], parent(), budget),
-        error => error.code === 'REPORT_COLLECTION_LIMIT' && error.details.dimension === dimension,
-      );
+      // Package engine-core (F-L5-04): the ancestor level fails as a unit with the limit error; nothing oversized returns.
+      const report = apply([child('a1', '1', '1')], parent(), budget);
+      assert.equal(report.error.code, 'REPORT_COLLECTION_LIMIT', dimension);
+      assert.match(report.error.message, new RegExp('whole-job ' + dimension + ' limit'));
+      assert.deepEqual(report.rows, [], dimension);
+      assert.equal(report.complete, false, dimension);
     } finally {
       budget.close();
     }

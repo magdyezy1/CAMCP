@@ -48,8 +48,60 @@ export function reportCustomMetrics(config: JsonObject, nativeFields: Iterable<s
 }
 
 /**
+ * Who a row is and when it is for: the entity key, the reporting period and the frame it was collected in, and the key
+ * that must be unique within one packet (a rolled-up row is also told apart by its currency, zone and attribution).
+ */
+function rowIdentity(result: JsonObject, row: JsonObject, defaultRange: JsonObject) {
+  const source = result.source,
+    key = [
+      source.platform,
+      source.account_id,
+      ...(row.entity_level ? [row.entity_level] : []),
+      row.entity_id ?? row.campaign_id,
+    ].join(':'),
+    period = row.report_period ?? result.date_range ?? defaultRange,
+    context = row.period_context ?? result,
+    rowKey =
+      key +
+      ':' +
+      period.since +
+      ':' +
+      period.until +
+      (row.aggregation?.kind === 'rolled_up'
+        ? ':' +
+          fingerprint({
+            currency: row.currency ?? context.currency,
+            timezone: context.timezone,
+            attribution: context.attribution,
+          })
+        : '');
+  return {key, period, context, rowKey};
+}
+const duplicateRows = (row: JsonObject) =>
+  new MirrorError(
+    row.entity_level ? 'DUPLICATE_ENTITY_ROWS' : 'DUPLICATE_CAMPAIGN_ROWS',
+    row.entity_level
+      ? 'The native report contains duplicate entity rows in the same reporting period.'
+      : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
+  );
+/**
+ * The refusal for a packet whose rows repeat an entity in one reporting period, or undefined. A repeated row would be
+ * summed twice, so the packet fails as a unit (F-L5-04) before anything is derived from it or saved as complete.
+ */
+export function duplicateRowsError(result: JsonObject, defaultRange: JsonObject): MirrorError | undefined {
+  const seen = new Set<string>();
+  for (const row of result.rows) {
+    const {rowKey} = rowIdentity(result, row, defaultRange);
+    if (seen.has(rowKey)) return duplicateRows(row);
+    seen.add(rowKey);
+  }
+  return undefined;
+}
+
+/**
  * The report rows of every requested packet, in packet order. A packet that supports a scope rollup contributes no
- * rows of its own. Throws a duplicate-row error when one packet repeats an entity in one reporting period.
+ * rows of its own. Throws a duplicate-row error when one packet repeats an entity in one reporting period; the job
+ * fails such a packet as a unit before it gets here (duplicateRowsError), so this is only the last guard.
  */
 export function assembleReportRows(results: JsonObject[], config: JsonObject, custom: JsonObject[]): JsonObject[] {
   const v4 = config.contract_version === overviewConfigV4,
@@ -59,35 +111,8 @@ export function assembleReportRows(results: JsonObject[], config: JsonObject, cu
     const seen = new Set<string>();
     for (const row of result.rows) {
       const source = result.source,
-        key = [
-          source.platform,
-          source.account_id,
-          ...(row.entity_level ? [row.entity_level] : []),
-          row.entity_id ?? row.campaign_id,
-        ].join(':'),
-        period = row.report_period ?? result.date_range ?? config.date_range,
-        context = row.period_context ?? result,
-        rowKey =
-          key +
-          ':' +
-          period.since +
-          ':' +
-          period.until +
-          (row.aggregation?.kind === 'rolled_up'
-            ? ':' +
-              fingerprint({
-                currency: row.currency ?? context.currency,
-                timezone: context.timezone,
-                attribution: context.attribution,
-              })
-            : '');
-      if (seen.has(rowKey))
-        throw new MirrorError(
-          row.entity_level ? 'DUPLICATE_ENTITY_ROWS' : 'DUPLICATE_CAMPAIGN_ROWS',
-          row.entity_level
-            ? 'The native report contains duplicate entity rows in the same reporting period.'
-            : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
-        );
+        {key, period, context, rowKey} = rowIdentity(result, row, config.date_range);
+      if (seen.has(rowKey)) throw duplicateRows(row);
       seen.add(rowKey);
       const resolvedObjective = rowObjective(source, row),
         objective = resolvedObjective.group,
