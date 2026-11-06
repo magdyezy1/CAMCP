@@ -14,8 +14,8 @@ import type {ReportSource} from './report-source.js';
  *  - Microsoft: AdGroupPerformanceReportRequest / AdPerformanceReportRequest, whose rows name their campaign and ad group.
  *  - Reddit: breakdowns CAMPAIGN_ID, AD_GROUP_ID (and AD_ID), with current names from the account's ad group and ad lists.
  *  - Apple: reports/apps/adgroups and reports/apps/ads, with parents from the account's ad group, ad and campaign queries.
+ * The platforms that do this are the report sources that declare `nativeDetail` (src/report-sources.ts).
  */
-export const nativeDetailPlatforms: readonly string[] = ['linkedin', 'microsoft', 'reddit', 'apple', 'x'];
 /** Distinct entities per source whose names or parents are read; entities beyond it keep IDs and unknown parents. */
 export const nativeDetailLookupLimit = 1000;
 export const nativeDetailLookupLimitedWarning =

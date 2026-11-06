@@ -6,6 +6,7 @@ import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {reportStatus} from './report-status.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {collectSnapchatOverviewDetail} from './snapchat-overview-detail.js';
 
 /** Native optimization goals, not broad campaign objectives. Unpinned/app-source-specific goals stay unknown. */
@@ -59,11 +60,7 @@ export const snapchatReportSource: ReportSource = {
   requiresCompleteWindowDeclaration: true,
   overview: {
     ...overviewCapabilities(
-      [
-        {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-        {id: 'adset', label: 'Ad squad', native_type: 'adsquad', preset: 'snapchat_adsquad'},
-        {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'snapchat_ad'},
-      ],
+      overviewEntityLevels.snapchat!,
       {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
       [],
       (options, context) => {

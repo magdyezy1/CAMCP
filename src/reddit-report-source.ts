@@ -6,6 +6,7 @@ import {redditReportWarning, savedRedditReportProblems} from './reddit-report-ru
 import type {JsonObject} from './types.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {reportStatus} from './report-status.js';
 
 /** Only native fields in the captured v3 report enum. A conversion objective alone does not identify its event. */
@@ -70,11 +71,7 @@ export const redditReportSource: ReportSource = {
       metadata?.effective_status,
     );
   },
-  overview: overviewCapabilities([
-    {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-    {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'reddit_ad_group'},
-    {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'reddit_ad'},
-  ]),
+  overview: overviewCapabilities(overviewEntityLevels.reddit!),
   resultRules: redditResultRules,
   readResult(raw, context) {
     const native = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key.toUpperCase(), value]));

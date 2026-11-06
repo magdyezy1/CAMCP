@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {mappedReportResult} from './report-results.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {overviewCapabilities} from './report-source.js';
 import {appleDetail, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
 import {detailParentsUnavailableWarning, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
@@ -23,11 +24,7 @@ export const appleReportSource: ReportSource = {
       metadata?.deleted === true || metadata?.displayStatus === 'DELETED',
     );
   },
-  overview: overviewCapabilities([
-    {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-    {id: 'adset', label: 'Ad group', native_type: 'adgroup', preset: 'apple_adgroup'},
-    {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'apple_ad'},
-  ]),
+  overview: overviewCapabilities(overviewEntityLevels.apple!),
   resultRules: {
     selectors: [],
     default: {

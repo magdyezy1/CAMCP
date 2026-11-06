@@ -6,7 +6,7 @@ import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entit
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
 import {reportStatus} from './report-status.js';
-import {xOverviewLevels} from './x-report-levels.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {collectXOverviewDetail} from './x-overview-detail.js';
 import {overviewV4Activity} from './overview-v4.js';
 import {
@@ -62,7 +62,7 @@ export const xReportSource: ReportSource = {
       metadata?.deleted === true,
     );
   },
-  overview: {...overviewCapabilities(xOverviewLevels), scope_id_pattern: '^[A-Za-z0-9]{1,32}$'},
+  overview: {...overviewCapabilities(overviewEntityLevels.x!), scope_id_pattern: '^[A-Za-z0-9]{1,32}$'},
   nativeDetail: true,
   resultRules: xResultRules,
   readResult(raw, context) {

@@ -6,6 +6,7 @@ import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
 import {tiktokNativeResult, collectTikTokCampaignResults} from './tiktok-report-results.js';
 import {reportStatus} from './report-status.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {
   tiktokCampaignWindowDays,
   tiktokStatusFilter,
@@ -33,17 +34,7 @@ export const tiktokReportSource: ReportSource = {
     );
   },
   requiresCompleteWindowDeclaration: true,
-  overview: overviewCapabilities(
-    [
-      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-      {id: 'adset', label: 'Ad group', native_type: 'adgroup', preset: 'tiktok_adgroup'},
-      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'tiktok_ad'},
-    ],
-    {},
-    [],
-    undefined,
-    {requires_complete: true},
-  ),
+  overview: overviewCapabilities(overviewEntityLevels.tiktok!, {}, [], undefined, {requires_complete: true}),
   readResult: tiktokNativeResult,
   contract: {
     stamp: 'tiktok-collection-v2',

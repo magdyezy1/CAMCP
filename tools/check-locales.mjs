@@ -1347,8 +1347,6 @@ export function checkWebLocales(root = process.cwd()) {
         for (const child of Array.isArray(value) ? value : [value]) visitLevels(child);
   };
   visitLevels(levels);
-  // X's native hierarchy is shared with its source declaration; collect those authored labels from their owner too.
-  visitLevels(parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'src/x-report-levels.ts'), 'utf8')));
   const index = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
   const explanations = new Set();
   for (const file of [

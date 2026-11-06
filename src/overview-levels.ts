@@ -19,7 +19,11 @@ import {
  * detailed collector (src/overview-granularity.ts, which re-exports these) and the native detail collectors
  * (src/overview-native-detail.ts) both build on it, so a native report source never imports the guided collector.
  */
-/** UI levels retain the provider's actual hierarchy; no campaign row is relabeled as an ad. */
+/**
+ * UI levels retain the provider's actual hierarchy; no campaign row is relabeled as an ad. This is the one declaration
+ * of every reporting platform's levels: each report source's `overview.levels` is its entry here (a provider module may
+ * depend on this shared one), so no level list is kept twice and none is added by loading another module.
+ */
 export const overviewEntityLevels: Record<string, {id: string; label: string; preset?: string; native_type: string}[]> =
   {
     google: [
@@ -68,15 +72,13 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
       {id: 'adset', label: 'Ad group', preset: 'apple_adgroup', native_type: 'adgroup'},
       {id: 'ad', label: 'Ad', preset: 'apple_ad', native_type: 'ad'},
     ],
+    // X: a campaign holds line items, which hold promoted tweets (synchronous stats by entity, src/x-overview-detail.ts).
+    x: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Line item', preset: 'x_line_item', native_type: 'line_item'},
+      {id: 'ad', label: 'Promoted tweet', preset: 'x_promoted_tweet', native_type: 'promoted_tweet'},
+    ],
   };
-/** Provider registries may add a native-detail source without making this shared leaf import its provider. */
-export function registerNativeDetailLevels(
-  platform: string,
-  levels: readonly {id: string; label: string; native_type: string; preset?: string}[],
-): void {
-  if (!Object.hasOwn(overviewEntityLevels, platform))
-    overviewEntityLevels[platform] = levels.map(level => ({...level}));
-}
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);
 }
