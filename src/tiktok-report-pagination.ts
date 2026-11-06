@@ -171,6 +171,11 @@ export function tiktokTotalsCheck(
     if (!available) continue;
     compared++;
     const difference = sum > nativeTotal ? sum - nativeTotal : nativeTotal - sum;
+    // Spend is money, and a row's spend and the total are decimal text that TikTok rounds on its own (the rounding is
+    // not documented), so each returned row may drift from the total by up to half a cent: the tolerance is 0.005 per
+    // row, inclusive (the plan's rule, round 1 Task 5). It grows with the rows, so with 4,000 rows a missing 20.00 stays
+    // inside it. That is accepted: impressions, clicks and conversions are counts without rounding and must match
+    // exactly, and a real missing row moves them. The currency's own minor unit is not consulted.
     if (difference > (metric === 'spend' ? 5000000n * BigInt(rows.length) : 0n))
       gaps.push({metric, rows: formatted(sum, metric === 'spend'), total: formatted(nativeTotal, metric === 'spend')});
   }
