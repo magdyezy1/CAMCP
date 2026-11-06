@@ -6,7 +6,7 @@ import {fingerprint} from './workspace-core.js';
 import {portfolioAuthority} from './portfolio-runner.js';
 import {sealCursor, openCursor, cursorLifetimeMs} from './signed-cursor.js';
 import {previewLinksOn} from './ad-preview-kit.js';
-import type {AdPreviewPage, AdPreviewRequest, AdPreviewRow, ProviderHooks} from './provider-adapter.js';
+import type {AdPreviewHooks, AdPreviewPage, AdPreviewRequest, AdPreviewRow} from './provider-adapter.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 
@@ -14,9 +14,11 @@ type Call = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObjec
 // V2-PRV-01: each platform's ads and previews are its own hooks' (src/<platform>-ad-previews.ts, registered as the
 // `previews` hooks of its adapter); this tool keeps the cursor, the authority and login checks, the limits and the
 // shape of the answer, and takes its platforms from the hooks registry.
-/** The provider whose hooks serve a platform value of this tool (its `previews` hooks), or undefined. */
-const previewProvider = (platform: unknown): ProviderHooks | undefined =>
-  adPreviewProviders.find(provider => provider.previews!.platform === platform);
+/** The gateway and `previews` hooks that serve a platform value of this tool, or undefined for any other value. */
+const previewProvider = (platform: unknown): {gateway: string; previews: AdPreviewHooks} | undefined => {
+  const provider = adPreviewProviders.find(candidate => candidate.previews!.platform === platform);
+  return provider && {gateway: provider.gateway, previews: provider.previews!};
+};
 
 export const previewTool = {
   name: 'amcp_ad_previews',
@@ -111,9 +113,11 @@ export class AdPreviews {
       if (!Object.hasOwn(previewTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown preview parameter.', {parameter: key});
     const {platform, account_id: account, connection_id: connection} = input;
-    const provider = previewProvider(platform),
-      // A platform that reads native data takes a cursor and is read under the login's authority.
-      reads = !!provider?.previews?.select;
+    // F-L3-12: the platform is checked first, against the platforms of the hooks registry and nothing else.
+    const provider = previewProvider(platform);
+    if (!provider) fail('INVALID_ARGUMENT', 'Choose a platform from the schema.', {field: 'platform'});
+    // A platform that reads native data takes a cursor and is read under the login's authority.
+    const reads = !!provider.previews.select;
     if (typeof account !== 'string' || !account.trim()) fail('INVALID_ARGUMENT', 'Choose the advertising account.');
     if (connection !== undefined && typeof connection !== 'string')
       fail('INVALID_ARGUMENT', 'connection_id is a connection of this workspace.');
@@ -127,11 +131,11 @@ export class AdPreviews {
     )
       fail('INVALID_ARGUMENT', 'ad_ids lists 1 to 10 identifiers.');
     // A platform may write the ads it names in another form (LinkedIn's creative URNs).
-    if (wanted && provider?.previews?.normalize)
+    if (wanted && provider.previews.normalize)
       wanted.splice(0, wanted.length, ...provider.previews.normalize('ad', wanted));
     const limit = input.limit ?? 5;
     if (!Number.isInteger(limit) || limit < 1 || limit > 10) fail('INVALID_ARGUMENT', 'limit is 1 to 10.');
-    if (input.ad_format !== undefined && !provider?.previews?.formats?.includes(input.ad_format))
+    if (input.ad_format !== undefined && !provider.previews.formats?.includes(input.ad_format))
       fail('INVALID_ARGUMENT', 'ad_format is one of the Meta placements listed in the schema.');
     const statuses: string[] = input.statuses ?? ['active'];
     let campaigns: string[] = input.campaign_ids ?? [],
@@ -155,7 +159,7 @@ export class AdPreviews {
           ids.some(id => typeof id !== 'string' || !/^[\w:~./-]{1,200}$/.test(id)))
       )
         fail('INVALID_ARGUMENT', 'Preview campaign and ad set filters each list 1 to 50 identifiers.', {field});
-    if (provider?.previews?.normalize) {
+    if (provider.previews.normalize) {
       campaigns = provider.previews.normalize('campaign', campaigns);
       adsets = provider.previews.normalize('adset', adsets);
     }
@@ -168,7 +172,7 @@ export class AdPreviews {
       current = () => {};
     if (reads) {
       try {
-        const gateway = provider!.gateway,
+        const gateway = provider.gateway,
           login = this.store.resolveConnection(actor, gateway, account, connection),
           authority = portfolioAuthority(this.store, actor, gateway, account, login, {
             binds: 'login',
@@ -335,7 +339,7 @@ export class AdPreviews {
         : {};
     // A platform that reads native data is served by its `previews` hooks: its selection of ads, and how each one's
     // preview is read. This tool keeps the cursor, the login checks, the limits and the shape of the answer.
-    if (provider?.previews?.select) {
+    if (provider.previews.select) {
       const gateway = provider.gateway,
         request: AdPreviewRequest = {
           account,
@@ -355,7 +359,6 @@ export class AdPreviews {
       return result(await each(selected.rows, selected.preview), selected.extra);
     }
     // A platform AMCP reads no previews of explains why (and, for Google Ads, which reviewed write creates one).
-    if (provider?.previews?.explain) return result([], provider.previews.explain({account, connection, wanted}));
-    return fail('INVALID_ARGUMENT', 'Choose a platform from the schema.');
+    return result([], provider.previews.explain!({account, connection, wanted}));
   }
 }
