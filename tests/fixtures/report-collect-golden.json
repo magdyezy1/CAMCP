@@ -5684,6 +5684,7 @@
        "native_linkedin_conversionValueInLocalCurrency": 8,
        "native_linkedin_approximateMemberReach": 40
       },
+      "objective_unread": "refused",
       "native": {
        "pivotValues": [
         "urn:li:sponsoredCampaignGroup:2"
@@ -5712,7 +5713,8 @@
        "conversionValueInLocalCurrency": "8",
        "approximateMemberReach": "40",
        "name": "$undefined",
-       "objectiveType": null
+       "objectiveType": null,
+       "objective_unread": "refused"
       }
      }
     ],
