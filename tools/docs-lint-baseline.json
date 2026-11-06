@@ -166,10 +166,16 @@
       "raised": [
         "reference_words 146579 → 148921"
       ]
+    },
+    {
+      "reason": "V2-MCP-13 (F-L4-01, F-L4-04, F-L4-11): docs/DECISIONS.md records what stays in front of the SDK handler and why, replacing the note that the module was interim (about 210 words); docs/OAUTH-HARDENING.md adds the notification check and the stdio flag (about 40 words) (D13)",
+      "raised": [
+        "reference_words 148921 → 149169"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 148921
+    "reference_words": 149169
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
