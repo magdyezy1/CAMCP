@@ -353,7 +353,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  // F-L3-10 adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
+  // preview route (the module's other refusals already had Arabic).
+  assert.equal(Object.keys(catalog).length, 11754);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -268,14 +268,16 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Stored-definition migration adds its durable notice ledger module.
   // Package D adds the bounded Snapchat detail collector with eleven already-translated refusal sentences.
   // Task 12 adds two X source modules; its collector owns thirteen new diagnostics and reuses a checkpoint refusal.
+  // F-L3-10 takes src/ad-previews.ts off the never-owned list: one more module with owned reasons.
   assert.equal(files.length, 776);
-  assert.equal(selected.filter(row => row.messages.size).length, 189);
+  assert.equal(selected.filter(row => row.messages.size).length, 190);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
   // The stored-config upgrader also owns the existing platform/connection/account refusal.
   // The scope-alias conflict is one new wrapper sentence.
-  assert.equal(owned.size, 2886);
+  // F-L3-10: the previews tool's own refusals (sixteen sentences) are now owned and translated.
+  assert.equal(owned.size, 2902);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -299,7 +301,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  // F-L3-10 adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
+  // preview route (the module's other refusals already had Arabic).
+  assert.equal(Object.keys(catalog).length, 11754);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
