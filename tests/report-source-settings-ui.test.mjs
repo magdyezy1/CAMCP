@@ -225,6 +225,103 @@ test('opening a retained v3 snapshot from History keeps its contract: no v4 defa
   assert.equal(f.run('overviewState.config.contract_version'), 'overview-config-v4');
 });
 
+// F-L8-14: a detailed level reads its preset metrics, so a platform's additional native metrics do nothing there (a v4
+// run accepts them and requests the fields, but no row carries them). The builder says so where both are set.
+test('a note appears under the native metrics when a detailed level and native metrics are both set, and only then', () => {
+  const nodes = new Map();
+  const select = levels => ({selectedOptions: levels.map(value => ({value}))}),
+    root = (platform, levels, {hidden = false} = {}) => ({
+      hidden,
+      dataset: {reportSource: JSON.stringify([platform, 'login', '100'])},
+      querySelector: selector => (selector === '[data-report-level="' + platform + '"]' ? select(levels) : null),
+    }),
+    defaults = (platform, levels) => ({
+      hidden: false,
+      dataset: {reportDefaults: platform},
+      querySelector: selector => (selector === '[data-report-level="' + platform + '"]' ? select(levels) : null),
+    }),
+    note = platform => nodes.get('note:' + platform);
+  const context = createContext({
+    Intl,
+    Date,
+    URLSearchParams,
+    structuredClone,
+    CSS: {escape: String},
+    pretty: String,
+    esc: value => String(value ?? ''),
+    reportRangeLabel: () => '',
+    reportQualityDetails: () => '',
+    uiSourceWarning: value => value,
+    $: selector => nodes.get(selector) ?? null,
+    document: {
+      addEventListener() {},
+      querySelectorAll: selector =>
+        selector === '[data-native-detail-note]'
+          ? ['meta', 'tiktok'].map(note)
+          : selector === '[data-report-source]'
+            ? nodes.get('sources')
+            : selector.startsWith('[data-report-defaults="')
+              ? (nodes.get('defaults:' + /"(.*)"/.exec(selector)[1]) ?? [])
+              : [],
+    },
+  });
+  const run = code => new Script(code).runInContext(context);
+  for (const name of ['localization', 'report-library', 'report-source-settings', 'reporting-overview'])
+    run(fs.readFileSync('web/' + name + '.js', 'utf8'));
+  const state = ({sources = [], metrics = '', template = []}) => {
+    for (const platform of ['meta', 'tiktok']) {
+      nodes.set('note:' + platform, {hidden: true, dataset: {nativeDetailNote: platform}});
+      nodes.set('[data-native-for="' + platform + '"]', {value: platform === 'meta' ? metrics : ''});
+      nodes.set(
+        'defaults:' + platform,
+        template.filter(item => item.dataset.reportDefaults === platform),
+      );
+    }
+    nodes.set('sources', sources);
+    run('updateOverviewNativeNotes()');
+    return {meta: !note('meta').hidden, tiktok: !note('tiktok').hidden};
+  };
+  assert.deepEqual(state({sources: [root('meta', ['ad'])], metrics: 'inline_link_clicks'}), {
+    meta: true,
+    tiktok: false,
+  });
+  assert.deepEqual(state({sources: [root('meta', ['campaign', 'adset'])], metrics: 'inline_link_clicks'}), {
+    meta: true,
+    tiktok: false,
+  });
+  // Campaign level only: the metrics are used, so there is nothing to say.
+  assert.deepEqual(state({sources: [root('meta', ['campaign'])], metrics: 'inline_link_clicks'}), {
+    meta: false,
+    tiktok: false,
+  });
+  // No native metrics, or only blanks: nothing to clear.
+  assert.deepEqual(state({sources: [root('meta', ['ad'])], metrics: ''}), {meta: false, tiktok: false});
+  assert.deepEqual(state({sources: [root('meta', ['ad'])], metrics: '  \n '}), {meta: false, tiktok: false});
+  // An account that is not selected (its controls are hidden) and another platform's account do not count.
+  assert.deepEqual(state({sources: [root('meta', ['ad'], {hidden: true})], metrics: 'x'}), {
+    meta: false,
+    tiktok: false,
+  });
+  assert.deepEqual(state({sources: [root('tiktok', ['ad'])], metrics: 'x'}), {meta: false, tiktok: false});
+  // Any selected account at a detailed level is enough, and a template's defaults count like an account.
+  assert.deepEqual(state({sources: [root('meta', ['campaign']), root('meta', ['ad'])], metrics: 'x'}), {
+    meta: true,
+    tiktok: false,
+  });
+  assert.deepEqual(state({template: [defaults('meta', ['adset'])], metrics: 'x'}), {meta: true, tiktok: false});
+  // The note itself is the server's own sentence for this refusal, with its Arabic already in the catalog.
+  const sentence =
+      'Detailed reporting uses the preset metrics. Clear additional native metrics before selecting this level.',
+    markup = String(run('overviewNativeNote("meta")'));
+  assert.match(markup, /<p class="form-note" role="status" data-native-detail-note="meta" hidden>/);
+  assert.ok(markup.includes(sentence));
+  assert.equal(typeof JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'))[sentence], 'string');
+  assert.match(
+    fs.readFileSync('src/overview-levels.ts', 'utf8'),
+    /'Detailed reporting uses the preset metrics\. Clear additional native metrics before selecting this level\.'/,
+  );
+});
+
 // F-L8-07: every selected account has the same controls, so each group is named after its account.
 for (const language of ['en', 'ar']) {
   test(
