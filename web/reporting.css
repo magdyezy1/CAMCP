@@ -187,8 +187,12 @@ h2.report-section-label {
 .report-platform-body .check {
   display: flex;
   gap: 8px;
-  align-items: center;
+  /* A label that wraps keeps its box beside its first line (the rendered gate measures it at 320 px). */
+  align-items: flex-start;
   padding: 12px 0;
+}
+.report-platform-body .check input {
+  margin-block-start: 2px;
 }
 .report-account small {
   display: block;
