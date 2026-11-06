@@ -13,6 +13,7 @@ import {collectTikTokDailyReport, tiktokDailyRange} from '../dist/src/tiktok-rep
 import {
   tiktokDailySpans,
   tiktokStatusFilter,
+  tiktokStatusFilterRefused,
   tiktokStatusFilterRefusedWarning,
 } from '../dist/src/tiktok-report-request.js';
 
@@ -54,7 +55,12 @@ function fixture(t, {refuseFilter = false, dash = false, otherFailure = false, i
     if (otherFailure) throw new MirrorError('UPSTREAM_ERROR', 'The platform is unavailable.', {}, 503);
     if (inputFailure) throw new MirrorError('INVALID_ARGUMENT', 'Unknown filtering argument.');
     if (refuseFilter && query.filtering)
-      throw new MirrorError('UPSTREAM_ERROR', 'Invalid filtering field_name campaign_status.', {http_status: 400}, 400);
+      throw new MirrorError(
+        'UPSTREAM_ERROR',
+        typeof refuseFilter === 'string' ? refuseFilter : 'Invalid filtering field_name campaign_status.',
+        {http_status: 400},
+        400,
+      );
     const field = query.dimensions[0];
     return {
       code: 0,
@@ -272,6 +278,83 @@ test('a refused status filter retries once and remains disabled for later spans 
   await campaign.native.collect(source, {since: '2026-09-02', until: '2026-09-02'}, actor, {}, () => {}, cached);
   assert.equal(reportReads(campaign).length, 3);
   assert.ok(first.warnings.includes(tiktokStatusFilterRefusedWarning));
+});
+
+/** A provider refusal as the transport raises it: the code, its HTTP status and the provider's own message. */
+const refusal = (message, {code = 'UPSTREAM_ERROR', status = 400, where = 'message', layer} = {}) => {
+  const details = {http_status: status, ...(layer ? {layer} : {})};
+  if (where === 'upstream.message') details.upstream = {code: 40002, message};
+  if (where === 'upstream.error.message') details.upstream = {error: {message}};
+  if (where === 'upstream.error_message') details.upstream = {error_message: message};
+  return new MirrorError(code, where === 'message' ? message : 'Platform returned HTTP ' + status, details, status);
+};
+
+test('the status filter is dropped for any provider refusal that names the filter, however it words it (F-L1-12)', () => {
+  for (const [message, options] of [
+    ['Invalid filtering field_name campaign_status.'],
+    ['Invalid value: STATUS_ALL'],
+    ['filter_value is invalid'],
+    ['filter_type must be one of IN, EQ'],
+    ['Unknown filter field'],
+    ['campaign_status is not supported here'],
+    ['Invalid value: STATUS_ALL', {where: 'upstream.message'}],
+    ['filter_value is invalid', {where: 'upstream.error.message'}],
+    ['filter_type must be one of IN, EQ', {where: 'upstream.error_message'}],
+    // TikTok reports a parameter error as an unsuccessful result inside HTTP 200.
+    ['Invalid value: STATUS_ALL', {code: 'PLATFORM_ERROR', status: 200, where: 'upstream.message'}],
+  ])
+    assert.equal(tiktokStatusFilterRefused(refusal(message, options)), true, message + ' ' + JSON.stringify(options));
+});
+
+test('the status filter is kept when the failure is not a provider refusal of a parameter (F-L1-12)', () => {
+  for (const [label, error] of [
+    ['an unrelated parameter error', refusal('Unsupported metric')],
+    ['a message that only mentions a status', refusal('Request failed with status 400')],
+    ['an expired login', refusal('Token expired, filter not applied', {code: 'AUTH_EXPIRED', status: 401})],
+    ['an authorization failure', refusal('Access denied for filter', {status: 403})],
+    [
+      'a credential failure in a 200 body',
+      refusal('filter', {code: 'PLATFORM_ERROR', status: 200, layer: 'credential'}),
+    ],
+    ['a rate limit', refusal('Too many requests for filtering', {code: 'PLATFORM_RATE_LIMIT', status: 429})],
+    ['a rate limit named by layer', refusal('filtering', {status: 400, layer: 'rate_limit'})],
+    ['a server failure', refusal('filtering service unavailable', {status: 503})],
+    ['a transport failure', new MirrorError('UPSTREAM_UNAVAILABLE', 'The filter service did not answer.', {}, 502)],
+    ['an AMCP input refusal', new MirrorError('INVALID_ARGUMENT', 'Unknown filtering argument.')],
+    ['no error', undefined],
+  ])
+    assert.equal(tiktokStatusFilterRefused(error), false, label);
+});
+
+test('a refusal that names only the filter value retries once without the filter and warns', async t => {
+  for (const message of ['Invalid value: STATUS_ALL', 'filter_value is invalid']) {
+    const f = fixture(t, {refuseFilter: message}),
+      lookup = {},
+      result = await collectTikTokDailyReport(f.store, f.call, actor, preset().arguments, semantics, {
+        allowPartial: true,
+        lookup,
+      });
+    assert.equal(reportReads(f).length, 4, message);
+    assert.ok(reportReads(f)[0].query.filtering);
+    assert.ok(
+      reportReads(f)
+        .slice(1)
+        .every(read => !read.query.filtering),
+    );
+    assert.ok(result.collection.warnings.includes(tiktokStatusFilterRefusedWarning));
+    assert.equal(lookup.tiktokStatusFilter, 'refused');
+    const campaign = fixture(t, {refuseFilter: message}),
+      first = await campaign.native.collect(
+        source,
+        {since: '2026-09-01', until: '2026-09-01'},
+        actor,
+        {},
+        () => {},
+        {},
+      );
+    assert.equal(reportReads(campaign).length, 2, 'the campaign read retries once as well');
+    assert.ok(first.warnings.includes(tiktokStatusFilterRefusedWarning));
+  }
 });
 
 test('other failures are never retried as a refused filter', async t => {

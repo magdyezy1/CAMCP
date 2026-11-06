@@ -7,6 +7,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
+import {tiktokStatusFilterRefusedWarning} from '../dist/src/tiktok-report-request.js';
 
 const plan = {
   gateway: 'tiktok_native_action',
@@ -294,6 +295,34 @@ test('an empty page does not hide rows that TikTok’s own totals say exist', as
     report = await f.run();
   assert.equal(report.sources[0].complete, false);
   assert.match(report.sources[0].warnings.join(' '), /spend 0\.00 of 5\.00/);
+});
+
+test('a TikTok refusal inside HTTP 200 that names only the filter value falls back once and completes (F-L1-12)', async t => {
+  let filtered = 0,
+    plain = 0;
+  const f = fixture(t, url => {
+    if (url.searchParams.get('filtering')) {
+      filtered++;
+      return {code: 40002, message: 'Invalid value: STATUS_ALL', request_id: 'synthetic'};
+    }
+    plain++;
+    return response([row(1)], 1, 1000);
+  });
+  const report = await f.run();
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources[0].error));
+  assert.deepEqual([filtered, plain], [1, 1]);
+  assert.ok(report.sources[0].warnings.includes(tiktokStatusFilterRefusedWarning));
+});
+test('a TikTok login failure inside HTTP 200 is not retried as a refused filter', async t => {
+  let reads = 0;
+  const f = fixture(t, () => {
+    reads++;
+    return {code: 40105, message: 'Access token is invalid or expired', request_id: 'synthetic'};
+  });
+  const report = await f.run();
+  assert.equal(report.state, 'failed');
+  assert.equal(reads, 1);
+  assert.equal(report.sources[0].error.code, 'PLATFORM_ERROR');
 });
 
 test('TikTok Overview retains short collections as partial with declared and returned counts', async t => {

@@ -34,16 +34,29 @@ export function tiktokDailySpans(from: string, to: string): {from: string; to: s
 export function tiktokStatusFilter(level: 'campaign' | 'adgroup' | 'ad'): JsonObject[] {
   return [{field_name: level + '_status', filter_type: 'IN', filter_value: '["STATUS_ALL"]'}];
 }
-/** Only an actual refusal naming this optional filter permits one read without it. */
+/**
+ * Only an actual provider refusal that names this optional filter permits one read without it. TikTok does not
+ * document the `filtering` shape for reports, so its refusal may name the parameter (`filtering`, `filter_type`,
+ * `filter_value`), the sub-field (`field_name`, `campaign_status`) or the value (`STATUS_ALL`). A login, permission,
+ * throttle or server failure is never about the parameter, and retrying without the filter would hide it.
+ */
 export function tiktokStatusFilterRefused(error: unknown): boolean {
   const e = error as {code?: string; message?: unknown; details?: JsonObject};
+  const status = e?.details?.http_status;
   if (
     !['UPSTREAM_ERROR', 'PLATFORM_ERROR', 'PROVIDER_REPORT_FAILED'].includes(e?.code ?? '') &&
-    !Number.isInteger(e?.details?.http_status)
+    !Number.isInteger(status)
+  )
+    return false;
+  if (typeof status === 'number' && (status === 401 || status === 403 || status === 429 || status >= 500)) return false;
+  if (
+    ['credential', 'consent', 'role_or_asset_access', 'app_eligibility', 'rate_limit', 'api_version'].includes(
+      e?.details?.layer,
+    )
   )
     return false;
   const upstream = e?.details?.upstream;
   return [e?.message, upstream?.message, upstream?.error?.message, upstream?.error_message].some(
-    message => typeof message === 'string' && /filtering|field_name|_status/i.test(message),
+    message => typeof message === 'string' && /filter|field_name|_status|status_all/i.test(message),
   );
 }
