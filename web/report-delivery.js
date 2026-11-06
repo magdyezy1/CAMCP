@@ -131,9 +131,12 @@ async function renderReportDelivery(mode = 'delivery') {
     sequence === overviewState.deliverySequence &&
     selection === overviewState.selection &&
     (!sheetsNow || (report === overviewState.report && load === overviewState.loadSequence));
-  // A refresh invalidates old handlers immediately. Keep the old controls inactive until their replacements bind.
+  // A refresh invalidates old handlers immediately. Keep the old controls inactive until their replacements bind, except
+  // the dialog's own Close: a stalled request must not leave it dead (F-L6-11).
+  const wasOpen = dialog?.open === true;
   content?.setAttribute?.('aria-busy', 'true');
-  for (const control of content?.querySelectorAll?.('button, input, select, textarea') ?? []) control.disabled = true;
+  for (const control of content?.querySelectorAll?.('button, input, select, textarea') ?? [])
+    if (control.id !== 'report-delivery-close') control.disabled = true;
   let b;
   try {
     b = await overviewCall({action: 'bootstrap'});
@@ -142,7 +145,8 @@ async function renderReportDelivery(mode = 'delivery') {
     if (present() && sequence === overviewState.deliverySequence) dialog?.close();
     throw error;
   }
-  if (!current()) {
+  // A person who closed the dialog while it waited has closed it: a late answer does not reopen it.
+  if (!current() || (wasOpen && !dialog?.open)) {
     content?.removeAttribute?.('aria-busy');
     if (present() && sequence === overviewState.deliverySequence) dialog?.close();
     return;
