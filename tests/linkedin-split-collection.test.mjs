@@ -4,6 +4,7 @@ import {MirrorError} from '../dist/src/errors.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {reportSourceError} from '../dist/src/report-errors.js';
 import {linkedInSplitCoverageWarning} from '../dist/src/linkedin-reporting.js';
+import {linkedinMetadataLimitedWarning} from '../dist/src/linkedin-report-source.js';
 import {Store} from '../dist/src/store.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -176,6 +177,17 @@ test('incomplete campaign companion rows cannot establish a group objective from
   assert.equal(out.collection_complete, false);
   assert.ok(f.requests.some(p => p.query?.pivot === 'CAMPAIGN'));
   assert.equal(out.rows[0].objective, 'unknown');
+});
+
+test('the metadata bound that campaigns and groups share is reported once, not once per kind of entity', async t => {
+  const single = {since: range.since, until: range.since},
+    lookup = {},
+    f = fixture(t, (q, r) => analytics(q, r, 2001)),
+    out = await f.collect('campaign', single, [], lookup);
+  // Both the group and the campaign metadata are beyond the bound, and both would give the same sentence.
+  assert.equal(lookup.linkedinGroups.limited, true);
+  assert.equal(lookup.linkedinCampaigns.limited, true);
+  assert.equal(out.warnings.filter(warning => warning === linkedinMetadataLimitedWarning).length, 1);
 });
 
 test('DATE_TOO_EARLY gets plain retention guidance while preserving the exact provider diagnostic', async t => {

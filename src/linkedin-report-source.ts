@@ -4,6 +4,7 @@ import {
   linkedInCampaignGroupMetadata,
   linkedInCampaignMetadata,
   linkedInCampaignPeriod,
+  linkedInCostOmitted,
   linkedInCreativeOldestDay,
   linkedInReportDate,
   linkedInSplitRead,
@@ -80,8 +81,7 @@ const selectedMetrics = (days: number, v4: boolean, extra: string[] = []) =>
   [...new Set([...linkedinBaseMetrics(days, v4), ...extra])].filter(
     field => days <= 92 || field !== 'approximateMemberReach',
   );
-const omittedCost = (row: JsonObject) =>
-  row.costInLocalCurrency === undefined && metricNumber(row.impressions) === 0 && metricNumber(row.clicks) === 0;
+const omittedCost = linkedInCostOmitted;
 const rowReach = (row: JsonObject) =>
   !row.dateRange ||
   windowDays({since: linkedInReportDate(row.dateRange.start), until: linkedInReportDate(row.dateRange.end)}) <= 92
@@ -173,10 +173,13 @@ async function metadata(
       known.unavailable = true;
     }
   if (c.lookup) Object.assign(c.lookup, {[key]: known});
-  if (known.limited)
-    c.warnings.push(kind === 'creative' ? nativeDetailLookupLimitedWarning : linkedinMetadataLimitedWarning);
+  // Campaign and group metadata share their sentences, so a second kind of entity must not repeat the first.
+  const warn = (message: string) => {
+    if (!c.warnings.includes(message)) c.warnings.push(message);
+  };
+  if (known.limited) warn(kind === 'creative' ? nativeDetailLookupLimitedWarning : linkedinMetadataLimitedWarning);
   if (known.unavailable)
-    c.warnings.push(kind === 'campaign' ? linkedinCampaignsUnavailableWarning : linkedinMetadataUnavailableWarning);
+    warn(kind === 'campaign' ? linkedinCampaignsUnavailableWarning : linkedinMetadataUnavailableWarning);
   if (known.unavailable || known.limited) unread[kind] = known.unavailable ? 'refused' : 'limited';
   return records;
 }

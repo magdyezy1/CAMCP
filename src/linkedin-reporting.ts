@@ -93,6 +93,15 @@ const additiveFields = new Set([
   'shares',
   'sends',
 ]);
+/** A count the provider states as zero, however it spells it ("0", 0, "0.0"); a missing or unreadable count is not zero. */
+const statesZero = (value: unknown) =>
+  (typeof value === 'number' || typeof value === 'string') && /^0+(?:\.0+)?$/.test(String(value).trim());
+/**
+ * D3: LinkedIn leaves the cost out of a row that states zero impressions and zero clicks, which then counts as zero
+ * spend (marked omitted_as_zero); any other absent cost stays unknown. Every reader applies this one rule.
+ */
+export const linkedInCostOmitted = (row: JsonObject): boolean =>
+  row.costInLocalCurrency === undefined && statesZero(row.impressions) && statesZero(row.clicks);
 const decimalText = (value: bigint) => {
   const fraction = (value % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
   return (value / 1000000000n).toString() + (fraction ? '.' + fraction : '');
@@ -168,8 +177,7 @@ export async function linkedInSplitRead(
         grouped.set(key, group);
       }
       group.count++;
-      const costOmitted =
-        row.costInLocalCurrency === undefined && String(row.impressions) === '0' && String(row.clicks) === '0';
+      const costOmitted = linkedInCostOmitted(row);
       if (costOmitted) group.row.omitted_as_zero = ['spend'];
       for (const field of new Set([...Object.keys(row), ...(costOmitted ? ['costInLocalCurrency'] : [])])) {
         if (['pivotValues', 'dateRange', 'omitted_as_zero'].includes(field)) continue;

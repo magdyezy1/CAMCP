@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as linkedin from '../dist/src/linkedin-report-source.js';
+import {linkedInSplitRead} from '../dist/src/linkedin-reporting.js';
 import {normalizeNativeRow} from '../dist/src/report-native.js';
 import {reportSummary} from '../dist/src/report-summary.js';
 
@@ -102,6 +103,50 @@ test('D3 applies only to absent cost with explicit zero impressions and clicks',
       assert.deepEqual(detail.omitted_as_zero, omitted, level + ' ' + JSON.stringify(extra));
     }
   }
+});
+
+// The main and the split reader apply D3 to the same rows, so they must read a count the same way, however it is spelt.
+test('the main and the split reader agree on which rows state zero impressions and zero clicks', async () => {
+  // Spellings of a count that both readers can parse: a malformed count is refused by its own check, not by D3.
+  const counts = ['0', 0, '0.0', '0.00', '00', ' 0 ', '5', 5, '0.5', '', null, undefined, '--'],
+    window = {since: '2026-09-01', until: '2026-09-07'},
+    day = text => {
+      const [year, month, date] = text.split('-').map(Number);
+      return {year, month, day: date};
+    };
+  const inMain = extra =>
+    normalizeNativeRow('linkedin', {
+      pivotValues: ['urn:li:sponsoredCampaignGroup:20'],
+      ...extra,
+    }).omitted_as_zero?.includes('spend') === true;
+  const inSplit = async extra =>
+    (
+      await linkedInSplitRead(window, async r =>
+        r.since === window.since && r.until === window.until
+          ? Array.from({length: 15000}, (_, i) => ({pivotValues: ['urn:li:sponsoredCampaign:' + (i + 1)]}))
+          : [
+              {
+                pivotValues: ['urn:li:sponsoredCampaign:30'],
+                dateRange: {start: day(r.since), end: day(r.until)},
+                ...extra,
+              },
+            ],
+      )
+    ).rows[0].omitted_as_zero?.includes('spend') === true;
+  for (const impressions of counts)
+    for (const clicks of ['0', impressions]) {
+      const extra = {impressions, clicks};
+      assert.equal(await inSplit(extra), inMain(extra), JSON.stringify(extra));
+    }
+  // Zero stated as a decimal is still zero; a count that is missing, unreadable or not zero is not.
+  for (const [extra, omitted] of [
+    [{impressions: '0.0', clicks: '0'}, true],
+    [{impressions: 0, clicks: '0.00'}, true],
+    [{impressions: '0', clicks: '0.5'}, false],
+    [{impressions: '', clicks: '0'}, false],
+    [{impressions: '0', clicks: '--'}, false],
+  ])
+    assert.equal(inMain(extra), omitted, JSON.stringify(extra));
 });
 
 async function collection({extra = [], mismatch = false, dateMismatch = false, days = 2} = {}) {
