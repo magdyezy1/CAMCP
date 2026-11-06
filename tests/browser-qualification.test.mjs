@@ -32,11 +32,13 @@ test('run options: an output directory, a development subset, or a qualification
     output: '.runtime/x',
     qualification: false,
     kinds: null,
+    https: false,
   });
   assert.deepEqual(browserQaArguments(['--output-dir', '.runtime/x', '--kinds', 'empty,write-journey'], {}, kinds), {
     output: '.runtime/x',
     qualification: false,
     kinds: ['empty', 'write-journey'],
+    https: false,
   });
   assert.equal(
     browserQaArguments(['--qualification', '--output-dir', '.runtime/x'], {AMCP_QA_AXE_PATH: 'C:/axe.min.js'}, kinds)

@@ -323,8 +323,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // F-L3-06 (previews) adds four: the count the previews panel announces for a page, one and several, first and further.
   // F-L4-13 (mcp) adds two: the Arabic of the body-encoding refusals of server/http-app.ts, which are direct reasons, not
   // wrapper reasons.
-  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2.
-  assert.equal(Object.keys(catalog).length, 11783);
+  // Web-report adds nineteen website messages: "n of m rows", the card notes and the cross-level check (F-L8-03).
+  // Web-report adds the account settings group's name (F-L8-07).
+  // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
+  // Web-report adds the singular forms of two row-count messages (F-L8-12); none is a wrapper reason.
+  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
+  assert.equal(Object.keys(catalog).length, 11815);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

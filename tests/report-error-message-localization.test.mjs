@@ -42,7 +42,55 @@ test('the Arabic display interpolates authored dates and preserves a provider’
   assert.equal(run('uiOwnedError(error).message'), displayed);
   run('error.provider={message:"Native {from} $& <text>"};');
   assert.equal(run('uiOwnedError(error).message'), 'Native {from} $& <text>');
-  assert.equal(run('uiOwnedError(error).nextAction'), displayed);
+  // F-L8-13: AMCP's own explanation and the error's next step are both shown beneath a provider's literal message.
+  assert.equal(run('uiOwnedError(error).nextAction'), displayed + ' ' + run('uiText(error.next_action)'));
+});
+// F-L8-13: with a provider message and an AMCP localization, AMCP's explanation replaced the error's next step, so the
+// "Retry the report" guidance was never shown. Both lines are shown, the explanation first; each alone is unchanged.
+test('a provider message keeps both AMCP’s explanation and the next step beneath it, in Arabic too', () => {
+  const context = createContext({
+    document: {addEventListener() {}},
+    catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  const run = text => new Script(text).runInContext(context),
+    owned = error => {
+      context.error = error;
+      return JSON.parse(run('JSON.stringify(uiOwnedError(error))'));
+    },
+    explanation = {key: 'TikTok declared {declared} rows and returned {returned}.', values: {declared: 3, returned: 2}},
+    nextAction = 'Retry the report with the current login.';
+  for (const locale of ['en', 'ar']) {
+    run(
+      `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`,
+    );
+    const say = (text, values) => (context.say = [text, values]) && run('uiText(say[0], say[1])'),
+      both = owned({
+        message: 'x',
+        message_localization: explanation,
+        provider: {message: 'Provider said: no'},
+        next_action: nextAction,
+      });
+    assert.equal(both.message, 'Provider said: no', locale + ': the provider’s message stays literal');
+    assert.equal(
+      both.nextAction,
+      say(explanation.key, explanation.values) + ' ' + say(nextAction),
+      locale + ': the explanation and the next step, in that order',
+    );
+    // Only the explanation: nothing is appended. Only the next step (no localization): it is shown alone.
+    assert.equal(
+      owned({message: 'x', message_localization: explanation, provider: {message: 'Provider said: no'}}).nextAction,
+      say(explanation.key, explanation.values),
+    );
+    assert.equal(
+      owned({message: 'x', provider: {message: 'Provider said: no'}, next_action: nextAction}).nextAction,
+      say(nextAction),
+    );
+    // Without a provider message, the localized message is the message and the next step is its own line.
+    const own = owned({message: 'x', message_localization: explanation, next_action: nextAction});
+    assert.equal(own.message, say(explanation.key, explanation.values));
+    assert.equal(own.nextAction, say(nextAction));
+  }
 });
 
 test('authored split warnings translate from shipped Overview chunks while unknown native text stays literal', () => {

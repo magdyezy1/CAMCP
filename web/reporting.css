@@ -187,8 +187,12 @@ h2.report-section-label {
 .report-platform-body .check {
   display: flex;
   gap: 8px;
-  align-items: center;
+  /* A label that wraps keeps its box beside its first line (the rendered gate measures it at 320 px). */
+  align-items: flex-start;
   padding: 12px 0;
+}
+.report-platform-body .check input {
+  margin-block-start: 2px;
 }
 .report-account small {
   display: block;
@@ -419,6 +423,34 @@ h2.report-section-label {
   margin: 8px 0 0;
   font-size: 11px;
   color: var(--muted);
+}
+/* V2-RPT-06: "n of m rows" under a figure calculated from some of its rows. */
+.report-summary-card .report-coverage {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--type-xs);
+  font-weight: 400;
+  color: var(--text-secondary-strong);
+}
+/* V2-RPT-06: the cross-level check of each multi-level source, under the summary cards. */
+.report-level-checks {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.report-level-check {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  font-size: var(--type-sm);
+}
+.report-level-check ul {
+  margin: 8px 0 0;
+  padding-inline-start: 16px;
+}
+.report-level-check li {
+  line-height: 1.6;
 }
 /* RPT-05: native evidence rows keep their row header visible while scrolling sideways (RTL-aware). */
 #report-native-rows .evidence-rows-table td {

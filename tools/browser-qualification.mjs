@@ -2,16 +2,19 @@
 // them and tests/browser-qualification.test.mjs checks them without a browser.
 
 const usage =
-  'Use --output-dir .runtime/<fresh-directory> [--qualification] [--kinds <kind,...>]; configure ' +
-  'AMCP_QA_PLAYWRIGHT_MODULE and AMCP_QA_BROWSER_PATH (and AMCP_QA_AXE_PATH for --qualification).';
+  'Use --output-dir .runtime/<fresh-directory> [--qualification] [--kinds <kind,...>] [--https]; configure ' +
+  'AMCP_QA_PLAYWRIGHT_MODULE and AMCP_QA_BROWSER_PATH (and AMCP_QA_AXE_PATH for --qualification). --https serves ' +
+  'the fixture sites over TLS with a certificate made inside the output folder, for a machine whose security ' +
+  'software injects a script into plain-HTTP pages.';
 
 /**
  * Parses the runner's arguments. `--qualification` is the release mode: it requires the pinned axe-core engine (an
  * automated WCAG result is part of the record, never optional) and runs every fixture kind. `--kinds` selects a
  * development subset and is refused in qualification mode, so a partial run is never recorded as a qualification.
+ * `--https` changes only the transport of the loopback fixture sites (F-L8-08); it combines with either mode.
  */
 export function browserQaArguments(argv, env = {}, knownKinds = []) {
-  const options = {output: undefined, qualification: false, kinds: null};
+  const options = {output: undefined, qualification: false, kinds: null, https: false};
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index],
       value = argv[index + 1];
@@ -19,6 +22,7 @@ export function browserQaArguments(argv, env = {}, knownKinds = []) {
       options.output = value;
       index++;
     } else if (argument === '--qualification' && !options.qualification) options.qualification = true;
+    else if (argument === '--https' && !options.https) options.https = true;
     else if (argument === '--kinds' && options.kinds === null && value && !value.startsWith('--')) {
       options.kinds = [...new Set(value.split(',').map(kind => kind.trim()))];
       index++;
@@ -36,6 +40,15 @@ export function browserQaArguments(argv, env = {}, knownKinds = []) {
     if (!options.kinds.length || unknown.length) throw Error('Unknown browser fixture kind: ' + unknown.join(', '));
   }
   return options;
+}
+
+/**
+ * The Playwright context options of one case. Certificate errors are ignored only in `--https` mode, where the fixture
+ * site's own throwaway certificate is untrusted by design; a plain-HTTP run never carries the option, and a request to
+ * any other origin still fails the run (the runner blocks and records it before the certificate matters).
+ */
+export function browserContextOptions(options, https = false) {
+  return https ? {...options, ignoreHTTPSErrors: true} : {...options};
 }
 
 /**

@@ -80,6 +80,11 @@ const pretty = value =>
     .replace(/\b\w/g, x => x.toUpperCase());
 function renderSourceDiagnostic(error) {
   const p = error.provider ?? {},
+    // An HTTP badge names a status the provider answered with: a 4xx or 5xx, never a 200 that carried an error body.
+    status =
+      Number.isInteger(error.http_status) && error.http_status >= 400 && error.http_status < 600
+        ? error.http_status
+        : null,
     owned = uiOwnedError(error),
     phase =
       {
@@ -89,7 +94,7 @@ function renderSourceDiagnostic(error) {
         campaign_report: uiText('Campaign report'),
         campaign_lookup: uiText('Campaign lookup'),
       }[error.request?.stage] ?? uiText('Provider request');
-  return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(owned.message)}</p>${owned.nextAction ? `<p class="source-next-action">${esc(owned.nextAction)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
+  return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${status ? ` · HTTP ${esc(status)}` : ''}</strong><p>${esc(owned.message)}</p>${owned.nextAction ? `<p class="source-next-action">${esc(owned.nextAction)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
 }
 // AMCP's own capability vocabulary from src/capabilities.ts, listed so its Arabic is required. The server's text is what
 // is shown; tests/status-labels.test.mjs fails when the two drift apart.

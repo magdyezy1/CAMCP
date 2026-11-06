@@ -139,9 +139,37 @@ function overviewGranularityConfig(platform, account, previous) {
       result[key] = (query('[data-report-scope="' + key + '"]')?.value ?? '').split(/[\s,]+/).filter(Boolean);
   return result;
 }
+/** Each selected account has the same controls, so its group is named after it (and told from a namesake by its ID). */
 function overviewAccountFields(platform, source, account, selected, metadata = {}) {
-  return html`<fieldset data-report-source="${account}" ${selected ? '' : 'hidden disabled'}><legend>${uiText('Account report settings')}</legend>${overviewGranularityFields(platform, source, true)}${reportParentChoices(metadata)}</fieldset>`;
+  const name = metadata.label ?? metadata.account_id ?? '',
+    id = metadata.account_id !== undefined && String(metadata.account_id) !== String(name) ? metadata.account_id : null;
+  return html`<fieldset data-report-source="${account}" ${selected ? '' : 'hidden disabled'}><legend>${name === '' ? uiText('Account report settings') : html`${uiText('Report settings for')} <bdi dir="auto" data-native>${name}</bdi>${id === null ? '' : html` (<bdi dir="ltr">${id}</bdi>)`}`}</legend>${overviewGranularityFields(platform, source, true)}${reportParentChoices(metadata)}</fieldset>`;
 }
+/** A detailed level reads its preset metrics, so a platform's additional native metrics do nothing there (F-L8-14). */
+function overviewNativeNote(platform) {
+  return html`<p class="form-note" role="status" data-native-detail-note="${platform}" hidden>${uiText('Detailed reporting uses the preset metrics. Clear additional native metrics before selecting this level.')}</p>`;
+}
+/** Shows each platform's note while a selected account (or the template) is at a detailed level and native metrics are set. */
+function updateOverviewNativeNotes() {
+  for (const note of document.querySelectorAll('[data-native-detail-note]')) {
+    const platform = note.dataset.nativeDetailNote,
+      roots = [
+        ...[...document.querySelectorAll('[data-report-source]')].filter(
+          root => !root.hidden && JSON.parse(root.dataset.reportSource)[0] === platform,
+        ),
+        ...document.querySelectorAll('[data-report-defaults="' + CSS.escape(platform) + '"]'),
+      ];
+    note.hidden = !(
+      $('[data-native-for="' + CSS.escape(platform) + '"]')?.value.trim() &&
+      roots.some(root =>
+        overviewSelectedLevels(platform, selector => root.querySelector(selector)).some(level => level !== 'campaign'),
+      )
+    );
+  }
+}
+document.addEventListener('input', event => {
+  if (event.target.matches?.('[data-native-for]')) updateOverviewNativeNotes();
+});
 function updateOverviewGranularity() {
   const selected = new Set(
     [...document.querySelectorAll('[data-report-account]:checked')].map(control => control.value),
@@ -171,4 +199,5 @@ function updateOverviewGranularity() {
       !caps?.option_names?.includes('result_action_type');
     fieldset.disabled = fieldset.hidden;
   });
+  updateOverviewNativeNotes();
 }

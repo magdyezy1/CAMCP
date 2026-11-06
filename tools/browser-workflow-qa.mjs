@@ -42,7 +42,13 @@ import {
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart, focusObscured} from './browser-wcag.mjs';
 import {agentTokenProbe} from './browser-agent-tokens.mjs';
 import {inputMapDigest, moduleClosure, releaseIdentityBinding} from './qualification-inputs.mjs';
-import {browserQaArguments, runFixtureLanes, summarizeBrowserEvidence} from './browser-qualification.mjs';
+import {
+  browserContextOptions,
+  browserQaArguments,
+  runFixtureLanes,
+  summarizeBrowserEvidence,
+} from './browser-qualification.mjs';
+import {loopbackCertificate, loopbackHttpsListener} from './browser-qa-tls.mjs';
 import {arabicLeakProbe, leakRatchet, readLeakAllowlist, readLeakBaseline} from './browser-arabic-leaks.mjs';
 import {
   exerciseWriteJourney,
@@ -179,9 +185,18 @@ const realOutputParent = fs.realpathSync(path.dirname(output));
 if (realOutputParent !== runtime && !realOutputParent.startsWith(runtime + path.sep))
   throw Error('Browser QA output escaped the ignored runtime.');
 fs.mkdirSync(output);
+// F-L8-08 (--https): the fixture sites are served over TLS with a certificate made now inside this run's folder. Its key
+// is held in memory only; the file is removed as soon as it is read, and the certificate stays as evidence.
+const tls = options.https ? loopbackCertificate(path.join(output, 'tls')) : undefined;
+if (tls?.source === 'openssl') fs.rmSync(tls.keyFile, {force: true});
 const require = createRequire(import.meta.url),
   {chromium} = require(configuredModule),
   browser = await chromium.launch({executablePath, headless: true, args: ['--no-proxy-server']}),
+  // Certificate errors are ignored in --https mode only, for that one certificate; other origins stay blocked.
+  newContext = contextOptions => browser.newContext(browserContextOptions(contextOptions, !!tls)),
+  egressMessage =
+    'Website attempted external egress' +
+    (tls ? '' : ' (a script injected into plain HTTP by security software counts: run again with --https)'),
   sha = bytes => createHash('sha256').update(bytes).digest('hex'),
   files = [
     ...new Set(
@@ -197,6 +212,16 @@ const require = createRequire(import.meta.url),
     // development run and says so.
     qualification_mode: options.qualification,
     selected_kinds: options.kinds ?? 'all',
+    // F-L8-08: how the fixture sites were served. A TLS run names its throwaway certificate (never its key).
+    transport: tls
+      ? {
+          protocol: 'https',
+          certificate: 'self-signed loopback certificate, valid one day, trusted by nothing',
+          certificate_source: tls.source,
+          certificate_sha256: tls.sha256,
+          certificate_errors_ignored: 'this run only, for this certificate; other origins remain blocked',
+        }
+      : {protocol: 'http'},
     arabic_leak_probe: {
       allowlist_sha256: leakAllowlist.sha256,
       baseline_sha256: leakBaseline.sha256,
@@ -511,7 +536,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       '/',
       '-',
     ),
-    context = await browser.newContext({
+    context = await newContext({
       viewport: {width, height: 900},
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
@@ -2427,7 +2452,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.deepEqual(result.checkbox_labels, [], 'A checkbox stands apart from its words');
     assert.deepEqual(result.errors, [], 'Browser script failed');
     assert.deepEqual(result.failed_responses, [], 'Owned website returned an error response');
-    assert.deepEqual(result.blocked_external_requests, [], 'Website attempted external egress');
+    assert.deepEqual(result.blocked_external_requests, [], egressMessage);
     assert.equal(site.counts().refused, 0, 'Website attempted unqualified provider egress');
     assert.equal(site.counts().writes, 0, 'Website attempted a provider mutation');
     result.native_reads = site.counts().nativeReads - before.nativeReads;
@@ -2477,7 +2502,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
 // lazy route must offer a reload (not "Try again"), and the reload must succeed.
 async function versionSkewCase(site, locale, width) {
   const id = `version-skew-reports-${locale}-${width}`,
-    context = await browser.newContext({
+    context = await newContext({
       viewport: {width, height: 900},
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
@@ -2530,7 +2555,7 @@ async function versionSkewCase(site, locale, width) {
     assert.equal(await page.locator('.page-error').count(), 0, 'The reloaded page opens');
     assert.equal(new URL(page.url()).pathname, '/reports');
     assert.deepEqual(result.errors, []);
-    assert.deepEqual(result.blocked_external_requests, []);
+    assert.deepEqual(result.blocked_external_requests, [], egressMessage);
     result.passed = true;
   } catch (error) {
     result.passed = false;
@@ -2549,7 +2574,7 @@ async function versionSkewCase(site, locale, width) {
 // reader sees carry Arabic words rather than raw English enum values.
 async function shellChromeCase(site, route, locale, width) {
   const id = `shell-chrome-${route.slice(1)}-${locale}-${width}`,
-    context = await browser.newContext({
+    context = await newContext({
       viewport: {width, height: 900},
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
@@ -2631,7 +2656,7 @@ async function shellChromeCase(site, route, locale, width) {
       leakCheck(result, leakRoute('empty', route), await arabicLeakProbe(page, leakAllowlist));
     }
     assert.deepEqual(result.errors, []);
-    assert.deepEqual(result.blocked_external_requests, []);
+    assert.deepEqual(result.blocked_external_requests, [], egressMessage);
     result.passed = true;
   } catch (error) {
     result.passed = false;
@@ -2649,7 +2674,10 @@ async function shellChromeCase(site, route, locale, width) {
 const selectedKinds = options.kinds ? fixtureKinds.filter(kind => options.kinds.includes(kind)) : fixtureKinds;
 
 async function openFixture(kind) {
-  const site = await browserWorkflowSite(kind);
+  const site = await browserWorkflowSite(
+    kind,
+    tls ? {listen: loopbackHttpsListener(tls), protocol: 'https'} : undefined,
+  );
   assert.equal(typeof site.tenantId, 'string', 'Each isolated fixture exposes its actual tenant identity');
   return site;
 }

@@ -181,7 +181,12 @@ async function openOverviewHistory(id) {
   await loadOverviewReport(id);
   const r = overviewState.report;
   if (!r || r.id !== id) return;
-  overviewState.config = {...overviewDefault(), ...structuredClone(r.config)};
+  // The snapshot's own contract, as selectOverviewDefinition keeps a saved report's: an old snapshot is not given v4 defaults.
+  overviewState.config = {
+    ...overviewDefault(),
+    ...structuredClone(r.config),
+    contract_version: r.config.contract_version,
+  };
   overviewState.destinationId = r.destination_id ?? null;
   await renderReportingOverview();
   $('#overview-results')?.scrollIntoView({block: 'start'});
