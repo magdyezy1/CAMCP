@@ -9,6 +9,17 @@ import type {JsonObject} from './types.js';
  * by the account's own creative list before any preview is read (an ad's creative_id grants nothing), and the hosted
  * browser link built from the signed preview read's creative ID, expiry and signature.
  */
+/**
+ * A link's expiry parameter as milliseconds since the epoch: Snapchat's documentation names the parameter, not its format
+ * (docs/AD-PREVIEWS.md), so epoch seconds (below 1e11, before the year 5138) and milliseconds (below 1e14) are read, and
+ * any other text, finer units included, is not an expiry. NaN for a value that is none.
+ */
+const linkExpiryMs = (value: string | null) => {
+  if (!value || !/^[0-9]{1,14}$/.test(value)) return NaN;
+  const n = Number(value);
+  return n < 1e11 ? n * 1000 : n < 1e14 ? n : NaN;
+};
+
 async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
   const {account, wanted, statuses, campaigns, adsets, base, read, matches, pageSelection, notListed} = request;
   const invalid = (): never =>
@@ -183,8 +194,10 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
           ...base,
           creative_id: row.id,
         }),
-        expiry = typeof response?.expires_at === 'string' ? Date.parse(response.expires_at) : NaN,
+        // The provider's own JSON field: shown when no link is returned; the link's expiry is the one its signature covers.
+        jsonExpiry = typeof response?.expires_at === 'string' ? Date.parse(response.expires_at) : NaN,
         links: string[] = [];
+      let linkMs = NaN;
       // Snap's signed endpoint returns JSON. Its documented browser page takes only these three values.
       try {
         if (typeof response?.creative_preview_link !== 'string' || response.creative_preview_link.length > 8192)
@@ -193,6 +206,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
           params = native.searchParams,
           signature = params.get('signature'),
           timestamp = params.get('expires_at');
+        linkMs = linkExpiryMs(timestamp);
         if (
           native.origin !== 'https://adsapi.snapchat.com' ||
           native.username ||
@@ -205,11 +219,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
           !signature ||
           !/^[A-Za-z0-9._~+/=-]{1,4096}$/.test(signature) ||
           !timestamp ||
-          !/^[0-9]{1,16}$/.test(timestamp) ||
-          !Number.isSafeInteger(Number(timestamp)) ||
-          !Number.isFinite(expiry) ||
-          expiry <= Date.now() ||
-          Number(timestamp) !== expiry
+          !(linkMs > Date.now())
         )
           throw Error();
         const hosted = new URL('https://ad-preview.snapchat.com/');
@@ -222,7 +232,11 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
       }
       return {
         links,
-        expires_at: Number.isFinite(expiry) ? response.expires_at : null,
+        expires_at: links.length
+          ? new Date(linkMs).toISOString()
+          : Number.isFinite(jsonExpiry)
+            ? response.expires_at
+            : null,
         expires: 'Snapchat keeps this preview link for 90 days.',
         ...(!links.length ? {note: 'Snapchat returned an expired or invalid preview link.'} : {}),
       };
