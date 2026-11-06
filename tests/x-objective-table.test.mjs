@@ -165,3 +165,23 @@ test('the full report shows a campaign whose line items differ as the mixed grou
   assert.equal(row.result.value, null, 'the results of different objectives are not combined');
   assert.ok(report.sources[0].warnings.includes(xObjectivesMixedWarning));
 });
+
+test('through the shared granular fixture an X promoted tweet, which X documents no name for, is labelled by its promotion ID', async t => {
+  const f = overviewGranularityFixture();
+  t.after(() => f.close());
+  const source = {...granularSource('x', 'ad'), levels: ['ad'], delivered_only: false},
+    queued = await f.overview.handle(
+      {
+        action: 'run',
+        config: {...granularConfig(source), contract_version: 'overview-config-v4'},
+        confirmed: true,
+      },
+      f.actor,
+    );
+  assert.equal(await f.worker.once(), true);
+  const report = await f.overview.handle({action: 'get', id: queued.id}, f.actor);
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources));
+  assert.equal(report.rows.length, 1);
+  assert.equal(report.rows[0].entity_id, 'p1');
+  assert.equal(report.rows[0].entity_name, 'Promoted tweet p1');
+});

@@ -360,11 +360,11 @@ export function overviewGranularityFixture() {
           },
         ],
         promoted = [
+          // X documents no name for a promoted tweet (docs.x.com/x-ads-api/campaign-management, promoted_tweets).
           {
             id: 'p1',
             line_item_id: 'l1',
             tweet_id: '9007199254740993',
-            name: 'Synthetic X promotion',
             entity_status: 'ACTIVE',
           },
         ],
