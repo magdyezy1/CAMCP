@@ -183,6 +183,42 @@ test('an MCP SDK client can call every listed own-help endpoint in all policy mo
   }
 });
 
+// The Claude API refuses a root-level anyOf, oneOf, allOf or not in a tool's input schema, and a client that forwards
+// the listed schema unchanged then fails every request that carries the tool list, not only calls to that tool
+// (F-L3-01). The rules a combinator used to state ("help, or platform and account"; "help, or gateway and arguments")
+// are the handlers' to enforce, and are pinned below by their refusals.
+const rootCombinators = ['anyOf', 'oneOf', 'allOf', 'not'];
+const rootCombinatorsOf = tool => rootCombinators.filter(keyword => Object.hasOwn(tool.inputSchema, keyword));
+test('no listed tool input schema has a root-level combinator, in any policy mode or description mode', async t => {
+  for (const policy of policies)
+    for (const compactDescriptions of [true, false]) {
+      const f = fixture(t, policy, {compactDescriptions}),
+        label = JSON.stringify({policy, compactDescriptions});
+      const listed = f.service.listTools();
+      assert.ok(listed.length >= 25, label + ' lists the whole surface');
+      for (const tool of listed) assert.deepEqual(rootCombinatorsOf(tool), [], label + ' service listing ' + tool.name);
+      // What a client receives over the wire is the same schema, and it is what a client forwards to the API.
+      const server = createMcpServer(f.service, f.actor),
+        client = new Client({name: 'synthetic-root-combinators', version: '1'}),
+        [a, b] = InMemoryTransport.createLinkedPair();
+      await Promise.all([server.connect(b), client.connect(a)]);
+      try {
+        const wire = (await client.listTools()).tools;
+        assert.deepEqual(
+          wire.map(tool => tool.name),
+          listed.map(tool => tool.name),
+        );
+        for (const tool of wire) {
+          assert.equal(tool.inputSchema.type, 'object', label + ' wire ' + tool.name);
+          assert.deepEqual(rootCombinatorsOf(tool), [], label + ' wire listing ' + tool.name);
+        }
+      } finally {
+        await client.close();
+        await server.close();
+      }
+    }
+});
+
 test('preview default calls stay distinct from help and read-only inspect keeps its required arguments', async t => {
   const f = fixture(t, policies[1], {actionArguments: 'enforce'}),
     preview = f.service.firstPartyTools().find(tool => tool.name === 'amcp_ad_previews'),
@@ -193,11 +229,18 @@ test('preview default calls stay distinct from help and read-only inspect keeps 
   assert.deepEqual(toolActions(preview), [null, 'help']);
   assert.equal(validatePreview({action: 'help', topic: 'help'}), true);
   assert.equal(validatePreview({platform: 'meta', account_id: 'synthetic-account'}), true);
-  assert.equal(validatePreview({}), false);
-  assert.ok(validatePreview.errors.some(e => e.keyword === 'required'));
   assert.equal(validateWrite({action: 'help'}), true);
-  assert.equal(validateWrite({action: 'inspect'}), false);
-  assert.ok(validateWrite.errors.some(e => e.keyword === 'required'));
+  // The listed schemas no longer state which arguments a default call needs (no root combinator); the handlers refuse a
+  // call that lacks them, before any provider read, with the same code the schema's required list used to imply.
+  assert.deepEqual(preview.inputSchema.required, []);
+  assert.deepEqual(write.inputSchema.required, ['action']);
+  assertRefused(await f.call(preview.name, {}), 'INVALID_ARGUMENT', {message: /advertising account/});
+  assertRefused(await f.call(preview.name, {platform: 'meta'}), 'INVALID_ARGUMENT', {message: /advertising account/});
+  assertRefused(await f.call(preview.name, {account_id: 'synthetic-account'}), 'INVALID_ARGUMENT', {
+    message: /platform/,
+  });
+  assertRefused(await f.call(write.name, {action: 'inspect'}), 'INVALID_ARGUMENT');
+  assertRefused(await f.call(write.name, {action: 'inspect', gateway: 'meta_native_action'}), 'INVALID_ARGUMENT');
   const root = await f.call(preview.name, {action: 'help'});
   assert.equal(root.success, true, JSON.stringify(root.error));
   assert.deepEqual(root.data.contract.arguments_schema.required, ['platform', 'account_id']);
