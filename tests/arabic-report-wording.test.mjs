@@ -1,12 +1,12 @@
 // F-L8-12: editorial points of the Arabic the report builder shows, found by the round 2 audit. They are catalog
 // choices, so each is pinned where a regression would be silent: one word for "parents", no first-person voice in a
 // label the user reads about their own choice, no count template that is wrong for 3 to 10 (a number before an
-// accusative singular noun), one grammatical gender across the status choices, and singular count messages.
+// accusative singular noun), and singular count messages. (The audit's fifth point, the status choices' gender, is not
+// pinned: "Archived" is shared with the Campaigns list, where the feminine "مؤرشفة" agrees with "plan".)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Script, createContext} from 'node:vm';
-import {reportSource} from '../dist/src/report-sources.js';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const english = {
@@ -60,15 +60,6 @@ test('the row-count messages of a report put no number before an accusative sing
     assert.ok(shown.includes(declared) && shown.includes(returned), shown);
     assert.doesNotMatch(shown, /صفًا/, shown);
   }
-});
-
-test('the status choices of the report editor share one grammatical gender', () => {
-  const choices = ['Active', 'Paused', 'Archived', 'All'].map(key => catalog[key]);
-  assert.deepEqual(choices, ['نشط', 'متوقف مؤقتًا', 'مؤرشف', 'الكل']);
-  for (const choice of choices.slice(0, 3)) assert.doesNotMatch(choice, /ة$/, choice + ' is not feminine');
-  // They are the words the editor's status list shows.
-  const meta = reportSource('meta').overview;
-  assert.ok(meta.supported_statuses.includes('archived') && meta.supported_statuses.includes('active'));
 });
 
 // An empty result says how many rows matched; one row is "1 row", not "1 rows", and the Arabic has both forms.

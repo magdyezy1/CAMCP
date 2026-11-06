@@ -1636,7 +1636,7 @@
   "Archived plans": "الخطط المؤرشفة",
   "Filter": "تصفية",
   "{count} plans": "عدد الخطط: {count}",
-  "Archived": "مؤرشف",
+  "Archived": "مؤرشفة",
   "This plan is archived. It does not count toward the plan limit; unarchive it to work on it again.": "هذه الخطة مؤرشفة. لا تُحتسب ضمن حد الخطط؛ ألغِ أرشفتها لمتابعة العمل عليها.",
   "Shared with {count} colleagues.": "مشتركة مع زملاء عددهم {count}.",
   "Plan shared.": "تمت مشاركة الخطة.",

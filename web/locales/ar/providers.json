@@ -460,7 +460,7 @@
   "Apply recommendations of one type per review.": "طبّق توصيات نوع واحد في كل مراجعة.",
   "Applying a label to a customer is outside the reviewed contract: Google's v25 reference marks both CustomerLabel fields output only and gives a create no resource name. Only removal is reviewed.": "إسناد تسمية إلى عميل خارج العقد الذي تمت مراجعته: يصنف مرجع Google v25 حقلي CustomerLabel كحقول مخرجات فقط، ولا يعطي عملية الإنشاء اسم مورد. تمت مراجعة الإزالة فقط.",
   "Applying an audience needs usage_mode Include or Exclude.": "يحتاج ربط الجمهور إلى usage_mode بقيمة Include أو Exclude.",
-  "Archived": "مؤرشف",
+  "Archived": "مؤرشفة",
   "Arm names are unique within an experiment.": "تكون أسماء الأذرع فريدة ضمن التجربة.",
   "Array payloads cannot be merged with body parameters. Use query for explicit URL parameters.": "لا يمكن دمج payload كمصفوفة مع معاملات body. استخدم query لمعاملات الرابط الصريحة.",
   "Ask a workspace administrator to add this spreadsheet URL, or choose an already selected spreadsheet.": "اطلب من مسؤول مساحة العمل إضافة رابط جدول البيانات هذا، أو اختر جدول بيانات محدداً بالفعل.",
