@@ -8,14 +8,16 @@ import {reportPlatforms} from '../../dist/src/report-metrics.js';
 
 // Exercise the real definitions, worker and row assembly with supplied, already-collected native rows.
 // No provider transport is used. Collector request shapes are tested separately.
-export function objectiveReportFixture(t, {platform = 'meta', rows = []} = {}) {
+// `rowsFor(source)` supplies the rows of one collected source (account and level) instead of `rows`, and `accounts`
+// are the accounts the one login may read.
+export function objectiveReportFixture(t, {platform = 'meta', rows = [], rowsFor, accounts = ['100']} = {}) {
   const actor = {tenantId: 'synthetic-objective-report', userId: 'owner', role: 'admin'};
   const store = new Store(':memory:', Buffer.alloc(32, 121).toString('base64'));
   t.after(() => store.close());
   const gateway = reportPlatforms[platform].gateway;
   store.putConnection(
     actor,
-    {id: 'login', tenantId: actor.tenantId, gateway, accounts: ['100'], enabled: true, scopes: [], label: 'Synthetic'},
+    {id: 'login', tenantId: actor.tenantId, gateway, accounts, enabled: true, scopes: [], label: 'Synthetic'},
     {accessToken: 'synthetic'},
   );
   const fetcher = async () => {
@@ -25,7 +27,7 @@ export function objectiveReportFixture(t, {platform = 'meta', rows = []} = {}) {
   const overview = new ReportingOverview(service, fetcher);
   overview.native.collect = async (source, dates) => ({
     source,
-    rows: structuredClone(rows),
+    rows: structuredClone(rowsFor ? rowsFor(source) : rows),
     currency: 'USD',
     timezone: 'UTC',
     complete: true,

@@ -114,7 +114,13 @@ export async function collectDetailedOverview(
     rows: detailedOverviewRows(
       source,
       captured,
-      parents.parents,
+      // An entity whose parents were not read carries why, so its missing objective is not blamed on the platform.
+      {
+        ...Object.fromEntries(
+          Object.entries(parents.unread ?? {}).map(([id, cause]) => [id, {objective_unread: cause}]),
+        ),
+        ...parents.parents,
+      },
       objectives,
       resultReader,
       statusReader,

@@ -25,6 +25,22 @@ export const objectiveFallbackGroups: readonly string[] = Object.freeze(
 );
 /** A group row may be mixed; a definition can never choose, filter or target it. */
 export const mixedObjectiveGroup = 'mixed';
+/**
+ * Why a campaign's objective was not read: the platform refused the optional read, or the report has more entities than
+ * AMCP reads campaign details for. A row read without an objective is not unread: the platform answered with none.
+ */
+export type ObjectiveUnread = 'refused' | 'limited';
+/** The reason without a fallback, and with the user's fallback covering the unread value. */
+const unreadReasons: Readonly<Record<ObjectiveUnread, readonly [string, string]>> = Object.freeze({
+  refused: [
+    'AMCP could not read this campaign’s objective because the platform refused the read; choose one in the report.',
+    'AMCP could not read this campaign’s objective because the platform refused the read, so your fallback is used.',
+  ],
+  limited: [
+    'AMCP could not read this campaign’s objective because this report has more entities than AMCP reads campaign details for; choose one in the report.',
+    'AMCP could not read this campaign’s objective because this report has more entities than AMCP reads campaign details for, so your fallback is used.',
+  ],
+});
 
 export function resolveObjective(input: {
   platform: string;
@@ -35,6 +51,8 @@ export function resolveObjective(input: {
   overrides?: Record<string, string>;
   legacy?: string;
   fallback?: string;
+  /** Set by the collector that could not read the campaign's objective, so a missing value is not blamed on the platform. */
+  unread?: ObjectiveUnread;
 }): ResolvedObjective {
   const native =
     typeof input.native === 'string' && input.native.trim() && input.native !== 'unknown' ? input.native : null;
@@ -69,7 +87,10 @@ export function resolveObjective(input: {
   }
   const mapped = table?.mapped?.(input.mappedInputs ?? {});
   if (mapped && choice(mapped.group)) return resolved(mapped.group, 'provider_mapped', mapped.reason);
-  if (choice(input.fallback)) return resolved(input.fallback, 'user_fallback', null);
+  const unread =
+    native === null && input.unread && Object.hasOwn(unreadReasons, input.unread) ? input.unread : undefined;
+  if (choice(input.fallback))
+    return resolved(input.fallback, 'user_fallback', unread ? unreadReasons[unread][1] : null);
   let reason = table?.missingReason ?? 'This source has no campaign objective.';
   if (table && native)
     reason = (
@@ -79,6 +100,7 @@ export function resolveObjective(input: {
     )
       .replace('{platform}', () => table.name)
       .replace('{native}', () => native);
+  else if (unread) reason = unreadReasons[unread][0];
   return resolved('unknown', 'unknown', reason);
 }
 

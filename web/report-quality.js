@@ -378,6 +378,9 @@ function reportObjectiveResults(row) {
   return html`${(row.results_by_objective ?? []).map(
     result =>
       html`<p><bdi data-native>${reportResultObjective(result)}</bdi> · ${uiText(result.result_definition)}: ${result.value === null ? '—' : uiNumber(result.value)}</p>`,
+  )}${(row.other_results ?? []).map(
+    result =>
+      html`<p>${uiText('Other results, from campaigns with no activity in this window')}: <bdi data-native>${reportResultObjective(result)}</bdi> · ${uiText(result.result_definition)}: ${uiNumber(result.value)}</p>`,
   )}`;
 }
 function reportQualityDetails(source, report) {

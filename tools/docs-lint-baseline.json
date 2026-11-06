@@ -178,10 +178,16 @@
       "raised": [
         "reference_words 149053 → 149056"
       ]
+    },
+    {
+      "reason": "objectives package (V2-RPT-02/V2-RPT-04, L2 audit F-L2-02, F-L2-03, F-L2-07), merged onto stored and tiktok: docs/REPORTING-OVERVIEW.md states that a LinkedIn group's results come from its delivering campaigns with the others listed as other_results, that an unread objective is explained as unread, and that an empty part of a split window leaves the source partial (53 recorded words, plus the 3 words of headroom that the stored and tiktok packages had already used, so 56 words on the merged pages)",
+      "raised": [
+        "reference_words 149056 → 149112"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 149056
+    "reference_words": 149112
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

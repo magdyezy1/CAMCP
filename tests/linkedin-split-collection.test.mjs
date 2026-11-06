@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import {MirrorError} from '../dist/src/errors.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {reportSourceError} from '../dist/src/report-errors.js';
+import {linkedInSplitCoverageWarning} from '../dist/src/linkedin-reporting.js';
+import {linkedinMetadataLimitedWarning} from '../dist/src/linkedin-report-source.js';
 import {Store} from '../dist/src/store.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const range = {since: '2026-09-01', until: '2026-09-07'};
 const date = text => {
@@ -176,6 +179,17 @@ test('incomplete campaign companion rows cannot establish a group objective from
   assert.equal(out.rows[0].objective, 'unknown');
 });
 
+test('the metadata bound that campaigns and groups share is reported once, not once per kind of entity', async t => {
+  const single = {since: range.since, until: range.since},
+    lookup = {},
+    f = fixture(t, (q, r) => analytics(q, r, 2001)),
+    out = await f.collect('campaign', single, [], lookup);
+  // Both the group and the campaign metadata are beyond the bound, and both would give the same sentence.
+  assert.equal(lookup.linkedinGroups.limited, true);
+  assert.equal(lookup.linkedinCampaigns.limited, true);
+  assert.equal(out.warnings.filter(warning => warning === linkedinMetadataLimitedWarning).length, 1);
+});
+
 test('DATE_TOO_EARLY gets plain retention guidance while preserving the exact provider diagnostic', async t => {
   const details = {
     http_status: 400,
@@ -256,12 +270,60 @@ for (const extra of [
     },
   );
 
-test('an empty split period stays ambiguous instead of contributing invented zeros', async t => {
-  const f = fixture(t, (q, r) =>
-    r.since === range.since && r.until === range.until ? analytics(q, r, 15000) : {elements: []},
+// A window that reached the response cap already proved access, so a part of it that comes back empty only had no
+// activity. It never contributes a zero: an entity missing from a part has unknown totals, and the source is partial.
+const whole = r => r.since === range.since && r.until === range.until;
+for (const [name, emptyHalf] of [
+  ['first', r => r.since === range.since],
+  ['second', r => r.until === range.until],
+])
+  test(
+    'an empty ' + name + ' half of a split window leaves a partial source with unknown totals, not a failure',
+    async t => {
+      const f = fixture(t, (q, r) =>
+          whole(r) ? analytics(q, r, 15000) : emptyHalf(r) ? {elements: []} : analytics(q, r, 3),
+        ),
+        out = await f.collect();
+      assert.equal(out.rows.length, 3);
+      for (const row of out.rows) {
+        assert.equal(row.metrics.spend, null, 'a missing half is unknown, not zero');
+        assert.equal(row.metrics.impressions, null);
+      }
+      assert.equal(out.complete, false);
+      assert.equal(out.collection_complete, false);
+      assert.ok(out.warnings.includes(linkedInSplitCoverageWarning));
+    },
   );
-  await assert.rejects(() => f.collect(), {
-    code: 'REPORT_EMPTY_AMBIGUOUS',
-    message: 'LinkedIn returned no rows for 2026-09-01–2026-09-03. Check that the account delivered in those dates.',
-  });
+
+test('an empty quarter inside a deeper split is handled like an empty half', async t => {
+  const f = fixture(t, (q, r) =>
+      whole(r) || (r.since === range.since && r.until === '2026-09-03')
+        ? analytics(q, r, 15000)
+        : r.since === range.since
+          ? {elements: []}
+          : analytics(q, r, 2),
+    ),
+    out = await f.collect();
+  assert.equal(out.rows.length, 2);
+  assert.equal(out.complete, false);
+  assert.ok(out.warnings.includes(linkedInSplitCoverageWarning));
+});
+
+test('a capped window whose every part comes back empty is refused, never reported as an empty report', async t => {
+  const f = fixture(t, (q, r) => (whole(r) ? analytics(q, r, 15000) : {elements: []}));
+  await assert.rejects(
+    () => f.collect(),
+    error => assertRefused(error, 'REPORT_INCOMPLETE'),
+  );
+});
+
+test('the unsplit read of an empty window stays ambiguous and names its dates', async t => {
+  const f = fixture(t, () => ({elements: []}));
+  await assert.rejects(
+    () => f.collect(),
+    error =>
+      assertRefused(error, 'REPORT_EMPTY_AMBIGUOUS', {
+        message: /^LinkedIn returned no rows for 2026-09-01–2026-09-07\. Check that the account delivered/,
+      }),
+  );
 });

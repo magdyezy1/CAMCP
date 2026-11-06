@@ -5,6 +5,7 @@ import {accessRefusalCodes, detailParentsUnavailableWarning, optionalReadRefused
 import {reportSource} from './report-sources.js';
 import {reportPlatforms} from './report-metrics.js';
 import {storedLogin} from './connection-authority.js';
+import type {ObjectiveUnread} from './report-objectives.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
@@ -71,7 +72,13 @@ export async function detailParents(
   ids: string[],
   actor: Actor,
   cache: DetailParentCache = {parents: {}, lineage: []},
-): Promise<{parents: Record<string, JsonObject>; lineage: JsonObject[]; warnings: string[]}> {
+): Promise<{
+  parents: Record<string, JsonObject>;
+  /** Requested entities that were not read, and why; they have no entry in `parents`. Absent when all were read. */
+  unread?: Record<string, ObjectiveUnread>;
+  lineage: JsonObject[];
+  warnings: string[];
+}> {
   const kind = detailParentKind(String(source.platform), level, !!source.campaign_id, source.reporting_contract);
   if (!kind) return {parents: {}, lineage: [], warnings: []};
   const reports = reportSource(String(source.platform))!,
@@ -178,8 +185,13 @@ export async function detailParents(
       cache.unavailable = true;
     }
   }
+  // An entity absent from the cache was not read: the read was refused, or it lies beyond the bound. It is named, so
+  // its missing campaign objective is not reported as the platform's answer.
+  const cause: ObjectiveUnread | undefined = cache.unavailable ? 'refused' : cache.limited ? 'limited' : undefined,
+    unread = cause ? ids.filter(id => !Object.hasOwn(cache.parents, id)).map(id => [id, cause]) : [];
   return {
     parents: Object.fromEntries(ids.filter(id => Object.hasOwn(cache.parents, id)).map(id => [id, cache.parents[id]!])),
+    ...(unread.length ? {unread: Object.fromEntries(unread)} : {}),
     lineage: [...known, ...lineage],
     warnings: [
       ...(cache.unavailable ? [reader.unavailableWarning ?? detailParentsUnavailableWarning] : []),

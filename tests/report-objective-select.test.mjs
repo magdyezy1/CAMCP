@@ -200,6 +200,40 @@ for (const locale of ['en', 'ar'])
     assert.equal(f.run('reportLabel("mixed")'), locale === 'ar' ? catalog.Mixed : 'Mixed');
   });
 
+for (const locale of ['en', 'ar'])
+  test(locale + ' explains an objective AMCP could not read, with or without a fallback covering it', () => {
+    const f = page(locale),
+      catalog = f.context.catalog,
+      cases = [
+        [
+          'unknown',
+          'AMCP could not read this campaign’s objective because the platform refused the read; choose one in the report.',
+        ],
+        [
+          'user_fallback',
+          'AMCP could not read this campaign’s objective because the platform refused the read, so your fallback is used.',
+        ],
+        [
+          'unknown',
+          'AMCP could not read this campaign’s objective because this report has more entities than AMCP reads campaign details for; choose one in the report.',
+        ],
+        [
+          'user_fallback',
+          'AMCP could not read this campaign’s objective because this report has more entities than AMCP reads campaign details for, so your fallback is used.',
+        ],
+      ];
+    for (const [source, reason] of cases) {
+      f.context.row = {objective_source: source, objective_reason: reason};
+      const rendered = f.run('reportObjectiveSource(row)');
+      if (locale === 'en') assert.equal(rendered, reason);
+      else {
+        assert.equal(rendered, catalog[reason]);
+        assert.match(rendered, /[؀-ۿ]/);
+        assert.doesNotMatch(rendered, /could not read|Your fallback/);
+      }
+    }
+  });
+
 test('select markup escapes platform, group and saved display values', () => {
   const f = page();
   const html = f.run('String(reportObjectiveSelect("<platform>",{objective:"<group>"},["<group>"]))');

@@ -734,7 +734,14 @@ export function compileReport(args: JsonObject): NativeStep {
     const from = resources[level];
     if (!from) return unsupported('This PMax report needs its own validated field compatibility contract.', {level});
     const dimensions = ['customer.currency_code', 'customer.time_zone', 'campaign.id', 'campaign.name'];
-    if (from === 'ad_group' || from === 'ad_group_ad') dimensions.push('ad_group.id', 'ad_group.name');
+    // The campaign attributes the objective mapping reads, so ad group and ad rows resolve like their campaign row.
+    if (from === 'ad_group' || from === 'ad_group_ad')
+      dimensions.push(
+        'ad_group.id',
+        'ad_group.name',
+        'campaign.advertising_channel_type',
+        'campaign.bidding_strategy_type',
+      );
     if (from === 'ad_group_ad') dimensions.push('ad_group_ad.ad.id');
     if (from === 'asset_group') dimensions.push('asset_group.id', 'asset_group.name');
     if (granularity === 'day') dimensions.push('segments.date');

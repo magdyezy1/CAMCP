@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reportSource} from '../dist/src/report-sources.js';
 import {resolveObjective} from '../dist/src/report-objectives.js';
-import {normalizeNativeRow} from '../dist/src/report-native.js';
+import {normalizeNativeRow, normalizeNativeRowV4} from '../dist/src/report-native.js';
 import {redditDetail, nativeDetailResult} from '../dist/src/overview-native-detail.js';
 import {detailedOverviewRows} from '../dist/src/overview-levels.js';
+import {detailParents, detailParentLimit} from '../dist/src/overview-parents.js';
 import {objectiveReportFixture} from './helpers/objective-report.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 import {
@@ -94,6 +95,68 @@ for (const platform of ['tiktok', 'meta', 'snapchat']) {
     assert.equal(result.rows[0].objective_reason, reportSource(platform).objectives.missingReason);
   });
 }
+
+// The platform refuses the read of the parent campaigns while the report itself succeeds.
+const refusals = {
+  tiktok: url =>
+    url.pathname.endsWith('/campaign/get/')
+      ? new Response(JSON.stringify({code: 40002, message: 'No permission'}), {status: 403})
+      : undefined,
+  snapchat: url =>
+    /get_campaigns_by_ids$/.test(url.pathname)
+      ? new Response(JSON.stringify({request_status: 'ERROR', error_code: 'E1001'}), {status: 403})
+      : undefined,
+};
+for (const platform of ['tiktok', 'snapchat'])
+  test(platform + ' rows whose parent campaigns could not be read say so instead of claiming no objective', async t => {
+    const {objective, ...source} = granularSource(platform, 'ad'),
+      unread = 'AMCP could not read this campaign’s objective because the platform refused the read';
+    const f = inheritanceFixture(t, platform);
+    f.hook(refusals[platform]);
+    const plain = await run(f, source);
+    assert.equal(plain.state, 'complete', JSON.stringify(plain.sources));
+    assert.ok(plain.rows.length > 0);
+    for (const row of plain.rows) {
+      assert.equal(row.objective_source, 'unknown');
+      assert.equal(row.objective_reason, unread + '; choose one in the report.');
+      assert.notEqual(row.objective_reason, reportSource(platform).objectives.missingReason);
+    }
+    // A fallback covers the unread campaign, and the row says that this is what it did.
+    const g = inheritanceFixture(t, platform);
+    g.hook(refusals[platform]);
+    const covered = await run(g, {...source, objective_fallback: 'leads'});
+    for (const row of covered.rows) {
+      assert.equal(row.objective_group, 'leads');
+      assert.equal(row.objective_source, 'user_fallback');
+      assert.equal(row.objective_reason, unread + ', so your fallback is used.');
+    }
+    // The same fallback beside a campaign the platform did read stays the plain provider value.
+    const h = inheritanceFixture(t, platform);
+    const read = await run(h, {...source, objective_fallback: 'leads'});
+    for (const row of read.rows) assert.deepEqual([row.objective_source, row.objective_reason], ['provider', null]);
+  });
+
+test('parents AMCP did not read are marked with why, apart from parents it read or the platform left without a record', async () => {
+  const source = {platform: 'tiktok', account_id: '100', reporting_contract: 'overview-config-v4'},
+    read = {'1': {campaign_id: '10'}, '2': {}},
+    full = Object.fromEntries(Array.from({length: detailParentLimit}, (_, i) => ['9' + (100000 + i), {}]));
+  for (const [cache, cause] of [
+    [{parents: {...read}, lineage: [], unavailable: true}, 'refused'],
+    [{parents: {...read, ...full}, lineage: []}, 'limited'],
+  ]) {
+    const out = await detailParents(undefined, source, 'ad', ['1', '2', '3'], undefined, cache);
+    assert.deepEqual(out.parents, read, 'an unread entity is never given a parent');
+    assert.deepEqual(out.unread, {'3': cause});
+  }
+  const rows = detailedOverviewRows(
+    {platform: 'tiktok', level: 'ad', report_options: {complete_window: true, attribution: 'unknown'}},
+    {rows: [{entity_id: '3'}], native_rows: [{}], semantics: {currency: 'USD'}},
+    {'3': {objective_unread: 'limited'}},
+    reportSource('tiktok').objectives,
+  );
+  assert.equal(rows[0].objective_unread, 'limited');
+  assert.equal(Object.hasOwn(rows[0].parent_ids, 'objective_unread'), false);
+});
 
 test('TikTok campaign inventory includes deleted objects so their historical objectives remain available', async () => {
   const requests = [];
@@ -198,6 +261,58 @@ test('a campaign override governs its ads, while an ad ID never substitutes for 
   );
 });
 
+// Two accounts of one platform report the same campaign ID. A source's overrides are its own: they never reach the
+// other account's row, whichever way the definition is shaped (without levels, or with them).
+const sharedCampaign = account => ({
+  dimensions: {campaign_id: '555'},
+  metrics: {campaign_name: 'Campaign of ' + account, spend: '10', impressions: '100', clicks: '5', conversion: '1'},
+  objective_type: 'TRAFFIC',
+});
+const accountSource = (account, overrides, levels) => ({
+  platform: 'tiktok',
+  account_id: account,
+  connection_id: 'login',
+  ...(levels ? {levels, delivered_only: false, report_options: {complete_window: true, attribution: 'unknown'}} : {}),
+  ...(overrides ? {objective_overrides: overrides} : {}),
+});
+for (const [shape, levels] of [
+  ['without levels', undefined],
+  ['with levels', ['campaign']],
+])
+  test('an objective override applies only to the account that names it, definition ' + shape, async t => {
+    const normalize = levels ? normalizeNativeRowV4 : normalizeNativeRow,
+      f = objectiveReportFixture(t, {
+        platform: 'tiktok',
+        accounts: ['100', '200'],
+        rowsFor: source => [normalize('tiktok', sharedCampaign(source.account_id))],
+      }),
+      changes = sources => ({...(levels ? {contract_version: 'overview-config-v4'} : {}), sources}),
+      objectiveOf = (result, account) => {
+        const row = result.rows.find(
+          candidate => (candidate.account_id ?? ['100', '200'][candidate.source_ref]) === account,
+        );
+        return [row.objective_group ?? row.objective.group, row.objective_source ?? row.objective.source];
+      };
+    for (const [overrides, expected] of [
+      [{'100': {'555': 'sales'}}, {'100': ['sales', 'user_override'], '200': ['traffic', 'provider']}],
+      [{'200': {'555': 'leads'}}, {'100': ['traffic', 'provider'], '200': ['leads', 'user_override']}],
+      [
+        {'100': {'555': 'sales'}, '200': {'555': 'engagement'}},
+        {'100': ['sales', 'user_override'], '200': ['engagement', 'user_override']},
+      ],
+    ]) {
+      const result = await f.run(
+        changes(['100', '200'].map(account => accountSource(account, overrides[account], levels))),
+      );
+      assert.equal(result.state, 'complete', JSON.stringify(result.sources));
+      assert.deepEqual(
+        {'100': objectiveOf(result, '100'), '200': objectiveOf(result, '200')},
+        expected,
+        JSON.stringify(overrides),
+      );
+    }
+  });
+
 test('scoped detail cannot borrow an objective from another campaign or account', () => {
   const {objective, ...source} = granularSource('snapchat', 'adset');
   for (const parent of [
@@ -244,6 +359,79 @@ test('native mapping inputs survive final assembly of detailed rows', async t =>
   assert.equal(result.rows[0].objective_group, 'sales');
   assert.equal(result.rows[0].objective_source, 'provider_mapped');
 });
+
+const googleMappingFields = ['campaign.advertising_channel_type', 'campaign.bidding_strategy_type'];
+const googleSelected = query =>
+  /^SELECT (.+) FROM (\w+) WHERE /s
+    .exec(query)[1]
+    .split(', ')
+    .filter(field => !/[\s()]/.test(field));
+for (const [preset, resource] of [
+  ['google_adset', 'ad_group'],
+  ['google_ad', 'ad_group_ad'],
+])
+  test('the Google ' + preset + ' request selects the campaign attributes the objective mapping reads', () => {
+    const guided = reportSource('google').guided,
+      input = {account_id: '1234567890', connection_id: 'login', semantics: {timezone: 'UTC', currency: 'USD'}};
+    for (const context of [{overviewV4: true}, undefined]) {
+      const request = guided.presetRequest(
+          guided.presets.find(p => p.id === preset),
+          input,
+          granularRange,
+          context,
+        ),
+        query = request.arguments.payload.query,
+        fields = googleSelected(query);
+      assert.match(query, new RegExp(' FROM ' + resource + ' WHERE '));
+      for (const field of googleMappingFields) assert.equal(fields.filter(f => f === field).length, 1, field);
+      // GAQL refuses a repeated field, and the grain stays the entity's own: no campaign segment is added.
+      assert.equal(new Set(fields).size, fields.length);
+      assert.doesNotMatch(query, /segments\.(?!date)/);
+    }
+    // The campaign grain of the same guided reports is unchanged.
+    const campaign = guided.presetRequest(
+      guided.presets.find(p => p.id === 'google_campaign'),
+      input,
+      granularRange,
+    );
+    assert.deepEqual(
+      googleSelected(campaign.arguments.payload.query).filter(f => googleMappingFields.includes(f)),
+      [],
+    );
+  });
+
+for (const level of ['adset', 'ad'])
+  test(
+    'Google ' + level + ' rows of a Shopping campaign resolve their mapped objective through the real request',
+    async t => {
+      const f = overviewGranularityFixture();
+      t.after(() => f.close());
+      // A provider that answers only with the fields the request selected.
+      let query = '';
+      f.hook(() => {
+        query = f.requests.at(-1).body?.query ?? query;
+      });
+      f.mutate((rows, kind) =>
+        kind === 'google'
+          ? rows.map(row => ({
+              ...row,
+              campaign: {
+                ...row.campaign,
+                ...(query.includes('campaign.advertising_channel_type') ? {advertisingChannelType: 'SHOPPING'} : {}),
+              },
+            }))
+          : rows,
+      );
+      const {objective, ...source} = granularSource('google', level);
+      const result = await run(f, source);
+      assert.equal(result.state, 'complete', JSON.stringify(result.sources));
+      assert.ok(result.rows.length > 0);
+      for (const row of result.rows) {
+        assert.equal(row.objective_group, 'sales');
+        assert.equal(row.objective_source, 'provider_mapped');
+      }
+    },
+  );
 
 test('shared detail collection and row mapping still import no provider module', () => {
   for (const file of [

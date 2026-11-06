@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import type {ObjectiveTable} from './report-objectives.js';
+import type {ObjectiveTable, ObjectiveUnread} from './report-objectives.js';
 import type {ReportResultContext, ReportResultRules, ResolvedReportResult} from './report-results.js';
 import type {OverviewV4Capabilities} from './overview-v4.js';
 import type {ReportStatusReader} from './report-status.js';
@@ -47,6 +47,10 @@ export interface ReportSourceRow {
   mixedResult?: boolean;
   /** Different native objectives keep separate additive results instead of one combined conversions number. */
   resultsByObjective?: JsonObject[];
+  /** Results of entities that did not deliver, listed apart from the row's own result, which they never change. */
+  otherResults?: JsonObject[];
+  /** Why the objective the platform holds for this row was not read; absent when it was read, or the platform has none. */
+  objectiveUnread?: ObjectiveUnread;
 }
 
 /**

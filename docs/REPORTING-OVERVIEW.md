@@ -138,6 +138,9 @@ otherwise unknown with a reason. The server supplies the platform tables and ava
 | `user_fallback`     | The chosen fallback after the provider paths gave no usable group |
 | `unknown`           | No usable objective; the row explains why                         |
 
+When AMCP could not read an objective (refused, or beyond the entities it reads), the reason says so, never that the
+platform returned none, also when a fallback covers it.
+
 `mixed` is a row label for a LinkedIn group with different delivered objectives. It cannot be a fallback, override
 or filter choice. Unknown stays unknown; neither the website nor MCP invents a default. Objective regrouping can
 change monitor incident fingerprints, so an earlier incident can remain open beside one for the new group.
@@ -166,8 +169,9 @@ work; matching native totals does not claim that campaign, ad-group and ad repor
 
 The campaign position reads campaign groups and their delivered campaigns; the middle position reads native
 campaigns; the ad position reads creatives. A group's own objective wins. Without one, only delivered campaigns
-establish a shared objective; different delivered values produce Mixed, while incomplete companion coverage keeps
-the objective unknown. Names and parents are current metadata, not historical delivery-time values.
+establish a shared objective and the group's results; different delivered values produce Mixed, while incomplete
+companion coverage keeps the objective unknown. Results attributed to campaigns without delivery are listed as
+`other_results`. Names and parents are current metadata, not historical delivery-time values.
 
 | Native objective               | Result used for advice                                                      |
 | ------------------------------ | --------------------------------------------------------------------------- |
@@ -186,8 +190,9 @@ after a window is split. Frequency stays unavailable.
 
 Every position uses inclusive UTC report days, including a rolling window resolved near midnight in another zone.
 Creative detail is limited to the current UTC month and previous five calendar months; too-old or rounded windows
-explain the requested and returned dates. Empty periods remain ambiguous, and are refused rather than zero-filled.
-The current provider attribution line is retained; conversion-rule windows are not joined into Overview yet.
+explain the requested and returned dates. An empty window is refused rather than zero-filled; an empty part of a
+split window leaves the source partial. The current provider attribution line is retained; conversion-rule windows
+are not joined into Overview yet.
 
 At 15,000 rows, AMCP halves the date window down to one day. One period shares at most 32 analytics reads across
 all metric batches and campaign/group pivots; metadata reads retain their own bounds. A capped day or exhausted
@@ -284,10 +289,10 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   `scope_limitations`, source quality and exports. GA4 sampling, thresholding, `(other)`-row data loss, restricted
   metrics and truncation remain incompleteness.
 
-Rolling windows resolve once in their IANA timezone. Add `"source_timezone":"account"` to the `date_range` to resolve
-the same frozen instant in each source's own reporting time zone instead (one extra bounded account read per source
-whose zone is not fixed); rows and `sources[].date_range` then carry each source's dates, and
-`sources[].window_resolution` records the zone used. `preview_schedule` lists, per occurrence and source, the zone
+Rolling windows resolve once in their IANA timezone. A source whose platform fixes its report day (LinkedIn, UTC)
+resolves in that zone, no account read; `"source_timezone":"report"` ends it, `"account"` resolves every source in its
+own zone (one bounded account read unless the zone is fixed). Rows and `sources[].date_range` carry each source's dates,
+`sources[].window_resolution` the zone used. `preview_schedule` lists, per occurrence and source, the zone
 (`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
 `open_at_delivery`, without a provider request.
 

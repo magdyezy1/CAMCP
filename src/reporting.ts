@@ -16,6 +16,7 @@ import {
 import {bad, fingerprint, noSecrets} from './workspace-core.js';
 import {redact} from './security.js';
 import {reportRange} from './report-periods.js';
+import {fixedReportTimezones} from './report-windows.js';
 import {reportingBindingMove, moveWorkbookSchedules} from './report-query-rebinding.js';
 import {bindingQueryCount, pauseQuerySchedules, scheduleSize, workbookOfSpreadsheet} from './workbook-repository.js';
 // The schedule clock lives in its own module so that the reviewed-write path (store -> scheduled-work) does not load
@@ -38,9 +39,12 @@ export const reportingOperations = new Set([
   'list_reporting_templates',
 ]);
 /**
- * Rolling windows resolve at one frozen instant. `source_timezone:"report"` (the default) resolves every source in
- * the window's IANA timezone. `source_timezone:"account"` (owner policy P6) additionally records the rule, so each
- * source resolves the same instant in its own reporting time zone when it is collected.
+ * Rolling windows resolve at one frozen instant. By default every source resolves in the window's IANA timezone,
+ * except a source whose platform fixes its report day (`fixedReportTimezones`), which resolves in that zone: a window
+ * that ended in the report zone can still be in progress there. `source_timezone:"report"` resolves every source in
+ * the window's timezone. `source_timezone:"account"` (owner policy P6) resolves every source in its own reporting
+ * time zone. A policy that varies by source records the rule, so each source resolves the same instant in its own zone
+ * when it is collected.
  */
 export function resolveReportConfig(config: JsonObject, now = Date.now()): JsonObject {
   const result = structuredClone(config),
@@ -52,13 +56,19 @@ export function resolveReportConfig(config: JsonObject, now = Date.now()): JsonO
     );
   if (!range?.preset) return result;
   result.date_range = resolveRollingWindow(range, now);
-  if (range.source_timezone === 'account')
+  const policy =
+    range.source_timezone ??
+    (Array.isArray(result.sources) &&
+    result.sources.some((source: JsonObject) => Object.hasOwn(fixedReportTimezones, source?.platform))
+      ? 'provider_fixed'
+      : 'report');
+  if (policy !== 'report')
     result.date_range_rule = {
       preset: range.preset,
       ...(range.days === undefined ? {} : {days: range.days}),
       ...(range.offset_days === undefined ? {} : {offset_days: range.offset_days}),
       timezone: range.timezone,
-      source_timezone: 'account',
+      source_timezone: policy,
       resolved_at: now,
     };
   return result;

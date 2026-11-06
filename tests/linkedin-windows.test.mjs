@@ -1,10 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as reporting from '../dist/src/linkedin-reporting.js';
+import * as linkedin from '../dist/src/linkedin-report-source.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
+import {resolveReportConfig} from '../dist/src/reporting.js';
 import {markReportWindow} from '../dist/src/report-windows.js';
 import {Store} from '../dist/src/store.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
+import {linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
+import {linkedinLevelGroup, linkedinLevelCampaign} from './fixtures/linkedin-levels-docs.mjs';
 
 const range = {since: '2026-09-01', until: '2026-09-07'},
   dayMs = 86400000;
@@ -70,6 +74,176 @@ test('01:00 Cairo in winter and summer resolves every LinkedIn position to a com
     }
   }
 });
+// 01:00 on 2026-01-16 in Cairo (UTC+2): LinkedIn's UTC day 2026-01-15 has one hour left, so a window that ends on it is open.
+const cairoOneAm = Date.UTC(2026, 0, 15, 23),
+  cairoRolling = {preset: 'last_complete_days', days: 7, timezone: 'Africa/Cairo'},
+  cairoDays = {since: '2026-01-09', until: '2026-01-15'},
+  utcDays = {since: '2026-01-08', until: '2026-01-14'},
+  utcQuery = '(start:(year:2026,month:1,day:8),end:(year:2026,month:1,day:14))',
+  linkedinSource = {platform: 'linkedin', account_id: '100', connection_id: 'login'};
+const delivered = {impressions: '100', clicks: '10', costInLocalCurrency: '5.5', landingPageClicks: '4'};
+const synthetic = {
+  analytics: pivot => [
+    {
+      pivotValues: [pivot === 'CAMPAIGN_GROUP' ? 'urn:li:sponsoredCampaignGroup:20' : 'urn:li:sponsoredCampaign:30'],
+      ...delivered,
+    },
+  ],
+  groups: {20: linkedinLevelGroup},
+  campaigns: {30: {...linkedinLevelCampaign, objectiveType: 'WEBSITE_VISIT'}},
+};
+const storedV3 = (changes = {}) => ({
+  id: 'saved-v3-linkedin',
+  config: {
+    name: 'Saved LinkedIn report',
+    sources: [linkedinSource],
+    date_range: cairoRolling,
+    metrics: ['spend', 'impressions', 'clicks'],
+    custom_metrics: [],
+    targets: {},
+    objectives: [],
+    source_contract_version: 'campaign-source-v3',
+    version: 3,
+  },
+  created_at: 1,
+  updated_at: 2,
+  ...changes,
+});
+/** A LinkedIn source whose window had to end on the UTC day 2026-01-14 and be closed at 01:00 Cairo. */
+function assertCompleteUtcWindow(f, report) {
+  const [source] = report.sources;
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(s => [s.complete, s.warnings])));
+  assert.deepEqual(source.date_range, utcDays);
+  assert.equal(source.complete, true);
+  assert.equal(source.open_window, undefined);
+  assert.deepEqual([report.rows[0].date_from, report.rows[0].date_to], [utcDays.since, utcDays.until]);
+  assert.deepEqual([...new Set(f.analyticsRanges())], [utcQuery], 'LinkedIn is asked for the UTC days only');
+}
+
+test('a default rolling window at 01:00 Cairo is complete for LinkedIn and covers the UTC days', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm});
+  const f = linkedinPipeline(t, synthetic);
+  const report = await f.run({date_range: cairoRolling, sources: [linkedinSource]});
+  assertCompleteUtcWindow(f, report);
+  assert.deepEqual(report.config.date_range, cairoDays, 'The report-level window stays the report zone');
+});
+
+test('a stored v3 definition with a default rolling window is complete for LinkedIn at 01:00 Cairo', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm});
+  const f = linkedinPipeline(t, synthetic),
+    stored = storedV3();
+  f.store.putDocument(f.actor.tenantId, 'overview_view', stored.id, structuredClone(stored));
+  const before = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', stored.id).config);
+  const report = await f.finish(await f.overview.handle({action: 'run', confirmed: true, id: stored.id}, f.actor));
+  assertCompleteUtcWindow(f, report);
+  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', stored.id).config), before);
+});
+
+test('a stored schedule due at 01:00 Cairo delivers a complete LinkedIn window', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm + 30000});
+  const f = linkedinPipeline(t, synthetic),
+    stored = storedV3({id: 'scheduled-v3-linkedin'});
+  f.store.putDocument(f.actor.tenantId, 'overview_schedule', stored.id, {
+    ...stored,
+    schedule_kind: 'daily',
+    timezone: 'Africa/Cairo',
+    schedule_config: {hour: 1},
+    is_active: true,
+    definition_version: 1,
+    next_run_at: cairoOneAm,
+    actor_binding: f.store.bindJobActor(f.actor, stored.id),
+  });
+  f.overview.tick();
+  await f.worker.once();
+  const scheduled = f.store.document(f.actor.tenantId, 'overview_schedule', stored.id);
+  assertCompleteUtcWindow(f, await f.overview.handle({action: 'get', id: scheduled.last_report_id}, f.actor));
+});
+
+test('the explicit report policy resolves LinkedIn in the report zone, where its last day is still open', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm});
+  const f = linkedinPipeline(t, synthetic),
+    report = await f.run({date_range: {...cairoRolling, source_timezone: 'report'}, sources: [linkedinSource]});
+  assert.equal(report.state, 'partial');
+  assert.deepEqual(report.sources[0].date_range, cairoDays);
+  assert.equal(report.sources[0].open_window, true);
+});
+
+test('the explicit account policy still resolves LinkedIn in its own UTC zone', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm});
+  const f = linkedinPipeline(t, synthetic);
+  assertCompleteUtcWindow(
+    f,
+    await f.run({date_range: {...cairoRolling, source_timezone: 'account'}, sources: [linkedinSource]}),
+  );
+});
+
+test('a previous-period pair gives LinkedIn the equal UTC window before its own', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm});
+  const f = linkedinPipeline(t, synthetic);
+  const queued = await f.overview.handle(
+    {
+      action: 'run',
+      config: {...f.config, date_range: cairoRolling, sources: [linkedinSource]},
+      compare: 'previous_period',
+      confirmed: true,
+    },
+    f.actor,
+  );
+  const baseline = await f.finish({id: queued.comparison.baseline_id});
+  await f.worker.once();
+  const current = await f.overview.handle({action: 'get', id: queued.id}, f.actor);
+  assert.deepEqual(current.sources[0].date_range, utcDays);
+  assert.deepEqual(baseline.sources[0].date_range, {since: '2026-01-01', until: '2026-01-07'});
+  assert.equal(baseline.state, 'complete');
+  assert.equal(current.state, 'complete');
+});
+
+test('a schedule preview shows LinkedIn closed on its UTC days at 01:00 Cairo, without a provider request', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm - 3600000});
+  const f = linkedinPipeline(t, synthetic),
+    preview = await f.overview.handle(
+      {
+        action: 'preview_schedule',
+        config: {...f.config, date_range: cairoRolling, sources: [linkedinSource]},
+        schedule: {schedule_kind: 'daily', schedule_config: {hour: 1, minute: 0}, timezone: 'Africa/Cairo'},
+      },
+      f.actor,
+    );
+  assert.deepEqual(f.requests, []);
+  assert.equal(preview.occurrences[0].delivery_at, '2026-01-15T23:00:00.000Z');
+  assert.equal(preview.occurrences[0].source_timezone, 'provider_fixed');
+  assert.deepEqual(preview.occurrences[0].date_range, cairoDays);
+  assert.deepEqual(preview.occurrences[0].sources[0], {
+    platform: 'linkedin',
+    account_id: '100',
+    timezone: 'UTC',
+    timezone_basis: 'provider_fixed',
+    date_range: utcDays,
+    window_closes_at: '2026-01-15T00:00:00.000Z',
+    open_at_delivery: false,
+  });
+});
+
+test('the default window rule reads no account: only a source whose platform fixes its report day changes zone', async t => {
+  t.mock.timers.enable({apis: ['Date'], now: cairoOneAm});
+  const reads = [],
+    overview = new ReportingOverview({
+      store: {resolveConnection() {}},
+      runPlan: async plan => {
+        reads.push(plan.path);
+        throw new Error('The default rule must not read an account');
+      },
+    }),
+    meta = {platform: 'meta', account_id: '100', connection_id: 'login'},
+    config = resolveReportConfig({date_range: cairoRolling, sources: [linkedinSource, meta]}, cairoOneAm);
+  assert.deepEqual(config.date_range, cairoDays);
+  assert.deepEqual((await overview.sourceWindow(config, linkedinSource, {})).dates, utcDays);
+  assert.deepEqual((await overview.sourceWindow(config, meta, {})).dates, cairoDays);
+  assert.deepEqual(reads, []);
+  // Without a source that fixes its report day nothing about the resolved window changes.
+  assert.equal(resolveReportConfig({date_range: cairoRolling, sources: [meta]}, cairoOneAm).date_range_rule, undefined);
+});
+
 test('the creative oldest day uses UTC and the current plus five previous calendar months', () => {
   assert.equal(reporting.linkedInCreativeOldestDay(new Date('2026-11-01T00:01:00Z')), '2026-06-01');
   assert.equal(reporting.linkedInCreativeOldestDay(new Date('2026-01-31T23:59:00Z')), '2025-08-01');
@@ -234,6 +408,80 @@ test('split rounding evidence and D3 omitted cost survive the exact sum', async 
   assert.deepEqual(result.rows[0].omitted_as_zero, ['spend']);
   assert.equal(result.rows[0].oneClickLeads, '0.24691358');
   assert.equal(result.rounding.oneClickLeads, 2);
+});
+
+test('every summable field the LinkedIn collector requests survives a split as an exact sum', async () => {
+  // Reach is the one requested field that is not additive: it is unavailable after a split, and says so.
+  const fields = linkedin.linkedinBaseMetrics(7, true).filter(field => field !== 'approximateMemberReach');
+  assert.ok(fields.includes('sends'), 'the sponsored messaging result field is requested');
+  const result = await reporting.linkedInSplitRead(range, async r =>
+    r.since === range.since && r.until === range.until
+      ? atCap(r)
+      : [row(r, Object.fromEntries(fields.map(field => [field, '5'])))],
+  );
+  assert.equal(result.split, true);
+  for (const field of fields) assert.equal(result.rows[0][field], '10', field);
+  assert.equal(result.rows[0].approximateMemberReach, null);
+  assert.equal(result.unavailable, false, 'no requested field lacks an additive rule');
+  assert.equal(result.partial, null);
+});
+
+test('a sponsored messaging result keeps its sends when the window is split', async t => {
+  const campaign = 'urn:li:sponsoredCampaign:30',
+    half = {impressions: '10', clicks: '1', costInLocalCurrency: '2.5', sends: '5'},
+    f = linkedinPipeline(t, {
+      analytics: (pivot, r) =>
+        pivot !== 'CAMPAIGN'
+          ? []
+          : r.since === '2026-09-01' && r.until === '2026-09-02'
+            ? Array.from({length: 15000}, (_, i) => ({pivotValues: ['urn:li:sponsoredCampaign:' + (i + 1)], ...half}))
+            : [{pivotValues: [campaign], ...half}],
+      campaigns: {30: {...linkedinLevelCampaign, objectiveType: 'ENGAGEMENT', type: 'SPONSORED_INMAILS'}},
+    });
+  const report = await f.run({
+    contract_version: 'overview-config-v4',
+    sources: [
+      {
+        ...linkedinSource,
+        levels: ['adset'],
+        delivered_only: false,
+        report_options: {complete_window: true, attribution: 'unknown'},
+      },
+    ],
+    metrics: ['spend', 'primary_result', 'cost_per_result'],
+  });
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(s => s.warnings)));
+  const [row] = report.rows;
+  assert.equal(row.entity_id, campaign);
+  assert.deepEqual([row.result.label, row.result.value, row.result.cost_per_result], ['Sends', '10', '0.5']);
+  assert.equal(row.result_context.unavailable_reason, undefined);
+  assert.equal(
+    report.sources[0].warnings.includes(
+      'LinkedIn metrics without an additive rule are unavailable after splitting the window.',
+    ),
+    false,
+  );
+});
+
+test('a split reads an absent cost as zero only for rows that state zero impressions and zero clicks', async () => {
+  for (const [extra, omitted] of [
+    [{impressions: '0', clicks: '0'}, true],
+    // Clicks without impressions are not zero delivery (Probe 5), nor is delivery without clicks, nor a missing count.
+    [{impressions: '0', clicks: '5'}, false],
+    [{impressions: '5', clicks: '0'}, false],
+    [{impressions: '0', clicks: undefined}, false],
+    [{impressions: undefined, clicks: '0'}, false],
+    [{impressions: '0', clicks: '0', costInLocalCurrency: null}, false],
+  ]) {
+    const result = await reporting.linkedInSplitRead(range, async r =>
+      r.since === range.since && r.until === range.until
+        ? atCap(r)
+        : [row(r, {costInLocalCurrency: undefined, ...extra})],
+    );
+    assert.equal(result.split, true);
+    assert.equal(result.rows[0].costInLocalCurrency ?? null, omitted ? '0' : null, JSON.stringify(extra));
+    assert.deepEqual(result.rows[0].omitted_as_zero, omitted ? ['spend'] : undefined, JSON.stringify(extra));
+  }
 });
 
 test('an entity absent from a split period has unknown totals rather than invented zero delivery', async () => {

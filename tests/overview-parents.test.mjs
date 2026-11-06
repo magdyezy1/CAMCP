@@ -13,6 +13,8 @@ import {
 } from '../dist/src/overview-parents.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {linkedinMetadataUnavailableWarning} from '../dist/src/linkedin-report-source.js';
+import {linkedInCreativeMetadata} from '../dist/src/linkedin-detail-parents.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {
   overviewGranularityFixture,
   granularSource,
@@ -179,6 +181,32 @@ test('RPT-07: drifting, foreign, repeated or parentless parent records refuse th
       f.close();
     }
   }
+});
+
+test('RPT-07: the LinkedIn creative read refuses a creative of another account itself, whatever refuses it earlier', async () => {
+  // The preview observer refuses a foreign creative before the report's parent join (the LinkedIn case above), so the
+  // join's own ownership check is exercised here, on the read.
+  const own = {
+    id: 'urn:li:sponsoredCreative:40',
+    account: 'urn:li:sponsoredAccount:100',
+    campaign: 'urn:li:sponsoredCampaign:30',
+    name: 'Synthetic creative',
+  };
+  const read = element => linkedInCreativeMetadata('100', [own.id], async () => ({elements: [element]}));
+  for (const account of [
+    'urn:li:sponsoredAccount:999',
+    'urn:li:sponsoredAccount:1000',
+    'urn:li:sponsoredAccount:10',
+    100,
+    '',
+    null,
+    undefined,
+  ])
+    await assert.rejects(read({...own, account}), error =>
+      assertRefused(error, 'REPORT_ACCOUNT_MISMATCH', {status: 502}),
+    );
+  const [creative] = await read(own);
+  assert.deepEqual([creative.id, creative.campaign, creative.name], [own.id, own.campaign, own.name]);
 });
 
 test('RPT-07: a parent read the provider refuses keeps the rows with unknown parents and says so', async () => {

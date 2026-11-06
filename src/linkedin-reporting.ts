@@ -8,6 +8,8 @@ import {parseProviderDecimal} from './provider-decimal.js';
 // A missing paging.total is normal. Empty data does not distinguish no activity from denied reporting access.
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 export const linkedInElementCap = 15000;
+const incompleteMessage =
+  'LinkedIn analytics is incomplete or at its response limit. Narrow the date window; this endpoint cannot be paginated.';
 export function linkedInAnalyticsRows(value: unknown, allowCap = false): JsonObject[] {
   if (!object(value) || !Array.isArray(value.elements))
     throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return an analytics row collection.');
@@ -28,10 +30,7 @@ export function linkedInAnalyticsRows(value: unknown, allowCap = false): JsonObj
         p.next ||
         p.next_link))
   )
-    throw new MirrorError(
-      'REPORT_INCOMPLETE',
-      'LinkedIn analytics is incomplete or at its response limit. Narrow the date window; this endpoint cannot be paginated.',
-    );
+    throw new MirrorError('REPORT_INCOMPLETE', incompleteMessage);
   return rows;
 }
 export function linkedInReportDate(value: unknown): string {
@@ -92,7 +91,17 @@ const additiveFields = new Set([
   'likes',
   'comments',
   'shares',
+  'sends',
 ]);
+/** A count the provider states as zero, however it spells it ("0", 0, "0.0"); a missing or unreadable count is not zero. */
+const statesZero = (value: unknown) =>
+  (typeof value === 'number' || typeof value === 'string') && /^0+(?:\.0+)?$/.test(String(value).trim());
+/**
+ * D3: LinkedIn leaves the cost out of a row that states zero impressions and zero clicks, which then counts as zero
+ * spend (marked omitted_as_zero); any other absent cost stays unknown. Every reader applies this one rule.
+ */
+export const linkedInCostOmitted = (row: JsonObject): boolean =>
+  row.costInLocalCurrency === undefined && statesZero(row.impressions) && statesZero(row.clicks);
 const decimalText = (value: bigint) => {
   const fraction = (value % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');
   return (value / 1000000000n).toString() + (fraction ? '.' + fraction : '');
@@ -168,8 +177,7 @@ export async function linkedInSplitRead(
         grouped.set(key, group);
       }
       group.count++;
-      const costOmitted =
-        row.costInLocalCurrency === undefined && String(row.impressions) === '0' && String(row.clicks) === '0';
+      const costOmitted = linkedInCostOmitted(row);
       if (costOmitted) group.row.omitted_as_zero = ['spend'];
       for (const field of new Set([...Object.keys(row), ...(costOmitted ? ['costInLocalCurrency'] : [])])) {
         if (['pivotValues', 'dateRange', 'omitted_as_zero'].includes(field)) continue;
@@ -189,6 +197,8 @@ export async function linkedInSplitRead(
       }
     }
   }
+  // A window that reached the cap, yet whose every part came back empty, is a contradictory answer, not an empty report.
+  if (!grouped.size) throw new MirrorError('REPORT_INCOMPLETE', incompleteMessage);
   const nativeDate = (s: string) => {
     const [year, month, day] = s.split('-').map(Number);
     return {year, month, day};
@@ -360,16 +370,21 @@ export async function linkedInCampaignGroupMetadata(
   return groups;
 }
 
-/** ALL grain must describe exactly the requested period, including older requests the provider may round. */
+/**
+ * ALL grain must describe exactly the requested period, including older requests the provider may round. An empty
+ * response is ambiguous (no activity, or no reporting access), unless `allowEmpty`: a part of a window that already
+ * proved access by reaching the response cap.
+ */
 export function linkedInCampaignPeriod(
   value: unknown,
   range: {since: string; until: string},
   pivot = 'CAMPAIGN',
   allowCap = false,
+  allowEmpty = false,
 ): JsonObject[] {
   const rows = linkedInAnalyticsRows(value, allowCap),
     seen = new Set<string>();
-  if (!rows.length)
+  if (!rows.length && !allowEmpty)
     throw new MirrorError(
       'REPORT_EMPTY_AMBIGUOUS',
       'LinkedIn returned no rows for {from}–{to}. Check that the account delivered in those dates.',
