@@ -50,10 +50,18 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     baseCache.set(name, result);
     return result;
   };
-  const leaves = (name: string): string[] =>
-    definitions[name]?.formula
+  // Each metric is walked once: a chain in which every custom metric uses all the later ones has exponentially many
+  // paths and one distinct answer per metric (F-L9-01).
+  const leafCache = new Map<string, string[]>();
+  const leaves = (name: string): string[] => {
+    const known = leafCache.get(name);
+    if (known) return known;
+    const found = definitions[name]?.formula
       ? [...new Set(parseMetricFormula(definitions[name]!.formula).dependencies.flatMap(leaves))]
       : [name];
+    leafCache.set(name, found);
+    return found;
+  };
   for (const [key, definition] of Object.entries(metricDefinitions)) {
     if (definition.formula) continue;
     if (definition.aggregation !== 'sum') {

@@ -50,13 +50,17 @@ export function recommendationV4(
     numeric = {...row.metrics, primary_result: row.result.value, cost_per_result: row.result.cost_per_result};
   if (p.kpi === 'cost_per_engagement') needed.add('engagements');
   if (p.context?.secondary_kpi?.kpi) needed.add(p.context.secondary_kpi.kpi);
-  const visit = (name: string, visiting = new Set<string>()) => {
-    if (visiting.has(name)) return;
+  // One seen set for the whole walk: every metric is expanded once, however many metrics depend on it (F-L9-01). It
+  // also ends a cycle, which validation refuses before a report is saved.
+  const seen = new Set<string>();
+  const visit = (name: string) => {
+    if (seen.has(name)) return;
+    seen.add(name);
     const formula = definitions[name]?.formula;
     if (!formula) return;
     for (const dependency of parseMetricFormula(formula).dependencies) {
       needed.add(dependency);
-      visit(dependency, new Set(visiting).add(name));
+      visit(dependency);
     }
   };
   for (const name of [...needed]) visit(name);
