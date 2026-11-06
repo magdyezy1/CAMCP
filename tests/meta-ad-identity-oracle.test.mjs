@@ -9,6 +9,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveAccessSet} from '../dist/src/access-sets.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
+import {AdPreviews} from '../dist/src/ad-previews.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const admin = {tenantId: 'synthetic-meta-oracle', userId: 'admin', role: 'admin'},
@@ -132,6 +133,46 @@ test('F-L3-03: through the previews tool a foreign ad and an ad that does not ex
   const connection = f.store.resolveConnection(f.limited, 'meta_native_action', '100', login);
   assert.equal(f.store.ownsResource(connection, '100', '111'), true);
   for (const id of ['222', '333']) assert.equal(f.store.ownsResource(connection, '100', id), false, id);
+});
+
+test('F-L3-03: however the identity read finds an ad is not the account’s, the tool lists it as not in this account and goes no further; any other failure still fails the call', async t => {
+  const f = fixture(t),
+    read = async error => {
+      const reads = [],
+        tool = new AdPreviews(async (_tool, input) => {
+          reads.push(input.action);
+          return {success: false, error};
+        }, f.store);
+      return {reads, run: () => tool.handle(previews('333'), admin)};
+    };
+  const absence = {
+    'the observer’s refusal of a foreign ad': {code: 'ACCOUNT_SCOPE_MISMATCH', message: 'Not in this account'},
+    'the refusal of a node whose ownership is not established': {
+      code: 'RESOURCE_SCOPE_REQUIRED',
+      message: 'Resource ownership is not established.',
+    },
+    'a not-found answer': {code: 'NOT_FOUND', message: 'No such object.'},
+    'a 404 from Meta': {code: 'UPSTREAM_ERROR', message: 'Platform returned HTTP 404', details: {http_status: 404}},
+  };
+  for (const [what, error] of Object.entries(absence)) {
+    const {reads, run} = await read(error),
+      out = await run();
+    assert.deepEqual(out.not_found, ['333'], what);
+    assert.equal(out.not_found_reason, 'Not in this account', what);
+    assert.deepEqual(out.previews, [], what);
+    // One identity read; the metadata and the preview were never asked for.
+    assert.deepEqual(reads, ['meta_ad_id_get'], what);
+  }
+  // A failure that says nothing about whose ad it is must not read as absence: the call fails with it.
+  for (const error of [
+    {code: 'RATE_LIMITED', message: 'Meta asked for a pause.'},
+    {code: 'UPSTREAM_ERROR', message: 'Platform returned HTTP 500', details: {http_status: 500}},
+    {code: 'CONNECTION_NEEDS_REAUTH', message: 'Reconnect the account.'},
+  ]) {
+    const {reads, run} = await read(error);
+    await assert.rejects(run(), e => e.code === error.code, error.code);
+    assert.deepEqual(reads, ['meta_ad_id_get'], error.code);
+  }
 });
 
 test('F-L3-03: a caller cannot mark its own call as the previews tool’s', async t => {

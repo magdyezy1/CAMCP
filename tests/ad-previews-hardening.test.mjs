@@ -57,8 +57,9 @@ test('F-L3-12: a platform outside the schema is refused first, with no read, wha
 
 // An HTML parser reads `&sol;` in a src as "/", so a tag whose host is "evil.com&sol;.linkedin.com" would send a browser
 // to evil.com, while the URL parser reads the whole text as a host that ends in ".linkedin.com". Only the text before
-// the first "?" can name a host or a path; there, an entity (`&`) or a `;` is never part of a platform link.
-const separators = ['&sol;', '&bsol;', '&colon;', '&num;', '&quest;', '&commat;', '&#47;', '&#x2f;', '&amp;', ';'];
+// the first "?" can name a host or a path; there, an entity (`&`) or a `;` is never part of a platform link. The last two
+// are each half of an entity on their own: a bare `&` and a bare `;`.
+const separators = ['&sol;', '&bsol;', '&colon;', '&num;', '&quest;', '&commat;', '&#47;', '&#x2f;', '&amp;', '&', ';'];
 
 test('F-L3-13: a LinkedIn preview src whose host or path spells a separator as an entity is no link', () => {
   const now = Date.UTC(2026, 10, 3),
