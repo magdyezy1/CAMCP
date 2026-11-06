@@ -2065,7 +2065,9 @@ export class ReportingOverview {
                 : calculateMetrics(row.metrics, custom),
           };
         if (r.config.contract_version === overviewConfigV4) {
-          record.result_definition = row.result?.label ?? 'unknown';
+          // A row with no resolved result keeps the definition its provider gave it (TikTok names the optimization
+          // events a campaign mixes), so unlike rows never share one 'unknown' summary. Only a row with neither is unknown.
+          record.result_definition = row.result?.label ?? row.result_definition ?? 'unknown';
           const normalized = reportMetricsSummaryV4([record], custom);
           for (const [name, value] of Object.entries(normalized.metrics))
             if (

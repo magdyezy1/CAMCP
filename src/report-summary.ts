@@ -186,6 +186,15 @@ function additiveValues(group: JsonObject[]) {
   }
   return values;
 }
+/**
+ * The sorted definition ids of the result groups a row holds. A row whose ad groups disagree has no single result
+ * (`result.definition_id` is null), so what it mixes is the only thing that tells two such rows apart: rows that mix
+ * different results never share a summary.
+ */
+const resultGroupIds = (row: JsonObject): string[] =>
+  Array.isArray(row.result_groups)
+    ? row.result_groups.map((group: JsonObject) => String(group.definition?.id ?? '')).sort()
+    : [];
 /** The most recent periods a window summary keeps for its sparkline. */
 export const windowSeriesLimit = 400;
 /**
@@ -208,7 +217,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       row.attribution,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
     ]);
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
@@ -273,7 +282,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       row.date_to,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
     ]);
     const group = groups.get(key) ?? [];
     group.push(row);
