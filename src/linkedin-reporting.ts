@@ -92,6 +92,7 @@ const additiveFields = new Set([
   'likes',
   'comments',
   'shares',
+  'sends',
 ]);
 const decimalText = (value: bigint) => {
   const fraction = (value % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '');

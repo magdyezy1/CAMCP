@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as reporting from '../dist/src/linkedin-reporting.js';
+import * as linkedin from '../dist/src/linkedin-report-source.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {resolveReportConfig} from '../dist/src/reporting.js';
 import {markReportWindow} from '../dist/src/report-windows.js';
@@ -407,6 +408,59 @@ test('split rounding evidence and D3 omitted cost survive the exact sum', async 
   assert.deepEqual(result.rows[0].omitted_as_zero, ['spend']);
   assert.equal(result.rows[0].oneClickLeads, '0.24691358');
   assert.equal(result.rounding.oneClickLeads, 2);
+});
+
+test('every summable field the LinkedIn collector requests survives a split as an exact sum', async () => {
+  // Reach is the one requested field that is not additive: it is unavailable after a split, and says so.
+  const fields = linkedin.linkedinBaseMetrics(7, true).filter(field => field !== 'approximateMemberReach');
+  assert.ok(fields.includes('sends'), 'the sponsored messaging result field is requested');
+  const result = await reporting.linkedInSplitRead(range, async r =>
+    r.since === range.since && r.until === range.until
+      ? atCap(r)
+      : [row(r, Object.fromEntries(fields.map(field => [field, '5'])))],
+  );
+  assert.equal(result.split, true);
+  for (const field of fields) assert.equal(result.rows[0][field], '10', field);
+  assert.equal(result.rows[0].approximateMemberReach, null);
+  assert.equal(result.unavailable, false, 'no requested field lacks an additive rule');
+  assert.equal(result.partial, null);
+});
+
+test('a sponsored messaging result keeps its sends when the window is split', async t => {
+  const campaign = 'urn:li:sponsoredCampaign:30',
+    half = {impressions: '10', clicks: '1', costInLocalCurrency: '2.5', sends: '5'},
+    f = linkedinPipeline(t, {
+      analytics: (pivot, r) =>
+        pivot !== 'CAMPAIGN'
+          ? []
+          : r.since === '2026-09-01' && r.until === '2026-09-02'
+            ? Array.from({length: 15000}, (_, i) => ({pivotValues: ['urn:li:sponsoredCampaign:' + (i + 1)], ...half}))
+            : [{pivotValues: [campaign], ...half}],
+      campaigns: {30: {...linkedinLevelCampaign, objectiveType: 'ENGAGEMENT', type: 'SPONSORED_INMAILS'}},
+    });
+  const report = await f.run({
+    contract_version: 'overview-config-v4',
+    sources: [
+      {
+        ...linkedinSource,
+        levels: ['adset'],
+        delivered_only: false,
+        report_options: {complete_window: true, attribution: 'unknown'},
+      },
+    ],
+    metrics: ['spend', 'primary_result', 'cost_per_result'],
+  });
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(s => s.warnings)));
+  const [row] = report.rows;
+  assert.equal(row.entity_id, campaign);
+  assert.deepEqual([row.result.label, row.result.value, row.result.cost_per_result], ['Sends', '10', '0.5']);
+  assert.equal(row.result_context.unavailable_reason, undefined);
+  assert.equal(
+    report.sources[0].warnings.includes(
+      'LinkedIn metrics without an additive rule are unavailable after splitting the window.',
+    ),
+    false,
+  );
 });
 
 test('a split reads an absent cost as zero only for rows that state zero impressions and zero clicks', async () => {
