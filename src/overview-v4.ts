@@ -603,7 +603,9 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
       partial = Object.fromEntries(
         Object.entries(row.metrics_coverage ?? {}).filter(
           ([name, value]: [string, any]) =>
-            fields.includes(name) && (value.known ?? value.known_pairs ?? value.known_rows) < value.total,
+            fields.includes(name) &&
+            (value.unavailable_reason !== undefined ||
+              (value.known ?? value.known_pairs ?? value.known_rows) < value.total),
         ),
       ),
       recommendation =

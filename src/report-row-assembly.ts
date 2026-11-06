@@ -2,8 +2,8 @@ import {fingerprint} from './report-quality.js';
 import {MirrorError} from './errors.js';
 import {reportSource} from './report-sources.js';
 import {resolveObjective, unusedObjectiveOverrides, type ResolvedObjective} from './report-objectives.js';
-import {reportMetricsSummaryV4} from './report-summary.js';
-import {calculateMetricsV4} from './report-math-v4.js';
+import {reportMetricsSummaryV4, reportSummary, reportWindowSummary} from './report-summary.js';
+import {calculateMetricsV4, withCalculationBudget} from './report-math-v4.js';
 import {assignRecommendationsV4, recommendationV4} from './report-advice-v4.js';
 import {
   calculateMetrics,
@@ -100,17 +100,34 @@ export function duplicateRowsError(result: JsonObject, defaultRange: JsonObject)
 }
 
 /**
+ * The worker shares its thread with the website and the MCP endpoint, so a calculation over many rows hands the event loop
+ * back as it goes: after about 20 ms it waits one turn (F-L9-01). Everything between two turns is one row's work, which the
+ * calculation budget bounds.
+ */
+const sliceMs = 20;
+const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+
+/**
  * The report rows of every requested packet, in packet order. A packet that supports a scope rollup contributes no
  * rows of its own. Throws a duplicate-row error when one packet repeats an entity in one reporting period; the job
  * fails such a packet as a unit before it gets here (duplicateRowsError), so this is only the last guard.
  */
-export function assembleReportRows(results: JsonObject[], config: JsonObject, custom: JsonObject[]): JsonObject[] {
+export async function assembleReportRows(
+  results: JsonObject[],
+  config: JsonObject,
+  custom: JsonObject[],
+): Promise<JsonObject[]> {
   const v4 = config.contract_version === overviewConfigV4,
     rows: JsonObject[] = [];
+  let sliceStart = performance.now();
   for (const result of results) {
     if (result.source.scope_supporting) continue;
     const seen = new Set<string>();
     for (const row of result.rows) {
+      if (performance.now() - sliceStart >= sliceMs) {
+        await turn();
+        sliceStart = performance.now();
+      }
       const source = result.source,
         {key, period, context, rowKey} = rowIdentity(result, row, config.date_range);
       if (seen.has(rowKey)) throw duplicateRows(row);
@@ -304,4 +321,26 @@ function noteUnusedObjectiveOverrides(results: JsonObject[]) {
     );
     if (warning) packets[0]!.warnings.push(warning);
   }
+}
+
+/**
+ * The calculated part of a snapshot: the custom metrics, the report rows with their advice, and the summaries, all under
+ * one calculation budget (F-L9-01). Metrics that go past a bound are unavailable with the reason `calculation_limit`; the
+ * rows, their additive figures and every other metric are unaffected.
+ */
+export function calculateSnapshot(results: JsonObject[], config: JsonObject) {
+  return withCalculationBudget(async () => {
+    const nativeFields = reportNativeFields(results),
+      custom = reportCustomMetrics(config, nativeFields),
+      rows = await assembleReportRows(results, config, custom),
+      v4 = config.contract_version === overviewConfigV4;
+    return {
+      nativeFields,
+      custom,
+      rows,
+      summary: reportSummary(rows, custom, v4),
+      // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
+      windowSummary: (config.grain ?? 'total') !== 'total' ? reportWindowSummary(rows, custom, v4) : undefined,
+    };
+  });
 }

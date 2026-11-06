@@ -1,6 +1,5 @@
 import {fingerprint, formulaVersion, reportContractVersion} from './report-quality.js';
 import {validateRecommendationContext} from './recommendation-context.js';
-import {reportSummary, reportWindowSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
 import {
   dueScheduleTenants,
@@ -90,13 +89,7 @@ import {
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
-import {
-  assembleReportRows,
-  duplicateRowsError,
-  reportCustomMetrics,
-  reportNativeFields,
-  snapshotOutcome,
-} from './report-row-assembly.js';
+import {calculateSnapshot, duplicateRowsError, snapshotOutcome} from './report-row-assembly.js';
 import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
@@ -2012,9 +2005,7 @@ export class ReportingOverview {
     }
     r = store.document(tenant, 'overview_report', r.id);
     access();
-    const nativeFields = reportNativeFields(results),
-      custom = reportCustomMetrics(r.config, nativeFields),
-      rows = assembleReportRows(results, r.config, custom);
+    const {nativeFields, rows, summary, windowSummary} = await calculateSnapshot(results, r.config);
     const outcome = snapshotOutcome(results, rows, r.config),
       {state, failures} = outcome,
       sources =
@@ -2038,11 +2029,8 @@ export class ReportingOverview {
         ...outcome.counts,
         empty_reason: outcome.emptyReason,
         completed_at: Date.now(),
-        summary: reportSummary(rows, custom, r.config.contract_version === overviewConfigV4),
-        // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
-        ...((r.config.grain ?? 'total') !== 'total'
-          ? {window_summary: reportWindowSummary(rows, custom, r.config.contract_version === overviewConfigV4)}
-          : {}),
+        summary,
+        ...(windowSummary ? {window_summary: windowSummary} : {}),
         native_metrics: [...nativeFields],
         row_count: rows.length,
       };

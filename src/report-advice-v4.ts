@@ -6,7 +6,7 @@ import {
   windowRecommendations,
   type ReportAdviceMath,
 } from './report-metrics.js';
-import {compareReportValuesV4, evaluateReportFormulaV4} from './report-math-v4.js';
+import {compareReportValuesV4, evaluateReportFormulaV4, isCalculationLimit} from './report-math-v4.js';
 import {reportMetricsSummaryV4} from './report-summary.js';
 import type {JsonObject} from './types.js';
 
@@ -91,7 +91,10 @@ export function recommendationV4(
     }
     return campaignRecommendation({...row, metrics: numeric}, policy, now, math);
   } catch (error) {
-    if (!(error instanceof MirrorError) || error.code !== 'METRIC_PRECISION_LOSS') throw error;
+    // A calculation that reaches a bound (a metric past the size limit, or the report's calculation time) holds the
+    // advice like a precision loss does (F-L9-01).
+    if (!(error instanceof MirrorError) || (error.code !== 'METRIC_PRECISION_LOSS' && !isCalculationLimit(error)))
+      throw error;
     return review('A metric exceeds supported numeric precision. Use the retained native source.');
   }
 }

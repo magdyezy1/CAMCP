@@ -1,6 +1,14 @@
-import {calculateMetrics, metricDefinitions, parseMetricFormula} from './report-metrics.js';
+import {calculateMetrics, metricDefinitions} from './report-metrics.js';
 import type {JsonObject} from './types.js';
-import {calculateMetricsV4, evaluateReportFormulaV4, sumReportValuesV4} from './report-math-v4.js';
+import {
+  calculateMetricsV4,
+  evaluateReportFormulaExact,
+  formulaDependencies,
+  isCalculationLimit,
+  roundReportValue,
+  sumReportValuesV4,
+  type ExactValues,
+} from './report-math-v4.js';
 import {groupReportResults, unavailableReportResult} from './report-results.js';
 
 export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[] = []) {
@@ -23,7 +31,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
         ? 'sum'
         : 'non_additive',
   };
-  const single = cells.length === 1 ? calculateMetricsV4(cells[0]!.metrics, custom).metrics : undefined;
+  const single = cells.length === 1 ? calculateMetricsV4(cells[0]!.metrics, custom) : undefined;
   const bases = (name: string, visiting = new Set<string>()): Set<string> | null => {
     if (baseCache.has(name)) return baseCache.get(name)!;
     const definition = definitions[name];
@@ -39,7 +47,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     }
     const next = new Set(visiting).add(name),
       result = new Set<string>();
-    for (const dependency of parseMetricFormula(definition.formula).dependencies) {
+    for (const dependency of formulaDependencies(definition.formula)) {
       const child = bases(dependency, next);
       if (!child) {
         baseCache.set(name, null);
@@ -57,7 +65,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     const known = leafCache.get(name);
     if (known) return known;
     const found = definitions[name]?.formula
-      ? [...new Set(parseMetricFormula(definitions[name]!.formula).dependencies.flatMap(leaves))]
+      ? [...new Set(formulaDependencies(definitions[name]!.formula).flatMap(leaves))]
       : [name];
     leafCache.set(name, found);
     return found;
@@ -96,20 +104,27 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
               dependencies.map(name => [name, sumReportValuesV4(paired.map(row => row.metrics[name])).value]),
             )
           : {};
-    const evaluateDependency = (name: string) => {
-      if (Object.hasOwn(values, name)) return;
-      const formula = definitions[name]?.formula;
-      if (!formula) return;
-      for (const dependency of parseMetricFormula(formula).dependencies) evaluateDependency(dependency);
-      values[name] = evaluateReportFormulaV4(formula, values).value;
-    };
+    // A metric that depends on another starts from its exact fraction and is rounded once, on output (F-L5-20); one that
+    // reaches a calculation bound is unavailable and says why (F-L9-01).
+    const exact: ExactValues = new Map(),
+      evaluateDependency = (name: string) => {
+        if (Object.hasOwn(values, name) || exact.has(name)) return;
+        const formula = definitions[name]?.formula;
+        if (!formula) return;
+        for (const dependency of formulaDependencies(formula)) evaluateDependency(dependency);
+        exact.set(name, evaluateReportFormulaExact(formula, values, exact));
+      };
+    let evaluated: {value: string | null; rounded: boolean} = {value: null, rounded: false},
+      limited = false;
     if (additive && paired.length && !unknownCurrency)
-      for (const dependency of parseMetricFormula(definition.formula).dependencies) evaluateDependency(dependency);
-    const evaluated =
-      additive && paired.length && !unknownCurrency
-        ? evaluateReportFormulaV4(definition.formula, values)
-        : {value: null, rounded: false};
-    metrics[key] = !additive && single && !unknownCurrency ? (single[key] ?? null) : evaluated.value;
+      try {
+        for (const dependency of formulaDependencies(definition.formula)) evaluateDependency(dependency);
+        evaluated = roundReportValue(evaluateReportFormulaExact(definition.formula, values, exact));
+      } catch (error) {
+        if (!isCalculationLimit(error)) throw error;
+        limited = true;
+      }
+    metrics[key] = !additive && single && !unknownCurrency ? (single.metrics[key] ?? null) : evaluated.value;
     coverage[key] = {
       known_rows: paired.length,
       total: cells.length,
@@ -120,7 +135,9 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
         ? {unavailable_reason: 'unknown_currency'}
         : !additive && !single
           ? {unavailable_reason: 'non_additive_inputs'}
-          : {}),
+          : limited || (!additive && single?.limited[key])
+            ? {unavailable_reason: 'calculation_limit'}
+            : {}),
     };
     if (evaluated.rounded) rounding[key] = 1;
   }

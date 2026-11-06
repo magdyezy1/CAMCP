@@ -8,6 +8,7 @@ import {ReportWorker} from '../../dist/src/worker.js';
 import {validateCustomMetrics} from '../../dist/src/report-metrics.js';
 import {reportMetricsSummaryV4} from '../../dist/src/report-summary.js';
 import {recommendationV4} from '../../dist/src/report-advice-v4.js';
+import {calculateMetricsV4, withCalculationBudget} from '../../dist/src/report-math-v4.js';
 
 // The custom metric sets of the audit's F-L9-01, run in a worker thread so that a calculation that never ends is
 // stopped by the test instead of stopping the run (tests/helpers/bounded-run.mjs).
@@ -29,6 +30,23 @@ export const wide = () => {
     {id: 'p2', label: 'p', formula: Array(30).fill('p1').join('*'), format: 'decimal'},
     {id: 'p3', label: 'p', formula: Array(55).fill('clicks').join('*'), format: 'decimal'},
     {id: 'p4', label: 'p', formula: Array(18).fill('p3').join('*'), format: 'decimal'},
+  ];
+  for (let i = 0; i < 26; i++)
+    custom.push({id: 'q' + i, label: 'q', formula: '(p2+7)/(p4+9)' + '*1'.repeat(50), format: 'decimal'});
+  return custom;
+};
+
+/**
+ * Form D: every number stays under the size bound (about 3,700 digits), and 26 long formulas multiply the quotient of two
+ * unrelated ones by 1 fifty times each. Each multiplication reduces a fraction of two coprime 3,700-digit numbers, about
+ * 12 ms, so without a work budget this is half a minute per pass over the row.
+ */
+export const deep = () => {
+  const custom = [
+    {id: 'b1', label: 'b', formula: Array(60).fill('clicks').join('*'), format: 'decimal'},
+    {id: 'p2', label: 'p', formula: Array(16).fill('b1').join('*'), format: 'decimal'},
+    {id: 'b3', label: 'b', formula: Array(40).fill('impressions').join('*'), format: 'decimal'},
+    {id: 'p4', label: 'p', formula: Array(15).fill('b3').join('*'), format: 'decimal'},
   ];
   for (let i = 0; i < 26; i++)
     custom.push({id: 'q' + i, label: 'q', formula: '(p2+7)/(p4+9)' + '*1'.repeat(50), format: 'decimal'});
@@ -77,7 +95,8 @@ function gauge() {
 async function pipeline({mode, length = 30, rows = 1}) {
   const admin = {tenantId: 't1', userId: 'owner', role: 'admin'},
     operator = {tenantId: 't1', userId: 'op', role: 'operator'},
-    custom_metrics = mode === 'A' ? chain(length, 'reach') : mode === 'B' ? chain(length, 'clicks') : wide(),
+    custom_metrics =
+      mode === 'A' ? chain(length, 'reach') : mode === 'B' ? chain(length, 'clicks') : mode === 'D' ? deep() : wide(),
     targets = mode === 'B' ? {sales: {target: 1, currency: 'USD', kpi: 'm1', direction: 'higher'}} : undefined,
     store = new Store(':memory:', Buffer.alloc(32, 121).toString('base64'));
   store.putConnection(
@@ -177,9 +196,10 @@ async function pipeline({mode, length = 30, rows = 1}) {
     custom: Object.fromEntries(Object.entries(first?.metrics ?? {}).filter(([key]) => /^[mpq]\d+$/.test(key))),
     coverage: Object.fromEntries(
       Object.entries(first?.metrics_coverage ?? {})
-        .filter(([key]) => /^[mpq]\d+$/.test(key))
+        .filter(([key]) => /^[mpqb]\d+$/.test(key))
         .map(([key, value]) => [key, value.unavailable_reason ?? null]),
     ),
+    provider: {spend: first?.metrics?.spend ?? null, clicks: first?.metrics?.clicks ?? null},
     recommendation: first?.recommendation?.decision ?? null,
   };
 }
@@ -214,6 +234,19 @@ async function run() {
     return {ms: performance.now() - started, decision: advised.decision};
   }
   if (scenario === 'pipeline') return pipeline(args);
+  if (scenario === 'one-pass-deep') {
+    // One pass over one row, with the report budget. The numbers under the size bound are calculated until the work is
+    // spent; the long formulas that would take half a minute are ended.
+    const custom = validateCustomMetrics(deep()),
+      started = performance.now(),
+      {metrics, limited} = withCalculationBudget(() => calculateMetricsV4(row.metrics, custom));
+    return {
+      ms: performance.now() - started,
+      digits: Object.fromEntries(['b1', 'p2', 'b3', 'p4'].map(key => [key, String(metrics[key] ?? '').length])),
+      limited: Object.fromEntries(Object.entries(limited)),
+      q_values: Object.fromEntries(Object.entries(metrics).filter(([key]) => key.startsWith('q'))),
+    };
+  }
   throw new Error('unknown scenario ' + scenario);
 }
 parentPort.postMessage(await run());

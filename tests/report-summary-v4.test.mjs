@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {reportSummary, reportWindowSummary, reportMetricsSummaryV4} from '../dist/src/report-summary.js';
 import {groupReportResults, resolveReportResult} from '../dist/src/report-results.js';
 import {recommendationV4, assignRecommendationsV4} from '../dist/src/report-advice-v4.js';
-import {compareReportValuesV4} from '../dist/src/report-math-v4.js';
+import {calculateMetricsV4, compareReportValuesV4, withCalculationBudget} from '../dist/src/report-math-v4.js';
 
 const definition = {
   id: 'fixture:conversions',
@@ -139,6 +139,18 @@ test('exact advisory thresholds retain native costs, known zero results and cons
   assert.equal(
     recommendationV4(row('9007199254740993', '30'), {sales: {target: 1, currency: 'SAR'}}).decision,
     'needs_review',
+  );
+});
+test('advice holds, and the report does not fail, once the report’s calculation time is spent', () => {
+  withCalculationBudget(
+    () => {
+      // The time check runs every 256 formulas; after it fires no formula is calculated.
+      for (let i = 0; i < 300; i++) calculateMetricsV4({spend: '1', clicks: '2'}, []);
+      const advice = recommendationV4(row('10', '20'), {sales: {target: 0.1, currency: 'SAR'}});
+      assert.equal(advice.decision, 'needs_review');
+      assert.match(advice.reason, /exceeds supported numeric precision/);
+    },
+    {work: 1e12, elapsed_ms: 0},
   );
 });
 test('unbound objective targets do not recommend against different native result meanings', () => {
