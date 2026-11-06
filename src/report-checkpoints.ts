@@ -143,6 +143,20 @@ export class ReportParts {
       } else this.put(REPORT_CHECKPOINT_KIND, head, {checkpoint: value});
     });
   }
+  /**
+   * Forgets everything retained for one source (its result, native progress and period progress), so the source is
+   * collected again from its start. The whole-job counters are not touched: the requests it already made stay counted,
+   * and the rows it counted are keyed by period, so reading them again adds only what exceeds the earlier count.
+   */
+  drop(key: string) {
+    const head = this.report.id + ':' + key,
+      parts = this.store.repo(REPORT_CHECKPOINT_KIND, this.tenant);
+    this.store.transaction(() => {
+      parts.delete(head);
+      parts.deleteRange(head + ':', head + ';');
+    });
+    this.saved.delete(key);
+  }
   /** Records a source's result and drops its period progress, in one transaction. */
   complete(key: string, result: JsonObject) {
     const head = this.report.id + ':' + key;

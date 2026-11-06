@@ -238,6 +238,8 @@ const reportSourceWarnings = new Set([
   // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).
   'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.',
   'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.',
+  // F-L5-16: collection state kept under an earlier platform contract is dropped and the source read again.
+  'This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.

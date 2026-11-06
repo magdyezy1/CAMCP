@@ -274,6 +274,9 @@ function assertDeliveryPolicy(report: JsonObject) {
     );
 }
 const linkedinEvidenceContracts = ['campaign-source-v3', reportContractVersion];
+/** A source whose retained collection state belonged to an earlier platform contract is collected again (F-L5-16). */
+const sourceRestartedWarning =
+  'This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.';
 /** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
 const finishedSnapshot = (r: JsonObject) =>
   ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
@@ -1829,21 +1832,25 @@ export class ReportingOverview {
       });
       throw refusal;
     }
-    if (
-      executionSources.some(
-        (source: JsonObject, i: number) =>
-          contracts[source.platform] &&
-          r.platform_contracts?.[source.platform] !== contracts[source.platform] &&
-          Object.keys(retainedParts.source(String(i), r.checkpoints?.[String(i)])).length > 0,
-      )
-    ) {
-      const error = {
-        code: 'REPORT_RESTART_REQUIRED',
-        message:
-          'This snapshot contains collection state from an earlier platform contract. Its retained evidence is preserved; start a new snapshot from the saved definition.',
+    // State kept under another platform contract cannot be resumed: its rows mean something else now. Nobody is there to
+    // start a scheduled run again, so each such source is collected again from its start, and says so. The whole-job
+    // counters keep what the job already spent (the budget is not refunded), and the source is marked on the report so a
+    // retry after an interruption still carries the warning.
+    const stale = executionSources.flatMap((source: JsonObject, i: number) =>
+      contracts[source.platform] &&
+      r.platform_contracts?.[source.platform] !== contracts[source.platform] &&
+      Object.keys(retainedParts.source(String(i), r.checkpoints?.[String(i)])).length > 0
+        ? [String(i)]
+        : [],
+    );
+    if (stale.length) {
+      for (const key of stale) retainedParts.drop(key);
+      r = {
+        ...r,
+        checkpoints: Object.fromEntries(Object.entries(r.checkpoints ?? {}).filter(([key]) => !stale.includes(key))),
+        restarted_sources: [...new Set<string>([...(r.restarted_sources ?? []), ...stale])],
       };
-      store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
-      throw new MirrorError(error.code, error.message);
+      store.putDocument(tenant, 'overview_report', r.id, r);
     }
     if (fingerprint(r.platform_contracts ?? {}) !== fingerprint(contracts)) {
       r = {...r, platform_contracts: contracts};
@@ -1936,6 +1943,8 @@ export class ReportingOverview {
           });
           access();
           const result: JsonObject = {...captured, source};
+          if (r.restarted_sources?.includes(key))
+            result.warnings = [...(result.warnings ?? []), sourceRestartedWarning];
           if (r.config.contract_version === overviewConfigV4 && !scopeRollups) {
             const scoped = overviewV4Scope(source, result.rows, reportSource(source.platform)?.overview);
             result.rows = scoped.rows;

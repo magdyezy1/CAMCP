@@ -379,8 +379,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
   // Web-report adds the singular forms of two row-count messages (F-L8-12).
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
-  // Package engine-core adds three website messages: the levels of a source that could not be collected (F-L5-10), the selected IDs that matched no returned row (F-L5-27) and the count of a figure built from native measurements (F-L5-31).
-  assert.equal(Object.keys(catalog).length, 11818);
+  // Package engine-core adds four website messages: the levels of a source that could not be collected (F-L5-10), the selected IDs that matched no returned row (F-L5-27), the count of a figure built from native measurements (F-L5-31) and the source collected again after an earlier platform contract (F-L5-16).
+  assert.equal(Object.keys(catalog).length, 11819);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

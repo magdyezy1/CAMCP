@@ -11122,6 +11122,7 @@
   "Meta account metadata changed during allocation inspection. Preview again.": "تغيّرت بيانات حساب Meta أثناء فحص التوزيع. أعِد المعاينة.",
   "Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.": "تعذّرت قراءة العناصر الأم الأصلية لهذا المصدر، لذلك تعرض صفوفه معرّفات الكيانات دون الحملات أو المجموعات الإعلانية الأم.",
   "This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.": "يُبلغ هذا المصدر عن أكثر من 1000 كيان، لذلك تبقى العناصر الأم للكيانات التي تتجاوز هذا الحد غير معروفة.",
+  "This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.": "جُمع هذا المصدر من جديد من بدايته، لأن حالة الجمع المحفوظة له تعود إلى عقد سابق للمنصة.",
   "The login or its permissions changed while native parents were read. Run the report again.": "تغيّر تسجيل الدخول أو صلاحياته أثناء قراءة العناصر الأم الأصلية. شغّل التقرير مرة أخرى.",
   "Native parents were not returned completely.": "لم تُرجَع العناصر الأم الأصلية كاملة.",
   "TikTok refused the parent read.": "رفضت TikTok قراءة العناصر الأم.",
