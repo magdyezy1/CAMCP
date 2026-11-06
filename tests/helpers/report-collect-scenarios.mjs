@@ -369,6 +369,31 @@ const apple =
     const ids = plan.body.filters[0].value.map(String);
     return {result: (records[kind] ?? []).filter(r => ids.includes(String(r.id)))};
   };
+// The ad group and ad levels (V2-RPT-07 Task 13): answers shaped as Apple's pages show them, a campaign report that finds
+// the campaigns, the ad group and ad reports of one campaign, and the entity queries, each with `pagination` beside
+// `result`. For the ad group or ad report, `cap` is how many rows the server serves in a page whatever size was asked, and
+// `total` the total it states when that is not the number of rows.
+const appleListing =
+  ({rows = [appleRow(701)], records = appleRecords, campaigns = [appleRow(501)], cap, total} = {}) =>
+  plan => {
+    if (plan.path === '/v1/ad-accounts/500') return {result: {id: 500, name: 'Synthetic Apple', currency: 'USD'}};
+    const {offset, pageSize} = plan.body.pagination,
+      page = (list, report, served = pageSize, stated = list.length) => {
+        const part = list.slice(offset, offset + Math.min(pageSize, served)),
+          pagination = {totalCount: stated, offset, pageSize};
+        return report ? {result: {rows: part}, pagination} : {result: part, pagination};
+      };
+    if (plan.path === '/v1/reports/apps/campaigns/query') return page(campaigns, true);
+    if (plan.path.startsWith('/v1/reports/apps/'))
+      return page(typeof rows === 'function' ? rows() : rows, true, cap, total);
+    const kind = plan.path.split('/')[2];
+    if (records[kind] instanceof MirrorError) return records[kind];
+    const ids = plan.body.filters[0].value.map(String);
+    return page(
+      (records[kind] ?? []).filter(r => ids.includes(String(r.id))),
+      false,
+    );
+  };
 const redditRow = (extra = {}) => ({
   campaign_id: '11',
   ad_group_id: '22',
@@ -918,35 +943,35 @@ export const collectScenarios = [
     name: 'apple ads',
     gateway: 'apple_ads_native_action',
     account: '500',
-    answer: apple(),
+    answer: appleListing(),
     source: detailed('apple', '500', 'ad'),
   },
   {
     name: 'apple ad groups',
     gateway: 'apple_ads_native_action',
     account: '500',
-    answer: apple([appleRow(601)]),
+    answer: appleListing({rows: [appleRow(601)]}),
     source: detailed('apple', '500', 'adset'),
   },
   {
     name: 'apple parents refused',
     gateway: 'apple_ads_native_action',
     account: '500',
-    answer: apple([appleRow(601)], {...appleRecords, adgroups: refused()}),
+    answer: appleListing({rows: [appleRow(601)], records: {...appleRecords, adgroups: refused()}}),
     source: detailed('apple', '500', 'adset'),
   },
   {
-    name: 'apple full detail page',
+    name: 'apple ad group report in short pages',
     gateway: 'apple_ads_native_action',
     account: '500',
-    answer: apple(() => Array.from({length: 1000}, (_, i) => appleRow(1000 + i))),
+    answer: appleListing({rows: [601, 602, 603, 604, 605].map(appleRow), cap: 2}),
     source: detailed('apple', '500', 'adset'),
   },
   {
-    name: 'apple total results disagree',
+    name: 'apple total beyond the rows',
     gateway: 'apple_ads_native_action',
     account: '500',
-    answer: apple([appleRow(601)], appleRecords, {pagination: {totalResults: 2}}),
+    answer: appleListing({rows: [appleRow(601)], total: 2}),
     source: detailed('apple', '500', 'adset'),
   },
   // Reddit Ads.
