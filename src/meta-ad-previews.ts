@@ -93,13 +93,12 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         const found = rows([row])[0]!;
         if (matches(found, true)) chosen.push(found);
       } catch (error) {
-        // A foreign ad (the observer's refusal) and an ad Meta says does not exist or cannot be loaded (code 100, subcode
-        // 33) read the same: not in this account. Whether an ad exists elsewhere is not the caller's to learn (F-L3-03).
+        // A foreign ad (the observer's refusal), an ad whose ownership is not established, and an ad Meta says does not
+        // exist or cannot be loaded (metaAbsent: a 404, NOT_FOUND, code 100 with subcode 33) read the same: not in this
+        // account. Whether an ad exists elsewhere is not the caller's to learn (F-L3-03).
         if (
           !(error instanceof MirrorError) ||
-          !(
-            ['ACCOUNT_SCOPE_MISMATCH', 'NOT_FOUND', 'RESOURCE_SCOPE_REQUIRED'].includes(error.code) || metaAbsent(error)
-          )
+          !(['ACCOUNT_SCOPE_MISMATCH', 'RESOURCE_SCOPE_REQUIRED'].includes(error.code) || metaAbsent(error))
         )
           throw error;
         missing.push(id);
