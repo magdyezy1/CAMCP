@@ -7681,6 +7681,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -7699,6 +7705,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -7747,6 +7759,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -7795,6 +7813,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -7940,8 +7964,8 @@
      {
       "campaign_id": "c2",
       "campaign_name": "X c2",
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "MIXED",
+      "objective_group": "mixed",
       "currency": null,
       "metrics": {
        "spend": 0.72,
@@ -7959,7 +7983,7 @@
       "native": {
        "id": "c2",
        "name": "X c2",
-       "objective": "$undefined",
+       "objective": "MIXED",
        "native_metrics": {
         "impressions": 72,
         "clicks": 0,
@@ -7971,7 +7995,11 @@
         "clicks": 0,
         "engagements": null,
         "video_views": null
-       }
+       },
+       "line_item_objectives": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     ],
@@ -7994,7 +8022,7 @@
     "attribution": "provider configured",
     "result_definition": "unknown",
     "warnings": [
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
     "source_kind": "paid",
@@ -8167,6 +8195,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -8200,6 +8234,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -8342,7 +8382,7 @@
     "attribution": "provider configured",
     "result_definition": "unknown",
     "warnings": [
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "1 X campaign has no reported activity in this window (X active entities). They are not listed and are never counted as zero.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
@@ -8516,6 +8556,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -8549,6 +8595,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -8691,7 +8743,7 @@
     "attribution": "provider configured",
     "result_definition": "unknown",
     "warnings": [
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "1 X campaign has no reported activity in this window (X active entities). They are not listed and are never counted as zero.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
@@ -8934,6 +8986,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -8953,6 +9011,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -9002,6 +9066,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -9051,6 +9121,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -9196,8 +9272,8 @@
      {
       "campaign_id": "c2",
       "campaign_name": "X c2",
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "MIXED",
+      "objective_group": "mixed",
       "currency": null,
       "metrics": {
        "spend": 0.72,
@@ -9215,7 +9291,7 @@
       "native": {
        "id": "c2",
        "name": "X c2",
-       "objective": "$undefined",
+       "objective": "MIXED",
        "native_metrics": {
         "impressions": 72,
         "clicks": 0,
@@ -9227,7 +9303,11 @@
         "clicks": 0,
         "engagements": null,
         "video_views": null
-       }
+       },
+       "line_item_objectives": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     ],
@@ -9251,7 +9331,7 @@
     "result_definition": "unknown",
     "warnings": [
      "X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).",
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
     "source_kind": "paid",
@@ -9318,8 +9398,8 @@
      {
       "campaign_id": "c2",
       "campaign_name": "X c2",
-      "objective": "$undefined",
-      "objective_group": "unknown",
+      "objective": "MIXED",
+      "objective_group": "mixed",
       "currency": null,
       "metrics": {
        "spend": 0.72,
@@ -9337,7 +9417,7 @@
       "native": {
        "id": "c2",
        "name": "X c2",
-       "objective": "$undefined",
+       "objective": "MIXED",
        "native_metrics": {
         "impressions": 72,
         "clicks": 0,
@@ -9349,7 +9429,11 @@
         "clicks": 0,
         "engagements": null,
         "video_views": null
-       }
+       },
+       "line_item_objectives": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     ],
@@ -9373,7 +9457,7 @@
     "result_definition": "unknown",
     "warnings": [
      "X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).",
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
     "source_kind": "paid",
