@@ -944,6 +944,11 @@ export interface AdPreviewRequest {
   ): Promise<{chosen: AdPreviewRow[]; paging: JsonObject}>;
   /** The `not_found` fields of the named IDs a platform did not list. */
   notListed(missing: readonly string[]): JsonObject;
+  /**
+   * Whether the gateway has observed the account to own a resource (`creatives/<id>`), from one of its own list reads of
+   * the account in the last five minutes: the observation a read of that resource needs before it is sent.
+   */
+  observed(resource: string): boolean;
 }
 
 /** The ads a platform's selection chose, how each one's preview is read, and the rest of the answer. */

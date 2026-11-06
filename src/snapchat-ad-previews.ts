@@ -21,7 +21,8 @@ const linkExpiryMs = (value: string | null) => {
 };
 
 async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
-  const {account, wanted, statuses, campaigns, adsets, base, read, matches, pageSelection, notListed} = request;
+  const {account, wanted, statuses, campaigns, adsets, base, read, matches, pageSelection, notListed, observed} =
+    request;
   const invalid = (): never =>
       fail('REPORT_SHAPE_CHANGED', 'The platform returned an invalid preview list or continuation.'),
     nativeId = (id: unknown): id is string => typeof id === 'string' && /^[\w-]{1,64}$/.test(id),
@@ -156,6 +157,15 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
   const owned = new Map<string, JsonObject>(),
     pending = new Set(chosen.map(row => row.id)),
     seen = new Set<string>();
+  // A creative the gateway observed in one of its own reads of the account's creative list in the last five minutes (the
+  // observation its preview read needs, and no longer than the cursor lives) is not proven again. A named creative
+  // always is: its name comes from that list. (V2-PRV-01 design note 3.)
+  if (!wanted)
+    for (const id of [...pending])
+      if (observed('creatives/' + id)) {
+        owned.set(id, {id});
+        pending.delete(id);
+      }
   let after: string | null = null,
     ownershipIncomplete = false;
   while (pending.size && scanned < 10) {

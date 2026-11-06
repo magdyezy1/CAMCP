@@ -169,6 +169,7 @@ export class AdPreviews {
     let authorization = '',
       permissions: string[] = [],
       selectedConnection = connection,
+      observed = (_resource: string) => false,
       current = () => {};
     if (reads) {
       try {
@@ -184,6 +185,7 @@ export class AdPreviews {
         selectedConnection = login.id;
         authorization = authority.authorization;
         permissions = [...login.scopes].sort();
+        observed = resource => this.store.ownsResource(login, account, resource);
         current = () => {
           this.store.assertActorActive(actor);
           authority.current();
@@ -354,6 +356,7 @@ export class AdPreviews {
           matches,
           pageSelection,
           notListed,
+          observed,
         },
         selected = await provider.previews.select(request);
       return result(await each(selected.rows, selected.preview), selected.extra);

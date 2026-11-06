@@ -958,3 +958,171 @@ test('Snapchat asks its ads list for a long page, and the long page keeps its pa
     [1],
   );
 });
+
+// Design note 3: the proof that a Snapchat creative is the account's re-read the creative list from its first page on
+// every call, although the gateway had observed the creatives it returned for five minutes (the same observation the
+// preview read needs). A creative observed in that time is not proven again; one that was not is, and a named creative
+// always is, for its name.
+function nativeSnapchat(t) {
+  const store = storeFixture(t, 'snapchat_native_action'),
+    reads = [];
+  const ads = ['cr1', 'cr2', 'cr3'].map((creative, i) => ({
+    id: 'a' + (i + 1),
+    creative_id: creative,
+    status: 'ACTIVE',
+  }));
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async raw => {
+      const url = new URL(String(raw));
+      reads.push(
+        url.pathname +
+          (url.searchParams.get('cursor')
+            ? '?cursor=' + url.searchParams.get('cursor')
+            : url.searchParams.get('limit')
+              ? '?limit=' + url.searchParams.get('limit')
+              : ''),
+      );
+      if (url.pathname === '/v1/adaccounts/100/ads')
+        return Response.json({request_status: 'SUCCESS', ads: ads.map(row => ({ad: {...row, name: 'Ad ' + row.id}}))});
+      if (url.pathname === '/v1/adaccounts/100/creatives') {
+        // The account's creatives come two to a page, as the list pages them; the gateway keeps only the IDs asked for.
+        const offset = Number(url.searchParams.get('cursor') ?? 0),
+          page = ads.slice(offset, offset + 2);
+        return Response.json({
+          request_status: 'SUCCESS',
+          creatives: page.map(row => ({
+            creative: {id: row.creative_id, name: 'Creative ' + row.creative_id, ad_account_id: '100'},
+          })),
+          ...(offset + 2 < ads.length
+            ? {
+                paging: {
+                  next_link:
+                    'https://adsapi.snapchat.com/v1/adaccounts/100/creatives?cursor=' +
+                    (offset + 2) +
+                    '&limit=1000&sort=created_at-desc',
+                },
+              }
+            : {}),
+        });
+      }
+      const preview = /^\/v1\/creatives\/(\w+)\/creative_preview$/.exec(url.pathname);
+      if (preview)
+        return Response.json({
+          request_status: 'SUCCESS',
+          creative_id: preview[1],
+          expires_at: '2999-01-01T00:00:00Z',
+          creative_preview_link:
+            'https://adsapi.snapchat.com/media/creative_preview?creative_id=' +
+            preview[1] +
+            '&expires_at=' +
+            Date.parse('2999-01-01T00:00:00Z') +
+            '&signature=synthetic',
+        });
+      throw Error('Unexpected synthetic Snapchat request ' + url.pathname);
+    }),
+    undefined,
+    {allowWrites: false, requireBeforeState: true, maxBudgetChange: 0},
+  );
+  const call = extra =>
+    service.call('amcp_ad_previews', {platform: 'snapchat', account_id: '100', connection_id: login, ...extra}, actor);
+  return {store, reads, call};
+}
+const listReads = reads => reads.filter(path => path.startsWith('/v1/adaccounts/100/creatives')).length;
+
+test('a Snapchat creative seen in the account’s list in the last five minutes is not proven again, and one that was not is', async t => {
+  const f = nativeSnapchat(t);
+  t.mock.timers.enable({apis: ['Date'], now: Date.now()});
+  t.after(() => t.mock.timers.reset());
+  const first = await f.call({limit: 2});
+  assert.deepEqual(
+    first.data.previews.map(row => row.ad_id),
+    ['cr1', 'cr2'],
+  );
+  assert.equal(listReads(f.reads), 1);
+  // The same selection a minute later: the ads and the previews are read, the creative list is not.
+  t.mock.timers.tick(60000);
+  f.reads.length = 0;
+  const again = await f.call({limit: 2});
+  assert.deepEqual(
+    again.data.previews.map(row => row.ad_id),
+    ['cr1', 'cr2'],
+  );
+  assert.equal(
+    again.data.previews.every(row => row.links.length === 1),
+    true,
+  );
+  assert.equal(listReads(f.reads), 0);
+  assert.deepEqual(f.reads, [
+    '/v1/adaccounts/100/ads?limit=100',
+    '/v1/creatives/cr1/creative_preview',
+    '/v1/creatives/cr2/creative_preview',
+  ]);
+  // A third creative is on the list's second page, which no read had shown: it is proven by walking to it.
+  f.reads.length = 0;
+  const wider = await f.call({limit: 3});
+  assert.deepEqual(
+    wider.data.previews.map(row => row.ad_id),
+    ['cr1', 'cr2', 'cr3'],
+  );
+  assert.deepEqual(
+    f.reads.filter(path => path.startsWith('/v1/adaccounts/100/creatives')),
+    ['/v1/adaccounts/100/creatives?limit=1000', '/v1/adaccounts/100/creatives?cursor=2'],
+  );
+  // After five minutes the observation has lapsed, and the proof is read again.
+  t.mock.timers.tick(5 * 60000 + 1);
+  f.reads.length = 0;
+  await f.call({limit: 3});
+  assert.equal(listReads(f.reads), 2);
+});
+
+test('a named Snapchat creative is proven from the account list every time, for its name', async t => {
+  const f = nativeSnapchat(t);
+  t.mock.timers.enable({apis: ['Date'], now: Date.now()});
+  t.after(() => t.mock.timers.reset());
+  for (let call = 0; call < 2; call++) {
+    f.reads.length = 0;
+    const out = await f.call({ad_ids: ['cr1']});
+    assert.deepEqual(
+      out.data.previews.map(row => [row.ad_id, row.name]),
+      [['cr1', 'Creative cr1']],
+    );
+    assert.equal(listReads(f.reads), 1, 'call ' + call);
+    t.mock.timers.tick(1000);
+  }
+});
+
+test('a creative observed through one login is not taken as proven through another', async t => {
+  const f = nativeSnapchat(t);
+  await f.call({limit: 2});
+  f.reads.length = 0;
+  const other = await new MirrorService(
+    new Registry(),
+    f.store,
+    new NativeTransport(async raw => {
+      const url = new URL(String(raw));
+      f.reads.push(url.pathname);
+      if (url.pathname === '/v1/adaccounts/100/ads')
+        return Response.json({
+          request_status: 'SUCCESS',
+          ads: [{ad: {id: 'a1', creative_id: 'cr1', name: 'Ad', status: 'ACTIVE'}}],
+        });
+      if (url.pathname === '/v1/adaccounts/100/creatives')
+        return Response.json({request_status: 'SUCCESS', creatives: []});
+      throw Error('Unexpected synthetic Snapchat request ' + url.pathname);
+    }),
+    undefined,
+    {allowWrites: false, requireBeforeState: true, maxBudgetChange: 0},
+  ).call('amcp_ad_previews', {platform: 'snapchat', account_id: '100', connection_id: otherLogin}, actor);
+  // The second login's own creative list does not show cr1: it is not previewed, and the list was read.
+  assert.deepEqual(
+    other.data.previews.map(row => [row.ad_id, row.links.length, row.note]),
+    [['cr1', 0, 'Not in this account']],
+  );
+  assert.equal(listReads(f.reads), 1);
+  assert.equal(
+    f.reads.some(path => path.includes('creative_preview')),
+    false,
+  );
+});
