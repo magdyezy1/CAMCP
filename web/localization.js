@@ -19,7 +19,7 @@ function uiText(message, values = {}) {
   );
 }
 /**
- * First-party templates use the interface language. Provider messages stay literal, with AMCP's explanation below.
+ * First-party templates use the interface language. Provider messages stay literal, with AMCP's explanation and next step below.
  */
 function uiOwnedError(error) {
   if (!error || typeof error !== 'object') return {message: '', nextAction: ''};
@@ -32,10 +32,9 @@ function uiOwnedError(error) {
       provider && (typeof provider.message === 'string' || !local)
         ? message
         : uiText(local?.key ?? message, local?.values),
-    // Beneath a provider's literal message: AMCP's own explanation, then the error's next step (each when it has one).
     nextAction: [
-      local && typeof provider?.message === 'string' ? uiText(local.key, local.values) : '',
-      typeof error.next_action === 'string' ? uiText(error.next_action) : '',
+      local && typeof provider?.message === 'string' && uiText(local.key, local.values),
+      typeof error.next_action === 'string' && uiText(error.next_action),
     ]
       .filter(Boolean)
       .join(' '),
