@@ -166,10 +166,16 @@
       "raised": [
         "reference_words 146579 → 148921"
       ]
+    },
+    {
+      "reason": "stored package (F-L6-03, F-L6-04): docs/REPORTING-OVERVIEW.md 'Contract stamps and notices' now describes the one per-report notice record (registration, carrying, spending on a successful delivery, one History read per report) in place of the earlier inference from History; about 130 more words",
+      "raised": [
+        "reference_words 148921 → 149053"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 148921
+    "reference_words": 149053
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
