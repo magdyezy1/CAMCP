@@ -9,6 +9,7 @@ import {
   compareToBaseline,
   declaresLocalFail,
   isProviderModule,
+  providerActionLiterals,
   ratchetedMetrics,
   staticSpecifiers,
   stronglyConnected,
@@ -96,6 +97,7 @@ test('a rising measurement or a module joining a cycle is a regression; a fall i
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
       local_fail_copies: 0,
+      shared_provider_action_literals: 30,
     },
     cycles: [
       ['src/a.ts', 'src/b.ts', 'src/c.ts'],
@@ -137,7 +139,7 @@ test('a rising measurement or a module joining a cycle is a regression; a fall i
   assert.deepEqual(broken.improvements, ['largest_runtime_scc fell from 3 to 2', 'cyclic_modules fell from 5 to 2']);
   // A baseline without a value for a ratcheted measurement fails rather than passing silently.
   const missing = compareToBaseline(same, {metrics: {largest_runtime_scc: 3}, cycles: baseline.cycles});
-  assert.equal(missing.regressions.length, 4);
+  assert.equal(missing.regressions.length, 5);
 });
 
 test('ARC-04 stage C: a module that declares its own fail is a regression that names it; a kit-built refusal is not one', () => {
@@ -167,6 +169,7 @@ test('ARC-04 stage C: a module that declares its own fail is a regression that n
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
       local_fail_copies: 0,
+      shared_provider_action_literals: 30,
     },
     cycles: [],
   };
@@ -217,6 +220,7 @@ test('owner direction P11: the architecture document shows the recorded baseline
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
       local_fail_copies: 0,
+      shared_provider_action_literals: 30,
     },
     reported: {shared_gateway_literals: 42},
     cycles: [
@@ -238,4 +242,33 @@ test('owner direction P11: the architecture document shows the recorded baseline
   const committed = fs.readFileSync(new URL('../' + architectureDocument, import.meta.url), 'utf8'),
     recorded = JSON.parse(fs.readFileSync(new URL('../' + baselineFile, import.meta.url), 'utf8'));
   assert.equal(withBaselineBlock(committed, recorded), committed);
+});
+
+test('V2-PRV-01: a provider-prefixed action name is a whole string literal of a prefix and two more words', () => {
+  const source = [
+    "const a = 'meta_ad_list';",
+    'const b = "tiktok_ad_preview";',
+    'const c = `snapchat_creative_list`;',
+    "const d = 'linkedin_rest_ad_previews_get';",
+    "const e = 'x_accounts_account_id_tweet_previews_get';",
+    // A platform's ID has one word after the prefix, a gateway is counted by its own measurement, a measurement
+    // module is a feature of several providers, and only a whole literal is a name.
+    "const f = 'google_ads';",
+    "const g = 'meta_native_action';",
+    "const h = 'measurement_ledger_rows';",
+    "const i = 'metadata_ad_list';",
+    "const j = 'the meta_ad_list read';",
+    "const k = 'Meta_ad_list';",
+    "const l = 'x_ads_native_action';",
+  ].join('\n');
+  assert.deepEqual(providerActionLiterals(source), [
+    'meta_ad_list',
+    'tiktok_ad_preview',
+    'snapchat_creative_list',
+    'linkedin_rest_ad_previews_get',
+    'x_accounts_account_id_tweet_previews_get',
+  ]);
+  // The previews tool held 15 of them (13 distinct) behind gatewayOf, which the gateway-literal count cannot see.
+  assert.deepEqual(providerActionLiterals(fs.readFileSync('src/ad-previews.ts', 'utf8')), []);
+  assert.equal(typeof architectureMetrics('.').metrics.shared_provider_action_literals, 'number');
 });

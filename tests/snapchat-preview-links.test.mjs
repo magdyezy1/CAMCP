@@ -10,6 +10,12 @@ import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 
 const actor = {tenantId: 'synthetic-snap-preview', userId: 'owner', role: 'admin'},
   login = 'aaaaaaaa-1111-4111-8111-000000000001';
+/** The signed link a Snapchat answer carries, with the given text as its `expires_at` parameter. */
+const signedLink = (expiry, extra = '') =>
+  'https://adsapi.snapchat.com/media/creative_preview?creative_id=cr1&expires_at=' +
+  expiry +
+  '&signature=synthetic-signature' +
+  extra;
 function fixture(t, {preview = {}} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 68).toString('base64')),
     reads = [],
@@ -137,7 +143,9 @@ test('the adapter declares only the exact plain preview GET, and the shared serv
 
 test('expired, foreign or inconsistent preview capabilities yield no browser link', async t => {
   for (const preview of [
-    {expires_at: '2000-01-01T00:00:00Z'},
+    // F-L3-04: the link's own expiry decides. Expired in the link (epoch seconds and milliseconds), whatever the JSON says.
+    {creative_preview_link: signedLink(946684800)},
+    {creative_preview_link: signedLink(946684800000), expires_at: '2999-01-01T00:00:00Z'},
     {creative_id: 'foreign-creative'},
     {creative_preview_link: 'https://foreign.example/preview?creative_id=cr1&signature=synthetic'},
     {
@@ -155,4 +163,72 @@ test('expired, foreign or inconsistent preview capabilities yield no browser lin
     assert.deepEqual(out.data.previews[0].links, []);
     assert.equal(out.data.previews[0].note, 'Snapchat returned an expired or invalid preview link.');
   }
+});
+
+// F-L3-04: Snapchat's documentation names the parameters of the link and its 90 days, not the format of the timestamp
+// (provider-docs.md), so the rule that two of them had to agree in one unverified way dropped every link if the real
+// answer differed. The link's own value decides, as epoch seconds or milliseconds; the real shape is captured at the
+// live check (docs/AD-PREVIEWS.md).
+const ask = async (t, preview) => {
+  const f = fixture(t, {preview}),
+    out = await f.service.call(
+      'amcp_ad_previews',
+      {platform: 'snapchat', account_id: '100', connection_id: login, ad_ids: ['cr1']},
+      actor,
+    );
+  assert.equal(out.success, true, JSON.stringify(out.error));
+  return {item: out.data.previews[0], f};
+};
+test('F-L3-04: a link whose expiry is in epoch seconds is returned, with the value as Snapchat wrote it', async t => {
+  const seconds = Math.floor(Date.UTC(2999, 0, 1) / 1000),
+    {item} = await ask(t, {creative_preview_link: signedLink(seconds)});
+  assert.equal(item.links.length, 1);
+  const url = new URL(item.links[0]);
+  assert.equal(url.origin, 'https://ad-preview.snapchat.com');
+  assert.equal(url.searchParams.get('expires_at'), String(seconds));
+  assert.equal(url.searchParams.get('signature'), 'synthetic-signature');
+  assert.equal(item.expires_at, '2999-01-01T00:00:00.000Z');
+  assert.equal(item.note, undefined);
+});
+test('F-L3-04: a link whose expiry is in epoch milliseconds is returned', async t => {
+  const millis = Date.UTC(2999, 0, 1),
+    {item} = await ask(t, {creative_preview_link: signedLink(millis)});
+  assert.equal(item.links.length, 1);
+  assert.equal(new URL(item.links[0]).searchParams.get('expires_at'), String(millis));
+  assert.equal(item.expires_at, '2999-01-01T00:00:00.000Z');
+});
+test('F-L3-04: a link that differs from the JSON timestamp is still a valid link, and its own expiry is the one shown', async t => {
+  const later = Date.UTC(2999, 0, 2);
+  for (const json of [
+    {expires_at: '2999-01-01T00:00:00Z'},
+    {expires_at: '2000-01-01T00:00:00Z'},
+    {expires_at: 32503680000},
+    {expires_at: undefined},
+  ]) {
+    const {item} = await ask(t, {creative_preview_link: signedLink(later), ...json});
+    assert.equal(item.links.length, 1, JSON.stringify(json));
+    assert.equal(item.expires_at, '2999-01-02T00:00:00.000Z', JSON.stringify(json));
+  }
+});
+test('F-L3-04: a link whose expiry is not epoch seconds or milliseconds yields no link', async t => {
+  for (const expiry of [
+    'abc',
+    '',
+    '2999-01-01T00:00:00Z',
+    '1e12',
+    '-5',
+    '3.5',
+    '0x10',
+    // Microseconds and nanoseconds are neither seconds nor milliseconds, even for a time ahead.
+    '32503680000000000',
+    '1776000000000000',
+    '1776000000000000000',
+  ]) {
+    const {item} = await ask(t, {creative_preview_link: signedLink(expiry)});
+    assert.deepEqual(item.links, [], 'expires_at=' + expiry);
+    assert.equal(item.note, 'Snapchat returned an expired or invalid preview link.', 'expires_at=' + expiry);
+  }
+  // The expiry is one parameter, once.
+  const {item} = await ask(t, {creative_preview_link: signedLink(Date.UTC(2999, 0, 1), '&expires_at=1')});
+  assert.deepEqual(item.links, []);
 });

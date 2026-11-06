@@ -717,7 +717,6 @@ export const kitRefusalFactories = Object.freeze({
  * reasons are translated, and never add one (tests/backend-wrapper-localization.test.mjs).
  */
 export const unlocalizedRefusalModules = new Set([
-  'src/ad-previews.ts',
   'src/google-bid-modifiers.ts',
   'src/google-bidding-events.ts',
   'src/google-campaign-bid-modifiers.ts',

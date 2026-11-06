@@ -27,6 +27,7 @@ import {microsoftLocationsUnpinned} from './microsoft-location-pin.js';
 import {nameCandidates, searchTerm} from './name-candidates.js';
 // Wave 4c round 6 (w4c-arc6-tables): its wire contract, the pinned WSDL type model.
 import {microsoftWireContract} from './microsoft-wire-contract.js';
+import {noPreviewRoute} from './ad-preview-kit.js';
 
 /**
  * Wave 4c (transport and catalog): Microsoft's part of the catalog registry (src/catalog.ts). Its tool and catalog are
@@ -149,6 +150,10 @@ function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: str
  */
 export const microsoftHooks: ProviderHooks = Object.freeze({
   gateway: microsoftGateway,
+  previews: noPreviewRoute(
+    'microsoft_ads',
+    'Microsoft Advertising has no ad preview route in its API that AMCP can read.',
+  ),
   // Wave 4c (transport and catalog): its requests are compiled from its own contracts, not the catalog compiler's.
   compile: Object.freeze({own: compileMicrosoft}),
   catalog: microsoftCatalog,

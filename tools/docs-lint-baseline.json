@@ -190,10 +190,16 @@
       "raised": [
         "reference_words 149112 → 149582"
       ]
+    },
+    {
+      "reason": "previews package (V2-PRV-01), merged onto stored, tiktok, objectives and levels: the architecture ratchet gains a measurement, shared_provider_action_literals, which the previews seam needs (its recorded row and one row of the ratchet table, 31 words), and docs/AD-PREVIEWS.md records what the package changed: the Snapchat link expiry and the live capture it awaits, archived or deleted as the meaning of old ads, 100-row list pages, the five-minute creative observation, the Meta identity read, rejected link separators and Start again after a failed Load more (179 words); 210 recorded words, plus the 3 words of headroom the earlier packages had already used, so 213 words on the merged pages",
+      "raised": [
+        "reference_words 149582 → 149795"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 149582
+    "reference_words": 149795
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

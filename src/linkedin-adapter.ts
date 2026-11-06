@@ -25,7 +25,7 @@ import {
   authorizeLinkedInAdPreview,
   linkedinAdPreviewRead,
   observeLinkedInCreatives,
-  linkedInPreviewLinks,
+  linkedinAdPreviews,
 } from './linkedin-ad-previews.js';
 import {authorizeLinkedInSpecial, linkedinSpecialRequest} from './linkedin-posts.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
@@ -240,8 +240,9 @@ const linkedinCompile: CompileHooks = Object.freeze({
 });
 
 export const linkedinHooks: ProviderHooks = Object.freeze({
-  adPreviewLinks: linkedInPreviewLinks,
   gateway: 'linkedin_native_action',
+  // Its creatives and their previews for amcp_ad_previews (src/ad-previews.ts).
+  previews: linkedinAdPreviews,
   compile: linkedinCompile,
   // Wave 4c (transport and catalog): its captured catalog reports 202605 (its li-lms-2026-05 snapshot); it is read at
   // the reviewed version AMCP sends (PRV-02, src/catalog-versions.ts), as that version is when it is read.

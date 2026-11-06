@@ -30,6 +30,7 @@ import {deepFrozen} from './frozen-facts.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {xCatalogIngestion} from './x-catalog-ingestion.js';
+import {xAdPreviews} from './x-ad-previews.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters. */
@@ -69,6 +70,8 @@ const xContracts: ContractHooks = Object.freeze({
  */
 export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
+  // Its Tweet preview read is not qualified: amcp_ad_previews says so (src/ad-previews.ts).
+  previews: xAdPreviews,
   // Wave 4c (transport and catalog): the audience estimate is planned as a bounded read after its report job's controls.
   compile: Object.freeze({afterJob: xAudienceEstimatePlan}),
   // Its tool takes the report job operations AMCP adds to the captured definition.

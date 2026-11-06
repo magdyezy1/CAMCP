@@ -80,6 +80,7 @@ import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {normalizeAccount} from './account-id.js';
+import {googleAdPreviews} from './google-ad-previews.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -573,6 +574,8 @@ const googleAdsContracts: ContractHooks = Object.freeze({
  */
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
+  // Its shareable previews are a reviewed write: amcp_ad_previews names the call (src/ad-previews.ts).
+  previews: googleAdPreviews,
   compile: googleAdsCompile,
   // Wave 4c (transport and catalog): Customer Match and offline conversions through the Data Manager API, documented
   // beyond the captured catalog; its captured catalog is read at the API version AMCP sends (src/catalog-versions.ts).

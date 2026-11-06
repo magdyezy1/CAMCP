@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {compileEntityRead} from '../dist/src/workflows.js';
 import {xAnalyticsTime} from '../dist/src/x-report-jobs.js';
-import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {adPreviewProviders, providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {previewLinks, previewTool} from '../dist/src/ad-previews.js';
+import {providerActionLiterals} from '../tools/architecture-map.mjs';
 import {launchCheckPlatforms} from '../dist/src/launch-check.js';
 import {providerAdapters, providerById} from '../dist/src/provider-adapters.js';
 import {pausedParentChildStatuses, pausedParentFollowUp, validatePausedParents} from '../dist/src/paused-parents.js';
@@ -267,4 +270,77 @@ test('the media upload reaches LinkedIn’s organization owners and resumable tr
   );
   assert.equal(media.partId('etag-1'), true);
   assert.equal(media.partId('etag"1'), false);
+});
+
+test('the ad previews tool takes its platforms, their reads and their placements from the adapters’ previews hooks', () => {
+  // V2-PRV-01: the tool held five platforms' contracts in one switch (43 platform names, 15 action names and four
+  // hosts in 1,161 lines); each platform's selection, native query shapes, status map, paging and response checks are
+  // now its adapter's `previews` hooks (src/<platform>-ad-previews.ts), and the tool keeps the cursor, the authority
+  // and login checks, the limits and the shape of the answer.
+  assertNamesNoProvider('src/ad-previews.ts');
+  assert.deepEqual(
+    providerActionLiterals(fs.readFileSync(new URL('../src/ad-previews.ts', import.meta.url), 'utf8')),
+    [],
+  );
+  // The platforms are the hooks that declare previews, in the order the tool's schema lists them.
+  assert.deepEqual(
+    registeredProviderHooks
+      .filter(h => h.previews)
+      .map(h => h.gateway)
+      .sort(),
+    adPreviewProviders.map(h => h.gateway).sort(),
+  );
+  assert.deepEqual(
+    adPreviewProviders.map(h => [h.gateway, h.previews.platform]),
+    [
+      ['meta_native_action', 'meta'],
+      ['tiktok_native_action', 'tiktok'],
+      ['snapchat_native_action', 'snapchat'],
+      ['linkedin_native_action', 'linkedin'],
+      ['reddit_native_action', 'reddit'],
+      ['google_ads_native_action', 'google_ads'],
+      ['x_ads_native_action', 'x_ads'],
+      ['microsoft_ads_native_action', 'microsoft_ads'],
+      ['dv360_native_action', 'dv360'],
+      ['criteo_native_action', 'criteo'],
+      ['apple_ads_native_action', 'apple_ads'],
+    ],
+  );
+  assert.deepEqual(
+    previewTool.inputSchema.properties.platform.enum,
+    adPreviewProviders.map(h => h.previews.platform),
+  );
+  // Five platforms read their ads; the others explain why not (Google Ads names the reviewed write). None does both.
+  assert.deepEqual(
+    adPreviewProviders.filter(h => h.previews.select).map(h => h.previews.platform),
+    ['meta', 'tiktok', 'snapchat', 'linkedin', 'reddit'],
+  );
+  for (const h of adPreviewProviders) {
+    assert.ok(Object.isFrozen(h.previews), h.gateway);
+    assert.notEqual(!!h.previews.select, !!h.previews.explain, h.gateway);
+  }
+  // Only LinkedIn writes its ads and filters in another form; only Meta offers placements, and the schema lists them.
+  assert.deepEqual(
+    adPreviewProviders.filter(h => h.previews.normalize).map(h => h.previews.platform),
+    ['linkedin'],
+  );
+  assert.deepEqual(
+    adPreviewProviders.filter(h => h.previews.formats).map(h => h.previews.platform),
+    ['meta'],
+  );
+  assert.deepEqual(
+    previewTool.inputSchema.properties.ad_format.enum,
+    providerHooks('meta_native_action').previews.formats,
+  );
+  assert.equal(providerHooks('meta_native_action').previews.formats[0], 'MOBILE_FEED_STANDARD');
+  // A response's links count only on the hosts a platform declares: Meta, TikTok and Reddit. Snapchat and LinkedIn
+  // build their links in their own modules, so the tool holds no host list for them (design note 6).
+  assert.deepEqual(
+    adPreviewProviders.filter(h => h.previews.linkHosts).map(h => h.previews.platform),
+    ['meta', 'tiktok', 'reddit'],
+  );
+  assert.deepEqual(previewLinks('reddit', 'https://www.reddit.com/p/1'), ['https://www.reddit.com/p/1']);
+  assert.deepEqual(previewLinks('reddit', 'https://www.facebook.com/p/1'), []);
+  for (const platform of ['snapchat', 'linkedin', 'google_ads', 'constructor', '__proto__', undefined])
+    assert.deepEqual(previewLinks(platform, 'https://www.linkedin.com/p/1'), [], String(platform));
 });

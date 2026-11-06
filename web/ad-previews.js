@@ -65,7 +65,7 @@ function adPreviewsPanel() {
       ? `<option value="" selected disabled>${esc(uiText('Choose an account'))}</option>`
       : '') +
       targets
-        .map((t, i) => `<option value="${i}" ${t === preselect ? 'selected' : ''}>${esc(t.label)}</option>`)
+        .map((t, i) => `<option value="${esc(i)}" ${t === preselect ? 'selected' : ''}>${esc(t.label)}</option>`)
         .join('') ||
     (hidden
       ? `<option value="">${esc(previewNoTarget(hidden))}</option>`
@@ -74,12 +74,18 @@ function adPreviewsPanel() {
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
 <label>${esc(uiText('Status'))}<select name="statuses">${['active', 'paused', 'archived', 'all'].map((value, index) => `<option value="${esc(value)}">${esc(uiText(['Active', 'Paused', 'Archived', 'All'][index]))}</option>`).join('')}</select></label>
 <label id="preview-format" hidden>${esc(uiText('Placement'))}<select name="ad_format">${previewFormats
-    .map(([v, l]) => `<option value="${v}">${esc(uiText(l))}</option>`)
+    .map(([v, l]) => `<option value="${esc(v)}">${esc(uiText(l))}</option>`)
     .join('')}</select></label>
 <button class="button" type="submit">${esc(uiText('Get preview links'))}</button></form>
-<div id="preview-results" role="status"></div></section>`;
+<div id="preview-results"></div>
+<p id="preview-status" class="form-note" role="status"></p></section>`;
 }
 
+/**
+ * The previews list sits in the results region as rows and a footer (the notes under the rows, and Load more). Load more
+ * appends the new rows to the rows and writes the footer again; the rows already read stay as they are, their place
+ * (and the reader's) with them. The short message in the status line is the only thing a screen reader is told of a page.
+ */
 function bindAdPreviews() {
   const {options: targets, hidden} = previewTargets(),
     form = $('#preview-form');
@@ -90,12 +96,16 @@ function bindAdPreviews() {
     selection = null,
     accumulated = [],
     pending = false;
+  const say = message => {
+    $('#preview-status').textContent = message;
+  };
   const reset = () => {
     generation++;
     selection = null;
     accumulated = [];
     pending = false;
     $('#preview-results').textContent = '';
+    say('');
   };
   const syncFormat = () => {
     $('#preview-format').hidden = chosen(form.elements.target.value)?.platform !== 'meta';
@@ -104,40 +114,83 @@ function bindAdPreviews() {
   form.addEventListener('change', syncFormat);
   form.addEventListener('input', reset);
   syncFormat();
+  // A button that is busy stays focusable (a disabled one drops the reader's place); its click is ignored meanwhile.
+  const busy = on => $('#preview-load-more')?.setAttribute?.('aria-disabled', on ? 'true' : 'false');
+  /** A later page that fails keeps the rows read and says so beside Load more, with the way to start again. */
+  const failedMore = e => {
+    const box = $('#preview-more-error'),
+      restart = $('#preview-restart');
+    if (box) box.textContent = errorMessage(e);
+    if (restart) restart.hidden = false;
+  };
   const load = async (args, more = false) => {
     const version = generation;
     pending = true;
-    const button = $('#preview-load-more');
-    if (button) button.disabled = true;
+    busy(true);
+    if (more) {
+      const box = $('#preview-more-error'),
+        restart = $('#preview-restart');
+      if (box) box.textContent = '';
+      if (restart) restart.hidden = true;
+      say(uiText('Reading the account’s ads and their previews…'));
+    }
     try {
       const r = await workspaceCall('previews', args);
       if (version !== generation) return;
-      const seen = new Set(more ? accumulated.map(p => p.source_ad_id ?? p.ad_id) : []);
-      accumulated = (more ? accumulated : []).concat(
-        (r.previews ?? []).filter(p => {
+      const first = more ? accumulated.length : 0,
+        seen = new Set(more ? accumulated.map(p => p.source_ad_id ?? p.ad_id) : []),
+        fresh = (r.previews ?? []).filter(p => {
           const key = p.source_ad_id ?? p.ad_id;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
-        }),
-      );
+        });
+      accumulated = (more ? accumulated : []).concat(fresh);
       selection = {args: {...args, cursor: undefined}, cursor: r.has_more ? r.next_cursor : null};
-      $('#preview-results').innerHTML = previewResults({...r, previews: accumulated});
+      if (more) {
+        insertHtml($('#preview-rows'), 'beforeend', previewRows(fresh, first));
+        setHtml($('#preview-footer'), previewFooter(r));
+        // The reader's place moves to the first new row, not to the top of the page.
+        if (fresh.length) $('#preview-row-' + first)?.focus();
+        say(uiPlural(fresh.length, '{count} more preview', '{count} more previews'));
+      } else {
+        setHtml($('#preview-results'), previewMarkup({...r, previews: fresh}));
+        say(
+          r.explanation
+            ? ''
+            : fresh.length
+              ? uiPlural(fresh.length, '{count} preview', '{count} previews')
+              : uiText('No ads match this preview selection.'),
+        );
+      }
     } catch (e) {
       if (version !== generation) return;
-      $('#preview-results').innerHTML =
-        `<p class="form-note">${esc(uiText('No previews:'))} ${esc(errorMessage(e))}</p>`;
+      if (more) {
+        failedMore(e);
+        say('');
+      } else {
+        setHtml($('#preview-results'), html`<p class="form-note">${uiText('No previews:')} ${errorMessage(e)}</p>`);
+        say('');
+      }
       throw e;
     } finally {
       if (version === generation) {
         pending = false;
-        if (button) button.disabled = false;
+        busy(false);
       }
     }
   };
   $('#preview-results').addEventListener('click', event => {
-    if (!event.target.closest('#preview-load-more') || pending || !selection?.cursor) return;
-    void load({...selection.args, cursor: selection.cursor}, true).catch(() => {});
+    if (pending || !selection) return;
+    if (event.target.closest('#preview-load-more')) {
+      if (selection.cursor) void load({...selection.args, cursor: selection.cursor}, true).catch(() => {});
+    } else if (event.target.closest('#preview-restart')) {
+      // Start again: the same selection from its first page, in place of the rows read so far.
+      const args = selection.args;
+      reset();
+      say(uiText('Reading the account’s ads and their previews…'));
+      void load(args).catch(() => {});
+    }
   });
   workspaceBind('#preview-form', async f => {
     const target = chosen(f.elements.target.value);
@@ -148,8 +201,7 @@ function bindAdPreviews() {
       .map(s => s.trim())
       .filter(Boolean);
     reset();
-    $('#preview-results').innerHTML =
-      `<p class="form-note">${esc(uiText('Reading the account’s ads and their previews…'))}</p>`;
+    say(uiText('Reading the account’s ads and their previews…'));
     await load({
       platform: target.platform,
       account_id: target.account_id,
@@ -161,45 +213,54 @@ function bindAdPreviews() {
   });
 }
 
-function previewResults(r) {
-  if (r.explanation)
-    return `<p>${esc(uiText(r.explanation))}</p>${r.next_call ? recordDetails(r.next_call, uiText('The reviewed call that creates it')) : ''}${r.next_step ? `<p class="form-note">${esc(uiText(r.next_step))}</p>` : ''}`;
-  const rows = r.previews
-    .map(p => {
-      const links = p.links.length
-        ? p.links
-            .map(
-              (url, i) =>
-                `<a class="button small" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(
-                  uiText('Open preview {number} of {name} in a new tab', {
-                    number: p.links.length > 1 ? i + 1 : '',
-                    name: p.name ?? p.ad_id,
-                  }),
-                )}">${esc(uiText('Open preview'))}${p.links.length > 1 ? ' ' + (i + 1) : ''} ↗</a>`,
-            )
-            .join(' ')
-        : p.error && typeof renderSourceDiagnostic === 'function'
-          ? // V2-RPT-05: the provider's own refusal (message, request ID) through the shell's diagnostic renderer.
-            renderSourceDiagnostic(p.error)
-          : `<span class="form-note">${esc(p.error?.message ?? uiText(p.note ?? 'The platform returned no preview link for this ad.'))}</span>`;
-      const when = p.expires_at
-        ? uiText(' · link expires {date}', {date: date(p.expires_at)})
-        : p.expires
-          ? ' · ' + uiText(p.expires)
-          : '';
-      return `<div class="token-row"><div><strong>${esc(p.name ?? uiText('Untitled'))}</strong><small>${esc(p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id)}${esc(when)}</small></div><div class="preview-links">${links}</div></div>`;
-    })
-    .join('');
-  const missing = r.not_found?.length
-    ? `<p class="form-note">${esc(uiText('Not found:'))} ${esc(r.not_found.join(', '))}. ${esc(uiText(r.not_found_reason ?? ''))}</p>`
-    : '';
-  return (
-    (rows || blank(uiText('No ads match this preview selection.'))) +
-    missing +
-    `<p class="form-note">${esc(uiText(r.meaning))}</p>` +
-    (r.selection_note ? `<p class="form-note">${esc(uiText(r.selection_note))}</p>` : '') +
-    (r.has_more && r.next_cursor
-      ? `<button class="button" id="preview-load-more" type="button">${esc(uiText('Load more'))}</button>`
-      : '')
-  );
+/**
+ * A link is opened only when it is an https link without credentials. The server returns no other, so this keeps a
+ * value that is not one from becoming an href at all (design note 7); it is the same rule, written once more at the
+ * page where the value becomes a link.
+ */
+const previewHref = url => (typeof url === 'string' && /^https:\/\/[^\s/?#@\\]+(?:[/?#]\S*)?$/i.test(url) ? url : null);
+
+/** One ad's row: its name, which ad and creative it is, when its links expire, and the links (or why there are none). */
+function previewRow(p, index) {
+  const hrefs = (p.links ?? []).map(previewHref).filter(Boolean),
+    when = p.expires_at
+      ? uiText(' · link expires {date}', {date: date(p.expires_at)})
+      : p.expires
+        ? ' · ' + uiText(p.expires)
+        : '';
+  return html`<div class="token-row" id="preview-row-${index}" tabindex="-1"><div><strong>${p.name ?? uiText('Untitled')}</strong><small>${p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id}${when}</small></div><div class="preview-links">${
+    hrefs.length
+      ? hrefs.map(
+          (url, i) =>
+            html`<a class="button small" href="${url}" target="_blank" rel="noopener noreferrer" aria-label="${uiText('Open preview {number} of {name} in a new tab', {number: hrefs.length > 1 ? i + 1 : '', name: p.name ?? p.ad_id})}">${uiText('Open preview')}${hrefs.length > 1 ? ' ' + (i + 1) : ''} ↗</a> `,
+        )
+      : p.error && typeof renderSourceDiagnostic === 'function'
+        ? // V2-RPT-05: the provider's own refusal (message, request ID) through the shell's diagnostic renderer.
+          raw(renderSourceDiagnostic(p.error))
+        : html`<span class="form-note">${p.error?.message ?? uiText(p.note ?? 'The platform returned no preview link for this ad.')}</span>`
+  }</div></div>`;
 }
+
+/** The rows of `list`, numbered from `first` (the number of rows before them), as markup. */
+const previewRows = (list, first) => html`${list.map((p, i) => previewRow(p, first + i))}`;
+
+/** What follows the rows: the IDs not found, the notices, and Load more with the place its failure is told. */
+function previewFooter(r) {
+  return html`${
+    r.not_found?.length
+      ? html`<p class="form-note">${uiText('Not found:')} ${r.not_found.join(', ')}. ${uiText(r.not_found_reason ?? '')}</p>`
+      : ''
+  }<p class="form-note">${uiText(r.meaning)}</p>${r.selection_note ? html`<p class="form-note">${uiText(r.selection_note)}</p>` : ''}${
+    r.has_more && r.next_cursor
+      ? html`<div class="preview-more"><button class="button" id="preview-load-more" type="button">${uiText('Load more')}</button><p class="error" id="preview-more-error" role="alert"></p><button class="button small" id="preview-restart" type="button" hidden>${uiText('Start again')}</button></div>`
+      : ''
+  }`;
+}
+
+/** The whole answer: the rows, then the footer (or the explanation of a platform whose previews AMCP cannot read). */
+const previewMarkup = r =>
+  r.explanation
+    ? html`<p>${uiText(r.explanation)}</p>${r.next_call ? raw(recordDetails(r.next_call, uiText('The reviewed call that creates it'))) : ''}${r.next_step ? html`<p class="form-note">${uiText(r.next_step)}</p>` : ''}`
+    : html`<div id="preview-rows">${r.previews.length ? previewRows(r.previews, 0) : html`<div class="empty">${uiText('No ads match this preview selection.')}</div>`}</div><div id="preview-footer">${previewFooter(r)}</div>`;
+/** The same as text, for a caller that wants the markup rather than to write it. */
+const previewResults = r => String(previewMarkup(r));

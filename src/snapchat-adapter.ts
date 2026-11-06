@@ -49,6 +49,7 @@ import {snapchatPreflight} from './snapchat-preflight.js';
 import type {MutationResponse} from './provider-adapter.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {snapchatCatalogIngestion} from './snapchat-catalog-ingestion.js';
+import {snapchatAdPreviews} from './snapchat-ad-previews.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -345,6 +346,8 @@ const snapchatContracts: ContractHooks = Object.freeze({
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
+  // Its ads, their creatives' ownership and their previews for amcp_ad_previews (src/ad-previews.ts).
+  previews: snapchatAdPreviews,
   signedLinkFields: (plan: CompiledRequest) =>
     plan.gateway === 'snapchat_native_action' &&
     plan.method === 'GET' &&

@@ -14,6 +14,7 @@ import {
 } from './apple-entity-writes.js';
 import {appleActions, validateApplePlan} from './apple-native.js';
 import {requestAppleAccessToken} from './apple-auth.js';
+import {noPreviewRoute} from './ad-preview-kit.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 // SDK output-only processing/approval observations are not advertiser edits.
@@ -59,6 +60,7 @@ const appleCatalog: CatalogHooks = Object.freeze({
  */
 export const appleHooks: ProviderHooks = Object.freeze({
   gateway: 'apple_ads_native_action',
+  previews: noPreviewRoute('apple_ads', 'Apple Ads has no ad preview route in its API that AMCP can read.'),
   // Wave 4c (transport and catalog): its v1 actions' numeric IDs and account path are checked as they are compiled.
   compile: Object.freeze({beforeJob: validateApplePlan}),
   catalog: appleCatalog,

@@ -270,8 +270,17 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Task 12 adds two X source modules; its collector owns thirteen new diagnostics and reuses a checkpoint refusal.
   // V2-RPT-07 (levels) adds the 31-day span helper and Apple's bounded paging helper and detail collector; the helper's six
   // list refusals go through its refuse() wrapper.
-  assert.equal(files.length, 779);
-  assert.equal(selected.filter(row => row.messages.size).length, 190);
+  // F-L3-10 takes src/ad-previews.ts off the never-owned list: one more module with owned reasons.
+  // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
+  // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
+  // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): seven.
+  // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
+  // Merged with the levels package (779 modules), the previews package's eight make 787.
+  assert.equal(files.length, 787);
+  // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
+  // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
+  // package, on the base's 189 (189 + 1 + 6).
+  assert.equal(selected.filter(row => row.messages.size).length, 196);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -280,8 +289,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-RPT-07 (levels): Apple's six list refusals and the reworded X and Snapchat population refusals, ten more in all.
   // The stored-definition package's shape check of a saved report body (src/overview-v4.ts) raises four sentences the
   // catalog already held (the platform-account count, the report name and the two template-default refusals) through its
-  // invalid() wrapper: four more (2886 + 10 + 4).
-  assert.equal(owned.size, 2900);
+  // invalid() wrapper: four more.
+  // F-L3-10 (previews): the previews tool's own refusals (sixteen sentences) are now owned and translated: 2886 + 10 + 4 + 16.
+  assert.equal(owned.size, 2916);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -307,8 +317,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
   // V2-RPT-07 (levels) adds 25 catalog entries and replaces 7 (net +18).
   // V2-RPT-04 (objectives) adds five: four reasons an objective was not read and the label of a LinkedIn group's other
-  // results; no wrapper ownership changes. The stored and TikTok packages add none: 11,737 + 18 + 5.
-  assert.equal(Object.keys(catalog).length, 11760);
+  // results; no wrapper ownership changes.
+  // F-L3-10 (previews) adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
+  // preview route (the module's other refusals already had Arabic).
+  // F-L3-06 (previews) adds four: the count the previews panel announces for a page, one and several, first and further.
+  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21.
+  assert.equal(Object.keys(catalog).length, 11781);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

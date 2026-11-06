@@ -85,6 +85,7 @@ import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
 import {object} from './write-common.js';
 import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
+import {tiktokAdPreviews} from './tiktok-ad-previews.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -419,6 +420,8 @@ const tiktokContracts: ContractHooks = Object.freeze({
 
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
+  // Its ads and their previews for amcp_ad_previews (src/ad-previews.ts).
+  previews: tiktokAdPreviews,
   compile: tiktokCompile,
   contracts: tiktokContracts,
   checks: Object.freeze({

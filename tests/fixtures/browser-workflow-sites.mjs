@@ -25,6 +25,7 @@ import {workspaceFormRefusalFixture} from './workspace-form-refusal-data.mjs';
 import {conversionMetadataFixture, conversionMetadataRows} from './linkedin-conversion-metadata-data.mjs';
 import {portfolioRefusalFixture} from './portfolio-refusal-data.mjs';
 import {workerHealthBrowserFixture} from './worker-health-browser.mjs';
+import {adPreviewsConnection, adPreviewsProvider} from './ad-previews-browser.mjs';
 import {reconciliationFixture, reconciliationRows, reconciliationRow} from './portfolio-reconciliation-data.mjs';
 import {conditionalProgramFixture} from './conditional-program-data.mjs';
 import {overviewGranularityFixture} from './overview-granularity-data.mjs';
@@ -78,6 +79,8 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
       'workspace-form-conversions-error',
       'workspace-form-conversions-stale',
       'snapchat',
+      // V2-PRV-01: the Preview your ads panel on the Media page (Load more appends, keeps the place, survives a refusal).
+      'ad-previews',
       'woocommerce',
       'woocommerce-variations',
       'woocommerce-inventory',
@@ -121,6 +124,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
   let refused = 0,
     writes = 0,
     fixture,
+    adPreviews,
     keyByte = 149;
   const blocked = async () => {
     refused++;
@@ -358,6 +362,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
       delete data.products.get('004').retailer_product_group_id;
     }
     cleanup.push(() => store.close());
+    if (kind === 'ad-previews') adPreviews = adPreviewsProvider(native);
     const transport =
       kind === 'measurement-events'
         ? async (raw, init) => {
@@ -386,7 +391,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
               native.push({method: init.method, path: url.pathname});
               return Response.json(data.response(url));
             }
-          : blocked;
+          : (adPreviews?.transport ?? blocked);
     fixture = {
       store,
       actor,
@@ -408,6 +413,21 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
           scopes: ['ads_read'],
         },
         {accessToken: 'synthetic-browser-catalog'},
+      );
+    if (kind === 'ad-previews')
+      store.putConnection(
+        actor,
+        {
+          id: adPreviewsConnection.id,
+          tenantId: actor.tenantId,
+          gateway: adPreviewsConnection.gateway,
+          accounts: [adPreviewsConnection.account],
+          writeAccounts: [],
+          enabled: true,
+          label: 'Synthetic ads account',
+          scopes: ['ads_read'],
+        },
+        {accessToken: 'synthetic-browser-previews'},
       );
     if (['measurement-events', 'measurement-trace'].includes(kind))
       store.putConnection(
@@ -538,6 +558,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
         ? {seed: () => fixture.seed(webActor), workOnce: () => fixture.workOnce(), tab: fixture.tab}
         : undefined,
     workerHealth,
+    adPreviews: adPreviews && {failNext: adPreviews.failNext, failed: adPreviews.failed},
     conditionalProgram: fixture.programGate,
     periodComparison:
       kind === 'period-comparison' ? {reset: () => fixture.reset(), drain: () => fixture.drain()} : undefined,

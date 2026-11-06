@@ -315,7 +315,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package D adds the Snapchat account-wide detail collector; its static refusals use the wrapper inventory.
   // Task 12 adds the X detail collector and its provider-owned level declarations.
   // V2-RPT-07 (levels) adds the 31-day span helper and Apple's bounded paging helper and detail collector.
-  assert.equal(files.length, 779);
+  // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
+  // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
+  // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): seven.
+  // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
+  // Merged with the levels package (779 modules), the previews package's eight make 787.
+  assert.equal(files.length, 787);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -361,9 +366,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V2-RPT-07 (levels) adds 25 entries and replaces 7 (net +18): the X and Snapchat list-bound, mixed-objective, non-additive,
   // allowance and zone messages, and the nine Apple list, campaign-bound and report-row refusals.
   // V2-RPT-04 (objectives) adds five: the four reasons an objective was not read (refused, or beyond the bound) and the
-  // label of the results a LinkedIn group lists apart from its primary one. The stored and TikTok packages add none:
-  // 11,737 + 18 + 5.
-  assert.equal(Object.keys(catalog).length, 11760);
+  // label of the results a LinkedIn group lists apart from its primary one.
+  // F-L3-10 (previews) adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
+  // preview route (the module's other refusals already had Arabic).
+  // F-L3-06 (previews) adds four: the count the previews panel announces for a page, one and several, first and further.
+  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21.
+  assert.equal(Object.keys(catalog).length, 11781);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

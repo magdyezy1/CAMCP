@@ -80,7 +80,7 @@ function snapFixture(t, {ads = [], creatives = [], creativePageSize = 1000, fore
         singular = creative ? 'creative' : 'ad',
         all = creative ? creatives : ads,
         offset = Number(input.query?.cursor ?? 0),
-        size = creative ? creativePageSize : 50,
+        size = creative ? creativePageSize : Number(input.query?.limit ?? 50),
         page = all.slice(offset, offset + size),
         selected = creative ? page.filter(row => input.result_ids.includes(row.id)) : page;
       data = {
@@ -400,10 +400,11 @@ test('a full Meta node read without ownership remains refused before egress', as
   assert.equal(f.reads.length, 0);
 });
 
-test('only an exact Meta identity read can establish ownership, and a foreign answer is withheld', async t => {
+test('only the previews tool’s exact Meta identity read can establish ownership, and a foreign answer is withheld', async t => {
   for (const owner of ['100', '200']) {
     const f = nativeMeta(t, owner);
-    const out = await f.service.call(
+    // F-L3-03: a caller's own call of the same read is an ordinary node read, refused before any request.
+    const direct = await f.service.call(
       'meta_native_action',
       {
         action: 'meta_ad_id_get',
@@ -414,18 +415,22 @@ test('only an exact Meta identity read can establish ownership, and a foreign an
       },
       actor,
     );
+    assert.equal(direct.success, false);
+    assert.equal(direct.error.code, 'RESOURCE_SCOPE_REQUIRED');
+    assert.equal(f.reads.length, 0);
+    // The previews tool sends it for the person: its answer is checked before anything is returned or remembered.
+    const out = await f.service.call(
+      'amcp_ad_previews',
+      {platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['150']},
+      actor,
+    );
+    assert.equal(out.success, true, JSON.stringify(out.error));
     const connection = f.store.resolveConnection(actor, 'meta_native_action', '100', login);
-    if (owner === '100') {
-      assert.equal(out.success, true, JSON.stringify(out.error));
-      assert.equal(f.store.ownsResource(connection, '100', '150'), true);
-    } else {
-      assert.equal(out.success, false);
-      assert.equal(out.error.code, 'ACCOUNT_SCOPE_MISMATCH');
-      assert.equal(f.store.ownsResource(connection, '100', '150'), false);
-      assert.equal(out.data, undefined);
-    }
-    assert.equal(f.reads.length, 1);
+    assert.equal(f.store.ownsResource(connection, '100', '150'), owner === '100');
     assert.equal(f.reads[0].fields, 'id,account_id');
+    // A foreign ad stops at that one read; its own ad goes on to the metadata and the preview.
+    assert.equal(f.reads.length, owner === '100' ? 3 : 1);
+    assert.deepEqual(out.data.not_found ?? [], owner === '100' ? [] : ['150']);
   }
 });
 
@@ -457,10 +462,10 @@ test('a cursor-based provider cannot claim more rows without a usable continuati
   });
 });
 
-function platformFixture(t, platform) {
+function platformFixture(t, platform, count = 150) {
   const store = storeFixture(t, platform + '_native_action'),
     reads = [];
-  const ids = Array.from({length: 150}, (_, i) => String(i + 1));
+  const ids = Array.from({length: count}, (_, i) => String(i + 1));
   const native = id => (platform === 'linkedin' ? 'urn:li:sponsoredCreative:' + id : id);
   const record = id =>
     platform === 'tiktok'
@@ -625,8 +630,9 @@ for (const platform of ['tiktok', 'linkedin', 'reddit']) {
         .every(read => !JSON.stringify(read).includes('999')),
     );
   });
-  test(platform + ' limits a filtered scan to ten pages and retains a continuation', async t => {
-    const f = platformFixture(t, platform),
+  test(platform + ' limits a filtered scan to ten long pages and retains a continuation', async t => {
+    // Ten pages of 100 hold no match of the filter; the 1,500 records beyond are for the continuation.
+    const f = platformFixture(t, platform, 1500),
       out = await f.run({campaign_ids: ['11'], limit: 1});
     assert.deepEqual(out.previews, []);
     assert.equal(out.has_more, true);
@@ -764,4 +770,359 @@ test('LinkedIn never learns creative ownership from an explicitly foreign accoun
   const connection = store.resolveConnection(actor, 'linkedin_native_action', '100', login);
   assert.equal(store.ownsResource(connection, '100', 'creatives/150'), false);
   assert.doesNotMatch(JSON.stringify(out), /Foreign synthetic creative/);
+});
+
+// Audit mutation gaps M6 and M13: the previews tool's own checks stood behind the gateway's, and no test pinned them.
+test('M6: a named Meta ad whose identity names another account is not previewed, and nothing broader is read', async t => {
+  // The identity read answers account 200 for a request on account 100: stopped at that read, whatever the gateway does.
+  const f = metaFixture(t, [ad(5, 'ACTIVE', {account_id: '200', name: 'Foreign synthetic name'})]);
+  const out = await f.run({ad_ids: ['5']});
+  assert.deepEqual(out.previews, []);
+  assert.deepEqual(out.not_found, ['5']);
+  assert.equal(out.not_found_reason, 'Not in this account');
+  assert.deepEqual(
+    f.reads.map(read => [read.action, read.query?.fields]),
+    [['meta_ad_id_get', 'id,account_id']],
+  );
+  assert.doesNotMatch(JSON.stringify(out), /Foreign synthetic name/);
+});
+
+test('M6: a named Meta ad is dropped when its identity names another ad, or its metadata names another account', async t => {
+  const store = storeFixture(t),
+    reads = [];
+  const call = answer => async (_tool, input) => {
+    reads.push(input.action + ':' + (input.query?.fields ?? input.query?.ad_format));
+    return {success: true, data: {data: answer(input)}};
+  };
+  // The identity names another ad than the one asked for.
+  let previews = new AdPreviews(
+    call(() => ({id: '6', account_id: '100'})),
+    store,
+  );
+  let out = await previews.handle({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['5']}, actor);
+  assert.deepEqual([out.previews, out.not_found], [[], ['5']]);
+  assert.deepEqual(reads.splice(0), ['meta_ad_id_get:id,account_id']);
+  // The identity is the account's, but the broader read then names another account: no preview is read.
+  previews = new AdPreviews(
+    call(input =>
+      input.query.fields === 'id,account_id'
+        ? {id: '5', account_id: '100'}
+        : {id: '5', account_id: '200', name: 'Changed synthetic name', effective_status: 'ACTIVE'},
+    ),
+    store,
+  );
+  out = await previews.handle({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['5']}, actor);
+  assert.deepEqual([out.previews, out.not_found], [[], ['5']]);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every(read => !read.startsWith('meta_ad_id_previews_get')));
+  assert.doesNotMatch(JSON.stringify(out), /Changed synthetic name/);
+  reads.length = 0;
+  // The identity is the account's, but the broader read then answers for another ad of the account.
+  previews = new AdPreviews(
+    call(input =>
+      input.query.fields === 'id,account_id'
+        ? {id: '5', account_id: '100'}
+        : {id: '6', account_id: '100', name: 'Other synthetic ad', effective_status: 'ACTIVE'},
+    ),
+    store,
+  );
+  out = await previews.handle({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['5']}, actor);
+  assert.deepEqual([out.previews, out.not_found], [[], ['5']]);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every(read => !read.startsWith('meta_ad_id_previews_get')));
+  assert.doesNotMatch(JSON.stringify(out), /Other synthetic ad/);
+});
+
+test('M13: a Snapchat ad whose creative the account does not list gets no preview read', async t => {
+  const f = snapFixture(t, {
+    ads: [
+      {id: 'a1', creative_id: 'crUnlisted', name: 'Synthetic ad', status: 'ACTIVE'},
+      {id: 'a2', creative_id: 'cr2', name: 'Listed ad', status: 'ACTIVE'},
+    ],
+    creatives: [{id: 'cr2'}],
+  });
+  const out = await f.run();
+  // Both ads are listed, the listed creative previews, the unlisted one says it is not the account's.
+  assert.deepEqual(
+    out.previews.map(row => [row.source_ad_id, row.ad_id, row.links.length, row.note]),
+    [
+      ['a1', 'crUnlisted', 0, 'Not in this account'],
+      ['a2', 'cr2', 1, undefined],
+    ],
+  );
+  assert.deepEqual(
+    f.reads.filter(read => read.action.includes('creative_preview')).map(read => read.creative_id),
+    ['cr2'],
+  );
+  assert.equal(out.selection_incomplete, undefined);
+});
+
+test('M13: a Snapchat creative the bounded ownership scan did not reach is not previewed and says the scan was bounded', async t => {
+  const f = snapFixture(t, {
+    ads: [{id: 'a1', creative_id: 'cr11', name: 'Synthetic ad', status: 'ACTIVE'}],
+    creatives: Array.from({length: 12}, (_, i) => ({id: 'cr' + i})),
+    creativePageSize: 1,
+  });
+  const out = await f.run();
+  assert.equal(out.previews.length, 1);
+  assert.deepEqual(out.previews[0].links, []);
+  assert.match(out.previews[0].note, /ten-page/);
+  assert.equal(out.selection_incomplete, true);
+  assert.equal(
+    f.reads.some(read => read.action.includes('creative_preview')),
+    false,
+  );
+});
+
+// Design note 2: a list page was as long as `limit` (at most 10) and a call read at most ten pages, so five active ads among
+// hundreds of paused ones took ten sequential reads of five rows, and several calls. Each platform now asks its own list for
+// a long page, whatever `limit` is (the offset logic resumes the surplus rows of a page).
+const longPage = 100;
+
+test('Meta finds five active ads behind 240 paused ones in three long reads, not ten short ones', async t => {
+  const f = metaFixture(
+    t,
+    Array.from({length: 250}, (_, i) => ad(i + 1, i < 240 ? 'PAUSED' : 'ACTIVE')),
+  );
+  const out = await f.run({limit: 5});
+  assert.deepEqual(
+    out.previews.map(row => row.ad_id),
+    ['241', '242', '243', '244', '245'],
+  );
+  assert.deepEqual(
+    f.reads.filter(read => read.action === 'meta_ad_list').map(read => read.query.limit),
+    [longPage, longPage, longPage],
+  );
+  // The rest of the last page is still there for the next call: the cursor resumes inside it.
+  assert.equal(out.has_more, true);
+  const more = await f.run({limit: 5, cursor: out.next_cursor});
+  assert.deepEqual(
+    more.previews.map(row => row.ad_id),
+    ['246', '247', '248', '249', '250'],
+  );
+});
+
+for (const [platform, listed, size] of [
+  ['tiktok', read => read.action === 'tiktok_ad_list', read => read.query.page_size],
+  [
+    'linkedin',
+    read => read.action === 'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
+    read => read.query.pageSize,
+  ],
+  ['reddit', read => read.arguments?.action === 'LIST_ADS', read => read.arguments.params['page.size']],
+]) {
+  test(
+    platform + ' asks its list for a long page when one record is wanted, and a named read for exactly the named IDs',
+    async t => {
+      const f = platformFixture(t, platform);
+      const out = await f.run({limit: 1});
+      assert.deepEqual(
+        out.previews.map(row => row.ad_id),
+        [f.native('1')],
+      );
+      assert.deepEqual(f.reads.filter(listed).map(size), [longPage]);
+      // The rest of that page is resumed by the cursor, not read again as a new page.
+      const next = await f.run({limit: 1, cursor: out.next_cursor});
+      assert.deepEqual(
+        next.previews.map(row => row.ad_id),
+        [f.native('2')],
+      );
+      // A named read asks for the named IDs only.
+      f.reads.length = 0;
+      await f.run({ad_ids: ['7', '9']});
+      assert.deepEqual(f.reads.filter(listed).map(size), [2]);
+    },
+  );
+}
+
+test('Snapchat asks its ads list for a long page, and the long page keeps its parent lookups bounded', async t => {
+  const f = snapFixture(t, {
+    ads: Array.from({length: 120}, (_, i) => ({
+      id: 'a' + i,
+      creative_id: 'cr' + i,
+      status: i < 110 ? 'PAUSED' : 'ACTIVE',
+      ad_squad_id: 's1',
+    })),
+    creatives: Array.from({length: 120}, (_, i) => ({id: 'cr' + i})),
+  });
+  const out = await f.run({limit: 5, campaign_ids: ['c1']});
+  assert.equal(out.previews.length, 5);
+  assert.deepEqual(
+    f.reads.filter(read => read.action === 'snapchat_ad_list').map(read => read.query.limit),
+    [longPage, longPage],
+  );
+  // One ad squad lookup however many ads name it, never more squads than a page can hold.
+  const squads = f.reads.filter(read => read.action === 'snapchat_adsquad_get_by_ids');
+  assert.deepEqual(
+    squads.map(read => read.payload.entity_ids.length),
+    [1],
+  );
+});
+
+// Design note 3: the proof that a Snapchat creative is the account's re-read the creative list from its first page on
+// every call, although the gateway had observed the creatives it returned for five minutes (the same observation the
+// preview read needs). A creative observed in that time is not proven again; one that was not is, and a named creative
+// always is, for its name.
+function nativeSnapchat(t) {
+  const store = storeFixture(t, 'snapchat_native_action'),
+    reads = [];
+  const ads = ['cr1', 'cr2', 'cr3'].map((creative, i) => ({
+    id: 'a' + (i + 1),
+    creative_id: creative,
+    status: 'ACTIVE',
+  }));
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async raw => {
+      const url = new URL(String(raw));
+      reads.push(
+        url.pathname +
+          (url.searchParams.get('cursor')
+            ? '?cursor=' + url.searchParams.get('cursor')
+            : url.searchParams.get('limit')
+              ? '?limit=' + url.searchParams.get('limit')
+              : ''),
+      );
+      if (url.pathname === '/v1/adaccounts/100/ads')
+        return Response.json({request_status: 'SUCCESS', ads: ads.map(row => ({ad: {...row, name: 'Ad ' + row.id}}))});
+      if (url.pathname === '/v1/adaccounts/100/creatives') {
+        // The account's creatives come two to a page, as the list pages them; the gateway keeps only the IDs asked for.
+        const offset = Number(url.searchParams.get('cursor') ?? 0),
+          page = ads.slice(offset, offset + 2);
+        return Response.json({
+          request_status: 'SUCCESS',
+          creatives: page.map(row => ({
+            creative: {id: row.creative_id, name: 'Creative ' + row.creative_id, ad_account_id: '100'},
+          })),
+          ...(offset + 2 < ads.length
+            ? {
+                paging: {
+                  next_link:
+                    'https://adsapi.snapchat.com/v1/adaccounts/100/creatives?cursor=' +
+                    (offset + 2) +
+                    '&limit=1000&sort=created_at-desc',
+                },
+              }
+            : {}),
+        });
+      }
+      const preview = /^\/v1\/creatives\/(\w+)\/creative_preview$/.exec(url.pathname);
+      if (preview)
+        return Response.json({
+          request_status: 'SUCCESS',
+          creative_id: preview[1],
+          expires_at: '2999-01-01T00:00:00Z',
+          creative_preview_link:
+            'https://adsapi.snapchat.com/media/creative_preview?creative_id=' +
+            preview[1] +
+            '&expires_at=' +
+            Date.parse('2999-01-01T00:00:00Z') +
+            '&signature=synthetic',
+        });
+      throw Error('Unexpected synthetic Snapchat request ' + url.pathname);
+    }),
+    undefined,
+    {allowWrites: false, requireBeforeState: true, maxBudgetChange: 0},
+  );
+  const call = extra =>
+    service.call('amcp_ad_previews', {platform: 'snapchat', account_id: '100', connection_id: login, ...extra}, actor);
+  return {store, reads, call};
+}
+const listReads = reads => reads.filter(path => path.startsWith('/v1/adaccounts/100/creatives')).length;
+
+test('a Snapchat creative seen in the account’s list in the last five minutes is not proven again, and one that was not is', async t => {
+  const f = nativeSnapchat(t);
+  t.mock.timers.enable({apis: ['Date'], now: Date.now()});
+  t.after(() => t.mock.timers.reset());
+  const first = await f.call({limit: 2});
+  assert.deepEqual(
+    first.data.previews.map(row => row.ad_id),
+    ['cr1', 'cr2'],
+  );
+  assert.equal(listReads(f.reads), 1);
+  // The same selection a minute later: the ads and the previews are read, the creative list is not.
+  t.mock.timers.tick(60000);
+  f.reads.length = 0;
+  const again = await f.call({limit: 2});
+  assert.deepEqual(
+    again.data.previews.map(row => row.ad_id),
+    ['cr1', 'cr2'],
+  );
+  assert.equal(
+    again.data.previews.every(row => row.links.length === 1),
+    true,
+  );
+  assert.equal(listReads(f.reads), 0);
+  assert.deepEqual(f.reads, [
+    '/v1/adaccounts/100/ads?limit=100',
+    '/v1/creatives/cr1/creative_preview',
+    '/v1/creatives/cr2/creative_preview',
+  ]);
+  // A third creative is on the list's second page, which no read had shown: it is proven by walking to it.
+  f.reads.length = 0;
+  const wider = await f.call({limit: 3});
+  assert.deepEqual(
+    wider.data.previews.map(row => row.ad_id),
+    ['cr1', 'cr2', 'cr3'],
+  );
+  assert.deepEqual(
+    f.reads.filter(path => path.startsWith('/v1/adaccounts/100/creatives')),
+    ['/v1/adaccounts/100/creatives?limit=1000', '/v1/adaccounts/100/creatives?cursor=2'],
+  );
+  // After five minutes the observation has lapsed, and the proof is read again.
+  t.mock.timers.tick(5 * 60000 + 1);
+  f.reads.length = 0;
+  await f.call({limit: 3});
+  assert.equal(listReads(f.reads), 2);
+});
+
+test('a named Snapchat creative is proven from the account list every time, for its name', async t => {
+  const f = nativeSnapchat(t);
+  t.mock.timers.enable({apis: ['Date'], now: Date.now()});
+  t.after(() => t.mock.timers.reset());
+  for (let call = 0; call < 2; call++) {
+    f.reads.length = 0;
+    const out = await f.call({ad_ids: ['cr1']});
+    assert.deepEqual(
+      out.data.previews.map(row => [row.ad_id, row.name]),
+      [['cr1', 'Creative cr1']],
+    );
+    assert.equal(listReads(f.reads), 1, 'call ' + call);
+    t.mock.timers.tick(1000);
+  }
+});
+
+test('a creative observed through one login is not taken as proven through another', async t => {
+  const f = nativeSnapchat(t);
+  await f.call({limit: 2});
+  f.reads.length = 0;
+  const other = await new MirrorService(
+    new Registry(),
+    f.store,
+    new NativeTransport(async raw => {
+      const url = new URL(String(raw));
+      f.reads.push(url.pathname);
+      if (url.pathname === '/v1/adaccounts/100/ads')
+        return Response.json({
+          request_status: 'SUCCESS',
+          ads: [{ad: {id: 'a1', creative_id: 'cr1', name: 'Ad', status: 'ACTIVE'}}],
+        });
+      if (url.pathname === '/v1/adaccounts/100/creatives')
+        return Response.json({request_status: 'SUCCESS', creatives: []});
+      throw Error('Unexpected synthetic Snapchat request ' + url.pathname);
+    }),
+    undefined,
+    {allowWrites: false, requireBeforeState: true, maxBudgetChange: 0},
+  ).call('amcp_ad_previews', {platform: 'snapchat', account_id: '100', connection_id: otherLogin}, actor);
+  // The second login's own creative list does not show cr1: it is not previewed, and the list was read.
+  assert.deepEqual(
+    other.data.previews.map(row => [row.ad_id, row.links.length, row.note]),
+    [['cr1', 0, 'Not in this account']],
+  );
+  assert.equal(listReads(f.reads), 1);
+  assert.equal(
+    f.reads.some(path => path.includes('creative_preview')),
+    false,
+  );
 });
