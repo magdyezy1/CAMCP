@@ -75,20 +75,32 @@ test('D3 applies only to absent cost with explicit zero impressions and clicks',
     [{impressions: '0', clicks: '0'}, 0, ['spend']],
     [{impressions: '5', clicks: '0'}, null, undefined],
     [{impressions: '0'}, null, undefined],
+    // Clicks without impressions are not zero delivery, so the absent cost stays unknown (Probe 5).
+    [{impressions: '0', clicks: '5'}, null, undefined],
+    [{clicks: '0'}, null, undefined],
     [{impressions: '0', clicks: '0', costInLocalCurrency: null}, null, undefined],
     [{impressions: '0', clicks: '0', costInLocalCurrency: '2'}, 2, undefined],
   ]) {
     const row = normalizeNativeRow('linkedin', {pivotValues: ['urn:li:sponsoredCampaignGroup:20'], ...extra});
-    assert.equal(row.metrics.spend, spend);
-    assert.deepEqual(row.omitted_as_zero, omitted);
-    const detail = linkedin.linkedinDetail(
-      'adset',
-      [{pivotValues: ['urn:li:sponsoredCampaign:30'], ...extra}],
-      {campaigns: {}, groups: {}, creatives: {}},
-      {},
-    ).rows[0];
-    assert.equal(detail.spend, spend === null ? null : String(spend));
-    assert.deepEqual(detail.omitted_as_zero, omitted);
+    assert.equal(row.metrics.spend, spend, JSON.stringify(extra));
+    assert.deepEqual(row.omitted_as_zero, omitted, JSON.stringify(extra));
+    for (const [level, urn] of [
+      ['adset', 'urn:li:sponsoredCampaign:30'],
+      ['ad', 'urn:li:sponsoredCreative:40'],
+    ]) {
+      const detail = linkedin.linkedinDetail(
+        level,
+        [{pivotValues: [urn], ...extra}],
+        {
+          campaigns: {},
+          groups: {},
+          creatives: {},
+        },
+        {},
+      ).rows[0];
+      assert.equal(detail.spend, spend === null ? null : String(spend), level + ' ' + JSON.stringify(extra));
+      assert.deepEqual(detail.omitted_as_zero, omitted, level + ' ' + JSON.stringify(extra));
+    }
   }
 });
 

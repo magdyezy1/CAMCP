@@ -409,6 +409,27 @@ test('split rounding evidence and D3 omitted cost survive the exact sum', async 
   assert.equal(result.rounding.oneClickLeads, 2);
 });
 
+test('a split reads an absent cost as zero only for rows that state zero impressions and zero clicks', async () => {
+  for (const [extra, omitted] of [
+    [{impressions: '0', clicks: '0'}, true],
+    // Clicks without impressions are not zero delivery (Probe 5), nor is delivery without clicks, nor a missing count.
+    [{impressions: '0', clicks: '5'}, false],
+    [{impressions: '5', clicks: '0'}, false],
+    [{impressions: '0', clicks: undefined}, false],
+    [{impressions: undefined, clicks: '0'}, false],
+    [{impressions: '0', clicks: '0', costInLocalCurrency: null}, false],
+  ]) {
+    const result = await reporting.linkedInSplitRead(range, async r =>
+      r.since === range.since && r.until === range.until
+        ? atCap(r)
+        : [row(r, {costInLocalCurrency: undefined, ...extra})],
+    );
+    assert.equal(result.split, true);
+    assert.equal(result.rows[0].costInLocalCurrency ?? null, omitted ? '0' : null, JSON.stringify(extra));
+    assert.deepEqual(result.rows[0].omitted_as_zero, omitted ? ['spend'] : undefined, JSON.stringify(extra));
+  }
+});
+
 test('an entity absent from a split period has unknown totals rather than invented zero delivery', async () => {
   const result = await reporting.linkedInSplitRead(range, async r =>
     r.until === range.until && r.since === range.since
