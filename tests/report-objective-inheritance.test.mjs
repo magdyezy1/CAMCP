@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reportSource} from '../dist/src/report-sources.js';
 import {resolveObjective} from '../dist/src/report-objectives.js';
-import {normalizeNativeRow} from '../dist/src/report-native.js';
+import {normalizeNativeRow, normalizeNativeRowV4} from '../dist/src/report-native.js';
 import {redditDetail, nativeDetailResult} from '../dist/src/overview-native-detail.js';
 import {detailedOverviewRows} from '../dist/src/overview-levels.js';
 import {detailParents, detailParentLimit} from '../dist/src/overview-parents.js';
@@ -260,6 +260,58 @@ test('a campaign override governs its ads, while an ad ID never substitutes for 
     result.sources[0].warnings.includes('Objective overrides matched no campaign in this snapshot: 9007199254740993.'),
   );
 });
+
+// Two accounts of one platform report the same campaign ID. A source's overrides are its own: they never reach the
+// other account's row, whichever way the definition is shaped (without levels, or with them).
+const sharedCampaign = account => ({
+  dimensions: {campaign_id: '555'},
+  metrics: {campaign_name: 'Campaign of ' + account, spend: '10', impressions: '100', clicks: '5', conversion: '1'},
+  objective_type: 'TRAFFIC',
+});
+const accountSource = (account, overrides, levels) => ({
+  platform: 'tiktok',
+  account_id: account,
+  connection_id: 'login',
+  ...(levels ? {levels, delivered_only: false, report_options: {complete_window: true, attribution: 'unknown'}} : {}),
+  ...(overrides ? {objective_overrides: overrides} : {}),
+});
+for (const [shape, levels] of [
+  ['without levels', undefined],
+  ['with levels', ['campaign']],
+])
+  test('an objective override applies only to the account that names it, definition ' + shape, async t => {
+    const normalize = levels ? normalizeNativeRowV4 : normalizeNativeRow,
+      f = objectiveReportFixture(t, {
+        platform: 'tiktok',
+        accounts: ['100', '200'],
+        rowsFor: source => [normalize('tiktok', sharedCampaign(source.account_id))],
+      }),
+      changes = sources => ({...(levels ? {contract_version: 'overview-config-v4'} : {}), sources}),
+      objectiveOf = (result, account) => {
+        const row = result.rows.find(
+          candidate => (candidate.account_id ?? ['100', '200'][candidate.source_ref]) === account,
+        );
+        return [row.objective_group ?? row.objective.group, row.objective_source ?? row.objective.source];
+      };
+    for (const [overrides, expected] of [
+      [{'100': {'555': 'sales'}}, {'100': ['sales', 'user_override'], '200': ['traffic', 'provider']}],
+      [{'200': {'555': 'leads'}}, {'100': ['traffic', 'provider'], '200': ['leads', 'user_override']}],
+      [
+        {'100': {'555': 'sales'}, '200': {'555': 'engagement'}},
+        {'100': ['sales', 'user_override'], '200': ['engagement', 'user_override']},
+      ],
+    ]) {
+      const result = await f.run(
+        changes(['100', '200'].map(account => accountSource(account, overrides[account], levels))),
+      );
+      assert.equal(result.state, 'complete', JSON.stringify(result.sources));
+      assert.deepEqual(
+        {'100': objectiveOf(result, '100'), '200': objectiveOf(result, '200')},
+        expected,
+        JSON.stringify(overrides),
+      );
+    }
+  });
 
 test('scoped detail cannot borrow an objective from another campaign or account', () => {
   const {objective, ...source} = granularSource('snapchat', 'adset');
