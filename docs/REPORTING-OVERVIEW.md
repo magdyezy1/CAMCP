@@ -144,9 +144,10 @@ change monitor incident fingerprints, so an earlier incident can remain open bes
 
 ## TikTok collection
 
-Both campaign totals and guided daily detail use the same page rules. Every page must echo its requested page and
-size. Missing page metadata, changing totals, duplicate dimensional tuples, oversized pages or more returned rows
-than declared refuse the source. A different `total_page` basis is recorded while the declared pages are read.
+Both campaign totals and guided daily detail use the same page rules. Every page with rows must echo its requested
+page and size. Missing page metadata, changing totals, duplicate dimensional tuples, oversized pages or more
+returned rows than declared refuse the source. A different `total_page` basis is recorded while the declared pages
+are read.
 Fewer rows than declared can remain partial, with both declared and returned counts.
 
 TikTok's own additive totals decide completeness when comparable: spend matches within half a cent per returned
@@ -440,9 +441,9 @@ The diagnostic's closed `category` determines the source card's actions:
 
 Provider-data diagnostics keep the provider message/request ID and safe page facts (`page`, `page_size`,
 `total_number`, `total_page`, `list_length`, `rule`), plus `declared_rows` and `returned_rows` where available.
-They omit `http_status`: a successful HTTP response whose data AMCP refused is not a provider HTTP outage. MCP's
-existing error family remains `report`; its generic provider-data remedy asks for a retry while codes with their
-own specific advice keep it. Saved diagnostics without a category retain their previous rendering and actions.
+They omit `http_status`: a successful HTTP response whose data AMCP refused is not a provider HTTP outage. MCP keeps
+its error family; every provider-data remedy asks for a retry, except a changed or invalid response shape.
+Saved diagnostics without a category render as before.
 
 For Google HTTP 403, distinguish `USER_PERMISSION_DENIED` (identity/account access or manager routing) from developer-token/project restrictions such as `DEVELOPER_TOKEN_NOT_APPROVED` or `DEVELOPER_TOKEN_PROHIBITED`. With direct customer access, an unrelated `AMCP_GOOGLE_LOGIN_CUSTOMER_ID` should be omitted; manager access needs the correct manager ID. Website logins use the manager route their sync recorded, not this variable (CON-05). After changing server OAuth settings, reconnect Google Ads because existing connections retain their saved credentials/settings. The report displays the login customer ID actually sent. AMCP does not bypass a provider denial or automatically change routing. See [Google's error guide](https://developers.google.com/google-ads/api/docs/get-started/common-errors) and [Google's access model](https://developers.google.com/google-ads/api/docs/oauth/access-model).
 
