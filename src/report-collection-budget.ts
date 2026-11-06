@@ -97,6 +97,14 @@ export class ReportCollectionBudget {
     this.persist();
     this.completed++;
   }
+  /** What is left of the allowance, so a collector can end inside it instead of at the limit error. */
+  remaining(): {requests: number; elapsed_ms: number} {
+    this.tick();
+    return {
+      requests: Math.max(0, this.limits.requests - this.state.requests),
+      elapsed_ms: Math.max(0, this.limits.elapsed_ms - this.state.elapsed_ms),
+    };
+  }
   /** Yield only between completed native periods; never interrupt an advertising mutation. */
   nextPeriod() {
     this.check();
@@ -126,3 +134,16 @@ export const collectionResponseBytes = (count: number) => {
 export const collectionCheckpoint = () => {
   for (const budget of context.getStore() ?? []) budget.check();
 };
+/** The least that is left in the whole-job allowances this work answers to, or undefined outside every one. */
+export const collectionAllowance = (): {requests: number; elapsed_ms: number} | undefined =>
+  (context.getStore() ?? []).reduce<{requests: number; elapsed_ms: number} | undefined>((least, budget) => {
+    const left = budget.remaining();
+    return least
+      ? {requests: Math.min(least.requests, left.requests), elapsed_ms: Math.min(least.elapsed_ms, left.elapsed_ms)}
+      : left;
+  }, undefined);
+/** Whether `error` is AMCP's own whole-job allowance ending (a request, time, row or byte limit), not a limit of a source. */
+export const collectionAllowanceEnded = (error: unknown): error is MirrorError =>
+  error instanceof MirrorError &&
+  error.code === 'REPORT_COLLECTION_LIMIT' &&
+  typeof error.details.dimension === 'string';

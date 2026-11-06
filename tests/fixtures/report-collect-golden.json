@@ -7695,6 +7695,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -7713,6 +7719,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -7761,6 +7773,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -7809,6 +7827,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -7954,8 +7978,8 @@
      {
       "campaign_id": "c2",
       "campaign_name": "X c2",
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "MIXED",
+      "objective_group": "mixed",
       "currency": null,
       "metrics": {
        "spend": 0.72,
@@ -7973,7 +7997,7 @@
       "native": {
        "id": "c2",
        "name": "X c2",
-       "objective": "$undefined",
+       "objective": "MIXED",
        "native_metrics": {
         "impressions": 72,
         "clicks": 0,
@@ -7985,7 +8009,11 @@
         "clicks": 0,
         "engagements": null,
         "video_views": null
-       }
+       },
+       "line_item_objectives": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     ],
@@ -8008,7 +8036,7 @@
     "attribution": "provider configured",
     "result_definition": "unknown",
     "warnings": [
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
     "source_kind": "paid",
@@ -8181,6 +8209,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -8214,6 +8248,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -8356,7 +8396,7 @@
     "attribution": "provider configured",
     "result_definition": "unknown",
     "warnings": [
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "1 X campaign has no reported activity in this window (X active entities). They are not listed and are never counted as zero.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
@@ -8530,6 +8570,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -8563,6 +8609,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -8705,7 +8757,7 @@
     "attribution": "provider configured",
     "result_definition": "unknown",
     "warnings": [
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "1 X campaign has no reported activity in this window (X active entities). They are not listed and are never counted as zero.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
@@ -8948,6 +9000,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     },
@@ -8967,6 +9025,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -9016,6 +9080,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -9065,6 +9135,12 @@
       "campaigns": {
        "c1": "WEBSITE_CLICKS",
        "c2": null
+      },
+      "mixed": {
+       "c2": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      },
      "x_report": {
@@ -9210,8 +9286,8 @@
      {
       "campaign_id": "c2",
       "campaign_name": "X c2",
-      "objective": "unknown",
-      "objective_group": "unknown",
+      "objective": "MIXED",
+      "objective_group": "mixed",
       "currency": null,
       "metrics": {
        "spend": 0.72,
@@ -9229,7 +9305,7 @@
       "native": {
        "id": "c2",
        "name": "X c2",
-       "objective": "$undefined",
+       "objective": "MIXED",
        "native_metrics": {
         "impressions": 72,
         "clicks": 0,
@@ -9241,7 +9317,11 @@
         "clicks": 0,
         "engagements": null,
         "video_views": null
-       }
+       },
+       "line_item_objectives": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     ],
@@ -9265,7 +9345,7 @@
     "result_definition": "unknown",
     "warnings": [
      "X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).",
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
     "source_kind": "paid",
@@ -9332,8 +9412,8 @@
      {
       "campaign_id": "c2",
       "campaign_name": "X c2",
-      "objective": "$undefined",
-      "objective_group": "unknown",
+      "objective": "MIXED",
+      "objective_group": "mixed",
       "currency": null,
       "metrics": {
        "spend": 0.72,
@@ -9351,7 +9431,7 @@
       "native": {
        "id": "c2",
        "name": "X c2",
-       "objective": "$undefined",
+       "objective": "MIXED",
        "native_metrics": {
         "impressions": 72,
         "clicks": 0,
@@ -9363,7 +9443,11 @@
         "clicks": 0,
         "engagements": null,
         "video_views": null
-       }
+       },
+       "line_item_objectives": [
+        "APP_INSTALLS",
+        "WEBSITE_CLICKS"
+       ]
       }
      }
     ],
@@ -9387,7 +9471,7 @@
     "result_definition": "unknown",
     "warnings": [
      "X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).",
-     "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.",
+     "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.",
      "X null hourly values mean no reported activity and count as zero; absent metric columns remain unavailable."
     ],
     "source_kind": "paid",
@@ -12730,9 +12814,9 @@
      "plan": {
       "gateway": "apple_ads_native_action",
       "accountId": "500",
-      "action": "apple_ads_v1_reports_apps_ads",
+      "action": "apple_ads_v1_reports_apps_campaigns",
       "method": "POST",
-      "path": "/v1/reports/apps/ads/query",
+      "path": "/v1/reports/apps/campaigns/query",
       "query": {},
       "body": {
        "timeRange": {
@@ -12743,8 +12827,47 @@
        "pagination": {
         "offset": 0,
         "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_ads",
+      "method": "POST",
+      "path": "/v1/reports/apps/ads/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
        },
-       "options": {}
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000
+       }
       },
       "origin": "https://api.ads.apple.com",
       "headers": {},
@@ -12780,7 +12903,8 @@
        ],
        "pagination": {
         "offset": 0,
-        "pageSize": 1000
+        "pageSize": 1000,
+        "fetchTotalCount": true
        }
       },
       "origin": "https://api.ads.apple.com",
@@ -12817,7 +12941,8 @@
        ],
        "pagination": {
         "offset": 0,
-        "pageSize": 1000
+        "pageSize": 1000,
+        "fetchTotalCount": true
        }
       },
       "origin": "https://api.ads.apple.com",
@@ -12854,7 +12979,8 @@
        ],
        "pagination": {
         "offset": 0,
-        "pageSize": 1000
+        "pageSize": 1000,
+        "fetchTotalCount": true
        }
       },
       "origin": "https://api.ads.apple.com",
@@ -12881,7 +13007,22 @@
      "measurement_complete": null,
      "reporting_window_declared_complete": true,
      "status": "declared_measurement",
-     "entity_level": "ad"
+     "entity_level": "ad",
+     "population": {
+      "basis": "campaign_report",
+      "campaigns_observed": 1,
+      "rows": 1,
+      "report_pages": 2,
+      "parent_pages": 3,
+      "complete": true,
+      "bounds": {
+       "page_size": 1000,
+       "pages": 25,
+       "rows": 10000,
+       "ids_per_query": 1000,
+       "campaigns": 100
+      }
+     }
     },
     "lineage": [
      {
@@ -12895,13 +13036,23 @@
       "captured_at": "<epoch-ms>"
      },
      {
-      "stage": "campaign_report",
+      "stage": "campaign_population",
+      "method": "POST",
+      "path": "/v1/reports/apps/campaigns/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "c13797d137d6dc8e55d9036d527ee355c664bbd76fd210730bd25c48865ad7f7",
+      "response_fingerprint": "15aea8dfbf0269894ecc9ae56c8251130c1c84e2afc523951439f5c58f355155",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_report",
       "method": "POST",
       "path": "/v1/reports/apps/ads/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "50ea1a273e74891463f6e24be1840edc0b48a09619977eb49417c3aa2ea5f489",
-      "response_fingerprint": "91985297d3d4a2c0a0e20c52e782d5226ffe9ff6e59978718c07e806fff2f68b",
+      "query_fingerprint": "ab9ba039d7f521dd6d73d0a87e058156b0bd166bbfc119aecb8f5426f0dd590c",
+      "response_fingerprint": "ec1e0ff8e3da70e616129e56ec6fdf82d4874df64bbad75aa3a7f272bfeeee5e",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -12910,8 +13061,8 @@
       "path": "/v1/ads/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "eafe74138c6817c58236801510cf2f6535b32df8462ff17f6d09800d238c9935",
-      "response_fingerprint": "2f2f4804a2d50d87e20f2cee5ed329bf5f71ace7f63211e67a29261fbb23b8f0",
+      "query_fingerprint": "91ef9500af355c479e454e6845510775fa52714ab3fa2c745641d67b48919d47",
+      "response_fingerprint": "76773b5f1f49fa4ee84c41b177a2e5563a46749f65465ff5064d96df1a27c262",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -12920,8 +13071,8 @@
       "path": "/v1/adgroups/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "c6fe17c9a080ee5dd04bb34100788d3bb2c919eac0683aef0badd1662f192631",
-      "response_fingerprint": "4a608c6ff0069c7665b600b0a43d02e0e9f95d7487b233c0d7cfc2b483b19e2a",
+      "query_fingerprint": "07e2e3623dad63dfd410035afbf924632c37974489613cb88924e9346e2a2e1e",
+      "response_fingerprint": "054aa4b90a7316c7d71895274584d50b1eac56bccdb14250d192bb351e54dadb",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -12930,12 +13081,12 @@
       "path": "/v1/campaigns/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "df72e35cd56dbe186c7a8ab8b49235b40b3d62848cedcd59a77e8804040836ce",
-      "response_fingerprint": "be041453cc762cb9a83f703a614c6a53aed8ded3bd040147efc38a893a1803d9",
+      "query_fingerprint": "de93b67b7c27884d9cb506934899361742b476768fa9a1e2028ff126eaeb9181",
+      "response_fingerprint": "23213c3a698885c737a9ee93f9f9832d93e74efcbea712c817f5b76097eb60fb",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "ebc976663085cdb15e146ed2d09befef3589ab5d080e1fd7655bf532b4362dd4",
+    "query_fingerprint": "fba2ee4e3d85ad6ca21076bde0ecc37a18610ca8bb71d0d768a66b6aae87b633",
     "rows": [
      {
       "entity_id": "701",
@@ -13009,6 +13160,21 @@
     "detail_contract": "overview-detail-v3",
     "collection_complete": true,
     "complete": true,
+    "native_population": {
+     "basis": "campaign_report",
+     "campaigns_observed": 1,
+     "rows": 1,
+     "report_pages": 2,
+     "parent_pages": 3,
+     "complete": true,
+     "bounds": {
+      "page_size": 1000,
+      "pages": 25,
+      "rows": 10000,
+      "ids_per_query": 1000,
+      "campaigns": 100
+     }
+    },
     "attribution": "unknown",
     "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
     "warnings": [
@@ -13048,9 +13214,9 @@
      "plan": {
       "gateway": "apple_ads_native_action",
       "accountId": "500",
-      "action": "apple_ads_v1_reports_apps_adgroups",
+      "action": "apple_ads_v1_reports_apps_campaigns",
       "method": "POST",
-      "path": "/v1/reports/apps/adgroups/query",
+      "path": "/v1/reports/apps/campaigns/query",
       "query": {},
       "body": {
        "timeRange": {
@@ -13061,8 +13227,47 @@
        "pagination": {
         "offset": 0,
         "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
        },
-       "options": {}
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000
+       }
       },
       "origin": "https://api.ads.apple.com",
       "headers": {},
@@ -13098,7 +13303,8 @@
        ],
        "pagination": {
         "offset": 0,
-        "pageSize": 1000
+        "pageSize": 1000,
+        "fetchTotalCount": true
        }
       },
       "origin": "https://api.ads.apple.com",
@@ -13135,7 +13341,8 @@
        ],
        "pagination": {
         "offset": 0,
-        "pageSize": 1000
+        "pageSize": 1000,
+        "fetchTotalCount": true
        }
       },
       "origin": "https://api.ads.apple.com",
@@ -13162,7 +13369,22 @@
      "measurement_complete": null,
      "reporting_window_declared_complete": true,
      "status": "declared_measurement",
-     "entity_level": "adset"
+     "entity_level": "adset",
+     "population": {
+      "basis": "campaign_report",
+      "campaigns_observed": 1,
+      "rows": 1,
+      "report_pages": 2,
+      "parent_pages": 2,
+      "complete": true,
+      "bounds": {
+       "page_size": 1000,
+       "pages": 25,
+       "rows": 10000,
+       "ids_per_query": 1000,
+       "campaigns": 100
+      }
+     }
     },
     "lineage": [
      {
@@ -13176,13 +13398,23 @@
       "captured_at": "<epoch-ms>"
      },
      {
-      "stage": "campaign_report",
+      "stage": "campaign_population",
+      "method": "POST",
+      "path": "/v1/reports/apps/campaigns/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "c13797d137d6dc8e55d9036d527ee355c664bbd76fd210730bd25c48865ad7f7",
+      "response_fingerprint": "15aea8dfbf0269894ecc9ae56c8251130c1c84e2afc523951439f5c58f355155",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_report",
       "method": "POST",
       "path": "/v1/reports/apps/adgroups/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "d51ffdc1d543720063310fc0f2b3b093d735a1e61ca0c81e8b93c8620421e367",
-      "response_fingerprint": "e66137ef4886d2bcc963a37d38b393d1abfcebe1a20d9fa5b5fedcdef9f6be0e",
+      "query_fingerprint": "bf4575c6bb58566732a0aaaa1e952211d2f2ca21793dd39cb07be6afe054ba88",
+      "response_fingerprint": "1058dd8a617a4029279cdd8ceb98b12bd439267c0264b7b86daea1d14a031da8",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -13191,8 +13423,8 @@
       "path": "/v1/adgroups/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "c6fe17c9a080ee5dd04bb34100788d3bb2c919eac0683aef0badd1662f192631",
-      "response_fingerprint": "4a608c6ff0069c7665b600b0a43d02e0e9f95d7487b233c0d7cfc2b483b19e2a",
+      "query_fingerprint": "07e2e3623dad63dfd410035afbf924632c37974489613cb88924e9346e2a2e1e",
+      "response_fingerprint": "054aa4b90a7316c7d71895274584d50b1eac56bccdb14250d192bb351e54dadb",
       "captured_at": "<epoch-ms>"
      },
      {
@@ -13201,12 +13433,12 @@
       "path": "/v1/campaigns/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "df72e35cd56dbe186c7a8ab8b49235b40b3d62848cedcd59a77e8804040836ce",
-      "response_fingerprint": "be041453cc762cb9a83f703a614c6a53aed8ded3bd040147efc38a893a1803d9",
+      "query_fingerprint": "de93b67b7c27884d9cb506934899361742b476768fa9a1e2028ff126eaeb9181",
+      "response_fingerprint": "23213c3a698885c737a9ee93f9f9832d93e74efcbea712c817f5b76097eb60fb",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "196eec1fe34150bb9f79baee484e097b52a989f1d097c1b4c91fa8f9b7c056ef",
+    "query_fingerprint": "e4f12b9d1d28d3fbcdd22fe98d14448d93ee21ae80022a6b428c9c234c8f74f3",
     "rows": [
      {
       "entity_id": "601",
@@ -13278,6 +13510,21 @@
     "detail_contract": "overview-detail-v3",
     "collection_complete": true,
     "complete": true,
+    "native_population": {
+     "basis": "campaign_report",
+     "campaigns_observed": 1,
+     "rows": 1,
+     "report_pages": 2,
+     "parent_pages": 2,
+     "complete": true,
+     "bounds": {
+      "page_size": 1000,
+      "pages": 25,
+      "rows": 10000,
+      "ids_per_query": 1000,
+      "campaigns": 100
+     }
+    },
     "attribution": "unknown",
     "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
     "warnings": [
@@ -13317,9 +13564,9 @@
      "plan": {
       "gateway": "apple_ads_native_action",
       "accountId": "500",
-      "action": "apple_ads_v1_reports_apps_adgroups",
+      "action": "apple_ads_v1_reports_apps_campaigns",
       "method": "POST",
-      "path": "/v1/reports/apps/adgroups/query",
+      "path": "/v1/reports/apps/campaigns/query",
       "query": {},
       "body": {
        "timeRange": {
@@ -13330,8 +13577,47 @@
        "pagination": {
         "offset": 0,
         "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
        },
-       "options": {}
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000
+       }
       },
       "origin": "https://api.ads.apple.com",
       "headers": {},
@@ -13367,7 +13653,8 @@
        ],
        "pagination": {
         "offset": 0,
-        "pageSize": 1000
+        "pageSize": 1000,
+        "fetchTotalCount": true
        }
       },
       "origin": "https://api.ads.apple.com",
@@ -13394,7 +13681,22 @@
      "measurement_complete": null,
      "reporting_window_declared_complete": true,
      "status": "declared_measurement",
-     "entity_level": "adset"
+     "entity_level": "adset",
+     "population": {
+      "basis": "campaign_report",
+      "campaigns_observed": 1,
+      "rows": 1,
+      "report_pages": 2,
+      "parent_pages": 0,
+      "complete": true,
+      "bounds": {
+       "page_size": 1000,
+       "pages": 25,
+       "rows": 10000,
+       "ids_per_query": 1000,
+       "campaigns": 100
+      }
+     }
     },
     "lineage": [
      {
@@ -13408,17 +13710,27 @@
       "captured_at": "<epoch-ms>"
      },
      {
-      "stage": "campaign_report",
+      "stage": "campaign_population",
+      "method": "POST",
+      "path": "/v1/reports/apps/campaigns/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "c13797d137d6dc8e55d9036d527ee355c664bbd76fd210730bd25c48865ad7f7",
+      "response_fingerprint": "15aea8dfbf0269894ecc9ae56c8251130c1c84e2afc523951439f5c58f355155",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_report",
       "method": "POST",
       "path": "/v1/reports/apps/adgroups/query",
       "origin": "https://api.ads.apple.com",
       "api_version": "v1",
-      "query_fingerprint": "d51ffdc1d543720063310fc0f2b3b093d735a1e61ca0c81e8b93c8620421e367",
-      "response_fingerprint": "e66137ef4886d2bcc963a37d38b393d1abfcebe1a20d9fa5b5fedcdef9f6be0e",
+      "query_fingerprint": "bf4575c6bb58566732a0aaaa1e952211d2f2ca21793dd39cb07be6afe054ba88",
+      "response_fingerprint": "1058dd8a617a4029279cdd8ceb98b12bd439267c0264b7b86daea1d14a031da8",
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "03b021430a8e3d764a72da85648a625415caf905d3a7e13d375eb7ec4d46bc9b",
+    "query_fingerprint": "ece5d160229069e1b82b7eeace4f2581853a572ec7878654f5dfd73287c5bc39",
     "rows": [
      {
       "entity_id": "601",
@@ -13487,6 +13799,21 @@
     "detail_contract": "overview-detail-v3",
     "collection_complete": true,
     "complete": true,
+    "native_population": {
+     "basis": "campaign_report",
+     "campaigns_observed": 1,
+     "rows": 1,
+     "report_pages": 2,
+     "parent_pages": 0,
+     "complete": true,
+     "bounds": {
+      "page_size": 1000,
+      "pages": 25,
+      "rows": 10000,
+      "ids_per_query": 1000,
+      "campaigns": 100
+     }
+    },
     "attribution": "unknown",
     "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
     "warnings": [
@@ -13498,7 +13825,7 @@
    }
   },
   {
-   "name": "apple full detail page",
+   "name": "apple ad group report in short pages",
    "requests": [
     {
      "plan": {
@@ -13527,9 +13854,9 @@
      "plan": {
       "gateway": "apple_ads_native_action",
       "accountId": "500",
-      "action": "apple_ads_v1_reports_apps_adgroups",
+      "action": "apple_ads_v1_reports_apps_campaigns",
       "method": "POST",
-      "path": "/v1/reports/apps/adgroups/query",
+      "path": "/v1/reports/apps/campaigns/query",
       "query": {},
       "body": {
        "timeRange": {
@@ -13540,8 +13867,207 @@
        "pagination": {
         "offset": 0,
         "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
        },
-       "options": {}
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
+       },
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 2,
+        "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
+       },
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 4,
+        "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_adgroups_query",
+      "method": "POST",
+      "path": "/v1/adgroups/query",
+      "query": {},
+      "body": {
+       "filters": [
+        {
+         "field": "id",
+         "operator": "IN",
+         "value": [
+          601,
+          602,
+          603,
+          604,
+          605
+         ]
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000,
+        "fetchTotalCount": true
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_campaigns_query",
+      "method": "POST",
+      "path": "/v1/campaigns/query",
+      "query": {},
+      "body": {
+       "filters": [
+        {
+         "field": "id",
+         "operator": "IN",
+         "value": [
+          501
+         ]
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000,
+        "fetchTotalCount": true
+       }
       },
       "origin": "https://api.ads.apple.com",
       "headers": {},
@@ -13559,16 +14085,405 @@
     }
    ],
    "saves": [],
-   "error": {
-    "code": "INCOMPLETE_REPORT",
-    "message": "Report reached a pagination limit. Split the date range or accounts.",
-    "status": 400,
-    "retryable": false,
-    "details": {}
+   "result": {
+    "contract_version": "campaign-source-v4",
+    "quality": {
+     "version": 1,
+     "pages_collected": true,
+     "measurement_complete": null,
+     "reporting_window_declared_complete": true,
+     "status": "declared_measurement",
+     "entity_level": "adset",
+     "population": {
+      "basis": "campaign_report",
+      "campaigns_observed": 1,
+      "rows": 5,
+      "report_pages": 4,
+      "parent_pages": 2,
+      "complete": true,
+      "bounds": {
+       "page_size": 1000,
+       "pages": 25,
+       "rows": 10000,
+       "ids_per_query": 1000,
+       "campaigns": 100
+      }
+     }
+    },
+    "lineage": [
+     {
+      "stage": "campaign_report",
+      "method": "GET",
+      "path": "/v1/ad-accounts/500",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "ed568e8195935c24f301f061ae06e59a0873edb9860a967638ce12d2417b141c",
+      "response_fingerprint": "5db1963be76cf39797cbee293964c18e68e059d3869ebe126c28677015768ac7",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "campaign_population",
+      "method": "POST",
+      "path": "/v1/reports/apps/campaigns/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "c13797d137d6dc8e55d9036d527ee355c664bbd76fd210730bd25c48865ad7f7",
+      "response_fingerprint": "15aea8dfbf0269894ecc9ae56c8251130c1c84e2afc523951439f5c58f355155",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_report",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "bf4575c6bb58566732a0aaaa1e952211d2f2ca21793dd39cb07be6afe054ba88",
+      "response_fingerprint": "0c2031aab3c392e413e368d15eac18b11e218dee84550f0cba43eef8fe36e279",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_report",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "31ffa5d5e24a001d0cc3a046f1df6b859b473764757d18f4c6503f3d4efedf28",
+      "response_fingerprint": "bed0d82fce1fc54bc41a4188ee14fe795e2adbd4f6d2dc4255aa25ade02fb10a",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_report",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "df10870fc010da1c4e56f1dee4d55b8850a4b673ca111d96f706e88cde22ee3d",
+      "response_fingerprint": "42902c87b9a3efa23339697c3292dcf9284d2bc4a91c967b3d4015dbdd61c2a9",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_parents",
+      "method": "POST",
+      "path": "/v1/adgroups/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "5ce5e7f4c35264d59b802c3314da21e84320b1aa8791bd1228b02f5b20d7de83",
+      "response_fingerprint": "054aa4b90a7316c7d71895274584d50b1eac56bccdb14250d192bb351e54dadb",
+      "captured_at": "<epoch-ms>"
+     },
+     {
+      "stage": "detail_parents",
+      "method": "POST",
+      "path": "/v1/campaigns/query",
+      "origin": "https://api.ads.apple.com",
+      "api_version": "v1",
+      "query_fingerprint": "de93b67b7c27884d9cb506934899361742b476768fa9a1e2028ff126eaeb9181",
+      "response_fingerprint": "23213c3a698885c737a9ee93f9f9832d93e74efcbea712c817f5b76097eb60fb",
+      "captured_at": "<epoch-ms>"
+     }
+    ],
+    "query_fingerprint": "9ee884b17215205ff4c9746482c7bf57ae1f4aa42ba40cc2de6ef1d3e15224a2",
+    "rows": [
+     {
+      "entity_id": "601",
+      "entity_name": "Apple 601",
+      "entity_level": "adset",
+      "native_entity_type": "adgroup",
+      "campaign_id": "501",
+      "campaign_name": "Campaign 501",
+      "parent_ids": {
+       "campaign_id": "501",
+       "campaign_name": "Campaign 501"
+      },
+      "objective": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
+      "currency": "USD",
+      "metrics": {
+       "spend": 12.34,
+       "impressions": 100,
+       "clicks": 5,
+       "conversions": 2,
+       "conversion_value": null,
+       "reach": null,
+       "frequency": null
+      },
+      "native": {
+       "preset": "apple_adgroup",
+       "entity_id": "601",
+       "daily_rows": [
+        {
+         "metadata": {
+          "id": 601,
+          "name": "Apple 601"
+         },
+         "totalMetrics": {
+          "localSpend": {
+           "amount": "12.34",
+           "currency": "USD"
+          },
+          "impressions": 100,
+          "taps": 5,
+          "totalInstalls": 2
+         }
+        }
+       ],
+       "exact_totals": {
+        "spend": "12.34",
+        "impressions": "100",
+        "clicks": "5",
+        "conversions": "2",
+        "conversion_value": null
+       }
+      }
+     },
+     {
+      "entity_id": "602",
+      "entity_name": "Apple 602",
+      "entity_level": "adset",
+      "native_entity_type": "adgroup",
+      "campaign_id": null,
+      "campaign_name": null,
+      "parent_ids": {},
+      "objective": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
+      "currency": "USD",
+      "metrics": {
+       "spend": 12.34,
+       "impressions": 100,
+       "clicks": 5,
+       "conversions": 2,
+       "conversion_value": null,
+       "reach": null,
+       "frequency": null
+      },
+      "native": {
+       "preset": "apple_adgroup",
+       "entity_id": "602",
+       "daily_rows": [
+        {
+         "metadata": {
+          "id": 602,
+          "name": "Apple 602"
+         },
+         "totalMetrics": {
+          "localSpend": {
+           "amount": "12.34",
+           "currency": "USD"
+          },
+          "impressions": 100,
+          "taps": 5,
+          "totalInstalls": 2
+         }
+        }
+       ],
+       "exact_totals": {
+        "spend": "12.34",
+        "impressions": "100",
+        "clicks": "5",
+        "conversions": "2",
+        "conversion_value": null
+       }
+      }
+     },
+     {
+      "entity_id": "603",
+      "entity_name": "Apple 603",
+      "entity_level": "adset",
+      "native_entity_type": "adgroup",
+      "campaign_id": null,
+      "campaign_name": null,
+      "parent_ids": {},
+      "objective": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
+      "currency": "USD",
+      "metrics": {
+       "spend": 12.34,
+       "impressions": 100,
+       "clicks": 5,
+       "conversions": 2,
+       "conversion_value": null,
+       "reach": null,
+       "frequency": null
+      },
+      "native": {
+       "preset": "apple_adgroup",
+       "entity_id": "603",
+       "daily_rows": [
+        {
+         "metadata": {
+          "id": 603,
+          "name": "Apple 603"
+         },
+         "totalMetrics": {
+          "localSpend": {
+           "amount": "12.34",
+           "currency": "USD"
+          },
+          "impressions": 100,
+          "taps": 5,
+          "totalInstalls": 2
+         }
+        }
+       ],
+       "exact_totals": {
+        "spend": "12.34",
+        "impressions": "100",
+        "clicks": "5",
+        "conversions": "2",
+        "conversion_value": null
+       }
+      }
+     },
+     {
+      "entity_id": "604",
+      "entity_name": "Apple 604",
+      "entity_level": "adset",
+      "native_entity_type": "adgroup",
+      "campaign_id": null,
+      "campaign_name": null,
+      "parent_ids": {},
+      "objective": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
+      "currency": "USD",
+      "metrics": {
+       "spend": 12.34,
+       "impressions": 100,
+       "clicks": 5,
+       "conversions": 2,
+       "conversion_value": null,
+       "reach": null,
+       "frequency": null
+      },
+      "native": {
+       "preset": "apple_adgroup",
+       "entity_id": "604",
+       "daily_rows": [
+        {
+         "metadata": {
+          "id": 604,
+          "name": "Apple 604"
+         },
+         "totalMetrics": {
+          "localSpend": {
+           "amount": "12.34",
+           "currency": "USD"
+          },
+          "impressions": 100,
+          "taps": 5,
+          "totalInstalls": 2
+         }
+        }
+       ],
+       "exact_totals": {
+        "spend": "12.34",
+        "impressions": "100",
+        "clicks": "5",
+        "conversions": "2",
+        "conversion_value": null
+       }
+      }
+     },
+     {
+      "entity_id": "605",
+      "entity_name": "Apple 605",
+      "entity_level": "adset",
+      "native_entity_type": "adgroup",
+      "campaign_id": null,
+      "campaign_name": null,
+      "parent_ids": {},
+      "objective": "unknown",
+      "objective_group": "app_installs",
+      "objective_source": "provider_mapped",
+      "objective_reason": "Apple Ads campaigns promote apps.",
+      "currency": "USD",
+      "metrics": {
+       "spend": 12.34,
+       "impressions": 100,
+       "clicks": 5,
+       "conversions": 2,
+       "conversion_value": null,
+       "reach": null,
+       "frequency": null
+      },
+      "native": {
+       "preset": "apple_adgroup",
+       "entity_id": "605",
+       "daily_rows": [
+        {
+         "metadata": {
+          "id": 605,
+          "name": "Apple 605"
+         },
+         "totalMetrics": {
+          "localSpend": {
+           "amount": "12.34",
+           "currency": "USD"
+          },
+          "impressions": 100,
+          "taps": 5,
+          "totalInstalls": 2
+         }
+        }
+       ],
+       "exact_totals": {
+        "spend": "12.34",
+        "impressions": "100",
+        "clicks": "5",
+        "conversions": "2",
+        "conversion_value": null
+       }
+      }
+     }
+    ],
+    "metadata": {
+     "id": 500,
+     "name": "Synthetic Apple",
+     "currency": "USD"
+    },
+    "account_name": "Synthetic Apple",
+    "currency": "USD",
+    "timezone": "UTC",
+    "date_range": {
+     "since": "2026-08-01",
+     "until": "2026-08-07"
+    },
+    "detail_contract": "overview-detail-v3",
+    "collection_complete": true,
+    "complete": true,
+    "native_population": {
+     "basis": "campaign_report",
+     "campaigns_observed": 1,
+     "rows": 5,
+     "report_pages": 4,
+     "parent_pages": 2,
+     "complete": true,
+     "bounds": {
+      "page_size": 1000,
+      "pages": 25,
+      "rows": 10000,
+      "ids_per_query": 1000,
+      "campaigns": 100
+     }
+    },
+    "attribution": "unknown",
+    "result_definition": "Apple total attributed installs (tap + view); totalMetrics",
+    "warnings": [
+     "Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared."
+    ],
+    "source_kind": "paid",
+    "captured_at": "<epoch-ms>"
    }
   },
   {
-   "name": "apple total results disagree",
+   "name": "apple total beyond the rows",
    "requests": [
     {
      "plan": {
@@ -13597,9 +14512,9 @@
      "plan": {
       "gateway": "apple_ads_native_action",
       "accountId": "500",
-      "action": "apple_ads_v1_reports_apps_adgroups",
+      "action": "apple_ads_v1_reports_apps_campaigns",
       "method": "POST",
-      "path": "/v1/reports/apps/adgroups/query",
+      "path": "/v1/reports/apps/campaigns/query",
       "query": {},
       "body": {
        "timeRange": {
@@ -13610,8 +14525,87 @@
        "pagination": {
         "offset": 0,
         "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
        },
-       "options": {}
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 0,
+        "pageSize": 1000
+       }
+      },
+      "origin": "https://api.ads.apple.com",
+      "headers": {},
+      "readOnly": true,
+      "destructive": false,
+      "requiresConfirmation": false,
+      "evidence": "Native campaign report, bounded account scope",
+      "warnings": []
+     },
+     "input": {
+      "connection_id": "login",
+      "aggregate_pages": false,
+      "max_pages": 25
+     }
+    },
+    {
+     "plan": {
+      "gateway": "apple_ads_native_action",
+      "accountId": "500",
+      "action": "apple_ads_v1_reports_apps_adgroups",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "query": {},
+      "body": {
+       "timeRange": {
+        "start": "2026-08-01",
+        "end": "2026-08-07",
+        "timeZone": "UTC"
+       },
+       "filters": [
+        {
+         "field": "campaignId",
+         "operator": "EQUALS",
+         "value": "501"
+        }
+       ],
+       "pagination": {
+        "offset": 1,
+        "pageSize": 1000
+       }
       },
       "origin": "https://api.ads.apple.com",
       "headers": {},
@@ -13630,9 +14624,9 @@
    ],
    "saves": [],
    "error": {
-    "code": "INCOMPLETE_REPORT",
-    "message": "Report reached a pagination limit. Split the date range or accounts.",
-    "status": 400,
+    "code": "REPORT_INCOMPLETE",
+    "message": "Apple returned an empty page before the total it reported for ad groups, so the list cannot be proven complete.",
+    "status": 502,
     "retryable": false,
     "details": {}
    }

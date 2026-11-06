@@ -9,6 +9,7 @@ import {metaMappedResult, metaResultRules} from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
 import {reportStatus} from './report-status.js';
 import {metaReportMetadata} from './meta-report-metadata.js';
+import {overviewEntityLevels} from './overview-levels.js';
 
 /** Meta campaign insights rows: actions and action_values arrays; conversions follow the campaign objective. */
 export const metaReportSource: ReportSource = {
@@ -22,11 +23,7 @@ export const metaReportSource: ReportSource = {
   },
   detailParents: metaReportMetadata,
   overview: overviewCapabilities(
-    [
-      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-      {id: 'adset', label: 'Ad set', native_type: 'adset', preset: 'meta_adset'},
-      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'meta_ad'},
-    ],
+    overviewEntityLevels.meta!,
     {attribution_windows: ['7d_click', '1d_view']},
     ['result_action_type'],
     (options, context) => {

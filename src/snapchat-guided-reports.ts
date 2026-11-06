@@ -132,8 +132,14 @@ export const snapchatGuidedReporting: GuidedReporting = {
     };
   },
   // ARC-01 (reporting): a capture of a Snapchat preset collects complete daily stats pages (src/snapchat-evidence.ts).
-  collect: ({store, call, actor, args, semantics, allowPartial, overviewV4}) =>
-    collectSnapchatEvidence(store, call, actor, args, semantics, {allowPartial, overviewV4}),
+  // The Overview's job cache may hold the account's proven campaign population (src/snapchat-overview-detail.ts); a
+  // capture the user makes (no job cache) keeps every check.
+  collect: ({store, call, actor, args, semantics, allowPartial, overviewV4, lookup}) =>
+    collectSnapchatEvidence(store, call, actor, args, semantics, {
+      allowPartial,
+      overviewV4,
+      ...(overviewV4 && lookup?.snapchatPopulation ? {population: lookup.snapchatPopulation.byId} : {}),
+    }),
   sourceCollection: 'snapchat_daily_pages',
   semanticsSource: (_preset, request) =>
     request.arguments.query.fields === 'spend,impressions,swipes,native_leads'

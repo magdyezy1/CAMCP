@@ -6,7 +6,14 @@ import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {reportStatus} from './report-status.js';
-import {collectSnapchatOverviewDetail} from './snapchat-overview-detail.js';
+import {overviewEntityLevels} from './overview-levels.js';
+import {
+  collectSnapchatOverviewDetail,
+  snapchatAdRequests,
+  snapchatDetailBounds,
+  snapchatDetailRequests,
+} from './snapchat-overview-detail.js';
+import {windowSpans} from './overview-detail-spans.js';
 
 /** Native optimization goals, not broad campaign objectives. Unpinned/app-source-specific goals stay unknown. */
 export const snapchatResultRules: ReportResultRules = {
@@ -59,11 +66,7 @@ export const snapchatReportSource: ReportSource = {
   requiresCompleteWindowDeclaration: true,
   overview: {
     ...overviewCapabilities(
-      [
-        {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-        {id: 'adset', label: 'Ad squad', native_type: 'adsquad', preset: 'snapchat_adsquad'},
-        {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'snapchat_ad'},
-      ],
+      overviewEntityLevels.snapchat!,
       {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
       [],
       (options, context) => {
@@ -131,16 +134,21 @@ export const snapchatReportSource: ReportSource = {
   nativeMetricContainer: 'stats',
   // The stats and the campaign inventory.
   minimumRequestsPerPeriod: 2,
-  requestsPerPeriod: (level, contract, context) =>
-    level === 'campaign'
-      ? 2
-      : contract === 'overview-config-v4'
-        ? level === 'ad'
-          ? 6
-          : context?.source.campaign_id
-            ? 8
-            : 2 + 8 * Math.max(1, context?.source.campaign_ids?.length ?? 0)
-        : 1,
+  // The ad squad level reads each campaign of the account (or of the scope) once per span; without a scope the number of
+  // campaigns is unknown until the list is read, so one is assumed and requestsLowerBound says the figure is a lower bound.
+  requestsPerPeriod: (level, contract, context) => {
+    if (level === 'campaign') return 2;
+    if (contract !== 'overview-config-v4') return 1;
+    const spans = context ? windowSpans(context.range, snapchatDetailBounds.days_per_read).length : 1;
+    if (level === 'ad') return snapchatAdRequests(spans);
+    if (context?.source.campaign_id) return 8;
+    return snapchatDetailRequests(Math.max(1, context?.source.campaign_ids?.length ?? 0), spans);
+  },
+  requestsLowerBound: (level, contract, context) =>
+    contract === 'overview-config-v4' &&
+    level === 'adset' &&
+    !context?.source.campaign_id &&
+    !context?.source.campaign_ids?.length,
   collectOverviewDetail: collectSnapchatOverviewDetail,
   guided: snapchatGuidedReporting,
   /**

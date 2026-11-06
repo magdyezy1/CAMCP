@@ -469,7 +469,8 @@ test('X covers every placement, separates mobile conversion requests and sums ne
                 segment: null,
                 metrics:
                   query.metric_groups === 'MOBILE_CONVERSION'
-                    ? {mobile: {installs: Array(24).fill(1)}}
+                    ? // X's conversion metrics are objects named mobile_conversion_*; only documented count and amount names are summed.
+                      {mobile_conversion_installs: {metric: Array(24).fill(1)}}
                     : {
                         impressions: Array(24).fill(2),
                         clicks: Array(24).fill(1),
@@ -489,7 +490,12 @@ test('X covers every placement, separates mobile conversion requests and sums ne
     calls.every(c => !c.metric_groups.includes('MOBILE_CONVERSION') || c.metric_groups === 'MOBILE_CONVERSION'),
   );
   assert.equal(r.rows[0]!.metrics.spend, 72);
-  assert.equal(r.rows[0]!.native_metrics.mobile_installs, 72);
+  assert.equal(r.rows[0]!.native_metrics.mobile_conversion_installs_metric, 72);
+  assert.equal(
+    r.warnings.some(warning => /not additive/.test(warning)),
+    false,
+    'every metric X returned here is an additive one, so nothing is left out',
+  );
   await assert.rejects(
     () => xCampaignReport([{id: 'one'}], 0, 86400000, [], async () => ({data: [{id: 'other', id_data: []}]})),
     /unexpected/,

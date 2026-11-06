@@ -21,6 +21,7 @@ import {linkedinReportPivots} from './workflows.js';
 import {mixedObjectiveGroup, resolveObjective, type ObjectiveUnread} from './report-objectives.js';
 import {metricNumber} from './report-metrics.js';
 import {overviewCapabilities} from './report-source.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {reportStatus} from './report-status.js';
 import {metricRoundingRecord, parseProviderDecimal} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
@@ -285,16 +286,7 @@ export const linkedinReportSource: ReportSource = {
   },
   overview: {
     ...overviewCapabilities(
-      [
-        {
-          id: 'campaign',
-          label: 'Campaign group',
-          native_type: 'sponsoredCampaignGroup',
-          preset: 'linkedin_campaign_group',
-        },
-        {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
-        {id: 'ad', label: 'Creative', native_type: 'sponsoredCreative', preset: 'linkedin_creative'},
-      ],
+      overviewEntityLevels.linkedin!,
       {},
       [],
       undefined,

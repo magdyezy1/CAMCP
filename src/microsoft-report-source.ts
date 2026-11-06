@@ -22,6 +22,7 @@ import {reportList, type ReportSource} from './report-source.js';
 import {accountTimezone} from './account-metadata.js';
 import type {JsonObject} from './types.js';
 import {reportStatus} from './report-status.js';
+import {overviewEntityLevels} from './overview-levels.js';
 
 /** Microsoft Advertising campaign performance report rows (decimal money in the account currency). */
 export const microsoftReportSource: ReportSource = {
@@ -34,11 +35,7 @@ export const microsoftReportSource: ReportSource = {
     });
   },
   overview: {
-    ...overviewCapabilities([
-      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-      {id: 'adset', label: 'Ad group', native_type: 'ad_group', preset: 'microsoft_ad_group'},
-      {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'microsoft_ad'},
-    ]),
+    ...overviewCapabilities(overviewEntityLevels.microsoft!),
     status_basis: 'provider_report_status',
   },
   resultRules: {

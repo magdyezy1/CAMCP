@@ -2,13 +2,14 @@ import {MirrorError} from './errors.js';
 import {invalidReportSource, nextDay, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {zonedMidnight} from './workflows.js';
-import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
+import {xActiveEntities, xActiveEntitiesMode, xActiveSet, xRefusedRead} from './x-active-entities.js';
 import {mappedReportResult, type ReportResultRules} from './report-results.js';
 import {overviewCapabilities} from './report-source.js';
 import {reportStatus} from './report-status.js';
-import {xOverviewLevels} from './x-report-levels.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {collectXOverviewDetail} from './x-overview-detail.js';
 import {overviewV4Activity} from './overview-v4.js';
+import {mixedObjectiveGroup} from './report-objectives.js';
 import {
   xCampaignObjectives,
   xCampaignReport,
@@ -46,6 +47,27 @@ export const xResultRules: ReportResultRules = {
   ],
 };
 
+/**
+ * X's line item objectives, pinned from the X Ads API documentation (docs.x.com/x-ads-api/campaign-management, section
+ * "Objective Based Campaigns", read 2026-11-06): an objective is set on a line item, X campaigns carry none, and the
+ * section lists these eight values. The groups are AMCP's own reading of what each objective buys. WEBSITE_CONVERSIONS,
+ * which AMCP's code has used for X, is not in that section (the page names it only as an example under target
+ * bidding), so it is not pinned here and resolves through the shared inference as `provider_inferred`.
+ */
+export const xLineItemObjectives: Readonly<Record<string, string>> = Object.freeze({
+  APP_ENGAGEMENTS: 'engagement',
+  APP_INSTALLS: 'app_installs',
+  FOLLOWERS: 'engagement',
+  ENGAGEMENTS: 'engagement',
+  REACH: 'awareness',
+  VIDEO_VIEWS: 'video_views',
+  PREROLL_VIEWS: 'video_views',
+  WEBSITE_CLICKS: 'traffic',
+  // AMCP's own value for a campaign whose line items differ; X never returns it.
+  MIXED: mixedObjectiveGroup,
+});
+const xMixedObjective = 'MIXED';
+
 /** X campaign rows as xCampaignReport (src/x-campaign-report.ts) prepares them: the metrics are already shared ones. */
 export const xReportSource: ReportSource = {
   platform: 'x',
@@ -64,7 +86,7 @@ export const xReportSource: ReportSource = {
   },
   overview: {
     // The build before V2 reports X campaigns only; its detail levels are new (F-L10-11).
-    ...overviewCapabilities(xOverviewLevels, {}, [], undefined, {levels: ['campaign']}),
+    ...overviewCapabilities(overviewEntityLevels.x!, {}, [], undefined, {levels: ['campaign']}),
     scope_id_pattern: '^[A-Za-z0-9]{1,32}$',
   },
   nativeDetail: true,
@@ -77,7 +99,15 @@ export const xReportSource: ReportSource = {
   },
   objectives: {
     name: 'X',
-    values: {},
+    values: xLineItemObjectives,
+    reason: (native, inputs) =>
+      native === xMixedObjective
+        ? inputs.line_item_objectives?.length
+          ? 'This campaign’s line items have different objectives: {list}.'.replace('{list}', () =>
+              inputs.line_item_objectives.join(', '),
+            )
+          : 'This campaign’s line items have different objectives.'
+        : null,
     missingReason: 'X returned no shared campaign objective from its line items; choose one in the report.',
   },
   nativeMetricExamples: ['VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'],
@@ -125,7 +155,7 @@ export const xReportSource: ReportSource = {
       } catch (e) {
         // A rejected read keeps the bounded inventory path (fails closed above 100 requests); a malformed or
         // partial response is never narrowed and fails the source.
-        if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
+        if (!xRefusedRead(e)) throw e;
         fallback = true;
       }
     if (fallback)
@@ -185,13 +215,22 @@ export const xReportSource: ReportSource = {
         ...(active ? {active, windows: mode === 'on'} : {}),
       },
     );
-    c.raw = report.rows.map(row => ({
-      ...row,
-      objective: objectives!.campaigns?.[row.id] ?? row.objective,
-      ...(c.source.reporting_contract === 'overview-config-v4'
-        ? {entity_metadata: inventory.find((entity: JsonObject) => entity.id === row.id)}
-        : {}),
-    }));
+    c.raw = report.rows.map(row => {
+      // A campaign whose line items differ (null here, with its objectives in `mixed`) is the shared mixed group.
+      const shared = Object.hasOwn(objectives!.campaigns ?? {}, row.id) ? objectives!.campaigns[row.id] : undefined,
+        differing =
+          shared === null
+            ? (Object.hasOwn(objectives!.mixed ?? {}, row.id) && objectives!.mixed[row.id]) || []
+            : undefined;
+      return {
+        ...row,
+        objective: differing ? xMixedObjective : (shared ?? row.objective),
+        ...(differing ? {line_item_objectives: differing} : {}),
+        ...(c.source.reporting_contract === 'overview-config-v4'
+          ? {entity_metadata: inventory.find((entity: JsonObject) => entity.id === row.id)}
+          : {}),
+      };
+    });
     c.complete = report.complete;
     c.collectionComplete = report.complete;
     c.context.no_activity_count = report.no_activity_count;
@@ -211,6 +250,7 @@ export const xReportSource: ReportSource = {
       id: raw.id,
       name: raw.name,
       objective: raw.objective,
+      ...(raw.objective === xMixedObjective ? {objectiveGroup: mixedObjectiveGroup} : {}),
       metrics: Object.fromEntries(
         Object.entries(raw.metrics ?? {}).map(([key, value]) => {
           const native = fields[key];

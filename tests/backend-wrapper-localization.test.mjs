@@ -268,14 +268,20 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Stored-definition migration adds its durable notice ledger module.
   // Package D adds the bounded Snapchat detail collector with eleven already-translated refusal sentences.
   // Task 12 adds two X source modules; its collector owns thirteen new diagnostics and reuses a checkpoint refusal.
-  assert.equal(files.length, 776);
-  assert.equal(selected.filter(row => row.messages.size).length, 189);
+  // V2-RPT-07 (levels) adds the 31-day span helper and Apple's bounded paging helper and detail collector; the helper's six
+  // list refusals go through its refuse() wrapper.
+  assert.equal(files.length, 779);
+  assert.equal(selected.filter(row => row.messages.size).length, 190);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
   // The stored-config upgrader also owns the existing platform/connection/account refusal.
   // The scope-alias conflict is one new wrapper sentence.
-  assert.equal(owned.size, 2886);
+  // V2-RPT-07 (levels): Apple's six list refusals and the reworded X and Snapchat population refusals, ten more in all.
+  // The stored-definition package's shape check of a saved report body (src/overview-v4.ts) raises four sentences the
+  // catalog already held (the platform-account count, the report name and the two template-default refusals) through its
+  // invalid() wrapper: four more (2886 + 10 + 4).
+  assert.equal(owned.size, 2900);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -299,7 +305,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  // V2-RPT-07 (levels) adds 25 catalog entries and replaces 7 (net +18).
+  // V2-RPT-04 (objectives) adds five: four reasons an objective was not read and the label of a LinkedIn group's other
+  // results; no wrapper ownership changes. The stored and TikTok packages add none: 11,737 + 18 + 5.
+  assert.equal(Object.keys(catalog).length, 11760);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

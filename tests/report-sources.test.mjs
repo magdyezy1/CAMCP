@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {reportSource, reportSourceList} from '../dist/src/report-sources.js';
+import {nativeDetailPlatforms, reportSource, reportSourceList} from '../dist/src/report-sources.js';
 import {reportPlatforms} from '../dist/src/report-metrics.js';
 import {
   missingNativeMetrics,
@@ -10,7 +10,6 @@ import {
   reportRange,
 } from '../dist/src/report-native.js';
 import {reportRange as periodRange} from '../dist/src/report-periods.js';
-import {nativeDetailPlatforms} from '../dist/src/overview-native-detail.js';
 import {overviewSourceLevel} from '../dist/src/overview-levels.js';
 import {sourceRequestModel} from '../dist/src/report-request-estimate.js';
 import {fixedReportTimezones, sourceReportTimezone} from '../dist/src/report-windows.js';
@@ -68,13 +67,8 @@ test('the collector and the request estimate read their platform facts from the 
     ['apple', true],
     ['reddit', true],
   ]);
-  assert.deepEqual(
-    reportSourceList
-      .filter(s => s.nativeDetail)
-      .map(s => s.platform)
-      .sort(),
-    [...nativeDetailPlatforms].sort(),
-  );
+  // The list is derived from those flags (src/report-sources.ts), so it is pinned by value rather than recomputed.
+  assert.deepEqual([...nativeDetailPlatforms], ['linkedin', 'x', 'microsoft', 'apple', 'reddit']);
   assert.deepEqual(declaring('nativeMetricCheck'), [
     ['x', false],
     ['apple', false],

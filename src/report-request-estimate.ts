@@ -56,11 +56,16 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         window =
           config.date_range_rule?.source_timezone === 'account' && !fixedReportTimezones[source.platform] ? 1 : 0;
       if (lookupKey !== null) seenAccounts.add(lookupKey);
+      const context = {source, range: daily ? config.date_range : windows[0]!};
       return {
         platform: source.platform,
         account_id: source.account_id,
         ...(source.source_ref !== undefined ? {source_ref: source.source_ref, level} : {}),
         ...(source.scope_supporting ? {purpose: 'scope_rollup', visible: false} : {}),
+        // The size of what the level reads is unknown until it is read (an account's campaigns, unscoped): a lower bound.
+        ...(reportSource(source.platform)?.requestsLowerBound?.(level, source.reporting_contract, context)
+          ? {lower_bound: true}
+          : {}),
         periods: count,
         collection: daily ? 'native_daily' : 'per_period',
         requests:

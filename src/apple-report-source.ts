@@ -1,13 +1,13 @@
 import {MirrorError} from './errors.js';
 import {mappedReportResult} from './report-results.js';
+import {overviewEntityLevels} from './overview-levels.js';
 import {overviewCapabilities} from './report-source.js';
-import {appleDetail, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
-import {detailParentsUnavailableWarning, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
+import {optionalReadRefused, reportList, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {reportStatus, currentStatusUnavailableWarning} from './report-status.js';
 import {appleCampaignMetadata} from './apple-report-metadata.js';
-
-const appleOrigin = 'https://api.ads.apple.com';
+import {appleOrigin} from './apple-report-pages.js';
+import {appleDetailRequests, collectAppleDetail} from './apple-report-detail.js';
 
 /** Apple Ads reports days in UTC. */
 const reportZone = 'UTC';
@@ -23,11 +23,7 @@ export const appleReportSource: ReportSource = {
       metadata?.deleted === true || metadata?.displayStatus === 'DELETED',
     );
   },
-  overview: overviewCapabilities([
-    {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
-    {id: 'adset', label: 'Ad group', native_type: 'adgroup', preset: 'apple_adgroup'},
-    {id: 'ad', label: 'Ad', native_type: 'ad', preset: 'apple_ad'},
-  ]),
+  overview: overviewCapabilities(overviewEntityLevels.apple!),
   resultRules: {
     selectors: [],
     default: {
@@ -57,20 +53,22 @@ export const appleReportSource: ReportSource = {
   nativeMetricCheck: false,
   // The account and the report.
   minimumRequestsPerPeriod: 2,
-  requestsPerPeriod: (level, contract) =>
+  // The ad group and ad levels read each campaign with activity (or of the scope) as a report of its own, so without a
+  // scope one campaign is assumed and requestsLowerBound says the figure is a lower bound.
+  requestsPerPeriod: (level, contract, context) =>
     contract === 'overview-config-v4'
       ? level === 'campaign'
         ? 3
-        : level === 'ad'
-          ? 5
-          : 4
+        : appleDetailRequests(level, context?.source.campaign_ids?.length ?? 0)
       : level === 'campaign'
         ? 2
         : 1,
+  requestsLowerBound: (level, contract, context) =>
+    contract === 'overview-config-v4' && level !== 'campaign' && !context?.source.campaign_ids?.length,
   fixedTimezone: reportZone,
   /**
    * The ad account (its currency; Apple reports in UTC), then one bounded campaign report page, or for the RPT-07 ad
-   * group and ad levels one bounded report page and the account's own records for exact parents.
+   * group and ad levels the campaigns' own reports, each to its last page, and the account's own records for exact parents.
    */
   async collect(c) {
     const m = await c.run({...c.plan('/v1/ad-accounts/' + c.account), origin: appleOrigin}, false);
@@ -78,80 +76,7 @@ export const appleReportSource: ReportSource = {
     c.currency = c.metadata.currency ?? null;
     c.timezone = reportZone;
     if (c.detail) {
-      // RPT-07: one bounded ad group or ad report page, then the account's own records for exact parents.
-      const detail = c.detail,
-        entity = detail === 'ad' ? 'ads' : 'adgroups',
-        apple = (path: string, body: JsonObject, action: string, stage?: string) =>
-          c.run({...c.plan(path, {}, body, appleOrigin), action}, false, stage);
-      const d = await apple(
-        '/v1/reports/apps/' + entity + '/query',
-        {
-          timeRange: {start: c.range.since, end: c.range.until, timeZone: 'UTC'},
-          pagination: {offset: 0, pageSize: 1000},
-          options: {},
-        },
-        'apple_ads_v1_reports_apps_' + entity,
-      );
-      c.raw = reportList(d.result?.rows ?? []);
-      const total = d.pagination?.totalResults ?? d.result?.pagination?.totalResults;
-      if (c.raw.length >= 1000 || (total !== undefined && Number(total) !== c.raw.length))
-        throw new MirrorError(
-          'INCOMPLETE_REPORT',
-          'Report reached a pagination limit. Split the date range or accounts.',
-        );
-      // Apple IDs are JSON numbers; only safe integers can be requested and matched exactly.
-      const safeId = (id: string) => /^[1-9][0-9]{0,15}$/.test(id) && Number.isSafeInteger(Number(id)),
-        lists = {campaigns: [] as JsonObject[], adGroups: [] as JsonObject[], ads: [] as JsonObject[]},
-        ids = [...new Set(c.raw.map(r => String(r.metadata?.id ?? '')))].filter(safeId);
-      if (ids.length > nativeDetailLookupLimit) c.warnings.push(nativeDetailLookupLimitedWarning);
-      const query = async (kind: 'campaigns' | 'adgroups' | 'ads', wanted: string[]) => {
-        if (!wanted.length) return [];
-        const rows = reportList(
-          (
-            await apple(
-              '/v1/' + kind + '/query',
-              {
-                filters: [{field: 'id', operator: 'IN', value: wanted.map(Number)}],
-                pagination: {offset: 0, pageSize: 1000},
-              },
-              'apple_ads_v1_' + kind + '_query',
-              'detail_parents',
-            )
-          ).result ?? [],
-        );
-        if (rows.length > wanted.length || rows.some(r => !wanted.includes(String(r.id))))
-          throw new MirrorError(
-            'REPORT_SHAPE_CHANGED',
-            'Apple returned an unrequested or repeated parent record.',
-            {},
-            502,
-          );
-        return rows;
-      };
-      const parentIds = (rows: JsonObject[], key: string) =>
-        [...new Set(rows.map(r => String(r[key] ?? '')))].filter(safeId);
-      try {
-        const wanted = ids.slice(0, nativeDetailLookupLimit);
-        if (detail === 'ad') lists.ads = await query('ads', wanted);
-        lists.adGroups = await query('adgroups', detail === 'ad' ? parentIds(lists.ads, 'adGroupId') : wanted);
-        lists.campaigns = await query('campaigns', [
-          ...new Set([...parentIds(lists.adGroups, 'campaignId'), ...parentIds(lists.ads, 'campaignId')]),
-        ]);
-      } catch (e) {
-        // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels).
-        if (!optionalReadRefused(e)) throw e;
-        lists.campaigns = lists.adGroups = lists.ads = [];
-        c.warnings.push(detailParentsUnavailableWarning);
-      }
-      c.resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
-      c.detailRows = appleDetail(
-        detail,
-        c.raw,
-        lists,
-        c.currency,
-        c.detailRounding,
-        c.source.reporting_contract === 'overview-config-v4' ? {account: c.account} : undefined,
-      );
+      await collectAppleDetail(c);
     } else {
       const d = await c.run({
         ...c.plan(

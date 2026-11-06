@@ -314,11 +314,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Stored-definition migration adds its durable notice ledger module, without a new direct refusal.
   // Package D adds the Snapchat account-wide detail collector; its static refusals use the wrapper inventory.
   // Task 12 adds the X detail collector and its provider-owned level declarations.
-  assert.equal(files.length, 776);
+  // V2-RPT-07 (levels) adds the 31-day span helper and Apple's bounded paging helper and detail collector.
+  assert.equal(files.length, 779);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
-  assert.equal(selected.filter(row => row.messages.size).length, 294);
+  // Apple's detail collector (its campaign bound) and Snapchat's evidence (its zone refusal now names the zone) own reasons.
+  assert.equal(selected.filter(row => row.messages.size).length, 296);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -329,7 +331,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V4 request-estimate guidance and the native metadata account refusal retain both old and new reasons.
   // Meta capture preserves its nested error fallback; mixed-pipeline checkpoints have a recovery refusal.
   // Eight direct X analytics entity/window/continuation refusals retain exact authored diagnostics.
-  assert.equal(owned.size, 1631);
+  // Apple's campaign bound and Snapchat's zone-naming refusal are two more owned reasons; X's zone refusal replaces its own.
+  // V2-RPT-04 (objectives, F-L2-07) keeps LinkedIn's "incomplete or at its response limit" sentence in one shared constant,
+  // which is not a directly authored refusal reason: one fewer (1631 + 2 - 1).
+  assert.equal(owned.size, 1632);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -353,7 +358,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  // V2-RPT-07 (levels) adds 25 entries and replaces 7 (net +18): the X and Snapchat list-bound, mixed-objective, non-additive,
+  // allowance and zone messages, and the nine Apple list, campaign-bound and report-row refusals.
+  // V2-RPT-04 (objectives) adds five: the four reasons an objective was not read (refused, or beyond the bound) and the
+  // label of the results a LinkedIn group lists apart from its primary one. The stored and TikTok packages add none:
+  // 11,737 + 18 + 5.
+  assert.equal(Object.keys(catalog).length, 11760);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

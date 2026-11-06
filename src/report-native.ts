@@ -4,11 +4,25 @@ import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
 import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './account-metadata.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
-import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
+import {
+  assembleDetailedOverview,
+  campaignAttributionProfile,
+  captureDetailedEvidence,
+  collectDetailedOverview,
+  overviewSourceLevel,
+  readDetailedParents,
+} from './overview-granularity.js';
 import {nativeDetailResult} from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
-import type {AccountLookupCache, ReportCollection, ReportSource, ReportSourceRow} from './report-source.js';
+import type {
+  AccountLookupCache,
+  DetailCollector,
+  DetailParents,
+  ReportCollection,
+  ReportSource,
+  ReportSourceRow,
+} from './report-source.js';
 import {reportRange} from './report-periods.js';
 import {unavailableReportResult, type ReportResultContext} from './report-results.js';
 import {parseProviderDecimal, providerDecimalText, metricRoundingRecord} from './provider-decimal.js';
@@ -402,21 +416,45 @@ export class NativeCampaignReports {
     };
     if (accountLookupPlatforms(p)) await lookupAccount(c, gateway, run);
     if (detail && !reports!.nativeDetail) {
-      const collect = (campaignId?: string) =>
-        collectDetailedOverview(
-          this.service,
+      const scoped = (campaignId?: string) =>
           campaignId === undefined ? source : {...source, campaign_id: campaignId},
-          range,
-          actor,
-          c.metadata,
-          c.currency,
-          c.timezone,
-          lookup,
-          reports!.objectives,
-          reports!.readResult,
-          reports!.readStatus,
-          raw => nativeDeliveryActivity(p, raw),
-        );
+        activity = (raw: JsonObject) => nativeDeliveryActivity(p, raw),
+        read = (campaignId?: string) =>
+          collectDetailedOverview(
+            this.service,
+            scoped(campaignId),
+            range,
+            actor,
+            c.metadata,
+            c.currency,
+            c.timezone,
+            lookup,
+            reports!.objectives,
+            reports!.readResult,
+            reports!.readStatus,
+            activity,
+          );
+      // V2-RPT-07: the same read in its phases, for a source that expands a population (Snapchat's ad squads).
+      const collect: DetailCollector = Object.assign(read, {
+        capture: (campaignId: string | undefined, span: {since: string; until: string}, shared: AccountLookupCache) =>
+          captureDetailedEvidence(this.service, scoped(campaignId), span, actor, c.currency, c.timezone, shared),
+        parents: (captures: JsonObject[], shared: AccountLookupCache) =>
+          readDetailedParents(this.service, source, actor, captures, shared),
+        assemble: (campaignId: string | undefined, captured: JsonObject, parents: DetailParents) =>
+          assembleDetailedOverview(
+            scoped(campaignId),
+            range,
+            c.metadata,
+            c.currency,
+            c.timezone,
+            reports!.objectives,
+            reports!.readResult,
+            reports!.readStatus,
+            activity,
+            captured,
+            parents,
+          ),
+      });
       return source.reporting_contract === 'overview-config-v4' && reports!.collectOverviewDetail
         ? reports!.collectOverviewDetail(c, collect)
         : collect();

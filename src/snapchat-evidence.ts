@@ -5,7 +5,7 @@ import type {Actor, JsonObject} from './types.js';
 import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
-import {nestedError} from './errors.js';
+import {MirrorError, nestedError} from './errors.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -52,8 +52,11 @@ export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
     end < start ||
     end - start >= 31 * 86400000 ||
     sem.date_to >= today
-  )
+  ) {
+    // The Overview allows an undeclared window, so its refusal does not speak of a declaration (F-L7-13).
+    if (allowUndeclared) bad('Snapchat evidence requires 1–31 closed days.');
     bad('Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.');
+  }
   const days: {date: string; start: number; end: number}[] = [];
   for (let at = start; at <= end; at += 86400000) {
     const date = new Date(at).toISOString().slice(0, 10),
@@ -61,9 +64,13 @@ export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
       from = zonedMidnight(date, sem.timezone, true),
       through = zonedMidnight(next, sem.timezone, true);
     if (from % 3600000 || through % 3600000)
-      bad(
-        'Snapchat stats require whole-hour boundaries; this account midnight has a fractional-hour offset.',
+      throw new MirrorError(
         'UNSUPPORTED_TIMEZONE_OFFSET',
+        'Snapchat stats require whole-hour boundaries; the account timezone {zone} has a fractional-hour offset.',
+        {},
+        400,
+        false,
+        {zone: sem.timezone},
       );
     days.push({date, start: from, end: through});
   }
@@ -118,6 +125,15 @@ export function snapchatNextCursor(data: JsonObject, path: string, query: JsonOb
   }
 }
 
+/** What the evidence keeps of a parent campaign: its name and its objective (the v2 value when the campaign has one). */
+export function campaignFacts(campaign: JsonObject): JsonObject {
+  const objective = campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective;
+  return {
+    ...(typeof campaign.name === 'string' && campaign.name.length <= 1000 ? {name: campaign.name} : {}),
+    ...(typeof objective === 'string' ? {objective} : {}),
+  };
+}
+
 /** Bounded daily account breakdowns. Per-page finalization is not an atomic account snapshot. */
 export async function collectSnapchatEvidence(
   store: Store,
@@ -125,7 +141,16 @@ export async function collectSnapchatEvidence(
   actor: Actor,
   args: JsonObject,
   sem: JsonObject,
-  context: {allowPartial?: true; overviewV4?: true} = {},
+  context: {
+    allowPartial?: true;
+    overviewV4?: true;
+    /**
+     * The campaigns of the account that a complete population read of this job proved (V2-RPT-07). A parent campaign in it
+     * is known to be in the account, so its stats are read without a read of the account or of the campaign around
+     * them; the population collector brackets the whole job with the account reads. Without it every check is kept.
+     */
+    population?: ReadonlyMap<string, JsonObject>;
+  } = {},
 ) {
   const account = args.account_id,
     connection = store.resolveConnection(actor, gateway, account, args.connection_id),
@@ -139,7 +164,8 @@ export async function collectSnapchatEvidence(
     level = args.query.breakdown,
     nativeLeads = args.query.fields === 'spend,impressions,swipes,native_leads',
     parentId = ['adsquad', 'ad'].includes(level) ? args.path_params?.campaign_id : undefined,
-    path = parentId ? '/v1/campaigns/' + parentId + '/stats' : '/v1/adaccounts/' + account + '/stats';
+    path = parentId ? '/v1/campaigns/' + parentId + '/stats' : '/v1/adaccounts/' + account + '/stats',
+    proven = parentId ? context.population?.get(parentId) : undefined;
   const current = () => {
     store.assertActorActive(actor);
     const c = store.resolveConnection(actor, gateway, account, connection.id);
@@ -224,12 +250,7 @@ export async function collectSnapchatEvidence(
     const rows = parentRows(data, 1);
     if (rows.length !== 1 || rows[0]!.id !== parentId || snapchatNextCursor(data, '/v1/campaigns/' + parentId, {}))
       bad('Snapchat did not confirm the exact parent campaign.', 'REPORT_ACCOUNT_MISMATCH');
-    const campaign = rows[0]!,
-      objective = campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective;
-    parentMetadata = {
-      ...(typeof campaign.name === 'string' && campaign.name.length <= 1000 ? {name: campaign.name} : {}),
-      ...(typeof objective === 'string' ? {objective} : {}),
-    };
+    parentMetadata = campaignFacts(rows[0]!);
     parentChecks.push(evidence);
   };
   const verifyAccount = async () => {
@@ -260,10 +281,13 @@ export async function collectSnapchatEvidence(
       bad('The declared timezone does not match the Snapchat account.', 'REPORT_TIMEZONE_MISMATCH');
     checks.push(evidence);
   };
-  await verifyAccount();
-  if (parentId) {
-    await establishParent();
-    await verifyParent();
+  if (proven) parentMetadata = campaignFacts(proven);
+  else {
+    await verifyAccount();
+    if (parentId) {
+      await establishParent();
+      await verifyParent();
+    }
   }
   const rows: JsonObject[] = [],
     pages: JsonObject[] = [],
@@ -373,8 +397,10 @@ export async function collectSnapchatEvidence(
       incomplete('Snapchat continuation is empty, repeats or exceeds 100 pages.');
     seenCursors.add(after);
   }
-  if (parentId) await verifyParent();
-  await verifyAccount();
+  if (!proven) {
+    if (parentId) await verifyParent();
+    await verifyAccount();
+  }
   current();
   return {
     source: {success: true, data: {collection_kind: 'snapchat_daily_pages', data: {rows}, source_pages: pages}},

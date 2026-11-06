@@ -274,9 +274,14 @@ test('Google maps only the documented channel and bidding signals; Apple mapping
     assert.equal(resolved.source, 'unknown');
     assert.equal(resolved.reason, reportSource(platform).objectives.missingReason);
   }
-  // X already reads line items in the existing source; keep that useful evidence.
+  // X's line item objectives are pinned from its documentation (tests/x-objective-table.test.mjs); a value that
+  // documentation does not list is only inferred.
   assert.equal(
     resolveObjective({platform: 'x', table: reportSource('x').objectives, native: 'WEBSITE_CLICKS'}).source,
+    'provider',
+  );
+  assert.equal(
+    resolveObjective({platform: 'x', table: reportSource('x').objectives, native: 'WEBSITE_CONVERSIONS'}).source,
     'provider_inferred',
   );
 });
