@@ -15,6 +15,7 @@ import {exerciseXCatalogInventory} from '../tests/fixtures/x-catalog-selection-i
 import {exerciseWooInventory} from '../tests/fixtures/woocommerce-inventory-browser.mjs';
 import {exerciseWooConnection} from '../tests/fixtures/woocommerce-connection-browser.mjs';
 import {exerciseWorkerHealth} from '../tests/fixtures/worker-health-browser.mjs';
+import {exerciseAdPreviews} from '../tests/fixtures/ad-previews-browser.mjs';
 import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseGoogleCountry} from '../tests/fixtures/google-country-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
@@ -78,6 +79,8 @@ const fixtureKinds = [
   'portfolio-comparison-error',
   'portfolio-comparison-stale',
   'snapchat',
+  // V2-PRV-01: the Preview your ads panel on the Media page (Load more appends, keeps the place, survives a refusal).
+  'ad-previews',
   'woocommerce',
   'woocommerce-variations',
   'woocommerce-inventory',
@@ -744,6 +747,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await exerciseConditionalPrograms({page, site, workflow, locale, result, before, checks: {tables: checkTables}});
     } else if (workflow === 'worker-health') {
       await exerciseWorkerHealth({page, site, locale, output, id, result, before, checks: {tables: checkTables}});
+    } else if (workflow === 'ad-previews') {
+      await exerciseAdPreviews({page, site, locale, result, checks: {intermediate}});
     } else if (workflow?.startsWith('woocommerce-connection')) {
       await exerciseWooConnection({page, site, workflow, locale, output, id, result, before});
     } else if (workflow === 'snapchat') {
@@ -2713,7 +2718,7 @@ async function runFixture(kind, site) {
             ? '/capabilities'
             : kind === 'worker-health'
               ? '/settings'
-              : kind === 'snapchat'
+              : kind === 'snapchat' || kind === 'ad-previews'
                 ? '/media'
                 : kind.startsWith('portfolio-diagnostic-') || kind.startsWith('portfolio-comparison')
                   ? '/portfolio'
