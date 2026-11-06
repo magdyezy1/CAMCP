@@ -1,0 +1,36 @@
+---
+status: reference
+tier: operator
+---
+
+# Round 2 Task 13: Apple Ads owner read acceptance
+
+Live checks are owner-deferred; Apple comes last, after the other platforms. Claude reviews before push. Later use an
+authorized staging ad account, reporting workers only, read-only: no OAuth or settings changes, no advertising mutations,
+no real Sheets, no asynchronous jobs. Keep identifiers private. Each check settles one item under "Still unpinned" in
+`docs/records/APPLE-ADS-PLATFORM-PINS-2026-11-06.md`. On a small account probe paging with `pageSize` 2.
+
+1. Account: `GET /v1/ad-accounts/{id}` with `X-AP-Context: adAccountId=<id>`. Record the wrapper, currency and time zone.
+   Read one closed day with `timeZone` `UTC` and with `ORTZ`; the console's day follows `ORTZ`.
+2. Campaign report for a closed week, `pageSize` 1000, with and without `options: {}`: accepted both ways? Record the
+   `metadata` fields, that `pagination` sits beside `result`, and whether `totalCount` is there.
+3. Ad group and ad reports with `campaignId EQUALS "<id>"` (a string, then a one-element array). Once without the filter
+   (AMCP never sends it; the pages call it required) and once with a missing or another account's campaign ID: record each
+   answer. Record `adAccountId` and `campaignId` on rows, and whether ad rows always carry `totalInstalls`.
+4. Paging, on a campaign with five or more ad groups or ads, `pageSize` 2: `offset`, `pageSize` (the size asked, or the
+   rows returned on the last short page) and `totalCount` on every page; the same order on a second read; no row twice or
+   missing; `offset` past the total. For a list over 1000 rows ask `pageSize` 1000, then 5000.
+5. Entity queries `id IN [...]` with `fetchTotalCount` true and false: where the total is. The longest `IN` list accepted
+   (10, 100, 1000 and 1001 IDs of one level; AMCP sends up to 1000). `pageSize` over 1000 on ad groups and ads.
+6. Deleted and status: an ad group or ad deleted in the window with report rows is absent from `id IN`, and returned by
+   `deleted EQUALS true`? Record `status`, `systemStatus` and `displayStatus` values per level (does `displayStatus` ever
+   read `DELETED`?) and `adAccountId` on every record.
+7. AMCP against Apple: run the Overview report for the same week at the campaign, ad group and ad levels, total and weekly.
+   Compare spend, impressions, taps and installs of three entities a level with the console; a campaign's ad groups add up
+   to it. Record `quality.population` and the provider request count. Scope one run by two campaign IDs: no campaign report
+   is sent.
+8. An account with more than 100 campaigns active in the week must refuse and say to choose fewer, never return some. Note
+   any rate-limit answer against AMCP's four requests a second.
+9. Record counts, sanitized request IDs and discrepancies. Never change live access or objects to simulate failures. Correct
+   the pins record in the same change as any code a check contradicts. Native-speaker Arabic sign-off: Round 4;
+   assistive-technology checks remain separate.

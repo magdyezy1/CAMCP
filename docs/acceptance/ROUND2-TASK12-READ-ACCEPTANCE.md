@@ -18,4 +18,5 @@ No OAuth/settings changes, advertising mutations, real Sheets or async jobs. Kee
    conversions stay unknown; PUBLISHER_NETWORK gaps remain partial. Never sum reach/frequency. Check undeclared-window
    explanations and withheld recommendations.
 5. Record counts, sanitized request IDs and discrepancies. Never change live access/objects to simulate failures.
-   Native-speaker Arabic sign-off: Round 4; assistive-technology checks remain separate. Apple: Task 13.
+   Native-speaker Arabic sign-off: Round 4; assistive-technology checks remain separate. Apple:
+   `docs/acceptance/ROUND2-APPLE-READ-ACCEPTANCE.md`.
