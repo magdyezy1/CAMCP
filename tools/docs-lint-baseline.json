@@ -166,10 +166,16 @@
       "raised": [
         "reference_words 146579 → 148921"
       ]
+    },
+    {
+      "reason": "Round 2 Task 13: the Apple owner read acceptance runbook (docs/acceptance/ROUND2-APPLE-READ-ACCEPTANCE.md), a deliverable of the task; the Task 12 runbook now links it",
+      "raised": [
+        "reference_words 148921 → 149388"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 148921
+    "reference_words": 149388
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
