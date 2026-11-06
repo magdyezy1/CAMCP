@@ -5,6 +5,8 @@ import {MirrorError} from '../dist/src/errors.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {DecisionReporting} from '../dist/src/decision-reporting.js';
 import {collectDetailedOverview} from '../dist/src/overview-granularity.js';
+import {estimateCollectionRequests} from '../dist/src/report-request-estimate.js';
+import {tiktokReportSource} from '../dist/src/tiktok-report-source.js';
 import {reportPreset} from '../dist/src/report-presets.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {collectTikTokDailyReport, tiktokDailyRange} from '../dist/src/tiktok-reporting.js';
@@ -143,6 +145,63 @@ test('30-day spans cover leap days and month/year ends without a gap or overlap'
     }
     assert.equal(next, end + dayMs);
   }
+});
+
+test('daily spans read a date by its calendar digits, never in the local time zone (N3)', t => {
+  const zone = process.env.TZ;
+  t.after(() => {
+    if (zone === undefined) delete process.env.TZ;
+    else process.env.TZ = zone;
+  });
+  // tiktokReportDate accepts "YYYY-MM-DD 00:00:00", which Date.parse reads as local time.
+  for (const tz of ['UTC', 'Africa/Cairo', 'America/Los_Angeles', 'Pacific/Kiritimati']) {
+    process.env.TZ = tz;
+    assert.deepEqual(
+      tiktokDailySpans('2026-06-01 00:00:00', '2026-06-02 00:00:00'),
+      [{from: '2026-06-01', to: '2026-06-02'}],
+      tz,
+    );
+    assert.deepEqual(
+      tiktokDailySpans('2026-06-01', '2026-07-01'),
+      [
+        {from: '2026-06-01', to: '2026-06-30'},
+        {from: '2026-07-01', to: '2026-07-01'},
+      ],
+      tz,
+    );
+  }
+  // No day is guessed from text that is not a calendar day.
+  assert.deepEqual(tiktokDailySpans('not a date', '2026-06-02'), []);
+  assert.deepEqual(tiktokDailySpans('2026-02-30', '2026-03-02'), []);
+});
+
+test('the request estimate counts every 30-day span of an ad group or ad window (N4)', () => {
+  const v4 = 'overview-config-v4',
+    per = (level, contract, since, until) =>
+      tiktokReportSource.requestsPerPeriod(level, contract, {source: {}, range: {since, until}});
+  // One report read per documented span: 366 days make 13, 30 days make 1, 31 days make 2.
+  assert.equal(per('adset', undefined, '2025-09-01', '2026-09-01'), 13);
+  assert.equal(per('adset', undefined, '2026-09-01', '2026-09-30'), 1);
+  assert.equal(per('adset', undefined, '2026-09-01', '2026-10-01'), 2);
+  // v4 keeps its metadata reads (4 for ad groups, 5 for ads) and adds the report reads beyond the first.
+  assert.equal(per('adset', v4, '2025-09-01', '2026-09-01'), 4 + 13);
+  assert.equal(per('ad', v4, '2025-09-01', '2026-09-01'), 5 + 13);
+  assert.equal(per('ad', v4, '2026-09-01', '2026-09-01'), 6, 'a one-day window keeps its former count');
+  // A campaign is one report whatever its window.
+  assert.equal(per('campaign', undefined, '2025-09-02', '2026-09-01'), 3);
+  assert.equal(per('campaign', v4, '2025-09-02', '2026-09-01'), 4);
+  // Without a window (the bootstrap request model) an ad group or ad is one span.
+  assert.equal(tiktokReportSource.requestsPerPeriod('adset', undefined), 1);
+  assert.equal(tiktokReportSource.requestsPerPeriod('ad', v4), 6);
+  const source = {
+      platform: 'tiktok',
+      account_id: '100',
+      connection_id: 'login',
+      level: 'adset',
+      report_options: {complete_window: true, attribution: 'unknown'},
+    },
+    estimate = estimateCollectionRequests({date_range: {since: '2025-09-01', until: '2026-09-01'}, sources: [source]});
+  assert.equal(estimate.estimated_requests, 1 + 13, 'the account read and one report read for each of the 13 spans');
 });
 
 test('the declared daily window closes in the advertiser zone and allows at most 366 days', t => {

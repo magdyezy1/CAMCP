@@ -8,6 +8,7 @@ import {tiktokNativeResult, collectTikTokCampaignResults} from './tiktok-report-
 import {reportStatus} from './report-status.js';
 import {
   tiktokCampaignWindowDays,
+  tiktokDailySpans,
   tiktokStatusFilter,
   tiktokStatusFilterRefused,
   tiktokStatusFilterRefusedWarning,
@@ -87,16 +88,13 @@ export const tiktokReportSource: ReportSource = {
   nativeMetricContainer: 'metrics',
   // The report, the campaign inventory and the ad group optimization events (RPT-04).
   minimumRequestsPerPeriod: 3,
-  requestsPerPeriod: (level, contract) =>
-    level === 'campaign'
-      ? contract === 'overview-config-v4'
-        ? 4
-        : 3
-      : contract === 'overview-config-v4'
-        ? level === 'ad'
-          ? 6
-          : 5
-        : 1,
+  // A campaign is one report whatever its window. Ad group and ad rows are read by the daily guided collector, one
+  // report read for each documented 30-day span (N4: 366 days are 13), beside the metadata reads v4 adds.
+  requestsPerPeriod: (level, contract, context) => {
+    if (level === 'campaign') return contract === 'overview-config-v4' ? 4 : 3;
+    const spans = context ? Math.max(1, tiktokDailySpans(context.range.since, context.range.until).length) : 1;
+    return (contract === 'overview-config-v4' ? (level === 'ad' ? 5 : 4) : 0) + spans;
+  },
   guided: tiktokGuidedReporting,
   validateRange(source, range) {
     if (
