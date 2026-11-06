@@ -166,6 +166,8 @@ for (const era of ['legacy', 'modern']) {
             MIRROR_ALLOW_WRITES: 'false',
             MIRROR_MODE: 'strict',
             MIRROR_FLAGS: '{}',
+            // Stdio serves the 2026-07-28 revision only when the rollout flag says so (F-L4-04).
+            AMCP_MCP_MODERN_PROTOCOL: era === 'modern' ? 'on' : 'off',
           },
           stderr: 'pipe',
         });
