@@ -5,7 +5,7 @@ import type {Actor, JsonObject} from './types.js';
 import {snapchatScope} from './provider-grants.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
-import {nestedError} from './errors.js';
+import {MirrorError, nestedError} from './errors.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -61,9 +61,13 @@ export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
       from = zonedMidnight(date, sem.timezone, true),
       through = zonedMidnight(next, sem.timezone, true);
     if (from % 3600000 || through % 3600000)
-      bad(
-        'Snapchat stats require whole-hour boundaries; this account midnight has a fractional-hour offset.',
+      throw new MirrorError(
         'UNSUPPORTED_TIMEZONE_OFFSET',
+        'Snapchat stats require whole-hour boundaries; the account timezone {zone} has a fractional-hour offset.',
+        {},
+        400,
+        false,
+        {zone: sem.timezone},
       );
     days.push({date, start: from, end: through});
   }

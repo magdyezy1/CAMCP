@@ -2527,6 +2527,7 @@
   "Snapchat returned more pages of products than one comparison reads. No product changes were submitted.": "أرجع Snapchat صفحات منتجات أكثر مما تقرؤه مقارنة واحدة. لم يُرسل أي تغيير على المنتجات.",
   "Snapchat returned more products than the requested page size.": "أرجع Snapchat منتجات أكثر من حجم الصفحة المطلوب.",
   "Snapchat returned no objective for this campaign.": "لم تُعد Snapchat هدفًا لهذه الحملة.",
+  "Snapchat stats require whole-hour boundaries; the account timezone {zone} has a fractional-hour offset.": "تتطلب إحصاءات Snapchat حدودًا زمنية عند ساعات كاملة؛ تتضمن المنطقة الزمنية {zone} لهذا الحساب إزاحة بجزء من الساعة.",
   "Snapshot ID": "معرّف اللقطة",
   "Snapshot exceeds eight MiB or its deadline.": "تتجاوز اللقطة ثمانية MiB أو مهلتها.",
   "Snapshot exceeds its identity, request or deadline bounds.": "تتجاوز اللقطة الحدود المحددة للهويات أو الطلبات أو المهلة.",

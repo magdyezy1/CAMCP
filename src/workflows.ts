@@ -1519,6 +1519,11 @@ function localDate(at: number, zone: string) {
   }).formatToParts(new Date(at));
   return ['year', 'month', 'day'].map(k => parts.find(p => p.type === k)!.value).join('-');
 }
+/**
+ * The instant a local calendar day starts in `zone`. A day whose midnight does not exist (the zone moves its clocks from
+ * 00:00 to 01:00) starts at the first instant after the skipped midnight, which is when the clocks change. A zone with a
+ * fractional-hour offset is refused unless the caller accepts one.
+ */
 export function zonedMidnight(date: string, zone: string, allowFractionalOffset = false): number {
   const wanted = Date.parse(date + 'T00:00:00Z');
   let at = wanted;
@@ -1537,20 +1542,39 @@ export function zonedMidnight(date: string, zone: string, allowFractionalOffset 
   } catch {
     throw new MirrorError('INVALID_TIMEZONE', 'The account timezone is not recognized.');
   }
+  /** The local wall clock at an instant, read as UTC milliseconds. */
+  const wall = (instant: number) => {
+    const parts = format.formatToParts(instant),
+      v = (key: string) => Number(parts.find(p => p.type === key)!.value);
+    return Date.UTC(v('year'), v('month') - 1, v('day'), v('hour'), v('minute'), v('second'));
+  };
+  const accepted = (instant: number) => {
+    if (!allowFractionalOffset && instant % 3600000 !== 0)
+      throw new MirrorError(
+        'UNSUPPORTED_TIMEZONE_OFFSET',
+        'X analytics requires whole-hour boundaries; the account timezone {zone} has a fractional-hour offset.',
+        {},
+        400,
+        false,
+        {zone},
+      );
+    return instant;
+  };
   for (let i = 0; i < 4; i++) {
-    const parts = format.formatToParts(at),
-      v = (key: string) => Number(parts.find(p => p.type === key)!.value),
-      actual = Date.UTC(v('year'), v('month') - 1, v('day'), v('hour'), v('minute'), v('second'));
-    if (actual === wanted) {
-      if (!allowFractionalOffset && at % 3600000 !== 0)
-        throw new MirrorError(
-          'UNSUPPORTED_TIMEZONE_OFFSET',
-          'X analytics requires whole-hour boundaries; this account timezone has a fractional-hour offset.',
-        );
-      return at;
-    }
+    const actual = wall(at);
+    if (actual === wanted) return accepted(at);
     at += wanted - actual;
   }
+  // No instant reads midnight, so the zone skips it. Offsets run from -12 to +14 hours, so the clock reads before
+  // midnight 15 hours before it and after midnight 13 hours after it; the day starts at the clock change between them.
+  let before = wanted - 15 * 3600000,
+    after = wanted + 13 * 3600000;
+  while (after - before > 1000) {
+    const middle = before + Math.floor((after - before) / 2000) * 1000;
+    if (wall(middle) > wanted) after = middle;
+    else before = middle;
+  }
+  if (wall(before) < wanted && wall(after) > wanted) return accepted(after);
   throw new MirrorError(
     'AMBIGUOUS_DATE_BOUNDARY',
     'The requested local midnight is skipped by a timezone transition; use explicit native analytics timestamps.',
