@@ -105,7 +105,8 @@ function fixture() {
     if (method === 'GET' && path === '/v1.3/custom_conversion/get/') {
       const c = conversions.get(q('custom_conversion_id'));
       if (!c || (c.event_source_id !== q('event_source_id') && !c.foreign))
-        return Response.json({code: 40001, message: 'Custom conversion not found', request_id: 'r' + ++n, data: {}});
+        // A missing conversion is a parameter refusal (40002); 40001 is TikTok's role or asset access denial.
+        return Response.json({code: 40002, message: 'Custom conversion not found', request_id: 'r' + ++n, data: {}});
       const {foreign, ...row} = c;
       return ok(structuredClone(row));
     }

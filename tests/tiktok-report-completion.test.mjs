@@ -313,7 +313,7 @@ test('a TikTok refusal inside HTTP 200 that names only the filter value falls ba
   assert.deepEqual([filtered, plain], [1, 1]);
   assert.ok(report.sources[0].warnings.includes(tiktokStatusFilterRefusedWarning));
 });
-test('a TikTok login failure inside HTTP 200 is not retried as a refused filter', async t => {
+test('a TikTok login failure inside HTTP 200 is a connection failure with the reconnect action, and is not retried as a refused filter', async t => {
   let reads = 0;
   const f = fixture(t, () => {
     reads++;
@@ -322,7 +322,36 @@ test('a TikTok login failure inside HTTP 200 is not retried as a refused filter'
   const report = await f.run();
   assert.equal(report.state, 'failed');
   assert.equal(reads, 1);
-  assert.equal(report.sources[0].error.code, 'PLATFORM_ERROR');
+  // TikTok's return-code table (read 2026-11-06) names 40105 a credential failure (F-L1-05).
+  const error = report.sources[0].error;
+  assert.deepEqual([error.code, error.category, error.layer], ['AUTH_EXPIRED', 'connection', 'credential']);
+  assert.equal('http_status' in error, false, 'the answer was HTTP 200');
+  assert.equal(error.provider.code, '40105');
+  assert.match(error.next_action, /Reconnect the affected login in Connections/);
+});
+test('the filter fallback is for parameter refusals: a code TikTok’s table maps is never read as one, whatever its words', async t => {
+  // 40001 and 40119 role, 40125 consent, 40118 eligibility and 40105 credential are asked once; 40100 throttle and 50000
+  // server failures are retried as reads with the filter kept. The message names the filter on purpose.
+  for (const [code, attempts] of [
+    [40105, 1],
+    [40001, 1],
+    [40119, 1],
+    [40125, 1],
+    [40118, 1],
+    [40100, 3],
+    [50000, 3],
+  ]) {
+    const filtered = [];
+    const f = fixture(t, url => {
+      filtered.push(url.searchParams.get('filtering') !== null);
+      return {code, message: 'The filtering by STATUS_ALL could not be applied', request_id: 'synthetic'};
+    });
+    const report = await f.run();
+    assert.equal(filtered.length, attempts, String(code));
+    assert.ok(filtered.every(Boolean), code + ' keeps the filter on every read');
+    assert.ok(!(report.sources[0].warnings ?? []).includes(tiktokStatusFilterRefusedWarning), String(code));
+    assert.notEqual(report.state, 'complete', String(code));
+  }
 });
 
 test('TikTok Overview retains short collections as partial with declared and returned counts', async t => {

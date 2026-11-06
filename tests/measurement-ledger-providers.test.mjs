@@ -1029,13 +1029,14 @@ test('MSR-03 partial, changing or unsafe TikTok pixel lists are refused, never m
     assert.equal(out.data.scope.pixel_id, null, name);
     assertReadOnly(f, out);
   }
-  // TikTok's own refusal of the list keeps its code and request ID, never its message.
+  // TikTok's own refusal of the list keeps its code and request ID, never its message. 40001 is a role or asset access
+  // denial in TikTok's return-code table (read 2026-11-06), so the wire profile gives it AMCP's access-denied code.
   const denied = tiktokFixture(t, {
       list: () => ({code: 40001, message: 'No permission', request_id: 'synthetic-list-refusal', data: {}}),
     }),
     deniedRead = await ledger(denied, 'tiktok_native_action');
   assert.deepEqual(layerOf(deniedRead.data, 'configuration').evidence, {
-    error: 'PLATFORM_ERROR',
+    error: 'PROVIDER_ACCESS_DENIED',
     provider_code: 40001,
     request_id: 'synthetic-list-refusal',
   });

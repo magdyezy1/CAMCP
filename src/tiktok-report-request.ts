@@ -41,7 +41,7 @@ export function tiktokStatusFilter(level: 'campaign' | 'adgroup' | 'ad'): JsonOb
  * throttle or server failure is never about the parameter, and retrying without the filter would hide it.
  */
 export function tiktokStatusFilterRefused(error: unknown): boolean {
-  const e = error as {code?: string; message?: unknown; details?: JsonObject};
+  const e = error as {code?: string; message?: unknown; retryable?: boolean; details?: JsonObject};
   const status = e?.details?.http_status;
   if (
     !['UPSTREAM_ERROR', 'PLATFORM_ERROR', 'PROVIDER_REPORT_FAILED'].includes(e?.code ?? '') &&
@@ -49,6 +49,8 @@ export function tiktokStatusFilterRefused(error: unknown): boolean {
   )
     return false;
   if (typeof status === 'number' && (status === 401 || status === 403 || status === 429 || status >= 500)) return false;
+  // A failure TikTok's return-code table calls transient (a throttle, a fault on its side) is retried as such.
+  if (e.retryable === true) return false;
   if (
     ['credential', 'consent', 'role_or_asset_access', 'app_eligibility', 'rate_limit', 'api_version'].includes(
       e?.details?.layer,

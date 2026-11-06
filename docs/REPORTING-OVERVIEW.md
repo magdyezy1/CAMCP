@@ -369,8 +369,8 @@ wait for Meta's `estimated_time_to_regain_access` (60 s otherwise) or Google's
 `retryDelay` (30 s otherwise). An account-level Meta throttle cools down only that
 account on that login. LinkedIn HTTP 426 is `PROVIDER_VERSION_UNSUPPORTED`. Meta
 `is_transient` makes a read retryable. A write is still sent once and never becomes
-retryable. Unknown codes, including every TikTok in-body code until TikTok's official
-code table is verified, keep their previous code with layer `unknown`. Overview runs
+retryable. TikTok's in-body return codes follow its official table (src/tiktok-adapter.ts,
+read 2026-11-06); any other code keeps its previous code with layer `unknown`. Overview runs
 defer a throttled source to the cooldown instead of failing it. The cooldown, not the
 transient-failure circuit, governs a throttle: it neither counts toward nor resets that
 circuit. Readiness `provider_read` checks carry the same `diagnostic` (code, request ID,

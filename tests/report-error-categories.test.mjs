@@ -257,6 +257,29 @@ test('a credential failure the provider reports inside a 200 body is a connectio
   assert.equal(unknown.provider.code, '40002');
 });
 
+test('a TikTok access denial inside a 200 body is a permission failure that points at the account’s access', () => {
+  // TikTok's table gives 40001 and 40119 the role layer and 40118 the eligibility layer; the transport answers an
+  // in-body failure of those layers with status 502, so the action follows the code, not an HTTP 403.
+  for (const [layer, providerCode] of [
+    ['role_or_asset_access', 40119],
+    ['app_eligibility', 40118],
+  ]) {
+    const d = reportSourceError(
+      new MirrorError(
+        'PROVIDER_ACCESS_DENIED',
+        'Platform reported an unsuccessful result.',
+        {http_status: 200, layer, provider_code: providerCode, upstream: {code: providerCode, message: 'Denied'}},
+        502,
+      ),
+      tiktok,
+    );
+    assert.equal(d.category, 'permission', layer);
+    assert.equal('http_status' in d, false, layer);
+    assert.equal(d.layer, layer);
+    assert.match(d.next_action, /account permissions and provider app\/API access/, layer);
+  }
+});
+
 test('the diagnostic fields a website source card reads keep their names (F-L1-05, F-L1-08, F-L1-11)', () => {
   const diagnostic = (code, details, status) => reportSourceError(new MirrorError(code, 'm', details, status), tiktok),
     base = ['account_id', 'category', 'code', 'connection_id', 'message', 'next_action', 'platform', 'retryable'];

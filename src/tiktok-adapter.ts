@@ -56,6 +56,7 @@ import {tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.j
 import {tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js';
 import {stable} from './security.js';
 import {errorInteger, errorObject} from './provider-error-core.js';
+import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import {tiktokPreviewPlan, tiktokPreviewRoute, tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
 import {tiktokCommentScope} from './tiktok-ad-comments.js';
 import {
@@ -86,6 +87,49 @@ import type {CampaignPreflightContext, MutationResponse} from './provider-adapte
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
+
+// TikTok's return codes, from TikTok API for Business "Return codes"
+// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06). AMCP calls API v1.3: the page labelled
+// v1.3 covers Business Messaging only, and the three codes it shares with this table agree. TikTok reports a code in the
+// body of an HTTP 200 answer (and in the body of an HTTP error). Only the codes of these sets are mapped; every other code,
+// the parameter and business-logic ones included (40000, 40002, 40006 to 40008 and the rest), keeps the generic
+// classification: PLATFORM_ERROR in a 200 body, with layer `unknown`.
+const tiktokCredentialCodes: ReadonlySet<number> = new Set([
+  40101, 40102, 40103, 40104, 40105, 40106, 40107, 40110, 40131,
+]);
+/** Role or asset access (the login cannot act on this advertiser or object). */
+const tiktokRoleCodes: ReadonlySet<number> = new Set([40001, 40119]);
+/** A permission the login has not granted. */
+const tiktokConsentCodes: ReadonlySet<number> = new Set([40125]);
+/** An eligibility the app or account lacks. */
+const tiktokEligibilityCodes: ReadonlySet<number> = new Set([40118]);
+const tiktokThrottleCodes: ReadonlySet<number> = new Set([40100, 40132, 40133]);
+/** TikTok's own side failed. */
+const tiktokServerCodes: ReadonlySet<number> = new Set([50000, 50002, 51305]);
+/**
+ * A TikTok refusal, classified from its return code (PRV-01). The classes use the codes the other providers' profiles use
+ * for their layers (a credential failure is AUTH_EXPIRED, a missing permission PROVIDER_PERMISSION_MISSING, an access
+ * denial PROVIDER_ACCESS_DENIED, a throttle PLATFORM_RATE_LIMIT). A read the table calls transient (a throttle, a failure
+ * on TikTok's side) is retryable; a write never is, as for every provider. Anything else is classified generically.
+ */
+function classifyTikTokError(input: ProviderErrorInput, context: ProviderErrorContext): ProviderErrorClass | undefined {
+  const code = errorInteger(errorObject(input.body).code);
+  if (code === undefined) return undefined;
+  const {base, legacyCode, layerOf} = context;
+  if (tiktokCredentialCodes.has(code))
+    return {...base, code: 'AUTH_EXPIRED', layer: 'credential', retryable: false, documented: true};
+  if (tiktokRoleCodes.has(code))
+    return {...base, code: 'PROVIDER_ACCESS_DENIED', layer: 'role_or_asset_access', retryable: false, documented: true};
+  if (tiktokConsentCodes.has(code))
+    return {...base, code: 'PROVIDER_PERMISSION_MISSING', layer: 'consent', retryable: false, documented: true};
+  if (tiktokEligibilityCodes.has(code))
+    return {...base, code: 'PROVIDER_ACCESS_DENIED', layer: 'app_eligibility', retryable: false, documented: true};
+  if (tiktokThrottleCodes.has(code))
+    return {...base, code: 'PLATFORM_RATE_LIMIT', layer: 'rate_limit', retryable: input.readOnly, documented: true};
+  if (tiktokServerCodes.has(code))
+    return {...base, code: legacyCode, layer: layerOf(legacyCode), retryable: input.readOnly, documented: true};
+  return undefined;
+}
 /**
  * TikTok's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning and
  * preview POSTs, the documented reads whose paths hold mutation-like words, and their authorization.
@@ -500,7 +544,10 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       plan.path === '/v1.3/report/task/download/',
     reportData: (plan: CompiledRequest) => /\/report\/integrated\/get\/$/.test(plan.path),
     failedResult: (data: JsonObject) => data.code !== undefined && data.code !== 0,
-    errors: Object.freeze({code: (body: unknown) => errorInteger(errorObject(body).code)}),
+    errors: Object.freeze({
+      code: (body: unknown) => errorInteger(errorObject(body).code),
+      classify: classifyTikTokError,
+    }),
   }),
   // Writes and campaigns (wave 4c): the guided traffic and conversion packs (CMP-07).
   campaign: Object.freeze({

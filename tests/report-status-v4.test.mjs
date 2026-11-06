@@ -288,17 +288,34 @@ test('LinkedIn estimates count every native metric fragment and its account-owne
   assert.ok(estimateCollectionRequests(snapshot.config).estimated_requests >= f.requests.length);
 });
 
-test('proven TikTok optional body refusal stays unknown; other unmapped body failures are not suppressed', async t => {
-  for (const code of [40001, 40100, 999999]) {
+test('proven TikTok optional body refusal stays unknown; every other body failure is not suppressed', async t => {
+  // TikTok's return-code table (read 2026-11-06) maps 40001 to a role or asset access denial, the one body refusal of
+  // this optional read that was proven. A code it does not map fails the source as before; a credential or access code
+  // that is not the proven one fails it with its class; a transient code is retried as a read, never read as a refusal.
+  // A consent refusal (40125) carries status 403, so it is a provider refusal of an optional read like any HTTP 403.
+  for (const [code, state, errorCode] of [
+    [40001, 'partial'],
+    [40125, 'partial'],
+    [40002, 'failed', 'PLATFORM_ERROR'],
+    [999999, 'failed', 'PLATFORM_ERROR'],
+    [40105, 'failed', 'AUTH_EXPIRED'],
+    [40119, 'failed', 'PROVIDER_ACCESS_DENIED'],
+    [40118, 'failed', 'PROVIDER_ACCESS_DENIED'],
+    [40100, 'running', 'PLATFORM_RATE_LIMIT'],
+    [50000, 'running', 'PLATFORM_ERROR'],
+  ]) {
     const f = overviewGranularityFixture();
     t.after(() => f.close());
     f.parents((platform, url, body) =>
       platform === 'tiktok' && url.pathname.endsWith('/ad/get/') ? {code, message: 'Synthetic metadata refusal'} : body,
     );
     const snapshot = await run(f, {...granularSource('tiktok'), levels: ['ad'], statuses: ['active']});
-    assert.equal(snapshot.state, code === 40001 ? 'partial' : 'failed', JSON.stringify(snapshot.sources));
-    if (code === 40001) assert.equal(snapshot.sources[0].scope.excluded_unknown_rows, 1);
-    else assert.equal(snapshot.sources[0].error.provider.code, String(code));
+    assert.equal(snapshot.state, state, code + ' ' + JSON.stringify(snapshot.sources));
+    if (state === 'partial') assert.equal(snapshot.sources[0].scope.excluded_unknown_rows, 1);
+    else {
+      assert.equal(snapshot.sources[0].error.code, errorCode, String(code));
+      assert.equal(snapshot.sources[0].error.provider.code, String(code));
+    }
   }
 });
 

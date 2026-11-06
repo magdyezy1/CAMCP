@@ -12,9 +12,11 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
  * names. At most 100 IDs per request.
  */
 export const tiktokDetailParents: DetailParentReader = Object.freeze({
-  // Preserve the existing optional parent refusal case, without guessing other undocumented TikTok codes.
+  // The one optional parent refusal TikTok's body has always been proven to send: 40001, a role or asset access denial in
+  // its return-code table, inside HTTP 200. The wire profile classifies it as PROVIDER_ACCESS_DENIED (PLATFORM_ERROR with
+  // the classifier off); no other TikTok code is guessed to be a refusal of an optional read.
   bodyRefused: (error: MirrorError) =>
-    error.code === 'PLATFORM_ERROR' &&
+    ['PLATFORM_ERROR', 'PROVIDER_ACCESS_DENIED'].includes(error.code) &&
     (error.details.http_status ?? error.status) === 200 &&
     (error.details.provider_code === 40001 || error.details.provider_code === '40001'),
   kind: (level: string) => (level === 'adset' ? 'tiktok_adgroup' : level === 'ad' ? 'tiktok_ad' : undefined),

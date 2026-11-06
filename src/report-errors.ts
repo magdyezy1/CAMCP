@@ -308,7 +308,8 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     diagnostic.next_action = syncing
       ? 'This is a temporary provider failure. Sync the connection again after the provider is available.'
       : 'The worker will retry temporary failures. If all attempts fail, retry the report after the provider is available.';
-  else if (e.status === 403)
+  else if (e.status === 403 || e.code === 'PROVIDER_ACCESS_DENIED')
+    // An access denial a provider reports inside a 200 body has status 502 (the transport gives 403 to consent only).
     diagnostic.next_action =
       'Check this connection’s account permissions and provider app/API access. Use the provider error below to distinguish missing access from app restrictions.';
   else if (['DEVELOPER_TOKEN_REQUIRED', 'CLIENT_ID_REQUIRED', 'USER_AGENT_REQUIRED'].includes(e.code))
