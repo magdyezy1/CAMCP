@@ -289,14 +289,30 @@ test('Reddit refuses changed hierarchies and foreign records; a refused name rea
 });
 
 // ---- Apple ----
-function apple(rows, records = {}) {
+// Answers shaped as Apple's pages show them (docs/records/APPLE-ADS-PLATFORM-PINS-2026-11-06.md): a campaign report that
+// finds the campaigns, the ad group and ad reports of a campaign (which need its ID), and the entity queries, each with
+// `pagination` beside `result`. tests/apple-report-paging.test.mjs holds the paging cases over the real transport.
+function apple(rows, records = {}, campaigns = [appleRow(501)]) {
   return fixture('apple_ads_native_action', '500', plan => {
     if (plan.path === '/v1/ad-accounts/500') return {result: {id: 500, name: 'Synthetic Apple', currency: 'USD'}};
-    if (plan.path.startsWith('/v1/reports/apps/')) return {result: {rows: typeof rows === 'function' ? rows() : rows}};
+    const {offset, pageSize} = plan.body.pagination,
+      page = (list, report) => {
+        const part = list.slice(offset, offset + pageSize),
+          pagination = {totalCount: list.length, offset, pageSize};
+        return report ? {result: {rows: part}, pagination} : {result: part, pagination};
+      };
+    if (plan.path === '/v1/reports/apps/campaigns/query') return page(campaigns, true);
+    if (plan.path.startsWith('/v1/reports/apps/')) {
+      assert.deepEqual(plan.body.filters, [{field: 'campaignId', operator: 'EQUALS', value: '501'}]);
+      return page(typeof rows === 'function' ? rows() : rows, true);
+    }
     const kind = plan.path.split('/')[2];
     if (records[kind] instanceof MirrorError) return records[kind];
     const ids = plan.body.filters[0].value.map(String);
-    return {result: (records[kind] ?? []).filter(r => ids.includes(String(r.id)))};
+    return page(
+      (records[kind] ?? []).filter(r => ids.includes(String(r.id))),
+      false,
+    );
   });
 }
 const appleRow = id => ({
@@ -315,6 +331,11 @@ test('Apple ad groups and ads take their parents from the account’s own record
     const result = await f.native.collect(source('apple', '500', 'ad'), range, actor);
     assert.ok(
       f.plans.some(p => p.path === '/v1/reports/apps/ads/query' && p.action === 'apple_ads_v1_reports_apps_ads'),
+    );
+    // The campaign report finds the campaign; the ad report is then read for it (the campaign ID is checked in apple()).
+    assert.deepEqual(
+      f.plans.filter(p => p.path.includes('/reports/')).map(p => p.action),
+      ['apple_ads_v1_reports_apps_campaigns', 'apple_ads_v1_reports_apps_ads'],
     );
     assert.deepEqual(
       f.plans.filter(p => p.path.endsWith('/query') && !p.path.includes('/reports/')).map(p => p.action),
@@ -348,7 +369,7 @@ test('Apple ad groups and ads take their parents from the account’s own record
   }
 });
 
-test('Apple refuses conflicting parents, another currency and a full report page; a refused parent read is unknown', async () => {
+test('Apple refuses conflicting parents and another currency; a list of 1,000 rows is read whole; a refused parent read is unknown', async () => {
   const conflicting = apple([appleRow(701)], {
     ...appleRecords,
     adgroups: [{...appleRecords.adgroups[0], campaignId: 502}],
@@ -367,9 +388,12 @@ test('Apple refuses conflicting parents, another currency and a full report page
   } finally {
     currency.close();
   }
+  // A thousand rows was a page limit (F-L7-02); the list is now read to its total, so a full page is no longer a refusal.
   const full = apple(() => Array.from({length: 1000}, (_, i) => appleRow(1000 + i)), appleRecords);
   try {
-    await refusal(full.native.collect(source('apple', '500', 'adset'), range, actor), 'INCOMPLETE_REPORT');
+    const result = await full.native.collect(source('apple', '500', 'adset'), range, actor);
+    assert.equal(result.rows.length, 1000);
+    assert.equal(result.complete, true);
   } finally {
     full.close();
   }
@@ -447,7 +471,7 @@ test('Apple v4 reads advertiser-controlled current status rather than the report
           values.map(value => ({...value, status: 'PAUSED', systemStatus: 'RUNNING'})),
         ]),
       ),
-      f = apple([row], records);
+      f = apple([row], records, level === 'campaign' ? [row] : undefined);
     try {
       const result = await f.native.collect(currentSource('apple', '500', level), range, actor);
       assert.equal(result.rows[0].status, 'paused');
