@@ -770,3 +770,105 @@ test('LinkedIn never learns creative ownership from an explicitly foreign accoun
   assert.equal(store.ownsResource(connection, '100', 'creatives/150'), false);
   assert.doesNotMatch(JSON.stringify(out), /Foreign synthetic creative/);
 });
+
+// Audit mutation gaps M6 and M13: the previews tool's own checks stood behind the gateway's, and no test pinned them.
+test('M6: a named Meta ad whose identity names another account is not previewed, and nothing broader is read', async t => {
+  // The identity read answers account 200 for a request on account 100: stopped at that read, whatever the gateway does.
+  const f = metaFixture(t, [ad(5, 'ACTIVE', {account_id: '200', name: 'Foreign synthetic name'})]);
+  const out = await f.run({ad_ids: ['5']});
+  assert.deepEqual(out.previews, []);
+  assert.deepEqual(out.not_found, ['5']);
+  assert.equal(out.not_found_reason, 'Not in this account');
+  assert.deepEqual(
+    f.reads.map(read => [read.action, read.query?.fields]),
+    [['meta_ad_id_get', 'id,account_id']],
+  );
+  assert.doesNotMatch(JSON.stringify(out), /Foreign synthetic name/);
+});
+
+test('M6: a named Meta ad is dropped when its identity names another ad, or its metadata names another account', async t => {
+  const store = storeFixture(t),
+    reads = [];
+  const call = answer => async (_tool, input) => {
+    reads.push(input.action + ':' + (input.query?.fields ?? input.query?.ad_format));
+    return {success: true, data: {data: answer(input)}};
+  };
+  // The identity names another ad than the one asked for.
+  let previews = new AdPreviews(
+    call(() => ({id: '6', account_id: '100'})),
+    store,
+  );
+  let out = await previews.handle({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['5']}, actor);
+  assert.deepEqual([out.previews, out.not_found], [[], ['5']]);
+  assert.deepEqual(reads.splice(0), ['meta_ad_id_get:id,account_id']);
+  // The identity is the account's, but the broader read then names another account: no preview is read.
+  previews = new AdPreviews(
+    call(input =>
+      input.query.fields === 'id,account_id'
+        ? {id: '5', account_id: '100'}
+        : {id: '5', account_id: '200', name: 'Changed synthetic name', effective_status: 'ACTIVE'},
+    ),
+    store,
+  );
+  out = await previews.handle({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['5']}, actor);
+  assert.deepEqual([out.previews, out.not_found], [[], ['5']]);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every(read => !read.startsWith('meta_ad_id_previews_get')));
+  assert.doesNotMatch(JSON.stringify(out), /Changed synthetic name/);
+  reads.length = 0;
+  // The identity is the account's, but the broader read then answers for another ad of the account.
+  previews = new AdPreviews(
+    call(input =>
+      input.query.fields === 'id,account_id'
+        ? {id: '5', account_id: '100'}
+        : {id: '6', account_id: '100', name: 'Other synthetic ad', effective_status: 'ACTIVE'},
+    ),
+    store,
+  );
+  out = await previews.handle({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['5']}, actor);
+  assert.deepEqual([out.previews, out.not_found], [[], ['5']]);
+  assert.equal(reads.length, 2);
+  assert.ok(reads.every(read => !read.startsWith('meta_ad_id_previews_get')));
+  assert.doesNotMatch(JSON.stringify(out), /Other synthetic ad/);
+});
+
+test('M13: a Snapchat ad whose creative the account does not list gets no preview read', async t => {
+  const f = snapFixture(t, {
+    ads: [
+      {id: 'a1', creative_id: 'crUnlisted', name: 'Synthetic ad', status: 'ACTIVE'},
+      {id: 'a2', creative_id: 'cr2', name: 'Listed ad', status: 'ACTIVE'},
+    ],
+    creatives: [{id: 'cr2'}],
+  });
+  const out = await f.run();
+  // Both ads are listed, the listed creative previews, the unlisted one says it is not the account's.
+  assert.deepEqual(
+    out.previews.map(row => [row.source_ad_id, row.ad_id, row.links.length, row.note]),
+    [
+      ['a1', 'crUnlisted', 0, 'Not in this account'],
+      ['a2', 'cr2', 1, undefined],
+    ],
+  );
+  assert.deepEqual(
+    f.reads.filter(read => read.action.includes('creative_preview')).map(read => read.creative_id),
+    ['cr2'],
+  );
+  assert.equal(out.selection_incomplete, undefined);
+});
+
+test('M13: a Snapchat creative the bounded ownership scan did not reach is not previewed and says the scan was bounded', async t => {
+  const f = snapFixture(t, {
+    ads: [{id: 'a1', creative_id: 'cr11', name: 'Synthetic ad', status: 'ACTIVE'}],
+    creatives: Array.from({length: 12}, (_, i) => ({id: 'cr' + i})),
+    creativePageSize: 1,
+  });
+  const out = await f.run();
+  assert.equal(out.previews.length, 1);
+  assert.deepEqual(out.previews[0].links, []);
+  assert.match(out.previews[0].note, /ten-page/);
+  assert.equal(out.selection_incomplete, true);
+  assert.equal(
+    f.reads.some(read => read.action.includes('creative_preview')),
+    false,
+  );
+});
