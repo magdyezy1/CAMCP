@@ -351,8 +351,8 @@ for (const locale of locales)
       ': a total or ratio built from some of its rows says "n of m rows" and why the figures do not divide (F-L8-03)',
     () => {
       const summary = reportSummary([row('1', '10.5', 5), row('2', null, 7), row('3', '20', 9)], [], true);
-      assert.equal(summary[0].metrics_coverage.spend.known, 2);
-      assert.equal(summary[0].metrics_coverage.clicks.known, 3);
+      assert.equal(summary[0].metrics_coverage.spend.known_rows, 2);
+      assert.equal(summary[0].metrics_coverage.clicks.known_rows, 3);
       assert.equal(summary[0].metrics_coverage.cpc.known_pairs, 2);
       const view = page(locale, {
           platforms: [{id: 'linkedin', name: 'LinkedIn', entity_levels: reportSource('linkedin').overview.levels}],
@@ -402,6 +402,65 @@ for (const locale of locales)
         ),
         text,
       );
+    },
+  );
+
+// F-L5-31. A count of the provider's own rows (native daily cells) is not a count of the report's rows, so the line says
+// "measurements" for it; a snapshot stored before the coverage shape was unified still reads as it did.
+for (const locale of locales)
+  test(
+    locale +
+      ': a figure counted in native measurements says so, and a snapshot of an earlier build still reads as rows',
+    () => {
+      const view = page(locale, {
+          platforms: [{id: 'linkedin', name: 'LinkedIn', entity_levels: []}],
+          metrics: {
+            spend: {label: 'Spend', format: 'currency'},
+            clicks: {label: 'Clicks', format: 'number'},
+            cpc: {label: 'Cost per click', format: 'currency'},
+          },
+        }),
+        drawn = metrics_coverage => {
+          const [summary] = reportSummary([row('1', '10.5', 5), row('2', null, 7), row('3', '20', 9)], [], true),
+            report = {
+              config: {contract_version: 'overview-config-v4'},
+              summary: [{...summary, metrics_coverage}],
+              sources: [],
+              rows: [],
+            },
+            [card] = cards(view.call('renderReportSummary(report)', {report}));
+          return [...card.matchAll(/<small class="report-coverage">([^<]*)<\/small>/g)].map(match => match[1]);
+        },
+        rows = (known, total) =>
+          view.text('{known} of {count} rows').replace('{known}', String(known)).replace('{count}', String(total)),
+        measurements = (known, total) =>
+          view
+            .text('{known} of {count} measurements')
+            .replace('{known}', String(known))
+            .replace('{count}', String(total));
+      // This build: rows when the basis is the report's rows, measurements when it is the provider's.
+      assert.deepEqual(drawn({spend: {known_rows: 2, total_rows: 3, basis: 'report_rows', report_rows: 3}}), [
+        rows(2, 3),
+      ]);
+      assert.deepEqual(drawn({spend: {known_rows: 20, total_rows: 30, basis: 'native_measurements', report_rows: 3}}), [
+        measurements(20, 30),
+      ]);
+      assert.deepEqual(
+        drawn({
+          spend: {known_rows: 20, total_rows: 30, basis: 'native_measurements', report_rows: 3},
+          cpc: {known_rows: 12, total_rows: 30, basis: 'native_measurements', report_rows: 3, known_pairs: 12},
+        }),
+        [measurements(20, 30), measurements(12, 30)],
+      );
+      // Earlier builds wrote known/total, called every unit a native measurement, and counted rows: read as recorded.
+      assert.deepEqual(
+        drawn({
+          spend: {known: 2, total: 3, basis: 'native_measurements', report_rows: 3},
+          cpc: {known_rows: 2, total: 3, basis: 'native_measurements', report_rows: 3, known_pairs: 2},
+        }),
+        [rows(2, 3), rows(2, 3)],
+      );
+      assert.deepEqual(drawn({spend: {known: 3, total: 3, basis: 'native_measurements', report_rows: 3}}), []);
     },
   );
 

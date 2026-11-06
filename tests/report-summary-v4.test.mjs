@@ -46,12 +46,35 @@ test('v4 summaries sum known decimal values and price only rows where both input
   assert.equal(summary.metrics.primary_result, '1005');
   assert.equal(summary.metrics.cost_per_result, '1');
   assert.equal(summary.metrics.reach, null);
-  assert.deepEqual(summary.metrics_coverage.spend, {known: 3, total: 4, basis: 'native_measurements', report_rows: 4});
-  assert.equal(summary.metrics_coverage.cpa.known_pairs, 2);
+  // F-L5-31: one shape for a sum, a formula and a result, and the basis says the counted units are the report's rows.
+  assert.deepEqual(summary.metrics_coverage.spend, {
+    known_rows: 3,
+    total_rows: 4,
+    basis: 'report_rows',
+    report_rows: 4,
+  });
+  assert.deepEqual(summary.metrics_coverage.cpa, {
+    known_rows: 2,
+    total_rows: 4,
+    basis: 'report_rows',
+    report_rows: 4,
+    known_pairs: 2,
+  });
   assert.deepEqual(summary.result_groups[0].coverage, {known: 3, total: 4});
   assert.deepEqual(summary.result_groups[0].cost_coverage, {known_pairs: 2, total: 4});
-  assert.equal(summary.metrics_coverage.primary_result.total, 4);
-  assert.equal(summary.metrics_coverage.cost_per_result.known_pairs, 2);
+  assert.deepEqual(summary.metrics_coverage.primary_result, {
+    known_rows: 3,
+    total_rows: 4,
+    basis: 'report_rows',
+    report_rows: 4,
+  });
+  assert.deepEqual(summary.metrics_coverage.cost_per_result, {
+    known_rows: 2,
+    total_rows: 4,
+    known_pairs: 2,
+    basis: 'report_rows',
+    report_rows: 4,
+  });
   assert.equal(summary.result_groups[0].cost_coverage.known_pairs, 2);
   assert.deepEqual(summary.result_groups[0].cost_basis, {spend: '10', result: '10'});
 });
@@ -74,9 +97,20 @@ test('native daily pair coverage survives one entity total and another round of 
     summary = reportMetricsSummaryV4([entity]);
   assert.equal(summary.metrics.cpa, '1');
   assert.equal(summary.metrics.cost_per_result, '1');
-  assert.equal(summary.metrics_coverage.cpa.total, 4);
-  assert.equal(summary.metrics_coverage.cpa.report_rows, 1);
-  assert.equal(summary.metrics_coverage.cpa.known_pairs, 2);
+  // One report row built from four native daily cells: the counted units are the provider's own, not the report's.
+  assert.deepEqual(summary.metrics_coverage.cpa, {
+    known_rows: 2,
+    total_rows: 4,
+    basis: 'native_measurements',
+    report_rows: 1,
+    known_pairs: 2,
+  });
+  assert.deepEqual(summary.metrics_coverage.spend, {
+    known_rows: 3,
+    total_rows: 4,
+    basis: 'native_measurements',
+    report_rows: 1,
+  });
 });
 test('v4 summary formulas use one known cohort for their complete dependency graph and never sum reach', () => {
   const rows = sparse();
@@ -140,6 +174,22 @@ test('exact advisory thresholds retain native costs, known zero results and cons
     recommendationV4(row('9007199254740993', '30'), {sales: {target: 1, currency: 'SAR'}}).decision,
     'needs_review',
   );
+});
+test('advice holds while a metric it needs is calculated from some of its rows only (F-L5-31 shape)', () => {
+  const policy = {sales: {target: 0.1, currency: 'SAR'}},
+    covered = known_rows =>
+      row('10', '20', {metrics_coverage: {spend: {known_rows, total_rows: 2, basis: 'report_rows', report_rows: 2}}});
+  const partial = recommendationV4(covered(1), policy);
+  assert.equal(partial.decision, 'needs_review');
+  assert.match(partial.reason, /report metrics are incomplete/);
+  assert.notEqual(recommendationV4(covered(2), policy).decision, 'needs_review', 'a complete metric holds nothing');
+  // The cost per result is a ratio: its coverage counts the rows that had both parts.
+  const ratio = row('10', '20', {
+    metrics_coverage: {
+      cost_per_result: {known_rows: 1, total_rows: 2, known_pairs: 1, basis: 'report_rows', report_rows: 2},
+    },
+  });
+  assert.match(recommendationV4(ratio, policy).reason, /report metrics are incomplete/);
 });
 test('advice holds, and the report does not fail, once the report’s calculation time is spent', () => {
   withCalculationBudget(

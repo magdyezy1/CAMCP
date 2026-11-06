@@ -4,6 +4,7 @@ import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
 import {levelFailure, reportLevelReconciliation} from './report-level-reconciliation.js';
+import {coverageCounts} from './report-math-v4.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
@@ -601,12 +602,10 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
           ]
         : Object.keys(row.metrics ?? {}),
       partial = Object.fromEntries(
-        Object.entries(row.metrics_coverage ?? {}).filter(
-          ([name, value]: [string, any]) =>
-            fields.includes(name) &&
-            (value.unavailable_reason !== undefined ||
-              (value.known ?? value.known_pairs ?? value.known_rows) < value.total),
-        ),
+        Object.entries(row.metrics_coverage ?? {}).filter(([name, value]: [string, any]) => {
+          const {known, total} = coverageCounts(value);
+          return fields.includes(name) && (value.unavailable_reason !== undefined || known < total);
+        }),
       ),
       recommendation =
         row.recommendation &&

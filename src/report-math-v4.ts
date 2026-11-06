@@ -203,7 +203,20 @@ export function sumReportValuesV4(values: unknown[]) {
       sum = fraction(sum.n * current.d + current.n * sum.d, sum.d * current.d);
     } else sum = current;
   }
-  return {...retained(sum), coverage: {known, total: values.length}};
+  return {...retained(sum), coverage: {known_rows: known, total_rows: values.length}};
+}
+/**
+ * The counts of a coverage object that was stored, whichever build wrote it. Builds before F-L5-31 wrote `known` and
+ * `total` for a sum, `known_rows` and `total` for a formula and `known_pairs` and `total` for the cost per result; the
+ * shape is now `known_rows` and `total_rows` for all of them
+ * (docs/REPORTING-OVERVIEW.md). Code that reads a stored snapshot reads it here; code that reads a row it has just
+ * calculated reads the new names.
+ */
+export function coverageCounts(coverage: JsonObject): {known: number; total: number} {
+  return {
+    known: coverage.known_rows ?? coverage.known_pairs ?? coverage.known,
+    total: coverage.total_rows ?? coverage.total,
+  };
 }
 /** Compare a with b * factor without binary floating-point thresholds. Unknown comparisons never become true. */
 export function compareReportValuesV4(a: unknown, b: unknown, factor: unknown = 1): number {

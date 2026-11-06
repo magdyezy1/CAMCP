@@ -328,6 +328,43 @@ test('v4 get projection omits repeated native/lineage, exposes structured object
   assert.equal(rows[0].objective, 'TRAFFIC', 'projection never rewrites retained rows');
 });
 
+test('the projection keeps the coverage of a figure built from some of its units, whichever build stored it (F-L5-31)', () => {
+  const row = metrics_coverage => ({
+      entity_id: '1',
+      source_ref: 0,
+      metrics: {spend: '1', clicks: '2', cpc: '3', roas: '4', cost: '5', cost_per_result: '6'},
+      metrics_coverage,
+    }),
+    snapshot = {config: {contract_version: overviewConfigV4}, sources: [{}]},
+    kept = coverage => Object.keys(projectOverviewV4Rows(snapshot, [row(coverage)])[0].metrics_coverage ?? {}).sort();
+  // This build: only a figure built from some of its units, or one with a reason, is kept.
+  assert.deepEqual(
+    kept({
+      spend: {known_rows: 1, total_rows: 2, basis: 'report_rows', report_rows: 2},
+      clicks: {known_rows: 2, total_rows: 2, basis: 'report_rows', report_rows: 2},
+      cost: {
+        known_rows: 2,
+        total_rows: 2,
+        basis: 'report_rows',
+        report_rows: 2,
+        unavailable_reason: 'calculation_limit',
+      },
+    }),
+    ['cost', 'spend'],
+  );
+  // Builds before the unified shape: known/total for a sum, known_rows/total for a formula, known_pairs/total for a cost.
+  assert.deepEqual(
+    kept({
+      spend: {known: 1, total: 2, basis: 'native_measurements', report_rows: 2},
+      clicks: {known: 2, total: 2, basis: 'native_measurements', report_rows: 2},
+      roas: {known_rows: 1, total: 2, known_pairs: 1, basis: 'native_measurements', report_rows: 2},
+      cpc: {known_rows: 2, total: 2, known_pairs: 2, basis: 'native_measurements', report_rows: 2},
+      cost_per_result: {known_pairs: 1, total: 2, basis: 'native_measurements', report_rows: 2},
+    }),
+    ['cost_per_result', 'roas', 'spend'],
+  );
+});
+
 test('real v4 queue/worker/get collects three levels for one account and retains one source lineage', async t => {
   const f = objectiveReportFixture(t),
     calls = [];

@@ -2417,6 +2417,7 @@
   "Limited coverage: these totals may be incomplete.": "تغطية محدودة: قد تكون هذه الإجماليات غير مكتملة.",
   "{known} of {count} row": "الصفوف: {known} من {count}",
   "{known} of {count} rows": "الصفوف: {known} من {count}",
+  "{known} of {count} measurements": "القياسات: {known} من {count}",
   "Some rows have no value for {metrics}. They are left out of the total and never counted as 0.": "بعض الصفوف لا قيمة لها في {metrics}. تُستبعد من الإجمالي ولا تُحتسب صفرًا.",
   "Ratios ({metrics}) use only the rows that have every value they need, so they can differ from one total divided by another.": "تعتمد النسب ({metrics}) على الصفوف التي تتوفر فيها كل القيم اللازمة فقط، لذلك قد تختلف عن قسمة إجمالي على إجمالي آخر.",
   "{metrics} are not added: the rows are in different or unknown currencies.": "لا يمكن جمع {metrics} لأن عملات الصفوف مختلفة أو غير معروفة.",

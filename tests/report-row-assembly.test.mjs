@@ -47,7 +47,7 @@ test('packets and a definition become report rows with the account frame, the ob
   assert.equal(campaign.grain, 'total');
   assert.equal(campaign.attribution, 'Synthetic click window');
   assert.equal(typeof campaign.recommendation.decision, 'string');
-  assert.equal(campaign.metrics_coverage.spend.known, 1);
+  assert.equal(campaign.metrics_coverage.spend.known_rows, 1);
 });
 
 test('a packet that only supports a scope rollup contributes no report rows of its own', async () => {

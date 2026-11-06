@@ -75,7 +75,7 @@ test('selected totals retain exact known coverage and derive costs from matched 
   assert.equal(row.metrics.spend, '0.1');
   assert.equal(row.result.value, '5');
   assert.equal(row.result.cost_per_result, '0.05');
-  assert.deepEqual([row.metrics_coverage.spend.known, row.metrics_coverage.spend.total], [1, 2]);
+  assert.deepEqual([row.metrics_coverage.spend.known_rows, row.metrics_coverage.spend.total_rows], [1, 2]);
   for (const name of ['reach', 'frequency', 'users']) assert.equal(row.metrics[name], null, name);
   const zero = apply([child('a1', '0', '0')]).rows[0];
   assert.equal(zero.metrics.spend, '0');

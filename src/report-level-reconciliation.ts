@@ -50,11 +50,11 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
         const coverage = selected.reduce(
           (value, row) => {
             const own = row.metrics_coverage?.[metric];
-            value.known += own?.known ?? (row.metrics[metric] == null ? 0 : 1);
-            value.total += own?.total ?? 1;
+            value.known_rows += own?.known_rows ?? (row.metrics[metric] == null ? 0 : 1);
+            value.total_rows += own?.total_rows ?? 1;
             return value;
           },
-          {known: 0, total: 0},
+          {known_rows: 0, total_rows: 0},
         );
         return {value: metric === 'spend' && !currency ? null : sum.value, coverage};
       };
@@ -102,9 +102,12 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
                         ? 'unknown_currency'
                         : 'missing_metric'
                       : null,
-          partial = !collected || a.coverage.known < a.coverage.total || b.coverage.known < b.coverage.total,
+          partial =
+            !collected ||
+            a.coverage.known_rows < a.coverage.total_rows ||
+            b.coverage.known_rows < b.coverage.total_rows,
           delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value,
-          tolerance = roundingTolerance(metric, currency, a.coverage.known + b.coverage.known),
+          tolerance = roundingTolerance(metric, currency, a.coverage.known_rows + b.coverage.known_rows),
           // The delta stays in the output either way, so what the tolerance absorbed is never hidden.
           within = delta !== null && compareReportValuesV4(delta.replace(/^-/, ''), tolerance) <= 0;
         comparisons.push({

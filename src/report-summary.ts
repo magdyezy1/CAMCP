@@ -11,10 +11,18 @@ import {
 } from './report-math-v4.js';
 import {groupReportResults, unavailableReportResult} from './report-results.js';
 
+/**
+ * The summary of a group of rows. Every entry of `metrics_coverage` has one shape (F-L5-31, docs/REPORTING-OVERVIEW.md):
+ * `{known_rows, total_rows, basis, report_rows, known_pairs?, unavailable_reason?}`. `basis` says what is counted:
+ * `report_rows` when each counted unit is a row of the report, `native_measurements` when a row was built from the
+ * provider's own rows (daily cells), so `total_rows` can exceed `report_rows`. A ratio uses only the units that have
+ * every value it needs, and a two-part one says how many with `known_pairs`.
+ */
 export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[] = []) {
   const cells: JsonObject[] = group.flatMap(row =>
-    row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
-  );
+      row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
+    ),
+    basis = group.some(row => row.native?.exact_rows?.length) ? 'native_measurements' : 'report_rows';
   const metrics: JsonObject = {},
     coverage: JsonObject = {},
     rounding: JsonObject = {},
@@ -81,7 +89,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     metrics[key] = currencyUnknown ? null : summed.value;
     coverage[key] = {
       ...summed.coverage,
-      basis: 'native_measurements',
+      basis,
       report_rows: group.length,
       ...(currencyUnknown ? {unavailable_reason: 'unknown_currency'} : {}),
     };
@@ -127,8 +135,8 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     metrics[key] = !additive && single && !unknownCurrency ? (single.metrics[key] ?? null) : evaluated.value;
     coverage[key] = {
       known_rows: paired.length,
-      total: cells.length,
-      basis: 'native_measurements',
+      total_rows: cells.length,
+      basis,
       report_rows: group.length,
       ...(dependencies.length === 2 ? {known_pairs: paired.length} : {}),
       ...(unknownCurrency
@@ -181,10 +189,13 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
   metrics.primary_result = primary.value;
   metrics.cost_per_result = primary.cost_per_result;
   if (resultGroups.length === 1) {
-    coverage.primary_result = {...resultGroups[0]!.coverage, basis: 'native_measurements', report_rows: group.length};
+    const {coverage: own, cost_coverage: cost} = resultGroups[0]!;
+    coverage.primary_result = {known_rows: own.known, total_rows: own.total, basis, report_rows: group.length};
     coverage.cost_per_result = {
-      ...resultGroups[0]!.cost_coverage,
-      basis: 'native_measurements',
+      known_rows: cost.known_pairs,
+      total_rows: cost.total,
+      known_pairs: cost.known_pairs,
+      basis,
       report_rows: group.length,
     };
   }

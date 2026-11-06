@@ -33,7 +33,10 @@ test('cross-level evidence compares exact delivery totals, reports the coverage 
 });
 
 test('partial metrics, unknown currencies, missing levels and differing windows cannot claim agreement', () => {
-  const rows = [row('campaign', '100'), row('adset', '100', {metrics_coverage: {spend: {known: 1, total: 2}}})];
+  const rows = [
+    row('campaign', '100'),
+    row('adset', '100', {metrics_coverage: {spend: {known_rows: 1, total_rows: 2}}}),
+  ];
   assert.equal(compare(rows)[0].state, 'partial');
   assert.equal(compare(rows)[3].state, 'unavailable');
   const unknown = compare(rows.map(value => ({...value, currency: null})));
@@ -79,6 +82,9 @@ test('provider rounding of money reads as agreement, and the delta stays in the 
   assert.equal(rounded.delta, '0.01', 'nothing is hidden: the difference is still reported');
   assert.equal(rounded.tolerance, '0.02', 'four figures, half a cent each');
   assert.equal(rounded.coverage_percent, '100.0999001');
+  // The side totals count their rows with the same names as the summaries do.
+  assert.deepEqual(rounded.baseline.coverage, {known_rows: 1, total_rows: 1});
+  assert.deepEqual(rounded.comparison.coverage, {known_rows: 3, total_rows: 3});
 });
 
 test('the bound is half a minor unit for each figure compared, inclusive, and a difference beyond it is a gap', () => {
@@ -118,7 +124,7 @@ test('counts stay exact: one more impression is a gap, with no tolerance', () =>
 
 test('a figure that sums several native measurements counts each one, and an unavailable comparison has no tolerance', () => {
   // The ad row is 30 daily figures, each rounded by the provider: 31 figures with the campaign's.
-  const daily = {metrics_coverage: {spend: {known: 30, total: 30}}};
+  const daily = {metrics_coverage: {spend: {known_rows: 30, total_rows: 30}}};
   assert.equal(spendOf('USD', '100.00', ['100.15'], daily).state, 'agree', '0.15 is inside 31 half cents (0.155)');
   assert.equal(spendOf('USD', '100.00', ['100.15'], daily).tolerance, '0.155');
   assert.equal(spendOf('USD', '100.00', ['100.16'], daily).state, 'gap');
