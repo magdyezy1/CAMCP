@@ -4,7 +4,12 @@ import fs from 'node:fs';
 /** Real editor, authenticated local HTTP and worker; all X responses and OAuth credentials are synthetic. */
 export async function exerciseXOverview({page, site, locale, result}) {
   const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
-    text = key => (locale === 'ar' ? (catalog[key] ?? key) : key);
+    // The Arabic page must show the Arabic text; a missing translation fails here instead of passing as its English key.
+    text = key => {
+      if (locale !== 'ar') return key;
+      assert.match(catalog[key] ?? '', /[؀-ۿ]/u, 'No Arabic text for "' + key + '"');
+      return catalog[key];
+    };
   await page.goto(site.origin + '/reporting-overview');
   const form = page.locator('#overview-config'),
     platform = page.locator('.report-platform').filter({has: page.locator('[data-report-level=x]')}),
