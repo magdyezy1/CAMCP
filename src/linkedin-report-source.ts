@@ -478,7 +478,14 @@ export const linkedinReportSource: ReportSource = {
                 }),
                 false,
               );
-              return linkedInCampaignPeriod(response, range, pivot, true);
+              // Only a part of a split window may be empty: the whole window already proved access by reaching the cap.
+              return linkedInCampaignPeriod(
+                response,
+                range,
+                pivot,
+                true,
+                range.since !== c.range.since || range.until !== c.range.until,
+              );
             },
             analyticsRemaining,
           );
