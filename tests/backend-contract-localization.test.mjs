@@ -329,7 +329,7 @@ test('all actual directly owned backend reasons have Arabic with original native
   // V4 request-estimate guidance and the native metadata account refusal retain both old and new reasons.
   // Meta capture preserves its nested error fallback; mixed-pipeline checkpoints have a recovery refusal.
   // Eight direct X analytics entity/window/continuation refusals retain exact authored diagnostics.
-  assert.equal(owned.size, 1631);
+  assert.equal(owned.size, 1633);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -353,7 +353,7 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  assert.equal(Object.keys(catalog).length, 11739);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

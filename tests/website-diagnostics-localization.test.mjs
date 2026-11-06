@@ -17,7 +17,9 @@ const counts = {
   'server/asset-discovery.ts': 20,
   'server/google-account-discovery.ts': 0,
   'server/google-reauthorization.ts': 12,
-  'server/http-app.ts': 6,
+  // F-L4-13: the two refusals of a request body AMCP cannot decode (an encoding or character set it does not take,
+  // and a stream that does not decode) are owned here, so the file keeps 8 and the total below rose from 211 to 213.
+  'server/http-app.ts': 8,
   'server/media-source-routes.ts': 5,
   'server/password-hashes.ts': 1,
   'server/platform-oauth.ts': 13,
@@ -88,7 +90,7 @@ test('all selected website sources have exact authored diagnostic coverage with 
   assert.deepEqual(Object.keys(counts).sort(), [...websiteFailureSources].sort());
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 211);
+  assert.equal(owned.size, 213);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

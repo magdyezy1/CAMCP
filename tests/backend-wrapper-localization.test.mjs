@@ -299,7 +299,7 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Thirteen truthful source-count and empty-scope explanations.
   // Package D adds the scalar-scope conflict and dated optional campaign reference.
   // Task 12 adds twenty unique X diagnostics, four warning messages and one native level label.
-  assert.equal(Object.keys(catalog).length, 11737);
+  assert.equal(Object.keys(catalog).length, 11739);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

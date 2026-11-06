@@ -449,7 +449,24 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
                 ? new MirrorError('REQUEST_TOO_LARGE', 'Request body exceeds the configured size limit.', {}, 413)
                 : e instanceof SyntaxError
                   ? new MirrorError('INVALID_JSON', 'Request body is not valid JSON.', {}, 400)
-                  : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
+                  : // A body AMCP cannot decode is the client's mistake, and body-parser says so with a status: an encoding
+                    // or character set it does not take (415), or a gzip, deflate, brotli or zstd stream that does not
+                    // decode, which carries the decoder's errno (400). These answered 500 and were logged as failures.
+                    e.type === 'encoding.unsupported' || e.type === 'charset.unsupported'
+                    ? new MirrorError(
+                        'UNSUPPORTED_ENCODING',
+                        'The request body uses a content encoding or character set AMCP does not accept. Send UTF-8 JSON, plain or compressed with gzip, deflate or br.',
+                        {},
+                        415,
+                      )
+                    : e.status === 400 && e.expose === true && typeof e.errno === 'number'
+                      ? new MirrorError(
+                          'INVALID_ENCODING',
+                          'The request body could not be decoded. Check that it matches its Content-Encoding.',
+                          {},
+                          400,
+                        )
+                      : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
     res.locals.errorCode = error.code;
     // An MCP client reads JSON-RPC: a refusal in that shape shows its reason instead of a closed connection (F-88).
     if (req.baseUrl === '/mcp' || req.path === '/mcp' || req.path === '/mcp/next') {
