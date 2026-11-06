@@ -274,10 +274,10 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   `scope_limitations`, source quality and exports. GA4 sampling, thresholding, `(other)`-row data loss, restricted
   metrics and truncation remain incompleteness.
 
-Rolling windows resolve once in their IANA timezone. Add `"source_timezone":"account"` to the `date_range` to resolve
-the same frozen instant in each source's own reporting time zone instead (one extra bounded account read per source
-whose zone is not fixed); rows and `sources[].date_range` then carry each source's dates, and
-`sources[].window_resolution` records the zone used. `preview_schedule` lists, per occurrence and source, the zone
+Rolling windows resolve once in their IANA timezone. A source whose platform fixes its report day (LinkedIn, UTC)
+resolves in that zone, no account read; `"source_timezone":"report"` ends it, `"account"` resolves every source in its
+own zone (one bounded account read unless the zone is fixed). Rows and `sources[].date_range` carry each source's dates,
+`sources[].window_resolution` the zone used. `preview_schedule` lists, per occurrence and source, the zone
 (`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
 `open_at_delivery`, without a provider request.
 

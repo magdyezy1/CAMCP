@@ -806,14 +806,14 @@ export class ReportingOverview {
           delivery_at: new Date(at).toISOString(),
           delivery_timezone: schedule.timezone,
           window_timezone: config.date_range.timezone,
-          source_timezone: config.date_range.source_timezone ?? 'report',
+          source_timezone: resolved.date_range_rule?.source_timezone ?? config.date_range.source_timezone ?? 'report',
           date_range: resolved.date_range,
           // RPT-02: when each source's window closes in its own day boundary; open sources make the snapshot partial.
           sources: config.sources.map((s: JsonObject) => {
             const fixed = fixedReportTimezones[s.platform],
               zone = fixed ?? observed.get(s.platform + ':' + s.account_id) ?? null,
               dates =
-                resolved.date_range_rule && zone
+                resolved.date_range_rule && zone && (fixed || resolved.date_range_rule.source_timezone === 'account')
                   ? resolveRollingWindow(resolved.date_range_rule, at, zone)
                   : resolved.date_range,
               state = reportWindowState(dates, zone, at);
@@ -1153,10 +1153,15 @@ export class ReportingOverview {
     }
     return zones;
   }
-  /** Owner policy P6, opt-in with date_range.source_timezone "account": the frozen instant in the source's own zone. */
+  /**
+   * Owner policy P6: the frozen instant in the source's own zone. `date_range.source_timezone` "account" does so for
+   * every source (one bounded account read where the zone is not fixed); by default only a source whose platform fixes
+   * its report day does, which needs no read.
+   */
   private async sourceWindow(config: JsonObject, source: JsonObject, actor: Actor) {
-    const rule = config.date_range_rule;
-    if (rule?.source_timezone !== 'account') return {dates: config.date_range};
+    const rule = config.date_range_rule,
+      fixed = fixedReportTimezones[source.platform] !== undefined;
+    if (!rule || (rule.source_timezone !== 'account' && !fixed)) return {dates: config.date_range};
     const timezone = await sourceReportTimezone(this.service, source, actor);
     // RPT-07: the baseline of a previous-period pair resolves the same rule, then takes the equal window before it.
     const previous = config.comparison_window === 'previous_equal';
@@ -1165,7 +1170,11 @@ export class ReportingOverview {
           dates: previous
             ? previousEqualWindow(resolveRollingWindow(rule, rule.resolved_at, timezone))
             : resolveRollingWindow(rule, rule.resolved_at, timezone),
-          resolution: {basis: 'account_timezone', timezone, ...(previous ? {window: 'previous_equal'} : {})},
+          resolution: {
+            basis: rule.source_timezone === 'account' ? 'account_timezone' : 'provider_fixed_timezone',
+            timezone,
+            ...(previous ? {window: 'previous_equal'} : {}),
+          },
         }
       : {dates: config.date_range, resolution: {basis: 'report_timezone', timezone: rule.timezone}};
   }
