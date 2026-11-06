@@ -115,7 +115,12 @@ const typedLists: Record<string, string> = {
   creative_id: 'meta_creative_list',
   custom_audience_id: 'meta_custom_audience_list',
 };
-/** A minimal identity probe for named ads; every other unknown node still needs collection ownership. */
+/**
+ * A minimal identity probe for named ads; every other unknown node still needs collection ownership. Only the previews
+ * tool sends it (the service marks a read a first-party workflow sends as `nested`): a caller's own call of the same
+ * read is an ordinary node read, which needs the node's ownership before anything is sent, so a reader limited to one
+ * client learns nothing about an ad outside their access set (F-L3-03).
+ */
 function metaAdIdentityRead(plan: CompiledRequest): string | undefined {
   if (
     plan.gateway !== 'meta_native_action' ||
@@ -135,7 +140,7 @@ function metaAdIdentityRead(plan: CompiledRequest): string | undefined {
 function observeMeta(plan: CompiledRequest, connection: Connection, id: string, data: unknown, store: Store) {
   observeMetaPixels(plan, connection, id, data, store);
   const d = data as JsonObject;
-  const probe = metaAdIdentityRead(plan);
+  const probe = plan.nested ? metaAdIdentityRead(plan) : undefined;
   if (probe) {
     if (!d || d.id !== probe || d.account_id !== id)
       throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
@@ -278,8 +283,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
         name: 'meta_ad_identity_read',
         stage: 'before_families' as const,
         claims: (plan: CompiledRequest) => metaAdIdentityRead(plan) !== undefined,
-        // The observer withholds a mismatched identity before the native read can return or be cached.
-        authorize: (plan: CompiledRequest) => metaAdIdentityRead(plan) !== undefined,
+        // Decided only for the previews tool's own read: any other call of this shape falls through to the node's
+        // ownership. The observer withholds a mismatched identity before the native read can return or be cached.
+        authorize: (plan: CompiledRequest) => plan.nested === true && metaAdIdentityRead(plan) !== undefined,
       }),
       Object.freeze({
         name: 'meta_dataset_read',

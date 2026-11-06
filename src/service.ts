@@ -624,7 +624,10 @@ export class MirrorService {
           start,
           tool,
         );
-      const plan = this.compiler.compile(tool, input, this.options);
+      // A read a first-party workflow sends for the person is marked, for the provider read authorizers that admit a
+      // read on that path only (Meta's ad identity probe, F-L3-03); a caller's own call never is.
+      const compiled = this.compiler.compile(tool, input, this.options),
+        plan = this.nested.has(input) && compiled.readOnly ? {...compiled, nested: true as const} : compiled;
       const hasMediaSource = ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'].some(
         k => plan.body && typeof plan.body === 'object' && (plan.body as JsonObject)[k] !== undefined,
       );

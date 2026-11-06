@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
 import {object, previewLinksOn, text} from './ad-preview-kit.js';
+import {metaAbsent} from './meta-catalogs.js';
 import type {AdPreviewHooks, AdPreviewRequest, AdPreviewRow, AdPreviewSelection} from './provider-adapter.js';
 import type {JsonObject} from './types.js';
 
@@ -92,9 +93,13 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         const found = rows([row])[0]!;
         if (matches(found, true)) chosen.push(found);
       } catch (error) {
+        // A foreign ad (the observer's refusal) and an ad Meta says does not exist or cannot be loaded (code 100, subcode
+        // 33) read the same: not in this account. Whether an ad exists elsewhere is not the caller's to learn (F-L3-03).
         if (
           !(error instanceof MirrorError) ||
-          !['ACCOUNT_SCOPE_MISMATCH', 'NOT_FOUND', 'RESOURCE_SCOPE_REQUIRED'].includes(error.code)
+          !(
+            ['ACCOUNT_SCOPE_MISMATCH', 'NOT_FOUND', 'RESOURCE_SCOPE_REQUIRED'].includes(error.code) || metaAbsent(error)
+          )
         )
           throw error;
         missing.push(id);

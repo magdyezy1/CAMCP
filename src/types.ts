@@ -155,6 +155,12 @@ export interface CompiledRequest {
   /** Process-local monotonic deadline for a server-derived report retrieval. */
   criteoReportDeadline?: number;
   criteoCampaignDeadline?: number;
+  /**
+   * Set by the service, never by a caller (the compiler refuses an unrecognised parameter): a first-party workflow, as
+   * amcp_ad_previews, sent this read for the person, which is not the person's own request. A provider's read authorizer
+   * may admit a read on that path only (Meta's ad identity probe, F-L3-03).
+   */
+  nested?: true;
   scopeContext?: {
     metaReportReviewId?: string;
     campaignId?: string;

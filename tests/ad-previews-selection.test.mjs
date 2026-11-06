@@ -400,10 +400,11 @@ test('a full Meta node read without ownership remains refused before egress', as
   assert.equal(f.reads.length, 0);
 });
 
-test('only an exact Meta identity read can establish ownership, and a foreign answer is withheld', async t => {
+test('only the previews tool’s exact Meta identity read can establish ownership, and a foreign answer is withheld', async t => {
   for (const owner of ['100', '200']) {
     const f = nativeMeta(t, owner);
-    const out = await f.service.call(
+    // F-L3-03: a caller's own call of the same read is an ordinary node read, refused before any request.
+    const direct = await f.service.call(
       'meta_native_action',
       {
         action: 'meta_ad_id_get',
@@ -414,18 +415,22 @@ test('only an exact Meta identity read can establish ownership, and a foreign an
       },
       actor,
     );
+    assert.equal(direct.success, false);
+    assert.equal(direct.error.code, 'RESOURCE_SCOPE_REQUIRED');
+    assert.equal(f.reads.length, 0);
+    // The previews tool sends it for the person: its answer is checked before anything is returned or remembered.
+    const out = await f.service.call(
+      'amcp_ad_previews',
+      {platform: 'meta', account_id: '100', connection_id: login, ad_ids: ['150']},
+      actor,
+    );
+    assert.equal(out.success, true, JSON.stringify(out.error));
     const connection = f.store.resolveConnection(actor, 'meta_native_action', '100', login);
-    if (owner === '100') {
-      assert.equal(out.success, true, JSON.stringify(out.error));
-      assert.equal(f.store.ownsResource(connection, '100', '150'), true);
-    } else {
-      assert.equal(out.success, false);
-      assert.equal(out.error.code, 'ACCOUNT_SCOPE_MISMATCH');
-      assert.equal(f.store.ownsResource(connection, '100', '150'), false);
-      assert.equal(out.data, undefined);
-    }
-    assert.equal(f.reads.length, 1);
+    assert.equal(f.store.ownsResource(connection, '100', '150'), owner === '100');
     assert.equal(f.reads[0].fields, 'id,account_id');
+    // A foreign ad stops at that one read; its own ad goes on to the metadata and the preview.
+    assert.equal(f.reads.length, owner === '100' ? 3 : 1);
+    assert.deepEqual(out.data.not_found ?? [], owner === '100' ? [] : ['150']);
   }
 });
 
