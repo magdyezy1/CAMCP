@@ -30,12 +30,20 @@ export function fill(text, values) {
     return values[name];
   });
 }
+/**
+ * What identifies the build and the tool surface that answered: the artifact digest, the Git revision (or none, when the
+ * build recorded no revision) and the surface revision. They differ on every build and every surface change, and no
+ * client of the recorded era acts on them, so a replay keeps the key and not the value.
+ */
+const identityKeys = new Set(['artifact_sha256', 'source_revision', 'surface_revision']);
 /** The shape of a JSON value: its keys and types to `depth` levels, short strings whole, prose, ids and times masked. */
 export function shapeOf(value, depth = 5, level = 0, key = '') {
+  if (identityKeys.has(key)) return '<identity>';
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') return /(?:_at|Ms)$/.test(key) ? '<time>' : value;
   if (typeof value === 'string') {
-    const text = value.replace(uuid, '<uuid>').replace(/\+sha256\.[0-9a-f]{12}/g, '+sha256.<build>');
+    // The build tag of a version string is the artifact digest's or the Git revision's first twelve characters.
+    const text = value.replace(uuid, '<uuid>').replace(/\+(?:sha256\.)?[0-9a-f]{12}\b/g, '+<build>');
     return text.length > maxExactText ? '<text>' : text;
   }
   if (Array.isArray(value)) {

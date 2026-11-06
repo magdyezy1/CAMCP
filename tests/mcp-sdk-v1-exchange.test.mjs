@@ -13,7 +13,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {createHttpApp} from '../dist/server/http-app.js';
-import {answerShape, captured, fill} from './helpers/sdk-exchange.mjs';
+import {answerShape, captured, fill, shapeOf} from './helpers/sdk-exchange.mjs';
 
 const exchange = JSON.parse(fs.readFileSync('tests/fixtures/mcp-sdk-1.32.1-exchange.json', 'utf8')),
   origin = 'https://amcp.example',
@@ -121,6 +121,50 @@ for (const [mode, label] of [
     for (const [index, step] of exchange.steps.entries())
       assert.deepEqual(await d.run(step), step.response, named(index, step));
   });
+
+test('the shape of an answer does not depend on the build or the tool surface that gave it', () => {
+  // The build identity (a digest, a revision or none) and the surface revision are different on every build and every
+  // surface change, and no client of the recorded era acts on them: the replay must not fail because AMCP was rebuilt.
+  const answer = (build, revision, digest, surface, extra = {}) => ({
+    amcp_release: {
+      version: '0.1.0+' + build,
+      package_version: '0.1.0',
+      source_revision: revision,
+      artifact_sha256: digest,
+      status_url: '/versionz',
+      ...extra,
+    },
+    amcp_surface: {surface_revision: surface, tool_count: 25},
+  });
+  const recorded = answer(
+      'sha256.d431b91ba1b5',
+      null,
+      'd431b91ba1b54f49e1f834d653f1093cd0172b241c775bf6bb946b4cce93383a',
+      'ea7deacaef5f01af',
+    ),
+    rebuilt = answer(
+      'sha256.342d9d916be6',
+      null,
+      '342d9d916be6c6ffd61d3abfd5c540c366240da97cd14f9bd53fd7ac9e7764fa',
+      '0f0f0f0f0f0f0f0f',
+    ),
+    withRevision = answer(
+      '0123456789ab',
+      '0123456789abcdef0123456789abcdef01234567',
+      '342d9d916be6c6ffd61d3abfd5c540c366240da97cd14f9bd53fd7ac9e7764fa',
+      '0f0f0f0f0f0f0f0f',
+    );
+  assert.deepEqual(shapeOf(rebuilt), shapeOf(recorded), 'a rebuild with the same sources and another artifact digest');
+  assert.deepEqual(shapeOf(withRevision), shapeOf(recorded), 'a build that recorded its Git revision');
+  // What a client can act on still counts: a name, a count, a key that disappears.
+  assert.notDeepEqual(shapeOf(answer('x', null, 'y', 'z', {status_url: '/elsewhere'})), shapeOf(recorded));
+  assert.notDeepEqual(
+    shapeOf({...recorded, amcp_surface: {surface_revision: 'ea7deacaef5f01af', tool_count: 26}}),
+    shapeOf(recorded),
+  );
+  const {artifact_sha256: _digest, ...withoutDigest} = recorded.amcp_release;
+  assert.notDeepEqual(shapeOf({...recorded, amcp_release: withoutDigest}), shapeOf(recorded));
+});
 
 test('the replay can fail: a request that no longer matches what the client sent is answered differently', async t => {
   const d = await deployment(t),

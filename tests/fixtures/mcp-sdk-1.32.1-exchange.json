@@ -33,7 +33,7 @@
             },
             "serverInfo": {
               "name": "amcp",
-              "version": "0.1.0+sha256.<build>"
+              "version": "0.1.0+<build>"
             },
             "instructions": "<text>"
           },
@@ -156,15 +156,15 @@
                 "amcp_surface": {
                   "tool_count": 25,
                   "tools": "<array>",
-                  "surface_revision": "ea7deacaef5f01af",
+                  "surface_revision": "<identity>",
                   "help_call": "<object>",
                   "meaning": "<text>"
                 },
                 "amcp_release": {
-                  "version": "0.1.0+sha256.<build>",
+                  "version": "0.1.0+<build>",
                   "package_version": "0.1.0",
-                  "source_revision": null,
-                  "artifact_sha256": "d431b91ba1b54f49e1f834d653f1093cd0172b241c775bf6bb946b4cce93383a",
+                  "source_revision": "<identity>",
+                  "artifact_sha256": "<identity>",
                   "status_url": "/versionz"
                 },
                 "amcp_action_contracts": {
@@ -757,7 +757,7 @@
             },
             "serverInfo": {
               "name": "amcp",
-              "version": "0.1.0+sha256.<build>"
+              "version": "0.1.0+<build>"
             },
             "instructions": "<text>"
           },
@@ -850,15 +850,15 @@
                 "amcp_surface": {
                   "tool_count": 25,
                   "tools": "<array>",
-                  "surface_revision": "ea7deacaef5f01af",
+                  "surface_revision": "<identity>",
                   "help_call": "<object>",
                   "meaning": "<text>"
                 },
                 "amcp_release": {
-                  "version": "0.1.0+sha256.<build>",
+                  "version": "0.1.0+<build>",
                   "package_version": "0.1.0",
-                  "source_revision": null,
-                  "artifact_sha256": "d431b91ba1b54f49e1f834d653f1093cd0172b241c775bf6bb946b4cce93383a",
+                  "source_revision": "<identity>",
+                  "artifact_sha256": "<identity>",
                   "status_url": "/versionz"
                 },
                 "amcp_action_contracts": {
@@ -1016,7 +1016,7 @@
             },
             "serverInfo": {
               "name": "amcp",
-              "version": "0.1.0+sha256.<build>"
+              "version": "0.1.0+<build>"
             },
             "instructions": "<text>"
           },
@@ -1109,15 +1109,15 @@
                 "amcp_surface": {
                   "tool_count": 25,
                   "tools": "<array>",
-                  "surface_revision": "ea7deacaef5f01af",
+                  "surface_revision": "<identity>",
                   "help_call": "<object>",
                   "meaning": "<text>"
                 },
                 "amcp_release": {
-                  "version": "0.1.0+sha256.<build>",
+                  "version": "0.1.0+<build>",
                   "package_version": "0.1.0",
-                  "source_revision": null,
-                  "artifact_sha256": "d431b91ba1b54f49e1f834d653f1093cd0172b241c775bf6bb946b4cce93383a",
+                  "source_revision": "<identity>",
+                  "artifact_sha256": "<identity>",
                   "status_url": "/versionz"
                 },
                 "amcp_action_contracts": {
