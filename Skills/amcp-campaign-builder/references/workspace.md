@@ -1289,7 +1289,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `dashboard` | Counts per provider and account; sections with gateway, connection_id and account_id return bounded detail. | `view`, `sections`, `gateway`, `connection_id`, `account_id`, `limit`, `cursor` | no provider request | reader |
 | `operations` | Metadata-only feed of retained work across engines, each with a read-only next_call to its record. | `kind`, `state`, `search`, `account_id`, `connection_id`, `profile_id`, `limit` (1–100, default 30), `cursor` | no provider request | reader |
 | `report_run` | One workbook report run: its bounded, currently scoped status. | **`id`** | no provider request | reader |
@@ -1372,7 +1372,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `create` | Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template. | **`name`**, **`brief`**, `steps`, `profile_id`, `template`, `variables`, `idempotency_key`, `acknowledge_temporary_sources`, `allocation_preview_id`, `allocation_preview_hash`, `consent_preview_id`, `consent_preview_hash`, `catalog_binding`, `search_exclusion_preview_id`, `search_exclusion_preview_hash`, `id`, `expected_revision`, `confirmed`, `detail` | no provider request; saves campaign_run | operator |
 | `get` | One plan, compact; step_id returns one step whole, detail:"full" the whole plan. | **`id`**, `step_id`, `detail` | no provider request | reader |
 | `list` | Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor. | `offset`, `limit` (1–100, default 50), `cursor`, `state`, `archived`, `awaiting_approval`, `search`, `gateway`, `account_id`, `connection_id`, `profile_id` | no provider request | reader |
@@ -1406,7 +1406,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `capture` | A bounded native read kept with its source hash, under declared semantics and a metric mapping. | **`gateway`**, **`arguments`**, **`semantics`**, **`mapping`**, `connection_id`, `account_id`, `campaign_id`, `rows_pointer` | provider reads; saves decision_report | reader |
 | `capture_presets` | The guided report presets. | — | no provider request | reader |
 | `capture_preset` | Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report. | **`preset`**, **`account_id`**, **`semantics`**, `connection_id`, `campaign_id`, `result_action_type`, `attribution_windows`, `swipe_up_attribution_window`, `view_attribution_window` | provider reads; saves decision_report | reader |
@@ -1436,13 +1436,13 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `bootstrap` | Accounts, metrics, entity levels, saved reports, schedules and destinations for building a report. | `profile_id` | no provider request | reader |
 | `preview_schedule` | The next three deliveries of a saved or proposed schedule, with each source’s window. | `id`, `schedule`, `config` | no provider request | reader |
 | `report_pack` | A snapshot’s summary, source evidence and PDF/XLSX download paths. | **`id`** | no provider request | reader |
-| `save_presentation` | Saves a snapshot’s presentation (labels, order, notes). | **`id`**, **`presentation`**, **`confirmed`**, `presentation_revision` | no provider request; saves report_presentation | operator |
+| `save_presentation` | Saves a snapshot’s presentation: brand name, accent colour, footer, layout (standard or compact) and file language. | **`id`**, **`presentation`**, **`presentation_revision`**, **`confirmed`** | no provider request; saves report_presentation | operator |
 | `presentation_profiles` | Client profiles whose report presentation can apply to a snapshot. | **`id`**, `offset`, `limit` (1–100, default 30) | no provider request | reader |
-| `apply_profile_presentation` | Applies a client profile’s report presentation to a snapshot. | **`id`**, **`profile_id`**, **`confirmed`**, `profile_revision`, `presentation_revision` | no provider request; saves report_presentation | operator |
+| `apply_profile_presentation` | Applies a client profile’s report presentation to a snapshot. | **`id`**, **`profile_id`**, **`profile_revision`**, **`presentation_revision`**, **`confirmed`** | no provider request; saves report_presentation | operator |
 | `save` | Saves a named client report definition (edits need expected_revision). | **`config`**, **`confirmed`**, `id`, `name`, `expected_revision`, `view_id`, `expected_view_revision` | no provider request; saves overview_view | operator |
 | `save_template` | Saves a reusable report template. | **`config`**, **`confirmed`**, `id`, `name`, `expected_revision` | no provider request; saves overview_template | operator |
 | `delete_template` | Deletes a report template at its revision. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_template | operator |
@@ -1451,7 +1451,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `update_schedule` | Changes a delivery schedule’s settings. | **`id`**, **`schedule`**, **`confirmed`**, `config`, `destination_id`, `view_id`, `expected_revision`, `expected_view_revision` | no provider request; saves overview_schedule | operator |
 | `remove_schedule` | Removes a delivery schedule; its snapshots stay. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_schedule | operator |
 | `run` | Queues a bounded native report snapshot of a saved definition (id) or a config; compare:previous_period also queues the equal previous window as its paired baseline. | **`confirmed`**, `id`, `config`, `compare` | provider reads; saves overview_report | operator |
-| `get` | One snapshot with a page of rows, its exports and deliveries. | **`id`**, `offset`, `limit` (1–500, default 100) | no provider request | reader |
+| `get` | One snapshot with a page of rows, its exports and deliveries. | **`id`**, `offset`, `limit` (1–500, default 100), `include` | no provider request | reader |
 | `list` | Report snapshots you can access, newest first. | `offset`, `limit` (1–100, default 50) | no provider request | reader |
 | `export` | Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files. | **`report_id`**, **`destination_id`**, **`confirmed`**, `idempotency_key` | no provider request; saves overview_export; Google Sheets write | operator |
 | `schedule` | Creates a recurring delivery of a saved report. | **`schedule`**, **`confirmed`**, `id`, `config`, `destination_id`, `view_id`, `expected_view_revision`, `idempotency_key` | no provider request; saves overview_schedule | operator |
@@ -1462,9 +1462,9 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `cancel` | Cancels a queued or running report or export job. | **`id`**, **`confirmed`** | no provider request; saves overview_report | operator |
 | `create_spreadsheet` | Creates a Google spreadsheet for delivery and binds it as a destination. | **`connection_id`**, **`confirmed`**, **`name`**, **`idempotency_key`**, `tab_name` | no provider request; saves sheets_destination; Google Sheets write | admin |
 | `bind_destination` | Binds an existing editable Google spreadsheet tab as a destination. | **`connection_id`**, **`confirmed`**, `spreadsheet_id`, `spreadsheet_url`, `tab_name` (maxLength 80, default "AMCP Overview"), `name`, `idempotency_key` | no provider request; saves sheets_destination; Google Sheets write | operator |
-| `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`confirmed`**, `idempotency_key` | no provider request; saves report_file_destination | operator |
+| `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`idempotency_key`**, **`confirmed`** | no provider request; saves report_file_destination | operator |
 | `export_status` | One export’s state, outcome and retry availability. | **`id`** | no provider request | reader |
-| `resolve_delivery` | Resolves an unconfirmed Sheets delivery after its settle window (release the tab, or keep it). | **`delivery_id`**, **`resolution`**, **`confirmed`** | no provider request; saves sheets_delivery | operator |
+| `resolve_delivery` | Checks, resends or releases the unconfirmed Sheets delivery of a destination; resend and release open after its settle window. | **`destination_id`**, **`resolution`**, **`confirmed`**, `delivery_id` | no provider request; saves sheets_delivery | operator |
 | `preview_workbook_move` | Dry run of moving a local workbook schedule into an Overview report and schedule, with usable report tabs and blockers. | **`id`**, `destination_id` | no provider request | reader |
 | `move_workbook_schedule` | Creates the previewed Overview report and schedule and pauses the local workbook schedule; its query is unchanged. | **`id`**, **`destination_id`**, **`move_version`**, **`confirmed`** | no provider request; saves overview_view, overview_schedule, workbook_schedule | operator |
 | `undo_workbook_move` | Pauses the Overview schedule a workbook move created and restores the local workbook schedule. | **`id`**, **`confirmed`** | no provider request; saves overview_schedule, workbook_schedule | operator |
@@ -1475,7 +1475,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `prepare` | Fetches and encrypts the exact file for a five-minute upload review. | **`platform`**, **`account_id`**, `connection_id`, `source_id`, `source_url`, `drive_url`, `drive_connection_id`, `variant_id`, `expected_sha256`, `expected_mime`, `expected_size`, `fit_to_platform`, `reuse_existing`, `existing_media_id`, `name`, `media_type`, `owner_urn`, `dv360_target`, `synthetic_content` | no provider request; saves media_review | operator |
 | `prepare_library` | Prepares the review of a library asset’s retained original. | **`review_id`** | no provider request; saves media_review | operator |
 | `execute` | Uploads the frozen bytes after the user’s explicit confirmation. | **`review_id`**, **`confirmed`**, `idempotency_key` | reviewed provider write; saves media_receipt; changes an advertising account | operator |
@@ -1502,7 +1502,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `inspect` | Checks local reviewed-write contract support for the exact native arguments, with no credentials, request or save. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data` | no provider request | reader |
 | `prepare` | Reads current state and freezes the request into a five-minute, actor-bound review with before_state, impact and spend. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data`, `provider_check`, `creative_edit_confirmed`, `supersedes_review_id` | provider reads; saves write_review | operator |
 | `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key` (Defaults to the review_id; any other value is refused.), `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
@@ -1514,6 +1514,6 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
 | — | Bounded native previews of existing ads; nothing is saved. | **`platform`**, **`account_id`**, `connection_id`, `ad_ids`, `limit`, `ad_format`, `statuses`, `campaign_ids`, `adset_ids`, `cursor` | provider reads | reader |
-| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | provider reads | reader |
+| `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 
 <!-- first-party-contracts:end -->

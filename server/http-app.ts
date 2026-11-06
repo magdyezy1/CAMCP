@@ -3,7 +3,7 @@ import type {Server} from 'node:http';
 import path from 'node:path';
 import express, {type ErrorRequestHandler, type RequestHandler} from 'express';
 import {hostHeaderValidation} from '@modelcontextprotocol/express';
-import {NodeStreamableHTTPServerTransport} from '@modelcontextprotocol/node';
+import {NodeStreamableHTTPServerTransport, toWebRequest} from '@modelcontextprotocol/node';
 import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {Client} from '@modelcontextprotocol/client';
 import {createMcpServer} from './mcp.js';
@@ -20,7 +20,14 @@ import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/server';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
-import {isModernRequest, modernProtocolModes, serveModernRequest, type ModernProtocolMode} from './mcp-modern.js';
+import {
+  createDeploymentEndpoint,
+  isModernRequest,
+  modernAuthInfo,
+  modernProtocolModes,
+  sendModernResponse,
+  type ModernProtocolMode,
+} from './mcp-modern.js';
 import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
 import {createPublicAssets} from './public-assets.js';
 import {REQUEST_ID_HEADER, newRequestId, runWithRequestId} from '../src/request-context.js';
@@ -198,7 +205,9 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       options.clock ?? Date.now,
       options.production ?? process.env.NODE_ENV === 'production',
     ),
-    limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now);
+    limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now),
+    // The 2026-07-28 endpoint: one strict SDK handler for the whole app, given the caller with each request.
+    modern = modernMode === 'off' ? undefined : createDeploymentEndpoint(service);
   // MCP tool failures that reach no HTTP status (JSON responses are 200) still leave one metadata-only line (OPS-02).
   if (options.log) service.onToolFailure = entry => log(entry);
   // Built before /mcp authentication, which checks AI-client tokens against its authorization server (SEC-05); its
@@ -370,22 +379,24 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         }
       };
       try {
-        const server = createMcpServer(service, res.locals.actor, {track});
-        if (dualEra && isModernRequest(req.headers, req.body)) {
-          // The modern era: stateless, one JSON answer per request, no session (MCP-03 phase 3).
-          res.on('close', () => void server.close());
+        if (dualEra && modern && isModernRequest(req.headers, req.body)) {
+          // The modern era: stateless, no session (MCP-03 phase 3). A client that goes away ends the exchange.
+          const gone = new AbortController();
+          res.on('close', () => {
+            if (!res.writableFinished) gone.abort();
+          });
+          const request = await toWebRequest(req, req.body, {signal: gone.signal});
           const answer = await runWithRequestId(res.locals.requestId, () =>
-            serveModernRequest(
-              server,
-              req.headers,
-              req.body,
-              new URL(req.originalUrl, options.publicOrigin ?? options.website?.origin ?? 'http://localhost').href,
-            ),
+            modern.handle(request, {
+              headers: req.headers,
+              message: req.body,
+              authInfo: modernAuthInfo(res.locals.actor, track),
+            }),
           );
-          if (answer.body) res.status(answer.status).json(answer.body);
-          else res.status(answer.status).end();
+          await sendModernResponse(res, answer);
           return;
         }
+        const server = createMcpServer(service, res.locals.actor, {track});
         const transport = new NodeStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
@@ -438,7 +449,24 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
                 ? new MirrorError('REQUEST_TOO_LARGE', 'Request body exceeds the configured size limit.', {}, 413)
                 : e instanceof SyntaxError
                   ? new MirrorError('INVALID_JSON', 'Request body is not valid JSON.', {}, 400)
-                  : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
+                  : // A body AMCP cannot decode is the client's mistake, and body-parser says so with a status: an encoding
+                    // or character set it does not take (415), or a gzip, deflate, brotli or zstd stream that does not
+                    // decode, which carries the decoder's errno (400). These answered 500 and were logged as failures.
+                    e.type === 'encoding.unsupported' || e.type === 'charset.unsupported'
+                    ? new MirrorError(
+                        'UNSUPPORTED_ENCODING',
+                        'The request body uses a content encoding or character set AMCP does not accept. Send UTF-8 JSON, plain or compressed with gzip, deflate or br.',
+                        {},
+                        415,
+                      )
+                    : e.status === 400 && e.expose === true && typeof e.errno === 'number'
+                      ? new MirrorError(
+                          'INVALID_ENCODING',
+                          'The request body could not be decoded. Check that it matches its Content-Encoding.',
+                          {},
+                          400,
+                        )
+                      : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
     res.locals.errorCode = error.code;
     // An MCP client reads JSON-RPC: a refusal in that shape shows its reason instead of a closed connection (F-88).
     if (req.baseUrl === '/mcp' || req.path === '/mcp' || req.path === '/mcp/next') {

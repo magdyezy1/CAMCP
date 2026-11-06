@@ -1,0 +1,1150 @@
+{
+  "recorded_with": "SDK 1.32.1 Client, StreamableHTTPClientTransport and auth(), from the preserved offline v1 dependency tree (read only; no v1 package is installed or imported by AMCP)",
+  "recorded_against": "AMCP HTTP app, default configuration (AMCP_MCP_MODERN_PROTOCOL unset), origin https://amcp.example, synthetic in-memory store, read-only deployment",
+  "how": "A scratch script drove the SDK client against the app with a recording fetch, then replaced the values the server issued with placeholders and each answer with its shape. See tests/helpers/sdk-exchange.mjs.",
+  "sdk_version": "1.32.1",
+  "steps": [
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json"
+        },
+        "body": "{\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"sdk-1.32.1-recording\",\"version\":\"1.0.0\"}},\"jsonrpc\":\"2.0\",\"id\":0}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {
+              "tools": {},
+              "resources": {},
+              "prompts": {}
+            },
+            "serverInfo": {
+              "name": "amcp",
+              "version": "0.1.0+<build>"
+            },
+            "instructions": "<text>"
+          },
+          "jsonrpc": "2.0",
+          "id": 0
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"notifications/initialized\",\"jsonrpc\":\"2.0\"}"
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "cache-control": "no-store"
+        },
+        "body": ""
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "GET",
+        "path": "/mcp",
+        "headers": {
+          "accept": "text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 405,
+        "headers": {
+          "content-type": "application/json",
+          "allow": "POST",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "error": "Stateless MCP endpoint: use POST."
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"tools/list\",\"jsonrpc\":\"2.0\",\"id\":1}"
+      },
+      "depth": 2,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "tools": "<array>"
+          },
+          "jsonrpc": "2.0",
+          "id": 1
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"tools/call\",\"params\":{\"name\":\"amcp_tool_help\",\"arguments\":{}},\"jsonrpc\":\"2.0\",\"id\":2}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "<text>"
+              }
+            ],
+            "structuredContent": {
+              "success": true,
+              "data": {
+                "surface": "compact-v1",
+                "tool_count": 20,
+                "gateways": ["meta_native_action", "<more>"],
+                "usage": "<text>",
+                "amcp_surface": {
+                  "tool_count": 25,
+                  "tools": "<array>",
+                  "surface_revision": "<identity>",
+                  "help_call": "<object>",
+                  "meaning": "<text>"
+                },
+                "amcp_release": {
+                  "version": "0.1.0+<build>",
+                  "package_version": "0.1.0",
+                  "source_revision": "<identity>",
+                  "artifact_sha256": "<identity>",
+                  "status_url": "/versionz"
+                },
+                "amcp_action_contracts": {
+                  "tool": "amcp_workspace",
+                  "arguments": "<object>",
+                  "meaning": "Action-level route coverage; exact-payload inspect remains mandatory."
+                },
+                "amcp_guidance": {
+                  "resources": "<array>",
+                  "tool_call": "<object>",
+                  "prompt": "amcp_build_campaign",
+                  "qualification": "<text>"
+                },
+                "amcp_extensions": {
+                  "gateways": "<array>"
+                }
+              },
+              "meta": {
+                "requestId": "<uuid>",
+                "latencyMs": "<time>"
+              }
+            }
+          },
+          "jsonrpc": "2.0",
+          "id": 2
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"tools/call\",\"params\":{\"name\":\"amcp_write\",\"arguments\":{\"action\":\"prepare\",\"gateway\":\"meta_native_action\",\"arguments\":{\"action\":\"meta_campaign_create\",\"account_id\":\"123\",\"payload\":{\"name\":\"Draft\"}}}},\"jsonrpc\":\"2.0\",\"id\":3}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "<text>"
+              }
+            ],
+            "structuredContent": {
+              "success": false,
+              "error": {
+                "code": "LIVE_WRITES_DISABLED",
+                "message": "This AMCP deployment is read-only; its operator can enable reviewed writes.",
+                "details": {
+                  "next_call": "<object>"
+                },
+                "retryable": false,
+                "category": "deployment",
+                "remedy": {
+                  "category": "deployment",
+                  "owner": "deployment_operator",
+                  "action": "<text>",
+                  "mutation_retry_safe": false
+                },
+                "next_action": "<text>"
+              },
+              "meta": {
+                "requestId": "<uuid>",
+                "latencyMs": "<time>"
+              }
+            },
+            "isError": true
+          },
+          "jsonrpc": "2.0",
+          "id": 3
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"tools/call\",\"params\":{\"name\":\"no_such_tool\",\"arguments\":{}},\"jsonrpc\":\"2.0\",\"id\":4}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "<text>"
+              }
+            ],
+            "structuredContent": {
+              "success": false,
+              "error": {
+                "code": "UNKNOWN_TOOL",
+                "message": "Unknown MCP tool: no_such_tool",
+                "retryable": false,
+                "category": "request",
+                "remedy": {
+                  "category": "request",
+                  "owner": "operator",
+                  "action": "<text>",
+                  "mutation_retry_safe": false
+                },
+                "next_action": "<text>"
+              },
+              "meta": {
+                "requestId": "<uuid>",
+                "latencyMs": "<time>"
+              }
+            },
+            "isError": true
+          },
+          "jsonrpc": "2.0",
+          "id": 4
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"resources/list\",\"jsonrpc\":\"2.0\",\"id\":5}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "resources": [
+              {
+                "uri": "amcp://guides/adjust",
+                "name": "adjust",
+                "title": "Adjust app-scoped native reporting",
+                "mimeType": "text/markdown",
+                "description": "AMCP-maintained workflow guidance; actual permissions and native action contracts still apply."
+              },
+              "<more>"
+            ]
+          },
+          "jsonrpc": "2.0",
+          "id": 5
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"resources/read\",\"params\":{\"uri\":\"amcp://guides/does-not-exist\"},\"jsonrpc\":\"2.0\",\"id\":6}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 6,
+          "error": {
+            "code": -32002,
+            "message": "Unknown AMCP guide URI.",
+            "data": {
+              "uri": "amcp://guides/does-not-exist",
+              "index": "amcp://guides/index"
+            }
+          }
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "api key",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{api_key}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"ping\",\"jsonrpc\":\"2.0\",\"id\":7}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {},
+          "jsonrpc": "2.0",
+          "id": 7
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "unauthenticated initialize",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "content-type": "application/json"
+        },
+        "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"sdk-1.32.1-recording\",\"version\":\"1.0.0\"}}}"
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json",
+          "www-authenticate": "Bearer scope=\"mcp:read\", resource_metadata=\"https://amcp.example/.well-known/oauth-protected-resource/mcp\"",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "jsonrpc": "2.0",
+          "id": null,
+          "error": {
+            "code": -32000,
+            "message": "Bearer authentication required.",
+            "data": {
+              "code": "UNAUTHORIZED"
+            }
+          }
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/oauth-protected-resource/mcp",
+        "headers": {
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "resource": "https://amcp.example/mcp",
+          "authorization_servers": ["https://amcp.example/"],
+          "scopes_supported": ["mcp:read"],
+          "resource_name": "AMCP",
+          "resource_documentation": "https://amcp.example/connectors"
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/oauth-authorization-server",
+        "headers": {
+          "accept": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "issuer": "https://amcp.example/",
+          "service_documentation": "https://amcp.example/connectors",
+          "authorization_endpoint": "https://amcp.example/authorize",
+          "response_types_supported": ["code"],
+          "code_challenge_methods_supported": ["S256"],
+          "token_endpoint": "https://amcp.example/token",
+          "token_endpoint_auth_methods_supported": ["client_secret_post", "<more>"],
+          "grant_types_supported": ["authorization_code", "<more>"],
+          "scopes_supported": ["mcp:read"],
+          "revocation_endpoint": "https://amcp.example/revoke",
+          "revocation_endpoint_auth_methods_supported": ["client_secret_post"],
+          "registration_endpoint": "https://amcp.example/register",
+          "authorization_response_iss_parameter_supported": true,
+          "client_id_metadata_document_supported": true
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "POST",
+        "path": "/register",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": "{\"client_name\":\"SDK 1.32.1 recording client\",\"redirect_uris\":[\"https://claude.ai/api/mcp/auth_callback\"],\"grant_types\":[\"authorization_code\",\"refresh_token\"],\"response_types\":[\"code\"],\"token_endpoint_auth_method\":\"none\",\"scope\":\"mcp:read\"}"
+      },
+      "capture": {
+        "client_id": {
+          "from": "body",
+          "path": ["client_id"]
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "client_id": "{{client_id}}",
+          "client_id_issued_at": "<time>",
+          "client_name": "SDK 1.32.1 recording client",
+          "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
+          "token_endpoint_auth_method": "none",
+          "grant_types": ["authorization_code", "<more>"],
+          "response_types": ["code"],
+          "scope": "mcp:read"
+        }
+      }
+    },
+    {
+      "actor": "browser",
+      "label": "consent",
+      "request": {
+        "method": "GET",
+        "path": "/authorize?response_type=code&client_id={{client_id}}&code_challenge=PSbYwEKKLXi16ZkP5Y6N4U_Ublqu_EUOmX3OT14f2y4&code_challenge_method=S256&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&state=BKzKSK7MjMat3qo56Hk-8w&scope=mcp%3Aread&resource=https%3A%2F%2Famcp.example%2Fmcp",
+        "headers": {}
+      },
+      "capture": {
+        "consent_request": {
+          "from": "header",
+          "name": "location",
+          "param": "request"
+        }
+      },
+      "response": {
+        "status": 303,
+        "headers": {
+          "content-type": "text/plain",
+          "cache-control": "no-store",
+          "location": "https://amcp.example/oauth/consent?request={{consent_request}}"
+        },
+        "body": "See Other. Redirecting to https://amcp.example/oauth/consent?request={{consent_request}}"
+      }
+    },
+    {
+      "actor": "browser",
+      "label": "consent",
+      "request": {
+        "method": "POST",
+        "path": "/api/session",
+        "headers": {
+          "content-type": "application/json",
+          "origin": "https://amcp.example"
+        },
+        "body": "{\"password\":\"{{admin_password}}\"}"
+      },
+      "capture": {
+        "session_cookie": {
+          "from": "header",
+          "name": "set-cookie",
+          "cookie": true
+        },
+        "csrf": {
+          "from": "body",
+          "path": ["csrf"]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "authenticated": true,
+          "csrf": "{{csrf}}",
+          "name": "Workspace administrator"
+        }
+      }
+    },
+    {
+      "actor": "browser",
+      "label": "consent",
+      "request": {
+        "method": "POST",
+        "path": "/api/mcp/consent",
+        "headers": {
+          "content-type": "application/json",
+          "cookie": "{{session_cookie}}",
+          "origin": "https://amcp.example",
+          "x-amcp-csrf": "{{csrf}}"
+        },
+        "body": "{\"request\":\"{{consent_request}}\",\"approved\":true}"
+      },
+      "capture": {
+        "code": {
+          "from": "body",
+          "path": ["url"],
+          "param": "code"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "url": "<text>"
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/oauth-protected-resource/mcp",
+        "headers": {
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "resource": "https://amcp.example/mcp",
+          "authorization_servers": ["https://amcp.example/"],
+          "scopes_supported": ["mcp:read"],
+          "resource_name": "AMCP",
+          "resource_documentation": "https://amcp.example/connectors"
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/oauth-authorization-server",
+        "headers": {
+          "accept": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "issuer": "https://amcp.example/",
+          "service_documentation": "https://amcp.example/connectors",
+          "authorization_endpoint": "https://amcp.example/authorize",
+          "response_types_supported": ["code"],
+          "code_challenge_methods_supported": ["S256"],
+          "token_endpoint": "https://amcp.example/token",
+          "token_endpoint_auth_methods_supported": ["client_secret_post", "<more>"],
+          "grant_types_supported": ["authorization_code", "<more>"],
+          "scopes_supported": ["mcp:read"],
+          "revocation_endpoint": "https://amcp.example/revoke",
+          "revocation_endpoint_auth_methods_supported": ["client_secret_post"],
+          "registration_endpoint": "https://amcp.example/register",
+          "authorization_response_iss_parameter_supported": true,
+          "client_id_metadata_document_supported": true
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "accept": "application/json",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=authorization_code&code={{code}}&code_verifier=YuirJ1UYhsiHcg4QKN5CVqOHLuVaarf_XQXGYYdXUuS&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&resource=https%3A%2F%2Famcp.example%2Fmcp&client_id={{client_id}}"
+      },
+      "capture": {
+        "access_token": {
+          "from": "body",
+          "path": ["access_token"]
+        },
+        "refresh_token": {
+          "from": "body",
+          "path": ["refresh_token"]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "access_token": "{{access_token}}",
+          "token_type": "Bearer",
+          "expires_in": 3600,
+          "refresh_token": "{{refresh_token}}",
+          "scope": "mcp:read"
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{access_token}}",
+          "content-type": "application/json"
+        },
+        "body": "{\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"sdk-1.32.1-recording\",\"version\":\"1.0.0\"}},\"jsonrpc\":\"2.0\",\"id\":0}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {
+              "tools": {},
+              "resources": {},
+              "prompts": {}
+            },
+            "serverInfo": {
+              "name": "amcp",
+              "version": "0.1.0+<build>"
+            },
+            "instructions": "<text>"
+          },
+          "jsonrpc": "2.0",
+          "id": 0
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{access_token}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"notifications/initialized\",\"jsonrpc\":\"2.0\"}"
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "cache-control": "no-store"
+        },
+        "body": ""
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session",
+      "request": {
+        "method": "GET",
+        "path": "/mcp",
+        "headers": {
+          "accept": "text/event-stream",
+          "authorization": "Bearer {{access_token}}",
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 405,
+        "headers": {
+          "content-type": "application/json",
+          "allow": "POST",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "error": "Stateless MCP endpoint: use POST."
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{access_token}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"tools/call\",\"params\":{\"name\":\"amcp_tool_help\",\"arguments\":{}},\"jsonrpc\":\"2.0\",\"id\":1}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "<text>"
+              }
+            ],
+            "structuredContent": {
+              "success": true,
+              "data": {
+                "surface": "compact-v1",
+                "tool_count": 20,
+                "gateways": ["meta_native_action", "<more>"],
+                "usage": "<text>",
+                "amcp_surface": {
+                  "tool_count": 25,
+                  "tools": "<array>",
+                  "surface_revision": "<identity>",
+                  "help_call": "<object>",
+                  "meaning": "<text>"
+                },
+                "amcp_release": {
+                  "version": "0.1.0+<build>",
+                  "package_version": "0.1.0",
+                  "source_revision": "<identity>",
+                  "artifact_sha256": "<identity>",
+                  "status_url": "/versionz"
+                },
+                "amcp_action_contracts": {
+                  "tool": "amcp_workspace",
+                  "arguments": "<object>",
+                  "meaning": "Action-level route coverage; exact-payload inspect remains mandatory."
+                },
+                "amcp_guidance": {
+                  "resources": "<array>",
+                  "tool_call": "<object>",
+                  "prompt": "amcp_build_campaign",
+                  "qualification": "<text>"
+                },
+                "amcp_extensions": {
+                  "gateways": "<array>"
+                }
+              },
+              "meta": {
+                "requestId": "<uuid>",
+                "latencyMs": "<time>"
+              }
+            }
+          },
+          "jsonrpc": "2.0",
+          "id": 1
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/oauth-protected-resource/mcp",
+        "headers": {
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "resource": "https://amcp.example/mcp",
+          "authorization_servers": ["https://amcp.example/"],
+          "scopes_supported": ["mcp:read"],
+          "resource_name": "AMCP",
+          "resource_documentation": "https://amcp.example/connectors"
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "GET",
+        "path": "/.well-known/oauth-authorization-server",
+        "headers": {
+          "accept": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "issuer": "https://amcp.example/",
+          "service_documentation": "https://amcp.example/connectors",
+          "authorization_endpoint": "https://amcp.example/authorize",
+          "response_types_supported": ["code"],
+          "code_challenge_methods_supported": ["S256"],
+          "token_endpoint": "https://amcp.example/token",
+          "token_endpoint_auth_methods_supported": ["client_secret_post", "<more>"],
+          "grant_types_supported": ["authorization_code", "<more>"],
+          "scopes_supported": ["mcp:read"],
+          "revocation_endpoint": "https://amcp.example/revoke",
+          "revocation_endpoint_auth_methods_supported": ["client_secret_post"],
+          "registration_endpoint": "https://amcp.example/register",
+          "authorization_response_iss_parameter_supported": true,
+          "client_id_metadata_document_supported": true
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "authorization",
+      "request": {
+        "method": "POST",
+        "path": "/token",
+        "headers": {
+          "accept": "application/json",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "grant_type=refresh_token&refresh_token={{refresh_token}}&resource=https%3A%2F%2Famcp.example%2Fmcp&client_id={{client_id}}"
+      },
+      "capture": {
+        "access_token_2": {
+          "from": "body",
+          "path": ["access_token"]
+        },
+        "refresh_token_2": {
+          "from": "body",
+          "path": ["refresh_token"]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*"
+        },
+        "body": {
+          "access_token": "{{access_token_2}}",
+          "token_type": "Bearer",
+          "expires_in": 3600,
+          "refresh_token": "{{refresh_token_2}}",
+          "scope": "mcp:read"
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session after refresh",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{access_token_2}}",
+          "content-type": "application/json"
+        },
+        "body": "{\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"sdk-1.32.1-recording\",\"version\":\"1.0.0\"}},\"jsonrpc\":\"2.0\",\"id\":0}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {
+              "tools": {},
+              "resources": {},
+              "prompts": {}
+            },
+            "serverInfo": {
+              "name": "amcp",
+              "version": "0.1.0+<build>"
+            },
+            "instructions": "<text>"
+          },
+          "jsonrpc": "2.0",
+          "id": 0
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session after refresh",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{access_token_2}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"notifications/initialized\",\"jsonrpc\":\"2.0\"}"
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "cache-control": "no-store"
+        },
+        "body": ""
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session after refresh",
+      "request": {
+        "method": "GET",
+        "path": "/mcp",
+        "headers": {
+          "accept": "text/event-stream",
+          "authorization": "Bearer {{access_token_2}}",
+          "mcp-protocol-version": "2025-11-25"
+        }
+      },
+      "response": {
+        "status": 405,
+        "headers": {
+          "content-type": "application/json",
+          "allow": "POST",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "error": "Stateless MCP endpoint: use POST."
+        }
+      }
+    },
+    {
+      "actor": "sdk",
+      "label": "oauth session after refresh",
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "headers": {
+          "accept": "application/json, text/event-stream",
+          "authorization": "Bearer {{access_token_2}}",
+          "content-type": "application/json",
+          "mcp-protocol-version": "2025-11-25"
+        },
+        "body": "{\"method\":\"tools/call\",\"params\":{\"name\":\"amcp_tool_help\",\"arguments\":{}},\"jsonrpc\":\"2.0\",\"id\":1}"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "cache-control": "no-store"
+        },
+        "body": {
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "<text>"
+              }
+            ],
+            "structuredContent": {
+              "success": true,
+              "data": {
+                "surface": "compact-v1",
+                "tool_count": 20,
+                "gateways": ["meta_native_action", "<more>"],
+                "usage": "<text>",
+                "amcp_surface": {
+                  "tool_count": 25,
+                  "tools": "<array>",
+                  "surface_revision": "<identity>",
+                  "help_call": "<object>",
+                  "meaning": "<text>"
+                },
+                "amcp_release": {
+                  "version": "0.1.0+<build>",
+                  "package_version": "0.1.0",
+                  "source_revision": "<identity>",
+                  "artifact_sha256": "<identity>",
+                  "status_url": "/versionz"
+                },
+                "amcp_action_contracts": {
+                  "tool": "amcp_workspace",
+                  "arguments": "<object>",
+                  "meaning": "Action-level route coverage; exact-payload inspect remains mandatory."
+                },
+                "amcp_guidance": {
+                  "resources": "<array>",
+                  "tool_call": "<object>",
+                  "prompt": "amcp_build_campaign",
+                  "qualification": "<text>"
+                },
+                "amcp_extensions": {
+                  "gateways": "<array>"
+                }
+              },
+              "meta": {
+                "requestId": "<uuid>",
+                "latencyMs": "<time>"
+              }
+            }
+          },
+          "jsonrpc": "2.0",
+          "id": 1
+        }
+      }
+    }
+  ]
+}

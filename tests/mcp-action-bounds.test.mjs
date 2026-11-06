@@ -5,7 +5,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
-import {contractsMarkdown} from '../dist/src/first-party-contracts.js';
+import {contractsMarkdown, firstPartyContract, toolActions} from '../dist/src/first-party-contracts.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const names = {
@@ -93,6 +93,34 @@ test('bounded local list handlers refuse one past their maximum and accept the m
     const valid = await f.call(tool, {action, limit: max});
     assert.equal(valid.success, true, tool + ' ' + JSON.stringify(valid.error));
   }
+  assert.equal(f.requests(), 0);
+});
+// F-L3-08: a client validating against tools/list sees one flat limit per tool. For the tools whose paged actions take far
+// less than that maximum (the overview lists 100 and reads 500 rows; media lists 100 and reads up to 1,000), the flat
+// description gives the common limit and the exceptions, and points to the action help for the rest. No schema bound
+// changes: that would reject calls the larger actions accept.
+test('the flat limit says what most actions take, and agrees with the maxima of the action contracts', async t => {
+  const f = fixture(t);
+  for (const name of ['amcp_reporting_overview', 'amcp_media']) {
+    const tool = f.service.firstPartyTools().find(item => item.name === name),
+      flat = tool.inputSchema.properties.limit,
+      description = flat.description ?? '';
+    assert.match(description, /see action help/, name);
+    const maxima = new Set(
+      toolActions(tool)
+        .filter(action => action !== null)
+        .map(action => firstPartyContract(tool, action).argumentsSchema.properties.limit?.maximum)
+        .filter(Number.isInteger),
+    );
+    assert.ok(maxima.size > 1, name + ' has actions with different maxima');
+    for (const maximum of maxima) assert.ok(description.includes(String(maximum)), name + ' names ' + maximum);
+    assert.ok(description.includes(String(flat.maximum)), name + ' names its schema maximum');
+  }
+  // What the overview's description says about its list actions, probed at the edge (the 500-row reads of get are
+  // probed against a real snapshot in tests/mcp-overview-description.test.mjs). Nothing is sent to a provider.
+  const overview = 'amcp_reporting_overview';
+  assertRefused(await f.call(overview, {action: 'list', limit: 101}), 'INVALID_PAGE');
+  assert.equal((await f.call(overview, {action: 'list', limit: 100})).success, true);
   assert.equal(f.requests(), 0);
 });
 test('the flat media tag accepts the library handler limit of 200 characters', async t => {

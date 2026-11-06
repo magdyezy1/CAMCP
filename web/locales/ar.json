@@ -4989,6 +4989,8 @@
   "Request body exceeds the configured size limit.": "يتجاوز محتوى الطلب حد الحجم المضبوط.",
   "Request body is not valid JSON.": "محتوى الطلب ليس بصيغة JSON صالحة.",
   "Request could not be processed.": "تعذّرت معالجة الطلب.",
+  "The request body uses a content encoding or character set AMCP does not accept. Send UTF-8 JSON, plain or compressed with gzip, deflate or br.": "يستخدم محتوى الطلب ترميز محتوى أو مجموعة محارف لا يقبلها AMCP. أرسل JSON بترميز UTF-8، عاديًا أو مضغوطًا بصيغة gzip أو deflate أو br.",
+  "The request body could not be decoded. Check that it matches its Content-Encoding.": "تعذّر فك ترميز محتوى الطلب. تأكد من أنه يطابق قيمة Content-Encoding.",
   "Send each part as application/octet-stream.": "أرسل كل جزء بنوع المحتوى application/octet-stream.",
   "AMCP is receiving many uploads right now. Send this part again in a moment.": "يتلقى AMCP عددًا كبيرًا من عمليات الرفع حاليًا. أعد إرسال هذا الجزء بعد قليل.",
   "The part is longer than it said.": "حجم الجزء أكبر من الحجم الذي صُرّح به.",

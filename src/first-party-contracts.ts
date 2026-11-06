@@ -93,7 +93,8 @@ const helpRow = () =>
     'Full description, argument notes, limits and examples of this tool; read-only.',
     [],
     ['topic'],
-    reads(),
+    // AMCP's own definitions and guides: no provider request, whatever the tool's other actions do (F-L3-09).
+    local,
     'reader',
   );
 
@@ -1336,9 +1337,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'save_presentation',
-      'Saves a snapshot’s presentation (labels, order, notes).',
-      ['id', 'presentation', 'confirmed'],
-      ['presentation_revision'],
+      'Saves a snapshot’s presentation: brand name, accent colour, footer, layout (standard or compact) and file language.',
+      ['id', 'presentation', 'presentation_revision', 'confirmed'],
+      [],
       saves('report_presentation'),
       'operator',
       [[O, 'report_pack']],
@@ -1356,8 +1357,8 @@ const rows: Record<string, Row[]> = {
     row(
       'apply_profile_presentation',
       'Applies a client profile’s report presentation to a snapshot.',
-      ['id', 'profile_id', 'confirmed'],
-      ['profile_revision', 'presentation_revision'],
+      ['id', 'profile_id', 'profile_revision', 'presentation_revision', 'confirmed'],
+      [],
       saves('report_presentation'),
       'operator',
       [[O, 'report_pack']],
@@ -1458,7 +1459,7 @@ const rows: Record<string, Row[]> = {
       'get',
       'One snapshot with a page of rows, its exports and deliveries.',
       ['id'],
-      ['offset', 'limit'],
+      ['offset', 'limit', 'include'],
       local,
       'reader',
       [[O, 'report_pack']],
@@ -1559,8 +1560,8 @@ const rows: Record<string, Row[]> = {
     row(
       'bind_file_destination',
       'Binds an encrypted local PDF/XLSX file destination.',
-      ['file_destination', 'confirmed'],
-      ['idempotency_key'],
+      ['file_destination', 'idempotency_key', 'confirmed'],
+      [],
       saves('report_file_destination'),
       'operator',
       [[O, 'export']],
@@ -1570,9 +1571,9 @@ const rows: Record<string, Row[]> = {
     ]),
     row(
       'resolve_delivery',
-      'Resolves an unconfirmed Sheets delivery after its settle window (release the tab, or keep it).',
-      ['delivery_id', 'resolution', 'confirmed'],
-      [],
+      'Checks, resends or releases the unconfirmed Sheets delivery of a destination; resend and release open after its settle window.',
+      ['destination_id', 'resolution', 'confirmed'],
+      ['delivery_id'],
       saves('sheets_delivery'),
       'operator',
       [[O, 'export_status']],
@@ -2015,6 +2016,24 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref".',
     gateway: 'execute: the review’s own gateway, when sent.',
     connection_id: 'execute: the review’s own connection, when sent.',
+  },
+  // The rules the tool description carried until F-LEAD-01, each with the action it belongs to.
+  [O]: {
+    include:
+      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage. Without them rows and sources are compact.',
+    compare:
+      'run: previous_period also queues the equal-length window that ends the day before as a linked baseline snapshot with its own collection limits. Both count toward the 100 active reporting jobs.',
+    baseline_id:
+      'compare: the earlier retained snapshot to compare with; without it the snapshot’s previous-period pair is used. compare_candidates lists the snapshots that qualify, each with the rule it fails.',
+    resolution:
+      'resolve_delivery: check rereads the tab’s delivery marker; resend requeues that report’s export once the 10-minute settle window has passed; abandon releases the tab after the same window (audited), and with no unconfirmed delivery it releases a tab with a conflicting marker. delete_report: abandon releases the unconfirmed delivery and deletes the snapshot together; without it the delete is refused.',
+    file_destination:
+      'bind_file_destination: {name, formats: ["pdf"], ["xlsx"] or both, presentation?: {brand_name, accent_color, footer, template, artifact_language}}. It saves a local encrypted-file destination with no Sheets login and no external recipients; export and schedule accept its destination_id.',
+    presentation_revision:
+      'save_presentation and apply_profile_presentation: the snapshot’s current presentation_revision, 0 when none has been saved.',
+    profile_revision:
+      'apply_profile_presentation: the exact revision of the approved client profile, as presentation_profiles lists it.',
+    move_version: 'move_workbook_schedule: the move_version that preview_workbook_move returned.',
   },
 };
 /** The AMCP tools the table covers. */

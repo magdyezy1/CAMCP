@@ -234,7 +234,7 @@ function campaignPromptText(guide: string, request: string | undefined): string 
     index = (id: string) =>
       '\n\n## Sections of amcp://guides/' +
       id +
-      '\n\nRead one with amcp_tool_help {topic: "guides/' +
+      '\n\nRead one with amcp_workspace {action: "help", topic: "guides/' +
       id +
       '/<section id>"} or the whole guide as the resource.\n' +
       guideSections(id)

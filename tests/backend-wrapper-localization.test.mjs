@@ -321,8 +321,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // F-L3-10 (previews) adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
   // preview route (the module's other refusals already had Arabic).
   // F-L3-06 (previews) adds four: the count the previews panel announces for a page, one and several, first and further.
-  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21.
-  assert.equal(Object.keys(catalog).length, 11781);
+  // F-L4-13 (mcp) adds two: the Arabic of the body-encoding refusals of server/http-app.ts, which are direct reasons, not
+  // wrapper reasons.
+  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2.
+  assert.equal(Object.keys(catalog).length, 11783);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

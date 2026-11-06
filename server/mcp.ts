@@ -51,36 +51,60 @@ export function toolOutputSchema(tool: string): JsonObject {
     required: ['success'],
   };
 }
-/** Per-request hooks of the HTTP endpoint: `track` sees each tool call's work until it settles (SEC-02 in-flight cap). */
+/**
+ * Per-request hooks of the HTTP endpoint: `track` sees each tool call's work until it settles (SEC-02 in-flight cap).
+ * `era` is the protocol era the server will serve, which the serving entries (`createMcpHandler`, `serveStdio`) report
+ * in their factory's context; a server made for a legacy transport is the default.
+ */
 export interface McpServerHooks {
   track?: <T>(work: Promise<T>) => Promise<T>;
-  /** A stdio factory selects modern framing before connecting its shared transport. */
-  legacyGuideErrors?: boolean;
+  era?: 'legacy' | 'modern';
 }
 /** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). */
 export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
 /** What the server offers in both protocol eras; server/discover of the 2026-07-28 handler reports the same. */
 export const mcpServerCapabilities = () => ({tools: {}, resources: {}, prompts: {}});
-/** The instructions each server was created with, so server/discover (2026-07-28) answers what initialize does. */
-const createdInstructions = new WeakMap<Server, string>();
-export const mcpServerInstructions = (server: Server) => createdInstructions.get(server);
+/**
+ * The caching hints of the 2026-07-28 revision, the same on every transport (HTTP and stdio). Lists and guides change
+ * only with a release, but what a caller sees depends on their role, so they are private; server/discover describes the
+ * deployment and not the caller, so it is public. The SDK stamps these on the results it builds; the legacy revisions
+ * have no such fields and are never affected.
+ */
+export const mcpCacheHints = {
+  'server/discover': {ttlMs: 3600000, cacheScope: 'public'},
+  'tools/list': {ttlMs: 300000, cacheScope: 'private'},
+  'prompts/list': {ttlMs: 300000, cacheScope: 'private'},
+  'resources/list': {ttlMs: 300000, cacheScope: 'private'},
+  'resources/templates/list': {ttlMs: 300000, cacheScope: 'private'},
+  'resources/read': {ttlMs: 300000, cacheScope: 'private'},
+} as const;
 export function createMcpServer(service: MirrorService, actor: Actor, hooks: McpServerHooks = {}) {
   // Orientation for every client, pinned at 2,000 characters (MCP-06), in the deployment's mode: a read-only one offers
   // amcp_write inspect only, so its instructions never send a client to prepare or execute.
   const instructions = serverInstructionsFor(service.policy),
-    server = new Server(mcpServerInfo(), {capabilities: mcpServerCapabilities(), instructions});
+    server = new Server(mcpServerInfo(), {
+      capabilities: mcpServerCapabilities(),
+      instructions,
+      cacheHints: mcpCacheHints,
+    });
   const connect = server.connect.bind(server);
   server.connect = transport =>
     connect(
-      hooks.legacyGuideErrors !== false && !(transport instanceof PerRequestHTTPServerTransport)
+      hooks.era !== 'modern' && !(transport instanceof PerRequestHTTPServerTransport)
         ? keepLegacyGuideErrors(transport)
         : transport,
     );
-  createdInstructions.set(server, instructions);
   server.setRequestHandler('resources/list', async () => {
     service.store.assertActorActive(actor);
     return {resources: guidanceResources};
   });
+  // 2026-07-28 clients ask for resource templates (the guides are to be served as templates); AMCP has none yet. The
+  // earlier revisions never answered this method on AMCP, and keep not doing so.
+  if (hooks.era === 'modern')
+    server.setRequestHandler('resources/templates/list', async () => {
+      service.store.assertActorActive(actor);
+      return {resourceTemplates: []};
+    });
   server.setRequestHandler('resources/read', async request => {
     service.store.assertActorActive(actor);
     try {

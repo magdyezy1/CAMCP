@@ -210,14 +210,29 @@ its own login customer (it is never replaced from the environment).
 
 MCP-03, recorded 2026-10-11: `AMCP_MCP_MODERN_PROTOCOL` stays `off` by default. `next` serves MCP 2026-07-28 at
 `/mcp/next` for the ACC-02 client checks; `on` waits for that ACC-02 evidence (each must-pass client connects through
-`/mcp/next`). `server/mcp-modern.ts` frames 2026-07-28 by hand and is interim: it is to be replaced by the SDK's v2
-`createMcpHandler` once a v2 dependency is approved ([OAuth hardening](OAUTH-HARDENING.md), "Still open"). Accepted
+`/mcp/next`). The SDK's v2 `createMcpHandler` serves 2026-07-28; what AMCP keeps in front of it is recorded in the
+next paragraph ([OAuth hardening](OAUTH-HARDENING.md), "Protocol 2026-07-28"). Accepted
 residual: the per-address registration key is one IPv6 /64, so a sender with many addresses can hold the daily
 registration limit for up to a day; metadata-document clients and existing connections are unaffected
 ([threat model](review/THREAT-MODEL.md), T9). OAuth `error_description` sentences from `/authorize`, `/register`,
 `/token` and `/revoke` (including the two registration-limit sentences) are protocol output for OAuth clients and
 stay English, as the existing OAuth descriptions are; no AMCP page displays them, and an AI client that shows one shows
 it as received.
+
+V2-MCP-13, recorded 2026-11-06 (replaces the earlier note that the hand-written module was interim): one strict
+`createMcpHandler` (`legacy: 'reject'`) is built when the app starts and is told the caller with each request;
+AMCP returns its answers unchanged. What stays in front of it is what a bare handler does not do the way AMCP
+publishes it: AMCP's validator, whose refusals carry `data.code` and `data.header` (pinned by
+`tests/mcp-client-conformance.test.ts`; the SDK answers the same cases with other data and some other codes);
+`server/discover`, which names all six served revisions where the SDK's answer names one; and the version and
+`Mcp-Method` check of a notification, which the SDK's handler makes too. Measured as dead or duplicate and removed: the
+`-32002` remap and the connection-closed catch; the `resultType` and identity stamps, which turned an `input_required`
+result into `complete`; the per-request caching hints, now the server's `cacheHints` (300000 ms private for lists, reads
+and templates, 3600000 public for discovery), shared with stdio; and `responseMode: 'json'`, which dropped the progress
+V2-MCP-02 needs and warned on every request. `resources/templates/list` is a registered handler for the modern era; the
+earlier revisions answer as before and stay on AMCP's own transport. Stdio follows the same flag: unset or `off`
+serves the earlier revisions only, `next` and `on` also the modern one, and its `server/discover` names the one
+revision the connection is pinned to.
 
 Also applied in waves 1 to 3b (first recorded 2026-10-11 at the wave 2 gate): the parts of P5, P6, P7 and P9 that the
 code cites as owner decisions, as approved on 2026-10-11 ([P1–P12](#2026-10-11-product-direction-p1p12)) or, where

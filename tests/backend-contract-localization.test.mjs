@@ -338,8 +338,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Eight direct X analytics entity/window/continuation refusals retain exact authored diagnostics.
   // Apple's campaign bound and Snapchat's zone-naming refusal are two more owned reasons; X's zone refusal replaces its own.
   // V2-RPT-04 (objectives, F-L2-07) keeps LinkedIn's "incomplete or at its response limit" sentence in one shared constant,
-  // which is not a directly authored refusal reason: one fewer (1631 + 2 - 1).
-  assert.equal(owned.size, 1632);
+  // which is not a directly authored refusal reason: one fewer.
+  // F-L4-13 (mcp) adds two owned reasons in server/http-app.ts: the refusal of a body encoding or character set AMCP does
+  // not accept (415) and of a body that cannot be decoded (400): 1631 + 2 - 1 + 2.
+  assert.equal(owned.size, 1634);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -370,8 +372,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // F-L3-10 (previews) adds seventeen: seven refusals and six notices of the previews tool, and the four platforms without a
   // preview route (the module's other refusals already had Arabic).
   // F-L3-06 (previews) adds four: the count the previews panel announces for a page, one and several, first and further.
-  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21.
-  assert.equal(Object.keys(catalog).length, 11781);
+  // F-L4-13 (mcp) adds two: the Arabic of the two body-encoding refusals above.
+  // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2.
+  assert.equal(Object.keys(catalog).length, 11783);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

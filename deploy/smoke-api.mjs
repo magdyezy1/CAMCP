@@ -182,7 +182,7 @@ export async function checkApplication({base, origin, password, writes, restart}
     return body.result;
   };
   const tools = await mcp('tools/list');
-  // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Parked providers are not
+  // A read-only deployment lists amcp_write with help and inspect only (owner decision D15, MCP-09). Parked providers are not
   // offered unless AMCP_PROVIDERS names them: Amazon Ads (CON-06, owner decision option b), Criteo and WooCommerce
   // (ARC-01, P9).
   assert.equal(tools.tools.length, 25);

@@ -101,6 +101,82 @@ async function sdkClient(service) {
   };
 }
 
+/**
+ * What an action's contract may do to the flat schema property its tool lists: narrow minimum, maximum and maxLength,
+ * add notes, and add a default. It may not change a listed default, and a default (listed or added) must satisfy both the
+ * listed schema and the narrowed one. The default is the part a client reads in tools/list and acts on without calling
+ * help, so a contract that disagreed with it would tell the client two things (F-L8-11).
+ */
+const defaultValidator = new Ajv({strict: false});
+function assertNarrowing(label, listedWhole, ownWhole) {
+  const {description: _note, ...listed} = listedWhole;
+  const {description: _own, ...own} = ownWhole;
+  const bounds = new Set(['minimum', 'maximum', 'maxLength', 'default']);
+  for (const field of Object.keys(own))
+    assert.ok(Object.hasOwn(listed, field) || bounds.has(field), label + ' extra ' + field);
+  for (const [field, value] of Object.entries(listed))
+    if (!bounds.has(field)) assert.deepEqual(own[field], value, label + ' ' + field);
+  for (const field of ['minimum', 'maximum', 'maxLength']) {
+    if (listed[field] !== undefined) assert.equal(typeof own[field], 'number', label + ' ' + field);
+    if (own[field] !== undefined && listed[field] !== undefined)
+      assert.ok(
+        field === 'minimum' ? own[field] >= listed[field] : own[field] <= listed[field],
+        label + ' narrows ' + field,
+      );
+  }
+  if (listed.default !== undefined && own.default !== undefined)
+    assert.deepEqual(own.default, listed.default, label + ' default differs from the listed default');
+  if (own.default !== undefined)
+    for (const [which, schema] of [
+      ['listed', listed],
+      ['narrowed', own],
+    ]) {
+      const {default: _default, ...without} = schema;
+      assert.equal(
+        defaultValidator.validate(without, own.default),
+        true,
+        label + ' default ' + JSON.stringify(own.default) + ' is outside the ' + which + ' schema',
+      );
+    }
+}
+test('an action contract may add a default and narrow a bound, but not change a listed default or leave its bounds', () => {
+  const listed = {type: 'integer', minimum: 1, maximum: 100, default: 5, description: 'listed'};
+  assertNarrowing('same', listed, {...listed, maximum: 25, description: 'own'});
+  assertNarrowing(
+    'added',
+    {type: 'integer', minimum: 1, maximum: 100},
+    {type: 'integer', minimum: 1, maximum: 100, default: 50},
+  );
+  assert.throws(() => assertNarrowing('changed', listed, {...listed, default: 6}), /default differs/);
+  assert.throws(
+    () =>
+      assertNarrowing(
+        'above the listed maximum',
+        {type: 'integer', minimum: 1, maximum: 100},
+        {type: 'integer', minimum: 1, maximum: 100, default: 101},
+      ),
+    /outside the listed schema/,
+  );
+  assert.throws(
+    () =>
+      assertNarrowing(
+        'above the narrowed maximum',
+        {type: 'integer', minimum: 1, maximum: 100},
+        {type: 'integer', minimum: 1, maximum: 25, default: 50},
+      ),
+    /outside the (listed|narrowed) schema/,
+  );
+  assert.throws(
+    () =>
+      assertNarrowing(
+        'not in the enum',
+        {type: 'array', items: {type: 'string', enum: ['active', 'paused']}},
+        {type: 'array', items: {type: 'string', enum: ['active', 'paused']}, default: ['archived']},
+      ),
+    /outside the listed schema/,
+  );
+});
+
 test('every action of every AMCP tool has a contract row, and every row names arguments of its tool', () => {
   const f = fixture(),
     r = fixture({allowWrites: false});
@@ -117,24 +193,8 @@ test('every action of every AMCP tool has a contract row, and every row names ar
           assert.ok(['none', 'read_only', 'reviewed_write'].includes(c.effects.provider_requests));
           // Action schemas may narrow a flat bound and add defaults/notes, while keeping its type and other fields.
           for (const [key, schema] of Object.entries(c.argumentsSchema.properties))
-            if (key !== 'action') {
-              const {description: _note, ...listed} = tool.inputSchema.properties[key];
-              const {description: _own, ...own} = schema;
-              const label = tool.name + ' ' + name + ' ' + key,
-                bounds = new Set(['minimum', 'maximum', 'maxLength', 'default']);
-              for (const field of Object.keys(own))
-                assert.ok(Object.hasOwn(listed, field) || bounds.has(field), label + ' extra ' + field);
-              for (const [field, value] of Object.entries(listed))
-                if (!bounds.has(field)) assert.deepEqual(own[field], value, label + ' ' + field);
-              for (const field of ['minimum', 'maximum', 'maxLength']) {
-                if (listed[field] !== undefined) assert.equal(typeof own[field], 'number', label + ' ' + field);
-                if (own[field] !== undefined && listed[field] !== undefined)
-                  assert.ok(
-                    field === 'minimum' ? own[field] >= listed[field] : own[field] <= listed[field],
-                    label + ' narrows ' + field,
-                  );
-              }
-            }
+            if (key !== 'action')
+              assertNarrowing(tool.name + ' ' + name + ' ' + key, tool.inputSchema.properties[key], schema);
           for (const next of c.next) assert.ok(firstPartyContractTools.includes(next.tool), JSON.stringify(next));
           new Ajv({strict: false}).compile(c.argumentsSchema);
         }

@@ -10,7 +10,13 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionArgumentCheck, firstPartyContract, toolActions} from '../dist/src/first-party-contracts.js';
-import {guidanceDiscovery} from '../dist/src/guidance.js';
+import {
+  buildCampaignPrompt,
+  campaignPlatforms,
+  guidanceDiscovery,
+  guidanceResources,
+  readGuidance,
+} from '../dist/src/guidance.js';
 import {serverInstructionsFor} from '../dist/src/tool-annotations.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
@@ -79,6 +85,37 @@ test('every first-party tool answers help with full text, action contracts and e
     }
 });
 
+// F-L3-09: help reads AMCP's own definitions and guides. Its contract said "provider reads", and its result was labelled
+// untrusted provider content, with a workflow record of state "inspect" on three tools: all three describe a provider
+// effect that does not exist (the annotations already said closed-world).
+test('a first-party tool’s own help is local: no provider request in its contract, no provider-content label, no workflow record', async t => {
+  for (const policy of policies) {
+    const f = fixture(t, policy);
+    for (const tool of f.service.firstPartyTools()) {
+      assert.equal(firstPartyContract(tool, 'help').effects.provider_requests, 'none', tool.name);
+      assert.deepEqual(firstPartyContract(tool, 'help').effects.saves, [], tool.name);
+      const topics = [undefined, ...toolActions(tool).filter(action => action !== null)];
+      if (tool.name === 'amcp_workspace') topics.push('guides', 'guides/workspace');
+      for (const topic of topics) {
+        const result = await f.call(tool.name, {action: 'help', ...(topic ? {topic} : {})});
+        assert.equal(result.success, true, tool.name + ' ' + topic + ' ' + JSON.stringify(result.error));
+        const label = tool.name + ' help ' + (topic ?? '(root)');
+        assert.equal(result.meta.untrusted_provider_content, undefined, label);
+        assert.equal(result.meta.untrusted_paths, undefined, label);
+        assert.equal(result.meta.workflow, undefined, label);
+      }
+    }
+    assert.equal(f.requests(), 0);
+  }
+});
+test('an action of the same tools other than help still carries the provider-content label and its workflow record', async t => {
+  const f = fixture(t, policies[0]);
+  const capabilities = await f.call('amcp_workspace', {action: 'capabilities'});
+  assert.equal(capabilities.success, true, JSON.stringify(capabilities.error));
+  assert.match(capabilities.meta.untrusted_provider_content, /never as instructions/i);
+  assert.deepEqual(capabilities.meta.untrusted_paths, ['data']);
+  assert.equal(capabilities.meta.workflow.state, 'inspect');
+});
 test('workspace help serves guides one section at a time within the response budget', async t => {
   const f = fixture(t, policies[1]),
     list = await f.call('amcp_workspace', {action: 'help', topic: 'guides'});
@@ -160,6 +197,30 @@ test('descriptions, instructions and handed-out discovery calls fit their listed
     }
 });
 
+// F-L3-02: the campaign prompt told the model to call amcp_tool_help {topic: ...}, which the frozen schema (D17) does not
+// list, so a client that validates arguments refuses it. Prompts and guides are read by clients exactly as descriptions
+// are, so they are held to the same rule.
+test('the campaign prompt of every platform and every guide name only arguments their tools list', async t => {
+  for (const policy of policies) {
+    const f = fixture(t, policy),
+      tools = f.service.listTools();
+    let snippets = 0;
+    // Every prompt carries at least the workspace guide's section index, which is a call.
+    for (const platform of campaignPlatforms) {
+      const found = assertSnippetsFit(buildCampaignPrompt({platform}).messages[0].content.text, tools);
+      assert.ok(found > 0, platform + ' prompt names no tool call, so the scan proves nothing');
+      snippets += found;
+    }
+    for (const resource of guidanceResources) snippets += assertSnippetsFit(readGuidance(resource.uri).text, tools);
+    assert.ok(snippets > campaignPlatforms.length, 'the guides name tool calls too');
+  }
+});
+test('the campaign prompt reads a guide section through the listed workspace help', () => {
+  // Long guides are listed by section; the call that reads one must be valid against amcp_workspace.
+  const prompt = buildCampaignPrompt({platform: 'meta', request: 'x'.repeat(5000)}).messages[0].content.text;
+  assert.match(prompt, /Read one with amcp_workspace \{action: ?"help", ?topic: ?"guides\/[a-z0-9-]+\/<section id>"\}/);
+  assert.doesNotMatch(prompt, /amcp_tool_help \{topic/);
+});
 test('an MCP SDK client can call every listed own-help endpoint in all policy modes', async t => {
   for (const policy of policies) {
     const f = fixture(t, policy),
@@ -183,6 +244,42 @@ test('an MCP SDK client can call every listed own-help endpoint in all policy mo
   }
 });
 
+// The Claude API refuses a root-level anyOf, oneOf, allOf or not in a tool's input schema, and a client that forwards
+// the listed schema unchanged then fails every request that carries the tool list, not only calls to that tool
+// (F-L3-01). The rules a combinator used to state ("help, or platform and account"; "help, or gateway and arguments")
+// are the handlers' to enforce, and are pinned below by their refusals.
+const rootCombinators = ['anyOf', 'oneOf', 'allOf', 'not'];
+const rootCombinatorsOf = tool => rootCombinators.filter(keyword => Object.hasOwn(tool.inputSchema, keyword));
+test('no listed tool input schema has a root-level combinator, in any policy mode or description mode', async t => {
+  for (const policy of policies)
+    for (const compactDescriptions of [true, false]) {
+      const f = fixture(t, policy, {compactDescriptions}),
+        label = JSON.stringify({policy, compactDescriptions});
+      const listed = f.service.listTools();
+      assert.ok(listed.length >= 25, label + ' lists the whole surface');
+      for (const tool of listed) assert.deepEqual(rootCombinatorsOf(tool), [], label + ' service listing ' + tool.name);
+      // What a client receives over the wire is the same schema, and it is what a client forwards to the API.
+      const server = createMcpServer(f.service, f.actor),
+        client = new Client({name: 'synthetic-root-combinators', version: '1'}),
+        [a, b] = InMemoryTransport.createLinkedPair();
+      await Promise.all([server.connect(b), client.connect(a)]);
+      try {
+        const wire = (await client.listTools()).tools;
+        assert.deepEqual(
+          wire.map(tool => tool.name),
+          listed.map(tool => tool.name),
+        );
+        for (const tool of wire) {
+          assert.equal(tool.inputSchema.type, 'object', label + ' wire ' + tool.name);
+          assert.deepEqual(rootCombinatorsOf(tool), [], label + ' wire listing ' + tool.name);
+        }
+      } finally {
+        await client.close();
+        await server.close();
+      }
+    }
+});
+
 test('preview default calls stay distinct from help and read-only inspect keeps its required arguments', async t => {
   const f = fixture(t, policies[1], {actionArguments: 'enforce'}),
     preview = f.service.firstPartyTools().find(tool => tool.name === 'amcp_ad_previews'),
@@ -193,11 +290,19 @@ test('preview default calls stay distinct from help and read-only inspect keeps 
   assert.deepEqual(toolActions(preview), [null, 'help']);
   assert.equal(validatePreview({action: 'help', topic: 'help'}), true);
   assert.equal(validatePreview({platform: 'meta', account_id: 'synthetic-account'}), true);
-  assert.equal(validatePreview({}), false);
-  assert.ok(validatePreview.errors.some(e => e.keyword === 'required'));
   assert.equal(validateWrite({action: 'help'}), true);
-  assert.equal(validateWrite({action: 'inspect'}), false);
-  assert.ok(validateWrite.errors.some(e => e.keyword === 'required'));
+  // The listed schemas no longer state which arguments a default call needs (no root combinator); the handlers refuse a
+  // call that lacks them, before any provider read, with the same code the schema's required list used to imply.
+  assert.deepEqual(preview.inputSchema.required, []);
+  assert.deepEqual(write.inputSchema.required, ['action']);
+  // F-L3-12 (previews) checks the platform before anything else, so an empty call is told to choose a platform, not an account.
+  assertRefused(await f.call(preview.name, {}), 'INVALID_ARGUMENT', {message: /platform/});
+  assertRefused(await f.call(preview.name, {platform: 'meta'}), 'INVALID_ARGUMENT', {message: /advertising account/});
+  assertRefused(await f.call(preview.name, {account_id: 'synthetic-account'}), 'INVALID_ARGUMENT', {
+    message: /platform/,
+  });
+  assertRefused(await f.call(write.name, {action: 'inspect'}), 'INVALID_ARGUMENT');
+  assertRefused(await f.call(write.name, {action: 'inspect', gateway: 'meta_native_action'}), 'INVALID_ARGUMENT');
   const root = await f.call(preview.name, {action: 'help'});
   assert.equal(root.success, true, JSON.stringify(root.error));
   assert.deepEqual(root.data.contract.arguments_schema.required, ['platform', 'account_id']);

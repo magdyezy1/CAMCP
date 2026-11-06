@@ -196,10 +196,16 @@
       "raised": [
         "reference_words 149582 → 149795"
       ]
+    },
+    {
+      "reason": "mcp package (V2-MCP-13: F-L4-01, F-L4-04, F-L4-11), merged onto stored, tiktok, objectives, levels and previews: docs/DECISIONS.md records what stays in front of the SDK handler and why, replacing the note that the module was interim (about 210 words); docs/OAUTH-HARDENING.md adds the notification check and the stdio flag (about 40 words); 248 recorded words, plus the 3 words of headroom the earlier packages had already used, so 251 words on the merged pages",
+      "raised": [
+        "reference_words 149795 → 150046"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 149795
+    "reference_words": 150046
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

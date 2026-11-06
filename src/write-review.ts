@@ -154,13 +154,13 @@ export const readOnlyWriteTool = {
     'Use this to check whether a single advertising or measurement change has a reviewed write contract. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only: prepare and execute are refused, and its operator can enable reviewed writes. This is an AMCP extension, not a captured AMCP tool.',
   inputSchema: {
     type: 'object',
+    // No root combinator: the Claude API refuses one. The handler enforces "help, or gateway and arguments".
     required: ['action'],
-    anyOf: [{properties: {action: {const: 'help'}}}, {required: ['gateway', 'arguments']}],
     properties: {
       action: {type: 'string', enum: ['help', 'inspect']},
       topic: writeTool.inputSchema.properties.topic,
-      gateway: writeTool.inputSchema.properties.gateway,
-      arguments: writeTool.inputSchema.properties.arguments,
+      gateway: {...writeTool.inputSchema.properties.gateway, description: 'Required unless action is help.'},
+      arguments: {...writeTool.inputSchema.properties.arguments, description: 'Required unless action is help.'},
       connection_id: writeTool.inputSchema.properties.connection_id,
       evidence: writeTool.inputSchema.properties.evidence,
     },

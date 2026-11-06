@@ -1,28 +1,34 @@
-import type {IncomingHttpHeaders} from 'node:http';
+import type {IncomingHttpHeaders, ServerResponse} from 'node:http';
 import {
   createMcpHandler,
-  SdkError,
-  SdkErrorCode,
   SUPPORTED_PROTOCOL_VERSIONS,
-  type Server,
+  type AuthInfo,
+  type McpServerFactory,
 } from '@modelcontextprotocol/server';
 import {MirrorError} from '../src/errors.js';
-import type {JsonObject} from '../src/types.js';
-import {mcpServerCapabilities, mcpServerInfo, mcpServerInstructions} from './mcp.js';
+import type {Actor, JsonObject} from '../src/types.js';
+import {createMcpServer, mcpCacheHints, mcpServerCapabilities, mcpServerInfo, type McpServerHooks} from './mcp.js';
+import type {MirrorService} from '../src/service.js';
+import {serverInstructionsFor} from '../src/tool-annotations.js';
 
 /**
- * MCP revision 2026-07-28 next to the legacy revisions (MCP-03 phase 3, V2-MCP-13). SDK v2's native per-request handler
- * supplies modern framing and handler context; AMCP retains its published ingress errors, private caching rules and
- * legacy discovery list. Both eras share every tool/resource/prompt handler and authority check:
- * - every request carries its version in `params._meta` and the `MCP-Protocol-Version` header, with `Mcp-Method` and,
- *   for tools/call, resources/read and prompts/get, `Mcp-Name` mirroring the body; a mismatch is 400 with -32020;
- * - an unsupported version is 400 with -32022 and the supported versions; an unknown method is 404 with -32601;
- * - `server/discover` reports the versions, capabilities, server identity and instructions;
- * - results carry `resultType` and the server identity, and list and read results carry caching hints (`private`,
- *   since what is listed depends on the caller's role).
- * A request is modern when its header or `_meta` names a version that is not a legacy one; `initialize` and every
- * other request stay with the SDK's legacy transport. The handler runs at /mcp/next, and at /mcp too once the owner
- * sets AMCP_MCP_MODERN_PROTOCOL=on after the client checks of ACC-02.
+ * MCP revision 2026-07-28 next to the legacy revisions (MCP-03 phase 3, V2-MCP-13). The SDK's strict
+ * `createMcpHandler` serves the revision: it builds one server per request from AMCP's factory, dispatches the
+ * request to the same tool, resource and prompt handlers the legacy transport uses, and frames the result itself
+ * (`resultType`, the server identity, and the caching hints of the server's `cacheHints`, which AMCP sets in
+ * server/mcp.ts for HTTP and stdio alike). What AMCP keeps in front of it is what the SDK does not do the way AMCP's
+ * published contract needs; docs/DECISIONS.md records each with its measurement:
+ * - the ingress checks, whose refusals carry AMCP's code and the offending header in the error data:
+ *   - every request carries its version in `params._meta` and the `MCP-Protocol-Version` header, with `Mcp-Method` and,
+ *     for tools/call, resources/read and prompts/get, `Mcp-Name` mirroring the body; a mismatch is 400 with -32020;
+ *   - an unsupported version is 400 with -32022 and the supported versions; an unknown method is 404 with -32601;
+ *   - a notification is checked for its version and its `Mcp-Method` and then accepted without a body;
+ * - `server/discover`, which names every revision this endpoint serves (the SDK's own answer names only the modern one)
+ *   and the deployment's instructions.
+ * An SDK answer is returned as it is: AMCP does not parse, re-frame or re-stamp it. A request is modern when its
+ * header or `_meta` names a version that is not a legacy one; `initialize` and every other request stay with the SDK's
+ * legacy transport. The handler runs at /mcp/next, and at /mcp too once the owner sets AMCP_MCP_MODERN_PROTOCOL=on
+ * after the client checks of ACC-02.
  */
 export const modernProtocolVersions: readonly string[] = ['2026-07-28'];
 /** The legacy revisions the SDK's transport serves (initialize handshake). */
@@ -36,20 +42,15 @@ export type ModernProtocolMode = (typeof modernProtocolModes)[number];
 const versionKey = 'io.modelcontextprotocol/protocolVersion',
   capabilitiesKey = 'io.modelcontextprotocol/clientCapabilities',
   serverInfoKey = 'io.modelcontextprotocol/serverInfo';
-/** Caching hints: lists and guides change only with a release, but what a caller sees depends on their role. */
-const privateList = {ttlMs: 300000, cacheScope: 'private'} as const;
-/** The methods served in the modern era, the body field `Mcp-Name` mirrors, and the caching hints of the result. */
-const modernMethods: Record<
-  string,
-  {name?: 'name' | 'uri'; cache?: {ttlMs: number; cacheScope: 'public' | 'private'}}
-> = {
-  'server/discover': {cache: {ttlMs: 3600000, cacheScope: 'public'}},
-  'tools/list': {cache: privateList},
+/** The methods served in the modern era, and the body field `Mcp-Name` mirrors. Any other method is 404 with -32601. */
+const modernMethods: Record<string, {name?: 'name' | 'uri'}> = {
+  'server/discover': {},
+  'tools/list': {},
   'tools/call': {name: 'name'},
-  'resources/list': {cache: privateList},
-  'resources/templates/list': {cache: privateList},
-  'resources/read': {name: 'uri', cache: privateList},
-  'prompts/list': {cache: privateList},
+  'resources/list': {},
+  'resources/templates/list': {},
+  'resources/read': {name: 'uri'},
+  'prompts/list': {},
   'prompts/get': {name: 'name'},
 };
 
@@ -112,12 +113,8 @@ export function discoverResult(instructions: string): JsonObject {
   };
 }
 
-/**
- * Validates a modern request against its headers and returns the method's entry, or throws the protocol error the
- * revision requires. Order: the version header, then the version in `_meta`, then the required `_meta` fields, then
- * `Mcp-Method`, the method itself and `Mcp-Name`.
- */
-function validate(headers: IncomingHttpHeaders, message: JsonObject) {
+/** The protocol version of a request: the header, which must be present and one this endpoint serves. */
+function requestedVersion(headers: IncomingHttpHeaders): string {
   const header = headers['mcp-protocol-version'];
   if (typeof header !== 'string') throw headerMismatch('MCP-Protocol-Version');
   if (!dualEraProtocolVersions.includes(header))
@@ -127,6 +124,18 @@ function validate(headers: IncomingHttpHeaders, message: JsonObject) {
       {supported: [...dualEraProtocolVersions], requested: header.slice(0, 64)},
       400,
     );
+  return header;
+}
+
+/**
+ * Validates a modern request against its headers, or throws the protocol error the revision requires. Order: the
+ * version header, then the version in `_meta`, then the required `_meta` fields, then `Mcp-Method`, the method itself
+ * and `Mcp-Name`. The SDK validates the envelope again and answers in its own terms; these checks stay because their
+ * refusals carry AMCP's code and the offending header (`data.code`, `data.header`), which clients and the conformance
+ * tests rely on (tests/mcp-client-conformance.test.ts).
+ */
+function validate(headers: IncomingHttpHeaders, message: JsonObject): void {
+  const header = requestedVersion(headers);
   const params = message.params === undefined ? {} : message.params;
   if (!isObject(params)) throw new MirrorError('MCP_PARAMS_INVALID', 'The request params must be an object.', {}, 400);
   const meta = isObject(params._meta) ? params._meta : {};
@@ -149,81 +158,137 @@ function validate(headers: IncomingHttpHeaders, message: JsonObject) {
       404,
     );
   if (method.name && mirroredHeader(headers['mcp-name']) !== params[method.name]) throw headerMismatch('Mcp-Name');
-  return {method};
+}
+
+/** A notification has no answer and no method table: AMCP checks its version and `Mcp-Method`, then accepts it. */
+function validateNotification(headers: IncomingHttpHeaders, message: JsonObject): void {
+  requestedVersion(headers);
+  if (headers['mcp-method'] !== message.method) throw headerMismatch('Mcp-Method');
+}
+
+/** What AMCP hands the SDK with each request, through `authInfo.extra`: whose request it is and its in-flight tracker. */
+export function modernAuthInfo(actor: Actor, track?: McpServerHooks['track']): AuthInfo {
+  // The bearer token stays with AMCP: the SDK is told who the caller is, never the credential.
+  return {token: '', clientId: actor.userId, scopes: [], extra: {actor, track}};
 }
 
 /**
- * Serves one modern request with the per-request MCP server `server` (already holding the caller's actor and the
- * in-flight tracking). Protocol refusals are thrown as MirrorError for the /mcp error handler, which writes them as
- * JSON-RPC errors with their status; handler errors are answered like the legacy transport does, with HTTP 200.
+ * The SDK factory of a deployment: one server per request, made for the caller `authInfo` names. A request without
+ * a caller is refused rather than served with a default, so no handler can run without an actor.
  */
-export async function serveModernRequest(
-  server: Server,
-  headers: IncomingHttpHeaders,
-  message: unknown,
-  requestUrl = 'http://localhost/mcp',
-): Promise<{status: number; body?: JsonObject}> {
-  if (!isObject(message) || message.jsonrpc !== '2.0' || typeof message.method !== 'string') throw invalidRequest();
-  // A notification is accepted without a response; this revision defines none on Streamable HTTP, and AMCP needs none.
-  if (!('id' in message)) return {status: 202};
-  if (!(typeof message.id === 'string' || Number.isSafeInteger(message.id))) throw invalidRequest();
-  const {method} = validate(headers, message),
-    identity = {[serverInfoKey]: mcpServerInfo()};
-  let response: JsonObject,
-    status = 200;
-  if (message.method === 'server/discover') {
-    // The instructions createMcpServer gave this server in its deployment's mode. A server without them was not made for
-    // a deployment; answering with another mode's text could send a read-only deployment's client to prepare and execute.
-    const instructions = mcpServerInstructions(server);
-    if (instructions === undefined) throw Error('server/discover needs a server made by createMcpServer.');
-    response = {jsonrpc: '2.0', id: message.id, result: discoverResult(instructions)};
-  } else if (message.method === 'resources/templates/list')
-    response = {jsonrpc: '2.0', id: message.id, result: {resourceTemplates: []}};
-  else {
-    const handler = createMcpHandler(() => server, {legacy: 'reject', responseMode: 'json'}),
-      requestHeaders = new Headers({'Content-Type': 'application/json', Accept: 'application/json, text/event-stream'});
-    for (const [name, value] of Object.entries(headers)) {
-      // Express already parsed this body. Its former transfer framing does not describe the new framing request.
-      if (['content-length', 'transfer-encoding', 'connection', 'keep-alive'].includes(name.toLowerCase())) continue;
-      if (Array.isArray(value)) for (const item of value) requestHeaders.append(name, item);
-      else if (value !== undefined) requestHeaders.set(name, value);
-    }
-    try {
-      const answer = await handler.fetch(
-        new Request(requestUrl, {method: 'POST', headers: requestHeaders, body: JSON.stringify(message)}),
-        {parsedBody: message},
-      );
-      // The SDK represents a disconnected exchange as an empty 499; keep AMCP's existing cancellation result.
-      if (answer.status === 499 && answer.body === null)
-        response = {jsonrpc: '2.0', id: message.id, error: {code: -32000, message: 'Connection closed'}};
-      else {
-        status = answer.status;
-        response = (await answer.json()) as JsonObject;
-      }
-    } catch (error) {
-      if (!(error instanceof SdkError && error.code === SdkErrorCode.ConnectionClosed)) throw error;
-      response = {jsonrpc: '2.0', id: message.id, error: {code: -32000, message: 'Connection closed'}};
-    } finally {
-      await handler.close();
-    }
-  }
-  if (isObject(response.error)) {
-    // 2026-07-28 reports an unknown resource with -32602; -32002 belongs to the earlier revisions.
-    const error = response.error.code === -32002 ? {...response.error, code: -32602} : response.error;
-    return {status, body: {jsonrpc: '2.0', id: message.id, error}};
-  }
-  const result = isObject(response.result) ? response.result : {};
-  return {
-    status,
-    body: {
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        ...result,
-        resultType: 'complete',
-        ...(method.cache ?? {}),
-        _meta: {...(isObject(result._meta) ? result._meta : {}), ...identity},
-      },
-    },
+export function modernServerFactory(service: MirrorService): McpServerFactory {
+  return context => {
+    const extra = context.authInfo?.extra;
+    if (!isObject(extra) || !isObject(extra.actor))
+      throw new Error('A modern MCP request needs the caller AMCP authenticated.');
+    return createMcpServer(service, extra.actor as unknown as Actor, {
+      era: context.era,
+      ...(typeof extra.track === 'function' ? {track: extra.track as McpServerHooks['track']} : {}),
+    });
   };
 }
+
+/** One modern POST as AMCP receives it: the Web request, the parsed JSON-RPC message, and the caller. */
+export interface ModernCall {
+  headers: IncomingHttpHeaders;
+  message: unknown;
+  authInfo: AuthInfo;
+}
+export interface ModernEndpoint {
+  /**
+   * Answers one modern request: AMCP's own refusal (thrown as MirrorError, which the /mcp error handler writes as a
+   * JSON-RPC error with its status), its `server/discover` answer, a 202 for a notification, or the SDK handler's
+   * answer as it is.
+   */
+  handle(request: Request, call: ModernCall): Promise<Response>;
+  /** Aborts the exchanges in flight and closes their servers. */
+  close(): Promise<void>;
+}
+/**
+ * The modern endpoint of one deployment: AMCP's ingress checks in front of one strict SDK handler built here, once
+ * (`legacy: 'reject'`: the earlier revisions are served by AMCP's own transport, never by this handler). `instructions`
+ * is the deployment's orientation, which `server/discover` reports as `initialize` does; there is no default, so an
+ * endpoint can never answer with another mode's text, which could send a read-only deployment's client to
+ * prepare and execute.
+ */
+export function createModernEndpoint(options: {
+  factory: McpServerFactory;
+  instructions: string;
+  onerror?: (error: Error) => void;
+}): ModernEndpoint {
+  if (typeof options.instructions !== 'string' || !options.instructions)
+    throw new Error('A modern MCP endpoint needs the instructions of its deployment.');
+  const handler = createMcpHandler(options.factory, {
+    legacy: 'reject',
+    ...(options.onerror ? {onerror: options.onerror} : {}),
+  });
+  return {
+    async handle(request, {headers, message, authInfo}) {
+      if (!isObject(message) || message.jsonrpc !== '2.0' || typeof message.method !== 'string') throw invalidRequest();
+      // A notification is accepted without a response; this revision defines none on Streamable HTTP, and AMCP needs none.
+      if (!('id' in message)) {
+        validateNotification(headers, message);
+        return new Response(null, {status: 202});
+      }
+      if (!(typeof message.id === 'string' || Number.isSafeInteger(message.id))) throw invalidRequest();
+      validate(headers, message);
+      if (message.method === 'server/discover')
+        // AMCP's own answer, so AMCP frames it: the same stamps the SDK puts on the results it builds.
+        return Response.json({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            ...discoverResult(options.instructions),
+            resultType: 'complete',
+            ...mcpCacheHints['server/discover'],
+            _meta: {[serverInfoKey]: mcpServerInfo()},
+          },
+        });
+      return handler.fetch(request, {authInfo, parsedBody: message});
+    },
+    close: () => handler.close(),
+  };
+}
+
+/**
+ * Writes a modern answer (a Web response) to a Node response: the status, the headers the response does not have yet
+ * (AMCP's security headers, set by its middleware, stay as set), and the body as it comes, honouring backpressure. The
+ * body is one JSON document, or an event stream when a handler sent progress or other messages before its result
+ * (the endpoint's handler answers in whichever form the request needs). A client that goes away stops the write.
+ */
+export async function sendModernResponse(res: ServerResponse, response: Response): Promise<void> {
+  res.statusCode = response.status;
+  for (const [name, value] of response.headers) if (!res.hasHeader(name)) res.setHeader(name, value);
+  if (response.body === null) {
+    res.end();
+    return;
+  }
+  // Waits for the socket to take more, or for the client to go away (a closed socket never drains).
+  const drained = () =>
+    new Promise<void>(resolve => {
+      const done = () => {
+        res.off('drain', done);
+        res.off('close', done);
+        resolve();
+      };
+      res.once('drain', done);
+      res.once('close', done);
+    });
+  try {
+    for await (const chunk of response.body) {
+      if (res.destroyed) break;
+      if (res.write(chunk) === false) await drained();
+    }
+  } catch {
+    // The client went away mid-stream: nothing more to send.
+  }
+  res.end();
+}
+
+/** The modern endpoint of a deployment's service: the SDK builds each request's server for its authenticated caller. */
+export const createDeploymentEndpoint = (service: MirrorService, onerror?: (error: Error) => void) =>
+  createModernEndpoint({
+    factory: modernServerFactory(service),
+    instructions: serverInstructionsFor(service.policy),
+    ...(onerror ? {onerror} : {}),
+  });

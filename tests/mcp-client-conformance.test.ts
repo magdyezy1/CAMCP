@@ -13,13 +13,15 @@ import {MirrorService, strictOptions} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {createHttpApp} from '../server/http-app.js';
 import {Server} from '@modelcontextprotocol/server';
+import {toWebRequest} from '@modelcontextprotocol/node';
 
 import {
+  createModernEndpoint,
   dualEraProtocolVersions,
   isModernRequest,
   mirroredHeader,
   modernProtocolModes,
-  serveModernRequest,
+  sendModernResponse,
   type ModernProtocolMode,
 } from '../server/mcp-modern.js';
 import {loadConfig, modernProtocolModeNames} from '../server/config.js';
@@ -183,7 +185,7 @@ async function modernCall(
   };
 }
 
-/** One POST in the legacy framing (no `_meta` version), as the SDK v1 client sends after initialize. */
+/** One POST in the legacy framing (no `_meta` version), as a 1.x client sends after initialize (tests/mcp-sdk-v1-exchange.test.mjs replays a recorded one). */
 async function legacyCall(f: Fixture, path: string, token: string, message: JsonObject, version = '2025-11-25') {
   const response = await fetch(f.base + path, {
     method: 'POST',
@@ -203,7 +205,7 @@ async function legacyCall(f: Fixture, path: string, token: string, message: Json
   };
 }
 
-/** The SDK v1 (1.32.1) client over Streamable HTTP, with an API key or an OAuth provider. */
+/** The SDK v2 client over Streamable HTTP, with an API key or an OAuth provider. */
 async function sdkClient(f: Fixture, path: string, credential: {token?: string; provider?: OAuthClientProvider}) {
   const client = new Client({name: 'conformance-sdk-client', version: '1.0.0'});
   await client.connect(
@@ -331,7 +333,7 @@ test('MCP-03 phase 3: legacy initialize on 2025-11-25 and 2025-06-18 is unchange
       params: {protocolVersion: modern, capabilities: {}, clientInfo: {name: 'dual', version: '1'}},
     });
     assert.equal(negotiated.body.result.protocolVersion, '2025-11-25');
-    // The SDK v1 client still connects and calls tools.
+    // The SDK v2 client still connects and calls tools.
     const client = await sdkClient(f, '/mcp', {token});
     const help = await client.callTool({name: 'amcp_tool_help', arguments: {}});
     assert.equal((help.structuredContent as JsonObject).success, true);
@@ -605,6 +607,92 @@ test('MCP-03 phase 3: 2026-07-28 framing errors use the codes and statuses that 
   }
 });
 
+// F-L4-03: a createMcpHandler built for each request wrote the SDK's responseMode warning to the console on every
+// modern request (4,148 lines in one audit run), unstructured noise in a log that treats MCP lines as outage evidence.
+test('MCP-03 phase 3: serving modern requests writes nothing to the console', async () => {
+  const f = await fixture('on'),
+    written: string[] = [],
+    original = {warn: console.warn, error: console.error, log: console.log};
+  for (const level of ['warn', 'error', 'log'] as const)
+    console[level] = (...args: unknown[]) => void written.push(level + ': ' + args.join(' '));
+  try {
+    const token = f.key();
+    for (const method of [
+      'server/discover',
+      'tools/list',
+      'resources/list',
+      'resources/templates/list',
+      'prompts/list',
+    ])
+      assert.equal((await modernCall(f, '/mcp', token, method)).status, 200, method);
+    assert.equal(
+      (await modernCall(f, '/mcp', token, 'tools/call', {name: 'amcp_tool_help', arguments: {}})).status,
+      200,
+    );
+    assert.equal((await modernCall(f, '/mcp', token, 'tools/list')).status, 200, 'and again, on a later request');
+    assert.deepEqual(written, []);
+  } finally {
+    Object.assign(console, original);
+    await f.close();
+  }
+});
+
+// F-L4-08: a notification skipped every check on the modern path, so one with a wrong Mcp-Method or an unsupported
+// version was accepted (202) where the SDK's own handler refuses it, and a legacy notification with an unsupported
+// version became 202 instead of 400 once the modern era was on.
+test('MCP-03 phase 3: a modern notification is checked for its version and Mcp-Method before it is accepted', async () => {
+  const f = await fixture('on');
+  try {
+    const token = f.key(),
+      notify = (headers: Record<string, string>, omit: string[] = [], body?: JsonObject) =>
+        modernCall(
+          f,
+          '/mcp',
+          token,
+          'notifications/cancelled',
+          {},
+          {
+            headers,
+            omit,
+            body: body ?? {jsonrpc: '2.0', method: 'notifications/cancelled', params: {_meta: modernMeta()}},
+          },
+        );
+    const accepted = await notify({});
+    assert.equal(accepted.status, 202);
+    const wrongMethod = await notify({'Mcp-Method': 'notifications/progress'});
+    assert.equal(wrongMethod.status, 400);
+    assert.equal(wrongMethod.body.error.code, -32020);
+    assert.deepEqual(wrongMethod.body.error.data, {code: 'MCP_HEADER_MISMATCH', header: 'Mcp-Method'});
+    const missingMethod = await notify({}, ['Mcp-Method']);
+    assert.equal(missingMethod.status, 400);
+    assert.equal(missingMethod.body.error.data.header, 'Mcp-Method');
+    const unsupported = await notify({'MCP-Protocol-Version': '2027-01-01'});
+    assert.equal(unsupported.status, 400);
+    assert.equal(unsupported.body.error.code, -32022);
+    assert.equal(unsupported.body.error.data.requested, '2027-01-01');
+    assert.deepEqual(unsupported.body.error.data.supported, [...dualEraProtocolVersions]);
+    const missingVersion = await notify({}, ['MCP-Protocol-Version']);
+    assert.equal(missingVersion.status, 400);
+    assert.equal(missingVersion.body.error.data.header, 'MCP-Protocol-Version');
+    // A legacy-era notification with a version no revision serves is refused as it is with the modern era off.
+    const legacyNotice = (version: string) =>
+      fetch(f.base + '/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          Authorization: 'Bearer ' + token,
+          'MCP-Protocol-Version': version,
+        },
+        body: JSON.stringify({jsonrpc: '2.0', method: 'notifications/initialized'}),
+      });
+    assert.equal((await legacyNotice('2025-11-25')).status, 202);
+    assert.equal((await legacyNotice('1900-01-01')).status, 400);
+  } finally {
+    await f.close();
+  }
+});
+
 test('MCP-03 phase 3: next mode serves both eras at /mcp/next for the ACC-02 checks and leaves /mcp legacy', async () => {
   const f = await fixture('next');
   try {
@@ -683,54 +771,168 @@ test('MCP-06: server/discover answers in the deployment’s own mode, and only f
       await f.close();
     }
   }
-  // A bare SDK server has no deployment mode: discover fails instead of answering with another mode's orientation.
-  await assert.rejects(
-    serveModernRequest(
-      new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}}),
-      {'mcp-protocol-version': modern, 'mcp-method': 'server/discover'},
-      {jsonrpc: '2.0', id: 'discover-1', method: 'server/discover', params: {_meta: modernMeta()}},
-    ),
-    /server\/discover needs a server made by createMcpServer/,
+  // The endpoint has no default orientation: one made without its deployment's instructions is refused, so it can never
+  // answer discover with another mode's text (which could send a read-only deployment's client to prepare and execute).
+  const bare = () => new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}});
+  assert.throws(
+    () => createModernEndpoint({factory: bare, instructions: ''}),
+    /needs the instructions of its deployment/,
   );
+  assert.throws(() => createModernEndpoint({factory: bare} as never), /needs the instructions of its deployment/);
 });
 
-test('MCP-03 phase 3: a 2026-07-28 request whose client goes away mid-call ends with connection closed instead of waiting for good', async () => {
-  const server = new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}});
+/** The headers and body of one 2026-07-28 tools/call, as the modern endpoint receives them. */
+function modernToolCall(name: string, id: string, meta: JsonObject = {}) {
+  const headers = {'mcp-protocol-version': modern, 'mcp-method': 'tools/call', 'mcp-name': name},
+    message = {jsonrpc: '2.0', id, method: 'tools/call', params: {name, arguments: {}, _meta: modernMeta(meta)}};
+  return {
+    headers,
+    message,
+    request: (signal?: AbortSignal) =>
+      new Request('http://localhost/mcp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...headers},
+        body: JSON.stringify(message),
+        ...(signal ? {signal} : {}),
+      }),
+  };
+}
+const caller = {token: '', clientId: 'synthetic-caller', scopes: [], extra: {}};
+
+test('MCP-03 phase 3: a 2026-07-28 request whose client goes away mid-call ends, aborts the handler and does not wait for good', async () => {
   let started!: () => void,
     finish!: () => void,
     aborted = false;
   const running = new Promise<void>(r => (started = r)),
     held = new Promise<void>(r => (finish = r));
-  server.setRequestHandler('tools/call', async (_request, extra) => {
-    extra.mcpReq.signal.addEventListener('abort', () => (aborted = true));
-    started();
-    await held;
-    return {content: [{type: 'text', text: 'late'}]};
-  });
-  const answer = serveModernRequest(
-    server,
-    {'mcp-protocol-version': modern, 'mcp-method': 'tools/call', 'mcp-name': 'slow_tool'},
-    {
-      jsonrpc: '2.0',
-      id: 'call-1',
-      method: 'tools/call',
-      params: {name: 'slow_tool', arguments: {}, _meta: modernMeta()},
+  const endpoint = createModernEndpoint({
+    instructions: 'synthetic deployment',
+    factory: () => {
+      const server = new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}});
+      server.setRequestHandler('tools/call', async (_request, extra) => {
+        extra.mcpReq.signal.addEventListener('abort', () => (aborted = true));
+        started();
+        await held;
+        return {content: [{type: 'text', text: 'late'}]};
+      });
+      return server;
     },
-  );
-  await running;
-  // The HTTP handler closes the per-request server when the response closes (the client disconnected).
-  await server.close();
-  const timeout = new Promise<'waiting'>(r => setTimeout(() => r('waiting'), 2000).unref());
-  const settled = await Promise.race([answer, timeout]);
-  assert.notEqual(settled, 'waiting', 'the exchange ended when the connection closed');
-  assert.deepEqual(settled, {
-    status: 200,
-    body: {jsonrpc: '2.0', id: 'call-1', error: {code: -32000, message: 'Connection closed'}},
   });
-  assert.equal(aborted, true, 'the SDK aborted the handler');
-  // The handler finishing later answers nobody and changes nothing.
-  finish();
-  await new Promise(r => setImmediate(r));
+  try {
+    const call = modernToolCall('slow_tool', 'call-1'),
+      gone = new AbortController(),
+      answer = endpoint.handle(call.request(gone.signal), {
+        headers: call.headers,
+        message: call.message,
+        authInfo: caller,
+      });
+    await running;
+    // The HTTP layer aborts the request when the response closes before it finished (the client disconnected).
+    gone.abort();
+    const timeout = new Promise<'waiting'>(r => setTimeout(() => r('waiting'), 2000).unref());
+    const settled = await Promise.race([answer, timeout]);
+    assert.notEqual(settled, 'waiting', 'the exchange ended when the client went away');
+    assert.ok((settled as Response).status >= 400, 'a closed exchange is not answered as a success');
+    assert.equal(aborted, true, 'the SDK aborted the handler');
+    // The handler finishing later answers nobody and changes nothing.
+    finish();
+    await new Promise(r => setImmediate(r));
+  } finally {
+    await endpoint.close();
+  }
+});
+
+// The handler no longer runs with responseMode "json", which dropped everything a handler sent before its result:
+// V2-MCP-02's progress travels on the request's own stream, which the endpoint returns and the HTTP layer writes as it is.
+test('MCP-03 phase 3: progress a handler sends reaches the client on the request’s own stream, written as the SDK framed it', async () => {
+  const endpoint = createModernEndpoint({
+    instructions: 'synthetic deployment',
+    factory: () => {
+      const server = new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}});
+      server.setRequestHandler('tools/call', async (_request, extra) => {
+        await extra.mcpReq.notify({
+          method: 'notifications/progress',
+          params: {progressToken: extra.mcpReq._meta?.progressToken as string, progress: 1, total: 2, message: 'half'},
+        });
+        return {content: [{type: 'text', text: 'finished'}]};
+      });
+      return server;
+    },
+  });
+  // The HTTP layer in miniature: the same web request, endpoint call and response writer that /mcp uses.
+  const listener = http.createServer(async (req, res) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const message = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    await sendModernResponse(
+      res,
+      await endpoint.handle(await toWebRequest(req, message), {headers: req.headers, message, authInfo: caller}),
+    );
+  });
+  await new Promise<void>(resolve => listener.listen(0, '127.0.0.1', resolve));
+  try {
+    const call = modernToolCall('long_task', 'long-1', {progressToken: 'progress-1'}),
+      response = await fetch('http://127.0.0.1:' + (listener.address() as {port: number}).port + '/mcp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...call.headers},
+        body: JSON.stringify(call.message),
+      });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /text\/event-stream/);
+    const messages = (await response.text())
+      .split('\n')
+      .filter(line => line.startsWith('data:') && line.slice(5).trim())
+      .map(line => JSON.parse(line.slice(5)) as JsonObject);
+    assert.equal(messages.length, 2, JSON.stringify(messages));
+    assert.equal(messages[0]!.method, 'notifications/progress');
+    assert.deepEqual(
+      [messages[0]!.params.progressToken, messages[0]!.params.progress, messages[0]!.params.total],
+      ['progress-1', 1, 2],
+    );
+    assert.equal(messages[1]!.id, 'long-1');
+    assert.equal(messages[1]!.result.content[0].text, 'finished');
+    assert.equal(messages[1]!.result.resultType, 'complete');
+  } finally {
+    await new Promise<void>(resolve => listener.close(() => resolve()));
+    await endpoint.close();
+  }
+});
+
+// F-L4-06: AMCP used to parse every SDK answer and stamp it `complete`, which hid a result that is not complete (a tool
+// that needs more input from the client) behind a success.
+test('MCP-03 phase 3: an SDK answer that is not complete reaches the client as the SDK framed it', async () => {
+  const endpoint = createModernEndpoint({
+    instructions: 'synthetic deployment',
+    factory: () => {
+      const server = new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}});
+      server.setRequestHandler('tools/call', async () => ({
+        resultType: 'input_required',
+        inputRequests: {
+          ask: {
+            method: 'elicitation/create',
+            params: {message: 'Which account?', requestedSchema: {type: 'object', properties: {}}},
+          },
+        },
+        requestState: 'opaque',
+      }));
+      return server;
+    },
+  });
+  try {
+    // The client declares that it can answer an elicitation; without it the SDK refuses the exchange before the handler.
+    const call = modernToolCall('ask', 'ask-1', {
+        'io.modelcontextprotocol/clientCapabilities': {elicitation: {}},
+      }),
+      answer = await endpoint.handle(call.request(), {headers: call.headers, message: call.message, authInfo: caller}),
+      body = (await answer.json()) as JsonObject;
+    assert.equal(answer.status, 200);
+    assert.equal(body.result.resultType, 'input_required');
+    assert.equal(body.result.requestState, 'opaque');
+    assert.equal(body.result.inputRequests.ask.method, 'elicitation/create');
+    assert.equal(body.id, 'ask-1');
+  } finally {
+    await endpoint.close();
+  }
 });
 
 /** An OAuth client provider kept in memory, as an MCP client stores its registration, verifier and tokens. */
