@@ -101,8 +101,14 @@ test('Meta and Snapchat campaign upgrades preserve the actual legacy attribution
         : ['action_report_time', 'conversion_source_types', 'swipe_up_attribution_window', 'view_attribution_window'];
     for (const key of keys)
       assert.equal(reads[1].url.searchParams.get(key), reads[0].url.searchParams.get(key), platform + ':' + key);
-    if (platform === 'snapchat')
-      assert.equal(current.complete, false, 'migration cannot manufacture a settled conversion-window declaration');
+    // A campaign-level source needs no window declaration (F-L6-02): the upgrade invents none, and it changes no
+    // completeness either. Declaration rules belong to the detail levels.
+    assert.equal(
+      current.quality.reporting_window_declared_complete,
+      null,
+      platform + ': the declaration stays unknown',
+    );
+    assert.equal(current.complete, legacy.complete, platform + ': completeness is the legacy collection’s');
   }
 });
 
