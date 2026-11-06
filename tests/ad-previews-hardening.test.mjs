@@ -55,6 +55,22 @@ test('F-L3-12: a platform outside the schema is refused first, with no read, wha
   }
 });
 
+test('F-L3-12: a parameter named like a member of every object is an unknown parameter, not one of the schema’s', async t => {
+  const {previews, reads} = fixture(t);
+  for (const name of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+    // Parsed as a request is: "__proto__" becomes an own property of the input here, as it does for a JSON body.
+    const input = JSON.parse('{"platform":"meta","account_id":"1","' + name + '":1}');
+    await assert.rejects(
+      previews.handle(input, actor),
+      error =>
+        assertRefused(error, 'INVALID_ARGUMENT', {message: /^Unknown preview parameter\.$/}) &&
+        error.details.parameter === name,
+      name,
+    );
+  }
+  assert.equal(reads.length, 0);
+});
+
 // An HTML parser reads `&sol;` in a src as "/", so a tag whose host is "evil.com&sol;.linkedin.com" would send a browser
 // to evil.com, while the URL parser reads the whole text as a host that ends in ".linkedin.com". Only the text before
 // the first "?" can name a host or a path; there, an entity (`&`) or a `;` is never part of a platform link. The last two
