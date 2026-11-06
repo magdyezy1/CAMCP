@@ -158,7 +158,7 @@ function fixture(
       )
     : recording;
   const native = new NativeCampaignReports(service);
-  const collect = (level = 'ad', scopes = {}, checkpoint = {}) =>
+  const collect = (level = 'ad', scopes = {}, checkpoint = {}, lookup = undefined) =>
     native.collect(
       normalizeOverviewV4Source(
         {
@@ -176,6 +176,7 @@ function fixture(
       actor,
       checkpoint,
       value => saved.push(structuredClone(value)),
+      lookup,
     );
   return {
     collect,
@@ -841,4 +842,42 @@ test('an X population that needs over 100 pages names the page bound', async t =
     data.next_cursor = String(page + 1);
   });
   assert.match(await refusalOf(f, 'REPORT_INCOMPLETE'), /more than 100 pages/);
+});
+
+// F-L7-17: the detail levels and periods of one source shared nothing, so a source with a line item and a promoted tweet level
+// listed its campaigns and line items twice, and every period listed them again.
+const listed = (f, kind) => f.requests.filter(p => p.path === '/12/accounts/abc/' + kind).length,
+  listings = f => [listed(f, 'campaigns'), listed(f, 'line_items'), listed(f, 'promoted_tweets')];
+test('the X populations are listed once for the job, then reused by its other levels and periods with their lineage marked cached', async t => {
+  const f = fixture(t),
+    lookup = {},
+    groups = await f.collect('adset', {}, {}, lookup);
+  assert.deepEqual(listings(f), [1, 2, 0], 'campaigns on one page, line items on two');
+  const ads = await f.collect('ad', {}, {}, lookup);
+  assert.deepEqual(listings(f), [1, 2, 2], 'the promoted tweet level lists only the promoted tweets');
+  assert.equal(groups.rows.length, 21);
+  assert.equal(ads.rows.length, 21);
+  const stage = ads.lineage.filter(entry => entry.stage === 'detail_population');
+  assert.equal(stage.length, 5);
+  assert.equal(stage.filter(entry => entry.cached === true).length, 3, 'the campaigns and both line item pages');
+  assert.ok(stage.filter(entry => entry.cached !== true).every(entry => entry.path.endsWith('/promoted_tweets')));
+  assert.equal(ads.quality.population.promoted_tweets, 21);
+  // A later period of either level reads no list at all.
+  await f.collect('adset', {}, {}, lookup);
+  await f.collect('ad', {}, {}, lookup);
+  assert.deepEqual(listings(f), [1, 2, 2]);
+  // Without the job’s cache each collection lists its own, as before.
+  await f.collect('adset');
+  assert.deepEqual(listings(f), [2, 4, 2]);
+});
+
+test('an X population read under another login is never reused', async t => {
+  const f = fixture(t),
+    lookup = {};
+  await f.collect('adset', {}, {}, lookup);
+  assert.deepEqual(listings(f), [1, 2, 0]);
+  const connection = f.store.resolveConnection(f.actor, 'x_ads_native_action', 'abc', 'x');
+  f.store.putConnection(f.actor, {...connection, scopes: ['changed']}, {accessToken: 'synthetic-rotated'});
+  await f.collect('adset', {}, {}, lookup);
+  assert.deepEqual(listings(f), [2, 4, 0], 'listed again under the new login');
 });

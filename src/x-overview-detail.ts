@@ -145,19 +145,42 @@ export async function collectXOverviewDetail(c: ReportCollection) {
       refuse('REPORT_DEFINITION_CHANGED', 'The X checkpoint does not match this frozen report. Start a new run.', 409);
     state = structuredClone(state);
   } else {
-    const start = c.lineage.length,
-      campaigns = await list('campaigns'),
-      line_items = await list('line_items'),
-      promoted_tweets = needPromoted ? await list('promoted_tweets') : [];
+    // Each list is read once for the job: the source's other detail levels and periods reuse it, with the lineage of the
+    // reads that made it marked cached. Lists read under another login are never reused.
+    const lookup = c.lookup ?? {},
+      kept =
+        lookup.xPopulation?.authorization === authorization
+          ? lookup.xPopulation
+          : (lookup.xPopulation = {authorization, lists: {}}),
+      start = c.lineage.length,
+      read = async (kind: 'campaigns' | 'line_items' | 'promoted_tweets') => {
+        const known = kept.lists[kind];
+        if (known) {
+          c.lineage.push(...known.lineage.map(entry => ({...entry, cached: true})));
+          return known;
+        }
+        const before = c.lineage.length,
+          rows = await list(kind),
+          fresh = {rows, lineage: c.lineage.slice(before), observed_at: Date.now()};
+        kept.lists[kind] = fresh;
+        return fresh;
+      },
+      campaigns = await read('campaigns'),
+      line_items = await read('line_items'),
+      promoted_tweets = needPromoted ? await read('promoted_tweets') : undefined;
     state = {
       version: 1,
       definition,
       authorization,
-      campaigns,
-      line_items,
-      promoted_tweets,
+      campaigns: campaigns.rows,
+      line_items: line_items.rows,
+      promoted_tweets: promoted_tweets?.rows ?? [],
       lineage: c.lineage.slice(start),
-      observed_at: Date.now(),
+      observed_at: Math.min(
+        campaigns.observed_at,
+        line_items.observed_at,
+        promoted_tweets?.observed_at ?? Number.MAX_SAFE_INTEGER,
+      ),
     };
   }
   const owned = (rows: unknown): JsonObject[] => {

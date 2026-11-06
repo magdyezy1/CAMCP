@@ -106,6 +106,21 @@ export interface AccountLookupCache {
     scanned_at: number;
     byId: Map<string, JsonObject>;
   };
+  /**
+   * V2-RPT-07 (F-L7-17): the lists of an X account's campaigns, line items and promoted tweets that a detail level proved
+   * complete, kept once per source and job so that the source's other detail levels and periods do not list them again.
+   * Each list keeps the lineage of the reads that made it, which a level that reuses it records as cached.
+   */
+  xPopulation?: {
+    /** The login and permissions they were read under; another login's lists are never reused. */
+    authorization: string;
+    lists: Partial<
+      Record<
+        'campaigns' | 'line_items' | 'promoted_tweets',
+        {rows: JsonObject[]; lineage: JsonObject[]; observed_at: number}
+      >
+    >;
+  };
 }
 
 /** The native parents a detailed source's entities have, as the parent read returns them (src/overview-parents.ts). */
