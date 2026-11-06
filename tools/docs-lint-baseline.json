@@ -172,10 +172,16 @@
       "raised": [
         "reference_words 148921 → 148952"
       ]
+    },
+    {
+      "reason": "V2-PRV-01: docs/AD-PREVIEWS.md records what the previews package changed: the Snapchat link expiry and the live capture it awaits, archived or deleted as the meaning of old ads, 100-row list pages, the five-minute creative observation, the Meta identity read and why it stays a second read, rejected link separators, and Start again after a failed Load more (179 words)",
+      "raised": [
+        "reference_words 148952 → 149131"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 148952
+    "reference_words": 149131
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
