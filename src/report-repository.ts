@@ -17,6 +17,33 @@ export const reportPartsCleanupSQL = `CREATE TRIGGER IF NOT EXISTS overview_repo
   DELETE FROM documents WHERE tenant_id=old.tenant_id AND kind='overview_checkpoint' AND id>=old.id||':' AND id<old.id||';';
 END`;
 
+// Saved definitions (src/report-library.ts).
+/**
+ * Writes a stored definition's v4 sidecar and the fingerprint of the v3 form it was made from WITHOUT advancing the
+ * document's revision. Upgrading a stored v3 definition is not an edit: a person's open editor and a schedule dialog
+ * compare that revision, so an automatic write must not move it (F-L6-09). The caller reads the document and writes
+ * inside one transaction, and the write is conditional on the revision it read. Whether a document was written.
+ */
+export function writeDefinitionSidecar(
+  store: Store,
+  tenant: string,
+  kind: 'overview_view' | 'overview_schedule' | 'overview_template',
+  id: string,
+  revision: number,
+  sidecar: JsonObject,
+): boolean {
+  return (
+    Number(
+      store
+        .sql()
+        .prepare(
+          "UPDATE documents SET data=json_set(data,'$.config_v4',json(?),'$.config_v4_basis',?) WHERE tenant_id=? AND kind=? AND id=? AND revision=?",
+        )
+        .run(JSON.stringify(sidecar.config_v4), sidecar.config_v4_basis, tenant, kind, id, revision).changes,
+    ) > 0
+  );
+}
+
 // Overview snapshots (src/reporting-overview.ts).
 /** Import the one-time objective notice emitted by an earlier v4 binary without loading snapshot rows. */
 export function priorObjectiveMigrationNotice(

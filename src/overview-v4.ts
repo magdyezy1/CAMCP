@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {sha256, stable} from './security.js';
 import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
@@ -33,12 +34,42 @@ export interface OverviewV4Capabilities {
   };
 }
 
-/** Current readers use the sidecar; an older binary continues to read the original config field. */
-export const overviewDefinitionConfig = (record: JsonObject): JsonObject => record.config_v4 ?? record.config;
+/**
+ * A stored definition holds its v3 form (`config`, what the build before V2 reads and edits) and, beside it, the v4
+ * form (`config_v4`) it was made from. A build that does not know the sidecar edits `config` and leaves it behind, so
+ * the sidecar names the `config` it was made from: this fingerprint (F-L6-05).
+ */
+export const overviewSidecarBasis = (config: JsonObject): string => sha256(stable(config));
+/** The fields that write a definition's sidecar: the v4 form and the fingerprint of the v3 form it belongs to. */
+export const overviewSidecar = (record: JsonObject, config: JsonObject): JsonObject => ({
+  config_v4: config,
+  config_v4_basis: overviewSidecarBasis(record.config),
+});
+/** Whether the sidecar still belongs to `config`. An absent or older one does not: `config` is then the newer edit. */
+export const overviewSidecarCurrent = (record: JsonObject): boolean =>
+  record.config_v4 !== undefined && record.config_v4_basis === overviewSidecarBasis(record.config);
+/**
+ * The one reader of a stored definition. Listing, editing, previewing, running, the bootstrap payload and the workspace
+ * search all read this form, so they cannot disagree about which accounts a report names (F-L6-05).
+ */
+export const overviewDefinitionConfig = (record: JsonObject): JsonObject =>
+  overviewSidecarCurrent(record) ? record.config_v4 : record.config;
+/** Shown with a definition whose v3 form was edited by a build that does not know the sidecar. */
+export const overviewStaleSidecarWarning = {
+  code: 'DEFINITION_CHANGED_ELSEWHERE',
+  message:
+    'This report was edited on an earlier version of AMCP after it was last saved here. The edited version is used. Settings that only this version supports are no longer part of it; set them again if you need them.',
+} as const;
 /** Do not expose both definition forms to clients or let an old renderer accidentally edit the wrong one. */
 export function publicOverviewDefinition(record: JsonObject): JsonObject {
-  const {config_v4, ...visible} = record;
-  return config_v4 ? {...visible, config: config_v4} : visible;
+  const {config_v4, config_v4_basis, ...visible} = record;
+  if (config_v4 === undefined) return visible;
+  const current = overviewSidecarCurrent(record);
+  return {
+    ...visible,
+    config: overviewDefinitionConfig(record),
+    ...(current ? {} : {warnings: [overviewStaleSidecarWarning]}),
+  };
 }
 /**
  * Keep account authorization identical in both forms, and keep the v3 form one Work-here (the build a rollback
@@ -53,7 +84,7 @@ export function overviewDefinitionForms(
   config: JsonObject,
   capabilitiesFor: (platform: string) => OverviewV4Capabilities,
 ): JsonObject {
-  if (config.contract_version !== overviewConfigV4) return {config, config_v4: undefined};
+  if (config.contract_version !== overviewConfigV4) return {config, config_v4: undefined, config_v4_basis: undefined};
   const current = structuredClone(config),
     legacy: JsonObject = {...current};
   delete legacy.contract_version;
@@ -138,7 +169,7 @@ export function overviewDefinitionForms(
         return [platform, defaults];
       }),
     );
-  return {config: legacy, config_v4: current};
+  return {config: legacy, config_v4: current, config_v4_basis: overviewSidecarBasis(legacy)};
 }
 /**
  * Pure read-old conversion. The caller validates the result and keeps the original stored config as rollback.

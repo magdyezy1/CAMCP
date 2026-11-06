@@ -94,6 +94,8 @@ import {
   projectOverviewV4Rows,
   projectOverviewV4Sources,
   overviewDefinitionConfig,
+  overviewSidecar,
+  publicOverviewDefinition,
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
@@ -198,13 +200,14 @@ const optional = (service: MirrorService, tenant: string, kind: string, id: stri
   }
 };
 const recordWithBudget = (r: JsonObject, budget: JsonObject | undefined) => {
-  const {actor_binding, checkpoints, collection_budget, config_v4, ...visible} = r;
-  if (config_v4) visible.config = config_v4;
+  const {actor_binding, checkpoints, collection_budget, ...visible} = r;
   if (!budget) return visible;
   const {row_counts, active_since, ...usage} = budget;
   return {...visible, collection_budget: usage};
 };
 const publicRecord = (r: JsonObject) => recordWithBudget(r, r.collection_budget);
+/** A saved report, template or schedule as a client reads it: one form of the definition, never both (F-L6-05). */
+const publicDefinition = (r: JsonObject) => publicRecord(publicOverviewDefinition(r));
 /**
  * Whether a saved report, template or schedule is listed to this actor, as bootstrap lists them (SEC-08): every one
  * without a client access set; with one, only a record each of whose sources resolves within the set. The website's
@@ -214,7 +217,7 @@ export function overviewRecordListed(store: Store, actor: Actor, record: JsonObj
   if (actor.accessSetId === undefined) return true;
   try {
     store.assertActorActive(actor);
-    for (const s of (record.config ?? {sources: []}).sources)
+    for (const s of (overviewDefinitionConfig(record) ?? {sources: []}).sources)
       store.resolveConnection(actor, reportPlatforms[s.platform]!.gateway, s.account_id, s.connection_id);
     return true;
   } catch (e) {
@@ -749,9 +752,9 @@ export class ReportingOverview {
         metric_sources: metricSources,
         objectives: objectiveGroups,
         objective_fallback_groups: objectiveFallbackGroups,
-        views: ownerRecords.views.map(publicRecord),
-        templates: store.documents(tenant, 'overview_template').filter(reachable).map(publicRecord),
-        schedules: ownerRecords.schedules.map(publicRecord),
+        views: ownerRecords.views.map(publicDefinition),
+        templates: store.documents(tenant, 'overview_template').filter(reachable).map(publicDefinition),
+        schedules: ownerRecords.schedules.map(publicDefinition),
         destinations: store
           .documents(tenant, 'sheets_destination')
           // A report tab of a spreadsheet outside a client access set stays out, as reportDestination refuses it.
@@ -1596,7 +1599,7 @@ export class ReportingOverview {
               s.id,
               {
                 ...s,
-                ...(prepared.migrated ? {config_v4: prepared.config} : {}),
+                ...(prepared.migrated ? overviewSidecar(s, prepared.config) : {}),
                 ...following,
                 last_occurrence_at: s.next_run_at,
                 last_report_id: run.id,

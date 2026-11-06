@@ -397,12 +397,13 @@ test('a new v4 definition cannot forge migration eligibility using a client-supp
   assert.equal(f.store.documents(f.actor.tenantId, objectiveMigrationKind).length, 0);
 });
 
-test('a saved run returns the migrated view revision so its next intentional edit does not conflict with its own upgrade', async t => {
+test('a saved run returns the view revision, which its own upgrade does not advance, so the next intentional edit does not conflict', async t => {
   const f = await legacySchedule(t, {linked: true});
   const queued = await f.overview.handle({action: 'run', id: f.viewId, confirmed: true}, f.actor);
   const stored = f.store.document(f.actor.tenantId, 'overview_view', f.viewId);
   assert.equal(queued.view_revision, stored.revision);
-  assert.equal(queued.view_revision, 2);
+  // F-L6-09: writing the sidecar is not a person's edit, so the revision an editor loaded before the run still stands.
+  assert.equal(queued.view_revision, 1);
   const edited = await f.overview.handle(
     {
       action: 'save',

@@ -99,7 +99,8 @@ export async function exerciseOverviewV4({page, site, locale, result}) {
   assert.equal(input.config, undefined);
   envelope = await acknowledged.json();
   assert.equal(envelope.success, true, JSON.stringify(envelope));
-  assert.equal(envelope.data.view_revision, 2);
+  // Upgrading the stored definition for a run is not an edit (F-L6-09): its revision stays where the editor read it.
+  assert.equal(envelope.data.view_revision, 1);
   await site.granular.workOnce();
   const first = site.granular.store.document(site.granular.tenant, 'overview_report', envelope.data.id),
     definition = site.granular.store.document(site.granular.tenant, 'overview_view', legacyId),
@@ -113,7 +114,7 @@ export async function exerciseOverviewV4({page, site, locale, result}) {
   response = next('save');
   await page.locator('#overview-save').click();
   acknowledged = await response;
-  assert.equal(acknowledged.request().postDataJSON().expected_revision, 2);
+  assert.equal(acknowledged.request().postDataJSON().expected_revision, 1);
   envelope = await acknowledged.json();
   assert.equal(envelope.success, true, JSON.stringify(envelope));
   await page.waitForFunction(() => !document.getElementById('overview-save')?.disabled);
