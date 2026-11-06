@@ -264,16 +264,23 @@ export const linkedinReportSource: ReportSource = {
     });
   },
   overview: {
-    ...overviewCapabilities([
-      {
-        id: 'campaign',
-        label: 'Campaign group',
-        native_type: 'sponsoredCampaignGroup',
-        preset: 'linkedin_campaign_group',
-      },
-      {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
-      {id: 'ad', label: 'Creative', native_type: 'sponsoredCreative', preset: 'linkedin_creative'},
-    ]),
+    ...overviewCapabilities(
+      [
+        {
+          id: 'campaign',
+          label: 'Campaign group',
+          native_type: 'sponsoredCampaignGroup',
+          preset: 'linkedin_campaign_group',
+        },
+        {id: 'adset', label: 'Campaign', native_type: 'sponsoredCampaign', preset: 'linkedin_campaign'},
+        {id: 'ad', label: 'Creative', native_type: 'sponsoredCreative', preset: 'linkedin_creative'},
+      ],
+      {},
+      [],
+      undefined,
+      // The build before V2 reports LinkedIn campaigns and creatives only; the middle level is new (F-L10-11).
+      {levels: ['campaign', 'ad']},
+    ),
     scope_id_prefixes: {
       campaign: 'urn:li:sponsoredCampaignGroup:',
       adset: 'urn:li:sponsoredCampaign:',

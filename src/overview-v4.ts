@@ -24,6 +24,8 @@ export interface OverviewV4Capabilities {
   scope_aliases?: Readonly<Record<string, 'campaign_ids' | 'adset_ids' | 'ad_ids'>>;
   validateOptions?(options: JsonObject, context: {levels: readonly string[]}): void;
   legacy?: {
+    /** The levels the build before V2 can collect for this platform; absent means all of the platform's levels. */
+    levels?: readonly string[];
     campaign_options?: readonly string[];
     detail_options?: readonly string[];
     requires_action?: true;
@@ -60,14 +62,25 @@ export const overviewStaleSidecarWarning = {
   message:
     'This report was edited on an earlier version of AMCP after it was last saved here. The edited version is used. Settings that only this version supports are no longer part of it; set them again if you need them.',
 } as const;
+/**
+ * Whether the build a rollback returns to (Work-here) can run this stored definition: none of its sources or template
+ * defaults carries the unsupported level that overviewDefinitionForms gives what the earlier form cannot express.
+ * Such a report refuses to run there and its schedule pauses; everything else keeps running (F-L10-11).
+ */
+export const overviewRollbackSafe = (record: JsonObject): boolean =>
+  ![...(record.config?.sources ?? []), ...Object.values(record.config?.source_defaults ?? {})].some(
+    (source: any) => source?.level === 'v4_required',
+  );
 /** Do not expose both definition forms to clients or let an old renderer accidentally edit the wrong one. */
 export function publicOverviewDefinition(record: JsonObject): JsonObject {
-  const {config_v4, config_v4_basis, ...visible} = record;
-  if (config_v4 === undefined) return visible;
+  const {config_v4, config_v4_basis, ...visible} = record,
+    rollback_safe = overviewRollbackSafe(record);
+  if (config_v4 === undefined) return {...visible, rollback_safe};
   const current = overviewSidecarCurrent(record);
   return {
     ...visible,
     config: overviewDefinitionConfig(record),
+    rollback_safe,
     ...(current ? {} : {warnings: [overviewStaleSidecarWarning]}),
   };
 }
@@ -128,6 +141,8 @@ export function overviewDefinitionForms(
     const parentRestored = Object.keys(capabilities.scope_aliases ?? {}).some(alias => old[alias] !== undefined),
       unavailable =
         levels.length !== 1 ||
+        // A level that exists only in this build (the platform declares the ones the earlier build has).
+        (rules.levels !== undefined && !rules.levels.includes(level)) ||
         Object.values(scopes).some(ids => ids.length) ||
         !statuses.includes('all') ||
         // Template defaults carry no account, so no parent either (Work-here checks the parent of a report only).

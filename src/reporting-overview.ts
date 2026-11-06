@@ -94,6 +94,7 @@ import {
   projectOverviewV4Sources,
   overviewDefinitionConfig,
   overviewSidecar,
+  overviewRollbackSafe,
   publicOverviewDefinition,
   overviewV4ScopeContract,
 } from './overview-v4.js';
@@ -696,7 +697,8 @@ export class ReportingOverview {
         ownerRecords = {
           schedules: store.documents(tenant, 'overview_schedule').filter(reachable),
           views: store.documents(tenant, 'overview_view').filter(reachable),
-        };
+        },
+        templates = store.documents(tenant, 'overview_template').filter(reachable);
       return {
         platforms: Object.entries(reportPlatforms).map(([id, p]) => ({
           id,
@@ -748,8 +750,14 @@ export class ReportingOverview {
         objectives: objectiveGroups,
         objective_fallback_groups: objectiveFallbackGroups,
         views: ownerRecords.views.map(publicDefinition),
-        templates: store.documents(tenant, 'overview_template').filter(reachable).map(publicDefinition),
+        templates: templates.map(publicDefinition),
         schedules: ownerRecords.schedules.map(publicDefinition),
+        // How many stored definitions stop on the build before V2 (Work-here) if production is rolled back (F-L10-11).
+        rollback: {
+          unsafe_definitions: [...ownerRecords.views, ...templates, ...ownerRecords.schedules].filter(
+            record => !overviewRollbackSafe(record),
+          ).length,
+        },
         destinations: store
           .documents(tenant, 'sheets_destination')
           // A report tab of a spreadsheet outside a client access set stays out, as reportDestination refuses it.

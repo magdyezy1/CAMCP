@@ -582,6 +582,12 @@ export function workHereConfig(input, template = false, legacyTargets = false) {
   };
 }
 
+/** The levels Work-here can collect for a platform: campaign, and each level it has a qualified preset for (overviewSourceLevel). */
+export const workHereLevels = platform => [
+  'campaign',
+  ...(overviewEntityLevels[platform] ?? []).filter(item => item.preset).map(item => item.id),
+];
+
 /**
  * What Work-here's `run` and scheduler `tick` decide for a stored definition: accepted, with the config it would
  * store, or refused with the code its `config()` throws (a schedule is then paused with that error).

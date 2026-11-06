@@ -26,6 +26,12 @@ Its sections are task pages in [docs/operations/](operations/), each moved there
 
 The feature and batch notes it collected from the October 2026 deliveries are kept as written in [Operations runbook notes of the October 2026 deliveries](records/OPERATIONS-NOTES-2026-10.md).
 
+## Before a rollback
+
+Rolling back to the previous image (Work-here) keeps every saved report, template, schedule and snapshot, because each saved report also holds its earlier form beside its current one, and the earlier build reads that form. Most reports keep running there. A report that uses several reporting levels, ID scopes, a status filter, a declared-incomplete campaign window, an undeclared detail window or a level only this build has (LinkedIn campaigns in the ad set position, the detail levels of X) cannot be written in the earlier form. On the earlier build such a report refuses to run with `INVALID_REPORT_LEVEL` before any provider request, and its schedule pauses with the same error when it next falls due. They need this build.
+
+Before rolling back, read how many there are: the reporting overview's `bootstrap` returns `rollback.unsafe_definitions` (saved reports, templates and schedules that stop on the earlier build), and each of those records has `rollback_safe: false`. A report that someone edited on the earlier build is read again by this build as it was edited; settings only this build supports are then no longer part of it, and `bootstrap` shows a warning on that record until its next run or save. The image and database side is in [Schema migrations and rollback](operations/MIGRATIONS.md#schema-migrations-and-rollback).
+
 ## Where each section went
 
 | Section | Now in |
