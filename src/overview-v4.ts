@@ -140,11 +140,28 @@ export function overviewDefinitionForms(
     );
   return {config: legacy, config_v4: current};
 }
-/** Pure read-old conversion. The caller validates the result and keeps the original stored config as rollback. */
+/**
+ * Pure read-old conversion. The caller validates the result and keeps the original stored config as rollback.
+ * Total: a library edit hands it a client's body before any validation, so a body that is not a definition is refused
+ * here with the codes Work-here's validation gave (INVALID_REPORT, REPORT_SOURCES_REQUIRED, INVALID_REPORT_SOURCE)
+ * instead of crashing the request.
+ */
 export function upgradeOverviewV3Config(
   config: JsonObject,
   capabilitiesFor: (platform: string) => OverviewV4Capabilities | undefined,
 ): JsonObject {
+  if (!object(config)) invalid('Name this report (1–100 characters).', 'INVALID_REPORT');
+  if (config.sources !== undefined && !Array.isArray(config.sources))
+    invalid('Choose between 1 and 30 platform accounts.', 'REPORT_SOURCES_REQUIRED');
+  if (config.sources?.some((value: unknown) => !object(value)))
+    invalid('Choose a platform, connection and account.', 'INVALID_REPORT_SOURCE');
+  if (config.source_defaults != null && !object(config.source_defaults))
+    invalid('Template defaults must name supported reporting platforms.', 'INVALID_REPORT_SOURCE');
+  if (Object.values(config.source_defaults ?? {}).some(value => !object(value)))
+    invalid(
+      'Use objective and native metric names for template defaults, without account identities.',
+      'INVALID_REPORT_SOURCE',
+    );
   const upgraded = structuredClone(config);
   if (upgraded.contract_version === overviewConfigV4) return upgraded;
   if (

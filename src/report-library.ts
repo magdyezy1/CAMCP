@@ -293,26 +293,32 @@ export class ReportLibrary {
             !Object.keys(source_defaults).length &&
             prior.request_fingerprint === legacyFingerprint;
           let formatMatch = false;
-          if (prior.config?.contract_version !== overviewConfigV4) {
-            const upgraded = this.validate(
-              upgradeOverviewV3Config(prior.config, platform => reportSource(platform)?.overview),
-              actor,
-              false,
-              true,
-            );
-            formatMatch =
-              sha256(
-                stable({
-                  name: upgraded.name,
-                  config: upgraded,
-                  schedule_kind: prior.schedule_kind,
-                  schedule_config: prior.schedule_config ?? {},
-                  timezone: prior.timezone,
-                  destination_id: prior.destination_id,
-                  view_id: prior.view_id ?? null,
-                }),
-              ) === fingerprint;
-          }
+          // The creation fingerprint is the request's, so a retry normally equals it. Only a schedule stored in the v3
+          // spelling (no v4 form beside it) can be the same request written in the newer one; its projection of a v4
+          // definition is not a definition to validate. A prior that does not validate is not the request retried.
+          if (prior.request_fingerprint !== fingerprint && !legacyMatch && prior.config_v4 === undefined)
+            try {
+              const upgraded = this.validate(
+                upgradeOverviewV3Config(prior.config, platform => reportSource(platform)?.overview),
+                actor,
+                false,
+                true,
+              );
+              formatMatch =
+                sha256(
+                  stable({
+                    name: upgraded.name,
+                    config: upgraded,
+                    schedule_kind: prior.schedule_kind,
+                    schedule_config: prior.schedule_config ?? {},
+                    timezone: prior.timezone,
+                    destination_id: prior.destination_id,
+                    view_id: prior.view_id ?? null,
+                  }),
+                ) === fingerprint;
+            } catch (error) {
+              if (!(error instanceof MirrorError)) throw error;
+            }
           if (prior.request_fingerprint !== fingerprint && !legacyMatch && !formatMatch)
             throw new MirrorError('IDEMPOTENCY_CONFLICT', 'This key belongs to another scheduled report.');
           return {
