@@ -25,6 +25,7 @@ import {extendDV360Tool} from './dv360-extensions.js';
 import {deepFrozen} from './frozen-facts.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {dv360ConditionalPrograms} from './dv360-conditional-programs.js';
+import {noPreviewRoute} from './ad-preview-kit.js';
 
 /** The ID field of each DV360 resource a state read names. */
 const stateIds: Record<string, string> = {
@@ -67,6 +68,7 @@ const dv360Contracts: ContractHooks = Object.freeze({
  */
 export const dv360Hooks: ProviderHooks = Object.freeze({
   gateway: 'dv360_native_action',
+  previews: noPreviewRoute('dv360', 'Display & Video 360 has no ad preview route in its API that AMCP can read.'),
   compile: dv360Compile,
   // Wave 4c (transport and catalog): its tool takes the operations AMCP adds to the captured definition.
   catalog: Object.freeze({tools: Object.freeze({dv360_native_action: extendDV360Tool})}),

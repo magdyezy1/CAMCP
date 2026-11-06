@@ -20,6 +20,7 @@ import {
   redditReadRoutes,
 } from './reddit-extensions.js';
 import {assertRedditReportRules} from './reddit-report-rules.js';
+import {redditAdPreviews} from './reddit-ad-previews.js';
 
 /** The other names Reddit's tool arguments give its native parameters. */
 const redditAliases: Record<string, string[]> = {
@@ -116,6 +117,8 @@ function observeReddit(plan: CompiledRequest, connection: Connection, id: string
  */
 export const redditHooks: ProviderHooks = Object.freeze({
   gateway: 'reddit_native_action',
+  // Its ads and their previews for amcp_ad_previews (src/ad-previews.ts).
+  previews: redditAdPreviews,
   // Wave 4c (transport and catalog): its tool takes the audience and read operations AMCP adds to the captured one.
   catalog: Object.freeze({tools: Object.freeze({reddit_native_action: extendRedditTool})}),
   delegated: redditDelegated,

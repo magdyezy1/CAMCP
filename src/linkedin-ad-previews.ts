@@ -1,7 +1,16 @@
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import type {AdPreviewLink} from './provider-adapter.js';
+import {fail} from './family-kit.js';
+import {object, text} from './ad-preview-kit.js';
+import type {
+  AdPreviewHooks,
+  AdPreviewLink,
+  AdPreviewPage,
+  AdPreviewRequest,
+  AdPreviewRow,
+  AdPreviewSelection,
+} from './provider-adapter.js';
 
 /**
  * LinkedIn documents GET /rest/adPreviews?q=creative&creative=...&account=... (Ad Preview, read 2026-11-03).
@@ -133,3 +142,163 @@ export function observeLinkedInCreatives(
     if (creative) store.rememberResource(c, selected, 'creatives/' + creative);
   }
 }
+
+/**
+ * LinkedIn's part of amcp_ad_previews (src/ad-previews.ts; registered as the `previews` hooks of src/linkedin-adapter.ts):
+ * the account's creatives from the creatives finder (`q=criteria`, `creatives=List(...)` for named URNs, `campaigns=List(...)`
+ * for a native campaign filter), a creative's campaign group from `adCampaigns`, and each creative's preview from
+ * `GET /rest/adPreviews` (above), whose request names the selected account.
+ */
+const invalidList = (): never =>
+  fail('REPORT_SHAPE_CHANGED', 'The platform returned an invalid preview list or continuation.');
+
+/** Creatives are named by URN (a bare number means the same creative); the parent filters are bare numeric IDs. */
+function normalize(kind: 'ad' | 'campaign' | 'adset', values: string[]): string[] {
+  if (kind === 'ad') return values.map(id => (/^\d+$/.test(id) ? 'urn:li:sponsoredCreative:' + id : id));
+  const group = kind === 'campaign' ? 'sponsoredCampaignGroup' : 'sponsoredCampaign';
+  return values.map(value => {
+    if (!new RegExp('^(?:urn:li:' + group + ':)?[1-9][0-9]{0,31}$').test(value))
+      fail(
+        'INVALID_ARGUMENT',
+        'LinkedIn preview filters use campaign group IDs in campaign_ids and campaign IDs in adset_ids.',
+      );
+    return value.split(':').at(-1)!;
+  });
+}
+
+async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
+  const {account, wanted, campaigns, adsets, limit, base, read, matches, pageSelection, notListed} = request;
+  const campaignGroups = new Map<string, string>();
+  const pageOf = async (after: string | null, _page: number, named = false): Promise<AdPreviewPage> => {
+    const size = named ? wanted!.length : limit,
+      listed = await read({
+        action: 'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
+        ...base,
+        restli_method: 'FINDER',
+        query: {
+          q: 'criteria',
+          pageSize: size,
+          sortOrder: 'DESCENDING',
+          ...(after ? {pageToken: after} : {}),
+          ...(named ? {creatives: 'List(' + wanted!.join(',') + ')'} : {}),
+          ...(adsets.length ? {campaigns: adsets.map(id => 'urn:li:sponsoredCampaign:' + id)} : {}),
+        },
+      });
+    if (
+      !Array.isArray(listed?.elements) ||
+      listed.elements.length > size ||
+      (listed.metadata !== undefined && !object(listed.metadata))
+    )
+      invalidList();
+    const creatives = listed.elements as JsonObject[];
+    for (const row of creatives) {
+      if (!object(row) || typeof row.id !== 'string' || !/^urn:li:sponsoredCreative:[1-9][0-9]{0,31}$/.test(row.id))
+        invalidList();
+      if (row.account !== undefined && row.account !== 'urn:li:sponsoredAccount:' + account)
+        fail('ACCOUNT_SCOPE_MISMATCH', 'Not in this account');
+      if (
+        row.campaign !== undefined &&
+        (typeof row.campaign !== 'string' || !/^urn:li:sponsoredCampaign:[1-9][0-9]{0,31}$/.test(row.campaign))
+      )
+        invalidList();
+    }
+    const unknownParents = campaigns.length
+      ? [
+          ...new Set<string>(
+            creatives
+              .map(row => row.campaign)
+              .filter(
+                id =>
+                  typeof id === 'string' &&
+                  /^urn:li:sponsoredCampaign:[1-9][0-9]{0,31}$/.test(id) &&
+                  !campaignGroups.has(id),
+              ),
+          ),
+        ]
+      : [];
+    if (unknownParents.length) {
+      const metadata = await read({
+        action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get',
+        ...base,
+        restli_method: 'FINDER',
+        query: {q: 'search', search: {id: {values: unknownParents}}, pageSize: 100},
+      });
+      if (
+        !Array.isArray(metadata?.elements) ||
+        metadata.elements.length > unknownParents.length ||
+        metadata.metadata?.nextPageToken
+      )
+        invalidList();
+      for (const row of metadata.elements as JsonObject[]) {
+        if (!object(row)) invalidList();
+        const id = typeof row.id === 'number' && Number.isSafeInteger(row.id) && row.id > 0 ? String(row.id) : row.id,
+          urn = 'urn:li:sponsoredCampaign:' + id;
+        if (
+          !object(row) ||
+          typeof id !== 'string' ||
+          !/^[1-9][0-9]{0,31}$/.test(id) ||
+          !unknownParents.includes(urn) ||
+          campaignGroups.has(urn) ||
+          typeof row.campaignGroup !== 'string' ||
+          !/^urn:li:sponsoredCampaignGroup:[1-9][0-9]{0,31}$/.test(row.campaignGroup)
+        )
+          invalidList();
+        if (row.account !== 'urn:li:sponsoredAccount:' + account) fail('ACCOUNT_SCOPE_MISMATCH', 'Not in this account');
+        campaignGroups.set(urn, row.campaignGroup.split(':').at(-1)!);
+      }
+    }
+    const rows: AdPreviewRow[] = creatives.map(row => ({
+        id: row.id,
+        name: text(row.name),
+        adset: typeof row.campaign === 'string' ? row.campaign.split(':').at(-1) : undefined,
+        campaign: campaignGroups.get(row.campaign),
+        status: (
+          {ACTIVE: 'active', PAUSED: 'paused', ARCHIVED: 'archived', CANCELED: 'archived'} as Record<string, string>
+        )[row.intendedStatus],
+      })),
+      token = listed.metadata?.nextPageToken;
+    return {rows, after: token ?? null, more: token !== undefined && token !== null};
+  };
+  let chosen: AdPreviewRow[],
+    paging: JsonObject = {},
+    missing: string[] = [];
+  if (wanted) {
+    const page = await pageOf(null, 1, true),
+      found = new Map(page.rows.map(row => [row.id, row]));
+    if (page.more || found.size !== page.rows.length || page.rows.some(row => !wanted.includes(row.id))) invalidList();
+    chosen = wanted.flatMap(id => (found.has(id) && matches(found.get(id)!, true) ? [found.get(id)!] : []));
+    missing = wanted.filter(id => !found.has(id));
+  } else {
+    const selected = await pageSelection(pageOf);
+    chosen = selected.chosen;
+    paging = selected.paging;
+  }
+  return {
+    rows: chosen,
+    preview: async row => {
+      const response = await read({
+          action: 'linkedin_rest_ad_previews_get',
+          ...base,
+          query: {q: 'creative', creative: row.id, account: 'urn:li:sponsoredAccount:' + account},
+        }),
+        now = Date.now(),
+        placements = linkedInPreviewLinks(response?.elements, now),
+        links = [...new Set(placements.map(link => link.url))],
+        rejected =
+          !Array.isArray(response?.elements) ||
+          response.elements.length > 100 ||
+          response.elements.some((element: unknown) => linkedInPreviewLinks([element], now).length === 0);
+      return {
+        links,
+        link: links[0] ?? null,
+        placements,
+        expires_at: placements[0]?.expires_at ?? null,
+        expires: 'LinkedIn keeps this preview for up to 3 hours.',
+        ...(rejected ? {note: 'LinkedIn returned no safe iframe preview link for one or more placements.'} : {}),
+      };
+    },
+    extra: {...paging, ...notListed(missing)},
+  };
+}
+
+export const linkedinAdPreviews: AdPreviewHooks = Object.freeze({platform: 'linkedin', normalize, select});

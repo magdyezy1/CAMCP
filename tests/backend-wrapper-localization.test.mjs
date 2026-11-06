@@ -271,10 +271,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // F-L3-10 takes src/ad-previews.ts off the never-owned list: one more module with owned reasons.
   // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
   // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
-  // Meta's previews module and the kit are the first two.
-  assert.equal(files.length, 778);
-  // Meta's previews module owns the reasons it took from src/ad-previews.ts (no new sentence): one more module.
-  assert.equal(selected.filter(row => row.messages.size).length, 191);
+  // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): 783.
+  assert.equal(files.length, 783);
+  // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
+  // src/ad-previews.ts (no new sentence): five more modules.
+  assert.equal(selected.filter(row => row.messages.size).length, 195);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.

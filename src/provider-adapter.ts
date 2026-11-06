@@ -956,6 +956,14 @@ export interface AdPreviewSelection {
   readonly extra: JsonObject;
 }
 
+/** What a platform without a readable preview is told of the request (`AdPreviewHooks.explain`). */
+export interface AdPreviewRoute {
+  readonly account: string;
+  /** The connection the caller named, if any. */
+  readonly connection?: string;
+  readonly wanted?: readonly string[];
+}
+
 /** A platform's part of amcp_ad_previews (src/ad-previews.ts): its selection of ads and how it reads their previews. */
 export interface AdPreviewHooks {
   /** The `platform` value of the tool that names it. */
@@ -969,7 +977,7 @@ export interface AdPreviewHooks {
   /** Reads its ads and their previews; absent for a platform whose previews AMCP cannot read. */
   select?(request: AdPreviewRequest): Promise<AdPreviewSelection>;
   /** For a platform without a readable preview: the answer's fields (its explanation, or the write that creates one). */
-  explain?(route: {account: string; connection?: string; wanted?: readonly string[]}): JsonObject;
+  explain?(route: AdPreviewRoute): JsonObject;
 }
 
 /**
@@ -1036,8 +1044,6 @@ export interface ProviderHooks {
   readonly genericWorkflows?: GenericWorkflowHooks;
   /** Its steps of AMCP's reviewed media upload (src/media-upload.ts). */
   readonly media?: MediaUploadHooks;
-  /** Its documented preview response links and expiry, with provider HTML withheld. */
-  readonly adPreviewLinks?: (elements: unknown, now: number) => AdPreviewLink[];
   /** Its part of amcp_ad_previews: its ads, their previews, the links it accepts and its explanation (src/ad-previews.ts). */
   readonly previews?: AdPreviewHooks;
   /** Exact read-scoped URL fields whose signatures are capabilities; credentials are still scrubbed. */

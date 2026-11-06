@@ -316,8 +316,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Task 12 adds the X detail collector and its provider-owned level declarations.
   // V2-PRV-01's provider seam moves the previews tool's platform reads into src/<platform>-ad-previews.ts modules and a shared kit
   // (src/ad-preview-kit.ts); the sentences move with the code, so the owned reasons are unchanged.
-  // Meta's previews module and the kit are the first two.
-  assert.equal(files.length, 778);
+  // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): 783.
+  assert.equal(files.length, 783);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

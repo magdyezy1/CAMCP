@@ -5,6 +5,7 @@ import type {VendorRoute} from './delegated-native.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
 // Wave 4c round 6 (w4c-arc6-versions): the version it sends and its guides.
 import {criteoApiVersion, criteoDocs} from './criteo-version.js';
+import {noPreviewRoute} from './ad-preview-kit.js';
 
 /**
  * Wave 4c (transport and catalog): Criteo's part of the delegated compiler (src/delegated-native.ts). The bodies of its
@@ -61,6 +62,7 @@ function observeCriteo(plan: CompiledRequest, connection: Connection, id: string
  */
 export const criteoHooks: ProviderHooks = Object.freeze({
   gateway: 'criteo_native_action',
+  previews: noPreviewRoute('criteo', 'Criteo has no ad preview route in its API that AMCP can read.'),
   delegated: criteoDelegated,
   reads: Object.freeze({
     postRead: (_plan: CompiledRequest, pathname: string) =>
