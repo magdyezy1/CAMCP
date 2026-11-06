@@ -62,7 +62,6 @@ import {ReportCollectionBudget, reportCollectionLimits} from './report-collectio
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
 import {
   comparisonCandidates,
-  latestDefinitionContracts,
   recentFinishedSnapshots,
   recentSnapshotSources,
   snapshotPage,
@@ -99,7 +98,7 @@ import {
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
-import {claimObjectiveMigration} from './report-definition-migration.js';
+import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
   reportPack,
@@ -358,6 +357,7 @@ export class ReportingOverview {
       service.store,
       (a, c) => this.access(a, c),
       (t, id) => this.currentReport(t, id),
+      (tenant, report) => spendNotices(service.store, tenant, report),
     );
   }
   config(input: JsonObject, actor: Actor, template = false, legacyTargets = false): JsonObject {
@@ -641,18 +641,13 @@ export class ReportingOverview {
     config = {...resolveReportConfig(config, at), source_contract_version: reportContractVersion};
     // RPT-03: a configuration whose minimum request count exceeds the whole-job budget is refused before any egress.
     const estimate = assertCollectionEstimate(config);
-    const platform_contracts = platformContracts(config),
-      previous = latestDefinitionContracts(store, actor.tenantId, viewId, scheduleId),
-      notices = previous
-        ? Object.keys(platform_contracts).flatMap(platform => {
-            const notice = reportSource(platform)?.contract?.notice;
-            return notice && previous[platform] !== platform_contracts[platform] ? [{...notice}] : [];
-          })
-        : [];
+    const platform_contracts = platformContracts(config);
+    // The notes a snapshot carries are decided when it is recorded. Here the saved report's notice record is made if it is
+    // new, which reads History once; a later run finds it and reads nothing (F-L6-07).
+    ensureNoticeRecord(store, actor.tenantId, viewId, scheduleId);
     store.putDocument(actor.tenantId, 'overview_report', id, {
       config,
       platform_contracts,
-      ...(notices.length ? {notices} : {}),
       estimated_requests: estimate.estimated_requests,
       state: 'queued',
       captured_at: at,
@@ -1364,14 +1359,15 @@ export class ReportingOverview {
             : 'The snapshot is partial. Its complete-only delivery setting keeps the report tab unchanged.',
         );
       else if (destination.kind === 'report_files') result = this.files.queue(actor, report, destination.id);
-      else if (scheduledSheetsInline())
+      else if (scheduledSheetsInline()) {
         try {
           result = await this.sheets.write(actor, destination.id, report, access);
         } catch (e) {
           this.deliveryFailed(tenant, report, e);
           throw e;
         }
-      else result = this.queueSheetsExport(actor, report, destination.id, 'schedule');
+        if (result.state === 'complete') spendNotices(store, tenant, report);
+      } else result = this.queueSheetsExport(actor, report, destination.id, 'schedule');
     }
     recordScheduleDelivery(store, tenant, report, {
       state: result.state === 'delivered' ? 'complete' : (result.state ?? 'queued'),
@@ -1431,7 +1427,11 @@ export class ReportingOverview {
       this.currentReport(tenant, r.id);
       this.access(actor, r.config);
     });
-    store.putDocument(tenant, 'overview_export', e.id, {...e, ...result, completed_at: Date.now()});
+    store.transaction(() => {
+      store.putDocument(tenant, 'overview_export', e.id, {...e, ...result, completed_at: Date.now()});
+      // A tab that was written (not one a newer snapshot already holds) carries the snapshot's notes to the client.
+      if (result.state === 'complete') spendNotices(store, tenant, r);
+    });
     return result;
   }
   /**
@@ -2149,8 +2149,8 @@ export class ReportingOverview {
         row_count: rows.length,
       };
     store.transaction(() => {
-      const migration = claimObjectiveMigration(store, tenant, record);
-      if (migration) Object.assign(record, {notices: [...(r.notices ?? []), migration]});
+      const notices = settleNotices(store, tenant, record);
+      if (notices.length) Object.assign(record, {notices});
       store.putDocument(tenant, 'overview_report', r.id, record);
     });
     evaluateMonitors(store, actor, r.id);

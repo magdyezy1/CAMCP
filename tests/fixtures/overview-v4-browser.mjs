@@ -86,6 +86,19 @@ export async function exerciseOverviewV4({page, site, locale, result}) {
     },
     original = JSON.stringify(config);
   site.granular.store.putDocument(site.granular.tenant, 'overview_view', legacyId, {config, created_at: 1});
+  // Work-here ran this report before, so upgrading it changes numbers it already delivered; a report that never ran is
+  // told nothing (F-L2-13). One retained finished snapshot is what says it ran.
+  site.granular.store.putDocument(site.granular.tenant, 'overview_report', 'ran-before-' + legacyId, {
+    config,
+    view_id: legacyId,
+    schedule_id: null,
+    state: 'complete',
+    created_at: 10,
+    captured_at: 10,
+    completed_at: 20,
+    rows: [],
+    sources: [],
+  });
   await page.goto(site.origin + '/reporting-overview?view_id=' + legacyId);
   await page.locator('#overview-config').waitFor();
   const legacySource = page.locator('[data-report-source]').filter({has: page.locator('[data-report-level=meta]')});

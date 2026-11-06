@@ -448,10 +448,11 @@ export const documentKindSpecs = {
     scope: 'tenant',
     owner: 'src/report-definition-migration.ts',
     version: 1,
-    summary: 'The durable once-only notice claim for a saved report objective upgraded to a fallback.',
-    fields: {},
+    summary:
+      'The "numbers changed" notes a saved report owes and which were delivered, with the platform contracts it last ran under.',
+    fields: {registered_at: 'number', notices: 'object', 'contracts?': 'object'},
     retention: workspace(
-      'Kept with the saved view or standalone schedule; its owner deletes the claim with that definition. Deleting report History does not reset it.',
+      'Kept with the saved view or standalone schedule; its owner deletes the record with that definition. Deleting report History does not reset it.',
     ),
   },
   overview_report: {

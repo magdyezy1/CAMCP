@@ -45,22 +45,11 @@ export function writeDefinitionSidecar(
 }
 
 // Overview snapshots (src/reporting-overview.ts).
-/** Import the one-time objective notice emitted by an earlier v4 binary without loading snapshot rows. */
-export function priorObjectiveMigrationNotice(
-  store: Store,
-  tenant: string,
-  viewId?: string,
-  scheduleId?: string,
-): JsonObject | undefined {
-  if (!viewId && !scheduleId) return undefined;
-  return store
-    .sql()
-    .prepare(
-      "SELECT id,json_extract(data,'$.completed_at') AS completed_at FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.state') IN ('complete','partial') AND json_type(data,'$.completed_at') IN ('integer','real') AND json_extract(data,'$.comparison.role') IS NOT 'baseline' AND ((? IS NOT NULL AND json_extract(data,'$.view_id')=?) OR (? IS NOT NULL AND json_extract(data,'$.schedule_id')=?)) AND EXISTS (SELECT 1 FROM json_each(documents.data,'$.notices') n WHERE json_extract(n.value,'$.id')='objective-fallback-v4') ORDER BY json_extract(data,'$.created_at'),id LIMIT 1",
-    )
-    .get(tenant, viewId ?? null, viewId ?? null, scheduleId ?? null, scheduleId ?? null) as JsonObject | undefined;
-}
-/** The newest finished snapshot of a saved definition, in History order, without loading its rows or checkpoints. */
+/**
+ * The platform contracts of the newest finished snapshot of a saved definition, in History order, without loading its
+ * rows or checkpoints; undefined when it has none. A scan of every snapshot in the workspace: a saved report's notice
+ * record (src/report-definition-migration.ts) reads it once, when the report is first seen, and never again.
+ */
 export function latestDefinitionContracts(
   store: Store,
   tenant: string,

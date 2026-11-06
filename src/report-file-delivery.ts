@@ -41,6 +41,8 @@ export class ReportFileDelivery {
     readonly store: Store,
     readonly access: (actor: Actor, config: JsonObject) => void,
     readonly current: (tenant: string, id: string) => JsonObject,
+    // Called in the transaction that records the export as delivered, with the snapshot it delivered.
+    readonly delivered: (tenant: string, report: JsonObject) => void = () => {},
   ) {}
 
   bind(actor: Actor, input: JsonObject) {
@@ -215,14 +217,18 @@ export class ReportFileDelivery {
         this.store.putDocument(tenant, 'overview_export', e.id, e);
       });
     }
-    check();
-    e = {...this.store.document(tenant, 'overview_export', e.id), state: 'delivered', completed_at: Date.now()};
-    this.store.putDocument(tenant, 'overview_export', e.id, e);
-    this.store.appendAudit(tenant, 'report-files/' + e.id, {
-      event: 'report_files_delivered',
-      report_id: e.report_id,
-      files: e.files.map((f: JsonObject) => ({format: f.format, sha256: f.sha256, size_bytes: f.size_bytes})),
-      external_writes: false,
+    const report = check();
+    this.store.transaction(() => {
+      e = {...this.store.document(tenant, 'overview_export', e.id), state: 'delivered', completed_at: Date.now()};
+      this.store.putDocument(tenant, 'overview_export', e.id, e);
+      this.store.appendAudit(tenant, 'report-files/' + e.id, {
+        event: 'report_files_delivered',
+        report_id: e.report_id,
+        files: e.files.map((f: JsonObject) => ({format: f.format, sha256: f.sha256, size_bytes: f.size_bytes})),
+        external_writes: false,
+      });
+      // The notes this snapshot carried reached the client with it (F-L6-03).
+      this.delivered(tenant, report);
     });
     return {export_id: e.id, report_id: e.report_id, state: 'delivered', files: e.files, external_writes: false};
   }

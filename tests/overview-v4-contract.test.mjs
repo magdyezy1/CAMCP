@@ -567,16 +567,27 @@ test('a client cannot use a JSON flag to bypass legacy guided declarations, and 
   );
 });
 
-test('D22 notice is claimed once by the first completed linked snapshot and persists in History without editing v3', async t => {
+test('D22 notice is carried and spent once by the first completed snapshot of a report that ran before, and persists in History without editing v3', async t => {
   const f = objectiveReportFixture(t, {
       rows: [{campaign_id: '1', objective: 'OUTCOME_TRAFFIC', metrics: {spend: 10, impressions: 100, clicks: 2}}],
     }),
     legacy = {...f.config, sources: [{...f.config.sources[0], objective: 'sales'}]},
-    saved = await f.overview.handle({action: 'save', confirmed: true, config: legacy}, f.actor),
-    original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id)),
-    migrated = f.overview.config({...legacy, contract_version: overviewConfigV4}, f.actor);
-  const first = f.overview.queue(f.actor, migrated, undefined, undefined, Date.now(), saved.id),
-    second = f.overview.queue(f.actor, migrated, undefined, undefined, Date.now() + 1, saved.id);
+    saved = await f.overview.handle({action: 'save', confirmed: true, config: legacy}, f.actor);
+  // Work-here ran this report before: a retained finished snapshot is what makes the upgrade change its numbers.
+  f.store.putDocument(f.actor.tenantId, 'overview_report', 'ran-before', {
+    config: legacy,
+    view_id: saved.id,
+    schedule_id: null,
+    state: 'complete',
+    created_at: 10,
+    completed_at: 20,
+    rows: [],
+    sources: [],
+  });
+  const original = JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id).config),
+    // Both runs are queued before either finishes, as two people (or a person and a schedule) can.
+    first = await f.overview.handle({action: 'run', id: saved.id, confirmed: true}, f.actor),
+    second = await f.overview.handle({action: 'run', id: saved.id, confirmed: true}, f.actor);
   await f.worker.once();
   await f.worker.once();
   const a = await f.overview.handle({action: 'get', id: first.id}, f.actor),
@@ -590,7 +601,7 @@ test('D22 notice is claimed once by the first completed linked snapshot and pers
     'concurrently queued snapshots do not duplicate the migration notice',
   );
   assert.equal(a.rows[0].objective.group, 'traffic', 'provider objective now takes precedence over the saved fallback');
-  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id)), original);
+  assert.equal(JSON.stringify(f.store.document(f.actor.tenantId, 'overview_view', saved.id).config), original);
   const history = await f.overview.handle({action: 'list'}, f.actor);
   assert.equal(history.reports.flatMap(notices).length, 1);
   assert.equal(
