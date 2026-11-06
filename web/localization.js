@@ -32,12 +32,13 @@ function uiOwnedError(error) {
       provider && (typeof provider.message === 'string' || !local)
         ? message
         : uiText(local?.key ?? message, local?.values),
-    nextAction:
-      local && typeof provider?.message === 'string'
-        ? uiText(local.key, local.values)
-        : typeof error.next_action === 'string'
-          ? uiText(error.next_action)
-          : '',
+    // Beneath a provider's literal message: AMCP's own explanation, then the error's next step (each when it has one).
+    nextAction: [
+      local && typeof provider?.message === 'string' ? uiText(local.key, local.values) : '',
+      typeof error.next_action === 'string' ? uiText(error.next_action) : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 /**
