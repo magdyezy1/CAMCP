@@ -308,6 +308,79 @@ test('native mapping inputs survive final assembly of detailed rows', async t =>
   assert.equal(result.rows[0].objective_source, 'provider_mapped');
 });
 
+const googleMappingFields = ['campaign.advertising_channel_type', 'campaign.bidding_strategy_type'];
+const googleSelected = query =>
+  /^SELECT (.+) FROM (\w+) WHERE /s
+    .exec(query)[1]
+    .split(', ')
+    .filter(field => !/[\s()]/.test(field));
+for (const [preset, resource] of [
+  ['google_adset', 'ad_group'],
+  ['google_ad', 'ad_group_ad'],
+])
+  test('the Google ' + preset + ' request selects the campaign attributes the objective mapping reads', () => {
+    const guided = reportSource('google').guided,
+      input = {account_id: '1234567890', connection_id: 'login', semantics: {timezone: 'UTC', currency: 'USD'}};
+    for (const context of [{overviewV4: true}, undefined]) {
+      const request = guided.presetRequest(
+          guided.presets.find(p => p.id === preset),
+          input,
+          granularRange,
+          context,
+        ),
+        query = request.arguments.payload.query,
+        fields = googleSelected(query);
+      assert.match(query, new RegExp(' FROM ' + resource + ' WHERE '));
+      for (const field of googleMappingFields) assert.equal(fields.filter(f => f === field).length, 1, field);
+      // GAQL refuses a repeated field, and the grain stays the entity's own: no campaign segment is added.
+      assert.equal(new Set(fields).size, fields.length);
+      assert.doesNotMatch(query, /segments\.(?!date)/);
+    }
+    // The campaign grain of the same guided reports is unchanged.
+    const campaign = guided.presetRequest(
+      guided.presets.find(p => p.id === 'google_campaign'),
+      input,
+      granularRange,
+    );
+    assert.deepEqual(
+      googleSelected(campaign.arguments.payload.query).filter(f => googleMappingFields.includes(f)),
+      [],
+    );
+  });
+
+for (const level of ['adset', 'ad'])
+  test(
+    'Google ' + level + ' rows of a Shopping campaign resolve their mapped objective through the real request',
+    async t => {
+      const f = overviewGranularityFixture();
+      t.after(() => f.close());
+      // A provider that answers only with the fields the request selected.
+      let query = '';
+      f.hook(() => {
+        query = f.requests.at(-1).body?.query ?? query;
+      });
+      f.mutate((rows, kind) =>
+        kind === 'google'
+          ? rows.map(row => ({
+              ...row,
+              campaign: {
+                ...row.campaign,
+                ...(query.includes('campaign.advertising_channel_type') ? {advertisingChannelType: 'SHOPPING'} : {}),
+              },
+            }))
+          : rows,
+      );
+      const {objective, ...source} = granularSource('google', level);
+      const result = await run(f, source);
+      assert.equal(result.state, 'complete', JSON.stringify(result.sources));
+      assert.ok(result.rows.length > 0);
+      for (const row of result.rows) {
+        assert.equal(row.objective_group, 'sales');
+        assert.equal(row.objective_source, 'provider_mapped');
+      }
+    },
+  );
+
 test('shared detail collection and row mapping still import no provider module', () => {
   for (const file of [
     'src/report-native.ts',
