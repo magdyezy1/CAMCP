@@ -36,6 +36,7 @@ test('X detail warnings translate exact authored copy without translating provid
     'Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
     'X omitted requested native entity IDs; the returned subset is retained.',
     'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
+    'Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.',
   ]) {
     ar.context.message = en.context.message = message;
     assert.equal(en.run('uiSourceWarning(message)'), message);

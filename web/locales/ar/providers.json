@@ -2531,7 +2531,7 @@
   "Snapshot ID": "معرّف اللقطة",
   "Snapshot exceeds eight MiB or its deadline.": "تتجاوز اللقطة ثمانية MiB أو مهلتها.",
   "Snapshot exceeds its identity, request or deadline bounds.": "تتجاوز اللقطة الحدود المحددة للهويات أو الطلبات أو المهلة.",
-  "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.": "تشغّل بعض حملات X بنودًا إعلانية بأهداف مختلفة؛ لذلك يبقى هدفها غير معروف ما لم يُحدَّد في إعدادات التقرير.",
+  "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.": "تشغّل بعض حملات X بنودًا إعلانية بأهداف مختلفة؛ لذلك تُعرض بوصفها «مختلط» ولا تُجمع نتائجها.",
   "Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.": "لبعض عناصر X نشاط على شبكة الناشرين (PUBLISHER_NETWORK)، ولا يطلب هذا التقرير بياناتها بعد. لا تشمل هذه الإجماليات ذلك النشاط أو إنفاقه، لذا فالتغطية جزئية ولا تُقدّم توصيات للميزانية.",
   "Some comments already have this status; leave them out of the request.": "لبعض التعليقات هذه الحالة بالفعل؛ أخرجها من الطلب.",
   "Some comments are not in the comment list of comment_scope; list the comments of that ad and window first.": "بعض التعليقات ليست في قائمة تعليقات comment_scope؛ اعرض تعليقات ذلك الإعلان وتلك النافذة أولًا.",

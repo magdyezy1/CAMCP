@@ -193,6 +193,10 @@ for (const level of ['adset', 'ad'])
     assert.equal(f.analytics().length, 4);
     for (const row of result.rows) {
       assert.equal(row.entity_level, level);
+      // The line item's own objective, pinned from X's documentation, labelled as from the provider.
+      assert.equal(row.objective, row.entity_id.endsWith('21') ? 'REACH' : 'WEBSITE_CLICKS');
+      assert.equal(row.objective_group, row.entity_id.endsWith('21') ? 'awareness' : 'traffic');
+      assert.equal(row.objective_source, 'provider');
       assert.equal(row.native.exact_totals.spend, '192');
       assert.equal(row.native.exact_totals.impressions, '192');
       assert.equal(row.result.value, '192');

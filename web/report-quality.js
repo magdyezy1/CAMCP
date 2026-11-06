@@ -209,6 +209,7 @@ const reportSourceWarnings = new Set([
   'X refused the active-entities read; every scoped entity was requested instead (at most 100 analytics requests).',
   'Some X entities have activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
   'X omitted requested native entity IDs; the returned subset is retained.',
+  'Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.',
   'Some selected X entities have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
   'The provider refused one day-segmented request, so each day was requested separately.',
   'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',

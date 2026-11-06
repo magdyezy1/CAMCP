@@ -41,11 +41,12 @@ export const xObjectivesUnavailableWarning =
   'X line item objectives could not be read, so campaign objectives stay unknown unless set in report settings.';
 /** RPT-07: shown when a campaign's line items use different objectives. */
 export const xObjectivesMixedWarning =
-  'Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.';
+  'Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.';
 /**
  * RPT-07: X campaigns carry no objective; their line items do. A listed campaign whose line items share one objective
- * takes it (current line item metadata); different objectives give `null` (unknown, never a guess). Line items of
- * campaigns outside the listed inventory are ignored; a malformed line item refuses the source.
+ * takes it (current line item metadata); different objectives give `null` in `campaigns` and the sorted objectives in
+ * `mixed`, which the campaign shows as the shared mixed group (never a guess, and never one combined result). Line items
+ * of campaigns outside the listed inventory are ignored; a malformed line item refuses the source.
  */
 export function xCampaignObjectives(inventory: JsonObject[], lineItems: JsonObject[]) {
   const listed = new Set(inventory.map(c => String(c.id))),
@@ -66,6 +67,9 @@ export function xCampaignObjectives(inventory: JsonObject[], lineItems: JsonObje
     campaigns: Object.fromEntries(
       [...objectives].map(([id, set]) => [id, set.size === 1 ? [...set][0]! : null]),
     ) as Record<string, string | null>,
+    mixed: Object.fromEntries(
+      [...objectives].filter(([, set]) => set.size > 1).map(([id, set]) => [id, [...set].sort()]),
+    ) as Record<string, string[]>,
   };
 }
 /**

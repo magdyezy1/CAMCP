@@ -11175,7 +11175,7 @@
   "LinkedIn conversion windows are read from each conversion rule. Declare attribution verified_per_rule; a typed single window is not accepted.": "تُقرأ نوافذ تحويل LinkedIn من كل قاعدة تحويل. أعلن الإسناد verified_per_rule؛ لا تُقبل نافذة واحدة مكتوبة يدويًا.",
   "X returned a malformed line item.": "أعادت X بندًا إعلانيًا غير صالح.",
   "X line item objectives could not be read, so campaign objectives stay unknown unless set in report settings.": "تعذّرت قراءة أهداف البنود الإعلانية في X، لذلك تبقى أهداف الحملات غير معروفة ما لم تُحدَّد في إعدادات التقرير.",
-  "Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.": "تشغّل بعض حملات X بنودًا إعلانية بأهداف مختلفة؛ لذلك يبقى هدفها غير معروف ما لم يُحدَّد في إعدادات التقرير.",
+  "Some X campaigns run line items with different objectives; they are shown as Mixed and their results are not combined.": "تشغّل بعض حملات X بنودًا إعلانية بأهداف مختلفة؛ لذلك تُعرض بوصفها «مختلط» ولا تُجمع نتائجها.",
   "Budget owner": "مالك الميزانية",
   "Native budget in Meta minor units": "الميزانية الأصلية بالوحدات الصغرى في Meta",
   "Campaign budget": "ميزانية الحملة",

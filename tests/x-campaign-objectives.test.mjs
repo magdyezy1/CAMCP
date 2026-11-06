@@ -77,7 +77,7 @@ const item = (campaign_id, objective, extra = {}) => ({
   ...extra,
 });
 
-test('a campaign whose line items share one objective takes it; mixed objectives stay unknown with a warning', async () => {
+test('a campaign whose line items share one objective takes it; differing objectives are the mixed group, named, with a warning', async () => {
   process.env.AMCP_X_ACTIVE_ENTITIES = 'off';
   const f = fixture([
     item('c1', 'WEBSITE_CONVERSIONS'),
@@ -91,7 +91,9 @@ test('a campaign whose line items share one objective takes it; mixed objectives
     const byId = Object.fromEntries(result.rows.map(r => [r.campaign_id, r]));
     assert.equal(byId.c1.objective, 'WEBSITE_CONVERSIONS');
     assert.equal(byId.c1.objective_group, 'sales');
-    assert.equal(byId.c2.objective, 'unknown', 'mixed line item objectives are never guessed');
+    assert.equal(byId.c2.objective, 'MIXED', 'differing line item objectives are the mixed group, never a guess');
+    assert.equal(byId.c2.objective_group, 'mixed');
+    assert.deepEqual(byId.c2.native.line_item_objectives, ['APP_INSTALLS', 'WEBSITE_CLICKS']);
     assert.equal(byId.c3.objective, 'unknown', 'a campaign without line items stays unknown');
     assert.ok(result.warnings.includes(xObjectivesMixedWarning));
     const read = f.requests.find(p => p.path === '/12/accounts/abc/line_items');
@@ -99,6 +101,7 @@ test('a campaign whose line items share one objective takes it; mixed objectives
     // The answer is kept with the checkpoint, so a resumed run reads the line items only once.
     const state = f.saved.find(v => v.x_objectives);
     assert.deepEqual(state.x_objectives.campaigns, {c1: 'WEBSITE_CONVERSIONS', c2: null});
+    assert.deepEqual(state.x_objectives.mixed, {c2: ['APP_INSTALLS', 'WEBSITE_CLICKS']});
     const before = f.requests.filter(p => p.path.endsWith('/line_items')).length;
     await f.collect(f.saved.at(-1));
     assert.equal(f.requests.filter(p => p.path.endsWith('/line_items')).length, before);
@@ -125,8 +128,9 @@ test('a refused line item read keeps objectives unknown; a malformed line item r
     malformed.close();
     delete process.env.AMCP_X_ACTIVE_ENTITIES;
   }
-  assert.deepEqual(xCampaignObjectives([{id: 'c1'}], [item('c1', null), item('c1', 'ENGAGEMENTS')]).campaigns, {
-    c1: 'ENGAGEMENTS',
+  assert.deepEqual(xCampaignObjectives([{id: 'c1'}], [item('c1', null), item('c1', 'ENGAGEMENTS')]), {
+    campaigns: {c1: 'ENGAGEMENTS'},
+    mixed: {},
   });
 });
 
