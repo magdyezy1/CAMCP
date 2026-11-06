@@ -1,8 +1,6 @@
 import {fingerprint, formulaVersion, reportContractVersion} from './report-quality.js';
 import {validateRecommendationContext} from './recommendation-context.js';
-import {reportSummary, reportWindowSummary, reportMetricsSummaryV4} from './report-summary.js';
-import {calculateMetricsV4} from './report-math-v4.js';
-import {recommendationV4, assignRecommendationsV4} from './report-advice-v4.js';
+import {reportSummary, reportWindowSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
 import {
   dueScheduleTenants,
@@ -33,12 +31,9 @@ import {
   objectiveGroups,
   validateCustomMetrics,
   parseMetricFormula,
-  calculateMetrics,
-  campaignRecommendation,
   metricSources,
   kpiDirection,
   currencyTargetKey,
-  windowRecommendations,
 } from './report-metrics.js';
 import {resolveReportConfig, resolveRollingWindow, nextScheduleDetail} from './reporting.js';
 import {fixedReportTimezones, reportWindowState, sourceReportTimezone} from './report-windows.js';
@@ -47,12 +42,7 @@ import {sha256} from './security.js';
 import {optionalClientView} from './client-scope.js';
 import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
-import {
-  resolveObjective,
-  validateObjectiveFields,
-  unusedObjectiveOverrides,
-  objectiveFallbackGroups,
-} from './report-objectives.js';
+import {validateObjectiveFields, objectiveFallbackGroups} from './report-objectives.js';
 import {reportSource} from './report-sources.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
@@ -99,6 +89,7 @@ import {
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
+import {assembleReportRows, reportCustomMetrics, reportNativeFields} from './report-row-assembly.js';
 import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
@@ -1957,158 +1948,9 @@ export class ReportingOverview {
     }
     r = store.document(tenant, 'overview_report', r.id);
     access();
-    const rows: JsonObject[] = [],
-      nativeFields = new Set<string>();
-    for (const source of results)
-      for (const row of source.rows)
-        for (const k of Object.keys(row.metrics)) if (k.startsWith('native_')) nativeFields.add(k);
-    // Keep native dependencies accepted by config even when no row reports them. Missing fields evaluate to null;
-    // the observed native field inventory must not turn an empty or sparse provider response into a formula error.
-    const nativeDependencies = r.config.custom_metrics
-      .flatMap((m: JsonObject) => parseMetricFormula(m.formula).dependencies)
-      .filter((d: string) => /^native_[a-z][a-zA-Z0-9_]{1,150}$/.test(d));
-    const custom = validateCustomMetrics(r.config.custom_metrics, [
-      ...nativeFields,
-      ...nativeDependencies,
-      ...(r.config.contract_version === overviewConfigV4 ? ['primary_result', 'cost_per_result'] : []),
-    ]);
-    for (const result of results) {
-      if (scopeRollups && result.source.scope_supporting) continue;
-      const seen = new Set<string>();
-      for (const row of result.rows) {
-        const source = result.source,
-          key = [
-            source.platform,
-            source.account_id,
-            ...(row.entity_level ? [row.entity_level] : []),
-            row.entity_id ?? row.campaign_id,
-          ].join(':'),
-          period = row.report_period ?? result.date_range ?? r.config.date_range,
-          context = row.period_context ?? result,
-          rowKey =
-            key +
-            ':' +
-            period.since +
-            ':' +
-            period.until +
-            (row.aggregation?.kind === 'rolled_up'
-              ? ':' +
-                fingerprint({
-                  currency: row.currency ?? context.currency,
-                  timezone: context.timezone,
-                  attribution: context.attribution,
-                })
-              : '');
-        if (seen.has(rowKey))
-          throw new MirrorError(
-            row.entity_level ? 'DUPLICATE_ENTITY_ROWS' : 'DUPLICATE_CAMPAIGN_ROWS',
-            row.entity_level
-              ? 'The native report contains duplicate entity rows in the same reporting period.'
-              : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
-          );
-        seen.add(rowKey);
-        const resolvedObjective = resolveObjective({
-            platform: source.platform,
-            table: reportSource(source.platform)?.objectives,
-            native: row.objective,
-            campaignId: row.campaign_id,
-            mappedInputs: row.native?.daily_rows?.[0] ?? row.native,
-            overrides: source.objective_overrides,
-            legacy: source.objective,
-            fallback: source.objective_fallback,
-            unread: row.objective_unread,
-          }),
-          objective = resolvedObjective.group,
-          {period_context, report_period, objective_unread, ...nativeRow} = row,
-          record: JsonObject = {
-            ...nativeRow,
-            ...(r.config.contract_version === overviewConfigV4 ? {source_ref: source.source_ref} : {}),
-            row_key: rowKey,
-            grain: r.config.grain ?? 'total',
-            campaign_key: key,
-            ...(row.entity_level ? {entity_key: key} : {}),
-            platform: source.platform,
-            account_id: source.account_id,
-            connection_id: source.connection_id,
-            currency: row.currency ?? context.currency,
-            timezone: context.timezone,
-            objective: resolvedObjective.native ?? 'unknown',
-            objective_group: objective,
-            objective_source: resolvedObjective.source,
-            objective_reason: resolvedObjective.reason,
-            date_from: period.since,
-            date_to: period.until,
-            source_kind: result.source_kind,
-            // RPT-04: values the provider omitted on a delivered row count as 0 and stay named in quality (exports).
-            quality: {
-              ...(context.quality ?? {version: 0, status: 'unknown'}),
-              ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
-            },
-            ...(r.config.contract_version === overviewConfigV4 ? {} : {lineage: context.lineage ?? []}),
-            query_fingerprint: context.query_fingerprint ?? null,
-            formula_version: r.config.formula_version ?? 'legacy-unversioned',
-            attribution: context.attribution,
-            // RPT-04: a row-level definition (TikTok optimization events) splits summaries by result.
-            result_definition: row.result_definition ?? context.result_definition,
-            complete: result.complete,
-            captured_at: result.captured_at,
-            metrics:
-              r.config.contract_version === overviewConfigV4
-                ? calculateMetricsV4(
-                    {
-                      ...row.metrics,
-                      primary_result: row.result?.value ?? null,
-                      cost_per_result: row.result?.cost_per_result ?? null,
-                    },
-                    custom,
-                  ).metrics
-                : calculateMetrics(row.metrics, custom),
-          };
-        if (r.config.contract_version === overviewConfigV4) {
-          // A row with no resolved result keeps the definition its provider gave it (TikTok names the optimization
-          // events a campaign mixes), so unlike rows never share one 'unknown' summary. Only a row with neither is unknown.
-          record.result_definition = row.result?.label ?? row.result_definition ?? 'unknown';
-          const normalized = reportMetricsSummaryV4([record], custom);
-          for (const [name, value] of Object.entries(normalized.metrics))
-            if (
-              metricDefinitions[name]?.aggregation === 'sum' ||
-              metricDefinitions[name]?.formula ||
-              !Object.hasOwn(metricDefinitions, name)
-            )
-              record.metrics[name] = value;
-          record.metrics_coverage = normalized.metrics_coverage;
-          if (normalized.metric_calculation_rounding)
-            record.quality.metric_calculation_rounding = normalized.metric_calculation_rounding;
-        }
-        if (r.config.objectives.length && !r.config.objectives.includes(objective)) continue;
-        rows.push({
-          ...record,
-          recommendation:
-            r.config.contract_version === overviewConfigV4
-              ? recommendationV4(record, r.config.targets, custom)
-              : campaignRecommendation(record, r.config.targets),
-        });
-      }
-    }
-    // Overrides belong to a source, not to one of its level packets: a campaign matched at any level is a match, and an
-    // unmatched one is reported once, on the source's first packet.
-    const packetsOfSource = new Map<unknown, JsonObject[]>();
-    for (const result of results) {
-      if (result.error) continue;
-      const key = result.source.source_ref ?? result;
-      packetsOfSource.set(key, [...(packetsOfSource.get(key) ?? []), result]);
-    }
-    for (const packets of packetsOfSource.values()) {
-      const warning = unusedObjectiveOverrides(
-        packets[0]!.source,
-        packets.flatMap(packet => packet.rows),
-      );
-      if (warning) packets[0]!.warnings.push(warning);
-    }
-    // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
-    if (r.config.contract_version === overviewConfigV4)
-      assignRecommendationsV4(rows, r.config.targets, custom, (r.config.grain ?? 'total') !== 'total');
-    else if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
+    const nativeFields = reportNativeFields(results),
+      custom = reportCustomMetrics(r.config, nativeFields),
+      rows = assembleReportRows(results, r.config, custom);
     const v4 = r.config.contract_version === overviewConfigV4,
       requestedResults = scopeRollups ? results.filter(packet => !packet.source.scope_supporting) : results,
       scopedRowCount = requestedResults.reduce((n, s) => n + s.rows.length, 0),

@@ -320,7 +320,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): seven.
   // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
   // Merged with the levels package (779 modules), the previews package's eight make 787.
-  assert.equal(files.length, 787);
+  // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
+  assert.equal(files.length, 788);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

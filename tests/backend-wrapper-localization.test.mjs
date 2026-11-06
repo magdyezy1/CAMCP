@@ -276,7 +276,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): seven.
   // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
   // Merged with the levels package (779 modules), the previews package's eight make 787.
-  assert.equal(files.length, 787);
+  // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
+  assert.equal(files.length, 788);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
