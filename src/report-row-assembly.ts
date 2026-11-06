@@ -276,7 +276,9 @@ function rowObjective(source: JsonObject, row: JsonObject): ResolvedObjective {
     table: reportSource(source.platform)?.objectives,
     native: row.objective,
     campaignId: row.campaign_id,
-    mappedInputs: row.native?.daily_rows?.[0] ?? row.native,
+    // A detail row's evidence is its first daily row; a row rolled up from selected children has none of its own, so the
+    // parent's raw row, kept on it, is what a provider mapping reads.
+    mappedInputs: row.native?.daily_rows?.[0] ?? row.native?.scope_rollup?.native_parent ?? row.native,
     overrides: source.objective_overrides,
     legacy: source.objective,
     fallback: source.objective_fallback,

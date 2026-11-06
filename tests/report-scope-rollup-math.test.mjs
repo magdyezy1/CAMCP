@@ -182,6 +182,83 @@ test('derivation consumes the existing row and byte budgets before it can return
   }
 });
 
+// Package engine-core (F-L5-09): the campaign read and the detail read of one source often declare different attribution
+// (the provider's configured one against unknown). The parent row is found by entity and frame without it.
+const configured = 'provider configured';
+const richParent = (more = {}, packetMore = {}) => {
+  const base = parent();
+  base.attribution = configured;
+  base.rows[0] = {
+    ...base.rows[0],
+    name: 'Spring sale',
+    objective: 'OUTCOME_SALES',
+    status: 'active',
+    native: {delivery_activity: true, campaign: {advertisingChannelType: 'SHOPPING'}},
+    ...more,
+  };
+  return {...base, ...packetMore};
+};
+
+test('a parent read under another attribution still supplies the rolled row’s status, name and objective', () => {
+  const report = applyScopedRollups([richParent(), packet('ad', [child('a1', '1', '1')])], () => capabilities)[0],
+    row = report.rows[0];
+  assert.equal(report.rows.length, 1);
+  assert.equal(row.status, 'active');
+  assert.equal(row.objective, 'OUTCOME_SALES');
+  assert.equal(row.entity_name, 'c1');
+  assert.equal(
+    row.period_context.attribution,
+    'fixture',
+    'the total itself keeps the attribution it was measured under',
+  );
+  assert.equal(
+    row.native.scope_rollup.native_parent.campaign.advertisingChannelType,
+    'SHOPPING',
+    'the parent it was found under is recorded, with its own raw evidence',
+  );
+});
+
+test('a status filter keeps a rolled row whose parent was read under another attribution', () => {
+  const wanted = richParent({}, {source: {...source, level: 'campaign', statuses: ['active']}}),
+    childPacket = {...packet('ad', [child('a1', '1', '1')]), source: {...source, level: 'ad', statuses: ['active']}},
+    report = applyScopedRollups([wanted, childPacket], () => capabilities)[0];
+  assert.equal(report.rows.length, 1, 'the active campaign is kept');
+  assert.equal(report.rows[0].status, 'active');
+  assert.equal(report.scope.excluded_unknown_rows, 0, 'its status is known');
+  assert.equal(report.complete, true);
+  // A parent that is paused is still excluded, by the status it really has.
+  const paused = richParent({status: 'paused'}, {source: {...source, level: 'campaign', statuses: ['active']}}),
+    excluded = applyScopedRollups([paused, childPacket], () => capabilities)[0];
+  assert.equal(excluded.rows.length, 0);
+  assert.equal(excluded.scope.excluded_status_rows, 1);
+  assert.equal(excluded.scope.excluded_unknown_rows, 0);
+});
+
+test('a total never mixes attribution: children read under different attribution stay separate rows of one parent', () => {
+  const other = child('a2', '1', '1', {period_context: {currency: 'USD', timezone: 'UTC', attribution: 'another'}}),
+    report = applyScopedRollups([richParent(), packet('ad', [child('a1', '1', '1'), other])], () => capabilities)[0];
+  assert.equal(report.rows.length, 2);
+  assert.deepEqual(
+    report.rows.map(row => [row.status, row.period_context.attribution]),
+    [
+      ['active', 'fixture'],
+      ['active', 'another'],
+    ],
+  );
+});
+
+test('a requested ancestor never keeps the full parent’s results by objective or its other results', () => {
+  const full = {
+      results_by_objective: [{objective: 'FULL_PARENT', result_definition: 'Leads', value: 123456}],
+      other_results: [{objective: 'OTHER', result_definition: 'Leads', value: 7}],
+    },
+    report = applyScopedRollups([richParent(full), packet('ad', [child('a1', '1', '1')])], () => capabilities)[0],
+    row = report.rows[0];
+  assert.equal(row.status, 'active', 'the identity of the parent is kept');
+  assert.equal(Object.hasOwn(row, 'results_by_objective'), false);
+  assert.equal(Object.hasOwn(row, 'other_results'), false);
+  assert.equal(row.metrics.spend, '1', 'the figures are the selected ads’');
+});
 test('derived values use child measurement context and omissions while retaining parent metadata audit times', () => {
   const ancestor = parent();
   ancestor.captured_at = 1000;

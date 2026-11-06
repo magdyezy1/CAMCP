@@ -154,6 +154,27 @@ test('a row that carries the objective its collector resolved keeps it instead o
   );
 });
 
+test('a campaign row rolled up from selected ads is resolved from the parent’s own evidence', () => {
+  const rolled = row(
+    'campaign',
+    'c1',
+    {},
+    {
+      objective: 'unknown',
+      aggregation: {kind: 'rolled_up', from_level: 'ad', scope_field: 'ad_ids', child_rows: 1},
+      native: {
+        delivery_activity: true,
+        scope_rollup: {native_parent: {campaign: {advertisingChannelType: 'SHOPPING'}}},
+      },
+    },
+  );
+  const [campaign] = assemble([packet('campaign', [rolled], {source: {platform: 'google'}})]);
+  assert.deepEqual(
+    [campaign.objective_group, campaign.objective_source],
+    ['sales', 'provider_mapped'],
+    'Google maps the group from the parent campaign’s settings, which the rolled row no longer carries itself',
+  );
+});
 test('an override that matched no campaign of the source is named once, on its first packet', () => {
   const results = [
     packet('campaign', [row('campaign', 'c1')], {source: {objective_overrides: {gone: 'traffic'}}}),

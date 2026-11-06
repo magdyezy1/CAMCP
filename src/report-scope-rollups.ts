@@ -51,9 +51,19 @@ function rolledRows(
     templates = new Map<string, JsonObject>(),
     groups = new Map<string, JsonObject[]>();
   let unassigned = 0;
+  // The parent row that supplies the rolled row's identity (status, objective, name) is found by the entity and the
+  // reporting frame it was measured in, not by attribution: the campaign read and the detail read of one source often
+  // declare different attribution (the provider's configured one against unknown), and the same campaign must still be
+  // found (F-L5-09). The children are grouped by attribution as well, so a total never mixes attribution.
+  const templateKey = (id: string, currency: unknown, timezone: unknown, since: unknown, until: unknown) =>
+    JSON.stringify([id, currency, timezone, since, until]);
   for (const row of parent.rows) {
     const id = overviewV4ScopeIdentity(capabilities, level, ownId(row, level));
-    if (id) templates.set(JSON.stringify([id, ...dimensions(row, parent)]), row);
+    if (id)
+      templates.set(
+        templateKey(id, ...(dimensions(row, parent).slice(0, 4) as [unknown, unknown, unknown, unknown])),
+        row,
+      );
   }
   for (const row of child.rows) {
     const id = overviewV4ScopeIdentity(capabilities, level, parentId(row, level));
@@ -71,7 +81,7 @@ function rolledRows(
   const rows: JsonObject[] = [];
   for (const [key, members] of groups) {
     const [id, currency, timezone, since, until, attribution] = JSON.parse(key),
-      template = templates.get(key),
+      template = templates.get(templateKey(id, currency, timezone, since, until)),
       first = members[0]!,
       campaigns = new Set(
         members
@@ -105,7 +115,14 @@ function rolledRows(
         id,
       activity = members.map(row => row.native?.delivery_activity),
       omitted = [...new Set<string>(members.flatMap(row => row.omitted_as_zero ?? []))],
-      {omitted_as_zero: _parentOmissions, ...parentMetadata} = template ?? {},
+      // A requested ancestor never keeps a full-parent figure: its omissions and its results by objective or kept apart
+      // (LinkedIn) describe every ad of the parent, not the selected ones this row totals (F-L5-17).
+      {
+        omitted_as_zero: _parentOmissions,
+        results_by_objective: _parentResultsByObjective,
+        other_results: _parentOtherResults,
+        ...parentMetadata
+      } = template ?? {},
       sourceField = overviewV4MeasurementLevel(parent.source) === 'ad' ? 'ad_ids' : 'adset_ids',
       row: JsonObject = {
         ...parentMetadata,
