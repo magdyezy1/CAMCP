@@ -52,12 +52,11 @@ export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
     end < start ||
     end - start >= 31 * 86400000 ||
     sem.date_to >= today
-  )
-    bad(
-      allowUndeclared
-        ? 'Snapchat evidence requires 1–31 closed days.'
-        : 'Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.',
-    );
+  ) {
+    // The Overview allows an undeclared window, so its refusal does not speak of a declaration (F-L7-13).
+    if (allowUndeclared) bad('Snapchat evidence requires 1–31 closed days.');
+    bad('Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.');
+  }
   const days: {date: string; start: number; end: number}[] = [];
   for (let at = start; at <= end; at += 86400000) {
     const date = new Date(at).toISOString().slice(0, 10),
