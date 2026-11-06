@@ -76,7 +76,9 @@ test('TikTok integrated pagination requires explicit consistent native completio
       {code: 'REPORT_INCOMPLETE'},
     );
   }
-  assert.throws(() => nextPage(plan, {code: 0, data: {list: []}}), {code: 'REPORT_INCOMPLETE'});
+  // Rows with no page counts at all are refused; an empty list with none is an empty report (F-L1-01), so nothing follows it.
+  assert.throws(() => nextPage(plan, {code: 0, data: {list: [row(1)]}}), {code: 'REPORT_INCOMPLETE'});
+  assert.equal(nextPage(plan, {code: 0, data: {list: []}}), null);
 });
 test('TikTok integrated aggregation refuses changing totals and duplicate native dimension tuples', async () => {
   for (const tail of [response([row(3), row(4)], 2, 2, 4), response([row(1)], 2, 2, 3)]) {
@@ -151,9 +153,26 @@ test('TikTok integrated aggregation starts at page one and preserves request fil
   );
   assert.equal((await paginate(scoped, async () => first, 1)).truncated, true);
 });
-test('TikTok integrated empty reports need zero native counts and inventory pagination retains its independent contract', async () => {
+test('TikTok integrated empty reports are empty whatever page counts they omit, and inventory pagination retains its independent contract', async () => {
+  // F-L1-01: TikTok documents no empty-report values, so missing or zero page fields are handled defensively. This
+  // replaces the earlier pin that refused `{list: []}`; rows without counts and declared totals still refuse.
+  for (const data of [
+    {list: []},
+    {list: [], page_info: {}},
+    {list: [], page_info: {page: 0, page_size: 0, total_number: 0, total_page: 0}},
+    {list: [], page_info: {total_number: 0, total_page: 0}},
+  ]) {
+    const out = await paginate(plan, async () => ({code: 0, data}));
+    assert.equal(out.truncated, false, JSON.stringify(data));
+    assert.equal(out.pages, 1);
+    assert.deepEqual(out.data.data.list, []);
+  }
   await assert.rejects(
-    paginate(plan, async () => ({code: 0, data: {list: []}})),
+    paginate(plan, async () => ({code: 0, data: {list: [row(1)]}})),
+    {code: 'REPORT_INCOMPLETE'},
+  );
+  await assert.rejects(
+    paginate(plan, async () => ({code: 0, data: {list: [], page_info: {page: 0, page_size: 0, total_number: 2}}})),
     {code: 'REPORT_INCOMPLETE'},
   );
   for (const pages of [0, 1]) {
@@ -250,6 +269,31 @@ test('TikTok Overview keeps malformed native completion as a failed source inste
     assert.equal(report.sources[0].error.request.stage, 'campaign_report');
     assert.equal(f.calls.length, 2, 'inventory is not queried after incomplete analytics');
   }
+});
+
+test('TikTok Overview reads every empty-report page shape as a complete empty source, never a failed one', async t => {
+  for (const data of [
+    {list: []},
+    {list: [], page_info: {}},
+    {list: [], page_info: {page: 0, page_size: 0, total_number: 0, total_page: 0}},
+    {list: [], page_info: {total_number: 0, total_page: 0}},
+  ]) {
+    const f = fixture(t, () => ({code: 0, data})),
+      report = await f.run();
+    assert.equal(report.state, 'complete', JSON.stringify([data, report.sources[0].error]));
+    assert.equal(report.row_count, 0);
+    assert.equal(report.sources[0].complete, true);
+    assert.equal(report.sources[0].error, undefined);
+  }
+});
+test('an empty page does not hide rows that TikTok’s own totals say exist', async t => {
+  const f = fixture(t, () => ({
+      code: 0,
+      data: {list: [], page_info: {}, total_metrics: {spend: '5.00', impressions: '50', clicks: '3', conversion: '1'}},
+    })),
+    report = await f.run();
+  assert.equal(report.sources[0].complete, false);
+  assert.match(report.sources[0].warnings.join(' '), /spend 0\.00 of 5\.00/);
 });
 
 test('TikTok Overview retains short collections as partial with declared and returned counts', async t => {

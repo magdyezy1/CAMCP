@@ -64,14 +64,28 @@ export function tiktokPageCheck(
     refuse = (rule: TikTokPageRule): never => {
       throw new MirrorError('REPORT_INCOMPLETE', tiktokPageCountMessage, {page_facts: facts(rule)}, 502);
     };
-  if (!object(data.page_info)) refuse('page_info_missing');
+  // TikTok documents no values for an empty report (wave-5 provider documentation, T3), so the first page of a
+  // collection with no rows whose counts say there is nothing (total absent or 0, pages absent, 0 or 1) is an empty
+  // report whatever its page and page_size say: absent, zero or another integer. Rows, a total above zero, several
+  // declared pages, or page fields that are not integers are not defaulted: they still have to echo the request.
+  const optionalCount = (value: unknown) =>
+      value === undefined || (Number.isSafeInteger(value) && (value as number) >= 0),
+    emptyReport =
+      seen.total === null &&
+      seen.returned === 0 &&
+      rows.length === 0 &&
+      (data.page_info === undefined || object(data.page_info)) &&
+      (info.total_number === undefined || info.total_number === 0) &&
+      (info.total_page === undefined || info.total_page === 0 || info.total_page === 1) &&
+      optionalCount(info.page) &&
+      optionalCount(info.page_size);
+  if (!emptyReport && !object(data.page_info)) refuse('page_info_missing');
   if (
     !Number.isSafeInteger(request.page) ||
     request.page < 1 ||
     !Number.isSafeInteger(request.size) ||
     request.size < 1 ||
-    info.page !== request.page ||
-    info.page_size !== request.size
+    (!emptyReport && (info.page !== request.page || info.page_size !== request.size))
   )
     refuse('page_not_echoed');
   for (const key of ['total_number', 'total_page'])
