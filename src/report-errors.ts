@@ -90,13 +90,17 @@ const object = (value: unknown): JsonObject =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : {};
 const text = (value: unknown, limit = 1200): string | undefined => {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
-  return String(redact(String(value)))
-    .replace(
-      /\b(?:access[_-]?token|refresh[_-]?token|developer[_-]?token|client[_-]?secret|password|api[_-]?key)\s*[=:]\s*[^\s,;]+/gi,
-      '[REDACTED]',
-    )
-    .replace(/\bEAA[A-Za-z0-9]{60,}\b/g, '[REDACTED]')
-    .slice(0, limit);
+  return (
+    String(redact(String(value)))
+      .replace(
+        /\b(?:access[_-]?token|refresh[_-]?token|developer[_-]?token|client[_-]?secret|password|api[_-]?key)\s*[=:]\s*[^\s,;]+/gi,
+        '[REDACTED]',
+      )
+      // A bare `token=`, `secret=` or `signature=` in a sentence has no `?`, `&` or `;` before it for redact() to find.
+      .replace(/\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi, '$1=[REDACTED]')
+      .replace(/\bEAA[A-Za-z0-9]{60,}\b/g, '[REDACTED]')
+      .slice(0, limit)
+  );
 };
 const code = (value: unknown) => text(value, 160);
 
