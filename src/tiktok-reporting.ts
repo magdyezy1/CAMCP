@@ -60,9 +60,14 @@ export function tiktokDailyRange(semantics: JsonObject, allowUndeclared = false)
       'INVALID_DATE_RANGE',
     );
 }
-function pageRows(data: JsonObject, page: number, size: number, total: number | null, returned: number) {
+/**
+ * One page of a span, with the collection bounds: a span reads at most 10 pages, and the whole window at most 10,000
+ * rows. `kept` is the rows earlier spans already hold, so a window stops as soon as a span's declared total would pass
+ * the bound, before that span's other pages and the spans after it are read (F-L1-07).
+ */
+function pageRows(data: JsonObject, page: number, size: number, total: number | null, returned: number, kept: number) {
   const native = tiktokReportPageData(data, page, size, {total, returned});
-  if (native.total > 10000 || native.pages > 10)
+  if (kept + native.total > 10000 || native.pages > 10)
     bad('Narrow the TikTok report to at most 10000 rows.', 'REPORT_COLLECTION_LIMIT');
   return native;
 }
@@ -197,7 +202,7 @@ export async function collectTikTokDailyReport(
       }
       const {data, evidence} = answer;
       if (page === 1) totalMetrics = data.total_metrics;
-      const native = pageRows(data, page, args.query.page_size, total, returned);
+      const native = pageRows(data, page, args.query.page_size, total, returned, spanStart);
       total = native.total;
       lastFacts = {
         page,

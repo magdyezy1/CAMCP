@@ -4,7 +4,9 @@ import {Store} from '../dist/src/store.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {DecisionReporting} from '../dist/src/decision-reporting.js';
+import {collectDetailedOverview} from '../dist/src/overview-granularity.js';
 import {reportPreset} from '../dist/src/report-presets.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {collectTikTokDailyReport, tiktokDailyRange} from '../dist/src/tiktok-reporting.js';
 import {
   tiktokDailySpans,
@@ -241,34 +243,134 @@ test('the internal Overview collector carries its filter decision across reporti
   assert.equal(lookup.tiktokStatusFilter, 'refused');
 });
 
-test('the 120-request preset limit holds across a 366-day daily collection', async t => {
-  const f = fixture(t);
-  let calls = 0;
+/**
+ * A fake `call` whose 30-day spans each hold `perSpan` rows (a number, or a function of the span's first day) on pages
+ * of `size`, each row unique to its span. `state` counts every call and the report reads among them.
+ */
+function spanCalls(f, {perSpan, size = 1000, idField = 'campaign_id'}) {
+  const state = {calls: 0, reports: 0};
   const call = async (tool, request) => {
-    calls++;
+    state.calls++;
     if (request.action === 'tiktok_advertiser_info_get') return f.call(tool, request);
-    const list = Array.from({length: 1000}, (_, i) => ({
-      dimensions: {
-        campaign_id: String((request.query.page - 1) * 1000 + i + 1),
-        stat_time_day: request.query.start_date,
-      },
-      metrics: {spend: '1', impressions: '10', clicks: '2', conversion: '1'},
-    }));
+    state.reports++;
+    const declared = typeof perSpan === 'function' ? perSpan(request.query.start_date) : perSpan,
+      page = request.query.page,
+      first = (page - 1) * size,
+      list = Array.from({length: Math.max(0, Math.min(size, declared - first))}, (_, i) => ({
+        dimensions: {[idField]: String(first + i + 1), stat_time_day: request.query.start_date},
+        metrics: {spend: '1', impressions: '10', clicks: '2', conversion: '1'},
+      }));
     return {
       success: true,
       data: {
         data: {
           code: 0,
-          data: {list, page_info: {page: request.query.page, page_size: 1000, total_number: 10000, total_page: 10}},
+          data: {
+            list,
+            page_info: {page, page_size: size, total_number: declared, total_page: Math.ceil(declared / size)},
+          },
         },
       },
     };
   };
-  const sem = {...semantics, date_from: '2025-09-01', date_to: '2026-09-01'};
-  await assert.rejects(collectTikTokDailyReport(f.store, call, actor, preset(sem).arguments, sem), {
-    code: 'REPORT_COLLECTION_LIMIT',
-  });
-  assert.equal(calls, 120);
+  return {call, state};
+}
+const wide = (from, to) => ({...semantics, date_from: from, date_to: to});
+
+test('the 120-request preset limit holds across a 366-day daily collection', async t => {
+  // Pages of 10 rows keep the whole window far below the 10,000-row bound, so only the request limit can stop it.
+  const f = fixture(t),
+    {call, state} = spanCalls(f, {perSpan: 100, size: 10}),
+    sem = wide('2025-09-01', '2026-09-01'),
+    args = structuredClone(preset(sem).arguments);
+  args.query.page_size = 10;
+  await assert.rejects(collectTikTokDailyReport(f.store, call, actor, args, sem), e =>
+    assertRefused(e, 'REPORT_COLLECTION_LIMIT', {message: /at most 120 requests/}),
+  );
+  assert.equal(state.calls, 120);
+});
+
+test('the 10,000-row bound runs across spans and stops before the span that passes it is read (F-L1-07)', async t => {
+  // Four 30-day spans of 3,000 rows: 9,000 rows are read, and the fourth span's first page shows it would pass 10,000.
+  const f = fixture(t),
+    sem = wide('2026-01-01', '2026-04-30');
+  for (const context of [{}, {allowPartial: true}]) {
+    const {call, state} = spanCalls(f, {perSpan: 3000});
+    await assert.rejects(collectTikTokDailyReport(f.store, call, actor, preset(sem).arguments, sem, context), e =>
+      assertRefused(e, 'REPORT_COLLECTION_LIMIT', {message: /^Narrow the TikTok report to at most 10000 rows\.$/}),
+    );
+    // 3 pages x 3 spans, then page 1 of the fourth span; its other two pages stay unread.
+    assert.equal(state.reports, 10, 'report reads before the refusal');
+    assert.equal(state.calls, 11, 'one advertiser check and the report reads');
+  }
+});
+
+test('the 10,000-row bound stops a long window early: 30 ad groups over 366 days read 12 spans, not 13 (F-L1-07)', async t => {
+  // 13 spans of 900 rows would be 11,700 rows; the 12th span is the first to pass 10,000 (11 x 900 + 900 > 10,000).
+  const f = fixture(t),
+    sem = wide('2025-09-01', '2026-09-01'),
+    {call, state} = spanCalls(f, {perSpan: 900});
+  await assert.rejects(collectTikTokDailyReport(f.store, call, actor, preset(sem).arguments, sem), e =>
+    assertRefused(e, 'REPORT_COLLECTION_LIMIT'),
+  );
+  assert.equal(state.reports, 12);
+});
+
+test('the 10,000-row bound is exact across spans: 10,000 rows complete, one more is refused', async t => {
+  const f = fixture(t),
+    sem = wide('2026-01-01', '2026-04-30'),
+    exact = spanCalls(f, {perSpan: 2500}),
+    done = await collectTikTokDailyReport(f.store, exact.call, actor, preset(sem).arguments, sem);
+  assert.equal(done.source.data.data.list.length, 10000);
+  assert.equal(done.collection.complete, true);
+  // The last of the four spans (it starts 2026-04-01) declares one row more: 7,500 + 2,501 passes the bound.
+  const over = spanCalls(f, {perSpan: start => (start === '2026-04-01' ? 2501 : 2500)});
+  await assert.rejects(collectTikTokDailyReport(f.store, over.call, actor, preset(sem).arguments, sem), e =>
+    assertRefused(e, 'REPORT_COLLECTION_LIMIT'),
+  );
+});
+
+test('the Overview and an evidence capture stop at the same running bound instead of reading every span (F-L1-07)', async t => {
+  const f = fixture(t),
+    sem = wide('2026-01-01', '2026-04-30'),
+    overview = spanCalls(f, {perSpan: 3000, idField: 'adgroup_id'}),
+    detailed = {
+      platform: 'tiktok',
+      account_id: '100',
+      connection_id: connection,
+      level: 'adset',
+      report_options: {complete_window: true, attribution: 'unknown'},
+    };
+  await assert.rejects(
+    collectDetailedOverview(
+      {store: f.store, call: overview.call},
+      detailed,
+      {since: sem.date_from, until: sem.date_to},
+      actor,
+      {},
+      'USD',
+      'Etc/GMT',
+      {detailParents: {parents: {}, lineage: []}},
+    ),
+    e => assertRefused(e, 'REPORT_COLLECTION_LIMIT'),
+  );
+  assert.equal(overview.state.reports, 10);
+  const capture = spanCalls(f, {perSpan: 3000}),
+    reporting = new DecisionReporting(f.store, capture.call);
+  await assert.rejects(
+    reporting.handle(
+      {
+        action: 'capture_preset',
+        preset: 'tiktok_campaign',
+        account_id: '100',
+        connection_id: connection,
+        semantics: sem,
+      },
+      actor,
+    ),
+    e => assertRefused(e, 'REPORT_COLLECTION_LIMIT'),
+  );
+  assert.equal(capture.state.reports, 10);
 });
 
 test('a campaign window beyond 365 days is refused before any provider read', async t => {
