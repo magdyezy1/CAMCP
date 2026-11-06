@@ -252,12 +252,22 @@ for (const path of ['guided', 'campaign']) {
         'TikTok’s page counts disagreed with its rows; its totals match, so the collection is complete.',
       ),
     );
+    // F-L1-02: the reader still sees both counts beside the totals sentence.
+    assert.ok(result.warnings.includes('TikTok declared 1,500 rows and returned 1,300.'));
   });
   test(path + ': differing totals remain partial with the actual gap', async t => {
     const rows = Array.from({length: 1300}, (_, i) => nativeRow(i + 1));
     const result = await collect(t, rows, 1300, {...total(1300), spend: '1500'});
     assert.equal(complete(result), false);
     assert.match(result.warnings.join(' '), /spend 1,300\.00 of 1,500\.00/);
+    assert.ok(!result.warnings.some(w => w.startsWith('TikTok declared')), 'equal counts add no counts sentence');
+  });
+  test(path + ': a totals gap on a short collection names the gap and both counts (F-L1-02, D2)', async t => {
+    const rows = Array.from({length: 1300}, (_, i) => nativeRow(i + 1));
+    const result = await collect(t, rows, 1500, {...total(1300), spend: '1450.00'});
+    assert.equal(complete(result), false);
+    assert.ok(result.warnings.some(w => /spend 1,300\.00 of 1,450\.00/.test(w)));
+    assert.ok(result.warnings.includes('TikTok declared 1,500 rows and returned 1,300.'));
   });
   test(path + ': absent totals fall back to equal or short counts', async t => {
     const rows = [nativeRow(1)];

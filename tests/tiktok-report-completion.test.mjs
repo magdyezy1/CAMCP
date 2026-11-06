@@ -308,6 +308,19 @@ test('TikTok Overview retains short collections as partial with declared and ret
   assert.equal(report.rows[0].complete, false);
   assert.equal(report.rows[0].recommendation.decision, 'needs_review');
 });
+test('TikTok Overview keeps both counts in a partial source even when TikTok’s totals are present (F-L1-02)', async t => {
+  const f = fixture(t, () => {
+    const answer = response([row(1)], 1, 1000, 2);
+    answer.data.total_metrics = {spend: '2', clicks: '4'};
+    return answer;
+  });
+  const report = await f.run();
+  assert.equal(report.state, 'partial');
+  assert.equal(report.sources[0].complete, false);
+  const warnings = report.sources[0].warnings.join(' | ');
+  assert.match(warnings, /spend 1\.00 of 2\.00/);
+  assert.ok(report.sources[0].warnings.includes('TikTok declared 2 rows and returned 1.'), warnings);
+});
 test('TikTok Overview refuses repeated campaign rows across pages while preserving valid complete reporting', async t => {
   const first = Array.from({length: 1000}, (_, i) => row(i + 1));
   const broken = fixture(t, u =>

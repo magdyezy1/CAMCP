@@ -185,9 +185,15 @@ export function tiktokCollectionCheck(
   metrics: readonly string[],
 ) {
   const counts = tiktokCollectionCounts(declared, rows.length),
-    checked = tiktokTotalsCheck(rows, totals, metrics);
+    checked = tiktokTotalsCheck(rows, totals, metrics),
+    // D2: whenever the rows fall short of the declared count the reader sees both counts, beside the totals sentence.
+    short = counts.warning ? [counts.warning] : [];
   if (checked.verdict === 'match')
-    return {complete: true, warnings: counts.complete ? [] : [tiktokTotalsMatchWarning], totals: checked.verdict};
+    return {
+      complete: true,
+      warnings: counts.complete ? [] : [tiktokTotalsMatchWarning, ...short],
+      totals: checked.verdict,
+    };
   if (checked.verdict === 'gap')
     return {
       complete: false,
@@ -196,10 +202,11 @@ export function tiktokCollectionCheck(
           '{gaps}',
           checked.gaps.map(gap => gap.metric + ' ' + gap.rows + ' of ' + gap.total).join('; '),
         ),
+        ...short,
       ],
       totals: checked.verdict,
     };
-  return {complete: counts.complete, warnings: counts.warning ? [counts.warning] : [], totals: checked.verdict};
+  return {complete: counts.complete, warnings: short, totals: checked.verdict};
 }
 export function tiktokReportPage(
   response: unknown,
