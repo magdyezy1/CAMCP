@@ -174,11 +174,12 @@ export const tiktokReportSource: ReportSource = {
         const adgroups = reportList(
           (
             await c.run(
+              // Deleted ad groups too: the report now includes deleted objects, so their events must be named.
               c.plan('/v1.3/adgroup/get/', {
                 advertiser_id: c.account,
                 page: 1,
                 page_size: 1000,
-                ...(v4 ? {filtering: {primary_status: 'STATUS_ALL'}} : {}),
+                filtering: {primary_status: 'STATUS_ALL'},
               }),
               true,
               'adgroups',
@@ -227,11 +228,19 @@ export const tiktokReportSource: ReportSource = {
     }
     if (adgroupEvents.unavailable) c.warnings.push(tiktokEventsUnavailableWarning);
     const campaignEvents = adgroupEvents.events;
+    // One pass over the inventory, the first entry of an ID winning, instead of a scan of it for every row. The status
+    // metadata matches the ID exactly as the report gave it; the objective matches it as text.
+    const exact = new Map<unknown, JsonObject>(),
+      textual = new Map<string, JsonObject>();
+    for (const campaign of inventory) {
+      const id = campaign.campaign_id;
+      if (!exact.has(id)) exact.set(id, campaign);
+      if (!textual.has(String(id))) textual.set(String(id), campaign);
+    }
     c.raw = c.raw.map(r => ({
       ...r,
-      ...(v4 ? {entity_metadata: inventory.find(campaign => campaign.campaign_id === r.dimensions?.campaign_id)} : {}),
-      objective_type: inventory.find(campaign => String(campaign.campaign_id) === String(r.dimensions?.campaign_id))
-        ?.objective_type,
+      ...(v4 ? {entity_metadata: exact.get(r.dimensions?.campaign_id)} : {}),
+      objective_type: textual.get(String(r.dimensions?.campaign_id))?.objective_type,
       optimization_events: Object.hasOwn(campaignEvents, String(r.dimensions?.campaign_id))
         ? campaignEvents[String(r.dimensions?.campaign_id)]
         : [],
