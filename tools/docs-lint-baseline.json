@@ -166,10 +166,16 @@
       "raised": [
         "reference_words 146579 → 148921"
       ]
+    },
+    {
+      "reason": "V2-RPT-02/V2-RPT-04 objectives package (L2 audit F-L2-02, F-L2-03, F-L2-07): docs/REPORTING-OVERVIEW.md states that a LinkedIn group's results come from its delivering campaigns with the others listed as other_results, that an unread objective is explained as unread, and that an empty part of a split window leaves the source partial (53 words)",
+      "raised": [
+        "reference_words 148921 → 148974"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 148921
+    "reference_words": 148974
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
