@@ -139,7 +139,14 @@ export function settleNotices(store: Store, tenant: string, report: JsonObject):
   const viewId = report.view_id ?? undefined,
     scheduleId = report.schedule_id ?? undefined,
     key = objectiveMigrationKey(viewId, scheduleId),
-    existing = key ? ensureNoticeRecord(store, tenant, viewId, scheduleId) : undefined;
+    // A saved report deleted while one of its runs was still collecting has no record to keep: deleting it deleted the
+    // record, and a record made now would never be deleted.
+    owner = viewId
+      ? optional(store, tenant, 'overview_view', viewId)
+      : scheduleId
+        ? optional(store, tenant, 'overview_schedule', scheduleId)
+        : undefined,
+    existing = key && owner ? ensureNoticeRecord(store, tenant, viewId, scheduleId) : undefined;
   if (!key || !existing) return [];
   const stamps: Record<string, string> = report.platform_contracts ?? {},
     notices: Record<string, JsonObject> = {...existing.notices},

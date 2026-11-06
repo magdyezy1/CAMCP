@@ -289,6 +289,26 @@ test('a comparison baseline neither carries a note nor spends it', async t => {
   assert.ok(has(f.document('overview_report', pair.id), LI), 'the report the person asked for carries it');
 });
 
+test('a saved report deleted while one of its runs is still collecting leaves no notice record behind', async t => {
+  const {f} = linkedinView(t),
+    run = await runView(f, 'lv');
+  assert.ok(f.document(objectiveMigrationKind, 'view:lv'), 'the run made the report’s record when it was queued');
+  await f.handle({
+    action: 'delete_view',
+    id: 'lv',
+    expected_revision: f.document('overview_view', 'lv').revision,
+    confirmed: true,
+  });
+  assert.deepEqual(f.documents(objectiveMigrationKind), [], 'deleting the report deleted its record');
+  await f.worker.once();
+  assert.equal(f.document('overview_report', run.id).state, 'complete', 'the run still finishes');
+  assert.deepEqual(
+    f.documents(objectiveMigrationKind),
+    [],
+    'and its recording makes no record that nothing would delete',
+  );
+});
+
 test('History is read once for each report, never again by a later run', async t => {
   const {f} = linkedinView(t),
     database = f.store.sql(),
