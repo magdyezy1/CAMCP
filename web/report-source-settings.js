@@ -139,8 +139,11 @@ function overviewGranularityConfig(platform, account, previous) {
       result[key] = (query('[data-report-scope="' + key + '"]')?.value ?? '').split(/[\s,]+/).filter(Boolean);
   return result;
 }
+/** Each selected account has the same controls, so its group is named after it (and told from a namesake by its ID). */
 function overviewAccountFields(platform, source, account, selected, metadata = {}) {
-  return html`<fieldset data-report-source="${account}" ${selected ? '' : 'hidden disabled'}><legend>${uiText('Account report settings')}</legend>${overviewGranularityFields(platform, source, true)}${reportParentChoices(metadata)}</fieldset>`;
+  const name = metadata.label ?? metadata.account_id ?? '',
+    id = metadata.account_id !== undefined && String(metadata.account_id) !== String(name) ? metadata.account_id : null;
+  return html`<fieldset data-report-source="${account}" ${selected ? '' : 'hidden disabled'}><legend>${name === '' ? uiText('Account report settings') : html`${uiText('Report settings for')} <bdi dir="auto" data-native>${name}</bdi>${id === null ? '' : html` (<bdi dir="ltr">${id}</bdi>)`}`}</legend>${overviewGranularityFields(platform, source, true)}${reportParentChoices(metadata)}</fieldset>`;
 }
 function updateOverviewGranularity() {
   const selected = new Set(

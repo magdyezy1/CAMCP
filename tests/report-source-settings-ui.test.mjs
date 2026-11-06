@@ -189,6 +189,77 @@ test('opening an unversioned saved report preserves its legacy population and co
   assert.doesNotMatch(markup, /data-report-campaign-profile="meta" checked|data-report-delivered="meta" checked/);
 });
 
+// F-L8-05: a retained v3 snapshot opened from History edits with the v3 semantics it ran with, as a saved v3 view does.
+test('opening a retained v3 snapshot from History keeps its contract: no v4 defaults appear in its editor', async () => {
+  const f = fixture();
+  const v3 = {
+    name: 'Old',
+    sources: [{platform: 'meta', connection_id: 'login', account_id: '100', level: 'campaign'}],
+    source_defaults: {},
+    date_range: {preset: 'last_complete_days', days: 7},
+    metrics: ['spend'],
+    custom_metrics: [],
+    targets: {},
+    objectives: [],
+  };
+  f.context.snapshot = {id: 's1', config: v3};
+  // The page loads the snapshot (the network) and draws the builder (the DOM); both are outside this test.
+  f.run(
+    `overviewMayLeave = async () => true;
+     loadOverviewReport = async id => { overviewState.report = {id, config: snapshot.config}; };
+     renderReportingOverview = async () => {};
+     $ = () => null;`,
+  );
+  await f.run("openOverviewHistory('s1')");
+  assert.equal(f.run('overviewState.config.contract_version'), undefined, 'the snapshot’s own contract is kept');
+  const editor = plain(f.run('overviewEditorSource(platform, overviewState.config.sources[0])'));
+  assert.equal(editor.delivered_only, false, 'v3 had no activity filter');
+  assert.equal(editor.report_options.attribution_windows, null, 'v3 left the attribution windows to the provider');
+  // The same snapshot's saved view opens identically.
+  f.context.record = {id: 'view', revision: 1, config: v3};
+  f.run('selectOverviewDefinition(record)');
+  assert.deepEqual(plain(f.run('overviewEditorSource(platform, overviewState.config.sources[0])')), editor);
+  // A v4 snapshot keeps its v4 contract.
+  f.context.snapshot = {id: 's2', config: {...v3, contract_version: 'overview-config-v4'}};
+  await f.run("openOverviewHistory('s2')");
+  assert.equal(f.run('overviewState.config.contract_version'), 'overview-config-v4');
+});
+
+// F-L8-07: every selected account has the same controls, so each group is named after its account.
+for (const language of ['en', 'ar']) {
+  test(
+    language + ': each account’s settings group is named after its account, so several are told apart (F-L8-07)',
+    () => {
+      const f = fixture(),
+        catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
+      f.context.catalog = catalog;
+      f.context.language = language;
+      f.run('uiLocale=language;uiMessages=new Map(language === "ar" ? Object.entries(catalog) : [])');
+      const prefix = language === 'ar' ? catalog['Report settings for'] : 'Report settings for',
+        legend = metadata => {
+          f.context.metadata = metadata;
+          return /<legend>([\s\S]*?)<\/legend>/.exec(
+            f.run('String(overviewAccountFields(platform, {}, "key", true, metadata))'),
+          )[1];
+        };
+      assert.equal(
+        legend({label: 'Brand A', account_id: '100'}),
+        prefix + ' <bdi dir="auto" data-native>Brand A</bdi> (<bdi dir="ltr">100</bdi>)',
+      );
+      // Two accounts of one name are still told apart by their IDs.
+      assert.notEqual(legend({label: 'Shop', account_id: '100'}), legend({label: 'Shop', account_id: '200'}));
+      // The name is escaped, and an account named by its own ID is not repeated.
+      assert.equal(
+        legend({label: '<b>x</b>', account_id: '7'}),
+        prefix + ' <bdi dir="auto" data-native>&lt;b&gt;x&lt;/b&gt;</bdi> (<bdi dir="ltr">7</bdi>)',
+      );
+      assert.equal(legend({label: '100', account_id: '100'}), prefix + ' <bdi dir="auto" data-native>100</bdi>');
+      // With nothing to name it by, the group keeps its generic name.
+      assert.equal(legend({}), language === 'ar' ? catalog['Account report settings'] : 'Account report settings');
+    },
+  );
+}
+
 test('provider-configured campaign profiles and explicit false declarations survive their own account controls', () => {
   const f = fixture();
   f.root('100', {profile: false, complete: false, delivered: false});

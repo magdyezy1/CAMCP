@@ -11714,6 +11714,7 @@
   "Select one or more reporting levels.": "اختر مستوى تقارير واحدًا أو أكثر.",
   "An undeclared window stays partial where required. Recommendations wait for complete measurement.": "تبقى الفترة غير المعلَن عن اكتمالها جزئية عندما يكون ذلك مطلوبًا. تنتظر التوصيات اكتمال القياس.",
   "Account report settings": "إعدادات تقرير الحساب",
+  "Report settings for": "إعدادات التقرير للحساب",
   "Template report settings": "إعدادات تقرير القالب",
   "Some rows could not be checked against your source filters": "تعذّر التحقق من مطابقة بعض الصفوف لعوامل تصفية المصدر",
   "No rows matched your source filters": "لا توجد صفوف تطابق عوامل تصفية المصدر",
