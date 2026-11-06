@@ -41,8 +41,12 @@ export function publicOverviewDefinition(record: JsonObject): JsonObject {
   return config_v4 ? {...visible, config: config_v4} : visible;
 }
 /**
- * Keep account authorization identical in both forms. New scope/multi-level/undeclared semantics that v3 cannot
- * express receive an unsupported level: an old binary can list the definition but refuses it before provider egress.
+ * Keep account authorization identical in both forms, and keep the v3 form one Work-here (the build a rollback
+ * returns to, D21) accepts. What v3 can say it keeps: one level, no status filter, the platform's scalar parent filter,
+ * and `delivered_only` is not part of it (Work-here shows rows without activity too, so its totals are the same; the
+ * flag stays in the v4 form). What v3 cannot express (several levels, ID scopes beyond the parent filter, a status
+ * filter, a declared-incomplete campaign window, an undeclared or unusable detail window) receives an unsupported
+ * level: an old binary lists the definition but refuses it before provider egress, and a schedule of it pauses.
  * Existing v3 definitions are never rewritten by this helper or by a run.
  */
 export function overviewDefinitionForms(
@@ -50,10 +54,10 @@ export function overviewDefinitionForms(
   capabilitiesFor: (platform: string) => OverviewV4Capabilities,
 ): JsonObject {
   if (config.contract_version !== overviewConfigV4) return {config, config_v4: undefined};
-  const {rollback_v3, ...current} = structuredClone(config),
+  const current = structuredClone(config),
     legacy: JsonObject = {...current};
   delete legacy.contract_version;
-  const legacySource = (source: JsonObject) => {
+  const legacySource = (source: JsonObject, defaults = false) => {
     const {
         levels,
         reporting_contract,
@@ -68,25 +72,42 @@ export function overviewDefinitionForms(
         objective_migrated_from_v3,
         ...old
       } = source,
-      rules = capabilitiesFor(source.platform).legacy ?? {},
+      capabilities = capabilitiesFor(source.platform),
+      rules = capabilities.legacy ?? {},
       level = levels[0],
       options = source.report_options,
       optionNames =
         level === 'campaign'
           ? (rules.campaign_options ?? [])
           : (rules.detail_options ?? ['complete_window', 'attribution']),
+      scopes: Record<string, string[]> = {
+        campaign_ids: campaign_ids ?? [],
+        adset_ids: adset_ids ?? [],
+        ad_ids: ad_ids ?? [],
+      },
+      parentRequired = rules.parent_required_levels?.includes(level) === true;
+    // A platform's declared scalar alias (scope_aliases) is the v3 spelling of a one-entry ID scope, at the levels whose
+    // v3 form has a parent filter. Normalization moved the scalar into the scope; the old form gets it back.
+    if (parentRequired)
+      for (const [alias, field] of Object.entries(capabilities.scope_aliases ?? {}))
+        if (scopes[field]?.length === 1) {
+          old[alias] = scopes[field]![0];
+          scopes[field] = [];
+        }
+    const parentRestored = Object.keys(capabilities.scope_aliases ?? {}).some(alias => old[alias] !== undefined),
       unavailable =
         levels.length !== 1 ||
-        [campaign_ids, adset_ids, ad_ids].some(ids => ids?.length) ||
-        delivered_only === true ||
+        Object.values(scopes).some(ids => ids.length) ||
         !statuses.includes('all') ||
-        (rules.parent_required_levels?.includes(level) === true && !source.campaign_id) ||
-        (level === 'campaign' &&
-          (options.complete_window === false || (rules.requires_complete && options.complete_window !== true))) ||
+        // Template defaults carry no account, so no parent either (Work-here checks the parent of a report only).
+        (parentRequired && !defaults && !parentRestored) ||
+        (level === 'campaign' && options.complete_window === false) ||
         (level !== 'campaign' &&
           (typeof options.complete_window !== 'boolean' ||
             (rules.requires_complete && options.complete_window !== true) ||
-            (rules.requires_action && !options.result_action_type)));
+            (rules.requires_action && !options.result_action_type) ||
+            // Work-here takes the preset metrics of a detail level only.
+            source.native_metrics?.length));
     old.level = unavailable ? 'v4_required' : level;
     if (source.objective_fallback !== undefined) old.objective = source.objective_fallback;
     const selected = Object.fromEntries(
@@ -102,11 +123,18 @@ export function overviewDefinitionForms(
     else delete old.report_options;
     return old;
   };
-  legacy.sources = current.sources.map(legacySource);
+  legacy.sources = current.sources.map((source: JsonObject) => legacySource(source));
   if (current.source_defaults)
     legacy.source_defaults = Object.fromEntries(
       Object.entries(current.source_defaults).map(([platform, value]) => {
-        const {platform: _platform, ...defaults} = legacySource({platform, ...(value as JsonObject)});
+        // Work-here accepts only objective, native_metrics, level and report_options in a default: the objective
+        // fallback is already there as `objective`, and per-campaign overrides stay in the v4 form.
+        const {
+          platform: _platform,
+          objective_fallback: _fallback,
+          objective_overrides: _overrides,
+          ...defaults
+        } = legacySource({platform, ...(value as JsonObject)}, true);
         return [platform, defaults];
       }),
     );

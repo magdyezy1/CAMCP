@@ -7,7 +7,7 @@ const unescape = text =>
 
 /**
  * The controls the editor rendered for one account, read back from its own markup: each `data-report-*` control with
- * the state the server-declared defaults gave it (a selected option, a checked box, a value).
+ * the state the server-declared defaults (or the saved source) gave it: a selected option, a checked box, a value.
  */
 function renderedControls(markup) {
   const controls = new Map(),
@@ -46,17 +46,39 @@ function renderedControls(markup) {
   return controls;
 }
 
+/** The form values the editor's range controls hold for a saved date range. */
+function rangeFields(range = {}) {
+  return range.preset
+    ? {
+        rangeMode: range.preset === 'last_complete_days' ? 'rolling' : range.preset,
+        days: range.days ?? 7,
+        offset_days: range.offset_days ?? 0,
+        timezone: range.timezone ?? 'UTC',
+      }
+    : {rangeMode: 'custom', since: range.since ?? '2026-09-01', until: range.until ?? '2026-09-02'};
+}
+
 /**
- * The body the website's report editor sends for a NEW report that selects one account of each platform in
- * `platforms`, with every control left at the default the editor rendered for it. It runs the real scripts of `web/`
- * (report-source-settings.js and reporting-overview.js) over the server's own bootstrap platform declarations, so it
- * is what a person gets by choosing accounts and pressing Run or Save without touching a setting.
+ * The body the website's report editor sends, produced by the real scripts of `web/` (report-source-settings.js,
+ * report-library.js and reporting-overview.js) over the server's own bootstrap platform declarations.
+ *
+ * - Without `saved`: a NEW report that selects `accounts` with every control left at the default the editor rendered
+ *   for it, which is what a person gets by choosing accounts and pressing Run or Save without touching a setting.
+ * - With `saved` (a stored view record): that report opened in the editor and saved again without a change.
  */
-export function editorDefaultConfig(bootstrapPlatforms, accounts) {
+export function editorBody(bootstrapPlatforms, {accounts, saved}) {
   const roots = new Map(),
     globals = new Map(),
     node = (value = '') => ({value, checked: false, dataset: {}}),
-    key = ({platform, connection_id, account_id}) => JSON.stringify([platform, connection_id, account_id]);
+    key = ({platform, connection_id, account_id}) => JSON.stringify([platform, connection_id, account_id]),
+    fields = {
+      name: saved?.config.name ?? 'Default new report',
+      client_name: saved?.config.client_name ?? '',
+      grain: saved?.config.grain ?? null,
+      partial_delivery: saved?.config.partial_delivery ?? null,
+      ...rangeFields(saved?.config.date_range ?? {since: '2026-09-01', until: '2026-09-02'}),
+    },
+    metrics = saved?.config.metrics ?? ['spend', 'impressions', 'clicks'];
   const context = createContext({
     Intl,
     Date,
@@ -77,9 +99,7 @@ export function editorDefaultConfig(bootstrapPlatforms, accounts) {
         .replaceAll('"', '&quot;'),
     FormData: class {
       get(name) {
-        return (
-          {name: 'Default new report', rangeMode: 'custom', since: '2026-09-01', until: '2026-09-02'}[name] ?? null
-        );
+        return fields[name] ?? null;
       }
     },
     $: selector => roots.get(selector) ?? globals.get(selector) ?? null,
@@ -89,7 +109,7 @@ export function editorDefaultConfig(bootstrapPlatforms, accounts) {
         selector === '[data-report-account]:checked'
           ? accounts.map(account => ({value: key(account)}))
           : selector === '[data-report-metric]:checked'
-            ? [{value: 'spend'}, {value: 'impressions'}, {value: 'clicks'}]
+            ? metrics.map(value => ({value}))
             : [],
     },
   });
@@ -98,20 +118,54 @@ export function editorDefaultConfig(bootstrapPlatforms, accounts) {
     run(fs.readFileSync('web/' + name + '.js', 'utf8'));
   context.platforms = plain(bootstrapPlatforms);
   run('overviewState.bootstrap={platforms,metrics:{}};overviewState.config=overviewDefault()');
+  if (saved) {
+    context.record = plain(saved);
+    run('selectOverviewDefinition(record);overviewState.custom=structuredClone(record.config.custom_metrics ?? [])');
+  }
   for (const platform of bootstrapPlatforms) {
-    globals.set('[data-native-for="' + platform.id + '"]', node(''));
-    globals.set('[data-objective-for="' + platform.id + '"]', node('provider'));
+    // The platform-level controls hold what the first saved source (or the template defaults) of the platform holds.
+    context.initial = plain(
+      saved?.config.sources.find(source => source.platform === platform.id) ??
+        saved?.config.source_defaults?.[platform.id] ??
+        {},
+    );
+    globals.set('[data-native-for="' + platform.id + '"]', node((context.initial.native_metrics ?? []).join(', ')));
+    globals.set('[data-objective-for="' + platform.id + '"]', node(run('reportObjectiveValue(initial)')));
   }
   for (const account of accounts) {
     context.declaration = plain(bootstrapPlatforms.find(platform => platform.id === account.platform));
-    // The markup a new account gets: no saved source and no template defaults, so the server defaults decide.
-    const markup = String(
-      run('overviewAccountFields(declaration, {}, ' + JSON.stringify(key(account)) + ', true, {})'),
+    context.source = plain(
+      saved?.config.sources.find(
+        source =>
+          source.platform === account.platform &&
+          source.connection_id === account.connection_id &&
+          source.account_id === account.account_id,
+      ) ??
+        saved?.config.source_defaults?.[account.platform] ??
+        {},
     );
-    const controls = renderedControls(markup);
+    // The markup the editor gives this account: the saved source when there is one, otherwise only the defaults.
+    const markup = String(
+        run('overviewAccountFields(declaration, source, ' + JSON.stringify(key(account)) + ', true, {})'),
+      ),
+      controls = renderedControls(markup);
     roots.set('[data-report-source="' + key(account) + '"]', {
       querySelector: selector => controls.get(selector) ?? null,
     });
   }
   return plain(run('overviewConfig()'));
 }
+
+/** A NEW report that selects `accounts` and keeps every default (see editorBody). */
+export const editorDefaultConfig = (bootstrapPlatforms, accounts) => editorBody(bootstrapPlatforms, {accounts});
+
+/** A stored view record opened in the editor and saved again unchanged (see editorBody). */
+export const editorResaveConfig = (bootstrapPlatforms, saved) =>
+  editorBody(bootstrapPlatforms, {
+    accounts: saved.config.sources.map(({platform, connection_id, account_id}) => ({
+      platform,
+      connection_id,
+      account_id,
+    })),
+    saved,
+  });
