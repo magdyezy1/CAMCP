@@ -10,7 +10,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {createHttpApp} from '../dist/server/http-app.js';
-import {serveModernRequest} from '../dist/server/mcp-modern.js';
+import {createModernEndpoint} from '../dist/server/mcp-modern.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
 const missingGuide = 'amcp://guides/sdk-v2-missing',
@@ -65,23 +65,33 @@ test('SDK v2 uses pinned official packages without retaining the v1 SDK dependen
 });
 
 test('SDK v2 modern HTTP dispatch gives handlers the request context required by native protocol features', async () => {
-  const server = new Server({name: 'sdk-context', version: '1'}, {capabilities: {tools: {}}});
-  server.setRequestHandler('tools/call', async (_request, context) => ({
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({
-          hasHttpRequest: context.http?.req instanceof Request,
-          protocol: context.http?.req?.headers.get('mcp-protocol-version'),
-        }),
-      },
-    ],
-  }));
+  // One endpoint serves many requests; the factory is asked for a server per request and is told who is calling.
+  const callers = [];
+  const endpoint = createModernEndpoint({
+    instructions: 'synthetic deployment',
+    factory: factoryContext => {
+      callers.push(factoryContext.authInfo?.extra?.caller);
+      const server = new Server({name: 'sdk-context', version: '1'}, {capabilities: {tools: {}}});
+      server.setRequestHandler('tools/call', async (_request, context) => ({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              hasHttpRequest: context.http?.req instanceof Request,
+              protocol: context.http?.req?.headers.get('mcp-protocol-version'),
+              caller: factoryContext.authInfo?.extra?.caller,
+              era: factoryContext.era,
+            }),
+          },
+        ],
+      }));
+      return server;
+    },
+  });
   try {
-    const answer = await serveModernRequest(
-      server,
-      {'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/call', 'mcp-name': 'read_context'},
-      {
+    const headers = {'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/call', 'mcp-name': 'read_context'};
+    for (const caller of ['first-caller', 'second-caller']) {
+      const message = {
         jsonrpc: '2.0',
         id: 'context',
         method: 'tools/call',
@@ -94,12 +104,26 @@ test('SDK v2 modern HTTP dispatch gives handlers the request context required by
             'io.modelcontextprotocol/clientInfo': {name: 'sdk-context-client', version: '1'},
           },
         },
-      },
-    );
-    assert.equal(answer.status, 200);
-    assert.deepEqual(JSON.parse(answer.body.result.content[0].text), {hasHttpRequest: true, protocol: '2026-07-28'});
+      };
+      const answer = await endpoint.handle(
+        new Request('http://localhost/mcp', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...headers},
+          body: JSON.stringify(message),
+        }),
+        {headers, message, authInfo: {token: '', clientId: caller, scopes: [], extra: {caller}}},
+      );
+      assert.equal(answer.status, 200);
+      assert.deepEqual(JSON.parse((await answer.json()).result.content[0].text), {
+        hasHttpRequest: true,
+        protocol: '2026-07-28',
+        caller,
+        era: 'modern',
+      });
+    }
+    assert.deepEqual(callers, ['first-caller', 'second-caller'], 'each request built its own server for its caller');
   } finally {
-    await server.close();
+    await endpoint.close();
   }
 });
 

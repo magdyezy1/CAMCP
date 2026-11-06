@@ -11,7 +11,7 @@ const {store, service} = createRuntime(loadConfig(process.env, 'stdio'));
 const tenantId = process.env.MIRROR_TENANT_ID ?? 'local';
 store.ensureTenant(tenantId);
 const actor: Actor = {tenantId, userId: process.env.MIRROR_USER_ID ?? 'local-operator', role};
-const server = serveStdio(context => createMcpServer(service, actor, {legacyGuideErrors: context.era === 'legacy'}));
+const server = serveStdio(context => createMcpServer(service, actor, {era: context.era}));
 process.on('SIGTERM', () => {
   void server.close().finally(() => {
     store.close();

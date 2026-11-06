@@ -3,7 +3,7 @@ import type {Server} from 'node:http';
 import path from 'node:path';
 import express, {type ErrorRequestHandler, type RequestHandler} from 'express';
 import {hostHeaderValidation} from '@modelcontextprotocol/express';
-import {NodeStreamableHTTPServerTransport} from '@modelcontextprotocol/node';
+import {NodeStreamableHTTPServerTransport, toWebRequest} from '@modelcontextprotocol/node';
 import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {Client} from '@modelcontextprotocol/client';
 import {createMcpServer} from './mcp.js';
@@ -20,7 +20,14 @@ import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/server';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
-import {isModernRequest, modernProtocolModes, serveModernRequest, type ModernProtocolMode} from './mcp-modern.js';
+import {
+  createDeploymentEndpoint,
+  isModernRequest,
+  modernAuthInfo,
+  modernProtocolModes,
+  sendModernResponse,
+  type ModernProtocolMode,
+} from './mcp-modern.js';
 import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
 import {createPublicAssets} from './public-assets.js';
 import {REQUEST_ID_HEADER, newRequestId, runWithRequestId} from '../src/request-context.js';
@@ -198,7 +205,9 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       options.clock ?? Date.now,
       options.production ?? process.env.NODE_ENV === 'production',
     ),
-    limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now);
+    limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now),
+    // The 2026-07-28 endpoint: one strict SDK handler for the whole app, given the caller with each request.
+    modern = modernMode === 'off' ? undefined : createDeploymentEndpoint(service);
   // MCP tool failures that reach no HTTP status (JSON responses are 200) still leave one metadata-only line (OPS-02).
   if (options.log) service.onToolFailure = entry => log(entry);
   // Built before /mcp authentication, which checks AI-client tokens against its authorization server (SEC-05); its
@@ -370,22 +379,24 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         }
       };
       try {
-        const server = createMcpServer(service, res.locals.actor, {track});
-        if (dualEra && isModernRequest(req.headers, req.body)) {
-          // The modern era: stateless, one JSON answer per request, no session (MCP-03 phase 3).
-          res.on('close', () => void server.close());
+        if (dualEra && modern && isModernRequest(req.headers, req.body)) {
+          // The modern era: stateless, no session (MCP-03 phase 3). A client that goes away ends the exchange.
+          const gone = new AbortController();
+          res.on('close', () => {
+            if (!res.writableFinished) gone.abort();
+          });
+          const request = await toWebRequest(req, req.body, {signal: gone.signal});
           const answer = await runWithRequestId(res.locals.requestId, () =>
-            serveModernRequest(
-              server,
-              req.headers,
-              req.body,
-              new URL(req.originalUrl, options.publicOrigin ?? options.website?.origin ?? 'http://localhost').href,
-            ),
+            modern.handle(request, {
+              headers: req.headers,
+              message: req.body,
+              authInfo: modernAuthInfo(res.locals.actor, track),
+            }),
           );
-          if (answer.body) res.status(answer.status).json(answer.body);
-          else res.status(answer.status).end();
+          await sendModernResponse(res, answer);
           return;
         }
+        const server = createMcpServer(service, res.locals.actor, {track});
         const transport = new NodeStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
