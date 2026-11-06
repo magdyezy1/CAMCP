@@ -340,21 +340,33 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
 }
 export type ErrorRemedy = {category: string; owner: string; action: string; mutation_retry_safe: boolean};
 /**
+ * V2-RPT-05 (F-L1-03): the provider-data codes whose remedy is to retry the report. Every provider-data code except
+ * these two: a changed or invalid response shape keeps its own provider-shape advice, with its caution about a
+ * submitted write.
+ */
+const providerDataRetryCodes: ReadonlySet<string> = new Set(
+  [...providerDataCodes].filter(code => code !== 'REPORT_SHAPE_CHANGED' && code !== 'REPORT_RESPONSE_INVALID'),
+);
+/**
  * What to do next about a refusal. The remedy its provider declares comes first (src/provider-remedies.ts, ARC-04
  * stage C), then the first shared rule that names it (AMCP’s own workflows, then reviewed writes and access, then the
  * workspace and the deployment: the rules keep the order they were written in, so a rule that names exact codes comes
  * before the patterns that would also match them), then the remedy of its code family, then the default.
+ *
+ * A provider-data code (V2-RPT-05) asks for a retry whichever of those names it: a mismatch, an unknown pagination
+ * or a duplicate row is the platform's answer being refused, never a request that needs correcting. Its category and
+ * owner stay what the rule that names it gives, and no write is marked safe to retry.
  */
 export function errorRemedy(e: MirrorError): ErrorRemedy {
-  const remedy = providerRemedy(e.code, e.details) ?? workflowRemedy(e) ?? reviewRemedy(e) ?? workspaceRemedy(e);
-  if (remedy) return remedy;
+  const declared = providerRemedy(e.code, e.details);
+  if (declared) return declared;
+  const retry = providerDataRetryCodes.has(e.code),
+    remedy = workflowRemedy(e) ?? reviewRemedy(e) ?? workspaceRemedy(e);
+  if (remedy) return retry ? {...remedy, action: providerDataAction, mutation_retry_safe: false} : remedy;
   const family = familyRemedy(e.code);
-  // V2-RPT-05: a provider-data code that only the generic report family names is retried; its category and owner
-  // stay. Codes with their own rule (a changed response shape and its submitted-write caution, a mismatch, inconsistent
-  // pages) keep that rule's action, which already says to read again rather than to narrow the report.
-  if (family?.category === 'report' && providerDataCodes.has(e.code))
-    return {...family, action: providerDataAction, mutation_retry_safe: false};
-  if (family) return {...family, mutation_retry_safe: false};
+  if (family) return {...family, ...(retry ? {action: providerDataAction} : {}), mutation_retry_safe: false};
+  // No rule names a duplicate-row code: it keeps the default's category and owner.
+  if (retry) return {category: 'request', owner: 'operator', action: providerDataAction, mutation_retry_safe: false};
   return {
     category: e.code === 'INTERNAL_ERROR' ? 'internal' : 'request',
     owner: e.code === 'INTERNAL_ERROR' ? 'amcp' : 'operator',

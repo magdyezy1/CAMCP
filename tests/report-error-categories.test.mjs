@@ -2,7 +2,14 @@
 // borrowing an HTTP status, and the provider's own refusal details survive every hop (reports and previews).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MirrorError, errorRemedy, nestedError, providerDataAction, providerDataCodes} from '../dist/src/errors.js';
+import {
+  MirrorError,
+  errorRemedy,
+  errorResult,
+  nestedError,
+  providerDataAction,
+  providerDataCodes,
+} from '../dist/src/errors.js';
 import {reportErrorCategory, reportSourceError} from '../dist/src/report-errors.js';
 import {AdPreviews} from '../dist/src/ad-previews.js';
 import {Store} from '../dist/src/store.js';
@@ -128,22 +135,45 @@ test('nestedError keeps the allow-listed details, retryable and a provider-data 
 });
 
 test('MCP keeps category report for provider-data codes and gives them the retry action', () => {
-  for (const code of ['REPORT_INCOMPLETE', 'REPORT_DUPLICATE_ROWS', 'REPORT_EMPTY_AMBIGUOUS', 'REPORT_ID_MISSING']) {
+  for (const code of [
+    'REPORT_INCOMPLETE',
+    'REPORT_DUPLICATE_ROWS',
+    'REPORT_EMPTY_AMBIGUOUS',
+    'REPORT_ID_MISSING',
+    'REPORT_METRIC_AMBIGUOUS',
+  ]) {
     const r = errorRemedy(new MirrorError(code, 'm', {}, 502));
     assert.deepEqual([r.category, r.action, r.mutation_retry_safe], ['report', providerDataAction, false], code);
   }
-  // A code with its own rule keeps that rule, action included: a changed response shape keeps its caution about a
-  // submitted write, a mismatch says to read again (lead's call, Task 1 review).
+  // F-L1-03: the other provider-data codes are named first by a broader rule (a mismatch, an unknown name, a duplicate),
+  // which told an AI client to correct a request that was right. They keep the category that rule gives and are
+  // retried like the rest, and no write is ever marked safe to retry.
   for (const [code, category] of [
-    ['REPORT_SHAPE_CHANGED', 'provider'],
+    ['REPORT_DATE_MISMATCH', 'state'],
     ['REPORT_ACCOUNT_MISMATCH', 'state'],
     ['UNKNOWN_PAGINATION', 'request'],
+    ['DUPLICATE_ENTITY_ROWS', 'request'],
+    ['DUPLICATE_CAMPAIGN_ROWS', 'request'],
   ]) {
-    const p = errorRemedy(new MirrorError(code, 'm', {}, 502));
-    assert.equal(p.category, category, code);
-    assert.notEqual(p.action, providerDataAction, code);
+    const r = errorRemedy(new MirrorError(code, 'm', {}, 502));
+    assert.deepEqual([r.category, r.action, r.mutation_retry_safe], [category, providerDataAction, false], code);
+    const sent = errorResult(new MirrorError(code, 'm', {}, 502), 'request-1', 1).error;
+    assert.equal(sent.remedy.action, providerDataAction, code);
+    assert.equal(sent.next_action, providerDataAction, code);
+    assert.equal(sent.category, category, code);
   }
-  // The generic report family still names INCOMPLETE_REPORT's narrowing.
+  // A changed or invalid response shape keeps its own provider-shape advice, with its caution about a submitted write.
+  for (const code of ['REPORT_SHAPE_CHANGED', 'REPORT_RESPONSE_INVALID']) {
+    const p = errorRemedy(new MirrorError(code, 'm', {}, 502));
+    assert.equal(p.category, 'provider', code);
+    assert.notEqual(p.action, providerDataAction, code);
+    assert.match(p.action, /submitted write/, code);
+  }
+  // Every provider-data code is one or the other: nothing is left telling the caller to correct its request.
+  const own = new Set(['REPORT_SHAPE_CHANGED', 'REPORT_RESPONSE_INVALID']);
+  for (const code of providerDataCodes)
+    assert.equal(errorRemedy(new MirrorError(code, 'm', {}, 502)).action === providerDataAction, !own.has(code), code);
+  // AMCP's own size limit is a different failure: the generic report family names its narrowing.
   assert.match(errorRemedy(new MirrorError('INCOMPLETE_REPORT', 'm')).action, /Narrow it/);
 });
 
