@@ -80,7 +80,7 @@ function snapFixture(t, {ads = [], creatives = [], creativePageSize = 1000, fore
         singular = creative ? 'creative' : 'ad',
         all = creative ? creatives : ads,
         offset = Number(input.query?.cursor ?? 0),
-        size = creative ? creativePageSize : 50,
+        size = creative ? creativePageSize : Number(input.query?.limit ?? 50),
         page = all.slice(offset, offset + size),
         selected = creative ? page.filter(row => input.result_ids.includes(row.id)) : page;
       data = {
@@ -462,10 +462,10 @@ test('a cursor-based provider cannot claim more rows without a usable continuati
   });
 });
 
-function platformFixture(t, platform) {
+function platformFixture(t, platform, count = 150) {
   const store = storeFixture(t, platform + '_native_action'),
     reads = [];
-  const ids = Array.from({length: 150}, (_, i) => String(i + 1));
+  const ids = Array.from({length: count}, (_, i) => String(i + 1));
   const native = id => (platform === 'linkedin' ? 'urn:li:sponsoredCreative:' + id : id);
   const record = id =>
     platform === 'tiktok'
@@ -630,8 +630,9 @@ for (const platform of ['tiktok', 'linkedin', 'reddit']) {
         .every(read => !JSON.stringify(read).includes('999')),
     );
   });
-  test(platform + ' limits a filtered scan to ten pages and retains a continuation', async t => {
-    const f = platformFixture(t, platform),
+  test(platform + ' limits a filtered scan to ten long pages and retains a continuation', async t => {
+    // Ten pages of 100 hold no match of the filter; the 1,500 records beyond are for the continuation.
+    const f = platformFixture(t, platform, 1500),
       out = await f.run({campaign_ids: ['11'], limit: 1});
     assert.deepEqual(out.previews, []);
     assert.equal(out.has_more, true);
@@ -870,5 +871,90 @@ test('M13: a Snapchat creative the bounded ownership scan did not reach is not p
   assert.equal(
     f.reads.some(read => read.action.includes('creative_preview')),
     false,
+  );
+});
+
+// Design note 2: a list page was as long as `limit` (at most 10) and a call read at most ten pages, so five active ads among
+// hundreds of paused ones took ten sequential reads of five rows, and several calls. Each platform now asks its own list for
+// a long page, whatever `limit` is (the offset logic resumes the surplus rows of a page).
+const longPage = 100;
+
+test('Meta finds five active ads behind 240 paused ones in three long reads, not ten short ones', async t => {
+  const f = metaFixture(
+    t,
+    Array.from({length: 250}, (_, i) => ad(i + 1, i < 240 ? 'PAUSED' : 'ACTIVE')),
+  );
+  const out = await f.run({limit: 5});
+  assert.deepEqual(
+    out.previews.map(row => row.ad_id),
+    ['241', '242', '243', '244', '245'],
+  );
+  assert.deepEqual(
+    f.reads.filter(read => read.action === 'meta_ad_list').map(read => read.query.limit),
+    [longPage, longPage, longPage],
+  );
+  // The rest of the last page is still there for the next call: the cursor resumes inside it.
+  assert.equal(out.has_more, true);
+  const more = await f.run({limit: 5, cursor: out.next_cursor});
+  assert.deepEqual(
+    more.previews.map(row => row.ad_id),
+    ['246', '247', '248', '249', '250'],
+  );
+});
+
+for (const [platform, listed, size] of [
+  ['tiktok', read => read.action === 'tiktok_ad_list', read => read.query.page_size],
+  [
+    'linkedin',
+    read => read.action === 'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
+    read => read.query.pageSize,
+  ],
+  ['reddit', read => read.arguments?.action === 'LIST_ADS', read => read.arguments.params['page.size']],
+]) {
+  test(
+    platform + ' asks its list for a long page when one record is wanted, and a named read for exactly the named IDs',
+    async t => {
+      const f = platformFixture(t, platform);
+      const out = await f.run({limit: 1});
+      assert.deepEqual(
+        out.previews.map(row => row.ad_id),
+        [f.native('1')],
+      );
+      assert.deepEqual(f.reads.filter(listed).map(size), [longPage]);
+      // The rest of that page is resumed by the cursor, not read again as a new page.
+      const next = await f.run({limit: 1, cursor: out.next_cursor});
+      assert.deepEqual(
+        next.previews.map(row => row.ad_id),
+        [f.native('2')],
+      );
+      // A named read asks for the named IDs only.
+      f.reads.length = 0;
+      await f.run({ad_ids: ['7', '9']});
+      assert.deepEqual(f.reads.filter(listed).map(size), [2]);
+    },
+  );
+}
+
+test('Snapchat asks its ads list for a long page, and the long page keeps its parent lookups bounded', async t => {
+  const f = snapFixture(t, {
+    ads: Array.from({length: 120}, (_, i) => ({
+      id: 'a' + i,
+      creative_id: 'cr' + i,
+      status: i < 110 ? 'PAUSED' : 'ACTIVE',
+      ad_squad_id: 's1',
+    })),
+    creatives: Array.from({length: 120}, (_, i) => ({id: 'cr' + i})),
+  });
+  const out = await f.run({limit: 5, campaign_ids: ['c1']});
+  assert.equal(out.previews.length, 5);
+  assert.deepEqual(
+    f.reads.filter(read => read.action === 'snapchat_ad_list').map(read => read.query.limit),
+    [longPage, longPage],
+  );
+  // One ad squad lookup however many ads name it, never more squads than a page can hold.
+  const squads = f.reads.filter(read => read.action === 'snapchat_adsquad_get_by_ids');
+  assert.deepEqual(
+    squads.map(read => read.payload.entity_ids.length),
+    [1],
   );
 });

@@ -129,7 +129,8 @@ test('TikTok: previews each ad by advertiser and returns the preview link', asyn
         message: 'OK',
         data: {
           list: [{ad_id: '5001', ad_name: 'Launch', operation_status: 'ENABLE'}],
-          page_info: {page: 1, page_size: 5, total_number: 1, total_page: 1},
+          // TikTok echoes the page size it was asked for.
+          page_info: {page: 1, page_size: Number(url.searchParams.get('page_size')), total_number: 1, total_page: 1},
         },
       });
     if (url.pathname === '/open_api/v1.3/creative/ads_preview/create/')

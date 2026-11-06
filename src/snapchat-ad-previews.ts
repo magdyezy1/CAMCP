@@ -1,5 +1,5 @@
 import {fail} from './family-kit.js';
-import {object, text} from './ad-preview-kit.js';
+import {listPageSize, object, text} from './ad-preview-kit.js';
 import type {AdPreviewHooks, AdPreviewRequest, AdPreviewRow, AdPreviewSelection} from './provider-adapter.js';
 import type {JsonObject} from './types.js';
 
@@ -85,12 +85,12 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
     // Snapchat forbids sort together with read_deleted_entities. State the order actually requested.
     const deleted = !!wanted || statuses.includes('all') || statuses.includes('archived'),
       query = {
-        limit: 50,
+        limit: listPageSize,
         ...(deleted ? {read_deleted_entities: true} : {sort: 'created_at-desc'}),
         ...(after ? {cursor: after} : {}),
       },
       data = await read({action: 'snapchat_ad_list', ...base, query}),
-      ads = unwrap(data, 'ads', 'ad', 50),
+      ads = unwrap(data, 'ads', 'ad', listPageSize),
       unknown = [
         ...new Set<string>(
           ads

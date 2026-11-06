@@ -1,5 +1,5 @@
 import {fail} from './family-kit.js';
-import {object, previewLinksOn, text} from './ad-preview-kit.js';
+import {listPageSize, object, previewLinksOn, text} from './ad-preview-kit.js';
 import type {
   AdPreviewHooks,
   AdPreviewPage,
@@ -18,7 +18,7 @@ import type {JsonObject} from './types.js';
 const linkHosts = /(^|\.)(tiktok\.com|tiktokv\.com|tiktokcdn\.com|byteoversea\.com)$/;
 
 async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
-  const {account, wanted, statuses, campaigns, adsets, limit, base, read, matches, pageSelection, notListed} = request;
+  const {account, wanted, statuses, campaigns, adsets, base, read, matches, pageSelection, notListed} = request;
   const primary =
     wanted || statuses.includes('all') || (statuses.includes('archived') && statuses.length > 1)
       ? 'STATUS_ALL'
@@ -26,7 +26,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         ? 'STATUS_DELETE'
         : 'STATUS_NOT_DELETE';
   const pageOf = async (_after: string | null, page: number, named = false): Promise<AdPreviewPage> => {
-    const size = named ? wanted!.length : limit,
+    const size = named ? wanted!.length : listPageSize,
       response = await read({
         action: 'tiktok_ad_list',
         ...base,

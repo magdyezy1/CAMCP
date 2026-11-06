@@ -1,5 +1,5 @@
 import {fail} from './family-kit.js';
-import {object, previewLinksOn, text} from './ad-preview-kit.js';
+import {listPageSize, object, previewLinksOn, text} from './ad-preview-kit.js';
 import type {
   AdPreviewHooks,
   AdPreviewPage,
@@ -18,9 +18,9 @@ import type {JsonObject} from './types.js';
 const linkHosts = /(^|\.)reddit\.com$/;
 
 async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
-  const {account, wanted, campaigns, limit, base, read, matches, pageSelection, notListed} = request;
+  const {account, wanted, campaigns, base, read, matches, pageSelection, notListed} = request;
   const pageOf = async (after: string | null, _page: number, named = false): Promise<AdPreviewPage> => {
-    const size = named ? wanted!.length : limit,
+    const size = named ? wanted!.length : listPageSize,
       params: JsonObject = {
         'page.size': size,
         ...(named ? {id: wanted} : {}),

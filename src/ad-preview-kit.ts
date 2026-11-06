@@ -6,6 +6,14 @@ import type {JsonObject} from './types.js';
  * registered as the `previews` hooks of src/<platform>-adapter.ts): small helpers that name no platform. A leaf, so a
  * platform module may use it without importing the tool or the hooks registry (which would be an import cycle).
  */
+/**
+ * The rows a platform's list read asks for in one page, whatever `limit` is: a call scans at most ten native pages, and
+ * a page as short as `limit` (at most 10) made five active ads among hundreds of paused ones ten sequential reads of
+ * five rows and several calls. 100 is a page every platform's list takes (the Graph edges, ad/get, the creatives
+ * finder, LIST_ADS and the ads list all do), small enough that a call still reads a few hundred kilobytes at most; the
+ * rows of a page beyond `limit` are resumed by the cursor (V2-PRV-01 design note 2).
+ */
+export const listPageSize = 100;
 export const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 export const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
 

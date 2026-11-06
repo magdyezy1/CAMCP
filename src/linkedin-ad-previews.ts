@@ -2,7 +2,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
-import {object, spellsSeparator, text} from './ad-preview-kit.js';
+import {listPageSize, object, spellsSeparator, text} from './ad-preview-kit.js';
 import type {
   AdPreviewHooks,
   AdPreviewLink,
@@ -167,10 +167,10 @@ function normalize(kind: 'ad' | 'campaign' | 'adset', values: string[]): string[
 }
 
 async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
-  const {account, wanted, campaigns, adsets, limit, base, read, matches, pageSelection, notListed} = request;
+  const {account, wanted, campaigns, adsets, base, read, matches, pageSelection, notListed} = request;
   const campaignGroups = new Map<string, string>();
   const pageOf = async (after: string | null, _page: number, named = false): Promise<AdPreviewPage> => {
-    const size = named ? wanted!.length : limit,
+    const size = named ? wanted!.length : listPageSize,
       listed = await read({
         action: 'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
         ...base,

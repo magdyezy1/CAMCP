@@ -49,7 +49,7 @@ const answers = {
           code: 0,
           data: {
             list: [{ad_id: '1', ad_name: 'A', advertiser_id: '100', operation_status: 'ENABLE'}],
-            page_info: {page: 1, page_size: 5, total_number: 1, total_page: 1},
+            page_info: {page: 1, page_size: input.query.page_size, total_number: 1, total_page: 1},
           },
         }
       : {code: 0, data: {preview_link: 'https://ads.tiktok.com/preview/1'}},

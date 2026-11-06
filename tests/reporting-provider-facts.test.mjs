@@ -148,7 +148,7 @@ test('the ad previews read each platform under the gateway its switch named, and
     tiktok_ad_list: {
       data: {
         list: [{ad_id: '1', ad_name: 'Ad', operation_status: 'ENABLE'}],
-        page_info: {page: 1, page_size: 5, total_number: 1, total_page: 1},
+        page_info: {page: 1, page_size: 100, total_number: 1, total_page: 1},
       },
     },
     tiktok_ad_preview: {data: {preview_link: 'https://ads.tiktok.com/hc/preview/1'}},

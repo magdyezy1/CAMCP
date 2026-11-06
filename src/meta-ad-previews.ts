@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
-import {object, previewLinksOn, text} from './ad-preview-kit.js';
+import {listPageSize, object, previewLinksOn, text} from './ad-preview-kit.js';
 import {metaAbsent} from './meta-catalogs.js';
 import type {AdPreviewHooks, AdPreviewRequest, AdPreviewRow, AdPreviewSelection} from './provider-adapter.js';
 import type {JsonObject} from './types.js';
@@ -28,11 +28,11 @@ export const metaPreviewFormats = [
 const linkHosts = /(^|\.)(facebook\.com|fb\.com|instagram\.com)$/;
 
 async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
-  const {account, wanted, base, limit, campaigns, adsets, read, matches, pageSelection} = request;
+  const {account, wanted, base, campaigns, adsets, read, matches, pageSelection} = request;
   const rows = (values: unknown): AdPreviewRow[] => {
     if (
       !Array.isArray(values) ||
-      values.length > limit ||
+      values.length > listPageSize ||
       values.some(row => !object(row) || typeof row.id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(row.id))
     )
       fail('REPORT_SHAPE_CHANGED', 'The platform returned an invalid preview list or continuation.');
@@ -111,7 +111,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         ...base,
         query: {
           fields: 'id,name,account_id,effective_status,campaign_id,adset_id',
-          limit,
+          limit: listPageSize,
           ...(after ? {after} : {}),
         },
       });
