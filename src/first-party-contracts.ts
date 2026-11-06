@@ -93,7 +93,8 @@ const helpRow = () =>
     'Full description, argument notes, limits and examples of this tool; read-only.',
     [],
     ['topic'],
-    reads(),
+    // AMCP's own definitions and guides: no provider request, whatever the tool's other actions do (F-L3-09).
+    local,
     'reader',
   );
 

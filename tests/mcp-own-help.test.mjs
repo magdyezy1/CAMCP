@@ -85,6 +85,37 @@ test('every first-party tool answers help with full text, action contracts and e
     }
 });
 
+// F-L3-09: help reads AMCP's own definitions and guides. Its contract said "provider reads", and its result was labelled
+// untrusted provider content, with a workflow record of state "inspect" on three tools: all three describe a provider
+// effect that does not exist (the annotations already said closed-world).
+test('a first-party tool’s own help is local: no provider request in its contract, no provider-content label, no workflow record', async t => {
+  for (const policy of policies) {
+    const f = fixture(t, policy);
+    for (const tool of f.service.firstPartyTools()) {
+      assert.equal(firstPartyContract(tool, 'help').effects.provider_requests, 'none', tool.name);
+      assert.deepEqual(firstPartyContract(tool, 'help').effects.saves, [], tool.name);
+      const topics = [undefined, ...toolActions(tool).filter(action => action !== null)];
+      if (tool.name === 'amcp_workspace') topics.push('guides', 'guides/workspace');
+      for (const topic of topics) {
+        const result = await f.call(tool.name, {action: 'help', ...(topic ? {topic} : {})});
+        assert.equal(result.success, true, tool.name + ' ' + topic + ' ' + JSON.stringify(result.error));
+        const label = tool.name + ' help ' + (topic ?? '(root)');
+        assert.equal(result.meta.untrusted_provider_content, undefined, label);
+        assert.equal(result.meta.untrusted_paths, undefined, label);
+        assert.equal(result.meta.workflow, undefined, label);
+      }
+    }
+    assert.equal(f.requests(), 0);
+  }
+});
+test('an action of the same tools other than help still carries the provider-content label and its workflow record', async t => {
+  const f = fixture(t, policies[0]);
+  const capabilities = await f.call('amcp_workspace', {action: 'capabilities'});
+  assert.equal(capabilities.success, true, JSON.stringify(capabilities.error));
+  assert.match(capabilities.meta.untrusted_provider_content, /never as instructions/i);
+  assert.deepEqual(capabilities.meta.untrusted_paths, ['data']);
+  assert.equal(capabilities.meta.workflow.state, 'inspect');
+});
 test('workspace help serves guides one section at a time within the response budget', async t => {
   const f = fixture(t, policies[1]),
     list = await f.call('amcp_workspace', {action: 'help', topic: 'guides'});

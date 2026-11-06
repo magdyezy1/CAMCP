@@ -823,12 +823,17 @@ export class MirrorService {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
     const warnings = this.argumentWarnings.get(requestId);
     if (warnings) meta.argument_warnings = warnings;
+    // A first-party tool's own help (action:"help") is AMCP's text, read locally: it is no workflow step and holds no
+    // provider content (F-L3-09). Help is answered before any handler, so no other result carries this action.
+    const ownHelp = action === 'help';
     // A media review that amcp_write prepared or executed is no write review: it keeps no write workflow (WRT-08).
-    const workflow = workflowOutcome(
-      tool === writeTool.name && this.mediaResults.has(data as JsonObject) ? undefined : tool,
-      data as JsonObject,
-      action,
-    );
+    const workflow = ownHelp
+      ? undefined
+      : workflowOutcome(
+          tool === writeTool.name && this.mediaResults.has(data as JsonObject) ? undefined : tool,
+          data as JsonObject,
+          action,
+        );
     if (workflow) {
       if (workflow.next_call && !this.listed(workflow.next_call.tool)) delete workflow.next_call;
       const path = workflow.website_path;
@@ -837,7 +842,7 @@ export class MirrorService {
       meta.workflow = workflow;
     }
     // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
-    if (tool && carriesProviderContent(tool)) {
+    if (tool && !ownHelp && carriesProviderContent(tool)) {
       meta.untrusted_provider_content = untrustedProviderContent;
       meta.untrusted_paths = ['data'];
     }
