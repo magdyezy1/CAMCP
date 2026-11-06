@@ -1,4 +1,5 @@
-import {evaluateReportFormulaV4, sumReportValuesV4} from './report-math-v4.js';
+import {currencyMinorDigits} from './budget-units.js';
+import {compareReportValuesV4, evaluateReportFormulaV4, reportScaledText, sumReportValuesV4} from './report-math-v4.js';
 import type {JsonObject} from './types.js';
 
 /** Comparable delivery counts and money only: result meanings and non-additive reach are never reconciled by addition. */
@@ -16,6 +17,18 @@ export function levelFailure(packet: JsonObject, packets: JsonObject[]): JsonObj
   return packets.find(
     other => other.source.source_ref === packet.source.source_ref && other.source.level === rollup.from_level,
   )?.error;
+}
+
+/**
+ * What provider rounding can explain (F-L5-25). A provider rounds every money figure to the currency's minor unit, so two
+ * sums of such figures can differ by up to half a minor unit for each figure summed on either side: a campaign of 10.01
+ * beside three ads of 3.34 agree. Counts are not rounded and must match exactly, so their tolerance is 0. The currency's
+ * own exponent decides the unit (JPY 0, USD 2, KWD 3); a code without one is read as two decimals.
+ */
+function roundingTolerance(metric: string, currency: unknown, figures: number): string {
+  if (metric !== 'spend' || !figures) return '0';
+  const digits = currencyMinorDigits(currency) ?? 2;
+  return reportScaledText(BigInt(figures) * 5n * 10n ** BigInt(8 - digits));
 }
 
 /** Evidence about visible rows, separate from the provider's page/closure/completeness declarations. */
@@ -90,7 +103,10 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
                         : 'missing_metric'
                       : null,
           partial = !collected || a.coverage.known < a.coverage.total || b.coverage.known < b.coverage.total,
-          delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value;
+          delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value,
+          tolerance = roundingTolerance(metric, currency, a.coverage.known + b.coverage.known),
+          // The delta stays in the output either way, so what the tolerance absorbed is never hidden.
+          within = delta !== null && compareReportValuesV4(delta.replace(/^-/, ''), tolerance) <= 0;
         comparisons.push({
           metric,
           currency,
@@ -99,8 +115,9 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
           date_range: sameWindow ? baseline!.date_range : null,
           baseline: {level: baselineLevel, ...a},
           comparison: {level: comparisonLevel, ...b},
-          state: unavailable ? 'unavailable' : partial ? 'partial' : delta === '0' ? 'agree' : 'gap',
+          state: unavailable ? 'unavailable' : partial ? 'partial' : within ? 'agree' : 'gap',
           delta,
+          tolerance: unavailable ? null : tolerance,
           coverage_percent: unavailable ? null : evaluateReportFormulaV4('b / a * 100', {a: a.value, b: b.value}).value,
           unavailable_reason: unavailable,
           ...(failed.length ? {failed_levels: failed} : {}),
