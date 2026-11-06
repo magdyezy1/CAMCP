@@ -1,7 +1,7 @@
 import {fingerprint} from './report-quality.js';
 import {MirrorError} from './errors.js';
 import {reportSource} from './report-sources.js';
-import {resolveObjective, unusedObjectiveOverrides} from './report-objectives.js';
+import {resolveObjective, unusedObjectiveOverrides, type ResolvedObjective} from './report-objectives.js';
 import {reportMetricsSummaryV4} from './report-summary.js';
 import {calculateMetricsV4} from './report-math-v4.js';
 import {assignRecommendationsV4, recommendationV4} from './report-advice-v4.js';
@@ -89,17 +89,7 @@ export function assembleReportRows(results: JsonObject[], config: JsonObject, cu
             : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
         );
       seen.add(rowKey);
-      const resolvedObjective = resolveObjective({
-          platform: source.platform,
-          table: reportSource(source.platform)?.objectives,
-          native: row.objective,
-          campaignId: row.campaign_id,
-          mappedInputs: row.native?.daily_rows?.[0] ?? row.native,
-          overrides: source.objective_overrides,
-          legacy: source.objective,
-          fallback: source.objective_fallback,
-          unread: row.objective_unread,
-        }),
+      const resolvedObjective = rowObjective(source, row),
         objective = resolvedObjective.group,
         {period_context, report_period, objective_unread, ...nativeRow} = row,
         record: JsonObject = {
@@ -175,6 +165,32 @@ export function assembleReportRows(results: JsonObject[], config: JsonObject, cu
   if (v4) assignRecommendationsV4(rows, config.targets, custom, (config.grain ?? 'total') !== 'total');
   else if ((config.grain ?? 'total') !== 'total') windowRecommendations(rows, config.targets, custom);
   return rows;
+}
+
+/**
+ * A row's objective is resolved once. A detail row, and a row rolled up from its parent's, record the resolution made
+ * with the parent's raw evidence (`objective_source`); the evidence left on the row itself cannot repeat it. A campaign
+ * row records none and is resolved here.
+ */
+function rowObjective(source: JsonObject, row: JsonObject): ResolvedObjective {
+  if (row.objective_source !== undefined)
+    return {
+      native: row.objective === 'unknown' ? null : row.objective,
+      group: row.objective_group,
+      source: row.objective_source,
+      reason: row.objective_reason ?? null,
+    };
+  return resolveObjective({
+    platform: source.platform,
+    table: reportSource(source.platform)?.objectives,
+    native: row.objective,
+    campaignId: row.campaign_id,
+    mappedInputs: row.native?.daily_rows?.[0] ?? row.native,
+    overrides: source.objective_overrides,
+    legacy: source.objective,
+    fallback: source.objective_fallback,
+    unread: row.objective_unread,
+  });
 }
 
 /**

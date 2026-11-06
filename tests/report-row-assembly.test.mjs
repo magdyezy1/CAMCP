@@ -191,6 +191,32 @@ test('a saved source-wide objective applies to every row of its source, and a pr
   );
 });
 
+test('a row that carries the objective its collector resolved keeps it instead of resolving it a second time', () => {
+  // A detail row, or a rolled-up row built from its parent's row, records the resolution made with the parent's raw
+  // evidence. The assembly must not discard it for a second resolution from the evidence left on the row itself.
+  const recorded = {
+    objective: 'unknown',
+    objective_group: 'sales',
+    objective_source: 'provider_mapped',
+    objective_reason: 'Mapped from Google Ads campaign settings.',
+    native: {delivery_activity: true, daily_rows: [{}]},
+  };
+  const [adset] = assemble([
+    packet('adset', [row('adset', 's1', {}, recorded)], {source: {platform: 'google', levels: ['adset']}}),
+  ]);
+  assert.deepEqual(
+    [adset.objective, adset.objective_group, adset.objective_source, adset.objective_reason],
+    ['unknown', 'sales', 'provider_mapped', 'Mapped from Google Ads campaign settings.'],
+  );
+  // A recorded resolution still reaches the objective filter.
+  assert.deepEqual(
+    assemble([packet('adset', [row('adset', 's1', {}, recorded)], {source: {platform: 'google', levels: ['adset']}})], {
+      objectives: ['leads'],
+    }),
+    [],
+  );
+});
+
 test('an override that matched no campaign of the source is named once, on its first packet', () => {
   const results = [
     packet('campaign', [row('campaign', 'c1')], {source: {objective_overrides: {gone: 'traffic'}}}),
