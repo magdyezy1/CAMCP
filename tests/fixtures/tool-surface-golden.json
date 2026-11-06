@@ -1834,16 +1834,16 @@
      "length": 1247
     },
     "amcp_reporting_overview": {
-     "sha256": "09c374c784d7a1094c19b9624b8f339ddd297910b74906db579394413a8d3b69",
-     "length": 1690
+     "sha256": "ee419f4afd63bfa550866d5d81dfd20a1e175a1cadd7ff02f5b9245a643c085a",
+     "length": 1440
     },
     "amcp_ad_previews": "Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:\"help\"}.",
     "amcp_write": "Use this to check whether a single advertising or measurement change has a reviewed write contract. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only: prepare and execute are refused, and its operator can enable reviewed writes. This is an AMCP extension, not a captured AMCP tool.",
     "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Full text: amcp_media {action:\"help\"}; action rules: amcp_media {action:\"help\",topic:\"<action>\"}."
    },
    "whole": {
-    "sha256": "f6875d15dfc0f5544c752f80eee70f1b74bf8b99b026942482a2ffd138ca4ed5",
-    "length": 90261
+    "sha256": "c8b20adc20b56761157de405c2055b7c8fa960325d9b82754f06d56994fbef96",
+    "length": 90011
    }
   },
   "read_only/full_descriptions": {
@@ -1878,12 +1878,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "f60a4c68c12d1377b8cffc419a13aaf6fd430af32873910f290546f11947ca56",
-    "length": 76724
+    "sha256": "7edcae3553bfe155404c72a5f4af5e9238fc2a52e608740ea9614cac0bd5c2dc",
+    "length": 71600
    },
    "whole": {
-    "sha256": "71c5ac1224554a0bf307e0c48dd3e3aa3f7b425df8f11e43292e66ba6da99efb",
-    "length": 148701
+    "sha256": "9dc6351b2fd548169108bf7b0ba1ff573df538ebae86ff73aef82ff55a74cadc",
+    "length": 143577
    }
   },
   "read_only/enhanced_all": {
@@ -1918,12 +1918,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "9fe74f4fec4857bd5c1d33ad44926d6f370aa7f62e8aeff1f47fd6d95fc6b0d5",
-    "length": 18284
+    "sha256": "248e3559150608162634d8eb48e93c00576ff300924ab498515a8d131747b378",
+    "length": 18034
    },
    "whole": {
-    "sha256": "9129cb16a5cbe08f315a48b0ed85510a9badd58e2cb457875ddf6fcc26ad21a7",
-    "length": 86473
+    "sha256": "8b0a8cb666a956454b5cc13244224809bfa706ec02c55b02074612f00e71b5f2",
+    "length": 86223
    }
   },
   "writes/strict": {
@@ -2001,8 +2001,8 @@
      "length": 1247
     },
     "amcp_reporting_overview": {
-     "sha256": "09c374c784d7a1094c19b9624b8f339ddd297910b74906db579394413a8d3b69",
-     "length": 1690
+     "sha256": "ee419f4afd63bfa550866d5d81dfd20a1e175a1cadd7ff02f5b9245a643c085a",
+     "length": 1440
     },
     "amcp_ad_previews": "Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:\"help\"}.",
     "amcp_write": {
@@ -2015,8 +2015,8 @@
     }
    },
    "whole": {
-    "sha256": "ab7c395032c7e2e2ce9d3de5cd3d57cb7358ccd3160e7d911d27f2a1fa71ccdd",
-    "length": 92906
+    "sha256": "e44e1abc475b2e2ebcb73ea730ffb8192a6deca185b9319cfa0a68a42ec2babd",
+    "length": 92656
    }
   },
   "writes/full_descriptions": {
@@ -2051,12 +2051,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "6f6ff2ac9c07934b6a259901d7469ab2657bd16bb4e84ac659ed7abc5c242cd8",
-    "length": 81381
+    "sha256": "9f798f8afbe57f6a0cff63fc9597f3ccbae98cfdf9848e49f4bbbe8b23c78fc7",
+    "length": 76257
    },
    "whole": {
-    "sha256": "9d376f418dcd419078043df607efdc9d4c26d2518410371dc2a0280580eca9fd",
-    "length": 154479
+    "sha256": "6c585ad8c0d4aa9c686f6a404af3e56c87d701ba6fa590e4fbdac80e504bde59",
+    "length": 149355
    }
   },
   "writes/enhanced_all": {
@@ -2091,12 +2091,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "8a71225474de0d933ed02aef5dae6e66c14e3df394801521cdd4091a64a654cf",
-    "length": 19808
+    "sha256": "ffd8be9a42a89a2bc50abe74ce984395fd8bb8e664271b1d958a07f2c076b163",
+    "length": 19558
    },
    "whole": {
-    "sha256": "c0cf95818a4bc4caeb0bc2c87e092e185c8f7e2e633feb26cfc671345936c217",
-    "length": 89118
+    "sha256": "88b0719a7a236544abf5ed7bd5d462fe4e11244a6c365904ec04b54d0159ddae",
+    "length": 88868
    }
   },
   "provider_jobs/strict": {
@@ -2177,16 +2177,16 @@
      "length": 1247
     },
     "amcp_reporting_overview": {
-     "sha256": "09c374c784d7a1094c19b9624b8f339ddd297910b74906db579394413a8d3b69",
-     "length": 1690
+     "sha256": "ee419f4afd63bfa550866d5d81dfd20a1e175a1cadd7ff02f5b9245a643c085a",
+     "length": 1440
     },
     "amcp_ad_previews": "Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:\"help\"}.",
     "amcp_write": "Use this to check whether a single advertising or measurement change has a reviewed write contract, and to create a provider report or export job. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only for advertising changes; its owner allows provider report and export jobs (X, TikTok and Meta report jobs, Criteo reports, DV360 SDF exports, TikTok change logs and GA4 report tasks). For a job, prepare reads state and freezes a five-minute review, execute submits it once after confirmed=true and never resubmits it, and status reads a retained review back. A job needs the account’s report-job grant (AMCP Connections). This is an AMCP extension, not a captured AMCP tool.",
     "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Full text: amcp_media {action:\"help\"}; action rules: amcp_media {action:\"help\",topic:\"<action>\"}."
    },
    "whole": {
-    "sha256": "fd9fac128f8f6121737e251188058fa9d1feed97e41aa2cae3a6928d1b7b26de",
-    "length": 90793
+    "sha256": "a99f86a9f4668c0033ccc96e21528ecc148d743f0c335fb4ff2c83054fe79ab7",
+    "length": 90543
    }
   },
   "provider_jobs/full_descriptions": {
@@ -2221,12 +2221,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "acda99df5cac7a64d96c27c72185b9bad24a206ad432088466f23052c66d0be1",
-    "length": 77114
+    "sha256": "dbf8350c8af2c7ed9bd37b1f6278a500ddf38350cffedcb8bd1c98e438ebbc1a",
+    "length": 71990
    },
    "whole": {
-    "sha256": "dbecf81cb071c7bd05e8c8e90fd968f17d7f8790f43b320026b7313022571245",
-    "length": 149119
+    "sha256": "ab2d2d947a004d2cfc8818a20dbd34066617d77d3d4b1214ea73c4b66e97348a",
+    "length": 143995
    }
   },
   "provider_jobs/enhanced_all": {
@@ -2261,12 +2261,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "6abc7bb939b0fec405e52d94e4428ea75e1dd1232c5faa1b54e1bbe44fbea3ad",
-    "length": 18788
+    "sha256": "8b3813b4f1055a84e30cc03e51e823722740c8377d968c0905c01e8e5f3d7c56",
+    "length": 18538
    },
    "whole": {
-    "sha256": "098ab0ce2b70047fadc32b8bd00ff8a5c32136d77838d734a7b7f17962aa03c9",
-    "length": 87005
+    "sha256": "98957d5ce082b33344a5d3d078ce770e479bdf93f59001a628ca2fd6f129c2fe",
+    "length": 86755
    }
   }
  },
