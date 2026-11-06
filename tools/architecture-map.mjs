@@ -232,11 +232,11 @@ export function architectureMetrics(root) {
       shared_modules_with_gateway_literals: shared.length,
       shared_to_provider_runtime_imports: sharedToProvider,
       local_fail_copies: fails.length,
+      shared_provider_action_literals: actionLiterals,
     },
     reported: {
       runtime_scc_sizes: components.map(c => c.length),
       shared_gateway_literals: literals,
-      shared_provider_action_literals: actionLiterals,
     },
     local_fail_modules: fails,
     cycles: components,
@@ -251,6 +251,7 @@ export const ratchetedMetrics = Object.freeze({
   shared_modules_with_gateway_literals: 'shared modules that name a provider gateway',
   shared_to_provider_runtime_imports: 'runtime imports from shared modules into provider modules',
   local_fail_copies: 'modules that declare their own fail helper instead of importing the family kit’s',
+  shared_provider_action_literals: 'provider-prefixed native action names written as string literals in shared modules',
 });
 
 /** Compares measurements with a baseline: regressions fail the check, improvements can be recorded with --write. */

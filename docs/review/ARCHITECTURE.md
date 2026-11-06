@@ -278,6 +278,7 @@ static imports of `dist/src` and `dist/server` (what Node evaluates: tsc elides 
 | `shared_modules_with_gateway_literals` | Shared modules (outside the provider filename groups `meta-*`, `tiktok-*`, ...) that name a provider gateway in a string literal |
 | `shared_to_provider_runtime_imports` | Runtime imports from any shared `src/` or `server/` module into a provider module |
 | `local_fail_copies` | Modules that declare their own `fail` helper instead of the family kit's (§13); 0 since ARC-04 stage C |
+| `shared_provider_action_literals` | Provider-prefixed native action names (`meta_ad_list`: a provider prefix and two more words) written as string literals in shared modules, which the gateway-literal count cannot see |
 
 A measurement may fall or stay. One that rises fails the check, and so does a module that joins a runtime import cycle,
 even when another cycle shrinks by as much. The number of gateway literals in shared modules is reported only.
@@ -356,6 +357,7 @@ upload asks `providerVersions`), with 11 modules in a cycle.
 | `shared_modules_with_gateway_literals` | 1 |
 | `shared_to_provider_runtime_imports` | 0 |
 | `local_fail_copies` | 0 |
+| `shared_provider_action_literals` | 193 |
 | `shared_gateway_literals` (reported) | 1 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->

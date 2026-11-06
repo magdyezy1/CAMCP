@@ -97,6 +97,7 @@ test('a rising measurement or a module joining a cycle is a regression; a fall i
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
       local_fail_copies: 0,
+      shared_provider_action_literals: 30,
     },
     cycles: [
       ['src/a.ts', 'src/b.ts', 'src/c.ts'],
@@ -138,7 +139,7 @@ test('a rising measurement or a module joining a cycle is a regression; a fall i
   assert.deepEqual(broken.improvements, ['largest_runtime_scc fell from 3 to 2', 'cyclic_modules fell from 5 to 2']);
   // A baseline without a value for a ratcheted measurement fails rather than passing silently.
   const missing = compareToBaseline(same, {metrics: {largest_runtime_scc: 3}, cycles: baseline.cycles});
-  assert.equal(missing.regressions.length, 4);
+  assert.equal(missing.regressions.length, 5);
 });
 
 test('ARC-04 stage C: a module that declares its own fail is a regression that names it; a kit-built refusal is not one', () => {
@@ -168,6 +169,7 @@ test('ARC-04 stage C: a module that declares its own fail is a regression that n
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
       local_fail_copies: 0,
+      shared_provider_action_literals: 30,
     },
     cycles: [],
   };
@@ -218,6 +220,7 @@ test('owner direction P11: the architecture document shows the recorded baseline
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
       local_fail_copies: 0,
+      shared_provider_action_literals: 30,
     },
     reported: {shared_gateway_literals: 42},
     cycles: [
@@ -267,5 +270,5 @@ test('V2-PRV-01: a provider-prefixed action name is a whole string literal of a 
   ]);
   // The previews tool held 15 of them (13 distinct) behind gatewayOf, which the gateway-literal count cannot see.
   assert.deepEqual(providerActionLiterals(fs.readFileSync('src/ad-previews.ts', 'utf8')), []);
-  assert.equal(typeof architectureMetrics('.').reported.shared_provider_action_literals, 'number');
+  assert.equal(typeof architectureMetrics('.').metrics.shared_provider_action_literals, 'number');
 });

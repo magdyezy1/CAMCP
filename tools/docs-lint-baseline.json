@@ -166,10 +166,16 @@
       "raised": [
         "reference_words 146579 → 148921"
       ]
+    },
+    {
+      "reason": "V2-PRV-01: the architecture ratchet gains a measurement, shared_provider_action_literals, which the previews seam needs (its recorded row and one row of the ratchet table)",
+      "raised": [
+        "reference_words 148921 → 148952"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 148921
+    "reference_words": 148952
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
