@@ -1105,7 +1105,6 @@
   "Snapchat did not return the exact selected account.": "لم يُرجع Snapchat الحساب المحدد نفسه.",
   "Snapchat did not return the requested entity breakdown.": "لم يُرجع Snapchat التفصيل المطلوب للكيانات.",
   "Snapchat exceeded the requested entity page size.": "تجاوز Snapchat حجم صفحة الكيانات المطلوب.",
-  "Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.": "يتطلب حفظ بيانات Snapchat الموجّه فترة من 1 إلى 31 يومًا منتهيًا وإقرارًا صريحًا باكتمال الفترة.",
   "Snapchat has not finalized conversion-time data through the selected window.": "لم يُنهِ Snapchat معالجة بيانات وقت التحويل حتى نهاية الفترة المحددة.",
   "Snapchat has not finalized non-conversion metrics through the selected window.": "لم يُنهِ Snapchat معالجة المقاييس غير المتعلقة بالتحويل حتى نهاية الفترة المحددة.",
   "Snapchat inventory belongs to a different account or parent.": "تتبع بيانات استعراض Snapchat حساباً أو أصلاً مختلفاً.",

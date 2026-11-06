@@ -1,7 +1,7 @@
 import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {detailParents} from './overview-parents.js';
-import type {AccountLookupCache, ReportSource} from './report-source.js';
+import type {AccountLookupCache, DetailParents, ReportSource} from './report-source.js';
 import type {ObjectiveTable} from './report-objectives.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import type {MirrorService} from './service.js';
@@ -21,20 +21,18 @@ export {
 const declaredIncompleteWarning =
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.';
 
-export async function collectDetailedOverview(
+/**
+ * Phase 1 of a detailed level: the guided preset's daily evidence for `range` (the qualified collector, with every one
+ * of its checks), and the connection checks after it. No parent is read.
+ */
+export async function captureDetailedEvidence(
   service: MirrorService,
   source: JsonObject,
   range: JsonObject,
   actor: Actor,
-  metadata: JsonObject,
   currency: string | null,
   timezone: string | null,
-  // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
   lookup: AccountLookupCache = {},
-  objectives?: ObjectiveTable,
-  resultReader?: ReportSource['readResult'],
-  statusReader?: ReportSource['readStatus'],
-  activityReader?: (raw: JsonObject) => boolean | null,
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -74,8 +72,22 @@ export async function collectDetailedOverview(
   );
   service.store.assertActorActive(actor);
   service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
-  // RPT-07: parents of the reported entities where the report rows carry none (TikTok, Snapchat ads, LinkedIn
-  // creatives), read after the report under the same login; IDs stay exact and an unread parent stays unknown.
+  return captured;
+}
+
+/**
+ * Phase 2: parents of the reported entities where the report rows carry none (TikTok, Snapchat, LinkedIn creatives), read
+ * after the report under the same login for the entities of every capture given, in one read under the job's cache; IDs
+ * stay exact and an unread parent stays unknown (RPT-07).
+ */
+export async function readDetailedParents(
+  service: MirrorService,
+  source: JsonObject,
+  actor: Actor,
+  captures: JsonObject[],
+  lookup: AccountLookupCache = {},
+): Promise<DetailParents> {
+  const descriptor = overviewSourceLevel(source);
   lookup.detailParents ??= {parents: {}, lineage: []};
   const parentCache =
     source.reporting_contract === 'overview-config-v4'
@@ -85,14 +97,34 @@ export async function collectDetailedOverview(
     service,
     source,
     descriptor.id,
-    (Array.isArray(captured.rows) ? captured.rows : [])
+    captures
+      .flatMap(captured => (Array.isArray(captured.rows) ? captured.rows : []))
       .map((row: JsonObject) => row.entity_id)
       .filter((id: unknown): id is string => typeof id === 'string' && !!id),
     actor,
     parentCache,
   );
   service.store.assertActorActive(actor);
-  service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
+  if (captures[0]) service.store.resolveConnection(actor, captures[0].gateway, source.account_id, source.connection_id);
+  return parents;
+}
+
+/** Phase 3: the source result of one capture of the whole window and the parents read for it. */
+export function assembleDetailedOverview(
+  source: JsonObject,
+  range: JsonObject,
+  metadata: JsonObject,
+  currency: string | null,
+  timezone: string | null,
+  objectives: ObjectiveTable | undefined,
+  resultReader: ReportSource['readResult'] | undefined,
+  statusReader: ReportSource['readStatus'] | undefined,
+  activityReader: ((raw: JsonObject) => boolean | null) | undefined,
+  captured: JsonObject,
+  parents: DetailParents,
+) {
+  const descriptor = overviewSourceLevel(source),
+    options = source.report_options;
   const lineage = [
     ...(captured.native_account_evidence?.checks ?? []),
     ...(captured.source_pages ?? []),
@@ -150,4 +182,36 @@ export async function collectDetailedOverview(
     source_kind: 'paid',
     captured_at: captured.captured_at,
   };
+}
+
+export async function collectDetailedOverview(
+  service: MirrorService,
+  source: JsonObject,
+  range: JsonObject,
+  actor: Actor,
+  metadata: JsonObject,
+  currency: string | null,
+  timezone: string | null,
+  // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
+  lookup: AccountLookupCache = {},
+  objectives?: ObjectiveTable,
+  resultReader?: ReportSource['readResult'],
+  statusReader?: ReportSource['readStatus'],
+  activityReader?: (raw: JsonObject) => boolean | null,
+) {
+  const captured = await captureDetailedEvidence(service, source, range, actor, currency, timezone, lookup);
+  const parents = await readDetailedParents(service, source, actor, [captured], lookup);
+  return assembleDetailedOverview(
+    source,
+    range,
+    metadata,
+    currency,
+    timezone,
+    objectives,
+    resultReader,
+    statusReader,
+    activityReader,
+    captured,
+    parents,
+  );
 }

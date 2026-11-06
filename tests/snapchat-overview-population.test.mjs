@@ -121,6 +121,13 @@ test('v4 Snapchat ad squads collect every paged account campaign with exact owne
   assert.equal(rows.get(f.squads[1]).status, 'archived');
   assert.equal(rows.get(f.squads[1]).native.status_evidence.deleted, true);
   assert.equal(rows.get(f.squads[0]).metrics.spend, '20.246912');
+  // F-L7-16: the report states what a source reads at most, so a refusal at a bound means what it says.
+  assert.deepEqual(report.sources[0].quality.population.bounds, {
+    campaign_pages: 100,
+    campaign_page_size: 100,
+    native_daily_rows: 10000,
+    days_per_read: 31,
+  });
   const lists = f.requests.filter(r => r.url.pathname.endsWith('/campaigns'));
   assert(lists.some(r => r.url.searchParams.get('cursor') === 'second'));
   for (const request of lists) {
@@ -164,7 +171,7 @@ for (const declaration of [true, null])
     assert(!f.requests.some(r => r.url.pathname.endsWith('/stats')));
   });
 
-for (const [name, mutate, code] of [
+for (const [name, mutate, code, message] of [
   [
     'foreign campaign',
     body => {
@@ -181,10 +188,23 @@ for (const [name, mutate, code] of [
     },
     'REPORT_ACCOUNT_MISMATCH',
   ],
+  // F-L7-14: the link has the right route and a cursor, so only its host is wrong; the host check alone must refuse it.
   [
     'foreign cursor host',
     body => {
-      body.paging.next_link = 'https://foreign.invalid/native';
+      const link = new URL(body.paging.next_link);
+      link.hostname = 'foreign.invalid';
+      body.paging.next_link = link.href;
+      return body;
+    },
+    'REPORT_INCOMPLETE',
+  ],
+  [
+    'foreign cursor route',
+    body => {
+      const link = new URL(body.paging.next_link);
+      link.pathname = '/v1/adaccounts/99999999-9999-4999-8999-999999999999/campaigns';
+      body.paging.next_link = link.href;
       return body;
     },
     'REPORT_INCOMPLETE',
@@ -200,6 +220,16 @@ for (const [name, mutate, code] of [
     },
     'REPORT_INCOMPLETE',
   ],
+  // F-L7-12: Snapchat's spelling of a setting in its links is not pinned (the live check records it), so a setting written
+  // in another case is refused rather than followed.
+  [
+    'a setting written in another case',
+    body => {
+      body.paging.next_link = body.paging.next_link.replace('read_deleted_entities=true', 'read_deleted_entities=True');
+      return body;
+    },
+    'REPORT_INCOMPLETE',
+  ],
   [
     'empty continued page',
     body => {
@@ -207,6 +237,7 @@ for (const [name, mutate, code] of [
       return body;
     },
     'REPORT_INCOMPLETE',
+    /empty page with a continuation while listing the campaigns/,
   ],
   [
     'repeating cursor',
@@ -215,6 +246,7 @@ for (const [name, mutate, code] of [
       return body;
     },
     'REPORT_INCOMPLETE',
+    /repeated a continuation cursor while listing the campaigns/,
   ],
   [
     'malformed campaign collection',
@@ -230,6 +262,7 @@ for (const [name, mutate, code] of [
       report = await f.run();
     assert.equal(report.state, 'failed', JSON.stringify(report.sources));
     assert.equal(report.sources[0].error.code, code);
+    if (message) assert.match(report.sources[0].error.message, message);
     assert.equal(report.rows.length, 0);
     assert(!f.requests.some(r => r.url.pathname.endsWith('/stats')));
   });
@@ -248,9 +281,50 @@ test('Snapchat continuation stops at its hundredth parent page without claiming 
     report = await f.run();
   assert.equal(report.state, 'failed', JSON.stringify(report.sources));
   assert.equal(report.sources[0].error.code, 'REPORT_INCOMPLETE');
+  // F-L7-16: it names the bound it reached, not a list of three possible conditions.
+  assert.match(report.sources[0].error.message, /over more than 100 pages, the most a report reads/);
   assert.equal(f.requests.filter(r => r.url.pathname.endsWith('/campaigns')).length, 100);
   assert(!f.requests.some(r => r.url.pathname.endsWith('/stats')));
 });
+
+// F-L7-12: the link is never followed, only its cursor is reused on the fixed route, so a link that omits settings or
+// spells its host in capitals is not a different request.
+for (const [name, rewrite] of [
+  [
+    'carries only a cursor and a limit',
+    link => {
+      link.searchParams.delete('read_deleted_entities');
+    },
+  ],
+  [
+    'writes its host in capitals',
+    link => {
+      link.href = link.href.replace('adsapi.snapchat.com', 'ADSAPI.SNAPCHAT.COM');
+    },
+  ],
+])
+  test('a Snapchat next_link that ' + name + ' is followed on the fixed route', async t => {
+    const f = fixture(t, {
+        population: body => {
+          if (body.paging.next_link) {
+            const link = new URL(body.paging.next_link);
+            rewrite(link);
+            body.paging.next_link = link.href;
+          }
+          return body;
+        },
+      }),
+      report = await f.run();
+    assert.equal(report.state, 'complete', JSON.stringify(report.sources));
+    assert.equal(report.rows.length, 2);
+    const lists = f.requests.filter(r => r.url.pathname.endsWith('/campaigns'));
+    assert.equal(lists.length, 2);
+    for (const request of lists) {
+      assert.equal(request.url.host, 'adsapi.snapchat.com');
+      assert.equal(request.url.searchParams.get('read_deleted_entities'), 'true', 'AMCP’s own setting, not the link’s');
+      assert.equal(request.url.searchParams.get('limit'), '100');
+    }
+  });
 
 test('a retry reuses complete Snapchat parent captures and the frozen account population', async t => {
   const f = fixture(t, {failSecond: true}),

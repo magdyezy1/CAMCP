@@ -78,7 +78,7 @@ export async function detailParents(
     reader = reports.detailParents!;
   const known = cache.lineage.map(entry => ({...entry, cached: true})),
     wanted = [...new Set(ids)].filter(id => !Object.hasOwn(cache.parents, id)),
-    room = Math.max(0, detailParentLimit - Object.keys(cache.parents).length),
+    room = Math.max(0, (reader.limit ?? detailParentLimit) - Object.keys(cache.parents).length),
     reading = cache.unavailable ? [] : wanted.slice(0, room),
     lineage: JsonObject[] = [];
   if (!cache.unavailable && wanted.length > room) cache.limited = true;

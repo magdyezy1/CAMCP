@@ -12,6 +12,10 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
  * their ad squads and their campaigns in the source account; every campaign must name the source account.
  */
 export const snapchatDetailParents: DetailParentReader = Object.freeze({
+  // The ad squad level reads the ad squads of every campaign of an account, up to the 10,000 daily rows a source may hold,
+  // in by-ID batches of 1,000; the default bound of 1,000 entities would leave a large account's later squads without
+  // their goal (and so without a result).
+  limit: 10000,
   bodyRefused(error: MirrorError) {
     const body = error.details.upstream;
     return (

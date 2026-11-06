@@ -398,7 +398,11 @@ export function detailedOverviewRows(
       ...(status ? {status: status.status} : {}),
       ...(omitted.length ? {omitted_as_zero: omitted} : {}),
       entity_id: id,
-      entity_name: group.mapped.find(row => row.entity_name !== null)?.entity_name ?? id,
+      // The report row's name, else the name on the entity's own native record (Snapchat's stats rows carry none, its
+      // by-ID reads of ad squads and ads do), else its ID.
+      entity_name:
+        group.mapped.find(row => row.entity_name !== null)?.entity_name ??
+        (typeof entityMetadata?.name === 'string' && entityMetadata.name.length <= 1000 ? entityMetadata.name : id),
       entity_level: descriptor.id,
       native_entity_type: descriptor.native_type,
       campaign_id: group.parents.campaign_id ?? null,

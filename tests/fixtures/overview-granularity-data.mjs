@@ -72,7 +72,11 @@ const snapchatParent = (kind, id) =>
     : kind === 'adsquads'
       ? {id, campaign_id: granularParents.snapchat.campaign, name: 'Synthetic squad'}
       : {id, ad_account_id: snapchatEvidenceAccount, name: 'Synthetic parent'};
-export function overviewGranularityFixture() {
+/**
+ * `unpaced` removes the transport's sleeping between requests (its per-tenant burst is made unreachable), for a test that
+ * sends over a thousand synthetic requests; everything else the transport does still happens.
+ */
+export function overviewGranularityFixture({unpaced = false} = {}) {
   const keyByte = 154,
     actor = {tenantId: 'local', userId: 'fixture', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, keyByte).toString('base64')),
@@ -461,7 +465,10 @@ export function overviewGranularityFixture() {
     },
     {accessToken: 'synthetic'},
   );
-  const service = new MirrorService(new Registry(), store, new NativeTransport(fetcher), undefined, undefined, fetcher),
+  const transport = unpaced
+    ? new NativeTransport(fetcher, undefined, undefined, undefined, 1e9)
+    : new NativeTransport(fetcher);
+  const service = new MirrorService(new Registry(), store, transport, undefined, undefined, fetcher),
     overview = new ReportingOverview(service, fetcher),
     worker = new ReportWorker(
       store,

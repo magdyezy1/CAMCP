@@ -94,6 +94,47 @@ export interface AccountLookupCache {
   /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
   detailParents?: DetailParentCache;
   detailParentsByLevel?: Record<string, DetailParentCache>;
+  /**
+   * V2-RPT-07: the campaigns of a Snapchat account, proven complete once per source and job so that later periods do not
+   * list them again. A campaign in it needs no account or campaign read of its own before its stats are read.
+   */
+  snapchatPopulation?: {
+    /** The login and permissions it was proven under; another login's proof is never reused. */
+    authorization: string;
+    campaigns: JsonObject[];
+    lineage: JsonObject[];
+    scanned_at: number;
+    byId: Map<string, JsonObject>;
+  };
+}
+
+/** The native parents a detailed source's entities have, as the parent read returns them (src/overview-parents.ts). */
+export interface DetailParents {
+  parents: Record<string, JsonObject>;
+  lineage: JsonObject[];
+  warnings: string[];
+}
+/**
+ * What a source that expands a population is given to collect a detailed level (V2-RPT-07; Snapchat's ad squads across all
+ * campaigns). Called as a function it is the whole qualified read of the source, or of one parent campaign: every check, the
+ * daily evidence, the parents and the rows. Its phases let the source read the evidence of many parents first and their
+ * native parents together, in batches, so a thousand parents do not cost a thousand parent reads.
+ */
+export interface DetailCollector {
+  (campaignId?: string): Promise<JsonObject>;
+  /**
+   * The daily evidence of `range` for the source, or for one parent campaign, with no parent read. A parent campaign that
+   * `lookup` proves (the source's population) needs no account or campaign read of its own first.
+   */
+  capture(
+    campaignId: string | undefined,
+    range: {since: string; until: string},
+    lookup: AccountLookupCache,
+  ): Promise<JsonObject>;
+  /** The native parents of every entity the captures report, read once under the job's parent cache. */
+  parents(captures: JsonObject[], lookup: AccountLookupCache): Promise<DetailParents>;
+  /** The source result of one capture of the whole window and the parents read for it. */
+  assemble(campaignId: string | undefined, captured: JsonObject, parents: DetailParents): JsonObject;
 }
 
 /**
@@ -351,6 +392,15 @@ export interface ReportSource {
     context?: {source: JsonObject; range: {since: string; until: string}},
   ): number;
   /**
+   * True when `requestsPerPeriod` is a lower bound because the size of what the level reads is unknown until it is read
+   * (an unscoped Snapchat account has as many campaigns as it has): the estimate says so instead of looking exact.
+   */
+  requestsLowerBound?(
+    level: string,
+    contract?: string,
+    context?: {source: JsonObject; range: {since: string; until: string}},
+  ): boolean;
+  /**
    * RPT-02: the report day boundary the source's collector fixes, independent of account metadata (LinkedIn, Apple Ads
    * and Reddit report in UTC, Search Console in Pacific time); the account time zone otherwise.
    */
@@ -382,10 +432,7 @@ export interface ReportSource {
   /** Provider window limits, checked before the account lookup makes any provider request. */
   validateRange?(source: JsonObject, range: {since: string; until: string}): void;
   /** Provider-owned v4 population expansion that retains the qualified single-parent detail collector. */
-  collectOverviewDetail?(
-    collection: ReportCollection,
-    collectParent: (campaignId?: string) => Promise<JsonObject>,
-  ): Promise<JsonObject>;
+  collectOverviewDetail?(collection: ReportCollection, detail: DetailCollector): Promise<JsonObject>;
   /** Collects one period of the source's native report into `collection`. */
   collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */
@@ -525,6 +572,8 @@ export interface DetailParentReads {
 export interface DetailParentReader {
   readonly unavailableWarning?: string;
   readonly limitedWarning?: string;
+  /** Distinct entities per source and job whose parents are read; 1000 when absent (src/overview-parents.ts). */
+  readonly limit?: number;
   /** A source's proven legacy refusal envelope inside HTTP 200; other unmapped body failures still fail. */
   readonly bodyRefused?: (error: MirrorError) => boolean;
   /** The parent read a detailed level needs (`scoped`: the source names one campaign), or undefined for none. */

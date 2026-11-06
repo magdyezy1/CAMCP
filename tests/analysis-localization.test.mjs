@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {campaignRecommendation} from '../dist/src/report-metrics.js';
+import {snapchatAllowanceWarning} from '../dist/src/snapchat-overview-detail.js';
 import * as localeChecks from '../tools/check-locales.mjs';
 
 function fixture(locale = 'ar') {
@@ -171,4 +172,16 @@ test('collector warnings with a count or field name translate through fixed temp
   ar.context.message =
     'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.';
   assert.match(ar.run('uiReportExplanation(message)'), /[؀-ۿ]/);
+});
+
+test('the Snapchat allowance warning translates through its template and keeps both counts', () => {
+  // V2-RPT-07: the ad squad level ended at the whole-job allowance after reading some of an account's campaigns.
+  const ar = fixture(),
+    en = fixture('en'),
+    warning = snapchatAllowanceWarning(12, 40);
+  ar.context.warning = en.context.warning = warning;
+  const text = ar.run('uiSourceWarning(warning)');
+  assert.match(text, /[؀-ۿ]/);
+  assert.ok(text.includes('12') && text.includes('40'), text);
+  assert.equal(en.run('uiSourceWarning(warning)'), warning, 'English keeps the collector sentence');
 });

@@ -285,6 +285,15 @@ const reportSourceWarningTemplates = [
         count: uiNumber(Number(m[1])),
       }),
   ],
+  // RPT-07: the Snapchat ad squad level ended at the whole-job allowance with the campaigns it had read.
+  [
+    /^(\d{1,7}) of (\d{1,7}) campaigns read\. The collection allowance for this report ended, so the other campaigns are not in it; the campaigns that were read are kept\. Scope the report by campaign IDs to read the rest\.$/,
+    m =>
+      uiText(
+        '{read} of {total} campaigns read. The collection allowance for this report ended, so the other campaigns are not in it; the campaigns that were read are kept. Scope the report by campaign IDs to read the rest.',
+        {read: uiNumber(Number(m[1])), total: uiNumber(Number(m[2]))},
+      ),
+  ],
   // RPT-07: a detailed source's scope named IDs that match no entity of the account's proven population.
   [
     /^(\d{1,7}) requested IDs? matched no entity in this account\.$/,

@@ -70,5 +70,6 @@
   "Within tolerance": "ضمن هامش التفاوت",
   "X campaigns with activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet: {count}. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.": "حملات X التي لها نشاط على شبكة الناشرين (PUBLISHER_NETWORK)، وهو موضع عرض لا يطلبه هذا التقرير بعد: {count}. لا يدخل ذلك العرض وإنفاقه في هذه الإجماليات، لذلك تكون التغطية جزئية وتُحجب إرشادات الميزانية.",
   "X campaigns with no reported activity in this window (X active entities): {count}. They are not listed and are never counted as zero.": "حملات X التي لا يوجد لها نشاط مُبلَّغ عنه في هذه الفترة (الكيانات النشطة في X): {count}. لا تُدرج ولا تُحسب صفرًا أبدًا.",
-  "{metric}: {rows} of {total}": "{metric}: {rows} من {total}"
+  "{metric}: {rows} of {total}": "{metric}: {rows} من {total}",
+  "{read} of {total} campaigns read. The collection allowance for this report ended, so the other campaigns are not in it; the campaigns that were read are kept. Scope the report by campaign IDs to read the rest.": "قُرئت {read} من {total} حملة. انتهى الحد المسموح للجمع في هذا التقرير، لذلك لا تظهر الحملات الأخرى فيه؛ أما الحملات التي قُرئت فمحفوظة. حدّد التقرير بمعرّفات الحملات لقراءة الباقي."
 }
