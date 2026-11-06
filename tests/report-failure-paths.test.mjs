@@ -19,6 +19,7 @@ const byLevel = report =>
   Object.fromEntries(['campaign', 'adset', 'ad'].map(l => [l, report.rows.filter(r => r.level === l).length]));
 const unavailable = () =>
   new MirrorError('UPSTREAM_ERROR', 'Platform returned HTTP 503', {http_status: 503}, 503, true);
+const unavailableForever = () => new MirrorError('PLATFORM_ERROR', 'Synthetic refusal', {}, 502, false);
 
 test('a unit that keeps failing with a retryable error ends the report partial on the last attempt, with its finished levels', async t => {
   const f = tiktokNativeFixture(t);
@@ -135,7 +136,7 @@ test('duplicate rows from one level fail that level, not the job: the other leve
   assert.equal(report.sources.length, 1);
 });
 
-test('duplicate rows at the level a scope measures through fail it before any total is derived from them', async t => {
+test('duplicate rows at the level a scope measures through fail it, and no total is derived from them for the levels above', async t => {
   const adRows = [
       row('ad', 'a1', {spend: '5'}, {parent_ids: {campaign_id: 'c1', adset_id: 's1'}}),
       row('ad', 'a1', {spend: '5'}, {parent_ids: {campaign_id: 'c1', adset_id: 's1'}}),
@@ -144,8 +145,11 @@ test('duplicate rows at the level a scope measures through fail it before any to
       rowsFor: level => (level === 'ad' ? adRows : level === 'adset' ? levelRows.adset : levelRows.campaign),
     });
   const {report, stored, job} = await e.go(['campaign', 'adset', 'ad'], {}, {ad_ids: ['a1']});
-  assert.equal(stored.state, 'partial');
-  assert.equal(job.state, 'complete');
+  // Every level is measured through the ads, so with the ads failed nothing was measured: the report is failed.
+  assert.equal(stored.state, 'failed');
+  assert.equal(job.state, 'failed');
+  assert.equal(JSON.parse(job.error).code, 'REPORT_SOURCES_FAILED');
+  assert.equal(report.sources[0].error.code, 'DUPLICATE_ENTITY_ROWS');
   assert.deepEqual(
     levelResults(report).map(([level, code]) => [level, code]),
     [
@@ -160,6 +164,60 @@ test('duplicate rows at the level a scope measures through fail it before any to
     report.sources[0].level_results.find(l => l.level === 'campaign').scope.rollup.available,
     false,
     'the campaign says its rollup was not available',
+  );
+});
+
+// A report scoped to selected ads asks for campaign rows and measures them through ad rows it reads for that (F-L5-18).
+const parentRows = level =>
+  level === 'ad'
+    ? [
+        row('ad', 'a1', {spend: '5'}, {parent_ids: {campaign_id: 'c1', adset_id: 's1'}}),
+        row('ad', 'a2', {spend: '5'}, {parent_ids: {campaign_id: 'c1', adset_id: 's1'}}),
+      ]
+    : levelRows.campaign;
+
+test('a campaign-only scope whose supporting ad read fails is a failed report, not a filter that matched nothing', async t => {
+  const e = reportEngine(t, {
+    rowsFor: parentRows,
+    fail: source => (source.level === 'ad' ? unavailableForever() : undefined),
+  });
+  const {report, stored, job} = await e.go(['campaign'], {}, {ad_ids: ['a1']});
+  assert.equal(stored.state, 'failed');
+  assert.equal(stored.empty_reason, null, 'a collection that failed is not explained as a scope that matched no rows');
+  assert.equal(report.row_count, 0);
+  assert.equal(job.state, 'failed');
+  assert.equal(JSON.parse(job.error).code, 'REPORT_SOURCES_FAILED');
+  assert.equal(
+    report.sources[0].error.code,
+    'PLATFORM_ERROR',
+    'the source names the failure of the level it was measured through',
+  );
+  assert.deepEqual(
+    report.sources[0].level_results.map(l => [l.level, l.purpose ?? null, l.error?.code ?? null]),
+    [
+      ['campaign', null, null],
+      ['ad', 'scope_rollup', 'PLATFORM_ERROR'],
+    ],
+  );
+});
+
+test('a campaign-only scope whose requested campaign read fails is a failed report even though the supporting read worked', async t => {
+  const e = reportEngine(t, {
+    rowsFor: parentRows,
+    fail: source => (source.level === 'campaign' ? unavailableForever() : undefined),
+  });
+  const {report, stored, job} = await e.go(['campaign'], {}, {ad_ids: ['a1']});
+  assert.equal(stored.state, 'failed', 'one requested level, and it failed');
+  assert.equal(stored.empty_reason, null);
+  assert.equal(job.state, 'failed');
+  assert.equal(JSON.parse(job.error).code, 'REPORT_SOURCES_FAILED');
+  assert.equal(report.sources[0].error.code, 'PLATFORM_ERROR');
+  assert.deepEqual(
+    report.sources[0].level_results.map(l => [l.level, l.purpose ?? null, l.error?.code ?? null]),
+    [
+      ['campaign', null, 'PLATFORM_ERROR'],
+      ['ad', 'scope_rollup', null],
+    ],
   );
 });
 

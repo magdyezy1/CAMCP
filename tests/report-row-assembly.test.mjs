@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assembleReportRows, reportCustomMetrics, reportNativeFields} from '../dist/src/report-row-assembly.js';
+import {
+  assembleReportRows,
+  reportCustomMetrics,
+  reportNativeFields,
+  snapshotOutcome,
+} from '../dist/src/report-row-assembly.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
-import {config, packet, row} from './helpers/report-packets.mjs';
+import {config, packet, row, source} from './helpers/report-packets.mjs';
 
 // Row assembly without a queue, a worker or a store: collected packets and a frozen definition in, report rows out.
 const assemble = (results, changes = {}) => {
@@ -189,4 +194,95 @@ test('two rows of one entity in one reporting period are refused, whichever leve
     () => assemble([packet('campaign', [row('campaign', 'c1'), row('campaign', 'c1')])]),
     e => assertRefused(e, 'DUPLICATE_CAMPAIGN_ROWS'),
   );
+});
+
+// The outcome of a snapshot follows its requested units. A unit that only supports a scope rollup measures a requested
+// level and is never a level of the report (F-L5-18).
+const refusal = {code: 'PLATFORM_ERROR', message: 'Synthetic refusal'};
+const failedUnit = (level, more = {}) => ({source: source(level, more), rows: [], complete: false, error: refusal});
+const rolledUp = (level, from, available, more = {}) =>
+  packet(level, [], {
+    complete: available,
+    scope: {returned_rows: 1, input_rows: 0, rollup: {from_level: from, available, derived_rows: 0}},
+    ...more,
+  });
+const outcome = (results, changes = {}) => snapshotOutcome(results, assembleRows(results, changes), config(changes));
+const assembleRows = (results, changes) => {
+  const c = config(changes);
+  return assembleReportRows(results, c, reportCustomMetrics(c, reportNativeFields(results)));
+};
+
+test('a report is failed only when every requested level failed, whatever its supporting reads did', () => {
+  const supporting = packet('ad', [row('ad', 'a1')], {source: {scope_supporting: true}});
+  const failed = outcome([failedUnit('campaign'), supporting]);
+  assert.equal(failed.state, 'failed', 'the one requested level failed; the read that supports it worked');
+  assert.equal(failed.emptyReason, null);
+  assert.deepEqual(
+    failed.failures.map(f => [f.unit.source.level, f.error.code]),
+    [['campaign', 'PLATFORM_ERROR']],
+  );
+  const partial = outcome([packet('campaign', [row('campaign', 'c1')]), failedUnit('ad')]);
+  assert.equal(partial.state, 'partial');
+  const limited = outcome([packet('campaign', [row('campaign', 'c1')], {complete: false})]);
+  assert.equal(limited.state, 'partial', 'a level that collected with limited coverage makes the report partial');
+  assert.deepEqual(limited.failures, []);
+  assert.equal(
+    outcome([packet('campaign', [row('campaign', 'c1')]), packet('ad', [row('ad', 'a1')])]).state,
+    'complete',
+  );
+});
+
+test('a requested level measured through a level that failed has failed with that level’s error', () => {
+  const results = [rolledUp('campaign', 'ad', false), failedUnit('ad', {scope_supporting: true})];
+  const result = outcome(results);
+  assert.equal(result.state, 'failed');
+  assert.equal(result.emptyReason, null, 'the empty report is a failed collection, not a source filter');
+  assert.deepEqual(
+    result.failures.map(f => [f.unit.source.level, f.error]),
+    [['campaign', refusal]],
+  );
+  // Rolled up from a level that collected, the same level has not failed.
+  assert.equal(
+    outcome([rolledUp('campaign', 'ad', true), packet('ad', [], {source: {scope_supporting: true}})]).state,
+    'complete',
+  );
+});
+
+test('an empty report says why only when nothing failed to explain it', () => {
+  const filtered = packet('campaign', [], {scope: {returned_rows: 3, input_rows: 3}});
+  assert.equal(outcome([filtered]).emptyReason, 'scope_filter');
+  assert.equal(outcome([packet('campaign', [])]).emptyReason, 'no_provider_rows');
+  assert.equal(outcome([filtered], {objectives: ['sales']}).emptyReason, 'scope_filter');
+  const rowsFiltered = packet('campaign', [row('campaign', 'c1')]);
+  assert.equal(outcome([rowsFiltered], {objectives: ['sales']}).emptyReason, 'objective_filter');
+  assert.equal(
+    outcome([filtered, failedUnit('ad')]).emptyReason,
+    'scope_filter',
+    'the level that collected still explains itself',
+  );
+  assert.equal(outcome([failedUnit('campaign')]).emptyReason, null);
+});
+
+test('the snapshot counters count the requested units and disclose the supporting rows apart', () => {
+  const results = [
+    packet('campaign', [row('campaign', 'c1')], {
+      scope: {returned_rows: 2, input_rows: 3, rollup: {from_level: 'ad', available: true, derived_rows: 3}},
+    }),
+    packet('ad', [row('ad', 'a1'), row('ad', 'a2')], {source: {scope_supporting: true}, scope: {returned_rows: 5}}),
+  ];
+  const {counts} = outcome(results);
+  assert.deepEqual(counts, {
+    source_row_count: 2,
+    filtered_row_count: 2,
+    scoped_row_count: 1,
+    scope_filtered_row_count: 2,
+    objective_filtered_row_count: 0,
+    scope_input_row_count: 3,
+    derived_row_count: 3,
+    supporting_row_count: 5,
+  });
+  assert.deepEqual(Object.keys(outcome(results, {contract_version: 'overview-config-v3'}).counts), [
+    'source_row_count',
+    'filtered_row_count',
+  ]);
 });

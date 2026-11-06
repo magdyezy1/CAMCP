@@ -14,6 +14,7 @@ import {
   windowRecommendations,
 } from './report-metrics.js';
 import {overviewConfigV4} from './overview-v4.js';
+import {levelFailure} from './report-level-reconciliation.js';
 import type {JsonObject} from './types.js';
 
 /**
@@ -190,6 +191,71 @@ export function assembleReportRows(results: JsonObject[], config: JsonObject, cu
   if (v4) assignRecommendationsV4(rows, config.targets, custom, (config.grain ?? 'total') !== 'total');
   else if ((config.grain ?? 'total') !== 'total') windowRecommendations(rows, config.targets, custom);
   return rows;
+}
+
+/**
+ * The outcome of a collected snapshot, from the requested units only (F-L5-18). A unit that supports a scope rollup is
+ * read to measure a requested level; it is never a level of the report. So a requested level fails when its own
+ * collection failed or when the level it is measured through did (levelFailure), and the report is failed only when
+ * every requested level failed, partial when some did or any is incomplete. An empty report says why only when nothing
+ * failed to explain it: a failed collection is never reported as a source filter that matched nothing.
+ */
+export function snapshotOutcome(results: JsonObject[], rows: JsonObject[], config: JsonObject) {
+  const v4 = config.contract_version === overviewConfigV4,
+    requested = results.filter(packet => !packet.source.scope_supporting),
+    failures = requested.flatMap(unit => {
+      const error = levelFailure(unit, results);
+      return error ? [{unit, error}] : [];
+    }),
+    scopedRowCount = requested.reduce((n, s) => n + s.rows.length, 0),
+    sourceRowCount = requested.reduce(
+      (n, s) => n + (v4 ? (s.scope?.returned_rows ?? s.rows.length) : s.rows.length),
+      0,
+    ),
+    scopeInputRowCount = requested.reduce(
+      (n, s) => n + (s.scope?.input_rows ?? s.scope?.returned_rows ?? s.rows.length),
+      0,
+    ),
+    derivedRows = requested.reduce((n, s) => n + (s.scope?.rollup?.derived_rows ?? 0), 0),
+    state: 'complete' | 'partial' | 'failed' =
+      failures.length === requested.length
+        ? 'failed'
+        : failures.length || requested.some(s => !s.complete)
+          ? 'partial'
+          : 'complete';
+  return {
+    state,
+    failures,
+    emptyReason:
+      rows.length || state === 'failed'
+        ? null
+        : v4 && (sourceRowCount || scopeInputRowCount) && !scopedRowCount
+          ? 'scope_filter'
+          : scopeInputRowCount
+            ? 'objective_filter'
+            : 'no_provider_rows',
+    /** The row counters the snapshot record carries. */
+    counts: {
+      source_row_count: sourceRowCount,
+      filtered_row_count: scopeInputRowCount - rows.length,
+      ...(v4
+        ? {
+            scoped_row_count: scopedRowCount,
+            scope_filtered_row_count: scopeInputRowCount - scopedRowCount,
+            objective_filtered_row_count: scopedRowCount - rows.length,
+            ...(requested.some(packet => packet.scope?.rollup)
+              ? {
+                  scope_input_row_count: scopeInputRowCount,
+                  derived_row_count: derivedRows,
+                  supporting_row_count: results
+                    .filter(packet => packet.source.scope_supporting)
+                    .reduce((n, packet) => n + (packet.scope?.returned_rows ?? packet.rows.length), 0),
+                }
+              : {}),
+          }
+        : {}),
+    },
+  };
 }
 
 /**

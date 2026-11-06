@@ -95,6 +95,7 @@ import {
   duplicateRowsError,
   reportCustomMetrics,
   reportNativeFields,
+  snapshotOutcome,
 } from './report-row-assembly.js';
 import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
@@ -2014,21 +2015,8 @@ export class ReportingOverview {
     const nativeFields = reportNativeFields(results),
       custom = reportCustomMetrics(r.config, nativeFields),
       rows = assembleReportRows(results, r.config, custom);
-    const v4 = r.config.contract_version === overviewConfigV4,
-      requestedResults = scopeRollups ? results.filter(packet => !packet.source.scope_supporting) : results,
-      scopedRowCount = requestedResults.reduce((n, s) => n + s.rows.length, 0),
-      sourceRowCount = requestedResults.reduce(
-        (n, s) => n + (v4 ? (s.scope?.returned_rows ?? s.rows.length) : s.rows.length),
-        0,
-      ),
-      scopeInputRowCount = requestedResults.reduce(
-        (n, s) => n + (s.scope?.input_rows ?? s.scope?.returned_rows ?? s.rows.length),
-        0,
-      ),
-      filteredRowCount = scopeInputRowCount - rows.length,
-      derivedRows = requestedResults.reduce((n, s) => n + (s.scope?.rollup?.derived_rows ?? 0), 0),
-      hasRollups = requestedResults.some(packet => packet.scope?.rollup);
-    const failures = results.filter(s => s.error),
+    const outcome = snapshotOutcome(results, rows, r.config),
+      {state, failures} = outcome,
       sources =
         r.config.contract_version === overviewConfigV4
           ? overviewV4Sources(results, rows, r.config.sources)
@@ -2042,43 +2030,13 @@ export class ReportingOverview {
                   row.connection_id === data.source.connection_id,
               ).length,
             })),
-      state =
-        failures.length === results.length
-          ? 'failed'
-          : failures.length || results.some(s => !s.complete)
-            ? 'partial'
-            : 'complete',
       record = {
         ...r,
         state,
         rows,
         sources,
-        source_row_count: sourceRowCount,
-        filtered_row_count: filteredRowCount,
-        ...(v4
-          ? {
-              scoped_row_count: scopedRowCount,
-              scope_filtered_row_count: scopeInputRowCount - scopedRowCount,
-              objective_filtered_row_count: scopedRowCount - rows.length,
-              ...(hasRollups
-                ? {
-                    scope_input_row_count: scopeInputRowCount,
-                    derived_row_count: derivedRows,
-                    supporting_row_count: results
-                      .filter(packet => packet.source.scope_supporting)
-                      .reduce((n, packet) => n + (packet.scope?.returned_rows ?? packet.rows.length), 0),
-                  }
-                : {}),
-            }
-          : {}),
-        empty_reason:
-          rows.length || failures.length === results.length
-            ? null
-            : v4 && (sourceRowCount || scopeInputRowCount) && !scopedRowCount
-              ? 'scope_filter'
-              : scopeInputRowCount
-                ? 'objective_filter'
-                : 'no_provider_rows',
+        ...outcome.counts,
+        empty_reason: outcome.emptyReason,
         completed_at: Date.now(),
         summary: reportSummary(rows, custom, r.config.contract_version === overviewConfigV4),
         // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
@@ -2098,12 +2056,12 @@ export class ReportingOverview {
     if (state === 'failed') {
       const reason = failures
         .map(
-          s =>
-            `${reportPlatforms[s.source.platform]!.name} ${s.source.account_id}: ${s.error.provider?.code ?? s.error.code}`,
+          ({unit, error}) =>
+            `${reportPlatforms[unit.source.platform]!.name} ${unit.source.account_id}: ${error.provider?.code ?? error.code}`,
         )
         .join('; ');
       throw new MirrorError('REPORT_SOURCES_FAILED', 'None of the selected sources returned a report. ' + reason, {
-        sources: failures.map(s => s.error),
+        sources: failures.map(({error}) => error),
       });
     }
     if (r.destination_id) {
