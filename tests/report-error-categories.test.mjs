@@ -257,6 +257,34 @@ test('a credential failure the provider reports inside a 200 body is a connectio
   assert.equal(unknown.provider.code, '40002');
 });
 
+test('the diagnostic fields a website source card reads keep their names (F-L1-05, F-L1-08, F-L1-11)', () => {
+  const diagnostic = (code, details, status) => reportSourceError(new MirrorError(code, 'm', details, status), tiktok),
+    base = ['account_id', 'category', 'code', 'connection_id', 'message', 'next_action', 'platform', 'retryable'];
+  for (const [label, d, extra, category] of [
+    [
+      'a provider-data refusal',
+      diagnostic('REPORT_INCOMPLETE', {page_facts: {rule: 'x'}, declared_rows: 2, returned_rows: 1}, 502),
+      ['declared_rows', 'page_facts', 'returned_rows'],
+      'provider_data',
+    ],
+    ['a replaced login', diagnostic('CONNECTION_AUTHORITY_CHANGED', {}, 409), [], 'connection'],
+    [
+      'a provider HTTP error',
+      diagnostic('UPSTREAM_ERROR', {http_status: 503, layer: 'unknown', upstream: {message: 'down'}}, 502),
+      ['http_status', 'layer', 'provider'],
+      'provider',
+    ],
+  ]) {
+    assert.deepEqual(Object.keys(d).sort(), [...base, ...extra].sort(), label);
+    assert.equal(d.category, category, label);
+  }
+  // The card for a replaced login offers Retry on this code (web-report), so the action keeps saying to retry.
+  assert.match(
+    diagnostic('CONNECTION_AUTHORITY_CHANGED', {}, 409).next_action,
+    /Retry the report with the current login/,
+  );
+});
+
 test('an unknown thrown value is an internal diagnostic', () => {
   const d = reportSourceError(new Error('boom'), {...tiktok, platform: 'meta'});
   assert.equal(d.code, 'REPORT_FAILED');
