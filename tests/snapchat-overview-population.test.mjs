@@ -288,28 +288,25 @@ test('Snapchat continuation stops at its hundredth parent page without claiming 
 });
 
 // F-L7-12: the link is never followed, only its cursor is reused on the fixed route, so a link that omits settings or
-// spells its host in capitals is not a different request.
+// spells its host in capitals is not a different request. The capitals are written into the text: a URL object would
+// lower-case them again.
 for (const [name, rewrite] of [
   [
     'carries only a cursor and a limit',
-    link => {
+    href => {
+      const link = new URL(href);
       link.searchParams.delete('read_deleted_entities');
+      return link.href;
     },
   ],
-  [
-    'writes its host in capitals',
-    link => {
-      link.href = link.href.replace('adsapi.snapchat.com', 'ADSAPI.SNAPCHAT.COM');
-    },
-  ],
+  ['writes its host in capitals', href => href.replace('adsapi.snapchat.com', 'ADSAPI.SNAPCHAT.COM')],
 ])
   test('a Snapchat next_link that ' + name + ' is followed on the fixed route', async t => {
     const f = fixture(t, {
         population: body => {
           if (body.paging.next_link) {
-            const link = new URL(body.paging.next_link);
-            rewrite(link);
-            body.paging.next_link = link.href;
+            body.paging.next_link = rewrite(body.paging.next_link);
+            assert.notEqual(body.paging.next_link, undefined);
           }
           return body;
         },
