@@ -244,7 +244,8 @@ test('provider diagnostics distinguish Google app restrictions and safely projec
       {...source, platform},
     );
     assert.equal(diagnostic.provider.code, expected);
-    assert.equal(diagnostic.http_status, 200);
+    // The provider answered HTTP 200 and reported the failure in its body: there is no HTTP failure to label (F-L1-05).
+    assert.equal('http_status' in diagnostic, false);
     assert.ok(!JSON.stringify(diagnostic).includes('private'));
   }
 });

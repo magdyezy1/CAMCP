@@ -33,8 +33,86 @@ test('each report error code has one category, checked in a fixed order', () => 
     ['NEW_CODE', {http_status: 400}, 400, 'provider'],
     ['INTERNAL_ERROR', {}, 500, 'internal'],
     ['REPORT_FAILED', {}, 400, 'internal'],
+    // F-L1-06: the rules that no explicit set reaches, each with a code no set names.
+    ['NEW_CODE', {}, 401, 'connection'],
+    ['NEW_CODE', {}, 429, 'rate_limit'],
+    ['SOMETHING_INVALID', {}, 400, 'request'],
+    ['INVALID_THING', {}, 400, 'request'],
+    ['SOMETHING_REQUIRED', {}, 400, 'request'],
+    ['SOMETHING_UNSUPPORTED', {}, 400, 'request'],
+    ['NEW_CODE', {}, 503, 'provider'],
+    ['NEW_CODE', {}, 400, 'internal'],
+    // The provider-error layer comes before the HTTP status.
+    ['NEW_CODE', {layer: 'consent'}, 400, 'connection'],
+    ['NEW_CODE', {layer: 'role_or_asset_access'}, 400, 'permission'],
+    ['NEW_CODE', {layer: 'app_eligibility'}, 400, 'permission'],
+    ['NEW_CODE', {layer: 'rate_limit'}, 400, 'rate_limit'],
+    ['NEW_CODE', {layer: 'api_version'}, 400, 'provider'],
+    ['NEW_CODE', {layer: 'credential'}, 403, 'connection'],
+    ['NEW_CODE', {layer: 'unknown'}, 403, 'permission'],
+    // F-L1-05: a generic provider code never hides the party the transport named.
+    ['PLATFORM_ERROR', {http_status: 200, layer: 'credential'}, 401, 'connection'],
+    ['PLATFORM_ERROR', {http_status: 200, layer: 'consent'}, 403, 'connection'],
+    ['PLATFORM_ERROR', {http_status: 200, layer: 'rate_limit'}, 429, 'rate_limit'],
+    ['UPSTREAM_ERROR', {http_status: 400, layer: 'role_or_asset_access'}, 400, 'permission'],
+    ['PLATFORM_ERROR', {http_status: 200, layer: 'unknown'}, 502, 'provider'],
+    ['PLATFORM_ERROR', {http_status: 200}, 502, 'provider'],
+    // The generic provider codes stay provider failures with no status or HTTP status to say so.
+    ['PLATFORM_ERROR', {}, 400, 'provider'],
+    ['UPSTREAM_ERROR', {}, 400, 'provider'],
+    ['PROVIDER_REPORT_FAILED', {}, undefined, 'provider'],
+    ['UPSTREAM_ERROR', {http_status: 500, layer: 'api_version'}, 502, 'provider'],
   ])
-    assert.equal(reportErrorCategory(code, details, status), category, code);
+    assert.equal(reportErrorCategory(code, details, status), category, code + ' ' + JSON.stringify(details));
+});
+
+test('every code of an explicit set keeps its category whatever the layer, status or HTTP status says', () => {
+  const sets = {
+    provider_data: [...providerDataCodes],
+    connection: [
+      'AUTH_EXPIRED',
+      'REAUTHORIZATION_REQUIRED',
+      'CREDENTIALS_REQUIRED',
+      'TOKEN_REFRESH_FAILED',
+      'CONNECTION_AUTHORITY_CHANGED',
+    ],
+    permission: [
+      'INSUFFICIENT_SCOPE',
+      'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
+      'INSUFFICIENT_PERMISSION',
+      'PROVIDER_PERMISSION_MISSING',
+      'PROVIDER_ACCESS_DENIED',
+    ],
+    rate_limit: ['PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN'],
+    request: [
+      'REPORT_COLLECTION_LIMIT',
+      'REPORT_ROW_LIMIT',
+      'REPORT_LEVEL_UNSUPPORTED',
+      'REPORT_CURRENCY_MISMATCH',
+      'REPORT_TIMEZONE_MISMATCH',
+      'INVALID_DATE_RANGE',
+      'INCOMPLETE_REPORT',
+    ],
+    provider: ['PROVIDER_VERSION_UNSUPPORTED'],
+    internal: ['INTERNAL_ERROR', 'REPORT_FAILED'],
+  };
+  for (const [category, codes] of Object.entries(sets))
+    for (const code of codes)
+      for (const [details, status] of [
+        [{}, undefined],
+        [{}, 400],
+        [{layer: 'credential'}, 401],
+        [{layer: 'rate_limit', http_status: 429}, 429],
+        [{http_status: 500}, 503],
+      ])
+        assert.equal(reportErrorCategory(code, details, status), category, code + ' ' + JSON.stringify(details));
+});
+
+test('a layer that is not one of the closed set names no category, even a name every object inherits (F-L1-09)', () => {
+  for (const layer of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf', 'unknown', ''])
+    assert.equal(reportErrorCategory('X', {layer}, 400), 'internal', JSON.stringify(layer));
+  for (const layer of [7, null, {}, ['credential']])
+    assert.equal(reportErrorCategory('X', {layer}, 400), 'internal', JSON.stringify(layer));
 });
 
 test('the twelve provider-data codes exclude AMCP request limits', () => {
@@ -91,12 +169,92 @@ test('page facts keep only integer, null or string values, and counts only integ
   assert.equal('returned_rows' in d, false);
 });
 
-test('a connection diagnostic keeps its HTTP status and its reconnect action', () => {
-  const d = reportSourceError(new MirrorError('AUTH_EXPIRED', 'm', {}, 401), {...tiktok, platform: 'meta'});
+test('a connection diagnostic keeps the provider’s HTTP status and its reconnect action', () => {
+  const d = reportSourceError(new MirrorError('AUTH_EXPIRED', 'm', {http_status: 401}, 401), {
+    ...tiktok,
+    platform: 'meta',
+  });
   assert.equal(d.category, 'connection');
   assert.equal(d.http_status, 401);
   assert.notEqual(d.next_action, providerDataAction);
   assert.match(d.next_action, /Reconnect/);
+});
+
+test('the HTTP status is the provider’s own 4xx or 5xx, never AMCP’s status or a 200 body (F-L1-05, F-L1-08)', () => {
+  const meta = {...tiktok, platform: 'meta'},
+    shown = (code, details, status) => reportSourceError(new MirrorError(code, 'm', details, status), meta).http_status;
+  // The provider answered with an error status.
+  for (const [code, details, status, expected] of [
+    ['UPSTREAM_ERROR', {http_status: 503}, 503, 503],
+    ['UPSTREAM_ERROR', {http_status: 400}, 502, 400],
+    ['PLATFORM_RATE_LIMIT', {http_status: 429}, 429, 429],
+    ['PROVIDER_ACCESS_DENIED', {http_status: 403}, 403, 403],
+    ['AUTH_EXPIRED', {http_status: 401}, 401, 401],
+    ['UPSTREAM_ERROR', {http_status: 599}, 502, 599],
+    ['UPSTREAM_ERROR', {http_status: 400}, 502, 400],
+  ])
+    assert.equal(shown(code, details, status), expected, code + ' ' + JSON.stringify(details));
+  // A 200 whose body reports a failure is not an HTTP failure, whatever status AMCP gave the error.
+  for (const [code, details, status] of [
+    ['PLATFORM_ERROR', {http_status: 200}, 502],
+    ['PLATFORM_ERROR', {http_status: 200, layer: 'credential'}, 401],
+    ['PLATFORM_ERROR', {http_status: 200, layer: 'rate_limit'}, 429],
+    ['UPSTREAM_ERROR', {http_status: 204}, 502],
+    ['UPSTREAM_ERROR', {http_status: 399}, 502],
+    ['UPSTREAM_ERROR', {http_status: 600}, 502],
+    ['UPSTREAM_ERROR', {http_status: '503'}, 503],
+    ['UPSTREAM_ERROR', {http_status: null}, 503],
+  ])
+    assert.equal(shown(code, details, status), undefined, code + ' ' + JSON.stringify(details));
+  // AMCP's own refusals carry the status AMCP gave them, which no provider returned.
+  for (const [code, status] of [
+    ['INVALID_DATE_RANGE', 400],
+    ['REPORT_COLLECTION_LIMIT', 422],
+    ['INCOMPLETE_REPORT', 400],
+    ['AUTH_EXPIRED', 401],
+    ['TOKEN_REFRESH_FAILED', 401],
+    ['UPSTREAM_UNAVAILABLE', 502],
+    ['DEADLINE_EXCEEDED', 504],
+    ['REPORT_FAILED', 500],
+  ])
+    assert.equal('http_status' in reportSourceError(new MirrorError(code, 'm', {}, status), meta), false, code);
+});
+
+test('a credential failure the provider reports inside a 200 body is a connection failure with the reconnect action (F-L1-05)', () => {
+  // The transport marks the layer when the provider's own table names it, and gives such an in-body failure status 401.
+  const upstream = {code: 40105, message: 'Access token is invalid or expired', request_id: 'synthetic'},
+    d = reportSourceError(
+      new MirrorError(
+        'PLATFORM_ERROR',
+        'Platform reported an unsuccessful result.',
+        {http_status: 200, layer: 'credential', provider_code: 40105, upstream},
+        401,
+      ),
+      tiktok,
+    );
+  assert.equal(d.category, 'connection');
+  assert.equal('http_status' in d, false);
+  assert.equal(d.layer, 'credential');
+  assert.equal(d.provider.code, '40105');
+  assert.match(d.next_action, /Reconnect the affected login in Connections/);
+  // A failure whose party nothing names stays a provider failure, still without an HTTP label.
+  const unknown = reportSourceError(
+    new MirrorError(
+      'PLATFORM_ERROR',
+      'Platform reported an unsuccessful result.',
+      {
+        http_status: 200,
+        layer: 'unknown',
+        provider_code: 40002,
+        upstream: {code: 40002, message: 'Unsupported metric'},
+      },
+      502,
+    ),
+    tiktok,
+  );
+  assert.equal(unknown.category, 'provider');
+  assert.equal('http_status' in unknown, false);
+  assert.equal(unknown.provider.code, '40002');
 });
 
 test('an unknown thrown value is an internal diagnostic', () => {
