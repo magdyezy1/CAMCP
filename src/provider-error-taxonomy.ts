@@ -124,8 +124,9 @@ export function classifyProviderError(input: ProviderErrorInput): ProviderErrorC
           : 'unknown';
   const documented = envelope(gateway)?.classify?.(input, {base, legacyCode, legacyRetryable, layerOf});
   if (documented) return documented;
-  // TikTok reports token and QPS failures inside HTTP 200 bodies. Its official return-code table has not been
-  // verified (TikTok's portal did not render during the 2026-10-08 review), so no TikTok code is mapped: each keeps
-  // PLATFORM_ERROR with layer `unknown` and its numeric code, until the table is checked against TikTok's own reference.
+  // TikTok reports token and QPS failures inside HTTP 200 bodies. Its wire profile classifies the codes of its official
+  // return-code table (src/tiktok-adapter.ts; https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read
+  // 2026-11-06, which the 2026-10-08 review could not render). A code that table does not map, and a provider whose
+  // profile classifies nothing, keeps PLATFORM_ERROR in a 200 body with layer `unknown` and its numeric code.
   return {...base, code: legacyCode, layer: layerOf(legacyCode), retryable: legacyRetryable, documented: false};
 }

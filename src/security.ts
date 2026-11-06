@@ -25,8 +25,13 @@ export function stable(value: unknown): string {
     );
   return JSON.stringify(value);
 }
-/** The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them. */
-const secretParameters = [
+/**
+ * The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them. After
+ * `password` (a credential in a query, as it is under an object key) come the signed-URL parameters of the object
+ * stores and CDNs that providers link to (AWS, Google Cloud, TikTok's CDN and CloudFront), which carry the same secrets
+ * as `signature`.
+ */
+const secretParameters = new Set([
   'access_token',
   'refresh_token',
   'client_secret',
@@ -38,16 +43,69 @@ const secretParameters = [
   'sig',
   'signature',
   'gtm_auth',
-];
-const secretQuery = (names: string[], delimiters: string, value: string) =>
-  new RegExp('([' + delimiters + '](?:' + names.join('|') + ')=)' + value, 'gi');
-const textSecrets = secretQuery(secretParameters, '?&', '[^&\\s]+'),
-  urlSecrets = secretQuery(secretParameters, '?&#', '[^&#\\s]+'),
-  urlCredentials = secretQuery(
-    secretParameters.filter(name => name !== 'sig' && name !== 'signature'),
-    '?&#',
-    '[^&#\\s]+',
-  );
+  'password',
+  'x-signature',
+  'x-amz-signature',
+  'x-amz-security-token',
+  'x-amz-credential',
+  'x-goog-signature',
+  'x-goog-credential',
+  'policy',
+  'key-pair-id',
+]);
+/** The two names a signed link may keep: the link is unusable without them (`signedLinks` in redactUrlSecrets). */
+const signatureParameters: ReadonlySet<string> = new Set(['sig', 'signature']);
+/** A parameter name as a URL spells it: percent-decoded and lower-cased, so `X%2DAmz%2DSignature` is `x-amz-signature`. */
+function parameterName(raw: string): string {
+  try {
+    return decodeURIComponent(raw).toLowerCase();
+  } catch {
+    return raw.toLowerCase();
+  }
+}
+/**
+ * A pass over the `name=` heads of a text: a delimiter (`?`, `&`, `#` or `;`), a name of at most 100 characters that
+ * holds none of those or white space, and `=`. The head of a secret name hides its value, to `stop` or white space
+ * (a head that `;` starts stops at `;` too, so the next pair of a `;`-joined query survives). The head of any other name
+ * consumes the head only, so the scan goes on inside its value and finds a secret pair nested there
+ * (`?next=https://b.example/q?access_token=...`, `?a=b#access_token=...`); a scan of whole pairs would lose it, and the
+ * redaction before it never did. Names are matched whole, case-insensitively and after percent-decoding, and a name in
+ * `exempt` keeps its value. The scan is linear: a head costs at most 100 characters to read, every position is a
+ * head's start at most once, and a hidden value is skipped, not read again.
+ */
+const pairPass = (stop: string) => {
+  const heads = new RegExp('([?&#;])([^=&;#?\\s]{1,100})=', 'g'),
+    value = new RegExp('[^' + stop + '\\s]+', 'y'),
+    joinedValue = new RegExp('[^' + stop + ';\\s]+', 'y');
+  return (text: string, exempt: ReadonlySet<string>): string => {
+    let out = '',
+      copied = 0;
+    heads.lastIndex = 0;
+    for (let head = heads.exec(text); head; head = heads.exec(text)) {
+      const name = parameterName(head[2]!);
+      if (!secretParameters.has(name) || exempt.has(name)) continue;
+      const run = head[1] === ';' ? joinedValue : value;
+      run.lastIndex = heads.lastIndex;
+      if (!run.test(text)) continue;
+      out += text.slice(copied, heads.lastIndex) + '[REDACTED]';
+      copied = heads.lastIndex = run.lastIndex;
+    }
+    return copied ? out + text.slice(copied) : text;
+  };
+};
+// Free text: a value runs to `&` or white space, so a secret that holds `#` or `;` is still hidden whole. A URL's
+// value ends at `#` as well, where its fragment begins.
+const textPairs = pairPass('&'),
+  urlPairs = pairPass('&#'),
+  noExemption: ReadonlySet<string> = new Set();
+/**
+ * The names whose values redact() hides under an object key, and so also inside JSON text: `{"api_key":"..."}` in a
+ * provider's message hides the same value as the object does.
+ */
+const secretKeyNames =
+  'authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie';
+const secretKey = new RegExp('^(?:' + secretKeyNames + ')$', 'i'),
+  jsonSecrets = new RegExp('("(?:' + secretKeyNames + ')"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)*"', 'gi');
 /**
  * Native read results keep provider text verbatim, except secrets inside URLs (SEC-04): in every string that is an
  * absolute http(s) URL, the value of each query or fragment parameter that redact() treats as secret becomes
@@ -62,8 +120,8 @@ export function redactUrlSecrets(
   let redacted = 0;
   const walk = (v: unknown, signed: boolean): unknown => {
     if (typeof v === 'string') {
-      if (!/^https?:\/\/[^\s]+$/i.test(v) || !/[?#]/.test(v)) return v;
-      const out = v.replace(signed ? urlCredentials : urlSecrets, '$1[REDACTED]');
+      if (!/^https?:\/\/[^\s]+$/i.test(v) || !/[?#;]/.test(v)) return v;
+      const out = urlPairs(v, signed ? signatureParameters : noExemption);
       if (out !== v) redacted++;
       return out;
     }
@@ -85,15 +143,16 @@ export function redact(value: unknown): any {
           ? '[PRIVATE_PREVIEW_URL]'
           : /^image[-_]?data$/i.test(k)
             ? '[BINARY_REDACTED]'
-            : /^(authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie)$/i.test(
-                  k,
-                )
+            : secretKey.test(k)
               ? '[REDACTED]'
               : redact(v),
       ]),
     );
   if (typeof value === 'string')
-    return value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(textSecrets, '$1[REDACTED]');
+    return textPairs(
+      value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(jsonSecrets, '$1"[REDACTED]"'),
+      noExemption,
+    );
   return value;
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {

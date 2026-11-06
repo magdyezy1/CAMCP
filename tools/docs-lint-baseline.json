@@ -172,10 +172,16 @@
       "raised": [
         "reference_words 148921 → 149053"
       ]
+    },
+    {
+      "reason": "merge of the tiktok package onto the stored package: tiktok corrected its statements within the 3 words between its recorded 148,921 and its real 148,918 (docs/workflows/REPORTS.md +7, docs/REPORTING-OVERVIEW.md -4), and stored's increase had already used the same 3 words of headroom; the merged pages hold 3 words more than the recorded total",
+      "raised": [
+        "reference_words 149053 → 149056"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 149053
+    "reference_words": 149056
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -63,17 +63,24 @@ test('writes never retry an uncertain upstream request', async () => {
   assert.equal(calls, 1);
 });
 test('platform errors inside HTTP 200 are not successful responses', async () => {
-  const transport = new NativeTransport(
-    (async () => new Response('{"code":40001,"message":"bad"}', {status: 200})) as typeof fetch,
-  );
-  await assert.rejects(
-    transport.request(
-      {...plan, gateway: 'tiktok_native_action', path: '/v1.3/campaign/get/'},
-      {...connection, gateway: 'tiktok_native_action'},
-      credentials,
-    ),
-    (e: any) => e.code === 'PLATFORM_ERROR',
-  );
+  // 40002 is a parameter code that TikTok's return-code table leaves unmapped, so it stays PLATFORM_ERROR; 40001 is a
+  // mapped role or asset access denial (src/tiktok-adapter.ts). Neither is a success.
+  for (const [providerCode, code] of [
+    [40002, 'PLATFORM_ERROR'],
+    [40001, 'PROVIDER_ACCESS_DENIED'],
+  ] as const) {
+    const transport = new NativeTransport(
+      (async () => new Response(JSON.stringify({code: providerCode, message: 'bad'}), {status: 200})) as typeof fetch,
+    );
+    await assert.rejects(
+      transport.request(
+        {...plan, gateway: 'tiktok_native_action', path: '/v1.3/campaign/get/'},
+        {...connection, gateway: 'tiktok_native_action'},
+        credentials,
+      ),
+      (e: any) => e.code === code,
+    );
+  }
 });
 
 test('invalid JSON never hides HTTP failures and no-content reads cannot become successful data', async () => {

@@ -42,6 +42,27 @@ test('money matches within half a cent per row and integer counts match exactly'
   assert.equal(tiktokTotalsCheck(rows, {clicks: '4'}, metrics).verdict, 'match');
 });
 
+test('the money tolerance is exactly half a cent per row, inclusive, however many rows there are (N5)', () => {
+  // Rows of spend 1 each; a total up to count x 0.005 away still matches, one nano-unit further is a gap.
+  for (const [count, near, far] of [
+    [1, ['1.005', '0.995'], ['1.005000001', '0.994999999']],
+    [2, ['2.01', '1.99'], ['2.010000001', '1.989999999']],
+    [3, ['3.015', '2.985'], ['3.015000001', '2.984999999']],
+    // The slack grows with the rows: a missing 20.00 hides in 4,000 rows' spend, which only the exact integers catch.
+    [4000, ['4020', '3980'], ['4020.000000001', '3979.999999999']],
+  ]) {
+    const rows = Array.from({length: count}, (_, i) => nativeRow(i + 1, '1'));
+    for (const spend of near)
+      assert.equal(tiktokTotalsCheck(rows, {spend}, metrics).verdict, 'match', count + ' ' + spend);
+    for (const spend of far)
+      assert.equal(tiktokTotalsCheck(rows, {spend}, metrics).verdict, 'gap', count + ' ' + spend);
+  }
+  // The same distance in an integer metric is a gap at one unit: counts carry no rounding.
+  const rows = Array.from({length: 4000}, (_, i) => nativeRow(i + 1, '1'));
+  assert.equal(tiktokTotalsCheck(rows, {clicks: '8001'}, metrics).verdict, 'gap');
+  assert.equal(tiktokTotalsCheck(rows, {clicks: '8000'}, metrics).verdict, 'match');
+});
+
 test('missing, dash and nonnumeric totals are absent, without inventing a comparison', () => {
   for (const totals of [undefined, '-', null, {spend: '-'}, {spend: 'abc'}, [], {reach: '10'}])
     assert.deepEqual(tiktokTotalsCheck([nativeRow(1)], totals, metrics), {verdict: 'absent', gaps: []});
@@ -252,12 +273,22 @@ for (const path of ['guided', 'campaign']) {
         'TikTok’s page counts disagreed with its rows; its totals match, so the collection is complete.',
       ),
     );
+    // F-L1-02: the reader still sees both counts beside the totals sentence.
+    assert.ok(result.warnings.includes('TikTok declared 1,500 rows and returned 1,300.'));
   });
   test(path + ': differing totals remain partial with the actual gap', async t => {
     const rows = Array.from({length: 1300}, (_, i) => nativeRow(i + 1));
     const result = await collect(t, rows, 1300, {...total(1300), spend: '1500'});
     assert.equal(complete(result), false);
     assert.match(result.warnings.join(' '), /spend 1,300\.00 of 1,500\.00/);
+    assert.ok(!result.warnings.some(w => w.startsWith('TikTok declared')), 'equal counts add no counts sentence');
+  });
+  test(path + ': a totals gap on a short collection names the gap and both counts (F-L1-02, D2)', async t => {
+    const rows = Array.from({length: 1300}, (_, i) => nativeRow(i + 1));
+    const result = await collect(t, rows, 1500, {...total(1300), spend: '1450.00'});
+    assert.equal(complete(result), false);
+    assert.ok(result.warnings.some(w => /spend 1,300\.00 of 1,450\.00/.test(w)));
+    assert.ok(result.warnings.includes('TikTok declared 1,500 rows and returned 1,300.'));
   });
   test(path + ': absent totals fall back to equal or short counts', async t => {
     const rows = [nativeRow(1)];

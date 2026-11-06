@@ -37,7 +37,9 @@ export default {
         ...(mode.paginate ? {page_info: {page: 1, page_size: 1, total_number: 2, total_page: 2}} : {}),
       });
     if (method === 'POST' && path.endsWith('/v1.3/report/task/create/')) {
-      if (mode.partial) return {json: {code: 40001, message: 'Rejected', request_id: 'r', data: {}}};
+      // 40002 is a parameter refusal that TikTok's return-code table leaves unmapped (a provider-reported PLATFORM_ERROR);
+      // 40001 is a mapped access denial, which the conformance check's code list does not hold.
+      if (mode.partial) return {json: {code: 40002, message: 'Rejected', request_id: 'r', data: {}}};
       return answer({task_id: 'job-' + ++state.tasks});
     }
   },

@@ -144,9 +144,10 @@ change monitor incident fingerprints, so an earlier incident can remain open bes
 
 ## TikTok collection
 
-Both campaign totals and guided daily detail use the same page rules. Every page must echo its requested page and
-size. Missing page metadata, changing totals, duplicate dimensional tuples, oversized pages or more returned rows
-than declared refuse the source. A different `total_page` basis is recorded while the declared pages are read.
+Both campaign totals and guided daily detail use the same page rules. Every page with rows must echo its requested
+page and size. Missing page metadata, changing totals, duplicate dimensional tuples, oversized pages or more
+returned rows than declared refuse the source. A different `total_page` basis is recorded while the declared pages
+are read.
 Fewer rows than declared can remain partial, with both declared and returned counts.
 
 TikTok's own additive totals decide completeness when comparable: spend matches within half a cent per returned
@@ -264,10 +265,10 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   guided Meta captures mark the metric's coverage `omitted_as_zero`. The website marks each such cell with `*` and a
   legend, and the zero-result advice names `results_basis:"provider_omitted"`.
 - **TikTok optimization events (RPT-04).** TikTok's `conversion` follows each ad group's optimization event. The
-  campaign source reads the ad group list once (`GET /v1.3/adgroup/get/`, bounded like the campaign list) and gives
-  each row a result definition that names its events, so summaries never add conversions of different events. A
-  campaign whose ad groups use different events is held as `needs_review` for cost-per-result advice. Campaign
-  reporting covers `AUCTION_CAMPAIGN` data only, and a source warning says so.
+  campaign source reads the ad group list once (`GET /v1.3/adgroup/get/` with `STATUS_ALL`, bounded like the campaign
+  list) and gives each row a result definition that names its events, so summaries never add conversions of different
+  events. A campaign whose ad groups use different events is held as `needs_review` for cost-per-result advice.
+  Campaign reporting covers `AUCTION_CAMPAIGN` data only, as a source warning says.
 - **Campaign attribution profile (RPT-04).** A campaign-level Meta or Snapchat source may set `report_options` to
   only the attribution windows its detailed presets use (Meta `attribution_windows`; Snapchat
   `swipe_up_attribution_window` and `view_attribution_window`). Campaign rows then use those windows (Meta at
@@ -377,8 +378,8 @@ wait for Meta's `estimated_time_to_regain_access` (60 s otherwise) or Google's
 `retryDelay` (30 s otherwise). An account-level Meta throttle cools down only that
 account on that login. LinkedIn HTTP 426 is `PROVIDER_VERSION_UNSUPPORTED`. Meta
 `is_transient` makes a read retryable. A write is still sent once and never becomes
-retryable. Unknown codes, including every TikTok in-body code until TikTok's official
-code table is verified, keep their previous code with layer `unknown`. Overview runs
+retryable. TikTok's in-body return codes follow its official table (src/tiktok-adapter.ts,
+read 2026-11-06); any other code keeps its previous code with layer `unknown`. Overview runs
 defer a throttled source to the cooldown instead of failing it. The cooldown, not the
 transient-failure circuit, governs a throttle: it neither counts toward nor resets that
 circuit. Readiness `provider_read` checks carry the same `diagnostic` (code, request ID,
@@ -449,9 +450,9 @@ The diagnostic's closed `category` determines the source card's actions:
 
 Provider-data diagnostics keep the provider message/request ID and safe page facts (`page`, `page_size`,
 `total_number`, `total_page`, `list_length`, `rule`), plus `declared_rows` and `returned_rows` where available.
-They omit `http_status`: a successful HTTP response whose data AMCP refused is not a provider HTTP outage. MCP's
-existing error family remains `report`; its generic provider-data remedy asks for a retry while codes with their
-own specific advice keep it. Saved diagnostics without a category retain their previous rendering and actions.
+They omit `http_status`: a successful HTTP response whose data AMCP refused is not a provider HTTP outage. MCP keeps
+its error family; every provider-data remedy asks for a retry, except a changed or invalid response shape.
+Saved diagnostics without a category render as before.
 
 For Google HTTP 403, distinguish `USER_PERMISSION_DENIED` (identity/account access or manager routing) from developer-token/project restrictions such as `DEVELOPER_TOKEN_NOT_APPROVED` or `DEVELOPER_TOKEN_PROHIBITED`. With direct customer access, an unrelated `AMCP_GOOGLE_LOGIN_CUSTOMER_ID` should be omitted; manager access needs the correct manager ID. Website logins use the manager route their sync recorded, not this variable (CON-05). After changing server OAuth settings, reconnect Google Ads because existing connections retain their saved credentials/settings. The report displays the login customer ID actually sent. AMCP does not bypass a provider denial or automatically change routing. See [Google's error guide](https://developers.google.com/google-ads/api/docs/get-started/common-errors) and [Google's access model](https://developers.google.com/google-ads/api/docs/oauth/access-model).
 

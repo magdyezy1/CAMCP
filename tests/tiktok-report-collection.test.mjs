@@ -103,15 +103,21 @@ for (const sample of tiktokPageFixtures()) {
       }
       const result = await run();
       const returned = collector === 'guided' ? result.source.data.data.list.length : result.data.data.list.length;
-      const declared = sample.pages[0].page_info.total_number ?? 0;
+      const declared = sample.pages[0].page_info?.total_number ?? 0;
       const collection = collector === 'guided' ? result.collection : rules.tiktokCollectionCounts(declared, returned);
       assert.equal(collection.complete, sample.expected.complete);
+      if (sample.expected.returned !== undefined) assert.equal(returned, sample.expected.returned);
       if (sample.expected.complete === false) {
-        assert.equal(returned, sample.expected.returned);
         const warning = 'TikTok declared 1,500 rows and returned ' + returned.toLocaleString('en-US') + '.';
         assert.ok((collection.warnings ?? [collection.warning]).includes(warning));
       }
       if (collector === 'integrated') assert.deepEqual(result.data.data.page_info, sample.pages[0].page_info);
+      if (collector === 'guided' && sample.expected.rule === 'empty_report')
+        assert.deepEqual(
+          result.sourcePages.map(p => [p.row_count, p.page_facts?.rule]),
+          [[0, 'empty_report']],
+          'an empty page keeps its page facts as evidence of the pattern TikTok used',
+        );
       if (sample.expected.rule) {
         const checked = rules.tiktokPageCheck(sample.pages[0], {page: 1, size: 1000}, {total: null, returned: 0});
         assert.equal(checked.facts.rule, sample.expected.rule);

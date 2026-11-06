@@ -484,6 +484,27 @@ export function inspectSourceNextActions(source) {
   walk(parsers['babel-ts'].parse(source));
   return messages;
 }
+// The files whose authored report refusal and warning sentences the gate requires in Arabic.
+export const reportingFailureSources = Object.freeze([
+  'src/google-reporting.ts',
+  'src/decision-reporting.ts',
+  'src/meta-evidence.ts',
+  'src/linkedin-evidence.ts',
+  'src/tiktok-reporting.ts',
+  'src/tiktok-report-pagination.ts',
+  'src/tiktok-report-request.ts',
+  'src/snapchat-evidence.ts',
+]);
+// Exported string constants that are display copy, by file (the sentences are not passed to a refusal call).
+const authoredReportingConstants = {
+  'src/tiktok-report-pagination.ts': [
+    'tiktokPageCountMessage',
+    'tiktokTotalsMismatchMessage',
+    'tiktokTotalsMatchWarning',
+    'tiktokTotalsGapTemplate',
+  ],
+  'src/tiktok-report-request.ts': ['tiktokStatusFilterRefusedWarning'],
+};
 // This exact collector owns direct refusal sentences. Dynamic diagnostics and fallback expressions stay native.
 export function inspectReportingFailures(source, file) {
   const messages = new Set();
@@ -498,9 +519,11 @@ export function inspectReportingFailures(source, file) {
     'src/linkedin-evidence.ts': ['bad', 'incomplete'],
     'src/tiktok-reporting.ts': ['bad', 'incomplete'],
     'src/tiktok-report-pagination.ts': [],
+    'src/tiktok-report-request.ts': [],
     'src/snapchat-evidence.ts': ['bad', 'incomplete', 'shape'],
   }[file.replaceAll('\\', '/')];
   if (!ownedCalls) return messages;
+  const constants = authoredReportingConstants[file.replaceAll('\\', '/')] ?? [];
   const ast = parsers['babel-ts'].parse(source);
   const walk = node => {
     if (!node || typeof node !== 'object') return;
@@ -510,12 +533,7 @@ export function inspectReportingFailures(source, file) {
       node.arguments[0]?.type === 'StringLiteral'
     )
       messages.add(node.arguments[0].value);
-    if (
-      file.replaceAll('\\', '/') === 'src/tiktok-report-pagination.ts' &&
-      node.type === 'VariableDeclarator' &&
-      ['tiktokPageCountMessage', 'tiktokTotalsMismatchMessage'].includes(node.id?.name) &&
-      node.init?.type === 'StringLiteral'
-    )
+    if (node.type === 'VariableDeclarator' && constants.includes(node.id?.name) && node.init?.type === 'StringLiteral')
       messages.add(node.init.value);
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
@@ -1475,15 +1493,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/meta-catalog-products.ts',
   ))
     need('server:catalog-products', message);
-  for (const file of [
-    'src/google-reporting.ts',
-    'src/decision-reporting.ts',
-    'src/meta-evidence.ts',
-    'src/linkedin-evidence.ts',
-    'src/tiktok-reporting.ts',
-    'src/tiktok-report-pagination.ts',
-    'src/snapchat-evidence.ts',
-  ])
+  for (const file of reportingFailureSources)
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       need('server:reporting-failures', message);
   for (const message of inspectSourceNextActions(fs.readFileSync(path.join(root, 'src/report-errors.ts'), 'utf8')))

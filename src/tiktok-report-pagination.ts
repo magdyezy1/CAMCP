@@ -64,14 +64,28 @@ export function tiktokPageCheck(
     refuse = (rule: TikTokPageRule): never => {
       throw new MirrorError('REPORT_INCOMPLETE', tiktokPageCountMessage, {page_facts: facts(rule)}, 502);
     };
-  if (!object(data.page_info)) refuse('page_info_missing');
+  // TikTok documents no values for an empty report (wave-5 provider documentation, T3), so the first page of a
+  // collection with no rows whose counts say there is nothing (total absent or 0, pages absent, 0 or 1) is an empty
+  // report whatever its page and page_size say: absent, zero or another integer. Rows, a total above zero, several
+  // declared pages, or page fields that are not integers are not defaulted: they still have to echo the request.
+  const optionalCount = (value: unknown) =>
+      value === undefined || (Number.isSafeInteger(value) && (value as number) >= 0),
+    emptyReport =
+      seen.total === null &&
+      seen.returned === 0 &&
+      rows.length === 0 &&
+      (data.page_info === undefined || object(data.page_info)) &&
+      (info.total_number === undefined || info.total_number === 0) &&
+      (info.total_page === undefined || info.total_page === 0 || info.total_page === 1) &&
+      optionalCount(info.page) &&
+      optionalCount(info.page_size);
+  if (!emptyReport && !object(data.page_info)) refuse('page_info_missing');
   if (
     !Number.isSafeInteger(request.page) ||
     request.page < 1 ||
     !Number.isSafeInteger(request.size) ||
     request.size < 1 ||
-    info.page !== request.page ||
-    info.page_size !== request.size
+    (!emptyReport && (info.page !== request.page || info.page_size !== request.size))
   )
     refuse('page_not_echoed');
   for (const key of ['total_number', 'total_page'])
@@ -157,6 +171,11 @@ export function tiktokTotalsCheck(
     if (!available) continue;
     compared++;
     const difference = sum > nativeTotal ? sum - nativeTotal : nativeTotal - sum;
+    // Spend is money, and a row's spend and the total are decimal text that TikTok rounds on its own (the rounding is
+    // not documented), so each returned row may drift from the total by up to half a cent: the tolerance is 0.005 per
+    // row, inclusive (the plan's rule, round 1 Task 5). It grows with the rows, so with 4,000 rows a missing 20.00 stays
+    // inside it. That is accepted: impressions, clicks and conversions are counts without rounding and must match
+    // exactly, and a real missing row moves them. The currency's own minor unit is not consulted.
     if (difference > (metric === 'spend' ? 5000000n * BigInt(rows.length) : 0n))
       gaps.push({metric, rows: formatted(sum, metric === 'spend'), total: formatted(nativeTotal, metric === 'spend')});
   }
@@ -171,9 +190,15 @@ export function tiktokCollectionCheck(
   metrics: readonly string[],
 ) {
   const counts = tiktokCollectionCounts(declared, rows.length),
-    checked = tiktokTotalsCheck(rows, totals, metrics);
+    checked = tiktokTotalsCheck(rows, totals, metrics),
+    // D2: whenever the rows fall short of the declared count the reader sees both counts, beside the totals sentence.
+    short = counts.warning ? [counts.warning] : [];
   if (checked.verdict === 'match')
-    return {complete: true, warnings: counts.complete ? [] : [tiktokTotalsMatchWarning], totals: checked.verdict};
+    return {
+      complete: true,
+      warnings: counts.complete ? [] : [tiktokTotalsMatchWarning, ...short],
+      totals: checked.verdict,
+    };
   if (checked.verdict === 'gap')
     return {
       complete: false,
@@ -182,10 +207,11 @@ export function tiktokCollectionCheck(
           '{gaps}',
           checked.gaps.map(gap => gap.metric + ' ' + gap.rows + ' of ' + gap.total).join('; '),
         ),
+        ...short,
       ],
       totals: checked.verdict,
     };
-  return {complete: counts.complete, warnings: counts.warning ? [counts.warning] : [], totals: checked.verdict};
+  return {complete: counts.complete, warnings: short, totals: checked.verdict};
 }
 export function tiktokReportPage(
   response: unknown,

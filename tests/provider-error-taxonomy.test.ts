@@ -234,21 +234,99 @@ test('Meta is_transient makes a read retryable with bounded backoff; code 2 at H
   }
 });
 
-test('TikTok in-body codes stay PLATFORM_ERROR with an unknown layer until its official code table is verified', async () => {
-  for (const code of [40100, 40105]) {
-    const {error, calls, shared} = await refusal(
-      'tiktok_native_action',
-      () => json({code, message: 'Synthetic TikTok refusal', request_id: 'tt'}, 200),
-      {path: '/v1.3/campaign/get/'},
-    );
-    assert.equal(error.code, 'PLATFORM_ERROR');
-    assert.equal(error.details.layer, 'unknown');
-    assert.equal(error.details.provider_code, code);
+// TikTok reports these inside HTTP 200 bodies. The table is TikTok API for Business "Return codes"
+// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0), read 2026-11-06. It replaces the earlier pin that kept
+// every TikTok code PLATFORM_ERROR "until its official code table is verified": that condition is met. Only the codes
+// below are mapped; the rest of the table (40000, 40002, 40006 to 40008 and the others) is parameter or business logic.
+const tiktokTable: [string, number[], string, string, number][] = [
+  ['credential', [40101, 40102, 40103, 40104, 40105, 40106, 40107, 40110, 40131], 'AUTH_EXPIRED', 'credential', 401],
+  ['role', [40001, 40119], 'PROVIDER_ACCESS_DENIED', 'role_or_asset_access', 502],
+  ['consent', [40125], 'PROVIDER_PERMISSION_MISSING', 'consent', 403],
+  ['eligibility', [40118], 'PROVIDER_ACCESS_DENIED', 'app_eligibility', 502],
+  ['rate limit', [40100, 40132, 40133], 'PLATFORM_RATE_LIMIT', 'rate_limit', 429],
+  ['provider side', [50000, 50002, 51305], 'PLATFORM_ERROR', 'unknown', 502],
+];
+const tiktokUnlisted = [40000, 40002, 40003, 40006, 40007, 40008, 40108, 40109, 40111, 50001, 51304, 99999];
+const tiktokBody = (code: number) => json({code, message: 'Synthetic TikTok refusal', request_id: 'tt'}, 200);
+const tiktokRead = {path: '/v1.3/campaign/get/'};
+const tiktokWrite = {
+  path: '/v1.3/campaign/update/',
+  readOnly: false,
+  method: 'POST',
+  body: {campaign_id: '1'},
+} as const;
+
+test('TikTok return codes classify as its official table says, and every other code stays PLATFORM_ERROR with an unknown layer', async () => {
+  for (const [label, codes, code, layer, status] of tiktokTable)
+    for (const providerCode of codes) {
+      const transient = label === 'rate limit' || label === 'provider side';
+      const {error, calls, shared} = await refusal('tiktok_native_action', () => tiktokBody(providerCode), tiktokRead);
+      const where = label + ' ' + providerCode;
+      assert.equal(error.code, code, where);
+      assert.equal(error.details.layer, layer, where);
+      assert.equal(error.details.provider_code, providerCode, where);
+      assert.equal(error.status, status, where);
+      // A read the table calls transient is retried with the transport's bounded backoff; the rest are asked once.
+      assert.equal(error.retryable, transient, where);
+      assert.equal(calls, transient ? 3 : 1, where);
+      assert.deepEqual(shared.cooldowns, [], where);
+      // A write is never made retryable or sent twice, whatever the table says.
+      const write = await refusal('tiktok_native_action', () => tiktokBody(providerCode), tiktokWrite);
+      assert.equal(write.error.code, code, 'write ' + where);
+      assert.equal(write.error.retryable, false, 'write ' + where);
+      assert.equal(write.calls, 1, 'write ' + where);
+    }
+  for (const providerCode of tiktokUnlisted) {
+    const {error, calls} = await refusal('tiktok_native_action', () => tiktokBody(providerCode), tiktokRead);
+    assert.equal(error.code, 'PLATFORM_ERROR', String(providerCode));
+    assert.equal(error.details.layer, 'unknown', String(providerCode));
+    assert.equal(error.details.provider_code, providerCode);
     assert.equal(error.retryable, false);
     assert.equal(error.status, 502);
     assert.equal(calls, 1);
-    assert.deepEqual(shared.cooldowns, []);
   }
+});
+
+test('a TikTok refusal is documented only when its table names the code, and its HTTP forms follow the table too', async () => {
+  const headers = new Headers();
+  const classify = (code: number, readOnly = true, inBody = true, status = 200) =>
+    classifyProviderError({gateway: 'tiktok_native_action', status, headers, body: {code}, readOnly, inBody});
+  for (const [, codes] of tiktokTable)
+    for (const code of codes) {
+      const c = classify(code);
+      assert.equal(c.documented, true, String(code));
+      assert.equal(c.providerCode, code);
+    }
+  for (const code of tiktokUnlisted) assert.equal(classify(code).documented, false, String(code));
+  assert.equal(
+    classifyProviderError({
+      gateway: 'tiktok_native_action',
+      status: 200,
+      headers,
+      body: {},
+      readOnly: true,
+      inBody: true,
+    }).documented,
+    false,
+  );
+  // The same code in an HTTP error body keeps the table's class, and a write is not made retryable by a 5xx table entry.
+  assert.equal(classify(40105, true, false, 401).layer, 'credential');
+  assert.equal(classify(40105, true, false, 400).code, 'AUTH_EXPIRED');
+  assert.equal(classify(40100, true, false, 429).code, 'PLATFORM_RATE_LIMIT');
+  assert.equal(classify(50000, true, false, 500).retryable, true);
+  assert.equal(classify(50000, false, false, 500).retryable, false);
+  assert.equal(classify(50000, true, false, 500).code, 'UPSTREAM_ERROR');
+  // Another provider's body with the same number is not read by TikTok's table.
+  const other = classifyProviderError({
+    gateway: 'snapchat_native_action',
+    status: 200,
+    headers,
+    body: {code: 40105},
+    readOnly: true,
+    inBody: true,
+  });
+  assert.equal(other.layer, 'unknown');
+  assert.equal(other.documented, false);
 });
 
 test('a Google Ads quota body is a rate limit with the delay Google names; other gateways keep their status codes', async () => {

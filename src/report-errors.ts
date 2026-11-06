@@ -42,9 +42,18 @@ const categoryCodes: readonly [ReportErrorCategory, ReadonlySet<string>][] = [
       'INCOMPLETE_REPORT',
     ]),
   ],
-  ['provider', new Set(['UPSTREAM_ERROR', 'PLATFORM_ERROR', 'PROVIDER_REPORT_FAILED', 'PROVIDER_VERSION_UNSUPPORTED'])],
+  ['provider', new Set(['PROVIDER_VERSION_UNSUPPORTED'])],
   ['internal', new Set(['INTERNAL_ERROR', 'REPORT_FAILED'])],
 ];
+/**
+ * The codes that say only that the provider answered unsuccessfully, over HTTP or inside a 200 body. They are checked
+ * after the layer and the status, which can name who must act: an in-body credential failure is a connection failure.
+ */
+const genericProviderCodes: ReadonlySet<string> = new Set([
+  'UPSTREAM_ERROR',
+  'PLATFORM_ERROR',
+  'PROVIDER_REPORT_FAILED',
+]);
 const layerCategories: Record<string, ReportErrorCategory> = {
   credential: 'connection',
   consent: 'connection',
@@ -55,8 +64,8 @@ const layerCategories: Record<string, ReportErrorCategory> = {
 };
 /**
  * V2-RPT-05: the category of a report error, by the first rule that matches: the explicit code sets, the transport's
- * provider-error layer, the HTTP status (401, 403, 429), the code's request shape, a provider HTTP status or a server
- * status, else internal.
+ * provider-error layer, the HTTP status (401, 403, 429), a generic provider failure, the code's request shape, a
+ * provider HTTP status or a server status, else internal.
  */
 export function reportErrorCategory(
   code: string,
@@ -64,11 +73,15 @@ export function reportErrorCategory(
   status?: number,
 ): ReportErrorCategory {
   for (const [category, codes] of categoryCodes) if (codes.has(code)) return category;
-  const layer = typeof details.layer === 'string' ? layerCategories[details.layer] : undefined;
+  const layer =
+    typeof details.layer === 'string' && Object.hasOwn(layerCategories, details.layer)
+      ? layerCategories[details.layer]
+      : undefined;
   if (layer) return layer;
   if (status === 401) return 'connection';
   if (status === 403) return 'permission';
   if (status === 429) return 'rate_limit';
+  if (genericProviderCodes.has(code)) return 'provider';
   if (/^INVALID_|_INVALID$|_REQUIRED$|_UNSUPPORTED$/.test(code)) return 'request';
   if (Number.isInteger(details.http_status) || (typeof status === 'number' && status >= 500)) return 'provider';
   return 'internal';
@@ -90,13 +103,17 @@ const object = (value: unknown): JsonObject =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : {};
 const text = (value: unknown, limit = 1200): string | undefined => {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
-  return String(redact(String(value)))
-    .replace(
-      /\b(?:access[_-]?token|refresh[_-]?token|developer[_-]?token|client[_-]?secret|password|api[_-]?key)\s*[=:]\s*[^\s,;]+/gi,
-      '[REDACTED]',
-    )
-    .replace(/\bEAA[A-Za-z0-9]{60,}\b/g, '[REDACTED]')
-    .slice(0, limit);
+  return (
+    String(redact(String(value)))
+      .replace(
+        /\b(?:access[_-]?token|refresh[_-]?token|developer[_-]?token|client[_-]?secret|password|api[_-]?key)\s*[=:]\s*[^\s,;]+/gi,
+        '[REDACTED]',
+      )
+      // A bare `token=`, `secret=` or `signature=` in a sentence has no `?`, `&` or `;` before it for redact() to find.
+      .replace(/\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi, '$1=[REDACTED]')
+      .replace(/\bEAA[A-Za-z0-9]{60,}\b/g, '[REDACTED]')
+      .slice(0, limit)
+  );
 };
 const code = (value: unknown) => text(value, 160);
 
@@ -177,16 +194,22 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     ? (e.details.layer as string)
     : undefined;
   const category = reportErrorCategory(errorCode, e.details, e.status);
-  // A provider-data failure is AMCP refusing the platform's answer, so it has no HTTP status of its own (V2-RPT-05).
+  // The HTTP status is the provider's own error status (400 to 599) as the transport recorded it. A provider-data
+  // failure is AMCP refusing the platform's answer, a 200 whose body reports a failure is no HTTP failure, and the status
+  // of AMCP's own refusals (422, 504, ...) was never returned by any provider (V2-RPT-05, F-L1-05, F-L1-08).
+  const providerStatus = e.details.http_status;
   const diagnostic: JsonObject = {
     code: errorCode,
     message: text(e.message),
     ...(e.localization ? {message_localization: redact(e.localization)} : {}),
     retryable: e.retryable,
     category,
-    ...(category === 'provider_data'
-      ? {}
-      : {http_status: typeof e.details.http_status === 'number' ? e.details.http_status : e.status}),
+    ...(category !== 'provider_data' &&
+    Number.isInteger(providerStatus) &&
+    (providerStatus as number) >= 400 &&
+    (providerStatus as number) <= 599
+      ? {http_status: providerStatus}
+      : {}),
     ...(layer ? {layer} : {}),
     platform: source.platform,
     account_id: source.account_id,
@@ -285,7 +308,8 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     diagnostic.next_action = syncing
       ? 'This is a temporary provider failure. Sync the connection again after the provider is available.'
       : 'The worker will retry temporary failures. If all attempts fail, retry the report after the provider is available.';
-  else if (e.status === 403)
+  else if (e.status === 403 || e.code === 'PROVIDER_ACCESS_DENIED')
+    // An access denial a provider reports inside a 200 body has status 502 (the transport gives 403 to consent only).
     diagnostic.next_action =
       'Check this connection’s account permissions and provider app/API access. Use the provider error below to distinguish missing access from app restrictions.';
   else if (['DEVELOPER_TOKEN_REQUIRED', 'CLIENT_ID_REQUIRED', 'USER_AGENT_REQUIRED'].includes(e.code))
@@ -352,6 +376,10 @@ export function activityReportErrors(event: JsonObject): JsonObject[] {
   const status = Number(details.http_status ?? object(object(details.upstream).error).code);
   const context = {
     ...details,
+    // Earlier events kept the provider's body but not always its HTTP status; the body's own error code states it.
+    ...(details.http_status === undefined && Number.isInteger(status) && status >= 400 && status < 600
+      ? {http_status: status}
+      : {}),
     report_request: {
       method: request.method,
       path: request.path,

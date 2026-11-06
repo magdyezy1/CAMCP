@@ -7,6 +7,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
+import {tiktokStatusFilterRefusedWarning} from '../dist/src/tiktok-report-request.js';
 
 const plan = {
   gateway: 'tiktok_native_action',
@@ -76,7 +77,9 @@ test('TikTok integrated pagination requires explicit consistent native completio
       {code: 'REPORT_INCOMPLETE'},
     );
   }
-  assert.throws(() => nextPage(plan, {code: 0, data: {list: []}}), {code: 'REPORT_INCOMPLETE'});
+  // Rows with no page counts at all are refused; an empty list with none is an empty report (F-L1-01), so nothing follows it.
+  assert.throws(() => nextPage(plan, {code: 0, data: {list: [row(1)]}}), {code: 'REPORT_INCOMPLETE'});
+  assert.equal(nextPage(plan, {code: 0, data: {list: []}}), null);
 });
 test('TikTok integrated aggregation refuses changing totals and duplicate native dimension tuples', async () => {
   for (const tail of [response([row(3), row(4)], 2, 2, 4), response([row(1)], 2, 2, 3)]) {
@@ -151,9 +154,26 @@ test('TikTok integrated aggregation starts at page one and preserves request fil
   );
   assert.equal((await paginate(scoped, async () => first, 1)).truncated, true);
 });
-test('TikTok integrated empty reports need zero native counts and inventory pagination retains its independent contract', async () => {
+test('TikTok integrated empty reports are empty whatever page counts they omit, and inventory pagination retains its independent contract', async () => {
+  // F-L1-01: TikTok documents no empty-report values, so missing or zero page fields are handled defensively. This
+  // replaces the earlier pin that refused `{list: []}`; rows without counts and declared totals still refuse.
+  for (const data of [
+    {list: []},
+    {list: [], page_info: {}},
+    {list: [], page_info: {page: 0, page_size: 0, total_number: 0, total_page: 0}},
+    {list: [], page_info: {total_number: 0, total_page: 0}},
+  ]) {
+    const out = await paginate(plan, async () => ({code: 0, data}));
+    assert.equal(out.truncated, false, JSON.stringify(data));
+    assert.equal(out.pages, 1);
+    assert.deepEqual(out.data.data.list, []);
+  }
   await assert.rejects(
-    paginate(plan, async () => ({code: 0, data: {list: []}})),
+    paginate(plan, async () => ({code: 0, data: {list: [row(1)]}})),
+    {code: 'REPORT_INCOMPLETE'},
+  );
+  await assert.rejects(
+    paginate(plan, async () => ({code: 0, data: {list: [], page_info: {page: 0, page_size: 0, total_number: 2}}})),
     {code: 'REPORT_INCOMPLETE'},
   );
   for (const pages of [0, 1]) {
@@ -252,6 +272,88 @@ test('TikTok Overview keeps malformed native completion as a failed source inste
   }
 });
 
+test('TikTok Overview reads every empty-report page shape as a complete empty source, never a failed one', async t => {
+  for (const data of [
+    {list: []},
+    {list: [], page_info: {}},
+    {list: [], page_info: {page: 0, page_size: 0, total_number: 0, total_page: 0}},
+    {list: [], page_info: {total_number: 0, total_page: 0}},
+  ]) {
+    const f = fixture(t, () => ({code: 0, data})),
+      report = await f.run();
+    assert.equal(report.state, 'complete', JSON.stringify([data, report.sources[0].error]));
+    assert.equal(report.row_count, 0);
+    assert.equal(report.sources[0].complete, true);
+    assert.equal(report.sources[0].error, undefined);
+  }
+});
+test('an empty page does not hide rows that TikTok’s own totals say exist', async t => {
+  const f = fixture(t, () => ({
+      code: 0,
+      data: {list: [], page_info: {}, total_metrics: {spend: '5.00', impressions: '50', clicks: '3', conversion: '1'}},
+    })),
+    report = await f.run();
+  assert.equal(report.sources[0].complete, false);
+  assert.match(report.sources[0].warnings.join(' '), /spend 0\.00 of 5\.00/);
+});
+
+test('a TikTok refusal inside HTTP 200 that names only the filter value falls back once and completes (F-L1-12)', async t => {
+  let filtered = 0,
+    plain = 0;
+  const f = fixture(t, url => {
+    if (url.searchParams.get('filtering')) {
+      filtered++;
+      return {code: 40002, message: 'Invalid value: STATUS_ALL', request_id: 'synthetic'};
+    }
+    plain++;
+    return response([row(1)], 1, 1000);
+  });
+  const report = await f.run();
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources[0].error));
+  assert.deepEqual([filtered, plain], [1, 1]);
+  assert.ok(report.sources[0].warnings.includes(tiktokStatusFilterRefusedWarning));
+});
+test('a TikTok login failure inside HTTP 200 is a connection failure with the reconnect action, and is not retried as a refused filter', async t => {
+  let reads = 0;
+  const f = fixture(t, () => {
+    reads++;
+    return {code: 40105, message: 'Access token is invalid or expired', request_id: 'synthetic'};
+  });
+  const report = await f.run();
+  assert.equal(report.state, 'failed');
+  assert.equal(reads, 1);
+  // TikTok's return-code table (read 2026-11-06) names 40105 a credential failure (F-L1-05).
+  const error = report.sources[0].error;
+  assert.deepEqual([error.code, error.category, error.layer], ['AUTH_EXPIRED', 'connection', 'credential']);
+  assert.equal('http_status' in error, false, 'the answer was HTTP 200');
+  assert.equal(error.provider.code, '40105');
+  assert.match(error.next_action, /Reconnect the affected login in Connections/);
+});
+test('the filter fallback is for parameter refusals: a code TikTok’s table maps is never read as one, whatever its words', async t => {
+  // 40001 and 40119 role, 40125 consent, 40118 eligibility and 40105 credential are asked once; 40100 throttle and 50000
+  // server failures are retried as reads with the filter kept. The message names the filter on purpose.
+  for (const [code, attempts] of [
+    [40105, 1],
+    [40001, 1],
+    [40119, 1],
+    [40125, 1],
+    [40118, 1],
+    [40100, 3],
+    [50000, 3],
+  ]) {
+    const filtered = [];
+    const f = fixture(t, url => {
+      filtered.push(url.searchParams.get('filtering') !== null);
+      return {code, message: 'The filtering by STATUS_ALL could not be applied', request_id: 'synthetic'};
+    });
+    const report = await f.run();
+    assert.equal(filtered.length, attempts, String(code));
+    assert.ok(filtered.every(Boolean), code + ' keeps the filter on every read');
+    assert.ok(!(report.sources[0].warnings ?? []).includes(tiktokStatusFilterRefusedWarning), String(code));
+    assert.notEqual(report.state, 'complete', String(code));
+  }
+});
+
 test('TikTok Overview retains short collections as partial with declared and returned counts', async t => {
   const f = fixture(t, () => response([row(1)], 1, 1000, 2));
   const report = await f.run();
@@ -263,6 +365,19 @@ test('TikTok Overview retains short collections as partial with declared and ret
   assert.equal(report.rows[0].metrics.spend, 1);
   assert.equal(report.rows[0].complete, false);
   assert.equal(report.rows[0].recommendation.decision, 'needs_review');
+});
+test('TikTok Overview keeps both counts in a partial source even when TikTok’s totals are present (F-L1-02)', async t => {
+  const f = fixture(t, () => {
+    const answer = response([row(1)], 1, 1000, 2);
+    answer.data.total_metrics = {spend: '2', clicks: '4'};
+    return answer;
+  });
+  const report = await f.run();
+  assert.equal(report.state, 'partial');
+  assert.equal(report.sources[0].complete, false);
+  const warnings = report.sources[0].warnings.join(' | ');
+  assert.match(warnings, /spend 1\.00 of 2\.00/);
+  assert.ok(report.sources[0].warnings.includes('TikTok declared 2 rows and returned 1.'), warnings);
 });
 test('TikTok Overview refuses repeated campaign rows across pages while preserving valid complete reporting', async t => {
   const first = Array.from({length: 1000}, (_, i) => row(i + 1));

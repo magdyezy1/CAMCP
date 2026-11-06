@@ -339,8 +339,9 @@ test('each provider’s response shapes and rate keys are its own', async () => 
       answer,
     );
   const xCredentials = {accessToken: 'a', tokenSecret: 'b', consumerKey: 'c', consumerSecret: 'd'};
-  await assert.rejects(failed('tiktok_native_action', {code: 40001, data: {}}), refusal('PLATFORM_ERROR'));
-  await failed('snapchat_native_action', {code: 40001, data: {}});
+  // 40002 is a parameter code TikTok's return-code table leaves unmapped (40001 is a mapped access denial).
+  await assert.rejects(failed('tiktok_native_action', {code: 40002, data: {}}), refusal('PLATFORM_ERROR'));
+  await failed('snapchat_native_action', {code: 40002, data: {}});
   await assert.rejects(failed('x_ads_native_action', {errors: [{code: 'X'}]}, xCredentials), refusal('PLATFORM_ERROR'));
   await failed('snapchat_native_action', {errors: [{code: 'X'}]});
   await assert.rejects(failed('snapchat_native_action', {request_status: 'ERROR'}), refusal('PLATFORM_ERROR'));

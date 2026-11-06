@@ -37,10 +37,11 @@ remaining collection time and does not interrupt advertising mutations. A limit 
 explicit missing-source/period errors. Narrow the next run rather than retrying for a fresh allowance. Legacy
 partially collected jobs without counters require a new run (`REPORT_RESTART_REQUIRED`).
 
-TikTok integrated aggregation requires complete, consistent native page counts and stable totals, with unique
-requested dimension tuples. Missing completion metadata, overlapping rows and malformed grain fail the source
-before Overview retains metrics. Native page metadata is preserved; the outer pages/truncated fields describe
-aggregation. Single-page raw reads and inventory lists retain their independent contracts.
+TikTok integrated aggregation requires consistent native page counts and stable totals, with unique requested
+dimension tuples. Rows without page counts, overlapping rows and malformed grain fail the source before Overview
+retains metrics; a short collection stays partial, and an empty report needs no page counts. Native page metadata
+is preserved; the outer pages/truncated fields describe aggregation. Single-page raw reads and inventory lists keep
+their own contracts.
 
 X reporting assigns each UTC hour to one local calendar period by its midpoint. Fractional-hour boundary periods
 are marked with the hourly-resolution limitation; adjacent daily totals do not count the same hour twice.
@@ -188,13 +189,13 @@ account (559535022) is still an owner acceptance step.
 
 TikTok presets are `tiktok_campaign`, `tiktok_adgroup` and `tiktok_ad`, at native entity × advertiser-local
 day grain. Declare exact advertiser/login, currency, IANA timezone, source name, attribution (or `unknown`),
-dates and `complete:true`. Use 1–31 closed days. Currency/timezone are verified against advertiser metadata
-before and after complete native report pages. Native `conversion` follows each entity optimization goal;
+dates and `complete:true`. Use 1–366 closed days. Currency/timezone are verified against advertiser metadata
+before and after the report pages. Native `conversion` follows each entity optimization goal;
 goals may differ, and attribution windows remain declarations. Smart+, GMV Max and specialized reports are
 separate. The UI fixes only `conversion_definition:"conversion (optimization goal)"` and restores prior
 declarations when changing providers. Exact decimal values and native IDs remain intact; missing metrics stay
-unknown. No conversion value or reach is synthesized. Empty reports require explicit native zero counts.
-Up to ten pages/10,000 rows are collected with strict page/count validation, duplicate checks and unchanged
+unknown. No conversion value or reach is synthesized. In 30-day spans, up to 10,000 rows are collected with
+strict page/count validation, duplicate checks and unchanged
 authority; each page and both account checks retain request/hash references. Collection is not a point-in-time
 snapshot. Current SDK request-contract and synthetic response tests are not live-provider qualification.
 
