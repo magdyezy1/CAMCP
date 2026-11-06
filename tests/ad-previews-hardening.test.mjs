@@ -133,6 +133,9 @@ test('Snapchat: a continuation that leaves the request’s origin, route or para
     'another account': 'https://adsapi.snapchat.com/v1/adaccounts/200/ads?limit=100&sort=created_at-desc&cursor=c2',
     'another route': 'https://adsapi.snapchat.com/v1/adaccounts/100/creatives?limit=100&sort=created_at-desc&cursor=c2',
     'userinfo': 'https://user:pw@adsapi.snapchat.com/v1/adaccounts/100/ads?limit=100&sort=created_at-desc&cursor=c2',
+    'a user name only':
+      'https://user@adsapi.snapchat.com/v1/adaccounts/100/ads?limit=100&sort=created_at-desc&cursor=c2',
+    'a password only': 'https://:pw@adsapi.snapchat.com/v1/adaccounts/100/ads?limit=100&sort=created_at-desc&cursor=c2',
     'a fragment': base + '?limit=100&sort=created_at-desc&cursor=c2#x',
     'a changed limit': base + '?limit=1000&sort=created_at-desc&cursor=c2',
     'an added parameter': base + '?limit=100&sort=created_at-desc&cursor=c2&read_deleted_entities=true',
@@ -167,23 +170,29 @@ test('Snapchat: a continuation that leaves the request’s origin, route or para
     // Nothing was followed, and no creative or preview was read behind it.
     assert.deepEqual(reads, ['snapchat_ad_list'], what);
   }
-  // Paging that holds more than the link is refused too.
+  // Paging that holds more than the link is refused too, and its link is not followed: a second list read would be one.
+  const extraReads = [];
   const extraKey = new AdPreviews(
-    async () => ({
-      success: true,
-      data: {
+    async (_tool, input) => {
+      extraReads.push(input.action);
+      if (extraReads.length > 1) throw new Error('the link was followed');
+      return {
+        success: true,
         data: {
-          ...answer(base + '?limit=100&sort=created_at-desc&cursor=c2'),
-          paging: {next_link: base + '?limit=100&sort=created_at-desc&cursor=c2', total: 9},
+          data: {
+            ...answer(base + '?limit=100&sort=created_at-desc&cursor=c2'),
+            paging: {next_link: base + '?limit=100&sort=created_at-desc&cursor=c2', total: 9},
+          },
         },
-      },
-    }),
+      };
+    },
     connectionFor(t, 'snapchat_native_action'),
   );
   await assert.rejects(
     extraKey.handle({platform: 'snapchat', account_id: '100', connection_id: loginId}, actor),
     error => refusedShape(error),
   );
+  assert.deepEqual(extraReads, ['snapchat_ad_list']);
   // The request's own link is taken: the scan goes on to the page the cursor names (and stops there, in this test).
   let pages = 0;
   const good = new AdPreviews(
@@ -205,6 +214,8 @@ test('Reddit: a continuation that leaves the request’s origin, route or parame
     'another account': 'https://ads-api.reddit.com/api/v3/ad_accounts/a2_200/ads?page.size=100&page.token=t2',
     'another route': 'https://ads-api.reddit.com/api/v3/ad_accounts/a2_100/campaigns?page.size=100&page.token=t2',
     'userinfo': 'https://user:pw@ads-api.reddit.com/api/v3/ad_accounts/a2_100/ads?page.size=100&page.token=t2',
+    'a user name only': 'https://user@ads-api.reddit.com/api/v3/ad_accounts/a2_100/ads?page.size=100&page.token=t2',
+    'a password only': 'https://:pw@ads-api.reddit.com/api/v3/ad_accounts/a2_100/ads?page.size=100&page.token=t2',
     'a fragment': base + '?page.size=100&page.token=t2#x',
     'a changed page size': base + '?page.size=1000&page.token=t2',
     'an added parameter': base + '?page.size=100&page.token=t2&id=1',
@@ -225,17 +236,30 @@ test('Reddit: a continuation that leaves the request’s origin, route or parame
     ],
     pagination: {next_url: link},
   });
-  const run = (link, extra = {}) =>
+  // The first page names `link` as the next one. A second list read would mean the link was followed, so it fails with an
+  // error of its own: a repeated page would otherwise be refused with the same code, and hide a link taken by mistake.
+  const run = (link, extra = {}, reads = []) =>
     new AdPreviews(
-      async () => ({success: true, data: {data: answer(link)}}),
+      async (_tool, input) => {
+        reads.push(input.arguments?.action);
+        if (reads.length > 1) throw new Error('the link was followed: ' + link);
+        return {success: true, data: {data: answer(link)}};
+      },
       connectionFor(t, 'reddit_native_action', {userAgent: 'amcp-tests/1.0 (synthetic)', accounts: ['a2_100']}),
     ).handle({platform: 'reddit', account_id: 'a2_100', connection_id: loginId, ...extra}, actor);
-  for (const [what, link] of Object.entries(hostile))
-    await assert.rejects(run(link), error => refusedShape(error, what), what);
+  for (const [what, link] of Object.entries(hostile)) {
+    const reads = [];
+    await assert.rejects(run(link, {}, reads), error => refusedShape(error, what), what);
+    assert.deepEqual(reads, ['LIST_ADS'], what);
+  }
   // The request's own link is taken (the page is full, so the answer carries a cursor).
   const out = await run(base + '?page.size=100&page.token=t2', {limit: 1});
   assert.equal(out.has_more, true);
   assert.equal(typeof out.next_cursor, 'string');
   // A named read asks for exactly the named IDs and has no next page, so a link there is wrong.
-  await assert.rejects(run(base + '?page.size=1&id=a1&page.token=t2', {ad_ids: ['a1']}), error => refusedShape(error));
+  const named = [];
+  await assert.rejects(run(base + '?page.size=1&id=a1&page.token=t2', {ad_ids: ['a1']}, named), error =>
+    refusedShape(error),
+  );
+  assert.deepEqual(named, ['LIST_ADS']);
 });
