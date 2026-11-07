@@ -202,10 +202,16 @@
       "raised": [
         "reference_words 149795 → 150046"
       ]
+    },
+    {
+      "reason": "package results: the Meta mapped-result, Google value-based bidding and X time zone paragraphs of REPORTING-OVERVIEW.md, the campaign allowance paragraph of workflows/REPORTS.md, and the Apple pins record and runbook steps for the allowance and deleted-entity parents",
+      "raised": [
+        "reference_words 150046 → 150552"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 150046
+    "reference_words": 150552
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
