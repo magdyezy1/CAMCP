@@ -281,6 +281,13 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
       'Choose supported report levels once each; the legacy level must match the first level.',
       'INVALID_REPORT_LEVEL',
     );
+  // A detail level takes the preset's metrics. Native metrics named beside it would be added to the provider's request and
+  // reach no row, so v4 refuses them as v3 does (overviewSourceLevel), before any request is sent.
+  if (levels.some(level => level !== 'campaign') && source.native_metrics?.length)
+    invalid(
+      'Detailed reporting uses the preset metrics. Clear additional native metrics before selecting this level.',
+      'INVALID_NATIVE_METRICS',
+    );
   if (source.report_options !== undefined && !object(source.report_options)) invalid('Use supported report options.');
   const provided = source.report_options ?? {};
   if (Object.keys(provided).some(key => !capabilities.option_names.includes(key)))
