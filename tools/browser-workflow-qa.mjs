@@ -553,7 +553,7 @@ const brandSummary = lockup => ({
   file: lockup.file,
   width: Math.round(lockup.width ?? 0),
   height: Math.round(lockup.height ?? 0),
-  surface: lockup.surface?.colour,
+  surfaces: (lockup.surfaces ?? []).map(surface => surface.colour),
   near: (lockup.near ?? []).length,
 });
 async function brandChecks(page, {route, locale, width, appearance, result, shell, keep = true}) {
@@ -561,6 +561,13 @@ async function brandChecks(page, {route, locale, width, appearance, result, shel
     screens = path.join(output, 'screens'),
     screen = keep && (width === 320 || width === 1280) ? brandScreens[route] : undefined,
     name = screen && `${screen}-${locale}-${width}-${appearance}`,
+    // The keyboard checks leave a link focused and the page scrolled to its main content; the saved screens show the
+    // first screen of the page, not a focus ring.
+    clean = () =>
+      page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        window.scrollTo(0, 0);
+      }),
     states = {page: await page.evaluate(collectBrandLockups)};
   fs.mkdirSync(screens, {recursive: true});
   if (shell && width <= 850 && (await page.locator('#menu-toggle').isVisible())) {
@@ -571,10 +578,16 @@ async function brandChecks(page, {route, locale, width, appearance, result, shel
         getComputedStyle(document.querySelector('.sidebar')).transform === 'none',
     );
     states.drawer = await page.evaluate(collectBrandLockups);
-    if (name) await page.screenshot({path: path.join(screens, name + '.png')});
+    if (name) {
+      await clean();
+      await page.screenshot({path: path.join(screens, name + '.png')});
+    }
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.body.classList.contains('menu-open'));
-  } else if (name) await page.screenshot({path: path.join(screens, name + '.png')});
+  } else if (name) {
+    await clean();
+    await page.screenshot({path: path.join(screens, name + '.png')});
+  }
   if (name && brandMinimum[route]) {
     const height = await page.evaluate(() => document.documentElement.scrollHeight),
       from = Math.max(0, height - 320);
