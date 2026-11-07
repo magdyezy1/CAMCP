@@ -342,6 +342,9 @@ function metaProviderResult(raw: JsonObject, context: ReportResultContext): Reso
       }
     }
   }
+  // A sum that is not a decimal the shared reader accepts (windows of absurd exponents add up past its length bound) is
+  // not a result: unknown, like any shape that is not the recorded one.
+  if (decimalText(total) === null) return unverified();
   // Meta’s cost of the entry that gave the value. A sum of windows has Meta’s default cost only when it is the default
   // value; otherwise, and for a count taken from the action’s keys, the cost is derived from spend.
   const costs = costValues(raw.cost_per_result, indicator);

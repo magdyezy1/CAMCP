@@ -207,6 +207,16 @@ test('Meta results: a results shape that is not the one recorded is unknown, nev
     assert.doesNotThrow(() => read(linkClicks({results}), ['7d_click', '1d_view']), name);
 });
 
+test('Meta results: windows that add past what a decimal can hold are an unknown result, not a throw', () => {
+  const absurd = [entry('actions:link_click', [wire('1e999', '7d_click'), wire('1e999', '1d_view'), wire('1')])];
+  let resolved;
+  assert.doesNotThrow(() => (resolved = read(linkClicks({results: absurd}), ['7d_click', '1d_view'])));
+  assert.deepEqual(
+    [resolved.unavailable_reason, resolved.result.value, resolved.source],
+    ['unverified_native_shape', null, 'unknown'],
+  );
+});
+
 test('Meta results: a malformed cost is ignored, never fatal, and the cost then comes from spend (rule 6)', () => {
   const values = [wire('3')];
   for (const [name, cost] of [
