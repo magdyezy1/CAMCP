@@ -43,6 +43,7 @@ const arabic: Record<string, string> = {
   Coverage: 'التغطية',
   'Coverage note': 'ملاحظة التغطية',
   'Level check': 'مطابقة المستويات',
+  Precision: 'الدقة',
   // The platforms' own words for a reporting level, as the website's catalog has them.
   'Campaign group': 'مجموعة الحملات',
   'Ad set': 'مجموعة إعلانات',

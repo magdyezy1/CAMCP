@@ -5,6 +5,8 @@ import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
 import {assertReportExportable, reportTable, reportTableFields} from './report-table.js';
+import {overviewConfigV4} from './overview-v4.js';
+import {exactNumber, keptAsText, keptAsTextColumnNote} from './export-number.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 import {loginStamp, storedLogin} from './connection-authority.js';
 import {snapshotDeliveries, unresolvedDelivery} from './report-repository.js';
@@ -251,7 +253,11 @@ function sheetsMetricColumn(key: string, report: JsonObject): {note: string; pat
     format: unknown = custom?.format ?? definition?.format,
     roas = !custom && key === 'roas',
     currencies = [...new Set(rows.map(r => r.currency).filter(c => typeof c === 'string' && c))],
-    numbers = rows.map(r => r.metrics?.[key]).filter(v => typeof v === 'number' && Number.isFinite(v)),
+    // A v4 report holds exact decimal text, which the cells carry as the numbers it is (F-L5-07).
+    exact = report.config?.contract_version === overviewConfigV4,
+    numbers = rows
+      .map(r => (exact ? (exactNumber(r.metrics?.[key]) ?? r.metrics?.[key]) : r.metrics?.[key]))
+      .filter(v => typeof v === 'number' && Number.isFinite(v)),
     unit =
       format === 'currency'
         ? currencies.length === 1
@@ -302,9 +308,14 @@ export function sheetsPresentationRequests(
   const header = table[0] as string[],
     height = table.length,
     metrics = new Set(reportTableFields(report)),
-    columns = header.map(name =>
-      metrics.has(name) ? sheetsMetricColumn(name, report) : {note: sheetsColumnNotes[name]},
-    );
+    columns = header.map((name, index) => {
+      if (!metrics.has(name)) return {note: sheetsColumnNotes[name]};
+      const column = sheetsMetricColumn(name, report);
+      // A value a number cannot hold exactly stays text, and the column says so (F-L5-07).
+      return report.config?.contract_version === overviewConfigV4 && table.slice(1).some(row => keptAsText(row[index]))
+        ? {...column, note: `${column.note} ${keptAsTextColumnNote}`}
+        : column;
+    });
   const tab =
     'AMCP report tab, table version 2. AMCP replaces this tab on every delivery, so edits made here are overwritten. Row 1 holds stable column identifiers; these notes give labels and units.';
   const requests: JsonObject[] = [
@@ -447,11 +458,21 @@ function sheetsBatchRequests(
   released: boolean,
   protect: boolean,
 ): JsonObject[] {
-  const rows = table.map(row => ({
-    values: row.map(v => ({
-      userEnteredValue: typeof v === 'number' && Number.isFinite(v) ? {numberValue: v} : {stringValue: String(v ?? '')},
-    })),
-  }));
+  // The metric cells of a v4 report are exact decimal text; a cell holds the number when the text is exactly that number,
+  // and the text when a number would lose digits (F-L5-07). IDs and names are never numbers.
+  const metricColumns = new Set(
+      report.config?.contract_version === overviewConfigV4
+        ? (table[0] as string[]).flatMap((name, index) => (reportTableFields(report).includes(name) ? [index] : []))
+        : [],
+    ),
+    rows = table.map((row, rowIndex) => ({
+      values: row.map((v, column) => ({
+        userEnteredValue: ((number: unknown) =>
+          typeof number === 'number' && Number.isFinite(number)
+            ? {numberValue: number}
+            : {stringValue: String(v ?? '')})(rowIndex > 0 && metricColumns.has(column) ? (exactNumber(v) ?? v) : v),
+      })),
+    }));
   const requests: JsonObject[] = existing
     ? []
     : [

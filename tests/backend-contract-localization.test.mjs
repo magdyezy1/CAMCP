@@ -322,8 +322,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merged with the levels package (779 modules), the previews package's eight make 787.
   // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
   // Package engine-surfaces adds src/report-coverage-notes.ts, the one computation of what a total covers (F-L5-01): 789,
-  // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790.
-  assert.equal(files.length, 790);
+  // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790,
+  // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
+  assert.equal(files.length, 791);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

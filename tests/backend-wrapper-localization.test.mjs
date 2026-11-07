@@ -278,8 +278,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merged with the levels package (779 modules), the previews package's eight make 787.
   // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
   // Package engine-surfaces adds src/report-coverage-notes.ts, the one computation of what a total covers (F-L5-01): 789,
-  // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790.
-  assert.equal(files.length, 790);
+  // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790,
+  // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
+  assert.equal(files.length, 791);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

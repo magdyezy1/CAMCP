@@ -8,6 +8,7 @@ import {MirrorError} from './errors.js';
 import {reportTable, reportNoticeMessages, reportTableFields} from './report-table.js';
 import {reportCoverageHelp, reportCoverageLines} from './report-coverage-notes.js';
 import {reportLevelCheckLines} from './report-level-check.js';
+import {exactNumber, keptAsText, keptAsTextNote} from './export-number.js';
 import {metricDefinitions} from './report-metrics.js';
 import {reportSource} from './report-sources.js';
 import {overviewConfigV4} from './overview-v4.js';
@@ -119,7 +120,17 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     leveled =
       report.config?.contract_version === overviewConfigV4 && pack.summary.some((s: JsonObject) => s.entity_level),
     // A total rolled up from the selected children of a parent says so beside the total (F-L5-11).
-    aggregated = pack.summary.some((s: JsonObject) => s.aggregation?.label);
+    aggregated = pack.summary.some((s: JsonObject) => s.aggregation?.label),
+    // A v4 report keeps its metrics as exact decimal text. The workbook writes the number when the text is exactly that
+    // number, so SUM and number formats work, and keeps as text, and says so, what a number would round (F-L5-07).
+    exact = report.config?.contract_version === overviewConfigV4,
+    kept = exact
+      ? [...report.rows, ...pack.summary].reduce(
+          (count: number, source: JsonObject) =>
+            count + reportTableFields(report).filter(field => keptAsText(source.metrics?.[field])).length,
+          0,
+        )
+      : 0;
   const columns =
     (report.config.metrics?.length ?? 6) +
     (report.config.custom_metrics?.length ?? 0) +
@@ -170,6 +181,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
         summaryIdentity(item.summary, pack.platform_names) + ': ' + item.lines.join('; '),
       ]),
       ...(covered.length ? [['Coverage', reportCoverageHelp(locale.language)]] : []),
+      ...(kept ? [['Precision', keptAsTextNote(kept, locale.language)]] : []),
       ['Snapshot ID', pack.snapshot_id],
       ['Collected at', new Date(pack.created_at ?? 0).toISOString()],
       ['Source rows', pack.row_count],
@@ -325,7 +337,15 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     if (values.length > 1)
       s.autoFilter = {from: {row: 1, column: 1}, to: {row: values.length, column: values[0]!.length}};
     for (let i = 0; i < values.length; i++) {
-      const r = s.addRow(values[i]!.map(scalar));
+      const r = s.addRow(
+        values[i]!.map((cell, column) =>
+          scalar(
+            exact && i > 0 && column + 1 >= metricStart && column + 1 < metricStart + metricCount
+              ? (exactNumber(cell) ?? cell)
+              : cell,
+          ),
+        ),
+      );
       if (locale.rtl)
         r.eachCell(c => {
           c.alignment = {
