@@ -214,10 +214,16 @@
       "raised": [
         "reference_words 150784 → 150903"
       ]
+    },
+    {
+      "reason": "results package (L5 audit: Meta mapped result F-L5-12, Google value-based bidding F-L5-13, X time zones F-L5-23, Apple allowance), merged onto engine-core and brand: docs/REPORTING-OVERVIEW.md states how a Meta result is chosen, the value-based bidding rule and the X midpoint rule, docs/workflows/REPORTS.md the campaign allowance, and the Apple pins record and acceptance runbook the allowance and the parents of deleted entities (506 recorded words; the package ended one word under its record, so 505 words on the merged pages)",
+      "raised": [
+        "reference_words 150903 → 151408"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 150903
+    "reference_words": 151408
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -34,6 +34,7 @@ const reportExplanationMessages = new Set([
   'Confirm attribution and the primary conversion definition before making budget recommendations.',
   'This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.',
   'Confirm this campaign’s objective and primary result metric.',
+  'This campaign’s result is a conversion value, so a cost per result target cannot be compared with it. Set a return on ad spend target for it, or review it by hand.',
   'Confirm this exact conversion before creating its unapproved draft.',
   'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.',
   'Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.',
@@ -97,6 +98,7 @@ const reportExplanationMessages = new Set([
   'Recommendations are advisory; a separate review is required for advertising changes.',
   'Refresh a complete reporting window before acting.',
   'Refresh complete data with verified currency and timezone before recommending a change.',
+  'Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.',
   'Retain an active LinkedIn account with the exact report identity and currency.',
   'Retain exact LinkedIn decimal budget amounts in the account currency, with at most six decimal places.',
   'Retain exact Snapchat campaign ownership and ad-squad source evidence.',
@@ -233,6 +235,7 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
+  'TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.',
   'AMCP retained the first 10,000 LinkedIn entities; entities beyond that bound are missing.',
   'This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.',
   // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).

@@ -612,6 +612,15 @@ export const inBatches = <T>(values: T[], size: number) =>
 export const detailParentsUnavailableWarning =
   'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.';
 /**
+ * Shown when the whole-job allowance ended before every selected campaign was read: one rule for the platforms that read an
+ * account campaign by campaign (Snapchat, Apple). The campaigns that were read are kept, and the report is partial.
+ */
+export const campaignAllowanceWarning = (read: number, total: number) =>
+  read +
+  ' of ' +
+  total +
+  ' campaigns read. The collection allowance for this report ended, so the other campaigns are not in it; the campaigns that were read are kept. Scope the report by campaign IDs to read the rest.';
+/**
  * A detailed source proves its account's whole population before a scope narrows it, so an ID the scope names that is in
  * no entity of it is known, not a silent empty result (V2-RPT-07).
  */

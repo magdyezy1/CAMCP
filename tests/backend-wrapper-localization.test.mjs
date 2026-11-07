@@ -332,7 +332,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Web-report adds the singular forms of two row-count messages (F-L8-12); none is a wrapper reason.
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
   // Package engine-core adds four website messages (the levels of a source that could not be collected, F-L5-10; the selected IDs that matched no returned row, F-L5-27; the count of a figure built from native measurements, F-L5-31; the source collected again after an earlier platform contract, F-L5-16) and two reasons (a level that could not be collected in a cross-level pair, F-L5-10, and a figure past the calculation limits, F-L9-01), and deletes the two entries of the dead overviewV4Sum and overviewV4Ratio (F-L5-28): 11,817 + 2.
-  assert.equal(Object.keys(catalog).length, 11819);
+  // Package results adds the TikTok ad group results warning (F-L5-19): + 1.
+  // Package results adds the mapped-result line of a report row and the mapped-result limitation (F-L5-12): + 2.
+  // Package results removes the Apple refusal of more than 100 campaigns, which no code says any more (item 10): - 1.
+  // Package results adds the reason a cost per result target cannot be compared with a conversion value (F-L5-13): + 1.
+  // Merge B (engine-core and results both start from 11,815 on their base; their additions do not overlap): measured on the merged
+  // catalogue, 11,815 + 4 (engine-core) + 3 (results) = 11,822.
+  assert.equal(Object.keys(catalog).length, 11822);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

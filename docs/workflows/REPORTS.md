@@ -37,6 +37,11 @@ remaining collection time and does not interrupt advertising mutations. A limit 
 explicit missing-source/period errors. Narrow the next run rather than retrying for a fresh allowance. Legacy
 partially collected jobs without counters require a new run (`REPORT_RESTART_REQUIRED`).
 
+A level that reads an account campaign by campaign (Snapchat's ad squad level, Apple's ad group and ad levels) has no
+bound on campaigns of its own: each costs a request, and the allowance is the bound. When it ends after at least one
+campaign is finished, the report keeps the campaigns it read, is partial, and says "n of m campaigns read" in a warning;
+the next run is narrowed by campaign IDs. With no campaign read, the limit error itself is raised.
+
 TikTok integrated aggregation requires consistent native page counts and stable totals, with unique requested
 dimension tuples. Rows without page counts, overlapping rows and malformed grain fail the source before Overview
 retains metrics; a short collection stays partial, and an empty report needs no page counts. Native page metadata

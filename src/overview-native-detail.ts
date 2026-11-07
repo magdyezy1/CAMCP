@@ -193,11 +193,20 @@ export function appleDetail(
     const spend = totals.localSpend;
     if (spend !== undefined && spend !== null && (!object(spend) || (currency && spend.currency !== currency)))
       throw new MirrorError('REPORT_CURRENCY_MISMATCH', 'Apple returned a different account currency.', {}, 502);
-    const ad = level === 'ad' ? ads.get(id) : undefined,
-      group = groups.get(level === 'ad' ? idText(ad?.adGroupId) : id),
-      campaignId = idText((ad ?? group)?.campaignId);
-    // Parents come only from the account's own records, and must agree with each other.
-    if (ad && group && idText(group.campaignId) !== idText(ad.campaignId))
+    // The entity queries leave a deleted ad group or ad out (Apple's pages say so), but its report row names its own campaign
+    // and, for an ad, its ad group; those are its parents, so a scope by campaign keeps the row (F-L7-02, found not fixed).
+    const rowCampaign = idText(metadata.campaignId),
+      rowGroup = level === 'ad' ? idText(metadata.adGroupId) : undefined,
+      ad = level === 'ad' ? ads.get(id) : undefined,
+      groupId = level === 'ad' ? (idText(ad?.adGroupId) ?? rowGroup) : id,
+      group = groups.get(groupId),
+      campaignId = idText((ad ?? group)?.campaignId) ?? rowCampaign;
+    // Parents come from the account's own records and the report row, and must agree with each other.
+    if (
+      (ad && group && idText(group.campaignId) !== idText(ad.campaignId)) ||
+      (rowCampaign !== undefined && campaignId !== rowCampaign) ||
+      (rowGroup !== undefined && groupId !== rowGroup)
+    )
       foreign('The detailed entity changed native parents during collection.');
     parents[id!] =
       campaignId === undefined
@@ -206,7 +215,7 @@ export function appleDetail(
             ...(v4 ? {entity_metadata: level === 'ad' ? ad : group} : {}),
             campaign_id: campaignId,
             campaign_name: name(campaigns.get(campaignId)?.name),
-            ...(level === 'ad' && group ? {adset_id: idText(group.id), adset_name: name(group.name)} : {}),
+            ...(level === 'ad' && groupId !== undefined ? {adset_id: groupId, adset_name: name(group?.name)} : {}),
           };
     out.push(
       mapped(id!, name(metadata.name), {

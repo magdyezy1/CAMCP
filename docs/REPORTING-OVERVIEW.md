@@ -411,6 +411,11 @@ the complete bounded population before narrowing scope.
 - Frozen checkpoints bind the request plan/active hash; detail also binds current authority. Incompatible reuse
   refuses with `REPORT_DEFINITION_CHANGED` or an authority error.
 - `AMCP_X_ACTIVE_ENTITIES=campaigns` retains active IDs but widens their reporting window; `off` uses inventory.
+- **Time zones.** X reports whole UTC hours. An account whose days start on a half or quarter hour (Asia/Kolkata, for
+  example) is read over the whole UTC hours that contain its days, and each boundary hour belongs to the local day
+  holding its midpoint, so adjacent days never count an hour twice. The source says so in a warning, and exact
+  fractional-hour totals are unavailable. A day whose local midnight is skipped by a clock change starts at its first
+  valid instant, for X and for Snapchat.
 
 Reports request ALL_ON_TWITTER, SPOTLIGHT and TREND. PUBLISHER_NETWORK remains unrequested pending
 [owner acceptance](acceptance/READ-ACCEPTANCE.md): reported activity there makes coverage partial, excludes its spend
@@ -525,6 +530,8 @@ unavailable. These definitions and the other supported metrics are supplied by `
 <!-- overview-default-metrics:end -->
 
 - Common metrics include spend, impressions, clicks/taps/swipes, primary conversions, revenue, reach, video views, CTR, CPC, CPM, CPA and ROAS where available. Missing data stays blank, not zero.
+- **Meta results.** A Meta row's result is mapped by AMCP from documented fields, not read from Meta's insights `results` column: the ad set's optimization goal selects link clicks, impressions or reach, or the first reported lead, app install or post engagement action (or the one exact action set in `result_action_type`). AMCP still requests `results` and keeps it in the snapshot evidence, but does not parse it until its shape is checked against a live read, which has not been done. A mapped result says so: the row's source details name the native field it came from, the CSV, Excel and Sheets exports add a `Result mapped from` column, and the PDF, Excel and report-pack limitations say mapped results are not the platform's own result column.
+- **Value-based bidding (Google).** A Google campaign whose `campaign.bidding_strategy_type` is `TARGET_ROAS` or `MAXIMIZE_CONVERSION_VALUE` is measured by its conversion value: the row's result is that value, a money result with its own definition ID (`google:conversion_value`), so it is never added to a conversion count. Its ROAS is on the row and summary, its conversions stay in the metrics, and it has no cost per result (spend per unit of value is only the inverse of ROAS), so with no target it is asked for ROAS, and a cost per result target gets **Needs review**. Advice checks its minimum sample against conversions, not value. Other or missing strategies keep primary conversions. Microsoft stays on conversions: its performance reports have no bidding strategy column.
 - **Additional native metrics** accepts supported provider field identifiers, with examples per platform. Returned native fields retain a platform prefix and become selectable and usable in formulas. Incompatible metric/breakdown combinations return a source error.
 - Custom formulas support named identifiers, arithmetic and parentheses: `conversion_value - spend`, `spend / leads`, or `(conversion_value - spend) / spend * 100`. Choose number, percentage or currency formatting. A bounded parser rejects cycles, unknown fields and unsafe identifiers without evaluating JavaScript. Missing operands or division by zero yield unavailable values.
 - Set per-objective KPI targets, direction (higher/lower is better), minimum sample and conversion lag. Monetary targets require a currency. Rolling windows can skip recent days for conversion maturity.

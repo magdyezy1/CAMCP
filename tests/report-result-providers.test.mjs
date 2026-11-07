@@ -96,7 +96,13 @@ test('LinkedIn preserves one-click leads separately from qualified leads and use
   );
 });
 
-test('Meta optional exact action override and delivered omitted-action policy do not fabricate a native result shape', () => {
+// Package results (F-L5-12): this pins the TEMPORARY mapped path, not the requirement. The acceptance line ("a Meta row's
+// result equals insights `results`") stays open until the owner's live read pins that column's shape; until then a Meta
+// result is mapped from documented fields (actions, link clicks, impressions, reach), the request still asks for `results`
+// so the snapshot records it, and a present but unverified `results` never changes the mapped number. The rows say so
+// (tests/report-result-source-label.test.mjs). When the live pin lands, the `results` figure of the fixtures replaces the
+// `unverified` placeholder below and the assertions flip to the native value.
+test('Meta maps its result from documented fields while insights results stay unparsed (temporary path; the owner’s live pin is open)', () => {
   const raw = {
     optimization_goal: 'LINK_CLICKS',
     inline_link_clicks: '3',
@@ -191,6 +197,40 @@ test('TikTok uses native result and cost, never a campaign dash or legacy conver
     null,
     'an unpinned result never acquires an invented derived cost',
   );
+});
+
+test('TikTok REACH prices a derived cost per 1,000 reached, as LinkedIn, Meta, Reddit and X do (package results)', () => {
+  const reach = {optimization_goal: 'REACH', metrics: {result: '2000', spend: '10'}};
+  const derived = result('tiktok', reach);
+  assert.equal(derived.result.value, '2000');
+  assert.equal(derived.definition.cost_multiplier, 1000);
+  assert.equal(derived.result.cost_per_result, '5');
+  assert.equal(derived.cost_source, 'derived');
+  // The same inputs give the same price on every platform that declares the per-thousand unit.
+  assert.equal(result('meta', {optimization_goal: 'REACH', reach: '2000', spend: '10'}).result.cost_per_result, '5');
+  assert.equal(
+    result('x', {objective: 'REACH', native_metrics: {impressions: '2000', billed_charge_local_micro: '10000000'}})
+      .result.cost_per_result,
+    '5',
+  );
+  // TikTok's own cost is preferred whenever it sends one, and stays native.
+  const native = result('tiktok', {...reach, metrics: {...reach.metrics, cost_per_result: '4.8'}});
+  assert.equal(native.result.cost_per_result, '4.8');
+  assert.equal(native.cost_source, 'provider');
+  // Only reach is priced per thousand: a click goal with the same numbers keeps one unit per result.
+  const clicks = result('tiktok', {optimization_goal: 'CLICK', metrics: {result: '2000', spend: '10'}});
+  assert.equal(clicks.definition.cost_multiplier, undefined);
+  assert.equal(clicks.result.cost_per_result, '0.005');
+  // One REACH ad group alone keeps its priced result at the campaign; several are never added.
+  const groups = tiktokCampaignResultGroups([{goal: 'REACH', raw: reach}], {
+    ...context,
+    currency: 'SAR',
+    scope: 'campaign:123:window',
+  });
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].result.value, '2000');
+  assert.equal(groups[0].result.cost_per_result, '5');
+  assert.equal(groups[0].definition.cost_multiplier, 1000);
 });
 
 test('TikTok campaign results combine only the same known goal and event; reach and missing values stay explicit', () => {

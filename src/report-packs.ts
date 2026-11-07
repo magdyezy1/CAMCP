@@ -6,6 +6,7 @@ import type {Actor, JsonObject} from './types.js';
 import {reportPlatforms, recommendationValidityMs} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {presentationProfilePage} from './report-repository.js';
+import {reportResultMappedFrom} from './report-table.js';
 export const defaultPresentation = {brand_name: '', accent_color: '#354B67', footer: '', template: 'standard'};
 export function presentationStyle(value: JsonObject = {}) {
   validate(value, ['brand_name', 'accent_color', 'footer', 'template', 'artifact_language'], 4096, 'presentation');
@@ -217,6 +218,12 @@ export function reportPack(
     limitations: [
       'Account currencies, timezones, attribution and conversion definitions remain separate.',
       'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.',
+      // F-L5-12: a mapped result is AMCP's choice among the platform's reported fields (the Result mapped from column).
+      ...((report.rows ?? []).some((row: JsonObject) => reportResultMappedFrom(row) !== '')
+        ? [
+            'Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.',
+          ]
+        : []),
       'Recommendations are advisory; a separate review is required for advertising changes.',
       ...(expired ? ['Recommendations in this snapshot have expired. Refresh the report before acting on them.'] : []),
     ],

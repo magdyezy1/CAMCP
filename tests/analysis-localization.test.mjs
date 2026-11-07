@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {campaignRecommendation} from '../dist/src/report-metrics.js';
+import {recommendationV4} from '../dist/src/report-advice-v4.js';
 import {snapchatAllowanceWarning} from '../dist/src/snapchat-overview-detail.js';
+import {campaignAllowanceWarning} from '../dist/src/report-source.js';
 import * as localeChecks from '../tools/check-locales.mjs';
 
 function fixture(locale = 'ar') {
@@ -108,6 +110,54 @@ test('Arabic target explanations use structured metadata and preserve unknown an
   }
 });
 
+test('a conversion value under a cost per result target says why in English and Arabic, as authored report copy (package results)', () => {
+  // A value-based row: its result is money, so it has no cost per result for a cost per result target to be compared with.
+  const advice = recommendationV4(
+      {
+        ...nativeRow(),
+        result: {value: '600', cost_per_result: null, definition_id: 'google:conversion_value'},
+        result_context: {definition: {unit: 'currency', aggregation: 'sum'}},
+      },
+      {sales: {target: 5, currency: 'SAR'}},
+    ),
+    ar = fixture(),
+    en = fixture('en');
+  assert.equal(advice.decision, 'needs_review');
+  assert.match(advice.reason, /cost per result target cannot be compared with it/);
+  // The locale inventory reads it as authored copy, so the interface must carry it and the catalogue must translate it.
+  const inventory = localeChecks.checkWebLocales();
+  assert.equal(inventory.sources.get('server:report-explanations').has(advice.reason), true);
+  assert.deepEqual(inventory.problems, []);
+  ar.context.rec = en.context.rec = advice;
+  const text = ar.run('uiRecommendationReason(rec)');
+  assert.equal(text, ar.context.catalog[advice.reason]);
+  assert.match(text, /[؀-ۿ]/u);
+  assert.equal(en.run('uiRecommendationReason(rec)'), advice.reason);
+});
+
+test('a value-based row with no target is asked for a ROAS target, translated from the existing parameters (package results)', () => {
+  // The prompt is structured: the website fills one authored template with the KPI and the currency, so no new copy is needed.
+  const advice = recommendationV4(
+      {
+        ...nativeRow(),
+        result: {value: '600', cost_per_result: null, definition_id: 'google:conversion_value'},
+        result_context: {definition: {unit: 'currency', aggregation: 'sum'}},
+      },
+      {},
+    ),
+    ar = fixture(),
+    en = fixture('en'),
+    template = 'Set a {kpi} target in {currency} for this objective or campaign.';
+  assert.equal(advice.decision, 'needs_target');
+  assert.equal(advice.reason, 'Set a ROAS target in SAR for this objective or campaign.');
+  assert.deepEqual(advice.reason_localization, {key: 'target_required', kpi: 'ROAS', currency: 'SAR'});
+  ar.context.rec = en.context.rec = advice;
+  const text = ar.run('uiRecommendationReason(rec)');
+  assert.equal(text, ar.context.catalog[template].replace('{kpi}', 'ROAS').replace('{currency}', 'SAR'));
+  assert.match(text, /[؀-ۿ]/u);
+  assert.equal(en.run('uiRecommendationReason(rec)'), advice.reason);
+});
+
 test('report explanation extraction follows only authored explanation positions, leaving native protocol and context data alone', () => {
   assert.equal(typeof localeChecks.inspectReportExplanations, 'function');
   const source = `const result=(decision,reason)=>({decision,reason});
@@ -155,6 +205,11 @@ test('collector warnings with a count or field name translate through fixed temp
       'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
       'TikTok',
     ],
+    // Package results (F-L5-19): the campaign keeps its spend when the ad group report that names its result fails.
+    [
+      'TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.',
+      'TikTok',
+    ],
   ];
   for (const [warning, value] of warnings) {
     ar.context.warning = warning;
@@ -172,6 +227,17 @@ test('collector warnings with a count or field name translate through fixed temp
   ar.context.message =
     'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.';
   assert.match(ar.run('uiReportExplanation(message)'), /[؀-ۿ]/);
+});
+
+test('Apple says the allowance warning in the sentence Snapchat does, so one template translates both (package results)', () => {
+  const ar = fixture(),
+    en = fixture('en');
+  assert.equal(campaignAllowanceWarning(8, 30), snapchatAllowanceWarning(8, 30));
+  ar.context.warning = en.context.warning = campaignAllowanceWarning(8, 30);
+  const text = ar.run('uiSourceWarning(warning)');
+  assert.match(text, /[؀-ۿ]/);
+  assert.ok(text.includes('8') && text.includes('30'), text);
+  assert.equal(en.run('uiSourceWarning(warning)'), campaignAllowanceWarning(8, 30));
 });
 
 test('the Snapchat allowance warning translates through its template and keeps both counts', () => {

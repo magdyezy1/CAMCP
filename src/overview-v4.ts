@@ -21,6 +21,11 @@ export interface OverviewV4Capabilities {
   /** A provider-owned URN prefix when reports and parent metadata spell the same native identity differently. */
   scope_id_prefixes?: Readonly<Record<string, string>>;
   scope_id_pattern?: string;
+  /**
+   * The ID a scope selects a row by, when the provider names the row by something other than the ID a person copies from
+   * its console (Google names an ad by its resource name). Absent or undefined: the row's own entity_id is the scope ID.
+   */
+  scopeEntityId?(row: JsonObject, level: string): string | undefined;
   /** Old scalar parent filters become the same native ID scope used by the current editor. */
   scope_aliases?: Readonly<Record<string, 'campaign_ids' | 'adset_ids' | 'ad_ids'>>;
   validateOptions?(options: JsonObject, context: {levels: readonly string[]}): void;
@@ -448,7 +453,7 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
   const selected = rows.filter(row => {
     const parents = row.parent_ids ?? {},
       level = row.entity_level ?? source.level ?? 'campaign',
-      own = row.entity_id ?? row.campaign_id,
+      own = capabilities?.scopeEntityId?.(row, level) ?? row.entity_id ?? row.campaign_id,
       values = {
         campaign_ids: level === 'campaign' ? own : (parents.campaign_id ?? row.campaign_id),
         adset_ids: level === 'adset' ? own : parents.adset_id,

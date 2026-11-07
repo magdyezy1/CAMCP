@@ -406,6 +406,21 @@ export function objectiveGroup(value: unknown): string {
   if (/AWARENESS|REACH|IMPRESSION|BRAND/.test(s)) return 'awareness';
   return 'unknown';
 }
+/**
+ * The value a platform's v3 row takes for the objective group of its native objective: `values.leads`,
+ * `values.app_installs` or `values.sales`, and `none` for every other group. The one place that reads the group's regex
+ * for that choice, so a platform names what each group means instead of repeating the test.
+ */
+export function byObjectiveGroup<T>(objective: unknown, values: {leads: T; app_installs: T; sales: T}, none: T): T {
+  const group = objectiveGroup(objective);
+  return group === 'leads'
+    ? values.leads
+    : group === 'app_installs'
+      ? values.app_installs
+      : group === 'sales'
+        ? values.sales
+        : none;
+}
 export interface ReportAdviceMath {
   formula(formula: string, values: JsonObject): string | null;
   compare(a: unknown, b: unknown, factor?: unknown): number;
@@ -483,15 +498,22 @@ export function campaignRecommendation(
             : null
         : m[metric],
     target = metricNumber(p.target);
-  if (target === null || target <= 0)
+  if (target === null || target <= 0) {
+    // F-L5-13: a result counted in money has no cost per result to set a target for, so a row that falls to the default KPI
+    // is asked for its return instead. A target that names its own KPI keeps it.
+    const asked =
+      p.kpi === undefined && metric === 'cost_per_result' && row.result_context?.definition?.unit === 'currency'
+        ? 'roas'
+        : metric;
     return {
       ...result(
         'needs_target',
-        'Set a ' + metric.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
-        {kpi: metric},
+        'Set a ' + asked.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
+        {kpi: asked},
       ),
-      reason_localization: {key: 'target_required', kpi: metric.toUpperCase(), currency: row.currency},
+      reason_localization: {key: 'target_required', kpi: asked.toUpperCase(), currency: row.currency},
     };
+  }
   if (p.currency !== row.currency)
     return result('needs_review', 'The target currency must match the campaign account currency.', {
       target_currency: p.currency ?? null,
@@ -588,6 +610,14 @@ export function campaignRecommendation(
           ? {results_basis: 'provider_omitted'}
           : {}),
       },
+    );
+  // F-L5-13: a result counted in money (a value-based campaign's conversion value) has a return, not a cost, so a target
+  // that is a cost per result cannot be compared with it. That is not a small sample: more results would not help.
+  if (metric === 'cost_per_result' && row.result_context?.definition?.unit === 'currency')
+    return result(
+      'needs_review',
+      'This campaign’s result is a conversion value, so a cost per result target cannot be compared with it. Set a return on ad spend target for it, or review it by hand.',
+      {kpi: metric},
     );
   if (n == null || n < minimum || actual == null)
     return result('insufficient_data', 'Wait for enough results to distinguish a signal from a small sample.', {

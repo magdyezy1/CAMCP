@@ -1,6 +1,12 @@
 import {MirrorError} from './errors.js';
 import {appleDetail} from './overview-native-detail.js';
-import {detailParentsUnavailableWarning, optionalReadRefused, type ReportCollection} from './report-source.js';
+import {collectionAllowance, collectionAllowanceEnded} from './report-collection-budget.js';
+import {
+  campaignAllowanceWarning,
+  detailParentsUnavailableWarning,
+  optionalReadRefused,
+  type ReportCollection,
+} from './report-source.js';
 import {appleQueryBounds, appleQueryPages, appleSafeId, type AppleList} from './apple-report-pages.js';
 import type {JsonObject} from './types.js';
 
@@ -14,6 +20,15 @@ const object = (value: unknown): value is JsonObject => !!value && typeof value 
 export const appleDetailRequests = (level: string, scopedCampaigns: number) =>
   1 + (scopedCampaigns ? 0 : 1) + (scopedCampaigns || 1) + (level === 'ad' ? 3 : 2);
 
+/**
+ * The fewest requests the parents of `rows` report rows over `campaigns` campaigns need: one for each batch of at most
+ * 1,000 IDs of each list (ads, ad groups, campaigns), each batch being a page when the server holds a page of that size.
+ */
+const appleParentRequests = (level: string, rows: number, campaigns: number) => {
+  const batches = (count: number) => Math.max(1, Math.ceil(count / appleQueryBounds.ids_per_query));
+  return (level === 'ad' ? batches(rows) : 0) + batches(rows) + batches(campaigns);
+};
+
 const foreign = (message: string): never => {
   throw new MirrorError('REPORT_ACCOUNT_MISMATCH', message, {}, 502);
 };
@@ -22,7 +37,13 @@ const foreign = (message: string): never => {
  * The ad group and ad levels (RPT-07, Task 13). Apple's ad group and ad reports need the campaign ID in their filters, so
  * each campaign with activity in the window (found by the campaign report, or named by the scope) is read as a report of its
  * own, every report to its last page; the parents of the rows come from the account's own entity queries, in batches of
- * IDs, each to its last page. Whatever exceeds a bound (src/apple-report-pages.ts) refuses; nothing is shortened.
+ * IDs, each to its last page. Whatever exceeds a bound of one list (src/apple-report-pages.ts) refuses; nothing is shortened.
+ *
+ * The number of campaigns has no bound of its own: each costs a request, so the whole-job allowance is the bound, and the
+ * same rule as for every platform that reads an account campaign by campaign holds. Once at least one campaign is read, the
+ * next is started only while the allowance still pays for its report and for the parents of everything read; an allowance
+ * that ends inside a campaign's report drops that campaign whole. The campaigns read are kept, the report is partial, and
+ * a warning names how many of how many were read. With no campaign read, the limit error itself is raised.
  */
 export async function collectAppleDetail(c: ReportCollection) {
   const detail = c.detail === 'ad' ? 'ad' : 'adset',
@@ -57,29 +78,37 @@ export async function collectAppleDetail(c: ReportCollection) {
         502,
       );
   }
-  if (campaigns.length > appleQueryBounds.campaigns)
-    throw new MirrorError(
-      'REPORT_COLLECTION_LIMIT',
-      'Apple reports are read one campaign at a time, and this report covers {count} campaigns; the most a report reads is {limit}. Choose fewer campaigns by campaign ID, or narrow the date range.',
-      {},
-      422,
-      false,
-      {count: campaigns.length, limit: appleQueryBounds.campaigns},
-    );
   const raw: JsonObject[] = [];
+  let finished = 0,
+    stopped: {dimension: unknown} | undefined;
   for (const campaign of campaigns) {
-    const read = await appleQueryPages(
-      c,
-      {
-        kind: 'report',
-        list,
-        path: '/v1/reports/apps/' + entity + '/query',
-        action: 'apple_ads_v1_reports_apps_' + entity,
-        stage: 'detail_report',
-        body: {timeRange, filters: [{field: 'campaignId', operator: 'EQUALS', value: campaign}]},
-      },
-      appleQueryBounds.rows - raw.length,
-    );
+    if (
+      finished &&
+      (collectionAllowance()?.requests ?? Infinity) < 1 + appleParentRequests(detail, raw.length, finished + 1)
+    ) {
+      stopped = {dimension: 'requests'};
+      break;
+    }
+    let read: Awaited<ReturnType<typeof appleQueryPages>>;
+    try {
+      read = await appleQueryPages(
+        c,
+        {
+          kind: 'report',
+          list,
+          path: '/v1/reports/apps/' + entity + '/query',
+          action: 'apple_ads_v1_reports_apps_' + entity,
+          stage: 'detail_report',
+          body: {timeRange, filters: [{field: 'campaignId', operator: 'EQUALS', value: campaign}]},
+        },
+        appleQueryBounds.rows - raw.length,
+      );
+    } catch (error) {
+      // The allowance ended inside this campaign's report: with at least one campaign finished, the collection ends there.
+      if (!finished || !collectionAllowanceEnded(error)) throw error;
+      stopped = {dimension: error.details.dimension};
+      break;
+    }
     reportPages += read.pages;
     for (const row of read.rows) {
       const metadata = row.metadata;
@@ -89,6 +118,7 @@ export async function collectAppleDetail(c: ReportCollection) {
         foreign('Apple returned a report row of another campaign than the one requested.');
     }
     raw.push(...read.rows);
+    finished++;
   }
   c.raw = raw;
   const distinct = (rows: JsonObject[], key: string) =>
@@ -132,14 +162,29 @@ export async function collectAppleDetail(c: ReportCollection) {
   try {
     const ads = detail === 'ad' ? await parents('ads', ids) : [],
       adGroups = await parents('adgroups', detail === 'ad' ? distinct(ads, 'adGroupId') : ids),
+      // The campaigns of the rows, not only of the records the account still holds: a row of a deleted ad group or ad
+      // names its own campaign, and the campaign's name is read for it too.
       campaignRecords = await parents('campaigns', [
-        ...new Set([...distinct(adGroups, 'campaignId'), ...distinct(ads, 'campaignId')]),
+        ...new Set([
+          ...distinct(adGroups, 'campaignId'),
+          ...distinct(ads, 'campaignId'),
+          ...distinct(
+            raw.map(row => row.metadata ?? {}),
+            'campaignId',
+          ),
+        ]),
       ]);
     lists = {campaigns: campaignRecords, adGroups, ads};
   } catch (e) {
-    // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels).
-    if (!optionalReadRefused(e)) throw e;
+    // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels), and so does
+    // an allowance that already ended the collection: it cannot pay for them, and the rows it did read are kept.
+    if (!optionalReadRefused(e) && !(stopped && collectionAllowanceEnded(e))) throw e;
     c.warnings.push(detailParentsUnavailableWarning);
+  }
+  if (stopped) {
+    c.complete = false;
+    c.collectionComplete = false;
+    c.warnings.push(campaignAllowanceWarning(finished, campaigns.length));
   }
   c.resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
   c.detailRows = appleDetail(
@@ -153,10 +198,16 @@ export async function collectAppleDetail(c: ReportCollection) {
   c.context.native_population = {
     basis: scoped ? 'scope' : 'campaign_report',
     campaigns_observed: campaigns.length,
+    campaigns_collected: finished,
     rows: raw.length,
     report_pages: reportPages,
     parent_pages: parentPages,
+    // The campaigns were proven complete; whether every one of them was read is `collection_complete`.
     complete: true,
+    collection_complete: !stopped,
     bounds: {...appleQueryBounds},
+    ...(stopped
+      ? {stopped: {campaigns_read: finished, campaigns_selected: campaigns.length, dimension: stopped.dimension}}
+      : {}),
   };
 }

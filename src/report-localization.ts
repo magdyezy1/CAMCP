@@ -31,6 +31,7 @@ const arabic: Record<string, string> = {
   'Campaign rows': 'صفوف الحملات',
   'Entity rows': 'صفوف الكيانات الإعلانية',
   Aggregation: 'التجميع',
+  'Result mapped from': 'النتيجة معيّنة من',
   'Rolled up from selected ads': 'مجمّع من الإعلانات المحددة',
   'Rolled up from selected child entities': 'مجمّع من الكيانات الفرعية المحددة',
   'Entity level': 'مستوى الكيان',
@@ -121,6 +122,8 @@ const arabic: Record<string, string> = {
     'تبقى عملات الحسابات ومناطقها الزمنية وتعريفات الإسناد والتحويل منفصلة.',
   'Reach and frequency are not summed. Calculated ratios come from compatible additive totals.':
     'لا يُجمع الوصول أو التكرار. تُحسب النسب من إجماليات متوافقة قابلة للجمع.',
+  'Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.':
+    'النتائج المعروضة على أنها معيّنة تختارها AMCP من الحقول التي تُبلغ عنها المنصة؛ ولا تُقرأ من عمود نتائج خاص بالمنصة نفسها.',
   'Recommendations are advisory; a separate review is required for advertising changes.':
     'التوصيات إرشادية؛ وتتطلب تغييرات الإعلانات مراجعة منفصلة.',
   'Recommendations in this snapshot have expired. Refresh the report before acting on them.':

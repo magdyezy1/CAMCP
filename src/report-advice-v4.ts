@@ -40,14 +40,22 @@ export function recommendationV4(
   const p =
       policy[row.campaign_key] ?? policy[row.objective_group + ':' + row.currency] ?? policy[row.objective_group] ?? {},
     definitions = {...metricDefinitions, ...Object.fromEntries(custom.map(metric => [metric.id, metric]))},
+    // A result counted in money (a value-based campaign's conversion value) is not a sample size: the guard that asks for
+    // enough results counts the conversions behind it, so one large sale never clears a minimum of ten (F-L5-13).
+    counted = row.result_context?.definition?.unit === 'currency',
     needed = new Set<string>([
       'spend',
       'primary_result',
       'cost_per_result',
       p.kpi ?? 'cost_per_result',
       p.result_metric ?? 'primary_result',
+      ...(counted ? ['conversions'] : []),
     ]),
-    numeric = {...row.metrics, primary_result: row.result.value, cost_per_result: row.result.cost_per_result};
+    numeric = {
+      ...row.metrics,
+      primary_result: counted ? row.metrics.conversions : row.result.value,
+      cost_per_result: row.result.cost_per_result,
+    };
   if (p.kpi === 'cost_per_engagement') needed.add('engagements');
   if (p.context?.secondary_kpi?.kpi) needed.add(p.context.secondary_kpi.kpi);
   // One seen set for the whole walk: every metric is expanded once, however many metrics depend on it (F-L9-01). It

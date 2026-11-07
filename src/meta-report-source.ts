@@ -2,7 +2,7 @@ import {metaWindowsOrdered} from './meta-attribution-windows.js';
 import {metaGuidedReporting} from './meta-guided-reports.js';
 import {metaCampaignRows} from './meta-report.js';
 import {metaPrefix} from './meta-version.js';
-import {metricNumber, objectiveGroup} from './report-metrics.js';
+import {byObjectiveGroup, metricNumber} from './report-metrics.js';
 import {overviewCapabilities, invalidReportSource, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {metaMappedResult, metaResultRules} from './meta-report-results.js';
@@ -152,14 +152,11 @@ export const metaReportSource: ReportSource = {
     const leads = action('leads', ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
       purchases = action('purchases', ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
       installs = action('installs', ['mobile_app_install', 'app_install']),
-      result: [number | string | null, string] | undefined =
-        objectiveGroup(objective) === 'leads'
-          ? [leads, 'leads']
-          : objectiveGroup(objective) === 'app_installs'
-            ? [installs, 'installs']
-            : objectiveGroup(objective) === 'sales'
-              ? [purchases, 'purchases']
-              : undefined;
+      result = byObjectiveGroup<[number | string | null, string] | undefined>(
+        objective,
+        {leads: [leads, 'leads'], app_installs: [installs, 'installs'], sales: [purchases, 'purchases']},
+        undefined,
+      );
     if (result && omitted.has(result[1])) omitted.add('conversions');
     return {
       id: raw.campaign_id,

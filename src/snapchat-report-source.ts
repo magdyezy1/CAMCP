@@ -1,4 +1,4 @@
-import {objectiveGroup} from './report-metrics.js';
+import {byObjectiveGroup} from './report-metrics.js';
 import {overviewCapabilities, invalidReportSource, nextDay, reportList, type ReportSource} from './report-source.js';
 import {snapchatDetailParents} from './snapchat-detail-parents.js';
 import {snapchatGuidedReporting} from './snapchat-guided-reports.js';
@@ -222,14 +222,11 @@ export const snapchatReportSource: ReportSource = {
       video_views: value(m.video_views),
       video_completions: value(m.view_completion),
     };
-    metrics.conversions =
-      objectiveGroup(objective) === 'app_installs'
-        ? metrics.installs
-        : objectiveGroup(objective) === 'leads'
-          ? metrics.leads
-          : objectiveGroup(objective) === 'sales'
-            ? metrics.purchases
-            : null;
+    metrics.conversions = byObjectiveGroup(
+      objective,
+      {leads: metrics.leads, app_installs: metrics.installs, sales: metrics.purchases},
+      null,
+    );
     return {id: raw.id, name: raw.name, objective, metrics};
   },
   // Wave 4c round 6 (w4c-arc6-reporting): the native parents of its detailed ad rows (RPT-07).

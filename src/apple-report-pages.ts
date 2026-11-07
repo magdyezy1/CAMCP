@@ -15,8 +15,6 @@ export const appleQueryBounds = Object.freeze({
   pages: 25,
   rows: 10000,
   ids_per_query: 1000,
-  /** Campaigns whose ad group or ad reports one period reads, each as a report of its own. */
-  campaigns: 100,
 });
 
 /** Apple IDs are JSON numbers; only safe integers can be requested and matched exactly. */

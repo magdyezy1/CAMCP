@@ -63,10 +63,21 @@ export function reportResultField(row: unknown, path: string): unknown {
   }
   return current;
 }
+/**
+ * What a source's selectors read: the goal (Meta, Snapchat, TikTok), the objective (Reddit, X, LinkedIn), the format
+ * (LinkedIn) and the bidding strategy the campaign is optimized by (Google). A selector that is not `required` lets an
+ * absent or unlisted value fall to the default.
+ */
+export interface ReportResultSelection {
+  goal?: unknown;
+  objective?: unknown;
+  format?: unknown;
+  bidding?: unknown;
+}
 /** Ordered native selectors: a required unknown selector cannot fall through to a misleading default. */
 export interface ReportResultRules {
   selectors: readonly {
-    field: 'goal' | 'objective' | 'format';
+    field: keyof ReportResultSelection;
     required?: boolean;
     values: Readonly<Record<string, ReportResultDefinition | null>>;
   }[];
@@ -74,7 +85,7 @@ export interface ReportResultRules {
 }
 export function selectReportResultDefinition(
   rules: ReportResultRules,
-  context: {goal?: unknown; objective?: unknown; format?: unknown},
+  context: ReportResultSelection,
 ): {definition: ReportResultDefinition | null; unavailable_reason: ResultUnavailableReason | null} {
   for (const selector of rules.selectors) {
     const value = Object.hasOwn(context, selector.field) ? context[selector.field] : undefined,
@@ -128,7 +139,12 @@ export function resolveReportResult(
     value = decimal(input.value, 'result', rounding, input.value_divisor),
     nativeCost = decimal(input.cost_per_result, 'cost_per_result', rounding, input.cost_divisor),
     spend = decimal(input.spend, 'spend', rounding, input.spend_divisor),
-    derived = nativeCost === null ? cost(spend, value, definition.cost_multiplier ?? 1, rounding) : null,
+    // A result counted in money (conversion value) has a return on spend, not a cost per result: spend per unit of
+    // value is only the inverse of ROAS, and read as a cost per conversion it would mislead. ROAS is its own metric.
+    derived =
+      nativeCost === null && definition.unit !== 'currency'
+        ? cost(spend, value, definition.cost_multiplier ?? 1, rounding)
+        : null,
     selectedCost = nativeCost ?? derived;
   return {
     definition,
@@ -148,7 +164,7 @@ export function resolveReportResult(
 /** A provider's pinned mapping. A field omitted by the provider remains unknown unless its adapter applies a rule. */
 export function mappedReportResult(
   rules: ReportResultRules,
-  context: {goal?: unknown; objective?: unknown; format?: unknown},
+  context: ReportResultSelection,
   row: unknown,
   input: Omit<ReportResultInput, 'value'>,
 ): ResolvedReportResult {
@@ -245,7 +261,7 @@ export function groupReportResults(rows: ReportResultGroupInput[]): ReportResult
       unverified = items.some(row => row.resolved.unavailable_reason === 'unsupported_goal'),
       nativeCost = items.length === 1 ? decimal(result.cost_per_result, 'cost_per_result', rounding) : null,
       aggregateCost =
-        blocked || currency === null
+        blocked || currency === null || definition?.unit === 'currency'
           ? null
           : (nativeCost ??
             (!unverified && pairs ? cost(pairedSpend, pairedValue, definition?.cost_multiplier ?? 1, rounding) : null));

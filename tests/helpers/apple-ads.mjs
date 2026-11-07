@@ -46,7 +46,7 @@ const campaignRow = i => ({
   },
   totalMetrics: metrics(i),
 });
-const groupRow = (i, k) => ({
+const groupRow = (i, k, deleted = false) => ({
   metadata: {
     id: groupOf(i, k),
     name: 'Group ' + i + '.' + k,
@@ -54,11 +54,11 @@ const groupRow = (i, k) => ({
     campaignId: campaignOf(i),
     status: 'ENABLED',
     pricingModel: 'CPT',
-    deleted: false,
+    deleted,
   },
   totalMetrics: metrics(i + k),
 });
-const adRow = (i, k, j) => ({
+const adRow = (i, k, j, deleted = false) => ({
   metadata: {
     id: adOf(i, k, j),
     name: 'Ad ' + i + '.' + k + '.' + j,
@@ -66,7 +66,7 @@ const adRow = (i, k, j) => ({
     campaignId: campaignOf(i),
     adGroupId: groupOf(i, k),
     status: 'ENABLED',
-    deleted: false,
+    deleted,
     creative: {id: 456789012, creativeType: 'DEFAULT_PRODUCT_PAGE', systemStatus: 'VALID'},
   },
   totalMetrics: metrics(i + k + j),
@@ -116,6 +116,11 @@ export function appleAccount({
   groups = 1,
   ads = 1,
   idle = () => false,
+  /**
+   * An ad group (`deleted('adgroup', i, k)`) or ad (`deleted('ad', i, k, j)`) deleted in the window: its report row is
+   * there, with `deleted: true`, and the entity queries leave it out, as Apple's pages say they do (Q3).
+   */
+  deleted = () => false,
   /** Rows one page holds at most, whatever size was asked: `{report, query}` (a short page with more to come). */
   cap = {},
   /** How `pagination` states the total: `count` (totalCount), `absent`, or `results` (the undocumented totalResults). */
@@ -172,8 +177,11 @@ export function appleAccount({
     if (entity === 'campaigns') return {count: live.length, row: n => campaignRow(live[n])};
     const i = campaignIndex(bare(filters.find(f => f.field === 'campaignId')?.value));
     if (i < 0 || idle(i)) return {count: 0, row: () => undefined};
-    if (entity === 'adgroups') return {count: groupsOf(i), row: n => groupRow(i, n)};
-    return {count: groupsOf(i) * ads, row: n => adRow(i, Math.floor(n / ads), n % ads)};
+    if (entity === 'adgroups') return {count: groupsOf(i), row: n => groupRow(i, n, deleted('adgroup', i, n))};
+    return {
+      count: groupsOf(i) * ads,
+      row: n => adRow(i, Math.floor(n / ads), n % ads, deleted('ad', i, Math.floor(n / ads), n % ads)),
+    };
   };
   const recordsOf = (entity, body) => {
     const ids = (body.filters ?? []).find(f => f.field === 'id')?.value ?? [];
@@ -182,8 +190,12 @@ export function appleAccount({
         entity === 'campaigns'
           ? campaignIndex(id) >= 0 && campaignRecord(campaignIndex(id))
           : entity === 'adgroups'
-            ? groupAt(id) && groupRecord(groupAt(id).i, groupAt(id).k)
-            : adAt(id) && adRecord(adAt(id).i, adAt(id).k, adAt(id).j),
+            ? groupAt(id) &&
+              !deleted('adgroup', groupAt(id).i, groupAt(id).k) &&
+              groupRecord(groupAt(id).i, groupAt(id).k)
+            : adAt(id) &&
+              !deleted('ad', adAt(id).i, adAt(id).k, adAt(id).j) &&
+              adRecord(adAt(id).i, adAt(id).k, adAt(id).j),
       )
       .filter(Boolean)
       .sort((a, b) => a.id - b.id);

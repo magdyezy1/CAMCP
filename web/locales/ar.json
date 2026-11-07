@@ -2887,6 +2887,7 @@
   "The target currency must match the campaign account currency.": "يجب أن تطابق عملة الهدف عملة حساب الحملة.",
   "Confirm attribution and the primary conversion definition before making budget recommendations.": "أكّد الإسناد وتعريف التحويل الأساسي قبل تقديم توصيات الميزانية.",
   "This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.": "تُحسَّن المجموعات الإعلانية في هذه الحملة لأحداث مختلفة، لذلك لا تمثّل تحويلاتها نتيجة واحدة. راجع كل مجموعة إعلانية قبل اتخاذ قرار بناءً على تكلفة النتيجة.",
+  "This campaign’s result is a conversion value, so a cost per result target cannot be compared with it. Set a return on ad spend target for it, or review it by hand.": "نتيجة هذه الحملة هي قيمة التحويلات، لذلك لا يمكن مقارنتها بهدف التكلفة لكل نتيجة. حدّد لها هدفًا للعائد على الإنفاق الإعلاني، أو راجعها يدويًا.",
   "TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.": "تغطي تقارير حملات TikTok حملات المزاد فقط (AUCTION_CAMPAIGN)؛ ولا تشمل حملات Reach & Frequency والحملات المحجوزة الأخرى.",
   "The reporting window needs an unambiguous account timezone boundary.": "تحتاج فترة التقرير إلى حدود زمنية واضحة وفق المنطقة الزمنية للحساب.",
   "The reporting window is still inside the configured conversion-lag period.": "لا تزال فترة التقرير ضمن مدة تأخر التحويل المحددة.",
@@ -11588,6 +11589,9 @@
   "TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–366 closed days, read in spans of 30 days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.": "تستخدم TikTok تواريخ يومية بحسب المنطقة الزمنية للمعلن لحملات المزاد القياسية ومجموعات الإعلانات والإعلانات. يُتحقّق من العملة والمنطقة الزمنية قبل الجمع وبعده. اختر 1–366 يومًا منتهيًا، تُقرأ على فترات من 30 يومًا. يتبع التحويل الأصلي هدف تحسين كل عنصر؛ وقد تختلف الأهداف. حدّد نوافذ الإسناد أو أدخل unknown. تقارير Smart+ وGMV Max منفصلة.",
   "TikTok’s totals differ from the rows returned.": "تختلف إجماليات TikTok عن الصفوف التي أعادتها.",
   "TikTok’s page counts disagreed with its rows; its totals match, so the collection is complete.": "لم تتطابق أعداد صفحات TikTok مع الصفوف التي أعادتها؛ لكن إجمالياتها متطابقة، لذا اكتمل الجمع.",
+  "TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.": "تعذّرت قراءة نتائج مجموعات إعلانات TikTok، لذلك نتائج الحملات غير معروفة. الإنفاق ومرات الظهور والنقرات دون تغيير.",
+  "Result mapped by AMCP from {field}, not read from a platform result column.": "النتيجة معيّنة من قِبل AMCP من الحقل {field}، ولم تُقرأ من عمود نتائج خاص بالمنصة.",
+  "Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.": "النتائج المعروضة على أنها معيّنة تختارها AMCP من الحقول التي تُبلغ عنها المنصة؛ ولا تُقرأ من عمود نتائج خاص بالمنصة نفسها.",
   "TikTok’s totals differ from the rows returned: {gaps}.": "تختلف إجماليات TikTok عن الصفوف التي أعادتها: {gaps}.",
   "{metric}: {rows} of {total}": "{metric}: {rows} من {total}",
   "Chosen for this campaign in the report.": "اختير هذا الهدف لهذه الحملة في التقرير.",
@@ -11815,7 +11819,6 @@
   "Apple changed the total it reported for {kind} while the list was read, so the list cannot be proven complete.": "غيّرت Apple الإجمالي الذي أبلغت عنه لـ {kind} أثناء قراءة القائمة، فلا يمكن إثبات اكتمال القائمة.",
   "Apple returned an empty page before the total it reported for {kind}, so the list cannot be proven complete.": "أعادت Apple صفحة فارغة قبل بلوغ الإجمالي الذي أبلغت عنه لـ {kind}، فلا يمكن إثبات اكتمال القائمة.",
   "Apple listed {kind} over more than 25 pages, the most a report reads, so the list cannot be proven complete.": "سردت Apple {kind} على أكثر من 25 صفحة، وهو أقصى ما يقرؤه التقرير، فلا يمكن إثبات اكتمال القائمة.",
-  "Apple reports are read one campaign at a time, and this report covers {count} campaigns; the most a report reads is {limit}. Choose fewer campaigns by campaign ID, or narrow the date range.": "تُقرأ تقارير Apple حملةً بعد حملة، ويشمل هذا التقرير {count} حملة، وأقصى ما يقرؤه التقرير هو {limit}. اختر عددًا أقل من الحملات بمعرّف الحملة، أو ضيّق النطاق الزمني.",
   "Apple returned a report row of another advertising account.": "أعادت Apple صفًّا في التقرير يخص حسابًا إعلانيًا آخر.",
   "Apple returned a report row of another campaign than the one requested.": "أعادت Apple صفًّا في التقرير يخص حملة غير الحملة المطلوبة."
 }
