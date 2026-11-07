@@ -208,10 +208,16 @@
       "raised": [
         "reference_words 150046 → 153268"
       ]
+    },
+    {
+      "reason": "V2-WEB-02 web-components: docs/LOCAL-BROWSER-QA.md lists the new rendered kind (--kinds components), as the page asks of each case family (98 words)",
+      "raised": [
+        "reference_words 153268 → 153366"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 153268
+    "reference_words": 153366
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
