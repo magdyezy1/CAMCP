@@ -132,7 +132,7 @@ test('the Terms state both deployment modes, independent of any session, and bot
     assert.ok(deletion.includes(text), text);
 });
 
-test('robots.txt, security.txt and favicon.ico answer with their own types; security.txt takes the owner contact', async () => {
+test('robots.txt and security.txt answer with their own types; security.txt takes the owner contact', async () => {
   const s = await site({AMCP_SECURITY_CONTACT: 'mailto:security@example.test'});
   try {
     const robots = await s.get('/robots.txt');
@@ -151,14 +151,6 @@ test('robots.txt, security.txt and favicon.ico answer with their own types; secu
     const expiresLine = new RegExp('^Expires: ' + securityTxtExpires.replaceAll('.', '\\.') + '$', 'm');
     assert.match(text, expiresLine);
     assert.equal(await (await s.get('/.well-known/security.txt')).text(), text);
-    // The mark is an SVG, so /favicon.ico points to its versioned address, whose type matches its path.
-    const favicon = await s.get('/favicon.ico');
-    assert.equal(favicon.status, 302);
-    assert.match(favicon.headers.get('location'), /^\/assets\/v\/[0-9a-f]{64}\/mark\.svg$/);
-    const mark = await s.get(favicon.headers.get('location'));
-    assert.equal(mark.status, 200);
-    assert.match(mark.headers.get('content-type'), /^image\/svg\+xml/);
-    assert.deepEqual(Buffer.from(await mark.arrayBuffer()), fs.readFileSync('web/mark.svg'));
   } finally {
     await s.close();
   }
@@ -178,6 +170,55 @@ test('robots.txt, security.txt and favicon.ico answer with their own types; secu
       securityTxt('https://amcp.shop', {AMCP_SECURITY_TXT_EXPIRES: value}),
       new RegExp('^Expires: ' + securityTxtExpires.replaceAll('.', '\\.') + '$', 'm'),
     );
+});
+
+// Package brand: the site's icons are the brand kit's binary files. Browsers ask for /favicon.ico and iOS for
+// /apple-touch-icon.png without any markup, so both root addresses point to the file at its own versioned address,
+// whose type matches its path (temporary, because the version changes with every deployment).
+test('favicon.ico and apple-touch-icon.png answer at their root addresses and under /assets with the kit’s exact bytes', async () => {
+  const s = await site();
+  try {
+    for (const [root, file, type] of [
+      ['/favicon.ico', 'favicon.ico', 'image/vnd.microsoft.icon'],
+      ['/apple-touch-icon.png', 'apple-touch-icon.png', 'image/png'],
+    ]) {
+      const bytes = fs.readFileSync('web/' + file),
+        encodings = {'accept-encoding': 'br, gzip'};
+      for (const method of ['GET', 'HEAD']) {
+        const moved = await s.get(root, {method});
+        assert.equal(moved.status, 302, method + ' ' + root);
+        assert.equal(moved.headers.get('cache-control'), 'no-cache', root);
+        assert.match(
+          moved.headers.get('location'),
+          new RegExp('^/assets/v/[0-9a-f]{64}/' + file.replace('.', '\\.') + '$'),
+        );
+        assert.equal(moved.headers.get('set-cookie'), null);
+      }
+      const location = (await s.get(root)).headers.get('location');
+      // The versioned address: immutable, the file's own bytes, no transfer encoding and no text conversion.
+      const versioned = await s.get(location, {headers: encodings});
+      assert.equal(versioned.status, 200, location);
+      assert.equal(versioned.headers.get('content-type'), type, location);
+      assert.equal(versioned.headers.get('cache-control'), 'public, max-age=31536000, immutable', location);
+      assert.equal(versioned.headers.get('content-encoding'), null, location);
+      assert.equal(versioned.headers.get('content-length'), String(bytes.length), location);
+      assert.deepEqual(Buffer.from(await versioned.arrayBuffer()), bytes, location);
+      const head = await s.get(location, {method: 'HEAD', headers: encodings});
+      assert.equal(head.status, 200, location);
+      assert.equal(head.headers.get('content-length'), String(bytes.length), location);
+      // The unversioned address keeps working and revalidates.
+      const plain = await s.get('/assets/' + file, {headers: encodings});
+      assert.equal(plain.status, 200, file);
+      assert.equal(plain.headers.get('content-type'), type, file);
+      assert.equal(plain.headers.get('cache-control'), 'no-cache', file);
+      assert.equal(plain.headers.get('content-encoding'), null, file);
+      assert.deepEqual(Buffer.from(await plain.arrayBuffer()), bytes, file);
+    }
+    assert.equal(s.sessions(), 0);
+    assert.equal(s.providerCalls(), 0);
+  } finally {
+    await s.close();
+  }
 });
 
 test('unknown pages get the branded 404 with the website policy; API, MCP, assets and OAuth discovery keep theirs', async () => {

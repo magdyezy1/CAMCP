@@ -496,6 +496,52 @@ test('versioned stylesheets bind their url() files to the same snapshot; the ver
   }
 });
 
+test('binary files (the icons) are served from the snapshot as they are: no text conversion, no compression, their own types', async () => {
+  const f = scratch();
+  // Bytes a text path would damage: NUL, CR LF pairs, a lone CR, and sequences that are not UTF-8.
+  const damaging = Buffer.from([0, 13, 10, 13, 13, 10, 10, 0xff, 0xfe, 0xc3, 0x28, 0xe2, 0x82, 0, 0x7f, 0x80, 0xff]),
+    icon = Buffer.concat([Buffer.from([0, 0, 1, 0, 3, 0]), damaging, Buffer.alloc(2048, 5)]),
+    png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      damaging,
+      Buffer.alloc(2048, 9),
+    ]);
+  fs.writeFileSync(path.join(f.directory, 'favicon.ico'), icon);
+  fs.writeFileSync(path.join(f.directory, 'apple-touch-icon.png'), png);
+  const bundle = createPublicAssets(f.directory),
+    app = express();
+  app.use('/assets', (req, res, next) => bundle.middleware(req, res, next));
+  const listener = await listenForFetch(app),
+    origin = 'http://127.0.0.1:' + listener.address().port;
+  try {
+    const sha = value => createHash('sha256').update(value).digest('hex');
+    for (const [file, bytes, type] of [
+      ['favicon.ico', icon, 'image/vnd.microsoft.icon'],
+      ['apple-touch-icon.png', png, 'image/png'],
+    ]) {
+      const url = origin + '/assets/v/' + bundle.version + '/' + file,
+        served = await raw(url, {'accept-encoding': 'br, gzip'});
+      assert.equal(served.status, 200, file);
+      assert.equal(served.headers['content-type'], type, file);
+      assert.equal(served.headers['content-encoding'], undefined, file);
+      assert.equal(served.headers['content-length'], String(bytes.length), file);
+      assert.equal(served.headers['cache-control'], 'public, max-age=31536000, immutable', file);
+      assert.equal(served.headers.etag, '"' + sha(bytes) + '"', 'The ETag names the file’s own bytes');
+      assert.deepEqual(served.body, bytes, file);
+      const head = await raw(url, {'accept-encoding': 'br, gzip'}, 'HEAD');
+      assert.equal(head.status, 200, file);
+      assert.equal(head.headers['content-length'], String(bytes.length), file);
+      assert.equal(head.body.length, 0, file);
+      const conditional = await raw(url, {'accept-encoding': 'br, gzip', 'if-none-match': served.headers.etag});
+      assert.equal(conditional.status, 304, file);
+    }
+  } finally {
+    listener.closeAllConnections();
+    await new Promise(resolve => listener.close(resolve));
+    f.close();
+  }
+});
+
 test('served HTML, CSS and JavaScript reference /assets/ only through the page snapshot (allow-listed builders aside)', async () => {
   const bundle = createPublicAssets('web'),
     unversioned = text => [...text.matchAll(/\/assets\/(?!v\/[0-9a-f]{64}\/)[^"'()\s]*/g)].map(m => m[0]);

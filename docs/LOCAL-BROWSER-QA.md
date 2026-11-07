@@ -87,6 +87,14 @@ journey checks that the authorization box sits beside its text and that the stat
 box nor the export button (WCAG 2.4.11). The shell chrome cases (851 to 1,280 px) open every navigation group and
 require each label to take the row beside its icon (wider than 40 px, not centred, at most two lines).
 
+Every case of the `empty` kind also measures the AMCP lockup (`tools/browser-brand.mjs`, [the brand kit
+record](records/BRAND-KIT-V1-2026-11-07.md)): exactly one variant shows, at least 160 px wide, unstretched and
+unmirrored, with half the icon's height of clear space and 4.5:1 against what is painted behind it. The phone drawer is
+opened and measured, and print must show no White lockup. The not-found page (a real 404) is a case of its own, and
+About, Privacy and the not-found page are also read without JavaScript, where `prefers-color-scheme` alone picks the
+variant. The first screen of landing, sign-in, workspace, About, Privacy and not found, at 320 and 1,280 px in both
+languages and themes, is saved under `screens/` in the run's output directory.
+
 The qualification records of waves 2 to 4a below stay where they were written. Record the next run in
 `docs/records/` (for example `QUALIFICATION-<wave>-<date>.md`, with its revision, digests and figures) and link
 it from here: since the documentation freeze (DOC-03), a current page cites no commit and repeats no long line of

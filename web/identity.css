@@ -218,17 +218,11 @@ input[type='checkbox'] {
   padding: 30px 22px 22px;
   color: var(--text-on-inverse);
 }
-.brand {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -1.3px;
-  gap: 11px;
-}
 .brand-note {
   font-size: 8px;
   letter-spacing: 1.6px;
   color: var(--text-on-inverse-muted);
-  margin-top: 6px;
+  margin-top: 12px;
 }
 .workspace {
   margin-top: 35px;
@@ -634,9 +628,6 @@ body.public-view {
   align-items: center;
   justify-content: space-between;
   gap: 30px;
-}
-.public-nav .brand {
-  color: var(--text);
 }
 .public-nav nav {
   display: flex;
@@ -1270,13 +1261,9 @@ body.public-view {
   max-width: 1440px;
   margin: auto;
 }
-.public-footer .brand {
-  color: var(--text);
-  font-size: 23px;
-}
 .public-footer .brand img {
-  width: 30px;
-  height: 30px;
+  width: 160px;
+  height: auto;
 }
 .public-footer > div {
   display: flex;
@@ -1301,9 +1288,6 @@ body.public-view {
   align-items: center;
   justify-content: space-between;
   z-index: 2;
-}
-.auth-brand > .brand {
-  color: var(--text);
 }
 .auth-brand > .text-link {
   font-size: 11px;
@@ -1915,9 +1899,6 @@ body.public-view {
     flex-wrap: wrap;
     gap: 8px 18px;
   }
-  .public-nav .brand {
-    font-size: 26px;
-  }
   .landing-hero {
     grid-template-columns: 1fr;
     max-width: 650px;
@@ -2053,13 +2034,6 @@ body.public-view {
   .auth-form-card h1 {
     font-size: 38px;
   }
-  .auth-brand .brand {
-    font-size: 25px;
-  }
-  .auth-brand .brand img {
-    width: 33px;
-    height: 33px;
-  }
   .auth-brand > .text-link {
     font-size: 10px;
   }
@@ -2158,13 +2132,6 @@ body.public-view {
   .hero-copy > .eyebrow {
     font-size: 7px;
     letter-spacing: 1.1px;
-  }
-  .public-nav .brand img {
-    height: 33px;
-    width: 33px;
-  }
-  .public-nav .brand {
-    font-size: 25px;
   }
   .public-nav-actions {
     gap: 15px;

@@ -26,7 +26,7 @@ function publicAssetUrl(path) {
   return typeof AMCPAssets === 'object' ? AMCPAssets.url(path) : path;
 }
 const brandLink = () =>
-  `<a class="brand" href="/"><img src="${publicAssetUrl('/assets/mark.svg')}" width="38" height="38" alt=""><span>${esc(uiText('AMCP'))}</span></a>`;
+  `<a class="brand" href="/"><img class="logo-ink" src="${esc(publicAssetUrl('/assets/logo-ink.svg'))}" width="174" height="36" alt="AMCP"><img class="logo-white" src="${esc(publicAssetUrl('/assets/logo-white.svg'))}" width="174" height="36" alt="AMCP"></a>`;
 const publicNavigation = (registration = false) =>
   `<header class="public-nav">${brandLink()}${languageControl()}<nav aria-label="${esc(uiText('Website navigation'))}"><a href="/about">${esc(uiText('About us'))}</a><a href="/#possibilities">${esc(uiText('The workspace'))}</a><a href="/#how-it-works">${esc(uiText('How it works'))}</a><a href="/connectors">${esc(uiText('For your AI tools ↗'))}</a></nav><div class="public-nav-actions">${session.authenticated ? `<a class="button primary" href="/dashboard">${esc(uiText('Open workspace ↗'))}</a>` : registration ? `<a class="text-link" href="/login">${esc(uiText('Sign in'))}</a><a class="button primary" href="/signup">${esc(uiText('Get started ↗'))}</a>` : `<a class="button primary" href="/login">${esc(uiText('Sign in'))}</a>`}</div></header>`;
 /**

@@ -208,10 +208,16 @@
       "raised": [
         "reference_words 150046 → 150784"
       ]
+    },
+    {
+      "reason": "brand package (logo kit v1, 2026-11-07), merged onto engine-core: docs/LOCAL-BROWSER-QA.md gains one 119-word paragraph for the lockup checks in tools/browser-brand.mjs, the not-found and no-script cases and the saved screens that tools/browser-workflow-qa.mjs now runs; that page is where the runner checks are described (119 recorded words, and the merged pages hold the same 119 more)",
+      "raised": [
+        "reference_words 150784 → 150903"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 150784
+    "reference_words": 150903
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -534,9 +534,21 @@ test('new public pages and branding assets serve with CSP, while account data re
       '/assets/identity.js',
       '/assets/identity.css',
       '/assets/mark.svg',
+      // Package brand: the lockup files and the browser and device icons are public too.
+      '/assets/logo-ink.svg',
+      '/assets/logo-white.svg',
+      '/assets/favicon.ico',
+      '/assets/apple-touch-icon.png',
     ]) {
       const r = await f.request(path);
       assert.equal(r.status, 200, path);
+      assert.match(r.headers.get('content-security-policy')!, /script-src 'self'/);
+    }
+    // Browsers and iOS ask for these two without any markup and without a session: each points to its versioned file.
+    for (const file of ['favicon.ico', 'apple-touch-icon.png']) {
+      const r = await f.request('/' + file);
+      assert.equal(r.status, 302, file);
+      assert.match(r.headers.get('location')!, new RegExp('^/assets/v/[0-9a-f]{64}/' + file.replace('.', '\\.') + '$'));
       assert.match(r.headers.get('content-security-policy')!, /script-src 'self'/);
     }
     // Google's reviewers read /privacy signed out and without JavaScript, so it must be the

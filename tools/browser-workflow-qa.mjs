@@ -39,6 +39,7 @@ import {
   collectCheckboxLabels,
   checkboxLabelProblems,
 } from './browser-accessibility.mjs';
+import {brandProblems, collectBrandLockups, lockupFiles} from './browser-brand.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart, focusObscured} from './browser-wcag.mjs';
 import {agentTokenProbe} from './browser-agent-tokens.mjs';
 import {inputMapDigest, moduleClosure, releaseIdentityBinding} from './qualification-inputs.mjs';
@@ -531,6 +532,94 @@ async function checkRecordDetailsKeyboard(page, result) {
   }
 }
 
+// Package brand (docs/records/BRAND-KIT-V1-2026-11-07.md): the AMCP lockup, measured in the browser by
+// tools/browser-brand.mjs. Every page shows exactly one variant that suits its surface, at full size, with its clear
+// space and unmirrored, in both languages and both themes. The workspace's phone drawer holds the lockup the closed
+// page hides, so it is opened and measured too. Print shows no White (a white wordmark on white paper). The first screen
+// of each brand surface is kept under screens/ for review.
+const notFoundRoute = '/no-such-page',
+  brandScreens = {
+    '/': 'landing',
+    '/login': 'sign-in',
+    '/dashboard': 'app-shell',
+    '/about': 'about',
+    '/privacy': 'privacy',
+    [notFoundRoute]: 'not-found',
+  },
+  // Landing and About carry a second lockup in their footer.
+  brandMinimum = {'/': 2, '/about': 2};
+const brandSummary = lockup => ({
+  container: lockup.container,
+  file: lockup.file,
+  width: Math.round(lockup.width ?? 0),
+  height: Math.round(lockup.height ?? 0),
+  surfaces: (lockup.surfaces ?? []).map(surface => surface.colour),
+  near: (lockup.near ?? []).length,
+});
+async function brandChecks(page, {route, locale, width, appearance, result, shell, keep = true}) {
+  const where = `${route} ${locale} ${width} ${appearance}`,
+    screens = path.join(output, 'screens'),
+    screen = keep && (width === 320 || width === 1280) ? brandScreens[route] : undefined,
+    name = screen && `${screen}-${locale}-${width}-${appearance}`,
+    // The keyboard checks leave a link focused and the page scrolled to its main content; the saved screens show the
+    // first screen of the page, not a focus ring.
+    clean = () =>
+      page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        window.scrollTo(0, 0);
+      }),
+    states = {page: await page.evaluate(collectBrandLockups)};
+  fs.mkdirSync(screens, {recursive: true});
+  if (shell && width <= 850 && (await page.locator('#menu-toggle').isVisible())) {
+    await page.locator('#menu-toggle').click();
+    await page.waitForFunction(
+      () =>
+        document.body.classList.contains('menu-open') &&
+        getComputedStyle(document.querySelector('.sidebar')).transform === 'none',
+    );
+    states.drawer = await page.evaluate(collectBrandLockups);
+    if (name) {
+      await clean();
+      await page.screenshot({path: path.join(screens, name + '.png')});
+    }
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.body.classList.contains('menu-open'));
+  } else if (name) {
+    await clean();
+    await page.screenshot({path: path.join(screens, name + '.png')});
+  }
+  if (name && brandMinimum[route]) {
+    const height = await page.evaluate(() => document.documentElement.scrollHeight),
+      from = Math.max(0, height - 320);
+    await page.screenshot({
+      path: path.join(screens, name + '-footer.png'),
+      fullPage: true,
+      clip: {x: 0, y: from, width, height: height - from},
+    });
+  }
+  const measured = Object.values(states)
+      .flat()
+      .filter(lockup => lockup.file).length,
+    found = Object.entries(states).flatMap(([state, lockups]) =>
+      brandProblems(lockups, where + (state === 'drawer' ? ' (drawer open)' : '')),
+    );
+  await page.emulateMedia({media: 'print'});
+  const printed = await page.evaluate(collectBrandLockups);
+  await page.emulateMedia({media: null});
+  result.brand = {
+    measured,
+    states: Object.fromEntries(Object.entries(states).map(([state, lockups]) => [state, lockups.map(brandSummary)])),
+    print: printed.map(brandSummary),
+  };
+  assert.deepEqual(found, [], 'AMCP lockup refused');
+  assert.ok(measured >= (brandMinimum[route] ?? 1), `${where}: ${measured} lockups measured`);
+  assert.deepEqual(
+    printed.filter(lockup => lockupFiles[lockup.file]?.tone === 'white').map(lockup => lockup.container),
+    [],
+    `${where}: print shows the White lockup on white paper`,
+  );
+}
+
 async function renderedCase(site, kind, route, locale, width, authenticated, workflow, appearance = 'light') {
   const id = `${kind}-${route.slice(1) || 'home'}-${locale}-${width}${appearance === 'dark' ? '-dark' : ''}`.replaceAll(
       '/',
@@ -672,6 +761,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.deepEqual(result.agent_token_messages, [], 'A message on the page addresses an MCP client');
     assert.deepEqual(focusIndicatorProblems(result.focus_indicators), [], 'Focus indicator contrast refused');
     assert.deepEqual(site.counts(), focusCounts, 'Focus inspection must not read or mutate providers');
+    // Package brand: the lockup of every page of the empty workspace (brandChecks).
+    if (kind === 'empty') await brandChecks(page, {route, locale, width, appearance, result, shell: authenticated});
     // QA-03: the rendered Arabic leak probe runs in every Arabic case; a route's count may only go down.
     if (locale === 'ar') leakCheck(result, leakRoute(kind, route), await arabicLeakProbe(page, leakAllowlist));
     if (['/', '/login'].includes(route) && !authenticated) {
@@ -2655,7 +2746,150 @@ async function shellChromeCase(site, route, locale, width) {
       // QA-03: the same empty-workspace route at the shell widths shares that route's ratchet.
       leakCheck(result, leakRoute('empty', route), await arabicLeakProbe(page, leakAllowlist));
     }
+    // Package brand: the sidebar's lockup at the widths where it is 215px wide, and at 1280.
+    await brandChecks(page, {route, locale, width, appearance: 'light', result, shell: true, keep: false});
     assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.blocked_external_requests, [], egressMessage);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+
+// Package brand: the branded not-found page is a real 404 (the only refusal the case allows). It is the sixth surface of
+// the brand review, so it gets the same checks as a rendered page: one heading, accessibility semantics, the automated
+// WCAG rules (0 violations), no horizontal overflow, and the lockup.
+async function notFoundCase(site, locale, width, appearance) {
+  const id = `empty-not-found-${locale}-${width}${appearance === 'dark' ? '-dark' : ''}`,
+    context = await newContext({
+      viewport: {width, height: 900},
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+      colorScheme: appearance,
+    }),
+    page = await context.newPage(),
+    result = {
+      id,
+      kind: 'empty',
+      route: notFoundRoute,
+      locale,
+      width,
+      appearance,
+      errors: [],
+      failed_responses: [],
+      blocked_external_requests: [],
+    };
+  page.setDefaultTimeout(10000);
+  page.setDefaultNavigationTimeout(20000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
+    page.on('pageerror', error => result.errors.push(error.message));
+    page.on('response', response => {
+      if (response.status() >= 400)
+        result.failed_responses.push({path: new URL(response.url()).pathname, status: response.status()});
+    });
+    const response = await page.goto(site.origin + notFoundRoute + '?lang=' + locale, {waitUntil: 'networkidle'});
+    assert.equal(response.status(), 404, 'An unknown page address is a real 404');
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator('h1').first().waitFor({state: 'visible'});
+    assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), appearance);
+    result.accessibility_initial = await inspectBrowserAccessibility(page);
+    assert.deepEqual(
+      accessibilityProblems(result.accessibility_initial),
+      [],
+      'Initial browser accessibility semantics refused',
+    );
+    if (wcagEngine) {
+      result.wcag_initial = await atDocumentStart(page, () => inspectBrowserWcag(page, wcagEngine));
+      assert.equal(
+        result.wcag_initial.automated_passed,
+        true,
+        'Initial automated WCAG rules refused; inspect retained rule evidence.',
+      );
+    }
+    await brandChecks(page, {route: notFoundRoute, locale, width, appearance, result, shell: false});
+    const layout = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      direction: getComputedStyle(document.documentElement).direction,
+    }));
+    result.layout = layout;
+    assert.equal(layout.direction, locale === 'ar' ? 'rtl' : 'ltr');
+    assert.ok(
+      layout.scrollWidth <= layout.width + 1,
+      `Page requires horizontal scroll: ${layout.scrollWidth}/${layout.width}`,
+    );
+    result.start_overflow = startOverflowProblems(await page.evaluate(collectStartOverflow));
+    assert.deepEqual(result.start_overflow, [], 'A control lies past the page start edge');
+    assert.deepEqual(result.errors, [], 'Browser script failed');
+    assert.deepEqual(
+      result.failed_responses,
+      [{path: notFoundRoute, status: 404}],
+      'Only the not-found document itself is refused',
+    );
+    assert.deepEqual(result.blocked_external_requests, [], egressMessage);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+
+// Package brand: a page read without JavaScript has no data-theme (only theme.js sets it), so a dark system must still
+// get the White lockup and a light one the Ink lockup, from prefers-color-scheme alone.
+async function noScriptBrandCase(site, route, locale, appearance) {
+  const id = `brand-no-script-${route.slice(1)}-${locale}-${appearance}`,
+    context = await newContext({
+      viewport: {width: 375, height: 900},
+      javaScriptEnabled: false,
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+      colorScheme: appearance,
+    }),
+    page = await context.newPage(),
+    result = {id, kind: 'brand-no-script', route, locale, appearance, errors: [], blocked_external_requests: []};
+  page.setDefaultTimeout(10000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    // About is one English document; the other pages take their language from the address.
+    await page.goto(site.origin + route + (route === '/about' ? '' : '?lang=' + locale), {waitUntil: 'load'});
+    await page.evaluate(() => document.fonts.ready);
+    assert.equal(await page.locator('html').getAttribute('data-theme'), null, 'No script, so no data-theme');
+    const lockups = await page.evaluate(collectBrandLockups);
+    result.brand = lockups.map(brandSummary);
+    assert.ok(lockups.length >= 1, 'The page shows its lockup');
+    assert.deepEqual(brandProblems(lockups, `${route} ${locale} no script ${appearance}`), [], 'AMCP lockup refused');
+    assert.deepEqual(
+      [...new Set(lockups.map(lockup => lockup.file))],
+      [appearance === 'dark' ? 'logo-white.svg' : 'logo-ink.svg'],
+      'A page read without JavaScript follows the system for its lockup',
+    );
     assert.deepEqual(result.blocked_external_requests, [], egressMessage);
     result.passed = true;
   } catch (error) {
@@ -2722,6 +2956,12 @@ async function runFixture(kind, site) {
           for (const locale of ['en', 'ar'])
             for (const width of route === '/help' ? [320, 375, 768, 1280] : [320, 1280])
               await renderedCase(site, kind, route, locale, width, true, undefined, appearance);
+        // Package brand: the not-found page, and the pages read without JavaScript.
+        for (const locale of ['en', 'ar'])
+          for (const width of [320, 375, 768, 1280]) await notFoundCase(site, locale, width, appearance);
+        for (const route of ['/about', '/privacy', notFoundRoute])
+          for (const locale of route === '/about' ? ['en'] : ['en', 'ar'])
+            await noScriptBrandCase(site, route, locale, appearance);
       }
       for (const locale of ['en', 'ar']) for (const width of [375, 1280]) await versionSkewCase(site, locale, width);
       for (const route of ['/dashboard', '/capabilities', '/reporting-overview'])

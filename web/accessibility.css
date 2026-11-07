@@ -32,6 +32,27 @@ summary:focus-visible,
 .toast:focus-visible {
   outline-color: var(--focus-on-inverse);
 }
+/* Lockup variants (privacy.css has a copy); the sidebar and callback header are dark in both themes; print keeps Ink. */
+.logo-white {
+  display: none;
+}
+@media screen {
+  [data-theme='dark'] .logo-ink {
+    display: none;
+  }
+  [data-theme='dark'] .logo-white,
+  :is(.sidebar, .callback-top) .logo-white {
+    display: block;
+  }
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .logo-ink {
+    display: none;
+  }
+  :root:not([data-theme]) .logo-white {
+    display: block;
+  }
+}
 input:not([type='checkbox']):not([type='radio']),
 select,
 textarea {
