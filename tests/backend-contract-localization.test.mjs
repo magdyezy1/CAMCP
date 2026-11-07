@@ -383,7 +383,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package results adds the TikTok ad group results warning (F-L5-19): + 1.
   // Package results adds the mapped-result line of a report row and the mapped-result limitation (F-L5-12): + 2.
   // Package results removes the Apple refusal of more than 100 campaigns, which no code says any more (item 10): - 1.
-  assert.equal(Object.keys(catalog).length, 11817);
+  // Package results adds the reason a cost per result target cannot be compared with a conversion value (F-L5-13): + 1.
+  assert.equal(Object.keys(catalog).length, 11818);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -34,6 +34,7 @@ const reportExplanationMessages = new Set([
   'Confirm attribution and the primary conversion definition before making budget recommendations.',
   'This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.',
   'Confirm this campaign’s objective and primary result metric.',
+  'This campaign’s result is a conversion value, so a cost per result target cannot be compared with it. Set a return on ad spend target for it, or review it by hand.',
   'Confirm this exact conversion before creating its unapproved draft.',
   'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.',
   'Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.',

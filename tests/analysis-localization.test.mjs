@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {campaignRecommendation} from '../dist/src/report-metrics.js';
+import {recommendationV4} from '../dist/src/report-advice-v4.js';
 import {snapchatAllowanceWarning} from '../dist/src/snapchat-overview-detail.js';
 import {campaignAllowanceWarning} from '../dist/src/report-source.js';
 import * as localeChecks from '../tools/check-locales.mjs';
@@ -107,6 +108,31 @@ test('Arabic target explanations use structured metadata and preserve unknown an
     f.context.rec = {decision: 'needs_target', reason: 'Original legacy reason Home', reason_localization};
     assert.equal(f.run('uiRecommendationReason(rec)'), 'Original legacy reason Home');
   }
+});
+
+test('a conversion value under a cost per result target says why in English and Arabic, as authored report copy (package results)', () => {
+  // A value-based row: its result is money, so it has no cost per result for a cost per result target to be compared with.
+  const advice = recommendationV4(
+      {
+        ...nativeRow(),
+        result: {value: '600', cost_per_result: null, definition_id: 'google:conversion_value'},
+        result_context: {definition: {unit: 'currency', aggregation: 'sum'}},
+      },
+      {sales: {target: 5, currency: 'SAR'}},
+    ),
+    ar = fixture(),
+    en = fixture('en');
+  assert.equal(advice.decision, 'needs_review');
+  assert.match(advice.reason, /cost per result target cannot be compared with it/);
+  // The locale inventory reads it as authored copy, so the interface must carry it and the catalogue must translate it.
+  const inventory = localeChecks.checkWebLocales();
+  assert.equal(inventory.sources.get('server:report-explanations').has(advice.reason), true);
+  assert.deepEqual(inventory.problems, []);
+  ar.context.rec = en.context.rec = advice;
+  const text = ar.run('uiRecommendationReason(rec)');
+  assert.equal(text, ar.context.catalog[advice.reason]);
+  assert.match(text, /[؀-ۿ]/u);
+  assert.equal(en.run('uiRecommendationReason(rec)'), advice.reason);
 });
 
 test('report explanation extraction follows only authored explanation positions, leaving native protocol and context data alone', () => {

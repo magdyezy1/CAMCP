@@ -604,6 +604,14 @@ export function campaignRecommendation(
           : {}),
       },
     );
+  // F-L5-13: a result counted in money (a value-based campaign's conversion value) has a return, not a cost, so a target
+  // that is a cost per result cannot be compared with it. That is not a small sample: more results would not help.
+  if (metric === 'cost_per_result' && row.result_context?.definition?.unit === 'currency')
+    return result(
+      'needs_review',
+      'This campaign’s result is a conversion value, so a cost per result target cannot be compared with it. Set a return on ad spend target for it, or review it by hand.',
+      {kpi: metric},
+    );
   if (n == null || n < minimum || actual == null)
     return result('insufficient_data', 'Wait for enough results to distinguish a signal from a small sample.', {
       results: n ?? null,

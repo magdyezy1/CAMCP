@@ -2882,6 +2882,7 @@
   "The target currency must match the campaign account currency.": "يجب أن تطابق عملة الهدف عملة حساب الحملة.",
   "Confirm attribution and the primary conversion definition before making budget recommendations.": "أكّد الإسناد وتعريف التحويل الأساسي قبل تقديم توصيات الميزانية.",
   "This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.": "تُحسَّن المجموعات الإعلانية في هذه الحملة لأحداث مختلفة، لذلك لا تمثّل تحويلاتها نتيجة واحدة. راجع كل مجموعة إعلانية قبل اتخاذ قرار بناءً على تكلفة النتيجة.",
+  "This campaign’s result is a conversion value, so a cost per result target cannot be compared with it. Set a return on ad spend target for it, or review it by hand.": "نتيجة هذه الحملة هي قيمة التحويلات، لذلك لا يمكن مقارنتها بهدف التكلفة لكل نتيجة. حدّد لها هدفًا للعائد على الإنفاق الإعلاني، أو راجعها يدويًا.",
   "TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.": "تغطي تقارير حملات TikTok حملات المزاد فقط (AUCTION_CAMPAIGN)؛ ولا تشمل حملات Reach & Frequency والحملات المحجوزة الأخرى.",
   "The reporting window needs an unambiguous account timezone boundary.": "تحتاج فترة التقرير إلى حدود زمنية واضحة وفق المنطقة الزمنية للحساب.",
   "The reporting window is still inside the configured conversion-lag period.": "لا تزال فترة التقرير ضمن مدة تأخر التحويل المحددة.",
