@@ -955,44 +955,6 @@ function reportSummaryOmitted(g) {
       )}</p>`
     : '';
 }
-/**
- * RPT-05: a small spend line over the window's periods, oldest first. It is an image with a text summary (lowest and
- * highest period); unknown periods leave a gap rather than reading as zero.
- */
-function reportSparkline(g) {
-  const series = g.series ?? [],
-    known = series.map((p, i) => [p, i]).filter(([p]) => typeof p.spend === 'number' && Number.isFinite(p.spend));
-  if (series.length < 2 || known.length < 2) return '';
-  const values = known.map(([p]) => p.spend),
-    low = known.reduce((a, b) => (b[0].spend < a[0].spend ? b : a))[0],
-    high = known.reduce((a, b) => (b[0].spend > a[0].spend ? b : a))[0],
-    min = Math.min(...values),
-    span = Math.max(...values) - min,
-    x = i => ((i / (series.length - 1)) * 200).toFixed(1),
-    y = v => (span ? 34 - ((v - min) / span) * 32 : 18).toFixed(1);
-  const segments = [];
-  let segment = [];
-  series.forEach((p, i) => {
-    if (typeof p.spend === 'number' && Number.isFinite(p.spend)) segment.push(x(i) + ',' + y(p.spend));
-    else if (segment.length) segments.push(segment.splice(0));
-  });
-  if (segment.length) segments.push(segment);
-  const label = uiText('Spend per period from {from} to {to}: lowest {low} ({lowDate}), highest {high} ({highDate}).', {
-    from: reportDay(series[0].date_from),
-    to: reportDay(series.at(-1).date_from),
-    low: metricFormat('spend', low.spend, g.currency),
-    lowDate: reportDay(low.date_from),
-    high: metricFormat('spend', high.spend, g.currency),
-    highDate: reportDay(high.date_from),
-  });
-  return `<svg class="report-sparkline" viewBox="0 0 200 36" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">${segments
-    .map(points =>
-      points.length > 1
-        ? `<polyline points="${points.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`
-        : `<circle cx="${points[0].split(',')[0]}" cy="${points[0].split(',')[1]}" r="1.5" fill="currentColor"/>`,
-    )
-    .join('')}</svg>`;
-}
 /** Whole-window cards use report-summary.ts totals and sparklines; periods remain in rows and exports. */
 function renderReportWindowSummary(r) {
   const tiles = r.window_summary,

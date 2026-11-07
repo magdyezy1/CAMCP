@@ -479,6 +479,58 @@ function reportCardLevel(r, g) {
     (g.aggregation?.label ? ' · ' + uiText(g.aggregation.label) : '')
   );
 }
+/** A decimal for display only, a line's height or a bar's length: the exact text stays the data (F-L5-26). */
+function reportDisplayNumber(value) {
+  const number = typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) ? number : NaN;
+}
+/**
+ * RPT-05: a small spend line over the window's periods, oldest first, as an image with a text summary (lowest and highest
+ * period). An unknown period leaves a gap rather than reading as zero, and a period calculated from some of its rows is a
+ * hollow mark off the line, so a week with one unknown campaign never reads as a dip (F-L5-26).
+ */
+function reportSparkline(g) {
+  const series = g.series ?? [],
+    spend = p => reportDisplayNumber(p.spend),
+    partial = p => p.coverage?.known_rows < p.coverage?.total_rows,
+    whole = p => !partial(p) && Number.isFinite(spend(p)),
+    known = series.map((p, i) => [p, i]).filter(([p]) => whole(p));
+  if (series.length < 2 || known.length < 2) return '';
+  const values = known.map(([p]) => spend(p)),
+    low = known.reduce((a, b) => (spend(b[0]) < spend(a[0]) ? b : a))[0],
+    high = known.reduce((a, b) => (spend(b[0]) > spend(a[0]) ? b : a))[0],
+    min = Math.min(...values),
+    span = Math.max(...values) - min,
+    x = i => ((i / (series.length - 1)) * 200).toFixed(1),
+    y = v => Math.min(35, Math.max(1, span ? 34 - ((v - min) / span) * 32 : 18)).toFixed(1),
+    segments = [],
+    marks = [];
+  let segment = [];
+  series.forEach((p, i) => {
+    if (whole(p)) segment.push([x(i), y(spend(p))]);
+    else {
+      if (segment.length) segments.push(segment.splice(0));
+      if (partial(p) && Number.isFinite(spend(p))) marks.push([x(i), y(spend(p))]);
+    }
+  });
+  if (segment.length) segments.push(segment);
+  const label =
+    uiText('Spend per period from {from} to {to}: lowest {low} ({lowDate}), highest {high} ({highDate}).', {
+      from: reportDay(series[0].date_from),
+      to: reportDay(series.at(-1).date_from),
+      low: metricFormat('spend', low.spend, g.currency),
+      lowDate: reportDay(low.date_from),
+      high: metricFormat('spend', high.spend, g.currency),
+      highDate: reportDay(high.date_from),
+    }) +
+    (marks.length
+      ? ' ' +
+        uiText('Hollow marks are periods calculated from some of their rows only: {count}.', {
+          count: uiNumber(marks.length),
+        })
+      : '');
+  return html`<svg class="report-sparkline" viewBox="0 0 200 36" preserveAspectRatio="none" role="img" aria-label="${label}">${segments.map(points => (points.length > 1 ? html`<polyline points="${points.map(point => point.join(',')).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>` : html`<circle cx="${points[0][0]}" cy="${points[0][1]}" r="1.5" fill="currentColor"/>`))}${marks.map(([cx, cy]) => html`<circle cx="${cx}" cy="${cy}" r="2" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke"/>`)}</svg>`.toString();
+}
 /**
  * What a total or ratio was calculated from: a sum's known units, or the units that have every value a ratio needs, and
  * whether the units are the provider's own rows (`native_measurements`) or the report's. Reads the coverage of this build

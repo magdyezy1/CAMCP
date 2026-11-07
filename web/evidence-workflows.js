@@ -1217,18 +1217,26 @@ function mountScenarioModel(report) {
 }
 function reportPackBody(pack) {
   // RPT-05: platform display names, localized report dates and currency values in their own minor units.
-  const value = x => (x === null || x === undefined ? uiText('Unknown') : esc(uiDecimal(x)));
-  const money = (x, currency) =>
-    x === null || x === undefined ? uiText('Unknown') : esc(uiDecimal(x, currency ? {currency} : {}));
+  // A figure calculated from some of its rows says so beside its value (F-L5-01).
+  const covered = (s, key) => {
+    const label = s ? reportCoverageLabel(s.metrics_coverage?.[key]) : '';
+    return label ? `<small>${esc(label)}</small>` : '';
+  };
+  const value = (x, s, key) =>
+    (x === null || x === undefined ? uiText('Unknown') : esc(uiDecimal(x))) + covered(s, key);
+  const money = (x, currency, s, key) =>
+    (x === null || x === undefined ? uiText('Unknown') : esc(uiDecimal(x, currency ? {currency} : {}))) +
+    covered(s, key);
   const platform = id => pack.platform_names?.[id] ?? pretty(id ?? uiText('Source'));
   const day = v =>
     /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ''))
       ? uiDate(v + 'T00:00:00Z', {dateStyle: 'medium', timeZone: 'UTC'})
       : String(v ?? '');
   const context = s =>
-    `${esc(platform(s.platform))} · ${esc(s.account_id)} · ${esc(s.objective_group ? uiText(pretty(s.objective_group)) : uiText('All objectives'))}`;
-  const charts = pack.summary.filter(s => Number.isFinite(s.metrics.ctr)).slice(0, 30);
-  const scale = Math.max(1, ...charts.map(s => s.metrics.ctr));
+    `${esc(platform(s.platform))} · ${esc(s.account_id)} · ${esc(s.objective_group ? uiText(pretty(s.objective_group)) : uiText('All objectives'))}${s.aggregation?.label ? ' · ' + esc(uiText(s.aggregation.label)) : ''}`;
+  // A v4 ratio is exact text, drawn by the number it means (F-L5-26).
+  const charts = pack.summary.filter(s => Number.isFinite(reportDisplayNumber(s.metrics.ctr))).slice(0, 30);
+  const scale = Math.max(1, ...charts.map(s => reportDisplayNumber(s.metrics.ctr)));
   return `<article class="report-pack">
     <header><svg viewBox="0 0 1000 5" aria-hidden="true"><rect width="1000" height="5" fill="${esc(pack.presentation?.accent_color || '#354B67')}"/></svg><p class="eyebrow">AMCP · ${esc(pack.presentation?.brand_name || pack.client_name || uiText('Performance report'))}</p>
       <h1>${esc(pack.title)}</h1><p>${esc(day(pack.date_range.since))} — ${esc(day(pack.date_range.until))} · ${esc(uiText('{grain} grouping', {grain: uiText(pretty(pack.grain))}))}</p>
@@ -1238,15 +1246,15 @@ function reportPackBody(pack) {
     <div class="data-scroll" role="region" aria-label="${esc(uiText('Account performance, scroll for all metrics'))}" tabindex="0"><table class="review-table">
       <caption>${esc(uiText('Performance by account, objective and period'))}</caption>
       <thead><tr><th scope="col">${esc(uiText('Account / context'))}</th><th scope="col">${esc(uiText('Period'))}</th><th scope="col">${esc(uiText('Spend'))}</th><th scope="col">${esc(uiText('Impressions'))}</th><th scope="col">${esc(uiText('Clicks'))}</th><th scope="col">${esc(uiText('Conversions'))}</th><th scope="col">CPA</th></tr></thead>
-      <tbody>${pack.summary.map(s => `<tr><th scope="row">${context(s)}<small>${esc(s.timezone)}<br>${esc(s.result_definition)}<br>${esc(s.attribution)} · ${s.complete ? uiText('Complete') : uiText('Incomplete')}</small></th><td>${esc(day(s.date_from))}<br>${esc(day(s.date_to))}</td><td class="pack-value">${money(s.metrics.spend, s.currency)}</td><td class="pack-value">${value(s.metrics.impressions)}</td><td class="pack-value">${value(s.metrics.clicks)}</td><td class="pack-value">${value(s.metrics.conversions)}</td><td class="pack-value">${money(s.metrics.cpa, s.currency)}</td></tr>`).join('')}</tbody></table></div>
+      <tbody>${pack.summary.map(s => `<tr><th scope="row">${context(s)}<small>${esc(s.timezone)}<br>${esc(s.result_definition)}<br>${esc(s.attribution)} · ${s.complete ? uiText('Complete') : uiText('Incomplete')}</small></th><td>${esc(day(s.date_from))}<br>${esc(day(s.date_to))}</td><td class="pack-value">${money(s.metrics.spend, s.currency, s, 'spend')}</td><td class="pack-value">${value(s.metrics.impressions, s, 'impressions')}</td><td class="pack-value">${value(s.metrics.clicks, s, 'clicks')}</td><td class="pack-value">${value(s.metrics.conversions, s, 'conversions')}</td><td class="pack-value">${money(s.metrics.cpa, s.currency, s, 'cpa')}</td></tr>`).join('')}</tbody></table></div>${pack.summary.some(s => ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'ctr'].some(key => reportCoverageLabel(s.metrics_coverage?.[key]))) ? `<p class="notice">${esc(uiText('Limited coverage: these totals may be incomplete.'))}</p>` : ''}
     <h2>${esc(uiText('Click-through rate by account and period'))}</h2><p>${esc(uiText('Each bar uses compatible native totals. The shared scale runs from 0% to {scale}%; accounts are not combined.', {scale: uiNumber(scale, {maximumFractionDigits: 2})}))}${pack.summary.length > 30 ? ' ' + esc(uiText('The first 30 available ratios are shown; the table includes all groups.')) : ''}</p>
     ${
       charts.length
         ? charts
             .map(s => {
-              const rate = s.metrics.ctr,
+              const rate = reportDisplayNumber(s.metrics.ctr),
                 width = Math.max(0, Math.min(100, (rate / scale) * 100));
-              return `<figure><figcaption>${context(s)} · ${esc(day(s.date_from))} — ${esc(day(s.date_to))}: ${value(rate)}%</figcaption><svg viewBox="0 0 500 18" role="img" aria-label="${esc(uiText('Click-through rate {rate} percent', {rate: uiNumber(rate, {maximumFractionDigits: 2})}))}"><rect class="pack-track" width="500" height="18"/><rect class="pack-bar" width="${width * 5}" height="18"/></svg></figure>`;
+              return `<figure><figcaption>${context(s)} · ${esc(day(s.date_from))} — ${esc(day(s.date_to))}: ${value(s.metrics.ctr, s, 'ctr')}%</figcaption><svg viewBox="0 0 500 18" role="img" aria-label="${esc(uiText('Click-through rate {rate} percent', {rate: uiNumber(rate, {maximumFractionDigits: 2})}))}"><rect class="pack-track" width="500" height="18"/><rect class="pack-bar" width="${width * 5}" height="18"/></svg></figure>`;
             })
             .join('')
         : `<p>${esc(uiText('Click-through rate is unavailable in this snapshot.'))}</p>`

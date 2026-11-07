@@ -2,6 +2,7 @@ import {calculateMetrics, metricDefinitions} from './report-metrics.js';
 import type {JsonObject} from './types.js';
 import {
   calculateMetricsV4,
+  coverageCounts,
   evaluateReportFormulaExact,
   formulaDependencies,
   isCalculationLimit,
@@ -335,9 +336,43 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       series: ordered.slice(-windowSeriesLimit).map(([, rows]) => ({
         date_from: rows[0]!.date_from,
         spend: v4 ? sumReportValuesV4(rows.map(row => row.metrics.spend)).value : additiveValues(rows).spend,
+        ...(v4 ? seriesCoverage(rows) : {}),
       })),
     };
   });
+}
+/**
+ * How much of a period stands behind its point of the spend series (F-L5-26). A point calculated from fewer units than it
+ * has carries `coverage`, in the shape of a metric's (`known_rows`, `total_rows`, `basis`, `report_rows`); a whole point
+ * carries none. A week with one unknown campaign is then a short point, and not a dip. The units are counted as the
+ * summary counts them: a row built from the provider's own measurements counts each of them.
+ */
+function seriesCoverage(rows: JsonObject[]): {coverage?: MetricCoverage} {
+  let known = 0,
+    total = 0,
+    native = false;
+  for (const row of rows) {
+    const entry = row.metrics_coverage?.spend,
+      counts = entry && typeof entry === 'object' ? coverageCounts(entry) : undefined;
+    if (counts && Number.isInteger(counts.known) && Number.isInteger(counts.total)) {
+      known += counts.known;
+      total += counts.total;
+      native ||= entry.total_rows !== undefined && entry.basis === 'native_measurements';
+    } else {
+      total += 1;
+      known += row.metrics.spend === null || row.metrics.spend === undefined ? 0 : 1;
+    }
+  }
+  return known < total
+    ? {
+        coverage: {
+          known_rows: known,
+          total_rows: total,
+          basis: native ? 'native_measurements' : 'report_rows',
+          report_rows: rows.length,
+        },
+      }
+    : {};
 }
 /** Sum only additive columns within one account, currency and result definition. */
 export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 = false): JsonObject[] {
