@@ -1,0 +1,585 @@
+{
+  "about": "Synthetic Meta insights rows in the shape the owner's live read of Graph v26.0 recorded on 2026-11-07 (docs/records/META-RESULTS-PIN-2026-11-07.md). The numbers are invented; no account, campaign or custom conversion ID is from the read. Each sample names the request it answers (attribution_windows null is the ad set's own setting, either the default or the unified setting; a list is the explicit windows), the row, and the result the rules in the record give, worked out by hand.",
+  "samples": [
+    {
+      "form": "default",
+      "about": "A default request, ad level: one value named default, which is the ad set's own attribution setting.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "LINK_CLICKS",
+        "impressions": "1000",
+        "spend": "50",
+        "results": [
+          {"indicator": "actions:link_click", "values": [{"value": "40", "attribution_windows": ["default"]}]}
+        ],
+        "cost_per_result": [
+          {"indicator": "actions:link_click", "values": [{"value": "1.25", "attribution_windows": ["default"]}]}
+        ]
+      },
+      "expect": {
+        "value": "40",
+        "cost_per_result": "1.25",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:link_clicks",
+        "reason": null
+      }
+    },
+    {
+      "form": "unified",
+      "about": "The unified attribution setting, campaign level: the same shape, one default value.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "REPLIES",
+        "impressions": "800",
+        "spend": "54",
+        "results": [
+          {
+            "indicator": "actions:onsite_conversion.messaging_conversation_started_7d",
+            "values": [{"value": "18", "attribution_windows": ["default"]}]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:onsite_conversion.messaging_conversation_started_7d",
+            "values": [{"value": "3", "attribution_windows": ["default"]}]
+          }
+        ]
+      },
+      "expect": {
+        "value": "18",
+        "cost_per_result": "3",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:messaging_conversations",
+        "reason": null
+      }
+    },
+    {
+      "form": "explicit windows, their sum is the default",
+      "about": "Explicit 7d_click and 1d_view: one value per window that is not zero, plus default. The two windows add to the default, so the default cost is the cost of the sum.",
+      "request": {"attribution_windows": ["7d_click", "1d_view"]},
+      "row": {
+        "optimization_goal": "LEAD_GENERATION",
+        "impressions": "1000",
+        "spend": "40",
+        "results": [
+          {
+            "indicator": "actions:lead",
+            "values": [
+              {"value": "20", "attribution_windows": ["7d_click"]},
+              {"value": "5", "attribution_windows": ["1d_view"]},
+              {"value": "25", "attribution_windows": ["default"]}
+            ]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:lead",
+            "values": [
+              {"value": "2", "attribution_windows": ["7d_click"]},
+              {"value": "8", "attribution_windows": ["1d_view"]},
+              {"value": "1.6", "attribution_windows": ["default"]}
+            ]
+          }
+        ],
+        "actions": [{"action_type": "lead", "value": "25", "7d_click": "20", "1d_view": "5"}]
+      },
+      "expect": {
+        "value": "25",
+        "cost_per_result": "1.6",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:leads",
+        "reason": null
+      }
+    },
+    {
+      "form": "explicit windows, their sum is not the default",
+      "about": "Explicit 7d_click and 1d_view, but the ad set's own setting is wider: default is 40, not 20 + 5. The default cost is the cost of 40, so the cost of 25 comes from spend.",
+      "request": {"attribution_windows": ["7d_click", "1d_view"]},
+      "row": {
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "impressions": "1000",
+        "spend": "40",
+        "results": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [
+              {"value": "20", "attribution_windows": ["7d_click"]},
+              {"value": "5", "attribution_windows": ["1d_view"]},
+              {"value": "40", "attribution_windows": ["default"]}
+            ]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [
+              {"value": "2", "attribution_windows": ["7d_click"]},
+              {"value": "8", "attribution_windows": ["1d_view"]},
+              {"value": "1", "attribution_windows": ["default"]}
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "value": "25",
+        "cost_per_result": "1.6",
+        "cost_source": "derived",
+        "source": "provider",
+        "definition_id": "meta:website_purchases",
+        "reason": null
+      }
+    },
+    {
+      "form": "explicit window alone",
+      "about": "Only 1d_click was requested: its value, not the ad set's default of 20 (default does not follow the request).",
+      "request": {"attribution_windows": ["1d_click"]},
+      "row": {
+        "optimization_goal": "LANDING_PAGE_VIEWS",
+        "impressions": "1000",
+        "spend": "40",
+        "results": [
+          {
+            "indicator": "actions:landing_page_view",
+            "values": [
+              {"value": "16", "attribution_windows": ["1d_click"]},
+              {"value": "20", "attribution_windows": ["default"]}
+            ]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:landing_page_view",
+            "values": [
+              {"value": "2.5", "attribution_windows": ["1d_click"]},
+              {"value": "2", "attribution_windows": ["default"]}
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "value": "16",
+        "cost_per_result": "2.5",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:landing_page_views",
+        "reason": null
+      }
+    },
+    {
+      "form": "a zero window left out",
+      "about": "7d_click and 1d_view requested, 1d_view counted none: the zero window has no entry, and a requested window with no entry counts 0.",
+      "request": {"attribution_windows": ["7d_click", "1d_view"]},
+      "row": {
+        "optimization_goal": "PAGE_LIKES",
+        "impressions": "1000",
+        "spend": "10",
+        "results": [
+          {
+            "indicator": "actions:like",
+            "values": [
+              {"value": "5", "attribution_windows": ["7d_click"]},
+              {"value": "5", "attribution_windows": ["default"]}
+            ]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:like",
+            "values": [
+              {"value": "2", "attribution_windows": ["7d_click"]},
+              {"value": "2", "attribution_windows": ["default"]}
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "value": "5",
+        "cost_per_result": "2",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:page_likes",
+        "reason": null
+      }
+    },
+    {
+      "form": "a window-less metric, unified",
+      "about": "estimated_ad_recallers gives {value} alone, with no attribution_windows: the only entry that names no window.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "AD_RECALL_LIFT",
+        "impressions": "5000",
+        "spend": "60",
+        "results": [{"indicator": "estimated_ad_recallers", "values": [{"value": "300"}]}],
+        "cost_per_result": [{"indicator": "estimated_ad_recallers", "values": [{"value": "0.2"}]}]
+      },
+      "expect": {
+        "value": "300",
+        "cost_per_result": "0.2",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:ad_recallers",
+        "reason": null
+      }
+    },
+    {
+      "form": "a window-less metric, explicit windows",
+      "about": "Not every metric is split by window: with 7d_click requested the values hold no requested window, the indicator is not an action, so the entry that names no window is the value.",
+      "request": {"attribution_windows": ["7d_click"]},
+      "row": {
+        "optimization_goal": "AD_RECALL_LIFT",
+        "impressions": "5000",
+        "spend": "60",
+        "results": [{"indicator": "profile_visit_view", "values": [{"value": "300"}]}],
+        "cost_per_result": [{"indicator": "profile_visit_view", "values": [{"value": "0.2"}]}]
+      },
+      "expect": {
+        "value": "300",
+        "cost_per_result": "0.2",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:profile_visit_views",
+        "reason": null
+      }
+    },
+    {
+      "form": "a default-only action metric, explicit windows",
+      "about": "post_engagement gives default only under explicit windows, though actions.post_engagement carries the window keys: the count is the sum of the requested keys, and the cost comes from spend.",
+      "request": {"attribution_windows": ["7d_click", "1d_view"]},
+      "row": {
+        "optimization_goal": "POST_ENGAGEMENT",
+        "impressions": "4000",
+        "spend": "170",
+        "results": [
+          {"indicator": "actions:post_engagement", "values": [{"value": "90", "attribution_windows": ["default"]}]}
+        ],
+        "cost_per_result": [
+          {"indicator": "actions:post_engagement", "values": [{"value": "1.89", "attribution_windows": ["default"]}]}
+        ],
+        "actions": [{"action_type": "post_engagement", "value": "90", "7d_click": "70", "1d_view": "15"}]
+      },
+      "expect": {
+        "value": "85",
+        "cost_per_result": "2",
+        "cost_source": "derived",
+        "source": "provider",
+        "definition_id": "meta:post_engagement",
+        "reason": null
+      }
+    },
+    {
+      "form": "a default-only metric with no action entry, explicit windows",
+      "about": "The 2-second video metric gives default only under explicit windows and actions has no entry for it: there is no window split, so default is the value.",
+      "request": {"attribution_windows": ["7d_click"]},
+      "row": {
+        "optimization_goal": "TWO_SECOND_CONTINUOUS_VIDEO_VIEWS",
+        "impressions": "9000",
+        "spend": "25",
+        "results": [
+          {
+            "indicator": "video_continuous_2_sec_watched_actions",
+            "values": [{"value": "500", "attribution_windows": ["default"]}]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "video_continuous_2_sec_watched_actions",
+            "values": [{"value": "0.05", "attribution_windows": ["default"]}]
+          }
+        ],
+        "actions": [{"action_type": "link_click", "value": "9", "7d_click": "9"}]
+      },
+      "expect": {
+        "value": "500",
+        "cost_per_result": "0.05",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:video_2s_plays",
+        "reason": null
+      }
+    },
+    {
+      "form": "an indicator only, delivered",
+      "about": "{indicator} alone on a row with delivery: the row counted none, which is a zero Meta left out.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "impressions": "1000",
+        "spend": "20",
+        "results": [{"indicator": "actions:offsite_conversion.fb_pixel_purchase"}],
+        "cost_per_result": [{"indicator": "actions:offsite_conversion.fb_pixel_purchase"}]
+      },
+      "expect": {
+        "value": "0",
+        "cost_per_result": null,
+        "cost_source": "unknown",
+        "source": "provider",
+        "definition_id": "meta:website_purchases",
+        "reason": null,
+        "provider_omitted": true
+      }
+    },
+    {
+      "form": "an indicator only, no delivery",
+      "about": "{indicator} alone on a row that did not deliver: unknown, not zero; the definition still comes from the indicator.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "impressions": "0",
+        "spend": "0",
+        "results": [{"indicator": "actions:offsite_conversion.fb_pixel_purchase", "values": []}]
+      },
+      "expect": {
+        "value": null,
+        "cost_per_result": null,
+        "cost_source": "unknown",
+        "source": "provider",
+        "definition_id": "meta:website_purchases",
+        "reason": "missing_metric"
+      }
+    },
+    {
+      "form": "no field, a goal in the table",
+      "about": "A row can carry neither results nor cost_per_result. A goal the mapped table pins falls back to it and says mapped.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "LEAD_GENERATION",
+        "impressions": "1000",
+        "spend": "10",
+        "actions": [{"action_type": "lead", "value": "5"}]
+      },
+      "expect": {
+        "value": "5",
+        "cost_per_result": "2",
+        "cost_source": "derived",
+        "source": "mapped",
+        "definition_id": "meta:leads",
+        "reason": null
+      }
+    },
+    {
+      "form": "no field, a goal that is not a goal",
+      "about": "The literal Unknown Optimization Goal is not a goal: with no results it is a missing goal, not an unsupported one.",
+      "request": {"attribution_windows": null},
+      "row": {"optimization_goal": "Unknown Optimization Goal", "impressions": "1000", "spend": "10"},
+      "expect": {
+        "value": null,
+        "cost_per_result": null,
+        "cost_source": "unknown",
+        "source": "unknown",
+        "definition_id": null,
+        "reason": "missing_goal"
+      }
+    },
+    {
+      "form": "no field, goal NONE",
+      "about": "NONE (older campaigns) is not a goal either.",
+      "request": {"attribution_windows": null},
+      "row": {"optimization_goal": "NONE", "impressions": "1000", "spend": "10"},
+      "expect": {
+        "value": null,
+        "cost_per_result": null,
+        "cost_source": "unknown",
+        "source": "unknown",
+        "definition_id": null,
+        "reason": "missing_goal"
+      }
+    },
+    {
+      "form": "results under the literal Unknown Optimization Goal",
+      "about": "A campaign row can say the literal and still carry results: results decide, the goal is not read.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "Unknown Optimization Goal",
+        "impressions": "1000",
+        "spend": "36",
+        "results": [
+          {"indicator": "actions:link_click", "values": [{"value": "12", "attribution_windows": ["default"]}]}
+        ],
+        "cost_per_result": [
+          {"indicator": "actions:link_click", "values": [{"value": "3", "attribution_windows": ["default"]}]}
+        ]
+      },
+      "expect": {
+        "value": "12",
+        "cost_per_result": "3",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:link_clicks",
+        "reason": null
+      }
+    },
+    {
+      "form": "daily",
+      "about": "time_increment=1: one row a day, the same shape.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "date_start": "2026-09-01",
+        "date_stop": "2026-09-01",
+        "optimization_goal": "LINK_CLICKS",
+        "impressions": "300",
+        "spend": "12",
+        "results": [
+          {"indicator": "actions:link_click", "values": [{"value": "6", "attribution_windows": ["default"]}]}
+        ],
+        "cost_per_result": [
+          {"indicator": "actions:link_click", "values": [{"value": "2", "attribution_windows": ["default"]}]}
+        ]
+      },
+      "expect": {
+        "value": "6",
+        "cost_per_result": "2",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:link_clicks",
+        "reason": null
+      }
+    },
+    {
+      "form": "no attribution_windows on the only entry",
+      "about": "total_profile_visits gives {value} alone; unified, so the only entry that names no window is the value.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "REACH",
+        "impressions": "700",
+        "spend": "21",
+        "results": [{"indicator": "total_profile_visits", "values": [{"value": "7"}]}]
+      },
+      "expect": {
+        "value": "7",
+        "cost_per_result": "3",
+        "cost_source": "derived",
+        "source": "provider",
+        "definition_id": "meta:total_profile_visits",
+        "reason": null
+      }
+    },
+    {
+      "form": "several entries and no default, unified",
+      "about": "Not seen on the wire. Under the unified setting several entries and none named default cannot be resolved to one value, so the result is unknown.",
+      "request": {"attribution_windows": null},
+      "row": {
+        "optimization_goal": "LEAD_GENERATION",
+        "impressions": "1000",
+        "spend": "10",
+        "results": [
+          {
+            "indicator": "actions:lead",
+            "values": [
+              {"value": "3", "attribution_windows": ["7d_click"]},
+              {"value": "4", "attribution_windows": ["1d_view"]}
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "value": null,
+        "cost_per_result": null,
+        "cost_source": "unknown",
+        "source": "unknown",
+        "definition_id": null,
+        "reason": "unverified_native_shape"
+      }
+    }
+  ],
+  "indicators": [
+    {"indicator": "actions:link_click", "id": "meta:link_clicks", "label": "Link clicks", "aggregation": "sum"},
+    {
+      "indicator": "actions:post_engagement",
+      "id": "meta:post_engagement",
+      "label": "Post engagements",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "actions:onsite_conversion.messaging_conversation_started_7d",
+      "id": "meta:messaging_conversations",
+      "label": "Messaging conversations started",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "actions:landing_page_view",
+      "id": "meta:landing_page_views",
+      "label": "Landing page views",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "actions:omni_landing_page_view",
+      "id": "meta:omni_landing_page_views",
+      "label": "Landing page views (all channels)",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+      "id": "meta:website_purchases",
+      "label": "Website purchases",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "actions:offsite_conversion.fb_pixel_add_to_cart",
+      "id": "meta:website_adds_to_cart",
+      "label": "Website adds to cart",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "actions:click_to_call_native_call_placed",
+      "id": "meta:calls_placed",
+      "label": "Calls placed",
+      "aggregation": "sum"
+    },
+    {"indicator": "actions:rsvp", "id": "meta:event_responses", "label": "Event responses", "aggregation": "sum"},
+    {"indicator": "actions:like", "id": "meta:page_likes", "label": "Page likes", "aggregation": "sum"},
+    {"indicator": "actions:lead", "id": "meta:leads", "label": "Leads", "aggregation": "sum"},
+    {"indicator": "actions:mobile_app_install", "id": "meta:installs", "label": "App installs", "aggregation": "sum"},
+    {
+      "indicator": "actions:offsite_conversion.custom.1000000000000001",
+      "id": "meta:custom_conversion:1000000000000001",
+      "label": "Custom conversion",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "video_continuous_2_sec_watched_actions",
+      "id": "meta:video_2s_plays",
+      "label": "2-second continuous video plays",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "profile_visit_view",
+      "id": "meta:profile_visit_views",
+      "label": "Profile visits",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "total_profile_visits",
+      "id": "meta:total_profile_visits",
+      "label": "Total profile visits",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "reach",
+      "id": "meta:reach",
+      "label": "Reach",
+      "aggregation": "non_additive",
+      "cost_multiplier": 1000
+    },
+    {
+      "indicator": "estimated_ad_recallers",
+      "id": "meta:ad_recallers",
+      "label": "Estimated ad recall lift (people)",
+      "aggregation": "non_additive"
+    },
+    {
+      "indicator": "actions:some_future_action",
+      "id": "meta:action:some_future_action",
+      "label": "Meta result",
+      "aggregation": "sum"
+    },
+    {
+      "indicator": "some_future_metric",
+      "id": "meta:result:some_future_metric",
+      "label": "Meta result",
+      "aggregation": "non_additive"
+    }
+  ]
+}

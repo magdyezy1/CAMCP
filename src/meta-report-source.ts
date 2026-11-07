@@ -5,7 +5,7 @@ import {metaPrefix} from './meta-version.js';
 import {byObjectiveGroup, metricNumber} from './report-metrics.js';
 import {overviewCapabilities, invalidReportSource, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
-import {metaMappedResult, metaResultRules} from './meta-report-results.js';
+import {metaResult, metaResultRules} from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
 import {reportStatus} from './report-status.js';
 import {metaReportMetadata} from './meta-report-metadata.js';
@@ -55,7 +55,7 @@ export const metaReportSource: ReportSource = {
     },
   ),
   resultRules: metaResultRules,
-  readResult: metaMappedResult,
+  readResult: metaResult,
   objectives: {
     name: 'Meta',
     values: {

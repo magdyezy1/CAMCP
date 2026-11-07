@@ -491,7 +491,10 @@ test('v4 TikTok detail collects native result fields without a completeness decl
   assert.equal(JSON.parse(groupRead.url.searchParams.get('fields')).includes('optimization_goal'), true);
 });
 
-test('v4 Meta detail accepts no action override and retains honest mapped results while native shape is unverified', async t => {
+// Package meta-results: the row carries no insights `results`, so the goal's documented field is the labelled fallback. (The
+// row used to carry an `unverified` placeholder `results`; that is not the recorded shape and is unknown now. A row that
+// does carry `results` is read as Meta's own result: tests/meta-results-reports.test.mjs.)
+test('v4 Meta detail accepts no action override and maps the goal’s documented field when a row carries no results', async t => {
   const f = overviewGranularityFixture();
   t.after(() => f.close());
   f.mutate((rows, platform) =>
@@ -500,7 +503,6 @@ test('v4 Meta detail accepts no action override and retains honest mapped result
           ...row,
           optimization_goal: 'LINK_CLICKS',
           inline_link_clicks: index === 0 ? '3' : '6',
-          results: [{unverified: '999'}],
         }))
       : rows,
   );

@@ -9,18 +9,30 @@ import {reportPack} from '../dist/src/report-packs.js';
 import {reportWorkbook} from '../dist/src/report-artifacts.js';
 
 /**
- * F-L5-12 (label only): a Meta result is mapped by AMCP from documented fields (actions, link clicks, impressions, reach),
- * never read from Meta's Results column, whose shape is not pinned. The row says so on the website and in the exports,
- * from what the row's result already carries (`result_context.source` and the definition's native field).
+ * F-L5-12 (label): a Meta result that is mapped by AMCP from documented fields (the one exact action the person chose, or
+ * a row with no insights `results`) is not read from Meta's Results column. The row says so on the website and in the
+ * exports, from what the row's result already carries (`result_context.source` and the definition's native field). A row
+ * read from `results` says nothing: tests/meta-results-reports.test.mjs.
  */
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 const mappedLimitation =
   'Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.';
 const mappedHeader = 'Result mapped from';
 
+/**
+ * Under explicit attribution windows Meta puts the count of each requested window under the window’s name beside the ad
+ * set’s own `value` (package meta-results, F-LEAD-02). The ad set’s setting here is 7d_click, so that count is the value.
+ */
+const withWindowCounts = rows =>
+  rows.map(row => ({
+    ...row,
+    actions: row.actions.map(action => ({...action, '7d_click': action.value})),
+    action_values: row.action_values.map(action => ({...action, '7d_click': action.value})),
+  }));
 async function snapshot(t, {v4}) {
   const f = overviewGranularityFixture();
   t.after(() => f.close());
+  f.mutate((rows, platform) => (platform === 'meta' ? withWindowCounts(rows) : rows));
   const {objective, level, ...source} = granularSource('meta', 'ad'),
     config = {
       ...granularConfig(source),
