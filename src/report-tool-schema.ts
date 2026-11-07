@@ -24,6 +24,14 @@ import {overviewV4ScopeFields, overviewV4ScopeIdLimit} from './overview-v4.js';
  */
 /** The limits `config` validation (src/reporting-overview.ts) and this schema share. */
 export const overviewConfigLimits = {name: 100, sources: 30} as const;
+/** The longest text a row query (`get`) takes, as amcp_reporting's row_query does. */
+export const overviewRowQueryLimit = 150;
+/** The longest continuation cursor of a filtered `get` or `list` (src/page-cursor.ts accepts 1,024). */
+export const overviewCursorLimit = 1024;
+/** The states a report snapshot is in; `list` filters on them. */
+export const overviewSnapshotStates = ['queued', 'running', 'complete', 'partial', 'failed', 'cancelled'] as const;
+/** What `get` adds when asked: the native fields, each source's lineage, and (accepted ahead of package charts) charts. */
+export const overviewIncludeFlags: readonly string[] = ['native', 'lineage', 'charts'];
 
 /** What the tables say across all platforms, in the order the tables list them. */
 export interface OverviewTableFacts {
@@ -84,5 +92,23 @@ export function overviewConfigSchema(): JsonObject {
       grain: choice(reportGrains),
       sources: {type: 'array', items: overviewSourceSchema()},
     },
+  };
+}
+
+/**
+ * The arguments that narrow `get` (platform, level, entity, query) and `list` (client, platform, state), and the cursor
+ * that continues a narrowed read. They only ever hide what the caller may already read. The handler checks the values
+ * against the tables (src/report-read-filters.ts: an unknown platform, level or state is refused, never matched against
+ * nothing), so the listing leaves them as text and spends no bytes on the lists.
+ */
+export function overviewFilterProperties(): JsonObject {
+  return {
+    platform: text(),
+    level: text(),
+    entity: text(),
+    query: text({maxLength: overviewRowQueryLimit}),
+    client: text(),
+    state: text(),
+    cursor: text({maxLength: overviewCursorLimit}),
   };
 }

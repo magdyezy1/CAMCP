@@ -281,8 +281,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790,
   // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
   // Package mcp-typed adds src/report-tool-schema.ts, the typed reporting config generated from the report sources
-  // (V2-MCP-02): 792.
-  assert.equal(files.length, 792);
+  // (V2-MCP-02): 792,
+  // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793.
+  assert.equal(files.length, 793);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -353,7 +354,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
-  assert.equal(Object.keys(catalog).length, 12004);
+  // Package mcp-typed (V2-MCP-02) adds the three sentences of the get and list filter refusals and rewords the include
+  // refusal to name charts (the old sentence leaves the catalogue): 12,007.
+  assert.equal(Object.keys(catalog).length, 12007);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

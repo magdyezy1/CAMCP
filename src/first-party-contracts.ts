@@ -1457,9 +1457,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'get',
-      'One snapshot with a page of rows, its exports and deliveries.',
+      'One snapshot with a page of rows, its exports and deliveries; platform, level, entity and query narrow the rows.',
       ['id'],
-      ['offset', 'limit', 'include'],
+      ['offset', 'limit', 'include', 'platform', 'level', 'entity', 'query', 'cursor'],
       local,
       'reader',
       [[O, 'report_pack']],
@@ -1467,9 +1467,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'list',
-      'Report snapshots you can access, newest first.',
+      'Report snapshots you can access, newest first; client, platform and state narrow them.',
       [],
-      ['offset', 'limit'],
+      ['offset', 'limit', 'client', 'platform', 'state', 'cursor'],
       local,
       'reader',
       [[O, 'get']],
@@ -2031,7 +2031,20 @@ const argumentNotes: Record<string, Record<string, string>> = {
     config:
       'A report definition: name, grain, date_range and sources (one account each, with the levels, statuses, ID lists and options bootstrap platforms[].reporting_v4 lists for its platform). A level, status or option a source leaves out takes the default bootstrap lists; a v3 definition (one level, no levels) is still accepted.',
     include:
-      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage. Without them rows and sources are compact.',
+      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage; charts:true is accepted and adds nothing until the chart definitions ship. Without them rows and sources are compact.',
+    platform:
+      'get: only the rows of this platform; list: only the snapshots with a source of this platform. A platform ID from bootstrap platforms[].id.',
+    level:
+      'get: only the rows of this level (campaign, adset or ad); bootstrap platforms[].reporting_v4.levels lists the levels of each platform.',
+    entity:
+      'get: a native ID as the rows show it (entity_id, or the campaign or ad set above a row): that entity’s row and the rows under it.',
+    query:
+      'get: text to find, case-insensitive, in the IDs and names of the rows and of the campaign and ad set above them (at most 150 characters); a blank query narrows nothing.',
+    client:
+      'list: only the snapshots all of whose sources are accounts of this client profile (a profile ID of amcp_workspace profiles).',
+    state: 'list: only the snapshots in this state: queued, running, complete, partial, failed or cancelled.',
+    cursor:
+      'get and list with a filter: the next_cursor of the previous page. It continues only the same read, by the same caller with the same id, filters, limit and include; any other use is refused with INVALID_CURSOR. An offset belongs to an unfiltered read.',
     compare:
       'run: previous_period also queues the equal-length window that ends the day before as a linked baseline snapshot with its own collection limits. Both count toward the 100 active reporting jobs.',
     baseline_id:

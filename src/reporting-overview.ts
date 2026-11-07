@@ -43,7 +43,15 @@ import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
 import {validateObjectiveFields, objectiveFallbackGroups} from './report-objectives.js';
 import {reportSource} from './report-sources.js';
-import {overviewConfigLimits, overviewConfigSchema} from './report-tool-schema.js';
+import {
+  overviewConfigLimits,
+  overviewConfigSchema,
+  overviewFilterProperties,
+  overviewIncludeFlags,
+} from './report-tool-schema.js';
+import {filterActive, rowFilters, rowMatches, snapshotFilters} from './report-read-filters.js';
+import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor, invalidCursor} from './page-cursor.js';
+import {clientView} from './client-scope.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
@@ -117,7 +125,7 @@ const sheetsGateway = providerById('sheets')!.gateway;
 export const overviewPollAfterMs = 5000;
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. It reads native reports and saves AMCP records; it never changes an advertising account. Start with bootstrap: the accounts you may use, each platform’s levels, option names and defaults (platforms[].entity_levels and platforms[].reporting_v4), metrics, objectives, and your saved reports (views), templates, schedules and destinations. Unset source options take the defaults it lists. run queues a bounded native snapshot of a saved report (id) or a config and returns estimated_requests, a next_call and poll_after_ms; poll get (1–500 rows a page; include {native:true} or {lineage:true} adds the native fields or source lineage) until it is final. Recommendations are advisory, frozen at capture, valid for 48 hours and held back for partial or insufficient data. compare reads two retained snapshots and sends no provider request; report_pack gives summaries, evidence and PDF/XLSX downloads. export replaces only an AMCP-owned Google Sheets tab (retries never append duplicate rows) or writes retained files; schedule creates a recurring delivery of a saved report. Every action that saves, deletes, runs, exports, schedules, retries, cancels or resolves a delivery needs confirmed:true and the operator role (create_spreadsheet: admin); editing or deleting a saved report, template or schedule also needs its expected_revision. Missing metrics stay null. Each action’s arguments, limits and rules: this tool with action:"help" and topic:<action>; the workflow guide: amcp_workspace {action:"help",topic:"guides/reporting-overview"}.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. It reads native reports and saves AMCP records; it never changes an advertising account. Start with bootstrap: the accounts you may use, each platform’s levels, option names and defaults (platforms[].entity_levels and platforms[].reporting_v4), metrics, objectives, and your saved reports (views), templates, schedules and destinations. Unset source options take the defaults it lists. run queues a bounded native snapshot of a saved report (id) or a config and returns estimated_requests, a next_call and poll_after_ms; poll get (1–500 rows a page) until it is final; get narrows its rows by platform, level, entity or query, list narrows the snapshots by client, platform or state, and a narrowed read continues by its next_cursor. Recommendations are advisory, frozen at capture, valid for 48 hours and held back for partial or insufficient data. compare reads two retained snapshots and sends no provider request; report_pack gives summaries, evidence and PDF/XLSX downloads. export replaces only an AMCP-owned Google Sheets tab (retries never append duplicate rows) or writes retained files; schedule creates a recurring delivery of a saved report. Every action that saves, deletes, runs, exports, schedules, retries, cancels or resolves a delivery needs confirmed:true and the operator role (create_spreadsheet: admin); editing or deleting a saved report, template or schedule also needs its expected_revision. Missing metrics stay null. Each action’s arguments, limits and rules: this tool with action:"help" and topic:<action>; the workflow guide: amcp_workspace {action:"help",topic:"guides/reporting-overview"}.',
   [
     'help',
     'bootstrap',
@@ -185,7 +193,12 @@ export const overviewTool = tool(
       maximum: 500,
       description: '1–100 for list actions; get and compare up to 500; see action help.',
     },
-    include: {type: 'object', additionalProperties: false, properties: {native: field.bool, lineage: field.bool}},
+    include: {
+      type: 'object',
+      additionalProperties: false,
+      properties: Object.fromEntries(overviewIncludeFlags.map(flag => [flag, field.bool])),
+    },
+    ...overviewFilterProperties(),
     delivery_id: field.id,
     resolution: {type: 'string', enum: ['check', 'resend', 'abandon']},
     move_version: field.id,
@@ -870,10 +883,16 @@ export class ReportingOverview {
       };
     }
     if (input.action === 'list') {
-      const offset = input.offset ?? 0,
+      const requested = input.offset ?? 0,
         limit = input.limit ?? 50;
-      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      if (!Number.isSafeInteger(requested) || requested < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
         throw new MirrorError('INVALID_PAGE', 'Use an offset >= 0 and 1–100 report snapshots.');
+      // V2-MCP-02: client, platform and state narrow the snapshots the caller may already read, and only those.
+      const filters = snapshotFilters(input),
+        filtered = filterActive(filters),
+        working = filters.client === undefined ? undefined : clientView(store, actor, filters.client),
+        start = this.readStart(actor, input, filtered, {action: 'list', limit, ...filters}, 'overview list'),
+        offset = start.offset;
       // RPT-05: the whole-window summary (with its sparkline series) is returned by get, not by every list page.
       const candidates = snapshotPage(store, tenant, offset);
       const reports: JsonObject[] = [];
@@ -891,15 +910,39 @@ export class ReportingOverview {
         } catch {
           continue;
         }
+        // Only after the access check, so a filter never reads or reveals a snapshot the caller may not.
+        const sources: JsonObject[] = Array.isArray(record.config?.sources) ? record.config.sources : [];
+        if (
+          (filters.state !== undefined && record.state !== filters.state) ||
+          (filters.platform !== undefined && !sources.some(source => source.platform === filters.platform)) ||
+          (working &&
+            !sources.every(source =>
+              working.has(reportPlatforms[source.platform]?.gateway, source.account_id, source.connection_id),
+            ))
+        )
+          continue;
         reports.push(publicReport(store, tenant, record));
         if (reports.length >= limit) break;
       }
       const hasMore = scanned < candidates.length || candidates.length === 500;
+      if (!filtered)
+        return {
+          reports,
+          offset,
+          has_more: hasMore,
+          next_offset: hasMore ? offset + scanned : null,
+        };
+      // A narrowed list continues by a cursor bound to the caller and to every argument of the read.
+      const cursor = hasMore ? encodeOffsetCursor(start.binding!, offset + scanned) : null;
       return {
         reports,
         offset,
         has_more: hasMore,
-        next_offset: hasMore ? offset + scanned : null,
+        next_offset: null,
+        next_cursor: cursor,
+        ...(cursor
+          ? {next_call: {tool: overviewTool.name, arguments: {action: 'list', limit, ...filters, cursor}}}
+          : {}),
       };
     }
     if (
@@ -925,30 +968,73 @@ export class ReportingOverview {
           typeof input.include !== 'object' ||
           Array.isArray(input.include) ||
           Object.entries(input.include).some(
-            ([key, value]) => !['native', 'lineage'].includes(key) || typeof value !== 'boolean',
+            ([key, value]) => !overviewIncludeFlags.includes(key) || typeof value !== 'boolean',
           ))
       )
-        throw new MirrorError('INVALID_REPORT', 'Use native and lineage include flags set to true or false.');
+        throw new MirrorError('INVALID_REPORT', 'Use native, lineage and charts include flags set to true or false.');
       const r = store.document(tenant, 'overview_report', String(input.id));
       this.access(actor, r.config);
-      const offset = input.offset ?? 0,
+      const requested = input.offset ?? 0,
         limit = input.limit ?? 100;
-      if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 500)
+      if (!Number.isInteger(requested) || requested < 0 || !Number.isInteger(limit) || limit < 1 || limit > 500)
         throw new MirrorError('INVALID_PAGE', 'Use an offset and limit of 1–500 rows.');
+      // V2-MCP-02: platform, level, entity and query narrow the rows of a snapshot the caller may already read.
+      const filters = rowFilters(input),
+        filtered = filterActive(filters),
+        start = this.readStart(
+          actor,
+          input,
+          filtered,
+          {
+            action: 'get',
+            id: String(input.id),
+            limit,
+            include: Object.fromEntries(overviewIncludeFlags.map(flag => [flag, input.include?.[flag] === true])),
+            ...filters,
+          },
+          'overview get',
+        ),
+        offset = start.offset,
+        matched: JsonObject[] = filtered ? r.rows.filter((row: JsonObject) => rowMatches(row, filters)) : r.rows,
+        more = offset + limit < matched.length,
+        cursor = filtered && more ? encodeOffsetCursor(start.binding!, offset + limit) : null;
       const job = store.job(tenant, r.job_id),
         now = Date.now(),
         active = ['queued', 'running'].includes(job.state);
       return {
         ...publicReport(store, tenant, r),
         ...projectOverviewV4Summaries(r),
-        rows: projectOverviewV4Rows(r, r.rows.slice(offset, offset + limit), input.include),
+        rows: projectOverviewV4Rows(r, matched.slice(offset, offset + limit), input.include),
         sources: projectOverviewV4Sources(r, input.include),
         row_count: r.rows.length,
         // The paging fields every AMCP list carries (MCP-07): total, has_more and next_offset while it is true.
-        total: r.rows.length,
+        total: matched.length,
         offset,
-        has_more: offset + limit < r.rows.length,
-        next_offset: offset + limit < r.rows.length ? offset + limit : null,
+        has_more: more,
+        // A narrowed read has no offset to misapply: it continues by its cursor, bound to the caller and every argument.
+        next_offset: !filtered && more ? offset + limit : null,
+        ...(filtered
+          ? {
+              matched_row_count: matched.length,
+              filter: filters,
+              next_cursor: cursor,
+              ...(cursor
+                ? {
+                    next_call: {
+                      tool: overviewTool.name,
+                      arguments: {
+                        action: 'get',
+                        id: String(input.id),
+                        limit,
+                        ...(input.include === undefined ? {} : {include: input.include}),
+                        ...filters,
+                        cursor,
+                      },
+                    },
+                  }
+                : {}),
+            }
+          : {}),
         exports: store
           .documents(tenant, 'overview_export')
           .filter(e => e.report_id === r.id)
@@ -1131,6 +1217,27 @@ export class ReportingOverview {
   }
   private schedule(actor: Actor, input: JsonObject) {
     return this.library.schedule(actor, input);
+  }
+  /**
+   * Where a read starts and what continues it (V2-MCP-02). An unfiltered read pages by `offset`, as it always has. A
+   * filtered read pages by a cursor sealed to the caller (tenant, person, role, credential) and to every argument of the
+   * read (`bound`), so the continuation of one read can never be applied to another: a changed argument, another caller
+   * or an `offset` beside the cursor is refused (INVALID_CURSOR), and so is an `offset` on a filtered read.
+   */
+  private readStart(actor: Actor, input: JsonObject, filtered: boolean, bound: JsonObject, what: string) {
+    if (!filtered && input.cursor === undefined) return {offset: input.offset ?? 0, binding: undefined};
+    const binding = cursorBinding(this.service.store, actor, bound);
+    if (input.cursor !== undefined) {
+      if (input.offset !== undefined) throw invalidCursor(what);
+      return {offset: decodeOffsetCursor(input.cursor, binding, what), binding};
+    }
+    if (input.offset !== undefined && input.offset !== 0)
+      throw new MirrorError(
+        'INVALID_PAGE',
+        'Continue a filtered read with the next_cursor it returned; an offset belongs to an unfiltered read.',
+        {field: 'offset'},
+      );
+    return {offset: 0, binding};
   }
   /** Whether a failed Sheets export needs its tab released before a retry can succeed (see releaseFirstErrors). */
   private releaseRequired(tenant: string, job: JsonObject, destinationId: unknown): boolean {

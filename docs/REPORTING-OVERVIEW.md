@@ -125,6 +125,18 @@ remain unavailable.
 keeps none of its own. It asks for **I have checked the reporting window is complete** only where the answer matters:
 for a source with a detailed level, or one saved as incomplete. A campaign-level window needs no declaration.
 
+For a client that builds a multi-level or scoped definition, the same block states the rest of the rules, each from
+the table that validation reads: every level names `scope_field`, the list its native IDs go in (`campaign_ids`,
+`adset_ids` or `ad_ids`), and `scope_id_prefix` where the platform spells an ID with one (LinkedIn's URNs);
+`source_defaults` is what a source that leaves out `levels`, `statuses` or `delivered_only` gets
+(`{levels:["campaign"], statuses:["all"], delivered_only:true}`, with the platform's `defaults` for its options);
+`provider_configured_options` are the options the provider configures, which may stay `null` only when every requested
+level is one of `provider_configured_levels` (campaign). `bootstrap.config_limits` gives the most sources a
+definition names and the most native IDs in one scope list. The `config` argument of the tool is typed from the same
+tables with the fields every platform shares (`sources[].platform`, `levels`, `level`, `statuses`, `delivered_only`,
+the three ID lists, `report_options`, and `grain`): a level, status, platform or grain no table has is refused by the
+schema, and a definition saved by an earlier build still validates. What differs by platform is in bootstrap.
+
 ## Objective sources
 
 Each row retains the native `objective`, its AMCP `objective_group`, `objective_source` and `objective_reason`.
@@ -455,9 +467,21 @@ column note says that values with more digits than a number holds exactly are ke
 before.
 
 **Reading a snapshot.** `get` returns a v4 row without its native evidence, and a source without `native`,
-`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them. A
+`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them.
+`include:{charts:true}` is accepted and adds nothing until the chart definitions are returned there. A
 `window_summary[].series` point is `{date_from, spend}` and, when its period was calculated from fewer units than it
 has, also `coverage` in the shape of a metric's, so a week with one unknown campaign is a short point and not a dip.
+
+**Narrowing a read.** `get` takes `platform`, `level`, `entity` (a native ID as the rows show it: that entity's row and
+the rows under it) and `query` (case-insensitive text in the IDs and names of the rows and of the campaign and ad set
+above them), and `list` takes `client` (a client profile), `platform` and `state`. They run after the access checks and
+only hide rows or snapshots the caller may already read; a value the tables do not have is refused with
+`INVALID_ARGUMENT` and the accepted values in `details.allowed`. A narrowed `get` says what it did: `filter`,
+`matched_row_count` (`row_count` stays the whole snapshot's) and a `total` of the matched rows. A narrowed read
+continues only by its `next_cursor`, repeated in `next_call`. The cursor is sealed to the caller and to every argument
+of the read, so a changed argument, another caller or an `offset` beside it is refused with `INVALID_CURSOR`; an
+`offset` on a narrowed read is refused with `INVALID_PAGE`. Without a filter the responses and the offset paging are
+unchanged.
 
 **Monitors on a v4 snapshot.** A rule watches the top level its source requested (campaign, then ad set, then ad), so
 one window is one incident, and compares the value as exact decimal text, never as a double. A summary answers a rule
