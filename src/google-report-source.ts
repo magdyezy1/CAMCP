@@ -5,6 +5,9 @@ import {mappedReportResult} from './report-results.js';
 import {reportStatus} from './report-status.js';
 import {overviewEntityLevels} from './overview-levels.js';
 
+/** An ad_group_ad resource name, `customers/{customer_id}/adGroupAds/{ad_group_id}~{ad_id}`; group 1 is the ad's own ID. */
+const adGroupAdResourceName = /^customers\/\d+\/adGroupAds\/\d+~(\d+)$/;
+
 /** Google Ads campaign rows of googleAds:search (ProtoJSON camelCase; cost in micros). */
 export const googleReportSource: ReportSource = {
   platform: 'google',
@@ -12,7 +15,13 @@ export const googleReportSource: ReportSource = {
     const entity = level === 'ad' ? raw.adGroupAd : level === 'adset' ? raw.adGroup : raw.campaign;
     return reportStatus(entity?.status, {ENABLED: 'active', PAUSED: 'paused', REMOVED: 'archived'});
   },
-  overview: overviewCapabilities(overviewEntityLevels.google!),
+  overview: {
+    ...overviewCapabilities(overviewEntityLevels.google!),
+    // F-L5-08: a Google ad row is named by its resource name, while a scope names the ad by the number the website asks
+    // for. A campaign and an ad group are named by their own numbers already.
+    scopeEntityId: (row, level) =>
+      level === 'ad' && typeof row.entity_id === 'string' ? adGroupAdResourceName.exec(row.entity_id)?.[1] : undefined,
+  },
   resultRules: {
     selectors: [],
     default: {
