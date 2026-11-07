@@ -101,7 +101,11 @@ the provider's promotion ID identifies each promoted-tweet row, including when s
 undeclared window as labelled partial, with recommendations held. A legacy detailed source must explicitly declare
 `report_options.complete_window` as a boolean and its measurement settings. TikTok and Snapchat require
 `complete_window:true` and a closed reporting window. Other supported detailed sources can declare an incomplete
-window, which keeps the source partial and holds recommendations.
+window, which keeps the source partial and holds recommendations. A v4 campaign-level source that declares
+`complete_window:false` is partial on every platform, with the declared-incomplete warning; at that level an
+undeclared window still needs no declaration. A v3 campaign source cannot declare a window (`INVALID_REPORT_LEVEL`),
+so no stored v3 state changes. A detailed source whose window was never declared is partial with its measurement
+marked incomplete (`quality.measurement_complete:false`), and its advice says so.
 
 Legacy Snapchat ad-squad reporting (`level:"adset"`) requires `campaign_id`, the exact parent campaign UUID. V4 instead
 collects all account campaigns, or the optional exact `campaign_ids` scope, and preserves an old scalar as that scope.
@@ -110,8 +114,10 @@ A reusable legacy template can defer selecting its parent. Other legacy detailed
 attribution profile there; detailed settings do not apply to campaign totals.
 
 Legacy guided detailed sources use their preset metrics. Additional `native_metrics` at those levels are refused with
-`INVALID_NATIVE_METRICS`; clear them before selecting a detailed level. Campaign-level native metrics retain their
-existing platform-specific validation. Missing metrics remain unavailable.
+`INVALID_NATIVE_METRICS`; clear them before selecting a detailed level. A v4 source is refused the same way, with the
+same code and sentence and before any provider request, when it selects any detailed level, even beside the
+campaign level. Campaign-level native metrics retain their existing platform-specific validation. Missing metrics
+remain unavailable.
 
 ## Objective sources
 
@@ -162,8 +168,9 @@ or `-` totals fall back to row counts; unavailable row metrics stay unavailable.
 Requests include the level's `STATUS_ALL` filter to include deleted objects. If TikTok explicitly refuses that
 optional filter, AMCP retries the read once without it and warns that deleted campaigns may be missing. Daily detail
 can cover 1–366 closed advertiser-local days in inclusive, non-overlapping spans of at most 30 days; campaign totals
-are limited to 365 days. The existing row, page and request bounds still apply. Cross-level agreement is separate
-work; matching native totals does not claim that campaign, ad-group and ad reports reconcile.
+are limited to 365 days. The existing row, page and request bounds still apply. Matching native totals does not
+claim that campaign, ad-group and ad reports reconcile; the snapshot's cross-level check does, within the rounding
+described under [levels, coverage and failures](#levels-coverage-and-failures-in-a-v4-snapshot).
 
 ## LinkedIn reporting
 
@@ -295,6 +302,50 @@ own zone (one bounded account read unless the zone is fixed). Rows and `sources[
 `sources[].window_resolution` the zone used. `preview_schedule` lists, per occurrence and source, the zone
 (`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
 `open_at_delivery`, without a provider request.
+
+## Levels, coverage and failures in a v4 snapshot
+
+Each requested level of a v4 source is collected as its own unit with its own checkpoint, so an interrupted job resumes
+at the unit it was in and never reads a finished unit again. A scope that selects descendants (`ad_ids`, `adset_ids`)
+also collects the level that measures them as a supporting unit. It is disclosed and is never a level of the report.
+One unit holds at most 10,000 rows across its periods; more is refused with `REPORT_ROW_LIMIT`.
+
+**State and failures.** A level that cannot be collected has its error in `sources[].level_results[]` and is named in
+`sources[].failed_levels`; the source's own `error` is set only when every requested level failed. The snapshot is
+`failed` when every requested level failed, `partial` when some failed or any is incomplete, and `complete` otherwise.
+`empty_reason` follows the requested levels, so a failed collection is never reported as a filter that matched nothing.
+A retryable provider error requeues the job, up to 8 attempts, and the finished units are kept. On the last attempt it
+fails that unit alone and the snapshot is saved partial with the failure named; a scheduled report delivers that
+partial result. A repeated entity or an account mismatch fails its unit and not the job, and a snapshot never stays
+`running` after its job failed. A source whose retained state was written under another platform contract cannot be
+resumed, so it is collected again from its start and says so in a warning; the job's counters keep what it already spent.
+
+**Selected IDs.** `scope.unmatched_ids` lists, per level, the selected IDs that no returned row carries, and the source
+warns with their count, so a mistyped or stale ID cannot narrow a total unnoticed.
+
+**Coverage.** Every entry of `metrics_coverage` has one shape: `{known_rows, total_rows, basis, report_rows,
+known_pairs?, unavailable_reason?}`. `total_rows` counts the units a figure could have been calculated from and
+`known_rows` those that had a value. `basis` says what a unit is: `report_rows`, each a row of the report, or
+`native_measurements`, where a row was built from the provider's own rows (usually days) and `total_rows` can exceed
+`report_rows`. A ratio uses only the units that have every value it needs, and a ratio of two parts says how many with
+`known_pairs`. `unavailable_reason` is `unknown_currency` (money in several currencies, or in none, is never added),
+`non_additive_inputs` (reach and frequency are never summed) or `calculation_limit`. The website says "n of m rows" for
+the first basis and "n of m measurements" for the second. Snapshots stored by earlier V2 builds wrote `known` and
+`total`, and are read as recorded.
+
+**Cross-level check.** `sources[].cross_level` compares spend, impressions and clicks between adjacent levels of one
+account and window, per currency and time zone. Counts must agree exactly. Money agrees when the difference is at most
+half a minor unit of the currency (JPY 0 decimals, USD 2, KWD 3) for each figure compared on either side, counting each
+native measurement that a row sums, because a provider rounds every figure. The comparison keeps `delta`,
+`coverage_percent` and the `tolerance` it allowed, so nothing the rounding absorbed is hidden. A pair that cannot be
+compared says why: `level_failed`, `derived_parent_population`, different windows, statuses or objectives, an unknown
+currency or a missing metric.
+
+**Calculation limits.** Metrics are calculated in exact fractions. A metric that uses another starts from the other's
+exact value, and each metric is rounded once, to nine places, half to even. A numerator or denominator past 4,096 digits,
+a report that spends its calculation budget (about a third of a second of arithmetic on large numbers) or its time
+(two minutes) ends that metric: it is unavailable with `unavailable_reason:"calculation_limit"`, as is any metric that
+uses it, never a rounded guess. Ordinary reports are unaffected, and row assembly hands the event loop back every 20 ms.
 
 ## Snapshot state in the website (RPT-05)
 
