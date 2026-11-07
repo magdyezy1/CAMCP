@@ -105,8 +105,9 @@ function reportObjectiveSelect(platform, config = {}, groups) {
 }
 /**
  * A row's objective: its group, where the group came from and, when it is unknown, why. A v4 snapshot nests them under
- * `objective` ({native, group, source, reason}); a snapshot recorded before that keeps them flat on the row beside a
- * native objective string. One reader serves every renderer, so each snapshot is shown as it was recorded.
+ * `objective` ({native, group, source, reason, reason_code, reason_values}); a snapshot recorded before that keeps them
+ * flat on the row beside a native objective string, and one recorded before the code has the sentence alone. One reader
+ * serves every renderer, so each snapshot is shown as it was recorded.
  */
 function reportRowObjective(row) {
   const nested = row.objective !== null && typeof row.objective === 'object' ? row.objective : {};
@@ -114,8 +115,21 @@ function reportRowObjective(row) {
     group: nested.group ?? row.objective_group,
     source: nested.source ?? row.objective_source,
     reason: nested.reason ?? row.objective_reason,
+    code: nested.reason_code,
+    values: nested.reason_values,
   };
 }
+/** The two reasons that name a platform and its native objective: the code, the message and the pattern of an old sentence. */
+const reportObjectiveReasons = {
+  no_matching_objective: [
+    '{platform}’s {native} has no matching AMCP objective; choose one in the report.',
+    /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s,
+  ],
+  objective_not_grouped: [
+    '{platform} returned the objective {native}, which AMCP does not group yet; choose one in the report.',
+    /^(.+?) returned the objective (.+), which AMCP does not group yet; choose one in the report\.$/s,
+  ],
+};
 function reportObjectiveSource(row) {
   const objective = reportRowObjective(row);
   if (row.results_by_objective?.length && objective.source === 'provider')
@@ -124,22 +138,15 @@ function reportObjectiveSource(row) {
     });
   if (objective.source === 'user_fallback' && objective.reason) return uiText(objective.reason);
   if (objective.source !== 'unknown') return objective.source ? reportLabel(objective.source) : '';
+  // The code names the message and carries what fills it. Only a snapshot recorded before the code is read from its sentence.
   const reason = String(objective.reason ?? ''),
-    known = /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s.exec(reason),
-    unknown = /^(.+?) returned the objective (.+), which AMCP does not group yet; choose one in the report\.$/s.exec(
-      reason,
-    );
-  return known
-    ? uiText('{platform}’s {native} has no matching AMCP objective; choose one in the report.', {
-        platform: known[1],
-        native: known[2],
-      })
-    : unknown
-      ? uiText('{platform} returned the objective {native}, which AMCP does not group yet; choose one in the report.', {
-          platform: unknown[1],
-          native: unknown[2],
-        })
-      : uiText(reason);
+    named = reportObjectiveReasons[objective.code];
+  if (named && objective.values) return uiText(named[0], objective.values);
+  for (const [message, pattern] of Object.values(reportObjectiveReasons)) {
+    const match = objective.code ? null : pattern.exec(reason);
+    if (match) return uiText(message, {platform: match[1], native: match[2]});
+  }
+  return uiText(reason);
 }
 
 /** Defaults mirror report-metrics.ts campaignRecommendation. */

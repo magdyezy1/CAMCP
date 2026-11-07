@@ -564,7 +564,16 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
     };
   };
   return rows.map(row => {
-    const {native, lineage, objective_source, objective_group, objective_reason, ...visible} = row;
+    const {
+      native,
+      lineage,
+      objective_source,
+      objective_group,
+      objective_reason,
+      objective_reason_code,
+      objective_reason_values,
+      ...visible
+    } = row;
     const fields = snapshot.config.metrics
         ? [
             ...new Set<string>([
@@ -624,6 +633,10 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
         group: objective_group,
         source: objective_source,
         reason: objective_reason ?? null,
+        // The stable code of the reason (and the platform and objective it names), for the page to word; a snapshot recorded
+        // before the code has the sentence alone.
+        ...(objective_reason_code ? {reason_code: objective_reason_code} : {}),
+        ...(objective_reason_values ? {reason_values: objective_reason_values} : {}),
       },
       parents: {
         ...(row.parent_ids?.campaign_id

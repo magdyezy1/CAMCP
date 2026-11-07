@@ -151,6 +151,8 @@ export async function assembleReportRows(
           objective_group: objective,
           objective_source: resolvedObjective.source,
           objective_reason: resolvedObjective.reason,
+          ...(resolvedObjective.reason_code ? {objective_reason_code: resolvedObjective.reason_code} : {}),
+          ...(resolvedObjective.reason_values ? {objective_reason_values: resolvedObjective.reason_values} : {}),
           date_from: period.since,
           date_to: period.until,
           source_kind: result.source_kind,
@@ -287,6 +289,8 @@ function rowObjective(source: JsonObject, row: JsonObject): ResolvedObjective {
       group: row.objective_group,
       source: row.objective_source,
       reason: row.objective_reason ?? null,
+      ...(row.objective_reason_code ? {reason_code: row.objective_reason_code} : {}),
+      ...(row.objective_reason_values ? {reason_values: row.objective_reason_values} : {}),
     };
   return resolveObjective({
     platform: source.platform,

@@ -14,11 +14,33 @@ export interface ObjectiveTable {
   mapped?(inputs: JsonObject): {group: string; reason: string | null} | undefined;
   readonly missingReason: string;
 }
+/**
+ * Why an objective is what it is, as a stable code beside the English reason (F-L5-15): the report page and the clients
+ * choose their wording from the code, and never parse the sentence. Codes that name the platform and the native
+ * objective carry them in `reason_values`.
+ */
+export type ObjectiveReasonCode =
+  | 'campaign_override'
+  | 'source_choice'
+  | 'provider_note'
+  | 'inferred_from_native'
+  | 'mapped_by_provider'
+  | 'fallback_read_refused'
+  | 'fallback_read_limited'
+  | 'platform_returned_none'
+  | 'source_has_no_objective'
+  | 'no_matching_objective'
+  | 'objective_not_grouped'
+  | 'read_refused'
+  | 'read_limited';
 export interface ResolvedObjective {
   native: string | null;
   group: string;
   source: ObjectiveSource;
   reason: string | null;
+  /** The code of `reason`; none when there is no reason. */
+  reason_code?: ObjectiveReasonCode;
+  reason_values?: {platform: string; native: string};
 }
 export const objectiveFallbackGroups: readonly string[] = Object.freeze(
   objectiveGroups.filter(group => group !== 'unknown'),
@@ -56,26 +78,45 @@ export function resolveObjective(input: {
 }): ResolvedObjective {
   const native =
     typeof input.native === 'string' && input.native.trim() && input.native !== 'unknown' ? input.native : null;
-  const resolved = (group: string, source: ObjectiveSource, reason: string | null): ResolvedObjective => ({
+  const resolved = (
+    group: string,
+    source: ObjectiveSource,
+    reason: string | null,
+    code?: ObjectiveReasonCode,
+    values?: ResolvedObjective['reason_values'],
+  ): ResolvedObjective => ({
     native,
     group,
     source,
     reason,
+    ...(reason !== null && code ? {reason_code: code} : {}),
+    ...(reason !== null && values ? {reason_values: values} : {}),
   });
   const choice = (value: unknown): value is string =>
     typeof value === 'string' && objectiveFallbackGroups.includes(value);
   const campaignId = input.campaignId ? objectiveCampaignId(input.campaignId) : undefined;
   if (campaignId && input.overrides && Object.hasOwn(input.overrides, campaignId)) {
     const group = input.overrides[campaignId];
-    if (choice(group)) return resolved(group, 'user_override', 'Chosen for this campaign in the report.');
+    if (choice(group))
+      return resolved(group, 'user_override', 'Chosen for this campaign in the report.', 'campaign_override');
   }
   if (choice(input.legacy))
-    return resolved(input.legacy, 'user_override', 'Chosen for every campaign of this source in the saved report.');
+    return resolved(
+      input.legacy,
+      'user_override',
+      'Chosen for every campaign of this source in the saved report.',
+      'source_choice',
+    );
   const table = input.table;
   const nativeGroup =
     table && native !== null && Object.hasOwn(table.values, native) ? table.values[native] : undefined;
   if (nativeGroup === mixedObjectiveGroup || choice(nativeGroup))
-    return resolved(nativeGroup, 'provider', table?.reason?.(native!, input.mappedInputs ?? {}) ?? null);
+    return resolved(
+      nativeGroup,
+      'provider',
+      table?.reason?.(native!, input.mappedInputs ?? {}) ?? null,
+      'provider_note',
+    );
   if (table && native && nativeGroup === undefined) {
     const inferred = objectiveGroup(native);
     if (choice(inferred))
@@ -83,16 +124,27 @@ export function resolveObjective(input: {
         inferred,
         'provider_inferred',
         'Inferred from the platform’s value {native}.'.replace('{native}', () => native),
+        'inferred_from_native',
       );
   }
   const mapped = table?.mapped?.(input.mappedInputs ?? {});
-  if (mapped && choice(mapped.group)) return resolved(mapped.group, 'provider_mapped', mapped.reason);
+  if (mapped && choice(mapped.group))
+    return resolved(mapped.group, 'provider_mapped', mapped.reason, 'mapped_by_provider');
   const unread =
     native === null && input.unread && Object.hasOwn(unreadReasons, input.unread) ? input.unread : undefined;
   if (choice(input.fallback))
-    return resolved(input.fallback, 'user_fallback', unread ? unreadReasons[unread][1] : null);
-  let reason = table?.missingReason ?? 'This source has no campaign objective.';
-  if (table && native)
+    return resolved(
+      input.fallback,
+      'user_fallback',
+      unread ? unreadReasons[unread][1] : null,
+      unread === 'limited' ? 'fallback_read_limited' : 'fallback_read_refused',
+    );
+  let reason = table?.missingReason ?? 'This source has no campaign objective.',
+    code: ObjectiveReasonCode = table ? 'platform_returned_none' : 'source_has_no_objective',
+    values: ResolvedObjective['reason_values'];
+  if (table && native) {
+    code = nativeGroup === null ? 'no_matching_objective' : 'objective_not_grouped';
+    values = {platform: table.name, native};
     reason = (
       nativeGroup === null
         ? '{platform}’s {native} has no matching AMCP objective; choose one in the report.'
@@ -100,8 +152,11 @@ export function resolveObjective(input: {
     )
       .replace('{platform}', () => table.name)
       .replace('{native}', () => native);
-  else if (unread) reason = unreadReasons[unread][0];
-  return resolved('unknown', 'unknown', reason);
+  } else if (unread) {
+    reason = unreadReasons[unread][0];
+    code = unread === 'limited' ? 'read_limited' : 'read_refused';
+  }
+  return resolved('unknown', 'unknown', reason, code, values);
 }
 
 /** Compare override keys without rewriting the native campaign identity stored on a report row. */
