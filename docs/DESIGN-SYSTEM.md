@@ -45,6 +45,8 @@ not write `element.style`). Everything below is therefore a class, a token or an
 | `theme.css` | workspace, policy pages | the Appearance control and the dark override layer that remains (below) |
 | `accessibility.css` | workspace, About, last | focus rings, input borders, the 12px floor, target sizes |
 | `about.css`, `privacy.css` | About; Privacy, Terms, Data deletion and 404 | those pages' own layout, from tokens only |
+| `tokens-v2.css` | the static public pages (third), and routes that use V2 as a page asset | the V2 tokens and every legacy token with its existing value ([V2 token sheet](#v2-token-sheet)) |
+| `components*.css`, `design-system.css` | routes that list them as page assets, before `accessibility.css` | the V2 components and the state page's layout, from tokens only ([V2 components](#v2-components-amcpui)) |
 
 `tools/check-web.mjs` keeps `tokens.css` first, `public-tokens.css` second on the static public pages and off the
 workspace, `accessibility.css` last in the workspace, and refuses a token defined outside the token sheets.
@@ -56,10 +58,17 @@ and what left it, is [below](#the-dark-override-layer-themecss).
 
 ## V2 token sheet
 
-`web/tokens-v2.css` is the foundation for page adoption from round 2. No page loads it yet. It contains every legacy
-token with its existing value, so adopting the sheet alone preserves the current appearance. Redesigned components
-choose the V2 names below. Its explicit dark theme and system-dark theme have equal declarations; both are checked
-independently of the loaded token sheets.
+`web/tokens-v2.css` is the foundation for page adoption. It contains every legacy token with its existing value, so
+loading it after the token sheets a page already has changes no legacy token (`tests/web-tokens-v2-components.test.mjs`
+resolves every token in light, dark and, where the page has it, system-dark, with and without the sheet). Redesigned
+components choose the V2 names below. Its explicit dark theme and system-dark theme have equal declarations; both are
+checked independently of the loaded token sheets.
+
+**Where it loads.** The static public pages (Privacy, Terms, Data deletion and 404, in both languages) link it third,
+after `public-tokens.css`. The workspace shell (`index.html`) and About do not: the sheet is 2,374 Brotli bytes, and
+`en /about`, `en /report-library` and `en /reporting-overview` have 52, 343 and 1,197 bytes of room under their recorded
+route budgets, which are not raised for it. A route that uses V2 lists the sheet among its page assets, directly or
+through a component sheet that depends on it (`web/route-assets.js`), so it reaches only the routes that need it.
 
 ### V2 colour
 
@@ -77,11 +86,28 @@ independently of the loaded token sheets.
 | `--v2-data-1` | #6250d6 | #9085e9 | Data series |
 | `--v2-data-2` | #eb6834 | #d95926 | Data series |
 | `--v2-data-3` | #1baf7a | #199e70 | Data series requiring direct labels |
+| `--v2-raised` | #ffffff | #252032 | Raised surface: cards, inputs, dialogs |
+| `--v2-subtle` | #f5f2fa | #2e273b | Quiet fill: hovered rows, table headers, the neutral badge, skeletons |
+| `--v2-selected` | #ece6f8 | #392f5c | Selected fill |
+| `--v2-success`, `--v2-success-bg` | #245d49, #e6f3ed | #a5e5c4, #18382e | Success text and its tint |
+| `--v2-warning`, `--v2-warning-bg` | #714b14, #fff3db | #f6d89e, #3d2e19 | Warning text and its tint |
+| `--v2-danger`, `--v2-danger-bg` | #af3939, #fce5e8 | #ffb6bf, #452830 | Danger text and its tint |
+| `--v2-danger-solid`, `--v2-on-danger` | #af3939, #ffffff | #d4566c, #17141f | A destructive fill and its text |
+| `--v2-info`, `--v2-info-bg` | violet-text, selected | violet-text, selected | Information text and its tint |
 
-Text pairs meet 4.5:1 in both themes, including on-violet on violet. Strong rules and the first two data series meet
-3:1 against paper. Data-3 has about 2.77:1 in light mode: use direct labels and another distinguishing cue; never rely
-on that colour alone. Peach is a marker, with an icon or text beside it. Logo files are the brand kit's, byte for byte:
-`docs/records/BRAND-KIT-V1-2026-11-07.md`.
+Text pairs meet 4.5:1 in both themes, including on-violet on violet and every status on its tint. Strong rules and the
+first two data series meet 3:1 against paper, raised and subtle surfaces. Data-3 has about 2.77:1 in light mode: use
+direct labels and another distinguishing cue; never rely on that colour alone. Peach is a marker, with an icon or text
+beside it, and nothing is written on it: ink on peach measures 1.38:1 in dark. Two more pairs fail as text and are never
+used: ink-2 on rule (4.32:1 light, 4.45:1 dark) and violet-text on rule in dark (4.49:1); rule is a line or a track, not
+a surface for words. Logo files are the brand kit's, byte for byte: `docs/records/BRAND-KIT-V1-2026-11-07.md`.
+
+`public-tokens.css` names each of the 18 policy shades for V2, in its light block only, because each follows its shade
+through the theme: `--v2-policy-surface`, `--v2-policy-text`, `--v2-policy-text-body`, `--v2-policy-text-intro`,
+`--v2-policy-text-strong`, `--v2-policy-lead`, `--v2-policy-text-secondary`, `--v2-policy-eyebrow`,
+`--v2-policy-accent`, `--v2-policy-link`, `--v2-policy-link-hover`, `--v2-policy-nav-link`,
+`--v2-policy-contents-link`, `--v2-policy-border`, `--v2-policy-border-subtle`, `--v2-policy-border-strong`,
+`--v2-policy-code` and `--v2-policy-shadow`. A page restyled for V2 repoints a V2 name when it adopts a new value.
 
 Legacy `--ink`, `--muted`, `--line`, `--line-strong` and `--apricot` alias the corresponding V2 token in both themes.
 `--iris-700` aliases violet-text in light, and `--iris` does so in dark. Other legacy values, including `--paper`, retain
@@ -111,6 +137,9 @@ their current definitions.
 | `--v2-z-overlay`, `--v2-z-dialog`, `--v2-z-toast` | 40, 50, 60 |
 | `--v2-control-height` | 40px by default; 32px in compact density |
 | `--v2-row-height` | 44px by default; 32px in compact density |
+| `--v2-row-height-compact` | 32px: a table's own density toggle, whatever the page's density |
+| `--v2-target-min`, `--v2-target-primary` | 24px, 44px: the smallest target of any control; the target of a primary action |
+| `--v2-focus-width`, `--v2-focus-offset` | 2px, 2px: the ring every component draws, in the `--focus` colour |
 
 The larger spacing and type steps clamp between 320px and 1440px; 12px is the type floor. Under
 `prefers-reduced-motion: reduce`, all three V2 durations are 0s. Use tabular numerals for comparable numbers.
@@ -424,6 +453,203 @@ A region being read carries `aria-busy="true"` and a sentence ("Loading this pag
 what it is doing and is disabled until it finishes. There is no spinner component. An empty list shows the `.empty`
 state with what is missing and the next step.
 
+## V2 components (`AmcpUI`)
+
+The V2 component layer (V2-WEB-02) is a set of classic scripts and stylesheets that pages adopt as they are rewritten. It
+rewrites no page: the components above stay on their pages until those pages move (V2-WEB-03 to 05), and none of the
+V2 sheets is linked by the workspace shell or About. The members-only state page `/design-system` (not in the
+navigation, answered by the shell like every workspace page) shows every component in every state, in English and
+Arabic and in both themes; it is the review surface for the visual sign-off.
+
+### How it is built
+
+| File | Holds |
+|---|---|
+| `components.js`, `components.css` | the namespace `AmcpUI`, icons, button, icon button, badge, filter chips, fields (text, number, date, select, checkbox), progress, skeleton, empty and error states, stepper, KPI, platform and creative cards |
+| `components-controls.js`, `components-controls.css` | segmented control, tabs, searchable list (combobox), tree with tri-state boxes |
+| `components-table.js`, `components-data.css` | the responsive table |
+| `components-overlays.js`, `components-overlays.css` | dialog, side sheet, toast |
+| `design-system.js`, `design-system.css` | the state page and its layout |
+
+- **Loading.** A route lists the files it uses among its `assets` (`web/routes.js`, `web/route-assets.js`); a stylesheet
+  loads as a `<link>` before `accessibility.css`, which stays last, and the page waits for it. `/design-system` loads
+  all of them with `tokens-v2.css`. The checks read a route that loads sheets as a page of its own, so a component sheet
+  may read a V2 token only on routes that also load `tokens-v2.css`.
+- **Writing.** A component is a function that returns `` html`…` `` (never `innerHTML`, `insertAdjacentHTML` or `raw()`, so
+  the markup ratchet does not move) and takes its words already translated by the page. An interactive component
+  registers a delegated behaviour; the page calls `AmcpUI.bind(root)` once on its content and re-renders freely. A
+  component that needs state after it is drawn has a `mount(host, config)` that returns a small controller. Changes
+  reach the page as bubbling `amcp-change` events (`amcp-remove`, `amcp-action`) with a detail object.
+- **Styling.** Tokens only (`tokens-v2.css`, with the legacy `--focus` and `--overlay` roles): a component sheet declares
+  no custom property, no colour, no hand-written radius, shadow, duration or type size, and the token ratchet counts its
+  debt at zero. Logical properties only, container queries inside components, no viewport breakpoints. Only overlays
+  cast a shadow. No gradients, glows or icons in tinted squares.
+- **Icons.** `AmcpUI.icon(name)` draws one of eleven glyphs (`check`, `close`, `minus`, `plus`, `chevron`, `next`, `info`,
+  `warning`, `error`, `search`, `dot`) as an inline SVG on a 24px grid in the text colour; it is decoration beside words, so it is
+  hidden from assistive technology, and `next` mirrors in right-to-left.
+- **Dark layer.** `theme.css` paints native inputs, selects and textareas and recolours `label`, `p`, `th`, `dt` and
+  `summary` in the dark theme at a specificity a class cannot beat. A field therefore keeps its state on its wrapper (border,
+  dimming, never a fill), its muted words sit in spans and divs, and a table gives its header text the colour of its row.
+- **Pairs.** Nothing is written on `--v2-rule` (ink-2 and, in dark, violet-text fail there) and nothing on `--v2-peach`
+  (ink on peach is 1.38:1 in dark): rule draws lines and tracks, peach is a dot or a bar beside words.
+- **Every component** has the states that apply (hover, active, focus, disabled, loading, error), reads right to left through
+  logical properties, works in both themes, has a 24px minimum target (44px for a primary action), turns its motion off
+  under `prefers-reduced-motion`, and keeps its focus ring and its state in forced colours (system colours, borders instead
+  of fills). The state page draws hover, active and focus with `data-state` so they can be seen at rest.
+- **Tests.** `tests/web-ui-*.test.mjs` read state, ARIA and keyboard behaviour back from the markup in a test DOM
+  (`tests/helpers/web-ui-dom.mjs`); `node tools/browser-workflow-qa.mjs --kinds components` drives every component with real
+  keys on the state page at 320, 375, 768 and 1280 pixels, in both languages and themes (axe, the Arabic leak probe, target
+  sizes, focus rings, the open dialog and sheet, toasts, forced colours).
+
+### Button
+
+- **Markup.** `AmcpUI.button({label, variant, size, type, disabled, loading, loadingLabel, href, pressed, expanded, controls})`
+  returns a `<button type="button">`, or an `<a>` when it has an `href`. `AmcpUI.iconButton({icon, label})` is the quiet
+  variant with only a glyph and needs a name.
+- **Variants.** `primary` (the main action of a region: violet fill; always 44px high and wide, whatever its size),
+  `secondary` (the default: a rule and the raised surface), `quiet` (no border until hovered) and `danger` (a solid danger fill).
+  Sizes `sm` (32px), `md` (40px, 32px in compact density) and `lg` (44px).
+- **States.** Hover darkens the fill (primary and danger) or takes the subtle surface; active goes one step further; the shared
+  ring shows on focus; disabled is a subtle fill with ink-2 text and `not-allowed`; loading is disabled with `aria-busy`, a
+  spinner and, when given, a verb ("Saving…"); a pressed toggle has `aria-pressed` and a selected fill. A disabled link has
+  no `href`, `aria-disabled` and `tabindex="-1"`.
+- **Accessibility.** Native `button` keys; an icon-only button is named by `aria-label` and its glyph is hidden.
+- **Do** keep one primary button per region and label it with a verb. **Don't** disable a button without saying why nearby,
+  or put the busy state on a link.
+
+### Badge
+
+One badge replaces four. `AmcpUI.badge({label, tone})` with tones `neutral`, `success`, `warning`, `danger`, `info` and `marker`.
+A status tone has an icon and its word; `marker` is a peach dot beside the word. The old classes map to it
+(`AmcpUI.badge.legacy`), and the old pages keep their own CSS until they move:
+
+| Old class | Badge tone |
+|---|---|
+| `.status` and `.status.offline` | `neutral` |
+| `.status.online` | `success` |
+| `.status.attention` | `warning` |
+| `.status.error` | `danger` |
+| `.default-badge` | `info` |
+| `.creative-tag` | `neutral` |
+| `.measurement-ledger-state` | `info` |
+
+**Don't** use colour alone, put a badge's word in the glossary's other language, or write text on a peach fill.
+
+### Filter chips
+
+`AmcpUI.chips({label, chips, mode: 'multi' | 'single', removable})`: a labelled `role="group"` of toggle buttons, each with
+`aria-pressed`, an optional count and a check mark when pressed (a fill and a heavier border too). `single` keeps exactly
+one pressed. Removable chips name what they remove (`Remove {label}`), remove themselves and hand focus to the next or
+previous chip, or to the group when none is left. A page reads `amcp-change` (`id`, `pressed`, `pressedIds`) and
+`amcp-remove`. **Don't** use chips for navigation: they filter one view.
+
+### Fields
+
+- **Markup.** `AmcpUI.input({id, label, type: 'text' | 'number' | 'date' | 'search' | 'email' | 'url' | 'password', hint, error,
+  required, disabled, readonly, loading})`, `AmcpUI.select({id, label, options, value, …})` and `AmcpUI.checkbox`. A label,
+  the control, a hint and an error linked by `aria-describedby`; `aria-required` and a visible asterisk; an error is an icon and
+  words with `role="alert"`, and sets `aria-invalid`.
+- **Number.** A number is typed as text (`inputmode="decimal"`, `dir="ltr"`) so the digits stay exactly as typed: no float
+  conversion, no locale digits, in both languages. `AmcpUI.decimal(text)` returns `{valid, value}` for a decimal with Latin
+  digits (thousands separators dropped, no exponent). Money and metrics stay decimal strings.
+- **Date.** The native date control.
+- **States.** The border darkens on hover, takes the focus colour with the inset ring on focus, turns danger on error, and a
+  disabled or read-only field is dimmed and lighter-bordered; `loading` adds a spinner and `aria-busy`.
+- **Do** write the hint before the error and name what to do. **Don't** use a placeholder as the label.
+
+### Progress, skeleton, empty and error states, stepper
+
+- **Progress.** `AmcpUI.progress({label, value, max, text, tone})` is a native `<progress>` named by its label: determinate
+  only when the value is known, otherwise the browser's indeterminate bar and the words "In progress", never 0%.
+- **Skeleton.** `AmcpUI.skeleton({shape, lines})` is one `role="status"` busy group that says "Loading…" once; the blocks are
+  decoration and stop pulsing under reduced motion.
+- **Empty state.** `AmcpUI.emptyState({title, body, action})` refuses to render without an action: an empty state always names
+  one next step.
+- **Error state.** `AmcpUI.errorState({title, body, retry, reference, details})` is a `role="alert"` section with a way on, the
+  reference in a left-to-right `<code>` and the technical details in a disclosure.
+- **Stepper.** `AmcpUI.stepper({label, steps})` is an ordered list; each step has a marker and says its state in words
+  (completed, current step, not started, needs attention), the current one with `aria-current="step"`; a column on a
+  narrow container and a row on a wide one.
+
+### Cards
+
+`AmcpUI.kpi({label, value, unit, note})` is plain large type in a description list; a figure of zero (the number or the text
+`'0'`) is shown as 0 and a missing one (`null`, `undefined` or an empty string) as a dash with "No data" for assistive
+technology and its reason in the note, so zero and unknown never look alike. `AmcpUI.platformCard({name, status, meta, action})` has one action. `AmcpUI.creativeCard({id, title, meta,
+mediaLabel, media, selectable, selected, badges})` has a media area named by `mediaLabel` and, when selectable, a checkbox
+named by the title; a selected card has a violet border and a peach bar at its start (a marker, with the checked box beside it).
+
+### Segmented control and tabs
+
+- **Segmented control.** `AmcpUI.segmented({name, label, options, value})` is native radios in a labelled `radiogroup`: Tab
+  enters the group once and the arrow keys move and select, as the browser does it.
+- **Tabs.** `AmcpUI.tabs({id, label, tabs, selected, activation, orientation})`: roving tab stop, a panel for each tab
+  (`aria-controls`, `aria-labelledby`). Arrow keys move and, by default, select (`activation: 'manual'` waits for Enter or
+  Space); they wrap, skip a disabled tab, and swap in right-to-left; Home and End jump. `AmcpUI.tabs.next` is the pure rule.
+- **Do** keep tab labels short and give every panel a heading or a first line that says where you are.
+
+### Searchable list (combobox)
+
+`AmcpUI.combobox({id, label, hint, error, …})` draws the field; `AmcpUI.combobox.mount(host, {options, value, limit, search,
+onSelect})` gives it its options (or an asynchronous `search(query)`) and returns a controller.
+
+- **Pattern.** An editable text box with `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls` and
+  `aria-activedescendant`, and a listbox popup. Focus stays in the box.
+- **Keys.** Typing filters (case and accents ignored, label prefixes first, the match marked). ArrowDown and ArrowUp open and move
+  the active option (they wrap); Enter chooses (and does not submit a form); Escape closes, and a second Escape puts the chosen
+  value back; Alt+ArrowDown opens. A click chooses; leaving the box puts the chosen label back, because a half-typed query is
+  not a value.
+- **States.** The list says "N results", or "Showing 8 of 120. Keep typing to narrow the list." when it is cut at its limit (8
+  by default: the popup never scrolls, because a scrolling region the keyboard cannot reach fails WCAG 2.1.1); an empty result
+  says what was searched and offers "Clear the search"; an asynchronous search is busy (`aria-busy`, a spinner), the newest
+  answer wins, and a failure says so with "Try again".
+- **Do** cut a long list with `limit` and let people narrow it by typing. **Don't** use it for fewer than about seven choices:
+  use a select.
+
+### Tree with tri-state boxes (the scope picker)
+
+`AmcpUI.tree({id, label, nodes, checked, expanded})` and `AmcpUI.tree.mount(host, {nodes, checked, expanded, onChange})`.
+A `role="tree"` (`aria-multiselectable`) of `treeitem`s with `aria-level`, `aria-setsize`, `aria-posinset`, `aria-expanded` and
+`aria-checked` (`true`, `false` or `mixed`); one tab stop that follows the focus. A parent is checked when every selectable leaf
+under it is, mixed when some are; checking a parent checks or clears them all; a disabled item is never checked and does not
+count. Keys: Down and Up, Right to open or enter, Left to close or go to the parent (swapped in right-to-left), Home, End,
+Space and Enter to check, `*` to open the siblings, a letter to jump. The pure rules are `AmcpUI.tree.states`, `toggle`, `visible`
+and `keyAction`. A page reads `amcp-change` (`id`, `checkedIds`). Branches that are closed are not in the document.
+
+### Table
+
+`AmcpUI.table({id, caption, description, columns, rows, density, chooser, densityToggle, state, empty, error})`.
+
+- **Structure.** The caption is a heading outside the scroll region, and both the region (`role="region"`, `tabindex="0"`, so it
+  scrolls by keyboard) and the table are named by it. The header row and the first column (a `rowheader`) are sticky inside a
+  region of its own height. Every element carries its ARIA role, because below 40rem of its own width (a container query) each
+  row is a card with the name on the first line and `label: value` pairs beneath; a table that stops being `display: table`
+  keeps its meaning. Numbers align to the end with tabular figures; a `native` column (names) keeps its own direction.
+- **Column chooser.** A disclosure of checkboxes: hiding a column hides its header and cells, the last visible column cannot be
+  hidden, Escape closes the chooser and returns focus to its button, and it opens in the flow so it cannot hang outside a narrow
+  window. The density toggle changes the rows' height through `data-density`.
+- **States.** `loading` (skeleton rows, `aria-busy`), `empty` (refuses to render without a next action) and `error` (with a way
+  on) keep the header. Values are text, never markup (a cell may be an `html` fragment such as a badge).
+- **Don't** put a table in a container that hides overflow, or hide the only column that names a row.
+
+### Dialog, side sheet and toast
+
+- **Dialog.** `AmcpUI.dialog.open({title, body, actions, size, role, dismissible})` returns `{element, closed, close, setLoading,
+  setError}`; `closed` resolves with the answer (`'dismiss'` for Escape, the backdrop or the Close button). A native `<dialog>`
+  opened with `showModal()` in a portal at the end of the body: the browser's top layer and Escape, and also the rest of the page
+  marked `inert`, Tab kept inside, and focus returned to what opened it. `role: 'alertdialog'` with an action marked `initial`
+  starts focus on the safe choice. A busy dialog disables its actions and sets `aria-busy`; an error shows in a `role="alert"` line
+  without closing it. `dismissible: false` ignores Escape and the backdrop.
+- **Side sheet.** `AmcpUI.sheet.open({…, side: 'end' | 'start', modal})` is the same panel against an edge (the end edge by
+  default: the right in English, the left in Arabic); non-modal it leaves the page usable beside it, and closes on Escape itself.
+- **Toast.** `AmcpUI.toasts.mount(host)` returns `{show, dismiss, clear}`. The host is in the page's flow at the block start,
+  so a toast pushes content down instead of covering it, and on a phone it is the first thing. A labelled region with a
+  polite `aria-live` list; it never takes focus; each toast has an icon, its words and a Dismiss button; success and information
+  leave after six seconds, warnings and errors stay; the pointer or the keyboard on a toast holds its timer; three at most;
+  Escape dismisses and returns focus to where it was.
+- **Do** keep the answer of a destructive confirmation in the dialog's own buttons and say what will happen; use a toast to
+  confirm what happened. **Don't** put the only copy of an error in a toast.
+
 ## The dark override layer (`theme.css`)
 
 `theme.css` loads after the component sheets in the workspace and on the policy pages (About loads none). Besides the
@@ -538,7 +764,8 @@ reviewed:
   panel and the light ink; new rules use the roles (`--surface-raised`, `--text`). `--radius` (17px) has no size suffix
   between `--radius-lg` and `--radius-xl`.
 - Badges are four components (`.status`, `.default-badge`, `.creative-tag`, `.measurement-ledger-state`) with their own
-  sizes; the disclosure summaries of Capabilities and worker health repeat one 44px rule in two sheets.
+  sizes; the V2 badge replaces them and the map is in [V2 components](#badge), but the old pages keep their own CSS until they
+  move. The disclosure summaries of Capabilities and worker health repeat one 44px rule in two sheets.
 - 195 type sizes, 14 radii, 17 shadows and 468 spacing values off the 4px grid are still written by hand; the ratchet
   keeps them from growing.
 
@@ -556,7 +783,9 @@ reviewed:
 | `check-web` itself | inline scripts, styles and handlers; a token defined outside the token sheets; the stylesheet order; an unnamed dialog; `confirm()` | — |
 | `tests/website-contrast.test.mjs` | shell colour pairs below 4.5:1 (text) or 3:1 (focus) in either theme | — |
 | `tests/web-components.test.mjs` | a button hover rule without the disabled guard; a toggle without `aria-pressed`; a field border below 3:1; a dark group member that re-colours a button, badge, notice variant, feedback alert, metric pill, dialog, client tab or platform card; more than 87 dark members; a button variant or the Settings section links below 4.5:1 | — |
-| rendered qualification | WCAG rules (axe-core), focus rings below 3:1, a focused control hidden by a sticky layer, sideways scrolling, Arabic leaks | [local browser QA](LOCAL-BROWSER-QA.md) |
+| `tests/web-ui-*.test.mjs`, `tests/route-assets-styles.test.mjs`, `tests/web-tokens-v2-components.test.mjs`, `tests/web-design-tokens-routes.test.mjs` | a V2 component's state, ARIA or keyboard handling that is wrong (over the test DOM); a stylesheet that reaches a page without its bytes counted; a V2 surface or status below its contrast, or one of the pairs listed above adopted; a legacy token that moves when the V2 sheet loads; a component sheet read on a route that does not load the V2 tokens | — |
+| `tests/web-components-css.test.mjs` | a component sheet with debt on the token ratchet, a colour or custom property of its own, a physical side or a viewport breakpoint; a focus ring that is not the shared one; an animation that does not stop under reduced motion; no forced-colour rules; a primary action under 44px or a control under 24px; a text colour on a fill it fails on (4.5:1, 3:1 when disabled) or on one of the pairs listed above; peach behind words | — |
+| rendered qualification | WCAG rules (axe-core), focus rings below 3:1, a focused control hidden by a sticky layer, sideways scrolling, Arabic leaks; for `--kinds components` also targets below 24px (44px for a primary action), the focus style of each component, the keyboard model of each, the open dialog and sheet, toasts, forced colours | [local browser QA](LOCAL-BROWSER-QA.md) |
 
 `node tools/check-colours.mjs --explain web/<sheet>.css` and `node tools/check-design-tokens.mjs --explain
 web/<sheet>.css` list what a sheet still writes by hand; `--write` lowers a baseline after a migration and refuses a
@@ -572,7 +801,9 @@ count above its limit.
   table above, and in the components that need it.
 - **A component.** Build it from the roles and scales, give it hover, focus, disabled, busy and error states where it
   has them, name its controls, and document it here. Its dark appearance comes from its tokens: never add a
-  `theme.css` entry.
+  `theme.css` entry. A V2 component goes in `web/components*.js` and its sheet, as [above](#v2-components-amcpui): written
+  with `` html`…` ``, with a test over the test DOM, a section on the state page in English and Arabic, and a case in
+  `tests/fixtures/components-browser.mjs`.
 - **Removing a `theme.css` entry.** Prove it: a computed-style comparison of every element (and `::before`,
   `::after`, `::marker`, `::placeholder`), at the rendered pages' states and with forced hover, focus and active
   states, with and without the entry, must find no difference; or, where it finds one, the difference must be a fix of

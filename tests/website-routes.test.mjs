@@ -115,14 +115,16 @@ test('the router is the one createWebsite built before the split, in every deplo
       store.close();
     }
   }
-  // The recording itself: 100 layers where the MCP service runs (the workspace and report download routes among them)
-  // and 87 where it does not; whether writes are enabled is decided per request, not by the router. DOC-03 added the
+  // The recording itself: 101 layers where the MCP service runs (the workspace and report download routes among them)
+  // and 88 where it does not; whether writes are enabled is decided per request, not by the router. DOC-03 added the
   // one layer of the members-only Help page (route /help, server/help-routes.ts) after Audit activity's route, before
   // the public pages, in every shape. Package brand added the one layer of /apple-touch-icon.png (server/page-routes.ts)
-  // right after /favicon.ico, in every shape.
-  assert.equal(fixture.shapes.writes_with_service.length, 100);
+  // right after /favicon.ico, in every shape. V2-WEB-02 added one more: the component state page (route /design-system, the
+  // last of the shell pages in server/page-routes.ts, right after /oauth/consent). Merge B: both are in the merged
+  // router, 99 + 2 and 86 + 2, measured on the merged recording.
+  assert.equal(fixture.shapes.writes_with_service.length, 101);
   assert.deepEqual(fixture.shapes.reads_with_service, fixture.shapes.writes_with_service);
-  assert.equal(fixture.shapes.reads_without_service.length, 87);
+  assert.equal(fixture.shapes.reads_without_service.length, 88);
   assert.equal(
     fixture.shapes.writes_with_service[
       fixture.shapes.writes_with_service.indexOf('route /favicon.ico get <anonymous>') + 1
@@ -130,6 +132,7 @@ test('the router is the one createWebsite built before the split, in every deplo
     'route /apple-touch-icon.png get <anonymous>',
   );
   assert.ok(fixture.shapes.reads_without_service.includes('route /help get <anonymous>'));
+  assert.ok(fixture.shapes.reads_without_service.includes('route /design-system get <anonymous>'));
   assert.ok(fixture.shapes.writes_with_service.includes('route /api/workspace/:tool post jsonParser|<anonymous>'));
   assert.ok(!fixture.shapes.reads_without_service.some(l => l.startsWith('route /api/workspace/')));
   assert.equal(fixture.shapes.writes_with_service.at(-1), 'use <anonymous> *', 'the not-found handler is last');

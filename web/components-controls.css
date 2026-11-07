@@ -1,0 +1,329 @@
+/* V2-WEB-02 components, part 2 (docs/DESIGN-SYSTEM.md): segmented control, tabs, combobox and the tri-state tree. Built on
+   components.css and the V2 tokens. A selected state never relies on colour alone: it has a fill, a stronger border or
+   rule, and a heavier weight (and the tree a mark in its box). */
+
+/* Segmented control: native radios stretched over their labels, so Tab, the arrow keys and the group are the browser's. */
+.amcp-segmented {
+  justify-self: start;
+  display: inline-flex;
+  flex-wrap: wrap;
+  max-inline-size: 100%;
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: var(--v2-radius-control);
+  background: var(--v2-raised);
+  color: var(--v2-ink);
+}
+.amcp-segment {
+  position: relative;
+  display: inline-flex;
+}
+.amcp-segment-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.amcp-segment-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: calc(var(--v2-target-min) + var(--v2-space-2));
+  min-inline-size: var(--v2-target-primary);
+  padding-inline: var(--v2-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--v2-radius-control);
+  font-size: var(--v2-text-sm);
+  transition: background-color var(--v2-duration-fast) var(--v2-ease);
+}
+.amcp-segment:hover .amcp-segment-input:not(:disabled) + .amcp-segment-label {
+  background: var(--v2-subtle);
+}
+.amcp-segment-input:checked + .amcp-segment-label {
+  border-color: var(--v2-violet-text);
+  background: var(--v2-selected);
+  font-weight: 650;
+}
+.amcp-segment-input:focus-visible + .amcp-segment-label {
+  outline: var(--v2-focus-width) solid var(--focus);
+  outline-offset: var(--v2-focus-offset);
+}
+.amcp-segment-input:disabled {
+  cursor: not-allowed;
+}
+.amcp-segment-input:disabled + .amcp-segment-label {
+  color: var(--v2-ink-2);
+}
+
+/* Tabs: a rule under the list, the selected tab marked by a heavier rule and weight. */
+.amcp-tabs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--v2-space-4);
+  min-inline-size: 0;
+  color: var(--v2-ink);
+}
+.amcp-tablist {
+  display: flex;
+  gap: var(--v2-space-1);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--v2-rule);
+}
+.amcp-tab {
+  flex: none;
+  min-block-size: var(--v2-control-height);
+  margin-block-end: -1px;
+  padding-inline: var(--v2-space-4);
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: var(--v2-ink-2);
+  font: inherit;
+  font-size: var(--v2-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  outline-offset: calc(var(--v2-focus-offset) * -1);
+}
+.amcp-tab:is(:hover, [data-state='hover']):not(:disabled) {
+  background: var(--v2-subtle);
+  color: var(--v2-ink);
+}
+.amcp-tab[aria-selected='true'] {
+  border-block-end-color: var(--v2-violet-text);
+  color: var(--v2-ink);
+  font-weight: 700;
+}
+.amcp-tab:disabled {
+  color: var(--v2-ink-2);
+  cursor: not-allowed;
+}
+.amcp-tabpanel {
+  min-inline-size: 0;
+}
+.amcp-tabs[data-orientation='vertical'] {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+}
+.amcp-tabs[data-orientation='vertical'] .amcp-tablist {
+  flex-direction: column;
+  border-block-end: 0;
+  border-inline-end: 1px solid var(--v2-rule);
+}
+.amcp-tabs[data-orientation='vertical'] .amcp-tab {
+  margin-block-end: 0;
+  margin-inline-end: -1px;
+  border-block-end: 0;
+  border-inline-end: 2px solid transparent;
+  text-align: start;
+}
+.amcp-tabs[data-orientation='vertical'] .amcp-tab[aria-selected='true'] {
+  border-inline-end-color: var(--v2-violet-text);
+}
+
+/* Combobox: the field's control, and a popup anchored under it. The active option is named by aria-activedescendant. The
+   popup never scrolls (a scrolling region with no focusable content is out of reach of the keyboard): the list is cut at its
+   limit and says how many were left out, so a long list is narrowed by typing. */
+.amcp-combobox-anchor {
+  position: relative;
+}
+.amcp-combobox-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-inline-size: var(--v2-target-min);
+  min-block-size: var(--v2-target-min);
+  margin-inline-end: var(--v2-space-2);
+  border: 0;
+  border-radius: var(--v2-radius-control);
+  background: transparent;
+  color: var(--v2-ink-2);
+  cursor: pointer;
+}
+.amcp-combobox-toggle:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+.amcp-combobox-toggle:is(:hover, [data-state='hover']):not(:disabled) {
+  background: var(--v2-subtle);
+  color: var(--v2-ink);
+}
+.amcp-popup {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  z-index: var(--v2-z-overlay);
+  margin-block-start: var(--v2-space-1);
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: var(--v2-radius-control);
+  background: var(--v2-raised);
+  color: var(--v2-ink);
+  box-shadow: var(--v2-shadow-overlay);
+}
+.amcp-listbox {
+  margin: 0;
+  padding: var(--v2-space-1);
+  list-style: none;
+}
+.amcp-option {
+  display: grid;
+  gap: var(--v2-space-1);
+  min-block-size: var(--v2-target-min);
+  padding-block: var(--v2-space-2);
+  padding-inline: var(--v2-space-3);
+  border-radius: var(--v2-radius-control);
+  font-size: var(--v2-text-sm);
+  cursor: pointer;
+}
+.amcp-option:hover {
+  background: var(--v2-subtle);
+}
+.amcp-option[aria-selected='true'] {
+  background: var(--v2-selected);
+  border-inline-start: 2px solid var(--v2-violet-text);
+}
+.amcp-option[data-chosen] .amcp-option-label {
+  font-weight: 700;
+}
+.amcp-option[aria-disabled='true'] {
+  color: var(--v2-ink-2);
+  cursor: not-allowed;
+}
+.amcp-option mark {
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.amcp-option-description {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-xs);
+}
+.amcp-listbox-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--v2-space-2);
+  padding: var(--v2-space-3);
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-listbox-note:empty {
+  display: none;
+}
+.amcp-listbox-note[role='alert'] {
+  color: var(--v2-danger);
+}
+
+/* Tree with tri-state boxes. The row carries the focus ring; the box shows checked and mixed by mark and fill. */
+.amcp-tree-list,
+.amcp-tree-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.amcp-tree-list ul {
+  padding-inline-start: var(--v2-space-5);
+}
+.amcp-tree {
+  color: var(--v2-ink);
+}
+.amcp-tree-item:focus-visible {
+  outline: none;
+}
+.amcp-tree-item:focus-visible > .amcp-tree-row {
+  outline: var(--v2-focus-width) solid var(--focus);
+  outline-offset: calc(var(--v2-focus-offset) * -1);
+}
+.amcp-tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-space-2);
+  min-block-size: var(--v2-control-height);
+  padding-inline: var(--v2-space-1);
+  border-radius: var(--v2-radius-control);
+  font-size: var(--v2-text-sm);
+  cursor: pointer;
+}
+.amcp-tree-row:hover {
+  background: var(--v2-subtle);
+}
+.amcp-tree-expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--v2-target-min);
+  block-size: var(--v2-target-min);
+  flex: none;
+  color: var(--v2-ink-2);
+}
+.amcp-tree-item[aria-expanded='true'] > .amcp-tree-row .amcp-tree-expander .amcp-icon {
+  transform: rotate(90deg);
+}
+.amcp-tree-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.125em;
+  block-size: 1.125em;
+  flex: none;
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: var(--v2-space-1);
+  background: var(--v2-raised);
+}
+/* The check and the dash are drawn only in these two states, so their colour is set where their fill is. */
+.amcp-tree-box[data-checked='true'],
+.amcp-tree-box[data-checked='mixed'] {
+  border-color: var(--v2-violet);
+  background: var(--v2-violet);
+  color: var(--v2-on-violet);
+}
+.amcp-tree-item[aria-checked='mixed'] > .amcp-tree-row .amcp-tree-label {
+  font-weight: 650;
+}
+.amcp-tree-item[aria-disabled='true'] > .amcp-tree-row {
+  color: var(--v2-ink-2);
+  cursor: not-allowed;
+}
+.amcp-tree-item[aria-disabled='true'] > .amcp-tree-row .amcp-tree-box {
+  border-color: var(--v2-rule);
+  background: var(--v2-subtle);
+  color: var(--v2-ink-2);
+}
+.amcp-tree-meta {
+  margin-inline-start: auto;
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-xs);
+  font-variant-numeric: var(--v2-numeric);
+}
+
+@media (forced-colors: active) {
+  .amcp-segmented,
+  .amcp-popup,
+  .amcp-tree-box {
+    border-color: ButtonText;
+  }
+  .amcp-segment-input:checked + .amcp-segment-label,
+  .amcp-tab[aria-selected='true'],
+  .amcp-option[aria-selected='true'] {
+    border-color: Highlight;
+  }
+  .amcp-segment-input:checked + .amcp-segment-label,
+  .amcp-option[aria-selected='true'] {
+    border-width: 2px;
+    border-style: solid;
+  }
+  .amcp-tree-box[data-checked='true'],
+  .amcp-tree-box[data-checked='mixed'] {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .amcp-tree-item[aria-disabled='true'] > .amcp-tree-row,
+  .amcp-segment-input:disabled + .amcp-segment-label,
+  .amcp-tab:disabled {
+    color: GrayText;
+  }
+}

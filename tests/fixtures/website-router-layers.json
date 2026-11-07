@@ -119,6 +119,7 @@
       "route /auth/complete get <anonymous>",
       "route /oauth/result get <anonymous>",
       "route /oauth/consent get <anonymous>",
+      "route /design-system get <anonymous>",
       "use <anonymous> *"
     ],
     "reads_with_service": [
@@ -221,6 +222,7 @@
       "route /auth/complete get <anonymous>",
       "route /oauth/result get <anonymous>",
       "route /oauth/consent get <anonymous>",
+      "route /design-system get <anonymous>",
       "use <anonymous> *"
     ],
     "reads_without_service": [
@@ -310,6 +312,7 @@
       "route /auth/complete get <anonymous>",
       "route /oauth/result get <anonymous>",
       "route /oauth/consent get <anonymous>",
+      "route /design-system get <anonymous>",
       "use <anonymous> *"
     ]
   }

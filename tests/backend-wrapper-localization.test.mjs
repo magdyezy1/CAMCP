@@ -338,7 +338,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package results adds the reason a cost per result target cannot be compared with a conversion value (F-L5-13): + 1.
   // Merge B (engine-core and results both start from 11,815 on their base; their additions do not overlap): measured on the merged
   // catalogue, 11,815 + 4 (engine-core) + 3 (results) = 11,822.
-  assert.equal(Object.keys(catalog).length, 11822);
+  // Web-components adds 96 messages: the core components' defaults and the component state page (V2-WEB-02).
+  // Web-components adds 46 more: the choosing components' defaults and the state page's tabs, list and tree sections (V2-WEB-02).
+  // Web-components adds 37 more: the table and overlay components' defaults and their state page sections (V2-WEB-02).
+  // Web-components adds 3 more: the legacy badge mapping on the state page (V2-WEB-02).
+  // Merge B, with web-components (11,815 + 182 on its own base; none of its strings is one the other packages added): measured on
+  // the merged catalogue, 11,822 + 182 = 12,004.
+  assert.equal(Object.keys(catalog).length, 12004);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

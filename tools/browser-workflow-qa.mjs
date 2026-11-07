@@ -27,6 +27,7 @@ import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program
 import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
 import {exerciseOverviewV4} from '../tests/fixtures/overview-v4-browser.mjs';
 import {exercisePeriodComparison} from '../tests/fixtures/period-comparison-browser.mjs';
+import {exerciseComponents} from '../tests/fixtures/components-browser.mjs';
 import {
   inspectBrowserAccessibility,
   accessibilityProblems,
@@ -73,6 +74,8 @@ import {loadRouteRegistry} from './check-routes.mjs';
 
 const fixtureKinds = [
   'empty',
+  // V2-WEB-02: the component state page, every component in every state, in both languages and themes.
+  'components',
   // OWNER-REVIEWER-QA: an invited test account in its own workspace, the view Meta's app reviewers use.
   'reviewer',
   'granular-reporting',
@@ -859,6 +862,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await exerciseOverviewV4({page, site, locale, result});
     } else if (workflow === 'period-comparison') {
       await exercisePeriodComparison({page, site, locale, result, checks: {intermediate, tables: checkTables}});
+    } else if (workflow === 'components') {
+      await exerciseComponents({page, site, locale, width, appearance, output, id, result, checks: {intermediate}});
     } else if (workflow?.startsWith('conditional-programs')) {
       await exerciseConditionalPrograms({page, site, workflow, locale, result, before, checks: {tables: checkTables}});
     } else if (workflow === 'worker-health') {
@@ -2980,39 +2985,41 @@ async function runFixture(kind, site) {
           await renderedCase(site, kind, syntheticJourneyRoutes[kind], locale, width, true, kind, 'light');
     } else {
       const route =
-        kind === 'granular-reporting' || kind === 'period-comparison'
-          ? '/reporting-overview'
-          : kind.startsWith('conditional-programs')
-            ? '/capabilities'
-            : kind === 'worker-health'
-              ? '/settings'
-              : kind === 'snapchat' || kind === 'ad-previews'
-                ? '/media'
-                : kind.startsWith('portfolio-diagnostic-') || kind.startsWith('portfolio-comparison')
-                  ? '/portfolio'
-                  : kind.startsWith('measurement-') ||
-                      kind.startsWith('workspace-form-') ||
-                      kind.startsWith('conversion-metadata-')
-                    ? '/measurement'
-                    : [
-                          'retained-evidence',
-                          'google-keyword',
-                          'google-keyword-error',
-                          'google-keyword-stale',
-                          'google-device',
-                          'google-hour',
-                          'google-hour-error',
-                          'google-hour-stale',
-                          'google-country',
-                          'google-country-error',
-                          'google-country-stale',
-                          'provider-refusal-meta',
-                          'provider-refusal-linkedin',
-                          'provider-refusal-tiktok',
-                          'provider-refusal-snapchat',
-                        ].includes(kind)
-                      ? '/reports'
-                      : '/commerce';
+        kind === 'components'
+          ? '/design-system'
+          : kind === 'granular-reporting' || kind === 'period-comparison'
+            ? '/reporting-overview'
+            : kind.startsWith('conditional-programs')
+              ? '/capabilities'
+              : kind === 'worker-health'
+                ? '/settings'
+                : kind === 'snapchat' || kind === 'ad-previews'
+                  ? '/media'
+                  : kind.startsWith('portfolio-diagnostic-') || kind.startsWith('portfolio-comparison')
+                    ? '/portfolio'
+                    : kind.startsWith('measurement-') ||
+                        kind.startsWith('workspace-form-') ||
+                        kind.startsWith('conversion-metadata-')
+                      ? '/measurement'
+                      : [
+                            'retained-evidence',
+                            'google-keyword',
+                            'google-keyword-error',
+                            'google-keyword-stale',
+                            'google-device',
+                            'google-hour',
+                            'google-hour-error',
+                            'google-hour-stale',
+                            'google-country',
+                            'google-country-error',
+                            'google-country-stale',
+                            'provider-refusal-meta',
+                            'provider-refusal-linkedin',
+                            'provider-refusal-tiktok',
+                            'provider-refusal-snapchat',
+                          ].includes(kind)
+                        ? '/reports'
+                        : '/commerce';
       for (const appearance of ['light', 'dark'])
         for (const locale of ['en', 'ar'])
           for (const width of [320, 375, 768, 1280])

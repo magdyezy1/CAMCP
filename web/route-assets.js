@@ -1,6 +1,12 @@
 'use strict';
 // Only authored same-origin filenames enter the loader. Routes, query strings and provider data never become URLs.
 const pageAssetOrder = [
+  'tokens-v2.css',
+  'components.css',
+  'components-controls.css',
+  'components-data.css',
+  'components-overlays.css',
+  'design-system.css',
   'campaign-recipes.js',
   'creative-push.js',
   'creative-library.js',
@@ -36,6 +42,11 @@ const pageAssetOrder = [
   'owner-operations.js',
   'account-approvals.js',
   'help.js',
+  'components.js',
+  'components-controls.js',
+  'components-table.js',
+  'components-overlays.js',
+  'design-system.js',
 ];
 const pageAssetDependencies = {
   'creative-library.js': ['work-pages.js'],
@@ -60,6 +71,18 @@ const pageAssetDependencies = {
   'report-quality.js': ['report-library.js', 'reporting-overview.js'],
   'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
   'account-approvals.js': ['owner-operations.js'],
+  'design-system.js': [
+    'tokens-v2.css',
+    'components.css',
+    'components-controls.css',
+    'components-data.css',
+    'components-overlays.css',
+    'design-system.css',
+    'components.js',
+    'components-controls.js',
+    'components-table.js',
+    'components-overlays.js',
+  ],
 };
 // A page's files are its route registry entry's `assets` (web/routes.js).
 const pageAssetRoutes = Object.freeze(
@@ -109,7 +132,7 @@ function pageLocaleChunks(pathname) {
     'workspace',
     'providers',
     ...pageAssetsFor(pathname)
-      .filter(file => !file.startsWith('vendor/'))
+      .filter(file => file.endsWith('.js') && !file.startsWith('vendor/'))
       .map(file => file.replace(/\.js$/, '')),
   ];
 }
@@ -127,7 +150,8 @@ function loadPageAsset(file) {
   const initialize = async () => {
     // Page modules only register while they load (WEB-07); async=false scripts still run in request order.
     await new Promise((resolve, reject) => {
-      const script = document.createElement('script'),
+      const style = file.endsWith('.css'),
+        script = document.createElement(style ? 'link' : 'script'),
         originalPath = '/assets/' + file,
         path = typeof AMCPAssets === 'object' ? AMCPAssets.url(originalPath) : originalPath;
       let settled = false;
@@ -160,8 +184,7 @@ function loadPageAsset(file) {
         20000,
       );
       window.addEventListener('error', evaluationError);
-      script.async = false;
-      script.src = path;
+      Object.assign(script, style ? {rel: 'stylesheet', href: path} : {async: false, src: path});
       script.onload = () => finish();
       // A script error cannot tell a deploy (409) from a network failure, so one probe decides between "Reload" and
       // "Try again"; retrying a superseded snapshot address could never succeed (WEB-04).
@@ -172,7 +195,8 @@ function loadPageAsset(file) {
         else
           finish('PAGE_ASSET_UNAVAILABLE', uiText('A file needed for this page could not be downloaded. Try again.'));
       };
-      document.head.append(script);
+      if (style) document.head.insertBefore(script, document.head.querySelector('link[href$="/accessibility.css"]'));
+      else document.head.append(script);
     });
     entry.state = 'ready';
   };

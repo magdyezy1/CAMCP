@@ -38,7 +38,8 @@ function fixture() {
     },
     document: {
       createElement(tag) {
-        assert.equal(tag, 'script');
+        // V2-WEB-02: a page's stylesheets are created as links (tests/route-assets-styles.test.mjs).
+        assert.ok(tag === 'script' || tag === 'link', tag);
         return {
           remove() {
             this.removed = true;
@@ -48,6 +49,12 @@ function fixture() {
       head: {
         append(script) {
           appended.push(script);
+        },
+        insertBefore(link) {
+          appended.push(link);
+        },
+        querySelector() {
+          return null;
         },
       },
     },
@@ -218,6 +225,8 @@ test('every route dependency is local, shipped, and initialized once, including 
     '/account',
     // DOC-03: the members-only Help page's own module.
     '/help',
+    // V2-WEB-02: the component state page, whose stylesheets load as page assets too.
+    '/design-system',
   ];
   const all = Promise.all(paths.map(path => f.load(path)));
   const finished = new Set();
@@ -225,26 +234,29 @@ test('every route dependency is local, shipped, and initialized once, including 
     await tick();
     for (const script of f.appended)
       if (!finished.has(script)) {
-        assert.match(script.src, /^\/assets\/(?:[a-z][a-z0-9-]*\.js|vendor\/qrcode-generator-2\.0\.4\.js)$/);
-        assert.equal(fs.existsSync('web/' + script.src.slice(8)), true);
+        const url = script.src ?? script.href;
+        assert.match(url, /^\/assets\/(?:[a-z][a-z0-9-]*\.(?:js|css)|vendor\/qrcode-generator-2\.0\.4\.js)$/);
+        assert.equal(fs.existsSync('web/' + url.slice(8)), true);
         finished.add(script);
         script.onload();
       }
   }
   await all;
   assert(
-    !f.appended.some(script => script.src.endsWith('/report-delivery.js')),
+    !f.appended.some(script => script.src?.endsWith('/report-delivery.js')),
     'Delivery stays deferred on cold routes',
   );
   const delivery = f.run("loadPageAsset('report-delivery.js')");
   await tick();
-  const script = f.appended.find(script => script.src.endsWith('/report-delivery.js'));
+  const script = f.appended.find(script => script.src?.endsWith('/report-delivery.js'));
   assert(script, 'Explicit delivery loads its shipped module');
   script.onload();
   await delivery;
   await f.run("loadPageAsset('report-delivery.js')");
-  const loaded = f.appended.map(s => s.src.slice(8));
-  assert.equal(new Set(loaded).size, loaded.length);
+  const requested = f.appended.map(s => (s.src ?? s.href).slice(8));
+  assert.equal(new Set(requested).size, requested.length);
+  // The scripts are compared with the shipped ones below; a stylesheet is not a script.
+  const loaded = requested.filter(file => file.endsWith('.js'));
   const publicScripts = new Set(
     fs
       .readdirSync('web')

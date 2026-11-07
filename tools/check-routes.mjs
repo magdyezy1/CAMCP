@@ -79,6 +79,22 @@ export function pageAssetPlan(root = process.cwd()) {
   ).runInContext(context);
   return JSON.parse(context.__assets);
 }
+/**
+ * The files the loader adds for each page that has any, in request order: {path: [file, ...]}. Empty for a tree without a
+ * route loader (a fixture tree for a stylesheet check has none).
+ */
+export function routeAssetFiles(root = process.cwd()) {
+  const routes = path.join(root, 'web/routes.js'),
+    loader = path.join(root, 'web/route-assets.js');
+  if (!fs.existsSync(routes) || !fs.existsSync(loader)) return {};
+  const context = createContext({});
+  new Script(fs.readFileSync(routes, 'utf8')).runInContext(context);
+  new Script(
+    fs.readFileSync(loader, 'utf8') +
+      '\n;globalThis.__files = JSON.stringify(Object.fromEntries(Object.keys(pageAssetRoutes).map(route => [route, pageAssetsFor(route)])));',
+  ).runInContext(context);
+  return JSON.parse(context.__files);
+}
 /** The page paths route-assets.js loads feature scripts for. */
 export function pageAssetPaths(root = process.cwd()) {
   return Object.keys(pageAssetPlan(root).routes);

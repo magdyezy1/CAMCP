@@ -220,10 +220,16 @@
       "raised": [
         "reference_words 150903 → 151408"
       ]
+    },
+    {
+      "reason": "web-components package (V2-WEB-02), merged onto engine-core, brand and results: docs/DESIGN-SYSTEM.md documents the V2 component layer (about 3,200 words), one entry per component with its variants, states, keys and ARIA roles, a do and a do-not, the old badge map and the checks that guard it (3,222 recorded words), and docs/LOCAL-BROWSER-QA.md lists the new rendered kind (--kinds components), as the page asks of each case family (98 recorded words); 3,320 recorded words in all, and the merged pages hold the same 3,320 more",
+      "raised": [
+        "reference_words 151408 → 154728"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 151408
+    "reference_words": 154728
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

@@ -19,6 +19,25 @@
   --policy-border-strong: #d9cfea;
   --policy-code: #f3effa;
   --policy-shadow: #32234804;
+  /* V2 names for the shades above (V2-WEB-02). Each follows its shade through the theme, so it needs no dark value. */
+  --v2-policy-surface: var(--policy-surface);
+  --v2-policy-text: var(--policy-text);
+  --v2-policy-text-body: var(--policy-text-body);
+  --v2-policy-text-intro: var(--policy-text-intro);
+  --v2-policy-text-strong: var(--policy-text-strong);
+  --v2-policy-lead: var(--policy-lead);
+  --v2-policy-text-secondary: var(--policy-text-secondary);
+  --v2-policy-eyebrow: var(--policy-eyebrow);
+  --v2-policy-accent: var(--policy-accent);
+  --v2-policy-link: var(--policy-link);
+  --v2-policy-link-hover: var(--policy-link-hover);
+  --v2-policy-nav-link: var(--policy-nav-link);
+  --v2-policy-contents-link: var(--policy-contents-link);
+  --v2-policy-border: var(--policy-border);
+  --v2-policy-border-subtle: var(--policy-border-subtle);
+  --v2-policy-border-strong: var(--policy-border-strong);
+  --v2-policy-code: var(--policy-code);
+  --v2-policy-shadow: var(--policy-shadow);
 }
 :root[data-theme='dark'] {
   --policy-surface: var(--paper);

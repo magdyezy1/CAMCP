@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {colourSheets, cssDeclarations, tokenSheets} from './check-colours.mjs';
+import {routeAssetFiles} from './check-routes.mjs';
 
 // WEB-07 (design system): the scales beside the colours. Corner radius, shadow, motion and type size come from the
 // tokens in web/tokens.css (docs/DESIGN-SYSTEM.md); a value a stylesheet writes itself is counted per stylesheet and
@@ -67,7 +68,7 @@ export function designTokenCounts(root = process.cwd()) {
  * loads public-tokens.css only for a reader without JavaScript, so its other sheets cannot rely on it).
  */
 export function pageStylesheets(root = process.cwd()) {
-  return fs
+  const pages = fs
     .readdirSync(path.join(root, 'web'))
     .filter(file => file.endsWith('.html'))
     .sort()
@@ -80,6 +81,14 @@ export function pageStylesheets(root = process.cwd()) {
           .matchAll(/<link rel="stylesheet" href="\/assets\/([^"?#]+)"/g),
       ].map(m => m[1]),
     }));
+  // V2-WEB-02: a route that loads stylesheets (web/route-assets.js) is a page of its own, the workspace shell's sheets
+  // plus its own; a sheet the loader adds is loaded by exactly the routes that list it (or depend on it).
+  const shell = pages.find(({page}) => page === 'index.html');
+  for (const [route, files] of Object.entries(routeAssetFiles(root))) {
+    const sheets = files.filter(file => file.endsWith('.css'));
+    if (shell && sheets.length) pages.push({page: 'route ' + route, sheets: [...shell.sheets, ...sheets]});
+  }
+  return pages;
 }
 /**
  * Custom properties a stylesheet reads that are defined in no token sheet, or only in a token sheet one of the pages
