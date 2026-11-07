@@ -96,7 +96,7 @@ html[dir='rtl'] input[autocomplete='one-time-code'] {
 }
 @media (max-width: 850px) {
   html[dir='rtl'] .sidebar {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
   html[dir='rtl'] .menu-open .sidebar {
     transform: none;

@@ -32,6 +32,7 @@ const glyphPaths = {
   search: 'M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13 M16 16l4.5 4.5',
   signout: 'M10 4H5v16h5 M15 8l4 4-4 4 M19 12H9',
   chevron: 'M6 9l6 6 6-6',
+  menu: 'M4 7h16 M4 12h16 M4 17h16',
 };
 /** A glyph as escape-by-default markup; glyph() is the same drawing as a string, for the pages that still build strings. */
 const glyphHtml = (name, cls = '') =>
@@ -63,6 +64,9 @@ function renderShellNavigation() {
   setHtml($('nav[data-ui-label="Main navigation"]'), shellNavigationMarkup());
   setHtml($('.sidebar-links'), shellUserLinksMarkup());
   setHtml($('[data-sidebar-toggle] .nav-icon'), glyphHtml('sidebar'));
+  // The header's own two icons: the menu and search.
+  setHtml($('#menu-toggle'), glyphHtml('menu'));
+  setHtml($('.command-icon'), glyphHtml('search'));
 }
 /**
  * The sidebar's state: the person's remembered choice (this browser, every page), else the rail where the window is
@@ -511,9 +515,9 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Tab' && document.body.classList.contains('menu-open')) {
     const sidebar = $('#workspace-sidebar'),
-      controls = [...sidebar.querySelectorAll('a[href],button:not([disabled]),summary,[tabindex="0"]')].filter(
-        el => el.tabIndex >= 0 && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden',
-      ),
+      controls = [
+        ...sidebar.querySelectorAll('a[href],button:not([disabled]),select:not([disabled]),summary,[tabindex="0"]'),
+      ].filter(el => el.tabIndex >= 0 && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden'),
       first = controls[0],
       last = controls.at(-1),
       active = document.activeElement;

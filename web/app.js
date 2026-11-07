@@ -1541,7 +1541,8 @@ function revealNavigationLink(link) {
 }
 /** Shell links follow the session: the brand opens Home when signed in; members get the switcher and Help (DOC-03). */
 function shellLinks() {
-  document.querySelector('.sidebar .brand')?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
+  for (const selector of ['.sidebar .brand', '.topbar .brand'])
+    document.querySelector(selector)?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
   const help = document.getElementById('footer-help');
   if (help) help.hidden = !session.authenticated || !routeAvailable('/help');
   // Account and Help in the sidebar's footer are for people who are signed in and may open them (web/account-scope.js
@@ -1802,7 +1803,11 @@ function renderWorkingClientControl() {
   const current = workingClient(),
     note = uiText('A view filter for lists and pickers. It does not limit access.');
   control.title = note;
-  control.innerHTML = `<span>${esc(uiText('Working client'))}</span><select data-working-client aria-describedby="working-client-note"><option value="">${esc(uiText('All clients'))}</option>${listed.map(c => `<option value="${esc(c.profile_id)}" ${current?.profile_id === c.profile_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><small id="working-client-note" hidden>${esc(note)}</small>`;
+  // The select is named for assistive technology even where the header hides its label (a phone: V2-WEB-03).
+  setHtml(
+    control,
+    html`<span>${uiText('Working client')}</span><select data-working-client aria-label="${uiText('Working client')}" aria-describedby="working-client-note"><option value="">${uiText('All clients')}</option>${listed.map(c => html`<option value="${c.profile_id}" ${current?.profile_id === c.profile_id ? 'selected' : ''}>${c.name}</option>`)}</select><small id="working-client-note" hidden>${note}</small>`,
+  );
 }
 document.addEventListener('change', async event => {
   const select = event.target.closest?.('[data-working-client]');
@@ -1918,6 +1923,9 @@ async function renderCurrentPage() {
       );
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
+  // The drawer's copies of Sign in and Sign out (the header's are not shown on a phone).
+  for (const button of document.querySelectorAll('[data-shell-session]'))
+    button.hidden = (button.dataset.shellSession === 'in') !== session.authenticated;
   try {
     // WEB-06: a new page replaces the previous one at once with its heading and a busy placeholder, so the previous
     // page's controls cannot be used while this one loads its files and data.
@@ -2048,7 +2056,7 @@ document.addEventListener('click', async event => {
       return;
     }
     if (el.id === 'login-button' || el.dataset.action === 'login') return showLogin();
-    if (el.id === 'logout-button') {
+    if (el.id === 'logout-button' || el.dataset.action === 'logout') {
       await api('/api/session', {method: 'DELETE'});
       session = await api('/api/session');
       const platformData = await api('/api/platforms');

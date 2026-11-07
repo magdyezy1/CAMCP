@@ -543,6 +543,17 @@ html[lang='ar'] :is(.brand-note, .nav-group-toggle, .workspace-menu-title) {
   gap: 13px;
   min-width: 0;
 }
+/* Where the sidebar is persistent it carries the brand; the header carries it on a phone, at the start edge. */
+.top-brand {
+  display: none;
+}
+.sidebar-prefs {
+  display: none;
+}
+.command-icon .glyph {
+  width: 18px;
+  height: 18px;
+}
 .breadcrumb {
   font-size: var(--type-xs);
 }
@@ -1896,47 +1907,120 @@ body.public-view {
   .sidebar {
     position: fixed;
     inset-block: 0;
-    inset-inline: 0 auto;
+    inset-inline: auto 0;
     width: 280px;
     max-width: calc(100vw - 48px);
     /* The drawer is as tall as the window: auto between two insets, stretched (the column's start alignment would shrink it). */
     align-self: stretch;
     height: auto;
-    transform: translateX(-100%);
+    transform: translateX(100%);
     z-index: 30;
     padding-block: 28px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     transition: transform var(--duration);
   }
   .menu-open .sidebar {
     transform: none;
   }
+  /* One panel scrolls, so the preferences and the footer are reachable on a short screen. */
+  .sidebar > nav {
+    flex: none;
+    overflow-y: visible;
+    margin: 0;
+    padding: 0;
+  }
   .sidebar-toggle {
     display: none;
   }
+  .sidebar-prefs {
+    display: grid;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .sidebar-prefs :is(.language-control, .theme-control) {
+    display: grid;
+    gap: 4px;
+  }
+  .sidebar-prefs :is(.language-control, .theme-control) > span {
+    display: block;
+  }
+  .sidebar-prefs .language-control select,
+  .sidebar-prefs .theme-control select {
+    width: 100%;
+    max-width: none;
+    min-height: 44px;
+  }
+  .sidebar-prefs .button {
+    width: 100%;
+  }
+  /* The header is one row at every width: the logo at the start edge, the client switcher, search and the menu at the end. */
   .topbar {
-    height: 68px;
-    padding: 0 22px;
+    height: 64px;
+    padding: 0 16px;
+    gap: 12px;
     position: sticky;
     top: 0;
     z-index: 10;
   }
-  #menu-toggle {
-    display: inline-flex;
-    font-size: 21px;
+  .top-brand {
+    display: flex;
   }
-  .command-trigger span {
+  .top-brand .brand-lockup {
     display: none;
   }
+  .top-brand .logo-mark {
+    display: block;
+  }
+  @container topbar (min-width: 520px) {
+    .top-brand .brand-lockup {
+      display: flex;
+    }
+    .top-brand .logo-mark {
+      display: none;
+    }
+  }
+  .top-leading .breadcrumb {
+    display: none;
+  }
+  .top-actions {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+  .top-actions > .working-client-control {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .top-actions .working-client-control select {
+    width: 100%;
+    max-width: none;
+  }
+  .top-actions .language-control,
+  .top-actions .theme-control,
+  #login-button,
+  #logout-button,
+  #user-avatar {
+    display: none;
+  }
+  #menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  /* Search is an icon alone here, and the shortcut means nothing on a touch screen (design review S5). */
   .command-trigger {
-    padding: 6px 8px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
   }
-  /* The 12px floor holds on phones too (WEB-01: these were 11px and 10px). */
-  .topbar .button {
-    font-size: var(--type-xs);
-    padding: 6px;
-  }
-  .topbar .breadcrumb {
-    font-size: var(--type-xs);
+  #command-trigger-label,
+  .command-trigger kbd {
+    display: none;
   }
   .public-nav {
     padding: 25px 5%;
@@ -2109,46 +2193,7 @@ body.public-view {
     gap: 16px;
   }
 }
-/* The main page heading supplies context when the phone header needs room for its controls. */
-@media (max-width: 420px) {
-  .topbar {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    height: auto;
-    min-height: 68px;
-    padding-block: 10px;
-  }
-  .top-actions {
-    min-width: 0;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-  .topbar .breadcrumb {
-    display: none;
-  }
-}
 @media (max-width: 590px) {
-  .topbar {
-    padding: 0 15px;
-    gap: 8px;
-  }
-  .top-leading {
-    flex: 1 1 auto;
-    gap: 8px;
-  }
-  #menu-toggle,
-  .top-actions {
-    flex-shrink: 0;
-  }
-  .topbar .breadcrumb {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .breadcrumb > span {
-    display: none;
-  }
   .page-heading h1 {
     font-size: 29px;
   }

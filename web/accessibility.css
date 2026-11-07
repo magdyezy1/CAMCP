@@ -4,8 +4,8 @@
 
 @media (max-width: 900px) {
   html:has(.topbar) {
-    /* The wrapped language/appearance controls expand the sticky phone header. */
-    scroll-padding-top: 140px;
+    /* The sticky phone header is 64px, one row. */
+    scroll-padding-top: 88px;
   }
 }
 

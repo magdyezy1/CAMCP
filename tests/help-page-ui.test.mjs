@@ -130,7 +130,8 @@ test('after a sign-out, or as a test account or before two-step setup, no part o
   // The sign-out replaces the session before it renders the next page, so the render sees the signed-out session.
   const app = fs.readFileSync('web/app.js', 'utf8'),
     logout = app.slice(
-      app.indexOf("if (el.id === 'logout-button') {"),
+      // V2-WEB-03: the drawer's Sign out is the same action as the header's (data-action="logout").
+      app.indexOf("if (el.id === 'logout-button' || el.dataset.action === 'logout') {"),
       app.indexOf("if (el.dataset.action === 'refresh')"),
     );
   assert.match(

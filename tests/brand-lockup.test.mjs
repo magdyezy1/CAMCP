@@ -72,7 +72,8 @@ test('the website holds exactly the brand placements this test knows; a new one 
     'data-deletion-ar.html': 1,
     'data-deletion.html': 1,
     'identity.js': 1,
-    'index.html': 1,
+    // V2-WEB-03: the shell has two, the sidebar's and the phone header's (the lockup, or the icon alone where it has no room).
+    'index.html': 2,
     'privacy-ar.html': 1,
     'privacy.html': 1,
     'terms-ar.html': 1,
