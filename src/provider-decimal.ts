@@ -62,6 +62,21 @@ export function providerDecimalText(value: unknown, options: {field: string; div
     fraction = text.slice(text.length - scale).replace(/0+$/, '');
   return fraction ? whole + '.' + fraction : whole;
 }
+/**
+ * The exact sum of provider decimals as lossless decimal text: every digit of the sum is kept and nothing is rounded, so
+ * the caller's own nine-place rule (and its rounding record) applies once to the total, as it does to a single value. A
+ * value that is not a nonnegative decimal fails with the field-naming shape error of `parseProviderDecimal`.
+ */
+export function sumProviderDecimals(values: readonly unknown[], options: {field: string}): string {
+  const parsed = values.map(value => exact(value, options.field)),
+    scale = Math.max(0, ...parsed.map(item => item.scale)),
+    sum = parsed.reduce((total, item) => total + item.digits * 10n ** BigInt(scale - item.scale), 0n);
+  if (scale === 0) return sum.toString();
+  const text = sum.toString().padStart(scale + 1, '0'),
+    whole = text.slice(0, text.length - scale),
+    fraction = text.slice(text.length - scale).replace(/0+$/, '');
+  return fraction ? whole + '.' + fraction : whole;
+}
 /** Evidence record for semantics.metric_rounding; absent when no provider value needed rounding. */
 export function metricRoundingRecord(counts: Record<string, number>): Record<string, JsonRounding> | undefined {
   const entries = Object.entries(counts).filter(([, n]) => n > 0);
