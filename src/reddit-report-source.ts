@@ -50,6 +50,11 @@ export const redditResultRules: ReportResultRules = {
   ],
 };
 
+/** The report fields the rule table reads a result from, so the v4 request asks for every field the table pins (F-L5-21). */
+const redditResultFields: string[] = redditResultRules.selectors.flatMap(selector =>
+  Object.values(selector.values).flatMap(definition => (definition ? [definition.native_metric] : [])),
+);
+
 /**
  * ACC-06 interim: AMCP reads Reddit's CONVERSION_PURCHASE_TOTAL_VALUE as cents (redditConversionValueDivisor) while
  * SPEND is in micros; no primary field reference or closed-week read against the Reddit UI confirms that unit yet, so a
@@ -125,7 +130,17 @@ export const redditReportSource: ReportSource = {
           data: {
             starts_at: c.range.since + 'T00:00:00Z',
             ends_at: nextDay(c.range.until) + 'T00:00:00Z',
-            fields: [...new Set(['SPEND', 'IMPRESSIONS', 'CLICKS', ...c.extra])],
+            // The v3 request is unchanged; v4 also asks for the field of each result the table pins, so a video views
+            // campaign has its viewable video impressions (F-L5-21).
+            fields: [
+              ...new Set([
+                'SPEND',
+                'IMPRESSIONS',
+                'CLICKS',
+                ...(c.source.reporting_contract === 'overview-config-v4' ? redditResultFields : []),
+                ...c.extra,
+              ]),
+            ],
             // RPT-07: ad group and ad levels break down by their parents too (Reddit allows up to three).
             breakdowns:
               c.detail === 'adset'
