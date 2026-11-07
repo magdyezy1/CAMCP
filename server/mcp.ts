@@ -4,6 +4,7 @@ import type {Transport} from '@modelcontextprotocol/server';
 import {ProtocolErrorCode, ProtocolError} from '@modelcontextprotocol/server';
 import type {Actor, JsonObject} from '../src/types.js';
 import {outcomeSchema, workflowTools} from '../src/workflow-outcomes.js';
+import {typedToolData} from '../src/report-tool-output.js';
 import {MirrorService, withExactIntegers} from '../src/service.js';
 import {
   guidanceResources,
@@ -40,7 +41,9 @@ export function toolOutputSchema(tool: string): JsonObject {
     type: 'object',
     properties: {
       success: {type: 'boolean'},
-      data: {},
+      // The two reporting tools type the fields their actions share (src/report-tool-output.ts); every other tool leaves
+      // the payload to its own actions.
+      data: typedToolData[tool] ?? {},
       error: {
         type: 'object',
         properties: {code: {type: 'string'}, message: {type: 'string'}, details: {type: 'object'}},

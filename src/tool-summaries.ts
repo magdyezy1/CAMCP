@@ -47,9 +47,9 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help,
   amcp_reporting_overview:
     'Use this for saved client reports across accounts, their schedules and Sheets or file exports; to analyse one captured native report, use amcp_reporting. ' +
-    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; missing metrics remain null; GA4 and Search Console are measurement context. ' +
+    'Safety: no advertising mutations; Sheets exports replace only an AMCP-owned tab; missing metrics remain null. ' +
     'Start with bootstrap (accounts, levels, defaults, metrics, saved reports, destinations). ' +
-    'run queues a bounded native snapshot (total to monthly, campaign to ad level where qualified); poll get. ' +
+    'run queues a bounded native snapshot (campaign to ad level where qualified); poll get. ' +
     'Reads: bootstrap, get, list, compare, compare_candidates, report_pack, presentation_profiles, export_status, preview_schedule, preview_workbook_move. ' +
     'Destinations: create_spreadsheet and bind_destination (Google Sheets), bind_file_destination (encrypted local PDF/XLSX). ' +
     'Editing or deleting a saved report, template or schedule needs expected_revision. ' +
@@ -64,7 +64,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Safety: the MCP client never downloads bytes; nothing publishes ads or posts; operator role, account write grants and durable idempotency apply; website uploads expire 30 minutes after the upload starts. ' +
     'prepare fetches and encrypts the exact file for a five-minute review (fit_to_platform:true converts it); execute uploads those frozen bytes after explicit confirmation; execute_async and job_status queue and follow it; status reads provider processing; recovery and resume continue an interrupted upload within its original review, never an uncertain part. ' +
     'Other actions: plan (per-account variants), variant, inspect_eligibility (checks a file against a placement before any upload), prepare_library, reuse, cancel, list, library, asset, asset_usage (current Meta, Google and Snapchat references to an uploaded asset), asset_performance, save_asset_metadata, and retain_source and remove_source (workspace owner only). ' +
-    'Supports PNG/JPEG and MP4/MOV for Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360. ' +
+    'Supports PNG/JPEG and MP4/MOV. ' +
     'Confirmation: confirmed:true for execute, resume, execute_async, save_asset_metadata (operator); retain_source, remove_source (owner). ' +
     help,
   'amcp_media:read_only':

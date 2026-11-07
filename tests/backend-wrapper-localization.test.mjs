@@ -282,8 +282,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
   // Package mcp-typed adds src/report-tool-schema.ts, the typed reporting config generated from the report sources
   // (V2-MCP-02): 792,
-  // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793.
-  assert.equal(files.length, 793);
+  // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793,
+  // and src/report-tool-output.ts, the typed result fields of the two reporting tools (V2-MCP-02): 794.
+  assert.equal(files.length, 794);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

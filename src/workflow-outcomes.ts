@@ -70,14 +70,15 @@ export const outcomeStates = [
 ] as const;
 /**
  * The published schema of meta.workflow (MCP-07), declared in each AMCP tool's outputSchema. Additive: every property
- * but version, state and automatic_retry_of_mutation is optional, and other properties are allowed.
+ * but version, state and automatic_retry_of_mutation is optional, and other properties are allowed. `source_state`, the
+ * state the outcome was derived from (any value, null included), is one of them and constrains nothing, so the
+ * listing, which repeats this schema in six tools, does not spend bytes on it (V2-MCP-02).
  */
 export const outcomeSchema = {
   type: 'object',
   properties: {
     version: {const: 1},
     state: {enum: [...outcomeStates]},
-    source_state: {},
     automatic_retry_of_mutation: {const: false},
     website_path: {type: 'string'},
     next_call: {type: 'object'},
