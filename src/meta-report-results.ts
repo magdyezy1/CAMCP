@@ -421,14 +421,38 @@ export function metaMappedResult(raw: JsonObject, context: ReportResultContext) 
 }
 
 /**
+ * Whether a v4 row’s result is read from its insights `results` (rules 3 to 7) rather than mapped by AMCP (rules 1 and 2):
+ * the person chose no exact action, and the row has a `results` that is not empty.
+ */
+export function metaReadsResults(raw: JsonObject, options: unknown): boolean {
+  const results = raw.results;
+  return (
+    !(isObject(options) && options.result_action_type !== undefined) &&
+    results !== undefined &&
+    !(Array.isArray(results) && results.length === 0)
+  );
+}
+
+/**
  * A v4 Meta row’s result (rules 1 to 7 of the record). The exact action the person chose wins; a row with no `results`,
  * or an empty list, is mapped from its goal; any other `results` is read as Meta’s own result.
  */
 export function metaResult(raw: JsonObject, context: ReportResultContext): ResolvedReportResult {
-  const results = raw.results;
-  return context.report_options?.result_action_type !== undefined ||
-    results === undefined ||
-    (Array.isArray(results) && results.length === 0)
-    ? metaMappedResult(raw, context)
-    : metaProviderResult(raw, context);
+  return metaReadsResults(raw, context.report_options)
+    ? metaProviderResult(raw, context)
+    : metaMappedResult(raw, context);
+}
+
+/** What a v3 report, and a v4 report whose rows are all mapped, has always said its Meta results are. */
+export const metaMappedDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
+const metaResultsDefinition = 'Meta’s own result for each row’s optimization goal (insights results)';
+const metaBothDefinition =
+  'Meta’s own result (insights results) for rows that have one, otherwise the field mapped from the optimization goal';
+/**
+ * The sentence a v4 source states for its result definition, true of the rows it collected: Meta’s own results, the
+ * mapped table, or both. It is never one sentence for rows of two kinds.
+ */
+export function metaResultDefinition(rows: JsonObject[], options: unknown): string {
+  const read = rows.filter(raw => metaReadsResults(raw, options)).length;
+  return read === 0 ? metaMappedDefinition : read === rows.length ? metaResultsDefinition : metaBothDefinition;
 }

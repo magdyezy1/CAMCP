@@ -5,7 +5,14 @@ import {metaPrefix} from './meta-version.js';
 import {byObjectiveGroup, metricNumber} from './report-metrics.js';
 import {overviewCapabilities, invalidReportSource, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
-import {metaRequestedWindows, metaResult, metaResultRules, metaWindowCount} from './meta-report-results.js';
+import {
+  metaMappedDefinition,
+  metaRequestedWindows,
+  metaResult,
+  metaResultDefinition,
+  metaResultRules,
+  metaWindowCount,
+} from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
 import {reportStatus} from './report-status.js';
 import {metaReportMetadata} from './meta-report-metadata.js';
@@ -140,7 +147,11 @@ export const metaReportSource: ReportSource = {
     c.attribution = windows
       ? 'Meta ' + windows.join(' + ') + '; impression time'
       : 'ad set unified attribution setting';
-    c.resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
+    // A v4 source says what is true of its rows (Meta’s own results, the mapped table or both); v3 says what it always did.
+    c.resultDefinition =
+      c.source.reporting_contract === 'overview-config-v4'
+        ? metaResultDefinition(c.raw, c.source.report_options)
+        : metaMappedDefinition;
   },
   /**
    * A v4 report asked Meta for explicit attribution windows: an action’s `value` is then the ad set’s own setting, and the
