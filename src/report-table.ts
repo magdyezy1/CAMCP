@@ -1,10 +1,12 @@
 import {exportSourceStatus, compactQuality} from './report-quality.js';
-import {exportedRecommendation} from './report-metrics.js';
+import {exportedRecommendation, reportPlatforms} from './report-metrics.js';
 import {MirrorError} from './errors.js';
 import {csvDecimalField, csvField} from './csv-safety.js';
 import type {JsonObject} from './types.js';
 import {reportRollupLabel} from './report-scope-rollups.js';
 import {overviewConfigV4} from './overview-v4.js';
+import {reportCoverageHelp, reportCoverageLines} from './report-coverage-notes.js';
+import {artifactLocale} from './report-localization.js';
 
 /**
  * The report table every export of a saved report uses: the Google Sheets tab (src/google-sheets.ts, which re-exports
@@ -57,15 +59,45 @@ export function reportNoticeMessages(report: JsonObject): string[] {
     .filter((value: unknown) => typeof value === 'string');
 }
 /**
- * `now` decides whether frozen recommendations are still current or render as expired (DEC-01). `version` is the
- * Sheets tab contract the table follows; CSV and Excel use the current one.
+ * The coverage of a v4 report in table form (F-L5-01, N8): for each row, which of its figures were calculated from fewer
+ * units than it has (a row built from several days that lack one reads "spend: 1 of 2 measurements", not a bare "1"), and
+ * after the data rows one note per summary that is short, in the report's language. The note rows keep every metric cell
+ * empty and put their words in the campaign column, so a column of numbers stays a column of numbers. Other reports have
+ * no `metrics_coverage` and get neither.
  */
-export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2 = 2) {
+function coverageOfTable(report: JsonObject, fields: string[], presentation: JsonObject) {
+  const locale = artifactLocale(presentation),
+    custom = new Set<string>((report.config.custom_metrics ?? []).map((metric: JsonObject) => metric.id)),
+    name = (metric: string) => locale.metric(metric, custom),
+    lines = (source: JsonObject) => reportCoverageLines(source, fields, locale.language, name),
+    perRow: string[][] = report.rows.map(lines),
+    // A grouped report totals each account and level over its whole window, which is the sum of the column; the others
+    // total each group of rows.
+    totals: JsonObject[] = (Array.isArray(report.window_summary) ? report.window_summary : report.summary) ?? [],
+    perSummary = totals.map(summary => ({summary, lines: lines(summary)})).filter(item => item.lines.length);
+  return {
+    covered: perRow.some(item => item.length),
+    perRow,
+    notes: perSummary,
+    help: perSummary.length ? reportCoverageHelp(locale.language) : '',
+    marker: locale.text('Coverage note'),
+  };
+}
+/**
+ * `now` decides whether frozen recommendations are still current or render as expired (DEC-01). `version` is the
+ * Sheets tab contract the table follows; CSV and Excel use the current one. `presentation` picks the language of the
+ * coverage words (Excel only; CSV and Sheets are English).
+ */
+export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2 = 2, presentation: JsonObject = {}) {
   const status = JSON.stringify(exportSourceStatus(report));
   const fields = reportTableFields(report);
   const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   const rolled = report.rows.some((row: JsonObject) => row.aggregation?.kind === 'rolled_up');
   const notices = reportNoticeMessages(report);
+  const coverage =
+    version >= 2 && report.config?.contract_version === overviewConfigV4
+      ? coverageOfTable(report, fields, presentation)
+      : undefined;
   const values: any[][] = [
     [
       'Platform',
@@ -81,6 +113,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
         ? ['Entity level', 'Native entity type', 'Entity ID', 'Entity', 'Ad set / ad group ID', 'Ad set / ad group']
         : []),
       ...fields,
+      ...(coverage?.covered ? ['Coverage'] : []),
       'Recommendation',
       'Reason',
       'Attribution',
@@ -99,7 +132,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       ...(notices.length ? ['Report notices'] : []),
     ],
   ];
-  for (const r of report.rows)
+  for (const [rowIndex, r] of (report.rows as JsonObject[]).entries())
     values.push([
       r.platform,
       r.account_id,
@@ -121,6 +154,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
           ]
         : []),
       ...fields.map(k => r.metrics[k] ?? ''),
+      ...(coverage?.covered ? [coverage.perRow[rowIndex]!.join('; ')] : []),
       ...(advice => [advice.decision, advice.reason])(exportedRecommendation(r, now)),
       r.attribution,
       r.result_definition,
@@ -137,6 +171,34 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       ...(rolled ? [reportRollupLabel(r)] : []),
       ...(notices.length ? [values.length === 1 ? notices.join('\n') : ''] : []),
     ]);
+  if (coverage?.notes.length) {
+    // One note row per short summary, then what "n of m" means. Every cell is empty but the marker, the identity of the
+    // group and the words, which sit in the campaign column.
+    const header: string[] = values[0]!,
+      at = (name: string) => header.indexOf(name),
+      note = (summary: JsonObject | undefined, text: string) => {
+        const cells: unknown[] = header.map(() => '');
+        cells[at('Platform')] = coverage.marker;
+        if (summary) {
+          cells[at('Account ID')] = summary.account_id ?? '';
+          cells[at('Currency')] = summary.currency ?? '';
+          cells[at('Timezone')] = summary.timezone ?? '';
+          cells[at('Date from')] = summary.date_from ?? '';
+          cells[at('Date to')] = summary.date_to ?? '';
+          if (detailed) {
+            cells[at('Entity level')] = summary.entity_level ?? 'campaign';
+            cells[at('Native entity type')] = summary.native_entity_type ?? 'campaign_or_resource';
+          }
+        }
+        cells[at('Campaign')] = text;
+        return cells;
+      };
+    for (const {summary, lines} of coverage.notes)
+      values.push(
+        note(summary, (reportPlatforms[summary.platform]?.name ?? summary.platform) + ' | ' + lines.join('; ')),
+      );
+    values.push(note(undefined, coverage.help));
+  }
   if (values.some(row => row.some(v => typeof v === 'string' && v.length > 48000)))
     throw new MirrorError(
       'EXPORT_CELL_TOO_LARGE',

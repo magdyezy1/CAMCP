@@ -218,6 +218,8 @@ const sheetsColumnNotes: Record<string, string> = {
   'Recommendation basis':
     'What the recommendation rests on: its period, as-of time, validity, confidence and limitations.',
   Complete: 'Yes when the row\u2019s reporting window and measurement are complete.',
+  Coverage:
+    'The figures of this row that were calculated from some of their measurements only, for example 1 of 2. A figure not listed here is complete. Rows below the data state the same for each total.',
   'Captured at': 'When AMCP collected the row from the platform (UTC, ISO 8601 text).',
   'Report state': 'complete, or partial when some sources or periods failed; failures stay marked in the evidence.',
   'Source status JSON': 'Every selected source\u2019s status, on the first data row only.',

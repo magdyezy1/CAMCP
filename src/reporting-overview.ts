@@ -82,6 +82,7 @@ import {
   overviewV4Sources,
   projectOverviewV4Rows,
   projectOverviewV4Sources,
+  projectOverviewV4Summaries,
   overviewDefinitionConfig,
   overviewSidecar,
   overviewRollbackSafe,
@@ -940,6 +941,7 @@ export class ReportingOverview {
         active = ['queued', 'running'].includes(job.state);
       return {
         ...publicReport(store, tenant, r),
+        ...projectOverviewV4Summaries(r),
         rows: projectOverviewV4Rows(r, r.rows.slice(offset, offset + limit), input.include),
         sources: projectOverviewV4Sources(r, input.include),
         row_count: r.rows.length,

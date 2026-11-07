@@ -788,6 +788,7 @@
   "Cost cap bidding needs conversion_bid_price: a positive amount with at most two decimals.": "تحتاج استراتيجية تحديد التكلفة إلى conversion_bid_price كمبلغ موجب بمنزلتين عشريتين كحد أقصى.",
   "Cost per result": "التكلفة لكل نتيجة",
   "Countries must be two-letter ISO codes.": "يجب أن تكون البلدان رموز ISO من حرفين.",
+  "Coverage": "التغطية",
   "Create": "إنشاء",
   "Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).": "أنشئ إعلانات Smart+ بحالة الإيقاف؛ اضبط operation_status على DISABLE، حيث يستخدم TikTok القيمة الافتراضية ENABLE.",
   "Create a campaign with name, advertising_channel_type and an explicit campaign_budget resource. Budget creation is a separate operation.": "أنشئ حملة باستخدام name وadvertising_channel_type ومورد campaign_budget صريح؛ ويكون إنشاء الميزانية عملية منفصلة.",

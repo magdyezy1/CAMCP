@@ -40,6 +40,8 @@ const arabic: Record<string, string> = {
   'Ad set / ad group ID': 'معرّف المجموعة الإعلانية',
   'Ad set / ad group': 'المجموعة الإعلانية',
   'Source coverage': 'تغطية المصادر',
+  Coverage: 'التغطية',
+  'Coverage note': 'ملاحظة التغطية',
   'Native rows': 'الصفوف الأصلية',
   'Metric totals': 'إجماليات المقاييس',
   'Field mappings': 'تعيين الحقول',
@@ -159,7 +161,7 @@ export function artifactLocale(presentation: JsonObject = {}) {
   const rtl = presentation.artifact_language === 'ar';
   return {
     rtl,
-    language: rtl ? 'ar' : 'en',
+    language: (rtl ? 'ar' : 'en') as 'ar' | 'en',
     text: (value: string) => (rtl ? (arabic[value] ?? value) : value),
     result: (value: string) => (rtl ? (resultLabels[value] ?? value) : value),
     metric: (value: string, custom: Set<string>) =>

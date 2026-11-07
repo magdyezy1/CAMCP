@@ -1071,12 +1071,12 @@ function renderReportSummary(r) {
       : '')
   );
 }
-/** RPT-05: a summary card whose source has limited coverage says that its totals may be incomplete. */
+/** RPT-05, F-L5-01: a source or a figure with limited coverage. */
 function reportSummaryCoverage(r, g) {
   const limited = (r.sources ?? []).some(
     s => !s.error && !s.complete && s.source?.platform === g.platform && s.source?.account_id === g.account_id,
   );
-  return limited
+  return limited || g.coverage_notes?.length
     ? `<p class="report-card-footer">${esc(uiText('Limited coverage: these totals may be incomplete.'))}</p>`
     : '';
 }
