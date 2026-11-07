@@ -2435,6 +2435,8 @@
   "an objective filter hides rows at one of the levels": "يُخفي مرشّح الهدف صفوفًا في أحد المستويين",
   "the currency is unknown": "العملة غير معروفة",
   "a level has no value for it": "لا توجد قيمة لها في أحد المستويين",
+  "a level could not be collected": "تعذّر جمع بيانات أحد المستويين",
+  "{metrics} are not calculated: they exceed what one report may calculate.": "لم تُحسب {metrics} لأنها تتجاوز ما يُسمح بحسابه في تقرير واحد.",
   "Excludes: {sources} (source failed).": "لا تشمل: {sources} (فشل المصدر).",
   "Attempt": "المحاولة",
   "Next attempt: {date}": "المحاولة التالية: {date}",

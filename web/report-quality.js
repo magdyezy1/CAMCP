@@ -508,6 +508,8 @@ function reportUnavailableNote(reason, labels) {
       return uiText('{metrics} are not added: the rows are in different or unknown currencies.', {metrics});
     case 'non_additive_inputs':
       return uiText('{metrics} cannot be calculated from several rows.', {metrics});
+    case 'calculation_limit':
+      return uiText('{metrics} are not calculated: they exceed what one report may calculate.', {metrics});
     default:
       return '';
   }
@@ -573,6 +575,8 @@ function reportLevelCheckReason(code) {
       return uiText('the currency is unknown');
     case 'missing_metric':
       return uiText('a level has no value for it');
+    case 'level_failed':
+      return uiText('a level could not be collected');
     default:
       return String(code ?? '').replaceAll('_', ' ');
   }
