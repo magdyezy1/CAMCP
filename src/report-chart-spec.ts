@@ -92,6 +92,7 @@ export const reportChartMessages = [
   'The change compares the campaigns and ads that appear in both periods.',
   'Rows with no single result definition are left out of this chart: {count}.',
   'Only the first {count} groups are charted. The report table has the rest.',
+  'Only the {count} entries with the most spend are shown. The report table has the rest.',
 ] as const;
 export type ChartMessageKey = (typeof reportChartMessages)[number];
 
@@ -100,6 +101,8 @@ export interface ChartMessage {
   key: string;
   params: Record<string, string>;
   text: string;
+  /** The parameters whose values are names AMCP wrote ("Sales"), which a renderer translates; the rest are data. */
+  labels?: string[];
 }
 /** A coverage line in the words of the shared helper (`reportCoverageLine`), kept structured so a surface can re-word it. */
 export interface ChartCoverageNote extends CoverageNote {
@@ -197,8 +200,12 @@ export function fillChartMessage(key: string, params: Record<string, string>): s
     Object.hasOwn(params, name) ? params[name]! : slot,
   );
 }
-export function chartMessage(key: ChartMessageKey, params: Record<string, string> = {}): ChartMessage {
-  return {key, params, text: fillChartMessage(key, params)};
+export function chartMessage(
+  key: ChartMessageKey,
+  params: Record<string, string> = {},
+  labels: string[] = [],
+): ChartMessage {
+  return {key, params, text: fillChartMessage(key, params), ...(labels.length ? {labels} : {})};
 }
 export const chartNote = (key: ChartMessageKey, params: Record<string, string> = {}): ChartNote => ({
   kind: 'message',

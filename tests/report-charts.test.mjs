@@ -471,6 +471,422 @@ test('a trend is not charted for spend without a known currency', () => {
   assert.deepEqual(texts(specs[0]), ['Amounts without a known currency are not charted.']);
 });
 
+// ----- cost per result against target -----
+const target = (value, more = {}) => ({target: value, currency: 'USD', ...more});
+/** Three leads campaigns: 100 spent for 10, 5 and 3 results, so a cost of 10, 20 and 30. */
+const costRows = (more = {}) => [
+  chartRow('c1', '100', '10', more),
+  chartRow('c2', '100', '5', more),
+  chartRow('c3', '90', '3', more),
+];
+const costOf = (specs, index = 0) => of(specs, 'cost_vs_target')[index];
+
+test('cost per result against target: bars from zero with the target marked on each, worst first', () => {
+  const spec = costOf(charts(costRows(), {config: {targets: {leads: target(12.5)}}}));
+  assert.equal(spec.type, 'bar');
+  assert.equal(spec.title.text, 'Cost per result against target');
+  assert.equal(spec.drawn, true);
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    ['Campaign c3', 'Campaign c2', 'Campaign c1'],
+  );
+  const [series] = spec.series;
+  assert.deepEqual(series.values, ['30', '20', '10']);
+  assert.deepEqual(series.targets, ['12.5', '12.5', '12.5']);
+  assert.equal(series.color_index, 2, 'cost per result is the third hue, so it is labelled');
+  assert.deepEqual(series.label_at, [0, 1, 2]);
+  assert.deepEqual(spec.scale.ticks, ['0', '10', '20', '30']);
+  assert.equal(spec.takeaway.text, 'Campaigns at or under their target cost per result: 1 of 3.');
+  assert.deepEqual(
+    spec.table.columns.map(column => column.label),
+    ['Campaign', 'Cost per result', 'Target', 'Against target'],
+  );
+  assert.deepEqual(spec.table.rows, [
+    ['Campaign c3', '30', '12.5', 'Over target'],
+    ['Campaign c2', '20', '12.5', 'Over target'],
+    ['Campaign c1', '10', '12.5', 'At or under target'],
+  ]);
+});
+
+test('the scale holds a target above every cost, so a mark is never off the chart', () => {
+  const spec = costOf(charts(costRows(), {config: {targets: {leads: target(100)}}}));
+  assert.deepEqual(spec.scale.ticks, ['0', '50', '100']);
+  assert.equal(spec.takeaway.text, 'Campaigns at or under their target cost per result: 3 of 3.');
+});
+
+test('a campaign target beats a currency target, which beats an objective target', () => {
+  const targets = {leads: target(100), 'leads:USD': target(15), 'meta:100:c1': target(5)},
+    spec = costOf(charts(costRows(), {config: {targets}})),
+    byName = Object.fromEntries(spec.x.items.map((item, index) => [item.label, spec.series[0].targets[index]]));
+  assert.deepEqual(byName, {'Campaign c1': '5', 'Campaign c2': '15', 'Campaign c3': '15'});
+});
+
+test('a target that cannot be compared (another currency, another KPI) is no target, as the recommendation holds it', () => {
+  const targets = {
+      leads: target(100),
+      'meta:100:c2': target(5, {currency: 'EUR'}),
+      'meta:100:c3': target(5, {kpi: 'cpa'}),
+    },
+    spec = costOf(charts(costRows(), {config: {targets}}));
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    ['Campaign c1'],
+    'c2 and c3 have a target of their own that cannot be used',
+  );
+  assert.deepEqual(spec.series[0].targets, ['100']);
+});
+
+test('with no target there is no chart, and the omitted chart says why', () => {
+  const specs = of(charts(costRows()), 'cost_vs_target');
+  assert.equal(specs.length, 1);
+  assert.equal(specs[0].drawn, false);
+  assert.deepEqual(texts(specs[0]), [
+    'No campaign has a cost per result target, so there is nothing to compare costs with.',
+  ]);
+  // A target in another currency or for another KPI is no target here.
+  const wrong = of(
+    charts(costRows(), {config: {targets: {leads: target(5, {currency: 'EUR'}), sales: target(9)}}}),
+    'cost_vs_target',
+  );
+  assert.equal(wrong[0].drawn, false);
+});
+
+test('an objective target is not applied across result definitions: only a campaign’s own target compares unlike results', () => {
+  const rows = [...costRows(), chartRow('p1', '50', '5', {definition: purchaseDefinition})];
+  const specs = of(charts(rows, {config: {targets: {leads: target(12.5)}}}), 'cost_vs_target');
+  assert.equal(specs.length, 1);
+  assert.equal(
+    specs[0].drawn,
+    false,
+    'the leads objective holds two result definitions, so its target compares neither',
+  );
+  const own = of(
+    charts(rows, {config: {targets: {leads: target(12.5), 'meta:100:p1': target(8)}}}),
+    'cost_vs_target',
+  ).filter(spec => spec.drawn);
+  assert.equal(own.length, 1);
+  assert.deepEqual(
+    own[0].x.items.map(item => item.label),
+    ['Campaign p1'],
+  );
+  assert.equal(own[0].context.result, 'Purchases');
+});
+
+test('a campaign with a target and no cost is a gap in the chart and "unknown" in the table, never zero', () => {
+  const rows = [chartRow('c1', '100', '10'), chartRow('c2', '100', null), chartRow('c3', '100', '0')],
+    spec = costOf(charts(rows, {config: {targets: {leads: target(15)}}}));
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    ['Campaign c1', 'Campaign c2', 'Campaign c3'],
+  );
+  assert.deepEqual(spec.series[0].values, ['10', null, null]);
+  assert.deepEqual(
+    spec.table.rows.map(row => row.slice(1)),
+    [
+      ['10', '15', 'At or under target'],
+      [null, '15', null],
+      [null, '15', null],
+    ],
+  );
+  assert.equal(spec.takeaway.text, 'Campaigns at or under their target cost per result: 1 of 1.');
+});
+
+test('a result counted in money has no cost per result, so there is no such chart for it at all', () => {
+  const rows = [
+    chartRow('v1', '10', '100', {definition: valueDefinition}),
+    chartRow('v2', '10', '50', {definition: valueDefinition}),
+  ];
+  assert.deepEqual(of(charts(rows, {config: {targets: {leads: target(15)}}}), 'cost_vs_target'), []);
+});
+
+test('different result definitions are different charts, and each says so', () => {
+  const rows = [
+      ...costRows(),
+      chartRow('p1', '50', '5', {definition: purchaseDefinition}),
+      chartRow('p2', '50', '2', {definition: purchaseDefinition}),
+    ],
+    targets = {
+      'meta:100:c1': target(12.5),
+      'meta:100:c2': target(12.5),
+      'meta:100:p1': target(8),
+      'meta:100:p2': target(30),
+    },
+    specs = of(charts(rows, {config: {targets}}), 'cost_vs_target').filter(spec => spec.drawn);
+  assert.equal(specs.length, 2);
+  assert.deepEqual(specs.map(spec => spec.context.result).sort(), ['Leads', 'Purchases']);
+  const purchases = specs.find(spec => spec.context.result === 'Purchases');
+  assert.deepEqual(purchases.series[0].values, ['25', '10']);
+  for (const spec of specs)
+    assert.ok(
+      texts(spec).includes(
+        'Each result definition has its own chart (Leads, Purchases). Different results are never added.',
+      ),
+      texts(spec).join('|'),
+    );
+});
+
+test('over several periods a campaign’s cost is its spend over its results, counting only the periods that have both', () => {
+  const rows = [
+    week(weeks[0], 'a', '50', '5'),
+    week(weeks[1], 'a', '50', '5'),
+    week(weeks[2], 'a', '80', null),
+    week(weeks[0], 'b', '30', '3'),
+    week(weeks[1], 'b', '60', '3'),
+  ];
+  const spec = costOf(weekly(rows, {config: {targets: {leads: target(12)}}}));
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    ['Campaign b', 'Campaign a'],
+  );
+  // b: 90 over 6 is 15. a: 100 over 10 is 10; the third period has no result, so its 80 is not counted.
+  assert.deepEqual(spec.series[0].values, ['15', '10']);
+  assert.equal(spec.takeaway.text, 'Campaigns at or under their target cost per result: 1 of 2.');
+});
+
+test('a cost shown is exact: a third of a unit is nine places, not a float', () => {
+  const rows = [
+      week(weeks[0], 'a', '10', '3'),
+      week(weeks[1], 'a', '10', '3'),
+      week(weeks[0], 'b', '40', '4'),
+      week(weeks[1], 'b', '40', '4'),
+    ],
+    spec = costOf(weekly(rows, {config: {targets: {leads: target(5)}}}));
+  // a: 20 over 6 results; b: 80 over 8.
+  assert.deepEqual(spec.series[0].values, ['10', '3.333333333']);
+});
+
+test('only the ten campaigns with the most spend are shown, and the chart says how many', () => {
+  const rows = Array.from({length: 13}, (_, index) => chartRow('c' + (index + 1), String(100 + index), '10')),
+    spec = costOf(charts(rows, {config: {targets: {leads: target(50)}}}));
+  assert.equal(spec.x.items.length, 10);
+  assert.ok(
+    !spec.x.items.some(item => ['Campaign c1', 'Campaign c2', 'Campaign c3'].includes(item.label)),
+    'the three smallest are out',
+  );
+  assert.ok(
+    texts(spec).includes('Only the 10 entries with the most spend are shown. The report table has the rest.'),
+    texts(spec).join('|'),
+  );
+});
+
+// ----- spend by objective -----
+const withObjective = (id, group, spend, more = {}) => chartRow(id, spend, '1', {objective_group: group, ...more});
+const objectiveRows = () => [
+  withObjective('s1', 'sales', '100', {platform: 'meta', account_id: '100'}),
+  withObjective('l1', 'leads', '60', {platform: 'meta', account_id: '100'}),
+  withObjective('t1', 'traffic', '30', {platform: 'meta', account_id: '100'}),
+  withObjective('a1', 'awareness', '10', {platform: 'meta', account_id: '100'}),
+  withObjective('s2', 'sales', '40', {platform: 'google', account_id: '200'}),
+  withObjective('l2', 'leads', '20', {platform: 'google', account_id: '200'}),
+  withObjective('t2', 'traffic', '20', {platform: 'google', account_id: '200'}),
+];
+const objectiveOf = (specs, index = 0) => of(specs, 'spend_by_objective')[index];
+
+test('spend by objective: a stacked bar per platform, the three largest objectives and the rest as Other', () => {
+  const spec = objectiveOf(charts(objectiveRows()));
+  assert.equal(spec.type, 'stacked_bar');
+  assert.equal(spec.title.text, 'Spend by objective');
+  assert.equal(spec.drawn, true);
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    ['Meta', 'Google Ads'],
+    'the larger platform first',
+  );
+  assert.deepEqual(
+    spec.series.map(series => series.name),
+    ['Sales', 'Leads', 'Traffic', 'Other'],
+  );
+  assert.deepEqual(
+    spec.series.map(series => series.name_kind),
+    ['label', 'label', 'label', 'label'],
+  );
+  assert.deepEqual(
+    spec.series.map(series => series.values),
+    [
+      ['100', '40'],
+      ['60', '20'],
+      ['30', '20'],
+      ['10', null],
+    ],
+  );
+  assert.deepEqual(spec.scale.ticks, ['0', '50', '100', '150', '200'], 'the scale holds the tallest stack');
+  assert.equal(spec.series[3].color_index, null, 'Other is the neutral');
+  const colours = spec.series.slice(0, 3).map(series => series.color_index);
+  assert.equal(new Set(colours).size, 3, 'three objectives, three hues');
+  assert.equal(spec.takeaway.text, 'The largest share of spend is Sales: 50% of 280.00 USD.');
+  assert.deepEqual(spec.takeaway.labels, ['name'], 'Sales is a name AMCP wrote, so a renderer translates it');
+  assert.deepEqual(
+    spec.table.columns.map(column => column.label),
+    ['Platform', 'Sales', 'Leads', 'Traffic', 'Other', 'Total'],
+  );
+  assert.deepEqual(spec.table.rows, [
+    ['Meta', '100', '60', '30', '10', '200'],
+    ['Google Ads', '40', '20', '20', null, '80'],
+  ]);
+  assert.deepEqual(texts(spec), ['The smaller entries are combined as Other: 1.']);
+});
+
+test('colour follows the objective: a filter that removes one does not repaint the others, and two never share a hue', async () => {
+  const {chartColorIndex} = await import('../dist/src/report-chart-scale.js');
+  const groups = ['awareness', 'traffic', 'engagement', 'video_views', 'leads', 'sales', 'app_installs', 'unknown'],
+    rows = groups.map((group, index) => withObjective(group, group, String(100 - index * 10)));
+  for (let a = 0; a < groups.length; a++)
+    for (let b = a + 1; b < groups.length; b++)
+      for (let c = b + 1; c < groups.length; c++) {
+        const three = [groups[a], groups[b], groups[c]],
+          spec = objectiveOf(charts(rows.filter(row => three.includes(row.objective_group))));
+        assert.equal(
+          new Set(spec.series.map(series => series.color_index)).size,
+          3,
+          three.join(' ') + ' have distinct hues',
+        );
+        // A series keeps its home hue unless another of the three wants it.
+        if (new Set(three.map(chartColorIndex)).size === 3)
+          for (const series of spec.series) assert.equal(series.color_index, chartColorIndex(series.key), series.key);
+      }
+  // Three objectives with three home hues: removing one repaints neither of the others.
+  const distinct = groups.filter(
+    (group, index) => groups.findIndex(other => chartColorIndex(other) === chartColorIndex(group)) === index,
+  );
+  assert.equal(distinct.length, 3);
+  const hue = (spec, key) => spec.series.find(series => series.key === key).color_index,
+    all = objectiveOf(charts(rows.filter(row => distinct.includes(row.objective_group)))),
+    fewer = objectiveOf(charts(rows.filter(row => distinct.slice(0, 2).includes(row.objective_group))));
+  for (const key of distinct.slice(0, 2)) assert.equal(hue(fewer, key), hue(all, key), key);
+});
+
+test('more than three objectives fold the rest into Other, per platform, exactly', () => {
+  const rows = [
+    ...objectiveRows(),
+    withObjective('e1', 'engagement', '5', {platform: 'google', account_id: '200'}),
+    withObjective('e2', 'app_installs', '2', {platform: 'google', account_id: '200'}),
+  ];
+  const spec = objectiveOf(charts(rows)),
+    other = spec.series.at(-1);
+  assert.equal(other.name, 'Other');
+  assert.deepEqual(other.values, ['10', '7'], 'awareness 10 on Meta; engagement 5 and app installs 2 on Google');
+  assert.deepEqual(texts(spec), ['The smaller entries are combined as Other: 3.']);
+});
+
+test('one objective is nothing to compare, and a chart never mixes currencies', () => {
+  const [one] = of(charts([withObjective('a', 'sales', '5'), withObjective('b', 'sales', '6')]), 'spend_by_objective');
+  assert.equal(one.drawn, false);
+  assert.deepEqual(texts(one), ['All spend is on one objective, so there is nothing to compare.']);
+  const rows = [
+    withObjective('a', 'sales', '5'),
+    withObjective('b', 'leads', '6'),
+    withObjective('c', 'sales', '50', {currency: 'EUR'}),
+    withObjective('d', 'leads', '60', {currency: 'EUR'}),
+  ];
+  const specs = of(charts(rows), 'spend_by_objective');
+  assert.equal(specs.length, 2);
+  for (const spec of specs) assert.equal(spec.series[0].currency, spec.context.currency);
+  // Leads are the larger objective in each, so they come first.
+  assert.deepEqual(
+    Object.fromEntries(specs.map(spec => [spec.context.currency, spec.series.flatMap(series => series.values)])),
+    {USD: ['6', '5'], EUR: ['60', '50']},
+  );
+});
+
+test('only the top level of a source is added up by objective', () => {
+  const rows = [
+    withObjective('a', 'sales', '10'),
+    withObjective('b', 'leads', '20'),
+    withObjective('ad1', 'sales', '10', {entity_level: 'ad'}),
+    withObjective('ad2', 'leads', '20', {entity_level: 'ad'}),
+  ];
+  const spec = objectiveOf(charts(rows));
+  assert.deepEqual(
+    spec.series.flatMap(series => series.values),
+    ['20', '10'],
+  );
+});
+
+// ----- top ads by result -----
+const ad = (id, result, more = {}) => chartRow(id, '10', result, {entity_level: 'ad', ...more});
+const adsOf = (specs, index = 0) => of(specs, 'top_ads')[index];
+
+test('top ads by result: ranked bars from zero of the ads with the most results, with no picture until previews supply one', () => {
+  const spec = adsOf(charts([chartRow('c1', '50', '9'), ad('a1', '5'), ad('a2', '30'), ad('a3', '12')]));
+  assert.equal(spec.type, 'bar');
+  assert.equal(spec.title.text, 'Top ads by result');
+  assert.equal(spec.drawn, true);
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    ['Entity a2', 'Entity a3', 'Entity a1'],
+  );
+  assert.ok(
+    spec.x.items.every(item => !Object.hasOwn(item, 'thumbnail')),
+    'a thumbnail joins in round 3',
+  );
+  assert.deepEqual(spec.series[0].values, ['30', '12', '5']);
+  assert.equal(spec.series[0].color_index, 1);
+  assert.equal(spec.series[0].unit, 'number');
+  assert.deepEqual(spec.scale.ticks, ['0', '10', '20', '30']);
+  assert.equal(spec.takeaway.text, 'The ad with the most results is Entity a2: 30.');
+  assert.deepEqual(
+    spec.table.columns.map(column => column.label),
+    ['Ad', 'Results'],
+  );
+  assert.deepEqual(spec.table.rows, [
+    ['Entity a2', '30'],
+    ['Entity a3', '12'],
+    ['Entity a1', '5'],
+  ]);
+});
+
+test('top ads shows ten at most; a report without ad rows says so; one ad is nothing to rank', () => {
+  const many = Array.from({length: 14}, (_, index) => ad('a' + (index + 1), String(index + 1))),
+    spec = adsOf(charts(many));
+  assert.equal(spec.x.items.length, 10);
+  assert.deepEqual(spec.series[0].values.slice(0, 3), ['14', '13', '12']);
+  const none = adsOf(charts(campaigns([10, 20])));
+  assert.equal(none.drawn, false);
+  assert.deepEqual(texts(none), ['This report has no ad-level rows.']);
+  const single = adsOf(charts([ad('a1', '5')]));
+  assert.equal(single.drawn, false);
+  assert.deepEqual(single.table.rows, [['Entity a1', '5']]);
+});
+
+test('top ads never adds unlike results: one chart per definition, and a result in money is charted in its currency', () => {
+  const rows = [
+    ad('a1', '5'),
+    ad('a2', '9'),
+    ad('p1', '7', {definition: purchaseDefinition}),
+    ad('p2', '3', {definition: purchaseDefinition}),
+    ad('v1', '300', {definition: valueDefinition}),
+    ad('v2', '100', {definition: valueDefinition}),
+  ];
+  const specs = of(charts(rows), 'top_ads').filter(spec => spec.drawn);
+  assert.deepEqual(specs.map(spec => spec.context.result).sort(), ['Conversion value', 'Leads', 'Purchases']);
+  const money = specs.find(spec => spec.context.result === 'Conversion value');
+  assert.equal(money.series[0].unit, 'currency');
+  assert.equal(money.series[0].currency, 'USD');
+  assert.equal(money.takeaway.text, 'The ad with the most results is Entity v1: 300.00 USD.');
+  for (const spec of specs)
+    assert.ok(
+      texts(spec).some(text =>
+        text.startsWith('Each result definition has its own chart (Conversion value, Leads, Purchases).'),
+      ),
+      spec.context.result,
+    );
+  assert.deepEqual(specs.find(spec => spec.context.result === 'Leads').series[0].values, ['9', '5']);
+});
+
+test('an ad with no result figure is left out and counted in the shared helper’s words; the name stays data', () => {
+  const hostile = '</svg><script>alert(1)</script>',
+    spec = adsOf(charts([ad('a1', '5', {entity_name: hostile}), ad('a2', null), ad('a3', '2')]));
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    [hostile, 'Entity a3'],
+  );
+  assert.ok(
+    spec.notes.some(note => note.kind === 'coverage' && note.text === 'Results: 2 of 3 rows'),
+    texts(spec).join('|'),
+  );
+  assert.equal(spec.takeaway.params.name, hostile);
+});
+
 test('a chart that is switched off in the report is not computed, and the others still are', () => {
   assert.equal(of(charts(campaigns([30, 20])), 'spend_by_entity').length, 1, 'on by default');
   const off = charts(campaigns([30, 20]), {config: {charts: {disabled: ['spend_by_entity']}}});

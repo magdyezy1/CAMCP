@@ -213,6 +213,8 @@ const arabic: Record<string, string> = {
     'تُستبعد من هذا المخطط الصفوف التي ليس لها تعريف واحد للنتائج: {count}.',
   'Only the first {count} groups are charted. The report table has the rest.':
     'تُرسم أول {count} مجموعات فقط. تجد الباقي في جدول التقرير.',
+  'Only the {count} entries with the most spend are shown. The report table has the rest.':
+    'تُعرض {count} من البنود الأكثر إنفاقًا فقط. تجد الباقي في جدول التقرير.',
 };
 // Only authored result definitions; native and custom result words stay literal.
 const resultLabels: Record<string, string> = {

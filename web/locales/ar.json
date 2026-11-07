@@ -12043,5 +12043,6 @@
   "The smaller entries are combined as Other: {count}.": "تُجمع البنود الأصغر تحت «أخرى»: {count}.",
   "The change compares the campaigns and ads that appear in both periods.": "يقارن التغيير الحملات والإعلانات الموجودة في الفترتين.",
   "Rows with no single result definition are left out of this chart: {count}.": "تُستبعد من هذا المخطط الصفوف التي ليس لها تعريف واحد للنتائج: {count}.",
-  "Only the first {count} groups are charted. The report table has the rest.": "تُرسم أول {count} مجموعات فقط. تجد الباقي في جدول التقرير."
+  "Only the first {count} groups are charted. The report table has the rest.": "تُرسم أول {count} مجموعات فقط. تجد الباقي في جدول التقرير.",
+  "Only the {count} entries with the most spend are shown. The report table has the rest.": "تُعرض {count} من البنود الأكثر إنفاقًا فقط. تجد الباقي في جدول التقرير."
 }
