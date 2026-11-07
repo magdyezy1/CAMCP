@@ -1928,6 +1928,15 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'The current revision of the record the action changes, as last read. save_catalog_mapping: the mapping version read (0 before the first save); another current version is refused with CATALOG_MAPPING_CHANGED.',
     confirmed_count:
       'create_catalog_removal: the number of products in the preview, typed back by the person; required for a listed selection.',
+    account_ids:
+      'check only: up to 20 accounts of one connection_id, checked four at a time with the same requirements and live setting; one result per account.',
+  },
+  [P]: {
+    ad_ids:
+      'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs or resource names, or adGroupAds resource names of video ads). Named IDs ignore statuses. Without IDs, the first `limit` matching active ads.',
+    campaign_ids: 'Campaign IDs; LinkedIn campaign group IDs, as in reporting.',
+    adset_ids: 'Ad set or ad group IDs; Snapchat ad squad IDs; LinkedIn native campaign IDs.',
+    ad_format: 'Meta only: the placement to preview.',
   },
   [C]: {
     acknowledge_temporary_sources:

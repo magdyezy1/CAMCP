@@ -185,15 +185,8 @@ export const workspaceTool = tool(
     require_distinct_approver: field.bool,
     connection_id: field.id,
     account_id: field.id,
-    account_ids: {
-      type: 'array',
-      items: {type: 'string', maxLength: 200},
-      minItems: 1,
-      maxItems: 20,
-      uniqueItems: true,
-      description:
-        'check only: up to 20 accounts of one connection_id, checked four at a time with the same requirements and live setting; one result per account.',
-    },
+    // check only: its argument note is in src/first-party-contracts.ts (amcp_tool_help), not in tools/list.
+    account_ids: {type: 'array', items: {type: 'string', maxLength: 200}, minItems: 1, maxItems: 20, uniqueItems: true},
     requirements: field.object,
     live: field.bool,
     id: field.id,
