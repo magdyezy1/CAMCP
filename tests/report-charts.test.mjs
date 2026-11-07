@@ -1033,7 +1033,7 @@ const money = (id, spend, more = {}) =>
     ...more,
   });
 const withChange = async (currentRows, baselineRows, baseline = true, ranges = [thisWeek, lastWeek]) => {
-  const {chartsWithChange} = await import('../dist/src/report-charts.js'),
+  const {chartsWithChange} = await import('../dist/src/report-chart-change.js'),
     current = snapshot('cur', currentRows, ranges[0], 2),
     previous = baseline ? snapshot('base', baselineRows, ranges[1], 1) : undefined,
     specs = tilesOf(await withSummaries(currentRows));

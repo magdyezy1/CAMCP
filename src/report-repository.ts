@@ -91,14 +91,15 @@ export function snapshotSnapchatCampaigns(
     .all(tenant, reportId, connectionId, account) as JsonObject[];
 }
 /**
- * One page of snapshots for the list, newest first: 500 from `offset`, without rows, checkpoints, bindings, row counts
- * or the whole-window summary (RPT-05: get returns it), and with each snapshot's row count.
+ * One page of snapshots for the list, newest first: 500 from `offset`, without rows, checkpoints, bindings, row counts,
+ * the whole-window summary (RPT-05: get returns it) or the charts (V2-EXP-01: get returns them), and with each
+ * snapshot's row count.
  */
 export function snapshotPage(store: Store, tenant: string, offset: number): JsonObject[] {
   return store
     .sql()
     .prepare(
-      "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget.row_counts','$.window_summary') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
+      "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget.row_counts','$.window_summary','$.charts') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
     )
     .all(tenant, offset) as JsonObject[];
 }
@@ -116,7 +117,7 @@ export function comparisonCandidates(store: Store, tenant: string, exceptId: str
   return store
     .sql()
     .prepare(
-      "SELECT id,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget','$.window_summary','$.summary','$.sources') AS data FROM documents WHERE tenant_id=? AND kind='overview_report' AND id<>? ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
+      "SELECT id,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget','$.window_summary','$.charts','$.summary','$.sources') AS data FROM documents WHERE tenant_id=? AND kind='overview_report' AND id<>? ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
     )
     .all(tenant, exceptId, offset) as JsonObject[];
 }

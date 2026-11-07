@@ -455,7 +455,8 @@ column note says that values with more digits than a number holds exactly are ke
 before.
 
 **Reading a snapshot.** `get` returns a v4 row without its native evidence, and a source without `native`,
-`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them. A
+`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them. A v4
+snapshot's `charts` are returned with `include:{charts:true}` and only then, so a plain `get` keeps its size. A
 `window_summary[].series` point is `{date_from, spend}` and, when its period was calculated from fewer units than it
 has, also `coverage` in the shape of a metric's, so a week with one unknown campaign is a short point and not a dip.
 

@@ -11735,7 +11735,7 @@
   "TikTok returned unbound or repeated ad group result rows.": "أعادت TikTok صفوف نتائج لمجموعات إعلانية غير مرتبطة أو مكررة.",
   "TikTok returned malformed ad group result metadata.": "أعادت TikTok بيانات وصفية غير صالحة لنتائج المجموعات الإعلانية.",
   "The reporting window was not declared complete. Results remain partial and recommendations are withheld.": "لم يُصرَّح باكتمال فترة التقرير. تبقى النتائج جزئية وتُحجب التوصيات.",
-  "Use native and lineage include flags set to true or false.": "اضبط علامتَي التضمين native وlineage على true أو false.",
+  "Use native, lineage and charts include flags set to true or false.": "اضبط علامات التضمين native وlineage وcharts على true أو false.",
   "Saved report objectives now fill gaps in the platform's objective. Numbers may change.": "تُستخدم أهداف التقارير المحفوظة الآن عند غياب هدف من المنصة. قد تتغير الأرقام.",
   "The calculated metric exceeds the report precision limit.": "يتجاوز المقياس المحسوب حد الدقة المدعوم للتقرير.",
   "Some report metrics are incomplete. Review their coverage before recommending a change.": "بعض مقاييس التقرير غير مكتملة. راجع تغطيتها قبل التوصية بتغيير.",
@@ -12044,5 +12044,7 @@
   "The change compares the campaigns and ads that appear in both periods.": "يقارن التغيير الحملات والإعلانات الموجودة في الفترتين.",
   "Rows with no single result definition are left out of this chart: {count}.": "تُستبعد من هذا المخطط الصفوف التي ليس لها تعريف واحد للنتائج: {count}.",
   "Only the first {count} groups are charted. The report table has the rest.": "تُرسم أول {count} مجموعات فقط. تجد الباقي في جدول التقرير.",
-  "Only the {count} entries with the most spend are shown. The report table has the rest.": "تُعرض {count} من البنود الأكثر إنفاقًا فقط. تجد الباقي في جدول التقرير."
+  "Only the {count} entries with the most spend are shown. The report table has the rest.": "تُعرض {count} من البنود الأكثر إنفاقًا فقط. تجد الباقي في جدول التقرير.",
+  "Chart settings belong to the current report form: send contract_version overview-config-v4.": "إعدادات المخططات جزء من صيغة التقرير الحالية: أرسل contract_version بالقيمة overview-config-v4.",
+  "Use charts.disabled with chart kinds from the list in bootstrap.": "استخدم charts.disabled مع أنواع المخططات الواردة في قائمة bootstrap."
 }

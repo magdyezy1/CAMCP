@@ -227,9 +227,14 @@ test('the documented source fields, their defaults, statuses and ID limit are th
   );
   assert.equal(upgraded.sources[0].delivered_only, false);
   assert.ok(doc.includes('A v3 definition upgraded to v4 keeps `delivered_only:false`'));
-  // `get` returns the evidence of a snapshot only when asked.
-  assert.deepEqual(Object.keys(overviewTool.inputSchema.properties.include.properties), ['native', 'lineage']);
+  // `get` returns the evidence of a snapshot, and its charts (V2-EXP-01), only when asked.
+  assert.deepEqual(Object.keys(overviewTool.inputSchema.properties.include.properties), [
+    'native',
+    'lineage',
+    'charts',
+  ]);
   assert.ok(doc.includes('`include:{native:true}` and `include:{lineage:true}`'));
+  assert.ok(flat(doc).includes('`charts` are returned with `include:{charts:true}` and only then'));
 });
 
 test('the rolled-up fields, the labels and the export names the document gives are the real ones', async t => {

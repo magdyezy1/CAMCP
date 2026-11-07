@@ -326,8 +326,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
   // Package charts adds src/report-chart-scale.ts, the exact ticks, labels, shares and colours every chart renderer shares
   // (V2-EXP-01): 792, and src/report-chart-spec.ts (the shape of a chart and the words AMCP writes in one) and
-  // src/report-charts.ts (the charts of a finished snapshot): 794.
-  assert.equal(files.length, 794);
+  // src/report-charts.ts (the charts of a finished snapshot): 794, then src/report-chart-kit.ts (what the builders share),
+  // src/report-chart-breakdowns.ts and src/report-chart-measures.ts (the builders) and src/report-chart-change.ts (the
+  // change of the key figures, read with the report): 798.
+  assert.equal(files.length, 798);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -350,7 +352,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // not accept (415) and of a body that cannot be decoded (400): 1631 + 2 - 1 + 2.
   // Package results (item 10) removes one owned reason: the Apple refusal of more than 100 campaigns, now bounded by the
   // whole-job allowance instead: 1634 - 1.
-  assert.equal(owned.size, 1633);
+  // Package charts (V2-EXP-01) adds two owned reasons in src/reporting-overview.ts: a chart setting on a definition of the
+  // earlier form, and a chart setting that is not charts.disabled with known kinds: 1633 + 2.
+  assert.equal(owned.size, 1635);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -404,9 +408,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
-  // Package charts adds the Arabic of the sentences and labels a chart carries that the catalogue lacked (V2-EXP-01): 42
-  // messages, 12,046.
-  assert.equal(Object.keys(catalog).length, 12046);
+  // Package charts adds the Arabic of the sentences and labels a chart carries that the catalogue lacked (V2-EXP-01): 44
+  // messages (the two owned reasons above among them; the include-flags reason is the earlier one, renamed), 12,048.
+  assert.equal(Object.keys(catalog).length, 12048);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

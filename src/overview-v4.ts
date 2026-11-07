@@ -6,6 +6,8 @@ import type {JsonObject} from './types.js';
 import {levelFailure, reportLevelReconciliation} from './report-level-reconciliation.js';
 import {coverageCounts} from './report-math-v4.js';
 import {reportCoverageNotes} from './report-coverage-notes.js';
+import {chartsWithChange} from './report-chart-change.js';
+import type {ChartSpec} from './report-chart-spec.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
@@ -123,6 +125,8 @@ export function overviewDefinitionForms(
   const current = structuredClone(config),
     legacy: JsonObject = {...current};
   delete legacy.contract_version;
+  // Which charts a report leaves out (V2-EXP-01) is a setting of this form only; the build before V2 does not read it.
+  delete legacy.charts;
   const legacySource = (source: JsonObject, defaults = false) => {
     const {
         levels,
@@ -825,6 +829,16 @@ export function projectOverviewV4Sources(snapshot: JsonObject, include: JsonObje
           )
         : value;
   return project(snapshot.sources);
+}
+
+/**
+ * The charts of a v4 snapshot as `get` returns them (V2-EXP-01): the ones stored with it, with the change of the key figures
+ * read from the linked baseline when there is one that can be compared. A snapshot recorded before charts, or one that is
+ * not v4, has none and gets none.
+ */
+export function projectOverviewV4Charts(snapshot: JsonObject, baseline?: JsonObject): JsonObject {
+  if (snapshot.config?.contract_version !== overviewConfigV4 || !Array.isArray(snapshot.charts)) return {};
+  return {charts: chartsWithChange(snapshot.charts as ChartSpec[], snapshot, baseline)};
 }
 
 /**
