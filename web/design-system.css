@@ -1,0 +1,104 @@
+/* V2-WEB-02: the layout of the component state page (web/design-system.js). Tokens only, like the components. */
+.amcp-ds {
+  container-type: inline-size;
+  padding: var(--v2-space-5);
+  border: 1px solid var(--v2-rule);
+  border-radius: var(--v2-radius-card);
+}
+.amcp-ds-layout {
+  display: grid;
+  gap: var(--v2-space-6);
+}
+.amcp-ds-index ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-space-1) var(--v2-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.amcp-ds-index a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--v2-target-min);
+  color: var(--v2-violet-text);
+  font-size: var(--v2-text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+@container (min-width: 60rem) {
+  .amcp-ds-layout {
+    grid-template-columns: 13rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .amcp-ds-index {
+    position: sticky;
+    inset-block-start: var(--v2-space-4);
+  }
+  .amcp-ds-index ul {
+    display: grid;
+    gap: var(--v2-space-1);
+  }
+}
+.amcp-ds-body {
+  display: grid;
+  gap: var(--v2-space-7);
+  min-inline-size: 0;
+}
+.amcp-ds-section {
+  display: grid;
+  gap: var(--v2-space-4);
+  min-inline-size: 0;
+  padding-block-start: var(--v2-space-5);
+  border-block-start: 1px solid var(--v2-rule);
+}
+.amcp-ds-title {
+  margin: 0;
+  font-size: var(--v2-text-xl);
+  font-weight: 650;
+  line-height: 1.2;
+}
+.amcp-ds-intro {
+  max-inline-size: 70ch;
+  color: var(--v2-ink-2);
+  line-height: 1.55;
+}
+.amcp-ds-row {
+  display: grid;
+  gap: var(--v2-space-2);
+}
+.amcp-ds-row-title {
+  margin: 0;
+  font-size: var(--v2-text-md);
+  font-weight: 650;
+}
+.amcp-ds-specimens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--v2-space-4);
+}
+.amcp-ds-wide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.amcp-ds-specimen {
+  display: grid;
+  gap: var(--v2-space-2);
+  min-inline-size: 0;
+  margin: 0;
+}
+.amcp-ds-caption {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-xs);
+}
+.amcp-ds-legacy {
+  display: grid;
+  gap: var(--v2-space-2);
+}
+.amcp-ds-legacy-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--v2-space-3);
+}

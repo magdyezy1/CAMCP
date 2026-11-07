@@ -234,6 +234,8 @@ const routeRegistry = [
     parent: '/report-library',
     assets: ['evidence-workflows.js'],
   },
+  // V2-WEB-02: every component in every state, for members, not in the navigation (docs/DESIGN-SYSTEM.md).
+  {path: '/design-system', label: 'Design system', assets: ['design-system.js']},
   {
     path: '/oauth/consent',
     label: 'Authorize access',

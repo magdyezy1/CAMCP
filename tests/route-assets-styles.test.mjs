@@ -63,11 +63,8 @@ function fixture() {
     run = text => new Script(text).runInContext(context);
   run(fs.readFileSync('web/routes.js', 'utf8'));
   run("routeRegistry.push({path: '/styled', label: 'Styled', assets: ['components.css', 'help.js']})");
-  run(
-    fs
-      .readFileSync('web/route-assets.js', 'utf8')
-      .replace('const pageAssetOrder = [\n', "const pageAssetOrder = [\n  'components.css',\n"),
-  );
+  // components.css is in the loader's real list (V2-WEB-02), so the test page uses the shipped file name.
+  run(fs.readFileSync('web/route-assets.js', 'utf8'));
   return {
     run,
     created,

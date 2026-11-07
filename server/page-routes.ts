@@ -104,6 +104,7 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
     '/auth/complete',
     '/oauth/result',
     '/oauth/consent',
+    '/design-system',
   ])
     router.get(route, (req, res) =>
       route === '/' && homeVisitor(req, res)

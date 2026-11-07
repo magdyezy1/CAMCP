@@ -378,7 +378,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
   // Web-report adds the singular forms of two row-count messages (F-L8-12).
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
-  assert.equal(Object.keys(catalog).length, 11815);
+  // Web-components adds 96 messages: the core components' defaults and the component state page (V2-WEB-02).
+  assert.equal(Object.keys(catalog).length, 11911);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

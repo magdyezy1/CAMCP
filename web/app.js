@@ -1933,6 +1933,7 @@ async function renderCurrentPage() {
     if (location.pathname === '/account') return await renderAccountPage();
     // DOC-03: web/help.js.
     if (location.pathname === '/help') return await AMCP.routes.renderer('/help')();
+    if (location.pathname === '/design-system') return await AMCP.routes.renderer('/design-system')();
     if (location.pathname === '/reporting-overview') return await renderReportingOverview();
     if (
       [

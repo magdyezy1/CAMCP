@@ -1,6 +1,9 @@
 'use strict';
 // Only authored same-origin filenames enter the loader. Routes, query strings and provider data never become URLs.
 const pageAssetOrder = [
+  'tokens-v2.css',
+  'components.css',
+  'design-system.css',
   'campaign-recipes.js',
   'creative-push.js',
   'creative-library.js',
@@ -36,6 +39,8 @@ const pageAssetOrder = [
   'owner-operations.js',
   'account-approvals.js',
   'help.js',
+  'components.js',
+  'design-system.js',
 ];
 const pageAssetDependencies = {
   'creative-library.js': ['work-pages.js'],
@@ -60,6 +65,7 @@ const pageAssetDependencies = {
   'report-quality.js': ['report-library.js', 'reporting-overview.js'],
   'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
   'account-approvals.js': ['owner-operations.js'],
+  'design-system.js': ['tokens-v2.css', 'components.css', 'design-system.css', 'components.js'],
 };
 // A page's files are its route registry entry's `assets` (web/routes.js).
 const pageAssetRoutes = Object.freeze(

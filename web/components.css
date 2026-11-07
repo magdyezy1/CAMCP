@@ -1,0 +1,729 @@
+/* V2-WEB-02 components, part 1 (docs/DESIGN-SYSTEM.md): layout helpers, buttons, badge, chips, fields, progress, skeleton,
+   empty and error states, stepper and cards. Tokens only (the V2 token sheet loads with it), logical properties only,
+   container queries inside components. Text is never set on `rule` (ink-2 and violet-text fail on it) and nothing is
+   written on peach, which is a marker. Native input, select, label, p, th and summary are recoloured by theme.css in the
+   dark theme, so a field keeps its state on its wrapper and muted words sit in spans and divs. */
+.amcp-surface {
+  background: var(--v2-paper);
+  color: var(--v2-ink);
+}
+.amcp-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.amcp-stack {
+  display: grid;
+  align-content: start;
+  gap: var(--v2-space-4);
+  min-inline-size: 0;
+}
+.amcp-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--v2-space-2);
+}
+.amcp-grid {
+  display: grid;
+  gap: var(--v2-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+/* One focus style everywhere: the ring pages already draw, in the focus colour. A state page can show it with data-state. */
+[class*='amcp-']:focus-visible,
+[class*='amcp-'][data-state='focus'] {
+  outline: var(--v2-focus-width) solid var(--focus);
+  outline-offset: var(--v2-focus-offset);
+}
+.amcp-icon {
+  inline-size: 1em;
+  block-size: 1em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.amcp-icon[data-mirror]:dir(rtl) {
+  transform: scaleX(-1);
+}
+
+/* Buttons. The primary action is at least 44px high and wide; every other button reaches the 24px minimum or more. */
+.amcp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--v2-space-2);
+  min-inline-size: var(--v2-target-min);
+  min-block-size: var(--v2-control-height);
+  padding-block: var(--v2-space-1);
+  padding-inline: var(--v2-space-4);
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: var(--v2-radius-control);
+  background: var(--v2-raised);
+  color: var(--v2-ink);
+  font: inherit;
+  font-size: var(--v2-text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--v2-duration-fast) var(--v2-ease),
+    border-color var(--v2-duration-fast) var(--v2-ease);
+}
+.amcp-button[data-size='sm'] {
+  min-block-size: calc(var(--v2-target-min) + var(--v2-space-2));
+  padding-inline: var(--v2-space-3);
+  font-size: var(--v2-text-xs);
+}
+.amcp-button[data-size='lg'] {
+  min-block-size: var(--v2-target-primary);
+  padding-inline: var(--v2-space-5);
+  font-size: var(--v2-text-md);
+}
+.amcp-button[data-variant='primary'] {
+  min-inline-size: var(--v2-target-primary);
+  min-block-size: var(--v2-target-primary);
+  border-color: var(--v2-violet);
+  background: var(--v2-violet);
+  color: var(--v2-on-violet);
+}
+.amcp-button[data-variant='quiet'] {
+  border-color: transparent;
+  background: transparent;
+}
+.amcp-button[data-variant='danger'] {
+  border-color: var(--v2-danger-solid);
+  background: var(--v2-danger-solid);
+  color: var(--v2-on-danger);
+}
+.amcp-button:is(:hover, [data-state='hover']):not(:disabled, [aria-disabled='true']) {
+  border-color: var(--v2-ink-2);
+  background: var(--v2-subtle);
+}
+.amcp-button[data-variant='primary']:is(:hover, [data-state='hover']):not(:disabled, [aria-disabled='true']) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--v2-violet) 86%, var(--v2-ink));
+}
+.amcp-button[data-variant='quiet']:is(:hover, [data-state='hover']):not(:disabled, [aria-disabled='true']) {
+  border-color: transparent;
+}
+.amcp-button[data-variant='danger']:is(:hover, [data-state='hover']):not(:disabled, [aria-disabled='true']) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--v2-danger-solid) 86%, var(--v2-ink));
+}
+.amcp-button:is(:active, [data-state='active']):not(:disabled, [aria-disabled='true']) {
+  background: var(--v2-selected);
+}
+.amcp-button[data-variant='primary']:is(:active, [data-state='active']):not(:disabled, [aria-disabled='true']) {
+  background: color-mix(in srgb, var(--v2-violet) 74%, var(--v2-ink));
+}
+.amcp-button[data-variant='danger']:is(:active, [data-state='active']):not(:disabled, [aria-disabled='true']) {
+  background: color-mix(in srgb, var(--v2-danger-solid) 74%, var(--v2-ink));
+}
+.amcp-button[aria-pressed='true'] {
+  border-color: var(--v2-violet-text);
+  background: var(--v2-selected);
+}
+.amcp-button:is(:disabled, [aria-disabled='true']) {
+  border-color: var(--v2-rule);
+  background: var(--v2-subtle);
+  color: var(--v2-ink-2);
+  opacity: 1;
+  cursor: not-allowed;
+}
+.amcp-button[data-loading] {
+  cursor: progress;
+}
+.amcp-icon-button {
+  padding-inline: var(--v2-space-2);
+  min-inline-size: var(--v2-control-height);
+}
+.amcp-icon-button .amcp-icon {
+  font-size: var(--v2-text-md);
+}
+.amcp-spinner {
+  inline-size: 1em;
+  block-size: 1em;
+  flex: none;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: amcp-spin calc(var(--v2-duration-slow) * 3) linear infinite;
+}
+@keyframes amcp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* One badge. Status tones carry an icon and a word; peach is a dot beside the word. */
+.amcp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-space-1);
+  padding-block: var(--v2-space-1);
+  padding-inline: var(--v2-space-2);
+  border: 1px solid var(--v2-rule);
+  border-radius: var(--v2-radius-round);
+  background: var(--v2-subtle);
+  color: var(--v2-ink);
+  font-size: var(--v2-text-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.amcp-badge[data-tone='success'] {
+  border-color: currentColor;
+  background: var(--v2-success-bg);
+  color: var(--v2-success);
+}
+.amcp-badge[data-tone='warning'] {
+  border-color: currentColor;
+  background: var(--v2-warning-bg);
+  color: var(--v2-warning);
+}
+.amcp-badge[data-tone='danger'] {
+  border-color: currentColor;
+  background: var(--v2-danger-bg);
+  color: var(--v2-danger);
+}
+.amcp-badge[data-tone='info'] {
+  border-color: currentColor;
+  background: var(--v2-info-bg);
+  color: var(--v2-info);
+}
+.amcp-marker {
+  inline-size: var(--v2-space-2);
+  block-size: var(--v2-space-2);
+  flex: none;
+  border-radius: 50%;
+  background: var(--v2-peach);
+}
+
+/* Filter chips are toggle buttons; the pressed one has a fill, a stronger border and a check, not colour alone. */
+.amcp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-space-2);
+}
+.amcp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-space-2);
+  min-block-size: calc(var(--v2-target-min) + var(--v2-space-2));
+  padding-inline: var(--v2-space-3);
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: var(--v2-radius-round);
+  background: var(--v2-raised);
+  color: var(--v2-ink);
+  font: inherit;
+  font-size: var(--v2-text-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--v2-duration-fast) var(--v2-ease),
+    border-color var(--v2-duration-fast) var(--v2-ease);
+}
+.amcp-chip:is(:hover, [data-state='hover']):not(:disabled) {
+  background: var(--v2-subtle);
+  border-color: var(--v2-ink-2);
+}
+.amcp-chip:is(:active, [data-state='active']):not(:disabled) {
+  background: var(--v2-selected);
+}
+.amcp-chip[aria-pressed='true'] {
+  border-color: var(--v2-violet-text);
+  background: var(--v2-selected);
+  font-weight: 650;
+}
+.amcp-chip[aria-pressed='true']::before {
+  content: '';
+  inline-size: 0.35em;
+  block-size: 0.65em;
+  flex: none;
+  border-block-end: 2px solid currentColor;
+  border-inline-end: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+.amcp-chip:disabled {
+  border-color: var(--v2-rule);
+  background: var(--v2-subtle);
+  color: var(--v2-ink-2);
+  cursor: not-allowed;
+}
+.amcp-chip-count {
+  color: var(--v2-ink-2);
+  font-variant-numeric: var(--v2-numeric);
+}
+.amcp-chip[data-removable] {
+  padding-inline-end: var(--v2-space-1);
+}
+.amcp-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--v2-target-min);
+  min-block-size: var(--v2-target-min);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.amcp-chip-remove:is(:hover, [data-state='hover']) {
+  background: var(--v2-selected);
+}
+
+/* Fields: label, control, hint, error. State sits on the wrapper; the native control is borderless inside it. */
+.amcp-field {
+  display: grid;
+  gap: var(--v2-space-1);
+  min-inline-size: 0;
+  color: var(--v2-ink);
+}
+.amcp-label {
+  font-size: var(--v2-text-sm);
+  font-weight: 600;
+}
+.amcp-required {
+  margin-inline-start: var(--v2-space-1);
+  color: var(--v2-danger);
+}
+.amcp-hint {
+  display: block;
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--v2-space-1);
+  color: var(--v2-danger);
+  font-size: var(--v2-text-sm);
+}
+.amcp-error .amcp-icon {
+  margin-block-start: 0.15em;
+}
+.amcp-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-block-size: var(--v2-control-height);
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: var(--v2-radius-control);
+  background: var(--v2-raised);
+  color: var(--v2-ink);
+  transition: border-color var(--v2-duration-fast) var(--v2-ease);
+}
+.amcp-control:is(:hover, [data-state='hover']) {
+  border-color: var(--v2-ink-2);
+}
+.amcp-control:focus-within,
+.amcp-control[data-state='focus'] {
+  border-color: var(--focus);
+}
+.amcp-control[data-state='error'] {
+  border-color: var(--v2-danger);
+}
+.amcp-control:has(:disabled, [readonly]) {
+  background: var(--v2-subtle);
+}
+.amcp-control:has(:disabled) {
+  border-color: var(--v2-rule);
+  color: var(--v2-ink-2);
+}
+.amcp-input,
+.amcp-select {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: calc(var(--v2-control-height) - 2px);
+  padding-block: var(--v2-space-1);
+  padding-inline: var(--v2-space-3);
+  border: 0;
+  border-radius: var(--v2-radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--v2-text-md);
+  outline-offset: calc(var(--v2-focus-offset) * -1);
+}
+.amcp-select {
+  appearance: none;
+  padding-inline-end: calc(var(--v2-space-3) + 1em + var(--v2-space-2));
+  cursor: pointer;
+}
+.amcp-caret {
+  position: absolute;
+  inset-inline-end: var(--v2-space-3);
+  display: inline-flex;
+  color: var(--v2-ink-2);
+  pointer-events: none;
+}
+.amcp-control > .amcp-spinner {
+  margin-inline-end: var(--v2-space-3);
+  color: var(--v2-ink-2);
+}
+.amcp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--v2-space-2);
+  min-block-size: var(--v2-target-min);
+  color: var(--v2-ink);
+}
+.amcp-checkbox {
+  inline-size: 1.125em;
+  block-size: 1.125em;
+  flex: none;
+  margin: 0;
+  accent-color: var(--v2-violet);
+  cursor: pointer;
+}
+.amcp-check label {
+  font-size: var(--v2-text-sm);
+  cursor: pointer;
+}
+
+/* Progress: a bar when the value is known; the browser's own indeterminate bar when it is not. */
+.amcp-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--v2-space-1) var(--v2-space-3);
+  color: var(--v2-ink);
+  font-size: var(--v2-text-sm);
+}
+.amcp-progress-value {
+  color: var(--v2-ink-2);
+  font-variant-numeric: var(--v2-numeric);
+}
+.amcp-progress {
+  grid-column: 1 / -1;
+  inline-size: 100%;
+  block-size: var(--v2-space-2);
+  accent-color: var(--v2-violet);
+}
+.amcp-progress[value] {
+  appearance: none;
+  border: 0;
+  border-radius: var(--v2-radius-round);
+  overflow: hidden;
+  background: var(--v2-rule);
+}
+.amcp-progress[value]::-webkit-progress-bar {
+  background: var(--v2-rule);
+}
+.amcp-progress[value]::-webkit-progress-value {
+  background: var(--v2-violet);
+  transition: inline-size var(--v2-duration) var(--v2-ease);
+}
+.amcp-progress[value]::-moz-progress-bar {
+  background: var(--v2-violet);
+}
+.amcp-progress[data-tone='success'] {
+  accent-color: var(--v2-success);
+}
+.amcp-progress[value][data-tone='success']::-webkit-progress-value {
+  background: var(--v2-success);
+}
+.amcp-progress[value][data-tone='success']::-moz-progress-bar {
+  background: var(--v2-success);
+}
+
+/* Skeleton: quiet blocks on the rule colour, with a slow fade that stops under reduced motion. */
+.amcp-skeleton-group {
+  display: grid;
+  gap: var(--v2-space-2);
+}
+.amcp-skeleton {
+  display: block;
+  border-radius: var(--v2-radius-control);
+  background: var(--v2-rule);
+  animation: amcp-pulse calc(var(--v2-duration-slow) * 6) ease-in-out infinite;
+}
+.amcp-skeleton[data-shape='text'] {
+  block-size: var(--v2-space-3);
+}
+.amcp-skeleton[data-last='true'] {
+  inline-size: 60%;
+}
+.amcp-skeleton[data-shape='title'] {
+  block-size: var(--v2-space-5);
+  inline-size: 40%;
+}
+.amcp-skeleton[data-shape='card'] {
+  block-size: 8rem;
+  border-radius: var(--v2-radius-card);
+}
+.amcp-skeleton[data-shape='row'] {
+  block-size: var(--v2-row-height);
+}
+.amcp-skeleton[data-shape='avatar'] {
+  inline-size: var(--v2-control-height);
+  block-size: var(--v2-control-height);
+  border-radius: 50%;
+}
+@keyframes amcp-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Empty and error states: one title, one explanation, one way on. */
+.amcp-state {
+  display: grid;
+  justify-items: start;
+  gap: var(--v2-space-3);
+  padding: var(--v2-space-6);
+  border: 1px solid var(--v2-rule);
+  border-radius: var(--v2-radius-card);
+  color: var(--v2-ink);
+}
+.amcp-state[data-kind='error'] {
+  border-color: var(--v2-danger);
+}
+.amcp-state-icon {
+  font-size: var(--v2-text-xl);
+  color: var(--v2-ink-2);
+}
+.amcp-state[data-kind='error'] .amcp-state-icon {
+  color: var(--v2-danger);
+}
+.amcp-state-title {
+  margin: 0;
+  font-size: var(--v2-text-lg);
+  font-weight: 650;
+  line-height: 1.3;
+}
+.amcp-state-body {
+  max-inline-size: 60ch;
+  color: var(--v2-ink-2);
+  line-height: 1.55;
+}
+.amcp-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-space-2);
+}
+.amcp-state-reference {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-state-details {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-state-details summary {
+  min-block-size: var(--v2-target-min);
+  cursor: pointer;
+}
+
+/* Stepper: a column on a narrow container, a row on a wide one. */
+.amcp-stepper-wrap {
+  container-type: inline-size;
+}
+.amcp-stepper {
+  display: grid;
+  gap: var(--v2-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--v2-ink);
+}
+@container (min-width: 36rem) {
+  .amcp-stepper {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+.amcp-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--v2-space-3);
+}
+.amcp-step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--v2-target-min) + var(--v2-space-1));
+  block-size: calc(var(--v2-target-min) + var(--v2-space-1));
+  flex: none;
+  border: 1px solid var(--v2-rule-strong);
+  border-radius: 50%;
+  font-size: var(--v2-text-xs);
+  font-weight: 650;
+  font-variant-numeric: var(--v2-numeric);
+}
+.amcp-step[data-status='current'] .amcp-step-marker {
+  border-color: var(--v2-violet);
+  background: var(--v2-violet);
+  color: var(--v2-on-violet);
+}
+.amcp-step[data-status='complete'] .amcp-step-marker {
+  border-color: var(--v2-violet-text);
+  background: var(--v2-selected);
+  color: var(--v2-violet-text);
+}
+.amcp-step[data-status='error'] .amcp-step-marker {
+  border-color: var(--v2-danger);
+  color: var(--v2-danger);
+}
+.amcp-step-text {
+  display: grid;
+  gap: var(--v2-space-1);
+  min-inline-size: 0;
+}
+.amcp-step-label {
+  font-size: var(--v2-text-sm);
+  font-weight: 600;
+}
+.amcp-step[data-status='upcoming'] .amcp-step-label {
+  color: var(--v2-ink-2);
+}
+.amcp-step-description {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-xs);
+}
+
+/* Cards: flat, one rule, no shadow. A KPI is plain large type. */
+.amcp-card {
+  display: grid;
+  align-content: start;
+  gap: var(--v2-space-2);
+  min-inline-size: 0;
+  padding: var(--v2-space-4);
+  border: 1px solid var(--v2-rule);
+  border-radius: var(--v2-radius-card);
+  background: var(--v2-raised);
+  color: var(--v2-ink);
+}
+.amcp-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v2-space-2);
+}
+.amcp-card-title {
+  margin: 0;
+  font-size: var(--v2-text-md);
+  font-weight: 650;
+  line-height: 1.3;
+}
+.amcp-card-meta {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-card-actions,
+.amcp-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-space-2);
+}
+.amcp-kpi dl {
+  display: grid;
+  gap: var(--v2-space-1);
+  margin: 0;
+}
+.amcp-kpi-label {
+  margin: 0;
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-kpi-value {
+  margin: 0;
+  font-size: var(--v2-text-kpi);
+  font-weight: 650;
+  line-height: 1.1;
+  font-variant-numeric: var(--v2-numeric);
+  overflow-wrap: anywhere;
+}
+.amcp-kpi[data-state='missing'] .amcp-kpi-value {
+  color: var(--v2-ink-2);
+}
+.amcp-kpi-unit {
+  margin-inline-start: var(--v2-space-1);
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-md);
+  font-weight: 500;
+}
+.amcp-kpi-note {
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+.amcp-creative {
+  padding: 0;
+  overflow: hidden;
+}
+.amcp-creative[data-selected='true'] {
+  border-color: var(--v2-violet);
+  border-inline-start: var(--v2-space-1) solid var(--v2-peach);
+}
+.amcp-creative-media {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--v2-subtle);
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-xs);
+}
+.amcp-creative-body {
+  display: grid;
+  gap: var(--v2-space-2);
+  padding: var(--v2-space-3) var(--v2-space-4) var(--v2-space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .amcp-spinner,
+  .amcp-skeleton {
+    animation: none;
+  }
+}
+@media (forced-colors: active) {
+  .amcp-button,
+  .amcp-chip,
+  .amcp-control,
+  .amcp-card,
+  .amcp-state,
+  .amcp-badge {
+    border-color: ButtonText;
+  }
+  .amcp-button[data-variant='primary'],
+  .amcp-chip[aria-pressed='true'],
+  .amcp-button[aria-pressed='true'],
+  .amcp-step[data-status='current'] .amcp-step-marker {
+    border-color: Highlight;
+    border-width: 2px;
+  }
+  .amcp-control[data-state='error'],
+  .amcp-state[data-kind='error'] {
+    border-color: Mark;
+    border-width: 2px;
+  }
+  .amcp-button:is(:disabled, [aria-disabled='true']),
+  .amcp-chip:disabled {
+    border-color: GrayText;
+    color: GrayText;
+  }
+  .amcp-marker {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+  .amcp-skeleton {
+    background: GrayText;
+  }
+  .amcp-progress[value]::-webkit-progress-value,
+  .amcp-progress[value]::-moz-progress-bar {
+    background: Highlight;
+  }
+  .amcp-spinner {
+    border-color: ButtonText;
+    border-inline-end-color: transparent;
+  }
+}
