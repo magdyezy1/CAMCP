@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {overviewGranularityFixture, granularConfig, granularSource} from './fixtures/overview-granularity-data.mjs';
@@ -322,7 +322,7 @@ test('Google ad group and ad rows resolve value-based bidding from the fields th
   assert.deepEqual(report.rows.map(item => item.level).sort(), ['ad', 'adset']);
   for (const item of report.rows) {
     assert.equal(item.result.definition_id, 'google:conversion_value', item.level);
-    assert.equal(item.result.value, '30', item.level + ': the fixture rowâ€™s conversionsValue');
+    assert.equal(item.result.value, '30', item.level + ': the fixture row conversionsValue');
     assert.equal(item.metrics.conversions, '2', item.level);
     assert.equal(item.result.cost_per_result, null);
   }
