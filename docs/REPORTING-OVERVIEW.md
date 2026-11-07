@@ -360,6 +360,11 @@ the complete bounded population before narrowing scope.
 - Frozen checkpoints bind the request plan/active hash; detail also binds current authority. Incompatible reuse
   refuses with `REPORT_DEFINITION_CHANGED` or an authority error.
 - `AMCP_X_ACTIVE_ENTITIES=campaigns` retains active IDs but widens their reporting window; `off` uses inventory.
+- **Time zones.** X reports whole UTC hours. An account whose days start on a half or quarter hour (Asia/Kolkata, for
+  example) is read over the whole UTC hours that contain its days, and each boundary hour belongs to the local day
+  holding its midpoint, so adjacent days never count an hour twice. The source says so in a warning, and exact
+  fractional-hour totals are unavailable. A day whose local midnight is skipped by a clock change starts at its first
+  valid instant, for X and for Snapchat.
 
 Reports request ALL_ON_TWITTER, SPOTLIGHT and TREND. PUBLISHER_NETWORK remains unrequested pending
 [owner acceptance](acceptance/READ-ACCEPTANCE.md): reported activity there makes coverage partial, excludes its spend

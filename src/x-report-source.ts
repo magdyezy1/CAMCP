@@ -141,8 +141,10 @@ export const xReportSource: ReportSource = {
       reportList(
         (await c.run(c.plan('/12/accounts/' + c.account + '/campaigns', {count: 1000, with_deleted: true}))).data ?? [],
       );
-    const start = zonedMidnight(c.range.since, c.timezone!),
-      end = zonedMidnight(nextDay(c.range.until), c.timezone!),
+    // A zone whose days start on a half hour is read over whole UTC hours, each boundary hour owned by the day holding
+    // its midpoint, with a warning that says so (xCampaignReport; docs/workflows/REPORTS.md). F-L5-23.
+    const start = zonedMidnight(c.range.since, c.timezone!, true),
+      end = zonedMidnight(nextDay(c.range.until), c.timezone!, true),
       mode = xActiveEntitiesMode();
     // RPT-03: the inventory names campaigns; X active entities decide which campaigns and windows are requested.
     let active = xActiveSet(checkpoint.x_active),

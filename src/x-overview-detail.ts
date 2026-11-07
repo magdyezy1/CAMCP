@@ -247,8 +247,9 @@ export async function collectXOverviewDetail(c: ReportCollection) {
       );
     }),
     selectedIds = new Set(selected.map(row => row.id)),
-    start = zonedMidnight(c.range.since, c.timezone!),
-    end = zonedMidnight(nextDay(c.range.until), c.timezone!);
+    // As at the campaign level: a half-hour zone is read over whole UTC hours under the midpoint rule (F-L5-23).
+    start = zonedMidnight(c.range.since, c.timezone!, true),
+    end = zonedMidnight(nextDay(c.range.until), c.timezone!, true);
   save();
   let active = xActiveSet(state.active),
     fallback = state.active_fallback === true;
