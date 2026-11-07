@@ -267,11 +267,13 @@ function invalid(message: string, code = 'INVALID_REPORT_SOURCE'): never {
   throw new MirrorError(code, message);
 }
 const object = (value: unknown): value is JsonObject => !!value && typeof value === 'object' && !Array.isArray(value);
+/** The most native IDs one scope list of a source holds. The generated tool schema and the bootstrap read it from here. */
+export const overviewV4ScopeIdLimit = 500;
 const ids = (value: unknown): string[] => {
   if (value === undefined) return [];
   if (
     !Array.isArray(value) ||
-    value.length > 500 ||
+    value.length > overviewV4ScopeIdLimit ||
     value.some(id => typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$/.test(id))
   )
     invalid('Use at most 500 exact native IDs for each report scope.');
@@ -386,6 +388,8 @@ const scopeLists = [
   ['adset_ids', 'adset'],
   ['ad_ids', 'ad'],
 ] as const;
+/** The same table for the generated tool schema and the bootstrap: the list field of each level's native IDs. */
+export const overviewV4ScopeFields: readonly (readonly [field: string, level: string])[] = scopeLists;
 /** The warning a source carries when selected IDs matched no row the provider returned (F-L5-27). */
 export const unmatchedIdsWarning = (count: number) =>
   count + ' selected ID' + (count === 1 ? '' : 's') + ' matched no returned row.';

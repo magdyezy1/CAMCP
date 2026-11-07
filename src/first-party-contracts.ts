@@ -2028,6 +2028,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
   },
   // The rules the tool description carried until F-LEAD-01, each with the action it belongs to.
   [O]: {
+    config:
+      'A report definition: name, grain, date_range and sources (one account each, with the levels, statuses, ID lists and options bootstrap platforms[].reporting_v4 lists for its platform). A level, status or option a source leaves out takes the default bootstrap lists; a v3 definition (one level, no levels) is still accepted.',
     include:
       'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage. Without them rows and sources are compact.',
     compare:

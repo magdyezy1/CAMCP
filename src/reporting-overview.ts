@@ -43,6 +43,7 @@ import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
 import {validateObjectiveFields, objectiveFallbackGroups} from './report-objectives.js';
 import {reportSource} from './report-sources.js';
+import {overviewConfigLimits, overviewConfigSchema} from './report-tool-schema.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
@@ -163,7 +164,7 @@ export const overviewTool = tool(
     presentation: field.object,
     profile_id: field.id,
     profile_revision: {type: 'integer', minimum: 1},
-    config: field.object,
+    config: overviewConfigSchema(),
     confirmed: field.bool,
     destination_id: field.id,
     file_destination: field.object,
@@ -368,10 +369,14 @@ export class ReportingOverview {
       Array.isArray(input) ||
       typeof input.name !== 'string' ||
       !input.name.trim() ||
-      input.name.length > 100
+      input.name.length > overviewConfigLimits.name
     )
       throw new MirrorError('INVALID_REPORT', 'Name this report (1–100 characters).');
-    if (!Array.isArray(input.sources) || (!template && !input.sources.length) || input.sources.length > 30)
+    if (
+      !Array.isArray(input.sources) ||
+      (!template && !input.sources.length) ||
+      input.sources.length > overviewConfigLimits.sources
+    )
       throw new MirrorError('REPORT_SOURCES_REQUIRED', 'Choose between 1 and 30 platform accounts.');
     const seen = new Set<string>();
     input = structuredClone(input);
