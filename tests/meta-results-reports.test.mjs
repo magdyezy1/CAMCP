@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 import {granularConfig, granularSource, overviewGranularityFixture} from './fixtures/overview-granularity-data.mjs';
 import {reportTable} from '../dist/src/report-table.js';
 import {reportPack} from '../dist/src/report-packs.js';
@@ -105,6 +106,21 @@ test('a v4 campaign row is Meta’s own result under the windows asked for, with
     // Nothing says "mapped" about a result Meta supplied: no column, no pack limitation.
     assert.equal(reportTable(stored)[0].includes('Result mapped from'), false);
     assert.equal(reportPack(stored).limitations.includes(mappedLimitation), false);
+    // The exports name the result by Meta’s label, never by a key such as meta:website_purchases.
+    const table = reportTable(stored),
+      column = table[0].indexOf('Primary result');
+    assert.ok(column > 0);
+    assert.deepEqual(
+      table
+        .slice(1)
+        .filter(cells => cells[table[0].indexOf('Campaign ID')] !== '')
+        .map(cells => cells[column]),
+      ['Website purchases', 'Website purchases'],
+    );
+    assert.deepEqual(
+      [...new Set(reportPack(stored).summary.map(summary => summary.result_definition))],
+      ['Website purchases'],
+    );
     // The source states the definition once; a result the platform supplied is named as the platform’s.
     assert.deepEqual(
       read.sources[0].result_definitions.map(d => [d.id, d.label, d.aggregation]),
@@ -258,6 +274,36 @@ test('days of two kinds, Meta’s results and the mapped field, are two result g
   }
 });
 
+test('days that name different indicators are different results, so they are never added', async () => {
+  const f = overviewGranularityFixture();
+  try {
+    f.mutate((rows, platform) =>
+      platform === 'meta'
+        ? rows.map(row => ({
+            ...row,
+            optimization_goal: 'LINK_CLICKS',
+            spend: '9',
+            results:
+              row.date_start === '2026-09-01'
+                ? results('actions:link_click', wire('4'))
+                : results('actions:landing_page_view', wire('5')),
+          }))
+        : rows,
+    );
+    const {read} = await run(f, detailConfig('ad'));
+    assert.equal(read.state, 'complete', JSON.stringify(read.sources?.[0]?.error));
+    const [row] = read.rows;
+    assert.equal(row.result.value, null, 'no total of 9: link clicks and landing page views are not one result');
+    assert.equal(row.result_context.unavailable_reason, 'mixed_goals');
+    assert.deepEqual(row.result_groups.map(group => [group.result.definition_id, group.result.value]).sort(), [
+      ['meta:landing_page_views', '5'],
+      ['meta:link_clicks', '4'],
+    ]);
+  } finally {
+    f.close();
+  }
+});
+
 test('a detail row whose days are all mapped stays mapped', async () => {
   const f = overviewGranularityFixture();
   try {
@@ -304,6 +350,65 @@ test('a results shape that is not the recorded one is an unknown result on its r
     f.close();
   }
 });
+
+// The website’s source details of a row (web/reporting-overview.js), read in the page’s own scripts as the browser runs them.
+function page(locale) {
+  const context = createContext({
+    document: {addEventListener() {}},
+    pretty: String,
+    date: value => new Date(value).toISOString(),
+    esc: value =>
+      String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;'),
+    catalog,
+  });
+  const run = source => new Script(source).runInContext(context);
+  for (const file of ['localization', 'report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
+    run(readFileSync('web/' + file + '.js', 'utf8'));
+  run(`uiLocale='${locale}'; uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
+  return run;
+}
+const sourceDetails = (run, row) => {
+  const markup = String(
+    run(
+      'renderReportTable(' +
+        JSON.stringify({
+          config: {name: 'Synthetic', grain: 'total', date_range: {since: '2026-09-01', until: '2026-09-02'}},
+          rows: [
+            {
+              campaign_id: '101',
+              campaign_name: 'Synthetic campaign',
+              account_id: '100',
+              objective_group: 'sales',
+              objective_source: 'provider',
+              attribution: 'Meta 7d_click; impression time',
+              timezone: 'UTC',
+              native: {},
+              metrics: {},
+              recommendation: {decision: 'needs_review', reason: ''},
+              ...row,
+            },
+          ],
+        }) +
+        ',[],{platforms:[{id:"meta",name:"Meta"},{id:"google",name:"Google"}],metrics:{}})',
+    ),
+  );
+  return /<summary>[^<]*<\/summary><p>([^<]*)<br>/.exec(markup)?.[1];
+};
+for (const locale of ['en', 'ar'])
+  test('the website names a Meta row’s result by its label, in the interface language (' + locale + ')', () => {
+    const run = page(locale),
+      label = 'Website purchases';
+    assert.equal(
+      sourceDetails(run, {platform: 'meta', result_definition: label}),
+      locale === 'ar' ? catalog[label] : label,
+    );
+    // Another platform’s definition text is not looked up: it stays as the platform sent it.
+    assert.equal(sourceDetails(run, {platform: 'google', result_definition: label}), label);
+  });
 
 test('every label of Meta’s results has Arabic, on the website and in the Arabic exports', () => {
   const listed = [
