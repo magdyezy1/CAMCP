@@ -24,13 +24,17 @@ no real Sheets, no asynchronous jobs. Keep identifiers private. Each check settl
    (10, 100, 1000 and 1001 IDs of one level; AMCP sends up to 1000). `pageSize` over 1000 on ad groups and ads.
 6. Deleted and status: an ad group or ad deleted in the window with report rows is absent from `id IN`, and returned by
    `deleted EQUALS true`? Record `status`, `systemStatus` and `displayStatus` values per level (does `displayStatus` ever
-   read `DELETED`?) and `adAccountId` on every record.
+   read `DELETED`?) and `adAccountId` on every record. AMCP gives such a row the parents its own report row names: check
+   that a deleted ad group's row carries `campaignId`, and a deleted ad's row `campaignId` and `adGroupId`, and that
+   they match the records of the entities that remain.
 7. AMCP against Apple: run the Overview report for the same week at the campaign, ad group and ad levels, total and weekly.
    Compare spend, impressions, taps and installs of three entities a level with the console; a campaign's ad groups add up
    to it. Record `quality.population` and the provider request count. Scope one run by two campaign IDs: no campaign report
    is sent.
-8. An account with more than 100 campaigns active in the week must refuse and say to choose fewer, never return some. Note
-   any rate-limit answer against AMCP's four requests a second.
+8. An account whose campaigns active in the week outrun the whole-job allowance (1,200 requests, one for each campaign's
+   report) must return the campaigns it finished as a partial report with the warning "n of m campaigns read", never fail
+   the whole report and never present the part as the whole; scope the same run by campaign IDs and compare the rows of
+   the campaigns it did read. Note any rate-limit answer against AMCP's four requests a second.
 9. Record counts, sanitized request IDs and discrepancies. Never change live access or objects to simulate failures. Correct
    the pins record in the same change as any code a check contradicts. Native-speaker Arabic sign-off: Round 4;
    assistive-technology checks remain separate.

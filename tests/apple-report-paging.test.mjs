@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {estimateCollectionRequests} from '../dist/src/report-request-estimate.js';
 import {detailParentsUnavailableWarning} from '../dist/src/overview-parents.js';
+import {ReportCollectionBudget, reportCollectionLimits} from '../dist/src/report-collection-budget.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {appleAccount, campaignOf, groupOf, adOf, spendOf} from './helpers/apple-ads.mjs';
 
@@ -10,6 +11,13 @@ import {appleAccount, campaignOf, groupOf, adOf, spendOf} from './helpers/apple-
 // `result`, and a page holds at most the rows the server chooses. Before, the ad group and ad levels sent one report with
 // no campaign filter, read a single page of 1,000 rows, refused at 1,000 rows, and asked for parents with a total field no
 // Apple page names.
+// The sentence a report says when the whole-job allowance ended before every campaign was read: the one Snapchat already says,
+// which the website translates through its template. It is spelled out here, so that a changed sentence is a failing test.
+const allowanceSentence = (read, total) =>
+  read +
+  ' of ' +
+  total +
+  ' campaigns read. The collection allowance for this report ended, so the other campaigns are not in it; the campaigns that were read are kept. Scope the report by campaign IDs to read the rest.';
 const cents = text => {
   const [whole, fraction = ''] = text.split('.');
   return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));
@@ -163,26 +171,213 @@ test('a scope of campaign IDs reads those campaigns only, with no campaign repor
   assert.equal(result.quality.population.campaigns_observed, 2);
 });
 
-test('a hundred campaigns are read one at a time; a hundred and first is refused before any ad group report is sent', async t => {
-  const hundred = appleAccount({campaigns: 100, groups: 1});
-  t.after(() => hundred.close());
-  const result = await hundred.collect('adset');
-  assert.equal(result.rows.length, 100);
-  assert.deepEqual(hundred.violations, []);
-  assert.equal(hundred.requests.length, 1 + 1 + 100 + 2, 'the account, the campaigns, one report each, the parents');
-  const more = appleAccount({campaigns: 101, groups: 1});
-  t.after(() => more.close());
-  const error = await more.collect('adset').then(
-    () => undefined,
-    e => e,
+// Package results (levels, found-not-fixed 2 and 3): a report of many campaigns costs a request each, and the whole-job
+// allowance is the only bound on how many are read. Before, a hundred and first campaign was refused before any ad group
+// report was sent.
+test('more than a hundred campaigns are read one at a time: the whole-job allowance is their only bound', async t => {
+  const a = appleAccount({campaigns: 150, groups: 1});
+  t.after(() => a.close());
+  const result = await a.collect('adset');
+  assert.equal(result.rows.length, 150);
+  assert.equal(result.complete, true);
+  assert.deepEqual(a.violations, []);
+  assert.equal(a.requests.length, 1 + 1 + 150 + 2, 'the account, the campaigns, one report each, the parents');
+  const population = result.quality.population;
+  assert.equal(population.campaigns_observed, 150);
+  assert.equal(population.campaigns_collected, 150);
+  assert.equal(population.collection_complete, true);
+  assert.equal(population.stopped, undefined);
+  assert.equal(Object.hasOwn(population.bounds, 'campaigns'), false, 'no bound of its own on campaigns');
+  assert.deepEqual(Object.keys(population.bounds).sort(), ['ids_per_query', 'page_size', 'pages', 'rows']);
+});
+
+// The whole-job allowance (src/report-collection-budget.ts) is what a report of an account of any size runs inside. These
+// run the collector inside a smaller one, so the end of it can be reached with a handful of campaigns.
+const allowance = (limits, now) =>
+  new ReportCollectionBudget(
+    undefined,
+    'synthetic-apple-definition',
+    () => {},
+    {...reportCollectionLimits, ...limits},
+    now,
   );
-  assertRefused(error, 'REPORT_COLLECTION_LIMIT', {
-    status: 422,
-    message: /covers 101 campaigns; the most a report reads is 100\./,
+const stoppedOf = result => {
+  const {collection_complete, campaigns_observed, campaigns_collected, stopped} = result.quality.population;
+  return {collection_complete, campaigns_observed, campaigns_collected, stopped};
+};
+
+for (const [level, shape, read] of [
+  // Request budget 12: the account and the campaign report, then a report each, and the parent reads that must still fit:
+  // ad groups and campaigns (2), or ads, ad groups and campaigns (3).
+  ['adset', {campaigns: 30, groups: 2}, 8],
+  ['ad', {campaigns: 30, groups: 1, ads: 1}, 7],
+])
+  test(
+    'an allowance that ends part-way returns the ' + level + ' campaigns it finished as partial, with every parent',
+    async t => {
+      const a = appleAccount(shape);
+      t.after(() => a.close());
+      const result = await allowance({requests: 12}).run(() => a.collect(level));
+      assert.deepEqual(a.violations, []);
+      assert.equal(a.requests.length, 12, 'the allowance is used to its last request and not past it');
+      assert.equal(a.reads('report:' + (level === 'ad' ? 'ads' : 'adgroups')).length, read);
+      // Partial, never complete and never failed; the campaigns read are kept whole.
+      assert.equal(result.complete, false);
+      assert.equal(result.collection_complete, false);
+      assert.equal(result.rows.length, read * (shape.groups ?? 1) * (level === 'ad' ? shape.ads : 1));
+      assert.ok(result.warnings.includes(allowanceSentence(read, 30)), JSON.stringify(result.warnings));
+      assert.deepEqual(stoppedOf(result), {
+        collection_complete: false,
+        campaigns_observed: 30,
+        campaigns_collected: read,
+        stopped: {campaigns_read: read, campaigns_selected: 30, dimension: 'requests'},
+      });
+      // The allowance left room for the parents of what was read, so no row lost them.
+      assert.equal(result.warnings.includes(detailParentsUnavailableWarning), false);
+      assert.ok(
+        result.rows.every(row => row.parent_ids.campaign_id && /^Campaign /.test(row.parent_ids.campaign_name)),
+      );
+      assert.ok(result.rows.every(row => /^(Group|Ad) /.test(row.entity_name)));
+    },
+  );
+
+test('an allowance with room for one campaign reads it, keeps its rows, and says the parents could not be read', async t => {
+  const a = appleAccount({campaigns: 30, groups: 2});
+  t.after(() => a.close());
+  // The account, the campaign report and the first campaign: nothing is left for the parents.
+  const result = await allowance({requests: 3}).run(() => a.collect('adset'));
+  assert.equal(a.requests.length, 3);
+  assert.equal(result.rows.length, 2);
+  assert.equal(result.complete, false);
+  assert.ok(result.warnings.includes(allowanceSentence(1, 30)));
+  assert.ok(result.warnings.includes(detailParentsUnavailableWarning));
+  // The campaign is the one the report row itself names; its name and the ad group records are what could not be read.
+  assert.deepEqual(result.rows[0].parent_ids, {campaign_id: String(campaignOf(0)), campaign_name: null});
+});
+
+test('an allowance that cannot pay for even the first campaign is the real limit error, not an empty report', async t => {
+  const a = appleAccount({campaigns: 30, groups: 2});
+  t.after(() => a.close());
+  await assert.rejects(
+    allowance({requests: 2}).run(() => a.collect('adset')),
+    e => assertRefused(e, 'REPORT_COLLECTION_LIMIT', {status: 422}) && e.details.dimension === 'requests',
+  );
+  assert.equal(a.reads('report:adgroups').length, 0);
+});
+
+test('a time allowance that ends inside the campaigns keeps the campaigns finished, as partial', async t => {
+  let clock = 0;
+  // Each answered report or query takes 30 ms of the 100 the whole job may use. The third campaign's answer arrives after the
+  // allowance has ended, so that campaign is dropped whole and two are kept.
+  const a = appleAccount({
+    campaigns: 30,
+    groups: 1,
+    tamper: (_where, _body, response) => {
+      clock += 30;
+      return response;
+    },
   });
-  assert.match(error.message, /Choose fewer campaigns by campaign ID/, 'it names the remedy');
-  assert.equal(more.reads('report:adgroups').length, 0);
-  assert.deepEqual(more.violations, []);
+  t.after(() => a.close());
+  const result = await allowance({elapsed_ms: 100}, () => clock).run(() => a.collect('adset'));
+  assert.equal(result.complete, false);
+  assert.deepEqual(stoppedOf(result), {
+    collection_complete: false,
+    campaigns_observed: 30,
+    campaigns_collected: 2,
+    stopped: {campaigns_read: 2, campaigns_selected: 30, dimension: 'elapsed_ms'},
+  });
+  assert.equal(result.rows.length, 2);
+  assert.ok(result.warnings.includes(allowanceSentence(2, 30)));
+  assert.ok(
+    result.warnings.includes(detailParentsUnavailableWarning),
+    'the ended allowance cannot pay for the parents',
+  );
+});
+
+test('through the queue, an account too large for the whole-job allowance ends partial with the campaigns it read', async t => {
+  const a = appleAccount({campaigns: 1250, groups: 1});
+  t.after(() => a.close());
+  const {report} = await a.run('adset');
+  assert.equal(report.state, 'partial', JSON.stringify(report.sources));
+  assert.equal(report.sources[0].error, undefined);
+  const population = report.sources[0].quality.population,
+    warning = report.sources[0].level_results[0].warnings.find(text => / campaigns read\./.test(text));
+  assert.equal(population.collection_complete, false);
+  assert.equal(population.campaigns_observed, 1250);
+  assert.ok(
+    population.campaigns_collected > 1000 && population.campaigns_collected < 1250,
+    String(population.campaigns_collected),
+  );
+  assert.equal(warning, allowanceSentence(population.campaigns_collected, 1250));
+  assert.equal(report.row_count, population.campaigns_collected);
+  assert.ok(a.requests.length <= 1200, 'never past the allowance: ' + a.requests.length);
+  assert.deepEqual(a.violations, []);
+});
+
+// Package results (levels, found-not-fixed 1): the entity queries leave a deleted ad group or ad out (Q3), but its report row
+// names its own campaign and, for an ad, its ad group (R5), so the row keeps those parents and a campaign scope keeps the row.
+test('a deleted ad group keeps its campaign from its own report row, and a campaign scope keeps it', async t => {
+  const deletedGroup = (kind, i, k) => kind === 'adgroup' && i === 0 && k === 1,
+    a = appleAccount({campaigns: 2, groups: 3, deleted: deletedGroup});
+  t.after(() => a.close());
+  const result = await a.collect('adset'),
+    gone = result.rows.find(row => row.entity_id === String(groupOf(0, 1)));
+  assert.ok(gone, 'the deleted ad group has report rows');
+  assert.deepEqual(gone.parent_ids, {campaign_id: String(campaignOf(0)), campaign_name: 'Campaign 0'});
+  assert.equal(gone.entity_name, 'Group 0.1', 'named by its own report row');
+  // The ones the account still holds are unchanged.
+  assert.deepEqual(result.rows.find(row => row.entity_id === String(groupOf(0, 0))).parent_ids, gone.parent_ids);
+  // A campaign scope selects by the campaign the parents name: the deleted ad group is in the report, not dropped as unknown.
+  const scoped = await a.run('adset', {campaign_ids: [String(campaignOf(0))]});
+  assert.equal(scoped.report.state, 'complete', JSON.stringify(scoped.report.sources));
+  assert.deepEqual(
+    scoped.report.rows.map(row => row.entity_id).sort(),
+    [groupOf(0, 0), groupOf(0, 1), groupOf(0, 2)].map(String),
+  );
+  assert.equal(scoped.report.sources[0].level_results[0].scope.excluded_unknown_rows, 0);
+});
+
+test('a deleted ad keeps its campaign and its ad group from its own report row', async t => {
+  // The ad (0, 1, 1) is deleted; the ad group (0, 2) is deleted with its ad (0, 2, 0).
+  const a = appleAccount({
+    campaigns: 1,
+    groups: 3,
+    ads: 2,
+    deleted: (kind, i, k, j) =>
+      (kind === 'ad' && i === 0 && ((k === 1 && j === 1) || k === 2)) || (kind === 'adgroup' && i === 0 && k === 2),
+  });
+  t.after(() => a.close());
+  const result = await a.collect('ad'),
+    parentsOf = ad => result.rows.find(row => row.entity_id === String(ad)).parent_ids,
+    campaign = {campaign_id: String(campaignOf(0)), campaign_name: 'Campaign 0'};
+  assert.deepEqual(parentsOf(adOf(0, 1, 1)), {
+    ...campaign,
+    adset_id: String(groupOf(0, 1)),
+    adset_name: 'Group 0.1',
+  });
+  // Its ad group is deleted too: the ad group is still the one the ad row names, with no name to give.
+  assert.deepEqual(parentsOf(adOf(0, 2, 0)), {...campaign, adset_id: String(groupOf(0, 2)), adset_name: null});
+  assert.deepEqual(parentsOf(adOf(0, 0, 0)), {
+    ...campaign,
+    adset_id: String(groupOf(0, 0)),
+    adset_name: 'Group 0.0',
+  });
+  assert.equal(result.rows.length, 6);
+});
+
+test('a record that names another campaign than the report row does is refused, not preferred', async t => {
+  const a = appleAccount({
+    campaigns: 2,
+    groups: 2,
+    tamper: (where, _body, response) => {
+      if (where === 'query:adgroups') response.result[0].campaignId = campaignOf(1);
+      return response;
+    },
+  });
+  t.after(() => a.close());
+  await assert.rejects(a.collect('adset'), e =>
+    assertRefused(e, 'REPORT_ACCOUNT_MISMATCH', {message: /changed native parents/}),
+  );
 });
 
 test('rows past 10,000 across the campaigns refuse as soon as a list shows it, without reading its other pages', async t => {
@@ -228,7 +423,9 @@ test('a parent read Apple refuses leaves the rows with unknown parents and says 
   t.after(() => a.close());
   const result = await a.collect('adset');
   assert.equal(result.rows.length, 3);
-  assert.deepEqual(result.rows[0].parent_ids, {});
+  // Package results: a row also names its own campaign (R5), so a refused parent read leaves the campaign ID, not nothing;
+  // the names and the ad group records are what stay unknown. This assertion read {} before.
+  assert.deepEqual(result.rows[0].parent_ids, {campaign_id: String(campaignOf(0)), campaign_name: null});
   assert.ok(result.warnings.includes(detailParentsUnavailableWarning));
 });
 

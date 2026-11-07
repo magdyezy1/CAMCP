@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {campaignRecommendation} from '../dist/src/report-metrics.js';
 import {snapchatAllowanceWarning} from '../dist/src/snapchat-overview-detail.js';
+import {campaignAllowanceWarning} from '../dist/src/report-source.js';
 import * as localeChecks from '../tools/check-locales.mjs';
 
 function fixture(locale = 'ar') {
@@ -177,6 +178,17 @@ test('collector warnings with a count or field name translate through fixed temp
   ar.context.message =
     'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.';
   assert.match(ar.run('uiReportExplanation(message)'), /[؀-ۿ]/);
+});
+
+test('Apple says the allowance warning in the sentence Snapchat does, so one template translates both (package results)', () => {
+  const ar = fixture(),
+    en = fixture('en');
+  assert.equal(campaignAllowanceWarning(8, 30), snapchatAllowanceWarning(8, 30));
+  ar.context.warning = en.context.warning = campaignAllowanceWarning(8, 30);
+  const text = ar.run('uiSourceWarning(warning)');
+  assert.match(text, /[؀-ۿ]/);
+  assert.ok(text.includes('8') && text.includes('30'), text);
+  assert.equal(en.run('uiSourceWarning(warning)'), campaignAllowanceWarning(8, 30));
 });
 
 test('the Snapchat allowance warning translates through its template and keeps both counts', () => {

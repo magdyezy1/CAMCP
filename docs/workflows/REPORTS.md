@@ -37,6 +37,11 @@ remaining collection time and does not interrupt advertising mutations. A limit 
 explicit missing-source/period errors. Narrow the next run rather than retrying for a fresh allowance. Legacy
 partially collected jobs without counters require a new run (`REPORT_RESTART_REQUIRED`).
 
+A level that reads an account campaign by campaign (Snapchat's ad squad level, Apple's ad group and ad levels) has no
+bound on campaigns of its own: each costs a request, and the allowance is the bound. When it ends after at least one
+campaign is finished, the report keeps the campaigns it read, is partial, and says "n of m campaigns read" in a warning;
+the next run is narrowed by campaign IDs. With no campaign read, the limit error itself is raised.
+
 TikTok integrated aggregation requires consistent native page counts and stable totals, with unique requested
 dimension tuples. Rows without page counts, overlapping rows and malformed grain fail the source before Overview
 retains metrics; a short collection stays partial, and an empty report needs no page counts. Native page metadata
@@ -385,8 +390,7 @@ campaign budgets or exclusions. See [scope and qualification](../records/DELIVER
 
 Choose **Google campaign hourly performance**, select the exact account/login and declare its
 original currency, timezone, dates, attribution and completeness. Explicit capture retains
-the original reported hour 0–23 and date with full campaign identities; midnight remains hour
-0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
+the original reported hour 0–23 and date with full campaign identities; midnight remains hour 0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
 every captured row and the original full totals. No UTC/DST conversion or schedule, bid, budget
 or exclusion change is inferred. A failed capture saves nothing; review its reason/settings
 and explicitly submit again. See [scope and qualification](../records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).

@@ -8,7 +8,12 @@ import {
   snapchatReportId,
 } from './snapchat-evidence.js';
 import {mergeCaptures, windowSpans} from './overview-detail-spans.js';
-import {unmatchedScopeWarning, type DetailCollector, type ReportCollection} from './report-source.js';
+import {
+  campaignAllowanceWarning,
+  unmatchedScopeWarning,
+  type DetailCollector,
+  type ReportCollection,
+} from './report-source.js';
 import type {JsonObject} from './types.js';
 import {storedLogin} from './connection-authority.js';
 import {snapchatScope} from './provider-grants.js';
@@ -40,12 +45,8 @@ export const snapchatDetailRequests = (campaigns: number, spans: number, pages =
   pages + campaigns * spans + 2 * Math.ceil(campaigns / snapchatCampaignsPerBatch) + 1;
 /** The provider requests of one period at the ad level: per span the stats and two account reads, then the parents. */
 export const snapchatAdRequests = (spans: number) => 3 * spans + 3;
-/** Shown when the whole-job allowance ended before every selected campaign was read. */
-export const snapchatAllowanceWarning = (read: number, total: number) =>
-  read +
-  ' of ' +
-  total +
-  ' campaigns read. The collection allowance for this report ended, so the other campaigns are not in it; the campaigns that were read are kept. Scope the report by campaign IDs to read the rest.';
+/** Shown when the whole-job allowance ended before every selected campaign was read (the sentence Apple shares). */
+export const snapchatAllowanceWarning = campaignAllowanceWarning;
 
 /**
  * The ad squad level across all campaigns of the account (V2-RPT-07): the complete campaign population, proven once, then

@@ -11814,7 +11814,6 @@
   "Apple changed the total it reported for {kind} while the list was read, so the list cannot be proven complete.": "غيّرت Apple الإجمالي الذي أبلغت عنه لـ {kind} أثناء قراءة القائمة، فلا يمكن إثبات اكتمال القائمة.",
   "Apple returned an empty page before the total it reported for {kind}, so the list cannot be proven complete.": "أعادت Apple صفحة فارغة قبل بلوغ الإجمالي الذي أبلغت عنه لـ {kind}، فلا يمكن إثبات اكتمال القائمة.",
   "Apple listed {kind} over more than 25 pages, the most a report reads, so the list cannot be proven complete.": "سردت Apple {kind} على أكثر من 25 صفحة، وهو أقصى ما يقرؤه التقرير، فلا يمكن إثبات اكتمال القائمة.",
-  "Apple reports are read one campaign at a time, and this report covers {count} campaigns; the most a report reads is {limit}. Choose fewer campaigns by campaign ID, or narrow the date range.": "تُقرأ تقارير Apple حملةً بعد حملة، ويشمل هذا التقرير {count} حملة، وأقصى ما يقرؤه التقرير هو {limit}. اختر عددًا أقل من الحملات بمعرّف الحملة، أو ضيّق النطاق الزمني.",
   "Apple returned a report row of another advertising account.": "أعادت Apple صفًّا في التقرير يخص حسابًا إعلانيًا آخر.",
   "Apple returned a report row of another campaign than the one requested.": "أعادت Apple صفًّا في التقرير يخص حملة غير الحملة المطلوبة."
 }

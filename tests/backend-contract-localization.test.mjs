@@ -341,7 +341,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // which is not a directly authored refusal reason: one fewer.
   // F-L4-13 (mcp) adds two owned reasons in server/http-app.ts: the refusal of a body encoding or character set AMCP does
   // not accept (415) and of a body that cannot be decoded (400): 1631 + 2 - 1 + 2.
-  assert.equal(owned.size, 1634);
+  // Package results (item 10) removes one owned reason: the Apple refusal of more than 100 campaigns, now bounded by the
+  // whole-job allowance instead: 1634 - 1.
+  assert.equal(owned.size, 1633);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -380,7 +382,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
   // Package results adds the TikTok ad group results warning (F-L5-19): + 1.
   // Package results adds the mapped-result line of a report row and the mapped-result limitation (F-L5-12): + 2.
-  assert.equal(Object.keys(catalog).length, 11818);
+  // Package results removes the Apple refusal of more than 100 campaigns, which no code says any more (item 10): - 1.
+  assert.equal(Object.keys(catalog).length, 11817);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

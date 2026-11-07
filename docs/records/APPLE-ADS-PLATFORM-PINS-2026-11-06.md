@@ -59,8 +59,14 @@ paraphrased. The Apple fixtures of the tests follow these pages, never the code 
   read; a changing total, an empty page before the total, an inconsistent echo or a 25th page without an end refuse. Nothing
   is shortened.
 - The ad group and ad levels ask the campaign report for the campaigns with activity in the window (or use the campaign IDs
-  the scope names), then ask each report once per campaign with `campaignId EQUALS` (R6), at most 100 campaigns a period.
-  Each row must name the account and campaign it was asked for.
+  the scope names), then ask each report once per campaign with `campaignId EQUALS` (R6). The campaigns have no bound of
+  their own: each costs a request, and the whole-job allowance (1,200 requests, 300 seconds) is the bound. Past it, with at
+  least one campaign read, the campaigns finished are returned as a partial report with the warning "n of m campaigns read",
+  as Snapchat's ad squad level does; with none read, the limit error is raised. Each row must name the account and campaign
+  it was asked for.
+- A row of a deleted ad group or ad is absent from the entity queries (Q3) but names its own campaign, and an ad its ad
+  group (R5). Those are its parents: the campaign's name is read with the others, an ad group record that is gone leaves the
+  ad group's name unknown, and a record that names another campaign or ad group than the row does is refused.
 - Parents (ads, ad groups, campaigns) are read by `id IN` in batches of at most 1000 IDs, each batch paged with
   `fetchTotalCount`.
 
@@ -72,8 +78,8 @@ paraphrased. The Apple fixtures of the tests follow these pages, never the code 
   campaign ID of another account or of no campaign answers (an error or an empty list).
 - The largest `IN` list a query accepts, and whether rows keep a stable order across pages without a `sorting` (entity
   queries sort by ID; reports state no default).
-- Whether a deleted entity that has report rows appears in the entity queries (Q3 says not), so its status and parents are
-  unknown there.
+- Whether a deleted entity that has report rows appears in the entity queries (Q3 says not), so its status is unknown
+  there and its parents come from its own report row (R5; the runbook checks that the row carries them).
 - `status`, `displayStatus` and `systemStatus` values beyond the examples (`ENABLED`, `PAUSED`, `RUNNING`, `ON_HOLD`,
   `LIMITED`), and whether `displayStatus` ever reads `DELETED`.
 - Whether `options: {}` is accepted (the documented examples omit `options`; the new detail requests omit it, the campaign
