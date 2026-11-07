@@ -887,6 +887,226 @@ test('an ad with no result figure is left out and counted in the shared helper�
   assert.equal(spec.takeaway.params.name, hostile);
 });
 
+// ----- key figures -----
+const withSummaries = async (rows, more = {}) => {
+  const {reportSummary, reportWindowSummary} = await import('../dist/src/report-summary.js'),
+    grouped = (more.config?.grain ?? 'total') !== 'total';
+  return charts(rows, {
+    ...more,
+    summary: reportSummary(rows, [], true),
+    window_summary: grouped ? reportWindowSummary(rows, [], true) : undefined,
+  });
+};
+const tilesOf = specs => of(specs, 'kpi');
+const tile = (spec, key) => spec.series.find(series => series.key === key);
+
+test('key figures: spend, impressions, clicks, results and cost per result of each summary, exact', async () => {
+  const [spec, ...more] = tilesOf(await withSummaries(costRows()));
+  assert.equal(more.length, 0);
+  assert.equal(spec.type, 'kpi');
+  assert.equal(spec.title.text, 'Key figures');
+  assert.equal(spec.drawn, true);
+  assert.deepEqual(
+    spec.series.map(series => series.key),
+    ['spend', 'impressions', 'clicks', 'primary_result', 'cost_per_result'],
+  );
+  assert.deepEqual(
+    spec.series.map(series => series.name),
+    ['Spend', 'Impressions', 'Clicks', 'Results', 'Cost per result'],
+  );
+  assert.deepEqual(
+    spec.series.map(series => series.values),
+    [['290'], ['3000'], ['30'], ['18'], ['16.111111111']],
+  );
+  assert.deepEqual(
+    spec.series.map(series => series.unit),
+    ['currency', 'number', 'number', 'number', 'currency'],
+  );
+  assert.equal(tile(spec, 'spend').currency, 'USD');
+  assert.deepEqual(spec.context, {
+    platform: 'Meta',
+    account_id: '100',
+    currency: 'USD',
+    level: 'campaign',
+    objective: 'leads',
+    result: 'Leads',
+    date_from: '2026-09-01',
+    date_to: '2026-09-30',
+    compare: {
+      platform: 'meta',
+      account_id: '100',
+      currency: 'USD',
+      timezone: 'UTC',
+      result_definition: 'Leads',
+      attribution: 'Synthetic click window',
+      entity_level: 'campaign',
+    },
+  });
+  assert.equal(spec.scale, null);
+  assert.equal(spec.takeaway, null);
+  assert.deepEqual(
+    spec.table.columns.map(column => column.label),
+    ['Metric', 'Value', 'Currency'],
+  );
+  assert.deepEqual(spec.table.rows[0], ['Spend', '290', 'USD']);
+  assert.deepEqual(spec.table.rows[1], ['Impressions', '3000', null]);
+  assert.ok(
+    spec.series.every(series => series.change === undefined),
+    'the change is read when the report is, not stored',
+  );
+});
+
+test('a figure of zero is zero and a figure nobody has is unknown; each says how many rows stand behind it', async () => {
+  const rows = [chartRow('a', '0', '4'), chartRow('b', null, '4'), chartRow('c', '10', null)],
+    [spec] = tilesOf(await withSummaries(rows));
+  assert.deepEqual(tile(spec, 'spend').values, ['10']);
+  assert.deepEqual(
+    spec.notes.filter(note => note.kind === 'coverage').map(note => note.text),
+    ['Spend: 2 of 3 rows', 'Results: 2 of 3 rows', 'Cost per result: 1 of 3 rows'],
+  );
+  const zero = tilesOf(await withSummaries([chartRow('a', '0', '0'), chartRow('b', '0', '0')]))[0];
+  assert.deepEqual(tile(zero, 'spend').values, ['0']);
+  assert.deepEqual(tile(zero, 'primary_result').values, ['0']);
+  assert.deepEqual(tile(zero, 'cost_per_result').values, [null], 'no results, so no cost per result, not zero');
+});
+
+test('results are one definition’s: mixed definitions in a summary have no single figure, and a result in money has no cost', async () => {
+  const mixed = tilesOf(
+    await withSummaries([chartRow('a', '10', '4'), chartRow('b', '10', '3', {definition: purchaseDefinition})]),
+  );
+  // Two result definitions are two summaries, each its own tile.
+  assert.equal(mixed.length, 2);
+  assert.deepEqual(mixed.map(spec => spec.context.result).sort(), ['Leads', 'Purchases']);
+  const money = tilesOf(await withSummaries([chartRow('v', '10', '300', {definition: valueDefinition})]))[0];
+  assert.equal(tile(money, 'primary_result').unit, 'currency');
+  assert.deepEqual(tile(money, 'primary_result').values, ['300']);
+  assert.deepEqual(tile(money, 'cost_per_result').values, [null]);
+});
+
+test('only the top level of a source has key figures, rolled-up totals say so, and a partial report says so', async () => {
+  const rolled = {kind: 'rolled_up', from_level: 'ad', scope_field: 'ad_ids', label: 'Rolled up from selected ads'},
+    rows = [chartRow('a', '10', '1', {aggregation: rolled}), chartRow('ad1', '4', '1', {entity_level: 'ad'})],
+    specs = tilesOf(await withSummaries(rows, {state: 'partial'}));
+  assert.equal(specs.length, 1);
+  assert.equal(specs[0].context.level, 'campaign');
+  assert.ok(texts(specs[0]).includes('Rolled up from selected ads'));
+  assert.ok(
+    texts(specs[0]).includes('This report is partial: totals leave out the sources or periods that are missing.'),
+  );
+});
+
+test('a grouped report’s key figures are its whole-window totals', async () => {
+  const rows = weeks.map((date, index) => week(date, 'a', ['10', '20', '30'][index], '1')),
+    [spec] = tilesOf(await withSummaries(rows, {config: {grain: 'weekly'}}));
+  assert.deepEqual(tile(spec, 'spend').values, ['60']);
+  assert.equal(spec.context.date_from, '2026-09-07');
+  assert.equal(spec.context.date_to, '2026-09-27');
+});
+
+test('twelve groups of key figures are shown at most, and the report says so', async () => {
+  const rows = Array.from({length: 14}, (_, index) =>
+      chartRow('c' + index, '5', '1', {account_id: String(100 + index)}),
+    ),
+    specs = tilesOf(await withSummaries(rows));
+  assert.equal(specs.length, 12);
+  assert.ok(texts(specs.at(-1)).includes('Only the first 12 groups are charted. The report table has the rest.'));
+});
+
+test('a snapshot with no summaries has no key figures', () => {
+  assert.deepEqual(tilesOf(charts(costRows())), []);
+});
+
+// ----- the change since the previous period -----
+// A retained snapshot of a window: its rows are for that window, as the comparison requires.
+const snapshot = (id, rows, range, completedAt) => ({
+  id,
+  state: 'complete',
+  completed_at: completedAt,
+  config: parts(rows, {config: {date_range: range}}).config,
+  rows: rows.map(row => ({...row, date_from: range.since, date_to: range.until})),
+});
+const thisWeek = {since: '2026-09-08', until: '2026-09-14'},
+  lastWeek = {since: '2026-09-01', until: '2026-09-07'};
+const money = (id, spend, more = {}) =>
+  chartRow(id, spend, '1', {
+    metrics: {spend, impressions: spend === null ? null : String(Number(spend) * 10), clicks: '5'},
+    ...more,
+  });
+const withChange = async (currentRows, baselineRows, baseline = true, ranges = [thisWeek, lastWeek]) => {
+  const {chartsWithChange} = await import('../dist/src/report-charts.js'),
+    current = snapshot('cur', currentRows, ranges[0], 2),
+    previous = baseline ? snapshot('base', baselineRows, ranges[1], 1) : undefined,
+    specs = tilesOf(await withSummaries(currentRows));
+  return {before: specs, after: tilesOf(chartsWithChange(specs, current, previous))};
+};
+
+test('a key figure’s change is read from the linked baseline: the exact delta and percentage, for the campaigns in both periods', async () => {
+  const {before, after} = await withChange(
+    [money('a', '120'), money('b', '80')],
+    [money('a', '100'), money('b', '50')],
+  );
+  const spend = tile(after[0], 'spend');
+  assert.deepEqual(spend.change, {baseline: '150', delta: '50', delta_percent: '33.333333333'});
+  assert.deepEqual(tile(after[0], 'impressions').change, {
+    baseline: '1500',
+    delta: '500',
+    delta_percent: '33.333333333',
+  });
+  assert.equal(tile(after[0], 'primary_result').change, undefined, 'a result has no comparison here');
+  assert.ok(texts(after[0]).includes('The change compares the campaigns and ads that appear in both periods.'));
+  // The stored charts are not touched.
+  assert.ok(before[0].series.every(series => series.change === undefined));
+  assert.equal(
+    texts(before[0]).includes('The change compares the campaigns and ads that appear in both periods.'),
+    false,
+  );
+});
+
+test('without a linked baseline, or when the two periods cannot be compared, no change is shown', async () => {
+  const none = await withChange([money('a', '120'), money('b', '80')], [], false);
+  assert.ok(none.after[0].series.every(series => series.change === undefined));
+  // A baseline of another length is not comparable.
+  const longer = await withChange([money('a', '120'), money('b', '80')], [money('a', '100'), money('b', '50')], true, [
+    thisWeek,
+    {since: '2026-08-25', until: '2026-09-07'},
+  ]);
+  assert.ok(longer.after[0].series.every(series => series.change === undefined));
+});
+
+test('a change never crosses a currency: a baseline in another currency is no baseline for the tile', async () => {
+  const {after} = await withChange(
+    [money('a', '120'), money('b', '80')],
+    [money('a', '100', {currency: 'EUR'}), money('b', '50', {currency: 'EUR'})],
+  );
+  assert.ok(after[0].series.every(series => series.change === undefined));
+});
+
+test('a campaign only one period has is not counted in the change, and a zero baseline has no percentage', async () => {
+  const {after} = await withChange(
+    [money('a', '120'), money('b', '80'), money('new', '1000')],
+    [money('a', '100'), money('b', '0')],
+  );
+  const spend = tile(after[0], 'spend');
+  assert.equal(spend.values[0], '1200', 'the tile is the whole window');
+  // Matched campaigns only: 200 now against 100 then.
+  assert.deepEqual(spend.change, {baseline: '100', delta: '100', delta_percent: '100'});
+  const zero = await withChange([money('a', '20')], [money('a', '0')]);
+  assert.deepEqual(tile(zero.after[0], 'spend').change, {baseline: '0', delta: '20', delta_percent: null});
+});
+
+test('a figure the baseline does not know has no change, and two tiles that share a group get none', async () => {
+  const unknown = await withChange([money('a', '120'), money('b', '80')], [money('a', null), money('b', '50')]);
+  assert.equal(tile(unknown.after[0], 'spend').change, undefined);
+  // Two objectives of one account and currency are two tiles but one comparison group: the change would be both's.
+  const two = [money('a', '120', {objective_group: 'sales'}), money('b', '80', {objective_group: 'leads'})];
+  const shared = await withChange(two, [
+    money('a', '100', {objective_group: 'sales'}),
+    money('b', '50', {objective_group: 'leads'}),
+  ]);
+  assert.equal(shared.after.length, 2);
+  assert.ok(shared.after.every(spec => spec.series.every(series => series.change === undefined)));
+});
+
 test('a chart that is switched off in the report is not computed, and the others still are', () => {
   assert.equal(of(charts(campaigns([30, 20])), 'spend_by_entity').length, 1, 'on by default');
   const off = charts(campaigns([30, 20]), {config: {charts: {disabled: ['spend_by_entity']}}});

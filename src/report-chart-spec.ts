@@ -68,6 +68,7 @@ export const reportChartMessages = [
   'At or under target',
   'Over target',
   'Rows with a value',
+  'Currency',
   'Awareness',
   'Traffic',
   'Engagement',
@@ -176,6 +177,16 @@ export interface ChartContext {
   result?: string;
   date_from?: string;
   date_to?: string;
+  /** Key figures only: the fields a previous period's group is matched by (src/report-compare.ts). */
+  compare?: {
+    platform: string;
+    account_id: string;
+    currency: string | null;
+    timezone: string | null;
+    result_definition: string | null;
+    attribution: string | null;
+    entity_level: string;
+  };
 }
 export interface ChartSpec {
   id: string;

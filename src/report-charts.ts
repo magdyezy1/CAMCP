@@ -1,4 +1,5 @@
 import {overviewConfigV4} from './overview-v4.js';
+import {compareSnapshots, comparisonEligibility} from './report-compare.js';
 import {evaluateReportFormulaV4, sumReportValuesV4} from './report-math-v4.js';
 import {reportCoverageLine, reportCoverageNotes} from './report-coverage-notes.js';
 import {metricSumCoverage, seriesCoverage} from './report-summary.js';
@@ -56,6 +57,8 @@ interface Context {
   rows: JsonObject[];
   /** The rows of each source's top level: the ones that can be added up without counting a campaign and its ads twice. */
   top: JsonObject[];
+  /** The summaries of the top level: whole-window totals for a grouped report, else the report's own. */
+  summaries: JsonObject[];
 }
 
 const levelOf = (row: JsonObject): string => row.entity_level ?? 'campaign';
@@ -74,12 +77,15 @@ const rank = (row: JsonObject): number => {
   const index = levelRank.indexOf(levelOf(row));
   return index < 0 ? levelRank.length : index;
 };
-/** The rows of the level each source was reported at first (campaign, else ad set, else ad). */
-function topLevelRows(rows: JsonObject[]): JsonObject[] {
+/** The level each source was reported at first (campaign, else ad set, else ad), as a rank. */
+function topLevels(rows: JsonObject[]): Map<string, number> {
   const best = new Map<string, number>();
   for (const row of rows) best.set(sourceOf(row), Math.min(best.get(sourceOf(row)) ?? levelRank.length, rank(row)));
-  return rows.filter(row => rank(row) === best.get(sourceOf(row)));
+  return best;
 }
+/** The rows (or summaries) of each source's top level: the ones that can be added up without counting a campaign and its ads twice. */
+const atTopLevel = (items: JsonObject[], best: Map<string, number>): JsonObject[] =>
+  items.filter(item => rank(item) === best.get(sourceOf(item)));
 function groupRows(rows: JsonObject[], key: (row: JsonObject) => string): [string, JsonObject[]][] {
   const groups = new Map<string, JsonObject[]>();
   for (const row of rows) {
@@ -134,11 +140,14 @@ function coverageNotes(group: JsonObject[], metrics: string[]): ChartNote[] {
     text: reportCoverageLine(note, metricLabels[note.metric] ?? note.metric, 'en'),
   }));
 }
-/** What every chart of a group says about where its rows come from: a rolled-up label, a partial report. */
+/**
+ * What every chart of a group says about where its rows come from: the label of a total rolled up from selected children
+ * (on a row, and on a summary of such rows), and that the report is partial.
+ */
 function groupNotes(context: Context, group: JsonObject[]): ChartNote[] {
-  const rolled = rolledUp(group[0]!);
+  const label = group[0]!.aggregation?.label;
   return [
-    ...(rolled?.label ? [chartNoteFromLabel(String(rolled.label))] : []),
+    ...(label ? [chartNoteFromLabel(String(label))] : []),
     ...(context.partial
       ? [chartNote('This report is partial: totals leave out the sources or periods that are missing.')]
       : []),
@@ -1102,14 +1111,165 @@ function topAdsCharts(context: Context): ChartSpec[] {
   return finishKind(specs, unpriced);
 }
 
+/**
+ * The key figures of each summary of a source's top level: spend, impressions, clicks, the result and its cost, exactly as
+ * the summary holds them, each with the rows that stand behind it when that is fewer than all of them. The change since
+ * the previous period is not stored: it needs the linked baseline, which may finish later, so it is added when the report
+ * is read (chartsWithChange).
+ */
+function kpiCharts(context: Context): ChartSpec[] {
+  const fields = ['spend', 'impressions', 'clicks', 'primary_result', 'cost_per_result'],
+    specs = context.summaries.map((summary, index): ChartSpec => {
+      const currency = summary.currency ? String(summary.currency) : null,
+        single = summary.result_groups?.length === 1 ? summary.result_groups[0] : null,
+        resultUnit = single?.definition?.unit === 'currency' ? ('currency' as const) : ('number' as const),
+        series = [
+          ['spend', 'Spend', 'currency'],
+          ['impressions', 'Impressions', 'number'],
+          ['clicks', 'Clicks', 'number'],
+          ['primary_result', 'Results', resultUnit],
+          ['cost_per_result', 'Cost per result', 'currency'],
+        ].map(([key, name, unit]) => ({
+          key: key!,
+          name: name as ChartMessageKey,
+          name_kind: 'label' as const,
+          unit: unit as 'currency' | 'number',
+          currency: unit === 'currency' ? currency : null,
+          values: [decimalOf(summary.metrics?.[key!])],
+          color_index: null,
+          label_at: [0],
+        })),
+        notes: ChartNote[] = [
+          ...reportCoverageNotes(summary, fields).map(note => ({
+            kind: 'coverage' as const,
+            ...note,
+            text: reportCoverageLine(note, metricLabels[note.metric] ?? note.metric, 'en'),
+          })),
+          ...groupNotes(context, [summary]),
+        ];
+      return {
+        id: chartId('kpi', String(summary.platform), String(summary.account_id), String(index)),
+        kind: 'kpi',
+        type: 'kpi',
+        title: chartMessage('Key figures'),
+        takeaway: null,
+        context: {
+          platform: context.names[String(summary.platform)] ?? String(summary.platform),
+          account_id: String(summary.account_id),
+          currency,
+          level: levelOf(summary),
+          objective: String(summary.objective_group ?? 'unknown'),
+          ...(single?.definition?.label || summary.result_definition
+            ? {result: String(single?.definition?.label ?? summary.result_definition)}
+            : {}),
+          date_from: String(summary.date_from),
+          date_to: String(summary.date_to),
+          compare: {
+            platform: String(summary.platform),
+            account_id: String(summary.account_id),
+            currency,
+            timezone: summary.timezone ?? null,
+            result_definition: summary.result_definition ?? null,
+            attribution: summary.attribution ?? null,
+            entity_level: levelOf(summary),
+          },
+        },
+        x: null,
+        series,
+        scale: null,
+        notes,
+        table: {
+          columns: [
+            {label: 'Metric', label_kind: 'label', type: 'text', cell_kind: 'label'},
+            {label: 'Value', label_kind: 'label', type: 'decimal'},
+            {label: 'Currency', label_kind: 'label', type: 'text', cell_kind: 'entity'},
+          ],
+          rows: series.map(item => [item.name, item.values[0]!, item.unit === 'currency' ? item.currency : null]),
+        },
+        drawn: true,
+      };
+    });
+  return finishKind(specs, 0);
+}
+
 const builders: Record<ChartKind, (context: Context) => ChartSpec[]> = {
-  kpi: () => [],
+  kpi: kpiCharts,
   trend: trendCharts,
   spend_by_entity: spendByEntity,
   cost_vs_target: costCharts,
   spend_by_objective: objectiveCharts,
   top_ads: topAdsCharts,
 };
+
+const changeKeys = ['spend', 'impressions', 'clicks'];
+const compareFields = [
+  'platform',
+  'account_id',
+  'currency',
+  'timezone',
+  'result_definition',
+  'attribution',
+  'entity_level',
+] as const;
+/**
+ * The key figures with their change since the previous period, read when the report is (the linked baseline can finish
+ * after the report does). The comparison is the report comparison's (src/report-compare.ts): same grouping, windows of
+ * equal length, rows matched per entity and only compared when their currency, time zone, attribution and result
+ * definition agree, so a change never crosses a currency and counts only the campaigns and ads in both periods. A tile is
+ * compared only when it is the only tile of its comparison group (two objectives of one account share a group, and the
+ * change would be both of theirs). Without a baseline, or when the pair is not comparable, the charts are returned as they
+ * are. Nothing is changed in place.
+ */
+export function chartsWithChange(
+  charts: ChartSpec[],
+  current: JsonObject,
+  baseline: JsonObject | undefined,
+): ChartSpec[] {
+  if (!baseline || !charts.some(spec => spec.kind === 'kpi' && spec.context.compare)) return charts;
+  let totals: JsonObject[];
+  try {
+    if (!comparisonEligibility(current, baseline).eligible) return charts;
+    totals = compareSnapshots(current, baseline, {limit: 1}).group_totals;
+  } catch {
+    return charts;
+  }
+  const grain = current.config?.grain ?? 'total',
+    same = (a: unknown, b: unknown) => String(a ?? '') === String(b ?? ''),
+    tiles = charts.filter(spec => spec.kind === 'kpi' && spec.context.compare),
+    sharing = (spec: ChartSpec) =>
+      tiles.filter(other =>
+        compareFields.every(field => same(other.context.compare![field], spec.context.compare![field])),
+      ).length;
+  return charts.map(spec => {
+    if (spec.kind !== 'kpi' || !spec.context.compare || sharing(spec) !== 1) return spec;
+    const group = totals.find(
+      total =>
+        same(total.grain, grain) && compareFields.every(field => same(total[field], spec.context.compare![field])),
+    );
+    if (!group) return spec;
+    let changed = false;
+    const series = spec.series.map(item => {
+      const found = changeKeys.includes(item.key) ? group.values?.[item.key] : undefined;
+      if (!found || found.baseline == null || found.delta == null) return item;
+      changed = true;
+      return {
+        ...item,
+        change: {
+          baseline: String(found.baseline),
+          delta: String(found.delta),
+          delta_percent: found.delta_percent ?? null,
+        },
+      };
+    });
+    return changed
+      ? {
+          ...spec,
+          series,
+          notes: [...spec.notes, chartNote('The change compares the campaigns and ads that appear in both periods.')],
+        }
+      : spec;
+  });
+}
 
 /**
  * The charts of a finished snapshot, computed from its rows once and stored with it (V2-EXP-01, plan 6.1). Pure: no
@@ -1119,12 +1279,14 @@ const builders: Record<ChartKind, (context: Context) => ChartSpec[]> = {
 export function reportCharts(parts: ChartParts, options: ChartOptions = {}): ChartSpec[] {
   if (parts.config?.contract_version !== overviewConfigV4 || !parts.rows.length) return [];
   const disabled = new Set<string>(parts.config.charts?.disabled ?? []),
+    best = topLevels(parts.rows),
     context: Context = {
       config: parts.config,
       partial: parts.state === 'partial',
       names: options.platformNames ?? {},
       rows: parts.rows,
-      top: topLevelRows(parts.rows),
+      top: atTopLevel(parts.rows, best),
+      summaries: atTopLevel(parts.window_summary ?? parts.summary ?? [], best),
     };
   return chartKindIds.flatMap(kind => (disabled.has(kind) ? [] : builders[kind as ChartKind](context)));
 }

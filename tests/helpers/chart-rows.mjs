@@ -77,6 +77,7 @@ export function chartRow(id, spend, result = '2', more = {}) {
       definition_id: definition.id,
     },
     result_context: {definition, source: 'mapped', cost_source: 'derived', unavailable_reason: null, rounding: {}},
+    recommendation: {decision: 'observe'},
     ...rest,
   };
 }

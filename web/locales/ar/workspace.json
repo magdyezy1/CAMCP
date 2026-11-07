@@ -327,6 +327,7 @@
   "Credential encryption unavailable.": "تشفير بيانات الاعتماد غير متاح.",
   "Credentials must be supplied by the connection provider.": "يجب أن يوفّر مزوّد الاتصال بيانات الاعتماد.",
   "Criteo API application consent; Criteo is parked": "موافقة تطبيق Criteo API؛ وCriteo متوقف حاليًا",
+  "Currency": "العملة",
   "Current GA4 property configuration from complete bounded Admin API reads. Configuration is not proof that events are sent, counted, deduplicated, consented or attributed. Nothing was saved.": "إعدادات خاصية GA4 الحالية من قراءات Admin API كاملة ومحدودة. الإعدادات ليست دليلاً على إرسال الأحداث أو احتسابها أو إزالة تكرارها أو الموافقة عليها أو إسنادها. لم يُحفظ أي شيء.",
   "Current Google Ads conversion configuration from two matching bounded reads. Configuration is not proof that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.": "إعدادات التحويل الحالية في Google Ads من قراءتين محدودتين متطابقتين. الإعدادات ليست دليلًا على أن التحويلات تُسلَّم أو تُزال ازدواجيتها أو تحظى بالموافقة أو تُنسب. لم يُحفظ شيء.",
   "Current Google image references require the exact original account asset resource and uploaded SHA-256.": "يتطلب فحص روابط صور Google الحالية اسم مورد الصورة المطابق لحساب الرفع الأصلي وبصمة SHA-256 للملف المرفوع.",
