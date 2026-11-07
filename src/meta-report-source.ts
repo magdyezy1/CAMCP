@@ -73,6 +73,18 @@ export const metaReportSource: ReportSource = {
       OUTCOME_SALES: 'sales',
       OUTCOME_APP_PROMOTION: 'app_installs',
     },
+    // The owner’s live read of 2026-11-07 found these older objectives beside OUTCOME_*. A v4 report reads them as the
+    // provider’s own values; a v3 report resolves them as it always did (the regex inferred four, three were ungrouped), so
+    // a v3 row does not change (V2-RPT-06).
+    v4Values: {
+      LINK_CLICKS: 'traffic',
+      MESSAGES: 'engagement',
+      REACH: 'awareness',
+      POST_ENGAGEMENT: 'engagement',
+      EVENT_RESPONSES: 'engagement',
+      BRAND_AWARENESS: 'awareness',
+      PAGE_LIKES: 'engagement',
+    },
     missingReason: 'Meta returned no objective for this campaign.',
   },
   nativeMetricExamples: [
