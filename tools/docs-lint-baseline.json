@@ -202,10 +202,16 @@
       "raised": [
         "reference_words 149795 → 150046"
       ]
+    },
+    {
+      "reason": "V2-WEB-02 web-components: docs/DESIGN-SYSTEM.md documents the V2 component layer (about 3,200 words), one entry per component with its variants, states, keys and ARIA roles, a do and a do-not, the old badge map and the checks that guard it",
+      "raised": [
+        "reference_words 150046 → 153268"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 150046
+    "reference_words": 153268
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
