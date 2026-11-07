@@ -134,6 +134,42 @@ test('result groups split definitions, currencies and scopes and expose known-va
   assert.deepEqual(sar.cost_coverage, {known_pairs: 1, total: 3});
   assert.equal(groupReportResults([row(null, '0')])[0].result.value, null);
 });
+test('a bidding selector is optional: an absent or unlisted strategy falls to the default (package results)', () => {
+  const value = {...conversions, id: 'fixture:value', metric: 'conversion_value', unit: 'currency'},
+    rules = {selectors: [{field: 'bidding', values: {TARGET_ROAS: value}}], default: conversions};
+  assert.equal(selectReportResultDefinition(rules, {bidding: 'TARGET_ROAS'}).definition.id, value.id);
+  for (const bidding of [undefined, null, '', 'MANUAL_CPC', 'constructor', '__proto__'])
+    assert.equal(selectReportResultDefinition(rules, {bidding}).definition.id, conversions.id, String(bidding));
+  assert.equal(selectReportResultDefinition(rules, {}).definition.id, conversions.id);
+  // The selector reads only its own field: a goal or an objective of the same name does not select it.
+  assert.equal(selectReportResultDefinition(rules, {goal: 'TARGET_ROAS'}).definition.id, conversions.id);
+  assert.equal(selectReportResultDefinition(rules, {objective: 'TARGET_ROAS'}).definition.id, conversions.id);
+});
+test('a result counted in money has a return on spend, never a derived cost per result (package results)', () => {
+  const money = {...conversions, id: 'fixture:value', metric: 'conversion_value', unit: 'currency'},
+    single = resolveReportResult(money, {value: '50', spend: '10'}, 'mapped');
+  assert.equal(single.result.value, '50');
+  assert.equal(single.result.cost_per_result, null);
+  assert.equal(single.cost_source, 'unknown');
+  assert.equal(single.unavailable_reason, null);
+  // The same inputs on a count still price it: the rule is the unit's, not the arithmetic's.
+  assert.equal(resolveReportResult(conversions, {value: '50', spend: '10'}, 'mapped').result.cost_per_result, '0.2');
+  // A cost the provider itself supplies is kept as it is.
+  const native = resolveReportResult(money, {value: '50', spend: '10', cost_per_result: '0.2'}, 'provider');
+  assert.equal(native.result.cost_per_result, '0.2');
+  assert.equal(native.cost_source, 'provider');
+  const group = groupReportResults([
+    row('50', '10', {resolved: single}),
+    row('30', '5', {resolved: resolveReportResult(money, {value: '30', spend: '5'}, 'mapped')}),
+  ]);
+  assert.equal(group.length, 1);
+  assert.equal(group[0].result.value, '80');
+  assert.equal(group[0].result.cost_per_result, null);
+  assert.equal(group[0].cost_source, 'unknown');
+  assert.deepEqual(group[0].coverage, {known: 2, total: 2});
+  // Money does not add to a count: a different definition is a different group.
+  assert.equal(groupReportResults([row('50', '10', {resolved: single}), row('4', '10')]).length, 2);
+});
 test('non-additive results and unidentified monetary units cannot silently acquire totals', () => {
   const reach = {
     ...conversions,

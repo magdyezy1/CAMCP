@@ -1,9 +1,19 @@
 import {googleAdsCustomers} from './google-version.js';
 import {googleGuidedReporting} from './google-guided-reports.js';
 import {overviewCapabilities, reportList, type ReportSource} from './report-source.js';
-import {mappedReportResult} from './report-results.js';
+import {mappedReportResult, type ReportResultDefinition} from './report-results.js';
 import {reportStatus} from './report-status.js';
 import {overviewEntityLevels} from './overview-levels.js';
+
+/** The result of a value-based campaign: Google's conversion value in the account currency (a ProtoJSON double). */
+const conversionValue: ReportResultDefinition = {
+  id: 'google:conversion_value',
+  metric: 'conversion_value',
+  label: 'Conversion value',
+  native_metric: 'metrics.conversionsValue',
+  aggregation: 'sum',
+  unit: 'currency',
+};
 
 /** An ad_group_ad resource name, `customers/{customer_id}/adGroupAds/{ad_group_id}~{ad_id}`; group 1 is the ad's own ID. */
 const adGroupAdResourceName = /^customers\/\d+\/adGroupAds\/\d+~(\d+)$/;
@@ -23,7 +33,12 @@ export const googleReportSource: ReportSource = {
       level === 'ad' && typeof row.entity_id === 'string' ? adGroupAdResourceName.exec(row.entity_id)?.[1] : undefined,
   },
   resultRules: {
-    selectors: [],
+    // F-L5-13: a campaign optimized for value (campaign.bidding_strategy_type, the pinned BiddingStrategyType enum:
+    // MAXIMIZE_CONVERSION_VALUE "maximize revenue while spending your budget", TARGET_ROAS "maximize revenue while
+    // averaging a target ROAS") is measured by its conversion value. Every other strategy, a strategy added later and a
+    // row that does not carry one keep the primary conversions. The value is a money result with its own definition ID,
+    // so it never adds to a conversion count; ROAS is the existing roas metric, conversion value divided by spend.
+    selectors: [{field: 'bidding', values: {MAXIMIZE_CONVERSION_VALUE: conversionValue, TARGET_ROAS: conversionValue}}],
     default: {
       id: 'google:primary_conversions',
       metric: 'conversions',
@@ -34,7 +49,7 @@ export const googleReportSource: ReportSource = {
     },
   },
   readResult(raw) {
-    return mappedReportResult(googleReportSource.resultRules!, {}, raw, {
+    return mappedReportResult(googleReportSource.resultRules!, {bidding: raw.campaign?.biddingStrategyType}, raw, {
       spend: raw.metrics?.costMicros,
       spend_divisor: 1e6,
     });
