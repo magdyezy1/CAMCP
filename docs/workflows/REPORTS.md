@@ -390,7 +390,8 @@ campaign budgets or exclusions. See [scope and qualification](../records/DELIVER
 
 Choose **Google campaign hourly performance**, select the exact account/login and declare its
 original currency, timezone, dates, attribution and completeness. Explicit capture retains
-the original reported hour 0–23 and date with full campaign identities; midnight remains hour 0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
+the original reported hour 0–23 and date with full campaign identities; midnight remains hour
+0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
 every captured row and the original full totals. No UTC/DST conversion or schedule, bid, budget
 or exclusion change is inferred. A failed capture saves nothing; review its reason/settings
 and explicitly submit again. See [scope and qualification](../records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
