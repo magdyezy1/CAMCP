@@ -202,10 +202,16 @@
       "raised": [
         "reference_words 149795 → 150046"
       ]
+    },
+    {
+      "reason": "package brand, 2026-11-07: docs/LOCAL-BROWSER-QA.md gains one 119-word paragraph for the lockup checks in tools/browser-brand.mjs, the new not-found and no-script cases and the saved screens that tools/browser-workflow-qa.mjs now runs; that page is where the runner's checks are described.",
+      "raised": [
+        "reference_words 150046 → 150165"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 150046
+    "reference_words": 150165
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
