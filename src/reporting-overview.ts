@@ -708,6 +708,8 @@ export class ReportingOverview {
             levels: reportSource(id)?.overview?.levels ?? [],
             defaults: reportSource(id)?.overview?.defaults ?? {},
             option_names: reportSource(id)?.overview?.option_names ?? [],
+            // The fixed choices of the options that have them (attribution windows), so the editor keeps no list (F-L5-15).
+            option_choices: reportSource(id)?.overview?.option_choices ?? {},
             provider_configured_options: reportSource(id)?.overview?.legacy?.provider_configured_options ?? [],
             ...(reportSource(id)?.overview?.scope_aliases
               ? {scope_aliases: reportSource(id)!.overview!.scope_aliases}

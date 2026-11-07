@@ -2,7 +2,6 @@
   "Account report settings": "إعدادات تقرير الحساب",
   "An undeclared window stays partial where required. Recommendations wait for complete measurement.": "تبقى الفترة غير المعلَن عن اكتمالها جزئية عندما يكون ذلك مطلوبًا. تنتظر التوصيات اكتمال القياس.",
   "Attribution windows": "نوافذ الإسناد",
-  "Click attribution window": "نافذة الإسناد بعد النقر",
   "Configuration statuses": "حالات الإعداد",
   "Declared conversion attribution": "إسناد التحويل حسب التصريح",
   "Detailed measurement settings": "إعدادات القياس التفصيلية",
@@ -19,8 +18,5 @@
   "Select All by itself, or choose one or more individual statuses.": "اختر «الكل» وحده، أو اختر حالة واحدة أو أكثر.",
   "Select one or more reporting levels.": "اختر مستوى تقارير واحدًا أو أكثر.",
   "Source filters": "عوامل تصفية المصدر",
-  "Swipe attribution window": "نافذة الإسناد بعد السحب",
-  "Use explicit attribution windows for campaign rows": "استخدام نوافذ إسناد محددة لصفوف الحملات",
-  "View attribution window": "نافذة الإسناد بعد المشاهدة",
-  "engaged view": "مشاهدة تفاعلية"
+  "Use explicit attribution windows for campaign rows": "استخدام نوافذ إسناد محددة لصفوف الحملات"
 }

@@ -56,21 +56,33 @@ function overviewGranularityFields(platform, original = {}, account = false) {
     campaignProfile = profileKeys.length
       ? profileKeys.every(key => config.report_options[key] !== null)
       : original.report_options !== undefined;
-  const windows =
-    platform.id === 'meta'
-      ? html`<label>${uiText('Click attribution window')}<select data-report-click-window="meta"><option value="7d_click" ${options.attribution_windows?.includes('7d_click') || !options.attribution_windows ? 'selected' : ''}>7d_click</option><option value="1d_click" ${options.attribution_windows?.includes('1d_click') ? 'selected' : ''}>1d_click</option><option value="28d_click" ${options.attribution_windows?.includes('28d_click') ? 'selected' : ''}>28d_click</option><option value="" ${options.attribution_windows && !options.attribution_windows.some(w => /_click$/.test(w)) ? 'selected' : ''}>${uiText('No click window')}</option></select></label><label class="check"><input type="checkbox" data-report-view-window="meta" ${options.attribution_windows?.includes('1d_view') ? 'checked' : ''}> 1d_view</label><label class="check"><input type="checkbox" data-report-engaged-view-window="meta" ${options.attribution_windows?.includes('1d_ev') ? 'checked' : ''}> 1d_ev (${uiText('engaged view')})</label>`
-      : platform.id === 'snapchat'
-        ? html`<label>${uiText('Swipe attribution window')}<select data-report-swipe="snapchat">${['1_DAY', '7_DAY', '28_DAY'].map(value => html`<option value="${value}" ${(options.swipe_up_attribution_window ?? '28_DAY') === value ? 'selected' : ''}>${value}</option>`)}</select></label><label>${uiText('View attribution window')}<select data-report-view="snapchat">${['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].map(value => html`<option value="${value}" ${(options.view_attribution_window ?? '1_DAY') === value ? 'selected' : ''}>${value}</option>`)}</select></label>`
-        : undefined;
-  const measurement =
-    platform.id === 'meta'
-      ? html`<label>${uiText('Exact Meta result action (optional)')}<input data-report-result="meta" value="${options.result_action_type ?? ''}" pattern="[a-z][a-z0-9_.]{0,159}" maxlength="160"></label><p class="form-note">${uiText('Leave empty to use the platform goal. An exact action overrides the primary result.')}</p>`
-      : platform.id === 'snapchat'
+  const windowChoices = Object.keys(caps.option_choices ?? {}).length > 0,
+    result = caps.option_names?.includes('result_action_type'),
+    measurement = result
+      ? html`<label>${uiText('Exact Meta result action (optional)')}<input data-report-result="${platform.id}" value="${options.result_action_type ?? ''}" pattern="[a-z][a-z0-9_.]{0,159}" maxlength="160"></label><p class="form-note">${uiText('Leave empty to use the platform goal. An exact action overrides the primary result.')}</p>`
+      : windowChoices
         ? ''
         : html`<label>${uiText('Declared conversion attribution')}<input data-report-attribution="${platform.id}" value="${options.attribution ?? 'unknown'}" maxlength="200"></label>`;
-  const showMeasurement =
-    detailed || caps.requires_complete_window_declaration || caps.option_names?.includes('result_action_type');
-  return html`<label>${uiText('Reporting level')}<select data-report-level="${platform.id}" multiple size="${Math.min(choices.length, 3)}" required>${choices.map(level => html`<option value="${level.id}" ${selected.includes(level.id) ? 'selected' : ''}>${uiText(level.label)}</option>`)}</select></label><p class="form-note">${uiText('Select one or more reporting levels.')}</p>${windows ? html`<label class="check" data-report-campaign-profile-field="${platform.id}" ${detailed ? 'hidden' : ''}><input type="checkbox" data-report-campaign-profile="${platform.id}" ${campaignProfile ? 'checked' : ''}> ${uiText('Use explicit attribution windows for campaign rows')}</label><fieldset data-report-windows="${platform.id}" ${!detailed && !campaignProfile ? 'hidden disabled' : ''}><legend>${uiText('Attribution windows')}</legend>${windows}</fieldset>` : ''}${choices.length > 1 || caps.requires_complete_window_declaration ? html`<fieldset data-report-detail="${platform.id}" ${showMeasurement ? '' : 'hidden disabled'}><legend>${uiText('Detailed measurement settings')}</legend>${measurement}<label class="check"><input type="checkbox" data-report-complete-window="${platform.id}" data-original-complete="${config.report_options.complete_window === false ? 'false' : 'null'}" ${config.report_options.complete_window === true ? 'checked' : ''}> ${uiText('I have checked the reporting window is complete')}</label><p class="form-note">${uiText('An undeclared window stays partial where required. Recommendations wait for complete measurement.')}</p>${platform.id === 'linkedin' ? html`<p class="form-note">${uiText('LinkedIn campaigns are the native middle level; its ad-level report uses sponsored creatives. No ad-set hierarchy is invented.')}</p>` : ''}</fieldset>` : ''}${overviewScopeFields(platform, config, account)}`;
+  // A window declared complete changes the outcome of a detailed level, and of a campaign level only when it was saved
+  // as incomplete, which declaring it complete lifts; elsewhere the box and its note would change nothing.
+  const showMeasurement = detailed || result,
+    showDeclaration = detailed || config.report_options.complete_window === false;
+  return html`<label>${uiText('Reporting level')}<select data-report-level="${platform.id}" multiple size="${Math.min(choices.length, 3)}" required>${choices.map(level => html`<option value="${level.id}" ${selected.includes(level.id) ? 'selected' : ''}>${uiText(level.label)}</option>`)}</select></label><p class="form-note">${uiText('Select one or more reporting levels.')}</p>${windowChoices ? html`<label class="check" data-report-campaign-profile-field="${platform.id}" ${detailed ? 'hidden' : ''}><input type="checkbox" data-report-campaign-profile="${platform.id}" ${campaignProfile ? 'checked' : ''}> ${uiText('Use explicit attribution windows for campaign rows')}</label><fieldset data-report-windows="${platform.id}" ${!detailed && !campaignProfile ? 'hidden disabled' : ''}><legend>${uiText('Attribution windows')}</legend>${overviewWindowControls(platform, options)}</fieldset>` : ''}${choices.length > 1 ? html`<fieldset data-report-detail="${platform.id}" ${showMeasurement || showDeclaration ? '' : 'hidden disabled'}><legend>${uiText('Detailed measurement settings')}</legend><div data-report-measurement="${platform.id}" ${showMeasurement ? '' : 'hidden'}>${measurement}</div><div data-report-declaration="${platform.id}" ${showDeclaration ? '' : 'hidden'}><label class="check"><input type="checkbox" data-report-complete-window="${platform.id}" data-original-complete="${config.report_options.complete_window === false ? 'false' : 'null'}" ${config.report_options.complete_window === true ? 'checked' : ''}> ${uiText('I have checked the reporting window is complete')}</label><p class="form-note">${uiText('An undeclared window stays partial where required. Recommendations wait for complete measurement.')}</p></div>${platform.id === 'linkedin' ? html`<p class="form-note">${uiText('LinkedIn campaigns are the native middle level; its ad-level report uses sponsored creatives. No ad-set hierarchy is invented.')}</p>` : ''}</fieldset>` : ''}${overviewScopeFields(platform, config, account)}`;
+}
+/**
+ * The attribution-window controls a platform declares in the bootstrap (reporting_v4.option_choices), from its own lists and
+ * defaults: an option that takes one value is a select; a selection with an exclusive group (one click window at most) is
+ * a select for the group and a box for each other window (F-L5-15). A platform that declares none has none.
+ */
+function overviewWindowControls(platform, options) {
+  const caps = platform.reporting_v4 ?? {};
+  return html`${Object.entries(caps.option_choices ?? {}).map(([name, choice]) => {
+    const chosen = options[name] ?? caps.defaults?.[name];
+    if (!choice.exclusive)
+      return html`<label>${uiText(choice.label)}<select data-report-option="${name}">${choice.values.map(value => html`<option value="${value}" ${chosen === value ? 'selected' : ''}>${value}</option>`)}</select></label>`;
+    const click = choice.exclusive.find(value => chosen?.includes(value));
+    return html`<label>${uiText(choice.label)}<select data-report-click-window="${platform.id}">${choice.exclusive.map(value => html`<option value="${value}" ${value === click ? 'selected' : ''}>${value}</option>`)}<option value="" ${click ? '' : 'selected'}>${uiText('No click window')}</option></select></label>${choice.values.filter(value => !choice.exclusive.includes(value)).map(value => html`<label class="check"><input type="checkbox" data-report-window-flag="${value}" ${chosen?.includes(value) ? 'checked' : ''}> ${value}${choice.notes?.[value] ? html` (${uiText(choice.notes[value])})` : ''}</label>`)}`;
+  })}`;
 }
 function overviewSourceQuery(platform, account) {
   const root = account
@@ -84,19 +96,27 @@ function overviewSelectedLevels(platform, query = $) {
     ? [...select.selectedOptions].map(option => option.value)
     : [select?.value || 'campaign'];
 }
-function overviewAttributionProfile(platform, query = $) {
-  return platform === 'meta'
-    ? {
-        attribution_windows: [
-          query('[data-report-click-window="meta"]')?.value ?? '7d_click',
-          ...(query('[data-report-view-window="meta"]')?.checked ? ['1d_view'] : []),
-          ...(query('[data-report-engaged-view-window="meta"]')?.checked ? ['1d_ev'] : []),
+function overviewAttributionProfile(platform, caps, query = $) {
+  return Object.fromEntries(
+    Object.entries(caps.option_choices ?? {}).map(([name, choice]) => {
+      const fallback = caps.defaults?.[name];
+      if (!choice.exclusive) return [name, query('[data-report-option="' + CSS.escape(name) + '"]')?.value ?? fallback];
+      const click =
+        query('[data-report-click-window="' + CSS.escape(platform) + '"]')?.value ??
+        choice.exclusive.find(value => fallback?.includes(value));
+      return [
+        name,
+        [
+          click,
+          ...choice.values.filter(
+            value =>
+              !choice.exclusive.includes(value) &&
+              query('[data-report-window-flag="' + CSS.escape(value) + '"]')?.checked,
+          ),
         ].filter(Boolean),
-      }
-    : {
-        swipe_up_attribution_window: query('[data-report-swipe="snapchat"]')?.value ?? '28_DAY',
-        view_attribution_window: query('[data-report-view="snapchat"]')?.value ?? '1_DAY',
-      };
+      ];
+    }),
+  );
 }
 function overviewGranularityConfig(platform, account, previous) {
   const declaration = overviewState.bootstrap?.platforms.find(p => p.id === platform) ?? {id: platform},
@@ -116,9 +136,9 @@ function overviewGranularityConfig(platform, account, previous) {
       : null;
   const attribution = query('[data-report-attribution="' + CSS.escape(platform) + '"]');
   if (attribution) report_options.attribution = attribution.value.trim() || 'unknown';
-  if (['meta', 'snapchat'].includes(platform)) {
+  if (Object.keys(caps.option_choices ?? {}).length) {
     if (detailed || query('[data-report-campaign-profile="' + CSS.escape(platform) + '"]')?.checked)
-      Object.assign(report_options, overviewAttributionProfile(platform, query));
+      Object.assign(report_options, overviewAttributionProfile(platform, caps, query));
     else for (const key of caps.provider_configured_options ?? []) report_options[key] = null;
   }
   const action = query('[data-report-result="' + CSS.escape(platform) + '"]')?.value.trim();
@@ -192,11 +212,16 @@ function updateOverviewGranularity() {
     const root = fieldset.closest('[data-report-source], [data-report-defaults]'),
       id = fieldset.dataset.reportDetail,
       query = root ? selector => root.querySelector(selector) : $,
-      caps = overviewState.bootstrap?.platforms.find(p => p.id === id)?.reporting_v4;
-    fieldset.hidden =
-      !overviewSelectedLevels(id, query).some(level => level !== 'campaign') &&
-      !caps?.requires_complete_window_declaration &&
-      !caps?.option_names?.includes('result_action_type');
+      caps = overviewState.bootstrap?.platforms.find(p => p.id === id)?.reporting_v4,
+      detailed = overviewSelectedLevels(id, query).some(level => level !== 'campaign'),
+      measurement = detailed || caps?.option_names?.includes('result_action_type'),
+      // The box that declares the window complete matters at a detailed level, or to lift a saved "incomplete" (F-L5-15).
+      declaration =
+        detailed ||
+        query('[data-report-complete-window="' + CSS.escape(id) + '"]')?.dataset.originalComplete === 'false';
+    fieldset.querySelector('[data-report-measurement]').hidden = !measurement;
+    fieldset.querySelector('[data-report-declaration]').hidden = !declaration;
+    fieldset.hidden = !measurement && !declaration;
     fieldset.disabled = fieldset.hidden;
   });
   updateOverviewNativeNotes();

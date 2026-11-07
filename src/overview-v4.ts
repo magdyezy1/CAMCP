@@ -10,11 +10,26 @@ import {reportCoverageNotes} from './report-coverage-notes.js';
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
 export const overviewV4ScopeContract = 'selected-descendants-v1';
+/**
+ * The values an option may take when the platform fixes them (attribution windows): what the editor offers, taken from
+ * the platform's declaration and sent in the bootstrap, so no page keeps a list of its own (F-L5-15). `values` is every
+ * choice in the platform's own order. A selection option (`exclusive` given) takes any of the values, but at most one of
+ * the `exclusive` ones; otherwise the option takes exactly one value. `label` names the control (its exclusive group's,
+ * for a selection) and `notes` glosses a value.
+ */
+export interface OverviewV4OptionChoice {
+  readonly label: string;
+  readonly values: readonly string[];
+  readonly exclusive?: readonly string[];
+  readonly notes?: Readonly<Record<string, string>>;
+}
 export interface OverviewV4Capabilities {
   levels: readonly {id: string; label: string; native_type: string; preset?: string}[];
   /** The provider source owns these facts; this module only validates/applies the supplied declaration. */
   defaults: Readonly<JsonObject>;
   option_names: readonly string[];
+  /** The fixed choices of the options that have them, by option name; none for a platform without any. */
+  option_choices?: Readonly<Record<string, OverviewV4OptionChoice>>;
   /** A positive observation of any of these source-owned metrics proves delivery or measurement activity. */
   delivery_metrics: readonly string[];
   supported_statuses: readonly string[];

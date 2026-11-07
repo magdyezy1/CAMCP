@@ -473,6 +473,7 @@ export function overviewCapabilities(
   optionNames: string[] = [],
   validateOptions?: OverviewV4Capabilities['validateOptions'],
   legacy?: OverviewV4Capabilities['legacy'],
+  choices?: OverviewV4Capabilities['option_choices'],
 ): OverviewV4Capabilities {
   return {
     levels,
@@ -481,6 +482,7 @@ export function overviewCapabilities(
     status_basis: 'current_configuration',
     defaults: {attribution: 'unknown', complete_window: null, ...defaults},
     option_names: [...new Set(['attribution', 'complete_window', ...Object.keys(defaults), ...optionNames])],
+    ...(choices ? {option_choices: choices} : {}),
     ...(validateOptions ? {validateOptions} : {}),
     ...(legacy ? {legacy} : {}),
   };

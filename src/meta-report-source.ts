@@ -10,6 +10,9 @@ import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.j
 import {reportStatus} from './report-status.js';
 import {metaReportMetadata} from './meta-report-metadata.js';
 import {overviewEntityLevels} from './overview-levels.js';
+import {providerById} from './provider-adapters.js';
+
+const metaWindows = providerById('meta')!.reportWindows!;
 
 /** Meta campaign insights rows: actions and action_values arrays; conversions follow the campaign objective. */
 export const metaReportSource: ReportSource = {
@@ -40,6 +43,15 @@ export const metaReportSource: ReportSource = {
       detail_options: ['complete_window', 'result_action_type', 'attribution_windows'],
       requires_action: true,
       provider_configured_options: ['attribution_windows'],
+    },
+    // What the editor offers: Meta's windows in the order AMCP sends them, one click window at most (F-L5-15).
+    {
+      attribution_windows: {
+        label: 'Click attribution window',
+        values: metaWindows.windows,
+        exclusive: metaWindows.clickWindows,
+        notes: {'1d_ev': 'engaged view'},
+      },
     },
   ),
   resultRules: metaResultRules,

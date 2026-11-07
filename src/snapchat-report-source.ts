@@ -52,6 +52,9 @@ export const snapchatResultRules: ReportResultRules = {
   ],
 };
 
+/** The swipe-up and view attribution windows Snapchat's stats take, with the default of each in the source's options. */
+const snapchatSwipeWindows = ['1_DAY', '7_DAY', '28_DAY'] as const;
+const snapchatViewWindows = ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'] as const;
 /** Snapchat campaign stats rows (micros); conversions follow the campaign objective. */
 export const snapchatReportSource: ReportSource = {
   platform: 'snapchat',
@@ -76,8 +79,8 @@ export const snapchatReportSource: ReportSource = {
           context?.levels.every(level => level === 'campaign');
         if (
           !configured &&
-          (!['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
-            !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) ||
+          (!snapchatSwipeWindows.includes(options.swipe_up_attribution_window) ||
+            !snapchatViewWindows.includes(options.view_attribution_window) ||
             (options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY'))
         )
           invalidReportSource(
@@ -90,6 +93,11 @@ export const snapchatReportSource: ReportSource = {
         requires_complete: true,
         provider_configured_options: ['swipe_up_attribution_window', 'view_attribution_window'],
         parent_required_levels: ['adset'],
+      },
+      // What the editor offers (F-L5-15).
+      {
+        swipe_up_attribution_window: {label: 'Swipe attribution window', values: snapchatSwipeWindows},
+        view_attribution_window: {label: 'View attribution window', values: snapchatViewWindows},
       },
     ),
     scope_aliases: {campaign_id: 'campaign_ids'},
