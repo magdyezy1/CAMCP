@@ -89,6 +89,8 @@ import {
   overviewRollbackSafe,
   publicOverviewDefinition,
   overviewV4ScopeContract,
+  overviewV4ScopeIdLimit,
+  overviewV4Rules,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
 import {calculateSnapshot, duplicateRowsError, snapshotOutcome} from './report-row-assembly.js';
@@ -709,22 +711,10 @@ export class ReportingOverview {
           id,
           ...p,
           native_metrics: nativeMetricExamples[id] ?? [],
+          // The rules of a source of this platform, from its report source (src/overview-v4.ts overviewV4Rules): the one
+          // shape the website and an MCP client read.
           reporting_v4: {
-            levels: reportSource(id)?.overview?.levels ?? [],
-            defaults: reportSource(id)?.overview?.defaults ?? {},
-            option_names: reportSource(id)?.overview?.option_names ?? [],
-            // The fixed choices of the options that have them (attribution windows), so the editor keeps no list (F-L5-15).
-            option_choices: reportSource(id)?.overview?.option_choices ?? {},
-            provider_configured_options: reportSource(id)?.overview?.legacy?.provider_configured_options ?? [],
-            ...(reportSource(id)?.overview?.scope_aliases
-              ? {scope_aliases: reportSource(id)!.overview!.scope_aliases}
-              : {}),
-            ...(reportSource(id)?.overview?.scope_id_pattern
-              ? {scope_id_pattern: reportSource(id)!.overview!.scope_id_pattern}
-              : {}),
-            delivery_metrics: reportSource(id)?.overview?.delivery_metrics ?? [],
-            supported_statuses: reportSource(id)?.overview?.supported_statuses ?? ['all'],
-            status_basis: reportSource(id)?.overview?.status_basis ?? 'not_applicable',
+            ...overviewV4Rules(reportSource(id)?.overview),
             requires_complete_window_declaration: reportSource(id)?.requiresCompleteWindowDeclaration === true,
           },
           request_model: sourceRequestModel(id),
@@ -796,6 +786,8 @@ export class ReportingOverview {
         native_metrics_help:
           'Common fields and native numeric fields returned by the provider are retained. Additional native field names can be requested. Compatibility and metric-count limits are enforced by each provider.',
         collection_limits: reportCollectionLimits,
+        // What a definition may hold: the sources it names and the native IDs of each scope list (the input schema’s limits).
+        config_limits: {sources: overviewConfigLimits.sources, ids_per_scope: overviewV4ScopeIdLimit},
       };
     }
     if (input.action === 'preview_schedule') {
