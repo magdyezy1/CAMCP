@@ -19,20 +19,22 @@ export interface ObjectiveTable {
  * choose their wording from the code, and never parse the sentence. Codes that name the platform and the native
  * objective carry them in `reason_values`.
  */
-export type ObjectiveReasonCode =
-  | 'campaign_override'
-  | 'source_choice'
-  | 'provider_note'
-  | 'inferred_from_native'
-  | 'mapped_by_provider'
-  | 'fallback_read_refused'
-  | 'fallback_read_limited'
-  | 'platform_returned_none'
-  | 'source_has_no_objective'
-  | 'no_matching_objective'
-  | 'objective_not_grouped'
-  | 'read_refused'
-  | 'read_limited';
+export const objectiveReasonCodes = [
+  'campaign_override',
+  'source_choice',
+  'provider_note',
+  'inferred_from_native',
+  'mapped_by_provider',
+  'fallback_read_refused',
+  'fallback_read_limited',
+  'platform_returned_none',
+  'source_has_no_objective',
+  'no_matching_objective',
+  'objective_not_grouped',
+  'read_refused',
+  'read_limited',
+] as const;
+export type ObjectiveReasonCode = (typeof objectiveReasonCodes)[number];
 export interface ResolvedObjective {
   native: string | null;
   group: string;

@@ -9,8 +9,14 @@ import type {JsonObject} from './types.js';
  * - `missing_inputs`: a ratio or formula; it uses only the units that have every value it needs;
  * - `unknown_currency`, `non_additive_inputs`, `calculation_limit`: the figure is not calculated at all, and says why.
  */
-export type CoverageReason =
-  'missing_values' | 'missing_inputs' | 'unknown_currency' | 'non_additive_inputs' | 'calculation_limit';
+export const coverageReasons = [
+  'missing_values',
+  'missing_inputs',
+  'unknown_currency',
+  'non_additive_inputs',
+  'calculation_limit',
+] as const;
+export type CoverageReason = (typeof coverageReasons)[number];
 /** One metric of a summary (or of a row) that was calculated from fewer units than it has, or not at all. */
 export interface CoverageNote {
   metric: string;

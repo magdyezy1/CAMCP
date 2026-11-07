@@ -55,12 +55,28 @@ function exactDecimal(value: unknown): boolean {
     return false;
   }
 }
+/** The `reason` of a `data_unavailable` outcome on a v4 snapshot: why no summary of it can answer the rule. */
+export const monitorUnavailableReasons = [
+  'incomplete',
+  'coverage_unreadable',
+  'metric_unavailable',
+  'partial_coverage',
+  'evidence_time_unknown',
+  'stale_evidence',
+  'no_matching_summary',
+] as const;
+export type MonitorUnavailableReason = (typeof monitorUnavailableReasons)[number];
 /**
  * Why a v4 summary cannot answer a monitor, or null when it can (F-L5-06). A figure calculated from some of its units is
  * never compared with a threshold: a partial total would open an incident on a number that is not the total. Coverage is
  * read through `coverageCounts`, whichever build wrote it, and an entry that cannot be read is no better than a short one.
  */
-function summaryUnavailable(s: JsonObject, metric: string, maxAgeHours: number, now: number): string | null {
+function summaryUnavailable(
+  s: JsonObject,
+  metric: string,
+  maxAgeHours: number,
+  now: number,
+): Exclude<MonitorUnavailableReason, 'no_matching_summary'> | null {
   if (!s.complete) return 'incomplete';
   const entry = s.metrics_coverage?.[metric];
   if (!entry || typeof entry !== 'object') return 'coverage_unreadable';
