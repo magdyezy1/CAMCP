@@ -330,7 +330,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
   // Web-components adds 96 messages: the core components' defaults and the component state page (V2-WEB-02).
   // Web-components adds 46 more: the choosing components' defaults and the state page's tabs, list and tree sections (V2-WEB-02).
-  assert.equal(Object.keys(catalog).length, 11957);
+  // Web-components adds 37 more: the table and overlay components' defaults and their state page sections (V2-WEB-02).
+  assert.equal(Object.keys(catalog).length, 11994);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

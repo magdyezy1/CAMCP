@@ -115,3 +115,6 @@
 .amcp-ds-static .amcp-popup {
   position: static;
 }
+.amcp-ds-narrow {
+  max-inline-size: 22rem;
+}

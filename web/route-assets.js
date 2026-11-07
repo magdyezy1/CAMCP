@@ -4,6 +4,8 @@ const pageAssetOrder = [
   'tokens-v2.css',
   'components.css',
   'components-controls.css',
+  'components-data.css',
+  'components-overlays.css',
   'design-system.css',
   'campaign-recipes.js',
   'creative-push.js',
@@ -42,6 +44,8 @@ const pageAssetOrder = [
   'help.js',
   'components.js',
   'components-controls.js',
+  'components-table.js',
+  'components-overlays.js',
   'design-system.js',
 ];
 const pageAssetDependencies = {
@@ -71,9 +75,13 @@ const pageAssetDependencies = {
     'tokens-v2.css',
     'components.css',
     'components-controls.css',
+    'components-data.css',
+    'components-overlays.css',
     'design-system.css',
     'components.js',
     'components-controls.js',
+    'components-table.js',
+    'components-overlays.js',
   ],
 };
 // A page's files are its route registry entry's `assets` (web/routes.js).

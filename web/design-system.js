@@ -534,6 +534,218 @@ function designSystemMount() {
       onChange: say,
     });
   say(tree.checked());
+  designSystemToasts = AmcpUI.toasts.mount(document.getElementById('ds-toasts'));
+}
+// The buttons of the overlay section: one delegated behaviour on the page's root, so a redraw never adds a second.
+AmcpUI.behave('design-system', {
+  click(event) {
+    const button = event.target.closest('[data-ds-action]');
+    if (!button) return false;
+    const action = button.getAttribute('data-ds-action');
+    if (action.startsWith('toast-')) designSystemToast(action.slice(6));
+    else void designSystemDialog(action);
+    return true;
+  },
+});
+
+function designSystemTable() {
+  const columns = () => [
+      {id: 'name', label: uiText('Campaign'), native: true},
+      {id: 'status', label: uiText('Status')},
+      {id: 'spend', label: uiText('Spend'), numeric: true},
+      {id: 'clicks', label: uiText('Clicks'), numeric: true},
+      {id: 'rate', label: uiText('Click-through rate'), numeric: true},
+    ],
+    status = {
+      active: () => AmcpUI.badge({label: uiText('Active'), tone: 'success'}),
+      paused: () => AmcpUI.badge({label: uiText('Paused'), tone: 'warning'}),
+      draft: () => AmcpUI.badge({label: uiText('Draft')}),
+    },
+    rows = () =>
+      [
+        ['Spring launch 1', 'active', '1,250.50', '3,100', '2.41%'],
+        ['Summer offer 1', 'paused', '842.00', '1,980', '1.87%'],
+        ['Back to school 1', 'active', '2,310.75', '6,420', '3.02%'],
+        ['Holiday gifts 1', 'draft', '0', '0', '0%'],
+        ['Spring launch 2', 'active', '98,431.20', '210,584', '2.15%'],
+        ['Summer offer 2', 'active', '455.00', '902', '1.12%'],
+        ['Back to school 2', 'paused', '7,001.00', '14,230', '2.66%'],
+        ['Holiday gifts 2', 'active', '12.50', '31', '0.94%'],
+      ].map(([name, state, spend, clicks, rate], index) => ({
+        id: 'row-' + index,
+        cells: {name, status: status[state](), spend, clicks, rate},
+      }));
+  return designSystemSection(
+    'table',
+    uiText('Table'),
+    uiText(
+      'The caption stays put while the columns scroll, and the header and first column stay in view. Choose the columns and the row density; below 40 rem of its own width each row becomes a card.',
+    ),
+    html`<div class="amcp-stack">${[
+      designSystemSpecimen(
+        uiText('Wide'),
+        AmcpUI.table({
+          id: 'ds-table',
+          caption: uiText('Campaign results'),
+          description: uiText('Last 30 days'),
+          columns: columns(),
+          rows: rows(),
+        }),
+      ),
+      designSystemSpecimen(
+        uiText('In a narrow space'),
+        html`<div class="amcp-ds-narrow">${AmcpUI.table({id: 'ds-table-narrow', caption: uiText('Campaign results'), columns: columns(), rows: rows().slice(0, 3), chooser: false, densityToggle: false})}</div>`,
+      ),
+      designSystemSpecimen(
+        uiText('Loading'),
+        AmcpUI.table({
+          id: 'ds-table-loading',
+          caption: uiText('Campaign results'),
+          columns: columns(),
+          rows: [],
+          state: 'loading',
+          chooser: false,
+          densityToggle: false,
+        }),
+      ),
+      designSystemSpecimen(
+        uiText('Empty'),
+        AmcpUI.table({
+          id: 'ds-table-empty',
+          caption: uiText('Campaign results'),
+          columns: columns(),
+          rows: [],
+          chooser: false,
+          densityToggle: false,
+          empty: {
+            title: uiText('No campaigns match'),
+            body: uiText('Change the filters to see more rows.'),
+            action: {label: uiText('Clear the filters'), attrs: {type: 'button'}},
+          },
+        }),
+      ),
+      designSystemSpecimen(
+        uiText('Could not load'),
+        AmcpUI.table({
+          id: 'ds-table-error',
+          caption: uiText('Campaign results'),
+          columns: columns(),
+          rows: [],
+          state: 'error',
+          chooser: false,
+          densityToggle: false,
+          error: {
+            title: uiText('The table could not load'),
+            body: uiText('The platform did not answer in time.'),
+            retry: {label: uiText('Try again')},
+          },
+        }),
+      ),
+    ]}</div>`,
+  );
+}
+
+let designSystemToasts = null;
+function designSystemOverlays() {
+  const open = (action, label, variant = 'secondary') =>
+    AmcpUI.button({label, variant, attrs: {'data-ds-action': action}});
+  return designSystemSection(
+    'overlays',
+    uiText('Dialog, side sheet and toast'),
+    uiText(
+      'A dialog traps focus, makes the page behind it inert, closes on Escape and returns focus to the button that opened it. Toasts wait while the pointer or the keyboard is on them and never take focus.',
+    ),
+    html`<div class="amcp-stack">${[
+      designSystemSpecimen(
+        uiText('Dialog'),
+        html`<div class="amcp-cluster">${[
+          open('dialog-confirm', uiText('Confirm a deletion')),
+          open('dialog-save', uiText('Save with an error first')),
+        ]}</div>`,
+      ),
+      designSystemSpecimen(
+        uiText('Side sheet'),
+        html`<div class="amcp-cluster">${[
+          open('sheet-modal', uiText('Open a details sheet')),
+          open('sheet-side', uiText('Open a sheet beside the page')),
+        ]}</div>`,
+      ),
+      designSystemSpecimen(
+        uiText('Toast'),
+        html`<div class="amcp-cluster">${[
+          open('toast-success', uiText('Success')),
+          open('toast-info', uiText('Information')),
+          open('toast-warning', uiText('Warning')),
+          open('toast-danger', uiText('Error')),
+        ]}</div><div id="ds-toasts"></div>`,
+      ),
+    ]}</div>`,
+  );
+}
+function designSystemToast(tone) {
+  const messages = {
+    success: () => uiText('The report was saved.'),
+    info: () => uiText('A copy of the link is on your clipboard.'),
+    warning: () => uiText('Some accounts returned partial data.'),
+    danger: () => uiText('The export could not be made.'),
+  };
+  designSystemToasts?.show({
+    tone,
+    message: messages[tone](),
+    action: tone === 'danger' ? {label: uiText('Try again')} : undefined,
+  });
+}
+async function designSystemDialog(kind) {
+  const retry = {tries: 0};
+  if (kind === 'dialog-confirm') {
+    const dialog = AmcpUI.dialog.open({
+      title: uiText('Delete this report?'),
+      body: uiText('The report is removed from the library. Its saved copies stay.'),
+      role: 'alertdialog',
+      size: 'sm',
+      actions: [
+        {label: uiText('Cancel'), value: 'cancel', initial: true},
+        {label: uiText('Delete'), value: 'delete', variant: 'danger'},
+      ],
+    });
+    const answer = await dialog.closed;
+    designSystemToasts?.show({
+      tone: answer === 'delete' ? 'success' : 'info',
+      message: answer === 'delete' ? uiText('The report was deleted.') : uiText('Nothing was deleted.'),
+    });
+  } else if (kind === 'dialog-save') {
+    const dialog = AmcpUI.dialog.open({
+      title: uiText('Save the report'),
+      body: html`<div class="amcp-stack">${AmcpUI.input({id: 'ds-dialog-name', label: uiText('Report name'), value: uiText('Weekly performance')})}</div>`,
+      actions: [
+        {label: uiText('Cancel'), value: 'cancel'},
+        {label: uiText('Save'), value: 'save', variant: 'primary', keepOpen: true},
+      ],
+    });
+    dialog.element.addEventListener('amcp-action', () => {
+      dialog.setError(null);
+      dialog.setLoading(true);
+      setTimeout(() => {
+        dialog.setLoading(false);
+        if (++retry.tries === 1) dialog.setError(uiText('The report could not be saved. Try again.'));
+        else dialog.close('save');
+      }, 900);
+    });
+    if ((await dialog.closed) === 'save')
+      designSystemToasts?.show({tone: 'success', message: uiText('The report was saved.')});
+  } else {
+    const modal = kind === 'sheet-modal',
+      sheet = AmcpUI.sheet.open({
+        title: uiText('Campaign details'),
+        body: html`<div class="amcp-stack">${[
+          AmcpUI.kpi({label: uiText('Spend'), value: '1,250.50', unit: 'USD', note: uiText('Last 30 days')}),
+          AmcpUI.badge({label: uiText('Active'), tone: 'success'}),
+        ]}</div>`,
+        modal,
+        actions: [{label: uiText('Done'), value: 'done', variant: 'primary'}],
+      });
+    await sheet.closed;
+  }
 }
 
 function renderDesignSystem() {
@@ -546,8 +758,10 @@ function renderDesignSystem() {
     designSystemChoosing(),
     designSystemCombobox(),
     designSystemTree(),
+    designSystemTable(),
     designSystemFeedback(),
     designSystemCards(),
+    designSystemOverlays(),
   ];
   const index = [
     ['buttons', uiText('Buttons')],
@@ -557,12 +771,14 @@ function renderDesignSystem() {
     ['choosing', uiText('Segmented control and tabs')],
     ['combobox', uiText('Searchable list')],
     ['tree', uiText('Scope tree')],
+    ['table', uiText('Table')],
     ['feedback', uiText('Progress, loading and states')],
     ['cards', uiText('Cards')],
+    ['overlays', uiText('Dialog, side sheet and toast')],
   ];
   setHtml(
     content,
-    html`<div class="page-heading"><div><h1>${uiText('Design system')}</h1><p>${uiText('Every component in every state. Change the language and the appearance above to review both.')}</p></div></div><div class="amcp-surface amcp-ds"><div class="amcp-ds-layout"><nav class="amcp-ds-index" aria-label="${uiText('Components')}"><ul>${index.map(([id, name]) => html`<li><a href="#ds-${id}">${name}</a></li>`)}</ul></nav><div class="amcp-ds-body">${sections}</div></div></div>`,
+    html`<div class="page-heading"><div><h1>${uiText('Design system')}</h1><p>${uiText('Every component in every state. Change the language and the appearance above to review both.')}</p></div></div><div class="amcp-surface amcp-ds" data-amcp="design-system"><div class="amcp-ds-layout"><nav class="amcp-ds-index" aria-label="${uiText('Components')}"><ul>${index.map(([id, name]) => html`<li><a href="#ds-${id}">${name}</a></li>`)}</ul></nav><div class="amcp-ds-body">${sections}</div></div></div>`,
   );
   AmcpUI.bind(content);
   designSystemMount();

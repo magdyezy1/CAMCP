@@ -2606,6 +2606,7 @@
   "Submit the Microsoft report using this account and connection before polling.": "أرسل تقرير Microsoft باستخدام هذا الحساب والاتصال قبل الاستعلام عن حالته.",
   "Submit this report through AMCP again to record the original format and columns.": "أرسل هذا التقرير عبر AMCP مجددًا لتسجيل الصيغة والأعمدة الأصلية.",
   "Subscription reviews take no query or header overrides.": "لا تقبل مراجعات الاشتراكات تجاوزات للاستعلام أو الترويسات.",
+  "Success": "نجاح",
   "Successful job is missing its expiring result location.": "لا تتضمن المهمة الناجحة موقع نتائجها الذي تنتهي صلاحيته.",
   "Successful report metadata lacks count, size, checksum or timestamps.": "تفتقد بيانات التقرير الناجح الوصفية العدد أو الحجم أو بصمة التحقق أو الطوابع الزمنية.",
   "Supply a native label object.": "قدم كائن تسمية أصليًا.",
