@@ -1534,9 +1534,19 @@ function renderReportSourceHealth(s, platforms, index, range, report) {
 /**
  * V2-RPT-05: Retry on a source card runs the report again from the setup form. The form is submitted through its own
  * submit button, so the submit event has a submitter (a bare requestSubmit() has none), and a run that is already
- * starting is not started twice by a second click.
+ * starting is not started twice by a second click. A snapshot opened by its link leaves the form empty, so it is refilled
+ * from the snapshot first, the way History opens one, and then submitted once.
  */
 async function retryReportRun() {
+  if (overviewState.report && !document.querySelector('[data-report-account]:checked')) {
+    if (overviewState.refilling) return;
+    overviewState.refilling = true;
+    try {
+      await openOverviewHistory(overviewState.report.id);
+    } finally {
+      overviewState.refilling = false;
+    }
+  }
   const form = $('#overview-config'),
     submit = form?.querySelector('button[type="submit"]');
   if (submit && submit.getAttribute('aria-busy') !== 'true') form.requestSubmit(submit);
