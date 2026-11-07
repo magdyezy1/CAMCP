@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolveObjective, objectiveFallbackGroups, mixedObjectiveGroup} from '../dist/src/report-objectives.js';
-import {objectiveGroups, campaignRecommendation} from '../dist/src/report-metrics.js';
+import {objectiveGroups, objectiveGroup, byObjectiveGroup, campaignRecommendation} from '../dist/src/report-metrics.js';
 import {reportSource, reportSourceList} from '../dist/src/report-sources.js';
 import {normalizeNativeRow} from '../dist/src/report-native.js';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
@@ -12,6 +12,36 @@ const table = {
   values: {TRAFFIC: 'traffic', APP_RETARGETING: null},
   missingReason: 'TikTok returned no objective for this campaign.',
 };
+
+test('a v3 row takes the value of its native objective’s group through one helper (package results)', () => {
+  const values = {leads: 'LEADS', app_installs: 'INSTALLS', sales: 'SALES'};
+  for (const [native, expected] of [
+    ['OUTCOME_LEADS', 'LEADS'],
+    ['LEAD_GENERATION', 'LEADS'],
+    ['APP_INSTALLS', 'INSTALLS'],
+    ['OUTCOME_APP_PROMOTION', 'INSTALLS'],
+    ['OUTCOME_SALES', 'SALES'],
+    ['WEB_CONVERSIONS', 'SALES'],
+    ['PRODUCT_SALES', 'SALES'],
+    // Every other group, an unknown value and a missing one take the fallback.
+    ['OUTCOME_TRAFFIC', 'NONE'],
+    ['OUTCOME_AWARENESS', 'NONE'],
+    ['VIDEO_VIEWS', 'NONE'],
+    ['ENGAGEMENT', 'NONE'],
+    ['SOMETHING_NEW', 'NONE'],
+    ['', 'NONE'],
+    [undefined, 'NONE'],
+    [null, 'NONE'],
+    [7, 'NONE'],
+  ])
+    assert.equal(byObjectiveGroup(native, values, 'NONE'), expected, String(native));
+  // The group is the one objectiveGroup reads, so the helper cannot disagree with the group a row is given.
+  for (const native of ['OUTCOME_LEADS', 'APP_INSTALLS', 'OUTCOME_SALES', 'OUTCOME_TRAFFIC'])
+    assert.equal(
+      byObjectiveGroup(native, values, 'NONE'),
+      {leads: 'LEADS', app_installs: 'INSTALLS', sales: 'SALES'}[objectiveGroup(native)] ?? 'NONE',
+    );
+});
 
 test('objective precedence keeps explicit choices, native values, inference, mappings and fallbacks distinct', () => {
   const base = {platform: 'tiktok', table, native: 'TRAFFIC', campaignId: '1'};

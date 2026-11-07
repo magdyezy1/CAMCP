@@ -406,6 +406,21 @@ export function objectiveGroup(value: unknown): string {
   if (/AWARENESS|REACH|IMPRESSION|BRAND/.test(s)) return 'awareness';
   return 'unknown';
 }
+/**
+ * The value a platform's v3 row takes for the objective group of its native objective: `values.leads`,
+ * `values.app_installs` or `values.sales`, and `none` for every other group. The one place that reads the group's regex
+ * for that choice, so a platform names what each group means instead of repeating the test.
+ */
+export function byObjectiveGroup<T>(objective: unknown, values: {leads: T; app_installs: T; sales: T}, none: T): T {
+  const group = objectiveGroup(objective);
+  return group === 'leads'
+    ? values.leads
+    : group === 'app_installs'
+      ? values.app_installs
+      : group === 'sales'
+        ? values.sales
+        : none;
+}
 export interface ReportAdviceMath {
   formula(formula: string, values: JsonObject): string | null;
   compare(a: unknown, b: unknown, factor?: unknown): number;
