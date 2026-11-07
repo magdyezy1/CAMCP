@@ -232,10 +232,16 @@
       "raised": [
         "reference_words 154728 → 156417"
       ]
+    },
+    {
+      "reason": "Package meta-results: the Meta results paragraph of docs/REPORTING-OVERVIEW.md now describes how a v4 row reads Meta insights results (the order of the rules, the unknown shape, the mapped fallback and its labels) and a new bullet describes the action counts under explicit windows; the engineering pin record is outside the maintained pages",
+      "raised": [
+        "reference_words 156417 → 156739"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156417
+    "reference_words": 156739
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
