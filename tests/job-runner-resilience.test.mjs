@@ -87,6 +87,31 @@ test('repeatedly expiring leases back off and end in failed LEASE_EXPIRY_LIMIT (
   }
 });
 
+test('a job that survives a lease expiry and then completes carries no error (F-L5-33)', () => {
+  const s = store();
+  try {
+    const id = s.enqueue(tenant, 'report_file_export', {});
+    s.leaseJob(60000);
+    expire(s, id);
+    // The first expiry of a dead worker's job is available again at once.
+    const resumed = s.leaseJob(60000);
+    assert.equal(resumed.id, id);
+    assert.equal(JSON.parse(row(s, id).error).code, 'LEASE_EXPIRED', 'while it runs, the last expiry is on record');
+    s.finishJob(id, resumed.lease_token, {rows: 1});
+    const done = s.job(tenant, id);
+    assert.deepEqual([done.state, done.attempts, done.error], ['complete', 2, null]);
+    assert.deepEqual(done.result, {rows: 1});
+    // A job that fails keeps its error, and one that finished without ever expiring has none.
+    const failing = s.enqueue(tenant, 'report_file_export', {}),
+      leased = s.leaseJob(60000);
+    assert.equal(leased.id, failing);
+    s.failJob(failing, leased.lease_token, {code: 'SYNTHETIC', message: 'fails'});
+    assert.equal(s.job(tenant, failing).error.code, 'SYNTHETIC');
+  } finally {
+    s.close();
+  }
+});
+
 test('two expiries of leases taken by an earlier process boot quarantine the job; resume resets every counter', () => {
   const s = store(),
     actor = {tenantId: tenant, userId: 'synthetic-operator', role: 'admin'};

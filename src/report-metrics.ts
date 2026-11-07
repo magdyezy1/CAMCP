@@ -690,7 +690,9 @@ export function windowRecommendations(
           row.result?.definition_id ?? null,
         ])
       : row.campaign_key;
-    groups.set(key, [...(groups.get(key) ?? []), row]);
+    const members = groups.get(key);
+    if (members) members.push(row);
+    else groups.set(key, [row]);
   }
   for (const group of groups.values()) {
     if (group.length < 2) continue;

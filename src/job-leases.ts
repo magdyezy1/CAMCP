@@ -10,6 +10,12 @@ export const WORKER_BOOT_ID = randomUUID();
 export const LEASE_EXPIRY_LIMIT = 5;
 const kindLimits: Readonly<Record<string, number>> = Object.freeze({});
 export const leaseExpiryLimit = (kind: string) => kindLimits[kind] ?? LEASE_EXPIRY_LIMIT;
+/**
+ * Attempts a report snapshot, file export or Sheets export job gets. The worker runs the job again after a retryable
+ * error until this many attempts have been made; the last one is told so (`__last_attempt`), and a snapshot then
+ * records the failing unit and finishes partial instead of being lost.
+ */
+export const REPORT_JOB_ATTEMPT_LIMIT = 8;
 /** Expiries of leases taken by another process boot (a crash or restart) after which the job is set aside. */
 export const CRASH_EXPIRY_LIMIT = 2;
 /**

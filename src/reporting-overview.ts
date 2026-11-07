@@ -1,8 +1,5 @@
 import {fingerprint, formulaVersion, reportContractVersion} from './report-quality.js';
 import {validateRecommendationContext} from './recommendation-context.js';
-import {reportSummary, reportWindowSummary, reportMetricsSummaryV4} from './report-summary.js';
-import {calculateMetricsV4} from './report-math-v4.js';
-import {recommendationV4, assignRecommendationsV4} from './report-advice-v4.js';
 import {cleanupReports} from './owner-operations.js';
 import {
   dueScheduleTenants,
@@ -33,12 +30,9 @@ import {
   objectiveGroups,
   validateCustomMetrics,
   parseMetricFormula,
-  calculateMetrics,
-  campaignRecommendation,
   metricSources,
   kpiDirection,
   currencyTargetKey,
-  windowRecommendations,
 } from './report-metrics.js';
 import {resolveReportConfig, resolveRollingWindow, nextScheduleDetail} from './reporting.js';
 import {fixedReportTimezones, reportWindowState, sourceReportTimezone} from './report-windows.js';
@@ -47,12 +41,7 @@ import {sha256} from './security.js';
 import {optionalClientView} from './client-scope.js';
 import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
-import {
-  resolveObjective,
-  validateObjectiveFields,
-  unusedObjectiveOverrides,
-  objectiveFallbackGroups,
-} from './report-objectives.js';
+import {validateObjectiveFields, objectiveFallbackGroups} from './report-objectives.js';
 import {reportSource} from './report-sources.js';
 import {ReportLibrary} from './report-library.js';
 import {migrateWorkbookSchedule, previewWorkbookMigration, revertWorkbookMigration} from './workbook-migration.js';
@@ -79,6 +68,7 @@ import {
   writeClaimed,
 } from './job-repository.js';
 import {quotaExhausted} from './provider-quota.js';
+import {REPORT_JOB_ATTEMPT_LIMIT} from './job-leases.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqualWindow} from './report-compare.js';
 import {allocationOutcomeJob, allocationOutcomeKind} from './allocation-outcome.js';
@@ -99,6 +89,7 @@ import {
   overviewV4ScopeContract,
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
+import {calculateSnapshot, duplicateRowsError, snapshotOutcome} from './report-row-assembly.js';
 import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
@@ -283,6 +274,9 @@ function assertDeliveryPolicy(report: JsonObject) {
     );
 }
 const linkedinEvidenceContracts = ['campaign-source-v3', reportContractVersion];
+/** A source whose retained collection state belonged to an earlier platform contract is collected again (F-L5-16). */
+const sourceRestartedWarning =
+  'This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.';
 /** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
 const finishedSnapshot = (r: JsonObject) =>
   ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
@@ -1404,7 +1398,10 @@ export class ReportingOverview {
     if (e instanceof MirrorError && ['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code)) return;
     const retryable = e instanceof MirrorError && e.retryable;
     recordScheduleDelivery(this.service.store, tenant, report, {
-      state: retryable && (attempts < 8 || sheetsSettleRecheck('sheets_export', e)) ? 'retrying' : 'failed',
+      state:
+        retryable && (attempts < REPORT_JOB_ATTEMPT_LIMIT || sheetsSettleRecheck('sheets_export', e))
+          ? 'retrying'
+          : 'failed',
       error_code: e instanceof MirrorError ? e.code : 'DELIVERY_FAILED',
       blocking: e instanceof MirrorError && !e.retryable,
       job_id: jobId ?? null,
@@ -1723,6 +1720,46 @@ export class ReportingOverview {
         leaseCheck,
       );
     if (kind !== 'report_overview') return this.service.verificationJob(tenant, kind, input);
+    try {
+      return await this.snapshot(tenant, input, leaseCheck);
+    } catch (e) {
+      this.abandonSnapshot(tenant, input, e);
+      throw e;
+    }
+  }
+  /**
+   * A report that its job abandons is failed with the reason, not left queued or running (F-L5-04). Not when the job is
+   * run again (the worker retries a retryable error until the last attempt, and a collection yield always), when this
+   * worker lost the job or the report was cancelled, or when the report is already a finished snapshot: a failed
+   * delivery does not undo a collected snapshot.
+   */
+  private abandonSnapshot(tenant: string, input: JsonObject, e: unknown) {
+    if (
+      e instanceof MirrorError &&
+      (['STALE_JOB_LEASE', 'JOB_CANCELLED'].includes(e.code) ||
+        (e.retryable && (input.__last_attempt !== true || e.code === 'REPORT_COLLECTION_YIELD')))
+    )
+      return;
+    const store = this.service.store;
+    try {
+      const current = store.document(tenant, 'overview_report', input.report_id);
+      if (current.state === 'failed' || current.state === 'cancelled' || finishedSnapshot(current)) return;
+      store.putDocument(tenant, 'overview_report', current.id, {
+        ...current,
+        state: 'failed',
+        error:
+          e instanceof MirrorError
+            ? {code: e.code, message: e.message}
+            : {code: 'REPORT_FAILED', message: 'Report execution failed.'},
+      });
+    } catch {
+      // The report is gone or the store is busy: the job's own failure stands.
+    }
+  }
+  /** One report snapshot job: collects every unit of every source, assembles the rows and saves the snapshot. */
+  private async snapshot(tenant: string, input: JsonObject, leaseCheck: () => void) {
+    const store = this.service.store;
+    const lastAttempt = input.__last_attempt === true;
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
       access = () => {
@@ -1795,21 +1832,25 @@ export class ReportingOverview {
       });
       throw refusal;
     }
-    if (
-      executionSources.some(
-        (source: JsonObject, i: number) =>
-          contracts[source.platform] &&
-          r.platform_contracts?.[source.platform] !== contracts[source.platform] &&
-          Object.keys(retainedParts.source(String(i), r.checkpoints?.[String(i)])).length > 0,
-      )
-    ) {
-      const error = {
-        code: 'REPORT_RESTART_REQUIRED',
-        message:
-          'This snapshot contains collection state from an earlier platform contract. Its retained evidence is preserved; start a new snapshot from the saved definition.',
+    // State kept under another platform contract cannot be resumed: its rows mean something else now. Nobody is there to
+    // start a scheduled run again, so each such source is collected again from its start, and says so. The whole-job
+    // counters keep what the job already spent (the budget is not refunded), and the source is marked on the report so a
+    // retry after an interruption still carries the warning.
+    const stale = executionSources.flatMap((source: JsonObject, i: number) =>
+      contracts[source.platform] &&
+      r.platform_contracts?.[source.platform] !== contracts[source.platform] &&
+      Object.keys(retainedParts.source(String(i), r.checkpoints?.[String(i)])).length > 0
+        ? [String(i)]
+        : [],
+    );
+    if (stale.length) {
+      for (const key of stale) retainedParts.drop(key);
+      r = {
+        ...r,
+        checkpoints: Object.fromEntries(Object.entries(r.checkpoints ?? {}).filter(([key]) => !stale.includes(key))),
+        restarted_sources: [...new Set<string>([...(r.restarted_sources ?? []), ...stale])],
       };
-      store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
-      throw new MirrorError(error.code, error.message);
+      store.putDocument(tenant, 'overview_report', r.id, r);
     }
     if (fingerprint(r.platform_contracts ?? {}) !== fingerprint(contracts)) {
       r = {...r, platform_contracts: contracts};
@@ -1902,12 +1943,20 @@ export class ReportingOverview {
           });
           access();
           const result: JsonObject = {...captured, source};
+          if (r.restarted_sources?.includes(key))
+            result.warnings = [...(result.warnings ?? []), sourceRestartedWarning];
           if (r.config.contract_version === overviewConfigV4 && !scopeRollups) {
             const scoped = overviewV4Scope(source, result.rows, reportSource(source.platform)?.overview);
             result.rows = scoped.rows;
             result.scope = scoped.scope;
             result.quality = {...result.quality, scope: scoped.scope};
             if (scoped.scope.excluded_unknown_rows) result.complete = false;
+          }
+          // A repeated entity fails this unit, before it is saved as complete (a scope that rolls up checks the rows it
+          // keeps in applyScopedRollups, once it has scoped them).
+          if (!scopeRollups) {
+            const repeated = duplicateRowsError(result, r.config.date_range);
+            if (repeated) throw repeated;
           }
           results.push(result);
           parts.complete(key, result);
@@ -1928,7 +1977,9 @@ export class ReportingOverview {
               results.push({source: pending, rows: [], complete: false, error: reportSourceError(e, pending)});
             break;
           }
-          if (e instanceof MirrorError && e.retryable) {
+          // The last attempt has no later one: a retryable error fails the unit, the other units still run and the snapshot
+          // finishes partial. A collection yield is saved progress, so the worker runs the job again at any attempt.
+          if (e instanceof MirrorError && e.retryable && (!lastAttempt || e.code === 'REPORT_COLLECTION_YIELD')) {
             retry = new MirrorError(
               e.code,
               diagnostic.message,
@@ -1943,7 +1994,13 @@ export class ReportingOverview {
           }
         }
       }
-      if (scopeRollups) results = applyScopedRollups(results, platform => reportSource(platform)!.overview!, budget);
+      if (scopeRollups)
+        results = applyScopedRollups(
+          results,
+          platform => reportSource(platform)!.overview!,
+          budget,
+          packet => duplicateRowsError(packet, r.config.date_range),
+        );
     } finally {
       budget.close();
     }
@@ -1957,171 +2014,9 @@ export class ReportingOverview {
     }
     r = store.document(tenant, 'overview_report', r.id);
     access();
-    const rows: JsonObject[] = [],
-      nativeFields = new Set<string>();
-    for (const source of results)
-      for (const row of source.rows)
-        for (const k of Object.keys(row.metrics)) if (k.startsWith('native_')) nativeFields.add(k);
-    // Keep native dependencies accepted by config even when no row reports them. Missing fields evaluate to null;
-    // the observed native field inventory must not turn an empty or sparse provider response into a formula error.
-    const nativeDependencies = r.config.custom_metrics
-      .flatMap((m: JsonObject) => parseMetricFormula(m.formula).dependencies)
-      .filter((d: string) => /^native_[a-z][a-zA-Z0-9_]{1,150}$/.test(d));
-    const custom = validateCustomMetrics(r.config.custom_metrics, [
-      ...nativeFields,
-      ...nativeDependencies,
-      ...(r.config.contract_version === overviewConfigV4 ? ['primary_result', 'cost_per_result'] : []),
-    ]);
-    for (const result of results) {
-      if (scopeRollups && result.source.scope_supporting) continue;
-      const seen = new Set<string>();
-      for (const row of result.rows) {
-        const source = result.source,
-          key = [
-            source.platform,
-            source.account_id,
-            ...(row.entity_level ? [row.entity_level] : []),
-            row.entity_id ?? row.campaign_id,
-          ].join(':'),
-          period = row.report_period ?? result.date_range ?? r.config.date_range,
-          context = row.period_context ?? result,
-          rowKey =
-            key +
-            ':' +
-            period.since +
-            ':' +
-            period.until +
-            (row.aggregation?.kind === 'rolled_up'
-              ? ':' +
-                fingerprint({
-                  currency: row.currency ?? context.currency,
-                  timezone: context.timezone,
-                  attribution: context.attribution,
-                })
-              : '');
-        if (seen.has(rowKey))
-          throw new MirrorError(
-            row.entity_level ? 'DUPLICATE_ENTITY_ROWS' : 'DUPLICATE_CAMPAIGN_ROWS',
-            row.entity_level
-              ? 'The native report contains duplicate entity rows in the same reporting period.'
-              : 'The native report contains multiple rows for one campaign. Narrow the report to a campaign total.',
-          );
-        seen.add(rowKey);
-        const resolvedObjective = resolveObjective({
-            platform: source.platform,
-            table: reportSource(source.platform)?.objectives,
-            native: row.objective,
-            campaignId: row.campaign_id,
-            mappedInputs: row.native?.daily_rows?.[0] ?? row.native,
-            overrides: source.objective_overrides,
-            legacy: source.objective,
-            fallback: source.objective_fallback,
-            unread: row.objective_unread,
-          }),
-          objective = resolvedObjective.group,
-          {period_context, report_period, objective_unread, ...nativeRow} = row,
-          record: JsonObject = {
-            ...nativeRow,
-            ...(r.config.contract_version === overviewConfigV4 ? {source_ref: source.source_ref} : {}),
-            row_key: rowKey,
-            grain: r.config.grain ?? 'total',
-            campaign_key: key,
-            ...(row.entity_level ? {entity_key: key} : {}),
-            platform: source.platform,
-            account_id: source.account_id,
-            connection_id: source.connection_id,
-            currency: row.currency ?? context.currency,
-            timezone: context.timezone,
-            objective: resolvedObjective.native ?? 'unknown',
-            objective_group: objective,
-            objective_source: resolvedObjective.source,
-            objective_reason: resolvedObjective.reason,
-            date_from: period.since,
-            date_to: period.until,
-            source_kind: result.source_kind,
-            // RPT-04: values the provider omitted on a delivered row count as 0 and stay named in quality (exports).
-            quality: {
-              ...(context.quality ?? {version: 0, status: 'unknown'}),
-              ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
-            },
-            ...(r.config.contract_version === overviewConfigV4 ? {} : {lineage: context.lineage ?? []}),
-            query_fingerprint: context.query_fingerprint ?? null,
-            formula_version: r.config.formula_version ?? 'legacy-unversioned',
-            attribution: context.attribution,
-            // RPT-04: a row-level definition (TikTok optimization events) splits summaries by result.
-            result_definition: row.result_definition ?? context.result_definition,
-            complete: result.complete,
-            captured_at: result.captured_at,
-            metrics:
-              r.config.contract_version === overviewConfigV4
-                ? calculateMetricsV4(
-                    {
-                      ...row.metrics,
-                      primary_result: row.result?.value ?? null,
-                      cost_per_result: row.result?.cost_per_result ?? null,
-                    },
-                    custom,
-                  ).metrics
-                : calculateMetrics(row.metrics, custom),
-          };
-        if (r.config.contract_version === overviewConfigV4) {
-          record.result_definition = row.result?.label ?? 'unknown';
-          const normalized = reportMetricsSummaryV4([record], custom);
-          for (const [name, value] of Object.entries(normalized.metrics))
-            if (
-              metricDefinitions[name]?.aggregation === 'sum' ||
-              metricDefinitions[name]?.formula ||
-              !Object.hasOwn(metricDefinitions, name)
-            )
-              record.metrics[name] = value;
-          record.metrics_coverage = normalized.metrics_coverage;
-          if (normalized.metric_calculation_rounding)
-            record.quality.metric_calculation_rounding = normalized.metric_calculation_rounding;
-        }
-        if (r.config.objectives.length && !r.config.objectives.includes(objective)) continue;
-        rows.push({
-          ...record,
-          recommendation:
-            r.config.contract_version === overviewConfigV4
-              ? recommendationV4(record, r.config.targets, custom)
-              : campaignRecommendation(record, r.config.targets),
-        });
-      }
-    }
-    // Overrides belong to a source, not to one of its level packets: a campaign matched at any level is a match, and an
-    // unmatched one is reported once, on the source's first packet.
-    const packetsOfSource = new Map<unknown, JsonObject[]>();
-    for (const result of results) {
-      if (result.error) continue;
-      const key = result.source.source_ref ?? result;
-      packetsOfSource.set(key, [...(packetsOfSource.get(key) ?? []), result]);
-    }
-    for (const packets of packetsOfSource.values()) {
-      const warning = unusedObjectiveOverrides(
-        packets[0]!.source,
-        packets.flatMap(packet => packet.rows),
-      );
-      if (warning) packets[0]!.warnings.push(warning);
-    }
-    // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
-    if (r.config.contract_version === overviewConfigV4)
-      assignRecommendationsV4(rows, r.config.targets, custom, (r.config.grain ?? 'total') !== 'total');
-    else if ((r.config.grain ?? 'total') !== 'total') windowRecommendations(rows, r.config.targets, custom);
-    const v4 = r.config.contract_version === overviewConfigV4,
-      requestedResults = scopeRollups ? results.filter(packet => !packet.source.scope_supporting) : results,
-      scopedRowCount = requestedResults.reduce((n, s) => n + s.rows.length, 0),
-      sourceRowCount = requestedResults.reduce(
-        (n, s) => n + (v4 ? (s.scope?.returned_rows ?? s.rows.length) : s.rows.length),
-        0,
-      ),
-      scopeInputRowCount = requestedResults.reduce(
-        (n, s) => n + (s.scope?.input_rows ?? s.scope?.returned_rows ?? s.rows.length),
-        0,
-      ),
-      filteredRowCount = scopeInputRowCount - rows.length,
-      derivedRows = requestedResults.reduce((n, s) => n + (s.scope?.rollup?.derived_rows ?? 0), 0),
-      hasRollups = requestedResults.some(packet => packet.scope?.rollup);
-    const failures = results.filter(s => s.error),
+    const {nativeFields, rows, summary, windowSummary} = await calculateSnapshot(results, r.config);
+    const outcome = snapshotOutcome(results, rows, r.config),
+      {state, failures} = outcome,
       sources =
         r.config.contract_version === overviewConfigV4
           ? overviewV4Sources(results, rows, r.config.sources)
@@ -2135,49 +2030,16 @@ export class ReportingOverview {
                   row.connection_id === data.source.connection_id,
               ).length,
             })),
-      state =
-        failures.length === results.length
-          ? 'failed'
-          : failures.length || results.some(s => !s.complete)
-            ? 'partial'
-            : 'complete',
       record = {
         ...r,
         state,
         rows,
         sources,
-        source_row_count: sourceRowCount,
-        filtered_row_count: filteredRowCount,
-        ...(v4
-          ? {
-              scoped_row_count: scopedRowCount,
-              scope_filtered_row_count: scopeInputRowCount - scopedRowCount,
-              objective_filtered_row_count: scopedRowCount - rows.length,
-              ...(hasRollups
-                ? {
-                    scope_input_row_count: scopeInputRowCount,
-                    derived_row_count: derivedRows,
-                    supporting_row_count: results
-                      .filter(packet => packet.source.scope_supporting)
-                      .reduce((n, packet) => n + (packet.scope?.returned_rows ?? packet.rows.length), 0),
-                  }
-                : {}),
-            }
-          : {}),
-        empty_reason:
-          rows.length || failures.length === results.length
-            ? null
-            : v4 && (sourceRowCount || scopeInputRowCount) && !scopedRowCount
-              ? 'scope_filter'
-              : scopeInputRowCount
-                ? 'objective_filter'
-                : 'no_provider_rows',
+        ...outcome.counts,
+        empty_reason: outcome.emptyReason,
         completed_at: Date.now(),
-        summary: reportSummary(rows, custom, r.config.contract_version === overviewConfigV4),
-        // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
-        ...((r.config.grain ?? 'total') !== 'total'
-          ? {window_summary: reportWindowSummary(rows, custom, r.config.contract_version === overviewConfigV4)}
-          : {}),
+        summary,
+        ...(windowSummary ? {window_summary: windowSummary} : {}),
         native_metrics: [...nativeFields],
         row_count: rows.length,
       };
@@ -2191,12 +2053,12 @@ export class ReportingOverview {
     if (state === 'failed') {
       const reason = failures
         .map(
-          s =>
-            `${reportPlatforms[s.source.platform]!.name} ${s.source.account_id}: ${s.error.provider?.code ?? s.error.code}`,
+          ({unit, error}) =>
+            `${reportPlatforms[unit.source.platform]!.name} ${unit.source.account_id}: ${error.provider?.code ?? error.code}`,
         )
         .join('; ');
       throw new MirrorError('REPORT_SOURCES_FAILED', 'None of the selected sources returned a report. ' + reason, {
-        sources: failures.map(s => s.error),
+        sources: failures.map(({error}) => error),
       });
     }
     if (r.destination_id) {

@@ -1,14 +1,44 @@
-import {calculateMetrics, metricDefinitions, parseMetricFormula} from './report-metrics.js';
+import {calculateMetrics, metricDefinitions} from './report-metrics.js';
 import type {JsonObject} from './types.js';
-import {calculateMetricsV4, evaluateReportFormulaV4, sumReportValuesV4} from './report-math-v4.js';
+import {
+  calculateMetricsV4,
+  evaluateReportFormulaExact,
+  formulaDependencies,
+  isCalculationLimit,
+  roundReportValue,
+  sumReportValuesV4,
+  type ExactValues,
+} from './report-math-v4.js';
 import {groupReportResults, unavailableReportResult} from './report-results.js';
 
+/**
+ * One entry of `metrics_coverage`: the units a figure was calculated from (docs/REPORTING-OVERVIEW.md). Typed so that a
+ * producer which writes another shape does not compile (F-L5-31 found three shapes, each an untyped object).
+ */
+export interface MetricCoverage {
+  known_rows: number;
+  total_rows: number;
+  basis: 'report_rows' | 'native_measurements';
+  report_rows: number;
+  known_pairs?: number;
+  unavailable_reason?: 'unknown_currency' | 'non_additive_inputs' | 'calculation_limit';
+}
+/**
+ * The summary of a group of rows. Every entry of `metrics_coverage` has one shape (F-L5-31, docs/REPORTING-OVERVIEW.md):
+ * `{known_rows, total_rows, basis, report_rows, known_pairs?, unavailable_reason?}`. `basis` says what is counted:
+ * `report_rows` when each counted unit is a row of the report, `native_measurements` when a row was built from the
+ * provider's own rows (daily cells), so `total_rows` can exceed `report_rows`. A ratio uses only the units that have
+ * every value it needs, and a two-part one says how many with `known_pairs`.
+ */
 export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[] = []) {
   const cells: JsonObject[] = group.flatMap(row =>
-    row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
-  );
+      row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
+    ),
+    basis: MetricCoverage['basis'] = group.some(row => row.native?.exact_rows?.length)
+      ? 'native_measurements'
+      : 'report_rows';
   const metrics: JsonObject = {},
-    coverage: JsonObject = {},
+    coverage: Record<string, MetricCoverage> = {},
     rounding: JsonObject = {},
     definitions: Record<string, JsonObject> = {
       ...metricDefinitions,
@@ -23,7 +53,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
         ? 'sum'
         : 'non_additive',
   };
-  const single = cells.length === 1 ? calculateMetricsV4(cells[0]!.metrics, custom).metrics : undefined;
+  const single = cells.length === 1 ? calculateMetricsV4(cells[0]!.metrics, custom) : undefined;
   const bases = (name: string, visiting = new Set<string>()): Set<string> | null => {
     if (baseCache.has(name)) return baseCache.get(name)!;
     const definition = definitions[name];
@@ -39,7 +69,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     }
     const next = new Set(visiting).add(name),
       result = new Set<string>();
-    for (const dependency of parseMetricFormula(definition.formula).dependencies) {
+    for (const dependency of formulaDependencies(definition.formula)) {
       const child = bases(dependency, next);
       if (!child) {
         baseCache.set(name, null);
@@ -50,10 +80,18 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     baseCache.set(name, result);
     return result;
   };
-  const leaves = (name: string): string[] =>
-    definitions[name]?.formula
-      ? [...new Set(parseMetricFormula(definitions[name]!.formula).dependencies.flatMap(leaves))]
+  // Each metric is walked once: a chain in which every custom metric uses all the later ones has exponentially many
+  // paths and one distinct answer per metric (F-L9-01).
+  const leafCache = new Map<string, string[]>();
+  const leaves = (name: string): string[] => {
+    const known = leafCache.get(name);
+    if (known) return known;
+    const found = definitions[name]?.formula
+      ? [...new Set(formulaDependencies(definitions[name]!.formula).flatMap(leaves))]
       : [name];
+    leafCache.set(name, found);
+    return found;
+  };
   for (const [key, definition] of Object.entries(metricDefinitions)) {
     if (definition.formula) continue;
     if (definition.aggregation !== 'sum') {
@@ -65,7 +103,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     metrics[key] = currencyUnknown ? null : summed.value;
     coverage[key] = {
       ...summed.coverage,
-      basis: 'native_measurements',
+      basis,
       report_rows: group.length,
       ...(currencyUnknown ? {unavailable_reason: 'unknown_currency'} : {}),
     };
@@ -88,31 +126,40 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
               dependencies.map(name => [name, sumReportValuesV4(paired.map(row => row.metrics[name])).value]),
             )
           : {};
-    const evaluateDependency = (name: string) => {
-      if (Object.hasOwn(values, name)) return;
-      const formula = definitions[name]?.formula;
-      if (!formula) return;
-      for (const dependency of parseMetricFormula(formula).dependencies) evaluateDependency(dependency);
-      values[name] = evaluateReportFormulaV4(formula, values).value;
-    };
+    // A metric that depends on another starts from its exact fraction and is rounded once, on output (F-L5-20); one that
+    // reaches a calculation bound is unavailable and says why (F-L9-01).
+    const exact: ExactValues = new Map(),
+      evaluateDependency = (name: string) => {
+        if (Object.hasOwn(values, name) || exact.has(name)) return;
+        const formula = definitions[name]?.formula;
+        if (!formula) return;
+        for (const dependency of formulaDependencies(formula)) evaluateDependency(dependency);
+        exact.set(name, evaluateReportFormulaExact(formula, values, exact));
+      };
+    let evaluated: {value: string | null; rounded: boolean} = {value: null, rounded: false},
+      limited = false;
     if (additive && paired.length && !unknownCurrency)
-      for (const dependency of parseMetricFormula(definition.formula).dependencies) evaluateDependency(dependency);
-    const evaluated =
-      additive && paired.length && !unknownCurrency
-        ? evaluateReportFormulaV4(definition.formula, values)
-        : {value: null, rounded: false};
-    metrics[key] = !additive && single && !unknownCurrency ? (single[key] ?? null) : evaluated.value;
+      try {
+        for (const dependency of formulaDependencies(definition.formula)) evaluateDependency(dependency);
+        evaluated = roundReportValue(evaluateReportFormulaExact(definition.formula, values, exact));
+      } catch (error) {
+        if (!isCalculationLimit(error)) throw error;
+        limited = true;
+      }
+    metrics[key] = !additive && single && !unknownCurrency ? (single.metrics[key] ?? null) : evaluated.value;
     coverage[key] = {
       known_rows: paired.length,
-      total: cells.length,
-      basis: 'native_measurements',
+      total_rows: cells.length,
+      basis,
       report_rows: group.length,
       ...(dependencies.length === 2 ? {known_pairs: paired.length} : {}),
       ...(unknownCurrency
         ? {unavailable_reason: 'unknown_currency'}
         : !additive && !single
           ? {unavailable_reason: 'non_additive_inputs'}
-          : {}),
+          : limited || (!additive && single?.limited[key])
+            ? {unavailable_reason: 'calculation_limit'}
+            : {}),
     };
     if (evaluated.rounded) rounding[key] = 1;
   }
@@ -156,10 +203,13 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
   metrics.primary_result = primary.value;
   metrics.cost_per_result = primary.cost_per_result;
   if (resultGroups.length === 1) {
-    coverage.primary_result = {...resultGroups[0]!.coverage, basis: 'native_measurements', report_rows: group.length};
+    const {coverage: own, cost_coverage: cost} = resultGroups[0]!;
+    coverage.primary_result = {known_rows: own.known, total_rows: own.total, basis, report_rows: group.length};
     coverage.cost_per_result = {
-      ...resultGroups[0]!.cost_coverage,
-      basis: 'native_measurements',
+      known_rows: cost.known_pairs,
+      total_rows: cost.total,
+      known_pairs: cost.known_pairs,
+      basis,
       report_rows: group.length,
     };
   }
@@ -186,6 +236,15 @@ function additiveValues(group: JsonObject[]) {
   }
   return values;
 }
+/**
+ * The sorted definition ids of the result groups a row holds. A row whose ad groups disagree has no single result
+ * (`result.definition_id` is null), so what it mixes is the only thing that tells two such rows apart: rows that mix
+ * different results never share a summary.
+ */
+const resultGroupIds = (row: JsonObject): string[] =>
+  Array.isArray(row.result_groups)
+    ? row.result_groups.map((group: JsonObject) => String(group.definition?.id ?? '')).sort()
+    : [];
 /** The most recent periods a window summary keeps for its sparkline. */
 export const windowSeriesLimit = 400;
 /**
@@ -208,9 +267,11 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       row.attribution,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
     ]);
-    groups.set(key, [...(groups.get(key) ?? []), row]);
+    const members = groups.get(key);
+    if (members) members.push(row);
+    else groups.set(key, [row]);
   }
   return [...groups.values()].map(group => {
     const first = group[0]!,
@@ -218,7 +279,9 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       entities = new Map<string, JsonObject>();
     for (const row of group) {
       const period = row.date_from + '/' + row.date_to;
-      periods.set(period, [...(periods.get(period) ?? []), row]);
+      const inPeriod = periods.get(period);
+      if (inPeriod) inPeriod.push(row);
+      else periods.set(period, [row]);
       const entity = String(row.entity_key ?? row.campaign_key ?? row.entity_id ?? row.campaign_id);
       if (!entities.has(entity)) entities.set(entity, row);
     }
@@ -273,7 +336,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       row.date_to,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
     ]);
     const group = groups.get(key) ?? [];
     group.push(row);

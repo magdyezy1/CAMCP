@@ -6,8 +6,6 @@ import {
   normalizeOverviewV4Source,
   expandOverviewV4Sources,
   overviewV4Scope,
-  overviewV4Sum,
-  overviewV4Ratio,
   projectOverviewV4Rows,
 } from '../dist/src/overview-v4.js';
 import {objectiveReportFixture} from './helpers/objective-report.mjs';
@@ -208,34 +206,6 @@ test('v4 scope keeps exact IDs, validates statuses, and requires observed delive
   );
 });
 
-test('known additive values retain exact decimal text and coverage; non-additive metrics are refused', () => {
-  const rows = [
-    metrics({spend: '9007199254740993.123456789'}),
-    metrics({spend: null}),
-    metrics({}),
-    metrics({spend: '0.000000001'}),
-    metrics({spend: '0'}),
-  ];
-  assert.deepEqual(overviewV4Sum(rows, 'spend'), {
-    value: '9007199254740993.12345679',
-    coverage: {known: 3, total: 5},
-    rounded_values: 0,
-  });
-  assert.equal(overviewV4Sum([metrics({spend: '0.0000000015'})], 'spend').value, '0.000000002');
-  assert.equal(overviewV4Sum([metrics({spend: '0.0000000015'})], 'spend').rounded_values, 1);
-  assert.equal(
-    overviewV4Sum([metrics({spend: '999'}, {native: {exact_totals: {spend: '0.1'}}})], 'spend').value,
-    '0.1',
-  );
-  assert.deepEqual(overviewV4Sum([metrics({spend: null})], 'spend').coverage, {known: 0, total: 1});
-  assert.equal(overviewV4Sum([metrics({spend: null})], 'spend').value, null);
-  for (const metric of ['reach', 'frequency', 'cpa', 'roas', 'native_unknown'])
-    assert.throws(
-      () => overviewV4Sum([metrics({[metric]: '1'})], metric),
-      e => e.code === 'INVALID_METRICS',
-    );
-});
-
 test('v4 native campaign normalization keeps large decimal strings exact before deriving any totals', () => {
   const rounding = {},
     row = normalizeNativeRowV4(
@@ -265,24 +235,6 @@ test('v4 native campaign normalization keeps large decimal strings exact before 
   const reach = normalizeNativeRowV4('meta', {campaign_id: '1', reach: '2000', frequency: '1.1234567890123'});
   assert.equal(reach.metrics.frequency, '1.1234567890123');
   assert.equal(reach.native.exact_totals.reach, undefined);
-});
-
-test('ratios only use known numerator-denominator pairs, including zero numerators and half-even rounding', () => {
-  const rows = [
-    metrics({spend: '10', clicks: '5'}),
-    metrics({spend: '100', clicks: null}),
-    metrics({spend: null, clicks: '995'}),
-    metrics({spend: '0', clicks: '5'}),
-  ];
-  assert.deepEqual(overviewV4Ratio(rows, 'spend', 'clicks'), {
-    value: '1',
-    coverage: {known_pairs: 2, total: 4},
-    rounded: false,
-  });
-  assert.equal(overviewV4Ratio([metrics({spend: '1', clicks: '2000000000'})], 'spend', 'clicks').value, '0');
-  assert.equal(overviewV4Ratio([metrics({spend: '3', clicks: '2000000000'})], 'spend', 'clicks').value, '0.000000002');
-  assert.equal(overviewV4Ratio([metrics({spend: '10', impressions: '2000'})], 'spend', 'impressions', 1000).value, '5');
-  assert.equal(overviewV4Ratio([metrics({spend: '10', clicks: '0'})], 'spend', 'clicks').value, null);
 });
 
 test('v4 get projection omits repeated native/lineage, exposes structured objectives/parents and leaves legacy rows intact', () => {
@@ -326,6 +278,43 @@ test('v4 get projection omits repeated native/lineage, exposes structured object
   assert.deepEqual(included[0].native, rows[0].native);
   assert.equal(projectOverviewV4Rows({config: {version: 1}}, rows), rows);
   assert.equal(rows[0].objective, 'TRAFFIC', 'projection never rewrites retained rows');
+});
+
+test('the projection keeps the coverage of a figure built from some of its units, whichever build stored it (F-L5-31)', () => {
+  const row = metrics_coverage => ({
+      entity_id: '1',
+      source_ref: 0,
+      metrics: {spend: '1', clicks: '2', cpc: '3', roas: '4', cost: '5', cost_per_result: '6'},
+      metrics_coverage,
+    }),
+    snapshot = {config: {contract_version: overviewConfigV4}, sources: [{}]},
+    kept = coverage => Object.keys(projectOverviewV4Rows(snapshot, [row(coverage)])[0].metrics_coverage ?? {}).sort();
+  // This build: only a figure built from some of its units, or one with a reason, is kept.
+  assert.deepEqual(
+    kept({
+      spend: {known_rows: 1, total_rows: 2, basis: 'report_rows', report_rows: 2},
+      clicks: {known_rows: 2, total_rows: 2, basis: 'report_rows', report_rows: 2},
+      cost: {
+        known_rows: 2,
+        total_rows: 2,
+        basis: 'report_rows',
+        report_rows: 2,
+        unavailable_reason: 'calculation_limit',
+      },
+    }),
+    ['cost', 'spend'],
+  );
+  // Builds before the unified shape: known/total for a sum, known_rows/total for a formula, known_pairs/total for a cost.
+  assert.deepEqual(
+    kept({
+      spend: {known: 1, total: 2, basis: 'native_measurements', report_rows: 2},
+      clicks: {known: 2, total: 2, basis: 'native_measurements', report_rows: 2},
+      roas: {known_rows: 1, total: 2, known_pairs: 1, basis: 'native_measurements', report_rows: 2},
+      cpc: {known_rows: 2, total: 2, known_pairs: 2, basis: 'native_measurements', report_rows: 2},
+      cost_per_result: {known_pairs: 1, total: 2, basis: 'native_measurements', report_rows: 2},
+    }),
+    ['cost_per_result', 'roas', 'spend'],
+  );
 });
 
 test('real v4 queue/worker/get collects three levels for one account and retains one source lineage', async t => {

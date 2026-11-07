@@ -322,6 +322,35 @@ test('deleting a report removes its budget and checkpoint documents and nothing 
   }
 });
 
+test('dropping a source forgets its result and period progress and nothing of the counters or another source', () => {
+  const store = new Store(':memory:', key);
+  try {
+    store.ensureTenant('t');
+    store.putDocument('t', 'overview_report', 'r1', {state: 'running', config: {}});
+    const p = new ReportParts(store, 't', {id: 'r1'});
+    p.saveBudget({version: 1, definition: 'd', requests: 4});
+    p.save('0', {definition: 'periods', periods: {0: {result: {rows: []}}, 1: {native: {report_id: 'x'}}}});
+    p.complete('1', {rows: [{id: 'kept'}]});
+    p.save('10', {native: 'a source whose key starts with the dropped one'});
+    assert.equal(parts(store, 't', 'r1').length, 6);
+    p.drop('0');
+    assert.deepEqual(parts(store, 't', 'r1'), [
+      'overview_report_budget ',
+      'overview_checkpoint :1',
+      'overview_checkpoint :10',
+    ]);
+    assert.deepEqual(p.source('0', undefined), {}, 'nothing of the dropped source is read back');
+    assert.deepEqual(p.source('1', undefined), {result: {rows: [{id: 'kept'}]}});
+    assert.deepEqual(p.source('10', undefined), {native: 'a source whose key starts with the dropped one'});
+    assert.equal(reportBudgetState(store, 't', {id: 'r1'}).requests, 4, 'the counters are not refunded');
+    // The source is then saved afresh, as a first save.
+    p.save('0', {definition: 'periods', periods: {0: {result: {rows: [{id: 'again'}]}}}});
+    assert.deepEqual(p.source('0', undefined).periods, {0: {result: {rows: [{id: 'again'}]}}});
+  } finally {
+    store.close();
+  }
+});
+
 test('per-save writes stay small and fast with 25,000 retained rows (the earlier layout rewrote all of them)', () => {
   const store = new Store(':memory:', key);
   try {

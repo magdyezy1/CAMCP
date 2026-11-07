@@ -1438,6 +1438,7 @@
   "This reauthorization does not match Google.": "لا يطابق طلب إعادة التفويض هذا Google.",
   "This removal draft is already being saved. Inspect or retry its original preview.": "يجري حفظ مسودة الإزالة هذه بالفعل. افحص معاينتها الأصلية أو أعد المحاولة.",
   "This report cannot be resumed.": "لا يمكن استئناف هذا التقرير.",
+  "This snapshot contains collection state from an earlier platform contract. Its retained evidence is preserved; start a new snapshot from the saved definition.": "تحتوي هذه النسخة على حالة جمع وفق عقد سابق للمنصة. تُحفظ أدلتها الأصلية؛ ابدأ نسخة جديدة من الإعدادات المحفوظة.",
   "This source currently supports campaign or measurement-context rows in this report builder.": "يدعم هذا المصدر حاليًا صفوف الحملات أو سياق القياس في منشئ التقارير هذا.",
   "This step cannot be amended in place. A step that reached the provider is never sent again: reconcile_step reads it back from its original receipt, and a step still verifying or mismatched keeps its verification. Steps already verified stay; anything still to be written needs a new reviewed write or plan.": "لا يمكن تعديل هذه الخطوة في موضعها. لا تُعِد إرسال خطوة وصلت إلى المنصة؛ يقرأ reconcile_step حالتها باستخدام إيصالها الأصلي، وتحتفظ الخطوات التي لا يزال التحقق منها جاريًا أو التي لا تتطابق بنتيجة تحققها. تبقى الخطوات التي جرى التحقق منها، وأي كتابة متبقية تحتاج إلى طلب كتابة أو خطة جديدة خاضعة للمراجعة.",
   "This step no longer matches its allocation proposal. Create a new source-bound draft.": "لم تعد هذه الخطوة تطابق مقترح توزيعها. أنشئ مسودة جديدة مرتبطة بالمصدر.",

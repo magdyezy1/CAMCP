@@ -1,4 +1,5 @@
 import {fingerprint, reportContractVersion} from './report-quality.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
@@ -461,7 +462,7 @@ export class NativeCampaignReports {
     }
     // The platform's own requests, paging and parsing (ARC-04 stage F), with the shared read path and state.
     await reports!.collect(c);
-    if (c.raw.length > 10000)
+    if (c.raw.length > reportUnitRowLimit)
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
     this.service.store.resolveConnection(actor, gateway, account, connection);
@@ -625,6 +626,8 @@ async function lookupAccount(c: ReportCollection, gateway: string, run: ReportCo
   c.currency = accountCurrency(gateway, d);
   c.timezone = accountTimezone(gateway, d);
 }
+const declaredIncompleteWarning =
+  'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.';
 /** One collected campaign-level period: the normalized rows, the missing-metric warnings and the source's state. */
 function campaignResult(p: string, kind: string, c: ReportCollection): JsonObject {
   const v4 = c.source.reporting_contract === 'overview-config-v4',
@@ -649,8 +652,17 @@ function campaignResult(p: string, kind: string, c: ReportCollection): JsonObjec
   if (rounded) c.quality.metric_rounding = rounded;
   // The window declaration a source requires (requiresCompleteWindowDeclaration) belongs to the detail levels, whose
   // collectors hold the source partial without it. A campaign-level source has never needed one, in v3 or in v4, so an
-  // upgraded v3 campaign report is complete as it was (F-L6-02); the declaration is only recorded.
-  if (v4) c.quality.reporting_window_declared_complete = c.source.report_options.complete_window;
+  // upgraded v3 campaign report is complete as it was (F-L6-02); the declaration is recorded. But a window the user
+  // declared incomplete keeps the source partial and holds recommendations on every platform (F-L5-22). Only v4: a v3
+  // campaign source keeps the state it has always had.
+  if (v4) {
+    c.quality.reporting_window_declared_complete = c.source.report_options.complete_window;
+    if (c.source.report_options.complete_window === false) {
+      c.complete = false;
+      c.quality.measurement_complete = false;
+      c.warnings.push(declaredIncompleteWarning);
+    }
+  }
   for (const name of missingNativeMetrics(p, c.extra, rows))
     c.warnings.push(
       'Requested native metric ' +

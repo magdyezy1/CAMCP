@@ -8,7 +8,7 @@ import {reportSource} from '../dist/src/report-sources.js';
 import {reportPack} from '../dist/src/report-packs.js';
 import {reportWorkbook, reportPdf} from '../dist/src/report-artifacts.js';
 import {fingerprint} from '../dist/src/report-quality.js';
-import {ReportParts} from '../dist/src/report-checkpoints.js';
+import {ReportParts, reportBudgetView} from '../dist/src/report-checkpoints.js';
 import {overviewGranularityFixture, granularSource, granularConfig} from './fixtures/overview-granularity-data.mjs';
 import {assertNamesNoProvider} from './helpers/shared-module-seams.mjs';
 import {objectiveMigrationNotice} from '../dist/src/report-definition-migration.js';
@@ -166,44 +166,80 @@ test('a schedule carries the notice into its pack and bilingual workbook/PDF bef
   assert.ok(actual.indexOf(catalog.Notes) < actual.indexOf('تبقى عملات الحسابات ومناطقها الزمنية'));
 });
 
+// F-L5-16. Collection state written under another platform contract cannot be resumed (its rows mean something else
+// now), and a scheduled run has nobody to start it again, so that source is collected again from its start and says so.
+// The whole-job counters keep what the job already spent.
+const restartedWarning =
+  'This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.';
 for (const layout of ['inline', 'split'])
-  test(layout + ' stale contract checkpoints refuse before any read and preserve their evidence', async t => {
-    const f = fixture(t);
-    const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
-    const original = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
-    const budget = {
-      version: 1,
-      definition: fingerprint(original.config),
-      requests: 2,
-      rows: 1,
-      bytes: 100,
-      elapsed_ms: 100,
-      row_counts: {'0': 1},
-    };
-    const checkpoint = {result: {rows: [{campaign_id: 'synthetic-old-campaign'}], complete: true}};
-    const older = {
-      ...original,
-      platform_contracts: {},
-      collection_budget: budget,
-      checkpoints: layout === 'inline' ? {'0': checkpoint} : {},
-    };
-    f.store.putDocument(f.actor.tenantId, 'overview_report', queued.id, older);
-    if (layout === 'split') {
-      const parts = new ReportParts(f.store, f.actor.tenantId, older);
-      parts.saveBudget(budget);
-      parts.save('0', checkpoint);
-    }
-    const before = f.requests.length;
-    await assert.rejects(() => f.overview.work(f.actor.tenantId, 'report_overview', {report_id: queued.id}), {
-      code: 'REPORT_RESTART_REQUIRED',
-    });
-    assert.equal(f.requests.length, before);
-    const saved = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
-    assert.equal(saved.state, 'failed');
-    const retained = new ReportParts(f.store, f.actor.tenantId, saved).source('0', saved.checkpoints?.['0']);
-    assert.deepEqual(retained, checkpoint);
-  });
+  test(
+    layout + ' checkpoints of an earlier platform contract restart that source, say so and keep the counters',
+    async t => {
+      const f = fixture(t);
+      const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
+      const original = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
+      const budget = {
+        version: 1,
+        definition: fingerprint(original.config),
+        requests: 2,
+        rows: 1,
+        bytes: 100,
+        elapsed_ms: 100,
+        row_counts: {'0': 1},
+      };
+      const checkpoint = {result: {rows: [{campaign_id: 'synthetic-old-campaign'}], complete: true}};
+      const older = {
+        ...original,
+        platform_contracts: {},
+        collection_budget: budget,
+        checkpoints: layout === 'inline' ? {'0': checkpoint} : {},
+      };
+      f.store.putDocument(f.actor.tenantId, 'overview_report', queued.id, older);
+      if (layout === 'split') {
+        const parts = new ReportParts(f.store, f.actor.tenantId, older);
+        parts.saveBudget(budget);
+        parts.save('0', checkpoint);
+      }
+      const before = f.requests.length;
+      await f.overview.work(f.actor.tenantId, 'report_overview', {report_id: queued.id});
+      const read = f.requests.length - before;
+      assert.ok(read > 0, 'the source is read again, from its start');
+      const saved = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
+      assert.equal(saved.state, 'complete', JSON.stringify(saved.error ?? saved.sources));
+      assert.ok(saved.rows.length > 0);
+      assert.ok(!JSON.stringify(saved.rows).includes('synthetic-old-campaign'), 'nothing of the old state is reused');
+      assert.ok(saved.sources[0].warnings.includes(restartedWarning), JSON.stringify(saved.sources[0].warnings));
+      assert.deepEqual(saved.restarted_sources, ['0']);
+      assert.equal(saved.platform_contracts.linkedin, reportSource('linkedin').contract.stamp);
+      // The counters were not refunded: the 2 requests and 100 bytes already spent stay, and the new reads add to them.
+      const counters = reportBudgetView(f.store, f.actor.tenantId, saved);
+      assert.ok(counters.requests >= 2 + read, 'requests ' + counters.requests + ' after ' + read + ' new reads');
+      assert.ok(counters.bytes >= 100);
+      assert.equal(
+        counters.row_counts['0'],
+        1,
+        'the entry the old state counted stays; new periods are keyed by their dates',
+      );
+    },
+  );
 
+test('a checkpoint of the current platform contract is resumed with no read and no warning', async t => {
+  const f = fixture(t);
+  const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
+  await f.overview.work(f.actor.tenantId, 'report_overview', {report_id: queued.id});
+  const done = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
+  assert.equal(done.state, 'complete', JSON.stringify(done.error ?? done.sources));
+  // The report is unfinished again, as after a lost lease: its retained result was written under the current contract.
+  const {completed_at, ...running} = done;
+  f.store.putDocument(f.actor.tenantId, 'overview_report', queued.id, {...running, state: 'running'});
+  const before = f.requests.length;
+  await f.overview.work(f.actor.tenantId, 'report_overview', {report_id: queued.id});
+  assert.equal(f.requests.length, before, 'the retained result is resumed, with no provider read');
+  const saved = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
+  assert.equal(saved.state, 'complete');
+  assert.equal(saved.restarted_sources, undefined);
+  assert.ok(!JSON.stringify(saved.sources).includes(restartedWarning));
+});
 test('both history displays translate authored notices and escape unknown strings', () => {
   const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
   const esc = value =>

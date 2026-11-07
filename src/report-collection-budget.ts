@@ -9,6 +9,11 @@ export const reportCollectionLimits: Readonly<{requests: number; rows: number; e
     elapsed_ms: 300000,
     bytes: 128 * 1024 * 1024,
   });
+/**
+ * The most rows one source unit (a level of a source, across its periods) may hold. A unit with more is refused with
+ * REPORT_ROW_LIMIT, whose messages name this number; the collectors and the detail assembly all read it here (F-L5-28).
+ */
+export const reportUnitRowLimit = 10000;
 const context = new AsyncLocalStorage<ReportCollectionBudget[]>();
 /** One durable allowance across every account, calendar period, page, retry and download in one snapshot.
  * Counters are written before egress. Recovery keeps the same definition and counters; queue waiting is excluded

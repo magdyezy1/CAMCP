@@ -320,7 +320,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): seven.
   // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
   // Merged with the levels package (779 modules), the previews package's eight make 787.
-  assert.equal(files.length, 787);
+  // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
+  assert.equal(files.length, 788);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -378,7 +379,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
   // Web-report adds the singular forms of two row-count messages (F-L8-12).
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
-  assert.equal(Object.keys(catalog).length, 11815);
+  // Package engine-core adds four website messages (the levels of a source that could not be collected, F-L5-10; the selected IDs that matched no returned row, F-L5-27; the count of a figure built from native measurements, F-L5-31; the source collected again after an earlier platform contract, F-L5-16) and two reasons (a level that could not be collected in a cross-level pair, F-L5-10, and a figure past the calculation limits, F-L9-01), and deletes the two entries of the dead overviewV4Sum and overviewV4Ratio (F-L5-28): 11,817 + 2.
+  assert.equal(Object.keys(catalog).length, 11819);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -334,6 +334,14 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
   return diagnostic;
 }
 
+/** A collection unit that failed: no rows, never complete, and the error named as the source's diagnostic. */
+export const failedReportUnit = (error: unknown, source: JsonObject): JsonObject => ({
+  source,
+  rows: [],
+  complete: false,
+  error: reportSourceError(error, source),
+});
+
 export function assetSyncDiagnostic(
   error: unknown,
   platform: string,

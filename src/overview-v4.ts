@@ -1,9 +1,10 @@
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
-import {parseProviderDecimal, providerDecimalText} from './provider-decimal.js';
+import {providerDecimalText} from './provider-decimal.js';
 import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
-import {reportLevelReconciliation} from './report-level-reconciliation.js';
+import {levelFailure, reportLevelReconciliation} from './report-level-reconciliation.js';
+import {coverageCounts} from './report-math-v4.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
@@ -280,6 +281,13 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
       'Choose supported report levels once each; the legacy level must match the first level.',
       'INVALID_REPORT_LEVEL',
     );
+  // A detail level takes the preset's metrics. Native metrics named beside it would be added to the provider's request and
+  // reach no row, so v4 refuses them as v3 does (overviewSourceLevel), before any request is sent.
+  if (levels.some(level => level !== 'campaign') && source.native_metrics?.length)
+    invalid(
+      'Detailed reporting uses the preset metrics. Clear additional native metrics before selecting this level.',
+      'INVALID_NATIVE_METRICS',
+    );
   if (source.report_options !== undefined && !object(source.report_options)) invalid('Use supported report options.');
   const provided = source.report_options ?? {};
   if (Object.keys(provided).some(key => !capabilities.option_names.includes(key)))
@@ -351,6 +359,15 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
 }
 
 const scopeLevelOrder = ['campaign', 'adset', 'ad'];
+/** The ID lists a scope selects by, each with the level whose entities its IDs name. */
+const scopeLists = [
+  ['campaign_ids', 'campaign'],
+  ['adset_ids', 'adset'],
+  ['ad_ids', 'ad'],
+] as const;
+/** The warning a source carries when selected IDs matched no row the provider returned (F-L5-27). */
+export const unmatchedIdsWarning = (count: number) =>
+  count + ' selected ID' + (count === 1 ? '' : 's') + ' matched no returned row.';
 export function overviewV4MeasurementLevel(source: JsonObject): 'ad' | 'adset' | undefined {
   if (source.ad_ids?.length) return 'ad';
   if (source.adset_ids?.length) return 'adset';
@@ -368,13 +385,20 @@ export function overviewV4CollectionLevels(source: JsonObject): string[] {
     levels.push(measurement);
   return levels;
 }
+/** A platform's ID pattern is compiled once; a report at the row limit asks it for every row. */
+const scopePatterns = new Map<string, RegExp>();
+const scopePattern = (source: string) => {
+  let pattern = scopePatterns.get(source);
+  if (!pattern) scopePatterns.set(source, (pattern = new RegExp(source)));
+  return pattern;
+};
 export function overviewV4ScopeIdentity(
   capabilities: OverviewV4Capabilities | undefined,
   level: string,
   value: unknown,
 ): string | undefined {
   if (typeof value !== 'string' || !value) return undefined;
-  if (capabilities?.scope_id_pattern && !new RegExp(capabilities.scope_id_pattern).test(value)) return undefined;
+  if (capabilities?.scope_id_pattern && !scopePattern(capabilities.scope_id_pattern).test(value)) return undefined;
   const prefix = capabilities?.scope_id_prefixes?.[level],
     id = prefix && value.startsWith(prefix) ? value.slice(prefix.length) : value;
   return id || undefined;
@@ -410,6 +434,17 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
   let excluded = 0,
     unknown = 0,
     statusExcluded = 0;
+  // The identities of each list of selected IDs, once, so a row is matched by a lookup and not by comparing it with every
+  // selected ID (F-L5-28).
+  const wanted = new Map<string, Set<string | undefined>>();
+  for (const [field, scopeLevel] of scopeLists)
+    if (source[field]?.length)
+      wanted.set(
+        field,
+        new Set(source[field].map((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id))),
+      );
+  // The selected IDs some returned row carries, whatever else excludes that row afterwards.
+  const matched: Record<string, Set<string>> = {campaign_ids: new Set(), adset_ids: new Set(), ad_ids: new Set()};
   const selected = rows.filter(row => {
     const parents = row.parent_ids ?? {},
       level = row.entity_level ?? source.level ?? 'campaign',
@@ -419,18 +454,17 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
         adset_ids: level === 'adset' ? own : parents.adset_id,
         ad_ids: level === 'ad' ? own : undefined,
       };
-    for (const [field, value] of Object.entries(values)) {
-      const scopeLevel = {campaign_ids: 'campaign', adset_ids: 'adset', ad_ids: 'ad'}[field]!,
-        identity = overviewV4ScopeIdentity(capabilities, scopeLevel, value);
-      if (
-        source[field]?.length &&
-        (identity === undefined ||
-          !source[field].some((id: string) => overviewV4ScopeIdentity(capabilities, scopeLevel, id) === identity))
-      ) {
-        excluded++;
-        if (identity === undefined) unknown++;
-        return false;
-      }
+    let refusal: 'unknown' | 'other' | undefined;
+    for (const [field, scopeLevel] of scopeLists) {
+      if (!source[field]?.length) continue;
+      const identity = overviewV4ScopeIdentity(capabilities, scopeLevel, values[field]);
+      if (identity !== undefined && wanted.get(field)!.has(identity)) matched[field]!.add(identity);
+      else refusal ??= identity === undefined ? 'unknown' : 'other';
+    }
+    if (refusal) {
+      excluded++;
+      if (refusal === 'unknown') unknown++;
+      return false;
     }
     if (!source.statuses.includes('all') && !source.statuses.includes(row.status)) {
       excluded++;
@@ -459,6 +493,18 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
     }
     return true;
   });
+  // A selected ID that no returned row of this level carries is named, so a mistyped or stale ID cannot narrow a total
+  // unnoticed. Only the lists this level can answer are checked: an ad ID is matched by ad rows alone (F-L5-27).
+  const unmatched: Record<string, string[]> = {},
+    rank = scopeLevelOrder.indexOf(source.level ?? 'campaign');
+  for (const [field, scopeLevel] of scopeLists) {
+    if (!source[field]?.length || scopeLevelOrder.indexOf(scopeLevel) > rank) continue;
+    const missing = source[field].filter((id: string) => {
+      const identity = overviewV4ScopeIdentity(capabilities, scopeLevel, id);
+      return identity === undefined || !matched[field]!.has(identity);
+    });
+    if (missing.length) unmatched[field] = missing;
+  }
   return {
     rows: selected,
     scope: {
@@ -469,71 +515,9 @@ export function overviewV4Scope(source: JsonObject, rows: JsonObject[], capabili
       excluded_status_rows: statusExcluded,
       filtering: 'after_collection',
       status_basis: statusBasis,
+      ...(Object.keys(unmatched).length ? {unmatched_ids: unmatched} : {}),
       ...(source.delivery_metrics === undefined ? {delivery_metrics: deliveryMetrics} : {}),
     },
-  };
-}
-
-const scale = 1000000000n;
-const additiveMetrics = new Set([
-  'spend',
-  'impressions',
-  'clicks',
-  'conversions',
-  'conversion_value',
-  'leads',
-  'purchases',
-  'installs',
-  'video_views',
-  'video_completions',
-  'engagements',
-]);
-function decimalText(value: bigint): string {
-  const sign = value < 0n ? '-' : '',
-    magnitude = value < 0n ? -value : value,
-    fraction = (magnitude % scale).toString().padStart(9, '0').replace(/0+$/, '');
-  return sign + (magnitude / scale).toString() + (fraction ? '.' + fraction : '');
-}
-/** Known values add exactly; null/absent values have coverage rather than suppressing every known row. */
-export function overviewV4Sum(rows: JsonObject[], metric: string) {
-  if (!additiveMetrics.has(metric)) invalid('This report metric is not declared additive.', 'INVALID_METRICS');
-  let known = 0,
-    rounded = 0,
-    total = 0n;
-  for (const row of rows) {
-    const value = (row.native?.exact_totals ?? row.metrics ?? {})[metric];
-    if (value === null || value === undefined) continue;
-    const parsed = parseProviderDecimal(value, {field: metric});
-    total += parsed.scaled;
-    known++;
-    if (parsed.rounded) rounded++;
-  }
-  return {value: known ? decimalText(total) : null, coverage: {known, total: rows.length}, rounded_values: rounded};
-}
-/** Ratios share a population: never divide a numerator's known total by a different denominator's population. */
-export function overviewV4Ratio(rows: JsonObject[], numerator: string, denominator: string, multiplier = 1) {
-  let pairs = 0,
-    top = 0n,
-    bottom = 0n;
-  if (![1, 100, 1000].includes(multiplier)) invalid('Use a supported report ratio unit.');
-  for (const row of rows) {
-    const metrics = row.native?.exact_totals ?? row.metrics ?? {},
-      a = metrics[numerator],
-      b = metrics[denominator];
-    if (a === null || a === undefined || b === null || b === undefined) continue;
-    top += parseProviderDecimal(a, {field: numerator}).scaled;
-    bottom += parseProviderDecimal(b, {field: denominator}).scaled;
-    pairs++;
-  }
-  if (!pairs || bottom === 0n) return {value: null, coverage: {known_pairs: pairs, total: rows.length}, rounded: false};
-  const dividend = top * BigInt(multiplier) * scale,
-    quotient = dividend / bottom,
-    remainder = dividend % bottom,
-    up = remainder * 2n > bottom || (remainder * 2n === bottom && quotient % 2n === 1n);
-  return {
-    value: decimalText(quotient + (up ? 1n : 0n)),
-    coverage: {known_pairs: pairs, total: rows.length},
-    rounded: remainder !== 0n,
   };
 }
 
@@ -574,10 +558,10 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
           ]
         : Object.keys(row.metrics ?? {}),
       partial = Object.fromEntries(
-        Object.entries(row.metrics_coverage ?? {}).filter(
-          ([name, value]: [string, any]) =>
-            fields.includes(name) && (value.known ?? value.known_pairs ?? value.known_rows) < value.total,
-        ),
+        Object.entries(row.metrics_coverage ?? {}).filter(([name, value]: [string, any]) => {
+          const {known, total} = coverageCounts(value);
+          return fields.includes(name) && (value.unavailable_reason !== undefined || known < total);
+        }),
       ),
       recommendation =
         row.recommendation &&
@@ -638,6 +622,39 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
   });
 }
 
+/**
+ * What a source states about its account and its collection. It is taken from the first level that collected, never
+ * from the first level: a failed level has none of it, and the facts of an account are the same for every level. The
+ * fields are named, so a field added to a packet is not promoted to the source by accident (F-L5-10). Whatever varies
+ * by level is derived from the levels below, or stays in `level_results`.
+ */
+const sourceFacts = [
+  'account_name',
+  'currency',
+  'timezone',
+  'source_kind',
+  'date_range',
+  'captured_at',
+  'attribution',
+  'result_definition',
+  'contract_version',
+  'detail_contract',
+  'query_fingerprint',
+  'quality',
+  'scope',
+  'periods',
+  'collection_mode',
+  'open_window',
+  'scope_limitations',
+  'window_resolution',
+  'native_account_evidence',
+  'source_hash',
+  'metric_mapping',
+  'report_time_zone',
+  'native_population',
+  'no_activity_count',
+] as const;
+
 /** Account sources own lineage once; level/period evidence retains its context without copied lineage arrays. */
 export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], configured: JsonObject[]) {
   const withoutLineage = (value: any): any =>
@@ -663,13 +680,50 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
       ])
         lineage.set(JSON.stringify(entry), entry);
     }
-    const {rows: ignoredRows, source: ignoredSource, metadata, ...first} = packets[0] ?? {};
+    const collected = packets.find(packet => !packet.error),
+      facts = Object.fromEntries(
+        sourceFacts.flatMap(key => (collected?.[key] === undefined ? [] : [[key, withoutLineage(collected[key])]])),
+      ),
+      // A source is failed when every level it was asked for failed, and partial when only some did: those levels are
+      // named, and the source carries no error of its own, so the page does not call a source failed that has rows.
+      failedLevels = requested.flatMap(packet => {
+        const error = levelFailure(packet, packets);
+        return error ? [{level: packet.source.level, error}] : [];
+      }),
+      periodErrors = packets.flatMap(packet =>
+        (packet.period_errors ?? []).map((entry: JsonObject) => ({
+          ...withoutLineage(entry),
+          level: packet.source.level,
+        })),
+      );
+    // A selected ID is unmatched when no level able to answer for it found a row carrying it (F-L5-27).
+    const unmatched = Object.fromEntries(
+        scopeLists.flatMap(([field, scopeLevel]) => {
+          const ids: string[] = source[field] ?? [],
+            answering = packets.filter(
+              packet =>
+                !packet.error && scopeLevelOrder.indexOf(packet.source.level) >= scopeLevelOrder.indexOf(scopeLevel),
+            ),
+            missing = answering.length
+              ? ids.filter(id => answering.every(packet => packet.scope?.unmatched_ids?.[field]?.includes(id)))
+              : [];
+          return missing.length ? [[field, missing]] : [];
+        }),
+      ),
+      unmatchedCount = Object.values(unmatched).reduce((n, ids) => n + ids.length, 0);
     const definitions = new Map<string, JsonObject>();
     for (const row of rows.filter(row => row.source_ref === sourceRef))
       for (const context of [row.result_context, ...(row.result_groups ?? [])])
         if (context?.definition) definitions.set(JSON.stringify(context.definition), context.definition);
     return {
-      ...withoutLineage(first),
+      ...facts,
+      ...(packets.some(packet => packet.period_errors) ? {period_errors: periodErrors} : {}),
+      ...(packets.some(packet => packet.collection_limit !== undefined)
+        ? {collection_limit: packets.some(packet => packet.collection_limit)}
+        : {}),
+      ...(failedLevels.length ? {failed_levels: failedLevels} : {}),
+      ...(unmatchedCount ? {unmatched_ids: unmatched} : {}),
+      ...(failedLevels.length && failedLevels.length === requested.length ? {error: failedLevels[0]!.error} : {}),
       source,
       source_ref: sourceRef,
       complete: requested.length === source.levels.length && packets.every(packet => packet.complete),
@@ -700,7 +754,10 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
         : {}),
       ...(supporting.length ? {supporting_levels: supporting.map(packet => packet.source.level)} : {}),
       visible_row_count: rows.filter(row => row.source_ref === sourceRef).length,
-      warnings: [...new Set(packets.flatMap(packet => packet.warnings ?? []))],
+      warnings: [
+        ...new Set(packets.flatMap(packet => packet.warnings ?? [])),
+        ...(unmatchedCount ? [unmatchedIdsWarning(unmatchedCount)] : []),
+      ],
       cross_level: reportLevelReconciliation(
         rows.filter(row => row.source_ref === sourceRef),
         packets,

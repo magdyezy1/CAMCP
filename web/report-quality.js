@@ -238,6 +238,8 @@ const reportSourceWarnings = new Set([
   // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).
   'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.',
   'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.',
+  // F-L5-16: collection state kept under an earlier platform contract is dropped and the source read again.
+  'This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.
@@ -471,18 +473,27 @@ function reportCardLevel(r, g) {
   const id = g.entity_level ?? (r.config?.contract_version === 'overview-config-v4' ? 'campaign' : null);
   return id ? ' · ' + uiText('Reporting level: {level}', {level: reportLevelName(g.platform, id)}) : '';
 }
-/** The rows a total or ratio was calculated from: a sum's known rows, or the rows that have every value a ratio needs. */
+/**
+ * What a total or ratio was calculated from: a sum's known units, or the units that have every value a ratio needs, and
+ * whether the units are the provider's own rows (`native_measurements`) or the report's. Reads the coverage of this build
+ * ({known_rows, total_rows, basis}) and of earlier ones ({known, total}) here and nowhere else; earlier builds called
+ * every unit a native measurement, so only a count with this build's `total_rows` is believed.
+ */
 function reportCoverageCounts(coverage) {
   if (!coverage || typeof coverage !== 'object') return null;
-  const known = coverage.known_pairs ?? coverage.known ?? coverage.known_rows;
-  return Number.isInteger(known) && Number.isInteger(coverage.total) ? {known, total: coverage.total} : null;
+  const known = coverage.known_rows ?? coverage.known_pairs ?? coverage.known,
+    total = coverage.total_rows ?? coverage.total;
+  return Number.isInteger(known) && Number.isInteger(total)
+    ? {known, total, measurements: coverage.total_rows !== undefined && coverage.basis === 'native_measurements'}
+    : null;
 }
-/** "2 of 3 rows" for a figure calculated from some of its rows; nothing for one calculated from all, or unavailable. */
+/** "2 of 3 rows" (or "measurements") for a figure calculated from some of its units; nothing for one calculated from all, or unavailable. */
 function reportCoverageLabel(coverage) {
   const counts = coverage?.unavailable_reason ? null : reportCoverageCounts(coverage);
-  return counts && counts.known < counts.total
-    ? uiPlural(counts.total, '{known} of {count} row', '{known} of {count} rows', {known: uiNumber(counts.known)})
-    : '';
+  if (!counts || counts.known >= counts.total) return '';
+  return counts.measurements
+    ? uiText('{known} of {count} measurements', {known: uiNumber(counts.known), count: uiNumber(counts.total)})
+    : uiPlural(counts.total, '{known} of {count} row', '{known} of {count} rows', {known: uiNumber(counts.known)});
 }
 /** One figure of a summary card, with the rows it was calculated from when that is fewer than all of them. */
 function reportSummaryFigure(g, key, label) {
@@ -497,6 +508,8 @@ function reportUnavailableNote(reason, labels) {
       return uiText('{metrics} are not added: the rows are in different or unknown currencies.', {metrics});
     case 'non_additive_inputs':
       return uiText('{metrics} cannot be calculated from several rows.', {metrics});
+    case 'calculation_limit':
+      return uiText('{metrics} are not calculated: they exceed what one report may calculate.', {metrics});
     default:
       return '';
   }
@@ -514,8 +527,7 @@ function reportSummaryCoverageNotes(g, figures) {
     const coverage = g.metrics_coverage?.[key];
     if (coverage?.unavailable_reason)
       unavailable.set(coverage.unavailable_reason, [...(unavailable.get(coverage.unavailable_reason) ?? []), label]);
-    else if (reportCoverageLabel(coverage))
-      (coverage.known_pairs !== undefined || coverage.known_rows !== undefined ? ratios : sums).push(label);
+    else if (reportCoverageLabel(coverage)) (coverage.known_pairs !== undefined ? ratios : sums).push(label);
   }
   const notes = [
     sums.length
@@ -563,6 +575,8 @@ function reportLevelCheckReason(code) {
       return uiText('the currency is unknown');
     case 'missing_metric':
       return uiText('a level has no value for it');
+    case 'level_failed':
+      return uiText('a level could not be collected');
     default:
       return String(code ?? '').replaceAll('_', ' ');
   }

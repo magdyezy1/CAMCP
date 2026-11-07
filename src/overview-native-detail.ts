@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import type {ObjectiveTable} from './report-objectives.js';
 import {detailContractVersion, detailedOverviewRows, overviewSourceLevel} from './overview-levels.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
@@ -244,7 +245,7 @@ export function nativeDetailResult(
   const descriptor = overviewSourceLevel(source),
     options = source.report_options,
     rounded = metricRoundingRecord(base.rounding);
-  if (detail.rows.length > 10000)
+  if (detail.rows.length > reportUnitRowLimit)
     throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
   const complete = options.complete_window === true && base.providerComplete;
   return {
@@ -252,7 +253,8 @@ export function nativeDetailResult(
     quality: {
       version: 1,
       pages_collected: base.providerComplete,
-      measurement_complete: options.complete_window === false || !base.providerComplete ? false : null,
+      // A window that was not declared complete is not known to be: measurement is incomplete unless it was declared.
+      measurement_complete: options.complete_window !== true || !base.providerComplete ? false : null,
       reporting_window_declared_complete: options.complete_window,
       status: 'declared_measurement',
       entity_level: descriptor.id,

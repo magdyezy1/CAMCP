@@ -1,9 +1,35 @@
-import {evaluateReportFormulaV4, sumReportValuesV4} from './report-math-v4.js';
+import {currencyMinorDigits} from './budget-units.js';
+import {compareReportValuesV4, evaluateReportFormulaV4, reportScaledText, sumReportValuesV4} from './report-math-v4.js';
 import type {JsonObject} from './types.js';
 
 /** Comparable delivery counts and money only: result meanings and non-additive reach are never reconciled by addition. */
 const metrics = ['spend', 'impressions', 'clicks'] as const;
 const order = ['campaign', 'adset', 'ad'];
+
+/**
+ * Why a requested level has no result: its own collection failed, or it is measured through another level (a scope
+ * that rolls up the selected descendants) and that level failed. Undefined when the level did not fail.
+ */
+export function levelFailure(packet: JsonObject, packets: JsonObject[]): JsonObject | undefined {
+  if (packet.error) return packet.error;
+  const rollup = packet.scope?.rollup;
+  if (!rollup || rollup.available !== false) return undefined;
+  return packets.find(
+    other => other.source.source_ref === packet.source.source_ref && other.source.level === rollup.from_level,
+  )?.error;
+}
+
+/**
+ * What provider rounding can explain (F-L5-25). A provider rounds every money figure to the currency's minor unit, so two
+ * sums of such figures can differ by up to half a minor unit for each figure summed on either side: a campaign of 10.01
+ * beside three ads of 3.34 agree. Counts are not rounded and must match exactly, so their tolerance is 0. The currency's
+ * own exponent decides the unit (JPY 0, USD 2, KWD 3); a code without one is read as two decimals.
+ */
+function roundingTolerance(metric: string, currency: unknown, figures: number): string {
+  if (metric !== 'spend' || !figures) return '0';
+  const digits = currencyMinorDigits(currency) ?? 2;
+  return reportScaledText(BigInt(figures) * 5n * 10n ** BigInt(8 - digits));
+}
 
 /** Evidence about visible rows, separate from the provider's page/closure/completeness declarations. */
 export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObject[], requested: string[]) {
@@ -11,8 +37,10 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
   if (levels.length < 2) return [];
   const scopes = new Map<string, JsonObject[]>();
   for (const row of rows) {
-    const key = JSON.stringify([row.currency ?? null, row.timezone ?? null]);
-    scopes.set(key, [...(scopes.get(key) ?? []), row]);
+    const key = JSON.stringify([row.currency ?? null, row.timezone ?? null]),
+      members = scopes.get(key);
+    if (members) members.push(row);
+    else scopes.set(key, [row]);
   }
   if (!scopes.size) scopes.set(JSON.stringify([null, null]), []);
   const comparisons: JsonObject[] = [];
@@ -24,11 +52,11 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
         const coverage = selected.reduce(
           (value, row) => {
             const own = row.metrics_coverage?.[metric];
-            value.known += own?.known ?? (row.metrics[metric] == null ? 0 : 1);
-            value.total += own?.total ?? 1;
+            value.known_rows += own?.known_rows ?? (row.metrics[metric] == null ? 0 : 1);
+            value.total_rows += own?.total_rows ?? 1;
             return value;
           },
-          {known: 0, total: 0},
+          {known_rows: 0, total_rows: 0},
         );
         return {value: metric === 'spend' && !currency ? null : sum.value, coverage};
       };
@@ -52,25 +80,38 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
             Array.isArray(packet?.rows) &&
             packet.rows.length > rows.filter(row => (row.entity_level ?? 'campaign') === packet.source.level).length,
         ),
-        derived = !!baseline?.scope?.rollup || !!comparison?.scope?.rollup;
+        derived = !!baseline?.scope?.rollup || !!comparison?.scope?.rollup,
+        // A level that failed has no date range, so it would read as a window problem: name the failure instead.
+        failed = [baseline, comparison].flatMap(packet => {
+          const error = packet ? levelFailure(packet, packets) : undefined;
+          return error ? [{level: packet!.source.level as string, code: error.code as string}] : [];
+        });
       for (const metric of metrics) {
         const a = totals(baselineLevel, metric),
           b = totals(comparisonLevel, metric),
-          unavailable = derived
-            ? 'derived_parent_population'
-            : !sameWindow
-              ? 'different_or_unavailable_windows'
-              : differentStatuses
-                ? 'different_status_populations'
-                : differentObjectives
-                  ? 'different_objective_populations'
-                  : a.value === null || b.value === null
-                    ? metric === 'spend' && !currency
-                      ? 'unknown_currency'
-                      : 'missing_metric'
-                    : null,
-          partial = !collected || a.coverage.known < a.coverage.total || b.coverage.known < b.coverage.total,
-          delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value;
+          unavailable = failed.length
+            ? 'level_failed'
+            : derived
+              ? 'derived_parent_population'
+              : !sameWindow
+                ? 'different_or_unavailable_windows'
+                : differentStatuses
+                  ? 'different_status_populations'
+                  : differentObjectives
+                    ? 'different_objective_populations'
+                    : a.value === null || b.value === null
+                      ? metric === 'spend' && !currency
+                        ? 'unknown_currency'
+                        : 'missing_metric'
+                      : null,
+          partial =
+            !collected ||
+            a.coverage.known_rows < a.coverage.total_rows ||
+            b.coverage.known_rows < b.coverage.total_rows,
+          delta = unavailable ? null : evaluateReportFormulaV4('b - a', {a: a.value, b: b.value}).value,
+          tolerance = roundingTolerance(metric, currency, a.coverage.known_rows + b.coverage.known_rows),
+          // The delta stays in the output either way, so what the tolerance absorbed is never hidden.
+          within = delta !== null && compareReportValuesV4(delta.replace(/^-/, ''), tolerance) <= 0;
         comparisons.push({
           metric,
           currency,
@@ -79,10 +120,12 @@ export function reportLevelReconciliation(rows: JsonObject[], packets: JsonObjec
           date_range: sameWindow ? baseline!.date_range : null,
           baseline: {level: baselineLevel, ...a},
           comparison: {level: comparisonLevel, ...b},
-          state: unavailable ? 'unavailable' : partial ? 'partial' : delta === '0' ? 'agree' : 'gap',
+          state: unavailable ? 'unavailable' : partial ? 'partial' : within ? 'agree' : 'gap',
           delta,
+          tolerance: unavailable ? null : tolerance,
           coverage_percent: unavailable ? null : evaluateReportFormulaV4('b / a * 100', {a: a.value, b: b.value}).value,
           unavailable_reason: unavailable,
+          ...(failed.length ? {failed_levels: failed} : {}),
         });
       }
     }

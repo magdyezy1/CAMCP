@@ -2879,11 +2879,12 @@ export class Store {
       return true;
     });
   }
+  /** A completed job carries no error: a lease expiry or a shutdown release that an earlier attempt left is history now. */
   finishJob(id: string, leaseToken: string, result: unknown) {
     const now = Date.now();
     const r = this.db
       .prepare(
-        "UPDATE jobs SET state='complete',result=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?",
+        "UPDATE jobs SET state='complete',result=?,error=NULL,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?",
       )
       .run(JSON.stringify(redact(result)), now, id, leaseToken, now);
     if (!r.changes) throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the job lease.', {}, 409);

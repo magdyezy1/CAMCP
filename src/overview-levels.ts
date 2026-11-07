@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {reportUnitRowLimit} from './report-collection-budget.js';
 import {resolveObjective, type ObjectiveTable} from './report-objectives.js';
 import {fingerprint} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
@@ -215,7 +216,7 @@ export const detailContractVersion = 'overview-detail-v3';
 const additive = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value'];
 function exactSum(values: unknown[], knownOnly = false) {
   const known = values.filter(value => value !== null && value !== undefined),
-    coverage = {known: known.length, total: values.length};
+    coverage = {known_rows: known.length, total_rows: values.length};
   if (!known.length || (!knownOnly && known.length !== values.length)) return {exact: null, display: null, coverage};
   let sum = 0n;
   for (const value of known) {
@@ -248,7 +249,7 @@ export function detailedOverviewRows(
     !Array.isArray(captured.rows) ||
     !Array.isArray(captured.native_rows) ||
     captured.rows.length !== captured.native_rows.length ||
-    captured.rows.length > 10000
+    captured.rows.length > reportUnitRowLimit
   )
     invalid('The detailed preset did not return aligned bounded native rows.', 'REPORT_SHAPE_CHANGED');
   const scopedParent = captured.native_account_evidence?.parent_campaign;
@@ -397,7 +398,10 @@ export function detailedOverviewRows(
           : {unavailable_reason: 'mixed_goals'},
         result_definition: one?.definition?.label ?? 'unknown',
         ...(resultGroups.length > 1 ? {mixed_result_definition: true} : {}),
-        metrics_coverage: Object.fromEntries(additive.map(key => [key, sums[key]!.coverage])),
+        // One entity's report row, summed from its native rows.
+        metrics_coverage: Object.fromEntries(
+          additive.map(key => [key, {...sums[key]!.coverage, basis: 'native_measurements', report_rows: 1}]),
+        ),
       };
     }
     return {

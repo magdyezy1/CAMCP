@@ -1514,8 +1514,12 @@ function reportSourceHealthLabel(source) {
       ? uiText('Complete')
       : uiText('Limited coverage');
 }
+const reportUnmatchedSentence = /^\d+ selected IDs? matched /; // the card lists them itself
 function reportSourceCaptureMessage(source, range) {
-  const warnings = source.warnings?.map(uiSourceWarning).join(' ') ?? '';
+  const warnings = (source.warnings ?? [])
+    .filter(warning => !(source.unmatched_ids && reportUnmatchedSentence.test(warning)))
+    .map(uiSourceWarning)
+    .join(' ');
   if (source.row_count === 0 && !(source.scoped_row_count > 0))
     return (
       (source.scoped_row_count === undefined
@@ -1556,7 +1560,7 @@ function reportParentName(name) {
   return typeof name === 'string' && name ? ` · <span dir="auto" data-native>${esc(name)}</span>` : '';
 }
 function renderReportSourceHealth(s, platforms, index, range, report) {
-  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${esc(reportSourceHealthLabel(s))}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(reportSourceCaptureMessage(s, range))}</p>`}${s.scoped_row_count !== undefined ? html`${reportSourceCounts(s)}` : s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? html`${reportSourceActions(s.error, index)}` : ''}</details>`;
+  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${esc(reportSourceHealthLabel(s))}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(reportSourceCaptureMessage(s, range))}</p>`}${reportFailedLevels(s)}${reportUnmatchedIds(s)}${s.scoped_row_count !== undefined ? html`${reportSourceCounts(s)}` : s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? html`${reportSourceActions(s.error, index)}` : ''}</details>`;
 }
 /**
  * V2-RPT-05: Retry on a source card runs the report again from the setup form. The form is submitted through its own
@@ -1581,6 +1585,30 @@ function reportSourceActions(error, index) {
     connections =
       category === undefined || ['connection', 'permission'].includes(category) || error.layer === 'credential';
   return html`<div class="report-actions">${retry ? html`<button type="button" class="button small" data-report-retry="${index}">${uiText('Retry')}</button>` : ''}${connections ? html`<a class="button small" href="/connections">${uiText('Manage connections')}</a>` : ''}<button type="button" class="button small" data-report-diagnostic="${index}">${uiText('Copy error details')}</button></div>`;
+}
+/** F-L5-10: the levels that could not be collected, each with its error (a failed source shows its own). */
+function reportFailedLevels(source) {
+  const failed = source.error ? [] : (source.failed_levels ?? []),
+    name = level => reportLevelName(source.source?.platform, level.level);
+  return failed.length
+    ? `<p>${esc(uiText('These levels could not be collected: {levels}.', {levels: uiList(failed.map(name))}))}</p>` +
+        failed
+          .map(level => `<p><strong>${esc(name(level))}</strong></p>` + renderSourceDiagnostic(level.error))
+          .join('')
+    : '';
+}
+/** F-L5-27: selected IDs that matched no returned row, so a mistyped or stale ID cannot narrow a total unnoticed. */
+function reportUnmatchedIds(source) {
+  const ids = Object.values(source.unmatched_ids ?? {}).flat();
+  return ids.length
+    ? `<p>${esc(uiText('Selected IDs that matched no returned row ({count}):', {count: uiNumber(ids.length)}))} ` +
+        ids
+          .slice(0, 10)
+          .map(id => `<code dir="ltr">${esc(id)}</code>`)
+          .join(', ') +
+        (ids.length > 10 ? ' …' : '') +
+        `</p>`
+    : '';
 }
 function renderPeriodFailures(periods) {
   return periods.length

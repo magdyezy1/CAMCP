@@ -276,7 +276,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The kit and the modules of Meta, TikTok, Snapchat, Reddit, Google Ads and X are new (LinkedIn's already existed): seven.
   // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
   // Merged with the levels package (779 modules), the previews package's eight make 787.
-  assert.equal(files.length, 787);
+  // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
+  assert.equal(files.length, 788);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -291,7 +292,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalog already held (the platform-account count, the report name and the two template-default refusals) through its
   // invalid() wrapper: four more.
   // F-L3-10 (previews): the previews tool's own refusals (sixteen sentences) are now owned and translated: 2886 + 10 + 4 + 16.
-  assert.equal(owned.size, 2916);
+  // Package engine-core deletes the unused overviewV4Sum and overviewV4Ratio (F-L5-28), whose two invalid() refusals
+  // (a metric not declared additive, an unsupported ratio unit) go with them: 2916 - 2.
+  assert.equal(owned.size, 2914);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -328,7 +331,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Web-report adds ten collector warnings that reached the Arabic interface in English (F-L8-04).
   // Web-report adds the singular forms of two row-count messages (F-L8-12); none is a wrapper reason.
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
-  assert.equal(Object.keys(catalog).length, 11815);
+  // Package engine-core adds four website messages (the levels of a source that could not be collected, F-L5-10; the selected IDs that matched no returned row, F-L5-27; the count of a figure built from native measurements, F-L5-31; the source collected again after an earlier platform contract, F-L5-16) and two reasons (a level that could not be collected in a cross-level pair, F-L5-10, and a figure past the calculation limits, F-L9-01), and deletes the two entries of the dead overviewV4Sum and overviewV4Ratio (F-L5-28): 11,817 + 2.
+  assert.equal(Object.keys(catalog).length, 11819);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {reportSummary, reportWindowSummary, reportMetricsSummaryV4} from '../dist/src/report-summary.js';
 import {groupReportResults, resolveReportResult} from '../dist/src/report-results.js';
 import {recommendationV4, assignRecommendationsV4} from '../dist/src/report-advice-v4.js';
-import {compareReportValuesV4} from '../dist/src/report-math-v4.js';
+import {calculateMetricsV4, compareReportValuesV4, withCalculationBudget} from '../dist/src/report-math-v4.js';
 
 const definition = {
   id: 'fixture:conversions',
@@ -46,12 +46,35 @@ test('v4 summaries sum known decimal values and price only rows where both input
   assert.equal(summary.metrics.primary_result, '1005');
   assert.equal(summary.metrics.cost_per_result, '1');
   assert.equal(summary.metrics.reach, null);
-  assert.deepEqual(summary.metrics_coverage.spend, {known: 3, total: 4, basis: 'native_measurements', report_rows: 4});
-  assert.equal(summary.metrics_coverage.cpa.known_pairs, 2);
+  // F-L5-31: one shape for a sum, a formula and a result, and the basis says the counted units are the report's rows.
+  assert.deepEqual(summary.metrics_coverage.spend, {
+    known_rows: 3,
+    total_rows: 4,
+    basis: 'report_rows',
+    report_rows: 4,
+  });
+  assert.deepEqual(summary.metrics_coverage.cpa, {
+    known_rows: 2,
+    total_rows: 4,
+    basis: 'report_rows',
+    report_rows: 4,
+    known_pairs: 2,
+  });
   assert.deepEqual(summary.result_groups[0].coverage, {known: 3, total: 4});
   assert.deepEqual(summary.result_groups[0].cost_coverage, {known_pairs: 2, total: 4});
-  assert.equal(summary.metrics_coverage.primary_result.total, 4);
-  assert.equal(summary.metrics_coverage.cost_per_result.known_pairs, 2);
+  assert.deepEqual(summary.metrics_coverage.primary_result, {
+    known_rows: 3,
+    total_rows: 4,
+    basis: 'report_rows',
+    report_rows: 4,
+  });
+  assert.deepEqual(summary.metrics_coverage.cost_per_result, {
+    known_rows: 2,
+    total_rows: 4,
+    known_pairs: 2,
+    basis: 'report_rows',
+    report_rows: 4,
+  });
   assert.equal(summary.result_groups[0].cost_coverage.known_pairs, 2);
   assert.deepEqual(summary.result_groups[0].cost_basis, {spend: '10', result: '10'});
 });
@@ -74,9 +97,20 @@ test('native daily pair coverage survives one entity total and another round of 
     summary = reportMetricsSummaryV4([entity]);
   assert.equal(summary.metrics.cpa, '1');
   assert.equal(summary.metrics.cost_per_result, '1');
-  assert.equal(summary.metrics_coverage.cpa.total, 4);
-  assert.equal(summary.metrics_coverage.cpa.report_rows, 1);
-  assert.equal(summary.metrics_coverage.cpa.known_pairs, 2);
+  // One report row built from four native daily cells: the counted units are the provider's own, not the report's.
+  assert.deepEqual(summary.metrics_coverage.cpa, {
+    known_rows: 2,
+    total_rows: 4,
+    basis: 'native_measurements',
+    report_rows: 1,
+    known_pairs: 2,
+  });
+  assert.deepEqual(summary.metrics_coverage.spend, {
+    known_rows: 3,
+    total_rows: 4,
+    basis: 'native_measurements',
+    report_rows: 1,
+  });
 });
 test('v4 summary formulas use one known cohort for their complete dependency graph and never sum reach', () => {
   const rows = sparse();
@@ -139,6 +173,124 @@ test('exact advisory thresholds retain native costs, known zero results and cons
   assert.equal(
     recommendationV4(row('9007199254740993', '30'), {sales: {target: 1, currency: 'SAR'}}).decision,
     'needs_review',
+  );
+});
+// These replace the tests of overviewV4Sum and overviewV4Ratio (F-L5-28): nothing called those two, and the summary is
+// what reports use, so the properties they pinned are pinned on it.
+const cell = metrics => ({
+  platform: 'fixture',
+  account_id: '1',
+  currency: 'USD',
+  date_from: '2026-09-01',
+  date_to: '2026-09-02',
+  metrics,
+});
+test('known additive values keep exact decimal text and coverage, and non-additive metrics are never summed', () => {
+  const summary = reportMetricsSummaryV4([
+    cell({spend: '9007199254740993.123456789', reach: '10'}),
+    cell({spend: null, reach: '20'}),
+    cell({reach: '30'}),
+    cell({spend: '0.000000001'}),
+    cell({spend: '0'}),
+  ]);
+  assert.equal(summary.metrics.spend, '9007199254740993.12345679', 'beyond 2^53 and exact to the ninth place');
+  assert.deepEqual(summary.metrics_coverage.spend, {
+    known_rows: 3,
+    total_rows: 5,
+    basis: 'report_rows',
+    report_rows: 5,
+  });
+  assert.equal(summary.metrics.reach, null);
+  assert.equal(summary.metrics.frequency, null);
+  const sum = values => reportMetricsSummaryV4(values.map(spend => cell({spend}))).metrics.spend;
+  assert.equal(sum(['0.0000000015']), '0.000000002', 'half to even at the ninth place: 1.5 becomes 2');
+  assert.equal(sum(['0.0000000025']), '0.000000002', 'and 2.5 stays 2');
+  assert.equal(sum(['0.0000000005', '0.0000000010']), '0.000000002', 'the sum is exact before it is rounded');
+  assert.equal(sum([null]), null);
+  assert.deepEqual(reportMetricsSummaryV4([cell({spend: null})]).metrics_coverage.spend.known_rows, 0);
+});
+test('ratios divide only the rows that have both parts, round half to even and refuse a zero denominator', () => {
+  const ratio = rows => reportMetricsSummaryV4(rows.map(metrics => cell(metrics)));
+  const summary = ratio([
+    {spend: '10', clicks: '5'},
+    {spend: '100', clicks: null},
+    {spend: null, clicks: '995'},
+    {spend: '0', clicks: '5'},
+  ]);
+  assert.equal(summary.metrics.cpc, '1', 'only the two rows with both parts: 10 / 10');
+  assert.equal(summary.metrics_coverage.cpc.known_pairs, 2);
+  assert.equal(summary.metrics_coverage.cpc.total_rows, 4);
+  assert.equal(ratio([{spend: '1', clicks: '2000000000'}]).metrics.cpc, '0');
+  assert.equal(ratio([{spend: '3', clicks: '2000000000'}]).metrics.cpc, '0.000000002');
+  assert.equal(ratio([{spend: '10', impressions: '2000'}]).metrics.cpm, '5', 'a per-thousand ratio');
+  assert.equal(ratio([{spend: '10', clicks: '0'}]).metrics.cpc, null, 'a zero denominator has no value');
+});
+// F-L5-29 (M17): a row whose measurement is incomplete is held for that reason before any other check speaks, even when
+// the row is otherwise complete and has no resolved result (which would ask to confirm the objective).
+test('a row with incomplete measurement is held for that reason before any other check', () => {
+  const policy = {sales: {target: 0.1, currency: 'SAR'}},
+    held = recommendationV4(row('10', null, {quality: {measurement_complete: false}}), policy),
+    open = recommendationV4(row('10', null), policy);
+  assert.equal(held.decision, 'needs_review');
+  assert.match(held.reason, /declared incomplete or its measurement is incomplete/);
+  assert.doesNotMatch(open.reason, /declared incomplete/, 'the same row without the flag asks about its objective');
+});
+test('advice holds while a metric it needs is calculated from some of its rows only (F-L5-31 shape)', () => {
+  const policy = {sales: {target: 0.1, currency: 'SAR'}},
+    covered = known_rows =>
+      row('10', '20', {metrics_coverage: {spend: {known_rows, total_rows: 2, basis: 'report_rows', report_rows: 2}}});
+  const partial = recommendationV4(covered(1), policy);
+  assert.equal(partial.decision, 'needs_review');
+  assert.match(partial.reason, /report metrics are incomplete/);
+  assert.notEqual(recommendationV4(covered(2), policy).decision, 'needs_review', 'a complete metric holds nothing');
+  // The cost per result is a ratio: its coverage counts the rows that had both parts.
+  const ratio = row('10', '20', {
+    metrics_coverage: {
+      cost_per_result: {known_rows: 1, total_rows: 2, known_pairs: 1, basis: 'report_rows', report_rows: 2},
+    },
+  });
+  assert.match(recommendationV4(ratio, policy).reason, /report metrics are incomplete/);
+  // A KPI that is a ratio counts too: a cost per click built from one of two rows.
+  const kpi = row('10', '20', {
+    metrics_coverage: {cpc: {known_rows: 1, total_rows: 2, known_pairs: 1, basis: 'report_rows', report_rows: 2}},
+  });
+  assert.match(
+    recommendationV4(kpi, {sales: {target: 1, currency: 'SAR', kpi: 'cpc'}}).reason,
+    /report metrics are incomplete/,
+  );
+  assert.doesNotMatch(
+    recommendationV4(row('10', '20'), {sales: {target: 1, currency: 'SAR', kpi: 'cpc'}}).reason ?? '',
+    /report metrics are incomplete/,
+  );
+});
+test('advice holds when the coverage of a metric it needs cannot be read: unknown coverage is not complete coverage', () => {
+  const policy = {sales: {target: 0.1, currency: 'SAR'}},
+    advise = coverage => recommendationV4(row('10', '20', {metrics_coverage: {spend: coverage}}), policy);
+  // No counts, the names of before the unified shape, half of the new names, and counts that are not numbers.
+  for (const coverage of [
+    {},
+    {known: 2, total: 2},
+    {known_rows: 2},
+    {total_rows: 2},
+    {known_rows: 'all', total_rows: 2},
+  ])
+    assert.match(advise(coverage).reason, /report metrics are incomplete/, JSON.stringify(coverage));
+  assert.doesNotMatch(
+    advise({known_rows: 2, total_rows: 2, basis: 'report_rows', report_rows: 2}).reason,
+    /report metrics are incomplete/,
+    'a complete entry holds nothing',
+  );
+});
+test('advice holds, and the report does not fail, once the report’s calculation time is spent', () => {
+  withCalculationBudget(
+    () => {
+      // The time check runs every 256 formulas; after it fires no formula is calculated.
+      for (let i = 0; i < 300; i++) calculateMetricsV4({spend: '1', clicks: '2'}, []);
+      const advice = recommendationV4(row('10', '20'), {sales: {target: 0.1, currency: 'SAR'}});
+      assert.equal(advice.decision, 'needs_review');
+      assert.match(advice.reason, /exceeds supported numeric precision/);
+    },
+    {work: 1e12, elapsed_ms: 0},
   );
 });
 test('unbound objective targets do not recommend against different native result meanings', () => {

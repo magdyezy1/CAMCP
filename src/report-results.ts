@@ -1,4 +1,5 @@
 import {parseProviderDecimal, providerMetricRounding} from './provider-decimal.js';
+import {reportScaledText} from './report-math-v4.js';
 
 /** Provider-owned meaning of a result. Shared code never guesses a metric from a platform or objective name. */
 export interface ReportResultDefinition {
@@ -89,13 +90,7 @@ export function selectReportResultDefinition(
     ? {definition: rules.default, unavailable_reason: null}
     : {definition: null, unavailable_reason: 'missing_goal'};
 }
-const places = providerMetricRounding.places,
-  scale = 10n ** BigInt(places);
-const text = (value: bigint) => {
-  const whole = value / scale,
-    fraction = (value % scale).toString().padStart(places, '0').replace(/0+$/, '');
-  return whole.toString() + (fraction ? '.' + fraction : '');
-};
+const scale = 10n ** BigInt(providerMetricRounding.places);
 const unavailable = (value: unknown) =>
   value === undefined || value === null || (typeof value === 'string' && ['', '-', '--'].includes(value.trim()));
 function decimal(value: unknown, field: string, rounding: Record<string, number>, divisor = 1): bigint | null {
@@ -140,8 +135,8 @@ export function resolveReportResult(
     result: {
       metric: definition.metric,
       label: definition.label,
-      value: value === null ? null : text(value),
-      cost_per_result: selectedCost === null ? null : text(selectedCost),
+      value: value === null ? null : reportScaledText(value),
+      cost_per_result: selectedCost === null ? null : reportScaledText(selectedCost),
       definition_id: definition.id,
     },
     source,
@@ -266,12 +261,15 @@ export function groupReportResults(rows: ReportResultGroupInput[]): ReportResult
       scope,
       result: {
         ...result,
-        value: blocked ? null : text(value),
-        cost_per_result: aggregateCost === null ? null : text(aggregateCost),
+        value: blocked ? null : reportScaledText(value),
+        cost_per_result: aggregateCost === null ? null : reportScaledText(aggregateCost),
       },
       coverage: {known, total},
       cost_coverage: {known_pairs: pairs, total},
-      cost_basis: {spend: pairs ? text(pairedSpend) : null, result: pairs ? text(pairedValue) : null},
+      cost_basis: {
+        spend: pairs ? reportScaledText(pairedSpend) : null,
+        result: pairs ? reportScaledText(pairedValue) : null,
+      },
       cost_source:
         aggregateCost === null ? 'unknown' : nativeCost !== null ? items[0]!.resolved.cost_source : 'derived',
       unavailable_reason: blocked ?? (unverified ? 'unsupported_goal' : null),

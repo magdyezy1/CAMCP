@@ -164,16 +164,19 @@ for (const locale of locales) {
   );
 }
 
-const adSpend = spend => row => (row.ad_id ? {...row, spend} : row);
+// The fixture's campaign spends 0.100000001 a day. The shortfalls below are scaled by a thousand (campaign 100.000001, ad
+// 97.000001...) so they stay far outside what provider rounding explains: since F-L5-25 the cross-level check allows half
+// a cent for each figure compared, and a difference of 0.006 is now agreement. The percentages are unchanged.
+const adSpend = spend => row => ({...row, spend: row.ad_id ? spend : '100.000001'});
 for (const locale of locales) {
   test(
     locale +
       ': levels that add up say so; a shortfall is a cover percentage that is cut, never rounded up to 100 (F-L8-03, F-L10-08)',
     async t => {
       const agree = await snapshot(t),
-        short = await snapshot(t, {rows: adSpend('0.097000001')}),
-        nearly = await snapshot(t, {rows: adSpend('0.0997')}),
-        above = await snapshot(t, {rows: adSpend('0.3')});
+        short = await snapshot(t, {rows: adSpend('97.000001')}),
+        nearly = await snapshot(t, {rows: adSpend('99.7')}),
+        above = await snapshot(t, {rows: adSpend('300')});
       // The server's own verdicts, so the lines below are tied to real data and not to what the page assumes.
       assert.deepEqual(
         agree.report.sources[0].cross_level.map(item => item.state),
@@ -348,8 +351,8 @@ for (const locale of locales)
       ': a total or ratio built from some of its rows says "n of m rows" and why the figures do not divide (F-L8-03)',
     () => {
       const summary = reportSummary([row('1', '10.5', 5), row('2', null, 7), row('3', '20', 9)], [], true);
-      assert.equal(summary[0].metrics_coverage.spend.known, 2);
-      assert.equal(summary[0].metrics_coverage.clicks.known, 3);
+      assert.equal(summary[0].metrics_coverage.spend.known_rows, 2);
+      assert.equal(summary[0].metrics_coverage.clicks.known_rows, 3);
       assert.equal(summary[0].metrics_coverage.cpc.known_pairs, 2);
       const view = page(locale, {
           platforms: [{id: 'linkedin', name: 'LinkedIn', entity_levels: reportSource('linkedin').overview.levels}],
@@ -401,6 +404,127 @@ for (const locale of locales)
       );
     },
   );
+
+// F-L5-31. A count of the provider's own rows (native daily cells) is not a count of the report's rows, so the line says
+// "measurements" for it; a snapshot stored before the coverage shape was unified still reads as it did.
+for (const locale of locales)
+  test(
+    locale +
+      ': a figure counted in native measurements says so, and a snapshot of an earlier build still reads as rows',
+    () => {
+      const view = page(locale, {
+          platforms: [{id: 'linkedin', name: 'LinkedIn', entity_levels: []}],
+          metrics: {
+            spend: {label: 'Spend', format: 'currency'},
+            clicks: {label: 'Clicks', format: 'number'},
+            cpc: {label: 'Cost per click', format: 'currency'},
+          },
+        }),
+        drawn = metrics_coverage => {
+          const [summary] = reportSummary([row('1', '10.5', 5), row('2', null, 7), row('3', '20', 9)], [], true),
+            report = {
+              config: {contract_version: 'overview-config-v4'},
+              summary: [{...summary, metrics_coverage}],
+              sources: [],
+              rows: [],
+            },
+            [card] = cards(view.call('renderReportSummary(report)', {report}));
+          return [...card.matchAll(/<small class="report-coverage">([^<]*)<\/small>/g)].map(match => match[1]);
+        },
+        rows = (known, total) =>
+          view.text('{known} of {count} rows').replace('{known}', String(known)).replace('{count}', String(total)),
+        measurements = (known, total) =>
+          view
+            .text('{known} of {count} measurements')
+            .replace('{known}', String(known))
+            .replace('{count}', String(total));
+      // This build: rows when the basis is the report's rows, measurements when it is the provider's.
+      assert.deepEqual(drawn({spend: {known_rows: 2, total_rows: 3, basis: 'report_rows', report_rows: 3}}), [
+        rows(2, 3),
+      ]);
+      assert.deepEqual(drawn({spend: {known_rows: 20, total_rows: 30, basis: 'native_measurements', report_rows: 3}}), [
+        measurements(20, 30),
+      ]);
+      assert.deepEqual(
+        drawn({
+          spend: {known_rows: 20, total_rows: 30, basis: 'native_measurements', report_rows: 3},
+          cpc: {known_rows: 12, total_rows: 30, basis: 'native_measurements', report_rows: 3, known_pairs: 12},
+        }),
+        [measurements(20, 30), measurements(12, 30)],
+      );
+      // Earlier builds wrote known/total, called every unit a native measurement, and counted rows: read as recorded.
+      assert.deepEqual(
+        drawn({
+          spend: {known: 2, total: 3, basis: 'native_measurements', report_rows: 3},
+          cpc: {known_rows: 2, total: 3, basis: 'native_measurements', report_rows: 3, known_pairs: 2},
+        }),
+        [rows(2, 3), rows(2, 3)],
+      );
+      assert.deepEqual(drawn({spend: {known: 3, total: 3, basis: 'native_measurements', report_rows: 3}}), []);
+    },
+  );
+
+// The two reasons this build's server can give that the page did not word: a level that failed (F-L5-10) and a figure
+// past the calculation limits (F-L9-01). Without a case each fell to a default: the code with its underscores replaced
+// in a pair's line, and nothing at all under a figure, in both languages.
+for (const locale of locales)
+  test(locale + ': a pair whose level failed, and a figure past the calculation limits, say why in words', () => {
+    const view = page(locale, {
+        platforms: [{id: 'meta', name: 'Meta', entity_levels: reportSource('meta').overview.levels}],
+        metrics: {spend: {label: 'Spend', format: 'currency'}, cpc: {label: 'Cost per click', format: 'currency'}},
+      }),
+      failed = {
+        metric: 'spend',
+        currency: 'USD',
+        timezone: 'UTC',
+        baseline: {level: 'campaign', value: '10'},
+        comparison: {level: 'ad', value: null},
+        state: 'unavailable',
+        delta: null,
+        coverage_percent: null,
+        unavailable_reason: 'level_failed',
+        failed_levels: [{level: 'ad', code: 'REPORT_SHAPE_CHANGED'}],
+      };
+    assert.deepEqual(
+      levelCheck(view, {sources: [{source: {platform: 'meta', account_id: '100'}, cross_level: [failed]}]}),
+      [
+        view
+          .text('{metrics} cannot be compared between {baseline} and {comparison} rows: {reason}.')
+          .replace('{metrics}', view.text('Spend'))
+          .replace('{baseline}', view.text('Campaign'))
+          .replace('{comparison}', view.text('Ad'))
+          .replace('{reason}', view.text('a level could not be collected')),
+      ],
+    );
+    assert.notEqual(view.text('a level could not be collected'), 'level failed');
+    // A figure that went past a calculation limit is unavailable, with the note that says why.
+    const [summary] = reportSummary([row('1', '10.5', 5), row('2', '20', 9)], [], true),
+      limited = {
+        ...summary,
+        metrics: {...summary.metrics, cpc: null},
+        metrics_coverage: {
+          ...summary.metrics_coverage,
+          cpc: {
+            known_rows: 2,
+            total_rows: 2,
+            basis: 'report_rows',
+            report_rows: 2,
+            known_pairs: 2,
+            unavailable_reason: 'calculation_limit',
+          },
+        },
+      },
+      report = {config: {contract_version: 'overview-config-v4'}, summary: [limited], sources: [], rows: []},
+      [card] = cards(view.call('renderReportSummary(report)', {report}));
+    assert.ok(
+      plainText(card).includes(
+        view
+          .text('{metrics} are not calculated: they exceed what one report may calculate.')
+          .replace('{metrics}', 'CPC'),
+      ),
+      plainText(card),
+    );
+  });
 
 test('a single row of a partly known metric reads "0 of 1 row", and complete figures print no coverage', () => {
   const view = page('en', {
