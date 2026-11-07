@@ -401,7 +401,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
-  assert.equal(Object.keys(catalog).length, 12004);
+  // V2-WEB-03 (web-shell): +15 entries, the page subtitles the route registry now carries (the group names Home, Reports, Creatives, Campaigns, Connections, Operations and Settings were already translated).
+  assert.equal(Object.keys(catalog).length, 12019);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

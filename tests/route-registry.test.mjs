@@ -9,16 +9,57 @@ import fs from 'node:fs';
 import {Script, createContext} from 'node:vm';
 import {
   checkRoutes,
+  loadRouteGlyphs,
+  loadRouteGroups,
   loadRouteRegistry,
-  navigationLinks,
   pageAssetPaths,
   routeProblems,
   servedPages,
 } from '../tools/check-routes.mjs';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
-  index = fs.readFileSync('web/index.html', 'utf8'),
-  links = navigationLinks(index);
+  index = fs.readFileSync('web/index.html', 'utf8');
+
+// V2-WEB-03: the sidebar's links are built from the registry in the browser (web/identity.js), so the tests read the
+// markup the shell builds: the real builder, run against the real registry. A group of several pages is a disclosure.
+const decode = value =>
+  value
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&');
+function navigationMarkup() {
+  const context = createContext({
+      Intl,
+      Map,
+      Set,
+      document: {addEventListener() {}},
+      catalog,
+      session: {authenticated: true},
+    }),
+    run = source => new Script(source).runInContext(context),
+    identity = fs.readFileSync('web/identity.js', 'utf8');
+  run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
+  // The glyphs and the navigation builder: everything before the first helper that touches the page.
+  run(identity.slice(0, identity.indexOf('/** A public file')));
+  return String(run('shellNavigationMarkup()'));
+}
+/** The navigation links in order, with the disclosure group each one sits in (null for a plain link). */
+function parseNavigation(markup) {
+  const links = [];
+  let group = null;
+  for (const m of markup.matchAll(
+    /<summary[^>]*>([^<]*)<\/summary>|<\/details>|<a href="([^"]*)" data-route="([^"]*)"[^>]*>[\s\S]*?<span data-ui-text="([^"]*)">([^<]*)<\/span><\/a>/g,
+  )) {
+    if (m[1] !== undefined) group = decode(m[1]);
+    else if (m[0] === '</details>') group = null;
+    else links.push({href: m[2], route: m[3], label: decode(m[4]), text: decode(m[5]), group});
+  }
+  return links;
+}
+const links = parseNavigation(navigationMarkup());
 
 function shell(locale = 'en', session = {authenticated: true}) {
   const context = createContext({Intl, Map, Set, document: {addEventListener() {}}, catalog, session});
@@ -29,21 +70,22 @@ function shell(locale = 'en', session = {authenticated: true}) {
   return {run, context};
 }
 
+// V2-WEB-03: the same 18 destinations, listed group by group (Home, Reports, Creatives, Campaigns, Connections,
+// Operations, Settings) instead of the earlier order, which put every hub before its tools.
 test('the navigation has the 18 destinations the review measured', () => {
   assert.equal(links.length, 18);
   assert.deepEqual(
     links.map(link => link.label),
     [
       'Home',
+      'Reporting',
+      'Report builder',
+      'Schedules',
+      'Evidence & analysis',
+      'Creative',
       'Campaigns',
       'Live portfolio',
       'Commerce',
-      'Creative',
-      'Reporting',
-      'Report builder',
-      'Evidence & analysis',
-      'Schedules',
-      'Clients & templates',
       'Connections',
       'Measurement',
       'AI connectors',
@@ -52,7 +94,17 @@ test('the navigation has the 18 destinations the review measured', () => {
       'Monitoring inbox',
       'Audit activity',
       'Workspace settings',
+      'Clients & templates',
     ],
+  );
+  // Home and Creative stand alone; every other group opens as a disclosure named for the group.
+  assert.deepEqual(
+    links.filter(link => link.group === null).map(link => link.label),
+    ['Home', 'Creative'],
+  );
+  assert.deepEqual(
+    [...new Set(links.filter(link => link.group !== null).map(link => link.group))],
+    ['Reports', 'Campaigns', 'Connections', 'Operations', 'Settings'],
   );
 });
 
@@ -129,19 +181,74 @@ test('the registry, navigation, page assets and server shell pages agree', () =>
   assert.equal(served.at(-1), '/help');
 });
 
-test('drift between the registry and its static consumers fails check-web', () => {
-  const base = {
-    registry: loadRouteRegistry(),
-    index,
-    server: servedPages(),
-    assets: pageAssetPaths(),
-  };
-  const renamed = base.index.replace(
-    '<span data-ui-text="Creative">Creative</span>',
-    '<span data-ui-text="Media library">Media library</span>',
+test('drift between the registry and its consumers fails check-web', () => {
+  const copy = () => JSON.parse(JSON.stringify(loadRouteRegistry())),
+    base = {
+      registry: copy(),
+      index,
+      server: servedPages(),
+      assets: pageAssetPaths(),
+      groups: loadRouteGroups(),
+      glyphs: loadRouteGlyphs(),
+    };
+  assert.deepEqual(routeProblems(base), []);
+  // The navigation is built from the registry, so index.html keeps only its hook: a hand-written link is drift.
+  const handWritten = base.index.replace(
+    '<nav aria-label="Main navigation" data-ui-label="Main navigation">',
+    '<nav aria-label="Main navigation" data-ui-label="Main navigation"><a href="/media" data-route="media">Media</a>',
   );
-  assert.notEqual(renamed, base.index);
-  assert.match(routeProblems({...base, index: renamed}).join('\n'), /\/media is labelled "Media library"/);
+  assert.notEqual(handWritten, base.index);
+  assert.match(routeProblems({...base, index: handWritten}).join('\n'), /main navigation holds links/);
+  assert.match(
+    routeProblems({...base, index: base.index.replace('data-ui-label="Main navigation"', 'data-ui-label="Menu"')}).join(
+      '\n',
+    ),
+    /navigation hook is missing/,
+  );
+  // The registry's own rules: a group, a glyph, a subtitle, a hub and a parent for every page of the navigation.
+  const changed = edit => {
+    const registry = copy();
+    edit(registry);
+    return routeProblems({...base, registry}).join('\n');
+  };
+  assert.match(
+    changed(registry => (registry.find(entry => entry.path === '/media').group = 'Media')),
+    /\/media is in "Media", not one of the navigation groups/,
+  );
+  assert.match(
+    changed(registry => (registry.find(entry => entry.path === '/commerce').icon = 'portfolio')),
+    /more than one link has the icon portfolio/,
+  );
+  assert.match(
+    changed(registry => (registry.find(entry => entry.path === '/commerce').icon = 'no-such-glyph')),
+    /\/commerce needs an icon that web\/identity.js draws/,
+  );
+  assert.match(
+    changed(registry => delete registry.find(entry => entry.path === '/schedules').subtitle),
+    /\/schedules has no subtitle/,
+  );
+  assert.match(
+    changed(registry => (registry.find(entry => entry.path === '/portfolio').parent = '/commerce')),
+    /\/portfolio should name its hub \/campaigns as its parent/,
+  );
+  assert.match(
+    changed(registry => (registry.find(entry => entry.path === '/campaigns').parent = '/dashboard')),
+    /\/campaigns is the hub of Campaigns and has no parent/,
+  );
+  assert.match(
+    changed(registry => (registry.find(entry => entry.path === '/account').icon = 'help')),
+    /more than one link has the icon help/,
+  );
+  assert.match(
+    routeProblems({...base, glyphs: {...base.glyphs, account: base.glyphs.help}}).join('\n'),
+    /two icon names draw the same glyph/,
+  );
+  assert.match(
+    changed(registry =>
+      registry.push({path: '/orphan', label: 'Orphan', parent: '/nowhere', subtitle: 'An orphan page.'}),
+    ),
+    /\/orphan names an unregistered parent \/nowhere/,
+  );
   assert.match(
     routeProblems({...base, server: base.server.filter(path => path !== '/schedules')}).join('\n'),
     /does not serve registered page \/schedules/,
@@ -151,14 +258,6 @@ test('drift between the registry and its static consumers fails check-web', () =
     /serves \/new-page, which web\/routes\.js does not register/,
   );
   assert.match(routeProblems({...base, assets: [...base.assets, '/unregistered']}).join('\n'), /unregistered page/);
-  const moved = base.index.replace(
-    '<a href="/commerce" data-route="commerce" data-icon="campaign"><span>◈</span><span data-ui-text="Commerce">Commerce</span></a></details>',
-    '</details><a href="/commerce" data-route="commerce" data-icon="campaign"><span>◈</span><span data-ui-text="Commerce">Commerce</span></a>',
-  );
-  assert.notEqual(moved, base.index);
-  assert.match(routeProblems({...base, index: moved}).join('\n'), /\/commerce sits in group "null"/);
-  const missing = base.index.replace(/<a href="\/schedules"[\s\S]*?<\/a>/, '');
-  assert.match(routeProblems({...base, index: missing}).join('\n'), /\/schedules has no navigation link/);
 });
 
 // DOC-03 (owner instruction of 2026-10-24): the members-only Help page has no sidebar link; the palette finds it by its

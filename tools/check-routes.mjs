@@ -4,8 +4,10 @@ import {fileURLToPath} from 'node:url';
 import {Script, createContext} from 'node:vm';
 
 // WEB-06: the website names, routes and serves every page from one registry (web/routes.js). These checks fail when a
-// consumer that cannot read the registry at run time drifts from it: the static navigation in index.html (href,
-// data-route, label and group, in order), the lazily loaded page assets and the server's list of shell pages.
+// consumer that cannot read the registry at run time drifts from it: the lazily loaded page assets and the server's list
+// of shell pages. V2-WEB-03: the sidebar is built from the registry in the browser (web/identity.js), so index.html holds
+// only its hook, and the registry's own rules are checked here: the seven groups, a group, a glyph and a subtitle for
+// every page of the navigation, the user menu's links with their glyphs, parents that exist.
 
 /** The registry as the browser evaluates it. */
 export function loadRouteRegistry(root = process.cwd()) {
@@ -15,26 +17,31 @@ export function loadRouteRegistry(root = process.cwd()) {
   ).runInContext(context);
   return context.__routes;
 }
-const decode = value =>
-  value
-    .replaceAll('&quot;', '"')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&amp;', '&');
-/** The main navigation links in index.html, in order, with the disclosure group each one sits in. */
-export function navigationLinks(index) {
-  const nav = /<nav aria-label="Main navigation"[^>]*>([\s\S]*?)<\/nav>/.exec(index)?.[1] ?? '';
-  const links = [];
-  let group = null;
-  for (const m of nav.matchAll(
-    /<summary[^>]*>([^<]*)<\/summary>|<\/details>|<a href="([^"]*)" data-route="([^"]*)"[^>]*>[\s\S]*?<span data-ui-text="([^"]*)">([^<]*)<\/span><\/a>/g,
-  )) {
-    if (m[1] !== undefined) group = decode(m[1]);
-    else if (m[0] === '</details>') group = null;
-    else links.push({href: m[2], route: m[3], label: decode(m[4]), text: decode(m[5]), group});
-  }
-  return links;
+/** The navigation's groups in the order the shell shows them (V2-WEB-03), as the browser evaluates them. */
+export function loadRouteGroups(root = process.cwd()) {
+  const context = createContext({});
+  new Script(
+    fs.readFileSync(path.join(root, 'web/routes.js'), 'utf8') +
+      "\n;globalThis.__groups = typeof routeGroups === 'undefined' ? [] : routeGroups;",
+  ).runInContext(context);
+  return [...context.__groups];
+}
+/** The glyphs web/identity.js draws, by name: {name: path data}. The registry's icons name entries of this object. */
+export function loadRouteGlyphs(root = process.cwd()) {
+  const source = fs.readFileSync(path.join(root, 'web/identity.js'), 'utf8'),
+    literal = /^const glyphPaths = (\{[\s\S]*?^\});$/m.exec(source)?.[1];
+  if (!literal) return {};
+  const context = createContext({});
+  new Script('globalThis.__glyphs = ' + literal).runInContext(context);
+  return {...context.__glyphs};
+}
+/**
+ * The navigation hook in index.html: the element the sidebar's links are built into. It has no links of its own, so the
+ * navigation cannot drift from the registry; null when the hook is missing.
+ */
+export function navigationHook(index) {
+  const match = /<nav aria-label="Main navigation" data-ui-label="Main navigation">([\s\S]*?)<\/nav>/.exec(index);
+  return match ? match[1] : null;
 }
 /**
  * The website route module that answers the shell pages with index.html (ARC-04 stage D: createWebsite registers it
@@ -116,7 +123,7 @@ export function pageAssetProblems(plan, exists = () => true) {
   for (const file of plan.order) if (!exists(file)) problems.push('web/route-assets.js: ' + file + ' does not ship');
   return problems;
 }
-export function routeProblems({registry, index, server, assets}) {
+export function routeProblems({registry, index, server, assets, groups = [], glyphs = {}}) {
   const problems = [],
     paths = registry.map(entry => entry.path);
   if (new Set(paths).size !== paths.length) problems.push('web/routes.js: a path is registered twice');
@@ -124,33 +131,48 @@ export function routeProblems({registry, index, server, assets}) {
     if (!entry.label) problems.push('web/routes.js: ' + entry.path + ' has no label');
     if (entry.parent && !paths.includes(entry.parent))
       problems.push('web/routes.js: ' + entry.path + ' names an unregistered parent ' + entry.parent);
+    if (entry.parent === entry.path) problems.push('web/routes.js: ' + entry.path + ' is its own parent');
     if (entry.palette && !entry.description)
       problems.push('web/routes.js: ' + entry.path + ' needs a palette description');
+    if (entry.nav && !groups.includes(entry.group))
+      problems.push('web/routes.js: ' + entry.path + ' is in "' + entry.group + '", not one of the navigation groups');
+    if (!entry.nav && entry.group !== undefined && !groups.includes(entry.group))
+      problems.push('web/routes.js: ' + entry.path + ' names a group that is not one of the navigation groups');
+    if (entry.nav || entry.menu === 'user') {
+      if (typeof entry.icon !== 'string' || !Object.hasOwn(glyphs, entry.icon))
+        problems.push(
+          'web/routes.js: ' + entry.path + ' needs an icon that web/identity.js draws (found ' + entry.icon + ')',
+        );
+    } else if (entry.icon !== undefined)
+      problems.push('web/routes.js: ' + entry.path + ' is in no navigation or menu and needs no icon');
+    if (!entry.public && entry.path !== '/auth/complete' && !entry.subtitle)
+      problems.push('web/routes.js: ' + entry.path + ' has no subtitle');
   }
-  const links = navigationLinks(index),
-    expected = registry.filter(entry => entry.nav);
-  for (const link of links) {
-    const entry = registry.find(e => e.path === link.href);
-    if (link.href !== '/' + link.route)
-      problems.push('index.html: navigation link ' + link.href + ' has data-route "' + link.route + '"');
-    if (!entry?.nav) {
-      problems.push('index.html: navigation link ' + link.href + ' is not a navigation page in web/routes.js');
-      continue;
-    }
-    if (link.label !== entry.label || link.text !== entry.label)
-      problems.push(
-        'index.html: navigation link ' + link.href + ' is labelled "' + link.text + '", not "' + entry.label + '"',
-      );
-    if ((link.group ?? null) !== (entry.group ?? null))
-      problems.push(
-        'index.html: navigation link ' + link.href + ' sits in group "' + link.group + '", not "' + entry.group + '"',
-      );
+  const linked = registry.filter(entry => entry.nav || entry.menu === 'user'),
+    icons = linked.map(entry => entry.icon).filter(icon => typeof icon === 'string');
+  for (const icon of new Set(icons.filter((icon, i) => icons.indexOf(icon) !== i)))
+    problems.push('web/routes.js: more than one link has the icon ' + icon);
+  const drawn = icons.map(icon => glyphs[icon]).filter(Boolean);
+  if (new Set(drawn).size !== drawn.length) problems.push('web/identity.js: two icon names draw the same glyph');
+  // Pages are listed group by group, and a group's first page is the hub every other page of it names as its parent.
+  const navigation = registry.filter(entry => entry.nav),
+    order = [...new Set(navigation.map(entry => entry.group))];
+  if (order.join() !== groups.filter(group => order.includes(group)).join())
+    problems.push('web/routes.js: the pages are not listed in the order of the navigation groups');
+  for (const group of groups) {
+    const members = navigation.filter(entry => entry.group === group);
+    if (!members.length) problems.push('web/routes.js: the navigation group ' + group + ' has no page');
+    members.forEach((entry, position) => {
+      if (position === 0 && entry.parent !== undefined)
+        problems.push('web/routes.js: ' + entry.path + ' is the hub of ' + group + ' and has no parent');
+      if (position > 0 && entry.parent !== members[0].path)
+        problems.push('web/routes.js: ' + entry.path + ' should name its hub ' + members[0].path + ' as its parent');
+    });
   }
-  for (const entry of expected)
-    if (!links.some(link => link.href === entry.path))
-      problems.push('index.html: navigation page ' + entry.path + ' has no navigation link');
-  if (links.map(link => link.href).join() !== expected.map(entry => entry.path).join())
-    problems.push('index.html: navigation order differs from web/routes.js');
+  const hook = navigationHook(index);
+  if (hook === null) problems.push('index.html: the main navigation hook is missing');
+  else if (/<a\b/.test(hook))
+    problems.push('index.html: the main navigation holds links; web/identity.js builds them from web/routes.js');
   if (!server) problems.push(serverShellSource + ' or ' + serverHelpSource + ': the list of shell pages was not found');
   else {
     for (const route of server)
@@ -172,6 +194,8 @@ export function checkRoutes(root = process.cwd()) {
       index: fs.readFileSync(path.join(root, 'web/index.html'), 'utf8'),
       server: servedPages(root),
       assets: Object.keys(plan.routes),
+      groups: loadRouteGroups(root),
+      glyphs: loadRouteGlyphs(root),
     }),
     ...pageAssetProblems(plan, file => fs.existsSync(path.join(root, 'web', file))),
   ];

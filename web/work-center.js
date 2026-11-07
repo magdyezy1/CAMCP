@@ -73,11 +73,7 @@ function workHome(d, accounts, attention) {
   return (
     header(
       uiText('Home'),
-      esc(
-        session.name
-          ? uiText('Welcome back, {name}. Continue your work or start a new task.', {name: session.name.split(' ')[0]})
-          : uiText('Welcome back. Continue your work or start a new task.'),
-      ),
+      esc(uiText(routeSubtitle('/dashboard'))),
       // One primary action (WEB-06, design review 2026-10): a plan needs a connected account, so until one is
       // connected the emphasized action is Set up connections below.
       `<a class="button${accounts.length ? ' primary' : ''}" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a>`,

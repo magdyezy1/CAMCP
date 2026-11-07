@@ -54,8 +54,6 @@
   "The most recent work that needs attention. Operations reads a bounded number of records per page and lists the rest.": "أحدث الأعمال التي تحتاج إلى متابعة. تقرأ صفحة العمليات عددًا محدودًا من السجلات في كل صفحة وتعرض الباقي.",
   "This schedule is no longer available.": "هذا الجدول لم يعد متاحًا.",
   "View operating controls": "عرض ضوابط التشغيل",
-  "Welcome back, {name}. Continue your work or start a new task.": "مرحبًا بعودتك، {name}. تابع عملك أو ابدأ مهمة جديدة.",
-  "Welcome back. Continue your work or start a new task.": "مرحبًا بعودتك. تابع عملك أو ابدأ مهمة جديدة.",
   "Work": "عمل",
   "Workbook report": "تقرير مصنف",
   "Workbook schedule": "جدول تقارير المصنف",

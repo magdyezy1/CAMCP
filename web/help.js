@@ -39,7 +39,7 @@ function helpReloadedRecently() {
 }
 async function renderHelp() {
   if (!session.authenticated) return showLogin();
-  const heading = html`<div class="page-heading"><div><h1>${uiText('Help')}</h1><p>${uiText('The owner guide: what AMCP does for you and what stays with you, task by task.')}</p></div></div>`,
+  const heading = html`<div class="page-heading"><div><h1>${uiText('Help')}</h1><p>${uiText(routeSubtitle('/help'))}</p></div></div>`,
     guide = helpGuideElement();
   if (!guide || guide.hasAttribute('data-help-unavailable')) {
     // This page was opened from another page, or before signing in: the server sends the guide with /help itself.

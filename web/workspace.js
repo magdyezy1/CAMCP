@@ -274,10 +274,7 @@ function workspaceBind(selector, fn, options = {}) {
 
 async function renderWorkspacePage() {
   const page = route();
-  content.innerHTML = header(
-    uiText(routeLabel('/' + page)),
-    uiText('Plan, review and verify work across your selected accounts.'),
-  );
+  content.innerHTML = header(uiText(routeLabel('/' + page)), uiText(routeSubtitle('/' + page)));
   if (!session.authenticated) {
     content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;

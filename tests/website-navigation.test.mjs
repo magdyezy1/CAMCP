@@ -805,6 +805,13 @@ test('each page shows its navigation name as tab title, breadcrumb and heading',
     assert.equal(f.context.document.title, label + ' · AMCP', path);
     assert.equal(f.node('#breadcrumb').textContent, label, path);
     assert.match(f.node('#content').innerHTML, new RegExp('<h1>' + label + '</h1>'), path);
+    // V2-WEB-03: and the sentence under it, from the registry (design review S8).
+    const subtitle = f.run('routeSubtitle(' + JSON.stringify(path) + ')');
+    assert.ok(subtitle.length > 20, path + ' has a registry subtitle');
+    assert.ok(
+      f.node('#content').innerHTML.includes('<h1>' + label + '</h1><p>' + subtitle + '</p>'),
+      path + ' says its registry subtitle',
+    );
   }
   // A child page names its parent first.
   f.run('session = nextIdentity');

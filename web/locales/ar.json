@@ -12002,5 +12002,20 @@
   "Done": "تم",
   "The old badge classes and the badge each becomes": "فئات الشارات القديمة والشارة التي تحل محل كل منها",
   "Needs review": "بحاجة إلى مراجعة",
-  "Offline": "غير متصل"
+  "Offline": "غير متصل",
+  "Saved reports, templates and the snapshots kept for each client.": "التقارير المحفوظة والقوالب واللقطات المحفوظة لكل عميل.",
+  "When each report is delivered, which dates it covers and how a missed delivery recovers.": "موعد تسليم كل تقرير، والتواريخ التي يغطيها، وكيفية استدراك أي تسليم فائت.",
+  "The evidence behind each number, with its totals and the recommendations it supports.": "الأدلة وراء كل رقم، مع إجمالياته والتوصيات التي تدعمها.",
+  "Bring creative in from Drive, preview it for each placement and reuse it.": "استورد المواد الإعلانية من Drive، وعاينها لكل موضع، وأعد استخدامها.",
+  "Plan campaigns, check what each one depends on and review every change before it runs.": "خطّط للحملات، وتحقّق مما تعتمد عليه كل حملة، وراجع كل تغيير قبل تنفيذه.",
+  "Browse the campaigns, ad groups, ad sets and ads that are running in your accounts.": "تصفّح الحملات والمجموعات الإعلانية والإعلانات الجارية في حساباتك.",
+  "Import product catalogs and review each item before it is sent.": "استورد كتالوجات المنتجات وراجع كل عنصر قبل إرساله.",
+  "Tag Manager audits and the evidence behind your conversion tracking.": "فحوص Tag Manager والأدلة وراء تتبّع التحويلات لديك.",
+  "What AMCP can do on each account, and which of it has been verified.": "ما تستطيع AMCP فعله في كل حساب، وما جرى التحقق منه.",
+  "Your account, your connected platforms and how this deployment is set up.": "حسابك والمنصات المرتبطة وكيفية إعداد هذا النشر.",
+  "Client profiles with their naming, tracking and reusable templates.": "ملفات العملاء مع تسميتها وتتبّعها وقوالبها القابلة لإعادة الاستخدام.",
+  "A retained snapshot, ready to review, print or download.": "لقطة محفوظة جاهزة للمراجعة أو الطباعة أو التنزيل.",
+  "Every shared component in every state, in both languages and both themes.": "كل مكوّن مشترك في كل حالاته، باللغتين وبالمظهرين.",
+  "Review what an AI client is asking to reach before you allow it.": "راجع ما يطلب عميل الذكاء الاصطناعي الوصول إليه قبل أن تسمح به.",
+  "How your platform connection finished, and what to do next.": "كيف انتهى ربط منصتك، وما عليك فعله بعد ذلك."
 }
