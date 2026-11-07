@@ -80,8 +80,8 @@ independently of the loaded token sheets.
 
 Text pairs meet 4.5:1 in both themes, including on-violet on violet. Strong rules and the first two data series meet
 3:1 against paper. Data-3 has about 2.77:1 in light mode: use direct labels and another distinguishing cue; never rely
-on that colour alone. Peach is a marker, with an icon or text beside it. The approved mark and its three brand colours
-remain unchanged.
+on that colour alone. Peach is a marker, with an icon or text beside it. Logo files are the brand kit's, byte for byte:
+`docs/records/BRAND-KIT-V1-2026-11-07.md`.
 
 Legacy `--ink`, `--muted`, `--line`, `--line-strong` and `--apricot` alias the corresponding V2 token in both themes.
 `--iris-700` aliases violet-text in light, and `--iris` does so in dark. Other legacy values, including `--paper`, retain
