@@ -164,6 +164,11 @@ p {
   font-size: var(--type-md);
   margin: 0;
 }
+/* The skeletons under a page's heading while it loads (pageFrame in app.js). */
+.page-frame {
+  display: grid;
+  gap: 16px;
+}
 .button {
   display: inline-flex;
   align-items: center;

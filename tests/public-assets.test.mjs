@@ -202,7 +202,12 @@ function client(scriptUrl) {
           this.removed = true;
         },
       }),
-      head: {append: script => appended.push(script)},
+      // V2-WEB-03: the shell's own stylesheets load as links, before accessibility.css.
+      head: {
+        append: script => appended.push(script),
+        insertBefore: link => appended.push(link),
+        querySelector: () => null,
+      },
     },
   });
   const run = text => new Script(text).runInContext(context);
@@ -234,10 +239,11 @@ test('real theme and lazy loader bind concurrent modules to the delivered versio
     const first = browser.run("ensurePageAssets('/campaigns')"),
       second = browser.run("ensurePageAssets('/campaigns')");
     await Promise.resolve();
-    assert.equal(browser.appended.length, 2, 'Concurrent callers share original module requests');
+    // The shell's core (three files, V2-WEB-03) and the page's two modules, once for both callers.
+    assert.equal(browser.appended.length, 5, 'Concurrent callers share original module requests');
     for (const script of browser.appended) {
-      assert.ok(script.src.startsWith('/assets/v/' + bundle.version + '/'));
-      assert.equal(script.async, false);
+      assert.ok((script.src ?? script.href).startsWith('/assets/v/' + bundle.version + '/'));
+      if (script.src) assert.equal(script.async, false);
       script.onload();
     }
     await Promise.all([first, second]);
@@ -245,9 +251,10 @@ test('real theme and lazy loader bind concurrent modules to the delivered versio
     const refused = client(scriptUrl),
       pending = refused.run("ensurePageAssets('/campaigns')");
     await Promise.resolve();
+    const failing = refused.appended.find(file => file.src === '/assets/v/' + bundle.version + '/campaign-recipes.js');
     for (const listener of [...refused.listeners.get('error')])
-      listener({filename: 'https://amcp.invalid' + refused.appended[0].src, message: 'PRIVATE-EVALUATION-DETAIL'});
-    refused.appended[1].onload();
+      listener({filename: 'https://amcp.invalid' + failing.src, message: 'PRIVATE-EVALUATION-DETAIL'});
+    for (const file of refused.appended) if (file !== failing) file.onload();
     await assert.rejects(
       pending,
       error => error.code === 'PAGE_ASSET_RELOAD_REQUIRED' && !error.message.includes('PRIVATE-EVALUATION-DETAIL'),

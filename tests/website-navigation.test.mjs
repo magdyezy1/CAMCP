@@ -528,7 +528,9 @@ test('late feature downloads or failures cannot render across a route or identit
       };
       f.updateLocation('/campaigns');
       const pending = f.run('render()');
-      assert.match(f.node('#content').innerHTML, /Loading this page/);
+      // V2-WEB-03: the frame (the page's heading over skeletons) replaced "Loading this page…".
+      assert.match(f.node('#content').innerHTML, /id="route-loading"/);
+      assert.doesNotMatch(f.node('#content').innerHTML, /Loading this page/);
       if (change === 'identity') f.run('resetPrivateState()');
       else await f.run("navigate('/connections')");
       if (change === 'same-route') f.updateLocation('/campaigns');

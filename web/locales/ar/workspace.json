@@ -678,6 +678,7 @@
   "LinkedIn status and intendedStatus disagree.": "لا تتطابق قيمتا status وintendedStatus في LinkedIn.",
   "LinkedIn suppressed audience segments outside its supported range. A reported zero does not establish an empty audience; a large count may be approximate.": "حجبت LinkedIn شرائح الجمهور خارج النطاق المدعوم. لا يثبت العدد صفر أن الجمهور فارغ؛ وقد يكون العدد الكبير تقريبيًا.",
   "LinkedIn upload URL is outside the approved upload host/path.": "يقع عنوان URL للرفع في LinkedIn خارج المضيف أو المسار المعتمد.",
+  "Loading this page…": "جارٍ تحميل هذه الصفحة…",
   "Make yourself": "اجعل هذه",
   "Manage connections ↗": "إدارة الاتصالات ↗",
   "Manage your account ↗": "إدارة حسابك ↗",

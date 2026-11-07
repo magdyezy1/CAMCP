@@ -28,11 +28,14 @@ function tree(registry, order) {
     fs
       .readFileSync('web/route-assets.js', 'utf8')
       // The loader's own order is replaced, not added to: it already names the real V2 sheets, and a sheet listed twice
-      // would be loaded twice.
+      // would be loaded twice. Its shell assets are emptied too (V2-WEB-03: the real loader gives every signed-in page the
+      // V2 core, so a route that loads a component sheet without the token sheet cannot arise there); this test is about
+      // the check, which still names such a route when a loader lets one through.
       .replace(
         /const pageAssetOrder = \[[^\]]*\];/,
         'const pageAssetOrder = [' + order.map(file => JSON.stringify(file)).join(', ') + '];',
-      ),
+      )
+      .replace(/const shellAssets = Object\.freeze\(\[[^\]]*\]\);/, 'const shellAssets = Object.freeze([]);'),
   );
   return {root, write};
 }

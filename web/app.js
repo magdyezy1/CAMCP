@@ -766,6 +766,19 @@ function route() {
 function header(title, description, action = '') {
   return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div>${action}</div>`;
 }
+/**
+ * A page's frame while it loads (V2-WEB-03): its own heading and subtitle, from the registry, over skeletons where its
+ * sections will be, so a route change keeps the shell and the header and fills the page in. The skeleton is the V2
+ * component; before the component script has downloaded (the first page of a visit) the frame says so in words.
+ */
+function pageFrame(path, title) {
+  const subtitle = routeSubtitle(path),
+    heading = html`<div class="page-heading"><div><h1>${title}</h1>${subtitle && html`<p>${uiText(subtitle)}</p>`}</div></div>`;
+  // One status the reader hears once: the blocks after the first are decoration.
+  return typeof AmcpUI === 'object'
+    ? html`${heading}<div class="page-frame" id="route-loading" aria-busy="true"><div>${AmcpUI.skeleton({shape: 'card'})}</div><div aria-hidden="true">${AmcpUI.skeleton({shape: 'text', lines: 4})}</div></div>`
+    : html`${heading}<div class="page-frame" id="route-loading" role="status" aria-busy="true"><p class="muted">${uiText('Opening your workspace…')}</p></div>`;
+}
 function connectionCount(p) {
   return p.connections.length;
 }
@@ -1928,10 +1941,14 @@ async function renderCurrentPage() {
     button.hidden = (button.dataset.shellSession === 'in') !== session.authenticated;
   try {
     // WEB-06: a new page replaces the previous one at once with its heading and a busy placeholder, so the previous
-    // page's controls cannot be used while this one loads its files and data.
+    // page's controls cannot be used while this one loads its files and data. V2-WEB-03: the heading is the registry's
+    // and the placeholder is skeletons where the page's sections will be; the shell around it never changes.
     const pending = pageAssetsPending(pathname);
-    if (pending || (routeChanged && page && !page.public))
-      content.innerHTML = `<div class="page-heading"><div><h1>${esc(uiText(pageTitle))}</h1></div></div><section class="panel" role="status" aria-busy="true" id="route-loading"><p>${esc(uiText('Loading this page…'))}</p></section>`;
+    let framed = false;
+    if (pending || (routeChanged && page && !page.public)) {
+      setHtml(content, pageFrame(pathname, uiText(pageTitle)));
+      framed = typeof AmcpUI === 'object';
+    }
     if (pending) await ensurePageAssets(pathname);
     // The working client (SEC-08): the session lists the choices, and the address keeps ?client= for this page.
     if (session.authenticated && workingClientApplies(location.pathname) && syncWorkingClientLocation())
@@ -1939,6 +1956,9 @@ async function renderCurrentPage() {
     renderWorkingClientControl();
     if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
       return;
+    // The first page of a visit drew its frame before the component script had downloaded: draw it again with skeletons.
+    if (pending && !framed && typeof AmcpUI === 'object' && page && !page.public)
+      setHtml(content, pageFrame(pathname, uiText(pageTitle)));
     if (location.pathname === '/') return await renderLanding();
     if (['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'].includes(location.pathname))
       return await renderAuthPage();

@@ -104,7 +104,7 @@ test('the initial document loads only shared scripts and the fixed route loader'
   }
 });
 
-test('public and connection routes need no feature request; unknown input cannot become an asset URL', async () => {
+test('public routes need no page file; a page with no feature script loads only the shell core; unknown input cannot become an asset URL', async () => {
   const f = fixture();
   for (const route of [
     '/',
@@ -113,14 +113,8 @@ test('public and connection routes need no feature request; unknown input cannot
     '/forgot-password',
     '/reset-password',
     '/verify-email',
-    '/connections',
-    '/activity',
-    '/connectors',
     '/terms',
     '/data-deletion',
-    '/oauth/consent',
-    '/oauth/result',
-    '/auth/complete',
     'https://evil.invalid/a.js',
     '/__proto__',
     '/constructor',
@@ -130,6 +124,23 @@ test('public and connection routes need no feature request; unknown input cannot
     await f.load(route);
   }
   assert.equal(f.appended.length, 0);
+  // V2-WEB-03: the shell draws its frame and states on every signed-in page, so these load the V2 core (the token sheet,
+  // the component sheet and the component script) and no feature file.
+  const signedIn = ['/connections', '/activity', '/connectors', '/oauth/consent', '/oauth/result', '/auth/complete'];
+  for (const route of signedIn) assert.equal(f.pending(route), true, route);
+  const loading = f.load('/connections');
+  await tick();
+  assert.deepEqual(
+    f.appended.map(file => file.src ?? file.href),
+    ['/assets/tokens-v2.css', '/assets/components.css', '/assets/components.js'],
+  );
+  for (const file of f.appended) file.onload();
+  await loading;
+  for (const route of signedIn) {
+    assert.equal(f.pending(route), false, route);
+    await f.load(route);
+  }
+  assert.equal(f.appended.length, 3, 'the core is requested once for every page');
 });
 
 test('concurrent page loads share exact same-origin scripts and revisit without fetching again', async () => {
@@ -138,18 +149,26 @@ test('concurrent page loads share exact same-origin scripts and revisit without 
     second = f.load('/profiles');
   await tick();
   assert.deepEqual(
-    f.appended.map(s => s.src),
-    ['/assets/campaign-recipes.js', '/assets/campaign-workflows.js', '/assets/client-playbooks.js'],
+    f.appended.map(s => s.src ?? s.href),
+    [
+      // V2-WEB-03: the shell's core, once for both pages.
+      '/assets/tokens-v2.css',
+      '/assets/components.css',
+      '/assets/components.js',
+      '/assets/campaign-recipes.js',
+      '/assets/campaign-workflows.js',
+      '/assets/client-playbooks.js',
+    ],
   );
   for (const script of f.appended) {
-    assert.equal(script.async, false);
+    if (script.src) assert.equal(script.async, false);
     script.onload();
   }
   await Promise.all([first, second]);
   assert.equal(f.pending('/campaigns'), false);
   assert.equal(f.pending('/profiles'), false);
   await f.load('/profiles');
-  assert.equal(f.appended.length, 3);
+  assert.equal(f.appended.length, 6);
   assert.equal(f.timers.size, 0);
   assert.equal(f.listeners.get('error')?.size ?? 0, 0);
 });
@@ -162,25 +181,31 @@ test('failed downloads are retryable and settings parts no longer wait for each 
     first = f.load('/settings');
   const rejected = assert.rejects(first, e => e.code === 'PAGE_ASSET_UNAVAILABLE');
   await tick();
-  assert.deepEqual(
-    f.appended.map(s => s.src),
-    ['/assets/owner-operations.js', '/assets/account-approvals.js'],
-  );
-  f.appended[0].onerror();
+  const address = file => file.src ?? file.href,
+    requested = [
+      // V2-WEB-03: the shell's core comes first, then the page's two files, together.
+      '/assets/tokens-v2.css',
+      '/assets/components.css',
+      '/assets/components.js',
+      '/assets/owner-operations.js',
+      '/assets/account-approvals.js',
+    ];
+  assert.deepEqual(f.appended.map(address), requested);
+  const owner = f.appended[3];
+  owner.onerror();
   await rejected;
-  assert.equal(f.appended[0].removed, true);
+  assert.equal(owner.removed, true);
   const retry = f.load('/settings');
   await tick();
   assert.deepEqual(
-    f.appended.map(s => s.src),
-    ['/assets/owner-operations.js', '/assets/account-approvals.js', '/assets/owner-operations.js'],
+    f.appended.map(address),
+    [...requested, '/assets/owner-operations.js'],
     'Only the failed file is requested again',
   );
-  f.appended[1].onload();
-  f.appended[2].onload();
+  for (const file of f.appended) if (file !== owner) file.onload();
   await retry;
   await f.load('/settings');
-  assert.equal(f.appended.length, 3);
+  assert.equal(f.appended.length, 6);
   assert.equal(f.timers.size, 0);
 });
 
@@ -283,7 +308,9 @@ test('every route dependency is local, shipped, and initialized once, including 
 // helper, and the parked store source is a module of its own behind the Commerce page.
 test('each account workflow page loads only its own module, the shared helper and what it uses', () => {
   const f = fixture(),
-    files = path => Array.from(f.run(`pageAssetsFor(${JSON.stringify(path)})`));
+    // V2-WEB-03: every signed-in page loads the shell's core first; what is compared here is the page's own files.
+    core = ['tokens-v2.css', 'components.css', 'components.js'],
+    files = path => Array.from(f.run(`pageAssetsFor(${JSON.stringify(path)})`)).filter(file => !core.includes(file));
   assert.deepEqual(files('/portfolio'), ['account-workflows.js', 'portfolio.js']);
   assert.deepEqual(files('/commerce'), ['account-workflows.js', 'commerce-woocommerce.js', 'commerce.js']);
   assert.deepEqual(files('/measurement'), [
@@ -484,7 +511,8 @@ test('each cold route initializes its real scripts and required handlers in Engl
         for (const script of f.appended)
           if (!finished.has(script)) {
             finished.add(script);
-            f.run(fs.readFileSync('web/' + script.src.slice(8), 'utf8'));
+            // A stylesheet is a link (it has an href): it only has to load.
+            if (script.src) f.run(fs.readFileSync('web/' + script.src.slice(8), 'utf8'));
             script.onload();
           }
       }

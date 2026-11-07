@@ -3,6 +3,7 @@
 const pageAssetOrder = [
   'tokens-v2.css',
   'components.css',
+  'components.js',
   'components-controls.css',
   'components-data.css',
   'components-overlays.css',
@@ -42,12 +43,15 @@ const pageAssetOrder = [
   'owner-operations.js',
   'account-approvals.js',
   'help.js',
-  'components.js',
   'components-controls.js',
   'components-table.js',
   'components-overlays.js',
   'design-system.js',
 ];
+// V2-WEB-03: what the shell draws on every signed-in page (the skeleton, the empty and error states): the token sheet, the
+// component sheet and the component script, first in the order so the skeleton can be drawn early. They are the V2 core and
+// nothing more of the layer: a page lists the rest (controls, table, overlays) itself, and the public pages load none.
+const shellAssets = Object.freeze(['tokens-v2.css', 'components.css', 'components.js']);
 const pageAssetDependencies = {
   'creative-library.js': ['work-pages.js'],
   'client-playbooks.js': ['campaign-recipes.js', 'campaign-workflows.js'],
@@ -121,6 +125,9 @@ function pageAssetsFor(pathname) {
     wanted.add(file);
     for (const dependency of pageAssetDependencies[file] ?? []) include(dependency);
   };
+  // A page the registry lists, for signed-in people: the shell draws its frame and states there.
+  const registered = routeRegistry.find(entry => entry.path === pathname);
+  if (registered && !registered.public) for (const file of shellAssets) include(file);
   for (const file of Object.hasOwn(pageAssetRoutes, pathname) ? pageAssetRoutes[pathname] : []) include(file);
   return pageAssetOrder.filter(file => wanted.has(file));
 }
