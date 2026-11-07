@@ -193,6 +193,40 @@ test('TikTok uses native result and cost, never a campaign dash or legacy conver
   );
 });
 
+test('TikTok REACH prices a derived cost per 1,000 reached, as LinkedIn, Meta, Reddit and X do (package results)', () => {
+  const reach = {optimization_goal: 'REACH', metrics: {result: '2000', spend: '10'}};
+  const derived = result('tiktok', reach);
+  assert.equal(derived.result.value, '2000');
+  assert.equal(derived.definition.cost_multiplier, 1000);
+  assert.equal(derived.result.cost_per_result, '5');
+  assert.equal(derived.cost_source, 'derived');
+  // The same inputs give the same price on every platform that declares the per-thousand unit.
+  assert.equal(result('meta', {optimization_goal: 'REACH', reach: '2000', spend: '10'}).result.cost_per_result, '5');
+  assert.equal(
+    result('x', {objective: 'REACH', native_metrics: {impressions: '2000', billed_charge_local_micro: '10000000'}})
+      .result.cost_per_result,
+    '5',
+  );
+  // TikTok's own cost is preferred whenever it sends one, and stays native.
+  const native = result('tiktok', {...reach, metrics: {...reach.metrics, cost_per_result: '4.8'}});
+  assert.equal(native.result.cost_per_result, '4.8');
+  assert.equal(native.cost_source, 'provider');
+  // Only reach is priced per thousand: a click goal with the same numbers keeps one unit per result.
+  const clicks = result('tiktok', {optimization_goal: 'CLICK', metrics: {result: '2000', spend: '10'}});
+  assert.equal(clicks.definition.cost_multiplier, undefined);
+  assert.equal(clicks.result.cost_per_result, '0.005');
+  // One REACH ad group alone keeps its priced result at the campaign; several are never added.
+  const groups = tiktokCampaignResultGroups([{goal: 'REACH', raw: reach}], {
+    ...context,
+    currency: 'SAR',
+    scope: 'campaign:123:window',
+  });
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].result.value, '2000');
+  assert.equal(groups[0].result.cost_per_result, '5');
+  assert.equal(groups[0].definition.cost_multiplier, 1000);
+});
+
 test('TikTok campaign results combine only the same known goal and event; reach and missing values stay explicit', () => {
   const row = (goal, event, value, spend = '10') => ({goal, event, raw: {metrics: {result: value, spend}}});
   const groups = tiktokCampaignResultGroups(

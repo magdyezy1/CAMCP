@@ -48,6 +48,8 @@ export function tiktokNativeResult(raw: JsonObject, context: ReportResultContext
       native_metric: 'metrics.result',
       aggregation: additive ? 'sum' : 'non_additive',
       unit: 'number',
+      // Reach is priced per 1,000 reached, the unit every other platform declares for it (F-L5-32).
+      ...(goal === 'REACH' ? {cost_multiplier: 1000 as const} : {}),
     },
     {value: metrics.result, spend: verified ? metrics.spend : undefined, cost_per_result: metrics.cost_per_result},
     'provider',
