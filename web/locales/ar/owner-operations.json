@@ -218,7 +218,6 @@
   "Uncertain outcomes": "نتائج غير مؤكدة",
   "Unverified": "غير متحقق منه",
   "Up to {value} ms": "حتى {value} مللي ثانية",
-  "Value": "القيمة",
   "Verification needed": "يلزم التحقق",
   "Verified registration, invitations and password recovery use the durable email queue.": "يستخدم التسجيل مع التحقق والدعوات واستعادة كلمة المرور قائمة انتظار البريد الدائمة.",
   "Verify your sender domain in Resend, then set both server variables.": "تحقّق من نطاق الإرسال في Resend، ثم اضبط متغيرَي الخادم.",

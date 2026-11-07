@@ -225,6 +225,21 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
   };
 }
 
+/**
+ * The coverage of the sum of one additive metric over a group of rows, counted exactly as the summary of that group counts
+ * it: the units are the provider's own measurements where the rows were built from them. The charts use it, so a chart of
+ * a short figure says "26 of 28 rows" in the words of the card beside it (V2-EXP-01), without calculating the whole summary.
+ */
+export function metricSumCoverage(group: JsonObject[], key: string): MetricCoverage {
+  const cells: JsonObject[] = group.flatMap(row =>
+      row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
+    ),
+    basis: MetricCoverage['basis'] = group.some(row => row.native?.exact_rows?.length)
+      ? 'native_measurements'
+      : 'report_rows';
+  return {...sumReportValuesV4(cells.map(cell => cell.metrics?.[key])).coverage, basis, report_rows: group.length};
+}
+
 /** Additive totals of a group of rows; non-additive metrics (reach, frequency, users) stay null. */
 function additiveValues(group: JsonObject[]) {
   const values: JsonObject = {};
@@ -347,7 +362,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
  * carries none. A week with one unknown campaign is then a short point, and not a dip. The units are counted as the
  * summary counts them: a row built from the provider's own measurements counts each of them.
  */
-function seriesCoverage(rows: JsonObject[]): {coverage?: MetricCoverage} {
+export function seriesCoverage(rows: JsonObject[]): {coverage?: MetricCoverage} {
   let known = 0,
     total = 0,
     native = false;

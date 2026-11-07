@@ -184,6 +184,26 @@ export function inspectLocaleSource(source, file = 'script.js') {
   walk(ast);
   return {required, problems};
 }
+/**
+ * V2-EXP-01: every sentence and label AMCP writes into a chart is listed once, in `reportChartMessages`
+ * (src/report-chart-spec.ts). The website says them through its catalogue, so each needs Arabic. Names from a provider
+ * are never in the list.
+ */
+export function inspectChartMessages(source) {
+  const messages = new Set();
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'VariableDeclarator' && node.id?.name === 'reportChartMessages') {
+      const list = node.init?.type === 'TSAsExpression' ? node.init.expression : node.init;
+      for (const element of list?.elements ?? []) if (element?.type === 'StringLiteral') messages.add(element.value);
+    }
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(parsers['babel-ts'].parse(source));
+  return messages;
+}
 // Selected first-party explanatory fields only. Never collect diagnostics, native protocol fields or user context.
 export function inspectReportExplanations(source, file) {
   const ast = parsers['babel-ts'].parse(source),
@@ -1392,6 +1412,8 @@ export function checkWebLocales(root = process.cwd()) {
       explanations.add(message);
       need('server:report-explanations', message);
     }
+  for (const message of inspectChartMessages(fs.readFileSync(path.join(root, 'src/report-chart-spec.ts'), 'utf8')))
+    need('server:report-charts', message);
   const quality = parsers.babel.parse(fs.readFileSync(path.join(directory, 'report-quality.js'), 'utf8'));
   const declaration = quality.program.body
     .flatMap(node => node.declarations ?? [])

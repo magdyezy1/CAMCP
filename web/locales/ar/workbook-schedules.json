@@ -53,7 +53,6 @@
   "This schedule cannot move yet:": "لا يمكن نقل هذا الجدول بعد:",
   "This schedule keeps its results in AMCP and never writes to the saved spreadsheet. To deliver a report to Google Sheets on a schedule, use Reporting overview.": "يحتفظ هذا الجدول بنتائجه في AMCP ولا يكتب أبدًا في جدول البيانات المحفوظ. لتسليم تقرير إلى Google Sheets وفق جدول زمني، استخدم نظرة عامة على التقارير.",
   "Thursday": "الخميس",
-  "Total": "الإجمالي",
   "Tuesday": "الثلاثاء",
   "Undo the move": "تراجع عن النقل",
   "Undo the move to Reporting overview?": "هل تتراجع عن النقل إلى النظرة العامة على التقارير؟",
