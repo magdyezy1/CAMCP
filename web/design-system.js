@@ -16,7 +16,7 @@ const designSystemStates = {
 const designSystemSpecimen = (label, markup) =>
   html`<figure class="amcp-ds-specimen"><figcaption class="amcp-ds-caption">${label}</figcaption>${markup}</figure>`;
 const designSystemSection = (id, title, intro, body) =>
-  html`<section class="amcp-ds-section" id="ds-${id}" aria-labelledby="ds-${id}-title" tabindex="-1"><h2 class="amcp-ds-title" id="ds-${id}-title">${title}</h2><div class="amcp-ds-intro">${intro}</div>${body}</section>`;
+  html`<section class="amcp-ds-section" id="section-${id}" aria-labelledby="section-${id}-title" tabindex="-1"><h2 class="amcp-ds-title" id="section-${id}-title">${title}</h2><div class="amcp-ds-intro">${intro}</div>${body}</section>`;
 
 function designSystemButtons() {
   const variants = [
@@ -68,8 +68,31 @@ function designSystemBadges() {
     uiText(
       'One badge replaces the four of the older pages. A status always has an icon and a word; peach is a marker beside the word.',
     ),
-    html`<div class="amcp-ds-specimens">${tones.map(([tone, name]) => designSystemSpecimen(name(), AmcpUI.badge({label: name(), tone})))}</div>`,
+    html`<div class="amcp-stack"><div class="amcp-ds-specimens">${tones.map(([tone, name]) => designSystemSpecimen(name(), AmcpUI.badge({label: name(), tone})))}</div>${designSystemSpecimen(uiText('The old badge classes and the badge each becomes'), designSystemLegacyBadges())}</div>`,
   );
+}
+
+/** The four old badge components beside the badge that replaces each (AmcpUI.badge.legacy is the map). */
+function designSystemLegacyBadges() {
+  const dot = html`<i></i>`,
+    samples = [
+      ['status online', uiText('Connected'), label => html`<span class="status online">${dot}${label}</span>`],
+      ['status attention', uiText('Needs review'), label => html`<span class="status attention">${dot}${label}</span>`],
+      ['status offline', uiText('Offline'), label => html`<span class="status offline">${dot}${label}</span>`],
+      ['status error', uiText('Failed'), label => html`<span class="status error">${dot}${label}</span>`],
+      ['status', uiText('Draft'), label => html`<span class="status">${dot}${label}</span>`],
+      ['default-badge', uiText('Default'), label => html`<span class="default-badge">${label}</span>`],
+      ['creative-tag', uiText('Image'), label => html`<span class="creative-tag">${label}</span>`],
+      [
+        'measurement-ledger-state',
+        uiText('Observed'),
+        label => html`<span class="measurement-ledger-state">${label}</span>`,
+      ],
+    ];
+  return html`<div class="amcp-ds-legacy">${samples.map(
+    ([name, label, old]) =>
+      html`<div class="amcp-ds-legacy-row">${old(label)}<code dir="ltr">.${name.replace(' ', '.')}</code><span aria-hidden="true">→</span>${AmcpUI.badge({label, tone: AmcpUI.badge.legacy[name]})}<code dir="ltr">${AmcpUI.badge.legacy[name]}</code></div>`,
+  )}</div>`;
 }
 
 function designSystemFields() {
@@ -502,7 +525,7 @@ function designSystemTree() {
     ),
     html`<div class="amcp-stack">${designSystemSpecimen(
       uiText('Platforms, accounts and campaigns'),
-      html`${AmcpUI.tree({id: 'ds-tree', label: uiText('Choose what to report on'), nodes: designSystemScope, checked: ['meta-a1'], expanded: ['meta', 'meta-a']})}<div class="amcp-ds-note" id="ds-tree-summary" role="status"></div>`,
+      html`${AmcpUI.tree({id: 'ds-tree', label: uiText('Choose what to report on'), nodes: designSystemScope, checked: ['meta-a1'], expanded: ['meta', 'meta-a', 'tiktok', 'tiktok-a']})}<div class="amcp-ds-note" id="ds-tree-summary" role="status"></div>`,
     )}</div>`,
   );
 }
@@ -511,8 +534,8 @@ function designSystemTree() {
 function designSystemMount() {
   const host = id => document.getElementById(id + '-root'),
     later = (value, ms) => new Promise(resolve => setTimeout(() => resolve(value), ms)),
-    found = query => AmcpUI.combobox.filter(designSystemCampaigns, query, 20).items;
-  AmcpUI.combobox.mount(host('ds-accounts'), {options: designSystemAccounts, limit: 20});
+    found = query => AmcpUI.combobox.filter(designSystemCampaigns, query, 8).items;
+  AmcpUI.combobox.mount(host('ds-accounts'), {options: designSystemAccounts});
   AmcpUI.combobox.mount(host('ds-campaigns'), {search: query => later(found(query), 400)});
   AmcpUI.combobox.mount(host('ds-loading'), {search: () => new Promise(() => {})}).open();
   let attempts = 0;
@@ -530,7 +553,7 @@ function designSystemMount() {
     tree = AmcpUI.tree.mount(document.getElementById('ds-tree'), {
       nodes: designSystemScope,
       checked: ['meta-a1'],
-      expanded: ['meta', 'meta-a'],
+      expanded: ['meta', 'meta-a', 'tiktok', 'tiktok-a'],
       onChange: say,
     });
   say(tree.checked());
@@ -778,7 +801,7 @@ function renderDesignSystem() {
   ];
   setHtml(
     content,
-    html`<div class="page-heading"><div><h1>${uiText('Design system')}</h1><p>${uiText('Every component in every state. Change the language and the appearance above to review both.')}</p></div></div><div class="amcp-surface amcp-ds" data-amcp="design-system"><div class="amcp-ds-layout"><nav class="amcp-ds-index" aria-label="${uiText('Components')}"><ul>${index.map(([id, name]) => html`<li><a href="#ds-${id}">${name}</a></li>`)}</ul></nav><div class="amcp-ds-body">${sections}</div></div></div>`,
+    html`<div class="page-heading"><div><h1>${uiText('Design system')}</h1><p>${uiText('Every component in every state. Change the language and the appearance above to review both.')}</p></div></div><div class="amcp-surface amcp-ds" data-amcp="design-system"><div class="amcp-ds-layout"><nav class="amcp-ds-index" aria-label="${uiText('Components')}"><ul>${index.map(([id, name]) => html`<li><a href="#section-${id}">${name}</a></li>`)}</ul></nav><div class="amcp-ds-body">${sections}</div></div></div>`,
   );
   AmcpUI.bind(content);
   designSystemMount();

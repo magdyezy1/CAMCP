@@ -11992,5 +11992,8 @@
   "Save": "حفظ",
   "The report could not be saved. Try again.": "تعذّر حفظ التقرير. حاول مرة أخرى.",
   "Campaign details": "تفاصيل الحملة",
-  "Done": "تم"
+  "Done": "تم",
+  "The old badge classes and the badge each becomes": "فئات الشارات القديمة والشارة التي تحل محل كل منها",
+  "Needs review": "بحاجة إلى مراجعة",
+  "Offline": "غير متصل"
 }

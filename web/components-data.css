@@ -4,6 +4,7 @@
 .amcp-table {
   container-type: inline-size;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--v2-space-3);
   min-inline-size: 0;
   color: var(--v2-ink);
@@ -46,20 +47,19 @@
 .amcp-menu > summary::-webkit-details-marker {
   display: none;
 }
+/* The chooser opens in the flow, under its button, so it can never hang outside a narrow window. */
+.amcp-menu[open] {
+  flex-basis: 100%;
+}
 .amcp-menu-panel {
-  position: absolute;
-  inset-inline-end: 0;
-  z-index: var(--v2-z-overlay);
   display: grid;
   gap: var(--v2-space-1);
-  min-inline-size: 12rem;
-  margin-block-start: var(--v2-space-1);
+  margin-block-start: var(--v2-space-2);
   padding: var(--v2-space-3);
-  border: 1px solid var(--v2-rule-strong);
+  border: 1px solid var(--v2-rule);
   border-radius: var(--v2-radius-control);
   background: var(--v2-raised);
   color: var(--v2-ink);
-  box-shadow: var(--v2-shadow-overlay);
 }
 .amcp-table-scroll {
   overflow: auto;
@@ -173,13 +173,18 @@
     position: static;
     grid-column: 1 / -1;
     min-inline-size: 0;
+    border-inline-end: 0;
     background: transparent;
+  }
+  .amcp-table [data-numeric] {
+    text-align: start;
   }
   .amcp-table tbody tr:hover > * {
     background: transparent;
   }
   .amcp-table tbody td {
     display: grid;
+    justify-items: start;
     gap: var(--v2-space-1);
     text-align: start;
   }

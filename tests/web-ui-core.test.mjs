@@ -452,6 +452,16 @@ test('cards: a KPI tile tells zero from missing, a platform card has one action,
   assert.equal(attr(missing, 'data-state'), 'missing');
   assert.match(missing.querySelector('.amcp-visually-hidden').textContent, /No data/);
   assert.equal(attr(zero, 'data-state'), null);
+  // A zero that arrives as a number is a figure too: only null, undefined and an empty string are missing.
+  const numeric = render(UI.kpi({label: 'Clicks', value: 0})).querySelector('article');
+  assert.equal(numeric.querySelector('.amcp-kpi-value bdi').textContent, '0');
+  assert.equal(attr(numeric, 'data-state'), null);
+  assert.equal(
+    render(UI.kpi({label: 'Clicks', value: undefined}))
+      .querySelector('article')
+      .getAttribute('data-state'),
+    'missing',
+  );
   const platform = render(
     UI.platformCard({
       name: 'Meta',

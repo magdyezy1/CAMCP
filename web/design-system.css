@@ -5,6 +5,14 @@
   border: 1px solid var(--v2-rule);
   border-radius: var(--v2-radius-card);
 }
+.amcp-ds-layout,
+.amcp-ds-body,
+.amcp-ds-section,
+.amcp-ds-row,
+.amcp-ds-specimen,
+.amcp-ds-legacy {
+  grid-template-columns: minmax(0, 1fr);
+}
 .amcp-ds-layout {
   display: grid;
   gap: var(--v2-space-6);
@@ -87,6 +95,9 @@
   gap: var(--v2-space-2);
   min-inline-size: 0;
   margin: 0;
+}
+.amcp-ds-specimen > .amcp-creative {
+  max-inline-size: 18rem;
 }
 .amcp-ds-caption {
   color: var(--v2-ink-2);

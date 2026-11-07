@@ -354,6 +354,15 @@ test('combobox says when nothing matches, offers one way on, and says when the l
   assert.equal(options().length, 2, 'the list is back');
 });
 
+test('combobox shows eight options unless told otherwise, so its popup never needs to scroll', () => {
+  const many = Array.from({length: 20}, (_, index) => ({value: 'v' + index, label: 'Account ' + index})),
+    {input, host, options, type} = comboboxPage(many);
+  input.focus();
+  type(input, '');
+  assert.equal(options().length, 8);
+  assert.match(host.querySelector('[role=status]').textContent, /Showing 8 of 20\./);
+});
+
 test('combobox with asynchronous options: busy while searching, the newest answer wins, a failure offers a retry', async () => {
   const calls = [],
     resolvers = [];
@@ -396,6 +405,28 @@ test('combobox with asynchronous options: busy while searching, the newest answe
   resolvers[3].resolve([]);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(attr(list, 'aria-hidden'), 'true');
+});
+
+test('an older search that fails after a newer one answered changes nothing and offers no retry', async () => {
+  const resolvers = [];
+  const {input, host, options, type} = comboboxPage([], {
+    mount: {search: () => new Promise((resolve, reject) => resolvers.push({resolve, reject}))},
+  });
+  input.focus();
+  type(input, 'at');
+  type(input, 'atl');
+  resolvers[1].resolve([accounts[0]]);
+  await new Promise(resolve => setImmediate(resolve));
+  resolvers[0].reject(new Error('late failure'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(
+    options().map(option => option.getAttribute('data-value')),
+    ['a1'],
+    'the list the newest search produced stays',
+  );
+  assert.equal(host.querySelectorAll('[role=alert]').length, 0, 'a search nobody is waiting for announces nothing');
+  assert.equal(host.querySelectorAll('button[data-combobox-retry]').length, 0);
+  assert.equal(attr(host, 'aria-busy'), null);
 });
 
 const scope = [

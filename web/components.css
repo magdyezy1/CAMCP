@@ -27,6 +27,16 @@
   align-items: center;
   gap: var(--v2-space-2);
 }
+/* A grid that stacks things keeps one column as wide as its container: a long word or a wide child cannot widen the page. */
+.amcp-stack,
+.amcp-field,
+.amcp-card,
+.amcp-state,
+.amcp-skeleton-group,
+.amcp-kpi dl,
+.amcp-step-text {
+  grid-template-columns: minmax(0, 1fr);
+}
 .amcp-grid {
   display: grid;
   gap: var(--v2-space-4);
@@ -55,6 +65,7 @@
 
 /* Buttons. The primary action is at least 44px high and wide; every other button reaches the 24px minimum or more. */
 .amcp-button {
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -166,6 +177,7 @@
 
 /* One badge. Status tones carry an icon and a word; peach is a dot beside the word. */
 .amcp-badge {
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: var(--v2-space-1);
@@ -332,12 +344,15 @@
 .amcp-control[data-state='error'] {
   border-color: var(--v2-danger);
 }
-.amcp-control:has(:disabled, [readonly]) {
-  background: var(--v2-subtle);
+/* Disabled and read only are shown by the border and by dimming, not by a fill: theme.css paints a native input's own
+   background in the dark theme, so a fill on the wrapper would show around it. */
+.amcp-control:has([readonly]) {
+  border-color: var(--v2-rule);
 }
 .amcp-control:has(:disabled) {
   border-color: var(--v2-rule);
   color: var(--v2-ink-2);
+  opacity: 0.6;
 }
 .amcp-input,
 .amcp-select {

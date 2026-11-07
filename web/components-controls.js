@@ -151,7 +151,7 @@ function amcpComboboxSegments(label, query) {
   ].filter(part => part.text);
 }
 const amcpComboboxes = new WeakMap();
-function amcpComboboxMount(host, {options = [], value, limit = 50, onSelect, search} = {}) {
+function amcpComboboxMount(host, {options = [], value, limit = 8, onSelect, search} = {}) {
   const input = host.querySelector('input[role=combobox]'),
     hidden = host.querySelector('input[type=hidden]'),
     popup = host.querySelector('.amcp-popup'),
