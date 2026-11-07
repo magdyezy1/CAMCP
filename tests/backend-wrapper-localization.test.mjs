@@ -351,7 +351,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
-  assert.equal(Object.keys(catalog).length, 12004);
+  // Package closing-fixes adds one website message, the preview link's name when it has no number (WCAG 2.5.3): 12,005.
+  assert.equal(Object.keys(catalog).length, 12005);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

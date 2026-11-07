@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+import {nameContainsLabel} from './helpers/label-in-name.mjs';
 
 function fixture(request, preset = 'meta_campaign', locale = 'en') {
   const bindings = new Map(),
@@ -160,6 +161,28 @@ test('selected allocation candidates show Added and cannot be added again until 
   assert.equal(f.candidateButtons[0].textContent, 'Add');
   assert.equal(f.candidateButtons[0].attributes['aria-label'], 'Add Efficient');
   assert.equal(f.candidateButtons[1].disabled, true);
+});
+// closing-fixes, WCAG 2.5.3 Label in Name: a person who says the word a button shows must reach it, in Arabic too. Both
+// states of the candidate button (Add; Added once selected) carry their shown word in the name the page sets for them.
+test('the Add and Added candidate buttons show their word in their accessible name, in both languages', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(async () => result(), 'meta_campaign', locale),
+      word = message => (locale === 'ar' ? catalog[message] : message);
+    for (const button of f.candidateButtons) {
+      assert.equal(button.textContent, word('Added'));
+      assert.ok(
+        nameContainsLabel(button.attributes['aria-label'], button.textContent),
+        button.attributes['aria-label'],
+      );
+      assert.ok(button.attributes['aria-label'].includes(button.dataset.allocationName));
+    }
+    f.bindings.get('#allocation-selection [data-allocation-remove]')({dataset: {allocationRemove: '10'}});
+    const [again] = f.candidateButtons;
+    assert.equal(again.textContent, word('Add'));
+    assert.ok(nameContainsLabel(again.attributes['aria-label'], again.textContent), again.attributes['aria-label']);
+    assert.ok(again.attributes['aria-label'].includes(again.dataset.allocationName));
+  }
 });
 test('Snapchat retained report exposes ad-squad allocation and the qualified draft handoff', async () => {
   const f = fixture(async () => result(), 'snapchat_adsquad');
