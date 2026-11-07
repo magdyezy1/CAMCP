@@ -1,4 +1,5 @@
-/* V2 tokens and compatible legacy names. No page loads this sheet yet (docs/DESIGN-SYSTEM.md). */
+/* V2 tokens and compatible legacy names. The static public pages link it; a route that uses V2 loads it as a page asset
+   (docs/DESIGN-SYSTEM.md). */
 :root {
   --v2-paper: #fffdf8;
   --v2-violet: #7462e7;
@@ -12,6 +13,19 @@
   --v2-data-1: #6250d6;
   --v2-data-2: #eb6834;
   --v2-data-3: #1baf7a;
+  --v2-raised: #ffffff;
+  --v2-subtle: #f5f2fa;
+  --v2-selected: #ece6f8;
+  --v2-success: #245d49;
+  --v2-success-bg: #e6f3ed;
+  --v2-warning: #714b14;
+  --v2-warning-bg: #fff3db;
+  --v2-danger: #af3939;
+  --v2-danger-bg: #fce5e8;
+  --v2-danger-solid: #af3939;
+  --v2-on-danger: #ffffff;
+  --v2-info: var(--v2-violet-text);
+  --v2-info-bg: var(--v2-selected);
   --v2-space-1: 4px;
   --v2-space-2: 8px;
   --v2-space-3: 12px;
@@ -45,6 +59,11 @@
   --v2-z-toast: 60;
   --v2-control-height: 40px;
   --v2-row-height: 44px;
+  --v2-row-height-compact: 32px;
+  --v2-target-min: 24px;
+  --v2-target-primary: 44px;
+  --v2-focus-width: 2px;
+  --v2-focus-offset: 2px;
   color-scheme: light;
   --ink: var(--v2-ink);
   --muted: var(--v2-ink-2);
@@ -191,6 +210,17 @@
   --v2-data-1: #9085e9;
   --v2-data-2: #d95926;
   --v2-data-3: #199e70;
+  --v2-raised: #1f1a29;
+  --v2-subtle: #272031;
+  --v2-selected: #30284a;
+  --v2-success: #a5e5c4;
+  --v2-success-bg: #18382e;
+  --v2-warning: #f6d89e;
+  --v2-warning-bg: #3d2e19;
+  --v2-danger: #ffb6bf;
+  --v2-danger-bg: #452830;
+  --v2-danger-solid: #d4566c;
+  --v2-on-danger: #17141f;
   color-scheme: dark;
   --ink: var(--v2-ink);
   --muted: var(--v2-ink-2);
@@ -267,6 +297,17 @@
     --v2-data-1: #9085e9;
     --v2-data-2: #d95926;
     --v2-data-3: #199e70;
+    --v2-raised: #1f1a29;
+    --v2-subtle: #272031;
+    --v2-selected: #30284a;
+    --v2-success: #a5e5c4;
+    --v2-success-bg: #18382e;
+    --v2-warning: #f6d89e;
+    --v2-warning-bg: #3d2e19;
+    --v2-danger: #ffb6bf;
+    --v2-danger-bg: #452830;
+    --v2-danger-solid: #d4566c;
+    --v2-on-danger: #17141f;
     color-scheme: dark;
     --ink: var(--v2-ink);
     --muted: var(--v2-ink-2);

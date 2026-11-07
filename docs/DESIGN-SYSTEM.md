@@ -56,10 +56,17 @@ and what left it, is [below](#the-dark-override-layer-themecss).
 
 ## V2 token sheet
 
-`web/tokens-v2.css` is the foundation for page adoption from round 2. No page loads it yet. It contains every legacy
-token with its existing value, so adopting the sheet alone preserves the current appearance. Redesigned components
-choose the V2 names below. Its explicit dark theme and system-dark theme have equal declarations; both are checked
-independently of the loaded token sheets.
+`web/tokens-v2.css` is the foundation for page adoption. It contains every legacy token with its existing value, so
+loading it after the token sheets a page already has changes no legacy token (`tests/web-tokens-v2-components.test.mjs`
+resolves every token in light, dark and, where the page has it, system-dark, with and without the sheet). Redesigned
+components choose the V2 names below. Its explicit dark theme and system-dark theme have equal declarations; both are
+checked independently of the loaded token sheets.
+
+**Where it loads.** The static public pages (Privacy, Terms, Data deletion and 404, in both languages) link it third,
+after `public-tokens.css`. The workspace shell (`index.html`) and About do not: the sheet is 2,374 Brotli bytes, and
+`en /about`, `en /report-library` and `en /reporting-overview` have 52, 343 and 1,197 bytes of room under their recorded
+route budgets, which are not raised for it. A route that uses V2 lists the sheet among its page assets, directly or
+through a component sheet that depends on it (`web/route-assets.js`), so it reaches only the routes that need it.
 
 ### V2 colour
 
@@ -77,11 +84,28 @@ independently of the loaded token sheets.
 | `--v2-data-1` | #6250d6 | #9085e9 | Data series |
 | `--v2-data-2` | #eb6834 | #d95926 | Data series |
 | `--v2-data-3` | #1baf7a | #199e70 | Data series requiring direct labels |
+| `--v2-raised` | #ffffff | #1f1a29 | Raised surface: cards, inputs, dialogs |
+| `--v2-subtle` | #f5f2fa | #272031 | Quiet fill: hovered rows, table headers, the neutral badge, skeletons |
+| `--v2-selected` | #ece6f8 | #30284a | Selected fill |
+| `--v2-success`, `--v2-success-bg` | #245d49, #e6f3ed | #a5e5c4, #18382e | Success text and its tint |
+| `--v2-warning`, `--v2-warning-bg` | #714b14, #fff3db | #f6d89e, #3d2e19 | Warning text and its tint |
+| `--v2-danger`, `--v2-danger-bg` | #af3939, #fce5e8 | #ffb6bf, #452830 | Danger text and its tint |
+| `--v2-danger-solid`, `--v2-on-danger` | #af3939, #ffffff | #d4566c, #17141f | A destructive fill and its text |
+| `--v2-info`, `--v2-info-bg` | violet-text, selected | violet-text, selected | Information text and its tint |
 
-Text pairs meet 4.5:1 in both themes, including on-violet on violet. Strong rules and the first two data series meet
-3:1 against paper. Data-3 has about 2.77:1 in light mode: use direct labels and another distinguishing cue; never rely
-on that colour alone. Peach is a marker, with an icon or text beside it. The approved mark and its three brand colours
-remain unchanged.
+Text pairs meet 4.5:1 in both themes, including on-violet on violet and every status on its tint. Strong rules and the
+first two data series meet 3:1 against paper, raised and subtle surfaces. Data-3 has about 2.77:1 in light mode: use
+direct labels and another distinguishing cue; never rely on that colour alone. Peach is a marker, with an icon or text
+beside it, and nothing is written on it: ink on peach measures 1.38:1 in dark. Two more pairs fail as text and are never
+used: ink-2 on rule (4.32:1 light, 4.45:1 dark) and violet-text on rule in dark (4.49:1); rule is a line or a track, not
+a surface for words. The approved mark and its three brand colours remain unchanged.
+
+`public-tokens.css` names each of the 18 policy shades for V2, in its light block only, because each follows its shade
+through the theme: `--v2-policy-surface`, `--v2-policy-text`, `--v2-policy-text-body`, `--v2-policy-text-intro`,
+`--v2-policy-text-strong`, `--v2-policy-lead`, `--v2-policy-text-secondary`, `--v2-policy-eyebrow`,
+`--v2-policy-accent`, `--v2-policy-link`, `--v2-policy-link-hover`, `--v2-policy-nav-link`,
+`--v2-policy-contents-link`, `--v2-policy-border`, `--v2-policy-border-subtle`, `--v2-policy-border-strong`,
+`--v2-policy-code` and `--v2-policy-shadow`. A page restyled for V2 repoints a V2 name when it adopts a new value.
 
 Legacy `--ink`, `--muted`, `--line`, `--line-strong` and `--apricot` alias the corresponding V2 token in both themes.
 `--iris-700` aliases violet-text in light, and `--iris` does so in dark. Other legacy values, including `--paper`, retain
@@ -111,6 +135,9 @@ their current definitions.
 | `--v2-z-overlay`, `--v2-z-dialog`, `--v2-z-toast` | 40, 50, 60 |
 | `--v2-control-height` | 40px by default; 32px in compact density |
 | `--v2-row-height` | 44px by default; 32px in compact density |
+| `--v2-row-height-compact` | 32px: a table's own density toggle, whatever the page's density |
+| `--v2-target-min`, `--v2-target-primary` | 24px, 44px: the smallest target of any control; the target of a primary action |
+| `--v2-focus-width`, `--v2-focus-offset` | 2px, 2px: the ring every component draws, in the `--focus` colour |
 
 The larger spacing and type steps clamp between 320px and 1440px; 12px is the type floor. Under
 `prefers-reduced-motion: reduce`, all three V2 durations are 0s. Use tabular numerals for comparable numbers.

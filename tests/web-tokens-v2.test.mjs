@@ -74,7 +74,10 @@ test('every V2 text and control pair passes contrast, with data-3 requiring dire
   }
   assert.match(fs.readFileSync('docs/DESIGN-SYSTEM.md', 'utf8'), /data-3[\s\S]*?direct labels/i);
 });
-test('V2 dark and system blocks are equal, parity is independent, and no page loads the sheet', () => {
+// V2-WEB-02 changed this test: it pinned "no page loads the sheet". The static public pages now link it (third, after
+// public-tokens.css); the workspace shell and About do not, because their route byte budgets cannot take it, so the routes
+// that use V2 load it as a page asset (tests/web-tokens-v2-components.test.mjs, tests/route-assets-styles.test.mjs).
+test('V2 dark and system blocks are equal, parity is independent, and only the planned pages load the sheet', () => {
   const css = read('tokens-v2.css');
   assert.ok(tokenSheets.includes('tokens-v2.css'));
   assert.deepEqual(
@@ -88,7 +91,16 @@ test('V2 dark and system blocks are equal, parity is independent, and no page lo
     .filter(
       file => /\.(?:html|js|css)$/.test(file) && file !== 'tokens-v2.css' && read(file).includes('tokens-v2.css'),
     );
-  assert.deepEqual(references, []);
+  assert.deepEqual(references, [
+    '404-ar.html',
+    '404.html',
+    'data-deletion-ar.html',
+    'data-deletion.html',
+    'privacy-ar.html',
+    'privacy.html',
+    'terms-ar.html',
+    'terms.html',
+  ]);
 });
 test('every V2 token is documented in DESIGN-SYSTEM.md', () => {
   const doc = fs.readFileSync('docs/DESIGN-SYSTEM.md', 'utf8'),
@@ -97,7 +109,10 @@ test('every V2 token is documented in DESIGN-SYSTEM.md', () => {
         .map(d => d.property)
         .filter(p => p.startsWith('--v2-')),
     );
-  assert.equal(names.size, 45, 'the 45 V2 tokens in the approved contract');
+  // V2-WEB-01 approved 45; V2-WEB-02 adds 13 surface and status colours (raised, subtle, selected, the success, warning,
+  // danger and info pairs, the solid danger fill and its text) and 5 sizes (compact row, the two target sizes, the focus
+  // ring's width and offset).
+  assert.equal(names.size, 63, 'the 45 approved V2 tokens and the 18 the component layer adds');
   assert.deepEqual(
     [...names].filter(name => !doc.includes('`' + name + '`')),
     [],
