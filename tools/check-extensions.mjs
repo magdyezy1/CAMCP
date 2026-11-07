@@ -118,7 +118,8 @@ export function documentScripts(root = process.cwd()) {
       new Script(
         fs.readFileSync(path.join(web, 'route-assets.js'), 'utf8') + '\n;globalThis.__order = [...pageAssetOrder];',
       ).runInContext(context);
-      scripts.push(...context.__order.filter(file => !scripts.includes(file)));
+      // A page's stylesheets (V2-WEB-02) share the loader's list but are not scripts.
+      scripts.push(...context.__order.filter(file => file.endsWith('.js') && !scripts.includes(file)));
     }
     documents[page] = scripts.filter(file => !file.startsWith('vendor/'));
   }

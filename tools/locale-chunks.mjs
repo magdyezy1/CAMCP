@@ -59,7 +59,11 @@ export function loaderFiles(root = process.cwd()) {
       '\n;globalThis.__plan = JSON.stringify({order: pageAssetOrder, dependencies: pageAssetDependencies});',
   ).runInContext(context);
   const plan = JSON.parse(context.__plan);
-  return {modules: plan.order.filter(file => !file.startsWith('vendor/')), dependencies: plan.dependencies};
+  // A page's stylesheets (V2-WEB-02) are in the loader's list too; only scripts carry messages.
+  return {
+    modules: plan.order.filter(file => file.endsWith('.js') && !file.startsWith('vendor/')),
+    dependencies: plan.dependencies,
+  };
 }
 /** The chunk a lazily loaded script's own messages travel in. */
 export const moduleChunk = file => file.replace(/\.js$/, '');
