@@ -66,7 +66,7 @@ for (const locale of ['en', 'ar'])
   });
 
 // Every template literal of a script, as its text with each ${} replaced by a numbered marker, and those expressions.
-const MARK = '';
+const MARK = '\uE000';
 const skipKeys = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments']);
 function templates(source, file) {
   const found = [];
