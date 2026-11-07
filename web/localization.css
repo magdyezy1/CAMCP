@@ -111,6 +111,6 @@ html[dir='rtl'] input[autocomplete='one-time-code'] {
     gap: 6px;
   }
   .auth-brand {
-    gap: 10px;
+    gap: 12px;
   }
 }

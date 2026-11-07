@@ -102,12 +102,26 @@ footer {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 27px;
-  font-weight: 750;
-  color: var(--policy-text);
-  text-decoration: none;
-  letter-spacing: -1px;
+}
+/* Lockup variants, as in accessibility.css. */
+.logo-white {
+  display: none;
+}
+@media screen {
+  [data-theme='dark'] .logo-ink {
+    display: none;
+  }
+  [data-theme='dark'] .logo-white {
+    display: block;
+  }
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .logo-ink {
+    display: none;
+  }
+  :root:not([data-theme]) .logo-white {
+    display: block;
+  }
 }
 nav {
   display: flex;

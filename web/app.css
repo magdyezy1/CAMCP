@@ -929,9 +929,6 @@ dialog {
   .sidebar-bottom {
     display: none;
   }
-  .sidebar .brand {
-    font-size: 23px;
-  }
   .sidebar nav {
     margin-top: 18px;
   }
