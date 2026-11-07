@@ -115,14 +115,16 @@ test('the router is the one createWebsite built before the split, in every deplo
       store.close();
     }
   }
-  // The recording itself: 99 layers where the MCP service runs (the workspace and report download routes among them)
-  // and 86 where it does not; whether writes are enabled is decided per request, not by the router. DOC-03 added the
+  // The recording itself: 100 layers where the MCP service runs (the workspace and report download routes among them)
+  // and 87 where it does not; whether writes are enabled is decided per request, not by the router. DOC-03 added the
   // one layer of the members-only Help page (route /help, server/help-routes.ts) after Audit activity's route, before
-  // the public pages, in every shape.
-  assert.equal(fixture.shapes.writes_with_service.length, 99);
+  // the public pages, in every shape. V2-WEB-02 added one more: the component state page (route /design-system, the
+  // last of the shell pages in server/page-routes.ts, right after /oauth/consent).
+  assert.equal(fixture.shapes.writes_with_service.length, 100);
   assert.deepEqual(fixture.shapes.reads_with_service, fixture.shapes.writes_with_service);
-  assert.equal(fixture.shapes.reads_without_service.length, 86);
+  assert.equal(fixture.shapes.reads_without_service.length, 87);
   assert.ok(fixture.shapes.reads_without_service.includes('route /help get <anonymous>'));
+  assert.ok(fixture.shapes.reads_without_service.includes('route /design-system get <anonymous>'));
   assert.ok(fixture.shapes.writes_with_service.includes('route /api/workspace/:tool post jsonParser|<anonymous>'));
   assert.ok(!fixture.shapes.reads_without_service.some(l => l.startsWith('route /api/workspace/')));
   assert.equal(fixture.shapes.writes_with_service.at(-1), 'use <anonymous> *', 'the not-found handler is last');
