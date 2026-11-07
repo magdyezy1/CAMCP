@@ -202,10 +202,16 @@
       "raised": [
         "reference_words 149795 → 150046"
       ]
+    },
+    {
+      "reason": "engine-core package (L5 audit F-L5-31, F-L5-25, F-L5-10, F-L5-18, F-L5-27, F-L9-01, F-L5-35): docs/REPORTING-OVERVIEW.md gains one section on levels, coverage, failures, cross-level rounding and calculation limits of a v4 snapshot, and three sentences on the window declaration, native metrics and cross-level agreement; 738 more words",
+      "raised": [
+        "reference_words 150046 → 150784"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 150046
+    "reference_words": 150784
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
