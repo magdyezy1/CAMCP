@@ -68,6 +68,26 @@ test('spend by campaign: ranked bars from zero, the top ten and the exact sum of
   );
 });
 
+test('every value has the label a reader sees, made once on the server so the three renderers print the same text', () => {
+  const [spec] = of(charts(campaigns([140.5, 20, 3.456])), 'spend_by_entity');
+  // Grouped thousands and the currency’s minor units, no currency code (the unit names it), rounded half up for display only.
+  assert.deepEqual(spec.series[0].value_labels, ['140.50', '20.00', '3.46']);
+  assert.deepEqual(spec.series[0].values, ['140.5', '20', '3.456'], 'the exact text stays the data');
+  const [big] = of(charts(campaigns([1234567.8, 2])), 'spend_by_entity');
+  assert.deepEqual(big.series[0].value_labels, ['1,234,567.80', '2.00']);
+  const [yen] = of(
+    charts([chartRow('a', '1500', '1', {currency: 'JPY'}), chartRow('b', '400', '1', {currency: 'JPY'})]),
+    'spend_by_entity',
+  );
+  assert.deepEqual(yen.series[0].value_labels, ['1,500', '400'], 'a currency with no minor units has none');
+  // A period only another currency covers is a gap in this one.
+  const gap = of(
+    weekly([week(weeks[0], 'a', '10'), week(weeks[2], 'a', '30'), week(weeks[1], 'e', '5', '1', {currency: 'EUR'})]),
+    'trend',
+  ).find(item => item.title.text === 'Spend over time' && item.context.currency === 'USD');
+  assert.deepEqual(gap.series[0].value_labels, ['10.00', null, '30.00']);
+});
+
 test('a short list has no Other', () => {
   const [spec] = of(charts(campaigns([30, 20, 10])), 'spend_by_entity');
   assert.equal(spec.x.items.length, 3);

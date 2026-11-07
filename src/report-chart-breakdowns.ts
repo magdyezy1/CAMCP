@@ -30,6 +30,7 @@ import {
   pricedGroups,
   ranked,
   sourceOf,
+  valueLabel,
   type Context,
 } from './report-chart-kit.js';
 import type {JsonObject} from './types.js';
@@ -262,9 +263,10 @@ export function objectiveCharts(context: Context): ChartSpec[] {
           : null,
       x: {
         kind: 'category',
-        items: platforms.map(platform => ({
+        items: platforms.map((platform, index) => ({
           key: platform.platform,
           label: context.names[platform.platform] ?? platform.platform,
+          ...(totals[index] ? {total_label: valueLabel(totals[index]!, 'currency', currency)!} : {}),
         })),
       },
       series: series.map(item => ({
@@ -274,8 +276,9 @@ export function objectiveCharts(context: Context): ChartSpec[] {
         unit: 'currency' as const,
         currency,
         values: item.values,
+        value_labels: item.values.map(value => valueLabel(value, 'currency', currency)),
         color_index: item.color_index,
-        label_at: [],
+        label_at: item.values.flatMap((value, index) => (value === null ? [] : [index])),
       })),
       scale: zeroBasedScale(
         decimalIn(

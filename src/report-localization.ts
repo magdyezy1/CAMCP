@@ -207,6 +207,8 @@ const arabic: Record<string, string> = {
   'The smaller entries are combined as Other: {count}.': 'تُجمع البنود الأصغر تحت «أخرى»: {count}.',
   'Hollow marks are periods calculated from some of their rows only: {count}.':
     'العلامات المفرغة فترات حُسبت من بعض صفوفها فقط: {count}.',
+  'No data': 'لا توجد بيانات',
+  'Since the previous period': 'منذ الفترة السابقة',
   'The change compares the campaigns and ads that appear in both periods.':
     'يقارن التغيير الحملات والإعلانات الموجودة في الفترتين.',
   'Rows with no single result definition are left out of this chart: {count}.':

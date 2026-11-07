@@ -31,6 +31,7 @@ import {
   pricedGroups,
   sourceOf,
   topLimit,
+  valueLabel,
   type Context,
 } from './report-chart-kit.js';
 import type {JsonObject} from './types.js';
@@ -299,7 +300,9 @@ export function costCharts(context: Context): ChartSpec[] {
           unit: 'currency',
           currency,
           values,
+          value_labels: values.map(value => valueLabel(value, 'currency', currency)),
           targets,
+          target_labels: targets.map(value => valueLabel(value, 'currency', currency)),
           color_index: 2,
           label_at: values.flatMap((value, index) => (value === null ? [] : [index])),
         },
@@ -352,6 +355,13 @@ export function kpiCharts(context: Context): ChartSpec[] {
           unit: unit as 'currency' | 'number',
           currency: unit === 'currency' ? currency : null,
           values: [decimalOf(summary.metrics?.[key!])],
+          value_labels: [
+            valueLabel(
+              decimalOf(summary.metrics?.[key!]),
+              unit as 'currency' | 'number',
+              unit === 'currency' ? currency : null,
+            ),
+          ],
           color_index: null,
           label_at: [0],
         })),

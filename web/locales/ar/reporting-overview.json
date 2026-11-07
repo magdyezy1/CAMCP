@@ -101,7 +101,6 @@
   "No background worker has reported in the last few minutes, so collection cannot continue. Completed sources are retained, and the run continues when a worker is available.": "لم تُبلغ أي عملية خلفية عن نشاطها خلال الدقائق القليلة الماضية، لذا لا يمكن متابعة الجمع. يُحتفظ بالمصادر المكتملة، ويستمر التشغيل عند توفر عملية خلفية.",
   "No background worker has reported recently": "لم تُبلغ أي عملية خلفية عن نشاطها مؤخرًا",
   "No campaign rows returned": "لم تُعَد صفوف للحملات",
-  "No data": "لا توجد بيانات",
   "No fallback (show unknown)": "بلا هدف احتياطي (إظهار غير معروف)",
   "No rows matched your source filters": "لا توجد صفوف تطابق عوامل تصفية المصدر",
   "No rows returned": "لم تُعَد صفوف",

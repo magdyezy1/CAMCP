@@ -110,6 +110,17 @@ function currencyDigits(currency: string): number {
 /** An amount as a reader sees it: grouped thousands, the currency's minor units, the code after it. */
 export const amountText = (value: string, currency: string | null): string =>
   currency ? formatFixed(value, currencyDigits(currency)) + ' ' + currency : formatChartNumber(value);
+/** A value as a bar or a point is labelled: the amount without its code (a unit names it), or a grouped number. */
+export const valueLabel = (
+  value: string | null,
+  unit: 'currency' | 'number',
+  currency: string | null,
+): string | null =>
+  value === null
+    ? null
+    : unit === 'currency' && currency
+      ? formatFixed(value, currencyDigits(currency))
+      : formatChartNumber(value);
 
 export const metricLabels: Record<string, ChartMessageKey> = {
   spend: 'Spend',
@@ -279,6 +290,7 @@ export function barChart(input: BarInput): ChartSpec {
         unit: input.unit,
         currency: input.currency,
         values,
+        value_labels: values.map(value => valueLabel(value, input.unit, input.currency)),
         color_index: input.measure === 'spend' ? 0 : input.measure === 'primary_result' ? 1 : 2,
         label_at: values.map((_, index) => index),
       },
@@ -455,6 +467,7 @@ export function lineChart(input: LineInput): ChartSpec {
         unit: input.unit,
         currency: input.currency,
         values: input.values,
+        value_labels: input.values.map(value => valueLabel(value, input.unit, input.currency)),
         color_index: input.measure === 'spend' ? 0 : 1,
         label_at: [...new Set([...(peak ? [peak.index] : []), last.index])].sort((a, b) => a - b),
         short: input.short,

@@ -12046,5 +12046,6 @@
   "Only the first {count} groups are charted. The report table has the rest.": "تُرسم أول {count} مجموعات فقط. تجد الباقي في جدول التقرير.",
   "Only the {count} entries with the most spend are shown. The report table has the rest.": "تُعرض {count} من البنود الأكثر إنفاقًا فقط. تجد الباقي في جدول التقرير.",
   "Chart settings belong to the current report form: send contract_version overview-config-v4.": "إعدادات المخططات جزء من صيغة التقرير الحالية: أرسل contract_version بالقيمة overview-config-v4.",
-  "Use charts.disabled with chart kinds from the list in bootstrap.": "استخدم charts.disabled مع أنواع المخططات الواردة في قائمة bootstrap."
+  "Use charts.disabled with chart kinds from the list in bootstrap.": "استخدم charts.disabled مع أنواع المخططات الواردة في قائمة bootstrap.",
+  "Since the previous period": "منذ الفترة السابقة"
 }

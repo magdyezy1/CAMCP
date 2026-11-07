@@ -90,6 +90,8 @@ export const reportChartMessages = [
   'No value is known, so there is nothing to draw.',
   'The smaller entries are combined as Other: {count}.',
   'Hollow marks are periods calculated from some of their rows only: {count}.',
+  'No data',
+  'Since the previous period',
   'The change compares the campaigns and ads that appear in both periods.',
   'Rows with no single result definition are left out of this chart: {count}.',
   'Only the first {count} groups are charted. The report table has the rest.',
@@ -119,6 +121,8 @@ export interface ChartItem {
   /** Where it comes from, for a tooltip and the table ("Meta · 123"): provider data. */
   detail?: string;
   other?: true;
+  /** A stacked bar's total, as a reader sees it (the series' value labels do not add up to it). */
+  total_label?: string;
   /** The picture of an ad, when previews supply one (round 3). Absent until then. */
   thumbnail?: string;
 }
@@ -135,12 +139,18 @@ export interface ChartSeries {
   unit: 'currency' | 'number';
   currency: string | null;
   values: (string | null)[];
+  /**
+   * The values as a reader sees them: thousands grouped, a currency in its minor units, no currency code (the unit names
+   * it). Made once here so every renderer prints the same text; the exact text stays in `values`.
+   */
+  value_labels: (string | null)[];
   /** The hue (0, 1 or 2), or null for the neutral "Other". */
   color_index: ChartColorIndex | null;
   /** Which values carry a direct label (the endpoint, the extreme; every bar of a short list). */
   label_at: number[];
-  /** A bar's target, aligned with `values`: the mark a cost is compared with. */
+  /** A bar's target, aligned with `values`: the mark a cost is compared with, and its label. */
   targets?: (string | null)[];
+  target_labels?: (string | null)[];
   /** A line's point calculated from fewer rows than it has: drawn hollow, off the line (F-L5-26). */
   short?: ({known: number; total: number; unit: 'rows' | 'measurements'} | null)[];
   /** KPI only: the change since the previous period, added when the report is read (it needs the linked baseline). */
