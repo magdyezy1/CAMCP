@@ -97,6 +97,7 @@ const reportExplanationMessages = new Set([
   'Recommendations are advisory; a separate review is required for advertising changes.',
   'Refresh a complete reporting window before acting.',
   'Refresh complete data with verified currency and timezone before recommending a change.',
+  'Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.',
   'Retain an active LinkedIn account with the exact report identity and currency.',
   'Retain exact LinkedIn decimal budget amounts in the account currency, with at most six decimal places.',
   'Retain exact Snapchat campaign ownership and ad-squad source evidence.',

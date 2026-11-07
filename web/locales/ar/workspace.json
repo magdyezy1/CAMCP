@@ -1007,6 +1007,7 @@
   "Restart this advertiser, login, hierarchy and page size; the TikTok cursor is invalid or expired.": "أعد بدء الاستعراض بنفس المعلن وتسجيل الدخول والتسلسل وحجم الصفحة؛ مؤشر متابعة TikTok غير صالح أو انتهت صلاحيته.",
   "Restart this exact account, login, entity and page size; the portfolio cursor is invalid or expired.": "أعد بدء الاستعراض بنفس الحساب وتسجيل الدخول والعنصر وحجم الصفحة؛ مؤشر المتابعة غير صالح أو انتهت صلاحيته.",
   "Restart this original asset, identity, login and page size; the native reference cursor is invalid or expired.": "أعد قراءة هذه الوسائط الأصلية بالهوية وتسجيل الدخول وحجم الصفحة نفسها؛ فرمز متابعة المراجع غير صالح أو انتهت صلاحيته.",
+  "Results shown as mapped are chosen by AMCP from the platform’s reported fields; they are not read from a result column of the platform’s own.": "النتائج المعروضة على أنها معيّنة تختارها AMCP من الحقول التي تُبلغ عنها المنصة؛ ولا تُقرأ من عمود نتائج خاص بالمنصة نفسها.",
   "Retain a bounded literal consent parameter key.": "احتفظ بمفتاح معامل الموافقة بنص صريح وضمن الحد المسموح.",
   "Retain a current native fingerprint for every selected workspace and tag.": "يلزم وجود بصمة أصلية حالية لكل مساحة عمل وعلامة محددة.",
   "Retain an active LinkedIn account with the exact report identity and currency.": "يلزم حساب LinkedIn نشط يطابق معرّف حساب التقرير وعملته تمامًا.",

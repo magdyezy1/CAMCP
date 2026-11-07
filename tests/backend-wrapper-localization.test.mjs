@@ -329,7 +329,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Web-report adds the singular forms of two row-count messages (F-L8-12); none is a wrapper reason.
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
   // Package results adds the TikTok ad group results warning (F-L5-19): + 1.
-  assert.equal(Object.keys(catalog).length, 11816);
+  // Package results adds the mapped-result line of a report row and the mapped-result limitation (F-L5-12): + 2.
+  assert.equal(Object.keys(catalog).length, 11818);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

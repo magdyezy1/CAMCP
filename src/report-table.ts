@@ -49,6 +49,15 @@ export function reportTableFields(report: JsonObject): string[] {
   const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
   return [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
 }
+/**
+ * The native field a row's result was mapped from, or '' when the platform supplied the result itself or the row has no
+ * v4 result (F-L5-12): a mapped result is AMCP's choice among the platform's reported fields, never a result column of
+ * the platform's own.
+ */
+export function reportResultMappedFrom(row: JsonObject): string {
+  const field = row.result_context?.source === 'mapped' ? row.result_context.definition?.native_metric : undefined;
+  return typeof field === 'string' ? field : '';
+}
 /** Authored notices belong to the new snapshot's delivery; retained v3 table layouts remain unchanged. */
 export function reportNoticeMessages(report: JsonObject): string[] {
   if (report.config?.contract_version !== overviewConfigV4) return [];
@@ -65,6 +74,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
   const fields = reportTableFields(report);
   const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   const rolled = report.rows.some((row: JsonObject) => row.aggregation?.kind === 'rolled_up');
+  const mapped = report.rows.some((row: JsonObject) => reportResultMappedFrom(row) !== '');
   const notices = reportNoticeMessages(report);
   const values: any[][] = [
     [
@@ -96,6 +106,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       'Formula fingerprint',
       ...(version >= 2 ? ['Recommendation basis'] : []),
       ...(rolled ? ['Aggregation'] : []),
+      ...(mapped ? ['Result mapped from'] : []),
       ...(notices.length ? ['Report notices'] : []),
     ],
   ];
@@ -135,6 +146,7 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       report.config.formula_fingerprint ?? '',
       ...(version >= 2 ? [recommendationBasis(r)] : []),
       ...(rolled ? [reportRollupLabel(r)] : []),
+      ...(mapped ? [reportResultMappedFrom(r)] : []),
       ...(notices.length ? [values.length === 1 ? notices.join('\n') : ''] : []),
     ]);
   if (values.some(row => row.some(v => typeof v === 'string' && v.length > 48000)))

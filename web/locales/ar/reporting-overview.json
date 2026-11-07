@@ -141,6 +141,7 @@
   "Request provider metric names. Availability and compatible combinations vary by account.": "اطلب المقاييس بأسمائها لدى المزوّد. يختلف التوفر والتوافق بين المقاييس حسب الحساب.",
   "Resend same report": "أعد إرسال التقرير نفسه",
   "Resend the same report to this tab?": "هل تريد إعادة إرسال التقرير نفسه إلى علامة التبويب هذه؟",
+  "Result mapped by AMCP from {field}, not read from a platform result column.": "النتيجة معيّنة من قِبل AMCP من الحقل {field}، ولم تُقرأ من عمود نتائج خاص بالمنصة.",
   "Retry": "إعادة المحاولة",
   "Retry delivery": "أعد محاولة التسليم",
   "Retry export": "أعد محاولة التصدير",

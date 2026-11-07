@@ -96,7 +96,13 @@ test('LinkedIn preserves one-click leads separately from qualified leads and use
   );
 });
 
-test('Meta optional exact action override and delivered omitted-action policy do not fabricate a native result shape', () => {
+// Package results (F-L5-12): this pins the TEMPORARY mapped path, not the requirement. The acceptance line ("a Meta row's
+// result equals insights `results`") stays open until the owner's live read pins that column's shape; until then a Meta
+// result is mapped from documented fields (actions, link clicks, impressions, reach), the request still asks for `results`
+// so the snapshot records it, and a present but unverified `results` never changes the mapped number. The rows say so
+// (tests/report-result-source-label.test.mjs). When the live pin lands, the `results` figure of the fixtures replaces the
+// `unverified` placeholder below and the assertions flip to the native value.
+test('Meta maps its result from documented fields while insights results stay unparsed (temporary path; the owner’s live pin is open)', () => {
   const raw = {
     optimization_goal: 'LINK_CLICKS',
     inline_link_clicks: '3',
