@@ -72,7 +72,8 @@ export function recommendationV4(
     row.metrics.spend === undefined ||
     (resultCoverage && resultCoverage.known < resultCoverage.total) ||
     groups.some(group => group.coverage?.known < group.coverage?.total) ||
-    coverages.some(value => value.known_rows < value.total_rows)
+    // Unknown coverage is not complete coverage: an entry whose counts cannot be read holds the advice too.
+    coverages.some(value => !(value.known_rows >= value.total_rows))
   )
     return review('Some report metrics are incomplete. Review their coverage before recommending a change.');
   try {

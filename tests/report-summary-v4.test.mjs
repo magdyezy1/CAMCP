@@ -263,6 +263,24 @@ test('advice holds while a metric it needs is calculated from some of its rows o
     /report metrics are incomplete/,
   );
 });
+test('advice holds when the coverage of a metric it needs cannot be read: unknown coverage is not complete coverage', () => {
+  const policy = {sales: {target: 0.1, currency: 'SAR'}},
+    advise = coverage => recommendationV4(row('10', '20', {metrics_coverage: {spend: coverage}}), policy);
+  // No counts, the names of before the unified shape, half of the new names, and counts that are not numbers.
+  for (const coverage of [
+    {},
+    {known: 2, total: 2},
+    {known_rows: 2},
+    {total_rows: 2},
+    {known_rows: 'all', total_rows: 2},
+  ])
+    assert.match(advise(coverage).reason, /report metrics are incomplete/, JSON.stringify(coverage));
+  assert.doesNotMatch(
+    advise({known_rows: 2, total_rows: 2, basis: 'report_rows', report_rows: 2}).reason,
+    /report metrics are incomplete/,
+    'a complete entry holds nothing',
+  );
+});
 test('advice holds, and the report does not fail, once the report’s calculation time is spent', () => {
   withCalculationBudget(
     () => {
