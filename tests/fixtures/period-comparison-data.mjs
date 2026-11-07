@@ -1,6 +1,9 @@
 // RPT-07: the Overview period comparison as the rendered browser qualification runs it. One synthetic Meta account
-// answers read-only insights per window; every other request and every mutation is refused. No external account is
-// used or mutated.
+// answers the read-only requests a v4 report makes of it: the account, its campaigns with their current status, and
+// their insights per window. Every other request and every mutation is refused. No external account is used or mutated.
+// The answers follow Meta's Marketing API: a campaign ID is numeric text, the campaigns edge lists them as `data`
+// (tests/period-comparison-fixture.test.mjs holds the fixture to that, so a change in what the report source reads
+// shows there and not as sixteen browser timeouts).
 import assert from 'node:assert/strict';
 import {Store} from '../../dist/src/store.js';
 import {Registry} from '../../dist/src/catalog.js';
@@ -18,10 +21,13 @@ export const comparisonRefusedWindows = {
   overlap: {since: '2026-08-05', until: '2026-08-11'},
   shorter: {since: '2026-08-02', until: '2026-08-07'},
 };
-/** Native campaigns per window: c1 grows, c2 spent nothing before, c3 delivered only in the earlier window. */
+/**
+ * Native campaigns per window, by their numeric Meta IDs: 101 grows, 102 spent nothing before, 103 delivered only in the
+ * earlier window.
+ */
 export const comparisonValues = {
   '2026-08-08': {
-    c1: {
+    101: {
       name: 'Spring <sale> العربية',
       spend: '170.3',
       impressions: '1100',
@@ -29,10 +35,10 @@ export const comparisonValues = {
       purchases: '6',
       value: '612',
     },
-    c2: {name: 'Second campaign', spend: '12.5', impressions: '250', clicks: '5', purchases: '1', value: '30'},
+    102: {name: 'Second campaign', spend: '12.5', impressions: '250', clicks: '5', purchases: '1', value: '30'},
   },
   '2026-08-01': {
-    c1: {
+    101: {
       name: 'Spring <sale> العربية',
       spend: '100.1',
       impressions: '1000',
@@ -40,13 +46,22 @@ export const comparisonValues = {
       purchases: '5',
       value: '500',
     },
-    c2: {name: 'Second campaign', spend: '0', impressions: '0', clicks: '0', purchases: '0', value: '0'},
-    c3: {name: 'Paused before', spend: '9', impressions: '90', clicks: '9', purchases: '1', value: '20'},
+    102: {name: 'Second campaign', spend: '0', impressions: '0', clicks: '0', purchases: '0', value: '0'},
+    103: {name: 'Paused before', spend: '9', impressions: '90', clicks: '9', purchases: '1', value: '20'},
   },
 };
 const fallback = {
-  c1: {name: 'Spring <sale> العربية', spend: '1', impressions: '10', clicks: '1', purchases: '1', value: '2'},
+  101: {name: 'Spring <sale> العربية', spend: '1', impressions: '10', clicks: '1', purchases: '1', value: '2'},
 };
+/**
+ * The account's campaigns as its campaigns edge lists them, whatever the window: Meta's Campaign fields the report source
+ * asks for (`id`, `account_id` and the three statuses). The campaign that delivered only in the earlier window is paused now.
+ */
+const campaigns = [
+  ['101', 'ACTIVE'],
+  ['102', 'ACTIVE'],
+  ['103', 'PAUSED'],
+].map(([id, status]) => ({id, account_id: '100', status, configured_status: status, effective_status: status}));
 
 export function periodComparisonFixture() {
   const keyByte = 191,
@@ -62,7 +77,8 @@ export function periodComparisonFixture() {
       throw Error('The period comparison fixture refuses mutations and other providers');
     }
     requests.push({method, path: url.pathname});
-    if (!url.pathname.endsWith('/insights'))
+    const route = /^\/v\d+\.\d+\/(act_100(?:\/(?:insights|campaigns))?)$/.exec(url.pathname)?.[1];
+    if (route === 'act_100')
       return Response.json({
         id: 'act_100',
         account_id: '100',
@@ -70,6 +86,11 @@ export function periodComparisonFixture() {
         currency: 'USD',
         timezone_name: 'UTC',
       });
+    if (route === 'act_100/campaigns') return Response.json({data: campaigns});
+    if (route !== 'act_100/insights')
+      throw Error(
+        'The period comparison fixture answers only its account, its campaigns and their insights: ' + url.pathname,
+      );
     assert.equal(url.searchParams.get('level'), 'campaign');
     const range = JSON.parse(url.searchParams.get('time_range')),
       window = comparisonValues[range.since] ?? fallback;
@@ -139,6 +160,8 @@ export function periodComparisonFixture() {
     service,
     overview,
     requests,
+    /** The synthetic provider itself, for a test that holds it to the provider's documented answers. */
+    fetcher,
     writes: () => writes,
     /**
      * Each case starts from the same retained snapshots: earlier cases' runs are removed, and the overlapping and the
