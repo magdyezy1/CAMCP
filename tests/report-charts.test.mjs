@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reportCharts} from '../dist/src/report-charts.js';
 import {chartKinds} from '../dist/src/report-chart-spec.js';
-import {chartRow, names, parts} from './helpers/chart-rows.mjs';
+import {chartRow, names, parts, purchaseDefinition, valueDefinition} from './helpers/chart-rows.mjs';
 
 const charts = (rows, more, options = {platformNames: names}) => reportCharts(parts(rows, more), options);
 const of = (specs, kind) => specs.filter(spec => spec.kind === kind);
@@ -166,7 +166,7 @@ test('spend without a known currency is not charted, and the chart says so', () 
   );
   assert.equal(specs.length, 1);
   assert.equal(specs[0].drawn, false);
-  assert.deepEqual(texts(specs[0]), ['Spend without a known currency is not charted.']);
+  assert.deepEqual(texts(specs[0]), ['Amounts without a known currency are not charted.']);
 });
 
 test('a campaign with no spend figure is left out of the bars, never drawn as zero, and the shared coverage helper says how many', () => {
@@ -303,6 +303,172 @@ test('totals rolled up from selected children and native totals never share a ch
     native = campaignCharts.find(spec => !texts(spec).includes(label));
   assert.deepEqual(rolledChart.series[0].values, ['9', '8']);
   assert.deepEqual(native.series[0].values, ['50', '30']);
+});
+
+// ----- spend and results over time -----
+const weeks = ['2026-09-07', '2026-09-14', '2026-09-21'];
+const week = (date, id, spend, result = '2', more = {}) =>
+  chartRow(id, spend, result, {
+    date_from: date,
+    date_to: date.replace(/..$/, d => String(Number(d) + 6)),
+    grain: 'weekly',
+    ...more,
+  });
+const weekly = (rows, more = {}) => charts(rows, {config: {grain: 'weekly'}, ...more});
+/** Three weeks of three campaigns; in the second week the first campaign has no cost. */
+const threeWeeks = () =>
+  weeks.flatMap((date, index) =>
+    ['c1', 'c2', 'c3'].map(id => week(date, id, index === 1 && id === 'c1' ? null : ['20', '15', '30'][index], '4')),
+  );
+const trendOf = (specs, title) => of(specs, 'trend').find(spec => spec.title.text === title);
+
+test('a total report has no trend, and a grouped report with one period says a trend needs two', () => {
+  assert.deepEqual(of(charts(campaigns([10, 20])), 'trend'), []);
+  const [spec, ...more] = of(weekly([week(weeks[0], 'a', '10'), week(weeks[0], 'b', '20')]), 'trend');
+  assert.equal(more.length, 0);
+  assert.equal(spec.drawn, false);
+  assert.deepEqual(texts(spec), ['A trend needs at least two periods; this report has 1.']);
+});
+
+test('spend over time: a line from zero over the periods, left to right, with the highest whole period said exactly', () => {
+  const spec = trendOf(weekly(threeWeeks()), 'Spend over time');
+  assert.equal(spec.type, 'line');
+  assert.equal(spec.drawn, true);
+  assert.deepEqual(spec.context, {currency: 'USD'});
+  assert.equal(spec.x.kind, 'time');
+  assert.deepEqual(
+    spec.x.items.map(item => item.key),
+    weeks,
+  );
+  assert.deepEqual(
+    spec.x.items.map(item => item.label),
+    weeks,
+    'dates are ISO text: Latin digits, left to right',
+  );
+  const [series] = spec.series;
+  assert.deepEqual(series.values, ['60', '30', '90']);
+  assert.equal(series.color_index, 0);
+  assert.equal(spec.scale.min, '0');
+  assert.deepEqual(spec.scale.ticks, ['0', '50', '100']);
+  assert.equal(spec.takeaway.text, 'Spend was highest in the period starting 2026-09-21: 90.00 USD.');
+  // The peak and the last period are labelled; the other points are not.
+  assert.deepEqual(series.label_at, [2]);
+});
+
+test('a week with one unknown campaign is a short point, not a dip: it is marked, kept out of the extremes, and the notes say how many', () => {
+  const spec = trendOf(weekly(threeWeeks()), 'Spend over time'),
+    [series] = spec.series;
+  assert.deepEqual(series.short, [null, {known: 2, total: 3, unit: 'rows'}, null]);
+  assert.deepEqual(texts(spec), [
+    'Hollow marks are periods calculated from some of their rows only: 1.',
+    'Spend: 8 of 9 rows',
+  ]);
+  // The short week (30) would be the lowest if it counted; the takeaway, which names the highest, would not change, so
+  // make the short week the highest and see that it is still left out.
+  const rows = weeks.flatMap((date, index) =>
+      ['c1', 'c2'].map(id => week(date, id, index === 1 ? (id === 'c1' ? '500' : null) : '10', '4')),
+    ),
+    tall = trendOf(weekly(rows), 'Spend over time');
+  assert.deepEqual(tall.series[0].values, ['20', '500', '20']);
+  assert.deepEqual(tall.series[0].short.map(Boolean), [false, true, false]);
+  assert.equal(
+    tall.takeaway.text,
+    'Spend was highest in the period starting 2026-09-07: 20.00 USD.',
+    'ties go to the first',
+  );
+  // The table keeps the short week's value and says how many rows stand behind it.
+  assert.deepEqual(
+    spec.table.columns.map(column => column.label),
+    ['Period', 'Spend', 'Rows with a value'],
+  );
+  assert.deepEqual(spec.table.rows, [
+    ['2026-09-07', '60', null],
+    ['2026-09-14', '30', '2/3'],
+    ['2026-09-21', '90', null],
+  ]);
+});
+
+test('a period no row of the currency covers is a gap, not zero', () => {
+  const rows = [
+    week(weeks[0], 'a', '10'),
+    week(weeks[2], 'a', '30'),
+    week(weeks[0], 'e', '50', '1', {currency: 'EUR'}),
+    week(weeks[1], 'e', '99', '1', {currency: 'EUR'}),
+  ];
+  const specs = of(weekly(rows), 'trend').filter(spec => spec.title.text === 'Spend over time'),
+    usd = specs.find(spec => spec.context.currency === 'USD');
+  assert.deepEqual(usd.series[0].values, ['10', null, '30']);
+  assert.deepEqual(usd.table.rows[1], ['2026-09-14', null]);
+  assert.equal(specs.length, 2, 'the euro has its own chart');
+  assert.deepEqual(specs.find(spec => spec.context.currency === 'EUR').series[0].values, ['50', '99', null]);
+});
+
+test('results over time: one chart per result definition, never added together', () => {
+  const rows = weeks.flatMap((date, index) => [
+    week(date, 'a', '10', String(index + 1)),
+    week(date, 'b', '10', String((index + 1) * 10), {definition: purchaseDefinition}),
+  ]);
+  const results = of(weekly(rows), 'trend').filter(spec => spec.title.text === 'Results over time');
+  assert.equal(results.length, 2);
+  const leads = results.find(spec => spec.context.result === 'Leads'),
+    purchases = results.find(spec => spec.context.result === 'Purchases');
+  assert.deepEqual(leads.series[0].values, ['1', '2', '3']);
+  assert.deepEqual(purchases.series[0].values, ['10', '20', '30']);
+  assert.equal(leads.series[0].color_index, 1, 'results are the second hue');
+  assert.equal(leads.series[0].unit, 'number');
+  for (const spec of results)
+    assert.ok(
+      texts(spec).includes(
+        'Each result definition has its own chart (Leads, Purchases). Different results are never added.',
+      ),
+      texts(spec).join('|'),
+    );
+  assert.equal(leads.takeaway.text, 'Results were highest in the period starting 2026-09-21: 3.');
+});
+
+test('a result counted in money is charted in its currency, and rows with no single definition are counted and left out', () => {
+  const rows = [
+    ...weeks.map((date, index) => week(date, 'v', '10', String((index + 1) * 100), {definition: valueDefinition})),
+    ...weeks.map(date =>
+      week(date, 'm', '5', null, {
+        result: {metric: null, label: null, value: null, cost_per_result: null, definition_id: null},
+        result_context: undefined,
+      }),
+    ),
+  ];
+  const [money] = of(weekly(rows), 'trend').filter(spec => spec.title.text === 'Results over time');
+  assert.equal(money.series[0].unit, 'currency');
+  assert.equal(money.series[0].currency, 'USD');
+  assert.equal(money.takeaway.text, 'Results were highest in the period starting 2026-09-21: 300.00 USD.');
+  assert.ok(
+    texts(money).includes('Rows with no single result definition are left out of this chart: 3.'),
+    texts(money).join('|'),
+  );
+});
+
+test('a trend is not drawn from one known period, and with no known value it says so', () => {
+  const one = weekly([week(weeks[0], 'a', '10'), week(weeks[1], 'a', null)]);
+  const spend = trendOf(one, 'Spend over time');
+  assert.equal(spend.drawn, false);
+  assert.ok(
+    texts(spend).includes('There is only one entry, so there is nothing to compare. The table has it.'),
+    texts(spend).join('|'),
+  );
+  assert.deepEqual(spend.table.rows, [
+    ['2026-09-07', '10'],
+    ['2026-09-14', null],
+  ]);
+  const none = trendOf(weekly([week(weeks[0], 'a', null), week(weeks[1], 'a', null)]), 'Spend over time');
+  assert.equal(none.drawn, false);
+  assert.ok(texts(none).includes('No value is known, so there is nothing to draw.'));
+});
+
+test('a trend is not charted for spend without a known currency', () => {
+  const rows = weeks.map(date => week(date, 'a', '10', '1', {currency: null}));
+  const specs = of(weekly(rows), 'trend').filter(spec => spec.title.text === 'Spend over time');
+  assert.equal(specs.length, 1);
+  assert.equal(specs[0].drawn, false);
+  assert.deepEqual(texts(specs[0]), ['Amounts without a known currency are not charted.']);
 });
 
 test('a chart that is switched off in the report is not computed, and the others still are', () => {

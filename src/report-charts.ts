@@ -1,7 +1,7 @@
 import {overviewConfigV4} from './overview-v4.js';
 import {sumReportValuesV4} from './report-math-v4.js';
 import {reportCoverageLine, reportCoverageNotes} from './report-coverage-notes.js';
-import {metricSumCoverage} from './report-summary.js';
+import {metricSumCoverage, seriesCoverage} from './report-summary.js';
 import {
   chartDecimalText,
   compareChartDecimals,
@@ -340,7 +340,7 @@ function finishKind(specs: ChartSpec[], unpriced: number): ChartSpec[] {
   const kept = specs.slice(0, groupLimit),
     shared = currencyNote(kept);
   for (const spec of kept) spec.notes.push(...shared);
-  if (unpriced && kept[0]) kept[0].notes.push(chartNote('Spend without a known currency is not charted.'));
+  if (unpriced && kept[0]) kept[0].notes.push(chartNote('Amounts without a known currency are not charted.'));
   if (specs.length > kept.length)
     kept.at(-1)!.notes.push(
       chartNote('Only the first {count} groups are charted. The report table has the rest.', {
@@ -355,7 +355,13 @@ function spendByEntity(context: Context): ChartSpec[] {
     specs: ChartSpec[] = [];
   if (!groups.length)
     return unpriced
-      ? [omitted('spend_by_entity', 'Spend by campaign', chartNote('Spend without a known currency is not charted.'))]
+      ? [
+          omitted(
+            'spend_by_entity',
+            'Spend by campaign',
+            chartNote('Amounts without a known currency are not charted.'),
+          ),
+        ]
       : [];
   for (const group of groups) {
     const currency = String(group[0]!.currency),
@@ -414,9 +420,225 @@ function spendByEntity(context: Context): ChartSpec[] {
   return finishKind(specs, unpriced);
 }
 
+interface LineInput {
+  id: string;
+  title: ChartMessageKey;
+  context: ChartSpec['context'];
+  periods: string[];
+  values: (string | null)[];
+  short: ({known: number; total: number; unit: 'rows' | 'measurements'} | null)[];
+  measure: 'spend' | 'primary_result';
+  unit: 'currency' | 'number';
+  currency: string | null;
+  highest:
+    | 'Spend was highest in the period starting {date}: {value}.'
+    | 'Results were highest in the period starting {date}: {value}.';
+  notes: ChartNote[];
+}
+/**
+ * A line over periods, from zero, on one axis. A period with no row is a gap and a period calculated from some of its rows
+ * is a short point, drawn hollow and off the line, so a week with one unknown campaign never reads as a dip (F-L5-26). The
+ * highest period named is the highest whole one. A line of fewer than two known periods is not drawn.
+ */
+function lineChart(input: LineInput): ChartSpec {
+  const known = input.values.flatMap((value, index) => (value === null ? [] : [{value, index}])),
+    negative = known.some(point => decimalIn(point.value).units < 0n),
+    anyShort = input.short.some(Boolean),
+    notes = [...input.notes],
+    table: ChartTable = {
+      columns: [
+        {label: 'Period', label_kind: 'label', type: 'date'},
+        {
+          label: input.measure === 'spend' ? 'Spend' : 'Results',
+          label_kind: 'label',
+          type: input.unit === 'currency' ? 'currency' : 'decimal',
+          currency: input.currency,
+        },
+        ...(anyShort
+          ? [{label: 'Rows with a value' as const, label_kind: 'label' as const, type: 'text' as const}]
+          : []),
+      ],
+      rows: input.periods.map((period, index) => [
+        period,
+        input.values[index] ?? null,
+        ...(anyShort ? [input.short[index] ? `${input.short[index]!.known}/${input.short[index]!.total}` : null] : []),
+      ]),
+    },
+    base: ChartSpec = {
+      id: input.id,
+      kind: 'trend',
+      type: 'line',
+      title: chartMessage(input.title),
+      takeaway: null,
+      context: input.context,
+      x: null,
+      series: [],
+      scale: null,
+      notes,
+      table,
+      drawn: false,
+    };
+  if (!known.length) {
+    notes.unshift(chartNote('No value is known, so there is nothing to draw.'));
+    return base;
+  }
+  if (negative) {
+    notes.unshift(chartNote('Values below zero cannot be drawn from a zero baseline. The table has them.'));
+    return base;
+  }
+  if (known.length < 2) {
+    notes.unshift(chartNote('There is only one entry, so there is nothing to compare. The table has it.'));
+    return base;
+  }
+  let peak: {value: string; index: number} | null = null;
+  for (const point of known)
+    if (!input.short[point.index] && (!peak || compareText(point.value, peak.value) > 0)) peak = point;
+  const shortCount = input.short.filter(Boolean).length,
+    last = known.at(-1)!;
+  if (shortCount)
+    notes.unshift(
+      chartNote('Hollow marks are periods calculated from some of their rows only: {count}.', {
+        count: String(shortCount),
+      }),
+    );
+  return {
+    ...base,
+    takeaway: peak
+      ? chartMessage(input.highest, {date: input.periods[peak.index]!, value: amountOrNumber(peak.value, input)})
+      : null,
+    x: {kind: 'time', items: input.periods.map(period => ({key: period, label: period}))},
+    series: [
+      {
+        key: input.measure,
+        name: input.measure === 'spend' ? 'Spend' : 'Results',
+        name_kind: 'label',
+        unit: input.unit,
+        currency: input.currency,
+        values: input.values,
+        color_index: input.measure === 'spend' ? 0 : 1,
+        label_at: [...new Set([...(peak ? [peak.index] : []), last.index])].sort((a, b) => a - b),
+        short: input.short,
+      },
+    ],
+    scale: zeroBasedScale(
+      decimalIn(known.reduce<string>((max, point) => (compareText(point.value, max) > 0 ? point.value : max), '0')),
+    ),
+    drawn: true,
+  };
+}
+const amountOrNumber = (value: string, input: {unit: 'currency' | 'number'; currency: string | null}) =>
+  input.unit === 'currency' ? amountText(value, input.currency) : formatChartNumber(value);
+/** The value of a metric over each period, with the periods calculated from some of their rows marked short. */
+function periodValues(group: JsonObject[], periods: string[], metric: 'spend' | 'primary_result') {
+  const byPeriod = new Map(groupRows(group, row => String(row.date_from)));
+  return periods.map(period => {
+    const rows = byPeriod.get(period);
+    if (!rows) return {value: null, short: null};
+    const value = sumReportValuesV4(rows.map(row => decimalOf(row.metrics?.[metric]))).value,
+      coverage = seriesCoverage(rows, metric).coverage;
+    return {
+      value,
+      short:
+        coverage && coverage.known_rows > 0
+          ? {
+              known: coverage.known_rows,
+              total: coverage.total_rows,
+              unit: coverage.basis === 'native_measurements' ? ('measurements' as const) : ('rows' as const),
+            }
+          : null,
+    };
+  });
+}
+function trendCharts(context: Context): ChartSpec[] {
+  if ((context.config.grain ?? 'total') === 'total') return [];
+  const periods = [...new Set(context.top.map(row => String(row.date_from)))].sort();
+  if (periods.length < 2)
+    return [
+      omitted(
+        'trend',
+        'Spend over time',
+        chartNote('A trend needs at least two periods; this report has {count}.', {count: String(periods.length)}),
+      ),
+    ];
+  const specs: ChartSpec[] = [],
+    {groups, unpriced: unpricedSpend} = pricedGroups(context.top);
+  // Nothing priced at all: the spend chart is the one that says why it is missing.
+  if (!groups.length && unpricedSpend)
+    specs.push(omitted('trend', 'Spend over time', chartNote('Amounts without a known currency are not charted.')));
+  for (const group of groups) {
+    const currency = String(group[0]!.currency),
+      series = periodValues(group, periods, 'spend');
+    specs.push(
+      lineChart({
+        id: chartId('trend', 'spend', currency, aggregationOf(group[0]!)),
+        title: 'Spend over time',
+        context: {currency},
+        periods,
+        values: series.map(point => point.value),
+        short: series.map(point => point.short),
+        measure: 'spend',
+        unit: 'currency',
+        currency,
+        highest: 'Spend was highest in the period starting {date}: {value}.',
+        notes: [...coverageNotes(group, ['spend']), ...groupNotes(context, group)],
+      }),
+    );
+  }
+  const resolved = context.top.filter(row => row.result?.definition_id && row.result_context?.definition),
+    unresolved = context.top.length - resolved.length;
+  let unpricedResults = 0;
+  const resultSpecs: ChartSpec[] = [];
+  for (const [, group] of groupRows(resolved, row => {
+    const definition = row.result_context.definition;
+    return `${definition.id}|${definition.unit === 'currency' ? (row.currency ?? '') : ''}|${aggregationOf(row)}`;
+  })) {
+    const definition = group[0]!.result_context.definition,
+      currency = definition.unit === 'currency' ? (group[0]!.currency ? String(group[0]!.currency) : null) : null;
+    if (definition.unit === 'currency' && !currency) {
+      unpricedResults += group.length;
+      continue;
+    }
+    const series = periodValues(group, periods, 'primary_result');
+    resultSpecs.push(
+      lineChart({
+        id: chartId('trend', 'results', String(definition.id), currency, aggregationOf(group[0]!)),
+        title: 'Results over time',
+        context: {...(currency ? {currency} : {}), result: String(definition.label)},
+        periods,
+        values: series.map(point => point.value),
+        short: series.map(point => point.short),
+        measure: 'primary_result',
+        unit: definition.unit === 'currency' ? 'currency' : 'number',
+        currency,
+        highest: 'Results were highest in the period starting {date}: {value}.',
+        notes: [
+          ...(unresolved
+            ? [
+                chartNote('Rows with no single result definition are left out of this chart: {count}.', {
+                  count: String(unresolved),
+                }),
+              ]
+            : []),
+          ...coverageNotes(group, ['primary_result']),
+          ...groupNotes(context, group),
+        ],
+      }),
+    );
+  }
+  const definitions = [...new Set(resultSpecs.map(spec => spec.context.result!))].sort();
+  if (definitions.length > 1)
+    for (const spec of resultSpecs)
+      spec.notes.push(
+        chartNote('Each result definition has its own chart ({definitions}). Different results are never added.', {
+          definitions: definitions.join(', '),
+        }),
+      );
+  return finishKind([...specs, ...resultSpecs], (groups.length ? unpricedSpend : 0) + unpricedResults);
+}
+
 const builders: Record<ChartKind, (context: Context) => ChartSpec[]> = {
   kpi: () => [],
-  trend: () => [],
+  trend: trendCharts,
   spend_by_entity: spendByEntity,
   cost_vs_target: () => [],
   spend_by_objective: () => [],

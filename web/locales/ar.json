@@ -12033,7 +12033,7 @@
   "Each result definition has its own chart ({definitions}). Different results are never added.": "لكل تعريف للنتائج مخطط خاص به ({definitions}). لا تُجمع النتائج المختلفة أبدًا.",
   "This report is partial: totals leave out the sources or periods that are missing.": "هذا التقرير جزئي: تستثني الإجماليات المصادر أو الفترات المفقودة.",
   "Values below zero cannot be drawn from a zero baseline. The table has them.": "لا يمكن رسم القيم الأقل من الصفر انطلاقًا من خط الأساس صفر. تجدها في الجدول.",
-  "Spend without a known currency is not charted.": "لا يُرسم الإنفاق الذي لا تُعرف عملته.",
+  "Amounts without a known currency are not charted.": "لا تُرسم المبالغ التي لا تُعرف عملتها.",
   "A trend needs at least two periods; this report has {count}.": "يتطلب الاتجاه فترتين على الأقل؛ وفي هذا التقرير: {count}.",
   "No campaign has a cost per result target, so there is nothing to compare costs with.": "لا توجد حملة لها مستهدف لتكلفة النتيجة، فلا يوجد ما تُقارن به التكاليف.",
   "This report has no ad-level rows.": "لا يتضمن هذا التقرير صفوفًا على مستوى الإعلان.",

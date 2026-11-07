@@ -80,7 +80,7 @@ export const reportChartMessages = [
   'Each result definition has its own chart ({definitions}). Different results are never added.',
   'This report is partial: totals leave out the sources or periods that are missing.',
   'Values below zero cannot be drawn from a zero baseline. The table has them.',
-  'Spend without a known currency is not charted.',
+  'Amounts without a known currency are not charted.',
   'A trend needs at least two periods; this report has {count}.',
   'No campaign has a cost per result target, so there is nothing to compare costs with.',
   'This report has no ad-level rows.',

@@ -194,7 +194,7 @@ const arabic: Record<string, string> = {
     'هذا التقرير جزئي: تستثني الإجماليات المصادر أو الفترات المفقودة.',
   'Values below zero cannot be drawn from a zero baseline. The table has them.':
     'لا يمكن رسم القيم الأقل من الصفر انطلاقًا من خط الأساس صفر. تجدها في الجدول.',
-  'Spend without a known currency is not charted.': 'لا يُرسم الإنفاق الذي لا تُعرف عملته.',
+  'Amounts without a known currency are not charted.': 'لا تُرسم المبالغ التي لا تُعرف عملتها.',
   'A trend needs at least two periods; this report has {count}.':
     'يتطلب الاتجاه فترتين على الأقل؛ وفي هذا التقرير: {count}.',
   'No campaign has a cost per result target, so there is nothing to compare costs with.':

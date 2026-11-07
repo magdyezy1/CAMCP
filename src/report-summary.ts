@@ -362,12 +362,12 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
  * carries none. A week with one unknown campaign is then a short point, and not a dip. The units are counted as the
  * summary counts them: a row built from the provider's own measurements counts each of them.
  */
-export function seriesCoverage(rows: JsonObject[]): {coverage?: MetricCoverage} {
+export function seriesCoverage(rows: JsonObject[], metric = 'spend'): {coverage?: MetricCoverage} {
   let known = 0,
     total = 0,
     native = false;
   for (const row of rows) {
-    const entry = row.metrics_coverage?.spend,
+    const entry = row.metrics_coverage?.[metric],
       counts = entry && typeof entry === 'object' ? coverageCounts(entry) : undefined;
     if (counts && Number.isInteger(counts.known) && Number.isInteger(counts.total)) {
       known += counts.known;
@@ -375,7 +375,7 @@ export function seriesCoverage(rows: JsonObject[]): {coverage?: MetricCoverage} 
       native ||= entry.total_rows !== undefined && entry.basis === 'native_measurements';
     } else {
       total += 1;
-      known += row.metrics.spend === null || row.metrics.spend === undefined ? 0 : 1;
+      known += row.metrics[metric] === null || row.metrics[metric] === undefined ? 0 : 1;
     }
   }
   return known < total
