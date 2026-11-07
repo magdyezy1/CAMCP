@@ -174,6 +174,37 @@ test('a report with Meta’s results on one campaign and the mapped table on ano
   }
 });
 
+test('a summary that adds the results of different campaigns is AMCP’s total, not Meta’s own result', async () => {
+  const f = overviewGranularityFixture();
+  try {
+    f.mutate((rows, platform) =>
+      platform !== 'meta'
+        ? rows
+        : rows.flatMap(row =>
+            ['101', '103'].map(id => ({
+              ...row,
+              campaign_id: id,
+              campaign_name: 'Campaign ' + id,
+              objective: 'OUTCOME_LEADS',
+              optimization_goal: 'LEAD_GENERATION',
+              spend: '12',
+              results: results('actions:lead', wire('4', '7d_click'), wire('10')),
+            })),
+          ),
+    );
+    const {read} = await run(f, campaignConfig('daily'));
+    assert.equal(read.state, 'complete', JSON.stringify(read.sources?.[0]?.error));
+    for (const row of read.rows)
+      assert.equal(row.result_context.source, 'provider', 'each campaign’s result is Meta’s');
+    const group = read.summary[0].result_groups?.[0] ?? read.summary[0].result_context;
+    assert.equal(group.definition?.id ?? group.definition_id, 'meta:leads');
+    assert.equal(group.source, 'mapped', 'the sum of two campaigns is AMCP’s');
+    assert.equal(read.summary[0].metrics.primary_result, '8');
+  } finally {
+    f.close();
+  }
+});
+
 test('the source’s result definition says what is true of its rows: results, mapped, or both', async () => {
   const definitions = [];
   for (const [name, mutate] of [
