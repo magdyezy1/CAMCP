@@ -498,15 +498,22 @@ export function campaignRecommendation(
             : null
         : m[metric],
     target = metricNumber(p.target);
-  if (target === null || target <= 0)
+  if (target === null || target <= 0) {
+    // F-L5-13: a result counted in money has no cost per result to set a target for, so a row that falls to the default KPI
+    // is asked for its return instead. A target that names its own KPI keeps it.
+    const asked =
+      p.kpi === undefined && metric === 'cost_per_result' && row.result_context?.definition?.unit === 'currency'
+        ? 'roas'
+        : metric;
     return {
       ...result(
         'needs_target',
-        'Set a ' + metric.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
-        {kpi: metric},
+        'Set a ' + asked.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
+        {kpi: asked},
       ),
-      reason_localization: {key: 'target_required', kpi: metric.toUpperCase(), currency: row.currency},
+      reason_localization: {key: 'target_required', kpi: asked.toUpperCase(), currency: row.currency},
     };
+  }
   if (p.currency !== row.currency)
     return result('needs_review', 'The target currency must match the campaign account currency.', {
       target_currency: p.currency ?? null,

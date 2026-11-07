@@ -166,6 +166,47 @@ test('only that case changes: counts, a return target, a missing target, a wrong
   assert.equal(nothing['67'].decision, 'reconsider_pause');
 });
 
+/**
+ * A value-based row with no target at all is told which target to set. The default KPI of a v4 target is cost per result,
+ * which this row cannot have, so it is asked for its return (ROAS), which the website's target cards offer on every objective.
+ */
+const returnPrompt = 'Set a ROAS target in USD for this objective or campaign.';
+test('a value-based row with no target is asked for a ROAS target, not a cost per result target', async t => {
+  const advice = await advise(t, [row('91', 'TARGET_ROAS', 1, 50), row('92', 'TARGET_ROAS', 30, 300)], {});
+  for (const id of ['91', '92']) {
+    assert.equal(advice[id].decision, 'needs_target', id);
+    assert.equal(advice[id].reason, returnPrompt, id);
+    // The website translates this prompt from these parameters.
+    assert.deepEqual(advice[id].reason_localization, {key: 'target_required', kpi: 'ROAS', currency: 'USD'}, id);
+    assert.equal(advice[id].evidence.kpi, 'roas', id);
+  }
+  const daily = await advise(
+    t,
+    [row('93', 'TARGET_ROAS', 1, 100, day), row('93', 'TARGET_ROAS', 1, 100, nextDay)],
+    {},
+    'daily',
+  );
+  assert.equal(daily['93'].decision, 'needs_target');
+  assert.equal(daily['93'].reason, returnPrompt);
+});
+
+test('only that prompt changes: a count result is asked for a cost per result target, a mixed set still waits for campaign targets', async t => {
+  const counts = await advise(t, [row('94', 'MAXIMIZE_CONVERSIONS', 1, 50)], {});
+  assert.equal(counts['94'].decision, 'needs_target');
+  assert.equal(counts['94'].reason, 'Set a COST_PER_RESULT target in USD for this objective or campaign.');
+  assert.deepEqual(counts['94'].reason_localization, {key: 'target_required', kpi: 'COST_PER_RESULT', currency: 'USD'});
+  assert.equal(counts['94'].evidence.kpi, 'cost_per_result');
+  // Two result meanings in one objective: the guard that asks for a campaign-specific target answers first, as before.
+  const mixed = await advise(t, [row('95', 'TARGET_ROAS', 30, 300), row('96', 'MAXIMIZE_CONVERSIONS', 30, 300)], {});
+  for (const id of ['95', '96']) {
+    assert.equal(mixed[id].decision, 'needs_review', id);
+    assert.equal(
+      mixed[id].reason,
+      'This objective contains different result definitions. Set a campaign-specific target before comparing costs.',
+    );
+  }
+});
+
 test('a grouped report gives the same answer over the whole window', async t => {
   const advice = await advise(
     t,

@@ -135,6 +135,29 @@ test('a conversion value under a cost per result target says why in English and 
   assert.equal(en.run('uiRecommendationReason(rec)'), advice.reason);
 });
 
+test('a value-based row with no target is asked for a ROAS target, translated from the existing parameters (package results)', () => {
+  // The prompt is structured: the website fills one authored template with the KPI and the currency, so no new copy is needed.
+  const advice = recommendationV4(
+      {
+        ...nativeRow(),
+        result: {value: '600', cost_per_result: null, definition_id: 'google:conversion_value'},
+        result_context: {definition: {unit: 'currency', aggregation: 'sum'}},
+      },
+      {},
+    ),
+    ar = fixture(),
+    en = fixture('en'),
+    template = 'Set a {kpi} target in {currency} for this objective or campaign.';
+  assert.equal(advice.decision, 'needs_target');
+  assert.equal(advice.reason, 'Set a ROAS target in SAR for this objective or campaign.');
+  assert.deepEqual(advice.reason_localization, {key: 'target_required', kpi: 'ROAS', currency: 'SAR'});
+  ar.context.rec = en.context.rec = advice;
+  const text = ar.run('uiRecommendationReason(rec)');
+  assert.equal(text, ar.context.catalog[template].replace('{kpi}', 'ROAS').replace('{currency}', 'SAR'));
+  assert.match(text, /[؀-ۿ]/u);
+  assert.equal(en.run('uiRecommendationReason(rec)'), advice.reason);
+});
+
 test('report explanation extraction follows only authored explanation positions, leaving native protocol and context data alone', () => {
   assert.equal(typeof localeChecks.inspectReportExplanations, 'function');
   const source = `const result=(decision,reason)=>({decision,reason});
