@@ -84,9 +84,9 @@ through a component sheet that depends on it (`web/route-assets.js`), so it reac
 | `--v2-data-1` | #6250d6 | #9085e9 | Data series |
 | `--v2-data-2` | #eb6834 | #d95926 | Data series |
 | `--v2-data-3` | #1baf7a | #199e70 | Data series requiring direct labels |
-| `--v2-raised` | #ffffff | #1f1a29 | Raised surface: cards, inputs, dialogs |
-| `--v2-subtle` | #f5f2fa | #272031 | Quiet fill: hovered rows, table headers, the neutral badge, skeletons |
-| `--v2-selected` | #ece6f8 | #30284a | Selected fill |
+| `--v2-raised` | #ffffff | #252032 | Raised surface: cards, inputs, dialogs |
+| `--v2-subtle` | #f5f2fa | #2e273b | Quiet fill: hovered rows, table headers, the neutral badge, skeletons |
+| `--v2-selected` | #ece6f8 | #392f5c | Selected fill |
 | `--v2-success`, `--v2-success-bg` | #245d49, #e6f3ed | #a5e5c4, #18382e | Success text and its tint |
 | `--v2-warning`, `--v2-warning-bg` | #714b14, #fff3db | #f6d89e, #3d2e19 | Warning text and its tint |
 | `--v2-danger`, `--v2-danger-bg` | #af3939, #fce5e8 | #ffb6bf, #452830 | Danger text and its tint |
