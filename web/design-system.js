@@ -332,6 +332,210 @@ function designSystemCards() {
   );
 }
 
+// Synthetic data for the choosing components: made-up names, never a real account.
+const designSystemAccounts = Array.from({length: 120}, (_, index) => ({
+  value: 'acct-' + (1001 + index),
+  label:
+    ['Harbor Outdoor', 'Cedar Cafe', 'Orchard Studio', 'Summit Sports', 'Willow Books'][index % 5] +
+    ' ' +
+    (Math.floor(index / 5) + 1),
+  description: ['Meta', 'TikTok', 'Google Ads', 'Snapchat'][index % 4] + ' · ' + (1001 + index),
+}));
+const designSystemCampaigns = Array.from({length: 40}, (_, index) => ({
+  value: 'camp-' + (index + 1),
+  label:
+    ['Spring launch', 'Summer offer', 'Back to school', 'Holiday gifts'][index % 4] + ' ' + (Math.floor(index / 4) + 1),
+  description: ['Awareness', 'Traffic', 'Sales'][index % 3],
+}));
+const designSystemScope = [
+  {
+    id: 'meta',
+    label: 'Meta',
+    children: [
+      {
+        id: 'meta-a',
+        label: 'Harbor Outdoor',
+        meta: '3',
+        children: [
+          {id: 'meta-a1', label: 'Spring launch'},
+          {id: 'meta-a2', label: 'Summer offer'},
+          {id: 'meta-a3', label: 'Holiday gifts'},
+        ],
+      },
+      {id: 'meta-b', label: 'Cedar Cafe', meta: '1', children: [{id: 'meta-b1', label: 'Back to school'}]},
+    ],
+  },
+  {
+    id: 'tiktok',
+    label: 'TikTok',
+    children: [
+      {
+        id: 'tiktok-a',
+        label: 'Orchard Studio',
+        meta: '2',
+        children: [
+          {id: 'tiktok-a1', label: 'Spring launch'},
+          {id: 'tiktok-a2', label: 'Summer offer', disabled: true},
+        ],
+      },
+    ],
+  },
+  {id: 'google', label: 'Google Ads', children: [{id: 'google-a', label: 'Summit Sports', meta: '0', disabled: true}]},
+];
+
+function designSystemChoosing() {
+  const panel = text => html`<div class="amcp-ds-panel">${text}</div>`;
+  return designSystemSection(
+    'choosing',
+    uiText('Segmented control and tabs'),
+    uiText(
+      'A segmented control is a group of radio buttons. Tabs move with the arrow keys, Home and End, and a disabled tab is skipped.',
+    ),
+    html`<div class="amcp-stack">${[
+      designSystemSpecimen(
+        uiText('Segmented control'),
+        AmcpUI.segmented({
+          name: 'ds-density',
+          label: uiText('Row density'),
+          value: 'comfortable',
+          options: [
+            {value: 'comfortable', label: uiText('Comfortable')},
+            {value: 'compact', label: uiText('Compact')},
+            {value: 'dense', label: uiText('Dense'), disabled: true},
+          ],
+        }),
+      ),
+      designSystemSpecimen(
+        uiText('Tabs, selected on arrow keys'),
+        AmcpUI.tabs({
+          id: 'ds-tabs',
+          label: uiText('Report views'),
+          tabs: [
+            {
+              id: 'overview',
+              label: uiText('Overview'),
+              panel: panel(uiText('Key figures, charts and the written summary.')),
+            },
+            {id: 'campaigns', label: uiText('Campaigns'), panel: panel(uiText('One row for each campaign.'))},
+            {id: 'ads', label: uiText('Ads'), panel: panel(uiText('One row for each ad.'))},
+            {
+              id: 'quality',
+              label: uiText('Data quality'),
+              panel: panel(uiText('Where the figures came from.')),
+              disabled: true,
+            },
+          ],
+        }),
+      ),
+      designSystemSpecimen(
+        uiText('Tabs, selected on Enter or Space'),
+        AmcpUI.tabs({
+          id: 'ds-tabs-manual',
+          label: uiText('History'),
+          activation: 'manual',
+          tabs: [
+            {id: 'snapshots', label: uiText('Snapshots'), panel: panel(uiText('Saved copies of this report.'))},
+            {id: 'exports', label: uiText('Exports'), panel: panel(uiText('Files made from this report.'))},
+          ],
+        }),
+      ),
+      designSystemSpecimen(
+        uiText('Tabs, vertical'),
+        AmcpUI.tabs({
+          id: 'ds-tabs-vertical',
+          label: uiText('Settings sections'),
+          orientation: 'vertical',
+          tabs: [
+            {id: 'general', label: uiText('General'), panel: panel(uiText('Name and language.'))},
+            {id: 'access', label: uiText('Access'), panel: panel(uiText('Who can open this workspace.'))},
+          ],
+        }),
+      ),
+    ]}</div>`,
+  );
+}
+
+function designSystemCombobox() {
+  const specimen = (label, markup) => designSystemSpecimen(label, html`<div class="amcp-ds-static">${markup}</div>`);
+  return designSystemSection(
+    'combobox',
+    uiText('Searchable list'),
+    uiText(
+      'Type to narrow a long list, ignoring case and accents. Arrow keys move, Enter chooses, Escape closes. The list says how many results there are.',
+    ),
+    html`<div class="amcp-ds-specimens amcp-ds-wide">${[
+      specimen(
+        uiText('Accounts, 120 of them'),
+        AmcpUI.combobox({
+          id: 'ds-accounts',
+          label: uiText('Account'),
+          hint: uiText('Type part of a name or an ID.'),
+          name: 'account',
+        }),
+      ),
+      specimen(
+        uiText('Campaigns, searched on the server'),
+        AmcpUI.combobox({id: 'ds-campaigns', label: uiText('Campaign'), hint: uiText('The list is read as you type.')}),
+      ),
+      specimen(uiText('Loading'), AmcpUI.combobox({id: 'ds-loading', label: uiText('Campaign')})),
+      specimen(uiText('Could not load'), AmcpUI.combobox({id: 'ds-failed', label: uiText('Campaign')})),
+      specimen(
+        uiText('Error'),
+        AmcpUI.combobox({
+          id: 'ds-combo-error',
+          label: uiText('Account'),
+          required: true,
+          error: uiText('Choose an account.'),
+        }),
+      ),
+      specimen(uiText('Disabled'), AmcpUI.combobox({id: 'ds-combo-off', label: uiText('Account'), disabled: true})),
+    ]}</div>`,
+  );
+}
+
+function designSystemTree() {
+  return designSystemSection(
+    'tree',
+    uiText('Scope tree'),
+    uiText(
+      'Checking a parent checks every account and campaign under it; a parent with only some of them shows a dash. Disabled items are skipped.',
+    ),
+    html`<div class="amcp-stack">${designSystemSpecimen(
+      uiText('Platforms, accounts and campaigns'),
+      html`${AmcpUI.tree({id: 'ds-tree', label: uiText('Choose what to report on'), nodes: designSystemScope, checked: ['meta-a1'], expanded: ['meta', 'meta-a']})}<div class="amcp-ds-note" id="ds-tree-summary" role="status"></div>`,
+    )}</div>`,
+  );
+}
+
+/** Fills the components that need a script: the lists' options and the tree's state. Runs after the page is drawn. */
+function designSystemMount() {
+  const host = id => document.getElementById(id + '-root'),
+    later = (value, ms) => new Promise(resolve => setTimeout(() => resolve(value), ms)),
+    found = query => AmcpUI.combobox.filter(designSystemCampaigns, query, 20).items;
+  AmcpUI.combobox.mount(host('ds-accounts'), {options: designSystemAccounts, limit: 20});
+  AmcpUI.combobox.mount(host('ds-campaigns'), {search: query => later(found(query), 400)});
+  AmcpUI.combobox.mount(host('ds-loading'), {search: () => new Promise(() => {})}).open();
+  let attempts = 0;
+  AmcpUI.combobox
+    .mount(host('ds-failed'), {
+      search: query => (++attempts % 2 ? Promise.reject(Error('unavailable')) : later(found(query), 200)),
+    })
+    .open();
+  const summary = document.getElementById('ds-tree-summary'),
+    platforms = new Set(designSystemScope.map(platform => platform.id)),
+    say = checked => {
+      const campaigns = checked.filter(id => !platforms.has(id) && /\d$/.test(id) && !/^[a-z]+-[a-z]$/.test(id)).length;
+      summary.textContent = uiPlural(campaigns, '{count} campaign selected', '{count} campaigns selected');
+    },
+    tree = AmcpUI.tree.mount(document.getElementById('ds-tree'), {
+      nodes: designSystemScope,
+      checked: ['meta-a1'],
+      expanded: ['meta', 'meta-a'],
+      onChange: say,
+    });
+  say(tree.checked());
+}
+
 function renderDesignSystem() {
   if (!session.authenticated) return showLogin();
   const sections = [
@@ -339,6 +543,9 @@ function renderDesignSystem() {
     designSystemBadges(),
     designSystemChips(),
     designSystemFields(),
+    designSystemChoosing(),
+    designSystemCombobox(),
+    designSystemTree(),
     designSystemFeedback(),
     designSystemCards(),
   ];
@@ -347,6 +554,9 @@ function renderDesignSystem() {
     ['badges', uiText('Badge')],
     ['chips', uiText('Filter chips')],
     ['fields', uiText('Fields')],
+    ['choosing', uiText('Segmented control and tabs')],
+    ['combobox', uiText('Searchable list')],
+    ['tree', uiText('Scope tree')],
     ['feedback', uiText('Progress, loading and states')],
     ['cards', uiText('Cards')],
   ];
@@ -355,5 +565,6 @@ function renderDesignSystem() {
     html`<div class="page-heading"><div><h1>${uiText('Design system')}</h1><p>${uiText('Every component in every state. Change the language and the appearance above to review both.')}</p></div></div><div class="amcp-surface amcp-ds"><div class="amcp-ds-layout"><nav class="amcp-ds-index" aria-label="${uiText('Components')}"><ul>${index.map(([id, name]) => html`<li><a href="#ds-${id}">${name}</a></li>`)}</ul></nav><div class="amcp-ds-body">${sections}</div></div></div>`,
   );
   AmcpUI.bind(content);
+  designSystemMount();
 }
 AMCP.routes.register('/design-system', {render: renderDesignSystem});

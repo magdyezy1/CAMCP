@@ -3,6 +3,7 @@
 const pageAssetOrder = [
   'tokens-v2.css',
   'components.css',
+  'components-controls.css',
   'design-system.css',
   'campaign-recipes.js',
   'creative-push.js',
@@ -40,6 +41,7 @@ const pageAssetOrder = [
   'account-approvals.js',
   'help.js',
   'components.js',
+  'components-controls.js',
   'design-system.js',
 ];
 const pageAssetDependencies = {
@@ -65,7 +67,14 @@ const pageAssetDependencies = {
   'report-quality.js': ['report-library.js', 'reporting-overview.js'],
   'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
   'account-approvals.js': ['owner-operations.js'],
-  'design-system.js': ['tokens-v2.css', 'components.css', 'design-system.css', 'components.js'],
+  'design-system.js': [
+    'tokens-v2.css',
+    'components.css',
+    'components-controls.css',
+    'design-system.css',
+    'components.js',
+    'components-controls.js',
+  ],
 };
 // A page's files are its route registry entry's `assets` (web/routes.js).
 const pageAssetRoutes = Object.freeze(

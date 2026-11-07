@@ -102,3 +102,16 @@
   align-items: center;
   gap: var(--v2-space-3);
 }
+.amcp-ds-panel {
+  padding-block: var(--v2-space-2);
+  color: var(--v2-ink-2);
+}
+.amcp-ds-note {
+  margin-block-start: var(--v2-space-2);
+  color: var(--v2-ink-2);
+  font-size: var(--v2-text-sm);
+}
+/* The popup of a list drawn in the flow, so a state page can show it at rest without covering what follows. */
+.amcp-ds-static .amcp-popup {
+  position: static;
+}

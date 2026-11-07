@@ -1,0 +1,12 @@
+{
+  "Clear the search": "مسح البحث",
+  "Could not load the options.": "تعذّر تحميل الخيارات.",
+  "No match for “{query}”.": "لا توجد نتيجة مطابقة لـ “{query}”.",
+  "No matches": "لا توجد نتائج مطابقة",
+  "No options yet.": "لا توجد خيارات بعد.",
+  "Searching…": "جارٍ البحث…",
+  "Show options": "إظهار الخيارات",
+  "Showing {shown} of {total}. Keep typing to narrow the list.": "يُعرض {shown} من {total}. واصل الكتابة لتضييق القائمة.",
+  "{count} result": "النتائج: {count}",
+  "{count} results": "النتائج: {count}"
+}

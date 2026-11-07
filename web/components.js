@@ -8,7 +8,7 @@ const AmcpUI = (() => {
   let sequence = 0;
   const behaviors = new Map(),
     bound = new WeakSet(),
-    delegated = ['click', 'keydown', 'input', 'change', 'focusin', 'focusout'];
+    delegated = ['click', 'keydown', 'input', 'change', 'focusin', 'focusout', 'mousedown'];
   const ui = {
     /** A unique id for a control and the text that describes it. */
     uid: (prefix = 'amcp') => prefix + '-' + ++sequence,
