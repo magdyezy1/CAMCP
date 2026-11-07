@@ -12,6 +12,7 @@ function markup() {
   const context = createContext({document: {addEventListener() {}}, Intl});
   const run = source => new Script(source).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   return {context, run};
 }
 
@@ -184,6 +185,7 @@ test('Activity renders audit identifiers and provider codes as text', async () =
     });
   const run = source => new Script(source).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   const app = fs.readFileSync('web/app.js', 'utf8');
   run(app.slice(app.indexOf('async function renderActivity()'), app.indexOf('async function renderCallback()')));
   await run('renderActivity()');

@@ -23,15 +23,21 @@ button:disabled {
 [hidden] {
   display: none !important;
 }
+/* The page beside its sidebar: two columns (the sidebar's width follows its state), the sidebar as tall as the window. */
 .app-shell {
-  display: flex;
+  display: grid;
+  grid-template-columns: 256px minmax(0, 1fr);
   min-height: 100vh;
 }
+.app-shell[data-sidebar='rail'] {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
 .sidebar {
-  flex-shrink: 0;
-  position: fixed;
-  inset-block: 0;
-  inset-inline: 0 auto;
+  position: sticky;
+  inset-block-start: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -80,9 +86,6 @@ nav a span {
   width: 23px;
   text-align: center;
 }
-.sidebar-bottom {
-  margin-top: auto;
-}
 .readonly-indicator {
   display: flex;
   align-items: center;
@@ -94,11 +97,6 @@ nav a span {
   height: 6px;
   border-radius: 50%;
   display: inline-block;
-}
-.legal {
-  border-top: 1px solid;
-  display: flex;
-  gap: 20px;
 }
 .topbar {
   border-bottom: 1px solid var(--line);
@@ -923,18 +921,6 @@ dialog {
   .app-shell {
     display: block;
   }
-  .brand-note,
-  .workspace,
-  .nav-label,
-  .sidebar-bottom {
-    display: none;
-  }
-  .sidebar nav {
-    margin-top: 18px;
-  }
-  .sidebar nav a {
-    white-space: nowrap;
-  }
   .domain {
     display: none;
   }
@@ -1190,9 +1176,6 @@ dialog {
 #report-result {
   margin-top: 22px;
 }
-.sidebar nav {
-  overflow-y: auto;
-}
 @media (max-width: 1050px) {
   .workspace-columns {
     grid-template-columns: 1fr;
@@ -1200,14 +1183,6 @@ dialog {
   .workspace-form {
     padding: 18px;
   }
-}
-
-.sidebar nav {
-  scrollbar-width: thin;
-}
-.sidebar nav a {
-  padding-top: 12px;
-  padding-bottom: 12px;
 }
 
 .oauth-client-id {

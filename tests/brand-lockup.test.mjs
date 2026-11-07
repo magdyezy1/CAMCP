@@ -84,7 +84,29 @@ test('no .brand or .about-brand element pairs the mark with plain AMCP text', ()
   for (const element of all) {
     const text = element.inner.replace(/<[^>]*>/g, '').trim();
     assert.equal(text, '', element.file + ': a brand element holds text; the outlined logo letters are the artwork');
-    assert.ok(!element.images.some(image => imageFile(image) === 'mark'), element.file + ': the mark beside no lockup');
+  }
+});
+
+// V2-WEB-03: the shell's sidebar rail has no room for a lockup (never under 160px wide), so its brand also holds the icon
+// alone, at 24px or more, as a state of its own: it shows in place of the lockup, never beside it. Only the shell's
+// document has one; the stylesheets that choose between the states are checked in tests/shell-sidebar.test.mjs.
+test('the icon alone is a state of the shell’s brand, square and at least 24px, and never in another brand element', () => {
+  for (const element of all) {
+    const marks = element.images.filter(image => imageFile(image) === 'mark');
+    if (element.file !== 'index.html') {
+      assert.deepEqual(marks, [], element.file + ': the mark beside no lockup');
+      continue;
+    }
+    assert.equal(marks.length, 1, 'the shell’s brand holds one icon');
+    const [mark] = marks;
+    assert.equal(mark.class, 'logo-mark');
+    assert.equal(mark.alt, 'AMCP');
+    assert.ok(Number(mark.width) >= 24 && mark.width === mark.height, 'the icon is square and at least 24px');
+    assert.deepEqual(
+      element.images.filter(image => imageFile(image) !== 'mark').map(imageFile),
+      ['logo-ink', 'logo-white'],
+      'the lockup stays, in both variants, beside the icon state',
+    );
   }
 });
 
@@ -104,10 +126,16 @@ test('every brand element has an accessible name that contains AMCP, in Latin le
 test('each brand element is the lockup in both variants, or White only on the surfaces dark in both themes', () => {
   for (const element of all) {
     const used = element.images.map(imageFile),
-      // The sidebar and the connection result header sit on --surface-inverse, which neither theme changes.
-      dark = ['index.html', 'app.js'].includes(element.file);
-    assert.deepEqual(used, dark ? ['logo-white'] : ['logo-ink', 'logo-white'], element.file);
-    for (const image of element.images) {
+      // The connection result header sits on --surface-inverse, which neither theme changes. (The sidebar did too until
+      // V2-WEB-03 made it a neutral surface: it takes both variants now, and the icon alone for the rail.)
+      dark = ['app.js'].includes(element.file),
+      shell = element.file === 'index.html';
+    assert.deepEqual(
+      used,
+      dark ? ['logo-white'] : shell ? ['logo-ink', 'logo-white', 'mark'] : ['logo-ink', 'logo-white'],
+      element.file,
+    );
+    for (const image of element.images.filter(image => imageFile(image) !== 'mark')) {
       assert.equal(image.class, imageFile(image), element.file + ': the class names the variant CSS shows or hides');
       assert.equal(image.alt, 'AMCP', element.file);
       const width = Number(image.width),
@@ -174,14 +202,12 @@ test('the variant rules are one set, in the stylesheet each page family loads, a
       '@media screen and (prefers-color-scheme: dark) | :root:not([data-theme]) .logo-white | display | block',
     ];
   assert.deepEqual(rules('privacy.css'), core);
-  // accessibility.css adds the two surfaces that are dark in both themes (--surface-inverse is the same in each).
+  // accessibility.css adds the surface that is dark in both themes (--surface-inverse is the same in each): the
+  // connection result's header. The sidebar was one until V2-WEB-03 made it neutral.
   assert.deepEqual(
     rules('accessibility.css'),
     core.map(rule =>
-      rule.replace(
-        "[data-theme='dark'] .logo-white |",
-        "[data-theme='dark'] .logo-white, :is(.sidebar, .callback-top) .logo-white |",
-      ),
+      rule.replace("[data-theme='dark'] .logo-white |", "[data-theme='dark'] .logo-white, .callback-top .logo-white |"),
     ),
   );
   for (const sheet of sheets.filter(name => !['privacy.css', 'accessibility.css'].includes(name)))

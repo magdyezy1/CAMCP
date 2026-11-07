@@ -53,6 +53,7 @@ async function fixture(locale = 'en') {
   });
   const run = s => new Script(s).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
+  run(readFileSync('web/routes.js', 'utf8'));
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
   const source = readFileSync('web/app.js', 'utf8');
   run(

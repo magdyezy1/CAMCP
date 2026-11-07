@@ -962,7 +962,12 @@ test('the access line names the person’s role and the deployment, not the depl
     f.context.nextSession = {...identity(), ...session};
     f.run('session = nextSession');
     await f.run('render()');
-    assert.equal(f.node('.readonly-indicator').innerHTML, '<i></i>' + expected, JSON.stringify(session));
+    // V2-WEB-03: the words sit in a span, so the rail can clip them without removing them.
+    assert.equal(
+      f.node('.readonly-indicator').innerHTML,
+      '<i></i><span>' + expected + '</span>',
+      JSON.stringify(session),
+    );
     assert.equal(f.node('.sidebar .brand').href, session.authenticated ? '/dashboard' : '/');
   }
 });

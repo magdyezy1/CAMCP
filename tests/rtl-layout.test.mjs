@@ -63,8 +63,15 @@ test('every shipped stylesheet uses logical sides, so the Arabic mirror patches 
   assert.match(localization, /html\[dir='rtl'\] \.sidebar \{\s*transform: translateX\(100%\);/);
   const identity = fs.readFileSync('web/identity.css', 'utf8'),
     app = fs.readFileSync('web/app.css', 'utf8');
-  assert.match(identity, /\.main-shell \{\s*margin-inline-start: 253px;/);
-  assert.match(app, /\.sidebar \{[^}]*inset-block: 0;\s*inset-inline: 0 auto;/);
+  // V2-WEB-03: the sidebar is the first column of a grid, which follows the writing direction by itself (it was a fixed
+  // column, with a start margin on the page to make room for it); only the phone drawer, a fixed panel that waits off
+  // the window, keeps its logical inset.
+  assert.match(app, /\.app-shell \{\s*display: grid;\s*grid-template-columns: 256px minmax\(0, 1fr\);/);
+  assert.doesNotMatch(identity, /\.main-shell \{[^}]*margin-inline-start/);
+  assert.match(
+    identity,
+    /@media \(max-width: 850px\) \{\s*\.sidebar \{\s*position: fixed;\s*inset-block: 0;\s*inset-inline: 0 auto;/,
+  );
 });
 
 test('the top bar keeps one row: square avatar, shortening breadcrumb, labels give way by container width', () => {

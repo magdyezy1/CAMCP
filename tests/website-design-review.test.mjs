@@ -233,8 +233,10 @@ test('focus rings on the closing call to action and on focusable scroll regions 
     inverse = access.find(r => r.selector.includes('.closing-note') && declarations(r.body).has('outline-color'));
   assert.ok(inverse, 'the closing band takes the on-inverse ring');
   assert.equal(declarations(inverse.body).get('outline-color'), 'var(--focus-on-inverse)');
-  for (const surface of ['.sidebar', '.toast', '.connector-hero', '.callback-top', '.closing-note'])
+  // V2-WEB-03: the sidebar is a neutral surface in both themes now and takes the page's own ring (shell-sidebar.test.mjs).
+  for (const surface of ['.toast', '.connector-hero', '.callback-top', '.closing-note'])
     assert.ok(isList(inverse.selector).includes(surface), surface);
+  assert.ok(!isList(inverse.selector).includes('.sidebar'), 'the sidebar is not an inverse surface');
   const band = declarations(rules(css('identity.css')).find(r => r.selector === '.closing-note').body).get(
     'background',
   );
@@ -251,21 +253,21 @@ test('focus rings on the closing call to action and on focusable scroll regions 
 
 // Before: the sidebar's icon rule (.sidebar nav a span, 20 px wide) also sized each link's label, so a label of two or
 // more words broke at every space and centred: "Evidence & analysis" took three lines, and with a group open the
-// current page's link could fall below the sidebar's foot at 1280 x 900.
+// current page's link could fall below the sidebar's foot at 1280 x 900. V2-WEB-03: the icon box (.nav-icon, 24 px) and
+// the label (.sidebar .nav-text) are named parts; the navigation scrolls inside the sidebar, so no link falls below it.
 test('a sidebar label takes the row beside its icon and reads from its start', () => {
   const identity = rules(css('identity.css'));
   const find = selector => identity.find(r => r.selector === selector);
-  const shared = find('.sidebar nav a span'),
-    label = find('.sidebar nav a span + span');
+  const shared = find('.nav-icon'),
+    label = find('.sidebar .nav-text');
   assert.ok(shared && label, 'the label has a rule of its own beside the icon box');
-  assert.equal(declarations(shared.body).get('width'), '20px', 'the icon keeps its 20 px box');
+  assert.equal(declarations(shared.body).get('width'), '24px', 'the icon keeps its 24 px box');
   const values = declarations(label.body);
   assert.equal(values.get('width'), 'auto', 'the label leaves the icon box');
   assert.equal(values.get('text-align'), 'start');
   assert.equal(values.get('min-width'), '0');
   assert.match(values.get('flex'), /^1\b/);
-  // The label rule outranks the shared icon box and app.css's `nav a span` (21px, 23px wide, centred).
-  assert.ok(outranks(label, shared));
+  // The label rule outranks app.css's `nav a span` (21px, 23px wide, centred), which still styles every other nav.
   assert.ok(compare(specificity(label.selector), specificity('nav a span')) > 0);
 });
 

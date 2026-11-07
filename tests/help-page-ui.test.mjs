@@ -175,18 +175,35 @@ test('the footer offers Help to signed-in members only; a test account’s scope
     [{authenticated: true, workspaceRole: 'owner'}, false],
     [{authenticated: true, testAccount: true}, true],
   ]) {
+    // V2-WEB-03: the sidebar's footer links (Account, Help) follow the same session and scope as the page footer's Help.
     const link = {hidden: true},
+      sidebar = [
+        {hidden: true, dataset: {route: 'help'}},
+        {hidden: true, dataset: {route: 'account'}},
+      ],
       context = createContext({
         session,
-        document: {querySelector: () => null, getElementById: id => (id === 'footer-help' ? link : null)},
+        document: {
+          querySelector: () => null,
+          querySelectorAll: selector => (selector === '.sidebar-links a[data-route]' ? sidebar : []),
+          getElementById: id => (id === 'footer-help' ? link : null),
+        },
       });
     new Script(fs.readFileSync('web/routes.js', 'utf8') + '\n' + source + '\nshellLinks();').runInContext(context);
     assert.equal(link.hidden, hidden, JSON.stringify(session));
+    assert.equal(sidebar[0].hidden, hidden, 'the sidebar Help link: ' + JSON.stringify(session));
+    // Account is for every signed-in person, a test account included; nobody else.
+    assert.equal(
+      sidebar[1].hidden,
+      session.authenticated !== true,
+      'the sidebar Account link: ' + JSON.stringify(session),
+    );
   }
-  // The link is in the shipped footer, hidden until the session says otherwise, beside About us.
+  // The link is in the shipped footer, hidden until the session says otherwise, beside About us. V2-WEB-03: Privacy and
+  // Terms moved here from the sidebar, so the rail (which has no room for words) and every width keep them.
   const index = fs.readFileSync('web/index.html', 'utf8');
   assert.match(
     index,
-    /<footer class="page-footer"><span class="footer-links"><a href="\/about" data-ui-text="About us">About us<\/a><a href="\/help" id="footer-help" data-ui-text="Help" hidden>Help<\/a><\/span>/,
+    /<footer class="page-footer"><span class="footer-links"><a href="\/about" data-ui-text="About us">About us<\/a><a href="\/privacy" data-ui-text="Privacy">Privacy<\/a><a href="\/terms" data-ui-text="Terms">Terms<\/a><a href="\/help" id="footer-help" data-ui-text="Help" hidden>Help<\/a><\/span>/,
   );
 });

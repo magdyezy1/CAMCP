@@ -1530,11 +1530,24 @@ function accessLine(s) {
     ? uiText('{role} · read + reviewed writes', {role})
     : uiText('{role} · read-only workspace', {role});
 }
+/** Brings a link of the scrolling navigation into view: the navigation moves, never the page. */
+function revealNavigationLink(link) {
+  const nav = link.closest?.('.sidebar > nav');
+  if (!nav || nav.scrollHeight <= nav.clientHeight) return;
+  const box = link.getBoundingClientRect(),
+    area = nav.getBoundingClientRect();
+  if (box.top < area.top) nav.scrollTop -= area.top - box.top;
+  else if (box.bottom > area.bottom) nav.scrollTop += box.bottom - area.bottom;
+}
 /** Shell links follow the session: the brand opens Home when signed in; members get the switcher and Help (DOC-03). */
 function shellLinks() {
   document.querySelector('.sidebar .brand')?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
   const help = document.getElementById('footer-help');
   if (help) help.hidden = !session.authenticated || !routeAvailable('/help');
+  // Account and Help in the sidebar's footer are for people who are signed in and may open them (web/account-scope.js
+  // hides them from a test account the same way).
+  for (const link of document.querySelectorAll('.sidebar-links a[data-route]'))
+    link.hidden = !session.authenticated || !routeAvailable('/' + link.dataset.route);
   const toggle = document.getElementById('workspace-switch-open');
   if (!toggle) return;
   toggle.hidden = !session.authenticated || !!session.testAccount;
@@ -1876,7 +1889,7 @@ async function renderCurrentPage() {
   applyUILocale();
   document.getElementById('workspace-name').textContent = uiWorkspaceName(session.workspaceName, session.name);
   document.getElementById('user-avatar').textContent = (session.name ?? 'A').slice(0, 1).toUpperCase();
-  $('.readonly-indicator').innerHTML = `<i></i>` + esc(accessLine(session));
+  setHtml($('.readonly-indicator'), html`<i></i><span>${accessLine(session)}</span>`);
   shellLinks();
   const footerAccess = session.writesEnabled
     ? 'Encrypted connections · Reviewed write access'
@@ -1889,8 +1902,10 @@ async function renderCurrentPage() {
     a.classList.toggle('active', current);
     if (current) {
       a.setAttribute('aria-current', 'page');
-      const group = a.closest?.('details');
-      if (group) group.open = true;
+      // The group that holds the current page is open, and the page is in view in the scrolling navigation.
+      const group = a.closest?.('.nav-group');
+      if (group) setNavigationGroup(group, true);
+      revealNavigationLink(a);
     } else a.removeAttribute('aria-current');
   });
   // A child page names its parent first: "Connections / Connection result". A page with a link of its own (the

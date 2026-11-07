@@ -44,6 +44,7 @@ function home(locale) {
   });
   const run = source => new Script(source).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(fs.readFileSync('web/workspace.js', 'utf8'));
   run(fs.readFileSync('web/work-center.js', 'utf8'));
   if (locale === 'ar') run("uiLocale='ar'; uiMessages=new Map(Object.entries(catalog))");
@@ -337,6 +338,7 @@ test('the new Operations kinds have localized guidance and open their exact reco
     Map,
   });
   new Script(fs.readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(fs.readFileSync('web/routes.js', 'utf8')).runInContext(context);
   new Script(fs.readFileSync('web/operations-center.js', 'utf8')).runInContext(context);
   new Script("uiLocale='ar'; uiMessages=new Map(Object.entries(catalog))").runInContext(context);
   for (const text of guidance) {
@@ -405,6 +407,7 @@ function connectionsPage(search) {
   });
   const run = code => new Script(code).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   const app = fs.readFileSync('web/app.js', 'utf8'),
     start = app.indexOf('(async () => {'),
     end = app.indexOf('})();', start) + 5;

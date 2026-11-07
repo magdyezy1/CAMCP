@@ -402,7 +402,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
   // V2-WEB-03 (web-shell): +15 entries, the page subtitles the route registry now carries (the group names Home, Reports, Creatives, Campaigns, Connections, Operations and Settings were already translated).
-  assert.equal(Object.keys(catalog).length, 12019);
+  // V2-WEB-03 (web-shell): +3 entries, the sidebar's footer navigation name and the rail switch's two states.
+  assert.equal(Object.keys(catalog).length, 12022);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

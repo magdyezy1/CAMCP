@@ -51,10 +51,10 @@ function parseNavigation(markup) {
   const links = [];
   let group = null;
   for (const m of markup.matchAll(
-    /<summary[^>]*>([^<]*)<\/summary>|<\/details>|<a href="([^"]*)" data-route="([^"]*)"[^>]*>[\s\S]*?<span data-ui-text="([^"]*)">([^<]*)<\/span><\/a>/g,
+    /data-group="([^"]*)"|<\/div><\/div>|<a href="([^"]*)" data-route="([^"]*)"[^>]*>[\s\S]*?<span class="nav-text" data-ui-text="([^"]*)">([^<]*)<\/span><\/a>/g,
   )) {
     if (m[1] !== undefined) group = decode(m[1]);
-    else if (m[0] === '</details>') group = null;
+    else if (m[0] === '</div></div>') group = null;
     else links.push({href: m[2], route: m[3], label: decode(m[4]), text: decode(m[5]), group});
   }
   return links;
@@ -316,7 +316,8 @@ test('sign-in returns only to a registered workspace page', () => {
     assert.equal(page.run('routeReturnable(' + JSON.stringify(path) + ')'), false, String(path).slice(0, 40));
 });
 
-// A DOM with the shipped navigation's links, groups and the sidebar note, enough for account-scope.js.
+// A DOM with the shipped navigation's links and groups, enough for account-scope.js. (The sidebar's promotional note, whose
+// connectors link this once held, is gone with the neutral frame; the connectors page is a navigation link like the rest.)
 function scopedShell(session, pathname) {
   const groupNodes = [],
     navLinks = [];
@@ -332,8 +333,7 @@ function scopedShell(session, pathname) {
     }
     group.members.push(node);
   }
-  const note = {hidden: false, getAttribute: () => '/connectors'},
-    inserted = [],
+  const inserted = [],
     heading = {insertAdjacentHTML: (_where, html) => inserted.push(html)};
   const location = {pathname, search: '', hash: ''};
   const context = createContext({
@@ -350,13 +350,7 @@ function scopedShell(session, pathname) {
       addEventListener() {},
       body: {classList: {toggle() {}}},
       querySelectorAll: selector =>
-        selector === '[data-route]'
-          ? navLinks
-          : selector === '.sidebar-note a[href^="/"]'
-            ? [note]
-            : selector === '.sidebar details.nav-more'
-              ? groupNodes
-              : [],
+        selector === '[data-route]' ? navLinks : selector === '.sidebar .nav-group' ? groupNodes : [],
     },
   });
   const run = source => new Script(source).runInContext(context);
@@ -367,7 +361,7 @@ function scopedShell(session, pathname) {
   run(app.slice(app.indexOf('async function render() {'), app.indexOf('async function renderCurrentPage()')));
   run('var renders = []; var renderCurrentPage = async function () { renders.push(location.pathname); };');
   run(fs.readFileSync('web/account-scope.js', 'utf8'));
-  return {run, context, navLinks, groupNodes, note, inserted, location};
+  return {run, context, navLinks, groupNodes, inserted, location};
 }
 
 test('a reviewer sees every product navigation group and can open portfolio and AI connectors', async () => {
@@ -375,7 +369,6 @@ test('a reviewer sees every product navigation group and can open portfolio and 
   await f.run('render()');
   assert.ok(f.navLinks.every(link => !link.hidden));
   assert.ok(f.groupNodes.every(group => !group.hidden));
-  assert.equal(f.note.hidden, false);
   assert.equal(f.location.pathname, '/portfolio');
   assert.deepEqual(Array.from(f.run('renders')), ['/portfolio']);
   assert.equal(f.inserted.length, 0);
@@ -412,7 +405,6 @@ test('members, owners and visitors keep the whole navigation and no redirect', a
     await f.run('render()');
     assert.ok(f.navLinks.every(link => !link.hidden));
     assert.ok(f.groupNodes.every(group => !group.hidden));
-    assert.equal(f.note.hidden, false);
     assert.equal(f.location.pathname, '/portfolio');
     assert.equal(f.inserted.length, 0);
   }

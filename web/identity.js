@@ -41,20 +41,47 @@ function glyph(name, cls = '') {
 }
 /**
  * The sidebar's links, built from the route registry (V2-WEB-03, web/routes.js): each group in order, its pages from the
- * hub, one glyph per link. A group of one page is a plain link; a group of several opens as a disclosure. The palette
- * reads the same registry, and web/account-scope.js hides what a test account may not open.
+ * hub, one glyph per link. A group of one page is a plain link; a group of several opens as a disclosure, closed until
+ * its page is the current one or the person opens it. The palette reads the same registry, and web/account-scope.js
+ * hides what a test account may not open.
  */
 const navigationLink = entry =>
-  html`<a href="${entry.path}" data-route="${entry.path.slice(1)}"><span>${glyphHtml(entry.icon)}</span><span data-ui-text="${entry.label}">${uiText(entry.label)}</span></a>`;
+  html`<a href="${entry.path}" data-route="${entry.path.slice(1)}"><span class="nav-icon">${glyphHtml(entry.icon)}</span><span class="nav-text" data-ui-text="${entry.label}">${uiText(entry.label)}</span></a>`;
+const navigationGroupId = name => 'nav-group-' + name.toLowerCase().replace(/[^a-z]+/g, '-');
 function shellNavigationMarkup(groups = routeNavigation()) {
   return html`${groups.map(group =>
     group.entries.length === 1
       ? navigationLink(group.entries[0])
-      : html`<details class="nav-more"><summary data-ui-text="${group.name}">${uiText(group.name)}</summary>${group.entries.map(navigationLink)}</details>`,
+      : html`<div class="nav-group" data-group="${group.name}" data-open="false"><button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="${navigationGroupId(group.name)}"><span data-ui-text="${group.name}">${uiText(group.name)}</span>${glyphHtml('chevron')}</button><div class="nav-group-links" id="${navigationGroupId(group.name)}">${group.entries.map(navigationLink)}</div></div>`,
   )}`;
+}
+/** The pages of the user menu (Account, Help), as the sidebar's footer links: the registry marks them `menu: 'user'`. */
+function shellUserLinksMarkup() {
+  return html`${routeRegistry.filter(entry => entry.menu === 'user').map(navigationLink)}`;
 }
 function renderShellNavigation() {
   setHtml($('nav[data-ui-label="Main navigation"]'), shellNavigationMarkup());
+  setHtml($('.sidebar-links'), shellUserLinksMarkup());
+  setHtml($('[data-sidebar-toggle] .nav-icon'), glyphHtml('sidebar'));
+}
+/**
+ * The sidebar's state: the person's remembered choice (this browser, every page), else the rail where the window is
+ * narrower than 1024px and the full sidebar where it is wider. Below 851px the sidebar is the drawer, whatever this says.
+ */
+const sidebarStore = 'amcp.sidebar';
+// The choice made on this page, for a browser that keeps no storage.
+let sidebarMemory = null;
+function sidebarChoice() {
+  if (sidebarMemory) return sidebarMemory;
+  try {
+    const choice = localStorage.getItem(sidebarStore);
+    return choice === 'full' || choice === 'rail' ? choice : null;
+  } catch {
+    return null;
+  }
+}
+function sidebarStateFor(choice, wide) {
+  return choice === 'full' || choice === 'rail' ? choice : wide ? 'full' : 'rail';
 }
 /** A public file's address in this page's asset snapshot, as the server binds the HTML (WEB-04). */
 function publicAssetUrl(path) {
@@ -279,6 +306,31 @@ async function renderAccountPage() {
   await AMCP.routes.renderParts('/account', account);
 }
 renderShellNavigation();
+const wideMatch = matchMedia('(min-width:1024px)');
+/** Opens or closes one navigation group: its state is on the group and on its control. */
+function setNavigationGroup(group, open) {
+  group.dataset.open = String(open);
+  group.querySelector('.nav-group-toggle')?.setAttribute('aria-expanded', String(open));
+}
+/** Draws the sidebar in its state: the full sidebar or the rail, the switch's words, and a title for each icon of the rail. */
+function applySidebar() {
+  const state = sidebarStateFor(sidebarChoice(), wideMatch.matches),
+    toggle = $('[data-sidebar-toggle]'),
+    text = $('[data-sidebar-toggle] .nav-text'),
+    words = state === 'full' ? 'Collapse navigation' : 'Expand navigation';
+  document.querySelector('.app-shell').dataset.sidebar = state;
+  toggle.setAttribute('aria-expanded', String(state === 'full'));
+  text.setAttribute('data-ui-text', words);
+  text.textContent = uiText(words);
+  // A pointer finds the name that the words give a keyboard user: the rail's titles are the labels.
+  for (const link of document.querySelectorAll('.sidebar a[data-route], .sidebar-toggle'))
+    if (state === 'rail') link.setAttribute('title', link.textContent.trim());
+    else link.removeAttribute('title');
+}
+wideMatch.addEventListener('change', applySidebar);
+// A render follows every language change, which is when the labels (and so the titles) change.
+AMCP.hooks.afterRender(applySidebar);
+applySidebar();
 const menuMatch = matchMedia('(max-width:850px)');
 function closeNavigation() {
   document.querySelector('.main-shell').inert = false;
@@ -430,6 +482,17 @@ document.addEventListener('click', e => {
     $('#workspace-sidebar').inert = !open;
     document.querySelector('.main-shell').inert = open;
     if (open) document.querySelector('.sidebar-close').focus();
+  }
+  if (b.classList.contains('nav-group-toggle'))
+    setNavigationGroup(b.closest('.nav-group'), b.getAttribute('aria-expanded') !== 'true');
+  if (b.hasAttribute('data-sidebar-toggle')) {
+    sidebarMemory = $('.app-shell').dataset.sidebar === 'full' ? 'rail' : 'full';
+    try {
+      localStorage.setItem(sidebarStore, sidebarMemory);
+    } catch {
+      // The choice then holds for this page only.
+    }
+    applySidebar();
   }
   if (b.hasAttribute('data-command-open')) openCommand();
   if (b.dataset.commandGo) {
