@@ -27,9 +27,11 @@ function tree(registry, order) {
     'route-assets.js',
     fs
       .readFileSync('web/route-assets.js', 'utf8')
+      // The loader's own order is replaced, not added to: it already names the real V2 sheets, and a sheet listed twice
+      // would be loaded twice.
       .replace(
-        'const pageAssetOrder = [\n',
-        'const pageAssetOrder = [\n' + order.map(file => "'" + file + "',").join('\n'),
+        /const pageAssetOrder = \[[^\]]*\];/,
+        'const pageAssetOrder = [' + order.map(file => JSON.stringify(file)).join(', ') + '];',
       ),
   );
   return {root, write};

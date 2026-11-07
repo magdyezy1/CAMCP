@@ -76,7 +76,8 @@ test('every V2 text and control pair passes contrast, with data-3 requiring dire
 });
 // V2-WEB-02 changed this test: it pinned "no page loads the sheet". The static public pages now link it (third, after
 // public-tokens.css); the workspace shell and About do not, because their route byte budgets cannot take it, so the routes
-// that use V2 load it as a page asset (tests/web-tokens-v2-components.test.mjs, tests/route-assets-styles.test.mjs).
+// that use V2 load it as a page asset, and web/route-assets.js is the one script that names it
+// (tests/web-tokens-v2-components.test.mjs, tests/route-assets-styles.test.mjs).
 test('V2 dark and system blocks are equal, parity is independent, and only the planned pages load the sheet', () => {
   const css = read('tokens-v2.css');
   assert.ok(tokenSheets.includes('tokens-v2.css'));
@@ -98,6 +99,7 @@ test('V2 dark and system blocks are equal, parity is independent, and only the p
     'data-deletion.html',
     'privacy-ar.html',
     'privacy.html',
+    'route-assets.js',
     'terms-ar.html',
     'terms.html',
   ]);
