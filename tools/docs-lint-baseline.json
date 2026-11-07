@@ -232,10 +232,16 @@
       "raised": [
         "reference_words 154728 → 156417"
       ]
+    },
+    {
+      "reason": "V2-MCP-02 documents the typed config, the bootstrap rules, the get and list filters with their cursor (about 360 words in docs/REPORTING-OVERVIEW.md)",
+      "raised": [
+        "reference_words 156417 → 156776"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156417
+    "reference_words": 156776
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
