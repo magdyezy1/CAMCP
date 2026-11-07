@@ -5,9 +5,10 @@ import type {WebsiteSite} from './website-site.js';
 
 /**
  * The public website and the workspace shell (WEB-02): versioned assets, the policy, terms, deletion and About pages
- * without a session or JavaScript, robots.txt, security.txt and the favicon, every page of the route registry
- * (web/routes.js, tools/check-routes.mjs) answered with the shell (/ sends a signed-in visitor to /dashboard, P12),
- * and the branded not-found page with a real 404. Registered last: it answers every address the routes before it left.
+ * without a session or JavaScript, robots.txt, security.txt and the browser and device icons, every page of the route
+ * registry (web/routes.js, tools/check-routes.mjs) answered with the shell (/ sends a signed-in visitor to /dashboard,
+ * P12), and the branded not-found page with a real 404. Registered last: it answers every address the routes before it
+ * left.
  */
 export function pageRoutes({router, web, options, directory, publicAssets}: WebsiteSite) {
   router.use(
@@ -51,12 +52,14 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
     res.setHeader('Cache-Control', 'no-cache');
     res.type('text/plain').send(securityTxt(web.origin, options.authEnv ?? process.env));
   });
-  // The mark is an SVG: /favicon.ico points to it at its own versioned address, whose type matches its path. Temporary,
+  // Browsers ask for /favicon.ico, and iOS for /apple-touch-icon.png, without any markup. Both are the brand kit's own
+  // binary files: each address points to its file at its own versioned address, whose type matches its path. Temporary,
   // because the version changes with every deployment.
-  router.get('/favicon.ico', (_req, res) => {
-    res.setHeader('Cache-Control', 'no-cache');
-    res.redirect(302, '/assets/v/' + publicAssets.version + '/mark.svg');
-  });
+  for (const icon of ['favicon.ico', 'apple-touch-icon.png'])
+    router.get('/' + icon, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.redirect(302, '/assets/v/' + publicAssets.version + '/' + icon);
+    });
   // Owner decision P12 (DOC-03): a signed-in visitor to / goes to Home; everyone else gets the public landing page. The
   // address is a fixed path on this site, never taken from the request, so nothing a visitor sends can steer it.
   const signedIn = (req: Request) => {
