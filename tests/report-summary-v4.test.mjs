@@ -225,6 +225,16 @@ test('ratios divide only the rows that have both parts, round half to even and r
   assert.equal(ratio([{spend: '10', impressions: '2000'}]).metrics.cpm, '5', 'a per-thousand ratio');
   assert.equal(ratio([{spend: '10', clicks: '0'}]).metrics.cpc, null, 'a zero denominator has no value');
 });
+// F-L5-29 (M17): a row whose measurement is incomplete is held for that reason before any other check speaks, even when
+// the row is otherwise complete and has no resolved result (which would ask to confirm the objective).
+test('a row with incomplete measurement is held for that reason before any other check', () => {
+  const policy = {sales: {target: 0.1, currency: 'SAR'}},
+    held = recommendationV4(row('10', null, {quality: {measurement_complete: false}}), policy),
+    open = recommendationV4(row('10', null), policy);
+  assert.equal(held.decision, 'needs_review');
+  assert.match(held.reason, /declared incomplete or its measurement is incomplete/);
+  assert.doesNotMatch(open.reason, /declared incomplete/, 'the same row without the flag asks about its objective');
+});
 test('advice holds while a metric it needs is calculated from some of its rows only (F-L5-31 shape)', () => {
   const policy = {sales: {target: 0.1, currency: 'SAR'}},
     covered = known_rows =>
@@ -240,6 +250,18 @@ test('advice holds while a metric it needs is calculated from some of its rows o
     },
   });
   assert.match(recommendationV4(ratio, policy).reason, /report metrics are incomplete/);
+  // A KPI that is a ratio counts too: a cost per click built from one of two rows.
+  const kpi = row('10', '20', {
+    metrics_coverage: {cpc: {known_rows: 1, total_rows: 2, known_pairs: 1, basis: 'report_rows', report_rows: 2}},
+  });
+  assert.match(
+    recommendationV4(kpi, {sales: {target: 1, currency: 'SAR', kpi: 'cpc'}}).reason,
+    /report metrics are incomplete/,
+  );
+  assert.doesNotMatch(
+    recommendationV4(row('10', '20'), {sales: {target: 1, currency: 'SAR', kpi: 'cpc'}}).reason ?? '',
+    /report metrics are incomplete/,
+  );
 });
 test('advice holds, and the report does not fail, once the report’s calculation time is spent', () => {
   withCalculationBudget(
