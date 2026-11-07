@@ -21,7 +21,7 @@ import {assertCompatibleBaseline, compareDeclaredReference, compareReportContext
 import {allocationOutcomeView, captureAllocationOutcome} from './allocation-outcome.js';
 import {breakdownDescriptor, breakdownDimensionKeys, breakdownValue} from './report-breakdowns.js';
 import {guidedReportSources, googleServingDiagnostics, metaAttributionWindows} from './report-sources.js';
-import type {AccountLookupCache, GuidedDimension, GuidedReporting} from './report-source.js';
+import type {AccountLookupCache, GuidedDimension, GuidedReporting, ReportSource} from './report-source.js';
 import {evidenceIndex} from './evidence-index.js';
 import {launchCheck} from './launch-check.js';
 import {
@@ -38,10 +38,10 @@ const nativeCountryMappingFailure = (message: string): never => bad(message, 'RE
  * the guided reporting of the platform a preset is named under or a gateway reports through, the report date formats
  * and the native dimensions they document, by key.
  */
-const guidedByPreset = (preset: string | undefined): GuidedReporting | undefined =>
+const guidedSourceByPreset = (preset: string | undefined): ReportSource | undefined =>
   preset === undefined
     ? undefined
-    : guidedReportSources.find(source => preset.startsWith(source.guided!.presetPrefix!))?.guided;
+    : guidedReportSources.find(source => preset.startsWith(source.guided!.presetPrefix!));
 const guidedByGateway = (gateway: unknown): GuidedReporting | undefined =>
   guidedReportSources.find(source => reportPlatforms[source.platform]?.gateway === gateway)?.guided;
 const guidedDateFormats = new Map<string, (value: unknown) => unknown>(
@@ -740,7 +740,8 @@ export class DecisionReporting {
       args.arguments = {...args.arguments, account_id: input.account_id, connection_id: c.id, dry_run: false};
     } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
     // A guided preset's capture is collected by its platform (ARC-01 reporting: its report source's guided reporting).
-    const guided = guidedByPreset(capturePreset),
+    const actionSource = guidedSourceByPreset(capturePreset),
+      guided = actionSource?.guided,
       collected = guided?.collect
         ? await guided.collect({
             store: this.store,
@@ -819,7 +820,12 @@ export class DecisionReporting {
           const matching = value.filter(v => v.action_type === spec.action_type);
           if (matching.length > 1)
             bad('The native action metric has duplicate selected action types.', 'REPORT_METRIC_AMBIGUOUS');
-          value = matching[0]?.value ?? null;
+          // A v4 report counts the entry under what the read asked its platform for (ReportSource.actionCount); an entry
+          // with no count there is an omitted zero. Every other capture reads the entry's value.
+          value =
+            (overviewV4 && matching[0] && actionSource?.actionCount
+              ? actionSource.actionCount(matching[0], String(spec.path).replace(/^\//, ''), {request: args})
+              : matching[0]?.value) ?? null;
         }
         if (
           (value === null || value === undefined) &&

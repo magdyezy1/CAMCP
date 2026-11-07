@@ -5,7 +5,7 @@ import {metaPrefix} from './meta-version.js';
 import {byObjectiveGroup, metricNumber} from './report-metrics.js';
 import {overviewCapabilities, invalidReportSource, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
-import {metaResult, metaResultRules} from './meta-report-results.js';
+import {metaRequestedWindows, metaResult, metaResultRules, metaWindowCount} from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
 import {reportStatus} from './report-status.js';
 import {metaReportMetadata} from './meta-report-metadata.js';
@@ -142,18 +142,35 @@ export const metaReportSource: ReportSource = {
       : 'ad set unified attribution setting';
     c.resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
   },
-  normalize(raw, {value, field: n, omitted}) {
-    const objective = raw.objective;
+  /**
+   * A v4 report asked Meta for explicit attribution windows: an action’s `value` is then the ad set’s own setting, and the
+   * count of each requested window is under the key named for it (F-LEAD-02). A v3 report, and a v4 report under the ad
+   * set’s own setting, read `value`.
+   */
+  actionCount(entry, field, {options, request}) {
+    const windows = metaRequestedWindows(options ?? {attribution_windows: request?.query?.action_attribution_windows});
+    return windows !== undefined && (field === 'actions' || field === 'action_values')
+      ? metaWindowCount(entry, windows, 'native_metric')
+      : entry.value;
+  },
+  normalize(raw, {value, field: n, omitted, options}) {
+    const objective = raw.objective,
+      windows = metaRequestedWindows(options);
     // RPT-04 (owner policy P6): Meta omits zero-valued action entries. A delivered row (impressions above 0) from a
     // complete page counts an absent requested action as 0 and names it in `omitted_as_zero`; a row without delivery
-    // keeps it unknown.
+    // keeps it unknown. Under explicit windows an action with a count in none of them is that case too.
     const delivered = (metricNumber(raw.impressions) ?? 0) > 0;
     const action = (metric: string, keys: string[], field = 'actions') => {
       const a = raw[field];
       if (Array.isArray(a))
         for (const key of keys) {
           const found = a.find((v: JsonObject) => v?.action_type === key);
-          if (found) return value(found.value);
+          if (found) {
+            if (windows === undefined) return value(found.value);
+            const counted = metaWindowCount(found, windows, 'native_metric');
+            if (counted !== undefined) return value(counted);
+            break;
+          }
         }
       if (delivered && (a === undefined || Array.isArray(a))) {
         omitted.add(metric);
