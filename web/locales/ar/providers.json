@@ -3548,6 +3548,7 @@
   "TikTok returned unbound or repeated ad group result rows.": "أعادت TikTok صفوف نتائج لمجموعات إعلانية غير مرتبطة أو مكررة.",
   "TikTok saved audience details must confirm success and list saved audiences.": "يجب أن تؤكد تفاصيل الجماهير المحفوظة في TikTok النجاح وتعرض قائمة الجماهير المحفوظة.",
   "TikTok takes budgets with at most two decimal places, and no more than the account currency has.": "يقبل تيك توك الميزانيات بمنزلتين عشريتين على الأكثر، ودون تجاوز عدد منازل عملة الحساب.",
+  "TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.": "تعذّرت قراءة نتائج مجموعات إعلانات TikTok، لذلك نتائج الحملات غير معروفة. الإنفاق ومرات الظهور والنقرات دون تغيير.",
   "Timezone": "المنطقة الزمنية",
   "To disable, explicitly clear both pubsubTopic and notificationTypes in one review. This avoids ambiguous retained settings.": "لإيقاف الإشعارات، امسح pubsubTopic وnotificationTypes صراحةً ضمن مراجعة واحدة، لتجنب إبقاء إعدادات غير واضحة.",
   "Token refresh failed; platform requests were not attempted.": "فشل تجديد الرمز؛ لم تُجرَ أي محاولة لإرسال طلبات إلى المنصة.",

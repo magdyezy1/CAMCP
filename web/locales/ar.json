@@ -11582,6 +11582,7 @@
   "TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–366 closed days, read in spans of 30 days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.": "تستخدم TikTok تواريخ يومية بحسب المنطقة الزمنية للمعلن لحملات المزاد القياسية ومجموعات الإعلانات والإعلانات. يُتحقّق من العملة والمنطقة الزمنية قبل الجمع وبعده. اختر 1–366 يومًا منتهيًا، تُقرأ على فترات من 30 يومًا. يتبع التحويل الأصلي هدف تحسين كل عنصر؛ وقد تختلف الأهداف. حدّد نوافذ الإسناد أو أدخل unknown. تقارير Smart+ وGMV Max منفصلة.",
   "TikTok’s totals differ from the rows returned.": "تختلف إجماليات TikTok عن الصفوف التي أعادتها.",
   "TikTok’s page counts disagreed with its rows; its totals match, so the collection is complete.": "لم تتطابق أعداد صفحات TikTok مع الصفوف التي أعادتها؛ لكن إجمالياتها متطابقة، لذا اكتمل الجمع.",
+  "TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.": "تعذّرت قراءة نتائج مجموعات إعلانات TikTok، لذلك نتائج الحملات غير معروفة. الإنفاق ومرات الظهور والنقرات دون تغيير.",
   "TikTok’s totals differ from the rows returned: {gaps}.": "تختلف إجماليات TikTok عن الصفوف التي أعادتها: {gaps}.",
   "{metric}: {rows} of {total}": "{metric}: {rows} من {total}",
   "Chosen for this campaign in the report.": "اختير هذا الهدف لهذه الحملة في التقرير.",

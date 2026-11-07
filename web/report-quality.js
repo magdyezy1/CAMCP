@@ -233,6 +233,7 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
+  'TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.',
   'AMCP retained the first 10,000 LinkedIn entities; entities beyond that bound are missing.',
   'This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.',
   // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).

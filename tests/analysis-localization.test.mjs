@@ -155,6 +155,11 @@ test('collector warnings with a count or field name translate through fixed temp
       'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
       'TikTok',
     ],
+    // Package results (F-L5-19): the campaign keeps its spend when the ad group report that names its result fails.
+    [
+      'TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.',
+      'TikTok',
+    ],
   ];
   for (const [warning, value] of warnings) {
     ar.context.warning = warning;

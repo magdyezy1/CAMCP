@@ -5,7 +5,7 @@ import {
   type ReportResultContext,
 } from './report-results.js';
 import type {JsonObject} from './types.js';
-import type {ReportCollection} from './report-source.js';
+import {accessRefusalCodes, type ReportCollection} from './report-source.js';
 import {MirrorError} from './errors.js';
 import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
 import {
@@ -79,7 +79,30 @@ export function tiktokCampaignResultGroups(
   );
 }
 
-/** One bounded native ad-group report, not the campaign's unavailable result metric. */
+/** Shown when the ad group report that names a campaign's result could not be read. */
+export const tiktokResultsUnavailableWarning =
+  'TikTok’s ad group results could not be read, so campaign results are unknown. Spend, impressions and clicks are unchanged.';
+/**
+ * Whether `error` is the auxiliary ad group report failing on TikTok's side, so the campaign's own figures can stand
+ * without a result: not retryable (a retry retries the job), not AMCP's own limit or refusal (REPORT_*: the whole-job
+ * allowance, a changed shape), not a changed login, lost connection or credential failure, and not a cancelled job.
+ */
+function adGroupResultsUnreadable(error: unknown): error is MirrorError {
+  return (
+    error instanceof MirrorError &&
+    !error.retryable &&
+    !error.code.startsWith('REPORT_') &&
+    !accessRefusalCodes.has(error.code) &&
+    error.details.layer !== 'credential' &&
+    !['JOB_CANCELLED', 'STALE_JOB_LEASE'].includes(error.code)
+  );
+}
+
+/**
+ * One bounded native ad-group report, not the campaign's unavailable result metric. The read is auxiliary (F-L5-19): the
+ * campaign was read by its own report, so a failure of this one leaves the campaign's result unknown, with a warning,
+ * and keeps its spend, impressions and clicks; a retryable failure still retries the job.
+ */
 export async function collectTikTokCampaignResults(c: ReportCollection, metadata: Record<string, JsonObject>) {
   const query: JsonObject = {
     advertiser_id: c.account,
@@ -96,13 +119,20 @@ export async function collectTikTokCampaignResults(c: ReportCollection, metadata
   };
   let response: JsonObject;
   try {
-    response = await c.run(c.plan('/v1.3/report/integrated/get/', query), true, 'adgroup_results');
+    try {
+      response = await c.run(c.plan('/v1.3/report/integrated/get/', query), true, 'adgroup_results');
+    } catch (error) {
+      if (!query.filtering || !tiktokStatusFilterRefused(error)) throw error;
+      delete query.filtering;
+      if (c.lookup) c.lookup.tiktokStatusFilter = 'refused';
+      if (!c.warnings.includes(tiktokStatusFilterRefusedWarning)) c.warnings.push(tiktokStatusFilterRefusedWarning);
+      response = await c.run(c.plan('/v1.3/report/integrated/get/', query), true, 'adgroup_results');
+    }
   } catch (error) {
-    if (!query.filtering || !tiktokStatusFilterRefused(error)) throw error;
-    delete query.filtering;
-    if (c.lookup) c.lookup.tiktokStatusFilter = 'refused';
-    if (!c.warnings.includes(tiktokStatusFilterRefusedWarning)) c.warnings.push(tiktokStatusFilterRefusedWarning);
-    response = await c.run(c.plan('/v1.3/report/integrated/get/', query), true, 'adgroup_results');
+    if (!adGroupResultsUnreadable(error)) throw error;
+    if (!c.warnings.includes(tiktokResultsUnavailableWarning)) c.warnings.push(tiktokResultsUnavailableWarning);
+    c.raw = c.raw.map(row => ({...row, amcp_result_groups: []}));
+    return;
   }
   if (!Array.isArray(response.data?.list))
     throw new MirrorError(
