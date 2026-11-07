@@ -119,6 +119,12 @@ same code and sentence and before any provider request, when it selects any deta
 campaign level. Campaign-level native metrics retain their existing platform-specific validation. Missing metrics
 remain unavailable.
 
+`bootstrap.platforms[].reporting_v4` supplies each platform's `levels`, `defaults`, `option_names`, `option_choices`
+(the fixed attribution windows of the platforms that have them, and which of them exclude each other),
+`supported_statuses` and `status_basis`. The website reads its window controls, defaults and option lists from it and
+keeps none of its own. It asks for **I have checked the reporting window is complete** only where the answer matters:
+for a source with a detailed level, or one saved as incomplete. A campaign-level window needs no declaration.
+
 ## Objective sources
 
 Each row retains the native `objective`, its AMCP `objective_group`, `objective_source` and `objective_reason`.
@@ -146,6 +152,31 @@ otherwise unknown with a reason. The server supplies the platform tables and ava
 
 When AMCP could not read an objective (refused, or beyond the entities it reads), the reason says so, never that the
 platform returned none, also when a fallback covers it.
+
+Every reason has a stable code. A v4 row's `objective` is `{native, group, source, reason, reason_code, reason_values}`
+(the last two only when there is a reason, and `reason_values` only for the codes that name the platform and the native
+objective). The website words the reason from the code and never parses the sentence; a snapshot recorded before the
+codes keeps its sentence alone.
+
+<!-- objective-reason-codes:start -->
+
+| Code                      | Source              | Reason                                                                      |
+| ------------------------- | ------------------- | --------------------------------------------------------------------------- |
+| `campaign_override`       | `user_override`     | Chosen for this campaign in the report                                      |
+| `source_choice`           | `user_override`     | Chosen for every campaign of the source in the saved report                 |
+| `provider_note`           | `provider`          | The platform's declared objective, with a note of its own (a mixed group)   |
+| `mapped_by_provider`      | `provider_mapped`   | Mapped from other declared platform facts                                   |
+| `inferred_from_native`    | `provider_inferred` | Inferred from a native value AMCP does not list                             |
+| `fallback_read_refused`   | `user_fallback`     | The fallback covers an objective the platform refused to let AMCP read      |
+| `fallback_read_limited`   | `user_fallback`     | The fallback covers an objective beyond the entities AMCP reads details for |
+| `read_refused`            | `unknown`           | The platform refused the read, and no fallback is set                       |
+| `read_limited`            | `unknown`           | The report has more entities than AMCP reads details for, and no fallback   |
+| `platform_returned_none`  | `unknown`           | The platform returned no objective                                          |
+| `source_has_no_objective` | `unknown`           | The source has no campaign objective                                        |
+| `no_matching_objective`   | `unknown`           | The platform's objective has no AMCP group; `reason_values` names both      |
+| `objective_not_grouped`   | `unknown`           | The platform's objective is not grouped yet; `reason_values` names both     |
+
+<!-- objective-reason-codes:end -->
 
 `mixed` is a row label for a LinkedIn group with different delivered objectives. It cannot be a fallback, override
 or filter choice. Unknown stays unknown; neither the website nor MCP invents a default. Objective regrouping can
@@ -310,6 +341,26 @@ at the unit it was in and never reads a finished unit again. A scope that select
 also collects the level that measures them as a supporting unit. It is disclosed and is never a level of the report.
 One unit holds at most 10,000 rows across its periods; more is refused with `REPORT_ROW_LIMIT`.
 
+**What a source selects.** These fields of a v4 source choose what its report holds. Selection happens after
+collection and hides nothing silently: `sources[].scope` counts `returned_rows`, `retained_rows`, `excluded_rows`,
+`excluded_status_rows` and `excluded_unknown_rows`. A row whose status or delivery is unknown never satisfies a
+positive filter; it is counted in `excluded_unknown_rows` and keeps the source partial.
+
+<!-- overview-source-selection:start -->
+
+| Field                                 | Takes                                                                                            | Default        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------- |
+| `levels`                              | Levels from `entity_levels` (`campaign`, `adset`, `ad`), each once; `level` is the first of them | `["campaign"]` |
+| `statuses`                            | `all`, or any of `active`, `paused` and `archived` that the platform supports                    | `["all"]`      |
+| `delivered_only`                      | `true` keeps the rows with a positive delivery or measurement                                    | `true`         |
+| `campaign_ids`, `adset_ids`, `ad_ids` | Up to 500 exact native IDs each; a platform's old parent filter is the same list                 | `[]`           |
+
+<!-- overview-source-selection:end -->
+
+A v3 definition upgraded to v4 keeps `delivered_only:false`, because the earlier build showed rows without activity.
+`status_basis` says whether a platform's status is the entity's current configuration (`current_configuration`) or
+the one its report returns (`provider_report_status`).
+
 **State and failures.** A level that cannot be collected has its error in `sources[].level_results[]` and is named in
 `sources[].failed_levels`; the source's own `error` is set only when every requested level failed. The snapshot is
 `failed` when every requested level failed, `partial` when some failed or any is incomplete, and `complete` otherwise.
@@ -323,6 +374,15 @@ resumed, so it is collected again from its start and says so in a warning; the j
 **Selected IDs.** `scope.unmatched_ids` lists, per level, the selected IDs that no returned row carries, and the source
 warns with their count, so a mistyped or stale ID cannot narrow a total unnoticed.
 
+**Rolled-up totals.** A source that selects `ad_ids` or `adset_ids` and also asks for a level above them gets that level
+as rows rolled up from the selected children only. Such a row totals those ads or ad sets, never the whole campaign or
+ad set, and says so: `aggregation:{kind:"rolled_up", from_level, scope_field, child_rows, label}`, where the label is
+"Rolled up from selected ads" or "Rolled up from selected child entities". A summary of such rows is a summary of its
+own, never mixed with the native totals of the same level, and carries `aggregation:{kind:"rolled_up_from_selected",
+from_level, scope_field, label}`; a summary of native rows has no `aggregation`. Every surface below prints the label.
+The cross-level check cannot compare a rolled-up level with the level it was rolled up from
+(`derived_parent_population`).
+
 **Coverage.** Every entry of `metrics_coverage` has one shape: `{known_rows, total_rows, basis, report_rows,
 known_pairs?, unavailable_reason?}`. `total_rows` counts the units a figure could have been calculated from and
 `known_rows` those that had a value. `basis` says what a unit is: `report_rows`, each a row of the report, or
@@ -333,13 +393,53 @@ known_pairs?, unavailable_reason?}`. `total_rows` counts the units a figure coul
 the first basis and "n of m measurements" for the second. Snapshots stored by earlier V2 builds wrote `known` and
 `total`, and are read as recorded.
 
+**Coverage notes.** `get` adds `coverage_notes` to every `summary[]` and `window_summary[]` entry of a v4 snapshot: one
+note for each figure that was calculated from fewer units than it has, or not at all, and an empty list when every
+figure is complete. The notes are derived on every read from the stored `metrics_coverage` by one computation that every
+surface below uses, so an earlier v4 snapshot has them too and nothing stored changes. `state` stays the truth about
+collection: 28 campaigns, two without a cost, collect completely (`complete`), and their spend reads "26 of 28 rows".
+
+<!-- overview-coverage-notes:start -->
+
+Each note is `{metric, known, total, unit, reason}`, where `unit` is `rows` or `measurements` (the `basis` above) and
+`reason` is one of:
+
+| Reason                | Meaning                                                                   |
+| --------------------- | ------------------------------------------------------------------------- |
+| `missing_values`      | A sum; some units have no value for it, and they are never counted as 0   |
+| `missing_inputs`      | A ratio or formula; it uses only the units that have every value it needs |
+| `unknown_currency`    | Money in several currencies, or in none, is not added                     |
+| `non_additive_inputs` | Reach, frequency and the like cannot be calculated from several rows      |
+| `calculation_limit`   | The figure exceeds what one report may calculate, and is not calculated   |
+
+<!-- overview-coverage-notes:end -->
+
+**What each surface says.** The same notes, in the report's language where the file has one:
+
+- The website's summary and whole-window cards list each note ("spend: 26 of 28 rows") and end with "Limited coverage:
+  these totals may be incomplete.", also when the source itself is complete. The HTML client pack puts the same words
+  beside the values and under its table. A period of the spend sparkline built from some of its rows is a hollow mark,
+  never a dip.
+- CSV and the Sheets tab: a `Coverage` column names, row by row, the figures that are short ("spend: 1 of 2
+  measurements"). After the data rows, one `Coverage note` row per short summary names the platform, the rolled-up label
+  and the notes in its `Campaign` column, with the account, currency, time zone, dates and level in their own columns,
+  and a last row says what "n of m" means. The metric cells of those rows are empty, so a column of numbers stays one,
+  and the words are English.
+- Excel: the `Report` sheet has a `Coverage` row per short summary and the explanation. **Account summaries** has the
+  `Entity level` (a report of several levels has a summary for each), `Aggregation` and `Coverage` columns. The rows
+  sheet repeats the CSV's columns and note rows, and **Source coverage** has a `Level check` column.
+- PDF: the coverage notes under each summary, the rolled-up label, the level check lines and the explanation.
+
 **Cross-level check.** `sources[].cross_level` compares spend, impressions and clicks between adjacent levels of one
 account and window, per currency and time zone. Counts must agree exactly. Money agrees when the difference is at most
 half a minor unit of the currency (JPY 0 decimals, USD 2, KWD 3) for each figure compared on either side, counting each
 native measurement that a row sums, because a provider rounds every figure. The comparison keeps `delta`,
 `coverage_percent` and the `tolerance` it allowed, so nothing the rounding absorbed is hidden. A pair that cannot be
 compared says why: `level_failed`, `derived_parent_population`, different windows, statuses or objectives, an unknown
-currency or a missing metric.
+currency or a missing metric. The website, the PDF and the Excel `Level check` column say the result in words, in the
+report's language: which metrics agree, how far one level covers another, which are only partly known and why a pair
+cannot be compared. A coverage is the exact percentage, cut and never rounded, so a figure that differs from 100 is
+never written as 100%.
 
 **Calculation limits.** Metrics are calculated in exact fractions. A metric that uses another starts from the other's
 exact value, and each metric is rounded once, to nine places, half to even. A numerator or denominator past 4,096 digits,
@@ -347,12 +447,46 @@ a report that spends its calculation budget (about a third of a second of arithm
 (two minutes) ends that metric: it is unavailable with `unavailable_reason:"calculation_limit"`, as is any metric that
 uses it, never a rounded guess. Ordinary reports are unaffected, and row assembly hands the event loop back every 20 ms.
 
+**Numbers in files.** A v4 snapshot keeps every metric as exact decimal text. The CSV carries that text unchanged. Excel
+and Sheets write a number when the text is exactly the number a spreadsheet cell holds (the double prints back as the
+same decimal, in at most 40 characters), so sums and number formats work. A value with more digits than a double holds
+stays text, so no digit is changed. Excel's `Report` sheet then has a `Precision` row with their count, and the Sheets
+column note says that values with more digits than a number holds exactly are kept as text. A v3 snapshot is written as
+before.
+
+**Reading a snapshot.** `get` returns a v4 row without its native evidence, and a source without `native`,
+`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them. A
+`window_summary[].series` point is `{date_from, spend}` and, when its period was calculated from fewer units than it
+has, also `coverage` in the shape of a metric's, so a week with one unknown campaign is a short point and not a dip.
+
+**Monitors on a v4 snapshot.** A rule watches the top level its source requested (campaign, then ad set, then ad), so
+one window is one incident, and compares the value as exact decimal text, never as a double. A summary answers a rule
+only when it is complete, its metric is an exact decimal calculated from every one of its units, and its evidence is
+newer than `max_age_hours`. Otherwise the outcome is `data_unavailable` with a `reason`, and it neither opens nor
+resolves an incident. `save_monitor` accepts `unknown` as `result_definition` or `attribution`, which is what a source
+that cannot name them reports.
+
+<!-- overview-monitor-reasons:start -->
+
+| Reason                  | Meaning                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `incomplete`            | The summary is incomplete: a source, level or period is missing or partial    |
+| `coverage_unreadable`   | The summary has no readable coverage for the metric                           |
+| `metric_unavailable`    | The metric is not calculated, or is not an exact decimal                      |
+| `partial_coverage`      | The metric was calculated from some of its units only                         |
+| `evidence_time_unknown` | When the evidence was captured is unknown, or lies in the future              |
+| `stale_evidence`        | The evidence is older than the rule's `max_age_hours`                         |
+| `no_matching_summary`   | No summary has the rule's account, currency, time zone, definitions and level |
+
+<!-- overview-monitor-reasons:end -->
+
 ## Snapshot state in the website (RPT-05)
 
 - **Partial strip.** A partial snapshot opens with a strip that names each failed source with its error code ("1 of 2
   sources failed: TikTok · 200 `REPORT_PERIODS_FAILED`. Totals exclude them.") and each limited-coverage source, with
   links to their source cards. Summary cards end with **Excludes: …** for failed sources, and a card whose source has
-  limited coverage says its totals may be incomplete. A failed source reads **No quality metadata — source failed**;
+  limited coverage, or whose figures were calculated from some of their rows (coverage notes, above), says its totals
+  may be incomplete. A failed source reads **No quality metadata — source failed**;
   **Legacy snapshot** is kept for snapshots without `source_contract_version`.
 - **Queued and stalled runs.** `get` returns, for a queued or running snapshot, `job.queued_at`, `job.started_at`
   (the first time a worker started it, also stored as the snapshot's `started_at`), `job.queued_ms` and
@@ -363,14 +497,16 @@ uses it, never a rounded guess. Ordinary reports are unaffected, and row assembl
   every 60 s, and stops after 30 minutes with a **Refresh** button. Cancel, Retry and Refresh start a new watch.
 - **Deep links.** An open snapshot sets `?report_id=` (with the saved report's `view_id`) in the address bar.
   Reloading reopens it through the same tenant and actor authorization as any other load; the ID is opaque and the
-  URL carries no names or account identifiers. Deleting the open snapshot removes it from the address.
+  URL carries no names or account identifiers. Deleting the open snapshot removes it from the address. **Retry** on a
+  source card of a snapshot opened this way first fills the setup form from the snapshot, as **History** does, and then
+  submits it once.
 - **Whole-window tiles.** A daily, weekly or monthly snapshot also stores `window_summary`: one entry per platform,
   account, currency, timezone, objective and measurement definition, keyed without dates, with additive totals over
   every period (reach and frequency are never summed), ratios recomputed from those totals, `period_count`,
   `entity_count`, decisions counted once per entity and a `series` of spend per period (oldest first). `get` returns
   it; `list` pages leave it out. The website shows one tile per account with a spend sparkline (an image with a text
-  summary; an unknown period leaves a gap) instead of one card per period. Older grouped snapshots keep their
-  per-period cards.
+  summary; an unknown period leaves a gap, and a period calculated from some of its rows is a hollow mark) instead of
+  one card per period. Older grouped snapshots keep their per-period cards.
 - **Results table.** The row header is the entity name only, at most 40 characters (the full name stays on hover and
   in the context cell), and stays visible while the metrics scroll sideways, at the inline start in both directions.
   IDs, level, parents, account, currency, timezone and source details sit in the **Platform · objective** cell. Daily
@@ -587,7 +723,7 @@ shows disabled entries with their reason.
 | X Ads          | Campaigns, line items and promoted tweets; exact hourly chunks and current native parents/status. Campaign objectives come from bounded line-item metadata; mixed/refused metadata stays unknown. Planning, placement gaps and recovery are described above                                                                                                                                                    |
 | Microsoft Ads  | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download                                                                                                                                                                                                                                                                                               |
 | Apple Ads      | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records                                                                                                                                                                                                                                                                                                       |
-| Reddit Ads     | Campaign, ad group or ad metrics/inventory in UTC and spend micro-units; the campaign purchase value is read as cents, a unit not yet verified against Reddit, so a report that reads it says so; no result definition is claimed (`unknown`), so sales recommendations ask for review ([ACC-06](acceptance/READ-ACCEPTANCE.md))                                                                               |
+| Reddit Ads     | Campaign, ad group or ad metrics/inventory in UTC and spend micro-units; purchase value is read as cents, not yet verified against Reddit; impressions, clicks and viewable-video objectives report that field as the result, while conversion, catalogue-sales, lead-generation and app-install objectives claim none (`unknown`), so their advice asks for review ([ACC-06](acceptance/READ-ACCEPTANCE.md))  |
 | GA4            | Campaign-attributed analytics context, property currency/timezone and threshold signals                                                                                                                                                                                                                                                                                                                        |
 | Search Console | Organic page context with limited top-row coverage; no paid-budget advice                                                                                                                                                                                                                                                                                                                                      |
 
@@ -613,7 +749,8 @@ new columns are only appended. Each header cell has a note with its label, unit 
 with several currencies the note points to each row's Currency), and metric columns get number formats from the metric
 definitions: the largest currency precision among the rows (KWD three decimals, JPY none), `#,##0` for counts, `2.50%`
 for a percent value of 2.5 and `2.50×` for ROAS (RPT-05's number formats are this one pass; there is no second).
-Cell values stay the typed numbers and text. A trailing **Recommendation basis**
+Formats change how a cell shows, not what it holds; which cells are numbers is described under
+[numbers in files](#levels-coverage-and-failures-in-a-v4-snapshot). A trailing **Recommendation basis**
 column states what each recommendation rests on (its row or the entity's whole window, as-of time and validity,
 confidence and limitations; advisory only); CSV and Excel include it too, always: the version 1 rollback below covers
 Sheets deliveries only. The basis sentences are English in every artifact, including `?language=ar` Excel files, where

@@ -22,6 +22,8 @@ Finished Overview snapshots evaluate matching enabled rules under the rule autho
 deduplicate by rule version, objective and measurement window. Acknowledgement persists while the threshold stays
 breached; only newer, complete, comparable evidence resolves an incident. Stale, missing and incomplete data never
 becomes a successful zero. Freshness uses the oldest contributing row capture, not the later job completion time.
+On a v4 snapshot a figure calculated from some of its units answers nothing, and the outcome names why
+([monitors on a v4 snapshot](../REPORTING-OVERVIEW.md#levels-coverage-and-failures-in-a-v4-snapshot)).
 The latest evaluation records unavailable data/access or ignored older evidence. The API pages at up to 100 results;
 the website has independent incident/rule search, state filters and previous/next controls. Both list actions return
 `next_offset`; incident states include open, acknowledged, snoozed, resolved and superseded. `incident`/`monitor`
