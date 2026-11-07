@@ -5,6 +5,9 @@
     "en /help": "DOC-03, 2026-10-24: the members-only Help page did not exist before WEB-07; it loads the workspace shell and one small module, so it takes the value a shell page (en /activity) had before WEB-07",
     "ar /help": "DOC-03, 2026-10-24: as en /help, the value of ar /activity before WEB-07"
   },
+  "moved_after": {
+    "en /about": "brand, 2026-11-07: 15848 -> 15931 (+83). The AMCP lockup is two images and CSS shows the one that suits the theme, so About’s stylesheets gain the rules that choose between them (accessibility.css +148 Brotli bytes, localization.css +2) and lose the old text-sizing rule for the brand (about.css -15). English About measured 15796 before the change, 52 bytes under this baseline. No other route is above its baseline."
+  },
   "routes": {
     "en /": 148293,
     "en /login": 148293,
@@ -62,7 +65,7 @@
     "ar /account": 583948,
     "ar /help": 572148,
     "ar /report-pack": 643920,
-    "en /about": 15848,
+    "en /about": 15931,
     "ar /about": 439703
   }
 }
