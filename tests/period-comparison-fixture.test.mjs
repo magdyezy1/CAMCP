@@ -79,6 +79,46 @@ test('a v4 run of the case collects both windows: every route the report source 
   assert.equal(f.writes(), 0);
 });
 
+// The website's run keeps only rows with activity in the window (v4 `delivered_only`, on by default), so a campaign that
+// did not deliver in the earlier window is not a row of that snapshot: the comparison lists it as present only in this
+// window, never as zero. The case's second campaign must therefore have delivered in the earlier window and have made no
+// conversions then, which is what gives the comparison its row with a zero earlier value and no percentage.
+test('the comparison of the case pairs the campaign that made no earlier conversions and lists the one that stopped', async t => {
+  const f = periodComparisonFixture();
+  t.after(() => f.close());
+  await f.reset();
+  const queued = await websiteRun(f);
+  await f.drain();
+  const earlier = stored(f, queued.comparison.baseline_id);
+  const row = earlier.rows.find(candidate => candidate.campaign_id === '102');
+  assert.equal(row?.native.delivery_activity, true, 'the earlier snapshot keeps the campaign: it delivered');
+  assert.equal(row.metrics.conversions, '0');
+  const compared = await f.overview.handle(
+    {action: 'compare', id: queued.id, baseline_id: queued.comparison.baseline_id, confirmed: true},
+    f.actor,
+  );
+  assert.deepEqual(compared.rows.map(entity => entity.entity_id).sort(), ['101', '102']);
+  const second = compared.rows.find(entity => entity.entity_id === '102');
+  // No percentage of a zero; a cost per conversion of no conversions is unknown on that side, never zero.
+  assert.deepEqual(second.values.conversions, {
+    current: '1',
+    baseline: '0',
+    delta: '1',
+    delta_percent: null,
+    reason: 'baseline_zero',
+  });
+  assert.equal(second.values.cpa.reason, 'unknown');
+  assert.equal(second.values.cpa.delta, null);
+  assert.equal(second.values.spend.current, '12.5');
+  assert.notEqual(second.values.spend.delta_percent, null, 'a non-zero earlier spend has a percentage');
+  // The campaign that delivered only in the earlier window is listed apart, and nothing is listed apart for this window.
+  assert.deepEqual(
+    compared.only_baseline.map(entity => [entity.entity_id, entity.entity_name]),
+    [['103', 'Paused before']],
+  );
+  assert.deepEqual(compared.only_current, []);
+});
+
 test('the fixture lists the account campaigns in Meta’s shape, answers the account only on its own path, and refuses the rest', async t => {
   const f = periodComparisonFixture();
   t.after(() => f.close());

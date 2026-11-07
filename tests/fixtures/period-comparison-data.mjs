@@ -22,8 +22,10 @@ export const comparisonRefusedWindows = {
   shorter: {since: '2026-08-02', until: '2026-08-07'},
 };
 /**
- * Native campaigns per window, by their numeric Meta IDs: 101 grows, 102 spent nothing before, 103 delivered only in the
- * earlier window.
+ * Native campaigns per window, by their numeric Meta IDs: 101 grows, 102 delivered before but made no conversions (so its
+ * earlier conversions are zero and have no percentage), 103 delivered only in the earlier window. 102 has delivery in the
+ * earlier window because the website's run keeps only rows with activity (v4 `delivered_only`, on by default): a campaign
+ * that delivered nothing would not be a row of that snapshot at all, and would be listed as present only in this window.
  */
 export const comparisonValues = {
   '2026-08-08': {
@@ -46,7 +48,7 @@ export const comparisonValues = {
       purchases: '5',
       value: '500',
     },
-    102: {name: 'Second campaign', spend: '0', impressions: '0', clicks: '0', purchases: '0', value: '0'},
+    102: {name: 'Second campaign', spend: '5', impressions: '60', clicks: '3', purchases: '0', value: '0'},
     103: {name: 'Paused before', spend: '9', impressions: '90', clicks: '9', purchases: '1', value: '20'},
   },
 };
