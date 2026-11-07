@@ -8,7 +8,9 @@ tier: engineering
 Read on 2026-11-07 by the principal engineer through the production connector's `meta_native_action`, action
 `meta_insights_get` (GET, Graph v26.0), on the owner's named Meta test account: campaign, ad set and ad levels, with
 `date_preset` `maximum` (and `last_year` for the daily case), under the default attribution, the unified setting and
-explicit windows. Eight GET calls, no writes, no report job. A production read pins a provider's response shape; it does
+explicit windows. Nine insights GET calls and one `LIST_ACTIONS` metadata call (counted from the session transcript), no
+writes, no report job. One of the nine asked for `result_fields`, which projected nested records to `{}`, so it showed
+nothing of `results`: the facts below rest on the other eight. A production read pins a provider's response shape; it does
 not qualify undeployed code. This record and `tests/fixtures/meta-results-samples.json` hold the shape only: the numbers
 of the fixture are invented, and no account, campaign or custom conversion ID from the read is in either (the fixture's
 custom conversion is `offsite_conversion.custom.1000000000000001`).
