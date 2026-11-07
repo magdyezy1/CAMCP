@@ -119,6 +119,11 @@ populated/refusal/recovery cases documented below. The exact case count is the `
   connectors, settings, account and audit activity.
 - The members-only Help page (`/help`, DOC-03), signed in, which shows the owner guide in the interface language, at
   all four widths in English and Arabic.
+- The members-only component state page (`/design-system`, V2-WEB-02; `--kinds components`), signed in on an empty
+  workspace, at all four widths in English and Arabic and in both themes: every component in every state, driven with
+  real keys (chips, tabs, the searchable list, the scope tree, the table's column chooser and density toggle, the dialog
+  and side sheet with an inert page and focus returned, toasts that never take focus), target sizes of 24 pixels (44 for a
+  primary action), the one focus ring, forced colours and the Arabic leak probe on the page and in its five states.
 - Reviewer pass (`--kinds reviewer`): an invited test account opens each `testAccount` route and `/help` at 320 and
   1280 pixels in both languages; its navigation lists only those, no API response fails while a page loads, and Help
   lands on Home; `tests/reviewer-page-apis.test.mjs` checks their scripts against the test-account gate.
