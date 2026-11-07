@@ -271,12 +271,13 @@
   border: 1px solid var(--v2-rule-strong);
   border-radius: var(--v2-space-1);
   background: var(--v2-raised);
-  color: var(--v2-on-violet);
 }
+/* The check and the dash are drawn only in these two states, so their colour is set where their fill is. */
 .amcp-tree-box[data-checked='true'],
 .amcp-tree-box[data-checked='mixed'] {
   border-color: var(--v2-violet);
   background: var(--v2-violet);
+  color: var(--v2-on-violet);
 }
 .amcp-tree-item[aria-checked='mixed'] > .amcp-tree-row .amcp-tree-label {
   font-weight: 650;
@@ -288,6 +289,7 @@
 .amcp-tree-item[aria-disabled='true'] > .amcp-tree-row .amcp-tree-box {
   border-color: var(--v2-rule);
   background: var(--v2-subtle);
+  color: var(--v2-ink-2);
 }
 .amcp-tree-meta {
   margin-inline-start: auto;

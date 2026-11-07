@@ -166,7 +166,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .amcp-dialog {
+  .amcp-dialog,
+  .amcp-dialog[data-kind='sheet'] {
     animation: none;
   }
 }
