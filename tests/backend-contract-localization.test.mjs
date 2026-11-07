@@ -384,7 +384,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // The stored and TikTok packages add none: 11,737 + 18 + 5 + 21 + 2 + 32.
   // Package engine-core adds four website messages (the levels of a source that could not be collected, F-L5-10; the selected IDs that matched no returned row, F-L5-27; the count of a figure built from native measurements, F-L5-31; the source collected again after an earlier platform contract, F-L5-16) and two reasons (a level that could not be collected in a cross-level pair, F-L5-10, and a figure past the calculation limits, F-L9-01), and deletes the two entries of the dead overviewV4Sum and overviewV4Ratio (F-L5-28): 11,817 + 2.
   // Package engine-surfaces adds one website message, the note of a sparkline that has hollow marks (F-L5-26): 11,820.
-  assert.equal(Object.keys(catalog).length, 11820);
+  // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
+  assert.equal(Object.keys(catalog).length, 11819);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
