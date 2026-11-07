@@ -471,10 +471,21 @@ function reportLevelName(platformId, levelId) {
     )?.label;
   return label ? uiText(label) : pretty(levelId);
 }
-/** " · Reporting level: Ad": the level a summary card covers, so cards of one account's levels are never alike. */
+/**
+ * " · Reporting level: Ad": the level a summary card covers, so cards of one account's levels are never alike, and
+ * " · Rolled up from selected ads" when its totals are rolled up from selected children, never a native total (F-L5-11).
+ */
 function reportCardLevel(r, g) {
   const id = g.entity_level ?? (r.config?.contract_version === 'overview-config-v4' ? 'campaign' : null);
-  return id ? ' · ' + uiText('Reporting level: {level}', {level: reportLevelName(g.platform, id)}) : '';
+  return (
+    (id ? ' · ' + uiText('Reporting level: {level}', {level: reportLevelName(g.platform, id)}) : '') +
+    (g.aggregation?.label ? ' · ' + uiText(g.aggregation.label) : '')
+  );
+}
+/** A decimal for display only, a line's height or a bar's length: the exact text stays the data (F-L5-26). */
+function reportDisplayNumber(value) {
+  const number = typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value) ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) ? number : NaN;
 }
 /**
  * What a total or ratio was calculated from: a sum's known units, or the units that have every value a ratio needs, and

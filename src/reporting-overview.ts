@@ -82,6 +82,7 @@ import {
   overviewV4Sources,
   projectOverviewV4Rows,
   projectOverviewV4Sources,
+  projectOverviewV4Summaries,
   overviewDefinitionConfig,
   overviewSidecar,
   overviewRollbackSafe,
@@ -707,6 +708,8 @@ export class ReportingOverview {
             levels: reportSource(id)?.overview?.levels ?? [],
             defaults: reportSource(id)?.overview?.defaults ?? {},
             option_names: reportSource(id)?.overview?.option_names ?? [],
+            // The fixed choices of the options that have them (attribution windows), so the editor keeps no list (F-L5-15).
+            option_choices: reportSource(id)?.overview?.option_choices ?? {},
             provider_configured_options: reportSource(id)?.overview?.legacy?.provider_configured_options ?? [],
             ...(reportSource(id)?.overview?.scope_aliases
               ? {scope_aliases: reportSource(id)!.overview!.scope_aliases}
@@ -940,6 +943,7 @@ export class ReportingOverview {
         active = ['queued', 'running'].includes(job.state);
       return {
         ...publicReport(store, tenant, r),
+        ...projectOverviewV4Summaries(r),
         rows: projectOverviewV4Rows(r, r.rows.slice(offset, offset + limit), input.include),
         sources: projectOverviewV4Sources(r, input.include),
         row_count: r.rows.length,

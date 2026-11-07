@@ -2,6 +2,7 @@ import {calculateMetrics, metricDefinitions} from './report-metrics.js';
 import type {JsonObject} from './types.js';
 import {
   calculateMetricsV4,
+  coverageCounts,
   evaluateReportFormulaExact,
   formulaDependencies,
   isCalculationLimit,
@@ -245,6 +246,24 @@ const resultGroupIds = (row: JsonObject): string[] =>
   Array.isArray(row.result_groups)
     ? row.result_groups.map((group: JsonObject) => String(group.definition?.id ?? '')).sort()
     : [];
+/**
+ * A total over rows rolled up from the selected children of a parent (F-L5-11) is not a native total of that parent, so it
+ * never shares a summary with one and the summary says what it is: `aggregation.kind` is `rolled_up_from_selected`, with
+ * the level it was rolled up from and the label the rows carry. A summary of native rows has no `aggregation`.
+ */
+const rolledUpKey = (row: JsonObject) =>
+  row.aggregation?.kind === 'rolled_up' ? [row.aggregation.from_level, row.aggregation.scope_field] : null;
+const summaryAggregation = (row: JsonObject): JsonObject =>
+  row.aggregation?.kind === 'rolled_up'
+    ? {
+        aggregation: {
+          kind: 'rolled_up_from_selected',
+          from_level: row.aggregation.from_level,
+          scope_field: row.aggregation.scope_field,
+          label: row.aggregation.label,
+        },
+      }
+    : {};
 /** The most recent periods a window summary keeps for its sparkline. */
 export const windowSeriesLimit = 400;
 /**
@@ -267,7 +286,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       row.attribution,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row), rolledUpKey(row)] : []),
     ]);
     const members = groups.get(key);
     if (members) members.push(row);
@@ -300,6 +319,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       objective_group: first.objective_group,
       result_definition: first.result_definition,
       attribution: first.attribution,
+      ...(v4 ? summaryAggregation(first) : {}),
       date_from: ordered[0]![1][0]!.date_from,
       date_to: ordered.at(-1)![1][0]!.date_to,
       period_count: periods.size,
@@ -316,9 +336,43 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       series: ordered.slice(-windowSeriesLimit).map(([, rows]) => ({
         date_from: rows[0]!.date_from,
         spend: v4 ? sumReportValuesV4(rows.map(row => row.metrics.spend)).value : additiveValues(rows).spend,
+        ...(v4 ? seriesCoverage(rows) : {}),
       })),
     };
   });
+}
+/**
+ * How much of a period stands behind its point of the spend series (F-L5-26). A point calculated from fewer units than it
+ * has carries `coverage`, in the shape of a metric's (`known_rows`, `total_rows`, `basis`, `report_rows`); a whole point
+ * carries none. A week with one unknown campaign is then a short point, and not a dip. The units are counted as the
+ * summary counts them: a row built from the provider's own measurements counts each of them.
+ */
+function seriesCoverage(rows: JsonObject[]): {coverage?: MetricCoverage} {
+  let known = 0,
+    total = 0,
+    native = false;
+  for (const row of rows) {
+    const entry = row.metrics_coverage?.spend,
+      counts = entry && typeof entry === 'object' ? coverageCounts(entry) : undefined;
+    if (counts && Number.isInteger(counts.known) && Number.isInteger(counts.total)) {
+      known += counts.known;
+      total += counts.total;
+      native ||= entry.total_rows !== undefined && entry.basis === 'native_measurements';
+    } else {
+      total += 1;
+      known += row.metrics.spend === null || row.metrics.spend === undefined ? 0 : 1;
+    }
+  }
+  return known < total
+    ? {
+        coverage: {
+          known_rows: known,
+          total_rows: total,
+          basis: native ? 'native_measurements' : 'report_rows',
+          report_rows: rows.length,
+        },
+      }
+    : {};
 }
 /** Sum only additive columns within one account, currency and result definition. */
 export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 = false): JsonObject[] {
@@ -336,7 +390,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       row.date_to,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row), rolledUpKey(row)] : []),
     ]);
     const group = groups.get(key) ?? [];
     group.push(row);
@@ -361,6 +415,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       date_to: first.date_to,
       result_definition: first.result_definition,
       attribution: first.attribution,
+      ...(v4 ? summaryAggregation(first) : {}),
       ...(first.entity_level
         ? {entity_level: first.entity_level, native_entity_type: first.native_entity_type, entity_count: group.length}
         : {campaign_count: group.length}),

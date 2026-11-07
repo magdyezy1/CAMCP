@@ -321,7 +321,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Design note 4 adds the leaf of Snapchat's continuation check (src/snapchat-paging.ts), without a reason of its own: one.
   // Merged with the levels package (779 modules), the previews package's eight make 787.
   // Package engine-core adds src/report-row-assembly.ts, the row assembly moved out of work() (F-L5-14): 788.
-  assert.equal(files.length, 788);
+  // Package engine-surfaces adds src/report-coverage-notes.ts, the one computation of what a total covers (F-L5-01): 789,
+  // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790,
+  // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
+  assert.equal(files.length, 791);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -394,6 +397,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Web-components adds 3 more: the legacy badge mapping on the state page (V2-WEB-02).
   // Merge B, with web-components (11,815 + 182 on its own base; none of its strings is one the other packages added): measured on
   // the merged catalogue, 11,822 + 182 = 12,004.
+  // Package engine-surfaces adds one website message, the note of a sparkline that has hollow marks (F-L5-26): 11,820.
+  // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
+  // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
+  // catalogue measures 12,004, as it did before this package.
   assert.equal(Object.keys(catalog).length, 12004);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {

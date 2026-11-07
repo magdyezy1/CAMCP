@@ -89,8 +89,8 @@ function fixture(sources = [], contract = 'overview-config-v4') {
     values.set('[data-report-result="meta"]', node(action));
     values.set('[data-report-campaign-profile="meta"]', {...node(''), checked: profile});
     values.set('[data-report-click-window="meta"]', node(windows.find(value => value.endsWith('_click')) ?? ''));
-    values.set('[data-report-view-window="meta"]', {...node(''), checked: windows.includes('1d_view')});
-    values.set('[data-report-engaged-view-window="meta"]', {...node(''), checked: windows.includes('1d_ev')});
+    values.set('[data-report-window-flag="1d_view"]', {...node(''), checked: windows.includes('1d_view')});
+    values.set('[data-report-window-flag="1d_ev"]', {...node(''), checked: windows.includes('1d_ev')});
     for (const field of ['campaign_ids', 'adset_ids', 'ad_ids'])
       values.set('[data-report-scope="' + field + '"]', node(ids[field] ?? ''));
     const element = {querySelector: selector => values.get(selector) ?? null};
@@ -141,7 +141,7 @@ test('new source controls use server defaults and do not preselect a Meta purcha
   const markup = f.run('String(overviewGranularityFields(platform))');
   assert.match(markup, /data-report-level="meta" multiple/);
   assert.match(markup, /value="7d_click" selected/);
-  assert.match(markup, /data-report-view-window="meta" checked/);
+  assert.match(markup, /data-report-window-flag="1d_view" checked/);
   assert.match(markup, /data-report-result="meta" value=""/);
   assert.doesNotMatch(markup, /data-report-result="meta"[^>]*required|data-report-complete-window="meta"[^>]* checked/);
   assert.match(markup, /data-report-delivered="meta" checked/);

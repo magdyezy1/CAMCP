@@ -5,6 +5,8 @@ import {audit, bad, fingerprint, optional, read, update, validate, writer} from 
 import {reportPlatforms} from './report-metrics.js';
 import {MirrorError} from './errors.js';
 import {supersedeIncidents} from './report-repository.js';
+import {compareReportValuesV4, coverageCounts} from './report-math-v4.js';
+import {overviewConfigV4} from './overview-v4.js';
 import {
   monitorNotifications,
   notificationActions,
@@ -42,8 +44,54 @@ const publicMonitor = ({actor_binding, ...p}: JsonObject) => ({
 function access(store: Store, actor: Actor, p: JsonObject) {
   store.resolveConnection(actor, reportPlatforms[p.platform]!.gateway, p.account_id, p.connection_id);
 }
+/** The levels of a report, top first: a monitor on a v4 report with several levels watches the top one. */
+const levelOrder = ['campaign', 'adset', 'ad'];
+/** Whether a metric is exact decimal text, read the way the engine reads it (never as a double). */
+function exactDecimal(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  try {
+    return !Number.isNaN(compareReportValuesV4(value, '0'));
+  } catch {
+    return false;
+  }
+}
+/** The `reason` of a `data_unavailable` outcome on a v4 snapshot: why no summary of it can answer the rule. */
+export const monitorUnavailableReasons = [
+  'incomplete',
+  'coverage_unreadable',
+  'metric_unavailable',
+  'partial_coverage',
+  'evidence_time_unknown',
+  'stale_evidence',
+  'no_matching_summary',
+] as const;
+export type MonitorUnavailableReason = (typeof monitorUnavailableReasons)[number];
+/**
+ * Why a v4 summary cannot answer a monitor, or null when it can (F-L5-06). A figure calculated from some of its units is
+ * never compared with a threshold: a partial total would open an incident on a number that is not the total. Coverage is
+ * read through `coverageCounts`, whichever build wrote it, and an entry that cannot be read is no better than a short one.
+ */
+function summaryUnavailable(
+  s: JsonObject,
+  metric: string,
+  maxAgeHours: number,
+  now: number,
+): Exclude<MonitorUnavailableReason, 'no_matching_summary'> | null {
+  if (!s.complete) return 'incomplete';
+  const entry = s.metrics_coverage?.[metric];
+  if (!entry || typeof entry !== 'object') return 'coverage_unreadable';
+  const {known, total} = coverageCounts(entry);
+  if (!Number.isInteger(known) || !Number.isInteger(total)) return 'coverage_unreadable';
+  if (entry.unavailable_reason) return 'metric_unavailable';
+  if (known < total) return 'partial_coverage';
+  if (!exactDecimal(s.metrics?.[metric])) return 'metric_unavailable';
+  if (!(s.observed_at > 0 && s.observed_at <= now)) return 'evidence_time_unknown';
+  return now - s.observed_at > maxAgeHours * 3600000 ? 'stale_evidence' : null;
+}
 export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
   const report = read(store, actor, 'overview_report', reportId),
+    // A v4 snapshot holds exact decimal text and says how much of each figure stands behind it; v3 holds numbers.
+    v4 = report.config.contract_version === overviewConfigV4,
     outcomes: JsonObject[] = [];
   for (const source of report.config.sources)
     store.resolveConnection(actor, reportPlatforms[source.platform]!.gateway, source.account_id, source.connection_id);
@@ -92,6 +140,14 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
       remember('access_required');
       continue;
     }
+    // A v4 report of several levels has a summary for each; the rule watches the top level it requested, so one window
+    // is one incident and a level the rule does not watch never stands in for it (F-L5-06).
+    const requested: string[] =
+        report.config.sources.find(
+          (s: JsonObject) =>
+            s.platform === p.platform && s.connection_id === p.connection_id && s.account_id === p.account_id,
+        )?.levels ?? [],
+      top = levelOrder.find(level => requested.includes(level)) ?? 'campaign';
     const groups = (report.summary ?? []).filter(
       (s: JsonObject) =>
         s.platform === p.platform &&
@@ -99,23 +155,29 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
         s.currency === p.currency &&
         s.timezone === p.timezone &&
         s.result_definition === p.result_definition &&
-        s.attribution === p.attribution,
+        s.attribution === p.attribution &&
+        (!v4 || (s.entity_level ?? 'campaign') === top),
     );
-    const eligible = groups
-      .map((s: JsonObject) => ({...s, observed_at: captured.get(groupKey(s)) ?? 0}))
-      .filter(
-        (s: JsonObject) =>
-          s.complete &&
-          Number.isFinite(s.metrics[p.metric]) &&
-          s.observed_at > 0 &&
-          s.observed_at <= Date.now() &&
-          Date.now() - s.observed_at <= p.max_age_hours * 3600000,
-      );
+    const now = Date.now(),
+      observed: JsonObject[] = groups.map((s: JsonObject) => ({...s, observed_at: captured.get(groupKey(s)) ?? 0})),
+      // v4: a summary answers only with a complete figure whose every unit is known; why it cannot is named.
+      reasons = v4 ? observed.map(s => summaryUnavailable(s, p.metric, p.max_age_hours, now)) : [],
+      eligible = v4
+        ? observed.filter((_, index) => !reasons[index])
+        : observed.filter(
+            (s: JsonObject) =>
+              s.complete &&
+              Number.isFinite(s.metrics[p.metric]) &&
+              s.observed_at > 0 &&
+              s.observed_at <= Date.now() &&
+              Date.now() - s.observed_at <= p.max_age_hours * 3600000,
+          );
     if (!eligible.length) {
       outcomes.push({
         monitor_id: p.id,
         status: 'data_unavailable',
         report_id: reportId,
+        ...(v4 ? {reason: reasons.find(Boolean) ?? 'no_matching_summary'} : {}),
         meaning: 'Missing, stale or incomplete evidence never resolves an open incident.',
       });
       remember('data_unavailable');
@@ -124,7 +186,14 @@ export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
     const firstOutcome = outcomes.length;
     for (const g of eligible) {
       const value = g.metrics[p.metric],
-        breached = p.comparison === 'above' ? value > Number(p.threshold) : value < Number(p.threshold);
+        // A v4 value is exact decimal text and is compared as one, never as a double.
+        breached = v4
+          ? ((order: number) => (p.comparison === 'above' ? order > 0 : order < 0))(
+              compareReportValuesV4(value, p.threshold),
+            )
+          : p.comparison === 'above'
+            ? value > Number(p.threshold)
+            : value < Number(p.threshold);
       // One incident per rule revision and measurement window. A new snapshot updates evidence, never duplicates it.
       const id = fingerprint({
           monitor: p.id,
@@ -286,8 +355,15 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
       Number(p.threshold) > Number.MAX_SAFE_INTEGER
     )
       bad('Use an additive metric or CPA, above/below and a nonnegative decimal threshold.');
+    // A v4 snapshot records an undeclared attribution and an unresolved result definition as `unknown`, and a rule is
+    // matched to a summary by what the snapshot recorded, so those two may be `unknown` (F-L5-06).
     for (const k of ['currency', 'timezone', 'result_definition', 'attribution'])
-      if (typeof p[k] !== 'string' || !p[k].trim() || p[k] === 'unknown' || p[k].length > 200)
+      if (
+        typeof p[k] !== 'string' ||
+        !p[k].trim() ||
+        (p[k] === 'unknown' && !['result_definition', 'attribution'].includes(k)) ||
+        p[k].length > 200
+      )
         bad('Declare the exact ' + k + ' from a retained report.');
     if (!/^[A-Z]{3}$/.test(p.currency)) bad('Use an ISO currency.');
     try {

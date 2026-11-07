@@ -106,7 +106,6 @@
   "Converted in this browser: {events} events and {consent} consent commands kept, {dropped} entries left out. Times follow the original order; real timing is unknown. Review the trace, then inspect it.": "تم التحويل في هذا المتصفح: احتُفظ بـ {events} من الأحداث و{consent} من أوامر الموافقة، واستُبعد {dropped} من الإدخالات. تتبع الأوقات الترتيب الأصلي، والتوقيت الفعلي غير معروف. راجع التسلسل ثم افحصه.",
   "Core reports: property calendar dates": "التقارير الأساسية: التواريخ التقويمية للموقع",
   "Counting method": "طريقة الاحتساب",
-  "Coverage": "التغطية",
   "Current conversion configuration": "إعدادات التحويل الحالية",
   "Custom dimensions": "الأبعاد المخصصة",
   "Custom metrics": "المقاييس المخصصة",

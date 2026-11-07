@@ -5,7 +5,13 @@ import {resolve} from 'node:path';
 import {Writable} from 'node:stream';
 import {setImmediate} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
-import {reportTable, reportNoticeMessages} from './report-table.js';
+import {reportTable, reportNoticeMessages, reportTableFields} from './report-table.js';
+import {reportCoverageHelp, reportCoverageLines} from './report-coverage-notes.js';
+import {reportLevelCheckLines} from './report-level-check.js';
+import {exactNumber, keptAsText, keptAsTextNote} from './export-number.js';
+import {metricDefinitions} from './report-metrics.js';
+import {reportSource} from './report-sources.js';
+import {overviewConfigV4} from './overview-v4.js';
 import {reportEvidence, exportSourceStatus} from './report-quality.js';
 import {reportPack, presentationStyle} from './report-packs.js';
 import type {JsonObject} from './types.js';
@@ -51,13 +57,80 @@ function scalar(value: unknown): string | number | boolean | null {
   // Assign a string value, never an ExcelJS formula/hyperlink/rich-text object, even for =, +, - or @ names.
   return text;
 }
+/**
+ * What each summary of a v4 report says about its coverage (F-L5-01), in the artifact's language, one entry per summary in
+ * order with the lines of its short metrics (none when it is complete). Other reports have no coverage to state.
+ */
+function summaryCoverage(
+  report: JsonObject,
+  summaries: JsonObject[],
+  locale: ReturnType<typeof artifactLocale>,
+  fields: readonly string[],
+  custom: Set<string>,
+) {
+  return summaries.map(summary => ({
+    summary,
+    lines:
+      report.config?.contract_version === overviewConfigV4
+        ? reportCoverageLines(summary, fields, locale.language, metric => locale.metric(metric, custom))
+        : [],
+  }));
+}
+/**
+ * The cross-level check of each selected source of a v4 report in words, in the artifact's language (F-L5-05): the lines
+ * of the source record the snapshot holds for it, empty for a source of one level or one the snapshot has no record of.
+ */
+function levelChecks(report: JsonObject, locale: ReturnType<typeof artifactLocale>) {
+  const levelName = (platform: string, level: string) =>
+      locale.text(
+        reportSource(platform)?.overview?.levels?.find((item: JsonObject) => item.id === level)?.label ?? level,
+      ),
+    metricName = (metric: string) =>
+      locale.rtl ? locale.metric(metric, new Set()) : (metricDefinitions[metric]?.label ?? metric);
+  return (report.config?.sources ?? []).map((selected: JsonObject) => {
+    const found = (report.sources ?? []).find((s: JsonObject) =>
+      ['platform', 'connection_id', 'account_id'].every(k => s.source?.[k] === selected[k]),
+    );
+    return found && report.config?.contract_version === overviewConfigV4
+      ? reportLevelCheckLines(found, locale.language, levelName, metricName).map(line => line.text)
+      : [];
+  }) as string[][];
+}
+/** Which group of rows a line of the report sheet speaks about. */
+const summaryIdentity = (s: JsonObject, platformNames: JsonObject) =>
+  [
+    platformNames[s.platform] ?? s.platform,
+    s.account_id,
+    s.entity_level ?? 'campaign',
+    s.currency,
+    s.date_from + ' - ' + s.date_to,
+  ]
+    .filter(Boolean)
+    .join(' | ');
 export async function reportWorkbook(report: JsonObject, presentation: JsonObject = {}) {
   const pack = reportPack(report),
     style = presentationStyle(presentation),
     rows = report.rows,
     locale = artifactLocale(style),
     t = locale.text,
-    custom = new Set<string>((report.config.custom_metrics ?? []).map((m: JsonObject) => m.id));
+    custom = new Set<string>((report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)),
+    coverage = summaryCoverage(report, pack.summary, locale, reportTableFields(report), custom),
+    covered = coverage.filter(item => item.lines.length),
+    // A report of several levels has one summary per level, which are told apart by the level.
+    leveled =
+      report.config?.contract_version === overviewConfigV4 && pack.summary.some((s: JsonObject) => s.entity_level),
+    // A total rolled up from the selected children of a parent says so beside the total (F-L5-11).
+    aggregated = pack.summary.some((s: JsonObject) => s.aggregation?.label),
+    // A v4 report keeps its metrics as exact decimal text. The workbook writes the number when the text is exactly that
+    // number, so SUM and number formats work, and keeps as text, and says so, what a number would round (F-L5-07).
+    exact = report.config?.contract_version === overviewConfigV4,
+    kept = exact
+      ? [...report.rows, ...pack.summary].reduce(
+          (count: number, source: JsonObject) =>
+            count + reportTableFields(report).filter(field => keptAsText(source.metrics?.[field])).length,
+          0,
+        )
+      : 0;
   const columns =
     (report.config.metrics?.length ?? 6) +
     (report.config.custom_metrics?.length ?? 0) +
@@ -103,6 +176,12 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
       ['Client', style.brand_name || pack.client_name],
       ['Period', pack.date_range.since + ' - ' + pack.date_range.until],
       ['Snapshot state', pack.state],
+      ...covered.map(item => [
+        'Coverage',
+        summaryIdentity(item.summary, pack.platform_names) + ': ' + item.lines.join('; '),
+      ]),
+      ...(covered.length ? [['Coverage', reportCoverageHelp(locale.language)]] : []),
+      ...(kept ? [['Precision', keptAsTextNote(kept, locale.language)]] : []),
       ['Snapshot ID', pack.snapshot_id],
       ['Collected at', new Date(pack.created_at ?? 0).toISOString()],
       ['Source rows', pack.row_count],
@@ -146,8 +225,11 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
         'Primary result',
         'Complete',
         ...metrics,
+        ...(leveled ? ['Entity level'] : []),
+        ...(aggregated ? ['Aggregation'] : []),
+        ...(covered.length ? ['Coverage'] : []),
       ],
-      ...pack.summary.map((s: JsonObject) => [
+      ...pack.summary.map((s: JsonObject, index: number) => [
         s.platform,
         String(s.account_id),
         s.objective_group,
@@ -159,6 +241,9 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
         s.result_definition,
         s.complete,
         ...metrics.map(k => s.metrics[k]),
+        ...(leveled ? [s.entity_level ?? 'campaign'] : []),
+        ...(aggregated ? [s.aggregation?.label ?? ''] : []),
+        ...(covered.length ? [coverage[index]!.lines.join('\n')] : []),
       ]),
     ],
     [],
@@ -168,15 +253,27 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
   const detailed = rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   sheet(
     detailed ? 'Entity rows' : 'Campaign rows',
-    reportTable(report),
+    reportTable(report, Date.now(), 2, style),
     [18, 22, 24, 48, 20, 12, 28, 18, 18],
     detailed ? 16 : 10,
     metrics.length,
   );
-  const sources = exportSourceStatus(report).selected_sources;
+  const sources = exportSourceStatus(report).selected_sources,
+    checks = levelChecks(report, locale),
+    checked = checks.some(lines => lines.length);
   sheet('Source coverage', [
-    ['Platform', 'Account ID', 'Connection', 'Status', 'Rows', 'Error code', 'Warning count', 'Query fingerprint'],
-    ...sources.map((s: JsonObject) => [
+    [
+      'Platform',
+      'Account ID',
+      'Connection',
+      'Status',
+      'Rows',
+      'Error code',
+      'Warning count',
+      'Query fingerprint',
+      ...(checked ? ['Level check'] : []),
+    ],
+    ...sources.map((s: JsonObject, index: number) => [
       s.platform,
       s.account_id,
       s.connection_id,
@@ -185,6 +282,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
       s.error?.code,
       s.warning_count,
       s.query_fingerprint,
+      ...(checked ? [checks[index]!.join('\n')] : []),
     ]),
   ]);
   const chunks: unknown[][] = [['Document', 'Part', 'JSON text']];
@@ -239,7 +337,15 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     if (values.length > 1)
       s.autoFilter = {from: {row: 1, column: 1}, to: {row: values.length, column: values[0]!.length}};
     for (let i = 0; i < values.length; i++) {
-      const r = s.addRow(values[i]!.map(scalar));
+      const r = s.addRow(
+        values[i]!.map((cell, column) =>
+          scalar(
+            exact && i > 0 && column + 1 >= metricStart && column + 1 < metricStart + metricCount
+              ? (exactNumber(cell) ?? cell)
+              : cell,
+          ),
+        ),
+      );
       if (locale.rtl)
         r.eachCell(c => {
           c.alignment = {
@@ -281,6 +387,24 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
     locale = artifactLocale(style),
     t = locale.text;
   if (pack.summary.length > limits.pdf_groups) exceeded('PDF measurement groups');
+  const checks = levelChecks(report, locale);
+  // The figures the PDF prints for each summary: its fixed six and the custom metrics.
+  const printed = [
+      'spend',
+      'impressions',
+      'clicks',
+      'conversions',
+      'cpa',
+      'ctr',
+      ...pack.custom_metrics.map((m: JsonObject) => m.id),
+    ],
+    coverage = summaryCoverage(
+      report,
+      pack.summary,
+      locale,
+      printed,
+      new Set<string>(pack.custom_metrics.map((m: JsonObject) => m.id)),
+    );
   const source = evidence(report),
     fontPath = resolve('web/fonts/NotoSansArabic.ttf'),
     font = openSync(fontPath);
@@ -364,13 +488,20 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       9,
     );
     doc.moveDown(0.7);
-    for (const s of pack.summary) {
-      room(style.template === 'compact' ? 160 : 190);
+    for (const [index, s] of (pack.summary as JsonObject[]).entries()) {
+      const lines = coverage[index]!.lines;
+      room((style.template === 'compact' ? 160 : 190) + 12 * lines.length);
       const top = doc.y;
       doc.moveTo(44, top).lineTo(551, top).strokeColor(style.accent_color).stroke();
       doc.y += 10;
-      text(s.platform + ' | ' + s.account_id + ' | ' + s.objective_group, 12, style.accent_color);
+      text(
+        s.platform + ' | ' + s.account_id + ' | ' + s.objective_group + (s.entity_level ? ' | ' + s.entity_level : ''),
+        12,
+        style.accent_color,
+      );
       text(s.date_from + ' - ' + s.date_to + ' | ' + s.currency + ' | ' + s.timezone, 9);
+      // A total rolled up from the selected children of a parent is not that parent's own total (F-L5-11).
+      if (s.aggregation?.label) text(t(s.aggregation.label), 9);
       text(
         t('Attribution') +
           ': ' +
@@ -409,15 +540,20 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
         10,
       );
       for (const m of pack.custom_metrics) text(isolated(m.label) + ': ' + measure(s.metrics[m.id]), 9);
+      // A figure calculated from some of its rows says so beside the figures it qualifies (F-L5-01).
+      for (const line of lines) text(isolated(line), 9, '#9A4A12');
       doc.moveDown(style.template === 'compact' ? 0.6 : 1.1);
     }
     room(160);
     text(t('Source coverage'), 15);
     doc.moveDown(0.3);
-    for (const s of exportSourceStatus(report).selected_sources) {
-      room(75);
+    for (const [index, s] of (exportSourceStatus(report).selected_sources as JsonObject[]).entries()) {
+      const check = checks[index] ?? [];
+      room(75 + 12 * check.length);
       text(s.platform + ' | ' + s.account_id + ' | ' + s.status + ' | ' + amount(s.row_count) + ' ' + t('rows'), 11);
       if (s.error) text(t('Source error') + ': ' + isolated(s.error.code), 9, '#9A4A12');
+      // Whether the levels of this source agree, and where they do not, by how much (F-L5-05).
+      for (const line of check) text(isolated(line), 9);
       doc.moveDown(0.4);
     }
     room(160);
@@ -427,6 +563,7 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       for (const note of pack.notes) text('- ' + t(note), 9);
     }
     for (const limitation of pack.limitations) text('- ' + t(limitation), 9);
+    if (coverage.some(item => item.lines.length)) text('- ' + reportCoverageHelp(locale.language), 9);
     text(
       t(
         'Full source evidence is embedded as source-evidence.json. Campaign rows are available in the Excel and CSV downloads.',

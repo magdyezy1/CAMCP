@@ -422,6 +422,8 @@ export function detailedOverviewRows(
       objective_group: resolved.group,
       objective_source: resolved.source,
       objective_reason: resolved.reason,
+      ...(resolved.reason_code ? {objective_reason_code: resolved.reason_code} : {}),
+      ...(resolved.reason_values ? {objective_reason_values: resolved.reason_values} : {}),
       ...(objectiveUnread ? {objective_unread: objectiveUnread} : {}),
       ...(typeof group.mapped[0]?.result_definition === 'string'
         ? {result_definition: group.mapped[0].result_definition}

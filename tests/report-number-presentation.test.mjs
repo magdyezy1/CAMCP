@@ -221,6 +221,8 @@ test('RPT-05: the client report pack names platforms, localizes dates and shows 
     badge: String,
   });
   const source = readFileSync('web/evidence-workflows.js', 'utf8');
+  // The pack reads a figure's coverage and draws a ratio through report-quality.js, which its route loads first (F-L5-01).
+  f.run(readFileSync('web/report-quality.js', 'utf8'));
   f.run(source.slice(source.indexOf('function reportPackBody('), source.indexOf('async function renderReportPack(')));
   f.context.pack = {
     title: 'Pack',

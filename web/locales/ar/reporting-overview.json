@@ -72,6 +72,7 @@
   "Google did not confirm this delivery, so AMCP does not send a newer report to this tab until it is resolved.": "لم تؤكّد Google هذا التسليم، لذلك لا يرسل AMCP تقريرًا أحدث إلى علامة التبويب هذه حتى تتم معالجته.",
   "Google may still apply it. Resend and release are available after {date}.": "قد تطبّقه Google لاحقًا. تتاح إعادة الإرسال والتحرير بعد {date}.",
   "Higher is better": "القيمة الأعلى أفضل",
+  "Hollow marks are periods calculated from some of their rows only: {count}.": "العلامات المفرغة فترات حُسبت من بعض صفوفها فقط: {count}.",
   "How each platform counts these metrics": "كيف تحسب كل منصة هذه المقاييس",
   "How this snapshot counts its metrics": "كيفية احتساب مقاييس هذه النسخة",
   "Identifier": "المعرّف",

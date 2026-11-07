@@ -161,6 +161,7 @@ test('the full report shows a campaign whose line items differ as the mixed grou
     group: 'mixed',
     source: 'provider',
     reason: 'This campaign’s line items have different objectives: REACH, WEBSITE_CLICKS.',
+    reason_code: 'provider_note',
   });
   assert.equal(row.result.value, null, 'the results of different objectives are not combined');
   assert.ok(report.sources[0].warnings.includes(xObjectivesMixedWarning));

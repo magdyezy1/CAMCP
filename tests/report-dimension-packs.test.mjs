@@ -12,6 +12,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {reportPreset, reportPresets} from '../dist/src/report-presets.js';
 import {campaignAttributionProfile, overviewSourceLevel} from '../dist/src/overview-granularity.js';
 import {metaWindowsMessage, metaWindowsValid} from '../dist/src/meta-attribution-windows.js';
+import {reportSource} from '../dist/src/report-sources.js';
 import {evidenceWorkbook} from '../dist/src/evidence-artifacts.js';
 import {googleEvidenceCustomer} from './fixtures/google-evidence-data.mjs';
 
@@ -469,18 +470,20 @@ test('the website names the packs and offers the new Meta windows in English and
   const c = ctx('ar');
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/report-source-settings.js', 'utf8')).runInContext(c);
+  // The windows come from the platform's declaration in the bootstrap (F-L5-15), here the server's own table.
   c.platform = {
     id: 'meta',
     entity_levels: [
       {id: 'campaign', label: 'Campaign'},
       {id: 'adset', label: 'Ad set'},
     ],
+    reporting_v4: {...reportSource('meta').overview},
   };
   const html = new Script(
     "String(overviewGranularityFields(platform, {level: 'adset', report_options: {attribution_windows: ['28d_click', '1d_ev']}}))",
   ).runInContext(c);
   assert.match(html, /<option value="28d_click" selected>28d_click<\/option>/);
-  assert.match(html, /data-report-engaged-view-window="meta" checked> 1d_ev \(مشاهدة تفاعلية\)/);
+  assert.match(html, /data-report-window-flag="1d_ev" checked> 1d_ev \(مشاهدة تفاعلية\)/);
   const evidence = readFileSync('web/evidence-workflows.js', 'utf8');
   for (const value of ['28d_click', '28d_click,1d_view', '7d_click,1d_view,1d_ev'])
     assert.ok(evidence.includes('<option value="' + value + '">'), value);

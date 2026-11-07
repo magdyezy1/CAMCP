@@ -50,12 +50,14 @@ test('objective precedence keeps explicit choices, native values, inference, map
     group: 'sales',
     source: 'user_override',
     reason: 'Chosen for this campaign in the report.',
+    reason_code: 'campaign_override',
   });
   assert.deepEqual(resolveObjective({...base, legacy: 'leads', fallback: 'sales'}), {
     native: 'TRAFFIC',
     group: 'leads',
     source: 'user_override',
     reason: 'Chosen for every campaign of this source in the saved report.',
+    reason_code: 'source_choice',
   });
   assert.deepEqual(resolveObjective({...base, fallback: 'sales'}), {
     native: 'TRAFFIC',
@@ -68,6 +70,7 @@ test('objective precedence keeps explicit choices, native values, inference, map
     group: 'leads',
     source: 'provider_inferred',
     reason: 'Inferred from the platform’s value NEW_LEADS_THING.',
+    reason_code: 'inferred_from_native',
   });
   assert.deepEqual(resolveObjective({...base, native: undefined, fallback: 'sales'}), {
     native: null,
@@ -84,6 +87,8 @@ test('unknown values carry the platform-specific reason, and known ungrouped val
     group: 'unknown',
     source: 'unknown',
     reason: 'TikTok’s APP_RETARGETING has no matching AMCP objective; choose one in the report.',
+    reason_code: 'no_matching_objective',
+    reason_values: {platform: 'TikTok', native: 'APP_RETARGETING'},
   });
   assert.equal(
     resolveObjective({platform: 'tiktok', table, native: 'FUTURE_THING'}).reason,
@@ -96,6 +101,7 @@ test('unknown values carry the platform-specific reason, and known ungrouped val
     group: 'unknown',
     source: 'unknown',
     reason: 'This source has no campaign objective.',
+    reason_code: 'source_has_no_objective',
   });
 });
 
@@ -110,6 +116,7 @@ test('fallback never replaces a native or mapped group; known ungrouped values c
     group: 'app_installs',
     source: 'provider_mapped',
     reason: 'Mapped.',
+    reason_code: 'mapped_by_provider',
   });
   assert.equal(
     resolveObjective({platform: 'test', table, native: 'APP_RETARGETING', fallback: 'sales'}).source,
@@ -131,6 +138,7 @@ for (const cause of ['refused', 'limited'])
       group: 'unknown',
       source: 'unknown',
       reason: unreadReason[cause] + '; choose one in the report.',
+      reason_code: 'read_' + cause,
     });
     // A fallback that covers the unread value says so; it is not the plain "Your fallback".
     assert.deepEqual(resolveObjective({...base, fallback: 'sales'}), {
@@ -138,6 +146,7 @@ for (const cause of ['refused', 'limited'])
       group: 'sales',
       source: 'user_fallback',
       reason: unreadReason[cause] + ', so your fallback is used.',
+      reason_code: 'fallback_read_' + cause,
     });
     // Explicit choices still win and are labelled as theirs, and a value the platform did give is never unread.
     assert.equal(resolveObjective({...base, overrides: {'1': 'leads'}, fallback: 'sales'}).source, 'user_override');
@@ -298,6 +307,7 @@ test('Google maps only the documented channel and bidding signals; Apple mapping
     group: 'app_installs',
     source: 'provider_mapped',
     reason: 'Apple Ads campaigns promote apps.',
+    reason_code: 'mapped_by_provider',
   });
   for (const platform of ['x', 'microsoft', 'ga4', 'gsc']) {
     const resolved = resolveObjective({platform, table: reportSource(platform).objectives});

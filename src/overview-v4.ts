@@ -5,15 +5,31 @@ import {objectiveFallbackGroups} from './report-objectives.js';
 import type {JsonObject} from './types.js';
 import {levelFailure, reportLevelReconciliation} from './report-level-reconciliation.js';
 import {coverageCounts} from './report-math-v4.js';
+import {reportCoverageNotes} from './report-coverage-notes.js';
 
 export const overviewConfigV4 = 'overview-config-v4';
 export const overviewDetailV4 = 'overview-detail-v4';
 export const overviewV4ScopeContract = 'selected-descendants-v1';
+/**
+ * The values an option may take when the platform fixes them (attribution windows): what the editor offers, taken from
+ * the platform's declaration and sent in the bootstrap, so no page keeps a list of its own (F-L5-15). `values` is every
+ * choice in the platform's own order. A selection option (`exclusive` given) takes any of the values, but at most one of
+ * the `exclusive` ones; otherwise the option takes exactly one value. `label` names the control (its exclusive group's,
+ * for a selection) and `notes` glosses a value.
+ */
+export interface OverviewV4OptionChoice {
+  readonly label: string;
+  readonly values: readonly string[];
+  readonly exclusive?: readonly string[];
+  readonly notes?: Readonly<Record<string, string>>;
+}
 export interface OverviewV4Capabilities {
   levels: readonly {id: string; label: string; native_type: string; preset?: string}[];
   /** The provider source owns these facts; this module only validates/applies the supplied declaration. */
   defaults: Readonly<JsonObject>;
   option_names: readonly string[];
+  /** The fixed choices of the options that have them, by option name; none for a platform without any. */
+  option_choices?: Readonly<Record<string, OverviewV4OptionChoice>>;
   /** A positive observation of any of these source-owned metrics proves delivery or measurement activity. */
   delivery_metrics: readonly string[];
   supported_statuses: readonly string[];
@@ -553,7 +569,16 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
     };
   };
   return rows.map(row => {
-    const {native, lineage, objective_source, objective_group, objective_reason, ...visible} = row;
+    const {
+      native,
+      lineage,
+      objective_source,
+      objective_group,
+      objective_reason,
+      objective_reason_code,
+      objective_reason_values,
+      ...visible
+    } = row;
     const fields = snapshot.config.metrics
         ? [
             ...new Set<string>([
@@ -613,6 +638,10 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
         group: objective_group,
         source: objective_source,
         reason: objective_reason ?? null,
+        // The stable code of the reason (and the platform and objective it names), for the page to word; a snapshot recorded
+        // before the code has the sentence alone.
+        ...(objective_reason_code ? {reason_code: objective_reason_code} : {}),
+        ...(objective_reason_values ? {reason_values: objective_reason_values} : {}),
       },
       parents: {
         ...(row.parent_ids?.campaign_id
@@ -796,4 +825,28 @@ export function projectOverviewV4Sources(snapshot: JsonObject, include: JsonObje
           )
         : value;
   return project(snapshot.sources);
+}
+
+/**
+ * The summaries of a v4 snapshot as `get` returns them: each says which of its metrics were calculated from fewer units
+ * than it has (`coverage_notes`, from the one computation every surface renders, F-L5-01). An empty list means every
+ * figure is complete. It is derived on every read from the stored coverage, so a snapshot stored before the notes existed
+ * gets them too, and nothing stored changes. Other snapshots keep the representation they were recorded in.
+ */
+export function projectOverviewV4Summaries(snapshot: JsonObject): JsonObject {
+  if (snapshot.config?.contract_version !== overviewConfigV4) return {};
+  const fields = snapshot.config.metrics
+      ? [
+          ...new Set<string>([
+            ...snapshot.config.metrics,
+            ...(snapshot.config.custom_metrics ?? []).map((metric: JsonObject) => metric.id),
+          ]),
+        ]
+      : undefined,
+    withNotes = (summaries: JsonObject[]) =>
+      summaries.map(summary => ({...summary, coverage_notes: reportCoverageNotes(summary, fields)}));
+  return {
+    ...(Array.isArray(snapshot.summary) ? {summary: withNotes(snapshot.summary)} : {}),
+    ...(Array.isArray(snapshot.window_summary) ? {window_summary: withNotes(snapshot.window_summary)} : {}),
+  };
 }

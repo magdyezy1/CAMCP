@@ -105,8 +105,9 @@ function reportObjectiveSelect(platform, config = {}, groups) {
 }
 /**
  * A row's objective: its group, where the group came from and, when it is unknown, why. A v4 snapshot nests them under
- * `objective` ({native, group, source, reason}); a snapshot recorded before that keeps them flat on the row beside a
- * native objective string. One reader serves every renderer, so each snapshot is shown as it was recorded.
+ * `objective` ({native, group, source, reason, reason_code, reason_values}); a snapshot recorded before that keeps them
+ * flat on the row beside a native objective string, and one recorded before the code has the sentence alone. One reader
+ * serves every renderer, so each snapshot is shown as it was recorded.
  */
 function reportRowObjective(row) {
   const nested = row.objective !== null && typeof row.objective === 'object' ? row.objective : {};
@@ -114,8 +115,21 @@ function reportRowObjective(row) {
     group: nested.group ?? row.objective_group,
     source: nested.source ?? row.objective_source,
     reason: nested.reason ?? row.objective_reason,
+    code: nested.reason_code,
+    values: nested.reason_values,
   };
 }
+/** The two reasons that name a platform and its native objective: the code, the message and the pattern of an old sentence. */
+const reportObjectiveReasons = {
+  no_matching_objective: [
+    '{platform}’s {native} has no matching AMCP objective; choose one in the report.',
+    /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s,
+  ],
+  objective_not_grouped: [
+    '{platform} returned the objective {native}, which AMCP does not group yet; choose one in the report.',
+    /^(.+?) returned the objective (.+), which AMCP does not group yet; choose one in the report\.$/s,
+  ],
+};
 function reportObjectiveSource(row) {
   const objective = reportRowObjective(row);
   if (row.results_by_objective?.length && objective.source === 'provider')
@@ -124,22 +138,15 @@ function reportObjectiveSource(row) {
     });
   if (objective.source === 'user_fallback' && objective.reason) return uiText(objective.reason);
   if (objective.source !== 'unknown') return objective.source ? reportLabel(objective.source) : '';
+  // The code names the message and carries what fills it. Only a snapshot recorded before the code is read from its sentence.
   const reason = String(objective.reason ?? ''),
-    known = /^(.+?)’s (.+) has no matching AMCP objective; choose one in the report\.$/s.exec(reason),
-    unknown = /^(.+?) returned the objective (.+), which AMCP does not group yet; choose one in the report\.$/s.exec(
-      reason,
-    );
-  return known
-    ? uiText('{platform}’s {native} has no matching AMCP objective; choose one in the report.', {
-        platform: known[1],
-        native: known[2],
-      })
-    : unknown
-      ? uiText('{platform} returned the objective {native}, which AMCP does not group yet; choose one in the report.', {
-          platform: unknown[1],
-          native: unknown[2],
-        })
-      : uiText(reason);
+    named = reportObjectiveReasons[objective.code];
+  if (named && objective.values) return uiText(named[0], objective.values);
+  for (const [message, pattern] of Object.values(reportObjectiveReasons)) {
+    const match = objective.code ? null : pattern.exec(reason);
+    if (match) return uiText(message, {platform: match[1], native: match[2]});
+  }
+  return uiText(reason);
 }
 /**
  * A row's result that AMCP mapped from the platform's reported fields says so, and from which field: it is AMCP's
@@ -967,42 +974,51 @@ function reportSummaryOmitted(g) {
     : '';
 }
 /**
- * RPT-05: a small spend line over the window's periods, oldest first. It is an image with a text summary (lowest and
- * highest period); unknown periods leave a gap rather than reading as zero.
+ * RPT-05: a small spend line over the window's periods, oldest first, as an image with a text summary (lowest and highest
+ * period). An unknown period leaves a gap rather than reading as zero, and a period calculated from some of its rows is a
+ * hollow mark off the line, so a week with one unknown campaign never reads as a dip (F-L5-26).
  */
 function reportSparkline(g) {
   const series = g.series ?? [],
-    known = series.map((p, i) => [p, i]).filter(([p]) => typeof p.spend === 'number' && Number.isFinite(p.spend));
+    spend = p => reportDisplayNumber(p.spend),
+    partial = p => p.coverage?.known_rows < p.coverage?.total_rows,
+    whole = p => !partial(p) && Number.isFinite(spend(p)),
+    known = series.map((p, i) => [p, i]).filter(([p]) => whole(p));
   if (series.length < 2 || known.length < 2) return '';
-  const values = known.map(([p]) => p.spend),
-    low = known.reduce((a, b) => (b[0].spend < a[0].spend ? b : a))[0],
-    high = known.reduce((a, b) => (b[0].spend > a[0].spend ? b : a))[0],
+  const values = known.map(([p]) => spend(p)),
+    low = known.reduce((a, b) => (spend(b[0]) < spend(a[0]) ? b : a))[0],
+    high = known.reduce((a, b) => (spend(b[0]) > spend(a[0]) ? b : a))[0],
     min = Math.min(...values),
     span = Math.max(...values) - min,
     x = i => ((i / (series.length - 1)) * 200).toFixed(1),
-    y = v => (span ? 34 - ((v - min) / span) * 32 : 18).toFixed(1);
-  const segments = [];
+    y = v => Math.min(35, Math.max(1, span ? 34 - ((v - min) / span) * 32 : 18)).toFixed(1),
+    segments = [],
+    marks = [];
   let segment = [];
   series.forEach((p, i) => {
-    if (typeof p.spend === 'number' && Number.isFinite(p.spend)) segment.push(x(i) + ',' + y(p.spend));
-    else if (segment.length) segments.push(segment.splice(0));
+    if (whole(p)) segment.push([x(i), y(spend(p))]);
+    else {
+      if (segment.length) segments.push(segment.splice(0));
+      if (partial(p) && Number.isFinite(spend(p))) marks.push([x(i), y(spend(p))]);
+    }
   });
   if (segment.length) segments.push(segment);
-  const label = uiText('Spend per period from {from} to {to}: lowest {low} ({lowDate}), highest {high} ({highDate}).', {
-    from: reportDay(series[0].date_from),
-    to: reportDay(series.at(-1).date_from),
-    low: metricFormat('spend', low.spend, g.currency),
-    lowDate: reportDay(low.date_from),
-    high: metricFormat('spend', high.spend, g.currency),
-    highDate: reportDay(high.date_from),
-  });
-  return `<svg class="report-sparkline" viewBox="0 0 200 36" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">${segments
-    .map(points =>
-      points.length > 1
-        ? `<polyline points="${points.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`
-        : `<circle cx="${points[0].split(',')[0]}" cy="${points[0].split(',')[1]}" r="1.5" fill="currentColor"/>`,
-    )
-    .join('')}</svg>`;
+  const label =
+    uiText('Spend per period from {from} to {to}: lowest {low} ({lowDate}), highest {high} ({highDate}).', {
+      from: reportDay(series[0].date_from),
+      to: reportDay(series.at(-1).date_from),
+      low: metricFormat('spend', low.spend, g.currency),
+      lowDate: reportDay(low.date_from),
+      high: metricFormat('spend', high.spend, g.currency),
+      highDate: reportDay(high.date_from),
+    }) +
+    (marks.length
+      ? ' ' +
+        uiText('Hollow marks are periods calculated from some of their rows only: {count}.', {
+          count: uiNumber(marks.length),
+        })
+      : '');
+  return html`<svg class="report-sparkline" viewBox="0 0 200 36" preserveAspectRatio="none" role="img" aria-label="${label}">${segments.map(points => (points.length > 1 ? html`<polyline points="${points.map(point => point.join(',')).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>` : html`<circle cx="${points[0][0]}" cy="${points[0][1]}" r="1.5" fill="currentColor"/>`))}${marks.map(([cx, cy]) => html`<circle cx="${cx}" cy="${cy}" r="2" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke"/>`)}</svg>`.toString();
 }
 /** Whole-window cards use report-summary.ts totals and sparklines; periods remain in rows and exports. */
 function renderReportWindowSummary(r) {
@@ -1082,12 +1098,12 @@ function renderReportSummary(r) {
       : '')
   );
 }
-/** RPT-05: a summary card whose source has limited coverage says that its totals may be incomplete. */
+/** RPT-05, F-L5-01: a source or a figure with limited coverage. */
 function reportSummaryCoverage(r, g) {
   const limited = (r.sources ?? []).some(
     s => !s.error && !s.complete && s.source?.platform === g.platform && s.source?.account_id === g.account_id,
   );
-  return limited
+  return limited || g.coverage_notes?.length
     ? `<p class="report-card-footer">${esc(uiText('Limited coverage: these totals may be incomplete.'))}</p>`
     : '';
 }
@@ -1576,9 +1592,19 @@ function renderReportSourceHealth(s, platforms, index, range, report) {
 /**
  * V2-RPT-05: Retry on a source card runs the report again from the setup form. The form is submitted through its own
  * submit button, so the submit event has a submitter (a bare requestSubmit() has none), and a run that is already
- * starting is not started twice by a second click.
+ * starting is not started twice by a second click. A snapshot opened by its link leaves the form empty, so it is refilled
+ * from the snapshot first, the way History opens one, and then submitted once.
  */
 async function retryReportRun() {
+  if (overviewState.report && !document.querySelector('[data-report-account]:checked')) {
+    if (overviewState.refilling) return;
+    overviewState.refilling = true;
+    try {
+      await openOverviewHistory(overviewState.report.id);
+    } finally {
+      overviewState.refilling = false;
+    }
+  }
   const form = $('#overview-config'),
     submit = form?.querySelector('button[type="submit"]');
   if (submit && submit.getAttribute('aria-busy') !== 'true') form.requestSubmit(submit);

@@ -226,10 +226,16 @@
       "raised": [
         "reference_words 151408 → 154728"
       ]
+    },
+    {
+      "reason": "engine-surfaces package (L5 audit F-L5-35, with F-L5-01, F-L5-05, F-L5-06, F-L5-07, F-L5-11, F-L5-15, F-L5-26), merged onto engine-core, brand, results and web-components: docs/REPORTING-OVERVIEW.md gains what a v4 source selects, rolled-up totals, coverage notes and what each surface prints for them, numbers in files, what get returns, monitors on a v4 snapshot, the objective reason codes and the bootstrap block the editor reads, in nine new paragraphs or lists, four of them with a pinned table, and edits to five sentences and the Reddit row; docs/workflows/MONITORING.md gains one linking sentence; 1,689 recorded words, and the merged pages hold the same 1,689 more",
+      "raised": [
+        "reference_words 154728 → 156417"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 154728
+    "reference_words": 156417
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
