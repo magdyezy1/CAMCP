@@ -155,3 +155,49 @@ test('no stylesheet squeezes, shrinks below the minimum, recolours or mirrors a 
     }
   }
 });
+
+// The variant rules: Ink on light and White on dark from first paint (theme.js sets data-theme before the styles load),
+// White on a dark system when there is no JavaScript, White only where a surface stays dark in both themes, and Ink in
+// print because the theme rules sit in @media screen (print falls back to the base rule, with no print rule to get
+// wrong). The page families load different stylesheets, so the one set lives in two: the workspace and About load
+// accessibility.css, the policy pages load privacy.css instead. Each page loads exactly one copy and they must not drift.
+test('the variant rules are one set, in the stylesheet each page family loads, and nowhere else', () => {
+  const rules = sheet =>
+      cssDeclarations(read(sheet))
+        .filter(d => /\.logo-(?:ink|white)\b/.test(d.selector))
+        .map(d => [d.atRules.join(' '), d.selector, d.property, d.value].join(' | ')),
+    core = [
+      ' | .logo-white | display | none',
+      "@media screen | [data-theme='dark'] .logo-ink | display | none",
+      "@media screen | [data-theme='dark'] .logo-white | display | block",
+      '@media screen and (prefers-color-scheme: dark) | :root:not([data-theme]) .logo-ink | display | none',
+      '@media screen and (prefers-color-scheme: dark) | :root:not([data-theme]) .logo-white | display | block',
+    ];
+  assert.deepEqual(rules('privacy.css'), core);
+  // accessibility.css adds the two surfaces that are dark in both themes (--surface-inverse is the same in each).
+  assert.deepEqual(
+    rules('accessibility.css'),
+    core.map(rule =>
+      rule.replace(
+        "[data-theme='dark'] .logo-white |",
+        "[data-theme='dark'] .logo-white, :is(.sidebar, .callback-top) .logo-white |",
+      ),
+    ),
+  );
+  for (const sheet of sheets.filter(name => !['privacy.css', 'accessibility.css'].includes(name)))
+    assert.deepEqual(rules(sheet), [], sheet + ' holds lockup variant rules');
+  // About takes no data-theme rule of its own (tests/web-route-bytes.test.mjs) and loads no theme.css.
+  assert.doesNotMatch(read('about.css'), /data-theme/);
+  for (const page of pages) {
+    const loaded = [
+      ...read(page)
+        .replace(/<noscript>[\s\S]*?<\/noscript>/g, '')
+        .matchAll(/<link rel="stylesheet" href="\/assets\/([^"]+)">/g),
+    ].map(match => match[1]);
+    assert.equal(
+      loaded.filter(sheet => ['privacy.css', 'accessibility.css'].includes(sheet)).length,
+      1,
+      page + ' loads exactly one copy of the variant rules: ' + loaded.join(', '),
+    );
+  }
+});
