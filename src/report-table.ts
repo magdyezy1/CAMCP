@@ -81,6 +81,9 @@ function coverageOfTable(report: JsonObject, fields: string[], presentation: Jso
     notes: perSummary,
     help: perSummary.length ? reportCoverageHelp(locale.language) : '',
     marker: locale.text('Coverage note'),
+    // A total rolled up from the selected children of a parent says so in its note (F-L5-11).
+    aggregation: (summary: JsonObject): string =>
+      summary.aggregation?.label ? locale.text(summary.aggregation.label) : '',
   };
 }
 /**
@@ -195,7 +198,12 @@ export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2
       };
     for (const {summary, lines} of coverage.notes)
       values.push(
-        note(summary, (reportPlatforms[summary.platform]?.name ?? summary.platform) + ' | ' + lines.join('; ')),
+        note(
+          summary,
+          [reportPlatforms[summary.platform]?.name ?? summary.platform, coverage.aggregation(summary), lines.join('; ')]
+            .filter(Boolean)
+            .join(' | '),
+        ),
       );
     values.push(note(undefined, coverage.help));
   }

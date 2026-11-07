@@ -245,6 +245,24 @@ const resultGroupIds = (row: JsonObject): string[] =>
   Array.isArray(row.result_groups)
     ? row.result_groups.map((group: JsonObject) => String(group.definition?.id ?? '')).sort()
     : [];
+/**
+ * A total over rows rolled up from the selected children of a parent (F-L5-11) is not a native total of that parent, so it
+ * never shares a summary with one and the summary says what it is: `aggregation.kind` is `rolled_up_from_selected`, with
+ * the level it was rolled up from and the label the rows carry. A summary of native rows has no `aggregation`.
+ */
+const rolledUpKey = (row: JsonObject) =>
+  row.aggregation?.kind === 'rolled_up' ? [row.aggregation.from_level, row.aggregation.scope_field] : null;
+const summaryAggregation = (row: JsonObject): JsonObject =>
+  row.aggregation?.kind === 'rolled_up'
+    ? {
+        aggregation: {
+          kind: 'rolled_up_from_selected',
+          from_level: row.aggregation.from_level,
+          scope_field: row.aggregation.scope_field,
+          label: row.aggregation.label,
+        },
+      }
+    : {};
 /** The most recent periods a window summary keeps for its sparkline. */
 export const windowSeriesLimit = 400;
 /**
@@ -267,7 +285,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       row.attribution,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row), rolledUpKey(row)] : []),
     ]);
     const members = groups.get(key);
     if (members) members.push(row);
@@ -300,6 +318,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       objective_group: first.objective_group,
       result_definition: first.result_definition,
       attribution: first.attribution,
+      ...(v4 ? summaryAggregation(first) : {}),
       date_from: ordered[0]![1][0]!.date_from,
       date_to: ordered.at(-1)![1][0]!.date_to,
       period_count: periods.size,
@@ -336,7 +355,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       row.date_to,
       row.entity_level ?? 'campaign',
       row.native_entity_type ?? null,
-      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row)] : []),
+      ...(v4 ? [row.result?.definition_id ?? null, resultGroupIds(row), rolledUpKey(row)] : []),
     ]);
     const group = groups.get(key) ?? [];
     group.push(row);
@@ -361,6 +380,7 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       date_to: first.date_to,
       result_definition: first.result_definition,
       attribution: first.attribution,
+      ...(v4 ? summaryAggregation(first) : {}),
       ...(first.entity_level
         ? {entity_level: first.entity_level, native_entity_type: first.native_entity_type, entity_count: group.length}
         : {campaign_count: group.length}),

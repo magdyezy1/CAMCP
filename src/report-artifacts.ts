@@ -94,7 +94,9 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
     covered = coverage.filter(item => item.lines.length),
     // A report of several levels has one summary per level, which are told apart by the level.
     leveled =
-      report.config?.contract_version === overviewConfigV4 && pack.summary.some((s: JsonObject) => s.entity_level);
+      report.config?.contract_version === overviewConfigV4 && pack.summary.some((s: JsonObject) => s.entity_level),
+    // A total rolled up from the selected children of a parent says so beside the total (F-L5-11).
+    aggregated = pack.summary.some((s: JsonObject) => s.aggregation?.label);
   const columns =
     (report.config.metrics?.length ?? 6) +
     (report.config.custom_metrics?.length ?? 0) +
@@ -189,6 +191,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
         'Complete',
         ...metrics,
         ...(leveled ? ['Entity level'] : []),
+        ...(aggregated ? ['Aggregation'] : []),
         ...(covered.length ? ['Coverage'] : []),
       ],
       ...pack.summary.map((s: JsonObject, index: number) => [
@@ -204,6 +207,7 @@ export async function reportWorkbook(report: JsonObject, presentation: JsonObjec
         s.complete,
         ...metrics.map(k => s.metrics[k]),
         ...(leveled ? [s.entity_level ?? 'campaign'] : []),
+        ...(aggregated ? [s.aggregation?.label ?? ''] : []),
         ...(covered.length ? [coverage[index]!.lines.join('\n')] : []),
       ]),
     ],
@@ -435,6 +439,8 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       doc.y += 10;
       text(s.platform + ' | ' + s.account_id + ' | ' + s.objective_group, 12, style.accent_color);
       text(s.date_from + ' - ' + s.date_to + ' | ' + s.currency + ' | ' + s.timezone, 9);
+      // A total rolled up from the selected children of a parent is not that parent's own total (F-L5-11).
+      if (s.aggregation?.label) text(t(s.aggregation.label), 9);
       text(
         t('Attribution') +
           ': ' +
