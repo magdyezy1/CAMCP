@@ -48,6 +48,8 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
   assert.ok(
     [
       'empty',
+      // V2-WEB-02: the members-only component state page (/design-system), on an empty workspace.
+      'components',
       // OWNER-REVIEWER-QA: an invited test account in its own workspace, the view Meta's app reviewers use.
       'reviewer',
       ...syntheticWriteKinds,
@@ -484,6 +486,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
     role =
       [
         'empty',
+        'components',
         'worker-health',
         'granular-reporting',
         'period-comparison',
