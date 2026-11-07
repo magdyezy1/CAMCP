@@ -10555,6 +10555,7 @@
       "objective_group": "unknown",
       "objective_source": "unknown",
       "objective_reason": "Microsoft Advertising reports have no objective field; choose one in the report.",
+      "objective_reason_code": "platform_returned_none",
       "currency": "AED",
       "metrics": {
        "spend": 12.5,
@@ -10882,6 +10883,7 @@
       "objective_group": "unknown",
       "objective_source": "unknown",
       "objective_reason": "Microsoft Advertising reports have no objective field; choose one in the report.",
+      "objective_reason_code": "platform_returned_none",
       "currency": "AED",
       "metrics": {
        "spend": 12.5,
@@ -13105,6 +13107,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -13455,6 +13458,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -13744,6 +13748,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -14199,6 +14204,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -14250,6 +14256,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -14301,6 +14308,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -14352,6 +14360,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
@@ -14403,6 +14412,7 @@
       "objective_group": "app_installs",
       "objective_source": "provider_mapped",
       "objective_reason": "Apple Ads campaigns promote apps.",
+      "objective_reason_code": "mapped_by_provider",
       "currency": "USD",
       "metrics": {
        "spend": 12.34,
