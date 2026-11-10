@@ -161,9 +161,9 @@ function reportResultMapping(row) {
 }
 
 /**
- * A row's result label in the interface language. A Meta result that Meta added later is named by its own value (a custom
- * conversion's ID, an action type, an indicator), so it is looked up as the template of its prefix; any other Meta or LinkedIn label
- * is looked up as it is; another platform's text stays as the platform sent it.
+ * A row's result label in the interface language. A Meta result that Meta added later, and the exact action a person chose, are
+ * named by their own value (a custom conversion's ID, an action type, an indicator), so they are looked up as the template of their
+ * prefix; any other Meta or LinkedIn label is looked up as it is; another platform's text stays as the platform sent it.
  */
 function reportResultLabel(row) {
   const label = String(row.result_definition ?? ''),
@@ -175,9 +175,11 @@ function reportResultLabel(row) {
       ? uiText('Meta action {action}', {action: tail('Meta action')})
       : meta && label.startsWith('Meta result ')
         ? uiText('Meta result {indicator}', {indicator: tail('Meta result')})
-        : meta || row.platform === 'linkedin'
-          ? uiText(label)
-          : label;
+        : meta && label.startsWith('Selected Meta action ')
+          ? uiText('Selected Meta action {action}', {action: tail('Selected Meta action')})
+          : meta || row.platform === 'linkedin'
+            ? uiText(label)
+            : label;
 }
 
 /** Defaults mirror report-metrics.ts campaignRecommendation. */

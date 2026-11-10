@@ -463,10 +463,9 @@ test('every label of Meta’s results has Arabic, on the website and in the Arab
     'Reach',
     'Impressions',
     'Estimated ad recall lift (people)',
-    'Selected Meta action',
   ];
-  // And every named label the code declares, so a label added later cannot ship without its Arabic. (A result Meta adds later
-  // is named by its own indicator: the next test.)
+  // And every named label the code declares, so a label added later cannot ship without its Arabic. (A result Meta adds later,
+  // and the exact action a person chooses, are named by their own value: the next tests.)
   const declared = [...Object.values(metaResultIndicators), ...Object.values(metaResultRules.selectors[0].values)].map(
     definition => definition.label,
   );
@@ -598,6 +597,161 @@ test('two custom conversions, an action and a metric Meta adds later in one repo
         );
       }
     }
+  } finally {
+    f.close();
+  }
+});
+
+// The exact action a person chooses (`result_action_type`) is a result of its own, grouped by the action, so it is named by the
+// action like the results Meta adds later: two sources that choose different actions never share a label (the lead's ruling 4).
+const chosen = {
+  template: 'Selected Meta action {action}',
+  action: 'onsite_conversion.post_save',
+  label: 'Selected Meta action onsite_conversion.post_save',
+};
+test('the label of a chosen action carries the action, and has Arabic on the website and in the exports', () => {
+  const translated = catalog[chosen.template];
+  assert.match(translated ?? '', /[؀-ۿ]/u, 'Arabic for ' + chosen.template);
+  assert.ok(translated.includes('{action}'), 'the Arabic keeps the slot');
+  const expected = translated.replace('{action}', chosen.action);
+  assert.equal(artifactLocale({artifact_language: 'ar'}).result(chosen.label), expected, 'Arabic export');
+  assert.equal(artifactLocale({}).result(chosen.label), chosen.label, 'English export');
+  assert.equal(
+    sourceDetails(page('ar'), {platform: 'meta', result_definition: chosen.label}),
+    expected,
+    'Arabic website',
+  );
+  assert.equal(
+    sourceDetails(page('en'), {platform: 'meta', result_definition: chosen.label}),
+    chosen.label,
+    'English website',
+  );
+  // The label that named every chosen action alike has no entry of its own any more, on the website or in the exports.
+  assert.equal(Object.hasOwn(catalog, 'Selected Meta action'), false);
+  assert.equal(artifactLocale({artifact_language: 'ar'}).result('Selected Meta action'), 'Selected Meta action');
+});
+
+test('two sources that choose different exact actions show two labels: MCP, exports and website', async () => {
+  // A report names an account once, so the two sources are two Meta accounts: 100, and a second one (200) that the same
+  // synthetic fixture serves by answering for it as for 100.
+  const secondConnection = 'aaaaaaaa-1111-4111-8111-000000000022',
+    sources = [
+      ['adset', 'lead', {}],
+      ['ad', 'purchase', {connection_id: secondConnection, account_id: '200'}],
+    ].map(([level, action, account]) => {
+      const {objective, level: _level, report_options: _v3, ...source} = granularSource('meta', level);
+      return {
+        ...source,
+        ...account,
+        levels: [level],
+        report_options: {complete_window: true, result_action_type: action},
+      };
+    }),
+    labels = ['Selected Meta action lead', 'Selected Meta action purchase'],
+    arabic = label => catalog[chosen.template].replace('{action}', label.slice('Selected Meta action '.length));
+  const f = overviewGranularityFixture();
+  try {
+    f.store.putConnection(
+      f.actor,
+      {
+        id: secondConnection,
+        tenantId: f.actor.tenantId,
+        gateway: 'meta_native_action',
+        accounts: ['200'],
+        enabled: true,
+        label: 'Synthetic second Meta',
+        scopes: ['ads_read'],
+      },
+      {accessToken: 'synthetic', developerToken: 'synthetic'},
+    );
+    f.store.putDocument(f.actor.tenantId, 'website_assets', secondConnection, {
+      groups: [{kind: 'ad_accounts', assets: [{id: '200', name: 'Synthetic second Meta account'}]}],
+    });
+    const second = value =>
+      Array.isArray(value)
+        ? value.map(second)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(
+              Object.entries(value).map(([key, item]) => [
+                key,
+                item === '100' && key === 'account_id' ? '200' : item === 'act_100' ? 'act_200' : second(item),
+              ]),
+            )
+          : value;
+    f.hook(async url => {
+      if (!url.pathname.includes('/act_200')) return undefined;
+      const mirrored = new URL(url);
+      mirrored.pathname = url.pathname.replace('/act_200', '/act_100');
+      const response = await f.fetcher(mirrored.toString());
+      return Response.json(second(await response.json()), {status: response.status});
+    });
+    f.mutate((rows, platform) =>
+      platform !== 'meta'
+        ? rows
+        : rows.map(row => ({
+            ...row,
+            spend: '12',
+            actions: [
+              {action_type: 'lead', value: '10', '7d_click': '4'},
+              {action_type: 'purchase', value: '9', '7d_click': '3'},
+            ],
+          })),
+    );
+    const {read, stored} = await run(f, {
+      ...granularConfig(sources[0]),
+      contract_version: 'overview-config-v4',
+      sources,
+      metrics,
+    });
+    assert.equal(read.state, 'complete', JSON.stringify(read.sources?.map(source => source.error)));
+    // MCP: each row, and each source's definition, names its own action.
+    assert.deepEqual([...new Set(read.rows.map(row => row.result.label))].sort(), labels);
+    assert.deepEqual(
+      read.sources.flatMap(source => source.result_definitions.map(definition => definition.label)).sort(),
+      labels,
+    );
+    assert.deepEqual(
+      read.sources.flatMap(source => source.result_definitions.map(definition => definition.id)).sort(),
+      ['meta:action:lead', 'meta:action:purchase'],
+    );
+    assert.deepEqual([...new Set(read.summary.map(summary => summary.result_definition))].sort(), labels);
+    // Exports: the Primary result column, the pack's summaries and the Arabic workbook.
+    const table = reportTable(stored),
+      column = table[0].indexOf('Primary result');
+    assert.ok(column > 0);
+    assert.deepEqual(
+      [
+        ...new Set(
+          table
+            .slice(1)
+            .map(cells => cells[column])
+            .filter(Boolean),
+        ),
+      ].sort(),
+      labels,
+    );
+    assert.deepEqual([...new Set(reportPack(stored).summary.map(summary => summary.result_definition))].sort(), labels);
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await reportWorkbook(stored, {artifact_language: 'ar'}));
+    const cells = book.worksheets.flatMap(sheet => sheet.getSheetValues().flat().filter(Boolean));
+    for (const label of labels) {
+      assert.ok(cells.includes(arabic(label)), 'the Arabic workbook says ' + arabic(label));
+      assert.equal(cells.includes(label), false, 'and no longer the English ' + label);
+    }
+    // Website: the source details of each row, in both languages.
+    for (const [locale, expected] of [
+      ['en', label => label],
+      ['ar', arabic],
+    ]) {
+      const run = page(locale);
+      for (const row of stored.rows)
+        assert.equal(
+          sourceDetails(run, {platform: 'meta', result_definition: row.result_definition}),
+          expected(row.result_definition),
+          locale + ' ' + row.result_definition,
+        );
+    }
+    assert.deepEqual([...new Set(stored.rows.map(row => row.result_definition))].sort(), labels);
   } finally {
     f.close();
   }

@@ -435,7 +435,9 @@ export function metaMappedResult(raw: JsonObject, context: ReportResultContext) 
         ? {
             id: 'meta:action:' + override,
             metric: override,
-            label: 'Selected Meta action',
+            // The exact action a person chose is a result of its own (grouped by its id), so its label names the action: two
+            // sources that choose different actions never share a label.
+            label: 'Selected Meta action ' + override,
             native_metric: 'actions.' + override,
             aggregation: 'sum' as const,
             unit: 'number' as const,

@@ -175,14 +175,15 @@ const resultLabels: Record<string, string> = {
   Reach: 'الوصول',
   Impressions: 'مرات الظهور',
   'Estimated ad recall lift (people)': 'الزيادة التقديرية في تذكّر الإعلان (أشخاص)',
-  'Selected Meta action': 'الإجراء المحدد في Meta',
 };
-// A result Meta adds later (a custom conversion, an action, a metric) is named by its own value, so its label is an English prefix and the
-// value: the Arabic template of each prefix, which web/locales/ar.json holds under the same words with the slot.
+// A result Meta adds later (a custom conversion, an action, a metric) and the exact action a person chose are named by their own value,
+// so the label is an English prefix and the value: the Arabic template of each prefix, which web/locales/ar.json holds under the same
+// words with the slot.
 const resultTemplates: Record<string, string> = {
   'Custom conversion': 'تحويل مخصص {id}',
   'Meta action': 'إجراء Meta {action}',
   'Meta result': 'نتيجة Meta {indicator}',
+  'Selected Meta action': 'الإجراء المحدد في Meta {action}',
 };
 /** The Arabic of a result label: a named label, or a label that carries a value, from the template of its prefix. */
 function arabicResult(value: string): string {

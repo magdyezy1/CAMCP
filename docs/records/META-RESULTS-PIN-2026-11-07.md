@@ -60,8 +60,9 @@ A v4 Meta row is read in this order (`src/meta-report-results.ts`):
 7. Source `provider`. The definition (id, label, aggregation) comes from one declared table, `metaResultIndicators`, with
    `meta:action:<type>` (summed) and `meta:result:<indicator>` (not summed) for an indicator Meta adds later, so different
    indicators never add. A custom conversion, an action and a metric Meta adds later are labelled with their own bounded value
-   (`Custom conversion <digits>`, `Meta action <type>`, `Meta result <indicator>`), so two of them in one report never share a
-   label. A multi-day detail row built from provider days stays `provider` (`periods_add`).
+   (`Custom conversion <digits>`, `Meta action <type>`, `Meta result <indicator>`), and so is the exact action a person chose
+   (`Selected Meta action <type>`, grouped as `meta:action:<type>`), so two of them in one report never share a label. A
+   multi-day detail row built from provider days stays `provider` (`periods_add`).
 
 F-LEAD-02: under explicit windows a v4 report reads the requested windows' keys of every Meta list of action stats it reads
 (R14): the campaign metrics, conversion value, a detail level's exact action and every native metric that is such a list
