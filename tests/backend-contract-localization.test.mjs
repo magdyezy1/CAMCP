@@ -328,8 +328,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (V2-MCP-02): 792,
   // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793,
   // and src/report-tool-output.ts, the typed result fields of the two reporting tools (V2-MCP-02): 794,
-  // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795.
-  assert.equal(files.length, 795);
+  // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795,
+  // and server/mcp-long-runs.ts, the two long runs the progress and the tasks follow (V2-MCP-02): 796,
+  // and server/mcp-tasks.ts, the tasks extension of MCP 2026-07-28 (V2-MCP-02): 797.
+  assert.equal(files.length, 797);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

@@ -284,8 +284,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (V2-MCP-02): 792,
   // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793,
   // and src/report-tool-output.ts, the typed result fields of the two reporting tools (V2-MCP-02): 794,
-  // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795.
-  assert.equal(files.length, 795);
+  // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795,
+  // and server/mcp-long-runs.ts, the two long runs the progress and the tasks follow (V2-MCP-02): 796,
+  // and server/mcp-tasks.ts, the tasks extension of MCP 2026-07-28 (V2-MCP-02): 797.
+  assert.equal(files.length, 797);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

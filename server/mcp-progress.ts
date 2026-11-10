@@ -1,6 +1,6 @@
 import type {MirrorService} from '../src/service.js';
-import {backgroundRunProgress} from '../src/campaign-background.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {finished, isObject, longRunFor, type ReadCall} from './mcp-long-runs.js';
 
 /**
  * Progress for the two long runs of the MCP tools (V2-MCP-02, decision 5): a call to `amcp_campaign run_background` or to
@@ -34,64 +34,6 @@ let held = 0;
 /** How many calls this process holds now (tests read it to see a hold end). */
 export const heldNow = (): number => held;
 
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-/** A job's states after which nothing more happens to it. */
-const finished = (state: unknown) => state === 'complete' || state === 'failed' || state === 'cancelled';
-
-interface Point {
-  /** Units done; undefined when the job has nothing to report (a failed or cancelled job). */
-  done?: number;
-  total: number;
-  message: string;
-}
-/** A read the call's own answer names, which shows the result of the job once it has finished. */
-export interface ReadCall {
-  tool: string;
-  arguments: JsonObject;
-}
-interface LongRun {
-  /** The job the answer to the call queued and the read that shows it finished; undefined when it queued nothing. */
-  handle(data: JsonObject): {job: string; read: ReadCall} | undefined;
-  point(service: MirrorService, tenant: string, job: JsonObject): Point;
-}
-/** An export runs in two steps once it is queued: it starts, then it finishes. */
-const exportStage: Readonly<Record<string, number>> = {queued: 0, running: 1, complete: 2};
-const longRuns: Readonly<Record<string, LongRun>> = {
-  'amcp_campaign run_background': {
-    handle: data =>
-      typeof data.id === 'string' && isObject(data.background) && typeof data.background.job_id === 'string'
-        ? {job: data.background.job_id, read: {tool: 'amcp_campaign', arguments: {action: 'get', id: data.id}}}
-        : undefined,
-    point(service, tenant, job) {
-      const {state, done, total} = backgroundRunProgress(service.store, tenant, job);
-      return {
-        ...(done === undefined ? {} : {done}),
-        total,
-        message: done === undefined ? state : state + ': ' + done + ' of ' + total + ' uploads settled',
-      };
-    },
-  },
-  'amcp_reporting_overview export': {
-    handle: data =>
-      typeof data.id === 'string' && typeof data.job_id === 'string'
-        ? {
-            job: data.job_id,
-            read: {tool: 'amcp_reporting_overview', arguments: {action: 'export_status', id: data.id}},
-          }
-        : undefined,
-    point: (_service, _tenant, job) => ({
-      ...(exportStage[String(job.state)] === undefined ? {} : {done: exportStage[String(job.state)]!}),
-      total: 2,
-      message: String(job.state),
-    }),
-  },
-};
-/** The long run a tool call is, if it is one. */
-export function longRunFor(tool: unknown, args: unknown): LongRun | undefined {
-  if (typeof tool !== 'string' || !isObject(args) || typeof args.action !== 'string') return undefined;
-  return Object.hasOwn(longRuns, tool + ' ' + args.action) ? longRuns[tool + ' ' + args.action] : undefined;
-}
 /** The progress token a request's `_meta` carries: a string or an integer, as the protocol defines it. */
 export function progressTokenOf(meta: unknown): string | number | undefined {
   const token = isObject(meta) ? meta.progressToken : undefined;
@@ -188,7 +130,7 @@ export async function answerWithProgress(call: ProgressCall): Promise<JsonObject
       }
       first = false;
       if (over) {
-        const answer = await call.read(handle.read);
+        const answer = await call.read(run.read(handle));
         return answer.success === true ? answer : result;
       }
       if (ended() || Date.now() >= deadline) return result;

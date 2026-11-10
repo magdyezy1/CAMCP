@@ -42,8 +42,12 @@ export type ModernProtocolMode = (typeof modernProtocolModes)[number];
 const versionKey = 'io.modelcontextprotocol/protocolVersion',
   capabilitiesKey = 'io.modelcontextprotocol/clientCapabilities',
   serverInfoKey = 'io.modelcontextprotocol/serverInfo';
-/** The methods served in the modern era, and the body field `Mcp-Name` mirrors. Any other method is 404 with -32601. */
-const modernMethods: Record<string, {name?: 'name' | 'uri'}> = {
+/**
+ * The methods served in the modern era, and the body field `Mcp-Name` mirrors. Any other method is 404 with -32601. The
+ * tasks extension adds the three methods of a task (server/mcp-tasks.ts), named by their task, and not `tasks/list`, which
+ * it does not have.
+ */
+const modernMethods: Record<string, {name?: 'name' | 'uri' | 'taskId'}> = {
   'server/discover': {},
   'tools/list': {},
   'tools/call': {name: 'name'},
@@ -52,6 +56,9 @@ const modernMethods: Record<string, {name?: 'name' | 'uri'}> = {
   'resources/read': {name: 'uri'},
   'prompts/list': {},
   'prompts/get': {name: 'name'},
+  'tasks/get': {name: 'taskId'},
+  'tasks/update': {name: 'taskId'},
+  'tasks/cancel': {name: 'taskId'},
 };
 
 const isObject = (value: unknown): value is JsonObject =>
@@ -108,7 +115,7 @@ const invalidRequest = () =>
 export function discoverResult(instructions: string): JsonObject {
   return {
     supportedVersions: [...dualEraProtocolVersions],
-    capabilities: mcpServerCapabilities(),
+    capabilities: mcpServerCapabilities('modern'),
     instructions,
   };
 }
