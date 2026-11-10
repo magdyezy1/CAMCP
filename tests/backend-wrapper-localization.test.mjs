@@ -285,8 +285,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/report-charts.ts (the charts of a finished snapshot): 794, then src/report-chart-kit.ts (what the builders share),
   // src/report-chart-breakdowns.ts and src/report-chart-measures.ts (the builders) and src/report-chart-change.ts (the
   // change of the key figures, read with the report): 798, then src/report-chart-layout.ts (where every mark of a chart
-  // sits, shared by the three renderers): 799.
-  assert.equal(files.length, 799);
+  // sits, shared by the three renderers): 799, then src/report-chart-theme.ts (the palette, the one escape function and a
+  // spec's words in the report's language): 800.
+  assert.equal(files.length, 800);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
