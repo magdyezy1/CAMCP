@@ -231,8 +231,10 @@ function previewRow(p, index) {
   return html`<div class="token-row" id="preview-row-${index}" tabindex="-1"><div><strong>${p.name ?? uiText('Untitled')}</strong><small>${p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id}${when}</small></div><div class="preview-links">${
     hrefs.length
       ? hrefs.map(
+          // WCAG 2.5.3: the name opens with the words the link shows ("Open preview", and its number when there are
+          // several), so the sentence is one message with the number and one without: no gap where it would be.
           (url, i) =>
-            html`<a class="button small" href="${url}" target="_blank" rel="noopener noreferrer" aria-label="${uiText('Open preview {number} of {name} in a new tab', {number: hrefs.length > 1 ? i + 1 : '', name: p.name ?? p.ad_id})}">${uiText('Open preview')}${hrefs.length > 1 ? ' ' + (i + 1) : ''} ↗</a> `,
+            html`<a class="button small" href="${url}" target="_blank" rel="noopener noreferrer" aria-label="${hrefs.length > 1 ? uiText('Open preview {number} of {name} in a new tab', {number: i + 1, name: p.name ?? p.ad_id}) : uiText('Open preview of {name} in a new tab', {name: p.name ?? p.ad_id})}">${uiText('Open preview')}${hrefs.length > 1 ? ' ' + (i + 1) : ''} ↗</a> `,
         )
       : p.error && typeof renderSourceDiagnostic === 'function'
         ? // V2-RPT-05: the provider's own refusal (message, request ID) through the shell's diagnostic renderer.

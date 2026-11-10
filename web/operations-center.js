@@ -692,14 +692,44 @@ async function renderIncidentDetail(id) {
 function monitorFields(m = {}) {
   return `${controls(uiText('Rule name'), 'text', m.name ?? '', 'name')}<label>${esc(uiText('Metric'))}<select name="metric">${['spend', 'clicks', 'conversions', 'cpa'].map(k => `<option value="${k}" ${m.metric === k ? 'selected' : ''}>${esc(k === 'cpa' ? uiText('Cost per conversion') : operationLabel(k))}</option>`).join('')}</select></label><label>${esc(uiText('Trigger when'))}<select name="comparison"><option value="above" ${m.comparison === 'above' ? 'selected' : ''}>${esc(uiText('Above threshold'))}</option><option value="below" ${m.comparison === 'below' ? 'selected' : ''}>${esc(uiText('Below threshold'))}</option></select></label>${controls(uiText('Threshold in native metric units'), 'text', m.threshold ?? '', 'threshold')}${controls(uiText('Maximum evidence age in hours'), 'number', m.max_age_hours ?? 24, 'max_age_hours')}`;
 }
+/** What makes a measurement context: the source's connection and account, and what the snapshot recorded of its figures. */
+const monitorContextFields = [
+  'platform',
+  'connection_id',
+  'account_id',
+  'currency',
+  'timezone',
+  'result_definition',
+  'attribution',
+];
+/** The levels of a v4 report, top first, as src/report-monitors.ts orders them: a rule watches the top one requested. */
+const monitorLevels = ['campaign', 'adset', 'ad'];
+/**
+ * The measurement contexts a rule can be made on from a retained snapshot, each once (closing-fixes). A v4 report of
+ * several levels has a summary for each level, but a rule watches only the top level its source requested, so that
+ * level's summary stands for the context and a level the rule does not watch never offers it; a context with several
+ * objective groups or windows is one context too, since each group is evaluated separately. Only a complete summary
+ * offers one. A v3 report has no levels, and every complete summary's context is offered.
+ */
+function monitorContexts(report) {
+  const v4 = report.config.contract_version === 'overview-config-v4',
+    seen = new Set();
+  return (report.summary ?? []).flatMap(s => {
+    const sources = report.config.sources.filter(x => x.platform === s.platform && x.account_id === s.account_id);
+    if (sources.length !== 1 || !s.complete) return [];
+    const requested = sources[0].levels ?? [],
+      top = monitorLevels.find(level => requested.includes(level)) ?? 'campaign';
+    if (v4 && (s.entity_level ?? 'campaign') !== top) return [];
+    const context = {...sources[0], ...s},
+      key = JSON.stringify(monitorContextFields.map(k => context[k]));
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [context];
+  });
+}
 function monitorValues(form, context) {
   return {
-    ...Object.fromEntries(
-      ['platform', 'connection_id', 'account_id', 'currency', 'timezone', 'result_definition', 'attribution'].map(k => [
-        k,
-        context[k],
-      ]),
-    ),
+    ...Object.fromEntries(monitorContextFields.map(k => [k, context[k]])),
     name: form.elements.name.value,
     metric: form.elements.metric.value,
     comparison: form.elements.comparison.value,
@@ -890,10 +920,7 @@ async function renderMonitors() {
   workspaceBind('#monitors-refresh', () => renderWorkspacePage());
   workspaceBind('#monitor-source-form', async form => {
     const report = await overviewCall({action: 'get', id: form.elements.report_id.value.trim(), limit: 1});
-    const contexts = (report.summary ?? []).flatMap(s => {
-      const sources = report.config.sources.filter(x => x.platform === s.platform && x.account_id === s.account_id);
-      return sources.length === 1 && s.complete ? [{...sources[0], ...s}] : [];
-    });
+    const contexts = monitorContexts(report);
     if (!contexts.length)
       throw Error(
         uiText('This snapshot has no complete, unambiguous measurement context. Open its source evidence first.'),
