@@ -1,5 +1,9 @@
 // Assembled report rows and the parts of a finished v4 snapshot, in the shapes src/report-charts.ts reads: no provider, no
 // worker. `chartRow` is one row of a snapshot (after row assembly), `parts` is what the finish step hands the chart module.
+import {reportCharts} from '../../dist/src/report-charts.js';
+import {chartsWithChange} from '../../dist/src/report-chart-change.js';
+import {reportSummary} from '../../dist/src/report-summary.js';
+
 export const leadsDefinition = {
   id: 'meta:leads',
   metric: 'leads',
@@ -106,3 +110,38 @@ export const parts = (rows, more = {}) => ({
 });
 
 export const names = {meta: 'Meta', google: 'Google Ads', tiktok: 'TikTok'};
+
+// ----- the key figures, and their change since the previous period -----
+export const thisWeek = {since: '2026-09-08', until: '2026-09-14'};
+export const lastWeek = {since: '2026-09-01', until: '2026-09-07'};
+/** A campaign row with ten impressions for each unit of spend and five clicks. */
+export const money = (id, spend, more = {}) =>
+  chartRow(id, spend, '1', {
+    metrics: {spend, impressions: spend === null ? null : String(Number(spend) * 10), clicks: '5'},
+    ...more,
+  });
+/** A retained snapshot of a window: its rows are for that window, as the comparison requires. */
+export const snapshotOf = (id, rows, range, completedAt) => ({
+  id,
+  state: 'complete',
+  completed_at: completedAt,
+  config: parts(rows, {config: {date_range: range}}).config,
+  rows: rows.map(row => ({...row, date_from: range.since, date_to: range.until})),
+});
+/**
+ * The key figures of `currentRows` as the finish step computes them (they need the summaries), and, given the rows of the
+ * previous period, with their change read as `get` reads it.
+ */
+export function keyFigures(currentRows, baselineRows) {
+  const specs = reportCharts(
+    {...parts(currentRows), summary: reportSummary(currentRows, [], true)},
+    {platformNames: names},
+  ).filter(spec => spec.kind === 'kpi');
+  return baselineRows
+    ? chartsWithChange(
+        specs,
+        snapshotOf('cur', currentRows, thisWeek, 2),
+        snapshotOf('base', baselineRows, lastWeek, 1),
+      )
+    : specs;
+}

@@ -5,7 +5,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reportCharts} from '../dist/src/report-charts.js';
 import {chartKinds} from '../dist/src/report-chart-spec.js';
-import {chartRow, names, parts, purchaseDefinition, valueDefinition} from './helpers/chart-rows.mjs';
+import {
+  chartRow,
+  lastWeek,
+  money,
+  names,
+  parts,
+  purchaseDefinition,
+  snapshotOf,
+  thisWeek,
+  valueDefinition,
+} from './helpers/chart-rows.mjs';
 
 const charts = (rows, more, options = {platformNames: names}) => reportCharts(parts(rows, more), options);
 const of = (specs, kind) => specs.filter(spec => spec.kind === kind);
@@ -1037,25 +1047,10 @@ test('a snapshot with no summaries has no key figures', () => {
 });
 
 // ----- the change since the previous period -----
-// A retained snapshot of a window: its rows are for that window, as the comparison requires.
-const snapshot = (id, rows, range, completedAt) => ({
-  id,
-  state: 'complete',
-  completed_at: completedAt,
-  config: parts(rows, {config: {date_range: range}}).config,
-  rows: rows.map(row => ({...row, date_from: range.since, date_to: range.until})),
-});
-const thisWeek = {since: '2026-09-08', until: '2026-09-14'},
-  lastWeek = {since: '2026-09-01', until: '2026-09-07'};
-const money = (id, spend, more = {}) =>
-  chartRow(id, spend, '1', {
-    metrics: {spend, impressions: spend === null ? null : String(Number(spend) * 10), clicks: '5'},
-    ...more,
-  });
 const withChange = async (currentRows, baselineRows, baseline = true, ranges = [thisWeek, lastWeek]) => {
   const {chartsWithChange} = await import('../dist/src/report-chart-change.js'),
-    current = snapshot('cur', currentRows, ranges[0], 2),
-    previous = baseline ? snapshot('base', baselineRows, ranges[1], 1) : undefined,
+    current = snapshotOf('cur', currentRows, ranges[0], 2),
+    previous = baseline ? snapshotOf('base', baselineRows, ranges[1], 1) : undefined,
     specs = tilesOf(await withSummaries(currentRows));
   return {before: specs, after: tilesOf(chartsWithChange(specs, current, previous))};
 };
