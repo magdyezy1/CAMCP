@@ -272,6 +272,37 @@ function workspaceBind(selector, fn, options = {}) {
   });
 }
 
+/**
+ * A section of a page that fills when its answer arrives (V2-WEB-03). `slot` is the element already on the page (drawn with
+ * a skeleton, `aria-busy`), `data` the promise for what it shows, `draw` the markup for the answer and `failed` the markup
+ * for its failure: one section's failure stays in that section and never blanks the page. An answer that arrives after the
+ * person has moved on (another route, a sign-out, a newer draw of the page, which replaces the slot) paints nothing.
+ */
+async function fillSection(slot, data, draw, failed) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let outcome;
+  try {
+    outcome = {value: await data};
+  } catch (error) {
+    outcome = {error};
+  }
+  if (!slot?.isConnected || generation !== navigationGeneration || identity !== identityGeneration) return false;
+  if (outcome.error?.code === 'REQUEST_SUPERSEDED') return false;
+  let markup,
+    filled = !('error' in outcome);
+  try {
+    markup = filled ? draw(outcome.value) : failed(outcome.error);
+  } catch (error) {
+    // Markup that cannot be drawn is a failure of this section too.
+    filled = false;
+    markup = failed(error);
+  }
+  slot.removeAttribute('aria-busy');
+  setHtml(slot, markup);
+  return filled;
+}
+
 async function renderWorkspacePage() {
   const page = route();
   content.innerHTML = header(uiText(routeLabel('/' + page)), uiText(routeSubtitle('/' + page)));
@@ -308,17 +339,22 @@ function readinessAge(check) {
 async function renderOverview() {
   // The working client (SEC-08) narrows Home to its attention items, recent plans and accounts.
   const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {};
-  // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home.
-  const [full, attention, clientPlans] = await Promise.all([
-      workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
-      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8, ...client}).catch(error => ({
-        error,
-      })),
-      // The client's newest plans for "Continue recent work"; without them Home keeps the workspace's own.
-      client.profile_id
-        ? workspaceCall('campaign', {action: 'list', limit: 8, ...client}).catch(() => null)
-        : Promise.resolve(null),
-    ]),
+  // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home. Home does
+  // not wait for them (V2-WEB-03): when the rest is ready first, that panel draws a skeleton and fills when they arrive.
+  const dashboard = workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
+    attentionCall = workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8, ...client}).catch(
+      error => ({error}),
+    ),
+    // The client's newest plans for "Continue recent work"; without them Home keeps the workspace's own.
+    plansCall = client.profile_id
+      ? workspaceCall('campaign', {action: 'list', limit: 8, ...client}).catch(() => null)
+      : Promise.resolve(null);
+  // An answer that is already here when the rest is ready is used as it is; one that is not here yet leaves a skeleton to fill.
+  let answered = null;
+  attentionCall.then(value => (answered = {value}));
+  const [full, clientPlans] = await Promise.all([dashboard, plansCall]),
+    waiting = {pending: true},
+    attention = answered ? answered.value : waiting,
     d = Array.isArray(clientPlans?.campaigns)
       ? {
           ...full,
@@ -352,6 +388,9 @@ async function renderOverview() {
     ),
     uiText('Provider evidence by account and action'),
   )}</details></section>`;
+  // After the last write to `content`: appending markup to it builds its elements again, so an earlier slot would be gone.
+  if (attention === waiting)
+    fillSection($('#home-attention'), attentionCall, homeAttention, error => homeAttention({error}));
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {
