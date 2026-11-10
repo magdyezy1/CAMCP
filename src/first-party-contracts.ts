@@ -1010,7 +1010,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'run_background',
-      'Queues an approved plan of media uploads to run on the server; get shows its progress.',
+      'Queues an approved plan of media uploads to run on the server; get shows its progress. A progressToken reports it for up to 25 s; a client declaring the tasks extension is answered a task.',
       ['id'],
       ['detail'],
       mutation('campaign_run', 'media_review', 'media_receipt'),
@@ -1488,7 +1488,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'export',
-      'Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files.',
+      'Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files. Poll export_status; a progressToken reports progress for 25 s; the tasks extension gets a task.',
       ['report_id', 'destination_id', 'confirmed'],
       ['idempotency_key'],
       effects('none', ['overview_export'], {remote_writes: true}),
