@@ -73,12 +73,7 @@ function page({locale = 'ar', version, answer} = {}) {
       addEventListener() {},
       createElement: () => ({remove() {}}),
       // Every feature script "loads" at once: this page only measures the catalog requests.
-      head: {
-        append: script => (appended.push(script.src), queueMicrotask(() => script.onload())),
-        // V2-WEB-03: the shell's own stylesheets load as links, before accessibility.css.
-        insertBefore: link => queueMicrotask(() => link.onload()),
-        querySelector: () => null,
-      },
+      head: {append: script => (appended.push(script.src), queueMicrotask(() => script.onload()))},
     },
     fetch: async (url, options) => {
       requests.push({url, options});
@@ -103,21 +98,16 @@ test('About and the public pages load the shell chunk only; a signed-in page add
     assert.deepEqual(Array.from(p.run(`pageLocaleChunks(${JSON.stringify(route)})`)), []);
     assert.equal(p.run(`pageAssetsPending(${JSON.stringify(route)})`), false);
   }
-  // Connections has no feature script, yet as a signed-in page it needs the workspace's messages, and (V2-WEB-03) the
-  // V2 core's: components.js writes the skeleton and the states every signed-in page draws.
-  assert.deepEqual(Array.from(p.run("pageLocaleChunks('/connections')")), ['workspace', 'providers', 'components']);
+  // Connections has no feature script, yet as a signed-in page it needs the workspace's messages.
+  assert.deepEqual(Array.from(p.run("pageLocaleChunks('/connections')")), ['workspace', 'providers']);
   assert.equal(p.run("pageAssetsPending('/connections')"), true);
   await p.run("ensurePageAssets('/connections')");
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json', 'components.json']);
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
   assert.equal(p.run("pageAssetsPending('/connections')"), false);
   // Settings adds its two scripts' chunks, requested beside the scripts themselves; nothing is fetched twice.
   await p.run("ensurePageAssets('/settings')");
-  assert.deepEqual(p.chunks().slice(4).sort(), ['account-approvals.json', 'owner-operations.json']);
-  assert.deepEqual(p.appended, [
-    '/assets/components.js',
-    '/assets/owner-operations.js',
-    '/assets/account-approvals.js',
-  ]);
+  assert.deepEqual(p.chunks().slice(3).sort(), ['account-approvals.json', 'owner-operations.json']);
+  assert.deepEqual(p.appended, ['/assets/owner-operations.js', '/assets/account-approvals.js']);
   // A message only owner-operations.js writes now reads in Arabic.
   const owned = Object.keys(plan.chunks['owner-operations']).find(key => !key.includes('{'));
   p.context.owned = owned;

@@ -164,10 +164,33 @@ p {
   font-size: var(--type-md);
   margin: 0;
 }
-/* The skeletons under a page's heading while it loads (pageFrame in app.js). */
-.page-frame {
+/* The blocks under a page's heading while it loads, and in a section still on its way (skeletonBlocks in web/workspace.js,
+   V2-WEB-03): the shell's own few lines, still (no motion), so a reduced-motion setting has nothing to turn off. */
+.skeleton {
   display: grid;
-  gap: 16px;
+  gap: 12px;
+  margin-block-start: 24px;
+}
+.skeleton-label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.skeleton-block {
+  display: block;
+  block-size: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-accent);
+}
+.skeleton-block[data-shape='card'] {
+  block-size: 120px;
+  border-radius: var(--radius-lg);
+}
+.skeleton-block[data-last='true'] {
+  inline-size: 60%;
 }
 .button {
   display: inline-flex;
@@ -651,10 +674,8 @@ dialog {
   color: var(--ink);
   margin-bottom: 8px;
 }
-/* A state inside a panel (V2-WEB-03) is the panel's own content: no second frame inside the first. */
-.panel .amcp-state {
-  border: 0;
-  padding: 0;
+.empty .button {
+  margin-block-start: 12px;
 }
 /* A toast sits in the page's flow at the block start of the main region (V2-WEB-03, as the V2 toast does), so it pushes the
    content down and never covers it; it stays in view under the header while the person has scrolled. */

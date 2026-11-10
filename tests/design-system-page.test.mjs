@@ -79,19 +79,17 @@ test('the state page is members only and not in the navigation or the palette, a
   assert.ok(!fs.readFileSync('web/about.html', 'utf8').includes('tokens-v2.css'));
 });
 
-// V2-WEB-03: the shell draws its frame and states on every signed-in page, so the V2 core (the token sheet, the component
-// sheet and the component script) loads everywhere, first; the rest of the layer is still this page's alone.
-test('the page loads the V2 sheets and scripts, in an order that works, and no other route loads more than the core', () => {
+test('the page loads the V2 sheets and scripts, in an order that works, and no other route loads them', () => {
   const ui = loadUI(['routes.js']);
   ui.run(fs.readFileSync('web/route-assets.js', 'utf8'));
   assert.deepEqual(Array.from(ui.run("pageAssetsFor('/design-system')")), [
     'tokens-v2.css',
     'components.css',
-    'components.js',
     'components-controls.css',
     'components-data.css',
     'components-overlays.css',
     'design-system.css',
+    'components.js',
     'components-controls.js',
     'components-table.js',
     'components-overlays.js',
@@ -103,9 +101,9 @@ test('the page loads the V2 sheets and scripts, in an order that works, and no o
     ),
   );
   assert.deepEqual(
-    [...new Set(others.filter(file => /^(?:tokens-v2|components|design-system)/.test(file)))].sort(),
-    ['components.css', 'components.js', 'tokens-v2.css'],
-    'no other page pays for more than the core',
+    others.filter(file => /^(?:tokens-v2|components|design-system)/.test(file)),
+    [],
+    'no other page pays for them',
   );
   assert.deepEqual(Array.from(ui.run("pageLocaleChunks('/design-system')")), [
     'workspace',

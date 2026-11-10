@@ -1,4 +1,4 @@
-// The Home page's scripts (localization, routes, workspace, work-center, and the V2 components) in a page whose attention
+// The Home page's scripts (localization, routes, workspace and work-center) in a page whose attention
 // panel is a slot a test can watch. The fake DOM keeps `content` as a plain string, as tests/home-attention-ui.test.mjs does.
 import fs from 'node:fs';
 import {Script, createContext} from 'node:vm';
@@ -14,7 +14,7 @@ export const tick = () => new Promise(resolve => setTimeout(resolve, 0)),
   };
 
 /** Home's scripts in a page whose attention panel is a slot we can watch (the fake DOM keeps `content` as a string). */
-export function homePage({components = true, locale = 'en'} = {}) {
+export function homePage({locale = 'en'} = {}) {
   const content = {innerHTML: ''},
     slot = {
       isConnected: true,
@@ -49,7 +49,6 @@ export function homePage({components = true, locale = 'en'} = {}) {
     }),
     run = source => new Script(source).runInContext(context);
   for (const file of ['localization.js', 'routes.js', 'workspace.js', 'work-center.js']) run(read(file));
-  if (components) run(read('components.js'));
   if (locale === 'ar') run('uiLocale = "ar"; uiMessages = new Map(Object.entries(catalog));');
   run(
     'globalThis.draw = value => html`<p>${value}</p>`; globalThis.failed = error => html`<p class="error">${error.message}</p>`;',

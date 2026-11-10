@@ -62,9 +62,8 @@ function fixture() {
     }),
     run = text => new Script(text).runInContext(context);
   run(fs.readFileSync('web/routes.js', 'utf8'));
-  run("routeRegistry.push({path: '/styled', label: 'Styled', assets: ['components-controls.css', 'help.js']})");
-  // components-controls.css is in the loader's real list (V2-WEB-02), so the test page uses the shipped file name; it is a
-  // sheet the shell's core does not load (V2-WEB-03), so it is the page's own.
+  run("routeRegistry.push({path: '/styled', label: 'Styled', assets: ['components.css', 'help.js']})");
+  // components.css is in the loader's real list (V2-WEB-02), so the test page uses the shipped file name.
   run(fs.readFileSync('web/route-assets.js', 'utf8'));
   return {
     run,
@@ -79,16 +78,8 @@ function fixture() {
 
 test('a page lists its stylesheets among its assets, and its Arabic chunks ignore them', () => {
   const f = fixture();
-  assert.deepEqual(Array.from(f.run("pageAssetsFor('/styled')")), [
-    // V2-WEB-03: the shell's core first, then the page's own files.
-    'tokens-v2.css',
-    'components.css',
-    'components.js',
-    'components-controls.css',
-    'help.js',
-  ]);
-  // V2-WEB-03: the shell's core (components.js) brings its own Arabic messages, ahead of the page's.
-  assert.deepEqual(Array.from(f.run("pageLocaleChunks('/styled')")), ['workspace', 'providers', 'components', 'help']);
+  assert.deepEqual(Array.from(f.run("pageAssetsFor('/styled')")), ['components.css', 'help.js']);
+  assert.deepEqual(Array.from(f.run("pageLocaleChunks('/styled')")), ['workspace', 'providers', 'help']);
   assert.equal(f.run("pageAssetsPending('/styled')"), true);
 });
 
@@ -96,33 +87,28 @@ test('the loader inserts a stylesheet link before accessibility.css and the page
   const f = fixture(),
     loading = f.load('/styled');
   await tick();
-  // The shell's core (two sheets and a script, V2-WEB-03), then the page's stylesheet and its script.
-  assert.equal(f.created.length, 5);
-  const link = f.created.find(element => element.href === '/assets/components-controls.css'),
-    script = f.created.find(element => element.src === '/assets/help.js'),
-    core = f.created.filter(element => element !== link && element !== script);
+  assert.equal(f.created.length, 2);
+  const [link, script] = f.created;
   assert.equal(link.tag, 'link');
   assert.equal(link.rel, 'stylesheet');
-  assert.deepEqual(f.inserted.map(entry => entry.element).sort(), [...core.filter(e => e.tag === 'link'), link].sort());
-  for (const entry of f.inserted)
-    assert.equal(entry.before, f.accessibility, 'accessibility.css stays the last stylesheet');
+  assert.equal(link.href, '/assets/components.css');
+  assert.equal(f.inserted.length, 1);
+  assert.equal(f.inserted[0].element, link);
+  assert.equal(f.inserted[0].before, f.accessibility, 'accessibility.css stays the last stylesheet');
   assert.equal(script.tag, 'script');
+  assert.equal(script.src, '/assets/help.js');
   assert.equal(script.async, false);
-  assert.deepEqual(
-    f.appended.map(element => element.src),
-    ['/assets/components.js', '/assets/help.js'],
-    'only the scripts are appended; the links are inserted',
-  );
+  assert.deepEqual(f.appended, [script], 'only the script is appended; the link is inserted');
   let settled = false;
   loading.then(() => (settled = true));
-  for (const element of f.created) if (element !== link) element.onload();
+  script.onload();
   await tick();
   assert.equal(settled, false, 'the page is not ready while its stylesheet is still downloading');
   link.onload();
   await loading;
   assert.equal(f.run("pageAssetsPending('/styled')"), false);
   await f.load('/styled');
-  assert.equal(f.created.length, 5, 'a revisit requests nothing again');
+  assert.equal(f.created.length, 2, 'a revisit requests nothing again');
   assert.equal(f.timers.size, 0);
 });
 
@@ -131,19 +117,19 @@ test('a stylesheet that fails to download is removed and retried alone', async (
     first = f.load('/styled'),
     rejected = assert.rejects(first, e => e.code === 'PAGE_ASSET_UNAVAILABLE');
   await tick();
-  const link = f.created.find(element => element.href === '/assets/components-controls.css');
+  const [link, script] = f.created;
   link.onerror();
   await rejected;
   assert.equal(link.removed, true);
-  const before = f.created.length,
-    retry = f.load('/styled');
+  const retry = f.load('/styled');
   await tick();
   assert.deepEqual(
-    f.created.slice(before).map(element => element.tag + ' ' + (element.href ?? element.src)),
-    ['link /assets/components-controls.css'],
+    f.created.map(element => element.tag + ' ' + (element.href ?? element.src)),
+    ['link /assets/components.css', 'script /assets/help.js', 'link /assets/components.css'],
     'only the failed stylesheet is requested again',
   );
-  for (const element of f.created) if (element !== link) element.onload();
+  script.onload();
+  f.created[2].onload();
   await retry;
 });
 
@@ -195,13 +181,10 @@ test('the route byte tool counts a route’s stylesheets with its scripts', () =
     fs.writeFileSync(path.join(web, 'tokens.css'), ':root{--a:1}');
     fs.writeFileSync(path.join(web, 'help.js'), "'use strict';");
     fs.writeFileSync(path.join(web, 'styled.css'), '.styled { color: red; }\n'.repeat(200));
-    // V2-WEB-03: every signed-in page loads the shell's core, so the tree has its three files.
-    for (const core of ['tokens-v2.css', 'components.css', 'components.js'])
-      fs.writeFileSync(path.join(web, core), '/* core */');
     const bytes = routeBytes(root);
-    assert.equal(bytes['en /styled'].files, 6, 'tokens.css, the core, styled.css and help.js');
+    assert.equal(bytes['en /styled'].files, 3, 'tokens.css, styled.css and help.js');
     assert.ok(bytes['en /styled'].bytes > bytes['en /connections'].bytes, 'the stylesheet adds to its page only');
-    assert.equal(bytes['en /connections'].files, 4, 'tokens.css and the core');
+    assert.equal(bytes['en /connections'].files, 1);
   } finally {
     fs.rmSync(root, {recursive: true, force: true});
   }

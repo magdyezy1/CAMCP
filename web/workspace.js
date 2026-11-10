@@ -69,21 +69,24 @@ const statusLabels = {
 const statusLabel = value =>
   uiText(Object.hasOwn(statusLabels, value) ? statusLabels[value] : String(value ?? '').replaceAll('_', ' '));
 /**
- * An empty state that names its one next action (V2-WEB-03): the V2 component, which loads on every signed-in page, or the
- * same words in the plain block before it has. `action` is {label, href} for a link, or {label, command} for a button whose
- * data-action the shell's click handler runs; its variant is primary unless it says secondary (a panel on a page that
- * already has its one primary action). A state with no action is refused, so an empty state cannot be a dead end.
+ * An empty state that names its one next action (V2-WEB-03): a title, the words, and one button or link. `action` is
+ * {label, href} for a link, or {label, command} for a button whose data-action the shell's click handler runs; its variant is
+ * primary unless it says secondary (a panel on a page that already has its one primary action). A state with no action is
+ * refused, so an empty state cannot be a dead end. It is the block the shell's sign-in prompt has always been.
  */
 function emptyBlock({title, body, action}) {
-  if (!action?.label) throw Error('AMCP_UI_EMPTY_STATE_NEEDS_ACTION');
-  const {label, href, command, variant = 'primary'} = action;
-  if (typeof AmcpUI === 'object')
-    return AmcpUI.emptyState({
-      title,
-      body,
-      action: command ? {label, variant, attrs: {'data-action': command}} : {label, variant, href},
-    });
-  return html`<div class="empty"><strong>${title}</strong>${body ? html`<p>${body}</p>` : ''}${command ? html`<button class="button ${variant === 'primary' ? 'primary' : ''}" type="button" data-action="${command}">${label}</button>` : html`<a class="button ${variant === 'primary' ? 'primary' : ''}" href="${href}">${label}</a>`}</div>`;
+  if (!action?.label) throw Error('EMPTY_STATE_NEEDS_ACTION');
+  const {label, href, command, variant = 'primary'} = action,
+    classes = variant === 'primary' ? 'button primary' : 'button';
+  return html`<div class="empty"><strong>${title}</strong>${body ? html`<p>${body}</p>` : ''}${command ? html`<button class="${classes}" type="button" data-action="${command}">${label}</button>` : html`<a class="${classes}" href="${href}">${label}</a>`}</div>`;
+}
+/**
+ * Blocks where a section's content will be, while it loads (V2-WEB-03): one status the reader hears once, and blocks that
+ * are decoration. The shell draws its own (a few lines of app.css, no motion) rather than load the V2 component layer, which
+ * is 13 KB on every signed-in route, for one skeleton.
+ */
+function skeletonBlocks(id, lines = 4) {
+  return html`<div class="skeleton" id="${id}" role="status" aria-busy="true"><span class="skeleton-label">${uiText('Loading…')}</span><span class="skeleton-block" data-shape="card" aria-hidden="true"></span>${Array.from({length: lines}, (_, index) => html`<span class="skeleton-block" data-last="${index === lines - 1}" aria-hidden="true"></span>`)}</div>`;
 }
 // Shared by the shell and many page modules (WEB-07: they left the report builder's script).
 const overviewCall = async input => {

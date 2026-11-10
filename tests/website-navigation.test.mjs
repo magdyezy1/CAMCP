@@ -625,12 +625,11 @@ test('a page that fails to open links back to its registry parent, in both langu
 // press; and a platform search with no match offered no way back to the list.
 test('signed-out activity and an empty platform search each offer their one next action', async () => {
   const f = browserFixture();
-  f.run(readFileSync('web/components.js', 'utf8'));
   f.run('session = {authenticated: false}');
   await f.run('renderActivity()');
   let html = f.node('#content').innerHTML;
   assert.match(html, /Sign in to view workspace activity\./);
-  assert.match(html, /<button[^>]*data-action="login"[^>]*>(?:<span class="amcp-button-label">)?Sign in →/);
+  assert.match(html, /<button class="button primary" type="button" data-action="login">Sign in →<\/button>/);
   assert.equal((html.match(/data-action="login"/g) ?? []).length, 1, 'one action, and it is the sign-in');
   // The search: nothing matches, so the state offers to clear it, and pressing it shows the list again.
   f.run(
@@ -640,7 +639,7 @@ test('signed-out activity and an empty platform search each offer their one next
   f.run('renderConnections()');
   html = f.node('#platform-grid').innerHTML;
   assert.match(html, /No platforms match your search\./);
-  assert.match(html, /data-action="clear-platform-search"[^>]*>(?:<span class="amcp-button-label">)?Clear search/);
+  assert.match(html, /data-action="clear-platform-search">Clear search<\/button>/);
   assert.doesNotMatch(html, /platform-card/);
   await f.documentListeners.get('click')[0]({
     target: {
@@ -662,7 +661,7 @@ test('signed-out activity and an empty platform search each offer their one next
   f.run('renderPlatformCards()');
   html = f.node('#platform-grid').innerHTML;
   assert.match(html, /Connect a platform to start\./);
-  assert.match(html, /data-action="clear-platform-search"[^>]*>(?:<span class="amcp-button-label">)?All platforms/);
+  assert.match(html, /data-action="clear-platform-search">All platforms<\/button>/);
   await f.documentListeners.get('click')[0]({
     target: {
       closest: () => ({

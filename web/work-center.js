@@ -50,8 +50,7 @@ function homeOperationKind(kind) {
  * wait for it, so the panel draws a skeleton and fills with this when the answer arrives (fillSection in web/workspace.js).
  */
 function homeAttention(attention) {
-  if (attention?.pending)
-    return html`<div class="work-links">${typeof AmcpUI === 'object' ? AmcpUI.skeleton({shape: 'text', lines: 3}) : html`<p class="muted" role="status">${uiText('Loading…')}</p>`}</div>`;
+  if (attention?.pending) return html`<div class="work-links">${skeletonBlocks('home-attention-loading', 3)}</div>`;
   // The feed's original-record path is internal; anything else opens Operations instead.
   const work = op =>
       html`<a href="${/^\/(?![/\\])/.test(op.website_path ?? '') ? op.website_path : '/operations?state=attention'}"><strong dir="auto" data-native>${op.name}</strong><small>${homeOperationKind(op.kind)} · ${raw(badge(op.state))}${op.updated_at ? ' · ' + date(op.updated_at) : ''}</small></a>`,

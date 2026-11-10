@@ -56,12 +56,7 @@ function loader(fetcher) {
           this.removed = true;
         },
       }),
-      head: {
-        append: script => appended.push(script),
-        // V2-WEB-03: the shell's own stylesheets load as links, before accessibility.css.
-        insertBefore: link => appended.push(link),
-        querySelector: () => null,
-      },
+      head: {append: script => appended.push(script)},
     },
     ...(fetcher
       ? {
@@ -91,15 +86,13 @@ test('a route bundle refused after a deploy (409) asks for a reload instead of o
       error.message === 'AMCP was updated. Reload to continue.',
   );
   await tick();
-  // The first file requested is the shell's own (V2-WEB-03: the V2 core loads before a page's files): a link or a script.
-  const first = page.appended[0],
-    address = file => file.src ?? file.href;
-  assert.ok(address(first).startsWith('/assets/v/' + version + '/'));
+  const first = page.appended[0];
+  assert.ok(first.src.startsWith('/assets/v/' + version + '/'));
   await first.onerror();
   await refused;
   // One bounded probe of the exact failed address, never cached and never following a redirect.
   assert.equal(page.requests.length, 1);
-  assert.equal(page.requests[0].url, address(first));
+  assert.equal(page.requests[0].url, first.src);
   assert.equal(page.requests[0].options.method, 'HEAD');
   assert.equal(page.requests[0].options.cache, 'no-store');
   assert.equal(page.requests[0].options.redirect, 'error');
@@ -129,18 +122,17 @@ test('a network failure or a current snapshot keeps the retryable download error
         error => error.code === 'PAGE_ASSET_UNAVAILABLE' && error.updated === undefined,
       );
     await tick();
-    // The shell's core (three files, V2-WEB-03) and the page's three, requested together.
-    const count = page.appended.length,
-      address = file => file.src ?? file.href;
-    assert.equal(count, 6);
+    assert.equal(page.appended.length, 3);
     await page.appended[0].onerror();
     await refused;
     assert.equal(page.requests.length, 1);
     const retry = page.load('/account');
     await tick();
-    assert.equal(page.appended.length, count + 1, 'A retryable failure inserts that file again, and only that one');
-    assert.equal(address(page.appended[count]), address(page.appended[0]));
-    for (const loaded of page.appended.slice(1)) loaded.onload();
+    assert.equal(page.appended.length, 4, 'A retryable failure inserts that script again, and only that one');
+    assert.equal(page.appended[3].src, page.appended[0].src);
+    page.appended[1].onload();
+    page.appended[2].onload();
+    page.appended[3].onload();
     await retry;
   }
 });
@@ -161,24 +153,15 @@ test('an unversioned page never probes: only snapshot addresses can be supersede
       throw Error('No probe expected');
     },
     window: {addEventListener() {}, removeEventListener() {}},
-    document: {
-      createElement: () => ({remove() {}}),
-      head: {
-        append: script => appended.push(script),
-        insertBefore: link => appended.push(link),
-        querySelector: () => null,
-      },
-    },
+    document: {createElement: () => ({remove() {}}), head: {append: script => appended.push(script)}},
   });
   new Script(fs.readFileSync('web/routes.js', 'utf8')).runInContext(legacy);
   new Script(fs.readFileSync('web/route-assets.js', 'utf8')).runInContext(legacy);
   const pending = new Script("ensurePageAssets('/operations')").runInContext(legacy),
     refused = assert.rejects(pending, error => error.code === 'PAGE_ASSET_UNAVAILABLE');
   await tick();
-  // The shell's core comes first (V2-WEB-03); the page's own script is requested at its unversioned address.
-  const operations = appended.find(file => file.src === '/assets/operations-center.js');
-  assert.ok(operations, 'the page script is requested without a version');
-  await operations.onerror();
+  assert.equal(appended[0].src, '/assets/operations-center.js');
+  await appended[0].onerror();
   await refused;
 });
 
