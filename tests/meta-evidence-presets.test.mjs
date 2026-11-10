@@ -49,11 +49,13 @@ const nativeRow = (extra = {}) => ({
   clicks: '12',
   reach: '80',
   frequency: '1.25',
+  // Under the explicit windows the preset asks for (7d_click and 1d_view here) Meta returns each window's count under its name
+  // beside the ad set's own `value`; the window that counted none has no key.
   actions: [
-    {action_type: 'purchase', value: '999'},
-    {action_type: 'offsite_conversion.fb_pixel_purchase', value: '2'},
+    {action_type: 'purchase', value: '999', '7d_click': '999'},
+    {action_type: 'offsite_conversion.fb_pixel_purchase', value: '2', '7d_click': '2'},
   ],
-  action_values: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: '42.51'}],
+  action_values: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: '42.51', '7d_click': '42.51'}],
   ...extra,
 });
 function fixture(rows = [nativeRow()]) {

@@ -11,6 +11,7 @@ import {
   type ReportResultRules,
   type ResolvedReportResult,
 } from './report-results.js';
+import type {ReportActionUnknown} from './report-source.js';
 import type {JsonObject} from './types.js';
 
 /**
@@ -216,12 +217,15 @@ export function metaWindowCount(entry: JsonObject, windows: readonly string[], f
  * The number of one entry of an attributed list that does not add across windows, for the requested windows: the key of the one
  * window, and none for several. A cost is not the sum of its windows’ costs (the cost of a pair is the spend over their joint
  * count), a ratio is not the sum of its windows’ ratios, and a person counted in two windows is one person; Meta sends no number
- * for a pair, so none is made up. Undefined: no number for these windows (the cost of a result under any windows is
- * `cost_per_result`, spend over the counted windows).
+ * for a pair, so none is made up (the cost of a result under any windows is `cost_per_result`, spend over the counted windows).
+ * No number is unknown, with the reason, and never a zero a provider left out: a cost or a ratio of 0 would be a claim.
  */
 export function metaWindowOwnValue(entry: JsonObject, windows: readonly string[]): unknown {
-  const window = windows.length === 1 ? windows[0]! : undefined;
-  return window !== undefined && Object.hasOwn(entry, window) && entry[window] != null ? entry[window] : undefined;
+  if (windows.length !== 1) return {unknown: 'attribution_windows_do_not_add'} satisfies ReportActionUnknown;
+  const window = windows[0]!;
+  return Object.hasOwn(entry, window) && entry[window] != null
+    ? entry[window]
+    : ({unknown: 'no_number_for_attribution_window'} satisfies ReportActionUnknown);
 }
 
 // The lists of action stats a Meta insights row can carry, by what an entry is under explicit windows, in these two sets. Meta
@@ -256,7 +260,8 @@ export const metaPerWindowLists: ReadonlySet<string> = new Set([
  * windows (under the ad set’s own setting `value` is what the report asked for). A count adds the requested windows’ keys; an
  * attributed number that does not add is one window’s own key, and none for several windows. Any other list is read like the
  * second when its entry carries one of Meta’s window names, and is not split by window when it carries none, so `value` stands
- * (the live read saw the video metrics come back unsplit, R12). Undefined: no number for these windows.
+ * (the live read saw the video metrics come back unsplit, R12). Undefined: a count with none of the requested keys, a zero Meta
+ * left out. A `ReportActionUnknown`: no number for these windows, and why.
  */
 export function metaListCount(entry: JsonObject, field: string, windows: readonly string[]): unknown {
   if (metaCountLists.has(field)) return metaWindowCount(entry, windows, 'native_metric');
