@@ -90,11 +90,16 @@ const FS = 12,
   AXIS = 28,
   LEGEND_ROW = 22,
   POINT = 4,
-  RADIUS = 4,
+  INSET = 8,
   GAP = 8,
+  LINE = 16,
+  // The height of a tile: 20px below its last baseline, which is the currency line (56) or, with a change, the last line of
+  // its words (72 for the first, a line more for each other).
   TILE = 76,
   TILE_CHANGE = 92,
   KPI_SIZES = [22, 20, 18, 16, 14, 12];
+/** The radius of the rounded data end of a bar: 4px. A bar too short to hold two of them stays square. */
+export const chartBarRadius = 4;
 const r2 = (value: number) => Math.round(value * 100) / 100;
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 
@@ -131,6 +136,25 @@ export function fitChartText(text: string, max: number, size: number): string {
   const letters = [...text];
   while (letters.length && chartTextWidth(letters.join('') + '…', size) > max) letters.pop();
   return letters.join('').trimEnd() + '…';
+}
+/**
+ * A text broken at its spaces into at most `lines` lines that each fit `max` pixels. When it needs more, the last line takes
+ * the rest and is cut with an ellipsis; a single word wider than the room is cut too, so no line leaves its box.
+ */
+export function wrapChartText(content: string, max: number, size: number, lines: number): string[] {
+  const broken: string[] = [];
+  let current = '';
+  for (const word of content.split(/\s+/).filter(Boolean)) {
+    const next = current ? current + ' ' + word : word;
+    if (chartTextWidth(next, size) <= max) current = next;
+    else {
+      if (current) broken.push(current);
+      current = word;
+    }
+  }
+  if (current) broken.push(current);
+  if (broken.length <= lines) return broken.map(line => fitChartText(line, max, size));
+  return [...broken.slice(0, lines - 1), fitChartText(broken.slice(lines - 1).join(' '), max, size)];
 }
 /** The largest size that holds a figure whole: a number is made smaller, never cut. Below the smallest it is cut at last. */
 function fitFigure(content: string, max: number): {text: string; size: number} {
@@ -223,6 +247,36 @@ function tickLabels(o: LayoutOptions, ticks: {x: number; text: string}[], y: num
     const half = chartTextWidth(tick.text, FS) / 2;
     return text(o, 'tick', clamp(tick.x, PAD + half, width - PAD - half), y, tick.text, 'center');
   });
+}
+
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+/** Whether the line from p to q passes through the box (grown by a 2px stroke): clipped to the box, then compared. */
+function crosses(p: [number, number], q: [number, number], box: Box): boolean {
+  let enter = 0,
+    leave = 1;
+  const dx = q[0] - p[0],
+    dy = q[1] - p[1];
+  for (const [direction, distance] of [
+    [-dx, p[0] - (box.left - 2)],
+    [dx, box.right + 2 - p[0]],
+    [-dy, p[1] - (box.top - 2)],
+    [dy, box.bottom + 2 - p[1]],
+  ] as const) {
+    if (direction === 0) {
+      if (distance < 0) return false;
+    } else {
+      const along = distance / direction;
+      if (direction < 0) enter = Math.max(enter, along);
+      else leave = Math.min(leave, along);
+      if (enter > leave) return false;
+    }
+  }
+  return true;
 }
 
 /** Mirrors every mark about the middle: the layout of a right-to-left page, for charts whose horizontal axis is a value. */
@@ -348,16 +402,20 @@ function bars(spec: ChartSpec, o: LayoutOptions): Scene {
         y: r2(y),
         w: Math.max(width, 1),
         h: BAR,
-        round: width >= 2 * RADIUS ? 'right' : null,
+        round: width >= 2 * chartBarRadius ? 'right' : null,
         s: 0,
         i: index,
         color: item.other ? null : series.color_index,
       });
-    if (series.label_at.includes(index))
-      items.push(
-        text(o, 'value', end + 6, y + BAR / 2 + 4, series.value_labels[index] ?? '', 'left', {s: 0, i: index}),
-      );
     const target = series.targets?.[index];
+    if (series.label_at.includes(index)) {
+      // Beside the end of the bar, or, when the target mark of this bar would cross it, beyond that mark.
+      const label = series.value_labels[index] ?? '',
+        targetAt = target ? px(target) : null;
+      let at = end + 6;
+      if (targetAt !== null && targetAt > at - 2 && targetAt < at + chartTextWidth(label, FS) + 2) at = targetAt + 6;
+      items.push(text(o, 'value', at, y + BAR / 2 + 4, label, 'left', {s: 0, i: index}));
+    }
     if (target) items.push(line('target', px(target), y - 3, px(target), y + BAR + 3, index));
   });
   items.push(...valueAxis(o, scale, px, x0, top, bottom));
@@ -405,7 +463,7 @@ function stacks(spec: ChartSpec, o: LayoutOptions): Scene {
         y: r2(y),
         w: width,
         h: STACK,
-        round: order === shown.length - 1 && width >= 2 * RADIUS ? 'right' : null,
+        round: order === shown.length - 1 && width >= 2 * chartBarRadius ? 'right' : null,
         s: part.s,
         i: index,
         color: series.color_index,
@@ -440,8 +498,10 @@ function lines(spec: ChartSpec, o: LayoutOptions): Scene {
     plotTop = 22,
     plotHeight = Math.round(clamp(o.width * 0.38, 130, 210)),
     plotBottom = plotTop + plotHeight,
+    // The first and last periods sit a little inside the plot, so their marks never touch the value axis or the edge.
     px = (index: number) =>
-      plotLeft + (count === 1 ? (plotRight - plotLeft) / 2 : ((plotRight - plotLeft) * index) / (count - 1)),
+      plotLeft +
+      (count === 1 ? (plotRight - plotLeft) / 2 : INSET + ((plotRight - plotLeft - 2 * INSET) * index) / (count - 1)),
     py = (value: string) => plotBottom - plotHeight * ratio(value, scale.max),
     items: SceneItem[] = [];
   scale.ticks.forEach((tick, index) => {
@@ -459,8 +519,12 @@ function lines(spec: ChartSpec, o: LayoutOptions): Scene {
   });
   // The line joins consecutive whole points; a short point is a hollow mark off the line; a gap is a gap.
   let segment: [number, number][] = [];
+  const joined: [number, number][][] = [];
   const flush = () => {
-    if (segment.length > 1) items.push({t: 'polyline', role: 'line', points: segment, s: 0, color: series.color_index});
+    if (segment.length > 1) {
+      items.push({t: 'polyline', role: 'line', points: segment, s: 0, color: series.color_index});
+      joined.push(segment);
+    }
     segment = [];
   };
   series.values.forEach((value, index) => {
@@ -476,24 +540,35 @@ function lines(spec: ChartSpec, o: LayoutOptions): Scene {
     items.push({t: 'circle', role: 'point', cx, cy, r: POINT, s: 0, i: index, color: series.color_index});
   });
   flush();
+  // Direct labels: inside the plot (so a label at either end never reaches the numbers of the value axis), above the point
+  // or, where the line comes down to it, below, and never on the line, on another label or on the axis. A label with no such
+  // place is left out: the title of its mark and the table still have the value.
+  const taken: Box[] = [];
   for (const index of series.label_at) {
     const label = series.value_labels[index];
     if (label === null || label === undefined) continue;
-    const half = chartTextWidth(label, FS) / 2;
-    items.push(
-      text(
-        o,
-        'value',
-        clamp(px(index), PAD + half, o.width - PAD - half),
-        py(series.values[index]!) - 10,
-        label,
-        'center',
-        {
-          s: 0,
-          i: index,
-        },
-      ),
-    );
+    const half = chartTextWidth(label, FS) / 2,
+      cx = clamp(px(index), plotLeft + half, plotRight - half),
+      cy = py(series.values[index]!);
+    for (const offset of [-10, 18]) {
+      const box = {left: cx - half, right: cx + half, top: cy + offset - FS, bottom: cy + offset + 3};
+      if (
+        box.top < 0 ||
+        box.bottom > plotBottom - 2 ||
+        joined.some(points => points.slice(1).some((point, k) => crosses(points[k]!, point, box))) ||
+        taken.some(
+          other =>
+            other.left < box.right + 2 &&
+            box.left < other.right + 2 &&
+            other.top < box.bottom &&
+            box.top < other.bottom,
+        )
+      )
+        continue;
+      taken.push(box);
+      items.push(text(o, 'value', cx, cy + offset, label, 'center', {s: 0, i: index}));
+      break;
+    }
   }
   const withYear = x.items[0]!.key.slice(0, 4) !== x.items.at(-1)!.key.slice(0, 4),
     dates = x.items.map((item, index) => ({x: px(index), text: chartDateLabel(item.label, o.language, withYear)}));
@@ -506,9 +581,24 @@ function tiles(spec: ChartSpec, o: LayoutOptions): Scene {
   const rtl = o.language === 'ar',
     columns = o.width >= 600 ? 5 : o.width >= 420 ? 3 : 2,
     cell = (o.width - 2 * PAD - (columns - 1) * GAP) / columns,
-    height = spec.series.some(series => series.change) ? TILE_CHANGE : TILE,
     side: Physical = rtl ? 'right' : 'left',
     items: SceneItem[] = [];
+  // The change and its caption are words: each is broken into at most two lines that fit the tile, never cut short. Every
+  // tile is as tall as the one with the most lines, so the rows of the grid line up.
+  const caption = wrapChartText(o.t('Since the previous period'), cell, FS, 2),
+    changeOf = (series: ChartSpec['series'][number]) =>
+      series.change
+        ? wrapChartText(
+            series.change.percent_label
+              ? `${series.change.delta_label} (${series.change.percent_label})`
+              : series.change.delta_label,
+            cell,
+            FS,
+            2,
+          )
+        : [],
+    extra = Math.max(0, ...spec.series.map(series => (series.change ? changeOf(series).length + caption.length : 0))),
+    height = extra ? TILE_CHANGE + LINE * (extra - 1) : TILE;
   spec.series.forEach((series, s) => {
     const left = PAD + (s % columns) * (cell + GAP),
       top = PAD + Math.floor(s / columns) * height,
@@ -528,12 +618,11 @@ function tiles(spec: ChartSpec, o: LayoutOptions): Scene {
     items.push(text(o, 'kpi-value', at, top + 40, figure.text, side, {size: figure.size, bold: true, s}));
     if (series.value_labels[0] && series.unit === 'currency' && series.currency)
       items.push(text(o, 'kpi-unit', at, top + 56, series.currency, side, {s}));
-    const change = series.change;
-    if (change) {
-      const words = change.percent_label ? `${change.delta_label} (${change.percent_label})` : change.delta_label;
-      items.push(text(o, 'kpi-change', at, top + 72, fitChartText(words, cell, FS), side, {s}));
-      items.push(
-        text(o, 'kpi-caption', at, top + 88, fitChartText(o.t('Since the previous period'), cell, FS), side, {s}),
+    if (series.change) {
+      const words = changeOf(series);
+      words.forEach((line, index) => items.push(text(o, 'kpi-change', at, top + 72 + LINE * index, line, side, {s})));
+      caption.forEach((line, index) =>
+        items.push(text(o, 'kpi-caption', at, top + 72 + LINE * (words.length + index), line, side, {s})),
       );
     }
   });

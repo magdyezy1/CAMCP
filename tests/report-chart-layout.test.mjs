@@ -4,73 +4,36 @@
 // layout mirrors in Arabic while time stays left to right - holds for all three.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {chartLayout, chartDateLabel, chartTextWidth, fitChartText} from '../dist/src/report-chart-layout.js';
-import {reportCharts} from '../dist/src/report-charts.js';
-import {chartRow, keyFigures, money, names, parts} from './helpers/chart-rows.mjs';
+import {
+  chartDateLabel,
+  chartLayout,
+  chartTextWidth,
+  fitChartText,
+  wrapChartText,
+} from '../dist/src/report-chart-layout.js';
+import {chartRow, keyFigures, money} from './helpers/chart-rows.mjs';
+import {
+  barsSpec,
+  bigTilesSpec,
+  campaigns,
+  charts,
+  costSpec,
+  foldedBarsSpec,
+  foldedStackSpec,
+  hostile,
+  lineSpec,
+  of,
+  shortLineSpec,
+  stackSpec,
+  tilesSpec,
+  week,
+  weekly,
+} from './helpers/chart-specimens.mjs';
 
-const charts = (rows, more) => reportCharts(parts(rows, more), {platformNames: names});
-const of = (specs, kind) => specs.filter(spec => spec.kind === kind);
-const campaigns = spends => spends.map((spend, index) => chartRow('c' + (index + 1), String(spend)));
 const layout = (spec, width = 480, language = 'en') =>
   chartLayout(spec, {width, language, t: text => (language === 'ar' ? 'ع:' + text : text)});
 const marks = (scene, role) => scene.items.filter(item => item.role === role);
-const week = (date, id, spend, more = {}) =>
-  chartRow(id, spend, '1', {date_from: date, date_to: date, grain: 'weekly', ...more});
-const weekly = rows => charts(rows, {config: {grain: 'weekly'}});
 const r2 = value => Math.round(value * 100) / 100;
-
-/** One of each drawn shape, with the awkward text: a name that is too long, an Arabic one and one that is markup. */
-const hostile = [
-  'A very long campaign name that will not fit on a narrow screen at all',
-  'Short',
-  'x',
-  'مرحبا بالعالم',
-  '</svg><script>alert(1)</script>',
-];
-const barsSpec = () =>
-  of(
-    charts(
-      campaigns([1234567.89, 98765.43, 5000, 12.5, 3]).map((row, index) => ({...row, campaign_name: hostile[index]})),
-    ),
-    'spend_by_entity',
-  )[0];
-const costSpec = () =>
-  of(
-    charts([chartRow('a', '100', '10'), chartRow('b', '100', null)], {
-      config: {targets: {leads: {target: 12, currency: 'USD'}}},
-    }),
-    'cost_vs_target',
-  )[0];
-const stackSpec = () => {
-  const group = (id, objective, spend, platform, account) =>
-    chartRow(id, spend, '1', {objective_group: objective, platform, account_id: account});
-  return of(
-    charts([
-      group('s1', 'sales', '100', 'meta', '100'),
-      group('l1', 'leads', '60', 'meta', '100'),
-      group('t1', 'traffic', '1', 'meta', '100'),
-      group('s2', 'sales', '40', 'google', '200'),
-      group('l2', 'leads', '20', 'google', '200'),
-    ]),
-    'spend_by_objective',
-  )[0];
-};
-const eightWeeks = [
-  '2026-09-07',
-  '2026-09-14',
-  '2026-09-21',
-  '2026-09-28',
-  '2026-10-05',
-  '2026-10-12',
-  '2026-10-19',
-  '2026-10-26',
-];
-const lineSpec = (dates = eightWeeks) =>
-  of(
-    weekly(dates.map((date, index) => week(date, 'a', String([10, 80, 40, 25, 60, 5, 90, 33][index % 8])))),
-    'trend',
-  ).find(item => item.title.text === 'Spend over time');
-const tilesSpec = () => keyFigures([money('a', '120'), money('b', '80')], [money('a', '100'), money('b', '50')])[0];
 
 /** The box a mark covers; text by its estimated width, the way the layout itself places it. */
 function boundsOf(item) {
@@ -92,6 +55,22 @@ function boundsOf(item) {
   const width = chartTextWidth(item.text, item.size),
     left = item.anchor === 'left' ? item.x : item.anchor === 'right' ? item.x - width : item.x - width / 2;
   return {left, right: left + width, top: item.y - item.size, bottom: item.y + 3};
+}
+
+/** The pairs of text marks whose boxes overlap, each described. A little air is allowed: a box is the text's own extent. */
+function textOverlaps(scene) {
+  const texts = scene.items.filter(item => item.t === 'text'),
+    found = [];
+  texts.forEach((a, index) => {
+    for (const b of texts.slice(index + 1)) {
+      const p = boundsOf(a),
+        q = boundsOf(b),
+        across = Math.min(p.right, q.right) - Math.max(p.left, q.left),
+        down = Math.min(p.bottom, q.bottom) - Math.max(p.top, q.top);
+      if (across > 0.5 && down > 1) found.push(`${a.role} "${a.text}" and ${b.role} "${b.text}"`);
+    }
+  });
+  return found;
 }
 
 test('text is measured by one function, and a label that is too long is cut with an ellipsis, never clipped', () => {
@@ -169,9 +148,20 @@ test('a value of zero draws no bar but is still labelled, and an unknown value s
   assert.ok(targets[0].y1 < bar.y && targets[0].y2 > bar.y + bar.h, 'it reaches past the bar on both sides');
 });
 
+const everyShape = () => ({
+  bars: barsSpec(),
+  folded: foldedBarsSpec(),
+  cost: costSpec(),
+  stack: stackSpec(),
+  'folded stack': foldedStackSpec(),
+  line: lineSpec(),
+  'short line': shortLineSpec(),
+  tiles: tilesSpec(),
+  'big tiles': bigTilesSpec(),
+});
+
 test('nothing leaves the chart: every mark lies inside the width at every width down to a phone, for every shape and both languages', () => {
-  const shapes = {bars: barsSpec(), cost: costSpec(), stack: stackSpec(), line: lineSpec(), tiles: tilesSpec()};
-  for (const [name, spec] of Object.entries(shapes))
+  for (const [name, spec] of Object.entries(everyShape()))
     for (const language of ['en', 'ar'])
       for (const width of [320, 375, 480, 640, 960]) {
         const scene = layout(spec, width, language);
@@ -184,6 +174,13 @@ test('nothing leaves the chart: every mark lies inside the width at every width 
           assert.ok(box.top >= -0.01 && box.bottom <= scene.height + 0.01, where + ' (vertical)');
         }
       }
+});
+
+test('no text lies over another text, at every width down to a phone, for every shape and both languages', () => {
+  for (const [name, spec] of Object.entries(everyShape()))
+    for (const language of ['en', 'ar'])
+      for (const width of [320, 375, 480, 640, 960])
+        assert.deepEqual(textOverlaps(layout(spec, width, language)), [], `${name} ${language} ${width}`);
 });
 
 test('a name that does not fit is cut with an ellipsis on a phone and whole where there is room', () => {
@@ -215,7 +212,7 @@ test('in Arabic the layout mirrors: bars grow from the right, labels sit at the 
   assert.equal(arLabel.anchor, 'right');
   assert.equal(r2(arLabel.x), r2(480 - enLabel.x));
   // A name AMCP wrote is said in Arabic; a name a provider wrote is not touched.
-  const other = of(charts(campaigns([100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4])), 'spend_by_entity')[0];
+  const other = foldedBarsSpec();
   assert.ok(marks(layout(other, 480, 'ar'), 'label').some(item => item.text === 'ع:Other'));
   assert.ok(marks(layout(other, 480, 'ar'), 'label').some(item => item.text === 'Campaign c1'));
 });
@@ -237,12 +234,7 @@ test('text that has Arabic letters in an Arabic report reads right to left; numb
 });
 
 test('a line is drawn over its periods left to right in both languages, a short period is a hollow mark off the line, a gap is a gap', () => {
-  const weeks = ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28'],
-    rows = [
-      ...weeks.flatMap((date, index) => ['a', 'b'].map(id => week(date, id, index === 1 && id === 'a' ? null : '20'))),
-      week('2026-09-14', 'x', '5', {currency: 'EUR'}),
-    ];
-  const spec = of(weekly(rows), 'trend').find(item => item.context.currency === 'USD'),
+  const spec = shortLineSpec(),
     series = spec.series[0];
   assert.deepEqual(series.short.map(Boolean), [false, true, false, false]);
   for (const language of ['en', 'ar']) {
@@ -301,6 +293,23 @@ test('the date labels of a line never overlap, and the last period is always lab
   );
 });
 
+test('the first and last marks of a line sit inside the plot, clear of the value axis and of the edge, with their rings', () => {
+  for (const language of ['en', 'ar'])
+    for (const width of [320, 640]) {
+      const scene = layout(lineSpec(), width, language),
+        [axis] = marks(scene, 'axis'),
+        xs = marks(scene, 'point').map(item => item.cx);
+      assert.ok(
+        Math.min(...xs) - 6 >= axis.x1,
+        `${language} ${width}: the first mark and its ring clear the plot's left edge`,
+      );
+      assert.ok(
+        Math.max(...xs) + 6 <= axis.x2,
+        `${language} ${width}: the last mark and its ring clear the plot's right edge`,
+      );
+    }
+});
+
 test('the value axis of a line starts at zero and the highest point never touches the top', () => {
   const rows = ['2026-09-07', '2026-09-14', '2026-09-21'].map((date, index) =>
     week(date, 'a', ['10', '80', '40'][index]),
@@ -312,6 +321,116 @@ test('the value axis of a line starts at zero and the highest point never touche
   assert.ok(Math.max(...ys) < baseline.y1, 'the lowest point is above the zero line');
   assert.ok(Math.min(...ys) > 8, 'the highest point leaves room for its label');
   assert.equal(marks(scene, 'tick')[0].text, '0');
+});
+
+/** Does the segment from p to q pass through the box? Sampled: this tests a drawing, not geometry. */
+function crosses(p, q, box) {
+  for (let step = 0; step <= 80; step++) {
+    const x = p[0] + ((q[0] - p[0]) * step) / 80,
+      y = p[1] + ((q[1] - p[1]) * step) / 80;
+    if (x > box.left && x < box.right && y > box.top && y < box.bottom) return true;
+  }
+  return false;
+}
+test('a direct label on a line never sits on the line: above a peak, below a point the line comes down to, or left out', () => {
+  const dates = [
+    '2026-09-07',
+    '2026-09-14',
+    '2026-09-21',
+    '2026-09-28',
+    '2026-10-05',
+    '2026-10-12',
+    '2026-10-19',
+    '2026-10-26',
+  ];
+  const shapes = {
+    zigzag: [10, 80, 40, 25, 60, 5, 90, 33],
+    rising: [10, 20, 30, 40, 50, 60, 70, 100],
+    falling: [100, 90, 80, 70, 60, 50, 40, 30],
+    flat: [50, 50, 50, 50, 50, 50, 50, 50],
+    valley: [60, 40, 20, 5, 20, 40, 60, 80],
+  };
+  for (const [name, values] of Object.entries(shapes)) {
+    const spec = of(weekly(values.map((value, index) => week(dates[index], 'a', String(value)))), 'trend').find(
+      item => item.title.text === 'Spend over time',
+    );
+    for (const language of ['en', 'ar'])
+      for (const width of [320, 480, 640, 960]) {
+        const scene = layout(spec, width, language),
+          segments = marks(scene, 'line').flatMap(line =>
+            line.points.slice(1).map((point, k) => [line.points[k], point]),
+          ),
+          points = marks(scene, 'point'),
+          where = `${name} ${language} ${width}`;
+        const labels = marks(scene, 'value');
+        assert.equal(labels.length, spec.series[0].label_at.length, where + ': every labelled point has its label');
+        for (const label of labels) {
+          const box = boundsOf(label);
+          for (const [p, q] of segments)
+            assert.equal(crosses(p, q, box), false, `${where}: "${label.text}" is struck through`);
+          // It sits above its point or below it, never on it.
+          const point = points.find(item => item.i === label.i);
+          assert.ok(
+            label.y < point.cy - 6 || label.y - 12 > point.cy + 4,
+            `${where}: "${label.text}" overlaps its own point`,
+          );
+        }
+      }
+  }
+  // The end of a falling line is below its label's point: the label goes under it. The peak's goes above.
+  const zigzag = layout(lineSpec(), 640),
+    last = marks(zigzag, 'point').at(-1),
+    end = marks(zigzag, 'value').find(item => item.i === last.i),
+    peak = marks(zigzag, 'point').find(item => item.i === 6),
+    top = marks(zigzag, 'value').find(item => item.i === 6);
+  assert.ok(end.y > last.cy, 'the line comes down to the last point: its label is under it');
+  assert.ok(top.y < peak.cy, 'the highest point has its label above it');
+});
+
+test('a value label is never crossed by the target mark of its own bar: it moves beyond the target', () => {
+  // Two campaigns at 10 and 8 per result against a target of 10.5: the target mark lies just past the first bar's end,
+  // where its label would go, and well past the second's.
+  const spec = of(
+    charts([chartRow('a', '100', '10'), chartRow('b', '80', '10')], {
+      config: {targets: {leads: {target: 10.5, currency: 'USD'}}},
+    }),
+    'cost_vs_target',
+  )[0];
+  assert.deepEqual(spec.series[0].targets, ['10.5', '10.5']);
+  for (const language of ['en', 'ar'])
+    for (const width of [320, 480, 640, 960]) {
+      const scene = layout(spec, width, language),
+        where = `${language} ${width}`;
+      for (const target of marks(scene, 'target')) {
+        const label = marks(scene, 'value').find(item => item.i === target.i),
+          box = boundsOf(label);
+        assert.ok(
+          target.x1 < box.left - 1 || target.x1 > box.right + 1,
+          `${where}: the target crosses "${label.text}"`,
+        );
+      }
+      // The label stays beside the end of its bar when nothing is in the way, and clear of the target when it is.
+      const [near, far] = marks(scene, 'bar'),
+        labels = marks(scene, 'value'),
+        ahead = (bar, label) => (language === 'ar' ? bar.x - label.x : label.x - (bar.x + bar.w));
+      assert.equal(r2(ahead(far, labels[1])), 6, where + ': the second label is right beside its bar');
+      assert.ok(ahead(near, labels[0]) > 6, where + ': the first label has been moved past the target');
+    }
+});
+
+test('a point on the baseline that the line comes down to has no label rather than one struck through by the line', () => {
+  const dates = ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28'],
+    spec = of(weekly([100, 60, 30, 0].map((value, index) => week(dates[index], 'a', String(value)))), 'trend').find(
+      item => item.title.text === 'Spend over time',
+    );
+  assert.deepEqual(spec.series[0].label_at, [0, 3], 'the spec asks for the highest point and the end');
+  for (const width of [320, 640]) {
+    const scene = layout(spec, width),
+      labelled = marks(scene, 'value').map(item => item.i);
+    // Above the last point is the line coming down to it, below it is the axis: no room, so no label. The table and
+    // the title of the mark still have the value; the highest point keeps its own.
+    assert.deepEqual(labelled, [0], 'width ' + width);
+  }
 });
 
 test('a stack: segments from the baseline in order, a 2px gap between neighbours, a legend for every series, labels only where they fit', () => {
@@ -419,6 +538,59 @@ test('key figures in Arabic: tiles run from the right, the caption is translated
   assert.ok(marks(ar, 'kpi-value').every(item => item.rtl === false));
 });
 
+test('text is broken at its spaces into the lines a box holds, and what cannot fit is cut with an ellipsis on the last line', () => {
+  const caption = 'Since the previous period';
+  assert.deepEqual(wrapChartText(caption, 400, 12, 2), [caption], 'one line when it fits');
+  assert.deepEqual(wrapChartText(caption, 120, 12, 2), ['Since the previous', 'period']);
+  assert.deepEqual(wrapChartText('', 120, 12, 2), []);
+  assert.deepEqual(wrapChartText('   ', 120, 12, 2), []);
+  // More lines than the box has: the last line takes the rest and is cut.
+  const long = 'one two three four five six seven eight nine ten eleven twelve';
+  const lines = wrapChartText(long, 80, 12, 2);
+  assert.equal(lines.length, 2);
+  assert.ok(lines[1].endsWith('…'));
+  assert.ok(lines.every(line => chartTextWidth(line, 12) <= 80));
+  assert.ok(long.startsWith(lines[0]), 'the first line is the start of the text');
+  // A single word wider than the box is cut, never allowed to leave it.
+  const word = wrapChartText('Supercalifragilisticexpialidocious', 80, 12, 2);
+  assert.equal(word.length, 1);
+  assert.ok(word[0].endsWith('…') && chartTextWidth(word[0], 12) <= 80);
+  // The lines of a wrapped text read back, joined by a space, as the text (when nothing is cut).
+  assert.equal(wrapChartText('+123,356.50 (+123,356.5%)', 100, 12, 2).join(' '), '+123,356.50 (+123,356.5%)');
+});
+
+test('a caption or a change too wide for its tile goes on a second line, whole, and every tile has the height of the tallest', () => {
+  const spec = tilesSpec(),
+    caption = 'Since the previous period';
+  // 5 tiles of 120px at 640px: the caption does not fit one line of a tile there.
+  const narrow = layout(spec, 640),
+    lines = marks(narrow, 'kpi-caption');
+  assert.ok(lines.length > 3, 'more than one caption line in some tile');
+  const byTile = [...new Set(lines.map(item => item.s))].map(s => lines.filter(item => item.s === s));
+  for (const tile of byTile) {
+    assert.equal(tile.map(item => item.text).join(' '), caption, 'the whole caption, in order');
+    assert.deepEqual(
+      tile.map(item => item.y),
+      [...tile.map(item => item.y)].sort((a, b) => a - b),
+      'top to bottom',
+    );
+    assert.ok(tile.every(item => chartTextWidth(item.text, item.size) <= (640 - 8 - 4 * 8) / 5));
+  }
+  // The wide screen has room for the caption on one line.
+  assert.equal(marks(layout(spec, 960), 'kpi-caption').length, 3);
+  // A long change: the amount and the percentage, each whole.
+  const big = bigTilesSpec(),
+    change = marks(layout(big, 320), 'kpi-change').filter(item => item.s === 0);
+  assert.equal(change.map(item => item.text).join(' '), '+12,345,578.50 (+12,345,578.5%)');
+  assert.ok(change.length > 1, 'it does not fit one line of a phone tile');
+  // Every tile has the height of the tallest, so the rows of a grid line up: the value of each row sits at one y.
+  const scene = layout(big, 320),
+    values = marks(scene, 'kpi-value').map(item => item.y);
+  const rows = [...new Set(values)];
+  assert.equal(rows.length, Math.ceil(big.series.length / 2), 'one y for each row of two tiles');
+  assert.equal(rows[1] - rows[0], rows[2] - rows[1], 'the rows are one height apart');
+});
+
 test('a figure that is too wide for its tile is set smaller, never cut: a number is read whole', () => {
   const huge = keyFigures([money('a', '123456789012.34')])[0],
     value = marks(layout(huge, 320), 'kpi-value')[0];
@@ -437,7 +609,7 @@ test('a figure that is too wide for its tile is set smaller, never cut: a number
 
 test('every mark carries the hue it is drawn in, decided once here: a series keeps its hue, Other is neutral, ink follows the fill', () => {
   // Bars: the measure's hue (spend 0), the combined remainder neutral.
-  const many = of(charts(campaigns([100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4])), 'spend_by_entity')[0],
+  const many = foldedBarsSpec(),
     manyBars = marks(layout(many), 'bar'),
     otherIndex = many.x.items.findIndex(item => item.other);
   assert.ok(otherIndex >= 0);
@@ -449,15 +621,7 @@ test('every mark carries the hue it is drawn in, decided once here: a series kee
   );
   // A stack: each segment, each legend swatch and the label inside a segment are of their series' hue. Five objectives
   // fold into the three largest and Other.
-  const objectives = {sales: '100', leads: '80', traffic: '60', awareness: '20', engagement: '10'},
-    stack = of(
-      charts(
-        Object.entries(objectives).map(([objective, spend]) =>
-          chartRow(objective, spend, '1', {objective_group: objective}),
-        ),
-      ),
-      'spend_by_objective',
-    )[0],
+  const stack = foldedStackSpec(),
     scene = layout(stack);
   for (const item of [...marks(scene, 'segment'), ...marks(scene, 'legend-swatch')])
     assert.equal(item.color, stack.series[item.s].color_index, item.role + ' of series ' + item.s);
