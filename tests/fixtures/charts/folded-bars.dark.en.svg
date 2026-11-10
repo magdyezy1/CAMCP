@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 504" width="640" height="504" role="img" aria-labelledby="amcp-16oifup-t amcp-16oifup-d" lang="en" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-16oifup-t">Spend by campaign</title>
+<desc id="amcp-16oifup-d">The largest share of spend is Campaign c1: 17.8% of 559.00 USD. The smaller entries are combined as Other: 2.</desc>
+<rect width="640" height="504" fill="#17141f"/>
+<line x1="295.84" y1="2" x2="295.84" y2="476" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="587.68" y1="2" x2="587.68" y2="476" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="4" y1="2" x2="4" y2="476" stroke="#988aab" stroke-width="1" shape-rendering="crispEdges"/>
+<path d="M4,22H583.68A4,4 0 0 1 587.68,26V32A4,4 0 0 1 583.68,36H4Z" fill="#9085e9"><title>Campaign c1: 100.00</title></path>
+<path d="M4,66H525.31A4,4 0 0 1 529.31,70V76A4,4 0 0 1 525.31,80H4Z" fill="#9085e9"><title>Campaign c2: 90.00</title></path>
+<path d="M4,110H466.94A4,4 0 0 1 470.94,114V120A4,4 0 0 1 466.94,124H4Z" fill="#9085e9"><title>Campaign c3: 80.00</title></path>
+<path d="M4,154H408.58A4,4 0 0 1 412.58,158V164A4,4 0 0 1 408.58,168H4Z" fill="#9085e9"><title>Campaign c4: 70.00</title></path>
+<path d="M4,198H350.21A4,4 0 0 1 354.21,202V208A4,4 0 0 1 350.21,212H4Z" fill="#9085e9"><title>Campaign c5: 60.00</title></path>
+<path d="M4,242H291.84A4,4 0 0 1 295.84,246V252A4,4 0 0 1 291.84,256H4Z" fill="#9085e9"><title>Campaign c6: 50.00</title></path>
+<path d="M4,286H233.47A4,4 0 0 1 237.47,290V296A4,4 0 0 1 233.47,300H4Z" fill="#9085e9"><title>Campaign c7: 40.00</title></path>
+<path d="M4,330H175.1A4,4 0 0 1 179.1,334V340A4,4 0 0 1 175.1,344H4Z" fill="#9085e9"><title>Campaign c8: 30.00</title></path>
+<path d="M4,374H116.74A4,4 0 0 1 120.74,378V384A4,4 0 0 1 116.74,388H4Z" fill="#9085e9"><title>Campaign c9: 20.00</title></path>
+<path d="M4,418H58.37A4,4 0 0 1 62.37,422V428A4,4 0 0 1 58.37,432H4Z" fill="#9085e9"><title>Campaign c10: 10.00</title></path>
+<path d="M4,462H52.53A4,4 0 0 1 56.53,466V472A4,4 0 0 1 52.53,476H4Z" fill="#6e6880"><title>Other: 9.00</title></path>
+<text x="4" y="16" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c1</text>
+<text x="593.68" y="33" text-anchor="start" font-size="12" fill="#f2edf8">100.00</text>
+<text x="4" y="60" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c2</text>
+<text x="535.31" y="77" text-anchor="start" font-size="12" fill="#f2edf8">90.00</text>
+<text x="4" y="104" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c3</text>
+<text x="476.94" y="121" text-anchor="start" font-size="12" fill="#f2edf8">80.00</text>
+<text x="4" y="148" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c4</text>
+<text x="418.58" y="165" text-anchor="start" font-size="12" fill="#f2edf8">70.00</text>
+<text x="4" y="192" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c5</text>
+<text x="360.21" y="209" text-anchor="start" font-size="12" fill="#f2edf8">60.00</text>
+<text x="4" y="236" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c6</text>
+<text x="301.84" y="253" text-anchor="start" font-size="12" fill="#f2edf8">50.00</text>
+<text x="4" y="280" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c7</text>
+<text x="243.47" y="297" text-anchor="start" font-size="12" fill="#f2edf8">40.00</text>
+<text x="4" y="324" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c8</text>
+<text x="185.1" y="341" text-anchor="start" font-size="12" fill="#f2edf8">30.00</text>
+<text x="4" y="368" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c9</text>
+<text x="126.74" y="385" text-anchor="start" font-size="12" fill="#f2edf8">20.00</text>
+<text x="4" y="412" text-anchor="start" font-size="12" fill="#f2edf8">Campaign c10</text>
+<text x="68.37" y="429" text-anchor="start" font-size="12" fill="#f2edf8">10.00</text>
+<text x="4" y="456" text-anchor="start" font-size="12" fill="#f2edf8">Other</text>
+<text x="62.53" y="473" text-anchor="start" font-size="12" fill="#f2edf8">9.00</text>
+<text x="7.6" y="492" text-anchor="middle" font-size="12" fill="#c0b5ce">0</text>
+<text x="295.84" y="492" text-anchor="middle" font-size="12" fill="#c0b5ce">50</text>
+<text x="587.68" y="492" text-anchor="middle" font-size="12" fill="#c0b5ce">100</text>
+</svg>

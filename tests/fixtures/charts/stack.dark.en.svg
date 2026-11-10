@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 138" width="640" height="138" role="img" aria-labelledby="amcp-fta333-t amcp-fta333-d" lang="en" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-fta333-t">Spend by objective</title>
+<desc id="amcp-fta333-d">The largest share of spend is Sales: 63.3% of 221.00 USD.</desc>
+<rect width="640" height="138" fill="#17141f"/>
+<line x1="149.92" y1="28" x2="149.92" y2="110" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="295.84" y1="28" x2="295.84" y2="110" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="441.76" y1="28" x2="441.76" y2="110" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="587.68" y1="28" x2="587.68" y2="110" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="4" y1="28" x2="4" y2="110" stroke="#988aab" stroke-width="1" shape-rendering="crispEdges"/>
+<rect x="4" y="7" width="10" height="10" fill="#199e70"/>
+<rect x="71.28" y="7" width="10" height="10" fill="#9085e9"/>
+<rect x="138.56" y="7" width="10" height="10" fill="#d95926"/>
+<rect x="4" y="48" width="290.84" height="18" fill="#199e70"><title>Meta · Sales: 100.00</title></rect>
+<rect x="296.84" y="48" width="173.1" height="18" fill="#9085e9"><title>Meta · Leads: 60.00</title></rect>
+<rect x="471.94" y="48" width="1.92" height="18" fill="#d95926"><title>Meta · Traffic: 1.00</title></rect>
+<rect x="4" y="92" width="115.74" height="18" fill="#199e70"><title>Google Ads · Sales: 40.00</title></rect>
+<path d="M121.74,92H175.10999999999999A4,4 0 0 1 179.10999999999999,96V106A4,4 0 0 1 175.10999999999999,110H121.74Z" fill="#9085e9"><title>Google Ads · Leads: 20.00</title></path>
+<text x="20" y="17" text-anchor="start" font-size="12" fill="#f2edf8">Sales</text>
+<text x="87.28" y="17" text-anchor="start" font-size="12" fill="#f2edf8">Leads</text>
+<text x="154.56" y="17" text-anchor="start" font-size="12" fill="#f2edf8">Traffic</text>
+<text x="4" y="42" text-anchor="start" font-size="12" fill="#f2edf8">Meta</text>
+<text x="149.42" y="61" text-anchor="middle" font-size="12" fill="#17141f">100.00</text>
+<text x="383.39" y="61" text-anchor="middle" font-size="12" fill="#17141f">60.00</text>
+<text x="479.86" y="61" text-anchor="start" font-size="12" fill="#f2edf8">161.00</text>
+<text x="4" y="86" text-anchor="start" font-size="12" fill="#f2edf8">Google Ads</text>
+<text x="61.87" y="105" text-anchor="middle" font-size="12" fill="#17141f">40.00</text>
+<text x="150.42" y="105" text-anchor="middle" font-size="12" fill="#17141f">20.00</text>
+<text x="185.1" y="105" text-anchor="start" font-size="12" fill="#f2edf8">60.00</text>
+<text x="7.6" y="126" text-anchor="middle" font-size="12" fill="#c0b5ce">0</text>
+<text x="149.92" y="126" text-anchor="middle" font-size="12" fill="#c0b5ce">50</text>
+<text x="295.84" y="126" text-anchor="middle" font-size="12" fill="#c0b5ce">100</text>
+<text x="441.76" y="126" text-anchor="middle" font-size="12" fill="#c0b5ce">150</text>
+<text x="587.68" y="126" text-anchor="middle" font-size="12" fill="#c0b5ce">200</text>
+</svg>

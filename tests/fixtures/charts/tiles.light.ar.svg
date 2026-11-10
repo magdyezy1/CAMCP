@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 128" width="640" height="128" role="img" aria-labelledby="amcp-j0w001-t amcp-j0w001-d" lang="ar" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-j0w001-t">المؤشرات الرئيسية</title>
+<desc id="amcp-j0w001-d">يقارن التغيير الحملات والإعلانات الموجودة في الفترتين.</desc>
+<rect width="640" height="128" fill="#fffdf8"/>
+<text x="636" y="18" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">الإنفاق</text>
+<text x="636" y="44" text-anchor="end" font-size="22" font-weight="700" fill="#222137">200.00</text>
+<text x="636" y="60" text-anchor="end" font-size="12" fill="#696678">USD</text>
+<text x="636" y="76" text-anchor="end" font-size="12" fill="#222137">+50.00 (+33.33%)</text>
+<text x="636" y="92" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">منذ الفترة</text>
+<text x="636" y="108" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">السابقة</text>
+<text x="508" y="18" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">مرات الظهور</text>
+<text x="508" y="44" text-anchor="end" font-size="22" font-weight="700" fill="#222137">2,000</text>
+<text x="508" y="76" text-anchor="end" font-size="12" fill="#222137">+500 (+33.33%)</text>
+<text x="508" y="92" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">منذ الفترة</text>
+<text x="508" y="108" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">السابقة</text>
+<text x="380" y="18" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">النقرات</text>
+<text x="380" y="44" text-anchor="end" font-size="22" font-weight="700" fill="#222137">10</text>
+<text x="380" y="76" text-anchor="end" font-size="12" fill="#222137">0 (0%)</text>
+<text x="380" y="92" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">منذ الفترة</text>
+<text x="380" y="108" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">السابقة</text>
+<text x="252" y="18" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">النتائج</text>
+<text x="252" y="44" text-anchor="end" font-size="22" font-weight="700" fill="#222137">2</text>
+<text x="124" y="18" text-anchor="start" font-size="12" fill="#696678" direction="rtl" unicode-bidi="embed">التكلفة لكل نتيجة</text>
+<text x="124" y="44" text-anchor="end" font-size="22" font-weight="700" fill="#222137">100.00</text>
+<text x="124" y="60" text-anchor="end" font-size="12" fill="#696678">USD</text>
+</svg>

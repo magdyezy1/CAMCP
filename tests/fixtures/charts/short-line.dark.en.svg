@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" width="640" height="260" role="img" aria-labelledby="amcp-1knuihc-t amcp-1knuihc-d" lang="en" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-1knuihc-t">Spend over time</title>
+<desc id="amcp-1knuihc-d">Spend was highest in the period starting 2026-09-07: 40.00 USD. Hollow marks are periods calculated from some of their rows only: 1. Spend: 7 of 8 rows Each currency has its own chart (EUR, USD). Amounts in different currencies are never combined.</desc>
+<rect width="640" height="260" fill="#17141f"/>
+<line x1="30.4" y1="179.5" x2="628" y2="179.5" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="30.4" y1="127" x2="628" y2="127" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="30.4" y1="74.5" x2="628" y2="74.5" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="30.4" y1="22" x2="628" y2="22" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="30.4" y1="232" x2="628" y2="232" stroke="#988aab" stroke-width="1" shape-rendering="crispEdges"/>
+<polyline points="426.13,22 620,22" fill="none" stroke="#9085e9" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="38.4" cy="22" r="6" fill="#17141f"/><circle cx="38.4" cy="22" r="4" fill="#9085e9"><title>2026-09-07: 40.00</title></circle>
+<circle cx="232.27" cy="127" r="4" fill="#17141f" stroke="#9085e9" stroke-width="2"><title>2026-09-14: 20.00</title></circle>
+<circle cx="426.13" cy="22" r="6" fill="#17141f"/><circle cx="426.13" cy="22" r="4" fill="#9085e9"><title>2026-09-21: 40.00</title></circle>
+<circle cx="620" cy="22" r="6" fill="#17141f"/><circle cx="620" cy="22" r="4" fill="#9085e9"><title>2026-09-28: 40.00</title></circle>
+<text x="24.4" y="236" text-anchor="end" font-size="12" fill="#c0b5ce">0</text>
+<text x="24.4" y="183.5" text-anchor="end" font-size="12" fill="#c0b5ce">10</text>
+<text x="24.4" y="131" text-anchor="end" font-size="12" fill="#c0b5ce">20</text>
+<text x="24.4" y="78.5" text-anchor="end" font-size="12" fill="#c0b5ce">30</text>
+<text x="24.4" y="26" text-anchor="end" font-size="12" fill="#c0b5ce">40</text>
+<text x="46.96" y="12" text-anchor="middle" font-size="12" fill="#f2edf8">40.00</text>
+<text x="611.44" y="12" text-anchor="middle" font-size="12" fill="#f2edf8">40.00</text>
+<text x="38.4" y="250" text-anchor="middle" font-size="12" fill="#c0b5ce">Sep 7</text>
+<text x="232.27" y="250" text-anchor="middle" font-size="12" fill="#c0b5ce">Sep 14</text>
+<text x="426.13" y="250" text-anchor="middle" font-size="12" fill="#c0b5ce">Sep 21</text>
+<text x="616.08" y="250" text-anchor="middle" font-size="12" fill="#c0b5ce">Sep 28</text>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 138" width="640" height="138" role="img" aria-labelledby="amcp-19yf8yp-t amcp-19yf8yp-d" lang="ar" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-19yf8yp-t">الإنفاق حسب الهدف</title>
+<desc id="amcp-19yf8yp-d">أكبر حصة من الإنفاق لـ المبيعات: 63.3% من 221.00 USD.</desc>
+<rect width="640" height="138" fill="#fffdf8"/>
+<line x1="490.08" y1="28" x2="490.08" y2="110" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="344.16" y1="28" x2="344.16" y2="110" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="198.24" y1="28" x2="198.24" y2="110" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="52.32" y1="28" x2="52.32" y2="110" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="636" y1="28" x2="636" y2="110" stroke="#8e87a0" stroke-width="1" shape-rendering="crispEdges"/>
+<rect x="626" y="7" width="10" height="10" fill="#1baf7a"/>
+<rect x="536.4" y="7" width="10" height="10" fill="#6250d6"/>
+<rect x="385.6" y="7" width="10" height="10" fill="#eb6834"/>
+<rect x="345.16" y="48" width="290.84" height="18" fill="#1baf7a"><title>Meta · المبيعات: 100.00</title></rect>
+<rect x="170.06" y="48" width="173.1" height="18" fill="#6250d6"><title>Meta · العملاء المحتملون: 60.00</title></rect>
+<rect x="166.14" y="48" width="1.92" height="18" fill="#eb6834"><title>Meta · الزيارات: 1.00</title></rect>
+<rect x="520.26" y="92" width="115.74" height="18" fill="#1baf7a"><title>Google Ads · المبيعات: 40.00</title></rect>
+<path d="M518.26,92H464.89A4,4 0 0 0 460.89,96V106A4,4 0 0 0 464.89,110H518.26Z" fill="#6250d6"><title>Google Ads · العملاء المحتملون: 20.00</title></path>
+<text x="620" y="17" text-anchor="start" font-size="12" fill="#222137" direction="rtl" unicode-bidi="embed">المبيعات</text>
+<text x="530.4" y="17" text-anchor="start" font-size="12" fill="#222137" direction="rtl" unicode-bidi="embed">العملاء المحتملون</text>
+<text x="379.6" y="17" text-anchor="start" font-size="12" fill="#222137" direction="rtl" unicode-bidi="embed">الزيارات</text>
+<text x="636" y="42" text-anchor="end" font-size="12" fill="#222137">Meta</text>
+<text x="490.58" y="61" text-anchor="middle" font-size="12" fill="#222137">100.00</text>
+<text x="256.61" y="61" text-anchor="middle" font-size="12" fill="#ffffff">60.00</text>
+<text x="160.14" y="61" text-anchor="end" font-size="12" fill="#222137">161.00</text>
+<text x="636" y="86" text-anchor="end" font-size="12" fill="#222137">Google Ads</text>
+<text x="578.13" y="105" text-anchor="middle" font-size="12" fill="#222137">40.00</text>
+<text x="489.58" y="105" text-anchor="middle" font-size="12" fill="#ffffff">20.00</text>
+<text x="454.9" y="105" text-anchor="end" font-size="12" fill="#222137">60.00</text>
+<text x="632.4" y="126" text-anchor="middle" font-size="12" fill="#696678">0</text>
+<text x="490.08" y="126" text-anchor="middle" font-size="12" fill="#696678">50</text>
+<text x="344.16" y="126" text-anchor="middle" font-size="12" fill="#696678">100</text>
+<text x="198.24" y="126" text-anchor="middle" font-size="12" fill="#696678">150</text>
+<text x="52.32" y="126" text-anchor="middle" font-size="12" fill="#696678">200</text>
+</svg>

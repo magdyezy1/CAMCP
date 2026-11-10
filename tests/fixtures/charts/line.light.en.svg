@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" width="640" height="260" role="img" aria-labelledby="amcp-13ufps0-t amcp-13ufps0-d" lang="en" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-13ufps0-t">Spend over time</title>
+<desc id="amcp-13ufps0-d">Spend was highest in the period starting 2026-10-19: 90.00 USD.</desc>
+<rect width="640" height="260" fill="#fffdf8"/>
+<line x1="37.6" y1="127" x2="628" y2="127" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="37.6" y1="22" x2="628" y2="22" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="37.6" y1="232" x2="628" y2="232" stroke="#8e87a0" stroke-width="1" shape-rendering="crispEdges"/>
+<polyline points="45.6,211 127.66,64 209.71,148 291.77,179.5 373.83,106 455.89,221.5 537.94,43 620,162.7" fill="none" stroke="#6250d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="45.6" cy="211" r="6" fill="#fffdf8"/><circle cx="45.6" cy="211" r="4" fill="#6250d6"><title>2026-09-07: 10.00</title></circle>
+<circle cx="127.66" cy="64" r="6" fill="#fffdf8"/><circle cx="127.66" cy="64" r="4" fill="#6250d6"><title>2026-09-14: 80.00</title></circle>
+<circle cx="209.71" cy="148" r="6" fill="#fffdf8"/><circle cx="209.71" cy="148" r="4" fill="#6250d6"><title>2026-09-21: 40.00</title></circle>
+<circle cx="291.77" cy="179.5" r="6" fill="#fffdf8"/><circle cx="291.77" cy="179.5" r="4" fill="#6250d6"><title>2026-09-28: 25.00</title></circle>
+<circle cx="373.83" cy="106" r="6" fill="#fffdf8"/><circle cx="373.83" cy="106" r="4" fill="#6250d6"><title>2026-10-05: 60.00</title></circle>
+<circle cx="455.89" cy="221.5" r="6" fill="#fffdf8"/><circle cx="455.89" cy="221.5" r="4" fill="#6250d6"><title>2026-10-12: 5.00</title></circle>
+<circle cx="537.94" cy="43" r="6" fill="#fffdf8"/><circle cx="537.94" cy="43" r="4" fill="#6250d6"><title>2026-10-19: 90.00</title></circle>
+<circle cx="620" cy="162.7" r="6" fill="#fffdf8"/><circle cx="620" cy="162.7" r="4" fill="#6250d6"><title>2026-10-26: 33.00</title></circle>
+<text x="31.6" y="236" text-anchor="end" font-size="12" fill="#696678">0</text>
+<text x="31.6" y="131" text-anchor="end" font-size="12" fill="#696678">50</text>
+<text x="31.6" y="26" text-anchor="end" font-size="12" fill="#696678">100</text>
+<text x="537.94" y="33" text-anchor="middle" font-size="12" fill="#222137">90.00</text>
+<text x="611.44" y="180.7" text-anchor="middle" font-size="12" fill="#222137">33.00</text>
+<text x="45.6" y="250" text-anchor="middle" font-size="12" fill="#696678">Sep 7</text>
+<text x="127.66" y="250" text-anchor="middle" font-size="12" fill="#696678">Sep 14</text>
+<text x="209.71" y="250" text-anchor="middle" font-size="12" fill="#696678">Sep 21</text>
+<text x="291.77" y="250" text-anchor="middle" font-size="12" fill="#696678">Sep 28</text>
+<text x="373.83" y="250" text-anchor="middle" font-size="12" fill="#696678">Oct 5</text>
+<text x="455.89" y="250" text-anchor="middle" font-size="12" fill="#696678">Oct 12</text>
+<text x="537.94" y="250" text-anchor="middle" font-size="12" fill="#696678">Oct 19</text>
+<text x="616.08" y="250" text-anchor="middle" font-size="12" fill="#696678">Oct 26</text>
+</svg>
