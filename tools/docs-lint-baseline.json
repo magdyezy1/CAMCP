@@ -232,10 +232,16 @@
       "raised": [
         "reference_words 154728 → 156417"
       ]
+    },
+    {
+      "reason": "V2-WEB-03 (web-shell): docs/DESIGN-SYSTEM.md gains The shell (the registry's groups, glyphs, subtitles and parents, the sidebar, rail and drawer, the one-row header, what the shell loads and why none of the V2 layer, no view transition) and rewrites its Toast, Navigation and Loading and empty states text; docs/LOCAL-BROWSER-QA.md gains the shell kind of the runner; 677 words more in all (156,417 to 157,094), as tools/docs-lint.mjs counts them",
+      "raised": [
+        "reference_words 156417 → 157094"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156417
+    "reference_words": 157094
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
