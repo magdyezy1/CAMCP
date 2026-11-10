@@ -5,6 +5,7 @@ import {ProtocolErrorCode, ProtocolError} from '@modelcontextprotocol/server';
 import type {Actor, JsonObject} from '../src/types.js';
 import {outcomeSchema, workflowTools} from '../src/workflow-outcomes.js';
 import {typedToolData} from '../src/report-tool-output.js';
+import {answerWithProgress, progressTokenOf} from './mcp-progress.js';
 import {MirrorService, withExactIntegers} from '../src/service.js';
 import {
   guidanceResources,
@@ -145,9 +146,29 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
     service.store.assertActorActive(actor);
     return {tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any};
   });
-  server.setRequestHandler('tools/call', async request => {
-    // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
-    const work = withExactIntegers(() => service.call(request.params.name, request.params.arguments ?? {}, actor)),
+  server.setRequestHandler('tools/call', async (request, ctx) => {
+    const args = request.params.arguments ?? {},
+      token = progressTokenOf(request.params._meta),
+      // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
+      call = () => service.call(request.params.name, args, actor),
+      // A call that carries a progress token and queues a long run waits for it, bounded, and reports its progress on this
+      // request's stream (V2-MCP-02); with no token nothing differs from a plain call.
+      work = withExactIntegers(
+        token === undefined
+          ? call
+          : async () =>
+              answerWithProgress({
+                service,
+                actor,
+                tool: request.params.name,
+                args,
+                result: await call(),
+                token,
+                notify: notification => ctx.mcpReq.notify(notification),
+                signal: ctx.mcpReq.signal,
+                read: read => service.call(read.tool, read.arguments, actor),
+              }),
+      ),
       result = await (hooks.track ? hooks.track(work) : work),
       // General discovery already used this structured envelope. Text-only clients must receive the same result.
       presented = typeof result.success === 'boolean' ? result : {success: true, data: result};

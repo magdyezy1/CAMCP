@@ -327,8 +327,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package mcp-typed adds src/report-tool-schema.ts, the typed reporting config generated from the report sources
   // (V2-MCP-02): 792,
   // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793,
-  // and src/report-tool-output.ts, the typed result fields of the two reporting tools (V2-MCP-02): 794.
-  assert.equal(files.length, 794);
+  // and src/report-tool-output.ts, the typed result fields of the two reporting tools (V2-MCP-02): 794,
+  // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795.
+  assert.equal(files.length, 795);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

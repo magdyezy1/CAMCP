@@ -24,6 +24,8 @@ export const BACKGROUND_TURN_LIMIT = 500;
 const CONTINUES = 'CAMPAIGN_RUN_CONTINUES';
 /** Step states in which an upload still has work to do in the run (not settled, failed, uncertain or processing). */
 const runnable = ['pending', 'review_ready', 'executing'];
+/** Step states in which an upload is settled: read back and verified, or complete. */
+const settledSteps = ['verified', 'verified_with_acceptance', 'complete'];
 
 /** A plan of independent uploads: every step a media upload with no predecessor, so none waits for another. */
 export function independentUploads(run: JsonObject): boolean {
@@ -80,6 +82,26 @@ export function enqueueBackgroundRun(store: Store, actor: Actor, planId: string)
     return id;
   });
 }
+/** The state a person sees for a background run's job: a turn that yielded and waits to continue is still running. */
+export const backgroundJobState = (job: JsonObject): string =>
+  job.state === 'queued' && job.error?.code === CONTINUES ? 'running' : String(job.state);
+/**
+ * How far a background run has come (V2-MCP-02 progress): its state as a person sees it, and the uploads of its plan that
+ * have settled, of all of them. `done` is undefined when the plan can no longer be read, so no count is reported.
+ */
+export function backgroundRunProgress(
+  store: Store,
+  tenant: string,
+  job: JsonObject,
+): {state: string; done?: number; total: number} {
+  const state = backgroundJobState(job);
+  try {
+    const steps = store.document(tenant, 'campaign_run', String(job.input?.plan_id)).steps as JsonObject[];
+    return {state, done: steps.filter(s => settledSteps.includes(s.status)).length, total: steps.length};
+  } catch {
+    return {state, total: 0};
+  }
+}
 /** What the plan's background run is doing, for its view: queued, running (a turn yielded counts), complete or failed. */
 export function backgroundRunView(store: Store, tenant: string, run: JsonObject): JsonObject | undefined {
   const job = run.background?.job_id;
@@ -91,10 +113,9 @@ export function backgroundRunView(store: Store, tenant: string, run: JsonObject)
     if (e instanceof MirrorError && e.code === 'NOT_FOUND') return {job_id: job, state: 'unknown'};
     throw e;
   }
-  const yielded = row.state === 'queued' && row.error?.code === CONTINUES;
   return {
     job_id: job,
-    state: yielded ? 'running' : row.state,
+    state: backgroundJobState(row),
     queued_at: run.background.queued_at ?? null,
     ...(row.state === 'failed' && row.error ? {error: {code: row.error.code, message: row.error.message}} : {}),
     ...(row.state === 'complete' && row.result ? {result: row.result} : {}),
@@ -157,7 +178,7 @@ export async function backgroundRunTurn(
         plan_id: input.plan_id,
         stopped,
         steps: steps.length,
-        settled: count(['verified', 'verified_with_acceptance', 'complete']),
+        settled: count(settledSteps),
         processing: count(['processing']),
         attention: count(['failed', 'uncertain', 'mismatch']),
         remaining: count(runnable),
