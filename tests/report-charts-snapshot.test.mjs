@@ -167,7 +167,13 @@ test('the change of a key figure is read from the linked baseline when the repor
   await work(baselineId);
   assert.equal(e.stored(baselineId).state, 'complete');
   const compared = await withCharts(e, queued.id);
-  assert.deepEqual(tile(compared).change, {baseline: '20', delta: '30', delta_percent: '150'});
+  assert.deepEqual(tile(compared).change, {
+    baseline: '20',
+    delta: '30',
+    delta_percent: '150',
+    delta_label: '+30.00',
+    percent_label: '+150%',
+  });
   // It is read, not stored: the stored snapshot has no change, and the baseline's own report has none.
   assert.equal(tile(e.stored(queued.id)).change, undefined);
   assert.equal(tile(await withCharts(e, baselineId)).change, undefined);

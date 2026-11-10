@@ -1066,11 +1066,19 @@ test('a key figure’s change is read from the linked baseline: the exact delta 
     [money('a', '100'), money('b', '50')],
   );
   const spend = tile(after[0], 'spend');
-  assert.deepEqual(spend.change, {baseline: '150', delta: '50', delta_percent: '33.333333333'});
+  assert.deepEqual(spend.change, {
+    baseline: '150',
+    delta: '50',
+    delta_percent: '33.333333333',
+    delta_label: '+50.00',
+    percent_label: '+33.33%',
+  });
   assert.deepEqual(tile(after[0], 'impressions').change, {
     baseline: '1500',
     delta: '500',
     delta_percent: '33.333333333',
+    delta_label: '+500',
+    percent_label: '+33.33%',
   });
   assert.equal(tile(after[0], 'primary_result').change, undefined, 'a result has no comparison here');
   assert.ok(texts(after[0]).includes('The change compares the campaigns and ads that appear in both periods.'));
@@ -1109,9 +1117,75 @@ test('a campaign only one period has is not counted in the change, and a zero ba
   const spend = tile(after[0], 'spend');
   assert.equal(spend.values[0], '1200', 'the tile is the whole window');
   // Matched campaigns only: 200 now against 100 then.
-  assert.deepEqual(spend.change, {baseline: '100', delta: '100', delta_percent: '100'});
+  assert.deepEqual(spend.change, {
+    baseline: '100',
+    delta: '100',
+    delta_percent: '100',
+    delta_label: '+100.00',
+    percent_label: '+100%',
+  });
   const zero = await withChange([money('a', '20')], [money('a', '0')]);
-  assert.deepEqual(tile(zero.after[0], 'spend').change, {baseline: '0', delta: '20', delta_percent: null});
+  assert.deepEqual(tile(zero.after[0], 'spend').change, {
+    baseline: '0',
+    delta: '20',
+    delta_percent: null,
+    delta_label: '+20.00',
+    percent_label: null,
+  });
+});
+
+test('the change is worded once, here: the sign of the exact change, the value as a reader reads it, a percentage rounded half up to two places', async () => {
+  // Down: 100 now against 150 then. The amount carries its minus, the percentage is cut to the places the website shows.
+  const down = await withChange([money('a', '60'), money('b', '40')], [money('a', '100'), money('b', '50')]);
+  assert.deepEqual(
+    [tile(down.after[0], 'spend').change.delta_label, tile(down.after[0], 'spend').change.percent_label],
+    ['-50.00', '-33.33%'],
+  );
+  // No change reads without a sign, in both of its parts.
+  const same = await withChange([money('a', '100')], [money('a', '100')]);
+  assert.deepEqual(
+    [tile(same.after[0], 'spend').change.delta_label, tile(same.after[0], 'spend').change.percent_label],
+    ['0.00', '0%'],
+  );
+  // 112.345 against 100: half up on the exact digits (12.345 is 12.35, not the 12.34 a binary double would give), thousands grouped.
+  const up = await withChange(
+    [money('a', '112.345', {metrics: {spend: '112.345', impressions: '1123.45', clicks: '5'}})],
+    [money('a', '100')],
+  );
+  assert.deepEqual(
+    [tile(up.after[0], 'impressions').change.delta_label, tile(up.after[0], 'impressions').change.percent_label],
+    ['+123.45', '+12.35%'],
+  );
+  const big = await withChange([money('a', '123456.5')], [money('a', '100')]);
+  assert.equal(tile(big.after[0], 'spend').change.delta_label, '+123,356.50');
+  assert.equal(tile(big.after[0], 'spend').change.percent_label, '+123,356.5%');
+});
+
+test('the table of key figures carries the change too: the previous value, the change and its percentage, and unknown stays empty', async () => {
+  const {before, after} = await withChange(
+    [money('a', '120'), money('b', '80')],
+    [money('a', '100'), money('b', '50')],
+  );
+  assert.deepEqual(
+    before[0].table.columns.map(column => column.label),
+    ['Metric', 'Value', 'Currency'],
+  );
+  const columns = after[0].table.columns;
+  assert.deepEqual(
+    columns.map(column => column.label),
+    ['Metric', 'Value', 'Currency', 'Previous period', 'Change', 'Change in percent'],
+  );
+  assert.deepEqual(
+    columns.slice(3).map(column => column.type),
+    ['decimal', 'decimal', 'percent'],
+  );
+  const row = key => after[0].table.rows[after[0].series.findIndex(item => item.key === key)];
+  assert.deepEqual(row('spend').slice(3), ['150', '50', '33.333333333']);
+  assert.deepEqual(row('impressions').slice(3), ['1500', '500', '33.333333333']);
+  assert.deepEqual(row('primary_result').slice(3), [null, null, null], 'a result has no comparison here');
+  assert.ok(after[0].table.rows.every(cells => cells.length === columns.length));
+  // The stored table is not touched.
+  assert.ok(before[0].table.rows.every(cells => cells.length === 3));
 });
 
 test('a figure the baseline does not know has no change, and two tiles that share a group get none', async () => {

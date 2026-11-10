@@ -209,6 +209,9 @@ const arabic: Record<string, string> = {
     'العلامات المفرغة فترات حُسبت من بعض صفوفها فقط: {count}.',
   'No data': 'لا توجد بيانات',
   'Since the previous period': 'منذ الفترة السابقة',
+  'Previous period': 'الفترة السابقة',
+  Change: 'تغيير',
+  'Change in percent': 'نسبة التغيّر',
   'The change compares the campaigns and ads that appear in both periods.':
     'يقارن التغيير الحملات والإعلانات الموجودة في الفترتين.',
   'Rows with no single result definition are left out of this chart: {count}.':

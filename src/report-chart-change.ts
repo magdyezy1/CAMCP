@@ -1,10 +1,39 @@
 import {compareSnapshots, comparisonEligibility} from './report-compare.js';
-import {chartNote, type ChartSpec} from './report-chart-spec.js';
+import {valueLabel} from './report-chart-kit.js';
+import {formatFixed, parseChartDecimal} from './report-chart-scale.js';
+import {chartNote, type ChartChange, type ChartColumn, type ChartSeries, type ChartSpec} from './report-chart-spec.js';
 import type {JsonObject} from './types.js';
 
 /** Reading the change of the key figures when a report is read (V2-EXP-01). */
 
 const changeKeys = ['spend', 'impressions', 'clicks'];
+/** A label with the sign of its change: a minus stays, a figure that reads as zero has none, anything else gets a plus. */
+const signed = (label: string) => (label.startsWith('-') || /^[0.,]+$/.test(label) ? label : '+' + label);
+/** The percentage as the comparison table shows it: two places at most, half up on the exact digits, no trailing zeros. */
+function percentLabel(text: string | null): string | null {
+  if (text === null || !parseChartDecimal(text)) return null;
+  const fixed = formatFixed(text, 2);
+  return signed(fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed) + '%';
+}
+/** The change of one figure with the words a reader sees, or null when the exact numbers are not decimals (unknown stays unknown). */
+function changeOf(item: ChartSeries, found: JsonObject): ChartChange | null {
+  const baseline = String(found.baseline),
+    delta = String(found.delta);
+  if (!parseChartDecimal(baseline) || !parseChartDecimal(delta)) return null;
+  return {
+    baseline,
+    delta,
+    delta_percent: found.delta_percent ?? null,
+    delta_label: signed(valueLabel(delta, item.unit, item.currency) ?? delta),
+    percent_label: percentLabel(found.delta_percent ?? null),
+  };
+}
+/** The columns the table of key figures gains with a change: what the tile says, for a reader of the table. */
+const changeColumns: ChartColumn[] = [
+  {label: 'Previous period', label_kind: 'label', type: 'decimal'},
+  {label: 'Change', label_kind: 'label', type: 'decimal'},
+  {label: 'Change in percent', label_kind: 'label', type: 'percent'},
+];
 const compareFields = [
   'platform',
   'account_id',
@@ -54,22 +83,25 @@ export function chartsWithChange(
     const series = spec.series.map(item => {
       const found = changeKeys.includes(item.key) ? group.values?.[item.key] : undefined;
       if (!found || found.baseline == null || found.delta == null) return item;
+      const change = changeOf(item, found);
+      if (!change) return item;
       changed = true;
-      return {
-        ...item,
-        change: {
-          baseline: String(found.baseline),
-          delta: String(found.delta),
-          delta_percent: found.delta_percent ?? null,
-        },
-      };
+      return {...item, change};
     });
-    return changed
-      ? {
-          ...spec,
-          series,
-          notes: [...spec.notes, chartNote('The change compares the campaigns and ads that appear in both periods.')],
-        }
-      : spec;
+    if (!changed) return spec;
+    return {
+      ...spec,
+      series,
+      notes: [...spec.notes, chartNote('The change compares the campaigns and ads that appear in both periods.')],
+      // The rows of the table are the series, in order: each gains its previous value, its change and its percentage.
+      table: spec.table && {
+        ...spec.table,
+        columns: [...spec.table.columns, ...changeColumns],
+        rows: spec.table.rows.map((cells, index) => {
+          const change = series[index]?.change;
+          return [...cells, change?.baseline ?? null, change?.delta ?? null, change?.delta_percent ?? null];
+        }),
+      },
+    };
   });
 }

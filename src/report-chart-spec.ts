@@ -92,6 +92,9 @@ export const reportChartMessages = [
   'Hollow marks are periods calculated from some of their rows only: {count}.',
   'No data',
   'Since the previous period',
+  'Previous period',
+  'Change',
+  'Change in percent',
   'The change compares the campaigns and ads that appear in both periods.',
   'Rows with no single result definition are left out of this chart: {count}.',
   'Only the first {count} groups are charted. The report table has the rest.',
@@ -160,6 +163,13 @@ export interface ChartChange {
   baseline: string;
   delta: string;
   delta_percent: string | null;
+  /**
+   * The change as a reader reads it, made once here like `value_labels`: the sign of the exact change ("+50.00", "-12", and no
+   * sign when there is none), the value in the series' own unit, and a percentage rounded half up to two places with its zeros
+   * dropped, as the comparison table shows it. `percent_label` is null when the earlier value is zero.
+   */
+  delta_label: string;
+  percent_label: string | null;
 }
 export interface ChartColumn {
   label: string;

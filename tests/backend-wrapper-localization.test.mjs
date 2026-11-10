@@ -356,9 +356,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package engine-surfaces removes the Arabic entry of the earlier TikTok capture note, which said 1–31 closed days and had no reader: 11,819.
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
-  // Package charts adds the Arabic of the sentences and labels a chart carries that the catalogue lacked (V2-EXP-01): 45
-  // messages (the two owned reasons above among them; the include-flags reason is the earlier one, renamed), 12,049.
-  assert.equal(Object.keys(catalog).length, 12049);
+  // Package charts adds the Arabic of the sentences and labels a chart carries that the catalogue lacked (V2-EXP-01): 47
+  // messages (the two owned reasons above among them; the include-flags reason is the earlier one, renamed; "Change" was
+  // already there), 12,051.
+  assert.equal(Object.keys(catalog).length, 12051);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
