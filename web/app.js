@@ -531,12 +531,14 @@ const pageErrorCauses = {
   FORBIDDEN_ORIGIN: 'Open AMCP from its own address and try again.',
 };
 function showPageError(e) {
-  const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED';
-  content.innerHTML =
-    `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(e?.updated ? uiText('AMCP was updated') : uiText('This page could not open'))}</h1>` +
+  const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED',
+    // V2-WEB-03: the way back is the registry's: the page's parent, Home for a hub, none for Home and the public pages.
+    back = routeBack(location.pathname);
+  setHtml(
+    content,
     // WEB-03: one paragraph per part, so the cause, what to do and the reference never run together.
-    errorBlock({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'}) +
-    `<div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
+    html`<section class="panel page-error" role="alert"><h1 tabindex="-1">${e?.updated ? uiText('AMCP was updated') : uiText('This page could not open')}</h1>${raw(errorBlock({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'}))}<div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${uiText(reload ? 'Reload page' : 'Try again')}</button>${back ? html`<a class="button" href="${back.path}">${uiText('Back to {page}', {page: uiText(back.label)})}</a>` : ''}</div></section>`,
+  );
   content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? reloadPage() : render()));
   content.querySelector('h1').focus();
 }
@@ -884,7 +886,11 @@ function renderPlatformCards() {
     $('#platform-grid'),
     visible.length
       ? html`${visible.map(card)}`
-      : html`<div class="empty">${uiText('No platforms match your search.')}</div>`,
+      : // V2-WEB-03: the one next action is to widen the list: clear the search, or show every platform.
+        emptyBlock({
+          title: search ? uiText('No platforms match your search.') : uiText('Connect a platform to start.'),
+          action: {label: search ? uiText('Clear search') : uiText('All platforms'), command: 'clear-platform-search'},
+        }),
   );
 }
 function renderConnectionSyncStatus(c) {
@@ -1330,7 +1336,10 @@ async function renderActivity() {
   const heading = raw(header(uiText('Audit activity'), uiText(routeSubtitle('/activity'))));
   setHtml(content, heading);
   if (!session.authenticated) {
-    setHtml(content, html`${heading}<div class="empty">${uiText('Sign in to view workspace activity.')}</div>`);
+    setHtml(
+      content,
+      html`${heading}${emptyBlock({title: uiText('Sign in to view workspace activity.'), action: {label: uiText('Sign in →'), command: 'login'}})}`,
+    );
     return;
   }
   const generation = navigationGeneration,
@@ -2090,6 +2099,15 @@ document.addEventListener('click', async event => {
       disableControl();
       await refresh();
       toast(uiText('Workspace refreshed. Use Sync to refresh provider assets.'));
+      return;
+    }
+    if (el.dataset.action === 'clear-platform-search') {
+      // The empty list's one action: clear the search, or, with no search to clear, show every platform.
+      const searched = search !== '';
+      if (searched) search = '';
+      else filter = 'all';
+      renderConnections();
+      $(searched ? '#platform-search' : '[data-filter="all"]')?.focus();
       return;
     }
     if (el.dataset.filter) {

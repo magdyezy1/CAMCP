@@ -353,7 +353,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalogue measures 12,004, as it did before this package.
   // V2-WEB-03 (web-shell): +15 entries, the page subtitles the route registry now carries (the group names Home, Reports, Creatives, Campaigns, Connections, Operations and Settings were already translated).
   // V2-WEB-03 (web-shell): +3 entries, the sidebar's footer navigation name and the rail switch's two states.
-  assert.equal(Object.keys(catalog).length, 12022);
+  // V2-WEB-03 (web-shell): +1 entry, 'Back to {page}', the link a failed page offers to its registry parent.
+  // V2-WEB-03 (web-shell): +2 entries, the titles of Home's two empty panels (no saved campaign plans, no accounts to check).
+  assert.equal(Object.keys(catalog).length, 12025);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

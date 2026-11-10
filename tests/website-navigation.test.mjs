@@ -568,6 +568,118 @@ test('an asset download retry stays on the page; uncertain initialization instea
   assert.equal(attempts, 2);
 });
 
+// V2-WEB-03 decision 5: a page that fails to open led back to Connections whatever the page was. It now follows the route
+// registry: the page's parent, Home for a hub, and no link for Home and the public pages, which have nowhere to go back to.
+test('a page that fails to open links back to its registry parent, in both languages, never always to Connections', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+    escape = value => value.replace(/&/g, '&amp;'),
+    entries = JSON.parse(
+      new Script('JSON.stringify(routeRegistry.map(entry => entry.path))').runInContext(browserFixture().context),
+    );
+  assert.ok(entries.length > 25);
+  let linked = 0;
+  const parents = new Set();
+  for (const locale of ['en', 'ar']) {
+    const f = browserFixture();
+    f.context.catalog = catalog;
+    if (locale === 'ar') f.run('uiLocale = "ar"; uiMessages = new Map(Object.entries(catalog))');
+    for (const path of entries) {
+      f.updateLocation(path);
+      f.run("showPageError(Object.assign(Error('Synthetic failure.'), {code: 'INTERNAL_ERROR'}))");
+      const html = f.node('#content').innerHTML,
+        back = JSON.parse(f.run('JSON.stringify(routeBack(' + JSON.stringify(path) + ') ?? null)'));
+      if (!back) {
+        assert.doesNotMatch(html, /class="button" href=/, locale + ' ' + path + ': nowhere to go back to');
+        continue;
+      }
+      const text =
+        locale === 'ar' ? catalog['Back to {page}'].replace('{page}', catalog[back.label]) : 'Back to ' + back.label;
+      assert.ok(
+        html.includes('<a class="button" href="' + back.path + '">' + escape(text) + '</a>'),
+        locale + ' ' + path + ' leads back to ' + back.path,
+      );
+      linked++;
+      parents.add(back.path);
+      // The retry button stays next to it, and the error keeps its heading and its alert role.
+      assert.ok(html.includes('data-retry-page'), path);
+      assert.match(html, /^<section class="panel page-error" role="alert"><h1 tabindex="-1">/);
+    }
+  }
+  assert.ok(linked > 40, 'most pages lead back to a parent (' + linked + ')');
+  // Not one destination for every page: the seven hubs, and Home for the pages that are hubs themselves.
+  assert.ok(parents.size >= 6, [...parents].join(', '));
+  const f = browserFixture();
+  f.updateLocation('/report-pack');
+  f.run("showPageError(Error('Synthetic failure.'))");
+  assert.match(f.node('#content').innerHTML, /href="\/report-library">Back to Reporting</);
+  f.updateLocation('/dashboard');
+  f.run("showPageError(Error('Synthetic failure.'))");
+  assert.doesNotMatch(f.node('#content').innerHTML, /Back to/, 'Home has no parent');
+  assert.ok(
+    !readFileSync('web/app.js', 'utf8').includes('Back to Connections'),
+    'the shell names no fixed destination',
+  );
+});
+
+// V2-WEB-03 decision 5: an empty state names one next action. Signed out, Audit activity offered a sentence and nothing to
+// press; and a platform search with no match offered no way back to the list.
+test('signed-out activity and an empty platform search each offer their one next action', async () => {
+  const f = browserFixture();
+  f.run(readFileSync('web/components.js', 'utf8'));
+  f.run('session = {authenticated: false}');
+  await f.run('renderActivity()');
+  let html = f.node('#content').innerHTML;
+  assert.match(html, /Sign in to view workspace activity\./);
+  assert.match(html, /<button[^>]*data-action="login"[^>]*>(?:<span class="amcp-button-label">)?Sign in →/);
+  assert.equal((html.match(/data-action="login"/g) ?? []).length, 1, 'one action, and it is the sign-in');
+  // The search: nothing matches, so the state offers to clear it, and pressing it shows the list again.
+  f.run(
+    "platforms = [{id: 'google', name: 'Google', kind: 'Advertising', description: 'Ads', configured: true, connections: [], assetKinds: []}]; filter = 'all'; search = 'zzz'; session = {authenticated: true}",
+  );
+  f.updateLocation('/connections');
+  f.run('renderConnections()');
+  html = f.node('#platform-grid').innerHTML;
+  assert.match(html, /No platforms match your search\./);
+  assert.match(html, /data-action="clear-platform-search"[^>]*>(?:<span class="amcp-button-label">)?Clear search/);
+  assert.doesNotMatch(html, /platform-card/);
+  await f.documentListeners.get('click')[0]({
+    target: {
+      closest: () => ({
+        tagName: 'BUTTON',
+        dataset: {action: 'clear-platform-search'},
+        isConnected: true,
+        getAttribute: () => null,
+      }),
+    },
+    button: 0,
+    preventDefault() {},
+  });
+  assert.equal(f.run('search'), '', 'the search is cleared');
+  assert.match(f.node('#platform-grid').innerHTML, /platform-card/, 'the list is back');
+  assert.equal(f.context.document.activeElement, f.node('#platform-search'), 'focus returns to the search field');
+  // No search, but the list is filtered to connected platforms and none is: the one action shows every platform.
+  f.run("filter = 'connected'; search = ''");
+  f.run('renderPlatformCards()');
+  html = f.node('#platform-grid').innerHTML;
+  assert.match(html, /Connect a platform to start\./);
+  assert.match(html, /data-action="clear-platform-search"[^>]*>(?:<span class="amcp-button-label">)?All platforms/);
+  await f.documentListeners.get('click')[0]({
+    target: {
+      closest: () => ({
+        tagName: 'BUTTON',
+        dataset: {action: 'clear-platform-search'},
+        isConnected: true,
+        getAttribute: () => null,
+      }),
+    },
+    button: 0,
+    preventDefault() {},
+  });
+  assert.equal(f.run('filter'), 'all');
+  assert.match(f.node('#platform-grid').innerHTML, /platform-card/);
+  assert.equal(f.context.document.activeElement, f.node('[data-filter="all"]'), 'focus lands on the All platforms tab');
+});
+
 test('a failed login page retains an escaped server reference and recovery advice', async () => {
   const f = browserFixture();
   f.updateLocation('/login');

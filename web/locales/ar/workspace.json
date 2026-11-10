@@ -144,6 +144,7 @@
   "Authorization for one bounded export to a disposable AMCP-created spreadsheet (ACC-03)": "تفويض بتصدير واحد محدود إلى جدول بيانات مؤقت أنشأه AMCP (ACC-03)",
   "Authorize access · AMCP": "الموافقة على الوصول · AMCP",
   "Average search position": "متوسط ترتيب البحث",
+  "Back to Connections": "العودة إلى الاتصالات",
   "Back to workspace": "العودة إلى مساحة العمل",
   "Background verification requires encryption.": "يتطلب التحقّق في الخلفية تشفيرًا.",
   "Binary uploads must be reviewed mutations.": "يجب أن تكون عمليات الرفع الثنائي تغييرات خاضعة للمراجعة.",

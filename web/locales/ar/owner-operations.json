@@ -43,7 +43,6 @@
   "Choose an account to see its stored policy.": "اختر حسابًا لعرض سياسته المحفوظة.",
   "Completed tool attempts in the current 15-minute interval. Internal calls and ownership refreshes are included; provider HTTP requests are counted separately.": "محاولات الأدوات المكتملة خلال الفترة الحالية البالغة 15 دقيقة. تشمل الاستدعاءات الداخلية وتحديث أدلة الملكية؛ وتُحسب طلبات HTTP إلى المنصات بشكل منفصل.",
   "Connect a platform to see its access here.": "اربط منصة لعرض صلاحياتها هنا.",
-  "Connect a platform to start.": "اربط منصة للبدء.",
   "Connection health": "حالة الاتصالات",
   "Connection readiness, deliveries and the boundaries you set for your team.": "جاهزية الاتصالات وعمليات التسليم والحدود التي تحددها لفريقك.",
   "Count": "العدد",

@@ -12020,5 +12020,8 @@
   "How your platform connection finished, and what to do next.": "كيف انتهى ربط منصتك، وما عليك فعله بعد ذلك.",
   "Your account and help": "حسابك والمساعدة",
   "Collapse navigation": "طيّ القائمة",
-  "Expand navigation": "توسيع القائمة"
+  "Expand navigation": "توسيع القائمة",
+  "Back to {page}": "العودة إلى {page}",
+  "No saved campaign plans yet": "لا توجد خطط حملات محفوظة بعد",
+  "No accounts to check yet": "لا توجد حسابات لفحصها بعد"
 }

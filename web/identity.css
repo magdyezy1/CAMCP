@@ -1963,6 +1963,10 @@ body.public-view {
     top: 0;
     z-index: 10;
   }
+  /* The header is sticky here, so a toast sticks below it and never under it. */
+  .toast {
+    inset-block-start: 76px;
+  }
   .top-brand {
     display: flex;
   }

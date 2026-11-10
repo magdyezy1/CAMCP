@@ -98,7 +98,14 @@ function workHome(d, accounts, attention) {
     (accounts.length
       ? ''
       : `<section class="panel"><h2>${esc(uiText('Connect your first account'))}</h2><p>${esc(uiText('Choose a platform login and the accounts your workspace can use. Readiness checks will explain the next step.'))}</p><a href="/connections" class="button primary">${esc(uiText('Set up connections'))}</a></section>`) +
-    `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Needs attention'))}</h2><a href="/operations?state=attention">${esc(uiText('All operations'))}</a></div><div id="home-attention"${attention?.pending ? ' aria-busy="true"' : ''}>${homeAttention(attention)}</div></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Continue recent work'))}</h2><a href="/campaigns">${esc(uiText('All plans'))}</a></div><div class="work-links">${recent.map(card).join('') || `<p>${esc(uiText('Your saved campaign plans will appear here.'))}</p>`}</div></section><div class="quick-actions"><a href="/media"><span>${glyph('media')}</span><div><strong>${esc(uiText('Prepare creative'))}</strong><small>${esc(uiText('Sources, variants and upload receipts'))}</small></div></a><a href="/reporting-overview"><span>${glyph('report')}</span><div><strong>${esc(uiText('Build a report'))}</strong><small>${esc(uiText('Source evidence and client deliveries'))}</small></div></a><a href="/capabilities"><span>${glyph('connection')}</span><div><strong>${esc(uiText('Check capabilities'))}</strong><small>${esc(uiText('Account prerequisites and action contracts'))}</small></div></a></div>`
+    `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Needs attention'))}</h2><a href="/operations?state=attention">${esc(uiText('All operations'))}</a></div><div id="home-attention"${attention?.pending ? ' aria-busy="true"' : ''}>${homeAttention(attention)}</div></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Continue recent work'))}</h2><a href="/campaigns">${esc(uiText('All plans'))}</a></div><div class="work-links">${
+      recent.map(card).join('') ||
+      emptyBlock({
+        title: uiText('No saved campaign plans yet'),
+        body: uiText('Your saved campaign plans will appear here.'),
+        action: {label: uiText('New campaign plan'), href: '/campaigns#campaign-create', variant: 'secondary'},
+      })
+    }</div></section><div class="quick-actions"><a href="/media"><span>${glyph('media')}</span><div><strong>${esc(uiText('Prepare creative'))}</strong><small>${esc(uiText('Sources, variants and upload receipts'))}</small></div></a><a href="/reporting-overview"><span>${glyph('report')}</span><div><strong>${esc(uiText('Build a report'))}</strong><small>${esc(uiText('Source evidence and client deliveries'))}</small></div></a><a href="/capabilities"><span>${glyph('connection')}</span><div><strong>${esc(uiText('Check capabilities'))}</strong><small>${esc(uiText('Account prerequisites and action contracts'))}</small></div></a></div>`
   );
 }
 async function renderScheduleCenter() {

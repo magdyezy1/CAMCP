@@ -651,14 +651,23 @@ dialog {
   color: var(--ink);
   margin-bottom: 8px;
 }
+/* A state inside a panel (V2-WEB-03) is the panel's own content: no second frame inside the first. */
+.panel .amcp-state {
+  border: 0;
+  padding: 0;
+}
+/* A toast sits in the page's flow at the block start of the main region (V2-WEB-03, as the V2 toast does), so it pushes the
+   content down and never covers it; it stays in view under the header while the person has scrolled. */
 .toast {
-  position: fixed;
-  bottom: 24px;
-  inset-inline-end: 25px;
+  position: sticky;
+  inset-block-start: 12px;
+  inline-size: fit-content;
+  max-inline-size: min(450px, 100%);
+  margin-block-end: 16px;
+  margin-inline-start: auto;
   border: 1px solid;
   color: var(--text-on-inverse-strong);
   padding: 15px 22px;
-  max-width: min(450px, 90vw);
   font-size: var(--type-md);
   box-shadow: 0 12px 35px var(--shadow-strong);
   z-index: 20;
