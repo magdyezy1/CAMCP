@@ -238,10 +238,16 @@
       "raised": [
         "reference_words 156417 → 156739"
       ]
+    },
+    {
+      "reason": "the Meta action counts bullet of docs/REPORTING-OVERVIEW.md now says how every list of action stats is read under explicit windows (F-LEAD-02, the lead's ruling 3)",
+      "raised": [
+        "reference_words 156739 → 156845"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156739
+    "reference_words": 156845
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
