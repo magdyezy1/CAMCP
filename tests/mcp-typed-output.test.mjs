@@ -47,7 +47,9 @@ async function connected(t) {
       validate(content),
       name + ' ' + JSON.stringify(args).slice(0, 120) + ': ' + JSON.stringify(validate.errors),
     );
-    assert.equal(result.isError === true, content.success === false);
+    assert.equal(Boolean(result.isError), !content.success);
+    // A refusal names itself: every failed envelope carries a code, which the typed schema requires of it.
+    if (!content.success) assert.equal(typeof content.error.code, 'string');
     (content.success ? seen.success : seen.refused).add(name + ' ' + args.action);
     return content;
   };
@@ -116,13 +118,17 @@ test('every action of amcp_reporting_overview answers a conforming envelope, and
   // success, conforms.
   for (const action of overview.inputSchema.properties.action.enum) await call({action, confirmed: true});
   // And the refusals every action can give: an unknown snapshot, an unknown action and values the tables do not have.
-  for (const args of [
-    {action: 'get', id: 'no-such-snapshot'},
-    {action: 'no_such_action'},
-    {action: 'get', id: reportId, platform: 'google_ads'},
-    {action: 'list', limit: 1000},
-  ])
-    assert.equal((await call(args)).success, false, JSON.stringify(args));
+  for (const [args, code] of [
+    [{action: 'get', id: 'no-such-snapshot'}, 'NOT_FOUND'],
+    // An action the tool does not have is treated as one that changes something, so it asks for confirmation first.
+    [{action: 'no_such_action'}, 'CONFIRMATION_REQUIRED'],
+    [{action: 'get', id: reportId, platform: 'google_ads'}, 'INVALID_ARGUMENT'],
+    [{action: 'list', limit: 1000}, 'INVALID_PAGE'],
+  ]) {
+    const refusal = await call(args);
+    assert.equal(refusal.success, false, JSON.stringify(args));
+    assert.equal(refusal.error.code, code, JSON.stringify(args));
+  }
   const config = {
     name: 'Synthetic typed output',
     sources: [{platform: 'meta', account_id: '100', connection_id: 'login', levels: ['campaign']}],
@@ -226,6 +232,12 @@ test('every action of amcp_reporting answers a conforming envelope, and the acti
   }
   const listed = await f.call(reportingTool, {action: 'list'});
   assert.equal(listed.data.has_more, false);
-  for (const args of [{action: 'get', id: 'no-such-report'}, {action: 'no_such_action'}])
-    assert.equal((await f.call(reportingTool, args)).success, false, JSON.stringify(args));
+  for (const [args, code] of [
+    [{action: 'get', id: 'no-such-report'}, 'NOT_FOUND'],
+    [{action: 'no_such_action'}, 'INVALID_ARGUMENT'],
+  ]) {
+    const refusal = await f.call(reportingTool, args);
+    assert.equal(refusal.success, false, JSON.stringify(args));
+    assert.equal(refusal.error.code, code, JSON.stringify(args));
+  }
 });
