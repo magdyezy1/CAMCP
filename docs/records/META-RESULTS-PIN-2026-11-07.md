@@ -63,14 +63,26 @@ A v4 Meta row is read in this order (`src/meta-report-results.ts`):
    (`Custom conversion <digits>`, `Meta action <type>`, `Meta result <indicator>`), so two of them in one report never share a
    label. A multi-day detail row built from provider days stays `provider` (`periods_add`).
 
-F-LEAD-02: under explicit windows a v4 report counts the requested keys of every Meta action it reads (R14): the campaign
-metrics, conversion value, a detail level's exact action and the `native_meta_actions_*` metrics. A key that is absent
-counts 0 and an action with none of the requested keys is the omitted case. A v3 report reads `value`, as before.
+F-LEAD-02: under explicit windows a v4 report reads the requested windows' keys of every Meta list of action stats it reads
+(R14): the campaign metrics, conversion value, a detail level's exact action and every native metric that is such a list
+(`native_meta_<list>_<action>`; any field name can be a native metric of a campaign source). Meta types all of these lists as
+AdsActionStats: an entry has `value`, the ad set's own setting, and a number under each requested window's name. Only
+`actions` was read live (R14); `results` and `cost_per_result` have the shape of R2 and are read as R9 and R13 say. The other
+lists follow from the type and have not been read. AMCP reads them by what a number is (`src/meta-report-results.ts`, one
+place for the lists):
 
-A cost per action (`native_meta_cost_per_action_type_*`, a native metric a campaign source can ask for) is read the same way
-except that costs do not add: one requested window gives that window's own cost, several windows give none (the cost of two
-windows is the spend over their joint count, not the sum of their costs), and the cost of a result under any windows is the
-row's `cost_per_result`.
+- Counts add the requested windows' keys, exactly: `actions`, `action_values`, `conversions`, `conversion_values`,
+  `catalog_segment_actions`, `catalog_segment_value`, `converted_product_quantity`, `converted_product_value`. A key that
+  is absent counts 0 and an entry with none of the requested keys is the omitted case.
+- Costs, ratios and people do not add, so one requested window gives that window's own number and several windows give none:
+  `cost_per_action_type`, `cost_per_conversion`, `cost_per_unique_action_type`, `unique_actions` (a person can be counted
+  in two windows), `purchase_roas`, `website_purchase_roas`, `mobile_app_purchase_roas`. The cost of two windows is the spend
+  over their joint count, not the sum of their costs, and a ratio is not a sum either. The cost of a result under any windows
+  is the row's `cost_per_result`.
+- Any other list is split when its entries carry one of AMCP's window names (one window gives its key, several give none) and
+  not split when they carry none, as the video metrics came back (R12): `value` stands.
+
+A v3 report reads `value`, as before, and so does a v4 report under the ad set's own setting.
 
 The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `REACH` and `BRAND_AWARENESS` to awareness,
 `MESSAGES`, `EVENT_RESPONSES`, `PAGE_LIKES` and `POST_ENGAGEMENT` to engagement); a v3 report resolves them as before.
@@ -83,8 +95,11 @@ The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `R
 - Only the `default` cost was checked against spend over the `default` value (R13); a single window's own cost is used as
   Meta sends it.
 - A JSON number in place of a decimal string was not seen; AMCP reads it as the decimal it spells.
-- `cost_per_action_type` under explicit windows was not read: the window keys are taken to have an action's shape, which the
-  per-window `cost_per_result` of R13 suggests. Other attribution-dependent lists a person can ask for as native metrics
-  (`conversions`, `conversion_values`, `cost_per_conversion`, `purchase_roas`, `website_purchase_roas`) were not read either and
-  keep `value`.
+- Every list of action stats other than `actions` was not read: `action_values`, `conversions`, `conversion_values`,
+  `cost_per_action_type`, `cost_per_conversion`, `cost_per_unique_action_type`, `unique_actions`, `purchase_roas`,
+  `website_purchase_roas`, `mobile_app_purchase_roas` and the catalog and product lists are taken to have an action's keys,
+  because Meta types them all as AdsActionStats, which the per-window `cost_per_result` of R13 suggests. That each of them is
+  split by window, and that a ratio or a cost of two windows has no value of its own, are assumptions.
+- The key under which Meta returns the engaged-view window AMCP asks for as `1d_ev` was not seen: the notes of the live read
+  name `7d_click`, `1d_view` and `1d_click` and none names `1d_ev`. AMCP reads the key named as the request names it.
 - The V2 code has not been read against a live account: that check waits for staging (D20).

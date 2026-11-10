@@ -5,6 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeNativeRow, normalizeNativeRowV4} from '../dist/src/report-native.js';
+import {metaAttributionWindows} from '../dist/src/meta-attribution-windows.js';
+import {metaReportSource} from '../dist/src/meta-report-source.js';
 import {granularConfig, granularSource, overviewGranularityFixture} from './fixtures/overview-granularity-data.mjs';
 
 const raw = (more = {}) => ({
@@ -137,6 +139,122 @@ test('a cost per action under explicit windows is the requested window’s own c
   assert.equal(nativeCost(costRow(), null), '2');
   assert.equal(normalizeNativeRowV4('meta', costRow()).metrics.native_meta_cost_per_action_type_lead, '2');
   assert.equal(normalizeNativeRow('meta', costRow()).metrics.native_meta_cost_per_action_type_lead, 2);
+});
+
+// Every other list of action stats. Any field name can be a native metric of a campaign source, and each `{action_type, ...}` entry
+// of every list in the row is read under what the report asked for. Meta types all of them as AdsActionStats: `value` is the ad
+// set's own setting and each requested window's own number is under the window's name. What adds across windows is a count;
+// what does not is a cost, a ratio, or a number of people (one person can be counted in two windows).
+const stats = more => ({action_type: 'purchase', value: '9', '7d_click': '4', '1d_view': '1', ...more});
+const listRow = (list, more) => raw({[list]: [stats(more)]});
+const nativeOf = (list, row, windows) => v4(row, windows).metrics['native_meta_' + list + '_purchase'];
+
+// The lists the code names, besides `actions` and `action_values` (tested above): a list added to either set needs its test here.
+const countLists = [
+    'conversions',
+    'conversion_values',
+    'catalog_segment_actions',
+    'catalog_segment_value',
+    'converted_product_quantity',
+    'converted_product_value',
+  ],
+  perWindowLists = [
+    'cost_per_action_type',
+    'cost_per_conversion',
+    'cost_per_unique_action_type',
+    'unique_actions',
+    'purchase_roas',
+    'website_purchase_roas',
+    'mobile_app_purchase_roas',
+  ];
+
+test('the lists of action stats the code names are the ones tested here, and are not in both sets', async () => {
+  const {metaCountLists, metaPerWindowLists} = await import('../dist/src/meta-report-results.js');
+  assert.deepEqual([...metaCountLists].sort(), ['actions', 'action_values', ...countLists].sort());
+  assert.deepEqual([...metaPerWindowLists].sort(), [...perWindowLists].sort());
+  assert.deepEqual(
+    [...metaCountLists].filter(list => metaPerWindowLists.has(list)),
+    [],
+  );
+});
+
+for (const list of countLists)
+  test(list + ' adds the requested windows’ keys, like actions', () => {
+    const row = listRow(list, {'28d_click': '90'});
+    assert.equal(nativeOf(list, row, ['7d_click', '1d_view']), '5');
+    assert.equal(nativeOf(list, row, ['7d_click']), '4');
+    assert.equal(nativeOf(list, row, ['1d_click']), undefined, 'no key for the window: no count');
+    // A named list is attributed whether or not its entry shows a key: with none, the ad set's own value is not the answer.
+    assert.equal(nativeOf(list, raw({[list]: [{action_type: 'purchase', value: '9'}]}), ['7d_click']), undefined);
+    // The ad set's own setting, and v3, read value, exactly as before.
+    assert.equal(nativeOf(list, row, null), '9');
+    assert.equal(normalizeNativeRow('meta', row).metrics['native_meta_' + list + '_purchase'], 9);
+  });
+
+for (const list of perWindowLists)
+  test(list + ' is the requested window’s own value for one window, and has none for several', () => {
+    const row = listRow(list);
+    assert.equal(nativeOf(list, row, ['7d_click']), '4');
+    assert.equal(nativeOf(list, row, ['1d_view']), '1');
+    // The pair is not the sum of its windows (a cost, a ratio, or people counted in both), and Meta sends none for it.
+    assert.equal(nativeOf(list, row, ['7d_click', '1d_view']), undefined);
+    assert.equal(nativeOf(list, row, ['1d_click']), undefined, 'no key for the window: none');
+    // A named list is attributed whether or not its entry shows a key: with none, the ad set's own value is not the answer.
+    assert.equal(nativeOf(list, raw({[list]: [{action_type: 'purchase', value: '9'}]}), ['7d_click']), undefined);
+    assert.equal(nativeOf(list, row, null), '9');
+    assert.equal(normalizeNativeRow('meta', row).metrics['native_meta_' + list + '_purchase'], 9);
+  });
+
+test('a list with no window key is not split by window: it keeps its value under explicit windows', () => {
+  // The live read saw the video metric come back with `default` only (R12): there is nothing per window to read.
+  const row = raw({
+    video_p25_watched_actions: [{action_type: 'video_view', value: '7'}],
+    outbound_clicks: [{action_type: 'outbound_click', value: '5'}],
+  });
+  for (const windows of [['7d_click'], ['7d_click', '1d_view'], ['1d_view']]) {
+    const read = v4(row, windows).metrics;
+    assert.equal(read.native_meta_video_p25_watched_actions_video_view, '7', windows.join(' + '));
+    assert.equal(read.native_meta_outbound_clicks_outbound_click, '5', windows.join(' + '));
+  }
+});
+
+test('a list nobody named that carries window keys is split: one window gives its key, several give none', () => {
+  const row = listRow('stats_added_later');
+  assert.equal(nativeOf('stats_added_later', row, ['7d_click']), '4');
+  assert.equal(nativeOf('stats_added_later', row, ['1d_view']), '1');
+  assert.equal(nativeOf('stats_added_later', row, ['7d_click', '1d_view']), undefined, 'never summed');
+  assert.equal(nativeOf('stats_added_later', row, ['1d_click']), undefined, 'a split list with no key for the window');
+  assert.equal(nativeOf('stats_added_later', row, null), '9');
+  assert.equal(normalizeNativeRow('meta', row).metrics.native_meta_stats_added_later_purchase, 9);
+});
+
+test('a window key is any of the windows AMCP asks Meta for', () => {
+  for (const window of metaAttributionWindows) {
+    const row = raw({stats_added_later: [{action_type: 'purchase', value: '9', [window]: '3'}]});
+    assert.equal(v4(row, [window]).metrics.native_meta_stats_added_later_purchase, '3', window);
+  }
+});
+
+test('a guided read counts every list under the windows its request asked for, and v3 and unified requests read value', () => {
+  const asked = windows => ({request: {query: {action_attribution_windows: windows}}}),
+    item = stats();
+  for (const [field, windows, expected] of [
+    ['actions', ['7d_click', '1d_view'], '5'],
+    ['conversions', ['7d_click', '1d_view'], '5'],
+    ['cost_per_conversion', ['7d_click'], '4'],
+    ['cost_per_conversion', ['7d_click', '1d_view'], undefined],
+    ['purchase_roas', ['7d_click', '1d_view'], undefined],
+    ['unique_actions', ['7d_click', '1d_view'], undefined],
+    ['stats_added_later', ['7d_click', '1d_view'], undefined],
+    ['stats_added_later', ['1d_view'], '1'],
+  ])
+    assert.equal(
+      metaReportSource.actionCount(item, field, asked(windows)),
+      expected,
+      field + ' ' + windows.join(' + '),
+    );
+  assert.equal(metaReportSource.actionCount(item, 'conversions', {request: {query: {}}}), '9', 'no windows asked');
+  assert.equal(metaReportSource.actionCount(item, 'conversions', {}), '9', 'nothing asked');
 });
 
 // The same through the queue, the worker and the collectors, as a person's report runs.
@@ -276,6 +394,47 @@ test('a v4 campaign report with a cost per action as a native metric never shows
         assert.equal(row.metrics.native_meta_cost_per_action_type_lead ?? null, expected.native, name);
         assert.equal(String(row.metrics.cpa), expected.cpa, name);
       }
+    } finally {
+      f.close();
+    }
+  }
+});
+
+test('a v4 campaign report asking for other lists of action stats as native metrics reads each under its windows', async () => {
+  const lists = ['conversions', 'cost_per_conversion', 'purchase_roas', 'unique_actions', 'video_p25_watched_actions'],
+    names = lists.map(list => 'native_meta_' + list + '_purchase');
+  for (const [name, windows, expected] of [
+    // A count adds the two windows (4 + 1); a cost, a ratio and a number of people do not; the video list is not split.
+    ['two windows', ['7d_click', '1d_view'], ['5', null, null, null, '7']],
+    ['one window', ['7d_click'], ['4', '4', '4', '4', '7']],
+    ['the ad set’s own setting', null, ['9', '9', '9', '9', '7']],
+  ]) {
+    const f = overviewGranularityFixture();
+    try {
+      f.mutate((rows, platform) =>
+        platform === 'meta'
+          ? rows.map(row => ({
+              ...row,
+              objective: 'OUTCOME_SALES',
+              ...Object.fromEntries(
+                lists.map(list => [
+                  list,
+                  [list === 'video_p25_watched_actions' ? {action_type: 'purchase', value: '7'} : stats()],
+                ]),
+              ),
+            }))
+          : rows,
+      );
+      const source = {...campaignSource({attribution_windows: windows}), native_metrics: lists},
+        report = await run(f, {...v4Config(source, 'daily'), metrics: ['spend', 'conversions', ...names]});
+      assert.equal(report.state, 'complete', name + JSON.stringify(report.sources?.[0]?.error));
+      assert.equal(report.rows.length, 2, name);
+      for (const row of report.rows)
+        assert.deepEqual(
+          names.map(key => row.metrics[key] ?? null),
+          expected,
+          name,
+        );
     } finally {
       f.close();
     }

@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {metaWindowsOrdered, metaWindowsValid} from './meta-attribution-windows.js';
+import {metaAttributionWindows, metaWindowsOrdered, metaWindowsValid} from './meta-attribution-windows.js';
 import {parseProviderDecimal, sumProviderDecimals} from './provider-decimal.js';
 import {
   mappedReportResult,
@@ -211,15 +211,56 @@ export function metaWindowCount(entry: JsonObject, windows: readonly string[], f
 }
 
 /**
- * The cost per action of one `cost_per_action_type` entry for the requested windows. Its entry has an action’s shape: `value`
- * is the ad set’s own cost, and each requested window’s own cost is under the key named for it. A cost does not add across
- * windows (the cost of two windows is the spend over their joint count, not the sum of their costs) and Meta sends none for a
- * pair, so one window has its key and several windows have no cost here. Undefined: no cost for these windows; the cost of
- * a result under any windows is `cost_per_result`, spend over the counted windows.
+ * The number of one entry of an attributed list that does not add across windows, for the requested windows: the key of the one
+ * window, and none for several. A cost is not the sum of its windows’ costs (the cost of a pair is the spend over their joint
+ * count), a ratio is not the sum of its windows’ ratios, and a person counted in two windows is one person; Meta sends no number
+ * for a pair, so none is made up. Undefined: no number for these windows (the cost of a result under any windows is
+ * `cost_per_result`, spend over the counted windows).
  */
-export function metaWindowCost(entry: JsonObject, windows: readonly string[]): unknown {
+export function metaWindowOwnValue(entry: JsonObject, windows: readonly string[]): unknown {
   const window = windows.length === 1 ? windows[0]! : undefined;
   return window !== undefined && Object.hasOwn(entry, window) && entry[window] != null ? entry[window] : undefined;
+}
+
+// The lists of action stats a Meta insights row can carry, by what an entry is under explicit windows, in these two sets. Meta
+// types every one of them as AdsActionStats: `{action_type, value}`, where `value` is the ad set’s own setting and each window
+// asked for has its number under its name (a window with no number has no key). What the owner’s live read saw (the record):
+// `actions` (R14), and `results` and `cost_per_result`, which have a shape of their own and are read above. Every other list
+// here, `action_values` included, follows from the type and has not been read.
+/** Counts, which add across the requested windows exactly. */
+export const metaCountLists: ReadonlySet<string> = new Set([
+  'actions',
+  'action_values',
+  'conversions',
+  'conversion_values',
+  'catalog_segment_actions',
+  'catalog_segment_value',
+  'converted_product_quantity',
+  'converted_product_value',
+]);
+/** Attributed numbers that do not add across windows: a cost, a ratio, or people (a person can be counted in two windows). */
+export const metaPerWindowLists: ReadonlySet<string> = new Set([
+  'cost_per_action_type',
+  'cost_per_conversion',
+  'cost_per_unique_action_type',
+  'unique_actions',
+  'purchase_roas',
+  'website_purchase_roas',
+  'mobile_app_purchase_roas',
+]);
+
+/**
+ * The number of one `{action_type, value, ...}` entry of the list `field` for the requested windows of a v4 report under explicit
+ * windows (under the ad set’s own setting `value` is what the report asked for). A count adds the requested windows’ keys; an
+ * attributed number that does not add is one window’s own key, and none for several windows. Any other list is read like the
+ * second when its entry carries one of Meta’s window names, and is not split by window when it carries none, so `value` stands
+ * (the live read saw the video metrics come back unsplit, R12). Undefined: no number for these windows.
+ */
+export function metaListCount(entry: JsonObject, field: string, windows: readonly string[]): unknown {
+  if (metaCountLists.has(field)) return metaWindowCount(entry, windows, 'native_metric');
+  return metaPerWindowLists.has(field) || metaAttributionWindows.some(window => Object.hasOwn(entry, window))
+    ? metaWindowOwnValue(entry, windows)
+    : entry.value;
 }
 
 /** A decimal as the text the result reader keeps, or null when it is not a nonnegative decimal. Never throws. */
