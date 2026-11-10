@@ -1,3 +1,17 @@
+// The shell is a two-column grid (the sidebar and the page), and the public pages hide the sidebar: left a grid, the page
+// would sit in the sidebar's 256px column (the sign-in page did, until the browser runner's brand check measured its logo
+// 10px from the edge). The public view is not a grid at all, whatever state the sidebar was in.
+test('the public pages take the whole window: with the sidebar hidden the shell is not a grid', () => {
+  assert.equal(value('.app-shell', 'display'), 'grid');
+  assert.equal(value('.public-view .sidebar', 'display'), 'none');
+  assert.equal(value('.public-view .app-shell', 'display'), 'block');
+  // A class and a class outrank a class: nothing in the grid's own rules (the rail's, the drawer's) can win back the display.
+  for (const selector of [".app-shell[data-sidebar='rail']"])
+    assert.equal(value(selector, 'display'), undefined, selector + ' leaves the display to the shell');
+  // identity.css comes after app.css in index.html, so the later sheet's rule is the one that applies.
+  assert.ok(index.indexOf('/assets/app.css') < index.indexOf('/assets/identity.css'));
+});
+
 // V2-WEB-03 decision 2: the sidebar and the rail. A neutral frame (no coloured sidebar), persistent on wide screens,
 // collapsing to a rail with one distinct icon per link, its state remembered; the navigation scrolls inside its own
 // column and the footer stays reachable at any height (design review: nothing is clipped at 800px in either language);

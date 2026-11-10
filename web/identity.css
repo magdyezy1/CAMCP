@@ -737,6 +737,10 @@ body.public-view {
 .public-view .page-footer {
   display: none;
 }
+/* The sidebar is hidden here, so the shell is not a grid: its one child, the page, takes the whole window. */
+.public-view .app-shell {
+  display: block;
+}
 .public-view .main-shell {
   margin: 0;
   width: 100%;

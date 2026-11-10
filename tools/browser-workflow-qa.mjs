@@ -3583,9 +3583,48 @@ async function shellForcedBody({page, result, route, locale, width, appearance, 
   });
 }
 
+// The public pages hide the sidebar and take the whole window: with the shell a two-column grid the sign-in page once sat in
+// the sidebar's column, 256px wide, with its logo 10px from the edge. Signed out, at the widths where the sidebar would show.
+async function shellPublicBody({page, result, route, locale, width}, site) {
+  await shellOpen(page, site, route, locale);
+  const layout = await page.evaluate(() => {
+    const box = element => element.getBoundingClientRect().toJSON();
+    return {
+      viewport: document.documentElement.clientWidth,
+      main: box(document.querySelector('.main-shell')),
+      sidebarShown: getComputedStyle(document.querySelector('#workspace-sidebar')).display !== 'none',
+      shellDisplay: getComputedStyle(document.querySelector('.app-shell')).display,
+      brand: box([...document.querySelectorAll('.brand')].find(brand => brand.getClientRects().length)),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  result.public_layout = layout;
+  assert.equal(layout.sidebarShown, false, 'a public page has no sidebar');
+  assert.equal(layout.shellDisplay, 'block', 'and the shell is not a grid');
+  assert.ok(
+    Math.abs(layout.main.width - layout.viewport) <= 1,
+    'the page takes the whole window: ' + layout.main.width + ' of ' + layout.viewport,
+  );
+  assert.ok(layout.main.left <= 1 && layout.main.left >= -1, 'from the first pixel: ' + layout.main.left);
+  // The logo is at the start edge, with its own margin there (the left in English, the right in Arabic).
+  const start = locale === 'ar' ? layout.viewport - layout.brand.right : layout.brand.left;
+  assert.ok(start >= 20 && start < width / 4, 'the logo keeps its own margin at the start edge: ' + start);
+  assert.equal(layout.overflow, 0, 'the page does not scroll sideways');
+  await page.screenshot({
+    path: path.join(shellScreens(), `shell-public-${route.slice(1) || 'home'}-${locale}-${width}.png`),
+  });
+}
+
 async function runShellKind(site) {
   const locales = ['en', 'ar'],
     appearances = ['light', 'dark'];
+  if (shellCaseSelected('public'))
+    for (const route of ['/login', '/'])
+      for (const locale of locales)
+        for (const width of [768, 1024, 1280])
+          await shellCase(site, {name: 'public', route, locale, width, signedIn: false}, args =>
+            shellPublicBody(args, site),
+          );
   if (shellCaseSelected('frame'))
     for (const appearance of appearances)
       for (const locale of locales)
