@@ -96,22 +96,23 @@ test('LinkedIn preserves one-click leads separately from qualified leads and use
   );
 });
 
-// Package results (F-L5-12): this pins the TEMPORARY mapped path, not the requirement. The acceptance line ("a Meta row's
-// result equals insights `results`") stays open until the owner's live read pins that column's shape; until then a Meta
-// result is mapped from documented fields (actions, link clicks, impressions, reach), the request still asks for `results`
-// so the snapshot records it, and a present but unverified `results` never changes the mapped number. The rows say so
-// (tests/report-result-source-label.test.mjs). When the live pin lands, the `results` figure of the fixtures replaces the
-// `unverified` placeholder below and the assertions flip to the native value.
-test('Meta maps its result from documented fields while insights results stay unparsed (temporary path; the owner’s live pin is open)', () => {
+// Package results (F-L5-12) pinned the mapped path while the shape of insights `results` was unverified; package
+// meta-results (the owner's live read of 2026-11-07) pins that shape, so this is now the labelled fallback for a row with
+// no `results`, or an exact action set by the person. The `unverified` placeholder that used to ride along on `raw` is
+// not the recorded shape: it is unknown, and tests/meta-results-reader.test.mjs holds the rules for a row that has `results`.
+test('Meta maps its result from documented fields when a row has no results, or the person set one exact action (the labelled fallback)', () => {
   const raw = {
     optimization_goal: 'LINK_CLICKS',
     inline_link_clicks: '3',
     impressions: '10',
     spend: '6',
-    results: [{unverified: '999'}],
   };
   assert.equal(result('meta', raw).result.value, '3');
   assert.equal(result('meta', raw).source, 'mapped');
+  assert.equal(result('meta', {...raw, results: []}).result.value, '3', 'an empty list is no results');
+  const placeholder = result('meta', {...raw, results: [{unverified: '999'}]});
+  assert.equal(placeholder.unavailable_reason, 'unverified_native_shape', 'a results that is not the recorded shape');
+  assert.equal(placeholder.result.value, null, 'is unknown, never the mapped number');
   assert.equal(result('meta', {results: [{value: '999'}]}).unavailable_reason, 'unverified_native_shape');
   const options = {report_options: {result_action_type: 'offsite_conversion.fb_pixel_purchase'}};
   const selected = result(

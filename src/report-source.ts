@@ -28,6 +28,19 @@ export interface ReportRowReader {
    * the row names them in `omitted_as_zero`.
    */
   readonly omitted: Set<string>;
+  /**
+   * The source’s report options, for a row read for a v4 report; absent for a v3 row, whose numbers are read exactly as
+   * they always were. A source whose request depends on its options reads the row under them (Meta’s attribution windows).
+   */
+  readonly options?: JsonObject;
+}
+
+/** What a report asked the provider for, when a source reads a native count under it (ReportSource.actionCount). */
+export interface ReportAttributionAsked {
+  /** The source’s report options (campaign rows). */
+  options?: JsonObject;
+  /** The guided read’s native request arguments (detail rows). */
+  request?: JsonObject;
 }
 
 /** What a source reads from one native row: its identity and the shared metrics. */
@@ -458,6 +471,13 @@ export interface ReportSource {
   collect(collection: ReportCollection): Promise<void>;
   /** Reads one native campaign report row. */
   normalize(raw: JsonObject, row: ReportRowReader): ReportSourceRow;
+  /**
+   * The count of one `{action_type, value}` entry of a native row’s list `field` for a v4 report, under what the report
+   * asked the provider for: the entry’s `value`, or the provider’s count for the attribution it was asked for (Meta
+   * returns the ad set’s own setting as `value` and each requested window’s count under the window’s name). Undefined: the
+   * entry has no count under that attribution, because the provider left a zero out. Absent: the entry’s `value`.
+   */
+  actionCount?(entry: JsonObject, field: string, asked: ReportAttributionAsked): unknown;
   // Wave 4c round 6 (w4c-arc6-reporting).
   /**
    * RPT-07: the native parent reads of the source's detailed Overview rows whose report response carries no parents

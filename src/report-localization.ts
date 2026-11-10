@@ -155,7 +155,43 @@ const resultLabels: Record<string, string> = {
   'LinkedIn leads (one-click)': 'العملاء المحتملون على LinkedIn (بنقرة واحدة)',
   'LinkedIn website conversions': 'تحويلات الموقع على LinkedIn',
   'LinkedIn talent leads': 'العملاء المحتملون للتوظيف على LinkedIn',
+  // Meta’s results (src/meta-report-results.ts): the labels of the indicator table and of the mapped table, with the
+  // website’s own Arabic (web/locales/ar.json), which tests/meta-results-reports.test.mjs holds equal.
+  'Link clicks': 'النقرات على الرابط',
+  'Post engagements': 'تفاعلات المنشور',
+  'Messaging conversations started': 'محادثات المراسلة التي بدأت',
+  'Landing page views': 'مشاهدات الصفحة المقصودة',
+  'Landing page views (all channels)': 'مشاهدات الصفحة المقصودة (جميع القنوات)',
+  'Website purchases': 'مشتريات الموقع',
+  'Website adds to cart': 'إضافات الموقع إلى السلة',
+  'Calls placed': 'المكالمات التي أُجريت',
+  'Event responses': 'الردود على الفعاليات',
+  'Page likes': 'إعجابات الصفحة',
+  Leads: 'العملاء المحتملون',
+  'App installs': 'عمليات تثبيت التطبيق',
+  '2-second continuous video plays': 'تشغيلات الفيديو المتواصلة لمدة ثانيتين',
+  'Profile visits': 'زيارات الملف الشخصي',
+  'Total profile visits': 'إجمالي زيارات الملف الشخصي',
+  Reach: 'الوصول',
+  Impressions: 'مرات الظهور',
+  'Estimated ad recall lift (people)': 'الزيادة التقديرية في تذكّر الإعلان (أشخاص)',
 };
+// A result Meta adds later (a custom conversion, an action, a metric) and the exact action a person chose are named by their own value,
+// so the label is an English prefix and the value: the Arabic template of each prefix, which web/locales/ar.json holds under the same
+// words with the slot.
+const resultTemplates: Record<string, string> = {
+  'Custom conversion': 'تحويل مخصص {id}',
+  'Meta action': 'إجراء Meta {action}',
+  'Meta result': 'نتيجة Meta {indicator}',
+  'Selected Meta action': 'الإجراء المحدد في Meta {action}',
+};
+/** The Arabic of a result label: a named label, or a label that carries a value, from the template of its prefix. */
+function arabicResult(value: string): string {
+  if (Object.hasOwn(resultLabels, value)) return resultLabels[value]!;
+  for (const [prefix, template] of Object.entries(resultTemplates))
+    if (value.startsWith(prefix + ' ')) return template.replace(/\{[a-z]+\}/, () => value.slice(prefix.length + 1));
+  return value;
+}
 const metricLabels: Record<string, string> = {
   spend: 'الإنفاق',
   impressions: 'مرات الظهور',
@@ -177,7 +213,7 @@ export function artifactLocale(presentation: JsonObject = {}) {
     rtl,
     language: (rtl ? 'ar' : 'en') as 'ar' | 'en',
     text: (value: string) => (rtl ? (arabic[value] ?? value) : value),
-    result: (value: string) => (rtl ? (resultLabels[value] ?? value) : value),
+    result: (value: string) => (rtl ? arabicResult(value) : value),
     metric: (value: string, custom: Set<string>) =>
       rtl && !custom.has(value) && metricLabels[value] ? metricLabels[value] + ' (' + value + ')' : value,
   };

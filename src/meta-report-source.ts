@@ -5,7 +5,15 @@ import {metaPrefix} from './meta-version.js';
 import {byObjectiveGroup, metricNumber} from './report-metrics.js';
 import {overviewCapabilities, invalidReportSource, type ReportSource} from './report-source.js';
 import type {JsonObject} from './types.js';
-import {metaMappedResult, metaResultRules} from './meta-report-results.js';
+import {
+  metaListCount,
+  metaMappedDefinition,
+  metaRequestedWindows,
+  metaResult,
+  metaResultDefinition,
+  metaResultRules,
+  metaWindowCount,
+} from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
 import {reportStatus} from './report-status.js';
 import {metaReportMetadata} from './meta-report-metadata.js';
@@ -55,7 +63,7 @@ export const metaReportSource: ReportSource = {
     },
   ),
   resultRules: metaResultRules,
-  readResult: metaMappedResult,
+  readResult: metaResult,
   objectives: {
     name: 'Meta',
     values: {
@@ -65,6 +73,18 @@ export const metaReportSource: ReportSource = {
       OUTCOME_LEADS: 'leads',
       OUTCOME_SALES: 'sales',
       OUTCOME_APP_PROMOTION: 'app_installs',
+    },
+    // The owner’s live read of 2026-11-07 found these older objectives beside OUTCOME_*. A v4 report reads them as the
+    // provider’s own values; a v3 report resolves them as it always did (the regex inferred four, three were ungrouped), so
+    // a v3 row does not change (V2-RPT-06).
+    v4Values: {
+      LINK_CLICKS: 'traffic',
+      MESSAGES: 'engagement',
+      REACH: 'awareness',
+      POST_ENGAGEMENT: 'engagement',
+      EVENT_RESPONSES: 'engagement',
+      BRAND_AWARENESS: 'awareness',
+      PAGE_LIKES: 'engagement',
     },
     missingReason: 'Meta returned no objective for this campaign.',
   },
@@ -140,20 +160,40 @@ export const metaReportSource: ReportSource = {
     c.attribution = windows
       ? 'Meta ' + windows.join(' + ') + '; impression time'
       : 'ad set unified attribution setting';
-    c.resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
+    // A v4 source says what is true of its rows (Meta’s own results, the mapped table or both); v3 says what it always did.
+    c.resultDefinition =
+      c.source.reporting_contract === 'overview-config-v4'
+        ? metaResultDefinition(c.raw, c.source.report_options)
+        : metaMappedDefinition;
   },
-  normalize(raw, {value, field: n, omitted}) {
-    const objective = raw.objective;
+  /**
+   * A v4 report asked Meta for explicit attribution windows: the `value` of an entry of any list of action stats is then the
+   * ad set’s own setting, and each requested window’s number is under the key named for it (F-LEAD-02). A count adds the
+   * requested windows; a cost, a ratio or a number of people is one window’s own number, or none for several windows
+   * (`metaListCount`, which holds the lists). A v3 report, and a v4 report under the ad set’s own setting, read `value`.
+   */
+  actionCount(entry, field, {options, request}) {
+    const windows = metaRequestedWindows(options ?? {attribution_windows: request?.query?.action_attribution_windows});
+    return windows === undefined ? entry.value : metaListCount(entry, field, windows);
+  },
+  normalize(raw, {value, field: n, omitted, options}) {
+    const objective = raw.objective,
+      windows = metaRequestedWindows(options);
     // RPT-04 (owner policy P6): Meta omits zero-valued action entries. A delivered row (impressions above 0) from a
     // complete page counts an absent requested action as 0 and names it in `omitted_as_zero`; a row without delivery
-    // keeps it unknown.
+    // keeps it unknown. Under explicit windows an action with a count in none of them is that case too.
     const delivered = (metricNumber(raw.impressions) ?? 0) > 0;
     const action = (metric: string, keys: string[], field = 'actions') => {
       const a = raw[field];
       if (Array.isArray(a))
         for (const key of keys) {
           const found = a.find((v: JsonObject) => v?.action_type === key);
-          if (found) return value(found.value);
+          if (found) {
+            if (windows === undefined) return value(found.value);
+            const counted = metaWindowCount(found, windows, 'native_metric');
+            if (counted !== undefined) return value(counted);
+            break;
+          }
         }
       if (delivered && (a === undefined || Array.isArray(a))) {
         omitted.add(metric);

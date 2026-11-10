@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   parseProviderDecimal,
   providerDecimalText,
+  sumProviderDecimals,
   mergeMetricRounding,
   metricRoundingLimitation,
 } from '../dist/src/provider-decimal.js';
@@ -57,6 +58,27 @@ test('display-only reach and frequency keep exact provider text', () => {
   assert.equal(providerDecimalText(1e-7, {field: 'frequency'}), '0.0000001');
   assert.equal(providerDecimalText('1.250', {field: 'frequency'}), '1.25');
   assert.equal(providerDecimalText('8e2', {field: 'reach'}), '800');
+});
+
+// Package meta-results: Meta reports one count per requested attribution window; the windows add exactly.
+test('provider decimals add exactly and keep every digit of the sum (package meta-results)', () => {
+  const sum = (...values) => sumProviderDecimals(values, {field: 'result'});
+  assert.equal(sum('27', '3'), '30');
+  assert.equal(sum('0.1', '0.2'), '0.3', 'a float sum would read 0.30000000000000004');
+  assert.equal(sum('9007199254740993', '1'), '9007199254740994', 'past the exact float range');
+  assert.equal(sum('1.250', '2'), '3.25', 'trailing zeros are not part of the value');
+  assert.equal(sum('1e3', '5'), '1005', 'exponent forms are exact');
+  assert.equal(sum('0.0000000001', '0.0000000002'), '0.0000000003', 'no rounding to nine places in the sum');
+  assert.equal(sum(5, '0.5', 0.25), '5.75', 'JSON numbers are read as their shortest decimal text');
+  assert.equal(sum('7'), '7');
+  assert.equal(sum('0', '0'), '0');
+  assert.equal(sum(), '0', 'an empty sum is zero; callers do not ask for it when nothing was reported');
+  for (const bad of [-1, '-1', 'abc', '', '1,5', null, true, {}, NaN])
+    assert.throws(
+      () => sum('1', bad),
+      error => error.code === 'REPORT_SHAPE_CHANGED' && error.details.field === 'result',
+      String(bad),
+    );
 });
 
 test('malformed provider values fail with a field-naming shape error, never a caller-input error', () => {

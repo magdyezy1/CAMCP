@@ -232,10 +232,22 @@
       "raised": [
         "reference_words 154728 → 156417"
       ]
+    },
+    {
+      "reason": "Package meta-results: the Meta results paragraph of docs/REPORTING-OVERVIEW.md now describes how a v4 row reads Meta insights results (the order of the rules, the unknown shape, the mapped fallback and its labels) and a new bullet describes the action counts under explicit windows; the engineering pin record is outside the maintained pages",
+      "raised": [
+        "reference_words 156417 → 156739"
+      ]
+    },
+    {
+      "reason": "the Meta action counts bullet of docs/REPORTING-OVERVIEW.md now says how every list of action stats is read under explicit windows (F-LEAD-02, the lead's ruling 3)",
+      "raised": [
+        "reference_words 156739 → 156845"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156417
+    "reference_words": 156845
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

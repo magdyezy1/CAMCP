@@ -160,6 +160,28 @@ function reportResultMapping(row) {
     : '';
 }
 
+/**
+ * A row's result label in the interface language. A Meta result that Meta added later, and the exact action a person chose, are
+ * named by their own value (a custom conversion's ID, an action type, an indicator), so they are looked up as the template of their
+ * prefix; any other Meta or LinkedIn label is looked up as it is; another platform's text stays as the platform sent it.
+ */
+function reportResultLabel(row) {
+  const label = String(row.result_definition ?? ''),
+    meta = row.platform === 'meta',
+    tail = prefix => label.slice(prefix.length + 1);
+  return meta && label.startsWith('Custom conversion ')
+    ? uiText('Custom conversion {id}', {id: tail('Custom conversion')})
+    : meta && label.startsWith('Meta action ')
+      ? uiText('Meta action {action}', {action: tail('Meta action')})
+      : meta && label.startsWith('Meta result ')
+        ? uiText('Meta result {indicator}', {indicator: tail('Meta result')})
+        : meta && label.startsWith('Selected Meta action ')
+          ? uiText('Selected Meta action {action}', {action: tail('Selected Meta action')})
+          : meta || row.platform === 'linkedin'
+            ? uiText(label)
+            : label;
+}
+
 /** Defaults mirror report-metrics.ts campaignRecommendation. */
 const reportDefaultKpi = {
   awareness: 'cpm',
@@ -273,7 +295,7 @@ function renderReportTable(r, keys, b) {
     const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(reportRowObjective(row).group))}</small>${reportRowObjective(row).source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.platform === 'linkedin' ? uiText(row.result_definition) : row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportResultMapping(row)}${html`${reportObjectiveResults(row)}`}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(reportRowObjective(row).group))}</small>${reportRowObjective(row).source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(reportResultLabel(row))}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportResultMapping(row)}${html`${reportObjectiveResults(row)}`}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
   return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
 }

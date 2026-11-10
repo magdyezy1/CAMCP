@@ -304,6 +304,7 @@ function rowObjective(source: JsonObject, row: JsonObject): ResolvedObjective {
     legacy: source.objective,
     fallback: source.objective_fallback,
     unread: row.objective_unread,
+    v4: source.reporting_contract === overviewConfigV4,
   });
 }
 

@@ -131,21 +131,30 @@ function numericNative(
   output: JsonObject = {},
   depth = 0,
   exact = false,
+  options?: JsonObject,
 ): JsonObject {
   if (depth > 4) return output;
-  const keepNull = reportSource(platform)?.nullNativeMetrics === true;
+  const source = reportSource(platform),
+    keepNull = source?.nullNativeMetrics === true,
+    // A v4 row counts an action entry under what the report asked the provider for (ReportSource.actionCount).
+    counted = options && source?.actionCount ? source.actionCount.bind(source) : undefined;
   for (const [k, v] of Object.entries(data)) {
     const key = (prefix ? prefix + '_' : '') + k;
     const s = snake(k);
     if (identityKey.test(s) || contextKeys.has(s)) continue;
-    if (v && typeof v === 'object' && !Array.isArray(v)) numericNative(platform, v, key, output, depth + 1, exact);
+    if (v && typeof v === 'object' && !Array.isArray(v))
+      numericNative(platform, v, key, output, depth + 1, exact, options);
     else if (Array.isArray(v)) {
       for (const a of v)
-        if (a && typeof a === 'object' && typeof a.action_type === 'string')
+        if (a && typeof a === 'object' && typeof a.action_type === 'string') {
+          const count = counted ? counted(a, key, {options}) : a.value;
+          // No count under the attribution asked for: the provider left a zero out, as for an absent action.
+          if (counted && count === undefined) continue;
           output['native_' + platform + '_' + (key + '_' + a.action_type).replace(/[^a-zA-Z0-9_]/g, '_')] =
-            exact && a.value !== undefined && a.value !== null && a.value !== '-' && a.value !== '--'
-              ? providerDecimalText(a.value, {field: key})
-              : metricNumber(a.value);
+            exact && count !== undefined && count !== null && count !== '-' && count !== '--'
+              ? providerDecimalText(count, {field: key})
+              : metricNumber(count);
+        }
     } else if (keepNull && v === null) output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = null;
     else if (typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)))
       output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = exact
@@ -199,7 +208,7 @@ function nativeRowEnvelope(
   };
 }
 
-function exactNativeValues(platform: string, raw: JsonObject) {
+function exactNativeValues(platform: string, raw: JsonObject, options?: JsonObject) {
   const omitted = new Set<string>(),
     read = (value: unknown, divisor = 1) =>
       value === undefined || value === null || (typeof value === 'string' && ['', '-', '--'].includes(value.trim()))
@@ -209,6 +218,7 @@ function exactNativeValues(platform: string, raw: JsonObject) {
       value: read,
       field: (key, divisor) => read(raw[key], divisor),
       omitted,
+      ...(options ? {options} : {}),
     }) ?? {id: undefined, metrics: {}};
   return {exact, omitted};
 }
@@ -222,13 +232,18 @@ function nativeDeliveryActivity(platform: string, raw: JsonObject): boolean | nu
   );
 }
 
-/** Exact v4 campaign values. Provider normalization still owns names/units; float display values never supply totals. */
+/**
+ * Exact v4 campaign values. Provider normalization still owns names/units; float display values never supply totals.
+ * `options` are the report options of the source the row belongs to: a source whose request depends on them (Meta’s
+ * attribution windows) reads the row's counts under them.
+ */
 export function normalizeNativeRowV4(
   platform: string,
   raw: JsonObject,
   rounding: Record<string, number> = {},
+  options?: JsonObject,
 ): JsonObject {
-  const {exact, omitted} = exactNativeValues(platform, raw),
+  const {exact, omitted} = exactNativeValues(platform, raw, options),
     metrics = Object.fromEntries(
       Object.entries(exact.metrics).map(([key, value]) => {
         if (value === undefined || value === null) return [key, null];
@@ -244,7 +259,7 @@ export function normalizeNativeRowV4(
     ),
     status = reportSource(platform)?.readStatus?.(raw, {level: 'campaign'});
   return {
-    ...nativeRowEnvelope(raw, exact, omitted, {...metrics, ...numericNative(platform, raw, '', {}, 0, true)}),
+    ...nativeRowEnvelope(raw, exact, omitted, {...metrics, ...numericNative(platform, raw, '', {}, 0, true, options)}),
     ...(status ? {status: status.status} : {}),
     native: {
       ...raw,
@@ -633,7 +648,7 @@ function campaignResult(p: string, kind: string, c: ReportCollection): JsonObjec
   const v4 = c.source.reporting_contract === 'overview-config-v4',
     rounding: Record<string, number> = {},
     rows = c.raw.map(r => {
-      const row = v4 ? normalizeNativeRowV4(p, r, rounding) : normalizeNativeRow(p, r);
+      const row = v4 ? normalizeNativeRowV4(p, r, rounding, c.source.report_options) : normalizeNativeRow(p, r);
       if (v4) {
         const resolved = nativeReportResult(p, r, {
           level: c.source.level ?? 'campaign',

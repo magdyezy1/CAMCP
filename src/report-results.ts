@@ -35,6 +35,12 @@ export interface ResolvedReportResult {
   unavailable_reason: ResultUnavailableReason | null;
   rounding: Record<string, number>;
   provider_omitted?: true;
+  /**
+   * Declared by a provider whose values for the consecutive days of one entity add up to its value for the whole period:
+   * the days of one entity then total to a result that is still the provider’s own (`groupReportResults`). A total across
+   * different entities, and a provider that does not declare it, stay `mapped`.
+   */
+  periods_add?: true;
 }
 export interface ReportResultInput {
   value: unknown;
@@ -203,7 +209,12 @@ export interface ReportResultGroup {
   unavailable_reason: ResultUnavailableReason | null;
   rounding: Record<string, number>;
 }
-/** Same definition, currency and collection scope only. Native reach/other non-additive results never add. */
+/**
+ * Same definition, currency and collection scope only. Native reach/other non-additive results never add. A group of
+ * several rows is AMCP’s total (`mapped`), unless every row is the provider’s own result and declares `periods_add`: the
+ * days of one entity then keep the provider as their source. Callers group one entity’s days with this; a group of
+ * different entities is built from stored contexts, which carry no declaration, so it stays `mapped`.
+ */
 export function groupReportResults(rows: ReportResultGroupInput[]): ReportResultGroup[] {
   const groups = new Map<string, ReportResultGroupInput[]>();
   for (const row of rows) {
@@ -270,7 +281,9 @@ export function groupReportResults(rows: ReportResultGroupInput[]): ReportResult
         items.length === 1
           ? items[0]!.resolved.source
           : definition && known
-            ? ('mapped' as const)
+            ? items.every(row => row.resolved.source === 'provider' && row.resolved.periods_add === true)
+              ? ('provider' as const)
+              : ('mapped' as const)
             : ('unknown' as const),
       definition,
       currency,

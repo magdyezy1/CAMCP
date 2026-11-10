@@ -352,7 +352,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge B, with engine-surfaces (11,819 on its own base): its one added and one removed entry net to zero, so the merged
   // catalogue measures 12,004, as it did before this package.
   // Package closing-fixes adds one website message, the preview link's name when it has no number (WCAG 2.5.3): 12,005.
-  assert.equal(Object.keys(catalog).length, 12005);
+  // Package meta-results adds fifteen labels of Meta’s results that had no Arabic (the indicator table of src/meta-report-results.ts,
+  // the mapped table’s App installs, and Meta result for an indicator Meta adds later) and the two sentences a v4 Meta source states for
+  // its result definition: 12,004 + 15 + 2.
+  // Package meta-results then names a custom conversion, an action and a metric Meta adds later by their own value: it replaces the two generic
+  // labels (Custom conversion, Meta result) with three templates that carry it (Custom conversion {id}, Meta action {action}, Meta result
+  // {indicator}): 12,021 - 2 + 3.
+  // Merge C, with closing-fixes (12,005 on its own base) and meta-results (12,022 on its own base): measured on the merged catalogue
+  // (node tools/check-locales.mjs; a key by key three-way merge finds no clash and no key added by both), 12,023.
+  assert.equal(Object.keys(catalog).length, 12023);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -95,7 +95,14 @@ export function periodComparisonFixture() {
       );
     assert.equal(url.searchParams.get('level'), 'campaign');
     const range = JSON.parse(url.searchParams.get('time_range')),
-      window = comparisonValues[range.since] ?? fallback;
+      window = comparisonValues[range.since] ?? fallback,
+      // Under explicit attribution windows (the website's run asks for Meta's defaults) an entry of a list of action stats is
+      // `{action_type, value, <window>: <count>}`: `value` is the ad set's own setting and the count of each requested window
+      // sits under the key named for it; a window with no count has no key (Meta's record R14, package meta-results,
+      // F-LEAD-02). Every conversion of the case is attributed to the first requested window. With no explicit windows the
+      // entry is `{action_type, value}`.
+      requested = JSON.parse(url.searchParams.get('action_attribution_windows') ?? '[]'),
+      stat = (action_type, value) => ({action_type, value, ...(requested.length ? {[requested[0]]: value} : {})});
     return Response.json({
       data: Object.entries(window).map(([id, v]) => ({
         account_id: '100',
@@ -110,8 +117,8 @@ export function periodComparisonFixture() {
         clicks: v.clicks,
         reach: v.impressions === '0' ? '0' : '700',
         frequency: v.impressions === '0' ? '0' : '1.5',
-        actions: [{action_type: 'purchase', value: v.purchases}],
-        action_values: [{action_type: 'purchase', value: v.value}],
+        actions: [stat('purchase', v.purchases)],
+        action_values: [stat('purchase', v.value)],
       })),
     });
   };

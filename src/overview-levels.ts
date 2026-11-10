@@ -342,6 +342,7 @@ export function detailedOverviewRows(
         legacy: source.objective,
         fallback: source.objective_fallback,
         unread: objectiveUnread,
+        v4,
       });
     let resultFields: JsonObject = {};
     let measurementRows: JsonObject[] | undefined;

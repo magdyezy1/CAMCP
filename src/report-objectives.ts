@@ -9,6 +9,11 @@ export type ObjectiveSource =
 export interface ObjectiveTable {
   readonly name: string;
   readonly values: Readonly<Record<string, string | null>>;
+  /**
+   * Values the provider pins for a v4 report only, beside `values`. A v3 report resolves them as it did before they were
+   * pinned (inferred from the native value, or ungrouped), because a v3 row must not change when a table gains a value.
+   */
+  readonly v4Values?: Readonly<Record<string, string | null>>;
   /** A native objective may need a row-specific explanation, such as the objectives of a mixed group. */
   reason?(native: string, inputs: JsonObject): string | null;
   mapped?(inputs: JsonObject): {group: string; reason: string | null} | undefined;
@@ -77,6 +82,8 @@ export function resolveObjective(input: {
   fallback?: string;
   /** Set by the collector that could not read the campaign's objective, so a missing value is not blamed on the platform. */
   unread?: ObjectiveUnread;
+  /** True for a v4 report: the table’s `v4Values` are pinned too. */
+  v4?: boolean;
 }): ResolvedObjective {
   const native =
     typeof input.native === 'string' && input.native.trim() && input.native !== 'unknown' ? input.native : null;
@@ -109,9 +116,9 @@ export function resolveObjective(input: {
       'Chosen for every campaign of this source in the saved report.',
       'source_choice',
     );
-  const table = input.table;
-  const nativeGroup =
-    table && native !== null && Object.hasOwn(table.values, native) ? table.values[native] : undefined;
+  const table = input.table,
+    pinned = table && input.v4 && table.v4Values ? {...table.values, ...table.v4Values} : table?.values;
+  const nativeGroup = pinned && native !== null && Object.hasOwn(pinned, native) ? pinned[native] : undefined;
   if (nativeGroup === mixedObjectiveGroup || choice(nativeGroup))
     return resolved(
       nativeGroup,
