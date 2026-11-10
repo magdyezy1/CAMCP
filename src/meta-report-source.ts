@@ -11,6 +11,7 @@ import {
   metaResult,
   metaResultDefinition,
   metaResultRules,
+  metaWindowCost,
   metaWindowCount,
 } from './meta-report-results.js';
 import {metaWindowsValid, metaWindowsMessage} from './meta-attribution-windows.js';
@@ -167,14 +168,15 @@ export const metaReportSource: ReportSource = {
   },
   /**
    * A v4 report asked Meta for explicit attribution windows: an action’s `value` is then the ad set’s own setting, and the
-   * count of each requested window is under the key named for it (F-LEAD-02). A v3 report, and a v4 report under the ad
-   * set’s own setting, read `value`.
+   * count of each requested window is under the key named for it (F-LEAD-02), which add; a cost per action has the same
+   * keys, but a cost does not add, so it is one window’s own cost or none. A v3 report, and a v4 report under the ad set’s
+   * own setting, read `value`, and so does every list that is not split by window.
    */
   actionCount(entry, field, {options, request}) {
     const windows = metaRequestedWindows(options ?? {attribution_windows: request?.query?.action_attribution_windows});
-    return windows !== undefined && (field === 'actions' || field === 'action_values')
-      ? metaWindowCount(entry, windows, 'native_metric')
-      : entry.value;
+    if (windows === undefined) return entry.value;
+    if (field === 'actions' || field === 'action_values') return metaWindowCount(entry, windows, 'native_metric');
+    return field === 'cost_per_action_type' ? metaWindowCost(entry, windows) : entry.value;
   },
   normalize(raw, {value, field: n, omitted, options}) {
     const objective = raw.objective,

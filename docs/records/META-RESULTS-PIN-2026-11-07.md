@@ -65,6 +65,11 @@ F-LEAD-02: under explicit windows a v4 report counts the requested keys of every
 metrics, conversion value, a detail level's exact action and the `native_meta_actions_*` metrics. A key that is absent
 counts 0 and an action with none of the requested keys is the omitted case. A v3 report reads `value`, as before.
 
+A cost per action (`native_meta_cost_per_action_type_*`, a native metric a campaign source can ask for) is read the same way
+except that costs do not add: one requested window gives that window's own cost, several windows give none (the cost of two
+windows is the spend over their joint count, not the sum of their costs), and the cost of a result under any windows is the
+row's `cost_per_result`.
+
 The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `REACH` and `BRAND_AWARENESS` to awareness,
 `MESSAGES`, `EVENT_RESPONSES`, `PAGE_LIKES` and `POST_ENGAGEMENT` to engagement); a v3 report resolves them as before.
 
@@ -76,5 +81,8 @@ The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `R
 - Only the `default` cost was checked against spend over the `default` value (R13); a single window's own cost is used as
   Meta sends it.
 - A JSON number in place of a decimal string was not seen; AMCP reads it as the decimal it spells.
-- `cost_per_action_type` under explicit windows was not read; it keeps `value`, because costs do not add across windows.
+- `cost_per_action_type` under explicit windows was not read: the window keys are taken to have an action's shape, which the
+  per-window `cost_per_result` of R13 suggests. Other attribution-dependent lists a person can ask for as native metrics
+  (`conversions`, `conversion_values`, `cost_per_conversion`, `purchase_roas`, `website_purchase_roas`) were not read either and
+  keep `value`.
 - The V2 code has not been read against a live account: that check waits for staging (D20).

@@ -112,6 +112,33 @@ test('native action metrics (native_meta_actions_*) follow the requested windows
   assert.equal(normalizeNativeRow('meta', row).metrics.native_meta_actions_lead, 34);
 });
 
+// A cost per action is the other native list that depends on the attribution (the bootstrap suggests it as a native metric of a
+// campaign source). Its entry has the same shape as an action's: `value` is the ad set's own cost, and each requested window's
+// own cost is under the window's name. Unlike a count, a cost does not add across windows.
+const costRow = more =>
+  raw({
+    spend: '40',
+    actions: [lead({'7d_click': '16', '1d_view': '4'})],
+    cost_per_action_type: [{action_type: 'lead', value: '2', '7d_click': '2.5', '1d_view': '10'}],
+    ...more,
+  });
+const nativeCost = (row, windows) => v4(row, windows).metrics.native_meta_cost_per_action_type_lead;
+
+test('a cost per action under explicit windows is the requested window’s own cost, and has no number for several windows', () => {
+  // One window: that window's own cost (40 spent over 16 and over 4), not the ad set's own 2.
+  assert.equal(nativeCost(costRow(), ['7d_click']), '2.5');
+  assert.equal(nativeCost(costRow(), ['1d_view']), '10');
+  // Two windows: the cost of the pair is the spend over the pair's count (40 / 20 = 2), which is neither the sum of the two
+  // costs (12.5) nor the ad set's own number. Costs do not add, and Meta sends no cost for the pair, so there is none.
+  assert.equal(nativeCost(costRow(), ['7d_click', '1d_view']), undefined);
+  // A window with no count has no key, so there is no cost for it.
+  assert.equal(nativeCost(costRow(), ['1d_click']), undefined);
+  // Under the ad set's own setting, with no options, and in v3 the entry's value is what the report asked for.
+  assert.equal(nativeCost(costRow(), null), '2');
+  assert.equal(normalizeNativeRowV4('meta', costRow()).metrics.native_meta_cost_per_action_type_lead, '2');
+  assert.equal(normalizeNativeRow('meta', costRow()).metrics.native_meta_cost_per_action_type_lead, 2);
+});
+
 // The same through the queue, the worker and the collectors, as a person's report runs.
 const range = ['2026-09-01', '2026-09-02'];
 const windowedActions = (key, count) => [{action_type: 'lead', value: '10', [key]: count}];
@@ -215,5 +242,42 @@ test('a v4 detail report counts an action with no key for the requested windows 
     assert.deepEqual(report.rows[0].omitted_as_zero, ['conversions', 'conversion_value']);
   } finally {
     f.close();
+  }
+});
+
+test('a v4 campaign report with a cost per action as a native metric never shows the ad set’s own cost under its windows', async () => {
+  const costs = [{action_type: 'lead', value: '2', '7d_click': '2.5', '1d_view': '10'}];
+  for (const [name, windows, expected] of [
+    ['one window', ['7d_click'], {native: '2.5', cpa: '2.5'}],
+    ['two windows', ['7d_click', '1d_view'], {native: null, cpa: '2'}],
+    ['the ad set’s own setting', null, {native: '2', cpa: '2'}],
+  ]) {
+    const f = overviewGranularityFixture();
+    try {
+      f.mutate((rows, platform) =>
+        platform === 'meta'
+          ? rows.map(row => ({
+              ...row,
+              objective: 'OUTCOME_LEADS',
+              spend: '40',
+              actions: [lead({value: '20', '7d_click': '16', '1d_view': '4'})],
+              cost_per_action_type: costs,
+            }))
+          : rows,
+      );
+      const source = {...campaignSource({attribution_windows: windows}), native_metrics: ['cost_per_action_type']},
+        report = await run(f, {
+          ...v4Config(source, 'daily'),
+          metrics: ['spend', 'conversions', 'cpa', 'native_meta_cost_per_action_type_lead'],
+        });
+      assert.equal(report.state, 'complete', name + JSON.stringify(report.sources?.[0]?.error));
+      for (const row of report.rows) {
+        // The cost per action the row shows is the one its own cost per result (spend over the counted windows) agrees with.
+        assert.equal(row.metrics.native_meta_cost_per_action_type_lead ?? null, expected.native, name);
+        assert.equal(String(row.metrics.cpa), expected.cpa, name);
+      }
+    } finally {
+      f.close();
+    }
   }
 });

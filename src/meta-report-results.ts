@@ -206,6 +206,18 @@ export function metaWindowCount(entry: JsonObject, windows: readonly string[], f
     : undefined;
 }
 
+/**
+ * The cost per action of one `cost_per_action_type` entry for the requested windows. Its entry has an action’s shape: `value`
+ * is the ad set’s own cost, and each requested window’s own cost is under the key named for it. A cost does not add across
+ * windows (the cost of two windows is the spend over their joint count, not the sum of their costs) and Meta sends none for a
+ * pair, so one window has its key and several windows have no cost here. Undefined: no cost for these windows; the cost of
+ * a result under any windows is `cost_per_result`, spend over the counted windows.
+ */
+export function metaWindowCost(entry: JsonObject, windows: readonly string[]): unknown {
+  const window = windows.length === 1 ? windows[0]! : undefined;
+  return window !== undefined && Object.hasOwn(entry, window) && entry[window] != null ? entry[window] : undefined;
+}
+
 /** A decimal as the text the result reader keeps, or null when it is not a nonnegative decimal. Never throws. */
 function decimalText(value: unknown): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
