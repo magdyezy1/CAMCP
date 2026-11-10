@@ -181,7 +181,7 @@ changes with the theme through that token.
 | `--success-bg`, `--success-ink` | `#e6f3ed`, `#245d49` | `#18382e`, `#a5e5c4` | success pair |
 | `--warning-bg`, `--warning-ink` | `#fff3db`, `#714b14` | `#3d2e19`, `#f6d89e` | warning pair |
 | `--danger-bg` | `#fce5e8` | `#452830` | danger fill |
-| `--focus-on-inverse` | `#c7adff` | `#decaff` | the focus ring on the inverse surfaces (sidebar, toast, connector hero, callback header) |
+| `--focus-on-inverse` | `#c7adff` | `#decaff` | the focus ring on the inverse surfaces (toast, connector hero, callback header) |
 
 **Semantic roles** (use these first)
 
@@ -220,7 +220,7 @@ insufficient data, observe: `--surface-subtle`/`--muted`).
 
 | Group | Tokens |
 |---|---|
-| Inverse surfaces | `--surface-inverse` (`#201d30`: sidebar, toast, connector hero, callback header), `--surface-inverse-raised`, `--surface-inverse-accent` |
+| Inverse surfaces | `--surface-inverse` (`#201d30`: toast, connector hero, callback header), `--surface-inverse-raised`, `--surface-inverse-accent` |
 | On the inverse surfaces | `--text-on-inverse`, `--text-on-inverse-strong`, `--text-on-inverse-secondary`, `--text-on-inverse-muted`, `--border-on-inverse`, `--fill-on-inverse`, `--fill-on-inverse-subtle`, `--accent-on-inverse` |
 | Overlay and shadow colours | `--overlay` (dialog backdrop), `--shadow-soft`, `--shadow`, `--shadow-strong` |
 | Status dot | `--success-dot` |
@@ -329,8 +329,7 @@ with an arrow; hover `--link`) and About's own `.about-button` (a pill) follow t
 ### Icon button
 
 `<button class="icon-button" aria-label="Close">×</button>`: dialog close buttons, the menu toggle, the drawer's close
-button. `--text-secondary` glyph, `--radius-sm`; hover `--surface-subtle` with `--text` (on the sidebar
-`--fill-on-inverse`). Always named with `aria-label` (and `data-ui-label` for Arabic).
+button. `--text-secondary` glyph, `--radius-sm`; hover `--surface-subtle` with `--text`. Always named with `aria-label` (and `data-ui-label` for Arabic).
 
 ### Toggle groups: filter tabs, client tabs, asset tabs
 
@@ -398,8 +397,10 @@ inline-start side. `.delivery-status` at the foot of the delivery dialog (sticky
 
 ### Toast
 
-`#toast.toast`, `role="status"`: a short confirmation on the inverse surface at the inline-end bottom corner; one
-message at a time (a new one restarts the timer). It never carries the only copy of an error: errors stay in the page.
+`#toast.toast`, `role="status"`: a short confirmation on the inverse surface. It is the first element of `main`, in the
+page's flow at its block start, so it pushes the content down instead of covering it, and it is sticky (12px from the top
+of the window, below the 64px header on a phone) so it stays in view while the page is scrolled. One message at a time (a
+new one restarts the timer). It never carries the only copy of an error: errors stay in the page.
 
 ### Panels and cards
 
@@ -437,21 +438,51 @@ builder, with a chevron), `.native-settings`. The summary takes Enter and Space;
 
 ### Navigation
 
-- **Sidebar** (`.sidebar nav a`): the inverse surface; the current page has `.active` and `aria-current="page"`;
-  hover `--fill-on-inverse`; `--focus-on-inverse` ring. Below 850px it is a drawer with a focus trap, Escape and a
-  scrim.
-- **Top bar**: one row at every width from 851 to 1280 pixels in both languages; visible labels give way before
-  anything wraps, and every control keeps its accessible name.
+- **Sidebar** (`.sidebar`): a neutral frame on the raised surface, drawn from the route registry (The shell, below); the
+  current page has `.active` and `aria-current="page"`; the page's own focus ring. Below 851px it is a drawer from the
+  end edge with a focus trap, Escape and a scrim.
+- **Top bar**: one row at every width in both languages (the phone header is 64px: the logo or the icon, the client
+  switcher, search and the menu); visible labels give way before anything wraps, and every control keeps its
+  accessible name.
 - **Skip link** (`.skip`): the first focusable element; it moves focus to `main` without changing the address.
 - **Command palette** (Ctrl/Cmd+K): a dialog of pages and, for opted-in workspaces, entities.
 - **Settings sub-navigation** (`.settings-subnav`, WEB-08): in-page links to Safety, Access, Health, Retention and
   Account, Safety first; pills with hover `--surface-selected` and `--border-accent`.
 
+### The shell
+
+`web/routes.js` is the one registry: it drives the navigation, the server's shell routes and the loader's asset order, and
+gives each page its `group` (Home, Reports, Creatives, Campaigns, Connections, Operations, Settings), its `icon` (one
+glyph for each link: a test refuses two that share one), its `subtitle` (the sentence under its heading) and its `parent`
+(where a failed page leads back: `routeBack`). Account and Help are in the sidebar's footer (`menu: 'user'`).
+`/design-system` is in no group, the navigation or the palette.
+
+- **Sidebar and rail.** A group of one page is a plain link; a group of several is a disclosure, closed until its page is
+  current. The navigation scrolls inside its column and the footer stays in view at 800px of height in both languages. The
+  rail (72px: icons alone, each link keeping its name as clipped text and a title) is the default from 851 to 1023px and a
+  choice at any wide width, remembered across routes (`amcp.sidebar` in local storage). In the rail the brand is `mark.svg`
+  at 32px; the lockup is never drawn under 160px.
+- **Header and drawer.** At 850px and below the header is one row: the logo (the icon alone under 520px) at the start
+  edge, then the client switcher, search and the menu. The drawer opens from the end edge, holds language, appearance and
+  sign out, and is one scrolling panel. The logo is never mirrored or recoloured; under forced colours the visible variant
+  follows `prefers-color-scheme` (`accessibility.css` and `privacy.css`).
+- **What the shell loads.** None of the V2 layer. The V2 core (`tokens-v2.css` 2,590, `components.css` 3,863 and
+  `components.js` 6,740 Brotli bytes) on every signed-in route is more than the shell may spend on a skeleton, and it
+  breaks the WEB-07 guard for `/connections` (`tests/web-route-bytes.test.mjs`), so the frame, the empty block, the page
+  error and the toast are the shell's own (`app.css`, `web/workspace.js`, `web/app.js`). To load the core everywhere, add
+  its three files to a shell asset list in `web/route-assets.js`, draw those states from `AmcpUI`, and re-record the route
+  bytes with the reason.
+- **Motion.** No view transition: a route change draws in two phases (the frame, then the page), which a transition would
+  cross-fade badly. Reduced motion turns every CSS transition and animation off.
+
 ### Loading and empty states
 
-A region being read carries `aria-busy="true"` and a sentence ("Loading this page…"); a button that starts work says
-what it is doing and is disabled until it finishes. There is no spinner component. An empty list shows the `.empty`
-state with what is missing and the next step.
+A page that is opening shows its own heading and subtitle, from the registry, over skeleton blocks (`.skeleton`: a card and
+four lines, one busy status the reader hears once, no motion), inside a shell that does not change. A section that fills
+late (`fillSection`) draws the same blocks and fills when its answer arrives; a failure stays in that section. A button
+that starts work says what it is doing and is disabled until it finishes. There is no spinner component. An empty state is
+`emptyBlock`: a title, its words and exactly one link or button (it refuses a state with no action); a panel on a page that
+already has its primary action uses a secondary one.
 
 ## V2 components (`AmcpUI`)
 

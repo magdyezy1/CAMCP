@@ -144,6 +144,14 @@ populated/refusal/recovery cases documented below. The exact case count is the `
   and Arabic: every top-bar control stays inside one 78-pixel row, the avatar is square, the page never scrolls
   sideways, the workspace name takes its own direction (`dir="auto"`, right-to-left for an Arabic name), and Arabic
   state badges carry Arabic words.
+- The shell itself (V2-WEB-03; `--kinds shell`), signed in on an empty workspace, in both languages and both themes
+  (`AMCP_QA_SHELL_CASES` and `AMCP_QA_SHELL_MATCH` narrow a development run): the one-row header and the end-edge
+  drawer at 320, 375 and 768 pixels, with the logo at the start edge and never mirrored; the neutral sidebar, its seven
+  groups and one glyph per link at 1280; no clipped link and a reachable footer at 800 pixels of height; the rail and its
+  memory across routes and reloads; loading with the page's script and data held (the shell and header stay, one
+  skeleton, focus lands on the heading, a late answer never paints over a newer route, a slow or failed Home feed stays
+  in its panel); the toast above the page, a failed page's way back to its parent and the empty states' one action; and
+  the logo's variant under forced colours on the workspace and a policy page. The reviewer pass covers the access gates.
 
 Every empty-workspace route must also open pristine (`uiHasUnsavedEdits()` is false, so a language switch asks
 nothing), and in Arabic `/dashboard`, `/reports`, `/capabilities` and `/reporting-overview` show no `.status` badge
