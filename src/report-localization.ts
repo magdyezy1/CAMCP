@@ -220,6 +220,12 @@ const arabic: Record<string, string> = {
     'تُرسم أول {count} مجموعات فقط. تجد الباقي في جدول التقرير.',
   'Only the {count} entries with the most spend are shown. The report table has the rest.':
     'تُعرض {count} من البنود الأكثر إنفاقًا فقط. تجد الباقي في جدول التقرير.',
+  // What the PDF says around its charts (src/report-chart-pdf.ts), apart from the charts' own words above.
+  Charts: 'المخططات',
+  'Only the first {count} charts are in this file. The report page has the rest.':
+    'يضم هذا الملف أول {count} مخططًا فقط. تجد الباقي في صفحة التقرير.',
+  'Characters missing from the PDF font are shown as ?. The Excel download has every name in full.':
+    'تظهر الأحرف غير الموجودة في خط PDF بعلامة ?. تجد كل الأسماء كاملة في ملف Excel.',
 };
 // Only authored result definitions; native and custom result words stay literal.
 const resultLabels: Record<string, string> = {

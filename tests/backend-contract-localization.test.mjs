@@ -330,8 +330,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/report-chart-breakdowns.ts and src/report-chart-measures.ts (the builders) and src/report-chart-change.ts (the
   // change of the key figures, read with the report): 798, then src/report-chart-layout.ts (where every mark of a chart
   // sits, shared by the three renderers): 799, then src/report-chart-theme.ts (the palette, the one escape function and a
-  // spec's words in the report's language): 800, then src/report-chart-render.ts (the SVG back end): 801.
-  assert.equal(files.length, 801);
+  // spec's words in the report's language): 800, then src/report-chart-render.ts (the SVG back end): 801, then
+  // src/report-chart-pdf.ts (the PDF back end: the chart, its table and the Charts section): 802.
+  assert.equal(files.length, 802);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

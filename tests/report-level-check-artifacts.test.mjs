@@ -150,13 +150,14 @@ for (const language of ['en', 'ar']) {
     const short = await check(t, cases.short),
       rounds = await check(t, cases.rounds),
       ar = language === 'ar',
-      said = async snapshot => {
-        const pdf = await reportPdf(snapshot.stored, {artifact_language: language});
-        return {
-          workbook: (await workbookLines(snapshot.stored, language)).lines,
-          pdf: (ar ? pdfActualText(pdf) : pdfPlainText(pdf).join(' ')).replace(/\s+/g, ' '),
-        };
-      },
+      words = pdf => (ar ? pdfActualText(pdf) : pdfPlainText(pdf).join(' ')).replace(/\s+/g, ' '),
+      said = async snapshot => ({
+        workbook: (await workbookLines(snapshot.stored, language)).lines,
+        pdf: words(await reportPdf(snapshot.stored, {artifact_language: language})),
+        // The PDF without its Charts section (V2-EXP-01). A chart's table may say that a lone campaign is 100% of the
+        // spend, which is true and is not the level check's statement; what must never read 100% is a rounded gap.
+        withoutCharts: words(await reportPdf({...snapshot.stored, charts: undefined}, {artifact_language: language})),
+      }),
       one = await said(short),
       two = await said(rounds);
     const covers = ar
@@ -169,7 +170,8 @@ for (const language of ['en', 'ar']) {
     assert.ok(one.pdf.includes(covers), one.pdf);
     assert.equal(two.workbook[0], differs);
     assert.ok(two.pdf.includes(differs), two.pdf);
-    assert.doesNotMatch(two.workbook.join(' ') + two.pdf, /100\s*%/);
+    assert.ok(two.withoutCharts.includes(differs));
+    assert.doesNotMatch(two.workbook.join(' ') + two.withoutCharts, /100\s*%/);
     // The platform's own words for the levels: Meta's ad level is an ad, its campaign a campaign.
     assert.equal(reportSource('meta').overview.levels.find(level => level.id === 'ad').label, 'Ad');
   });

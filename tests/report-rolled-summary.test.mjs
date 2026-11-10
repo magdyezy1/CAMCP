@@ -133,8 +133,12 @@ for (const language of ['en', 'ar']) {
       );
       const pdf = await reportPdf(stored, {artifact_language: language}),
         words = language === 'ar' ? pdfActualText(pdf) : pdfPlainText(pdf).join(' ');
-      // Once at the top for the report, and again under each of the two rolled-up totals.
-      assert.equal(words.split(text).length - 1, 3);
+      // Once at the top for the report, and again under each of the two rolled-up totals. The Charts section that follows the
+      // summaries (V2-EXP-01) says it again on each chart of a rolled-up total, so the summaries are counted on their own.
+      const charts = words.indexOf(language === 'ar' ? 'المخططات' : 'Charts');
+      assert.ok(charts > 0, 'the PDF has a Charts section after the summaries');
+      assert.equal(words.slice(0, charts).split(text).length - 1, 3);
+      assert.ok(words.slice(charts).includes(text), 'and the charts of rolled-up totals carry the label too');
     },
   );
 }

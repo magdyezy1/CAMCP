@@ -17,6 +17,7 @@ import {reportPack, presentationStyle} from './report-packs.js';
 import type {JsonObject} from './types.js';
 import {artifactLocale} from './report-localization.js';
 import {drawPdfText} from './pdf-text.js';
+import {drawChartsSection, readableCharts} from './report-chart-pdf.js';
 import {reportRollupLabel} from './report-scope-rollups.js';
 
 const limits = {
@@ -387,7 +388,8 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
     locale = artifactLocale(style),
     t = locale.text;
   if (pack.summary.length > limits.pdf_groups) exceeded('PDF measurement groups');
-  const checks = levelChecks(report, locale);
+  const checks = levelChecks(report, locale),
+    charts = readableCharts(report.charts);
   // The figures the PDF prints for each summary: its fixed six and the custom metrics.
   const printed = [
       'spend',
@@ -544,6 +546,16 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
       for (const line of lines) text(isolated(line), 9, '#9A4A12');
       doc.moveDown(style.template === 'compact' ? 0.6 : 1.1);
     }
+    // The charts the snapshot stored when it finished (V2-EXP-01): none for a report from before they existed.
+    if (charts.length)
+      drawChartsSection(charts, {
+        doc,
+        locale,
+        text,
+        room,
+        accent: style.accent_color,
+        hasGlyph: code => font.hasGlyphForCodePoint(code),
+      });
     room(160);
     text(t('Source coverage'), 15);
     doc.moveDown(0.3);
