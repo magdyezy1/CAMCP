@@ -195,22 +195,36 @@ test('the variant rules are one set, in the stylesheet each page family loads, a
       cssDeclarations(read(sheet))
         .filter(d => /\.logo-(?:ink|white)\b/.test(d.selector))
         .map(d => [d.atRules.join(' '), d.selector, d.property, d.value].join(' | ')),
+    // Forced colours (V2-WEB-03, from the brand package's finding): the system palette sets the canvas and
+    // prefers-color-scheme follows it, so the visible variant follows prefers-color-scheme whatever the site's own theme
+    // says (before, a light theme on a dark forced palette showed the Ink wordmark on a dark canvas). Each selector names
+    // both theme states so it outranks the theme rules above it.
+    scheme = name => '@media screen and (forced-colors: active) and (prefers-color-scheme: ' + name + ')',
+    both = variant => ':root[data-theme] ' + variant + ', :root:not([data-theme]) ' + variant,
+    forced = [
+      scheme('dark') + ' | ' + both('.logo-ink') + ' | display | none',
+      scheme('dark') + ' | ' + both('.logo-white') + ' | display | block',
+      scheme('light') + ' | ' + both('.logo-ink') + ' | display | block',
+      scheme('light') + ' | ' + both('.logo-white') + ' | display | none',
+    ],
     core = [
       ' | .logo-white | display | none',
       "@media screen | [data-theme='dark'] .logo-ink | display | none",
       "@media screen | [data-theme='dark'] .logo-white | display | block",
       '@media screen and (prefers-color-scheme: dark) | :root:not([data-theme]) .logo-ink | display | none',
       '@media screen and (prefers-color-scheme: dark) | :root:not([data-theme]) .logo-white | display | block',
+      ...forced,
     ];
   assert.deepEqual(rules('privacy.css'), core);
   // accessibility.css adds the surface that is dark in both themes (--surface-inverse is the same in each): the
-  // connection result's header. The sidebar was one until V2-WEB-03 made it neutral.
-  assert.deepEqual(
-    rules('accessibility.css'),
-    core.map(rule =>
+  // connection result's header. The sidebar was one until V2-WEB-03 made it neutral. That header carries the White
+  // lockup only, so a forced palette cannot swap it for Ink: it keeps its one image rather than losing the logo.
+  assert.deepEqual(rules('accessibility.css'), [
+    ...core.map(rule =>
       rule.replace("[data-theme='dark'] .logo-white |", "[data-theme='dark'] .logo-white, .callback-top .logo-white |"),
     ),
-  );
+    '@media screen and (forced-colors: active) | :root .callback-top .logo-white | display | block',
+  ]);
   for (const sheet of sheets.filter(name => !['privacy.css', 'accessibility.css'].includes(name)))
     assert.deepEqual(rules(sheet), [], sheet + ' holds lockup variant rules');
   // About takes no data-theme rule of its own (tests/web-route-bytes.test.mjs) and loads no theme.css.
