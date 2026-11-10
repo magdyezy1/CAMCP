@@ -1,4 +1,4 @@
-// Journey and MCP evaluation (QA-04, B15 "measured"). Runs the eight user journeys (tests/journeys/journeys.mjs, four
+// Journey and MCP evaluation (QA-04, B15 "measured"). Runs the nine user journeys (tests/journeys/journeys.mjs, four
 // branches each), the B15 tasks (tests/journeys/b15-tasks.json, reference and guided runs) and the MCP evaluation set
 // (tests/fixtures/mcp-evaluation/evaluation.xml, each question answered by its reference solution) against an
 // in-memory MCP server, the loopback website and synthetic providers, with zero egress, and compares the metrics with

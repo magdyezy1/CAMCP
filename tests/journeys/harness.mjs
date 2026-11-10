@@ -752,6 +752,8 @@ async function evaluationWorkspace({fault, role = 'operator'} = {}, egress) {
     actor,
     admin,
     service,
+    /** The reporting overview the worker runs, for a journey that supplies its own collector (see J9). */
+    overview,
     providers,
     /** Direct calls of the global fetch outside the loopback website (refused and counted). */
     globalEgress: egress,

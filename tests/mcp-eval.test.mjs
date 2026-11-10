@@ -418,7 +418,7 @@ test('the B15 task set names the blueprint jobs, snapshot collection and hold-ou
   }
   assert.deepEqual(
     journeys.map(journey => journey.id),
-    ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8'],
+    ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9'],
   );
   for (const journey of journeys) assert.deepEqual(Object.keys(journey.branches), [...branchNames], journey.id);
 });
