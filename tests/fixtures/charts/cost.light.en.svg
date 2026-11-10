@@ -10,9 +10,9 @@
 <line x1="8" y1="8" x2="8" y2="20" stroke="#222137" stroke-width="2"/>
 <line x1="466.72" y1="41" x2="466.72" y2="61" stroke="#222137" stroke-width="2"/>
 <text x="18" y="17" text-anchor="start" font-size="12" fill="#222137">Target</text>
-<text x="4" y="38" text-anchor="start" font-size="12" fill="#222137">Campaign a</text>
+<text x="10" y="38" text-anchor="start" font-size="12" fill="#222137">Campaign a</text>
 <text x="395.6" y="55" text-anchor="start" font-size="12" fill="#222137">10.00</text>
-<text x="4" y="82" text-anchor="start" font-size="12" fill="#222137">Campaign b</text>
+<text x="10" y="82" text-anchor="start" font-size="12" fill="#222137">Campaign b</text>
 <text x="10" y="99" text-anchor="start" font-size="12" fill="#696678">No data</text>
 <text x="7.6" y="118" text-anchor="middle" font-size="12" fill="#696678">0</text>
 <text x="196.8" y="118" text-anchor="middle" font-size="12" fill="#696678">5</text>

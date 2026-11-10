@@ -32,7 +32,7 @@ test('the gate reads the list of chart messages from the module', () => {
 test('every chart message has Arabic on the website, with the slots of its English', () => {
   for (const key of reportChartMessages) {
     assert.ok(Object.hasOwn(web, key), 'website Arabic for: ' + key);
-    assert.match(web[key], /[؀-ۿ]/u, key);
+    assert.match(web[key], /\p{Script=Arabic}/u, key);
     assert.equal(slots(web[key]), slots(key), 'slots of: ' + key);
     assert.ok(!/[<>]/.test(web[key]), key);
   }
@@ -42,7 +42,7 @@ test('every chart message has Arabic in the artifact catalogue, equal to the web
   for (const key of reportChartMessages) {
     const text = artifact.text(key);
     assert.notEqual(text, key, 'artifact Arabic for: ' + key);
-    assert.match(text, /[؀-ۿ]/u, key);
+    assert.match(text, /\p{Script=Arabic}/u, key);
     assert.equal(slots(text), slots(key), 'slots of: ' + key);
     if (!earlierDifference.has(key)) assert.equal(text, web[key], 'the two catalogues agree on: ' + key);
   }

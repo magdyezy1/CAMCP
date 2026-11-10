@@ -1,4 +1,11 @@
-import {chartBarRadius, chartLayout, type SceneHue, type SceneItem} from './report-chart-layout.js';
+import {
+  chartBarPath,
+  chartLayout,
+  chartTexture,
+  sceneInDrawingOrder,
+  type SceneHue,
+  type SceneItem,
+} from './report-chart-layout.js';
 import type {ChartSpec} from './report-chart-spec.js';
 import {
   chartMessageText,
@@ -6,8 +13,8 @@ import {
   chartPalette,
   chartSeriesName,
   escapeChartText,
+  chartTextInk,
   hueColor,
-  hueInk,
   type ChartColors,
   type ChartLocale,
   type ChartTheme,
@@ -36,7 +43,7 @@ export const chartSvgWidth = (value: unknown): number =>
     ? Math.round(Math.min(maxWidth, Math.max(minWidth, value)))
     : defaultWidth;
 const fontFamily = 'Aptos, Segoe UI, Noto Sans Arabic, sans-serif';
-const stripe = 6;
+const {period: stripe, stripe: stripeWidth, dot} = chartTexture;
 
 /** A short, stable text from a chart's identity: the ids inside one SVG must not collide with another chart's on a page. */
 function identity(text: string): string {
@@ -51,17 +58,6 @@ function element(name: string, attributes: Attributes, inner = ''): string {
     .map(([key, value]) => ` ${key}="${escapeChartText(value)}"`)
     .join('');
   return inner ? `<${name}${written}>${inner}</${name}>` : `<${name}${written}/>`;
-}
-
-/** A bar's outline: square at the baseline, a quarter circle of 4px at each corner of the data end. */
-function barPath(item: Extract<SceneItem, {t: 'rect'}>): string {
-  const r = chartBarRadius,
-    {x, y, w, h} = item,
-    right = x + w,
-    bottom = y + h;
-  return item.round === 'right'
-    ? `M${x},${y}H${right - r}A${r},${r} 0 0 1 ${right},${y + r}V${bottom - r}A${r},${r} 0 0 1 ${right - r},${bottom}H${x}Z`
-    : `M${right},${y}H${x + r}A${r},${r} 0 0 0 ${x},${y + r}V${bottom - r}A${r},${r} 0 0 0 ${x + r},${bottom}H${right}Z`;
 }
 
 export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | null {
@@ -101,19 +97,13 @@ export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | nu
       : role === 'grid'
         ? {stroke: colors.grid, 'stroke-width': 1, 'shape-rendering': 'crispEdges'}
         : {stroke: colors.ink, 'stroke-width': 2};
-  const inkOf = (item: Extract<SceneItem, {t: 'text'}>): string =>
-    item.role === 'inside'
-      ? hueInk(colors, item.color ?? null)
-      : ['tick', 'nodata', 'kpi-label', 'kpi-unit', 'kpi-caption'].includes(item.role)
-        ? colors.ink2
-        : colors.ink;
   const draw = (item: SceneItem): string => {
     switch (item.t) {
       case 'rect': {
         const geometry = {x: item.x, y: item.y, width: item.w, height: item.h};
         if (item.role === 'legend-swatch') return element('rect', {...geometry, fill: fill(item.color)});
         return item.round
-          ? mark('path', {d: barPath(item), fill: fill(item.color)}, item)
+          ? mark('path', {d: chartBarPath(item), fill: fill(item.color)}, item)
           : mark('rect', {...geometry, fill: fill(item.color)}, item);
       }
       case 'line':
@@ -152,7 +142,7 @@ export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | nu
             'text-anchor': item.anchor === 'center' ? 'middle' : start ? 'start' : 'end',
             'font-size': item.size,
             'font-weight': item.bold ? 700 : undefined,
-            fill: inkOf(item),
+            fill: chartTextInk(colors, item),
             direction: item.rtl ? 'rtl' : undefined,
             'unicode-bidi': item.rtl ? 'embed' : undefined,
             stroke: halo ? hueColor(colors, item.color ?? null) : undefined,
@@ -165,7 +155,6 @@ export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | nu
       }
     }
   };
-  const layer = (wanted: (item: SceneItem) => boolean) => scene.items.filter(wanted).map(draw);
   const notes = [
     spec.takeaway ? chartMessageText(spec.takeaway, locale) : null,
     ...spec.notes.map(note => chartNoteText(note, locale)),
@@ -189,7 +178,7 @@ export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | nu
                 patternTransform: `rotate(${angle})`,
               },
               element('rect', {width: stripe, height: stripe, fill: colors.hues[hue as 1 | 2]}) +
-                element('rect', {width: 2, height: stripe, fill: colors.surface}),
+                element('rect', {width: stripeWidth, height: stripe, fill: colors.surface}),
             ),
           )
           .concat(
@@ -197,21 +186,12 @@ export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | nu
               'pattern',
               {id: `${uid}-o`, width: stripe, height: stripe, patternUnits: 'userSpaceOnUse'},
               element('rect', {width: stripe, height: stripe, fill: colors.other}) +
-                element('circle', {cx: 3, cy: 3, r: 1.2, fill: colors.surface}),
+                element('circle', {cx: stripe / 2, cy: stripe / 2, r: dot, fill: colors.surface}),
             ),
           )
           .join(''),
       )
     : null;
-  const layers = [
-    layer(item => item.t === 'line' && item.role === 'grid'),
-    layer(item => item.t === 'line' && item.role === 'axis'),
-    layer(item => item.t === 'rect'),
-    layer(item => item.t === 'polyline'),
-    layer(item => item.t === 'line' && (item.role === 'target' || item.role === 'legend-target')),
-    layer(item => item.t === 'circle'),
-    layer(item => item.t === 'text'),
-  ].flat();
   return (
     element(
       'svg',
@@ -235,7 +215,7 @@ export function chartSvg(spec: ChartSpec, options: ChartSvgOptions): string | nu
           element('desc', {id: `${uid}-d`}, escapeChartText(notes.join(' '))),
           definitions,
           element('rect', {width, height: scene.height, fill: colors.surface}),
-          ...layers,
+          ...sceneInDrawingOrder(scene).map(draw),
         ]
           .filter(part => part !== null)
           .join('\n') +

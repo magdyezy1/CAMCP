@@ -74,18 +74,30 @@ test('a message is said in the language of the artifact: names AMCP wrote are tr
     english = chartMessageText(spec.takeaway, en),
     arabic = chartMessageText(spec.takeaway, ar);
   assert.equal(english, spec.takeaway.text, 'English is the very sentence the spec holds');
-  assert.match(arabic, /[؀-ۿ]/);
+  assert.match(arabic, /\p{Script=Arabic}/u);
   // The largest objective is a name AMCP wrote ("Sales"): said in Arabic, and its share and total are as they were.
   assert.ok(spec.takeaway.labels.includes('name'));
   assert.ok(!arabic.includes(spec.takeaway.params.name), 'the objective is translated');
   assert.ok(arabic.includes(spec.takeaway.params.share) && arabic.includes(spec.takeaway.params.total));
+  // In Arabic every value is isolated from the sentence around it (first-strong isolate), so a date, a percentage or an
+  // amount keeps its own order inside a right-to-left sentence: "2026-10-19" must not be read as "19-10-2026".
+  const isolated = value => String.fromCodePoint(0x2068) + value + String.fromCodePoint(0x2069);
+  assert.ok(arabic.includes(isolated(spec.takeaway.params.share)));
+  assert.ok(arabic.includes(isolated(spec.takeaway.params.total)));
+  assert.ok(
+    !arabic.includes(isolated(spec.takeaway.params.name)),
+    'a name AMCP wrote is a word of the sentence, not data',
+  );
+  assert.ok(!/\p{Bidi_Control}/u.test(english), 'English has no isolates');
+  const peak = chartMessageText(lineSpec().takeaway, ar);
+  assert.ok(peak.includes(isolated('2026-10-19')), peak);
   // A campaign's name is a provider's: never translated.
   const bars = foldedBarsSpec();
   assert.ok(chartMessageText(bars.takeaway, ar).includes(bars.takeaway.params.name));
   assert.equal(chartMessageText(bars.takeaway, en), bars.takeaway.text);
   // A title is one of the messages.
   assert.equal(chartMessageText(spec.title, en), 'Spend by objective');
-  assert.match(chartMessageText(spec.title, ar), /[؀-ۿ]/);
+  assert.match(chartMessageText(spec.title, ar), /\p{Script=Arabic}/u);
   assert.equal(chartSeriesName(spec.series[0], en), spec.series[0].name);
   assert.notEqual(chartSeriesName(spec.series[0], ar), spec.series[0].name);
   const entity = {...spec.series[0], name: 'Meta campaign', name_kind: 'entity'};
@@ -98,7 +110,7 @@ test('a coverage note is re-worded by the helper that wrote it: the very line in
   assert.ok(coverage.length > 0, 'the short line has coverage notes');
   for (const note of coverage) {
     assert.equal(chartNoteText(note, en), note.text);
-    assert.match(chartNoteText(note, ar), /[؀-ۿ]/);
+    assert.match(chartNoteText(note, ar), /\p{Script=Arabic}/u);
   }
   const message = spec.notes.find(note => note.kind === 'message');
   assert.equal(chartNoteText(message, en), message.text);

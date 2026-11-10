@@ -19,7 +19,7 @@
 <text x="87.28" y="17" text-anchor="start" font-size="12" fill="#222137">Leads</text>
 <text x="154.56" y="17" text-anchor="start" font-size="12" fill="#222137">Traffic</text>
 <text x="235.28" y="17" text-anchor="start" font-size="12" fill="#222137">Other</text>
-<text x="4" y="42" text-anchor="start" font-size="12" fill="#222137">Meta</text>
+<text x="10" y="42" text-anchor="start" font-size="12" fill="#222137">Meta</text>
 <text x="100.78" y="61" text-anchor="middle" font-size="12" fill="#222137" stroke="#1baf7a" stroke-width="3" stroke-linejoin="round" paint-order="stroke">100.00</text>
 <text x="276.39" y="61" text-anchor="middle" font-size="12" fill="#ffffff">80.00</text>
 <text x="412.58" y="61" text-anchor="middle" font-size="12" fill="#222137" stroke="#eb6834" stroke-width="3" stroke-linejoin="round" paint-order="stroke">60.00</text>

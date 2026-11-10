@@ -18,11 +18,11 @@
 <text x="20" y="17" text-anchor="start" font-size="12" fill="#f2edf8">Sales</text>
 <text x="87.28" y="17" text-anchor="start" font-size="12" fill="#f2edf8">Leads</text>
 <text x="154.56" y="17" text-anchor="start" font-size="12" fill="#f2edf8">Traffic</text>
-<text x="4" y="42" text-anchor="start" font-size="12" fill="#f2edf8">Meta</text>
+<text x="10" y="42" text-anchor="start" font-size="12" fill="#f2edf8">Meta</text>
 <text x="149.42" y="61" text-anchor="middle" font-size="12" fill="#17141f">100.00</text>
 <text x="383.39" y="61" text-anchor="middle" font-size="12" fill="#17141f">60.00</text>
 <text x="479.86" y="61" text-anchor="start" font-size="12" fill="#f2edf8">161.00</text>
-<text x="4" y="86" text-anchor="start" font-size="12" fill="#f2edf8">Google Ads</text>
+<text x="10" y="86" text-anchor="start" font-size="12" fill="#f2edf8">Google Ads</text>
 <text x="61.87" y="105" text-anchor="middle" font-size="12" fill="#17141f">40.00</text>
 <text x="150.42" y="105" text-anchor="middle" font-size="12" fill="#17141f">20.00</text>
 <text x="185.1" y="105" text-anchor="start" font-size="12" fill="#f2edf8">60.00</text>

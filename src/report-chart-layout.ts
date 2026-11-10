@@ -91,6 +91,8 @@ const FS = 12,
   LEGEND_ROW = 22,
   POINT = 4,
   INSET = 8,
+  // The names of bars and stacks start this far from the baseline, so a letter never touches the axis.
+  NAME_INSET = 6,
   GAP = 8,
   LINE = 16,
   // The height of a tile: 20px below its last baseline, which is the currency line (56) or, with a change, the last line of
@@ -131,30 +133,37 @@ export function chartTextWidth(text: string, size: number): number {
   return r2(em * size);
 }
 /** A text cut with an ellipsis to fit `max` pixels: it is never clipped by its own box. */
-export function fitChartText(text: string, max: number, size: number): string {
-  if (chartTextWidth(text, size) <= max) return text;
+export function fitChartText(text: string, max: number, size: number, measure = chartTextWidth): string {
+  if (measure(text, size) <= max) return text;
   const letters = [...text];
-  while (letters.length && chartTextWidth(letters.join('') + '…', size) > max) letters.pop();
+  while (letters.length && measure(letters.join('') + '…', size) > max) letters.pop();
   return letters.join('').trimEnd() + '…';
 }
 /**
  * A text broken at its spaces into at most `lines` lines that each fit `max` pixels. When it needs more, the last line takes
- * the rest and is cut with an ellipsis; a single word wider than the room is cut too, so no line leaves its box.
+ * the rest and is cut with an ellipsis; a single word wider than the room is cut too, so no line leaves its box. The PDF
+ * passes the real width of its font as `measure`.
  */
-export function wrapChartText(content: string, max: number, size: number, lines: number): string[] {
+export function wrapChartText(
+  content: string,
+  max: number,
+  size: number,
+  lines: number,
+  measure = chartTextWidth,
+): string[] {
   const broken: string[] = [];
   let current = '';
   for (const word of content.split(/\s+/).filter(Boolean)) {
     const next = current ? current + ' ' + word : word;
-    if (chartTextWidth(next, size) <= max) current = next;
+    if (measure(next, size) <= max) current = next;
     else {
       if (current) broken.push(current);
       current = word;
     }
   }
   if (current) broken.push(current);
-  if (broken.length <= lines) return broken.map(line => fitChartText(line, max, size));
-  return [...broken.slice(0, lines - 1), fitChartText(broken.slice(lines - 1).join(' '), max, size)];
+  if (broken.length <= lines) return broken.map(line => fitChartText(line, max, size, measure));
+  return [...broken.slice(0, lines - 1), fitChartText(broken.slice(lines - 1).join(' '), max, size, measure)];
 }
 /** The largest size that holds a figure whole: a number is made smaller, never cut. Below the smallest it is cut at last. */
 function fitFigure(content: string, max: number): {text: string; size: number} {
@@ -178,7 +187,7 @@ export function chartDateLabel(iso: string, language: 'en' | 'ar', withYear: boo
     : `${month} ${day}${withYear ? ', ' + match[1] : ''}`;
 }
 
-const arabicLetters = /[؀-ۿ]/;
+const arabicLetters = /\p{Script=Arabic}/u;
 const ratio = (value: string, max: string) => {
   const part = Number(value) / Number(max);
   return Number.isFinite(part) ? clamp(part, 0, 1) : 0;
@@ -379,9 +388,9 @@ function bars(spec: ChartSpec, o: LayoutOptions): Scene {
       text(
         o,
         'label',
-        x0,
+        x0 + NAME_INSET,
         rowTop + 12,
-        fitChartText(item.other ? o.t('Other') : item.label, o.width - 2 * PAD, FS),
+        fitChartText(item.other ? o.t('Other') : item.label, o.width - 2 * PAD - NAME_INSET, FS),
         'left',
         {
           i: index,
@@ -438,7 +447,19 @@ function stacks(spec: ChartSpec, o: LayoutOptions): Scene {
   x.items.forEach((item, index) => {
     const rowTop = top + index * ROW,
       y = rowTop + 18;
-    items.push(text(o, 'label', x0, rowTop + 12, fitChartText(item.label, o.width - 2 * PAD, FS), 'left', {i: index}));
+    items.push(
+      text(
+        o,
+        'label',
+        x0 + NAME_INSET,
+        rowTop + 12,
+        fitChartText(item.label, o.width - 2 * PAD - NAME_INSET, FS),
+        'left',
+        {
+          i: index,
+        },
+      ),
+    );
     // The stack: each known value takes its share of the scale after the one before it.
     let start = 0;
     const parts = spec.series.map((series, s) => {
@@ -627,6 +648,48 @@ function tiles(spec: ChartSpec, o: LayoutOptions): Scene {
     }
   });
   return {width: o.width, height: r2(PAD + Math.ceil(spec.series.length / columns) * height), rtl, items};
+}
+
+/** The size of the print texture, in pixels: a stripe of 2px every 6px, and a dot of 1.2px radius in a cell of 6px. */
+export const chartTexture = {period: 6, stripe: 2, dot: 1.2};
+/**
+ * A bar's outline: square at the baseline, a quarter circle of 4px at each corner of the data end (the end `round` names),
+ * moved by (dx, dy). The one path every renderer draws, so a bar is the same shape in the SVG, the PDF and the page.
+ */
+export function chartBarPath(item: Extract<SceneItem, {t: 'rect'}>, dx = 0, dy = 0): string {
+  const r = chartBarRadius,
+    x = item.x + dx,
+    y = item.y + dy,
+    right = x + item.w,
+    bottom = y + item.h;
+  return item.round === 'right'
+    ? `M${x},${y}H${right - r}A${r},${r} 0 0 1 ${right},${y + r}V${bottom - r}A${r},${r} 0 0 1 ${right - r},${bottom}H${x}Z`
+    : `M${right},${y}H${x + r}A${r},${r} 0 0 0 ${x},${y + r}V${bottom - r}A${r},${r} 0 0 0 ${x + r},${bottom}H${right}Z`;
+}
+
+const layer = (item: SceneItem): number =>
+  item.t === 'line'
+    ? item.role === 'grid'
+      ? 0
+      : item.role === 'axis'
+        ? 1
+        : 4
+    : item.t === 'rect'
+      ? 2
+      : item.t === 'polyline'
+        ? 3
+        : item.t === 'circle'
+          ? 5
+          : 6;
+/**
+ * The marks of a scene in the order every renderer draws them: the grid, the axis, the fills, the line, the target marks, the
+ * points, then the text, each layer in the order the scene has it (so the text keeps its reading order).
+ */
+export function sceneInDrawingOrder(scene: Scene): SceneItem[] {
+  return scene.items
+    .map((item, index) => ({item, index}))
+    .sort((a, b) => layer(a.item) - layer(b.item) || a.index - b.index)
+    .map(({item}) => item);
 }
 
 /** The scene of a chart that is drawn, or null for one that is not (its notes and its table say why). */

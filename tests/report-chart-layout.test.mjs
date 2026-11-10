@@ -9,6 +9,7 @@ import {
   chartLayout,
   chartTextWidth,
   fitChartText,
+  sceneInDrawingOrder,
   wrapChartText,
 } from '../dist/src/report-chart-layout.js';
 import {chartRow, keyFigures, money} from './helpers/chart-rows.mjs';
@@ -181,6 +182,20 @@ test('no text lies over another text, at every width down to a phone, for every 
     for (const language of ['en', 'ar'])
       for (const width of [320, 375, 480, 640, 960])
         assert.deepEqual(textOverlaps(layout(spec, width, language)), [], `${name} ${language} ${width}`);
+});
+
+test('the names of bars and stacks start a little clear of the baseline, never touching it, in both languages', () => {
+  for (const [name, spec] of Object.entries({bars: barsSpec(), cost: costSpec(), stack: stackSpec()}))
+    for (const language of ['en', 'ar'])
+      for (const width of [320, 640]) {
+        const scene = layout(spec, width, language),
+          [axis] = marks(scene, 'axis');
+        for (const label of marks(scene, 'label'))
+          assert.ok(
+            Math.abs(label.x - axis.x1) >= 4,
+            `${name} ${language} ${width}: "${label.text}" starts ${Math.abs(label.x - axis.x1)}px from the baseline`,
+          );
+      }
 });
 
 test('a name that does not fit is cut with an ellipsis on a phone and whole where there is room', () => {
@@ -559,6 +574,14 @@ test('text is broken at its spaces into the lines a box holds, and what cannot f
   assert.equal(wrapChartText('+123,356.50 (+123,356.5%)', 100, 12, 2).join(' '), '+123,356.50 (+123,356.5%)');
 });
 
+test('text is cut and broken by whatever measures it, so the PDF can use the real width of its font', () => {
+  const tenEach = text => text.length * 10;
+  assert.equal(fitChartText('abcdefghij', 55, 12, tenEach), 'abcd…');
+  assert.equal(fitChartText('abc', 55, 12, tenEach), 'abc');
+  assert.deepEqual(wrapChartText('ab cd ef', 55, 12, 2, tenEach), ['ab cd', 'ef']);
+  assert.deepEqual(wrapChartText('ab cd ef gh ij', 55, 12, 2, tenEach), ['ab cd', 'ef g…']);
+});
+
 test('a caption or a change too wide for its tile goes on a second line, whole, and every tile has the height of the tallest', () => {
   const spec = tilesSpec(),
     caption = 'Since the previous period';
@@ -636,6 +659,40 @@ test('every mark carries the hue it is drawn in, decided once here: a series kee
     lineScene = layout(line);
   for (const item of [...marks(lineScene, 'point'), ...marks(lineScene, 'line')])
     assert.equal(item.color, line.series[0].color_index);
+});
+
+test('marks are drawn in one order by every renderer: grid, axis, fills, the line, targets, points, then text, each layer in scene order', () => {
+  const rank = item =>
+    item.t === 'line' && item.role === 'grid'
+      ? 0
+      : item.t === 'line' && item.role === 'axis'
+        ? 1
+        : item.t === 'rect'
+          ? 2
+          : item.t === 'polyline'
+            ? 3
+            : item.t === 'line'
+              ? 4
+              : item.t === 'circle'
+                ? 5
+                : 6;
+  for (const [name, spec] of Object.entries(everyShape())) {
+    const scene = layout(spec, 480),
+      ordered = sceneInDrawingOrder(scene);
+    assert.equal(ordered.length, scene.items.length, name);
+    assert.deepEqual(
+      ordered.map(rank),
+      [...ordered.map(rank)].sort((a, b) => a - b),
+      name + ': layers in order',
+    );
+    // Nothing is lost or invented, and within a layer the scene's own order is kept.
+    for (let layer = 0; layer <= 6; layer++)
+      assert.deepEqual(
+        ordered.filter(item => rank(item) === layer),
+        scene.items.filter(item => rank(item) === layer),
+        `${name} layer ${layer}`,
+      );
+  }
 });
 
 test('a chart that is not drawn has no layout', () => {
