@@ -238,10 +238,16 @@
       "raised": [
         "reference_words 156417 → 156776"
       ]
+    },
+    {
+      "reason": "V2-MCP-02: a section on following a long run (polling, progress notifications and tasks) in the reporting guide that the overview help serves, and one sentence each in the write-operations reference and the deployment variable table",
+      "raised": [
+        "reference_words 156776 → 157302"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156776
+    "reference_words": 157302
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

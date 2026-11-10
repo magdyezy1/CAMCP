@@ -977,6 +977,34 @@ cover all sources. The style is copied into that snapshot, so changing or deleti
 rewrites old report packs. Profile-choice pages return `next_offset`; continue even after an empty filtered page.
 See [report-pack contracts and limits](workflows/REPORT-PACKS.md#client-report-packs-and-recovery).
 
+### Following a long run: polling, progress and tasks
+
+An export (`export`) and a background run of an approved plan of uploads (`amcp_campaign run_background`) are jobs that
+a worker runs after the call has answered. There are three ways to follow one, and the first needs nothing from the client.
+
+- **Polling.** The answer names the job. Call `export_status` (an export) or `get` (a plan, or a report) until its state is
+  final; a queued report or export also names its `next_call` and `poll_after_ms`. Every client can do this in every
+  protocol revision, and it is unchanged.
+- **Progress.** A client that sends a `progressToken` with the call (the SDK clients do when given a progress callback)
+  keeps the call open for up to 25 seconds. It sends `notifications/progress` on its own stream as the job moves: an
+  export from 0 (queued) to 1 (running) to 2 (complete) of 2, a plan by its settled uploads of all of them, each with the
+  job's state as its message. A notification is sent only when the progress has grown, and the first one at once. If the
+  job finished in that time the call answers with the read that shows it finished (`export_status`, or `get` of the plan);
+  otherwise it answers as it always did, with the job handle and its next call. A client that goes away ends the wait and
+  never cancels the job. A process holds at most 8 such calls at once; past that a call is answered at once. The earlier
+  protocol revisions answer such a call as an event stream, only for a client that accepts one; a call with no token is
+  answered at once, as before.
+- **Tasks.** On MCP revision 2026-07-28, a client that declares the extension `io.modelcontextprotocol/tasks` in the request
+  is answered a task (`resultType:"task"`, status `working`, `ttlMs` 24 hours, `pollIntervalMs` 5000) for these two calls
+  instead of the handle. `tasks/get {taskId}` reports `working`, then `completed` with the result `export_status` or `get`
+  would give, as a tool result, or `failed` with the job's error, or `cancelled`. `tasks/cancel` stops an export with the
+  rights the `cancel` action has; a background run is stopped by cancelling its plan (`amcp_campaign cancel`, which asks
+  the person to confirm), so its task answers with that call. `tasks/update` is refused, because a task never asks for
+  input, and `tasks/list` does not exist. A task belongs to the workspace, the person and the AI client it was made for:
+  an identifier that is unknown, altered, expired or someone else's gets one error, `Unknown task.`, and nothing else
+  happens. A person has at most 100 tasks, asking again for the same job gives the same task, and a task is kept for 24
+  hours. The extension is declared in `server/discover` and not to the earlier revisions.
+
 ### Scheduled PDF and Excel files
 
 In **Report destinations & schedules**, create a PDF / Excel destination, explicitly choose its formats and branding,
