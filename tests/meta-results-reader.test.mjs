@@ -92,6 +92,30 @@ test('Meta results: different indicators have different definitions, so they are
   );
 });
 
+test('Meta results: a result Meta adds later is named by its own indicator, so two of them never share a label', () => {
+  const label = indicator => read({impressions: '1', results: [entry(indicator, [wire('4')])]}).definition.label;
+  assert.equal(label('actions:offsite_conversion.custom.1000000000000001'), 'Custom conversion 1000000000000001');
+  assert.equal(label('actions:offsite_conversion.custom.1000000000000002'), 'Custom conversion 1000000000000002');
+  assert.equal(label('actions:onsite_conversion.post_save'), 'Meta action onsite_conversion.post_save');
+  assert.equal(label('actions:onsite_conversion.post_share'), 'Meta action onsite_conversion.post_share');
+  assert.equal(label('thruplay_views'), 'Meta result thruplay_views');
+  assert.equal(label('video_thruplay_watched'), 'Meta result video_thruplay_watched');
+  // Over the whole table and these, a label belongs to one definition: two different ids never read the same.
+  const owner = new Map();
+  for (const indicator of [
+    ...samples.indicators.map(item => item.indicator),
+    'actions:offsite_conversion.custom.1000000000000002',
+    'actions:onsite_conversion.post_save',
+    'actions:onsite_conversion.post_share',
+    'thruplay_views',
+    'video_thruplay_watched',
+  ]) {
+    const {label, id} = read({impressions: '1', results: [entry(indicator, [wire('4')])]}).definition;
+    assert.ok(!owner.has(label) || owner.get(label) === id, label + ' names ' + owner.get(label) + ' and ' + id);
+    owner.set(label, id);
+  }
+});
+
 test('Meta results: an indicator is bounded before it enters an id, and one outside the bound is an unverified shape', () => {
   for (const indicator of [
     '',

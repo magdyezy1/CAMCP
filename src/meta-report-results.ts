@@ -148,7 +148,11 @@ export const metaResultIndicators: Readonly<Record<string, IndicatorDefinition>>
  */
 const indicatorForm = /^(?=.{1,200}$)[A-Za-z][A-Za-z0-9_.-]*(?::[A-Za-z0-9][A-Za-z0-9_.-]*)?$/;
 const customConversion = /^actions:offsite_conversion\.custom\.(\d{1,32})$/;
-/** The definition of one indicator of Meta’s `results`, or null when the indicator is not a bounded name. */
+/**
+ * The definition of one indicator of Meta’s `results`, or null when the indicator is not a bounded name. A custom conversion, an
+ * action and a metric Meta adds later are named by their own bounded value (a custom conversion’s ID, the action type, the
+ * indicator), so two of them in one report never share a label; the named entries of the table keep theirs.
+ */
 export function metaIndicatorDefinition(indicator: string): ReportResultDefinition | null {
   if (!indicatorForm.test(indicator)) return null;
   const native_metric = 'results:' + indicator;
@@ -158,7 +162,7 @@ export function metaIndicatorDefinition(indicator: string): ReportResultDefiniti
     return {
       id: 'meta:custom_conversion:' + custom[1],
       metric: 'custom_conversion:' + custom[1],
-      label: 'Custom conversion',
+      label: 'Custom conversion ' + custom[1],
       native_metric,
       aggregation: 'sum',
       unit: 'number',
@@ -168,7 +172,7 @@ export function metaIndicatorDefinition(indicator: string): ReportResultDefiniti
     return {
       id: 'meta:action:' + action,
       metric: action,
-      label: 'Meta result',
+      label: 'Meta action ' + action,
       native_metric,
       aggregation: 'sum',
       unit: 'number',
@@ -177,7 +181,7 @@ export function metaIndicatorDefinition(indicator: string): ReportResultDefiniti
   return {
     id: 'meta:result:' + indicator,
     metric: indicator,
-    label: 'Meta result',
+    label: 'Meta result ' + indicator,
     native_metric,
     aggregation: 'non_additive',
     unit: 'number',

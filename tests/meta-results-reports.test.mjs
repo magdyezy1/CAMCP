@@ -5,9 +5,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
+import ExcelJS from 'exceljs';
 import {granularConfig, granularSource, overviewGranularityFixture} from './fixtures/overview-granularity-data.mjs';
 import {reportTable} from '../dist/src/report-table.js';
 import {reportPack} from '../dist/src/report-packs.js';
+import {reportWorkbook} from '../dist/src/report-artifacts.js';
 import {artifactLocale} from '../dist/src/report-localization.js';
 import {metaIndicatorDefinition, metaResultIndicators, metaResultRules} from '../dist/src/meta-report-results.js';
 
@@ -455,7 +457,6 @@ test('every label of Meta’s results has Arabic, on the website and in the Arab
     'Page likes',
     'Leads',
     'App installs',
-    'Custom conversion',
     '2-second continuous video plays',
     'Profile visits',
     'Total profile visits',
@@ -463,17 +464,13 @@ test('every label of Meta’s results has Arabic, on the website and in the Arab
     'Impressions',
     'Estimated ad recall lift (people)',
     'Selected Meta action',
-    'Meta result',
   ];
-  // And every label the code declares, so a label added later cannot ship without its Arabic.
-  const declared = [
-    ...Object.values(metaResultIndicators),
-    ...Object.values(metaResultRules.selectors[0].values),
-    metaIndicatorDefinition('actions:some_future_action'),
-    metaIndicatorDefinition('some_future_metric'),
-    metaIndicatorDefinition('actions:offsite_conversion.custom.1000000000000001'),
-  ].map(definition => definition.label);
-  assert.ok(declared.length >= 25);
+  // And every named label the code declares, so a label added later cannot ship without its Arabic. (A result Meta adds later
+  // is named by its own indicator: the next test.)
+  const declared = [...Object.values(metaResultIndicators), ...Object.values(metaResultRules.selectors[0].values)].map(
+    definition => definition.label,
+  );
+  assert.ok(declared.length >= 23);
   assert.deepEqual(
     declared.filter(label => !listed.includes(label)),
     [],
@@ -487,5 +484,121 @@ test('every label of Meta’s results has Arabic, on the website and in the Arab
     assert.match(arabic.result(label), /[؀-ۿ]/u, 'Arabic export: ' + label);
     assert.equal(arabic.result(label), catalog[label], 'the export says what the website says: ' + label);
     assert.equal(english.result(label), label, 'English export: ' + label);
+  }
+});
+
+// The three results Meta adds later (a custom conversion, an action, a metric) are named by their own indicator, in the label every
+// surface shows, so two of them in one report never share a label (the lead's ruling on the table of the brief).
+const templates = [
+  [
+    'Custom conversion {id}',
+    'actions:offsite_conversion.custom.1000000000000001',
+    'Custom conversion 1000000000000001',
+    '1000000000000001',
+  ],
+  [
+    'Meta action {action}',
+    'actions:onsite_conversion.post_save',
+    'Meta action onsite_conversion.post_save',
+    'onsite_conversion.post_save',
+  ],
+  ['Meta result {indicator}', 'thruplay_views', 'Meta result thruplay_views', 'thruplay_views'],
+];
+for (const [template, indicator, label, value] of templates)
+  test('the label of ' + indicator + ' carries its own value, and has Arabic on the website and in the exports', () => {
+    assert.equal(metaIndicatorDefinition(indicator).label, label);
+    const slot = /\{[a-z]+\}/.exec(template)[0],
+      translated = catalog[template];
+    assert.match(translated ?? '', /[؀-ۿ]/u, 'Arabic for ' + template);
+    assert.ok(translated.includes(slot), 'the Arabic keeps the slot ' + slot);
+    const expected = translated.replace(slot, value);
+    assert.equal(artifactLocale({artifact_language: 'ar'}).result(label), expected, 'Arabic export');
+    assert.equal(artifactLocale({}).result(label), label, 'English export');
+    assert.equal(sourceDetails(page('ar'), {platform: 'meta', result_definition: label}), expected, 'Arabic website');
+    assert.equal(sourceDetails(page('en'), {platform: 'meta', result_definition: label}), label, 'English website');
+  });
+
+test('two custom conversions, an action and a metric Meta adds later in one report show four labels: MCP, exports and website', async () => {
+  const indicators = [
+      ['101', 'actions:offsite_conversion.custom.1000000000000001', 'Custom conversion 1000000000000001'],
+      ['102', 'actions:offsite_conversion.custom.1000000000000002', 'Custom conversion 1000000000000002'],
+      ['103', 'actions:onsite_conversion.post_save', 'Meta action onsite_conversion.post_save'],
+      ['104', 'thruplay_views', 'Meta result thruplay_views'],
+    ],
+    labels = indicators.map(([, , label]) => label),
+    arabic = label => {
+      const [template, , , value] =
+        templates.find(([, , english]) => label.startsWith(english.split(' ').slice(0, -1).join(' '))) ?? [];
+      return template && catalog[template].replace(/\{[a-z]+\}/, label.slice(label.lastIndexOf(' ') + 1));
+    };
+  const f = overviewGranularityFixture();
+  try {
+    f.mutate((rows, platform) =>
+      platform !== 'meta'
+        ? rows
+        : rows.flatMap(row =>
+            indicators.map(([id, indicator]) => ({
+              ...row,
+              campaign_id: id,
+              campaign_name: 'Campaign ' + id,
+              objective: 'OUTCOME_SALES',
+              optimization_goal: 'OFFSITE_CONVERSIONS',
+              spend: '12',
+              results: results(indicator, wire('6')),
+            })),
+          ),
+    );
+    const {read, stored} = await run(f, campaignConfig());
+    assert.equal(read.state, 'complete', JSON.stringify(read.sources?.[0]?.error));
+    // MCP: each row, each definition of the source and each summary names its own result.
+    assert.deepEqual(
+      [...new Set(read.rows.map(row => row.entity_id + ' ' + row.result.label))].sort(),
+      indicators.map(([id, , label]) => id + ' ' + label),
+    );
+    assert.deepEqual(read.sources[0].result_definitions.map(definition => definition.label).sort(), [...labels].sort());
+    assert.deepEqual([...new Set(read.summary.map(summary => summary.result_definition))].sort(), [...labels].sort());
+    // Exports: the table's Primary result column, the pack's summaries and the Arabic workbook.
+    const table = reportTable(stored),
+      column = table[0].indexOf('Primary result'),
+      campaign = table[0].indexOf('Campaign ID');
+    assert.deepEqual(
+      [
+        ...new Set(
+          table
+            .slice(1)
+            .filter(cells => cells[campaign] !== '')
+            .map(cells => cells[campaign] + ' ' + cells[column]),
+        ),
+      ].sort(),
+      indicators.map(([id, , label]) => id + ' ' + label),
+    );
+    assert.deepEqual(
+      [...new Set(reportPack(stored).summary.map(summary => summary.result_definition))].sort(),
+      [...labels].sort(),
+    );
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await reportWorkbook(stored, {artifact_language: 'ar'}));
+    const cells = book.worksheets.flatMap(sheet => sheet.getSheetValues().flat().filter(Boolean));
+    for (const label of labels) {
+      assert.ok(cells.includes(arabic(label)), 'the Arabic workbook says ' + arabic(label));
+      assert.equal(cells.includes(label), false, 'and no longer the English ' + label);
+    }
+    // Website: the source details of each row, in both languages.
+    for (const [locale, expected] of [
+      ['en', label => label],
+      ['ar', arabic],
+    ]) {
+      const run = page(locale);
+      for (const [id, , label] of indicators) {
+        const row = stored.rows.find(item => item.campaign_id === id);
+        assert.equal(
+          sourceDetails(run, {platform: 'meta', result_definition: row.result_definition}),
+          expected(label),
+          locale + ' ' + id,
+        );
+      }
+    }
+  } finally {
+    f.close();
   }
 });

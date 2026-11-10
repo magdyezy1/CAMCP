@@ -169,7 +169,6 @@ const resultLabels: Record<string, string> = {
   'Page likes': 'إعجابات الصفحة',
   Leads: 'العملاء المحتملون',
   'App installs': 'عمليات تثبيت التطبيق',
-  'Custom conversion': 'تحويل مخصص',
   '2-second continuous video plays': 'تشغيلات الفيديو المتواصلة لمدة ثانيتين',
   'Profile visits': 'زيارات الملف الشخصي',
   'Total profile visits': 'إجمالي زيارات الملف الشخصي',
@@ -177,8 +176,21 @@ const resultLabels: Record<string, string> = {
   Impressions: 'مرات الظهور',
   'Estimated ad recall lift (people)': 'الزيادة التقديرية في تذكّر الإعلان (أشخاص)',
   'Selected Meta action': 'الإجراء المحدد في Meta',
-  'Meta result': 'نتيجة Meta',
 };
+// A result Meta adds later (a custom conversion, an action, a metric) is named by its own value, so its label is an English prefix and the
+// value: the Arabic template of each prefix, which web/locales/ar.json holds under the same words with the slot.
+const resultTemplates: Record<string, string> = {
+  'Custom conversion': 'تحويل مخصص {id}',
+  'Meta action': 'إجراء Meta {action}',
+  'Meta result': 'نتيجة Meta {indicator}',
+};
+/** The Arabic of a result label: a named label, or a label that carries a value, from the template of its prefix. */
+function arabicResult(value: string): string {
+  if (Object.hasOwn(resultLabels, value)) return resultLabels[value]!;
+  for (const [prefix, template] of Object.entries(resultTemplates))
+    if (value.startsWith(prefix + ' ')) return template.replace(/\{[a-z]+\}/, () => value.slice(prefix.length + 1));
+  return value;
+}
 const metricLabels: Record<string, string> = {
   spend: 'الإنفاق',
   impressions: 'مرات الظهور',
@@ -200,7 +212,7 @@ export function artifactLocale(presentation: JsonObject = {}) {
     rtl,
     language: (rtl ? 'ar' : 'en') as 'ar' | 'en',
     text: (value: string) => (rtl ? (arabic[value] ?? value) : value),
-    result: (value: string) => (rtl ? (resultLabels[value] ?? value) : value),
+    result: (value: string) => (rtl ? arabicResult(value) : value),
     metric: (value: string, custom: Set<string>) =>
       rtl && !custom.has(value) && metricLabels[value] ? metricLabels[value] + ' (' + value + ')' : value,
   };

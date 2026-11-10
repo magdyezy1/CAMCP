@@ -535,7 +535,7 @@
     {
       "indicator": "actions:offsite_conversion.custom.1000000000000001",
       "id": "meta:custom_conversion:1000000000000001",
-      "label": "Custom conversion",
+      "label": "Custom conversion 1000000000000001",
       "aggregation": "sum"
     },
     {
@@ -572,13 +572,13 @@
     {
       "indicator": "actions:some_future_action",
       "id": "meta:action:some_future_action",
-      "label": "Meta result",
+      "label": "Meta action some_future_action",
       "aggregation": "sum"
     },
     {
       "indicator": "some_future_metric",
       "id": "meta:result:some_future_metric",
-      "label": "Meta result",
+      "label": "Meta result some_future_metric",
       "aggregation": "non_additive"
     }
   ]

@@ -354,7 +354,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package meta-results adds fifteen labels of Meta’s results that had no Arabic (the indicator table of src/meta-report-results.ts,
   // the mapped table’s App installs, and Meta result for an indicator Meta adds later) and the two sentences a v4 Meta source states for
   // its result definition: 12,004 + 15 + 2.
-  assert.equal(Object.keys(catalog).length, 12021);
+  // Package meta-results then names a custom conversion, an action and a metric Meta adds later by their own value: it replaces the two generic
+  // labels (Custom conversion, Meta result) with three templates that carry it (Custom conversion {id}, Meta action {action}, Meta result
+  // {indicator}): 12,021 - 2 + 3.
+  assert.equal(Object.keys(catalog).length, 12022);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
