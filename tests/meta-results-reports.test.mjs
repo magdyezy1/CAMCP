@@ -631,13 +631,50 @@ test('the label of a chosen action carries the action, and has Arabic on the web
   assert.equal(artifactLocale({artifact_language: 'ar'}).result('Selected Meta action'), 'Selected Meta action');
 });
 
+// A report names an account once, so two Meta sources are two Meta accounts: 100, and a second one (200) that the same synthetic
+// fixture serves by answering for it as for 100.
+const secondAccount = {connection_id: 'aaaaaaaa-1111-4111-8111-000000000022', account_id: '200'};
+function serveSecondAccount(f) {
+  f.store.putConnection(
+    f.actor,
+    {
+      id: secondAccount.connection_id,
+      tenantId: f.actor.tenantId,
+      gateway: 'meta_native_action',
+      accounts: [secondAccount.account_id],
+      enabled: true,
+      label: 'Synthetic second Meta',
+      scopes: ['ads_read'],
+    },
+    {accessToken: 'synthetic', developerToken: 'synthetic'},
+  );
+  f.store.putDocument(f.actor.tenantId, 'website_assets', secondAccount.connection_id, {
+    groups: [{kind: 'ad_accounts', assets: [{id: secondAccount.account_id, name: 'Synthetic second Meta account'}]}],
+  });
+  const second = value =>
+    Array.isArray(value)
+      ? value.map(second)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [
+              key,
+              item === '100' && key === 'account_id' ? '200' : item === 'act_100' ? 'act_200' : second(item),
+            ]),
+          )
+        : value;
+  f.hook(async url => {
+    if (!url.pathname.includes('/act_200')) return undefined;
+    const mirrored = new URL(url);
+    mirrored.pathname = url.pathname.replace('/act_200', '/act_100');
+    const response = await f.fetcher(mirrored.toString());
+    return Response.json(second(await response.json()), {status: response.status});
+  });
+}
+
 test('two sources that choose different exact actions show two labels: MCP, exports and website', async () => {
-  // A report names an account once, so the two sources are two Meta accounts: 100, and a second one (200) that the same
-  // synthetic fixture serves by answering for it as for 100.
-  const secondConnection = 'aaaaaaaa-1111-4111-8111-000000000022',
-    sources = [
+  const sources = [
       ['adset', 'lead', {}],
-      ['ad', 'purchase', {connection_id: secondConnection, account_id: '200'}],
+      ['ad', 'purchase', secondAccount],
     ].map(([level, action, account]) => {
       const {objective, level: _level, report_options: _v3, ...source} = granularSource('meta', level);
       return {
@@ -651,40 +688,7 @@ test('two sources that choose different exact actions show two labels: MCP, expo
     arabic = label => catalog[chosen.template].replace('{action}', label.slice('Selected Meta action '.length));
   const f = overviewGranularityFixture();
   try {
-    f.store.putConnection(
-      f.actor,
-      {
-        id: secondConnection,
-        tenantId: f.actor.tenantId,
-        gateway: 'meta_native_action',
-        accounts: ['200'],
-        enabled: true,
-        label: 'Synthetic second Meta',
-        scopes: ['ads_read'],
-      },
-      {accessToken: 'synthetic', developerToken: 'synthetic'},
-    );
-    f.store.putDocument(f.actor.tenantId, 'website_assets', secondConnection, {
-      groups: [{kind: 'ad_accounts', assets: [{id: '200', name: 'Synthetic second Meta account'}]}],
-    });
-    const second = value =>
-      Array.isArray(value)
-        ? value.map(second)
-        : value && typeof value === 'object'
-          ? Object.fromEntries(
-              Object.entries(value).map(([key, item]) => [
-                key,
-                item === '100' && key === 'account_id' ? '200' : item === 'act_100' ? 'act_200' : second(item),
-              ]),
-            )
-          : value;
-    f.hook(async url => {
-      if (!url.pathname.includes('/act_200')) return undefined;
-      const mirrored = new URL(url);
-      mirrored.pathname = url.pathname.replace('/act_200', '/act_100');
-      const response = await f.fetcher(mirrored.toString());
-      return Response.json(second(await response.json()), {status: response.status});
-    });
+    serveSecondAccount(f);
     f.mutate((rows, platform) =>
       platform !== 'meta'
         ? rows
@@ -752,6 +756,106 @@ test('two sources that choose different exact actions show two labels: MCP, expo
         );
     }
     assert.deepEqual([...new Set(stored.rows.map(row => row.result_definition))].sort(), labels);
+  } finally {
+    f.close();
+  }
+});
+
+// A chosen exact action (`result_action_type`, which AMCP maps from `actions`) and Meta's own result for the same action (its
+// `results` indicator `actions:<type>`) are two definitions with two ids, so two sources that read one action in the two ways are
+// never one result (the lead's ruling 6). Summaries are per account, so what the shared id merged was the objective group's
+// reading of "one result definition", which holds a comparison back when there are several.
+test('a chosen action and Meta’s own result for the same action are two definitions: ids, summaries, exports and advice', async () => {
+  const action = 'onsite_conversion.post_save',
+    own = {id: 'meta:result:actions:' + action, label: 'Meta action ' + action, source: 'provider'},
+    chosenAction = {id: 'meta:action:' + action, label: 'Selected Meta action ' + action, source: 'mapped'},
+    both = [own, chosenAction];
+  const f = overviewGranularityFixture();
+  try {
+    serveSecondAccount(f);
+    f.mutate((rows, platform) =>
+      platform !== 'meta'
+        ? rows
+        : rows.map(row => ({
+            ...row,
+            objective: 'OUTCOME_SALES',
+            optimization_goal: 'OFFSITE_CONVERSIONS',
+            spend: '12',
+            results: results('actions:' + action, wire('4', '7d_click'), wire('1', '1d_view'), wire('9')),
+            actions: [{action_type: action, value: '9', '7d_click': '4', '1d_view': '1'}],
+          })),
+    );
+    const campaign = (({objective, level, report_options, ...source}) => ({...source, levels: ['campaign']}))(
+        granularSource('meta', 'campaign'),
+      ),
+      ad = (({objective, level, report_options, ...source}) => ({
+        ...source,
+        ...secondAccount,
+        levels: ['ad'],
+        report_options: {complete_window: true, result_action_type: action},
+      }))(granularSource('meta', 'ad'));
+    const {read, stored} = await run(f, {
+      ...granularConfig(campaign, 'daily'),
+      contract_version: 'overview-config-v4',
+      sources: [campaign, ad],
+      metrics,
+    });
+    assert.equal(read.state, 'complete', JSON.stringify(read.sources?.map(source => source.error)));
+    // MCP: each row, and each source's definition, has its own id, label and source.
+    const byEntity = new Map(read.rows.map(row => [row.entity_id, row]));
+    assert.equal(byEntity.size, 2);
+    for (const [entity, expected] of [
+      ['101', own],
+      ['9007199254740993', chosenAction],
+    ]) {
+      const row = byEntity.get(entity);
+      assert.deepEqual(
+        [row.result.definition_id, row.result.label, row.result_context.source],
+        [expected.id, expected.label, expected.source],
+        entity,
+      );
+    }
+    assert.deepEqual(
+      read.sources.map(source => source.result_definitions.map(definition => definition.id)),
+      [[own.id], [chosenAction.id]],
+    );
+    // The summaries (one per account, level and result) and the windows summaries name both, by id and by label.
+    for (const [name, groups] of [
+      ['summary', read.summary],
+      ['window summary', read.window_summary],
+    ]) {
+      assert.deepEqual(
+        [...new Set(groups.flatMap(group => group.result_groups.map(g => g.definition.id)))].sort(),
+        both.map(item => item.id).sort(),
+        name,
+      );
+      assert.deepEqual(
+        [...new Set(groups.map(group => group.result_definition))].sort(),
+        both.map(item => item.label).sort(),
+        name,
+      );
+    }
+    // The exports: the Primary result column and the pack's summaries.
+    const table = reportTable(stored),
+      column = table[0].indexOf('Primary result');
+    assert.ok(column > 0);
+    assert.deepEqual(
+      [
+        ...new Set(
+          table
+            .slice(1)
+            .map(cells => cells[column])
+            .filter(Boolean),
+        ),
+      ].sort(),
+      both.map(item => item.label).sort(),
+    );
+    assert.deepEqual(
+      [...new Set(reportPack(stored).summary.map(summary => summary.result_definition))].sort(),
+      both.map(item => item.label).sort(),
+    );
+    // Two result definitions in one objective group: the advice holds a comparison of their costs back, for both rows.
+    for (const row of read.rows) assert.match(row.recommendation.reason, /different result definitions/, row.entity_id);
   } finally {
     f.close();
   }

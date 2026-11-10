@@ -58,11 +58,13 @@ A v4 Meta row is read in this order (`src/meta-report-results.ts`):
    the sum equals the `default` value; otherwise, and when the count came from the action's keys, the cost is spend over
    the result, exactly. A cost that is not the recorded shape or not a decimal is ignored, never fatal.
 7. Source `provider`. The definition (id, label, aggregation) comes from one declared table, `metaResultIndicators`, with
-   `meta:action:<type>` (summed) and `meta:result:<indicator>` (not summed) for an indicator Meta adds later, so different
+   `meta:result:actions:<type>` (summed) and `meta:result:<indicator>` (not summed) for an indicator Meta adds later, so different
    indicators never add. A custom conversion, an action and a metric Meta adds later are labelled with their own bounded value
    (`Custom conversion <digits>`, `Meta action <type>`, `Meta result <indicator>`), and so is the exact action a person chose
-   (`Selected Meta action <type>`, grouped as `meta:action:<type>`), so two of them in one report never share a label. A
-   multi-day detail row built from provider days stays `provider` (`periods_add`).
+   (`Selected Meta action <type>`, grouped as `meta:action:<type>`), so two of them in one report never share a label. The
+   indicator form `meta:result:actions:<type>` and the chosen action `meta:action:<type>` are different ids on purpose: Meta's
+   own result for an action and AMCP's mapping of the same action are two definitions, and an objective group that holds both
+   holds a comparison of costs back. A multi-day detail row built from provider days stays `provider` (`periods_add`).
 
 F-LEAD-02: under explicit windows a v4 report reads the requested windows' keys of every Meta list of action stats it reads
 (R14): the campaign metrics, conversion value, a detail level's exact action and every native metric that is such a list

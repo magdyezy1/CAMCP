@@ -170,7 +170,9 @@ export function metaIndicatorDefinition(indicator: string): ReportResultDefiniti
   if (indicator.startsWith('actions:')) {
     const action = indicator.slice('actions:'.length);
     return {
-      id: 'meta:action:' + action,
+      // The indicator's own id, not `meta:action:<type>`: that is the exact action a person chose, which AMCP maps from `actions`
+      // (`metaMappedResult`), a different measurement of the same action, so the two never share an id.
+      id: 'meta:result:' + indicator,
       metric: action,
       label: 'Meta action ' + action,
       native_metric,

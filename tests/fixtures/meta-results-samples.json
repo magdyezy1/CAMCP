@@ -571,7 +571,7 @@
     },
     {
       "indicator": "actions:some_future_action",
-      "id": "meta:action:some_future_action",
+      "id": "meta:result:actions:some_future_action",
       "label": "Meta action some_future_action",
       "aggregation": "sum"
     },
