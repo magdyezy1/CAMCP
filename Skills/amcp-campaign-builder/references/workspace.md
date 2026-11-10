@@ -1364,7 +1364,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `save_plan_policy` | Sets whether a plan that changes spending or activates a launch needs an approver other than its owner. | **`require_distinct_approver`**, **`confirmed`** | no provider request; saves plan_policy | owner |
 | `pause_writes` | Pauses every reviewed write of the workspace, with a reason; pause_scope narrows it to advertising writes or to provider report and export jobs. | **`reason`**, **`confirmed`**, `pause_scope` | no provider request; saves write_pause | owner |
 | `resume_writes` | Resumes reviewed writes. | **`confirmed`** | no provider request; saves write_pause | owner |
-| `enable_personal_data` | Turns personal-data writes (customer lists) on for one ad account. | **`gateway`**, **`account_id`**, **`confirmed`**, `connection_id` | no provider request; saves personal_data_setting | owner |
+| `enable_personal_data` | Turns personal-data writes (customer lists) on for one ad account of a connection. | **`connection_id`**, **`account_id`**, **`confirmed`**, `gateway` (Not needed: the connection names the gateway.) | no provider request; saves personal_data_setting | owner |
 | `disable_personal_data` | Turns personal-data writes off for one ad account. | **`gateway`**, **`account_id`**, **`confirmed`**, `connection_id` | no provider request; saves personal_data_setting | owner |
 | `save_ga4_test_property` | Marks (enabled true) or unmarks one GA4 property as a test property, which the realtime test-identity read requires; nothing changes in GA4. | **`connection_id`**, **`account_id`**, **`enabled`**, **`confirmed`** | no provider request; saves ga4_test_property | owner |
 
@@ -1408,7 +1408,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 |---|---|---|---|---|
 | `help` | Full description, argument notes, limits and examples of this tool; read-only. | `topic` | no provider request | reader |
 | `capture` | A bounded native read kept with its source hash, under declared semantics and a metric mapping. | **`gateway`**, **`arguments`**, **`semantics`**, **`mapping`**, `connection_id`, `account_id`, `campaign_id`, `rows_pointer` | provider reads; saves decision_report | reader |
-| `capture_presets` | The guided report presets. | — | no provider request | reader |
+| `capture_presets` | The guided report presets; with connection_id and account_id together, also the capture target of that account. | `connection_id`, `account_id` | no provider request | reader |
 | `capture_preset` | Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report. | **`preset`**, **`account_id`**, **`semantics`**, `connection_id`, `campaign_id`, `result_action_type`, `attribution_windows`, `swipe_up_attribution_window`, `view_attribution_window` | provider reads; saves decision_report | reader |
 | `overview_sources` | The source groups of a completed Overview snapshot, with no provider request. | **`id`** | no provider request | reader |
 | `capture_overview` | Keeps one Overview source group as analysable evidence, with no provider request. | **`id`**, **`group_id`** | no provider request; saves decision_report | reader |
@@ -1464,7 +1464,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `bind_destination` | Binds an existing editable Google spreadsheet tab as a destination. | **`connection_id`**, **`confirmed`**, `spreadsheet_id`, `spreadsheet_url`, `tab_name` (maxLength 80, default "AMCP Overview"), `name`, `idempotency_key` | no provider request; saves sheets_destination; Google Sheets write | operator |
 | `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`idempotency_key`**, **`confirmed`** | no provider request; saves report_file_destination | operator |
 | `export_status` | One export’s state, outcome and retry availability. | **`id`** | no provider request | reader |
-| `resolve_delivery` | Checks, resends or releases the unconfirmed Sheets delivery of a destination; resend and release open after its settle window. | **`destination_id`**, **`resolution`**, **`confirmed`**, `delivery_id` | no provider request; saves sheets_delivery | operator |
+| `resolve_delivery` | Checks, resends or abandons the unconfirmed Sheets delivery of a destination; resend and abandon open after its settle window. | **`destination_id`**, **`resolution`**, **`confirmed`**, `delivery_id` | provider reads; saves sheets_delivery; Google Sheets write | operator |
 | `preview_workbook_move` | Dry run of moving a local workbook schedule into an Overview report and schedule, with usable report tabs and blockers. | **`id`**, `destination_id` | no provider request | reader |
 | `move_workbook_schedule` | Creates the previewed Overview report and schedule and pauses the local workbook schedule; its query is unchanged. | **`id`**, **`destination_id`**, **`move_version`**, **`confirmed`** | no provider request; saves overview_view, overview_schedule, workbook_schedule | operator |
 | `undo_workbook_move` | Pauses the Overview schedule a workbook move created and restores the local workbook schedule. | **`id`**, **`confirmed`** | no provider request; saves overview_schedule, workbook_schedule | operator |

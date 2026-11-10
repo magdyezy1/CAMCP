@@ -750,14 +750,17 @@ const rows: Record<string, Row[]> = {
     row('resume_writes', 'Resumes reviewed writes.', ['confirmed'], [], saves('write_pause'), 'owner', [
       [W, 'dashboard'],
     ]),
+    // The handler (src/personal-data-access.ts) finds the account through its connection, which it requires, and takes the
+    // gateway from it: the gateway an earlier row required is accepted and not used.
     row(
       'enable_personal_data',
-      'Turns personal-data writes (customer lists) on for one ad account.',
-      ['gateway', 'account_id', 'confirmed'],
-      ['connection_id'],
+      'Turns personal-data writes (customer lists) on for one ad account of a connection.',
+      ['connection_id', 'account_id', 'confirmed'],
+      ['gateway'],
       saves('personal_data_setting'),
       'owner',
       [[X, 'inspect']],
+      {'gateway': {note: 'Not needed: the connection names the gateway.'}},
     ),
     row(
       'disable_personal_data',
@@ -1101,7 +1104,15 @@ const rows: Record<string, Row[]> = {
       'reader',
       [[R, 'analyze']],
     ),
-    row('capture_presets', 'The guided report presets.', [], [], local, 'reader', [[R, 'capture_preset']]),
+    row(
+      'capture_presets',
+      'The guided report presets; with connection_id and account_id together, also the capture target of that account.',
+      [],
+      ['connection_id', 'account_id'],
+      local,
+      'reader',
+      [[R, 'capture_preset']],
+    ),
     row(
       'capture_preset',
       'Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report.',
@@ -1571,10 +1582,11 @@ const rows: Record<string, Row[]> = {
     ]),
     row(
       'resolve_delivery',
-      'Checks, resends or releases the unconfirmed Sheets delivery of a destination; resend and release open after its settle window.',
+      'Checks, resends or abandons the unconfirmed Sheets delivery of a destination; resend and abandon open after its settle window.',
       ['destination_id', 'resolution', 'confirmed'],
       ['delivery_id'],
-      saves('sheets_delivery'),
+      // check rereads the tab’s delivery marker (a Google Sheets read); resend requeues the export that writes the tab.
+      effects('read_only', ['sheets_delivery'], {remote_writes: true}),
       'operator',
       [[O, 'export_status']],
     ),

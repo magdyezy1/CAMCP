@@ -383,7 +383,11 @@ test('Sheets resolve_delivery check, resend and abandon are audited and refused 
       const destination = (await f.overview.handle({action: 'bootstrap'}, f.actor)).destinations[0];
       assert.equal(destination.unresolved_delivery.report_id, 'r1');
       assert.equal(destination.unresolved_delivery.recovery_available, false);
-      const checked = await resolve('check');
+      // check rereads the tab (a Google Sheets read, which the contract of resolve_delivery says it may do); resend only
+      // queues the export job, which writes the tab later.
+      const readsBefore = f.google.log.reads,
+        checked = await resolve('check');
+      assert.ok(f.google.log.reads > readsBefore, 'check reads the tab');
       assert.equal(checked.reconciled, false);
       assert.ok(f.audits().includes('google_sheets_delivery_checked'));
       await assert.rejects(() => resolve('resend'), {code: 'SHEETS_SETTLE_WINDOW'});
