@@ -8,6 +8,7 @@ import {chartKinds} from '../dist/src/report-chart-spec.js';
 import {
   chartRow,
   lastWeek,
+  leadsDefinition,
   money,
   names,
   parts,
@@ -187,6 +188,89 @@ test('property: whatever the rows, every spend chart holds the rows of one curre
     }
   }
   assert.ok(checked > 40, 'the generator drew enough charts to mean something: ' + checked);
+});
+
+test('property: whatever the rows, a chart of results holds one result definition, in one currency when it is money, and sums exactly those rows', () => {
+  let seed = 11,
+    checked = 0;
+  const next = limit => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % limit;
+    },
+    definitions = [leadsDefinition, purchaseDefinition, valueDefinition],
+    // Each definition's figures lie in a range of their own, so a figure that crosses into another chart is seen.
+    figure = definition =>
+      definition === leadsDefinition
+        ? String(1 + next(90))
+        : definition === purchaseDefinition
+          ? String(1000 + next(90))
+          : ((200000 + next(9000)) / 100).toFixed(2),
+    cents = text => BigInt(Math.round(Number(text) * 100)),
+    dates = ['2026-09-07', '2026-09-14', '2026-09-21'];
+  for (let run = 0; run < 80; run++) {
+    const rows = Array.from({length: 4 + next(30)}, (_, index) => {
+        const definition = definitions[next(3)],
+          date = dates[next(3)];
+        return chartRow('a' + index, (next(5000) / 100).toFixed(2), figure(definition), {
+          definition,
+          currency: ['USD', 'EUR', null][next(3)],
+          entity_level: 'ad',
+          date_from: date,
+          date_to: date,
+          grain: 'weekly',
+        });
+      }),
+      specs = charts(rows, {config: {grain: 'weekly'}});
+    assert.equal(
+      new Set(specs.map(spec => spec.id)).size,
+      specs.length,
+      'run ' + run + ': every chart has an id of its own',
+    );
+    // The rows a chart of results is of: its definition, and its currency when the result is money.
+    const rowsOf = spec => {
+      const definition = definitions.find(item => item.label === spec.context.result);
+      assert.ok(
+        definition,
+        'run ' + run + ': a chart of results names one definition: ' + JSON.stringify(spec.context),
+      );
+      assert.equal(
+        spec.series.every(
+          series => series.currency === (definition.unit === 'currency' ? spec.context.currency : null),
+        ),
+        true,
+        'run ' + run + ': ' + definition.label,
+      );
+      return rows.filter(
+        row =>
+          row.result_context.definition.id === definition.id &&
+          (definition.unit !== 'currency' || row.currency === spec.context.currency),
+      );
+    };
+    for (const spec of of(specs, 'trend').filter(item => item.drawn && item.title.text === 'Results over time')) {
+      const matching = rowsOf(spec);
+      spec.x.items.forEach((item, index) => {
+        const sum = matching
+          .filter(row => row.date_from === item.key)
+          .reduce((total, row) => total + cents(row.metrics.primary_result), 0n);
+        assert.equal(
+          spec.series[0].values[index] === null ? 0n : cents(spec.series[0].values[index]),
+          sum,
+          'run ' + run + ': ' + spec.context.result + ' in the period starting ' + item.key,
+        );
+      });
+      checked++;
+    }
+    for (const spec of of(specs, 'top_ads').filter(item => item.drawn)) {
+      // The ads shown are the ten with the most results of this definition (and currency), and no others.
+      const expected = rowsOf(spec)
+        .map(row => cents(row.metrics.primary_result))
+        .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))
+        .slice(0, 10);
+      assert.deepEqual(spec.series[0].values.map(cents), expected, 'run ' + run + ': ' + spec.context.result);
+      checked++;
+    }
+  }
+  assert.ok(checked > 60, 'the generator drew enough charts to mean something: ' + checked);
 });
 
 test('spend without a known currency is not charted, and the chart says so', () => {
