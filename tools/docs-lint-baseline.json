@@ -244,10 +244,16 @@
       "raised": [
         "reference_words 156739 → 156845"
       ]
+    },
+    {
+      "reason": "Meta guided captures count the requested attribution windows and the allocation outcome review refuses a comparison across bases: one bullet, one paragraph, one outcome sentence and the record's captures paragraph (meta-results rulings 5 and 7)",
+      "raised": [
+        "reference_words 156845 → 157163"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156845
+    "reference_words": 157163
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
