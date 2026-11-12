@@ -337,6 +337,36 @@ test('the Overview collector keeps reading value for a v3 report, and counts the
     assert.equal(v4.rows[0].conversion_value, '45.5');
     const asked = await f.reporting.handle({action: 'capture', ...request}, actor, 'meta_ad', false);
     assert.equal(asked.rows[0].conversions, '5', 'a capture a person asks for');
+    // Only retained evidence says how it counted (the allocation outcome review reads the field): the Overview collector's
+    // transient result is no evidence, for v3 or for v4.
+    assert.equal(v3.action_count_basis, undefined);
+    assert.equal(v4.action_count_basis, undefined);
+    assert.equal(
+      f.store.document(actor.tenantId, 'decision_report', asked.id).action_count_basis,
+      'requested_attribution',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a capture made with the caller’s own arguments and mapping is no preset: it reads value and records no basis', async () => {
+  const f = fixture();
+  try {
+    // The same read a preset makes, sent as a plain capture: no platform source asks for the windows, so the entry's own `value` is
+    // read (the ad set's own 9 and 90) and nothing says how it counted. The allocation outcome review never repeats such a capture.
+    const request = reportPreset(input({preset: 'meta_ad'})),
+      plain = captured(await f.call({action: 'capture', ...request}));
+    assert.equal(plain.rows[0].conversions, '9');
+    assert.equal(plain.rows[0].conversion_value, '90');
+    assert.equal(f.store.document(actor.tenantId, 'decision_report', plain.id).action_count_basis, undefined);
+    // The preset of the same request counts the windows and says so.
+    const preset = captured(await f.call(input()));
+    assert.equal(preset.rows[0].conversions, '5');
+    assert.equal(
+      f.store.document(actor.tenantId, 'decision_report', preset.id).action_count_basis,
+      'requested_attribution',
+    );
   } finally {
     f.store.close();
   }
