@@ -859,7 +859,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await exerciseExportOutcomes({page, site, locale, result, checks: {intermediate}});
     } else if (workflow === 'granular-reporting') {
       await exerciseGranularOverview({page, site, locale, result, checks: {tables: checkTables}});
-      await exerciseOverviewV4({page, site, locale, result});
+      await exerciseOverviewV4({page, site, locale, width, appearance, output, id, result, checks: {intermediate}});
     } else if (workflow === 'period-comparison') {
       await exercisePeriodComparison({page, site, locale, result, checks: {intermediate, tables: checkTables}});
     } else if (workflow === 'components') {
