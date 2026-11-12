@@ -37,28 +37,28 @@ const contrast = (a, b) => {
   return (high + 0.05) / (low + 0.05);
 };
 
-test('focus rings on the dark sidebar, toast, connector hero and callback header reach 3:1 in both themes', () => {
+// V2-WEB-03: the sidebar left this list: it is a neutral surface in both themes and takes the page's own ring
+// (tests/shell-sidebar.test.mjs reads its pairs).
+test('focus rings on the dark toast, connector hero and callback header reach 3:1 in both themes', () => {
   const identity = css('identity.css'),
     surfaces = {
-      sidebar: declarations(block(identity, '.sidebar')).get('background'),
       toast: declarations(block(identity, '.toast')).get('background'),
       callback: declarations(block(identity, '.callback-top')).get('background'),
     },
     hero = declarations(block(identity, '.connector-hero')).get('background');
   // The surfaces are theme-invariant tokens (WEB-07); a literal is still read as itself.
   const backgrounds = [...Object.values(surfaces), ...hero.match(/var\(--[\w-]+\)|#[0-9a-f]{6}/gi)];
-  assert.equal(backgrounds.length, 5);
+  assert.equal(backgrounds.length, 4);
   for (const theme of [light, dark]) {
     const ring = resolve(theme, 'var(--focus-on-inverse)');
-    // The sidebar takes its theme-invariant surface from tokens.css (WEB-07).
     for (const background of backgrounds.map(value => resolve(theme, value)))
       assert.ok(contrast(ring, background) >= 3, ring + ' on ' + background + ': ' + contrast(ring, background));
   }
   // The regression itself: the global ring on these surfaces in the light theme.
-  assert.ok(contrast(resolve(light, 'var(--iris-700)'), resolve(light, surfaces.sidebar)) < 3);
+  assert.ok(contrast(resolve(light, 'var(--iris-700)'), resolve(light, surfaces.callback)) < 3);
   const rule = css('accessibility.css');
   // The design review of 2026-10 added the landing page's closing band (2.32:1 with the global ring).
-  assert.match(rule, /:is\(\.sidebar, \.toast, \.connector-hero, \.callback-top, \.closing-note\)/);
+  assert.match(rule, /:is\(\.toast, \.connector-hero, \.callback-top, \.closing-note\)/);
   assert.match(rule, /outline-color: var\(--focus-on-inverse\)/);
 });
 

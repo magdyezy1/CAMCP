@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {selectAppearance} from './shell-browser.mjs';
 
 /** Real browser → authenticated HTTP → worker → synthetic native reports → owned synthetic Sheets tab. */
 export async function exerciseGranularOverview({page, site, locale, result, checks}) {
@@ -56,14 +57,11 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
   await meta.locator('[data-objective-for=meta]').selectOption('sales');
   const initialTheme = await page.locator('html').getAttribute('data-theme');
   const beforeTheme = site.counts();
-  await page
-    .locator('[data-theme-select]:visible')
-    .first()
-    .selectOption(initialTheme === 'dark' ? 'light' : 'dark');
+  await selectAppearance(page, initialTheme === 'dark' ? 'light' : 'dark');
   assert.equal(await form.locator('[name=name]').inputValue(), 'Original snapshot name');
   assert.equal(await meta.locator('[data-report-level=meta]').inputValue(), 'ad');
   assert.equal(await meta.locator('[data-report-account=meta]').isChecked(), true);
-  await page.locator('[data-theme-select]:visible').first().selectOption('system');
+  await selectAppearance(page, 'system');
   assert.equal(await page.locator('html').getAttribute('data-theme'), initialTheme);
   assert.deepEqual(site.counts(), beforeTheme, 'Changing appearance cannot fetch provider data or reset report inputs');
   const requested = page.waitForResponse(

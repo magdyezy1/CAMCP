@@ -25,7 +25,6 @@
   "Campaign / ad set / ad / resource": "الحملة / المجموعة الإعلانية / الإعلان / المورد",
   "Campaign IDs from the report of {date}": "معرّفات الحملات من تقرير {date}",
   "Campaign: {id}": "الحملة: {id}",
-  "Campaigns, ad sets and ads in one report. Every number keeps its source and measurement context.": "الحملات والمجموعات الإعلانية والإعلانات في تقرير واحد. يحتفظ كل رقم بمصدره وسياق قياسه.",
   "Cancel run": "ألغِ التشغيل",
   "Check again": "تحقّق مرة أخرى",
   "Check that the selected account and reporting year match Ads Manager. No performance values have been assumed.": "تحقق من مطابقة الحساب المحدد وسنة التقرير لمدير الإعلانات. لم تُفترض أي قيم للأداء.",

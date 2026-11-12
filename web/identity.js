@@ -14,13 +14,79 @@ const glyphPaths = {
   check: 'm5 12 4 4L19 6',
   lock: 'M6 10h12v11H6z M8 10V6a4 4 0 0 1 8 0v4',
   spark: 'm12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z',
+  // V2-WEB-03: one glyph for each link of the shell (web/routes.js names them in `icon`; tests/shell-registry.test.mjs
+  // refuses two links with the same one), then the shell's own controls.
+  portfolio: 'M12 3l9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5',
+  commerce: 'M5 8h14l-1 12H6z M9 8V6a3 3 0 0 1 6 0v2',
+  library: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z M5 17a3 3 0 0 1 3-3h11',
+  builder: 'M4 7h9 M17 7h3 M15 5v4 M4 17h3 M11 17h9 M9 15v4',
+  schedules: 'M4 5h16v15H4z M4 9.5h16 M8 3v4 M16 3v4 M12 12.5v3l2 1.2',
+  evidence: 'M7 3h7l5 5v13H7z M14 3v5h5 M10 14.5l2 2 3.5-4',
+  measurement: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9 M12 11.2v1.6',
+  capabilities: 'M12 3l7.5 3v5.5c0 4.5-3.2 7.8-7.5 9.5-4.3-1.7-7.5-5-7.5-9.5V6z M8.8 12l2.4 2.4 4-4.4',
+  operations: 'M20 11a8 8 0 0 0-14.5-4.4 M4 4v3.6h3.6 M4 13a8 8 0 0 0 14.5 4.4 M20 20v-3.6h-3.6',
+  monitors: 'M4 13l2.2-7.5h11.6L20 13 M4 13v6h16v-6 M4 13h4.5l1 2.5h5l1-2.5H20',
+  account: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6 M6.6 18.2a6.2 6.2 0 0 1 10.8 0',
+  help: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M9.4 9.6a2.6 2.6 0 1 1 3.8 2.3c-.8.5-1.2 1-1.2 1.8 M12 17.2h.01',
+  sidebar: 'M4 4.5h16v15H4z M9.5 4.5v15',
+  search: 'M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13 M16 16l4.5 4.5',
+  signout: 'M10 4H5v16h5 M15 8l4 4-4 4 M19 12H9',
+  chevron: 'M6 9l6 6 6-6',
+  menu: 'M4 7h16 M4 12h16 M4 17h16',
 };
+/** A glyph as escape-by-default markup; glyph() is the same drawing as a string, for the pages that still build strings. */
+const glyphHtml = (name, cls = '') =>
+  html`<svg class="glyph ${cls}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${glyphPaths[name] ?? glyphPaths.spark}"/></svg>`;
 function glyph(name, cls = '') {
-  return `<svg class="glyph ${cls}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${glyphPaths[name] ?? glyphPaths.spark}"/></svg>`;
+  return String(glyphHtml(name, cls));
 }
-document.querySelectorAll('[data-icon]').forEach(el => {
-  el.querySelector('span').innerHTML = glyph(el.dataset.icon);
-});
+/**
+ * The sidebar's links, built from the route registry (V2-WEB-03, web/routes.js): each group in order, its pages from the
+ * hub, one glyph per link. A group of one page is a plain link; a group of several opens as a disclosure, closed until
+ * its page is the current one or the person opens it. The palette reads the same registry, and web/account-scope.js
+ * hides what a test account may not open.
+ */
+const navigationLink = entry =>
+  html`<a href="${entry.path}" data-route="${entry.path.slice(1)}"><span class="nav-icon">${glyphHtml(entry.icon)}</span><span class="nav-text" data-ui-text="${entry.label}">${uiText(entry.label)}</span></a>`;
+const navigationGroupId = name => 'nav-group-' + name.toLowerCase().replace(/[^a-z]+/g, '-');
+function shellNavigationMarkup(groups = routeNavigation()) {
+  return html`${groups.map(group =>
+    group.entries.length === 1
+      ? navigationLink(group.entries[0])
+      : html`<div class="nav-group" data-group="${group.name}" data-open="false"><button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="${navigationGroupId(group.name)}"><span data-ui-text="${group.name}">${uiText(group.name)}</span>${glyphHtml('chevron')}</button><div class="nav-group-links" id="${navigationGroupId(group.name)}">${group.entries.map(navigationLink)}</div></div>`,
+  )}`;
+}
+/** The pages of the user menu (Account, Help), as the sidebar's footer links: the registry marks them `menu: 'user'`. */
+function shellUserLinksMarkup() {
+  return html`${routeRegistry.filter(entry => entry.menu === 'user').map(navigationLink)}`;
+}
+function renderShellNavigation() {
+  setHtml($('nav[data-ui-label="Main navigation"]'), shellNavigationMarkup());
+  setHtml($('.sidebar-links'), shellUserLinksMarkup());
+  setHtml($('[data-sidebar-toggle] .nav-icon'), glyphHtml('sidebar'));
+  // The header's own two icons: the menu and search.
+  setHtml($('#menu-toggle'), glyphHtml('menu'));
+  setHtml($('.command-icon'), glyphHtml('search'));
+}
+/**
+ * The sidebar's state: the person's remembered choice (this browser, every page), else the rail where the window is
+ * narrower than 1024px and the full sidebar where it is wider. Below 851px the sidebar is the drawer, whatever this says.
+ */
+const sidebarStore = 'amcp.sidebar';
+// The choice made on this page, for a browser that keeps no storage.
+let sidebarMemory = null;
+function sidebarChoice() {
+  if (sidebarMemory) return sidebarMemory;
+  try {
+    const choice = localStorage.getItem(sidebarStore);
+    return choice === 'full' || choice === 'rail' ? choice : null;
+  } catch {
+    return null;
+  }
+}
+function sidebarStateFor(choice, wide) {
+  return choice === 'full' || choice === 'rail' ? choice : wide ? 'full' : 'rail';
+}
 /** A public file's address in this page's asset snapshot, as the server binds the HTML (WEB-04). */
 function publicAssetUrl(path) {
   return typeof AMCPAssets === 'object' ? AMCPAssets.url(path) : path;
@@ -175,7 +241,7 @@ async function renderAccountPage() {
   ]);
   authOptions = options;
   content.innerHTML =
-    header(uiText('Make it yours.'), uiText('Your profile, your sign-in methods, and the sessions you control.')) +
+    header(uiText('Make it yours.'), uiText(routeSubtitle('/account'))) +
     `<div class="account-hero"><div class="account-monogram" aria-hidden="true">${esc(account.name[0].toUpperCase())}</div><div><span class="eyebrow">${esc(uiText('YOUR AMCP ACCOUNT'))}</span><h2 dir="auto" data-native>${esc(account.name)}</h2><p>${esc(account.email ?? (account.administrator ? uiText('Deployment administrator') : uiText('No verified recovery email yet')))}</p></div><span class="status online">${esc(uiText('Private workspace'))}</span></div><div id="auth-error" class="error" role="alert"></div>${
       account.administrator
         ? `<section class="panel"><h2>${esc(uiText('Your original workspace'))}</h2><p>${esc(uiText('This account uses the deployment administrator password, which has no two-step verification. Use the owner setup below to move this workspace to an email account that can have it; everything in the workspace stays.'))}</p><a class="button" href="/settings">${esc(uiText('Deployment settings'))}</a></section>`
@@ -243,6 +309,32 @@ async function renderAccountPage() {
   // Parts registered for the account page (WEB-07), given its account.
   await AMCP.routes.renderParts('/account', account);
 }
+renderShellNavigation();
+const wideMatch = matchMedia('(min-width:1024px)');
+/** Opens or closes one navigation group: its state is on the group and on its control. */
+function setNavigationGroup(group, open) {
+  group.dataset.open = String(open);
+  group.querySelector('.nav-group-toggle')?.setAttribute('aria-expanded', String(open));
+}
+/** Draws the sidebar in its state: the full sidebar or the rail, the switch's words, and a title for each icon of the rail. */
+function applySidebar() {
+  const state = sidebarStateFor(sidebarChoice(), wideMatch.matches),
+    toggle = $('[data-sidebar-toggle]'),
+    text = $('[data-sidebar-toggle] .nav-text'),
+    words = state === 'full' ? 'Collapse navigation' : 'Expand navigation';
+  document.querySelector('.app-shell').dataset.sidebar = state;
+  toggle.setAttribute('aria-expanded', String(state === 'full'));
+  text.setAttribute('data-ui-text', words);
+  text.textContent = uiText(words);
+  // A pointer finds the name that the words give a keyboard user: the rail's titles are the labels.
+  for (const link of document.querySelectorAll('.sidebar a[data-route], .sidebar-toggle'))
+    if (state === 'rail') link.setAttribute('title', link.textContent.trim());
+    else link.removeAttribute('title');
+}
+wideMatch.addEventListener('change', applySidebar);
+// A render follows every language change, which is when the labels (and so the titles) change.
+AMCP.hooks.afterRender(applySidebar);
+applySidebar();
 const menuMatch = matchMedia('(max-width:850px)');
 function closeNavigation() {
   document.querySelector('.main-shell').inert = false;
@@ -395,6 +487,17 @@ document.addEventListener('click', e => {
     document.querySelector('.main-shell').inert = open;
     if (open) document.querySelector('.sidebar-close').focus();
   }
+  if (b.classList.contains('nav-group-toggle'))
+    setNavigationGroup(b.closest('.nav-group'), b.getAttribute('aria-expanded') !== 'true');
+  if (b.hasAttribute('data-sidebar-toggle')) {
+    sidebarMemory = $('.app-shell').dataset.sidebar === 'full' ? 'rail' : 'full';
+    try {
+      localStorage.setItem(sidebarStore, sidebarMemory);
+    } catch {
+      // The choice then holds for this page only.
+    }
+    applySidebar();
+  }
   if (b.hasAttribute('data-command-open')) openCommand();
   if (b.dataset.commandGo) {
     $('#command-dialog').close();
@@ -412,9 +515,9 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Tab' && document.body.classList.contains('menu-open')) {
     const sidebar = $('#workspace-sidebar'),
-      controls = [...sidebar.querySelectorAll('a[href],button:not([disabled]),summary,[tabindex="0"]')].filter(
-        el => el.tabIndex >= 0 && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden',
-      ),
+      controls = [
+        ...sidebar.querySelectorAll('a[href],button:not([disabled]),select:not([disabled]),summary,[tabindex="0"]'),
+      ].filter(el => el.tabIndex >= 0 && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden'),
       first = controls[0],
       last = controls.at(-1),
       active = document.activeElement;

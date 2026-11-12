@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {selectAppearance} from './shell-browser.mjs';
 
 export async function exerciseMeasurementTrace({page, site, locale, result, before, beforeEvidence, checks}) {
   const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
@@ -35,7 +36,7 @@ export async function exerciseMeasurementTrace({page, site, locale, result, befo
     assert.ok(row4.includes(text('Granted')));
     assert.ok(row4.includes(text('Denied')));
     const opposite = (await page.locator('html').getAttribute('data-theme')) === 'dark' ? 'light' : 'dark';
-    await page.locator('[data-theme-select]:visible').first().selectOption(opposite);
+    await selectAppearance(page, opposite);
     assert.equal(await form.locator('[name=trace]').inputValue(), example);
     assert.equal(await region.locator('tbody tr').count(), 4);
     await checks.tables(page, result);

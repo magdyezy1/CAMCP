@@ -32,7 +32,7 @@ Google, Apple and Facebook sign-in require the separate app credentials document
 `#5a43bd` (focus rings and links, 7.06:1 on white) and `--line-strong` `#8e87a0` (input borders, 3.43:1 on white).
 `web/accessibility.css` loads after every other stylesheet and applies them: focus rings are 2 px `--iris-700` with a
 2 px offset, on every focusable element (a scroll region Chrome makes focusable included), and readable text is at
-least 12 px. Surfaces that stay dark in the light theme (the sidebar, toast, connector hero, callback header and the
+least 12 px. Surfaces that stay dark in the light theme (the toast, connector hero, callback header and the
 landing page's closing band) use `--focus-on-inverse` instead, and recommendation decisions use the `--decision-*`
 pairs. Measurements are in [the accessibility report](review/ACCESSIBILITY.md).
 `tools/check-web.mjs` keeps `tokens.css` first (and `public-tokens.css` second on the static public pages) and refuses

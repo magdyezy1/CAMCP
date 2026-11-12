@@ -240,10 +240,10 @@ test('the tokens that replaced the literal colours keep or raise the contrast ea
     ['reporting.css', '.report-control-top input', 'color', '#231a36', 'var(--white)'],
     ['reporting.css', '.metric-pills input:checked + span', 'color', '#634784', 'var(--surface-selected)'],
     ['identity.css', 'body.public-view', 'background', '#fcfaf7', 'var(--muted)'],
-    // Inverse surfaces keep their light ink at least as readable.
+    // Inverse surfaces keep their light ink at least as readable. (The sidebar is not one any more: V2-WEB-03 made it a
+    // neutral surface, and tests/shell-sidebar.test.mjs reads its pairs in both themes.)
     ['app.css', '.toast', 'color', '#ffffff', 'var(--surface-inverse-raised)'],
     ['identity.css', '.pill-dot', 'color', '#d0a795', 'var(--surface-inverse)'],
-    ['identity.css', '.sidebar nav a', 'color', '#b8adc8', 'var(--surface-inverse)'],
     ['identity.css', '.callback-top', 'background', '#282239', 'var(--text-on-inverse-strong)'],
     ['identity.css', '.stage-window', 'background', '#282337', 'var(--text-on-inverse)'],
   ];

@@ -93,6 +93,7 @@ function page(locale, call, session) {
   });
   const run = source => new Script(source).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
+  run(readFileSync('web/routes.js', 'utf8'));
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
   run(readFileSync('web/workspace.js', 'utf8'));
   run(readFileSync('web/campaign-workflows.js', 'utf8'));
@@ -213,6 +214,7 @@ test('Home lists the plans needing attention, including the attention state, bes
     badge: value => value,
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/routes.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/work-center.js', 'utf8')).runInContext(context);
   context.data = {
     campaigns: [

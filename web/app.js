@@ -531,12 +531,14 @@ const pageErrorCauses = {
   FORBIDDEN_ORIGIN: 'Open AMCP from its own address and try again.',
 };
 function showPageError(e) {
-  const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED';
-  content.innerHTML =
-    `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(e?.updated ? uiText('AMCP was updated') : uiText('This page could not open'))}</h1>` +
+  const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED',
+    // V2-WEB-03: the way back is the registry's: the page's parent, Home for a hub, none for Home and the public pages.
+    back = routeBack(location.pathname);
+  setHtml(
+    content,
     // WEB-03: one paragraph per part, so the cause, what to do and the reference never run together.
-    errorBlock({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'}) +
-    `<div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
+    html`<section class="panel page-error" role="alert"><h1 tabindex="-1">${e?.updated ? uiText('AMCP was updated') : uiText('This page could not open')}</h1>${raw(errorBlock({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'}))}<div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${uiText(reload ? 'Reload page' : 'Try again')}</button>${back ? html`<a class="button" href="${back.path}">${uiText('Back to {page}', {page: uiText(back.label)})}</a>` : ''}</div></section>`,
+  );
   content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? reloadPage() : render()));
   content.querySelector('h1').focus();
 }
@@ -766,6 +768,14 @@ function route() {
 function header(title, description, action = '') {
   return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div>${action}</div>`;
 }
+/**
+ * A page's frame while it loads (V2-WEB-03): its own heading and subtitle, from the registry, over skeleton blocks where its
+ * sections will be, so a route change keeps the shell and the header and fills the page in (skeletonBlocks, web/workspace.js).
+ */
+function pageFrame(path, title) {
+  const subtitle = routeSubtitle(path);
+  return html`<div class="page-heading"><div><h1>${title}</h1>${subtitle && html`<p>${uiText(subtitle)}</p>`}</div></div>${skeletonBlocks('route-loading')}`;
+}
 function connectionCount(p) {
   return p.connections.length;
 }
@@ -838,7 +848,7 @@ function renderConnections() {
     logins = platforms.reduce((n, p) => n + p.connections.length, 0);
   setHtml(
     content,
-    html`${raw(header(uiText('Connections'), uiText('Connect your platforms. Choose what AMCP can access.'), html`<button class="button" data-action="refresh">↻ <span>${uiText('Refresh')}</span></button>`))}${!session.authenticated ? html`<div class="notice"><span>◈</span><p><strong>${uiText('Your workspace, securely connected.')}</strong><br>${uiText('Sign in to manage platform logins and choose your advertising assets.')}</p><button class="button dark" data-action="login">${uiText('Sign in →')}</button></div>` : ''}<div class="stat-grid"><div class="stat"><div><div class="stat-label">${uiText('Connected platforms')}</div><div class="stat-value">${connected.length}<span class="muted stat-denominator"> / ${platforms.length}</span></div></div><span class="stat-icon" aria-hidden="true">◈</span></div><div class="stat"><div><div class="stat-label">${uiText('Selected accounts & properties')}</div><div class="stat-value">${accounts.size}</div></div><span class="stat-icon" aria-hidden="true">▦</span></div><div class="stat"><div><div class="stat-label">${uiText('Secure logins')}</div><div class="stat-value">${logins}</div></div><span class="stat-icon" aria-hidden="true">↗</span></div></div><div class="section-tools"><div class="filter-tabs" role="group" aria-label="${uiText('Filter platforms')}"><button class="filter-tab ${filter === 'all' ? 'active' : ''}" aria-pressed="${String(filter === 'all')}" data-filter="all">${uiText('All platforms')} <span class="muted">${platforms.length}</span></button><button class="filter-tab ${filter === 'connected' ? 'active' : ''}" aria-pressed="${String(filter === 'connected')}" data-filter="connected">${uiText('Connected')} <span class="muted">${connected.length}</span></button></div><label class="search"><span aria-hidden="true">⌕</span><input id="platform-search" type="search" value="${search}" placeholder="${uiText('Search platforms…')}" aria-label="${uiText('Search platforms')}"></label></div><div class="platform-grid" id="platform-grid"></div>`,
+    html`${raw(header(uiText('Connections'), uiText(routeSubtitle('/connections')), html`<button class="button" data-action="refresh">↻ <span>${uiText('Refresh')}</span></button>`))}${!session.authenticated ? html`<div class="notice"><span>◈</span><p><strong>${uiText('Your workspace, securely connected.')}</strong><br>${uiText('Sign in to manage platform logins and choose your advertising assets.')}</p><button class="button dark" data-action="login">${uiText('Sign in →')}</button></div>` : ''}<div class="stat-grid"><div class="stat"><div><div class="stat-label">${uiText('Connected platforms')}</div><div class="stat-value">${connected.length}<span class="muted stat-denominator"> / ${platforms.length}</span></div></div><span class="stat-icon" aria-hidden="true">◈</span></div><div class="stat"><div><div class="stat-label">${uiText('Selected accounts & properties')}</div><div class="stat-value">${accounts.size}</div></div><span class="stat-icon" aria-hidden="true">▦</span></div><div class="stat"><div><div class="stat-label">${uiText('Secure logins')}</div><div class="stat-value">${logins}</div></div><span class="stat-icon" aria-hidden="true">↗</span></div></div><div class="section-tools"><div class="filter-tabs" role="group" aria-label="${uiText('Filter platforms')}"><button class="filter-tab ${filter === 'all' ? 'active' : ''}" aria-pressed="${String(filter === 'all')}" data-filter="all">${uiText('All platforms')} <span class="muted">${platforms.length}</span></button><button class="filter-tab ${filter === 'connected' ? 'active' : ''}" aria-pressed="${String(filter === 'connected')}" data-filter="connected">${uiText('Connected')} <span class="muted">${connected.length}</span></button></div><label class="search"><span aria-hidden="true">⌕</span><input id="platform-search" type="search" value="${search}" placeholder="${uiText('Search platforms…')}" aria-label="${uiText('Search platforms')}"></label></div><div class="platform-grid" id="platform-grid"></div>`,
   );
   renderPlatformCards();
 }
@@ -871,7 +881,11 @@ function renderPlatformCards() {
     $('#platform-grid'),
     visible.length
       ? html`${visible.map(card)}`
-      : html`<div class="empty">${uiText('No platforms match your search.')}</div>`,
+      : // V2-WEB-03: the one next action is to widen the list: clear the search, or show every platform.
+        emptyBlock({
+          title: search ? uiText('No platforms match your search.') : uiText('Connect a platform to start.'),
+          action: {label: search ? uiText('Clear search') : uiText('All platforms'), command: 'clear-platform-search'},
+        }),
   );
 }
 function renderConnectionSyncStatus(c) {
@@ -1232,7 +1246,7 @@ async function renderConnectors() {
       html`<div class="token-row"><div><strong><bdi>${c.name}</bdi></strong><small>${endedReason(c.reason)} · ${uiDateZoned(c.endedAt)}${approvedBy(c)}</small></div></div>`;
   setHtml(
     content,
-    html`${raw(header(uiText('AI connectors'), uiText('Give your AI tools access to the accounts you select.')))}<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${uiText('Your workspace.')}<br>${uiText('In the tools you already use.')}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${uiText('AMCP MCP ENDPOINT')}</small><div class="copy-row"><code>${session.origin + '/mcp'}</code><button class="button small" data-copy-endpoint="true">${uiText('Copy')}</button></div></div></section><section class="panel consent-panel"><h2>${uiText('Connect with browser authorization')}</h2><p>${uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.')} ${session.writesEnabled ? html`${uiText('New clients default to')} <code>mcp:read mcp:write</code>${uiText('; the consent screen identifies operator access. Clients can explicitly request')} <code>mcp:read</code> ${uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.')} ${uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.')}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${session.origin + '/mcp'}
+    html`${raw(header(uiText('AI connectors'), uiText(routeSubtitle('/connectors'))))}<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${uiText('Your workspace.')}<br>${uiText('In the tools you already use.')}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${uiText('AMCP MCP ENDPOINT')}</small><div class="copy-row"><code>${session.origin + '/mcp'}</code><button class="button small" data-copy-endpoint="true">${uiText('Copy')}</button></div></div></section><section class="panel consent-panel"><h2>${uiText('Connect with browser authorization')}</h2><p>${uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.')} ${session.writesEnabled ? html`${uiText('New clients default to')} <code>mcp:read mcp:write</code>${uiText('; the consent screen identifies operator access. Clients can explicitly request')} <code>mcp:read</code> ${uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.')} ${uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.')}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${session.origin + '/mcp'}
 codex mcp login amcp</pre><p class="muted">${uiText('For clients using a bearer token, follow the setup below.')}</p></section><section class="panel"><div class="panel-header"><h2>${uiText('Connect with a token')}</h2><span class="status">${uiText('Streamable HTTP')}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" aria-pressed="${String(client === 'codex')}" data-client="codex">${uiText('Codex')}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" aria-pressed="${String(client === 'cursor')}" data-client="cursor">${uiText('Cursor')}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" aria-pressed="${String(client === 'other')}" data-client="other">${uiText('Other MCP client')}</button></div><div class="steps"><div class="step"><div><strong>${uiText('Create a connector token')}</strong><p class="muted">${uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.')}</p></div></div><div class="step"><div><strong>${uiText('Add your token to the tool’s environment')}</strong><p class="muted">${uiText('Use the environment variable')} <code>AMCP_MCP_TOKEN</code>${uiText('. Keep the value private.')}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${uiText('Copy config')}</button></div><pre class="code-block">${connectorCode()}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${uiText('Connector tokens')}</h2><span class="muted token-caption">${uiText('Access follows your current AMCP asset selections.')}</span></div>${session.authenticated ? html`<button class="button" data-create-token="true">${uiText('Create read-only token')}</button>` : html`<a class="button" href="/login">${uiText('Sign in to create a token')}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? html`<div class="consent-panel"><p><strong>${uiText('Read + write (default)')}</strong> ${uiText('Create an operator token for your selected resources, then use')} <code>amcp_write</code> ${uiText('to prepare and review a change before executing it.')}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${uiText('I authorize this connector to execute reviewed changes on accounts with write access.')}</label><p><button class="button primary" data-create-operator-token="true">${uiText('+ Create read + write token')}</button></p></div>` : ''}${tokenAccessSetControl()}<div id="new-token"></div>${tokens.length ? tokens.map(tokenRow) : html`<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${uiText('Authorized MCP clients')}</h2></div>${oauthClients.length ? oauthClients.map(clientRow) : html`<div class="empty">${uiText('No clients authorized through browser sign-in.')}</div>`}${oauthEnded.length ? html`<h3>${uiText('Recently ended connections')}</h3>${oauthEnded.map(endedRow)}` : ''}</section><p class="muted small-text">${uiText('Codex configuration follows')} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${uiText('official OpenAI documentation ↗')}</a>.</p>`,
   );
 }
@@ -1244,12 +1258,12 @@ async function renderSettings() {
 function renderWorkspaceSettings() {
   if (session.authenticated && !session.administrator) {
     content.innerHTML =
-      header(uiText('Workspace settings'), uiText('A few thoughtful details make this space yours.')) +
+      header(uiText('Workspace settings'), uiText(routeSubtitle('/settings'))) +
       `<section class="panel"><h2>${esc(uiText('Your account & security'))}</h2><p>${esc(uiText('Edit your profile, personalize your workspace name, link social accounts, and manage browser sessions.'))}</p><a class="button primary" href="/account">${esc(uiText('Manage your account →'))}</a></section><section class="panel"><h2>${esc(uiText('Connected platforms'))}</h2><p>${esc(uiText('Choose the accounts your workspace can access, refresh assets, and manage permissions.'))}</p><a class="button" href="/connections">${esc(uiText('Manage connections'))}</a></section>`;
     return;
   }
   content.innerHTML =
-    header(uiText('Workspace settings'), uiText('Register AMCP with your advertising and measurement platforms.')) +
+    header(uiText('Workspace settings'), uiText(routeSubtitle('/settings'))) +
     `<div class="notice"><span>◈</span><p><strong>${esc(uiText('Keep provider secrets on the server.'))}</strong><br>${esc(uiText('Add API credentials to your server environment. Register each browser OAuth callback exactly as shown below.'))}</p></div><div class="settings-grid">` +
     platforms
       .map(p => {
@@ -1314,12 +1328,13 @@ function renderWorkspaceSettings() {
     `</div>`;
 }
 async function renderActivity() {
-  const heading = raw(
-    header(uiText('Audit activity'), uiText('Account activity and your workspace events, within current access.')),
-  );
+  const heading = raw(header(uiText('Audit activity'), uiText(routeSubtitle('/activity'))));
   setHtml(content, heading);
   if (!session.authenticated) {
-    setHtml(content, html`${heading}<div class="empty">${uiText('Sign in to view workspace activity.')}</div>`);
+    setHtml(
+      content,
+      html`${heading}${emptyBlock({title: uiText('Sign in to view workspace activity.'), action: {label: uiText('Sign in →'), command: 'login'}})}`,
+    );
     return;
   }
   const generation = navigationGeneration,
@@ -1532,11 +1547,25 @@ function accessLine(s) {
     ? uiText('{role} · read + reviewed writes', {role})
     : uiText('{role} · read-only workspace', {role});
 }
+/** Brings a link of the scrolling navigation into view: the navigation moves, never the page. */
+function revealNavigationLink(link) {
+  const nav = link.closest?.('.sidebar > nav');
+  if (!nav || nav.scrollHeight <= nav.clientHeight) return;
+  const box = link.getBoundingClientRect(),
+    area = nav.getBoundingClientRect();
+  if (box.top < area.top) nav.scrollTop -= area.top - box.top;
+  else if (box.bottom > area.bottom) nav.scrollTop += box.bottom - area.bottom;
+}
 /** Shell links follow the session: the brand opens Home when signed in; members get the switcher and Help (DOC-03). */
 function shellLinks() {
-  document.querySelector('.sidebar .brand')?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
+  for (const selector of ['.sidebar .brand', '.topbar .brand'])
+    document.querySelector(selector)?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
   const help = document.getElementById('footer-help');
   if (help) help.hidden = !session.authenticated || !routeAvailable('/help');
+  // Account and Help in the sidebar's footer are for people who are signed in and may open them (web/account-scope.js
+  // hides them from a test account the same way).
+  for (const link of document.querySelectorAll('.sidebar-links a[data-route]'))
+    link.hidden = !session.authenticated || !routeAvailable('/' + link.dataset.route);
   const toggle = document.getElementById('workspace-switch-open');
   if (!toggle) return;
   toggle.hidden = !session.authenticated || !!session.testAccount;
@@ -1791,7 +1820,11 @@ function renderWorkingClientControl() {
   const current = workingClient(),
     note = uiText('A view filter for lists and pickers. It does not limit access.');
   control.title = note;
-  control.innerHTML = `<span>${esc(uiText('Working client'))}</span><select data-working-client aria-describedby="working-client-note"><option value="">${esc(uiText('All clients'))}</option>${listed.map(c => `<option value="${esc(c.profile_id)}" ${current?.profile_id === c.profile_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><small id="working-client-note" hidden>${esc(note)}</small>`;
+  // The select is named for assistive technology even where the header hides its label (a phone: V2-WEB-03).
+  setHtml(
+    control,
+    html`<span>${uiText('Working client')}</span><select data-working-client aria-label="${uiText('Working client')}" aria-describedby="working-client-note"><option value="">${uiText('All clients')}</option>${listed.map(c => html`<option value="${c.profile_id}" ${current?.profile_id === c.profile_id ? 'selected' : ''}>${c.name}</option>`)}</select><small id="working-client-note" hidden>${note}</small>`,
+  );
 }
 document.addEventListener('change', async event => {
   const select = event.target.closest?.('[data-working-client]');
@@ -1878,7 +1911,7 @@ async function renderCurrentPage() {
   applyUILocale();
   document.getElementById('workspace-name').textContent = uiWorkspaceName(session.workspaceName, session.name);
   document.getElementById('user-avatar').textContent = (session.name ?? 'A').slice(0, 1).toUpperCase();
-  $('.readonly-indicator').innerHTML = `<i></i>` + esc(accessLine(session));
+  setHtml($('.readonly-indicator'), html`<i></i><span>${accessLine(session)}</span>`);
   shellLinks();
   const footerAccess = session.writesEnabled
     ? 'Encrypted connections · Reviewed write access'
@@ -1891,25 +1924,31 @@ async function renderCurrentPage() {
     a.classList.toggle('active', current);
     if (current) {
       a.setAttribute('aria-current', 'page');
-      const group = a.closest?.('details');
-      if (group) group.open = true;
+      // The group that holds the current page is open, and the page is in view in the scrolling navigation.
+      const group = a.closest?.('.nav-group');
+      if (group) setNavigationGroup(group, true);
+      revealNavigationLink(a);
     } else a.removeAttribute('aria-current');
   });
-  // A child page names its parent first: "Connections / Connection result".
+  // A child page names its parent first: "Connections / Connection result". A page with a link of its own (the
+  // navigation, the user menu) is its own place and names no parent, though its parent is where a failure leads back.
   $('#breadcrumb').textContent = page
-    ? (page.parent ? uiText(routeLabel(page.parent)) + ' / ' : '') + uiText(page.label)
+    ? (page.parent && !page.nav && !page.menu ? uiText(routeLabel(page.parent)) + ' / ' : '') + uiText(page.label)
     : uiText(
         {terms: 'Terms', 'data-deletion': 'Data deletion', privacy: 'Privacy'}[location.pathname.slice(1)] ??
           'Workspace',
       );
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
+  // The drawer's copies of Sign in and Sign out (the header's are not shown on a phone).
+  for (const button of document.querySelectorAll('[data-shell-session]'))
+    button.hidden = (button.dataset.shellSession === 'in') !== session.authenticated;
   try {
     // WEB-06: a new page replaces the previous one at once with its heading and a busy placeholder, so the previous
-    // page's controls cannot be used while this one loads its files and data.
+    // page's controls cannot be used while this one loads its files and data. V2-WEB-03: the heading is the registry's
+    // and the placeholder is skeletons where the page's sections will be; the shell around it never changes.
     const pending = pageAssetsPending(pathname);
-    if (pending || (routeChanged && page && !page.public))
-      content.innerHTML = `<div class="page-heading"><div><h1>${esc(uiText(pageTitle))}</h1></div></div><section class="panel" role="status" aria-busy="true" id="route-loading"><p>${esc(uiText('Loading this page…'))}</p></section>`;
+    if (pending || (routeChanged && page && !page.public)) setHtml(content, pageFrame(pathname, uiText(pageTitle)));
     if (pending) await ensurePageAssets(pathname);
     // The working client (SEC-08): the session lists the choices, and the address keeps ?client= for this page.
     if (session.authenticated && workingClientApplies(location.pathname) && syncWorkingClientLocation())
@@ -2034,7 +2073,7 @@ document.addEventListener('click', async event => {
       return;
     }
     if (el.id === 'login-button' || el.dataset.action === 'login') return showLogin();
-    if (el.id === 'logout-button') {
+    if (el.id === 'logout-button' || el.dataset.action === 'logout') {
       await api('/api/session', {method: 'DELETE'});
       session = await api('/api/session');
       const platformData = await api('/api/platforms');
@@ -2048,6 +2087,15 @@ document.addEventListener('click', async event => {
       disableControl();
       await refresh();
       toast(uiText('Workspace refreshed. Use Sync to refresh provider assets.'));
+      return;
+    }
+    if (el.dataset.action === 'clear-platform-search') {
+      // The empty list's one action: clear the search, or, with no search to clear, show every platform.
+      const searched = search !== '';
+      if (searched) search = '';
+      else filter = 'all';
+      renderConnections();
+      $(searched ? '#platform-search' : '[data-filter="all"]')?.focus();
       return;
     }
     if (el.dataset.filter) {

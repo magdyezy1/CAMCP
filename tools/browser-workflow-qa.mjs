@@ -28,6 +28,7 @@ import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-b
 import {exerciseOverviewV4} from '../tests/fixtures/overview-v4-browser.mjs';
 import {exercisePeriodComparison} from '../tests/fixtures/period-comparison-browser.mjs';
 import {exerciseComponents} from '../tests/fixtures/components-browser.mjs';
+import {appearanceChoice, selectAppearance} from '../tests/fixtures/shell-browser.mjs';
 import {
   inspectBrowserAccessibility,
   accessibilityProblems,
@@ -76,6 +77,8 @@ const fixtureKinds = [
   'empty',
   // V2-WEB-02: the component state page, every component in every state, in both languages and themes.
   'components',
+  // V2-WEB-03: the shell itself on an empty signed-in workspace: sidebar, rail, drawer, header, loading, feedback.
+  'shell',
   // OWNER-REVIEWER-QA: an invited test account in its own workspace, the view Meta's app reviewers use.
   'reviewer',
   'granular-reporting',
@@ -721,15 +724,15 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       );
     assert.equal(await page.locator('html').getAttribute('data-theme'), appearance);
     if (appearance === 'dark') {
-      const select = page.locator('[data-theme-select]:visible').first();
-      assert.equal(await select.inputValue(), 'system');
-      await select.selectOption('light');
+      // V2-WEB-03: the control is in the header on a wide screen and in the drawer on a phone (tests/fixtures/shell-browser.mjs).
+      assert.equal(await appearanceChoice(page), 'system');
+      await selectAppearance(page, 'light');
       assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
-      await select.selectOption('dark');
+      await selectAppearance(page, 'dark');
       await page.reload({waitUntil: 'networkidle'});
       assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
-      assert.equal(await page.locator('[data-theme-select]:visible').first().inputValue(), 'dark');
-      await page.locator('[data-theme-select]:visible').first().selectOption('system');
+      assert.equal(await appearanceChoice(page), 'dark');
+      await selectAppearance(page, 'system');
       assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
       assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark');
     }
@@ -2715,10 +2718,13 @@ async function shellChromeCase(site, route, locale, width) {
         asciiStatuses: [...document.querySelectorAll('.status')]
           .map(element => element.textContent.trim())
           .filter(text => text && !/[؀-ۿ]/.test(text)),
+        rail: document.querySelector('.app-shell').dataset.sidebar === 'rail',
         // Design review 2026-10: each navigation label (groups opened) takes the row beside its icon, from its start.
         // The icon's 20 px box once applied to the label too, so "Evidence & analysis" broke into three centred lines.
+        // V2-WEB-03: the groups are disclosure buttons now, and the rail keeps each name as clipped text for assistive technology.
         navLabels: (() => {
-          for (const group of document.querySelectorAll('#workspace-sidebar details.nav-more')) group.open = true;
+          for (const toggle of document.querySelectorAll('#workspace-sidebar .nav-group-toggle[aria-expanded="false"]'))
+            toggle.click();
           return [...document.querySelectorAll('#workspace-sidebar nav a > span:last-child')].map(label => {
             const range = document.createRange();
             range.selectNodeContents(label);
@@ -2732,7 +2738,13 @@ async function shellChromeCase(site, route, locale, width) {
         })(),
       };
     });
+    assert.equal(result.geometry.rail, width < 1024, 'The rail is the default below 1024px and the full sidebar above');
+    assert.ok(result.geometry.navLabels.length >= 18, 'every navigation link is measured');
     for (const label of result.geometry.navLabels) {
+      if (result.geometry.rail) {
+        assert.ok(label.width <= 2 && label.text, label.text + ' is clipped text in the rail: ' + label.width + ' px');
+        continue;
+      }
       assert.notEqual(label.align, 'center', label.text + ' starts at its own start edge');
       assert.ok(label.width > 40, label.text + ' takes the row beside its icon: ' + label.width + ' px');
       assert.ok(label.lines <= 2, label.text + ' wraps into ' + label.lines + ' lines');
@@ -2766,6 +2778,906 @@ async function shellChromeCase(site, route, locale, width) {
     console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
     await context.close();
   }
+}
+
+// V2-WEB-03, kind `shell`: the shell's own behaviour in a browser, on an empty signed-in workspace. The frame (the sidebar,
+// its rail and the drawer, the one-row header, the logo at the start edge), no clipped link at 800px of height in both
+// languages (Probe 21), loading (the shell and the page's header stay, focus lands on the new heading, a late answer never
+// paints over a newer route, one section's failure stays in its section: Probe 20), feedback (a toast in the flow, a failed
+// page's way back, the empty states' one action) and the logo's variant under forced colours. The access gates are the
+// reviewer kind's (Probe 22). AMCP_QA_SHELL_CASES=frame,height,rail,loading,feedback,forced runs a subset while developing,
+// and AMCP_QA_SHELL_MATCH=ar-375 only the cases whose id contains that text; the committed run is every case.
+const shellCaseFilter = (process.env.AMCP_QA_SHELL_CASES ?? '').split(',').filter(Boolean),
+  shellCaseMatch = process.env.AMCP_QA_SHELL_MATCH ?? '',
+  shellCaseSelected = name => !shellCaseFilter.length || shellCaseFilter.includes(name),
+  shellScreens = () => {
+    const dir = path.join(output, 'screens');
+    fs.mkdirSync(dir, {recursive: true});
+    return dir;
+  };
+
+/** One shell case: a fresh context, the signed-in cookie and language, the usual egress block, and its record. */
+async function shellCase(site, meta, body) {
+  const {route, locale, width, height = 900, appearance = 'light', forcedColors, signedIn = true} = meta,
+    id =
+      `shell-${meta.name}-${route.slice(1) || 'home'}-${locale}-${width}x${height}-${appearance}${forcedColors ? '-forced' : ''}`.replaceAll(
+        '/',
+        '-',
+      );
+  if (shellCaseMatch && !id.includes(shellCaseMatch)) return;
+  const context = await newContext({
+      viewport: {width, height},
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+      colorScheme: appearance,
+      ...(forcedColors ? {forcedColors} : {}),
+    }),
+    page = await context.newPage(),
+    result = {
+      id,
+      kind: 'shell',
+      case: meta.name,
+      route,
+      locale,
+      width,
+      height,
+      appearance,
+      errors: [],
+      blocked_external_requests: [],
+    };
+  page.setDefaultTimeout(10000);
+  page.setDefaultNavigationTimeout(20000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    if (signedIn) await context.addCookies([site.cookie]);
+    await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
+    page.on('pageerror', error => result.errors.push(error.message));
+    await body({page, context, result, route, locale, width, height, appearance});
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.blocked_external_requests, [], egressMessage);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+const shellOpen = async (page, site, route, locale) => {
+  await page.goto(site.origin + route, {waitUntil: 'networkidle'});
+  await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+  await page.evaluate(() => document.fonts.ready);
+  await page.locator('h1').first().waitFor({state: 'visible'});
+};
+/** Opens the drawer where the navigation is one (up to 850px), and waits until it is in place. */
+async function shellOpenDrawer(page) {
+  await page.locator('#menu-toggle').click();
+  await page.waitForFunction(
+    () =>
+      document.body.classList.contains('menu-open') &&
+      getComputedStyle(document.querySelector('#workspace-sidebar')).transform === 'none',
+  );
+}
+async function shellCloseDrawer(page) {
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.body.classList.contains('menu-open'));
+}
+/** Follows a navigation link by its page key, opening the drawer and its group first where they hide it. */
+async function shellClickNavigation(page, key) {
+  const link = page.locator(`#workspace-sidebar nav[data-ui-label="Main navigation"] a[data-route="${key}"]`).first();
+  // Where the navigation is a drawer, it is opened first (a closed drawer still has boxes, off screen).
+  if (
+    (await page.locator('#menu-toggle').isVisible()) &&
+    !(await page.evaluate(() => document.body.classList.contains('menu-open')))
+  )
+    await shellOpenDrawer(page);
+  const group = page.locator('#workspace-sidebar .nav-group').filter({has: page.locator(`a[data-route="${key}"]`)});
+  if ((await group.count()) && (await group.first().getAttribute('data-open')) === 'false')
+    await group.first().locator('.nav-group-toggle').click();
+  await link.click();
+}
+/** Opens every navigation group, so every link is measured. */
+const shellOpenGroups = page =>
+  page.evaluate(() => {
+    for (const toggle of document.querySelectorAll('#workspace-sidebar .nav-group-toggle[aria-expanded="false"]'))
+      toggle.click();
+  });
+// With the drawer open the main region is inert, so a page's landmarks and heading are not exposed: its semantics are
+// checked in the states where the page is, and only the WCAG rules where the drawer is.
+const shellAccessibility = async (page, result, state, {semantics: checkSemantics = true} = {}) => {
+  if (checkSemantics) {
+    const semantics = await inspectBrowserAccessibility(page);
+    assert.deepEqual(accessibilityProblems(semantics), [], state + ': browser accessibility semantics refused');
+  }
+  if (wcagEngine) {
+    const wcag = await atDocumentStart(page, () => inspectBrowserWcag(page, wcagEngine));
+    result['wcag_' + state] = wcag;
+    assert.equal(
+      wcag.automated_passed,
+      true,
+      state + ': automated WCAG rules refused; inspect the retained rule evidence',
+    );
+  }
+};
+
+// The frame: what is on screen before anything is opened. Phone and tablet widths show the one-row header and open the
+// drawer; wide widths show the sidebar.
+async function shellFrameBody({page, result, route, locale, width, appearance}, site) {
+  await shellOpen(page, site, route, locale);
+  const screens = shellScreens(),
+    shot = (name, options = {}) =>
+      page.screenshot({path: path.join(screens, `shell-${name}-${locale}-${width}-${appearance}.png`), ...options});
+  const frame = await page.evaluate(() => {
+    const box = element => {
+        const r = element.getBoundingClientRect();
+        return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height};
+      },
+      shown = element =>
+        !!element && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden',
+      bar = document.querySelector('.topbar'),
+      sidebar = document.querySelector('#workspace-sidebar'),
+      channel = value => {
+        const c = value / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      },
+      luminance = colour => {
+        const [r, g, b] = (colour.match(/[\d.]+/g) ?? [255, 255, 255]).slice(0, 3).map(Number);
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      },
+      mirrored = element => {
+        for (let node = element; node && node.nodeType === 1; node = node.parentElement) {
+          const transform = getComputedStyle(node).transform,
+            m = /^matrix\(([^)]+)\)$/.exec(transform);
+          if (m && Number(m[1].split(',')[0]) < 0) return true;
+          if (getComputedStyle(node).filter !== 'none') return true;
+        }
+        return false;
+      };
+    return {
+      viewport: {width: innerWidth, height: innerHeight},
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      bar: box(bar),
+      controls: [...bar.querySelectorAll('a[href], button, select, input')].filter(shown).map(element => ({
+        name:
+          element.id ||
+          (element.hasAttribute('data-theme-select')
+            ? 'theme'
+            : element.hasAttribute('data-language-select')
+              ? 'language'
+              : element.getAttribute('aria-label') || element.className || element.tagName),
+        id: element.id,
+        label: element.getAttribute('aria-label') ?? '',
+        ...box(element),
+      })),
+      brands: [...document.querySelectorAll('.brand')].map(brand => ({
+        where: brand.closest('.topbar') ? 'header' : brand.closest('#workspace-sidebar') ? 'sidebar' : 'other',
+        images: [...brand.querySelectorAll('img')].filter(shown).map(image => ({
+          file: (image.getAttribute('src') ?? '').split('/').pop().split('?')[0],
+          width: Math.round(image.getBoundingClientRect().width),
+          mirrored: mirrored(image),
+        })),
+        ...(shown(brand) ? box(brand) : {hidden: true}),
+      })),
+      sidebar: {
+        ...box(sidebar),
+        position: getComputedStyle(sidebar).position,
+        luminance: luminance(getComputedStyle(sidebar).backgroundColor),
+        state: document.querySelector('.app-shell').dataset.sidebar,
+      },
+      navigation: {
+        expected: routeNavigation().map(group => (group.entries.length === 1 ? group.entries[0].label : group.name)),
+        rendered: [...document.querySelectorAll('#workspace-sidebar nav[data-ui-label="Main navigation"] > *')].map(
+          element =>
+            element.classList.contains('nav-group')
+              ? element.dataset.group
+              : (element.querySelector('.nav-text')?.getAttribute('data-ui-text') ?? ''),
+        ),
+        icons: [...document.querySelectorAll('#workspace-sidebar a[data-route] .glyph path')].map(path =>
+          path.getAttribute('d'),
+        ),
+        links: document.querySelectorAll('#workspace-sidebar a[data-route]').length,
+      },
+    };
+  });
+  result.frame = frame;
+  assert.equal(frame.overflow, 0, 'The page does not scroll sideways');
+  const rtl = locale === 'ar',
+    {bar, controls} = frame;
+  // The navigation is the registry's: seven groups, in order, one distinct glyph for every link.
+  assert.deepEqual(
+    frame.navigation.rendered,
+    frame.navigation.expected,
+    'the seven groups, as the registry orders them',
+  );
+  assert.equal(frame.navigation.expected.length, 7, 'seven groups');
+  assert.equal(new Set(frame.navigation.icons).size, frame.navigation.icons.length, 'no two links share a glyph');
+  assert.ok(frame.navigation.links >= 18, 'every page has its link: ' + frame.navigation.links);
+  // The logo never mirrors or recolours, in either direction.
+  for (const brand of frame.brands)
+    for (const image of brand.images)
+      assert.equal(image.mirrored, false, brand.where + ' logo ' + image.file + ' is mirrored or filtered');
+  if (width <= 850) {
+    // One row of four at most: the logo (or the icon), the client switcher, search and the menu. Language and appearance
+    // are in the drawer; the header keeps no sign-in, sign-out or avatar.
+    assert.ok(bar.height <= 65, 'the header is one row: ' + bar.height + 'px high');
+    for (const control of controls) {
+      assert.ok(
+        control.top >= bar.top - 1 && control.bottom <= bar.bottom + 1,
+        control.name + ' stays in the header row',
+      );
+      assert.ok(control.left >= -1 && control.right <= width + 1, control.name + ' stays inside the window');
+    }
+    const names = controls.map(control => control.id || control.name);
+    for (const absent of ['theme', 'language', 'login-button', 'logout-button', 'user-avatar'])
+      assert.ok(!names.includes(absent), absent + ' is not in the phone header: ' + names.join(', '));
+    assert.ok(names.includes('menu-toggle'), 'the menu button is in the header');
+    const brand = frame.brands.find(item => item.where === 'header'),
+      menu = controls.find(control => control.id === 'menu-toggle');
+    assert.ok(brand && !brand.hidden && brand.images.length === 1, 'the header shows one logo image');
+    // The logo sits at the start edge and the menu at the end edge, in both directions.
+    if (rtl) {
+      assert.ok(brand.right >= width - 24, 'the logo is at the right (start) edge in Arabic: ' + brand.right);
+      assert.ok(menu.left <= 24, 'the menu is at the left (end) edge in Arabic: ' + menu.left);
+    } else {
+      assert.ok(brand.left <= 24, 'the logo is at the left (start) edge: ' + brand.left);
+      assert.ok(menu.right >= width - 24, 'the menu is at the right (end) edge: ' + menu.right);
+    }
+    // Below 520px the icon alone stands for the lockup; it is at least 24px (and 160px is the lockup's floor).
+    const image = brand.images[0];
+    assert.ok(
+      image.file === 'mark.svg' ? image.width >= 24 : image.width >= 160,
+      'the logo is large enough: ' + image.file + ' ' + image.width,
+    );
+    if (width === 320) await shot('header', {clip: {x: 0, y: 0, width, height: 96}});
+    // The drawer: from the end edge, as tall as the window, with the language, appearance and sign-out controls.
+    await shellOpenDrawer(page);
+    const drawer = await page.evaluate(() => {
+      const sidebar = document.querySelector('#workspace-sidebar'),
+        r = sidebar.getBoundingClientRect(),
+        shown = element => !!element && element.getClientRects().length > 0;
+      return {
+        left: r.left,
+        right: r.right,
+        height: r.height,
+        viewport: innerHeight,
+        language: shown(sidebar.querySelector('[data-language-select]')),
+        appearance: shown(sidebar.querySelector('[data-theme-select]')),
+        signOut: shown(sidebar.querySelector('[data-shell-session="in"]')),
+        scrolls: getComputedStyle(sidebar).overflowY,
+      };
+    });
+    result.drawer = drawer;
+    if (rtl)
+      assert.ok(Math.abs(drawer.left) <= 1, 'the drawer opens from the left (end) edge in Arabic: ' + drawer.left);
+    else assert.ok(Math.abs(drawer.right - width) <= 1, 'the drawer opens from the right (end) edge: ' + drawer.right);
+    assert.ok(drawer.height <= drawer.viewport + 1, 'the drawer is no taller than the window: ' + drawer.height);
+    assert.ok(
+      drawer.language && drawer.appearance && drawer.signOut,
+      'language, appearance and sign out are in the drawer',
+    );
+    assert.ok(['auto', 'scroll'].includes(drawer.scrolls), 'the drawer scrolls as one panel');
+    await shellAccessibility(page, result, 'drawer', {semantics: false});
+    if (width === 375) await shot('drawer');
+    await shellCloseDrawer(page);
+  } else {
+    assert.equal(frame.sidebar.position, 'sticky', 'the sidebar stays in view');
+    assert.equal(frame.sidebar.state, width < 1024 ? 'rail' : 'full');
+    // A neutral frame: the light theme has a light sidebar and the dark theme a dark one (it was an inverse colour).
+    if (appearance === 'light')
+      assert.ok(frame.sidebar.luminance > 0.7, 'the sidebar is light in the light theme: ' + frame.sidebar.luminance);
+    else assert.ok(frame.sidebar.luminance < 0.1, 'the sidebar is dark in the dark theme: ' + frame.sidebar.luminance);
+    const head = frame.brands.find(item => item.where === 'sidebar');
+    assert.ok(head && head.images.length === 1, 'the sidebar shows one logo image');
+    if (frame.sidebar.state === 'full')
+      assert.ok(head.images[0].width >= 160, 'the lockup is at least 160px: ' + head.images[0].width);
+    else
+      assert.ok(
+        head.images[0].file === 'mark.svg' && head.images[0].width >= 24,
+        'the rail shows the icon alone, 24px or larger',
+      );
+    await shot('sidebar');
+  }
+  await keyboardNavigation(page, width, route);
+  await shellAccessibility(page, result, 'initial');
+  await brandChecks(page, {route, locale, width, appearance, result, shell: true, keep: false});
+}
+
+// Probe 21: no clipped link at 800px of height in either language. The navigation scrolls inside its column and the footer
+// stays reachable; below 851px the drawer is one scrolling panel.
+async function shellHeightBody({page, result, route, locale, width, height, appearance}, site) {
+  await shellOpen(page, site, route, locale);
+  const wide = width > 850;
+  if (!wide) await shellOpenDrawer(page);
+  await shellOpenGroups(page);
+  const measured = await page.evaluate(async wide => {
+    const sidebar = document.querySelector('#workspace-sidebar'),
+      nav = sidebar.querySelector('nav[data-ui-label="Main navigation"]'),
+      scroller = wide ? nav : sidebar,
+      inside = (inner, outer) => inner.top >= outer.top - 1 && inner.bottom <= outer.bottom + 1,
+      rect = element => element.getBoundingClientRect(),
+      problems = [],
+      // Beside the sidebar the links scroll inside the navigation and the footer's own links stay below it (measured against
+      // the window below); in the drawer one panel scrolls them all.
+      links = [...(wide ? nav : sidebar).querySelectorAll('a[data-route]')];
+    for (const link of links) {
+      link.scrollIntoView({block: 'nearest'});
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const r = rect(link),
+        box = rect(scroller);
+      if (!inside(r, box)) problems.push('clipped: ' + link.textContent.trim());
+      if (r.top < 0 || r.bottom > innerHeight + 1) problems.push('outside the window: ' + link.textContent.trim());
+      if (r.height < 40) problems.push('short: ' + link.textContent.trim() + ' ' + r.height);
+    }
+    scroller.scrollTop = scroller.scrollHeight;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const footer = sidebar.querySelector('.sidebar-bottom'),
+      reachable = [...footer.querySelectorAll('a[data-route], .sidebar-toggle, [data-shell-session]:not([hidden])')]
+        .filter(element => element.getClientRects().length)
+        .map(element => ({name: element.textContent.trim(), ...rect(element).toJSON()})),
+      signOut = sidebar.querySelector('[data-shell-session="in"]');
+    return {
+      links: links.length,
+      problems,
+      navScrolls: nav.scrollHeight > nav.clientHeight,
+      overflow: getComputedStyle(scroller).overflowY,
+      sidebarBox: rect(sidebar).toJSON(),
+      footerBox: rect(footer).toJSON(),
+      reachable,
+      signOut: signOut && signOut.getClientRects().length ? rect(signOut).toJSON() : null,
+      viewport: innerHeight,
+    };
+  }, wide);
+  result.height_probe = measured;
+  assert.deepEqual(measured.problems, [], 'no clipped navigation link');
+  assert.ok(measured.links >= 18, 'every link is measured: ' + measured.links);
+  assert.ok(['auto', 'scroll'].includes(measured.overflow), 'the column that holds the links scrolls');
+  assert.ok(measured.sidebarBox.bottom <= measured.viewport + 1, 'the sidebar is no taller than the window');
+  if (wide) {
+    // The footer stays reachable without scrolling the page, and still does after the page has scrolled.
+    assert.ok(
+      measured.footerBox.bottom <= measured.viewport + 1 && measured.footerBox.top >= 0,
+      'the footer is in the window',
+    );
+    for (const link of measured.reachable)
+      assert.ok(link.top >= 0 && link.bottom <= measured.viewport + 1, 'footer control in the window: ' + link.name);
+    await page.evaluate(() => window.scrollTo(0, 600));
+    const after = await page.evaluate(
+      () => document.querySelector('#workspace-sidebar .sidebar-bottom').getBoundingClientRect().bottom,
+    );
+    assert.ok(after <= height + 1, 'the footer stays in view when the page scrolls: ' + after);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    if (appearance === 'light' || locale === 'ar')
+      await page.screenshot({
+        path: path.join(shellScreens(), `shell-sidebar-open-${locale}-${width}x${height}-${appearance}.png`),
+      });
+  } else {
+    assert.ok(measured.signOut, 'sign out is reachable in the drawer');
+    assert.ok(
+      measured.signOut.top >= 0 && measured.signOut.bottom <= measured.viewport + 1,
+      'sign out is in the window at the end of the drawer',
+    );
+    if (locale === 'ar' || appearance === 'light')
+      await page.screenshot({
+        path: path.join(shellScreens(), `shell-drawer-open-${locale}-${width}x${height}-${appearance}.png`),
+      });
+    await shellCloseDrawer(page);
+  }
+}
+
+// The rail: one icon per link, the state remembered across routes and reloads, the icon alone for the brand.
+async function shellRailBody({page, result, route, locale, width, appearance}, site) {
+  await shellOpen(page, site, route, locale);
+  assert.equal(
+    await page.locator('.app-shell').getAttribute('data-sidebar'),
+    'full',
+    'a wide window starts with the full sidebar',
+  );
+  await page.locator('[data-sidebar-toggle]').click();
+  const rail = () =>
+    page.evaluate(() => {
+      const sidebar = document.querySelector('#workspace-sidebar'),
+        names = [...sidebar.querySelectorAll('a[data-route]')].map(link => ({
+          text: link.textContent.trim(),
+          title: link.getAttribute('title'),
+          box: link.getBoundingClientRect().toJSON(),
+          icon: link.querySelector('.glyph path')?.getAttribute('d'),
+        })),
+        mark = sidebar.querySelector('.logo-mark').getBoundingClientRect();
+      return {
+        state: document.querySelector('.app-shell').dataset.sidebar,
+        stored: localStorage.getItem('amcp.sidebar'),
+        width: sidebar.getBoundingClientRect().width,
+        names,
+        mark: {width: mark.width, height: mark.height},
+        lockupShown: [...sidebar.querySelectorAll('.brand-lockup img')].some(image => image.getClientRects().length),
+        toggle: document.querySelector('[data-sidebar-toggle]').getAttribute('aria-expanded'),
+      };
+    });
+  let state = await rail();
+  result.rail = state;
+  assert.equal(state.state, 'rail');
+  assert.equal(state.stored, 'rail', 'the choice is remembered');
+  assert.ok(Math.abs(state.width - 72) <= 1, 'the rail is 72px wide: ' + state.width);
+  assert.equal(state.lockupShown, false, 'no lockup in the rail (it would be under 160px)');
+  assert.ok(
+    state.mark.width >= 24 && state.mark.height >= 24,
+    'the icon alone, 24px or larger: ' + JSON.stringify(state.mark),
+  );
+  assert.equal(state.toggle, 'false');
+  assert.ok(state.names.length >= 18);
+  assert.equal(new Set(state.names.map(item => item.icon)).size, state.names.length, 'one distinct icon per link');
+  for (const item of state.names) {
+    assert.ok(item.text, 'a rail link keeps its name for assistive technology');
+    assert.equal(item.title, item.text, 'the pointer finds the name as a title: ' + item.text);
+    assert.ok(item.box.width >= 24 && item.box.height >= 24, 'a rail link is a 24px target at least: ' + item.text);
+  }
+  await page.screenshot({path: path.join(shellScreens(), `shell-rail-${locale}-${width}-${appearance}.png`)});
+  await shellAccessibility(page, result, 'rail');
+  // Across routes: opening a page by its link keeps the rail; so does a reload.
+  await page.locator('#workspace-sidebar a[data-route="operations"]').click();
+  await page.waitForURL(site.origin + '/operations');
+  await page.locator('h1').first().waitFor({state: 'visible'});
+  assert.equal(await page.locator('.app-shell').getAttribute('data-sidebar'), 'rail', 'the rail stays across routes');
+  await page.reload({waitUntil: 'networkidle'});
+  assert.equal(await page.locator('.app-shell').getAttribute('data-sidebar'), 'rail', 'the rail survives a reload');
+  // And back: the full sidebar is remembered the same way.
+  await page.locator('[data-sidebar-toggle]').click();
+  state = await rail();
+  assert.equal(state.state, 'full');
+  assert.equal(state.stored, 'full');
+  assert.ok(Math.abs(state.width - 256) <= 1, 'the full sidebar is 256px wide: ' + state.width);
+  await page.reload({waitUntil: 'networkidle'});
+  assert.equal(await page.locator('.app-shell').getAttribute('data-sidebar'), 'full');
+  await brandChecks(page, {route, locale, width, appearance, result, shell: true, keep: false});
+}
+
+// Probe 20: on a slow connection the shell stays, the page's header and a skeleton show at once, focus lands on the new
+// heading when the page is ready, a late answer from an old route never paints over the new one, and one section's
+// failure stays in its section.
+async function shellLoadingBody({page, context, result, route, locale, width, appearance}, site) {
+  await shellOpen(page, site, route, locale);
+  const label = key => arabicOr(locale, key);
+  let holding = false,
+    held = 0,
+    releaseAsset;
+  const gate = new Promise(resolve => (shellLoadingBody.release = resolve)),
+    asset = new Promise(resolve => (releaseAsset = resolve));
+  // Two slow things, held by hand so the case does not race a fast local server: the page's own script (the frame shows
+  // while it downloads) and then its data (the page is waiting for it when the person moves on).
+  await context.route(/\/assets\/(?:v\/[^/]+\/)?operations-center\.js/, async intercepted => {
+    await asset;
+    return intercepted.continue();
+  });
+  await context.route('**/api/workspace/**', async intercepted => {
+    if (!holding) return intercepted.continue();
+    held++;
+    await gate;
+    return intercepted.continue();
+  });
+  // The marks that must survive the route change: the very elements, not elements like them.
+  await page.evaluate(() => {
+    window.__shellMarks = [
+      document.querySelector('.topbar'),
+      document.querySelector('#workspace-sidebar'),
+      document.querySelector('.main-shell'),
+    ];
+  });
+  holding = true;
+  await shellClickNavigation(page, 'operations');
+  await page.waitForURL(site.origin + '/operations');
+  // The frame: the new page's heading and its subtitle from the registry, skeleton blocks, one busy status.
+  await page.locator('#route-loading').waitFor({state: 'visible'});
+  const loading = await page.evaluate(() => ({
+    kept: window.__shellMarks.every(
+      (element, index) =>
+        element ===
+          [
+            document.querySelector('.topbar'),
+            document.querySelector('#workspace-sidebar'),
+            document.querySelector('.main-shell'),
+          ][index] && element.isConnected,
+    ),
+    heading: document.querySelector('#content h1')?.textContent.trim(),
+    subtitle: document.querySelector('#content .page-heading p')?.textContent.trim(),
+    blocks: document.querySelectorAll('#route-loading .skeleton-block').length,
+    statuses: document.querySelectorAll('#content [role="status"][aria-busy="true"]').length,
+    previous: document.querySelectorAll('#platform-grid, .platform-card').length,
+    text: document.querySelector('#content').textContent,
+    current: document.querySelector('#workspace-sidebar a[aria-current="page"]')?.getAttribute('data-route'),
+    focus:
+      document.activeElement === document.body
+        ? 'body'
+        : document.activeElement?.tagName + (document.activeElement?.closest('#content') ? ' in content' : ''),
+  }));
+  result.loading = loading;
+  assert.equal(
+    loading.kept,
+    true,
+    'the header, the sidebar and the main region are the same elements during the route change',
+  );
+  assert.equal(loading.heading, label('Operations'), 'the new page’s heading is on screen at once');
+  assert.equal(loading.subtitle, label(await page.evaluate(() => routeSubtitle('/operations'))), 'and its subtitle');
+  assert.ok(
+    loading.blocks >= 3 && loading.statuses === 1,
+    'skeleton blocks with one busy status: ' +
+      JSON.stringify({blocks: loading.blocks, statuses: loading.statuses, held, text: loading.text.slice(0, 200)}),
+  );
+  assert.equal(loading.previous, 0, 'the previous page’s controls are gone');
+  assert.ok(!/Loading this page|جارٍ تحميل هذه الصفحة/.test(loading.text), 'the old loading sentence is gone');
+  assert.ok(!loading.focus.endsWith('in content'), 'focus is not inside the page that is going away');
+  if (width >= 851) assert.equal(loading.current, 'operations', 'the navigation already marks the new page');
+  await page.screenshot({path: path.join(shellScreens(), `shell-loading-${locale}-${width}-${appearance}.png`)});
+  // A late answer never paints over a newer route: the script arrives, the page asks for its data, and the person goes on
+  // to Connections while Operations is still waiting for it.
+  releaseAsset();
+  for (let wait = 0; wait < 100 && !held; wait++) await page.waitForTimeout(50);
+  assert.ok(held > 0, 'the Operations page is waiting for its answer');
+  holding = false;
+  await shellClickNavigation(page, 'connections');
+  await page.waitForURL(site.origin + '/connections');
+  await page.locator('#platform-grid').waitFor({state: 'visible'});
+  assert.equal(await page.locator('h1').count(), 1);
+  const connections = await page.locator('h1').innerText();
+  shellLoadingBody.release();
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator('h1').innerText(), connections, 'the late Operations answer left the page alone');
+  assert.equal(await page.locator('#platform-grid').count(), 1);
+  assert.equal(await page.locator('#route-loading').count(), 0);
+  assert.equal(await page.evaluate(() => location.pathname), '/connections');
+  // Focus lands on the heading once a page has loaded.
+  await shellClickNavigation(page, 'operations');
+  await page.waitForFunction(() => document.activeElement === document.querySelector('#content h1'));
+  assert.equal(await page.locator('#route-loading').count(), 0);
+}
+
+// Loading a page whose own files are slow: the frame shows while its script downloads. Home fills the attention panel late
+// and keeps every other panel; a failed attention feed stays in its panel (one section's failure does not blank the page).
+async function shellSectionsBody({page, context, result, locale, width, appearance}, site) {
+  const label = key => arabicOr(locale, key);
+  let mode = 'fast';
+  const gate = new Promise(resolve => (shellSectionsBody.release = resolve));
+  await context.route('**/api/workspace/workspace', async intercepted => {
+    const action = intercepted.request().postDataJSON?.()?.action;
+    if (action !== 'operations' || mode === 'fast') return intercepted.continue();
+    if (mode === 'fail')
+      return intercepted.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({success: false, error: {code: 'INTERNAL_ERROR', message: 'Synthetic refusal'}}),
+      });
+    await gate;
+    return intercepted.continue();
+  });
+  // Slow feed: Home is there, with a skeleton in the attention panel only.
+  mode = 'slow';
+  await page.goto(site.origin + '/dashboard', {waitUntil: 'domcontentloaded'});
+  await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+  await page.locator('#home-attention[aria-busy="true"]').waitFor({state: 'visible'});
+  const waiting = await page.evaluate(() => ({
+    panels: [...document.querySelectorAll('#content h2')].map(heading => heading.textContent.trim()),
+    skeleton: document.querySelectorAll('#home-attention .skeleton-block').length,
+    statuses: document.querySelectorAll('#home-attention [role="status"]').length,
+  }));
+  result.sections_waiting = waiting;
+  for (const heading of ['Needs attention', 'Continue recent work', 'Account readiness', 'Capabilities and evidence'])
+    assert.ok(waiting.panels.includes(label(heading)), 'Home shows ' + heading + ' before the feed has answered');
+  assert.ok(waiting.skeleton >= 3 && waiting.statuses === 1, 'the attention panel is a skeleton');
+  if (width >= 851)
+    await page.screenshot({path: path.join(shellScreens(), `shell-home-waiting-${locale}-${width}-${appearance}.png`)});
+  shellSectionsBody.release();
+  await page.waitForFunction(() => !document.querySelector('#home-attention[aria-busy="true"]'));
+  assert.ok(
+    (await page.locator('#home-attention').innerText()).includes(
+      label(
+        'Nothing needs attention: no campaign plans, uploads, reports, exports, schedules, incidents, workbook runs, reviewed changes, email notices or connection logins.',
+      ),
+    ),
+    'the panel fills with its answer',
+  );
+  // Failed feed: that panel says so and the rest of Home stays.
+  mode = 'fail';
+  await page.reload({waitUntil: 'networkidle'});
+  await page.locator('#home-attention [role="alert"]').waitFor({state: 'visible'});
+  assert.equal(
+    await page.locator('#home-attention [role="alert"]').innerText(),
+    label('Could not load the work that needs attention. Open Operations to see it.'),
+  );
+  assert.equal(
+    await page.locator('#content h2', {hasText: label('Account readiness')}).count(),
+    1,
+    'the rest of Home stays',
+  );
+  assert.equal(await page.locator('.page-error').count(), 0, 'one section’s failure never opens the page error');
+  if (width >= 851)
+    await page.screenshot({
+      path: path.join(shellScreens(), `shell-home-section-error-${locale}-${width}-${appearance}.png`),
+    });
+  // A page whose script is slow to download: the frame shows while it does, and the page fills in when it arrives.
+  mode = 'fast';
+  let releaseAsset;
+  const asset = new Promise(resolve => (releaseAsset = resolve));
+  await context.route(/\/assets\/(?:v\/[^/]+\/)?operations-center\.js/, async intercepted => {
+    await asset;
+    return intercepted.continue();
+  });
+  await shellClickNavigation(page, 'operations');
+  await page.locator('#route-loading').waitFor({state: 'visible'});
+  assert.equal(await page.locator('#content h1').innerText(), label('Operations'));
+  releaseAsset();
+  await page.waitForFunction(() => !document.querySelector('#route-loading'));
+}
+
+// Feedback: a toast in the flow (never over content), a failed page's way back, and the empty states' one action.
+async function shellFeedbackBody({page, context, result, locale, width, appearance}, site) {
+  const label = key => arabicOr(locale, key);
+  await shellOpen(page, site, '/connections', locale);
+  // A toast pushes the page down instead of covering it, and stays in view when the page has scrolled.
+  await page.locator('[data-action="refresh"]').click();
+  await page.locator('#toast:not([hidden])').waitFor({state: 'visible'});
+  const toast = await page.evaluate(() => {
+    const t = document.querySelector('#toast').getBoundingClientRect(),
+      c = document.querySelector('#content').getBoundingClientRect(),
+      heading = document.querySelector('#content h1').getBoundingClientRect();
+    return {
+      top: t.top,
+      bottom: t.bottom,
+      contentTop: c.top,
+      headingTop: heading.top,
+      position: getComputedStyle(document.querySelector('#toast')).position,
+      text: document.querySelector('#toast').textContent,
+    };
+  });
+  result.toast = toast;
+  assert.ok(toast.text.trim(), 'the toast says something');
+  assert.ok(toast.bottom <= toast.contentTop + 1, 'the toast is above the page, not over it: ' + JSON.stringify(toast));
+  assert.ok(toast.bottom <= toast.headingTop + 1, 'and above the page’s heading');
+  assert.equal(toast.position, 'sticky');
+  await page.evaluate(() => window.scrollTo(0, 700));
+  const stuck = await page.evaluate(() => document.querySelector('#toast').getBoundingClientRect().toJSON());
+  const scrollable = await page.evaluate(() => document.documentElement.scrollHeight > innerHeight + 700);
+  if (scrollable)
+    assert.ok(
+      stuck.top >= 0 && stuck.bottom <= (await page.evaluate(() => innerHeight)),
+      'the toast stays in view under the header while the page is scrolled: ' + JSON.stringify(stuck),
+    );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  if (width <= 375 || width >= 1280)
+    await page.screenshot({path: path.join(shellScreens(), `shell-toast-${locale}-${width}-${appearance}.png`)});
+  // The empty platform list offers its one action.
+  await page.locator('#platform-search').fill('zzzz-no-platform');
+  const empty = page.locator('#platform-grid .empty');
+  await empty.waitFor({state: 'visible'});
+  assert.equal(await empty.locator('a, button').count(), 1, 'one next action in the empty list');
+  assert.equal(await empty.locator('button').innerText(), label('Clear search'));
+  await empty.locator('button').click();
+  await page.locator('#platform-grid .platform-card').first().waitFor({state: 'visible'});
+  assert.equal(await page.locator('#platform-search').inputValue(), '', 'the search is cleared');
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    'platform-search',
+    'focus returns to the search field',
+  );
+  // Home's empty panels name their one action, secondary beside the page's own primary one.
+  await page.goto(site.origin + '/dashboard', {waitUntil: 'networkidle'});
+  await page.locator('#content h1').waitFor({state: 'visible'});
+  const home = await page.evaluate(
+    ([recent, readiness]) => {
+      const block = heading =>
+          [...document.querySelectorAll('#content section.panel')]
+            .find(panel => panel.querySelector('h2')?.textContent.trim() === heading)
+            ?.querySelector('.empty'),
+        read = element =>
+          element && {
+            title: element.querySelector('strong')?.textContent.trim(),
+            actions: [...element.querySelectorAll('a, button')].map(a => ({
+              text: a.textContent.trim(),
+              href: a.getAttribute('href'),
+              primary: a.classList.contains('primary'),
+            })),
+          };
+      return {
+        primaries: [...document.querySelectorAll('#content .button.primary')].map(a => a.textContent.trim()),
+        recent: read(block(recent)),
+        readiness: read(block(readiness)),
+      };
+    },
+    [label('Continue recent work'), label('Account readiness')],
+  );
+  result.home_empty = home;
+  // One primary action on the page (Set up connections, until an account is connected); each empty panel has one secondary.
+  assert.deepEqual(home.primaries, [label('Set up connections')], 'Home keeps its one primary action');
+  for (const [state, title, href] of [
+    [home.recent, 'No saved campaign plans yet', '/campaigns#campaign-create'],
+    [home.readiness, 'No accounts to check yet', '/connections'],
+  ]) {
+    assert.equal(state?.title, label(title));
+    assert.equal(state.actions.length, 1, title + ': one next action');
+    assert.equal(state.actions[0].href, href);
+    assert.equal(state.actions[0].primary, false, title + ': secondary beside the page’s own primary action');
+  }
+  // The failed page's way back: Schedules is a child of Reporting, so its way back is not Connections.
+  await context.route('**/api/workspace/overview', intercepted =>
+    intercepted.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({success: false, error: {code: 'INTERNAL_ERROR', message: 'Synthetic refusal'}}),
+    }),
+  );
+  await page.goto(site.origin + '/schedules', {waitUntil: 'networkidle'});
+  await page.locator('.page-error').waitFor({state: 'visible'});
+  const back = page.locator('.page-error a.button');
+  assert.equal(await back.count(), 1);
+  assert.equal(
+    await back.getAttribute('href'),
+    '/report-library',
+    'a child page leads back to its parent, not to Connections',
+  );
+  assert.equal(await back.innerText(), label('Back to {page}').replace('{page}', label('Reporting')));
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.closest('.page-error') !== null),
+    true,
+    'focus is on the error',
+  );
+  await shellAccessibility(page, result, 'error');
+  if (width <= 375 || width >= 1280)
+    await page.screenshot({path: path.join(shellScreens(), `shell-page-error-${locale}-${width}-${appearance}.png`)});
+  await back.click();
+  await page.waitForURL(site.origin + '/report-library');
+  await page.locator('#content h1').waitFor({state: 'visible'});
+  assert.equal(await page.locator('.page-error').count(), 0);
+}
+
+// The logo under forced colours: the variant follows the forced palette (prefers-color-scheme), whatever the site's theme.
+async function shellForcedBody({page, result, route, locale, width, appearance, scheme}, site) {
+  await page.addInitScript(theme => localStorage.setItem('amcp.theme', theme), appearance);
+  // The policy pages are static documents in one language each; their address carries it.
+  await shellOpen(page, site, route === '/privacy' ? '/privacy?lang=' + locale : route, locale);
+  assert.equal(await page.evaluate(() => matchMedia('(forced-colors: active)').matches), true, 'forced colours are on');
+  assert.equal(
+    await page.evaluate(scheme => matchMedia('(prefers-color-scheme: ' + scheme + ')').matches, scheme),
+    true,
+  );
+  const visible = await page.evaluate(() =>
+    [...document.querySelectorAll('.brand img')]
+      .filter(image => image.getClientRects().length && getComputedStyle(image).display !== 'none')
+      .map(image => ({
+        file: (image.getAttribute('src') ?? '').split('/').pop().split('?')[0],
+        where: image.closest('.topbar') ? 'header' : image.closest('#workspace-sidebar') ? 'sidebar' : 'page',
+      })),
+  );
+  result.forced = {theme: await page.locator('html').getAttribute('data-theme'), scheme, visible};
+  assert.ok(visible.length >= 1, 'a logo is visible');
+  const lockups = visible.filter(image => image.file !== 'mark.svg');
+  for (const image of lockups)
+    assert.equal(
+      image.file,
+      scheme === 'dark' ? 'logo-white.svg' : 'logo-ink.svg',
+      `${image.where}: the lockup follows the forced palette (${scheme}), not the site theme (${appearance})`,
+    );
+  const perBrand = await page.evaluate(() =>
+    [...document.querySelectorAll('.brand')].map(
+      brand =>
+        [...brand.querySelectorAll('.brand-lockup img, :scope > img')].filter(
+          image => image.getClientRects().length && !image.classList.contains('logo-mark'),
+        ).length,
+    ),
+  );
+  assert.ok(
+    perBrand.every(count => count <= 1),
+    'never both lockups at once: ' + perBrand,
+  );
+  await page.screenshot({
+    path: path.join(
+      shellScreens(),
+      `shell-forced-${route.slice(1) || 'home'}-${scheme}-theme-${appearance}-${width}.png`,
+    ),
+  });
+}
+
+// The public pages hide the sidebar and take the whole window: with the shell a two-column grid the sign-in page once sat in
+// the sidebar's column, 256px wide, with its logo 10px from the edge. Signed out, at the widths where the sidebar would show.
+async function shellPublicBody({page, result, route, locale, width}, site) {
+  await shellOpen(page, site, route, locale);
+  const layout = await page.evaluate(() => {
+    const box = element => element.getBoundingClientRect().toJSON();
+    return {
+      viewport: document.documentElement.clientWidth,
+      main: box(document.querySelector('.main-shell')),
+      sidebarShown: getComputedStyle(document.querySelector('#workspace-sidebar')).display !== 'none',
+      shellDisplay: getComputedStyle(document.querySelector('.app-shell')).display,
+      brand: box([...document.querySelectorAll('.brand')].find(brand => brand.getClientRects().length)),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  result.public_layout = layout;
+  assert.equal(layout.sidebarShown, false, 'a public page has no sidebar');
+  assert.equal(layout.shellDisplay, 'block', 'and the shell is not a grid');
+  assert.ok(
+    Math.abs(layout.main.width - layout.viewport) <= 1,
+    'the page takes the whole window: ' + layout.main.width + ' of ' + layout.viewport,
+  );
+  assert.ok(layout.main.left <= 1 && layout.main.left >= -1, 'from the first pixel: ' + layout.main.left);
+  // The logo is at the start edge, with its own margin there (the left in English, the right in Arabic).
+  const start = locale === 'ar' ? layout.viewport - layout.brand.right : layout.brand.left;
+  assert.ok(start >= 20 && start < width / 4, 'the logo keeps its own margin at the start edge: ' + start);
+  assert.equal(layout.overflow, 0, 'the page does not scroll sideways');
+  await page.screenshot({
+    path: path.join(shellScreens(), `shell-public-${route.slice(1) || 'home'}-${locale}-${width}.png`),
+  });
+}
+
+async function runShellKind(site) {
+  const locales = ['en', 'ar'],
+    appearances = ['light', 'dark'];
+  if (shellCaseSelected('public'))
+    for (const route of ['/login', '/'])
+      for (const locale of locales)
+        for (const width of [768, 1024, 1280])
+          await shellCase(site, {name: 'public', route, locale, width, signedIn: false}, args =>
+            shellPublicBody(args, site),
+          );
+  if (shellCaseSelected('frame'))
+    for (const appearance of appearances)
+      for (const locale of locales)
+        for (const width of [320, 375, 768, 1280])
+          await shellCase(site, {name: 'frame', route: '/dashboard', locale, width, appearance}, args =>
+            shellFrameBody(args, site),
+          );
+  if (shellCaseSelected('height'))
+    for (const appearance of appearances)
+      for (const locale of locales)
+        for (const width of [320, 375, 1280])
+          await shellCase(site, {name: 'height', route: '/dashboard', locale, width, height: 800, appearance}, args =>
+            shellHeightBody(args, site),
+          );
+  if (shellCaseSelected('rail'))
+    for (const appearance of appearances)
+      for (const locale of locales)
+        await shellCase(site, {name: 'rail', route: '/dashboard', locale, width: 1280, height: 800, appearance}, args =>
+          shellRailBody(args, site),
+        );
+  if (shellCaseSelected('loading'))
+    for (const locale of locales)
+      for (const width of [375, 1280]) {
+        await shellCase(site, {name: 'loading', route: '/connections', locale, width, appearance: 'light'}, args =>
+          shellLoadingBody(args, site),
+        );
+        await shellCase(site, {name: 'sections', route: '/dashboard', locale, width, appearance: 'light'}, args =>
+          shellSectionsBody(args, site),
+        );
+      }
+  if (shellCaseSelected('feedback'))
+    for (const locale of locales)
+      for (const width of [375, 1280])
+        await shellCase(site, {name: 'feedback', route: '/connections', locale, width, appearance: 'light'}, args =>
+          shellFeedbackBody(args, site),
+        );
+  if (shellCaseSelected('forced'))
+    for (const route of ['/dashboard', '/privacy'])
+      for (const appearance of appearances)
+        for (const scheme of ['light', 'dark'])
+          await shellCase(
+            site,
+            {
+              name: `forced-${scheme}-scheme-${appearance}-theme`,
+              route,
+              locale: 'en',
+              width: 1280,
+              appearance: scheme,
+              forcedColors: 'active',
+              signedIn: route === '/dashboard',
+            },
+            args => shellForcedBody({...args, scheme, appearance}, site),
+          );
 }
 
 // Package brand: the branded not-found page is a real 404 (the only refusal the case allows). It is the sixth surface of
@@ -2972,6 +3884,8 @@ async function runFixture(kind, site) {
       for (const route of ['/dashboard', '/capabilities', '/reporting-overview'])
         for (const locale of ['en', 'ar'])
           for (const width of [851, 1024, 1150, 1280]) await shellChromeCase(site, route, locale, width);
+    } else if (kind === 'shell') {
+      await runShellKind(site);
     } else if (kind === 'reviewer') {
       // OWNER-REVIEWER-QA: every page the registry opens to a test account, then each member page it leaves out, at
       // the reduced matrix (two widths, both languages, light theme).

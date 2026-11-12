@@ -14,6 +14,7 @@ function shell(locale = 'ar', extra = {}) {
   const context = createContext({Intl, Map, Set, document: {addEventListener() {}}, catalog, ...extra});
   const run = source => new Script(source).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
   return {run, context};
 }

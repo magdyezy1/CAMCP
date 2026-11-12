@@ -1,8 +1,8 @@
 'use strict';
 // A test account sees only the pages an evaluator needs, as the route registry marks them (web/routes.js). The server
 // refuses the rest outright; this keeps the navigation honest so nothing offers a door that will not open (WEB-06):
-// out-of-scope links, groups left empty and the sidebar's connectors link are hidden, the palette lists only pages in
-// scope, and a page the workspace does not include says so after opening Home instead of silently replacing the URL.
+// out-of-scope links (the navigation's and the footer's) and groups left empty are hidden, the palette lists only pages
+// in scope, and a page the workspace does not include says so after opening Home instead of silently replacing the URL.
 // Through the shell's render hooks (WEB-07).
 let scopeRedirectedFrom = null;
 AMCP.hooks.beforeRender(() => {
@@ -10,11 +10,8 @@ AMCP.hooks.beforeRender(() => {
   document.body.classList.toggle('test-account', scoped);
   for (const link of document.querySelectorAll('[data-route]'))
     link.hidden = scoped && !routeAvailable('/' + link.dataset.route);
-  // A sidebar link outside the navigation list (the connectors note) follows the same scope.
-  for (const link of document.querySelectorAll('.sidebar-note a[href^="/"]'))
-    link.hidden = scoped && !routeAvailable(link.getAttribute('href').split(/[?#]/)[0]);
   // A group whose every link is hidden would open onto nothing.
-  for (const group of document.querySelectorAll('.sidebar details.nav-more'))
+  for (const group of document.querySelectorAll('.sidebar .nav-group'))
     group.hidden = scoped && [...group.querySelectorAll('[data-route]')].every(link => link.hidden);
   if (scoped && !routeAvailable(location.pathname)) {
     scopeRedirectedFrom = location.pathname;

@@ -83,6 +83,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'metricAggregations',
     'websiteWording',
     'executedStepOutcomes',
+    // V2-WEB-03: the navigation's seven group names (web/routes.js).
+    'routeGroups',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -98,11 +100,12 @@ export function inspectLocaleSource(source, file = 'script.js') {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && maps.has(node.id?.name)) collectValues(node.init);
     // WEB-06: the route registry's display names are interface copy; paths, flags and page keys are not.
-    // WEB-08: the palette's owner commands (identity.js) carry the same display fields.
+    // WEB-08: the palette's owner commands (identity.js) carry the same display fields. V2-WEB-03: a page's subtitle too.
     if (node.type === 'VariableDeclarator' && ['routeRegistry', 'ownerCommands'].includes(node.id?.name))
       for (const entry of node.init?.elements ?? [])
         for (const property of entry.properties ?? [])
-          if (['label', 'group', 'aliases', 'description'].includes(property.key?.name)) collectValues(property.value);
+          if (['label', 'group', 'aliases', 'description', 'subtitle'].includes(property.key?.name))
+            collectValues(property.value);
     if (
       node.type === 'VariableDeclarator' &&
       ['app.js', 'capability-center.js', 'workbook-schedules.js'].some(name => file.endsWith(name)) &&

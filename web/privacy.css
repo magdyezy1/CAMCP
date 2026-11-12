@@ -123,6 +123,27 @@ footer {
     display: block;
   }
 }
+/* Forced colours, as in accessibility.css. */
+@media screen and (forced-colors: active) and (prefers-color-scheme: dark) {
+  :root[data-theme] .logo-ink,
+  :root:not([data-theme]) .logo-ink {
+    display: none;
+  }
+  :root[data-theme] .logo-white,
+  :root:not([data-theme]) .logo-white {
+    display: block;
+  }
+}
+@media screen and (forced-colors: active) and (prefers-color-scheme: light) {
+  :root[data-theme] .logo-ink,
+  :root:not([data-theme]) .logo-ink {
+    display: block;
+  }
+  :root[data-theme] .logo-white,
+  :root:not([data-theme]) .logo-white {
+    display: none;
+  }
+}
 nav {
   display: flex;
   gap: 24px;

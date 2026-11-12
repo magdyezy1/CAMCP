@@ -114,12 +114,10 @@ test('toggle groups say which choice is selected, and their buttons and icon but
       ),
       file + ' ' + selector,
     );
-  // On the dark sidebar the icon button's hover keeps the inverse colours (the plain hover's ink would vanish there).
+  // V2-WEB-03: the sidebar is a neutral surface in both themes, so its icon button (the drawer's close) takes the plain
+  // hover, whose ink and surface are checked in both themes below; it once kept inverse colours on the dark sidebar.
   const sidebar = cssDeclarations(read('identity.css')).filter(d => d.selector === '.sidebar .icon-button:hover');
-  assert.deepEqual(
-    sidebar.map(d => d.property + ': ' + d.value),
-    ['color: var(--text-on-inverse-strong)', 'background: var(--fill-on-inverse)'],
-  );
+  assert.deepEqual(sidebar, []);
   for (const theme of ['light', 'dark']) {
     const hover = resolve(theme, declared('app.css', '.icon-button:hover', 'background')),
       ink = resolve(theme, declared('app.css', '.icon-button:hover', 'color'));

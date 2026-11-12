@@ -68,6 +68,26 @@ const statusLabels = {
 /** A state value's label; a value without one keeps its earlier spaced form. */
 const statusLabel = value =>
   uiText(Object.hasOwn(statusLabels, value) ? statusLabels[value] : String(value ?? '').replaceAll('_', ' '));
+/**
+ * An empty state that names its one next action (V2-WEB-03): a title, the words, and one button or link. `action` is
+ * {label, href} for a link, or {label, command} for a button whose data-action the shell's click handler runs; its variant is
+ * primary unless it says secondary (a panel on a page that already has its one primary action). A state with no action is
+ * refused, so an empty state cannot be a dead end. It is the block the shell's sign-in prompt has always been.
+ */
+function emptyBlock({title, body, action}) {
+  if (!action?.label) throw Error('EMPTY_STATE_NEEDS_ACTION');
+  const {label, href, command, variant = 'primary'} = action,
+    classes = variant === 'primary' ? 'button primary' : 'button';
+  return html`<div class="empty"><strong>${title}</strong>${body ? html`<p>${body}</p>` : ''}${command ? html`<button class="${classes}" type="button" data-action="${command}">${label}</button>` : html`<a class="${classes}" href="${href}">${label}</a>`}</div>`;
+}
+/**
+ * Blocks where a section's content will be, while it loads (V2-WEB-03): one status the reader hears once, and blocks that
+ * are decoration. The shell draws its own (a few lines of app.css, no motion) rather than load the V2 component layer, which
+ * is 13 KB on every signed-in route, for one skeleton.
+ */
+function skeletonBlocks(id, lines = 4) {
+  return html`<div class="skeleton" id="${id}" role="status" aria-busy="true"><span class="skeleton-label">${uiText('Loading…')}</span><span class="skeleton-block" data-shape="card" aria-hidden="true"></span>${Array.from({length: lines}, (_, index) => html`<span class="skeleton-block" data-last="${index === lines - 1}" aria-hidden="true"></span>`)}</div>`;
+}
 // Shared by the shell and many page modules (WEB-07: they left the report builder's script).
 const overviewCall = async input => {
   const r = await api('/api/workspace/overview', {method: 'POST', body: JSON.stringify(input)});
@@ -272,12 +292,40 @@ function workspaceBind(selector, fn, options = {}) {
   });
 }
 
+/**
+ * A section of a page that fills when its answer arrives (V2-WEB-03). `slot` is the element already on the page (drawn with
+ * a skeleton, `aria-busy`), `data` the promise for what it shows, `draw` the markup for the answer and `failed` the markup
+ * for its failure: one section's failure stays in that section and never blanks the page. An answer that arrives after the
+ * person has moved on (another route, a sign-out, a newer draw of the page, which replaces the slot) paints nothing.
+ */
+async function fillSection(slot, data, draw, failed) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let outcome;
+  try {
+    outcome = {value: await data};
+  } catch (error) {
+    outcome = {error};
+  }
+  if (!slot?.isConnected || generation !== navigationGeneration || identity !== identityGeneration) return false;
+  if (outcome.error?.code === 'REQUEST_SUPERSEDED') return false;
+  let markup,
+    filled = !('error' in outcome);
+  try {
+    markup = filled ? draw(outcome.value) : failed(outcome.error);
+  } catch (error) {
+    // Markup that cannot be drawn is a failure of this section too.
+    filled = false;
+    markup = failed(error);
+  }
+  slot.removeAttribute('aria-busy');
+  setHtml(slot, markup);
+  return filled;
+}
+
 async function renderWorkspacePage() {
   const page = route();
-  content.innerHTML = header(
-    uiText(routeLabel('/' + page)),
-    uiText('Plan, review and verify work across your selected accounts.'),
-  );
+  content.innerHTML = header(uiText(routeLabel('/' + page)), uiText(routeSubtitle('/' + page)));
   if (!session.authenticated) {
     content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;
@@ -311,17 +359,22 @@ function readinessAge(check) {
 async function renderOverview() {
   // The working client (SEC-08) narrows Home to its attention items, recent plans and accounts.
   const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {};
-  // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home.
-  const [full, attention, clientPlans] = await Promise.all([
-      workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
-      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8, ...client}).catch(error => ({
-        error,
-      })),
-      // The client's newest plans for "Continue recent work"; without them Home keeps the workspace's own.
-      client.profile_id
-        ? workspaceCall('campaign', {action: 'list', limit: 8, ...client}).catch(() => null)
-        : Promise.resolve(null),
-    ]),
+  // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home. Home does
+  // not wait for them (V2-WEB-03): when the rest is ready first, that panel draws a skeleton and fills when they arrive.
+  const dashboard = workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
+    attentionCall = workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8, ...client}).catch(
+      error => ({error}),
+    ),
+    // The client's newest plans for "Continue recent work"; without them Home keeps the workspace's own.
+    plansCall = client.profile_id
+      ? workspaceCall('campaign', {action: 'list', limit: 8, ...client}).catch(() => null)
+      : Promise.resolve(null);
+  // An answer that is already here when the rest is ready is used as it is; one that is not here yet leaves a skeleton to fill.
+  let answered = null;
+  attentionCall.then(value => (answered = {value}));
+  const [full, clientPlans] = await Promise.all([dashboard, plansCall]),
+    waiting = {pending: true},
+    attention = answered ? answered.value : waiting,
     d = Array.isArray(clientPlans?.campaigns)
       ? {
           ...full,
@@ -349,12 +402,23 @@ async function renderOverview() {
   // technical detail, so Home stays short on a phone (OPS-06 increment 2). Home's own copy names what each capability
   // does (DOC-03, web/work-center.js).
   const copy = typeof homeCapabilityCopy === 'object' ? homeCapabilityCopy : {outcomes: {}};
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.length ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: checked.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>` : blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(copy.note ?? d.capabilities.meaning))}</p><ul class="home-outcomes">${d.capabilities.features.map(f => `<li>${esc(uiText(copy.outcomes[f.id] ?? f.name))}</li>`).join('')}</ul><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${
+    accounts.length
+      ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: checked.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>`
+      : emptyBlock({
+          title: uiText('No accounts to check yet'),
+          body: uiText('Connect a platform and select resources to check readiness.'),
+          action: {label: uiText('Set up connections'), href: '/connections', variant: 'secondary'},
+        })
+  }</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(copy.note ?? d.capabilities.meaning))}</p><ul class="home-outcomes">${d.capabilities.features.map(f => `<li>${esc(uiText(copy.outcomes[f.id] ?? f.name))}</li>`).join('')}</ul><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(
     d.capabilities.evidence.filter(
       e => typeof inWorkingClient !== 'function' || inWorkingClient(e.gateway, e.account_id, e.connection_id),
     ),
     uiText('Provider evidence by account and action'),
   )}</details></section>`;
+  // After the last write to `content`: appending markup to it builds its elements again, so an earlier slot would be gone.
+  if (attention === waiting)
+    fillSection($('#home-attention'), attentionCall, homeAttention, error => homeAttention({error}));
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {

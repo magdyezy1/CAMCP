@@ -4,8 +4,8 @@
 
 @media (max-width: 900px) {
   html:has(.topbar) {
-    /* The wrapped language/appearance controls expand the sticky phone header. */
-    scroll-padding-top: 140px;
+    /* The sticky phone header is 64px, one row. */
+    scroll-padding-top: 88px;
   }
 }
 
@@ -24,15 +24,15 @@ summary:focus-visible,
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-/* The sidebar, toast, connector hero, callback header and closing band stay dark in the light theme, where the iris-700
-   ring measured 2.32:1; these surfaces use the on-dark ring instead (WEB-01). */
-:is(.sidebar, .toast, .connector-hero, .callback-top, .closing-note)
+/* The toast, connector hero, callback header and closing band stay dark in the light theme, where the iris-700 ring
+   measured 2.32:1; these surfaces use the on-dark ring instead (WEB-01). The neutral sidebar keeps the page's ring. */
+:is(.toast, .connector-hero, .callback-top, .closing-note)
   :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible,
-:is(.sidebar, .toast, .connector-hero, .callback-top, .closing-note) :focus-visible,
+:is(.toast, .connector-hero, .callback-top, .closing-note) :focus-visible,
 .toast:focus-visible {
   outline-color: var(--focus-on-inverse);
 }
-/* Lockup variants (privacy.css has a copy); the sidebar and callback header are dark in both themes; print keeps Ink. */
+/* Lockup variants (privacy.css has a copy); the callback header is dark in both themes; print keeps Ink. */
 .logo-white {
   display: none;
 }
@@ -41,7 +41,7 @@ summary:focus-visible,
     display: none;
   }
   [data-theme='dark'] .logo-white,
-  :is(.sidebar, .callback-top) .logo-white {
+  .callback-top .logo-white {
     display: block;
   }
 }
@@ -50,6 +50,33 @@ summary:focus-visible,
     display: none;
   }
   :root:not([data-theme]) .logo-white {
+    display: block;
+  }
+}
+/* Forced colours: the system palette sets the canvas and prefers-color-scheme follows it, so the lockup follows it too,
+   whatever the site's own theme says (Ink on a dark canvas vanished). The callback header has the White lockup only. */
+@media screen and (forced-colors: active) and (prefers-color-scheme: dark) {
+  :root[data-theme] .logo-ink,
+  :root:not([data-theme]) .logo-ink {
+    display: none;
+  }
+  :root[data-theme] .logo-white,
+  :root:not([data-theme]) .logo-white {
+    display: block;
+  }
+}
+@media screen and (forced-colors: active) and (prefers-color-scheme: light) {
+  :root[data-theme] .logo-ink,
+  :root:not([data-theme]) .logo-ink {
+    display: block;
+  }
+  :root[data-theme] .logo-white,
+  :root:not([data-theme]) .logo-white {
+    display: none;
+  }
+}
+@media screen and (forced-colors: active) {
+  :root .callback-top .logo-white {
     display: block;
   }
 }
@@ -111,7 +138,7 @@ code {
     box-shadow: none;
   }
   .menu-open .sidebar {
-    box-shadow: 15px 0 50px var(--shadow-strong);
+    box-shadow: var(--elevation-3);
   }
 }
 @media (prefers-reduced-motion: reduce) {

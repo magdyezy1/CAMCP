@@ -424,7 +424,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // refusal to name charts (the old sentence leaves the catalogue): 12,007.
   // Merge C, with mcp-typed (12,007 on its own base): measured on the merged catalogue (node tools/check-locales.mjs; a key by key
   // three-way merge finds no clash and no key added by both), 12,023 + 3 = 12,026.
-  assert.equal(Object.keys(catalog).length, 12026);
+  // V2-WEB-03 (web-shell): +15 entries, the page subtitles the route registry now carries (the group names Home, Reports, Creatives, Campaigns, Connections, Operations and Settings were already translated).
+  // V2-WEB-03 (web-shell): +3 entries, the sidebar's footer navigation name and the rail switch's two states.
+  // V2-WEB-03 (web-shell): +1 entry, 'Back to {page}', the link a failed page offers to its registry parent.
+  // V2-WEB-03 (web-shell): +2 entries, the titles of Home's two empty panels (no saved campaign plans, no accounts to check).
+  // Merge C, with web-shell (12,025 on its own base): measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12047;
+  // a key by key three-way merge finds no clash and no key added by both), 12,026 + 21 = 12,047.
+  assert.equal(Object.keys(catalog).length, 12047);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

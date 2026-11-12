@@ -93,7 +93,7 @@ export async function exerciseReviewerPage({page, route, locale, result, api, sc
     {authenticated: true, test_account: true, scoped_shell: true},
     'The case runs as the signed-in test account',
   );
-  // The sidebar: the links and groups the scope leaves showing, and the footer's Help link.
+  // The sidebar: the links and groups the scope leaves showing, its footer's links (Account, Help) and the page footer's Help.
   evidence.navigation = await page.evaluate(() => {
     // Its accessible name is translated; data-ui-label keeps the English one.
     const nav = document.querySelector('#workspace-sidebar nav[data-ui-label="Main navigation"]');
@@ -101,7 +101,8 @@ export async function exerciseReviewerPage({page, route, locale, result, api, sc
       links: [...nav.querySelectorAll('a[data-route]')]
         .filter(link => !link.hidden && !link.closest('[hidden]'))
         .map(link => link.getAttribute('href')),
-      note: [...document.querySelectorAll('.sidebar-note a[href^="/"]')]
+      // V2-WEB-03: Account and Help in the sidebar's footer (the promotional note with a connectors link is gone).
+      footer: [...document.querySelectorAll('.sidebar-links a[data-route]')]
         .filter(link => !link.hidden && !link.closest('[hidden]'))
         .map(link => link.getAttribute('href').split(/[?#]/)[0]),
       footer_help: !document.getElementById('footer-help')?.hidden,
@@ -109,9 +110,14 @@ export async function exerciseReviewerPage({page, route, locale, result, api, sc
   });
   assert.deepEqual(evidence.navigation.links, scope.nav, 'The navigation shows exactly the test-account pages');
   assert.deepEqual(
-    evidence.navigation.note.filter(path => !scope.routes.includes(path)),
+    evidence.navigation.footer.filter(path => !scope.routes.includes(path)),
     [],
-    'A sidebar link outside the navigation opens a test-account page',
+    'A sidebar footer link opens a test-account page',
+  );
+  assert.deepEqual(
+    evidence.navigation.footer,
+    ['/account'],
+    'The sidebar footer offers a test account its own page only',
   );
   assert.equal(evidence.navigation.footer_help, false, 'The footer offers no Help page to a test account');
   // The command palette with no query lists every page it offers this account, in registry order.

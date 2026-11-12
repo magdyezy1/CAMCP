@@ -250,10 +250,16 @@
       "raised": [
         "reference_words 156845 → 157730"
       ]
+    },
+    {
+      "reason": "Package web-shell (V2-WEB-03), merged after mcp-typed: +677 reference words, recorded in one step on its own branch (156417 -> 157094): docs/DESIGN-SYSTEM.md gains The shell (the registry's groups, glyphs, subtitles and parents, the sidebar, rail and drawer, the one-row header, what the shell loads and why none of the V2 layer, no view transition) and rewrites its Toast, Navigation and Loading and empty states text; docs/LOCAL-BROWSER-QA.md gains the shell kind of the runner. The merged count is the measured one: 157730 + 677 = 158407",
+      "raised": [
+        "reference_words 157730 → 158407"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 157730
+    "reference_words": 158407
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

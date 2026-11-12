@@ -67,7 +67,8 @@ function inbox(report) {
       return report;
     },
   });
-  for (const file of ['localization.js', 'work-pages.js', 'operations-center.js'])
+  // routes.js: the page's headings read the route registry (package web-shell, V2-WEB-03), which the real page loads first.
+  for (const file of ['localization.js', 'routes.js', 'work-pages.js', 'operations-center.js'])
     new Script(readFileSync('web/' + file, 'utf8')).runInContext(c);
   return {
     c,

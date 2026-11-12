@@ -23,15 +23,21 @@ button:disabled {
 [hidden] {
   display: none !important;
 }
+/* The page beside its sidebar: two columns (the sidebar's width follows its state), the sidebar as tall as the window. */
 .app-shell {
-  display: flex;
+  display: grid;
+  grid-template-columns: 256px minmax(0, 1fr);
   min-height: 100vh;
 }
+.app-shell[data-sidebar='rail'] {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
 .sidebar {
-  flex-shrink: 0;
-  position: fixed;
-  inset-block: 0;
-  inset-inline: 0 auto;
+  position: sticky;
+  inset-block-start: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -80,9 +86,6 @@ nav a span {
   width: 23px;
   text-align: center;
 }
-.sidebar-bottom {
-  margin-top: auto;
-}
 .readonly-indicator {
   display: flex;
   align-items: center;
@@ -94,11 +97,6 @@ nav a span {
   height: 6px;
   border-radius: 50%;
   display: inline-block;
-}
-.legal {
-  border-top: 1px solid;
-  display: flex;
-  gap: 20px;
 }
 .topbar {
   border-bottom: 1px solid var(--line);
@@ -165,6 +163,34 @@ p {
 .page-heading p {
   font-size: var(--type-md);
   margin: 0;
+}
+/* The blocks under a page's heading while it loads, and in a section still on its way (skeletonBlocks in web/workspace.js,
+   V2-WEB-03): the shell's own few lines, still (no motion), so a reduced-motion setting has nothing to turn off. */
+.skeleton {
+  display: grid;
+  gap: 12px;
+  margin-block-start: 24px;
+}
+.skeleton-label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.skeleton-block {
+  display: block;
+  block-size: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-accent);
+}
+.skeleton-block[data-shape='card'] {
+  block-size: 120px;
+  border-radius: var(--radius-lg);
+}
+.skeleton-block[data-last='true'] {
+  inline-size: 60%;
 }
 .button {
   display: inline-flex;
@@ -648,14 +674,21 @@ dialog {
   color: var(--ink);
   margin-bottom: 8px;
 }
+.empty .button {
+  margin-block-start: 12px;
+}
+/* A toast sits in the page's flow at the block start of the main region (V2-WEB-03, as the V2 toast does), so it pushes the
+   content down and never covers it; it stays in view under the header while the person has scrolled. */
 .toast {
-  position: fixed;
-  bottom: 24px;
-  inset-inline-end: 25px;
+  position: sticky;
+  inset-block-start: 12px;
+  inline-size: fit-content;
+  max-inline-size: min(450px, 100%);
+  margin-block-end: 16px;
+  margin-inline-start: auto;
   border: 1px solid;
   color: var(--text-on-inverse-strong);
   padding: 15px 22px;
-  max-width: min(450px, 90vw);
   font-size: var(--type-md);
   box-shadow: 0 12px 35px var(--shadow-strong);
   z-index: 20;
@@ -923,18 +956,6 @@ dialog {
   .app-shell {
     display: block;
   }
-  .brand-note,
-  .workspace,
-  .nav-label,
-  .sidebar-bottom {
-    display: none;
-  }
-  .sidebar nav {
-    margin-top: 18px;
-  }
-  .sidebar nav a {
-    white-space: nowrap;
-  }
   .domain {
     display: none;
   }
@@ -1190,9 +1211,6 @@ dialog {
 #report-result {
   margin-top: 22px;
 }
-.sidebar nav {
-  overflow-y: auto;
-}
 @media (max-width: 1050px) {
   .workspace-columns {
     grid-template-columns: 1fr;
@@ -1200,14 +1218,6 @@ dialog {
   .workspace-form {
     padding: 18px;
   }
-}
-
-.sidebar nav {
-  scrollbar-width: thin;
-}
-.sidebar nav a {
-  padding-top: 12px;
-  padding-bottom: 12px;
 }
 
 .oauth-client-id {
