@@ -274,14 +274,26 @@ function semantic(input: JsonObject) {
   if (typeof input.complete !== 'boolean') bad('Declare whether the requested reporting window is complete.');
   return input;
 }
-function compatibility(a: JsonObject, b: JsonObject) {
+/**
+ * The settings two retained reports must share to be used together. `adds` is for a caller that adds their counts (combine):
+ * it also needs the counts read one way, so a different `action_count_basis` (how capture() counted an action entry; a capture
+ * retained before has none) is one more mismatch, and the refusal names the fields. An analyze baseline is checked for the same
+ * by assertCompatibleBaseline (src/report-references.ts), which names them in its own sentence.
+ */
+function compatibility(a: JsonObject, b: JsonObject, adds = false) {
   const fields = ['currency', 'timezone', 'attribution', 'conversion_definition'];
   const mismatch = fields.filter(
     k =>
       a.semantics[k] !== b.semantics[k] ||
       (['attribution', 'conversion_definition'].includes(k) && a.semantics[k] === 'unknown'),
   );
-  if (mismatch.length) bad('Report semantics cannot be combined: ' + mismatch.join(', '), 'REPORT_SEMANTICS_MISMATCH');
+  if (adds && a.action_count_basis !== b.action_count_basis) mismatch.push('action_count_basis');
+  if (mismatch.length)
+    bad(
+      'Report semantics cannot be combined: ' + mismatch.join(', '),
+      'REPORT_SEMANTICS_MISMATCH',
+      adds ? {fields: mismatch} : undefined,
+    );
 }
 /** One amcp_reporting call (ARC-04 stage D): a preset names its capture; the Overview collector's is transient. */
 interface ReportingCall extends ToolContext {
@@ -1136,7 +1148,7 @@ export class DecisionReporting {
     const seen = new Set<string>();
     for (const r of all) {
       this.store.resolveConnection(actor, r.gateway, r.account_id, r.connection_id);
-      compatibility(report, r);
+      compatibility(report, r, true);
       if (r.semantics.date_from !== report.semantics.date_from || r.semantics.date_to !== report.semantics.date_to)
         bad('Combined reports must cover the same window.');
       const key = [r.gateway, r.account_id].join('/');

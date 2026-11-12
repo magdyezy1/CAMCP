@@ -1,10 +1,11 @@
-// Package meta-results (the lead's ruling 9): two retained captures are compared by their definitions in two places besides the allocation
-// outcome review: an analyze baseline must be "another window of the same report definition" (assertCompatibleBaseline) and a retained
-// reconciliation compares two reads of one period (compareReportContext), both in src/report-references.ts. Since ruling 5 a Meta preset
-// capture counts the attribution windows it asked for and says so (`action_count_basis`, src/decision-reporting.ts); a capture retained
-// before has no such field and counted the entry's own `value`. Two reads of one definition counted two ways are not another window of
-// one report, and not a reconciliation: they are refused with REPORT_SEMANTICS_MISMATCH naming the field. Captures with no basis on
-// either side (everything retained before, and Google's) compare as they always did. The names of the fields are shown as they are
+// Package meta-results (the lead's rulings 9 and 11): retained captures are compared or added by their definitions in three places besides
+// the allocation outcome review: an analyze baseline must be "another window of the same report definition" (assertCompatibleBaseline), a
+// retained reconciliation compares two reads of one period (compareReportContext), both in src/report-references.ts, and `combine` sums the
+// counts of same-window reports of different accounts (src/decision-reporting.ts). Since ruling 5 a Meta preset capture counts the
+// attribution windows it asked for and says so (`action_count_basis`, src/decision-reporting.ts); a capture retained before has no such
+// field and counted the entry's own `value`. Two reads of one definition counted two ways are not another window of one report, not a
+// reconciliation and not to be added: they are refused with REPORT_SEMANTICS_MISMATCH naming the field. Captures with no basis on either
+// side (everything retained before, and Google's) compare and combine as they always did. The names of the fields are shown as they are
 // (they are built into an English sentence and `details.fields`; no label map and no Arabic exist for any of them).
 // Synthetic Meta answers behind the real service and transport; nothing leaves the process.
 import test from 'node:test';
@@ -118,7 +119,7 @@ function fixture() {
       id: connectionId,
       tenantId: actor.tenantId,
       gateway: 'meta_native_action',
-      accounts: ['100'],
+      accounts: ['100', '200', '300'],
       enabled: true,
       label: 'Synthetic',
       scopes: ['ads_read'],
@@ -129,16 +130,17 @@ function fixture() {
     new Registry(),
     store,
     new NativeTransport(async raw => {
-      const url = new URL(raw);
+      const url = new URL(raw),
+        account = /\/act_(\d+)/.exec(url.pathname)[1];
       if (!url.pathname.endsWith('/insights'))
-        return Response.json({id: 'act_100', account_id: '100', currency: 'USD', timezone_name: 'UTC'});
+        return Response.json({id: 'act_' + account, account_id: account, currency: 'USD', timezone_name: 'UTC'});
       const range = JSON.parse(url.searchParams.get('time_range')),
         dates = [];
       for (let at = Date.parse(range.since); at <= Date.parse(range.until); at += day)
         dates.push(new Date(at).toISOString().slice(0, 10));
       return Response.json({
         data: dates.map(date => ({
-          account_id: '100',
+          account_id: account,
           account_currency: 'USD',
           campaign_id: '10',
           campaign_name: 'Campaign 10',
@@ -160,13 +162,13 @@ function fixture() {
   return {
     store,
     call,
-    capture: async (from, to) => {
+    capture: async (from, to, account = '100', action = purchase) => {
       const out = await call({
         action: 'capture_preset',
         preset: 'meta_campaign',
-        account_id: '100',
+        account_id: account,
         connection_id: connectionId,
-        result_action_type: purchase,
+        result_action_type: action,
         attribution_windows: ['7d_click', '1d_view'],
         semantics: {
           currency: 'USD',
@@ -251,6 +253,48 @@ test('reconcile_report refuses two reads of one period counted two ways and comp
     // Neither says how it counted: compared as before.
     f.unstamp(first);
     assert.equal((await reconcile(first, second)).success, true);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('combine adds the reports’ counts, so it refuses captures counted two ways and combines captures counted the same way, through the service', async () => {
+  const f = fixture();
+  try {
+    // One window, three accounts: each capture is one day of 10 spend and 5 conversions (4 + 1: the requested windows' counts).
+    const window = ['2026-09-02', '2026-09-02'],
+      a = await f.capture(...window, '100'),
+      b = await f.capture(...window, '200'),
+      c = await f.capture(...window, '300'),
+      combine = (id, ids) => f.call({action: 'combine', id, ids});
+    const added = await combine(a, [b, c]);
+    assert.equal(added.success, true, JSON.stringify(added));
+    // combine adds: `totals(all.flatMap(report => report.rows))` in src/decision-reporting.ts.
+    assert.deepEqual([added.data.totals.spend, added.data.totals.conversions], ['30', '15']);
+    // One of them was retained before the windows were counted: the sum would add two bases, whichever place it has in the call.
+    f.unstamp(c);
+    for (const [id, ids] of [
+      [a, [b, c]],
+      [c, [a, b]],
+      [b, [c]],
+    ])
+      assert.deepEqual(await refusedBy(f.call, {action: 'combine', id, ids}), ['action_count_basis']);
+    // Two that carry the same basis still combine.
+    assert.deepEqual((await combine(a, [b])).data.totals.conversions, '10');
+    // It is one more field beside the ones that were always checked, never instead of them: another result definition too.
+    const other = await f.capture(...window, '200', 'lead');
+    assert.deepEqual(await refusedBy(f.call, {action: 'combine', id: a, ids: [other]}), ['conversion_definition']);
+    f.unstamp(other);
+    assert.deepEqual(await refusedBy(f.call, {action: 'combine', id: a, ids: [other]}), [
+      'conversion_definition',
+      'action_count_basis',
+    ]);
+    // None says how it counted (all retained before): combined as before, with the same sum.
+    f.unstamp(a);
+    f.unstamp(b);
+    const older = await combine(a, [b, c]);
+    assert.equal(older.success, true, JSON.stringify(older));
+    assert.deepEqual([older.data.totals.spend, older.data.totals.conversions], ['30', '15']);
   } finally {
     f.store.close();
   }
