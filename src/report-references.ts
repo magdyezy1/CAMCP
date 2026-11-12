@@ -95,9 +95,9 @@ export function compareDeclaredReference(report: JsonObject, reference: JsonObje
 }
 
 /**
- * The preset, grain and mapping part of the definition check. `guided` (reconcile) requires a qualified preset at its
- * own grain; otherwise (analyze baselines, RPT-04) manual captures qualify when they use the same native action,
- * grain and mapping.
+ * The preset, grain, mapping and way of counting actions part of the definition check. `guided` (reconcile) requires a
+ * qualified preset at its own grain; otherwise (analyze baselines, RPT-04) manual captures qualify when they use the same
+ * native action, grain and mapping.
  */
 function nativeDefinitionMismatch(report: JsonObject, reference: JsonObject, guided: boolean): string[] {
   const mismatch: string[] = [];
@@ -113,6 +113,11 @@ function nativeDefinitionMismatch(report: JsonObject, reference: JsonObject, gui
     mismatch.push('guided native grain');
   if (!obj(report.mapping) || !obj(reference.mapping) || fingerprint(report.mapping) !== fingerprint(reference.mapping))
     mismatch.push('native field mapping');
+  // How the action counts were read (src/decision-reporting.ts): under the attribution the read asked for, or as the entry's own
+  // value, which a capture retained before that has no field for. One definition counted two ways is not another window of one
+  // report, and two reads of one period counted two ways are not a reconciliation; captures with no basis on either side
+  // compare as they always did.
+  if (report.action_count_basis !== reference.action_count_basis) mismatch.push('action_count_basis');
   if (
     ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(report.preset) &&
     (typeof report.source_request?.path_params?.campaign_id !== 'string' ||
