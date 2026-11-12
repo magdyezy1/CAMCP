@@ -707,7 +707,9 @@ snapshots only: no provider request and no saved change.
 - **Analysis.** `amcp_reporting capture_overview` on the current snapshot of a pair also keeps the same group of its
   baseline (`pairing`), and `analyze` uses that pair as its default baseline (`baseline_source:
 "paired_previous_period"`). A pair that was deleted or is no longer compatible is skipped with a limitation; an
-  explicit `baseline_id` is still checked and refused as before.
+  explicit `baseline_id` is still checked and refused as before. A guided Meta capture retained before captures counted the
+  requested attribution windows has no `action_count_basis`, so it cannot be an `analyze` baseline, a `reconcile_report`
+  reference or a `combine`d report beside one counted after: the refusal is `REPORT_SEMANTICS_MISMATCH` and names `action_count_basis`.
 - **Limits of meaning.** Deltas are observational: they do not establish causality or adjust for seasonality.
 - **On the page.** The comparison is a captioned table in a named region that scrolls sideways (keyboard arrows move
   it); each cell shows this window's value, then "Earlier" and "Change" with Δ%, and a zero earlier value shows "—"
