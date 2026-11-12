@@ -250,10 +250,16 @@
       "raised": [
         "reference_words 156845 → 157163"
       ]
+    },
+    {
+      "reason": "one sentence in the Analysis bullet of docs/REPORTING-OVERVIEW.md: a capture counted before the attribution-window change cannot be an analyze baseline, a reconciliation reference or a combined report (meta-results ruling 11)",
+      "raised": [
+        "reference_words 157163 → 157203"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 157163
+    "reference_words": 157203
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
