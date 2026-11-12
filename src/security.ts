@@ -121,6 +121,31 @@ const textPairs = pairPass('&'),
   urlPairs = pairPass('&#'),
   noExemption: ReadonlySet<string> = new Set();
 /**
+ * The forms of a credential in a sentence, which have no `?`, `&`, `#` or `;` before the name for the pair pass to find
+ * (DR2-02). They are part of redact(), so the report card, the MCP error envelope and the audit row show the same text:
+ * - a header line: the value of `Authorization:`, `Proxy-Authorization:`, `Cookie:` and `Set-Cookie:` to the end of the
+ *   line (a value of white space only has nothing to hide and does not reach the next line);
+ * - `oauth_token=`, `token=`, `secret=`, `signature=` and `sig=` with a value, wherever they stand (`refused: token=abc
+ *   for user`);
+ * - a credential name of the list above, `=` or `:`, and a value, in a sentence (`request failed access_token=abc
+ *   please retry`); a value the pair pass already hid is left, so `?access_token=[REDACTED]&n=1` keeps its `&n=1`, and
+ *   a name straight after `?`, `&`, `#` or `;` with `=` is the pair pass's own head (its empty value stays as it was);
+ * - a Meta access token: `EAA` and sixty or more letters and digits, with no closing `\b`, which would make a long run
+ *   of letters and digits that ends in `_` read again from each `EAA` inside it.
+ * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
+ */
+const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[ \t]*)[^\s][^\r\n]*/gi,
+  bareParameters = /\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi,
+  sentenceSecrets = new RegExp(
+    '(?:(?<![?&#;])\\b(?:' +
+      secretKeyNames +
+      ')\\s*=|\\b(?:' +
+      secretKeyNames +
+      ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+',
+    'gi',
+  ),
+  metaTokens = /\bEAA[A-Za-z0-9]{60,}/g;
+/**
  * Native read results keep provider text verbatim, except secrets inside URLs (SEC-04): in every string that is an
  * absolute http(s) URL, the value of each query or fragment parameter that redact() treats as secret becomes
  * [REDACTED]. Other text, such as a campaign named "token=x", is unchanged. Fields named in `signedLinks` hold
@@ -164,9 +189,15 @@ export function redact(value: unknown): any {
     );
   if (typeof value === 'string')
     return textPairs(
-      value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(jsonSecrets, '$1"[REDACTED]"'),
+      value
+        .replace(credentialHeaders, '$1$2[REDACTED]')
+        .replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]')
+        .replace(jsonSecrets, '$1"[REDACTED]"'),
       noExemption,
-    );
+    )
+      .replace(bareParameters, '$1=[REDACTED]')
+      .replace(sentenceSecrets, '[REDACTED]')
+      .replace(metaTokens, '[REDACTED]');
   return value;
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {
