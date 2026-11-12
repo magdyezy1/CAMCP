@@ -302,25 +302,28 @@ test('a repository write keeps the store contract its retention and erasure rely
 
 test('erasure, backup and expiry conditions come from the declarations', () => {
   const person = personDocumentsCondition('user-1', 'hash-1');
+  // The tasks of the MCP tasks extension (mcp_task, V2-MCP-02) belong to a person: their owner is the first group.
   assert.equal(
     person.where,
-    "(kind IN ('member_access_set') AND id=?) OR (kind IN ('monitor_notice','monitor_subscription') AND json_extract(data,'$.user_id')=?) OR (kind IN ('workspace_invite') AND json_extract(data,'$.emailHash')=?)",
+    "(kind IN ('mcp_task') AND json_extract(data,'$.owner_user_id')=?) OR (kind IN ('member_access_set') AND id=?) OR (kind IN ('monitor_notice','monitor_subscription') AND json_extract(data,'$.user_id')=?) OR (kind IN ('workspace_invite') AND json_extract(data,'$.emailHash')=?)",
   );
-  assert.deepEqual(person.params, ['user-1', 'user-1', 'hash-1']);
+  assert.deepEqual(person.params, ['user-1', 'user-1', 'user-1', 'hash-1']);
   assert.equal(
     backupExcludedCondition(),
     "kind IN ('media_source','media_variant','upload_session') OR (kind='retained_media_source' AND json_extract(data,'$.origin')='upload')",
   );
+  // The sweeps come in the order their first kind appears among the kinds by name: the tasks of the MCP tasks extension
+  // (mcp_task, V2-MCP-02) expire by the maintenance timer, and sort before the service limits, so their group is first.
   assert.deepEqual(
     maintenanceSweeps().map(s => [s.kinds, s.sql]),
     [
       [
-        ['provider_budget', 'tiktok_report_quota', 'worker_heartbeat'],
-        "DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind IN ('provider_budget','tiktok_report_quota','worker_heartbeat') AND coalesce(json_extract(data,'$.at'),0)<?",
+        ['mcp_task', 'tiktok_report_run', 'x_report_result', 'x_report_run'],
+        "DELETE FROM documents WHERE kind IN ('mcp_task','tiktok_report_run','x_report_result','x_report_run') AND json_extract(data,'$.expires_at')<=?",
       ],
       [
-        ['tiktok_report_run', 'x_report_result', 'x_report_run'],
-        "DELETE FROM documents WHERE kind IN ('tiktok_report_run','x_report_result','x_report_run') AND json_extract(data,'$.expires_at')<=?",
+        ['provider_budget', 'tiktok_report_quota', 'worker_heartbeat'],
+        "DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind IN ('provider_budget','tiktok_report_quota','worker_heartbeat') AND coalesce(json_extract(data,'$.at'),0)<?",
       ],
     ],
   );
@@ -527,8 +530,10 @@ test('an erasure of a workspace without an account deletes nothing in other work
     s.putDocument('tenant-a', 'monitor_notice', 'blank-notice', {user_id: '', created_at: 1});
     s.putDocument('tenant-a', 'workspace_invite', 'blank-invite', {emailHash: ''});
     s.putDocument('tenant-a', 'member_access_set', '', {access_set_id: 'set-1'});
+    s.putDocument('tenant-a', 'mcp_task', 'blank-task', {owner_user_id: '', expires_at: 1});
     assert.deepEqual(personDocumentsCondition('', ''), {where: '', params: []});
-    assert.deepEqual(personDocumentsCondition('user-1', '').params, ['user-1', 'user-1']);
+    // The owner of an MCP task, the member of an access set and the subscriber of a monitor are the person's user id.
+    assert.deepEqual(personDocumentsCondition('user-1', '').params, ['user-1', 'user-1', 'user-1']);
     const options = {deploymentTenant: 'local', reason: 'operator_request', by: 'cli'},
       plan = eraseAccount(s, {tenantId: 'receipt-only'}, {...options, dryRun: true});
     assert.equal(plan.counts.documents, 1);
@@ -538,6 +543,47 @@ test('an erasure of a workspace without an account deletes nothing in other work
     assert.equal(s.repo('monitor_notice', 'tenant-a').count(), 1);
     assert.equal(s.repo('workspace_invite', 'tenant-a').count(), 1);
     assert.equal(s.repo('member_access_set', 'tenant-a').count(), 1);
+    assert.equal(s.repo('mcp_task', 'tenant-a').count(), 1);
+    assert.equal(s.verifyAudit(), true);
+  } finally {
+    s.close();
+  }
+});
+
+test("erasure deletes the tasks an erased person was handed in other workspaces and keeps everyone else's (V2-MCP-02)", () => {
+  const master = Buffer.alloc(32, 91).toString('base64'),
+    s = new Store(':memory:', master);
+  try {
+    const web = new WebStore(s, {
+        origin: 'https://amcp.example.test',
+        masterKey: master,
+        adminPassword: 'synthetic-registry-admin-door',
+        authEnv: {},
+        fetcher: async () => {
+          throw Error('No provider or e-mail traffic allowed');
+        },
+      }),
+      accounts = new UserAccounts(web),
+      erased = accounts.newUser('Erased Member', 'erased.member@example.test', null, true),
+      kept = accounts.newUser('Kept Owner', 'kept.owner@example.test', null, true),
+      K = String(kept.tenant_id);
+    s.sql()
+      .prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'operator',?)")
+      .run(K, erased.id, Date.now());
+    const task = owner => ({
+      run: 'amcp_reporting_overview export',
+      job_id: 'job',
+      resource_id: 'export',
+      owner_user_id: owner,
+      binding: 'binding',
+      created_at: Date.now(),
+      expires_at: Date.now() + 86400000,
+    });
+    s.repo('mcp_task', K).put('task-of-erased', task(erased.id));
+    s.repo('mcp_task', K).put('task-of-kept', task(kept.id));
+    eraseAccount(s, {userId: erased.id}, {deploymentTenant: 'local', reason: 'operator_request', by: 'cli'});
+    assert.equal(s.repo('mcp_task', K).find('task-of-erased'), undefined);
+    assert.equal(s.repo('mcp_task', K).get('task-of-kept').owner_user_id, kept.id);
     assert.equal(s.verifyAudit(), true);
   } finally {
     s.close();

@@ -1,4 +1,4 @@
-// The eight user journeys of the QA-04 baseline (R27 journey map), each with success, failure, unavailable-account and
+// The nine user journeys of the QA-04 baseline (R27 journey map, and J9 of V2-MCP-02), each with success, failure, unavailable-account and
 // incomplete-evidence branches. A branch is a scripted person and client: it calls MCP tools and the website API the
 // way the journey's surfaces do, follows the next calls AMCP offers, and reports whether the journey's goal was
 // reached. The harness records every call; tools/mcp-eval.mjs turns the transcripts into metrics and compares them
@@ -14,6 +14,8 @@ import {
   offeredNextCall,
 } from './harness.mjs';
 import {sheetsGateway} from '../../dist/src/google-sheets.js';
+import {MirrorError} from '../../dist/src/errors.js';
+import {row, range as reportRange} from '../helpers/report-packets.mjs';
 
 export const branchNames = Object.freeze(['success', 'failure', 'unavailable_account', 'incomplete_evidence']);
 
@@ -79,6 +81,77 @@ const consentPreview = (account = '44', tags) => ({
   requirements: consentRequirements(tags),
 });
 
+/**
+ * The collector of J9: what the platform's own collectors hand the report worker, for one source (V2-MCP-02). ail may
+ * return an error for a source, which the collector throws as the platform would; complete: false is a window the
+ * platform could not read whole.
+ */
+const typedCollector =
+  ({fail, complete = true} = {}) =>
+  async (source, dates) => {
+    const failure = fail?.(source);
+    if (failure) throw failure;
+    return {
+      source,
+      rows: [
+        row(
+          'campaign',
+          'c10',
+          {spend: '12.5', clicks: '10', impressions: '100'},
+          {campaign_name: 'Synthetic campaign'},
+        ),
+      ],
+      currency: 'USD',
+      timezone: 'UTC',
+      complete,
+      collection_complete: complete,
+      source_kind: 'ads',
+      date_range: dates,
+      warnings: [],
+      lineage: [],
+      captured_at: Date.now(),
+      result_definition: 'Synthetic results',
+      attribution: 'Synthetic click window',
+      quality: {version: 2, status: complete ? 'complete' : 'partial'},
+    };
+  };
+/** A report definition as bootstrap describes it: v4, with the levels and statuses it names and the window declared. */
+const typedReport = (account = '123', changes = {}) => ({
+  name: 'Evaluation overview report',
+  contract_version: 'overview-config-v4',
+  date_range: reportRange,
+  metrics: ['spend', 'clicks', 'impressions'],
+  sources: [
+    {
+      platform: 'meta',
+      account_id: account,
+      connection_id: metaConnection,
+      levels: ['campaign'],
+      statuses: ['all'],
+      report_options: {complete_window: true},
+    },
+  ],
+  ...changes,
+});
+/** What an older client sent: one level string on the source, no levels, no contract version. */
+const olderReport = account => ({
+  name: 'Older client report',
+  date_range: reportRange,
+  metrics: ['spend'],
+  sources: [{platform: 'meta', account_id: account, connection_id: metaConnection, level: 'campaign'}],
+});
+const overviewTool = 'amcp_reporting_overview';
+/** Queues a report (the person confirms), has the worker run it and reads its first row. */
+async function runReport(f, config) {
+  f.approve();
+  const queued = await f.call(overviewTool, {action: 'run', confirmed: true, config});
+  if (!queued.success) return {queued};
+  await f.work();
+  const got = await f.call(overviewTool, {action: 'get', id: queued.data.id, limit: 1});
+  return {queued, got};
+}
+const exportOf = (f, report) =>
+  f.call(overviewTool, {action: 'export', report_id: report, destination_id: evaluationDestination, confirmed: true});
 /**
  * Follows the next calls AMCP offers, as a client that trusts its guidance would. A call that executes or confirms
  * waits for the person's approval first. Stops when no next call is offered, when `stop` says the goal is reached, or
@@ -628,6 +701,78 @@ export const journeys = Object.freeze([
             JSON.stringify(seen.get(a.data.id)) === JSON.stringify(['123']) &&
             JSON.stringify(seen.get(b.data.id)) === JSON.stringify(['789']),
         };
+      },
+    },
+  },
+  {
+    id: 'J9',
+    title: 'bootstrap → typed run → filtered get → export, and an older client’s definition',
+    surfaces: ['mcp', 'worker', 'web'],
+    branches: {
+      async success(f) {
+        f.overview.native.collect = typedCollector();
+        f.overview.native.verifyAccount = async () => undefined;
+        // bootstrap names the levels and options of each platform; the run is defined from them.
+        const boot = await f.call(overviewTool, {action: 'bootstrap'}),
+          meta = boot.data?.platforms?.find(p => p.gateway === 'meta_native_action'),
+          levels = meta?.reporting_v4?.levels?.map(level => level.id) ?? [];
+        if (!levels.includes('campaign')) return {goal: false};
+        const {queued, got} = await runReport(f, typedReport());
+        if (got?.data?.state !== 'complete') return {goal: false};
+        // get narrows the rows to a platform and a level, and says how many matched.
+        const narrowed = await f.call(overviewTool, {
+          action: 'get',
+          id: queued.data.id,
+          platform: 'meta',
+          level: 'campaign',
+          limit: 1,
+        });
+        if (narrowed.data?.matched_row_count !== 1) return {goal: false};
+        // An older client's definition, a single level string, still runs to a complete snapshot.
+        const older = await runReport(f, olderReport('123'));
+        if (older.got?.data?.state !== 'complete') return {goal: false};
+        const exported = await exportOf(f, queued.data.id);
+        await f.work();
+        const receipt = await f.call(overviewTool, {action: 'export_status', id: exported.data?.id});
+        const goal = receipt.data?.outcome === 'complete' && f.providers.state.tab.report === queued.data.id;
+        return {goal, handoff: goal && (await openHandoff(f, lastPath(f), queued.data.id))};
+      },
+      async failure(f) {
+        // The platform refuses the report: the snapshot fails and its read says so. The person's retry of the same job, once
+        // the platform answers again, completes the same snapshot (a safe retry, not a new report).
+        f.overview.native.collect = typedCollector({
+          fail: () => new MirrorError('PLATFORM_ERROR', 'Synthetic refusal', {}, 502, false),
+        });
+        f.overview.native.verifyAccount = async () => undefined;
+        const {queued, got} = await runReport(f, typedReport());
+        if (got?.data?.state !== 'failed' || !got.data.job_id) return {goal: false};
+        f.overview.native.collect = typedCollector();
+        f.approve();
+        await f.call(overviewTool, {action: 'retry', id: got.data.job_id, confirmed: true});
+        await f.work();
+        const again = await f.call(overviewTool, {action: 'get', id: queued.data.id, limit: 1});
+        return {goal: again.data?.state === 'complete'};
+      },
+      async unavailable_account(f) {
+        // The account the client chose is one the platform will not read for this login.
+        f.overview.native.collect = typedCollector({
+          fail: source =>
+            source.account_id === '456'
+              ? new MirrorError('PLATFORM_PERMISSION_DENIED', 'Synthetic permissions error', {}, 403, false)
+              : undefined,
+        });
+        f.overview.native.verifyAccount = async () => undefined;
+        const {got} = await runReport(f, typedReport('456'));
+        return {goal: got?.data?.state === 'complete'};
+      },
+      async incomplete_evidence(f) {
+        // A window the platform could not read whole, on a report that delivers complete snapshots only: nothing is exported.
+        f.overview.native.collect = typedCollector({complete: false});
+        f.overview.native.verifyAccount = async () => undefined;
+        const {queued, got} = await runReport(f, typedReport('123', {partial_delivery: 'complete_only'}));
+        if (!queued.success || !['complete', 'partial'].includes(got?.data?.state)) return {goal: false};
+        const exported = await exportOf(f, queued.data.id);
+        return {goal: exported.success === true};
       },
     },
   },

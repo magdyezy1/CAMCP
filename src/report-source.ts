@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {ObjectiveTable, ObjectiveUnread} from './report-objectives.js';
 import type {ReportResultContext, ReportResultRules, ResolvedReportResult} from './report-results.js';
-import type {OverviewV4Capabilities} from './overview-v4.js';
+import {overviewV4Statuses, type OverviewV4Capabilities} from './overview-v4.js';
 import type {ReportStatusReader} from './report-status.js';
 import type {DetailParentCache} from './overview-parents.js';
 import type {Store} from './store.js';
@@ -498,7 +498,7 @@ export function overviewCapabilities(
   return {
     levels,
     delivery_metrics: ['spend', 'impressions', 'clicks'],
-    supported_statuses: ['active', 'paused', 'archived', 'all'],
+    supported_statuses: [...overviewV4Statuses],
     status_basis: 'current_configuration',
     defaults: {attribution: 'unknown', complete_window: null, ...defaults},
     option_names: [...new Set(['attribution', 'complete_window', ...Object.keys(defaults), ...optionNames])],

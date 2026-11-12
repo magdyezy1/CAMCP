@@ -302,6 +302,21 @@ export const documentKindSpecs = {
     fields: {},
     retention: workspace(),
   },
+  mcp_task: {
+    scope: 'tenant',
+    owner: 'server/mcp-tasks.ts',
+    version: 1,
+    summary:
+      'A task an AI client was handed for a long run (the MCP tasks extension): the person and AI client it belongs to, and the job it follows.',
+    fields: {expires_at: 'number', owner_user_id: 'string'},
+    retention: {
+      rule: 'expires',
+      field: 'expires_at',
+      by: 'maintenance',
+      summary: 'Kept 24 hours; ignored once expired and deleted by the maintenance timer.',
+    },
+    person: {match: 'user_id', field: '$.owner_user_id'},
+  },
   media_review: {
     scope: 'tenant',
     owner: 'src/media-upload.ts',

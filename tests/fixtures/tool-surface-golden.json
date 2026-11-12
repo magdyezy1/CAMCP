@@ -1822,28 +1822,28 @@
      "length": 1025
     },
     "amcp_workspace": {
-     "sha256": "3c481f8d3746426aeabf7180f1e8a9edd4b129c9679fd6260815361aabca2732",
-     "length": 1267
+     "sha256": "e3d6bd2de9c96552315c57812523a36d2e227ac5feb3c0a96223341de519b2c4",
+     "length": 1215
     },
     "amcp_campaign": {
-     "sha256": "d8d3fd8da1172bf3c231a472f7d3060fe2de0a50db169bade8135a7249bbe46e",
-     "length": 1472
+     "sha256": "b4bf46328c6de4f85714a4615fc2b61ab7a1390dd11bac3259470b2b16ba3931",
+     "length": 1315
     },
     "amcp_reporting": {
-     "sha256": "4892b9fdc448d4abdc1d1920daaa20054506eb06f757aa3d3084a9f1661b28ac",
-     "length": 1247
+     "sha256": "658aa01866d097b0a538138679bb74507bf90551d898585a3a937690601b0cb1",
+     "length": 1171
     },
     "amcp_reporting_overview": {
-     "sha256": "ee419f4afd63bfa550866d5d81dfd20a1e175a1cadd7ff02f5b9245a643c085a",
-     "length": 1440
+     "sha256": "cd9ea4d867752982af0250e08499e00bc8656799bb4c3da75fe61d16859416c5",
+     "length": 1279
     },
     "amcp_ad_previews": "Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:\"help\"}.",
     "amcp_write": "Use this to check whether a single advertising or measurement change has a reviewed write contract. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only: prepare and execute are refused, and its operator can enable reviewed writes. This is an AMCP extension, not a captured AMCP tool.",
-    "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Full text: amcp_media {action:\"help\"}; action rules: amcp_media {action:\"help\",topic:\"<action>\"}."
+    "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Help: {action:\"help\"}; one action: {action:\"help\",topic:\"<action>\"}."
    },
    "whole": {
-    "sha256": "058a4cd2483bfa2123f53dfffbf9e68a9139f7e08b57c718620dc6f866c2d4bd",
-    "length": 90206
+    "sha256": "a9e1ffaab629966d102f924e76666d0ed5aa51832f23146e8bce0d2e9951a404",
+    "length": 90187
    }
   },
   "read_only/full_descriptions": {
@@ -1878,12 +1878,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "7edcae3553bfe155404c72a5f4af5e9238fc2a52e608740ea9614cac0bd5c2dc",
-    "length": 71600
+    "sha256": "37fe9d34d7cd6e67d3548e3d638f152ea8f0fb6e4556e1f01c152aeb0e9ada50",
+    "length": 71683
    },
    "whole": {
-    "sha256": "94f988201c9f759aa303d045bd6cc853069f1abde45985a152e088a7af6f2194",
-    "length": 143772
+    "sha256": "1ac6b726ff94edc8291cdfc5cbab408882e1a6fc288970d4a57ac7d40a3375a9",
+    "length": 144311
    }
   },
   "read_only/enhanced_all": {
@@ -1918,12 +1918,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "248e3559150608162634d8eb48e93c00576ff300924ab498515a8d131747b378",
-    "length": 18034
+    "sha256": "7f282dfe28f0f02ff149f9a5fd685f44ae4649e9333a4c527fb53dd17f339dfc",
+    "length": 17559
    },
    "whole": {
-    "sha256": "80c2f73aac7a376186d320496c162d9ecc0d8323b56a180f67bef55b93f917e7",
-    "length": 86418
+    "sha256": "90e95f884241a48429b232c142f4fa94fa0a5bd0d6002b3eccc64d23edb2e93c",
+    "length": 86399
    }
   },
   "writes/strict": {
@@ -1989,34 +1989,34 @@
      "length": 925
     },
     "amcp_workspace": {
-     "sha256": "3c481f8d3746426aeabf7180f1e8a9edd4b129c9679fd6260815361aabca2732",
-     "length": 1267
+     "sha256": "e3d6bd2de9c96552315c57812523a36d2e227ac5feb3c0a96223341de519b2c4",
+     "length": 1215
     },
     "amcp_campaign": {
-     "sha256": "d8d3fd8da1172bf3c231a472f7d3060fe2de0a50db169bade8135a7249bbe46e",
-     "length": 1472
+     "sha256": "b4bf46328c6de4f85714a4615fc2b61ab7a1390dd11bac3259470b2b16ba3931",
+     "length": 1315
     },
     "amcp_reporting": {
-     "sha256": "4892b9fdc448d4abdc1d1920daaa20054506eb06f757aa3d3084a9f1661b28ac",
-     "length": 1247
+     "sha256": "658aa01866d097b0a538138679bb74507bf90551d898585a3a937690601b0cb1",
+     "length": 1171
     },
     "amcp_reporting_overview": {
-     "sha256": "ee419f4afd63bfa550866d5d81dfd20a1e175a1cadd7ff02f5b9245a643c085a",
-     "length": 1440
+     "sha256": "cd9ea4d867752982af0250e08499e00bc8656799bb4c3da75fe61d16859416c5",
+     "length": 1279
     },
     "amcp_ad_previews": "Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:\"help\"}.",
     "amcp_write": {
-     "sha256": "8c2d38fc7fc5b375d5d27df6c902da400586e6f4aa0c602ee2ffd3b690555908",
-     "length": 924
+     "sha256": "75ad21cb29721900073973e0f5463fe1e83d98848bcece5966423a785bfe8d4a",
+     "length": 895
     },
     "amcp_media": {
-     "sha256": "2450ae7b9ae89b812139f0a674940c22cbbeb137054ee5239b225cec73183369",
-     "length": 1553
+     "sha256": "30b6afa7808bd4546398f600b70352d0aa4b55df03f1c552385f21da10de932a",
+     "length": 1415
     }
    },
    "whole": {
-    "sha256": "4f2adfd0c08cee82afb4d86995edbcdeb4ab9e48cfbf9c54e63fbd8c0b0786ef",
-    "length": 92851
+    "sha256": "e8120114d8c8747114522e361c50328fa340877d9ad8f953949bd41d40a17467",
+    "length": 92583
    }
   },
   "writes/full_descriptions": {
@@ -2051,12 +2051,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "9f798f8afbe57f6a0cff63fc9597f3ccbae98cfdf9848e49f4bbbe8b23c78fc7",
-    "length": 76257
+    "sha256": "ac4fcdd6df785e6ab6c9d89340fc41d79c32910b9cb7b507cef77cddb0c94a58",
+    "length": 76340
    },
    "whole": {
-    "sha256": "0f6dd1374beb14a8b6a9452aa8999e100613a6f96f78fd6a9f780d57f9c998f1",
-    "length": 149550
+    "sha256": "3ae4c65402db9d70e50ea85b404492da2c7ce3600d7963b8f9d7a2b84901a5c5",
+    "length": 149978
    }
   },
   "writes/enhanced_all": {
@@ -2091,12 +2091,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "ffd8be9a42a89a2bc50abe74ce984395fd8bb8e664271b1d958a07f2c076b163",
-    "length": 19558
+    "sha256": "db3c16ea83c4aba0b3b4f626668574a4588123821f1a02af75bcef7badf105db",
+    "length": 18945
    },
    "whole": {
-    "sha256": "d06da479ed06542808bcdcf450728f3edd140897d62cecb679dbb9683cb4ea97",
-    "length": 89063
+    "sha256": "4ca2828e63afc6589a1bdb1799dec001350dc1df5de1c26d7e743733862a5ce9",
+    "length": 88795
    }
   },
   "provider_jobs/strict": {
@@ -2165,28 +2165,28 @@
      "length": 1063
     },
     "amcp_workspace": {
-     "sha256": "3c481f8d3746426aeabf7180f1e8a9edd4b129c9679fd6260815361aabca2732",
-     "length": 1267
+     "sha256": "e3d6bd2de9c96552315c57812523a36d2e227ac5feb3c0a96223341de519b2c4",
+     "length": 1215
     },
     "amcp_campaign": {
-     "sha256": "d8d3fd8da1172bf3c231a472f7d3060fe2de0a50db169bade8135a7249bbe46e",
-     "length": 1472
+     "sha256": "b4bf46328c6de4f85714a4615fc2b61ab7a1390dd11bac3259470b2b16ba3931",
+     "length": 1315
     },
     "amcp_reporting": {
-     "sha256": "4892b9fdc448d4abdc1d1920daaa20054506eb06f757aa3d3084a9f1661b28ac",
-     "length": 1247
+     "sha256": "658aa01866d097b0a538138679bb74507bf90551d898585a3a937690601b0cb1",
+     "length": 1171
     },
     "amcp_reporting_overview": {
-     "sha256": "ee419f4afd63bfa550866d5d81dfd20a1e175a1cadd7ff02f5b9245a643c085a",
-     "length": 1440
+     "sha256": "cd9ea4d867752982af0250e08499e00bc8656799bb4c3da75fe61d16859416c5",
+     "length": 1279
     },
     "amcp_ad_previews": "Use this to see existing ads as the platform shows them, with links that expire. For media files use amcp_media. Safety: reads only; nothing is saved. Core: platform, account_id, ad_ids or statuses, campaign_ids and adset_ids, limit (default 5, at most 10), cursor; ad_format selects a Meta placement. Help: {action:\"help\"}.",
     "amcp_write": "Use this to check whether a single advertising or measurement change has a reviewed write contract, and to create a provider report or export job. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only for advertising changes; its owner allows provider report and export jobs (X, TikTok and Meta report jobs, Criteo reports, DV360 SDF exports, TikTok change logs and GA4 report tasks). For a job, prepare reads state and freezes a five-minute review, execute submits it once after confirmed=true and never resubmits it, and status reads a retained review back. A job needs the account’s report-job grant (AMCP Connections). This is an AMCP extension, not a captured AMCP tool.",
-    "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Full text: amcp_media {action:\"help\"}; action rules: amcp_media {action:\"help\",topic:\"<action>\"}."
+    "amcp_media": "Use this to inspect account-scoped retained media metadata, original-source availability, verified AMCP plan usage and compatible retained ad performance. Actions: list, library, asset, asset_performance and asset_usage (bounded current Meta v26 image/video references, complete Google v25 image asset links with reference_view ad_images, performance_max or performance_max_brand, and the Snapchat snapchat_top_snap view). These reads create no snapshot, plan, ownership or write grant and need no upload write grant. This deployment exposes media reads only; uploading, source retention/removal and metadata changes require their separately enabled workflow. Help: {action:\"help\"}; one action: {action:\"help\",topic:\"<action>\"}."
    },
    "whole": {
-    "sha256": "821cf2404f8aa34a3dabfb20c367067f0f840519dd27742829ed1cf99422bee4",
-    "length": 90738
+    "sha256": "2aed17d67d7b0a92a01dd0302932cfcc80a1c1f7909f14eaf28270067586eab2",
+    "length": 90719
    }
   },
   "provider_jobs/full_descriptions": {
@@ -2221,12 +2221,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "dbf8350c8af2c7ed9bd37b1f6278a500ddf38350cffedcb8bd1c98e438ebbc1a",
-    "length": 71990
+    "sha256": "a19edef6a38a68f803f5865e2fb16b0e39ae03ff08b6e80b68bcf5643fcb888b",
+    "length": 72073
    },
    "whole": {
-    "sha256": "f2b7ae360e568865fefc5535b0dff817dd329231e0f264b23d1b898561ae6350",
-    "length": 144190
+    "sha256": "a85a78f061d26001a6184eb8cef68edb08e4a324329263048c64ab8f466a2303",
+    "length": 144729
    }
   },
   "provider_jobs/enhanced_all": {
@@ -2261,12 +2261,12 @@
     "amcp_media"
    ],
    "descriptions": {
-    "sha256": "8b3813b4f1055a84e30cc03e51e823722740c8377d968c0905c01e8e5f3d7c56",
-    "length": 18538
+    "sha256": "313f60801ec2d7f8ec3fc7153b26c6ef5e8d41bc8e7a437cc79c58f510cab31b",
+    "length": 18063
    },
    "whole": {
-    "sha256": "75f303e35b8e8e19d1ceac5ee0339881139619e7476340e2a36a2a24631d50f6",
-    "length": 86950
+    "sha256": "28845ffda7475735400051fc5dded4aac8518b3c9f2c3ddeae5bb0c4b07dfe99",
+    "length": 86931
    }
   }
  },

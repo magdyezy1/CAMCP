@@ -750,14 +750,17 @@ const rows: Record<string, Row[]> = {
     row('resume_writes', 'Resumes reviewed writes.', ['confirmed'], [], saves('write_pause'), 'owner', [
       [W, 'dashboard'],
     ]),
+    // The handler (src/personal-data-access.ts) finds the account through its connection, which it requires, and takes the
+    // gateway from it: the gateway an earlier row required is accepted and not used.
     row(
       'enable_personal_data',
-      'Turns personal-data writes (customer lists) on for one ad account.',
-      ['gateway', 'account_id', 'confirmed'],
-      ['connection_id'],
+      'Turns personal-data writes (customer lists) on for one ad account of a connection.',
+      ['connection_id', 'account_id', 'confirmed'],
+      ['gateway'],
       saves('personal_data_setting'),
       'owner',
       [[X, 'inspect']],
+      {'gateway': {note: 'Not needed: the connection names the gateway.'}},
     ),
     row(
       'disable_personal_data',
@@ -1007,7 +1010,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'run_background',
-      'Queues an approved plan of media uploads to run on the server; get shows its progress.',
+      'Queues an approved plan of media uploads to run on the server; get shows its progress. A progressToken reports it for up to 25 s; a client declaring the tasks extension is answered a task.',
       ['id'],
       ['detail'],
       mutation('campaign_run', 'media_review', 'media_receipt'),
@@ -1101,7 +1104,15 @@ const rows: Record<string, Row[]> = {
       'reader',
       [[R, 'analyze']],
     ),
-    row('capture_presets', 'The guided report presets.', [], [], local, 'reader', [[R, 'capture_preset']]),
+    row(
+      'capture_presets',
+      'The guided report presets; with connection_id and account_id together, also the capture target of that account.',
+      [],
+      ['connection_id', 'account_id'],
+      local,
+      'reader',
+      [[R, 'capture_preset']],
+    ),
     row(
       'capture_preset',
       'Captures one guided Google, Meta, LinkedIn, TikTok or Snapchat report.',
@@ -1457,9 +1468,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'get',
-      'One snapshot with a page of rows, its exports and deliveries.',
+      'One snapshot with a page of rows, its exports and deliveries; platform, level, entity and query narrow the rows.',
       ['id'],
-      ['offset', 'limit', 'include'],
+      ['offset', 'limit', 'include', 'platform', 'level', 'entity', 'query', 'cursor'],
       local,
       'reader',
       [[O, 'report_pack']],
@@ -1467,9 +1478,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'list',
-      'Report snapshots you can access, newest first.',
+      'Report snapshots you can access, newest first; client, platform and state narrow them.',
       [],
-      ['offset', 'limit'],
+      ['offset', 'limit', 'client', 'platform', 'state', 'cursor'],
       local,
       'reader',
       [[O, 'get']],
@@ -1477,7 +1488,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'export',
-      'Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files.',
+      'Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files. Poll export_status; a progressToken reports progress for 25 s; the tasks extension gets a task.',
       ['report_id', 'destination_id', 'confirmed'],
       ['idempotency_key'],
       effects('none', ['overview_export'], {remote_writes: true}),
@@ -1571,10 +1582,11 @@ const rows: Record<string, Row[]> = {
     ]),
     row(
       'resolve_delivery',
-      'Checks, resends or releases the unconfirmed Sheets delivery of a destination; resend and release open after its settle window.',
+      'Checks, resends or abandons the unconfirmed Sheets delivery of a destination; resend and abandon open after its settle window.',
       ['destination_id', 'resolution', 'confirmed'],
       ['delivery_id'],
-      saves('sheets_delivery'),
+      // check rereads the tab’s delivery marker (a Google Sheets read); resend requeues the export that writes the tab.
+      effects('read_only', ['sheets_delivery'], {remote_writes: true}),
       'operator',
       [[O, 'export_status']],
     ),
@@ -1928,6 +1940,15 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'The current revision of the record the action changes, as last read. save_catalog_mapping: the mapping version read (0 before the first save); another current version is refused with CATALOG_MAPPING_CHANGED.',
     confirmed_count:
       'create_catalog_removal: the number of products in the preview, typed back by the person; required for a listed selection.',
+    account_ids:
+      'check only: up to 20 accounts of one connection_id, checked four at a time with the same requirements and live setting; one result per account.',
+  },
+  [P]: {
+    ad_ids:
+      'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs or resource names, or adGroupAds resource names of video ads). Named IDs ignore statuses. Without IDs, the first `limit` matching active ads.',
+    campaign_ids: 'Campaign IDs; LinkedIn campaign group IDs, as in reporting.',
+    adset_ids: 'Ad set or ad group IDs; Snapchat ad squad IDs; LinkedIn native campaign IDs.',
+    ad_format: 'Meta only: the placement to preview.',
   },
   [C]: {
     acknowledge_temporary_sources:
@@ -2019,8 +2040,23 @@ const argumentNotes: Record<string, Record<string, string>> = {
   },
   // The rules the tool description carried until F-LEAD-01, each with the action it belongs to.
   [O]: {
+    config:
+      'A report definition: name, grain, date_range and sources (one account each, with the levels, statuses, ID lists and options bootstrap platforms[].reporting_v4 lists for its platform). A level, status or option a source leaves out takes the default bootstrap lists; a v3 definition (one level, no levels) is still accepted.',
     include:
-      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage. Without them rows and sources are compact.',
+      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage; charts:true is accepted and adds nothing until the chart definitions ship. Without them rows and sources are compact.',
+    platform:
+      'get: only the rows of this platform; list: only the snapshots with a source of this platform. A platform ID from bootstrap platforms[].id.',
+    level:
+      'get: only the rows of this level (campaign, adset or ad); bootstrap platforms[].reporting_v4.levels lists the levels of each platform.',
+    entity:
+      'get: a native ID as the rows show it (entity_id, or the campaign or ad set above a row): that entity’s row and the rows under it.',
+    query:
+      'get: text to find, case-insensitive, in the IDs and names of the rows and of the campaign and ad set above them (at most 150 characters); a blank query narrows nothing.',
+    client:
+      'list: only the snapshots all of whose sources are accounts of this client profile (a profile ID of amcp_workspace profiles).',
+    state: 'list: only the snapshots in this state: queued, running, complete, partial, failed or cancelled.',
+    cursor:
+      'get and list with a filter: the next_cursor of the previous page. It continues only the same read, by the same caller with the same id, filters, limit and include; any other use is refused with INVALID_CURSOR. An offset belongs to an unfiltered read.',
     compare:
       'run: previous_period also queues the equal-length window that ends the day before as a linked baseline snapshot with its own collection limits. Both count toward the 100 active reporting jobs.',
     baseline_id:

@@ -22,6 +22,13 @@ export function cursorBinding(store: Store, actor: Actor, filters: JsonObject): 
 export function encodeOffsetCursor(binding: string, offset: number): string {
   return Buffer.from(JSON.stringify({version: 1, binding, offset})).toString('base64url');
 }
+/** The refusal of a cursor that is not the continuation of this read; `what` names the page. */
+export const invalidCursor = (what: string) =>
+  new MirrorError(
+    'INVALID_CURSOR',
+    'Use the next_cursor this page returned, with the same identity, filters and page size, or start again without a cursor.',
+    {field: 'cursor', page: what},
+  );
 /** The offset a cursor continues from; 0 without one. A cursor issued for another binding is refused. */
 export function decodeOffsetCursor(cursor: unknown, binding: string, what: string): number {
   if (cursor === undefined) return 0;
@@ -37,10 +44,6 @@ export function decodeOffsetCursor(cursor: unknown, binding: string, what: strin
       throw Error();
     return parsed.offset;
   } catch {
-    throw new MirrorError(
-      'INVALID_CURSOR',
-      'Use the next_cursor this page returned, with the same identity, filters and page size, or start again without a cursor.',
-      {field: 'cursor', page: what},
-    );
+    throw invalidCursor(what);
   }
 }

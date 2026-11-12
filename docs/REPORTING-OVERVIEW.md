@@ -125,6 +125,18 @@ remain unavailable.
 keeps none of its own. It asks for **I have checked the reporting window is complete** only where the answer matters:
 for a source with a detailed level, or one saved as incomplete. A campaign-level window needs no declaration.
 
+For a client that builds a multi-level or scoped definition, the same block states the rest of the rules, each from
+the table that validation reads: every level names `scope_field`, the list its native IDs go in (`campaign_ids`,
+`adset_ids` or `ad_ids`), and `scope_id_prefix` where the platform spells an ID with one (LinkedIn's URNs);
+`source_defaults` is what a source that leaves out `levels`, `statuses` or `delivered_only` gets
+(`{levels:["campaign"], statuses:["all"], delivered_only:true}`, with the platform's `defaults` for its options);
+`provider_configured_options` are the options the provider configures, which may stay `null` only when every requested
+level is one of `provider_configured_levels` (campaign). `bootstrap.config_limits` gives the most sources a
+definition names and the most native IDs in one scope list. The `config` argument of the tool is typed from the same
+tables with the fields every platform shares (`sources[].platform`, `levels`, `level`, `statuses`, `delivered_only`,
+the three ID lists, `report_options`, and `grain`): a level, status, platform or grain no table has is refused by the
+schema, and a definition saved by an earlier build still validates. What differs by platform is in bootstrap.
+
 ## Objective sources
 
 Each row retains the native `objective`, its AMCP `objective_group`, `objective_source` and `objective_reason`.
@@ -455,9 +467,21 @@ column note says that values with more digits than a number holds exactly are ke
 before.
 
 **Reading a snapshot.** `get` returns a v4 row without its native evidence, and a source without `native`,
-`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them. A
+`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them.
+`include:{charts:true}` is accepted and adds nothing until the chart definitions are returned there. A
 `window_summary[].series` point is `{date_from, spend}` and, when its period was calculated from fewer units than it
 has, also `coverage` in the shape of a metric's, so a week with one unknown campaign is a short point and not a dip.
+
+**Narrowing a read.** `get` takes `platform`, `level`, `entity` (a native ID as the rows show it: that entity's row and
+the rows under it) and `query` (case-insensitive text in the IDs and names of the rows and of the campaign and ad set
+above them), and `list` takes `client` (a client profile), `platform` and `state`. They run after the access checks and
+only hide rows or snapshots the caller may already read; a value the tables do not have is refused with
+`INVALID_ARGUMENT` and the accepted values in `details.allowed`. A narrowed `get` says what it did: `filter`,
+`matched_row_count` (`row_count` stays the whole snapshot's) and a `total` of the matched rows. A narrowed read
+continues only by its `next_cursor`, repeated in `next_call`. The cursor is sealed to the caller and to every argument
+of the read, so a changed argument, another caller or an `offset` beside it is refused with `INVALID_CURSOR`; an
+`offset` on a narrowed read is refused with `INVALID_PAGE`. Without a filter the responses and the offset paging are
+unchanged.
 
 **Monitors on a v4 snapshot.** A rule watches the top level its source requested (campaign, then ad set, then ad), so
 one window is one incident, and compares the value as exact decimal text, never as a double. A summary answers a rule
@@ -953,6 +977,34 @@ confirmation, operator authority and current access to every source. Nonempty pr
 cover all sources. The style is copied into that snapshot, so changing or deleting the reusable profile never
 rewrites old report packs. Profile-choice pages return `next_offset`; continue even after an empty filtered page.
 See [report-pack contracts and limits](workflows/REPORT-PACKS.md#client-report-packs-and-recovery).
+
+### Following a long run: polling, progress and tasks
+
+An export (`export`) and a background run of an approved plan of uploads (`amcp_campaign run_background`) are jobs that
+a worker runs after the call has answered. There are three ways to follow one, and the first needs nothing from the client.
+
+- **Polling.** The answer names the job. Call `export_status` (an export) or `get` (a plan, or a report) until its state is
+  final; a queued report or export also names its `next_call` and `poll_after_ms`. Every client can do this in every
+  protocol revision, and it is unchanged.
+- **Progress.** A client that sends a `progressToken` with the call (the SDK clients do when given a progress callback)
+  keeps the call open for up to 25 seconds. It sends `notifications/progress` on its own stream as the job moves: an
+  export from 0 (queued) to 1 (running) to 2 (complete) of 2, a plan by its settled uploads of all of them, each with the
+  job's state as its message. A notification is sent only when the progress has grown, and the first one at once. If the
+  job finished in that time the call answers with the read that shows it finished (`export_status`, or `get` of the plan);
+  otherwise it answers as it always did, with the job handle and its next call. A client that goes away ends the wait and
+  never cancels the job. A process holds at most 8 such calls at once; past that a call is answered at once. The earlier
+  protocol revisions answer such a call as an event stream, only for a client that accepts one; a call with no token is
+  answered at once, as before.
+- **Tasks.** On MCP revision 2026-07-28, a client that declares the extension `io.modelcontextprotocol/tasks` in the request
+  is answered a task (`resultType:"task"`, status `working`, `ttlMs` 24 hours, `pollIntervalMs` 5000) for these two calls
+  instead of the handle. `tasks/get {taskId}` reports `working`, then `completed` with the result `export_status` or `get`
+  would give, as a tool result, or `failed` with the job's error, or `cancelled`. `tasks/cancel` stops an export with the
+  rights the `cancel` action has; a background run is stopped by cancelling its plan (`amcp_campaign cancel`, which asks
+  the person to confirm), so its task answers with that call. `tasks/update` is refused, because a task never asks for
+  input, and `tasks/list` does not exist. A task belongs to the workspace, the person and the AI client it was made for:
+  an identifier that is unknown, altered, expired or someone else's gets one error, `Unknown task.`, and nothing else
+  happens. A person has at most 100 tasks, asking again for the same job gives the same task, and a task is kept for 24
+  hours. The extension is declared in `server/discover` and not to the earlier revisions.
 
 ### Scheduled PDF and Excel files
 

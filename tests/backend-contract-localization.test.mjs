@@ -324,12 +324,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package engine-surfaces adds src/report-coverage-notes.ts, the one computation of what a total covers (F-L5-01): 789,
   // and src/report-level-check.ts, the cross-level check in words for the PDF and the workbook (F-L5-05): 790,
   // and src/export-number.ts, the number a spreadsheet cell holds for an exact decimal (F-L5-07): 791.
-  assert.equal(files.length, 791);
+  // Package mcp-typed adds src/report-tool-schema.ts, the typed reporting config generated from the report sources
+  // (V2-MCP-02): 792,
+  // and src/report-read-filters.ts, the filters of get and list (V2-MCP-02): 793,
+  // and src/report-tool-output.ts, the typed result fields of the two reporting tools (V2-MCP-02): 794,
+  // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795,
+  // and server/mcp-long-runs.ts, the two long runs the progress and the tasks follow (V2-MCP-02): 796,
+  // and server/mcp-tasks.ts, the tasks extension of MCP 2026-07-28 (V2-MCP-02): 797.
+  assert.equal(files.length, 797);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
   // Apple's detail collector (its campaign bound) and Snapchat's evidence (its zone refusal now names the zone) own reasons.
-  assert.equal(selected.filter(row => row.messages.size).length, 296);
+  // Package mcp-typed: src/report-read-filters.ts owns the two sentences of the filter refusals (V2-MCP-02): 297.
+  assert.equal(selected.filter(row => row.messages.size).length, 297);
   // V2-RPT-01 replaces the adapter's count-change sentence and adds the campaign-window refusal.
   // Six group refusals, five creative refusals and one native-pivot refusal are now direct owned reasons.
   // V2-RPT-04 metric joins add one direct refusal.
@@ -347,7 +355,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // not accept (415) and of a body that cannot be decoded (400): 1631 + 2 - 1 + 2.
   // Package results (item 10) removes one owned reason: the Apple refusal of more than 100 campaigns, now bounded by the
   // whole-job allowance instead: 1634 - 1.
-  assert.equal(owned.size, 1633);
+  // Package mcp-typed (V2-MCP-02) owns three more: the two filter refusals of src/report-read-filters.ts and the offset
+  // refusal of a filtered read in src/reporting-overview.ts (the reworded include refusal replaces its old sentence): 1636.
+  assert.equal(owned.size, 1636);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -410,7 +420,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // {indicator}): 12,021 - 2 + 3.
   // Merge C, with closing-fixes (12,005 on its own base) and meta-results (12,022 on its own base): measured on the merged catalogue
   // (node tools/check-locales.mjs; a key by key three-way merge finds no clash and no key added by both), 12,023.
-  assert.equal(Object.keys(catalog).length, 12023);
+  // Package mcp-typed (V2-MCP-02) adds the three sentences of the get and list filter refusals and rewords the include
+  // refusal to name charts (the old sentence leaves the catalogue): 12,007.
+  // Merge C, with mcp-typed (12,007 on its own base): measured on the merged catalogue (node tools/check-locales.mjs; a key by key
+  // three-way merge finds no clash and no key added by both), 12,023 + 3 = 12,026.
+  assert.equal(Object.keys(catalog).length, 12026);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -8,7 +8,7 @@
   },
   "mcp_surface": {
     "tools": 25,
-    "tools_list_bytes": 97171,
+    "tools_list_bytes": 97243,
     "instructions_bytes": 1534
   },
   "task_measures": {
@@ -101,7 +101,7 @@
       "unnecessary_calls": 0,
       "repeated_refused_calls": 0,
       "handoff_success": true,
-      "response_bytes": 8482
+      "response_bytes": 8532
     },
     "H1": {
       "job": "safe export retry",
@@ -299,7 +299,7 @@
         "website_actions": 0,
         "user_actions": 1,
         "help_calls": 0,
-        "response_bytes": 7201,
+        "response_bytes": 7200,
         "provider_requests": 4,
         "refused_calls": 0,
         "repeated_refused_calls": 0,
@@ -346,7 +346,7 @@
         "website_actions": 0,
         "user_actions": 0,
         "help_calls": 0,
-        "response_bytes": 7383,
+        "response_bytes": 7382,
         "provider_requests": 3,
         "refused_calls": 1,
         "repeated_refused_calls": 0,
@@ -415,7 +415,7 @@
         "website_actions": 1,
         "user_actions": 0,
         "help_calls": 0,
-        "response_bytes": 16871,
+        "response_bytes": 16868,
         "provider_requests": 3,
         "refused_calls": 0,
         "repeated_refused_calls": 0,
@@ -462,7 +462,7 @@
         "website_actions": 0,
         "user_actions": 0,
         "help_calls": 0,
-        "response_bytes": 1295,
+        "response_bytes": 1294,
         "provider_requests": 1,
         "refused_calls": 1,
         "repeated_refused_calls": 0,
@@ -766,7 +766,7 @@
         "website_actions": 1,
         "user_actions": 3,
         "help_calls": 0,
-        "response_bytes": 21055,
+        "response_bytes": 21054,
         "provider_requests": 8,
         "refused_calls": 0,
         "repeated_refused_calls": 0,
@@ -877,6 +877,99 @@
         "surfaces": [
           "mcp",
           "web"
+        ]
+      },
+      "J9/success": {
+        "tool_calls": 8,
+        "website_actions": 1,
+        "user_actions": 2,
+        "help_calls": 0,
+        "response_bytes": 67481,
+        "provider_requests": 2,
+        "refused_calls": 0,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 0,
+        "offered_next_calls": 2,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": null,
+        "user_approvals": 2,
+        "handoff_success": true,
+        "end_state": "success",
+        "provider_mutations": 1,
+        "surfaces": [
+          "mcp",
+          "web"
+        ]
+      },
+      "J9/failure": {
+        "tool_calls": 4,
+        "website_actions": 0,
+        "user_actions": 2,
+        "help_calls": 0,
+        "response_bytes": 16983,
+        "provider_requests": 0,
+        "refused_calls": 0,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 0,
+        "offered_next_calls": 2,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": null,
+        "user_approvals": 2,
+        "handoff_success": true,
+        "end_state": "success",
+        "provider_mutations": 0,
+        "surfaces": [
+          "mcp"
+        ]
+      },
+      "J9/unavailable_account": {
+        "tool_calls": 2,
+        "website_actions": 0,
+        "user_actions": 1,
+        "help_calls": 0,
+        "response_bytes": 6453,
+        "provider_requests": 0,
+        "refused_calls": 0,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 0,
+        "offered_next_calls": 1,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": false,
+        "user_approvals": 1,
+        "handoff_success": false,
+        "end_state": "dead_end",
+        "provider_mutations": 0,
+        "surfaces": [
+          "mcp"
+        ]
+      },
+      "J9/incomplete_evidence": {
+        "tool_calls": 3,
+        "website_actions": 0,
+        "user_actions": 1,
+        "help_calls": 0,
+        "response_bytes": 11492,
+        "provider_requests": 0,
+        "refused_calls": 1,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 0,
+        "offered_next_calls": 1,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": true,
+        "user_approvals": 1,
+        "handoff_success": false,
+        "end_state": "handled_failure",
+        "provider_mutations": 0,
+        "surfaces": [
+          "mcp"
         ]
       }
     },
@@ -1174,7 +1267,7 @@
         "website_actions": 0,
         "user_actions": 1,
         "help_calls": 0,
-        "response_bytes": 8483,
+        "response_bytes": 8532,
         "provider_requests": 2,
         "refused_calls": 0,
         "repeated_refused_calls": 0,
@@ -1198,7 +1291,7 @@
         "website_actions": 0,
         "user_actions": 1,
         "help_calls": 0,
-        "response_bytes": 8482,
+        "response_bytes": 8532,
         "provider_requests": 2,
         "refused_calls": 0,
         "repeated_refused_calls": 0,

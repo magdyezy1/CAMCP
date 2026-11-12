@@ -244,10 +244,16 @@
       "raised": [
         "reference_words 156739 → 156845"
       ]
+    },
+    {
+      "reason": "Package mcp-typed (V2-MCP-02), merged on top of meta-results: +885 reference words, recorded in two steps on its own branch. 156417 -> 156776 (+359): the typed config, the bootstrap rules and the get and list filters with their cursor (about 360 words in docs/REPORTING-OVERVIEW.md). 156776 -> 157302 (+526): a section on following a long run (polling, progress notifications and tasks) in the reporting guide that the overview help serves, and one sentence each in the write-operations reference and the deployment variable table. The merged count is the measured one: 156845 + 885 = 157730",
+      "raised": [
+        "reference_words 156845 → 157730"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156845
+    "reference_words": 157730
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

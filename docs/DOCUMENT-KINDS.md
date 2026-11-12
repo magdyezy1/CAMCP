@@ -18,7 +18,7 @@ long its documents are kept. Code reads and writes a kind through a repository b
 (`store.repo(kind, workspace)`) or, for a service record, to its reserved partition (`store.serviceRepo(kind)`), so
 one workspace can never read, change or delete another workspace’s documents through it.
 
-93 kinds are declared: 85 belong to a workspace and 8 to the service.
+94 kinds are declared: 86 belong to a workspace and 8 to the service.
 
 ## Retention
 
@@ -33,7 +33,7 @@ encrypted backups) expire on their own schedule; see docs/OPERATIONS.md, "Accoun
 |---|---:|---|
 | Report retention | 4 | Deleted hourly once older than the workspace owner's report retention period (Settings, 7–365 days) or, without one, `AMCP_REPORT_RETENTION_DAYS` (365 days; `off` keeps them). |
 | With its parent | 4 | Deleted with the document it belongs to. |
-| Expires | 19 | Ignored past its deadline and deleted by the sweep or module named. |
+| Expires | 20 | Ignored past its deadline and deleted by the sweep or module named. |
 | Fixed period | 6 | Deleted a fixed number of days after its clock field. |
 | Owner opt-in | 1 | Deleted only after a period the workspace owner opts in to; kept otherwise. |
 | Rewritten in place | 6 | One small document per key, rewritten in place: it does not grow. |
@@ -58,12 +58,12 @@ workspace's audit, with counts per kind.
 
 ### The maintenance timer
 
+- `mcp_task`, `tiktok_report_run`, `x_report_result`, `x_report_run`: Kept 24 hours; ignored once expired and deleted by the maintenance timer.
 - `provider_budget`, `tiktok_report_quota`, `worker_heartbeat`: Deleted by the maintenance timer a day after its last use.
-- `tiktok_report_run`, `x_report_result`, `x_report_run`: Deleted by the maintenance timer once expired.
 
 ### What follows a person, a login or a backup
 
-- **Account erasure** also deletes, in other workspaces, the documents that belong to the erased person: `member_access_set`, `monitor_notice`, `monitor_subscription`, `workspace_invite`.
+- **Account erasure** also deletes, in other workspaces, the documents that belong to the erased person: `mcp_task`, `member_access_set`, `monitor_notice`, `monitor_subscription`, `workspace_invite`.
 - **A local disconnect** deletes the documents read through the login: `account_metadata`, `conditional_program_observation`, `connection_health`, `decision_report`, `microsoft_report`, `oauth_progress`, `overview_report`, `readiness`, `report_incident`, `website_assets`, `website_connection`.
 - **Encrypted backups** leave out: `media_source`, `media_variant`, `retained_media_source` (website uploads), `upload_session`.
 
@@ -92,6 +92,7 @@ workspace's audit, with counts per kind.
 | `ga4_test_property` | A GA4 property the owner marked for the test-identity mode (MSR-04). | **While the workspace exists**. | `src/measurement-test-properties.ts` | 1 |  |
 | `gtm_consent_preview` | A GTM consent plan preview before it becomes a plan. | **Expires** (`expires_at` reached, by its owner module when it saves the next one). Deleted once expired, when the next preview is saved. | `src/gtm-consent-plans.ts` | 1 | Store contract: `expires_at` number |
 | `linkedin_post` | A LinkedIn post AMCP created, kept for its verification. | **While the workspace exists**. | `src/linkedin-posts.ts` | 1 |  |
+| `mcp_task` | A task an AI client was handed for a long run (the MCP tasks extension): the person and AI client it belongs to, and the job it follows. | **Expires** (`expires_at` reached, by the maintenance timer, once a minute). Kept 24 hours; ignored once expired and deleted by the maintenance timer. | `server/mcp-tasks.ts` | 1 | Store contract: `expires_at` number, `owner_user_id` string; Erased with the person (`owner_user_id`) |
 | `media_review` | A media upload review: the frozen copy's plan and its transfer state. | **Expires** (`expires_at` reached, by the media cleanup timer). Deleted by the media cleanup once its staging expired. | `src/media-upload.ts` | 1 | Store contract: `expires_at` number; Indexes: `media_documents_by_kind` |
 | `media_source` | An original file a person uploaded or imported, waiting to be pushed. | **Expires** (`expires_at` reached, by the media cleanup timer). Deleted by the media cleanup once expired; a website upload at most 30 minutes after it was made. | `src/media-sources.ts` | 1 | Store contract: `expires_at` number, `created_at` number?, `origin` string?, `state` string?; Left out of backups; Indexes: `media_documents_by_kind` |
 | `media_variant` | A derived media variant and its transfer state. | **Expires** (`expires_at` reached, by the media cleanup timer). Deleted by the media cleanup once it or its original upload expired. | `src/media-upload.ts` | 1 | Store contract: `expires_at` number, `upload_expires_at` number?; Left out of backups; Indexes: `media_documents_by_kind` |

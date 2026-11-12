@@ -126,9 +126,9 @@ export const writeTool = {
       people: {
         type: 'object',
       },
+      // prepare only, when adding people: its note is in src/first-party-contracts.ts (amcp_tool_help), not in tools/list.
       personal_data: {
         type: 'object',
-        description: 'prepare only, adding people: the uploader confirms countries, law, consent and platform terms.',
       },
       provider_check: {
         type: 'boolean',

@@ -366,7 +366,11 @@ test('MCP-03 phase 3: 2026-07-28 server/discover, tools, resources and prompts a
     assert.deepEqual(d.supportedVersions, [...dualEraProtocolVersions]);
     assert.equal(d.supportedVersions[0], modern);
     assert.ok(d.supportedVersions.includes('2025-11-25') && d.supportedVersions.includes('2025-06-18'));
-    assert.deepEqual(d.capabilities, initialized.body.result.capabilities);
+    // The same capabilities, and the tasks extension besides, which only the 2026-07-28 revision is told of (V2-MCP-02).
+    assert.deepEqual(d.capabilities, {
+      ...initialized.body.result.capabilities,
+      extensions: {'io.modelcontextprotocol/tasks': {}},
+    });
     assert.equal(d.instructions, initialized.body.result.instructions);
     assert.equal(d.instructions, readOnlyServerInstructions, 'this read-only deployment’s own orientation');
     assert.deepEqual(d._meta['io.modelcontextprotocol/serverInfo'], initialized.body.result.serverInfo);

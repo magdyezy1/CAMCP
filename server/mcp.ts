@@ -4,6 +4,16 @@ import type {Transport} from '@modelcontextprotocol/server';
 import {ProtocolErrorCode, ProtocolError} from '@modelcontextprotocol/server';
 import type {Actor, JsonObject} from '../src/types.js';
 import {outcomeSchema, workflowTools} from '../src/workflow-outcomes.js';
+import {typedToolData} from '../src/report-tool-output.js';
+import {answerWithProgress, progressTokenOf} from './mcp-progress.js';
+import {
+  TaskOffer,
+  createTask,
+  declaresTasks,
+  registerTaskHandlers,
+  taskCallResult,
+  tasksExtension,
+} from './mcp-tasks.js';
 import {MirrorService, withExactIntegers} from '../src/service.js';
 import {
   guidanceResources,
@@ -40,7 +50,9 @@ export function toolOutputSchema(tool: string): JsonObject {
     type: 'object',
     properties: {
       success: {type: 'boolean'},
-      data: {},
+      // The two reporting tools type the fields their actions share (src/report-tool-output.ts); every other tool leaves
+      // the payload to its own actions.
+      data: typedToolData[tool] ?? {},
       error: {
         type: 'object',
         properties: {code: {type: 'string'}, message: {type: 'string'}, details: {type: 'object'}},
@@ -62,8 +74,17 @@ export interface McpServerHooks {
 }
 /** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). */
 export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
-/** What the server offers in both protocol eras; server/discover of the 2026-07-28 handler reports the same. */
-export const mcpServerCapabilities = () => ({tools: {}, resources: {}, prompts: {}});
+/**
+ * What the server offers: the same tools, resources and prompts in both protocol eras, and in the 2026-07-28 revision the
+ * tasks extension besides (server/mcp-tasks.ts). The earlier revisions are never told of it; server/discover reports the
+ * 2026-07-28 set.
+ */
+export const mcpServerCapabilities = (era?: 'legacy' | 'modern') => ({
+  tools: {},
+  resources: {},
+  prompts: {},
+  ...(era === 'modern' ? {extensions: {[tasksExtension]: {}}} : {}),
+});
 /**
  * The caching hints of the 2026-07-28 revision, the same on every transport (HTTP and stdio). Lists and guides change
  * only with a release, but what a caller sees depends on their role, so they are private; server/discover describes the
@@ -83,7 +104,7 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
   // amcp_write inspect only, so its instructions never send a client to prepare or execute.
   const instructions = serverInstructionsFor(service.policy),
     server = new Server(mcpServerInfo(), {
-      capabilities: mcpServerCapabilities(),
+      capabilities: mcpServerCapabilities(hooks.era),
       instructions,
       cacheHints: mcpCacheHints,
     });
@@ -142,12 +163,46 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
     service.store.assertActorActive(actor);
     return {tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any};
   });
-  server.setRequestHandler('tools/call', async request => {
-    // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
-    const work = withExactIntegers(() => service.call(request.params.name, request.params.arguments ?? {}, actor)),
-      result = await (hooks.track ? hooks.track(work) : work),
-      // General discovery already used this structured envelope. Text-only clients must receive the same result.
-      presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
+  // The tasks extension exists on the 2026-07-28 path only (server/mcp-tasks.ts).
+  if (hooks.era === 'modern') registerTaskHandlers(server, service, actor);
+  server.setRequestHandler('tools/call', async (request, ctx) => {
+    const args = request.params.arguments ?? {},
+      token = progressTokenOf(request.params._meta),
+      // Only a client that declares the tasks extension in this very request is offered a task, never one inferred.
+      tasksOn = hooks.era === 'modern' && declaresTasks(ctx.mcpReq.envelope),
+      // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
+      call = () => service.call(request.params.name, args, actor),
+      // A call that queues a long run is answered a task by a client that declares the extension; otherwise one that
+      // carries a progress token waits for it, bounded, and reports its progress on this request's stream (V2-MCP-02).
+      // With neither, nothing differs from a plain call.
+      work = withExactIntegers(
+        token === undefined && !tasksOn
+          ? call
+          : async () => {
+              const answer = await call(),
+                offer = tasksOn
+                  ? createTask({service, actor, tool: request.params.name, args, result: answer})
+                  : undefined;
+              if (offer) return offer;
+              return token === undefined
+                ? answer
+                : await answerWithProgress({
+                    service,
+                    actor,
+                    tool: request.params.name,
+                    args,
+                    result: answer,
+                    token,
+                    notify: notification => ctx.mcpReq.notify(notification),
+                    signal: ctx.mcpReq.signal,
+                    read: read => service.call(read.tool, read.arguments, actor),
+                  });
+            },
+      ),
+      result = await (hooks.track ? hooks.track(work) : work);
+    if (result instanceof TaskOffer) return taskCallResult(result) as any;
+    // General discovery already used this structured envelope. Text-only clients must receive the same result.
+    const presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
     return {
       content: [{type: 'text', text: JSON.stringify(presented)}],
       structuredContent: presented,

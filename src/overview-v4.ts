@@ -267,20 +267,77 @@ function invalid(message: string, code = 'INVALID_REPORT_SOURCE'): never {
   throw new MirrorError(code, message);
 }
 const object = (value: unknown): value is JsonObject => !!value && typeof value === 'object' && !Array.isArray(value);
+/** The most native IDs one scope list of a source holds. The generated tool schema and the bootstrap read it from here. */
+export const overviewV4ScopeIdLimit = 500;
 const ids = (value: unknown): string[] => {
   if (value === undefined) return [];
   if (
     !Array.isArray(value) ||
-    value.length > 500 ||
+    value.length > overviewV4ScopeIdLimit ||
     value.some(id => typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$/.test(id))
   )
     invalid('Use at most 500 exact native IDs for each report scope.');
   return [...new Set(value as string[])];
 };
+/**
+ * What a v4 source gets for the fields it leaves out, the same for every platform (the options a platform defaults are its
+ * own, `defaults`). Normalization applies it and the bootstrap states it, so a client is never told one thing and given
+ * another.
+ */
+export const overviewV4SourceDefaults = Object.freeze({
+  levels: Object.freeze(['campaign']),
+  statuses: Object.freeze(['all']),
+  delivered_only: true,
+});
+/** The statuses a source may filter by; a platform's `supported_statuses` is a subset (the measurement sources have `all`). */
+export const overviewV4Statuses: readonly string[] = Object.freeze(['active', 'paused', 'archived', 'all']);
+/** The levels where an option a provider configures may be left unset: the provider's own profile exists for campaigns. */
+export const overviewV4ProviderConfiguredLevels: readonly string[] = Object.freeze(['campaign']);
+/**
+ * The rules of one platform's report sources as bootstrap states them (platforms[].reporting_v4), one block per platform
+ * and per level: the levels, each with the list its native IDs go in; what a source that leaves them out gets; the
+ * options, their defaults and fixed choices; the statuses; and where an option the provider configures may stay unset.
+ * Every value is the table's, or the constant the validation applies, so none is a second copy.
+ */
+export function overviewV4Rules(capabilities: OverviewV4Capabilities | undefined): JsonObject {
+  if (!capabilities)
+    return {
+      levels: [],
+      defaults: {},
+      option_names: [],
+      option_choices: {},
+      provider_configured_options: [],
+      delivery_metrics: [],
+      supported_statuses: ['all'],
+      status_basis: 'not_applicable',
+    };
+  const providerConfigured = capabilities.legacy?.provider_configured_options ?? [];
+  return {
+    levels: capabilities.levels.map(level => ({
+      ...level,
+      scope_field: scopeLists.find(([, scopeLevel]) => scopeLevel === level.id)?.[0],
+      ...(capabilities.scope_id_prefixes?.[level.id]
+        ? {scope_id_prefix: capabilities.scope_id_prefixes[level.id]}
+        : {}),
+    })),
+    defaults: capabilities.defaults,
+    source_defaults: overviewV4SourceDefaults,
+    option_names: capabilities.option_names,
+    // The fixed choices of the options that have them (attribution windows), so the editor keeps no list (F-L5-15).
+    option_choices: capabilities.option_choices ?? {},
+    provider_configured_options: providerConfigured,
+    ...(providerConfigured.length ? {provider_configured_levels: overviewV4ProviderConfiguredLevels} : {}),
+    ...(capabilities.scope_aliases ? {scope_aliases: capabilities.scope_aliases} : {}),
+    ...(capabilities.scope_id_pattern ? {scope_id_pattern: capabilities.scope_id_pattern} : {}),
+    delivery_metrics: capabilities.delivery_metrics,
+    supported_statuses: capabilities.supported_statuses,
+    status_basis: capabilities.status_basis,
+  };
+}
 /** No provider switches or invented defaults. Connection/account authorization remains at the caller's boundary. */
 export function normalizeOverviewV4Source(input: JsonObject, capabilities: OverviewV4Capabilities): JsonObject {
   const source = structuredClone(input),
-    levels = source.levels ?? [source.level ?? 'campaign'];
+    levels = source.levels ?? [source.level ?? overviewV4SourceDefaults.levels[0]];
   for (const [alias, field] of Object.entries(capabilities.scope_aliases ?? {})) {
     if (source[alias] === undefined) continue;
     const previous = source[field];
@@ -329,12 +386,12 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
   )
     invalid('Declare the detailed report attribution or use unknown.');
   capabilities.validateOptions?.(options, {levels: overviewV4CollectionLevels({...source, levels})});
-  const statuses = source.statuses ?? ['all'];
+  const statuses = source.statuses ?? overviewV4SourceDefaults.statuses;
   if (
     !Array.isArray(statuses) ||
     !statuses.length ||
     new Set(statuses).size !== statuses.length ||
-    statuses.some(status => !['active', 'paused', 'archived', 'all'].includes(status)) ||
+    statuses.some(status => !overviewV4Statuses.includes(status)) ||
     (statuses.includes('all') && statuses.length !== 1)
   )
     invalid('Choose active, paused, archived, or all report statuses.');
@@ -371,7 +428,7 @@ export function normalizeOverviewV4Source(input: JsonObject, capabilities: Overv
     adset_ids: adsetIds,
     ad_ids: adIds,
     statuses: [...statuses],
-    delivered_only: source.delivered_only ?? true,
+    delivered_only: source.delivered_only ?? overviewV4SourceDefaults.delivered_only,
     delivery_metrics: [...capabilities.delivery_metrics],
     status_basis: capabilities.status_basis,
     reporting_contract: overviewConfigV4,
@@ -386,6 +443,8 @@ const scopeLists = [
   ['adset_ids', 'adset'],
   ['ad_ids', 'ad'],
 ] as const;
+/** The same table for the generated tool schema and the bootstrap: the list field of each level's native IDs. */
+export const overviewV4ScopeFields: readonly (readonly [field: string, level: string])[] = scopeLists;
 /** The warning a source carries when selected IDs matched no row the provider returned (F-L5-27). */
 export const unmatchedIdsWarning = (count: number) =>
   count + ' selected ID' + (count === 1 ? '' : 's') + ' matched no returned row.';

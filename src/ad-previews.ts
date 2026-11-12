@@ -38,14 +38,9 @@ export const previewTool = {
       },
       account_id: {type: 'string', description: 'Required unless action is help.'},
       connection_id: {type: 'string'},
-      ad_ids: {
-        type: 'array',
-        items: {type: 'string'},
-        minItems: 1,
-        maxItems: 10,
-        description:
-          'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs or resource names, or adGroupAds resource names of video ads). Named IDs ignore statuses. Without IDs, the first `limit` matching active ads.',
-      },
+      // What each ID list names, per platform, is in the argument notes of amcp_tool_help (src/first-party-contracts.ts),
+      // not in tools/list (V2-MCP-02: the listing has no room for it).
+      ad_ids: {type: 'array', items: {type: 'string'}, minItems: 1, maxItems: 10},
       limit: {type: 'integer', minimum: 1, maximum: 10, default: 5},
       statuses: {
         type: 'array',
@@ -59,20 +54,17 @@ export const previewTool = {
         items: {type: 'string', pattern: '^[\\w:~./-]{1,200}$'},
         minItems: 1,
         maxItems: 50,
-        description: 'Campaign IDs; LinkedIn campaign group IDs, as in reporting.',
       },
       adset_ids: {
         type: 'array',
         items: {type: 'string', pattern: '^[\\w:~./-]{1,200}$'},
         minItems: 1,
         maxItems: 50,
-        description: 'Ad set or ad group IDs; Snapchat ad squad IDs; LinkedIn native campaign IDs.',
       },
       cursor: {type: 'string', maxLength: 4096},
       ad_format: {
         type: 'string',
         enum: adPreviewProviders.flatMap(provider => provider.previews!.formats ?? []),
-        description: 'Meta only: the placement to preview.',
       },
     },
     additionalProperties: false,

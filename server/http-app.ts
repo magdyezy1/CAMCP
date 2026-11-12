@@ -7,6 +7,7 @@ import {NodeStreamableHTTPServerTransport, toWebRequest} from '@modelcontextprot
 import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {Client} from '@modelcontextprotocol/client';
 import {createMcpServer} from './mcp.js';
+import {wantsProgressStream} from './mcp-progress.js';
 import {MirrorService} from '../src/service.js';
 import {Store} from '../src/store.js';
 import {MirrorError} from '../src/errors.js';
@@ -399,7 +400,9 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         const server = createMcpServer(service, res.locals.actor, {track});
         const transport = new NodeStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
-          enableJsonResponse: true,
+          // These revisions answer in JSON, which has no room for a progress notification: a long run that carries a
+          // progress token is answered as an event stream; every other request keeps its JSON answer.
+          enableJsonResponse: !wantsProgressStream(req.headers.accept, req.body),
         });
         res.on('close', () => {
           void Promise.allSettled([transport.close(), server.close()]);
