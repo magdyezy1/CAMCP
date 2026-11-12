@@ -232,10 +232,16 @@
       "raised": [
         "reference_words 154728 → 156417"
       ]
+    },
+    {
+      "reason": "DR2-03 (sec-hardening): docs/DESIGN-SYSTEM.md, Button section, gains the Links bullet that says which href values AmcpUI.button and the action components accept (AMCP_UI_HREF); 65 words, as the package brief asks",
+      "raised": [
+        "reference_words 156417 → 156482"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156417
+    "reference_words": 156482
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
