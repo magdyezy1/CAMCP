@@ -68,7 +68,8 @@ checked independently of the loaded token sheets.
 after `public-tokens.css`. The workspace shell (`index.html`) and About do not: the sheet is 2,374 Brotli bytes, and
 `en /about`, `en /report-library` and `en /reporting-overview` have 52, 343 and 1,197 bytes of room under their recorded
 route budgets, which are not raised for it. A route that uses V2 lists the sheet among its page assets, directly or
-through a component sheet that depends on it (`web/route-assets.js`), so it reaches only the routes that need it.
+through a component sheet that depends on it (`web/route-assets.js`), so it reaches only the routes that need it. The report
+builder loads it too, for its charts (`web/charts.js` brings the sheet, the button and the table of this layer).
 
 ### V2 colour
 
@@ -649,6 +650,27 @@ and `keyAction`. A page reads `amcp-change` (`id`, `checkedIds`). Branches that 
   Escape dismisses and returns focus to where it was.
 - **Do** keep the answer of a destructive confirmation in the dialog's own buttons and say what will happen; use a toast to
   confirm what happened. **Don't** put the only copy of an error in a toast.
+
+### Charts
+
+`web/charts.css` and `web/charts.js` draw the charts of a report ([Reporting Overview](REPORTING-OVERVIEW.md#charts-v2-exp-01));
+only the report builder loads them.
+
+- **Tokens.** `--chart-1` to `--chart-3` are the data hues and `--chart-other` the neutral of the combined remainder.
+  `--chart-surface` is the surface the palette was validated on (a chart draws its own), `--chart-ink`, `--chart-ink-2`,
+  `--chart-grid` and `--chart-axis` are its text and rules, and `--chart-on-1` to `--chart-on-3` and `--chart-on-other` the ink of
+  a label set on a fill (4.5:1 or more). Light: #6250d6, #eb6834 and #1baf7a, neutral #8e87a0, on #fffdf8. Dark: #9085e9,
+  #d95926 and #199e70, neutral #6e6880 (the lighter one was 9.9 from the dark violet, under the 15 that tells neighbours apart),
+  on #17141f. `tests/report-chart-palette.test.mjs` holds them equal to the palette the SVG and the PDF draw and runs the data
+  visualisation validator's checks in both themes; the light third hue fails only contrast (2.77:1), which direct labels and the
+  table make up for.
+- **Rules.** Bars and lines start at zero, with one axis. Text wears text tokens, never a series colour. There is no transition
+  or animation. A mark in focus gets the `--focus` ring, 3px. Paper and forced colours draw a stripe over the second hue, the
+  opposite stripe over the third and dots over Other. The picture is placed physically; a text that reads right to left says so
+  itself.
+- **Keyboard.** One tab stop in a picture; the arrow keys (Left and Right reversed in Arabic bars), Home and End move between
+  marks, hover and focus show a tooltip, Escape dismisses it. A mark is an image named by its words, in a named group inside a
+  `figure`; a provider's name keeps its own direction; **Show table** (`aria-expanded`) opens the table.
 
 ## The dark override layer (`theme.css`)
 
