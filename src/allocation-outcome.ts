@@ -16,9 +16,10 @@ import type {Actor, JsonObject} from './types.js';
  * Outcome window (owner decision P6, the ticket's proposed rule): the plan's reference length (`period_days`), starting
  * on the first account-local day after the last budget step was verified by read-back, so the new budgets were in force
  * all day. The window is complete once its last day has ended in the account time zone; nothing is read before then.
- * The capture repeats the proposal's own guided preset on the same login, account, currency, time zone, attribution and
- * result definition, declared complete only because the window has closed. A provider that has not finalized the window
- * yet (Snapchat) refuses the capture, and the background review tries again later.
+ * The capture repeats the proposal's own guided preset on the same login, account, currency, time zone, attribution,
+ * result definition and way of counting actions (`action_count_basis`), declared complete only because the window has
+ * closed. A provider that has not finalized the window yet (Snapchat) refuses the capture, and the background review
+ * tries again later.
  */
 export const allocationOutcomeKind = 'allocation_outcome';
 /** The guided presets an allocation plan can come from (allocation-plan.ts). */
@@ -367,6 +368,8 @@ function captureSettings(source: JsonObject): JsonObject {
       conversion_definition: sem.conversion_definition,
       source_name: ('Allocation outcome · ' + String(sem.source_name ?? source.preset)).slice(0, 200),
     },
+    // How the evidence counted its actions (src/decision-reporting.ts); evidence that has no such field leaves it out.
+    ...(source.action_count_basis !== undefined ? {action_count_basis: source.action_count_basis} : {}),
     ...(source.preset === 'meta_campaign'
       ? {
           result_action_type: sem.conversion_definition,
@@ -382,9 +385,12 @@ function captureSettings(source: JsonObject): JsonObject {
       : {}),
   };
 }
-/** The guided capture of the closed outcome window, declared complete because the window has closed. */
+/**
+ * The guided capture of the closed outcome window, declared complete because the window has closed. The basis the evidence
+ * counted its actions on is what the outcome is compared on, never an argument of the capture, which counts as it counts.
+ */
 function captureInput(settings: JsonObject, window: JsonObject): JsonObject {
-  const {gateway: _gateway, semantics, ...rest} = settings;
+  const {gateway: _gateway, action_count_basis: _basis, semantics, ...rest} = settings;
   return {
     action: 'capture_preset',
     ...rest,
@@ -398,6 +404,10 @@ function definitionChanges(settings: JsonObject, outcome: JsonObject) {
     ...['currency', 'timezone', 'attribution', 'conversion_definition'].filter(
       k => outcome.semantics?.[k] !== settings.semantics[k],
     ),
+    // How the action counts were read (src/decision-reporting.ts): under the attribution the read asked for, or as the entry's
+    // own value, which evidence read before that has no field for. The same action counted two ways is never compared;
+    // evidence with no basis on either side is compared as it always was.
+    ...(outcome.action_count_basis !== settings.action_count_basis ? ['action_count_basis'] : []),
     ...(settings.campaign_id !== undefined && outcome.source_request?.path_params?.campaign_id !== settings.campaign_id
       ? ['campaign_id']
       : []),
