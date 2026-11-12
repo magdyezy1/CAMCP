@@ -73,7 +73,7 @@ test('the details the campaign, reporting and media summaries dropped are in the
   for (const [name, dropped] of [
     ['amcp_campaign', /live:true adds read-only account prerequisites/],
     ['amcp_campaign', /Get with step_id or detail:"full" returns more/],
-    ['amcp_reporting', /a verified planâ€™s next closed period/],
+    ['amcp_reporting', /a verified plan’s next closed period/],
     ['amcp_media', /request\.transform says what changed/],
   ])
     assert.doesNotMatch(routingSummaries[name], dropped, name);

@@ -1,4 +1,4 @@
-﻿// V2-MCP-02 (decision 3): `get` narrows its rows by platform, level, entity and a row query; `list` narrows the report
+// V2-MCP-02 (decision 3): `get` narrows its rows by platform, level, entity and a row query; `list` narrows the report
 // snapshots by client, platform and state. A filter runs after the access checks and only hides; a continuation of a
 // filtered read is a cursor bound to the caller and to every argument of the read (target probe 18). Without a filter
 // the responses are the ones the website already reads. The reports are real: definition, queue, worker, row assembly and
@@ -132,12 +132,12 @@ test('get narrows its rows by platform, level, entity and query, all together, a
   assert.deepEqual(rowsOf(await get({entity: 'a1'})), ['ad:a1']);
   assert.deepEqual(rowsOf(await get({entity: 'c1', level: 'ad'})), ['ad:a1']);
   assert.deepEqual(rowsOf(await get({entity: 'no-such-entity'})), []);
-  // The query is a case-insensitive text search over IDs and names, as amcp_reportingâ€™s row_query is.
+  // The query is a case-insensitive text search over IDs and names, as amcp_reporting’s row_query is.
   assert.deepEqual(
     rowsOf(await get({query: 'prospecting'})),
     everything.filter(r => ['adset:s1', 'adset:g1'].includes(r)),
   );
-  // The names above a row count too: the ad under ad set s1 is found by that ad setâ€™s name.
+  // The names above a row count too: the ad under ad set s1 is found by that ad set’s name.
   assert.deepEqual(rowsOf(await get({query: 'AD SET S1'})), ['ad:a1']);
   assert.deepEqual(rowsOf(await get({query: 'SPRING SALE'})), ['campaign:c1', 'adset:s1', 'ad:a1']);
   assert.deepEqual(rowsOf(await get({query: 'clip', platform: 'tiktok', level: 'ad'})), ['ad:d1']);
@@ -239,7 +239,7 @@ test('a narrowed get continues only by its cursor, and a continuation with chang
   assert.equal((await f.call({action: 'get', id, limit: 1, level: 'adset', offset: 0})).success, true);
 });
 
-test('a cursor is the callerâ€™s: another person, another credential, another role or another workspace cannot use it', async t => {
+test('a cursor is the caller’s: another person, another credential, another role or another workspace cannot use it', async t => {
   const f = fixture(t),
     {id} = await f.report(['meta', 'tiktok']),
     first = await f.call({action: 'get', id, limit: 1, level: 'adset'}),
@@ -320,7 +320,7 @@ test('list narrows snapshots by state, platform and client, and continues only b
   assert.deepEqual(ids(await list({platform: 'tiktok'})), [both, queued].sort());
   assert.deepEqual(ids(await list({platform: 'meta', state: 'complete'})), [both, onlyMeta].sort());
   assert.deepEqual(ids(await list({platform: 'meta', state: 'queued'})), []);
-  // A client: the snapshots whose every source is one the clientâ€™s profile binds.
+  // A client: the snapshots whose every source is one the client’s profile binds.
   f.store.putDocument(f.actor.tenantId, 'client_profile', 'profile-meta', {
     name: 'Meta client',
     bindings: [{gateway: reportPlatforms.meta.gateway, connection_id: 'login', account_id: '100'}],
