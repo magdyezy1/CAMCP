@@ -232,10 +232,16 @@
       "raised": [
         "reference_words 154728 → 156417"
       ]
+    },
+    {
+      "reason": "V2-EXP-01 charts (package charts, 2026-11-12): the Charts section of docs/REPORTING-OVERVIEW.md (what a finished v4 snapshot stores, the six kinds, what a chart never does, exact numbers, colour, reading and switching off, where charts appear, the rendered checks) and the Charts subsection of docs/DESIGN-SYSTEM.md (the --chart-* tokens and their validation, the rules of a picture, its keyboard and assistive-technology behaviour): the documentation of a feature that spans the server, three renderers and the design system",
+      "raised": [
+        "reference_words 156417 → 157415"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 156417
+    "reference_words": 157415
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
