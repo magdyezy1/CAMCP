@@ -361,8 +361,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // catalogue measures 12,004, as it did before this package.
   // Package charts adds the Arabic of the sentences and labels a chart carries that the catalogue lacked (V2-EXP-01): 47
   // messages (the two owned reasons above among them; the include-flags reason is the earlier one, renamed; "Change" was
-  // already there), 12,051.
-  assert.equal(Object.keys(catalog).length, 12051);
+  // already there), 12,051. The page that draws the charts adds five more (charts, V2-EXP-01): the heading of its section,
+  // the button that opens a chart's table and closes it, and the two lines of the setting that switches charts off, 12,056.
+  assert.equal(Object.keys(catalog).length, 12056);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

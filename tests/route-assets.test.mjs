@@ -484,7 +484,9 @@ test('each cold route initializes its real scripts and required handlers in Engl
         for (const script of f.appended)
           if (!finished.has(script)) {
             finished.add(script);
-            f.run(fs.readFileSync('web/' + script.src.slice(8), 'utf8'));
+            // A stylesheet is a link with an address and nothing to run (the report builder loads the charts' sheet and the
+            // V2 layer's: V2-EXP-01); a script is run, as the browser would.
+            if (script.src) f.run(fs.readFileSync('web/' + script.src.slice(8), 'utf8'));
             script.onload();
           }
       }

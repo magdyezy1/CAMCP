@@ -12049,5 +12049,10 @@
   "Use charts.disabled with chart kinds from the list in bootstrap.": "استخدم charts.disabled مع أنواع المخططات الواردة في قائمة bootstrap.",
   "Since the previous period": "منذ الفترة السابقة",
   "Previous period": "الفترة السابقة",
-  "Change in percent": "نسبة التغيّر"
+  "Change in percent": "نسبة التغيّر",
+  "Charts": "المخططات",
+  "Show table": "عرض الجدول",
+  "Hide table": "إخفاء الجدول",
+  "Choose which charts this report draws.": "اختر المخططات التي يرسمها هذا التقرير.",
+  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا."
 }

@@ -97,6 +97,7 @@ const routeRegistry = [
       'report-library.js',
       'report-source-settings.js',
       'report-workflows.js',
+      'charts.js',
     ],
   },
   {

@@ -16,6 +16,8 @@ const sheets = [
   'components-data.css',
   'components-overlays.css',
   'design-system.css',
+  // V2-EXP-01 (package charts): the charts' sheet keeps the same promises, so it is held to them here.
+  'charts.css',
 ];
 const read = file => fs.readFileSync('web/' + file, 'utf8');
 const rules = file => {

@@ -618,6 +618,7 @@
   "Change targeting alone: send exactly one replace /targeting operation that holds the complete new targeting.": "غيّر الاستهداف وحده: أرسل عملية replace واحدة فقط على /targeting تحمل الاستهداف الجديد الكامل.",
   "Change what the error names in these arguments; the step is reviewed again before anything is sent.": "غيّر ما يذكره الخطأ في هذه الوسائط؛ تُراجَع الخطوة مجددًا قبل إرسال أي شيء.",
   "Chart settings belong to the current report form: send contract_version overview-config-v4.": "إعدادات المخططات جزء من صيغة التقرير الحالية: أرسل contract_version بالقيمة overview-config-v4.",
+  "Charts": "المخططات",
   "Choose 1 to 200 accounts for this client access set.": "اختر من 1 إلى 200 حساب لمجموعة وصول العميل هذه.",
   "Choose 1–20 distinct numeric TikTok location IDs (from /v1.3/tool/region/).": "اختر من 1 إلى 20 معرّف موقع رقميًا مختلفًا في تيك توك (من ‎/v1.3/tool/region/‎).",
   "Choose 1–20 distinct two-letter uppercase country codes.": "اختر بين 1–20 رمز بلد مختلفًا، يتكون كل منها من حرفين لاتينيين كبيرين.",
