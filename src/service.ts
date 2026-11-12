@@ -89,7 +89,7 @@ import {readinessContract} from './readiness.js';
 import {assertGatewayOffered, gatewayOffered} from './provider-offering.js';
 import {creativeAssetView} from './creative-library.js';
 import {sameLogin} from './connection-authority.js';
-import {accessSetView, assetsWithinAccess} from './access-sets.js';
+import {accessSetAudit, accessSetView, assetsWithinAccess} from './access-sets.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * What the audit record of a refused tool call keeps of its arguments (ARC-04 stage D): each redactor in turn removes
@@ -199,8 +199,6 @@ export function auditedRead(outcome: JsonObject): JsonObject {
   };
 }
 export const carriesProviderContent = (tool: string) => !localOnlyTools.has(tool);
-/** Audit rows of work done under a client access set name the set (SEC-08). */
-const accessSetAudit = (actor: Actor) => (actor.accessSetId !== undefined ? {access_set_id: actor.accessSetId} : {});
 /** The read that renews a lapsed ownership observation, when AMCP may run it itself: the refused call is a native read
  * or a write's prepare or inspect, and the read is the same gateway's account list narrowed to one ID. */
 function narrowedOwnershipRead(tool: string, input: JsonObject, result: JsonObject) {

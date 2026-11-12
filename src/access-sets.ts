@@ -31,6 +31,12 @@ export function setMemberAccessSet(store: Store, tenant: string, userId: string,
   if (accessSetId) store.putDocument(tenant, memberAccessSetKind, userId, {access_set_id: accessSetId});
   else store.deleteDocument(tenant, memberAccessSetKind, userId);
 }
+/**
+ * Audit rows of work done under a client access set name the set (SEC-08); work without one adds nothing. One helper for
+ * every writer of such a row (the service's tool, preview and request rows, and the report library's).
+ */
+export const accessSetAudit = (actor: Actor) =>
+  actor.accessSetId !== undefined ? {access_set_id: actor.accessSetId} : {};
 /** At most this many sets per workspace and bindings per set (profiles are capped at 100 the same way). */
 export const accessSetLimit = 100;
 export const accessSetBindingLimit = 200;
