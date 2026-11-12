@@ -50,6 +50,9 @@ const credentialShaped = {
   'a bare access_token': `access_token=${SECRET}`,
   'a short access_token': 'access_token=x',
   'a hyphenated name': `client-secret=${SECRET}`,
+  'an id_token pair (Ruling 10 B)': `id_token=${SECRET}`,
+  'an oauth_signature pair (Ruling 10 B)': `oauth_signature:${SECRET}`,
+  'an id_token JSON key (Ruling 10 B)': `{"id_token":"${SECRET}"}`,
   'a pair after a delimiter': `see ?x=1&client-secret=${SECRET}`,
   'a URL secret': `https://objects.example/f.bin?X-Amz-Signature=${SECRET}&n=1`,
   'a signed fragment': `https://objects.example/f#access_token=${SECRET}`,
@@ -177,6 +180,15 @@ test('a value that is already hidden, and a key of the credential list with a hi
     () => assertReportingConfigCredentials({...f.config, api_key: SECRET}),
     e => assertRefused(e, 'INVALID_ARGUMENT', {message: queryRefusal}),
   );
+  // Ruling 10 (B): the keys id_token and oauth_signature are listed too; `code` is not.
+  assert.doesNotThrow(() => assertReportingConfigCredentials({...f.config, id_token: '[REDACTED]'}));
+  for (const key of ['id_token', 'oauth_signature'])
+    assert.throws(
+      () => assertReportingConfigCredentials({...f.config, [key]: SECRET}),
+      e => assertRefused(e, 'INVALID_ARGUMENT', {message: queryRefusal}),
+      key,
+    );
+  assert.doesNotThrow(() => assertReportingConfigCredentials({...f.config, code: 'INVALID_ARGUMENT', note: 'code=7'}));
 });
 
 test('display and storage keep the full redaction: the prose forms are still hidden where they are shown', () => {

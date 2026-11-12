@@ -24,6 +24,9 @@ const stems = [
   ['api', 'key'],
   ['authorization', 'code'],
   ['oauth', 'token', 'secret'],
+  // Ruling 10 (B): the OpenID Connect token and the OAuth 1.0 signature.
+  ['id', 'token'],
+  ['oauth', 'signature'],
 ];
 const credentials = [
   ...new Set([
@@ -156,6 +159,16 @@ test('text that only looks like a URL is untouched in a native read result (SEC-
   assert.equal(mixed.value.name, 'token=x');
   assert.equal(mixed.value.link, `${base}?apikey=[REDACTED]&n=1`);
   assert.equal(mixed.redacted, 1);
+});
+
+test('code is not a credential name (Ruling 10 B): error codes and result codes stay readable in every form', () => {
+  // The review noted that `code` also passes through; it is an ordinary field (an error code, a result code) everywhere,
+  // so it is deliberately not in the list. `id_token` and `oauth_signature` are.
+  assert.equal(redact(`failed ?code=40002&n=1`), 'failed ?code=40002&n=1');
+  assert.equal(redact('failed code=40002 please retry'), 'failed code=40002 please retry');
+  assert.deepEqual(redact({code: 40002, message: 'x'}), {code: 40002, message: 'x'});
+  assert.equal(redact('{"code":"INVALID_ARGUMENT","n":1}'), '{"code":"INVALID_ARGUMENT","n":1}');
+  assert.equal(redactUrlSecrets(`${base}?code=abc&n=1`).value, `${base}?code=abc&n=1`);
 });
 
 test('a secret pair that holds another secret pair hides both values, as one run, and never less than the head did', () => {

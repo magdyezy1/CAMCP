@@ -102,6 +102,10 @@ const hidden = {
     ['refused'],
   ],
   'a client secret and a cookie in prose': [`client-secret=${SECRET} cookie=${SECRET}2 expired`, ['expired']],
+  'id_token and oauth_signature (Ruling 10 B)': [
+    `id_token=${SECRET} and oauth_signature: ${SECRET}2 failed`,
+    ['and', 'failed'],
+  ],
   'Proxy-Authorization': [`Proxy-Authorization: Basic ${SECRET}`, ['Proxy-Authorization:']],
   'Set-Cookie with attributes': [`Set-Cookie: session=${SECRET}; Path=/; HttpOnly`, ['Set-Cookie:']],
   'a lower-case header in a sentence': [
