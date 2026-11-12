@@ -12,7 +12,7 @@ import {
   workbookSize,
 } from './workbook-repository.js';
 import {bad, fingerprint, noSecrets, obj, workspaceCredentialKey} from './workspace-core.js';
-import {redact, guardInput} from './security.js';
+import {redact, redactCredentialShapes, guardInput} from './security.js';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
@@ -32,16 +32,16 @@ export function reportingConfigScope(store: Store, actor: Actor, config: JsonObj
   const row = configurationScope(store, config);
   return reportRunScope(store, actor, JSON.parse(row.metadata));
 }
-function redactDecodedBody(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redactDecodedBody);
+function redactDecodedBody(value: unknown, leaf: (value: unknown) => unknown = redact): unknown {
+  if (Array.isArray(value)) return value.map(item => redactDecodedBody(item, leaf));
   if (obj(value))
     return Object.fromEntries(
       Object.entries(value).map(([key, v]) => [
         key,
-        workspaceCredentialKey.test(key) ? '[REDACTED]' : redactDecodedBody(v),
+        workspaceCredentialKey.test(key) ? '[REDACTED]' : redactDecodedBody(v, leaf),
       ]),
     );
-  return redact(value);
+  return leaf(value);
 }
 /** Public projection only: never modify the retained query or job used for execution/source binding. */
 export function redactReportingConfig(config: JsonObject): JsonObject {
@@ -91,11 +91,14 @@ export function assertReportingConfigCredentials(config: JsonObject) {
       }
       guardInput(decoded);
       noSecrets(decoded);
-      if (fingerprint(decoded) !== fingerprint(redact(redactDecodedBody(decoded))))
+      // Only credential-shaped content is refused (Ruling 10); redact() also hides prose, and is what is shown.
+      if (
+        fingerprint(decoded) !== fingerprint(redactCredentialShapes(redactDecodedBody(decoded, redactCredentialShapes)))
+      )
         bad('Store credentials in Connections, not reporting queries.');
     }
   }
-  if (fingerprint(config) !== fingerprint(redact(config)))
+  if (fingerprint(config) !== fingerprint(redactCredentialShapes(config)))
     bad('Store credentials in Connections, not reporting queries.');
 }
 export function validateReportingConfig(store: Store, actor: Actor, config: JsonObject) {

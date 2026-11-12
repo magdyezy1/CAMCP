@@ -145,6 +145,44 @@ const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[
     'gi',
   ),
   metaTokens = /\bEAA[A-Za-z0-9]{60,}/g;
+/** The text of redact(): every form above. What display, storage, errors, the MCP envelope and the audit trail show. */
+const redactedText = (text: string): string =>
+  textPairs(
+    text
+      .replace(credentialHeaders, '$1$2[REDACTED]')
+      .replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]')
+      .replace(jsonSecrets, '$1"[REDACTED]"'),
+    noExemption,
+  )
+    .replace(bareParameters, '$1=[REDACTED]')
+    .replace(sentenceSecrets, '[REDACTED]')
+    .replace(metaTokens, '[REDACTED]');
+/**
+ * What the credential refusal of saved reporting queries and settings reads (Ruling 10). redact() also hides the prose
+ * forms, which is right for what is shown, stored, reported and audited, but a query or setting refused because
+ * `Password: reset funnel` or `Cookie: Spring sale` would hide something is refused for ordinary campaign and report text.
+ * This text hides only credential-shaped content, so a value is refused when it changes: a pair of the credential list
+ * (`name=value` or `name:value` with the value straight after the separator, or `token=`, `signature=`, `sig=`), a pair
+ * after `?`, `&`, `#` or `;`, a JSON key of the list, an `Authorization:` or `Proxy-Authorization:` scheme word and a
+ * token of eight or more characters, a `Cookie:` or `Set-Cookie:` that starts with a `name=value`, a Bearer token of
+ * eight or more characters, and a Meta token. The pair pass, JSON text and Meta rule are redact()'s own. A value that is
+ * already `[REDACTED]` changes nothing, so a redacted projection can be saved back. Each scan is linear as the ones above.
+ */
+const authorizationCredentials = /\b((?:proxy-)?authorization[ \t]*:[ \t]*[A-Za-z][\w.~+-]*[ \t]+)\S{8,}/gi,
+  cookieCredentials = /\b((?:set-)?cookie[ \t]*:[ \t]*)[!#$%&'*+.^_`|~0-9A-Za-z-]+=[^\r\n]*/gi,
+  bearerCredentials = /\bBearer\s+[\w.+/=-]{8,}/gi,
+  pairCredentials = new RegExp('\\b((?:' + secretKeyNames + ')[=:]|(?:token|signature|sig)=)[^\\s,;&]+', 'gi');
+const credentialText = (text: string): string =>
+  textPairs(
+    text
+      .replace(authorizationCredentials, '$1[REDACTED]')
+      .replace(cookieCredentials, '$1[REDACTED]')
+      .replace(bearerCredentials, 'Bearer [REDACTED]')
+      .replace(jsonSecrets, '$1"[REDACTED]"'),
+    noExemption,
+  )
+    .replace(pairCredentials, '$1[REDACTED]')
+    .replace(metaTokens, '[REDACTED]');
 /**
  * Native read results keep provider text verbatim, except secrets inside URLs (SEC-04): in every string that is an
  * absolute http(s) URL, the value of each query or fragment parameter that redact() treats as secret becomes
@@ -172,8 +210,9 @@ export function redactUrlSecrets(
   const out = walk(value, false);
   return {value: out, redacted};
 }
-export function redact(value: unknown): any {
-  if (Array.isArray(value)) return value.map(redact);
+/** The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller. */
+function redactWith(value: unknown, text: (text: string) => string): any {
+  if (Array.isArray(value)) return value.map(item => redactWith(item, text));
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => [
@@ -184,21 +223,22 @@ export function redact(value: unknown): any {
             ? '[BINARY_REDACTED]'
             : secretKey.test(k)
               ? '[REDACTED]'
-              : redact(v),
+              : redactWith(v, text),
       ]),
     );
-  if (typeof value === 'string')
-    return textPairs(
-      value
-        .replace(credentialHeaders, '$1$2[REDACTED]')
-        .replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]')
-        .replace(jsonSecrets, '$1"[REDACTED]"'),
-      noExemption,
-    )
-      .replace(bareParameters, '$1=[REDACTED]')
-      .replace(sentenceSecrets, '[REDACTED]')
-      .replace(metaTokens, '[REDACTED]');
+  if (typeof value === 'string') return text(value);
   return value;
+}
+export function redact(value: unknown): any {
+  return redactWith(value, redactedText);
+}
+/**
+ * The credential refusal's view of a value (Ruling 10): redact() with only the credential-shaped text forms, so a saved
+ * reporting query or setting is refused when `redactCredentialShapes(x)` differs from `x`, and ordinary text is not.
+ * Object keys are redact()'s.
+ */
+export function redactCredentialShapes(value: unknown): any {
+  return redactWith(value, credentialText);
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {
   if (depth > 50) throw new MirrorError('INVALID_ARGUMENT', 'Input exceeds maximum nesting depth.');

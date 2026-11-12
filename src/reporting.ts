@@ -14,7 +14,7 @@ import {
   assertReportingConfigCredentials,
 } from './report-query-access.js';
 import {bad, fingerprint, noSecrets} from './workspace-core.js';
-import {redact} from './security.js';
+import {redactCredentialShapes} from './security.js';
 import {reportRange} from './report-periods.js';
 import {fixedReportTimezones} from './report-windows.js';
 import {reportingBindingMove, moveWorkbookSchedules} from './report-query-rebinding.js';
@@ -205,7 +205,8 @@ export class ReportingService {
       delete changes.pause_reason;
     }
     noSecrets(changes);
-    if (fingerprint(changes) !== fingerprint(redact(changes)))
+    // Only credential-shaped content is refused (Ruling 10); redact() also hides prose, and is what is shown.
+    if (fingerprint(changes) !== fingerprint(redactCredentialShapes(changes)))
       bad('Store credentials in Connections, not reporting settings.');
     const value: JsonObject = {...previous, ...changes, updated_at: new Date().toISOString()};
     const bound = () => {
