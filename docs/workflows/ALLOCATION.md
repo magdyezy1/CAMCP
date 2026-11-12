@@ -73,7 +73,8 @@ account-local day after the last verified step, so the new budgets were in force
 last day has ended in the account time zone. Nothing is read before then: `capture_allocation_outcome` refuses with
 `ALLOCATION_OUTCOME_NOT_DUE`. After the window closes, a background job (as the person whose verified execution
 completed the plan) repeats the proposal's own guided preset on the same login, account, currency, time zone,
-attribution and result definition, and retains it as ordinary guided evidence. A provider that has not finalized the
+attribution, result definition and way of counting actions (a Meta capture counts the attribution windows it asked for
+and says so in `action_count_basis`), and retains it as ordinary guided evidence. A provider that has not finalized the
 window (Snapchat) or a rate limit is retried up to six times with growing delays; any other refusal is recorded and an
 authorized member can review the outcome from the plan page (**Review the outcome now**) or with
 `capture_allocation_outcome {id}`. A verified plan without an outcome record (it completed before this release, or
@@ -88,7 +89,10 @@ An entity without outcome rows stays unknown and partial days are named; nothing
 observational comparisons: they do not show that the budget change caused a difference, are not forecast accuracy and
 are not adjusted for seasonality, auctions, creatives, tracking or attribution changes. The outcome capture is offered
 as calibration evidence (`calibrate_allocation` when it covers 14–31 closed days). A plan whose evidence was deleted
-or changed, or whose proposal can no longer be reproduced exactly, is recorded `unavailable`. At most 500 outcome
+or changed, or whose proposal can no longer be reproduced exactly, is recorded `unavailable`. So is an outcome whose
+capture used other measurement settings than the proposal's evidence (`measurement_definition_changed`, with the
+settings in `changed_fields`): evidence retained before Meta captures counted the requested windows has no
+`action_count_basis`, so an outcome read after that is never compared with it. At most 500 outcome
 records are kept per workspace; the oldest finished ones are removed first. Causal experiments (Google experiments,
 LinkedIn lift tests) stay separate workflows.
 
