@@ -107,4 +107,24 @@ test('a whole report PDF with charts is exported when a campaign name has a mark
     assert.ok(words.includes('Plain name'), JSON.stringify(options) + ': the other names are drawn too');
     assert.ok(words.includes('Summer sale'), JSON.stringify(options) + ': the name with the mark is drawn');
   }
+  // Each name once as the largest entity of its chart: the sentences that quote the largest entity (the takeaway, the notes) are
+  // flowing text, which a Latin report draws with PDFKit's own text call, and which threw for a no-break space and a mark with
+  // or without the shaping option.
+  for (const name of campaignNames)
+    for (const options of [{}, {artifact_language: 'ar'}]) {
+      const lone = [
+          chartRow('c1', '100', '2', {campaign_name: name}),
+          chartRow('c2', '50', '2', {campaign_name: 'Plain name'}),
+          chartRow('c3', '10', '2', {campaign_name: 'Other name'}),
+        ],
+        label = JSON.stringify(name) + ' ' + JSON.stringify(options);
+      let bytes;
+      await assert.doesNotReject(
+        async () => (bytes = await reportPdf(withCharts([of(charts(lone), 'spend_by_entity')[0]]), options)),
+        label,
+      );
+      const words = pdfWords(bytes);
+      assert.ok(words.includes('Plain name'), label + ': the other names are drawn');
+      assert.ok(words.includes(name.split(/[\s ]/u)[0]), label + ': the name is drawn');
+    }
 });
