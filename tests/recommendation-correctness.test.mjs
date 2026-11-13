@@ -141,7 +141,13 @@ test('a KPI without a derivable direction needs one: refused in new targets, hel
     assert.equal(report.state, 'complete', JSON.stringify(report.sources));
     assert.equal(report.config.contract_version, 'overview-config-v4');
     assert.equal(report.rows[0].recommendation.decision, 'needs_review');
-    assert.equal(report.rows[0].recommendation.evidence, undefined, 'v4 compact responses keep advice evidence opt-in');
+    // Ruling 14 (package website-get): a compact v4 row keeps the evidence its recommendation rests on, since the website
+    // prints it in the rows table; it was opt-in (include.native) before.
+    assert.deepEqual(
+      report.rows[0].recommendation.evidence,
+      {kpi: 'profit', field: 'direction'},
+      'v4 compact responses keep the advice evidence',
+    );
     const detail = await f.overview.handle({action: 'get', id: report.id, include: {native: true}}, f.actor);
     assert.equal(
       detail.rows[0].recommendation.evidence?.field,
