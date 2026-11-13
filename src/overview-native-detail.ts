@@ -242,6 +242,8 @@ export function nativeDetailResult(
     range: JsonObject;
     providerComplete: boolean;
     resultDefinition: string;
+    /** An attribution the source verified with its platform, which the detailed source reports instead of its declared one. */
+    verifiedAttribution?: string;
     warnings: string[];
     context: JsonObject;
     rounding: Record<string, number>;
@@ -253,6 +255,7 @@ export function nativeDetailResult(
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options,
+    attribution = base.verifiedAttribution ?? options.attribution,
     rounded = metricRoundingRecord(base.rounding);
   if (detail.rows.length > reportUnitRowLimit)
     throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
@@ -282,7 +285,7 @@ export function nativeDetailResult(
           currency: base.currency,
           date_from: base.range.since,
           date_to: base.range.until,
-          attribution: options.attribution,
+          attribution,
         },
       },
       detail.parents,
@@ -300,7 +303,7 @@ export function nativeDetailResult(
     collection_complete: base.providerComplete,
     complete,
     ...base.context,
-    attribution: options.attribution,
+    attribution,
     result_definition: base.resultDefinition,
     warnings: [
       'Detailed rows retain the native entity level and exact additive window totals. Reach and frequency are never summed; missing values stay unknown. Reporting-window completeness and attribution remain explicitly declared.',

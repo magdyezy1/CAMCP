@@ -491,6 +491,7 @@ export class NativeCampaignReports {
         range,
         providerComplete: c.complete,
         resultDefinition: c.resultDefinition,
+        verifiedAttribution: c.verifiedAttribution,
         warnings: c.warnings,
         context: c.context,
         rounding: c.detailRounding,

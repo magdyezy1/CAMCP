@@ -55,6 +55,33 @@ async function run(t, level, {conversions = [], changes = {}, ...options} = {}) 
 const rulesRead = f => f.requests.filter(p => p.path === '/rest/conversions');
 const stored = (f, report) => f.store.document(f.actor.tenantId, 'overview_report', report.id);
 
+// The campaign and creative positions read their own native rows, so they take the pair as the campaign-group position does,
+// in place of the attribution a detailed source otherwise declares in its report options.
+for (const level of ['adset', 'ad'])
+  test('a v4 ' + level + ' source of website conversions carries the pair, not its declared attribution', async t => {
+    const {
+      f,
+      report,
+      source: s,
+    } = await run(t, level, {
+      conversions: [linkedinConversionRule('501', 7, 1)],
+      changes: {
+        sources: [{...source(level), report_options: {complete_window: true, attribution: 'declared by the owner'}}],
+      },
+    });
+    assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+    assert.equal(s.attribution, verifiedPair(7, 1));
+    assert.equal(stored(f, report).rows[0].attribution, verifiedPair(7, 1));
+    assert.equal(report.summary[0].attribution, verifiedPair(7, 1));
+    assert.equal(
+      s.warnings.some(w => unverifiedWarning.test(w)),
+      false,
+      JSON.stringify(s.warnings),
+    );
+    assert.equal(s.level_results[0].conversion_windows.status, 'verified_per_rule');
+    assert.equal(rulesRead(f).length, 1);
+  });
+
 test('a v4 campaign-group source of website conversions takes the one window pair its account’s rules share', async t => {
   const {
     f,
