@@ -270,6 +270,19 @@ test('scheduled, due, unavailable and not-scheduled reviews say what happens nex
       unavailable,
       locale === 'en' ? /evidence report changed after the plan was created/ : /تغيّر تقرير البيانات/,
     );
+    // An outcome read on other measurement settings than its evidence, among them the way it counted actions (Meta captures that
+    // counted the requested windows against evidence that did not): its sentence exists in both languages.
+    const changed = view({
+      state: 'unavailable',
+      reason: 'measurement_definition_changed',
+      changed_fields: ['action_count_basis'],
+    });
+    assert.match(
+      changed,
+      locale === 'en'
+        ? /used different measurement settings than the proposal/
+        : /إعدادات قياس تختلف عن إعدادات المقترح/,
+    );
     const pending = view({state: 'not_scheduled', reason: 'steps_not_verified', meaning: allocationOutcomeCopy.at(-1)});
     assert.match(pending, locale === 'en' ? /verified by read-back/ : /بقراءة لاحقة/);
     // An unrecognised code is shown literally, never translated into something else.

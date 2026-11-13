@@ -58,15 +58,19 @@ A v4 Meta row is read in this order (`src/meta-report-results.ts`):
    the sum equals the `default` value; otherwise, and when the count came from the action's keys, the cost is spend over
    the result, exactly. A cost that is not the recorded shape or not a decimal is ignored, never fatal.
 7. Source `provider`. The definition (id, label, aggregation) comes from one declared table, `metaResultIndicators`, with
-   `meta:action:<type>` (summed) and `meta:result:<indicator>` (not summed) for an indicator Meta adds later, so different
+   `meta:result:actions:<type>` (summed) and `meta:result:<indicator>` (not summed) for an indicator Meta adds later, so different
    indicators never add. A custom conversion, an action and a metric Meta adds later are labelled with their own bounded value
    (`Custom conversion <digits>`, `Meta action <type>`, `Meta result <indicator>`), and so is the exact action a person chose
-   (`Selected Meta action <type>`, grouped as `meta:action:<type>`), so two of them in one report never share a label. A
-   multi-day detail row built from provider days stays `provider` (`periods_add`).
+   (`Selected Meta action <type>`, grouped as `meta:action:<type>`), so two of them in one report never share a label. The
+   indicator form `meta:result:actions:<type>` and the chosen action `meta:action:<type>` are different ids on purpose: Meta's
+   own result for an action and AMCP's mapping of the same action are two definitions, and an objective group that holds both
+   holds a comparison of costs back. A multi-day detail row built from provider days stays `provider` (`periods_add`).
 
 F-LEAD-02: under explicit windows a v4 report reads the requested windows' keys of every Meta list of action stats it reads
 (R14): the campaign metrics, conversion value, a detail level's exact action and every native metric that is such a list
-(`native_meta_<list>_<action>`; any field name can be a native metric of a campaign source). Meta types all of these lists as
+(`native_meta_<list>_<action>`; any field name can be a native metric of a campaign source). So does every guided capture a
+person or the allocation outcome review asks for (`capture_preset`: the presets, the dimension packs, the allocation
+evidence), which always asks Meta for explicit windows, for the action and the value it maps. Meta types all of these lists as
 AdsActionStats: an entry has `value`, the ad set's own setting, and a number under each requested window's name. Only
 `actions` was read live (R14); `results` and `cost_per_result` have the shape of R2 and are read as R9 and R13 say. The other
 lists follow from the type and have not been read. AMCP reads them by what a number is (`src/meta-report-results.ts`, one
@@ -83,7 +87,19 @@ place for the lists):
 - Any other list is split when its entries carry one of AMCP's window names (one window gives its key, several give none) and
   not split when they carry none, as the video metrics came back (R12): `value` stands.
 
-A v3 report reads `value`, as before, and so does a v4 report under the ad set's own setting.
+A v3 report reads `value`, as before, and so does a v4 report under the ad set's own setting. So does the transient capture of a
+v3 Overview report (that is the byte-identical v3 gate) and a `capture` made with the caller's own arguments and mapping, which is
+no preset and has no Meta source to ask.
+
+A capture can also answer unknown, with a reason. A number that does not add, asked for under several windows, or under one window
+the entry has no key for, is unknown, never the omitted zero: the row carries `unknown_reasons` (`{metric: reason}`, the reasons
+`attribution_windows_do_not_add` and `no_number_for_attribution_window`), the report carries the rows per metric and reason, and
+the metric's coverage stays `partial`. The presets map only `actions` and `action_values`, which add, so these two answers are
+reached only by a mapping of another list. And a retained capture that counted an action this way carries
+`action_count_basis: "requested_attribution"` (`src/decision-reporting.ts`). The allocation outcome review
+(`src/allocation-outcome.ts`) freezes it with its other settings and compares an outcome only with evidence that has the same one:
+evidence retained before has none and counted `value`, so its outcome is `unavailable`, reason `measurement_definition_changed`,
+with `action_count_basis` in `changed_fields`; evidence with none on either side (Google's) is compared as before.
 
 The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `REACH` and `BRAND_AWARENESS` to awareness,
 `MESSAGES`, `EVENT_RESPONSES`, `PAGE_LIKES` and `POST_ENGAGEMENT` to engagement); a v3 report resolves them as before.
@@ -103,4 +119,6 @@ The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `R
   split by window, and that a ratio or a cost of two windows has no value of its own, are assumptions.
 - The key under which Meta returns the engaged-view window AMCP asks for as `1d_ev` was not seen: the notes of the live read
   name `7d_click`, `1d_view` and `1d_click` and none names `1d_ev`. AMCP reads the key named as the request names it.
+- The unknown answers of a capture (a list that does not add, under several windows or under a window with no key) are tested
+  with a mapping of such a list on a synthetic read only; no preset maps one, and none was run against a live account.
 - The V2 code has not been read against a live account: that check waits for staging (D20).

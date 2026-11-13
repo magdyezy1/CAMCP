@@ -138,7 +138,14 @@ reused; continuation URLs and their credentials are never followed or copied. Em
 when another page is advertised. At most 100 pages/10,000 rows share the same request/time/byte bounds. Both account
 checks and every page retain source references. On a delivered row (impressions above 0) an absent selected action
 counts as 0 and is named in `omitted_as_zero` (Meta omits zero-valued action entries); a row without delivery keeps
-it unknown. Overlapping action aliases are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
+it unknown. Overlapping action aliases are never added. Under the explicit windows the request asks for, Meta returns an
+action entry's `value` for the ad set's own attribution setting and each requested window's number under the window's
+name, so the selected action and its value are the requested windows' numbers added exactly (a window with no number
+counts 0), never `value`. A number that does not add across windows would be unknown with its reason in `unknown_reasons`,
+never the omitted zero (no preset maps one today). Evidence counted this way carries
+`action_count_basis: "requested_attribution"`; evidence retained by an earlier release has no such field and counted
+`value`, so the [allocation outcome review](ALLOCATION.md#outcome-review-dec-02) never compares an outcome with it. A
+`capture` with your own `arguments` and `mapping` is not a preset and still reads `value`. Window completeness remains declared, and complete paging does not prove conversion delivery.
 See the [Meta evidence qualification](../records/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
 does not certify live provider acceptance.
 

@@ -16,13 +16,14 @@ import {
 import {nativeDetailResult} from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
-import type {
-  AccountLookupCache,
-  DetailCollector,
-  DetailParents,
-  ReportCollection,
-  ReportSource,
-  ReportSourceRow,
+import {
+  reportActionUnknown,
+  type AccountLookupCache,
+  type DetailCollector,
+  type DetailParents,
+  type ReportCollection,
+  type ReportSource,
+  type ReportSourceRow,
 } from './report-source.js';
 import {reportRange} from './report-periods.js';
 import {unavailableReportResult, type ReportResultContext} from './report-results.js';
@@ -148,8 +149,8 @@ function numericNative(
       for (const a of v)
         if (a && typeof a === 'object' && typeof a.action_type === 'string') {
           const count = counted ? counted(a, key, {options}) : a.value;
-          // No count under the attribution asked for: the provider left a zero out, as for an absent action.
-          if (counted && count === undefined) continue;
+          // No count under the attribution asked for: the provider left a zero out, as for an absent action, or has no number there.
+          if (counted && (count === undefined || reportActionUnknown(count) !== undefined)) continue;
           output['native_' + platform + '_' + (key + '_' + a.action_type).replace(/[^a-zA-Z0-9_]/g, '_')] =
             exact && count !== undefined && count !== null && count !== '-' && count !== '--'
               ? providerDecimalText(count, {field: key})

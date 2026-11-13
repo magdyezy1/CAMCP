@@ -43,6 +43,20 @@ export interface ReportAttributionAsked {
   request?: JsonObject;
 }
 
+/**
+ * What `ReportSource.actionCount` answers when the provider gives no number for the attribution asked and a zero it left out is
+ * not the reason (a number that does not add across several windows, or one the provider has no value of its own for): the entry
+ * is unknown, and `unknown` is a code saying why, which the evidence keeps. Never a count of 0.
+ */
+export interface ReportActionUnknown {
+  readonly unknown: string;
+}
+/** The reason an `actionCount` answer says the entry is unknown, or undefined when it is a count (or the omitted zero). */
+export const reportActionUnknown = (count: unknown): string | undefined =>
+  count && typeof count === 'object' && typeof (count as ReportActionUnknown).unknown === 'string'
+    ? (count as ReportActionUnknown).unknown
+    : undefined;
+
 /** What a source reads from one native row: its identity and the shared metrics. */
 export interface ReportSourceRow {
   id: unknown;
@@ -472,10 +486,12 @@ export interface ReportSource {
   /** Reads one native campaign report row. */
   normalize(raw: JsonObject, row: ReportRowReader): ReportSourceRow;
   /**
-   * The count of one `{action_type, value}` entry of a native row’s list `field` for a v4 report, under what the report
-   * asked the provider for: the entry’s `value`, or the provider’s count for the attribution it was asked for (Meta
-   * returns the ad set’s own setting as `value` and each requested window’s count under the window’s name). Undefined: the
-   * entry has no count under that attribution, because the provider left a zero out. Absent: the entry’s `value`.
+   * The count of one `{action_type, value}` entry of a native row’s list `field` for a v4 report, and for a guided capture a
+   * person or the outcome review asks for, under what the read asked the provider for: the entry’s `value`, or the provider’s
+   * count for the attribution it was asked for (Meta returns the ad set’s own setting as `value` and each requested window’s
+   * count under the window’s name). Undefined: the entry has no count under that attribution, because the provider left a zero
+   * out. A `ReportActionUnknown`: the entry has no number there and a left-out zero is not the reason. Absent: the entry’s
+   * `value`. A v3 Overview report never asks: it reads the entry’s `value`, exactly as it always did.
    */
   actionCount?(entry: JsonObject, field: string, asked: ReportAttributionAsked): unknown;
   // Wave 4c round 6 (w4c-arc6-reporting).

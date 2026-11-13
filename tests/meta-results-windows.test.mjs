@@ -238,17 +238,21 @@ test('a window key is any of the windows AMCP asks Meta for', () => {
 test('a guided read counts every list under the windows its request asked for, and v3 and unified requests read value', () => {
   const asked = windows => ({request: {query: {action_attribution_windows: windows}}}),
     item = stats();
+  // A number that does not add has none for several windows: the answer says it is unknown and why (never a zero left out).
+  const several = {unknown: 'attribution_windows_do_not_add'};
   for (const [field, windows, expected] of [
     ['actions', ['7d_click', '1d_view'], '5'],
     ['conversions', ['7d_click', '1d_view'], '5'],
     ['cost_per_conversion', ['7d_click'], '4'],
-    ['cost_per_conversion', ['7d_click', '1d_view'], undefined],
-    ['purchase_roas', ['7d_click', '1d_view'], undefined],
-    ['unique_actions', ['7d_click', '1d_view'], undefined],
-    ['stats_added_later', ['7d_click', '1d_view'], undefined],
+    ['cost_per_conversion', ['7d_click', '1d_view'], several],
+    ['purchase_roas', ['7d_click', '1d_view'], several],
+    ['unique_actions', ['7d_click', '1d_view'], several],
+    ['stats_added_later', ['7d_click', '1d_view'], several],
     ['stats_added_later', ['1d_view'], '1'],
+    ['stats_added_later', ['1d_click'], {unknown: 'no_number_for_attribution_window'}],
+    ['conversions', ['1d_click'], undefined],
   ])
-    assert.equal(
+    assert.deepEqual(
       metaReportSource.actionCount(item, field, asked(windows)),
       expected,
       field + ' ' + windows.join(' + '),

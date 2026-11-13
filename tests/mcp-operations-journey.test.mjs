@@ -2391,7 +2391,10 @@ test('MCP guided campaign capture to bounded allocation uses advertised contract
         spend: row.spend,
         clicks: '20',
         impressions: '1000',
-        actions: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: row.conversions}],
+        // Under explicit windows (7d_click here) Meta returns the window's count under its name beside the ad set's own `value`.
+        actions: [
+          {action_type: 'offsite_conversion.fb_pixel_purchase', value: row.conversions, '7d_click': row.conversions},
+        ],
       })),
     });
   });
@@ -2572,9 +2575,10 @@ test('MCP discovery to Meta evidence to verified linked-ad performance follows c
           spend: '12.5',
           clicks: '10',
           impressions: '100',
+          // The window the capture asks for (7d_click) has its count under its name beside the ad set's own `value`.
           actions: [
-            {action_type: 'purchase', value: '999'},
-            {action_type: 'offsite_conversion.fb_pixel_purchase', value: '2'},
+            {action_type: 'purchase', value: '999', '7d_click': '999'},
+            {action_type: 'offsite_conversion.fb_pixel_purchase', value: '2', '7d_click': '2'},
           ],
         },
       ],

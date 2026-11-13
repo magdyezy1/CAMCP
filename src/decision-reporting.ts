@@ -21,7 +21,13 @@ import {assertCompatibleBaseline, compareDeclaredReference, compareReportContext
 import {allocationOutcomeView, captureAllocationOutcome} from './allocation-outcome.js';
 import {breakdownDescriptor, breakdownDimensionKeys, breakdownValue} from './report-breakdowns.js';
 import {guidedReportSources, googleServingDiagnostics, metaAttributionWindows} from './report-sources.js';
-import type {AccountLookupCache, GuidedDimension, GuidedReporting, ReportSource} from './report-source.js';
+import {
+  reportActionUnknown,
+  type AccountLookupCache,
+  type GuidedDimension,
+  type GuidedReporting,
+  type ReportSource,
+} from './report-source.js';
 import {evidenceIndex} from './evidence-index.js';
 import {launchCheck} from './launch-check.js';
 import {
@@ -268,14 +274,26 @@ function semantic(input: JsonObject) {
   if (typeof input.complete !== 'boolean') bad('Declare whether the requested reporting window is complete.');
   return input;
 }
-function compatibility(a: JsonObject, b: JsonObject) {
+/**
+ * The settings two retained reports must share to be used together. `adds` is for a caller that adds their counts (combine):
+ * it also needs the counts read one way, so a different `action_count_basis` (how capture() counted an action entry; a capture
+ * retained before has none) is one more mismatch, and the refusal names the fields. An analyze baseline is checked for the same
+ * by assertCompatibleBaseline (src/report-references.ts), which names them in its own sentence.
+ */
+function compatibility(a: JsonObject, b: JsonObject, adds = false) {
   const fields = ['currency', 'timezone', 'attribution', 'conversion_definition'];
   const mismatch = fields.filter(
     k =>
       a.semantics[k] !== b.semantics[k] ||
       (['attribution', 'conversion_definition'].includes(k) && a.semantics[k] === 'unknown'),
   );
-  if (mismatch.length) bad('Report semantics cannot be combined: ' + mismatch.join(', '), 'REPORT_SEMANTICS_MISMATCH');
+  if (adds && a.action_count_basis !== b.action_count_basis) mismatch.push('action_count_basis');
+  if (mismatch.length)
+    bad(
+      'Report semantics cannot be combined: ' + mismatch.join(', '),
+      'REPORT_SEMANTICS_MISMATCH',
+      adds ? {fields: mismatch} : undefined,
+    );
 }
 /** One amcp_reporting call (ARC-04 stage D): a preset names its capture; the Overview collector's is transient. */
 interface ReportingCall extends ToolContext {
@@ -741,6 +759,10 @@ export class DecisionReporting {
     } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
     // A guided preset's capture is collected by its platform (ARC-01 reporting: its report source's guided reporting).
     const actionSource = guidedSourceByPreset(capturePreset),
+      // A v4 report, and every capture a person or the outcome review asks for, count an action entry under what the read asked
+      // its platform for (ReportSource.actionCount). The transient capture of a v3 Overview report reads the entry's value, as
+      // it always did.
+      countedByRequest = (overviewV4 || !transient) && actionSource?.actionCount !== undefined,
       guided = actionSource?.guided,
       collected = guided?.collect
         ? await guided.collect({
@@ -773,10 +795,13 @@ export class DecisionReporting {
     // RPT-04 (owner policy P6): guided Meta pages are complete, and Meta omits zero-valued action entries, so a
     // delivered row (impressions above 0) counts an absent selected action as 0 and names it in `omitted_as_zero`.
     const metaOmittedZero = !!collected && guided?.omittedAsZero === true,
-      omittedCounts: Record<string, number> = {};
+      omittedCounts: Record<string, number> = {},
+      // A number the platform has none of for the attribution asked is unknown, with why (never the omitted zero above).
+      unknownCounts: Record<string, Record<string, number>> = {};
     const rows = raw.map(r => {
       const out: JsonObject = {},
-        omitted: string[] = [];
+        omitted: string[] = [],
+        unknownBecause: Record<string, string> = {};
       let delivered = false;
       if (metaOmittedZero)
         try {
@@ -808,7 +833,7 @@ export class DecisionReporting {
           continue;
         }
         const path = typeof spec === 'string' ? spec : spec.path;
-        let value: any;
+        let value: any, unknown: string | undefined;
         try {
           value = pointer(r, path);
         } catch {
@@ -820,15 +845,23 @@ export class DecisionReporting {
           const matching = value.filter(v => v.action_type === spec.action_type);
           if (matching.length > 1)
             bad('The native action metric has duplicate selected action types.', 'REPORT_METRIC_AMBIGUOUS');
-          // A v4 report counts the entry under what the read asked its platform for (ReportSource.actionCount); an entry
-          // with no count there is an omitted zero. Every other capture reads the entry's value.
-          value =
-            (overviewV4 && matching[0] && actionSource?.actionCount
-              ? actionSource.actionCount(matching[0], String(spec.path).replace(/^\//, ''), {request: args})
-              : matching[0]?.value) ?? null;
+          // Under what the read asked its platform for (ReportSource.actionCount) an entry with no count is an omitted zero,
+          // and an entry the platform has no number for is unknown, with the reason. Otherwise the entry's value is read.
+          const counted =
+            countedByRequest && matching[0]
+              ? actionSource!.actionCount!(matching[0], String(spec.path).replace(/^\//, ''), {request: args})
+              : matching[0]?.value;
+          unknown = reportActionUnknown(counted);
+          value = unknown === undefined ? (counted ?? null) : null;
+          if (unknown !== undefined) {
+            unknownBecause[key] = unknown;
+            const reasons = (unknownCounts[key] ??= {});
+            reasons[unknown] = (reasons[unknown] ?? 0) + 1;
+          }
         }
         if (
           (value === null || value === undefined) &&
+          unknown === undefined &&
           delivered &&
           obj(spec) &&
           spec.action_type !== undefined &&
@@ -887,6 +920,7 @@ export class DecisionReporting {
       )
         nativeCountryMappingFailure('Native geographic dimensions disagree with their original resource identity.');
       if (omitted.length) out.omitted_as_zero = omitted;
+      if (Object.keys(unknownBecause).length) out.unknown_reasons = unknownBecause;
       return out;
     });
     // RPT-07 (B18): the conversion preset joins every reported conversion to its current rule's windows. The rules are
@@ -966,6 +1000,14 @@ export class DecisionReporting {
           ]),
         ),
         ...(Object.keys(omittedCounts).length ? {omitted_as_zero: omittedCounts} : {}),
+        ...(Object.keys(unknownCounts).length ? {unknown_reasons: unknownCounts} : {}),
+        // How the retained action counts were read: under the attribution the read asked for, not the entry's own `value`.
+        // Evidence read before that has no such field, so the outcome review can tell the two apart (allocation-outcome.ts).
+        ...(countedByRequest &&
+        !transient &&
+        Object.values(mapping).some(spec => obj(spec) && spec.action_type !== undefined)
+          ? {action_count_basis: 'requested_attribution'}
+          : {}),
         source: 'provider_read',
       };
     if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
@@ -1106,7 +1148,7 @@ export class DecisionReporting {
     const seen = new Set<string>();
     for (const r of all) {
       this.store.resolveConnection(actor, r.gateway, r.account_id, r.connection_id);
-      compatibility(report, r);
+      compatibility(report, r, true);
       if (r.semantics.date_from !== report.semantics.date_from || r.semantics.date_to !== report.semantics.date_to)
         bad('Combined reports must cover the same window.');
       const key = [r.gateway, r.account_id].join('/');

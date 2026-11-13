@@ -268,10 +268,16 @@
       "raised": [
         "reference_words 159392 → 159457"
       ]
+    },
+    {
+      "reason": "Package meta-results, follow-up after ebc93efd (rulings 5 to 11), merged after sec-hardening: +358 reference words, recorded in two steps on its own branch (156845 -> 157163, +318, rulings 5 and 7: how guided Meta captures count the requested attribution windows, the outcome review's refusal across bases and the record's captures paragraph; 157163 -> 157203, +40, ruling 11: one sentence in the Analysis bullet of docs/REPORTING-OVERVIEW.md, that a capture counted before the attribution-window change cannot be an analyze baseline, a reconciliation reference or a combined report). The merged count is the measured one: 159457 + 358 = 159815",
+      "raised": [
+        "reference_words 159457 → 159815"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159457
+    "reference_words": 159815
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

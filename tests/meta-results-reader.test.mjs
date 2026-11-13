@@ -81,10 +81,11 @@ test('Meta results: every indicator of the declared table gives its id, label, a
 test('Meta results: different indicators have different definitions, so they are never added', () => {
   const ids = samples.indicators.map(item => item.id);
   assert.equal(new Set(ids).size, ids.length);
-  // An action Meta adds later, and a metric it adds later, are still read, as results of their own.
+  // An action Meta adds later, and a metric it adds later, are still read, as results of their own. An action's definition is
+  // the indicator's (`meta:result:actions:<type>`), never the id of the exact action a person chooses (`meta:action:<type>`).
   assert.equal(
     read({impressions: '1', results: [entry('actions:onsite_conversion.post_save', [wire('4')])]}).definition.id,
-    'meta:action:onsite_conversion.post_save',
+    'meta:result:actions:onsite_conversion.post_save',
   );
   assert.equal(
     read({impressions: '1', results: [entry('thruplay_views', [wire('4')])]}).definition.id,
