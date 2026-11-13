@@ -485,6 +485,66 @@ test('evaluation arguments: one mode, every option once; a baseline is never wri
     assert.throws(() => evaluationArguments(argv), /Use: |BASELINE_PARTIAL/, JSON.stringify(argv));
 });
 
+test('evaluation arguments: --profile names the contract profile of a check, and a baseline is never written from another', () => {
+  // Without it nothing changes: the arguments of a plain run are what they were, and the profile is the legacy one.
+  assert.equal('profile' in evaluationArguments([]), false);
+  for (const profile of ['legacy', 'v2']) assert.equal(evaluationArguments(['--profile', profile]).profile, profile);
+  assert.equal(evaluationArguments(['--only', 'J7', '--profile', 'v2', '--transcripts']).profile, 'v2');
+  for (const argv of [
+    ['--profile'],
+    ['--profile', 'v3'],
+    ['--profile', ''],
+    ['--profile', 'V2'],
+    ['--profile', 'v2', '--profile', 'legacy'],
+    ['--sanitize', 'raw.json', '--output', 'new.json', '--profile', 'v2'],
+    ['--external', 'runs.json', '--profile', 'v2'],
+    ['--skill-report', 'report.md', '--profile', 'v2'],
+  ])
+    assert.throws(() => evaluationArguments(argv), /Use: /, JSON.stringify(argv));
+  // The committed baseline is the legacy profile's: no profile writes it, not even the legacy one named outright.
+  for (const profile of ['v2', 'legacy'])
+    assert.throws(() => evaluationArguments(['--write-baseline', '--profile', profile]), /BASELINE_PROFILE/, profile);
+});
+
+test('the evaluation runs as a client of the profile it is asked for, and the legacy evaluator is the baseline’s own', async () => {
+  const asked = async profile => {
+    const f = await evaluationFixture({profile});
+    try {
+      const topic = await f.call('amcp_workspace', {action: 'help', topic: 'mcp_profile'});
+      return {profile: topic.data.profile, listing: f.discovery.tools_list_bytes, client: f.actor.userId};
+    } finally {
+      await f.close();
+    }
+  };
+  const [plain, legacy, v2] = [await asked(undefined), await asked('legacy'), await asked('v2')];
+  // The legacy evaluator is what it always was: no profile named is the legacy profile, as the committed baseline measured it.
+  assert.deepEqual(plain, legacy);
+  assert.equal(legacy.profile, 'legacy');
+  assert.equal(legacy.client, 'evaluator');
+  // The v2 evaluator is an AI client of the workspace whose record opts it in: served v2, and shown the smaller listing.
+  assert.equal(v2.profile, 'v2');
+  assert.equal(v2.client, 'oauth/evaluator');
+  assert.ok(v2.listing < legacy.listing, 'the v2 listing is smaller: ' + v2.listing + ' of ' + legacy.listing);
+  await assert.rejects(evaluationFixture({profile: 'v3'}), /MCP_EVAL_PROFILE/);
+});
+
+test('nothing the evaluation measures regresses for a v2 client: every journey, task and question ends as it does for a legacy one', async () => {
+  const record = await runEvaluation({profile: 'v2'}),
+    comparison = compareWithBaseline(record, readBaseline(), tolerance);
+  assert.equal(record.profile, 'v2');
+  assert.deepEqual(comparison.regressions, []);
+  assert.equal(comparison.passed, true);
+  // The same sixty-four runs, each reaching the end state its committed baseline records, and every question answered correctly.
+  const baseline = readBaseline();
+  for (const [suite, runs] of Object.entries(baseline.runs))
+    for (const [id, expected] of Object.entries(runs)) {
+      assert.equal(record.runs[suite][id].end_state, expected.end_state, suite + '/' + id);
+      assert.equal(record.runs[suite][id].tool_calls, expected.tool_calls, suite + '/' + id);
+    }
+  for (const [id, run] of Object.entries(record.runs.evaluation_set)) assert.equal(run.answer_correct, true, id);
+  // The listing is the v2 one: fewer bytes than the committed baseline's.
+  assert.ok(record.mcp_surface.tools_list_bytes < readBaseline().mcp_surface.tools_list_bytes);
+});
 test('synthetic providers refuse and count any other host, so a run proves zero egress', async () => {
   const {state, fetcher} = syntheticProviders();
   for (const url of [

@@ -11,6 +11,8 @@ import {Store} from '../../../dist/src/store.js';
 import {Registry} from '../../../dist/src/catalog.js';
 import {MirrorService} from '../../../dist/src/service.js';
 import {NativeTransport} from '../../../dist/src/transport.js';
+import {WebStore} from '../../../dist/server/web-store.js';
+import {insertRegisteredClient} from '../../../dist/src/mcp-client-repository.js';
 
 export const evaluationTenant = 'mcp-evaluation';
 export const connections = Object.freeze({
@@ -23,7 +25,6 @@ const person = {tenantId: evaluationTenant, userId: 'agency-analyst'};
 /** The person who seeded the workspace, as the operator who did it and as the reader the evaluation serves. */
 export const operatorActor = Object.freeze({...person, role: 'operator'});
 export const readerActor = Object.freeze({...person, role: 'reader'});
-const adminActor = {...person, role: 'admin'};
 /** Every seeded record carries a time in September 2026; nothing depends on when a run happens. */
 const seededAt = Date.parse('2026-09-08T09:00:00Z');
 
@@ -174,8 +175,8 @@ export function evaluationProviders() {
   return {state, fetcher};
 }
 
-/** A completed report snapshot of one Meta account, bound to the seeding person, as the overview keeps it. */
-function snapshot(store, id, {name, client, connection, account, currency, timezone, rows}) {
+/** A completed report snapshot of one Meta account, bound to the seeding person (operator), as the overview keeps it. */
+function snapshot(store, operator, id, {name, client, connection, account, currency, timezone, rows}) {
   const report = {
     state: 'complete',
     captured_at: seededAt,
@@ -193,7 +194,7 @@ function snapshot(store, id, {name, client, connection, account, currency, timez
       sources: [{platform: 'meta', account_id: account, connection_id: connection}],
     },
     sources: [],
-    actor_binding: store.bindJobActor(operatorActor, id),
+    actor_binding: store.bindJobActor(operator, id),
     row_count: rows.length,
     rows: rows.map(([campaign_id, campaign_name, spend, clicks, conversions]) => ({
       platform: 'meta',
@@ -260,10 +261,29 @@ const campaignStep = (connection, account, name, objective) => ({
 /**
  * A fresh evaluation workspace on a new in-memory store: the four connections, two report snapshots, two captured
  * reports, three campaign plans and four media library assets. `service` serves `actor` (the reader); `providers`
- * counts provider requests, refused writes and refused egress.
+ * counts provider requests, refused writes and refused egress. profile is the contract profile the person's client is served
+ * (V2-MCP-06, D26): legacy is every client's today and the committed baseline's; for 2 the person is the OAuth client
+ * gency-analyst, whose record opts it in, and every record of the workspace is made for that client (oauth/agency-analyst).
  */
-export async function evaluationWorkspace() {
+export async function evaluationWorkspace({profile = 'legacy'} = {}) {
+  if (!['legacy', 'v2'].includes(profile)) throw Error('MCP_EVAL_PROFILE: the profile is legacy or v2.');
+  const userId = profile === 'v2' ? 'oauth/' + person.userId : person.userId,
+    operator = {...person, userId, role: 'operator'},
+    reader = {...person, userId, role: 'reader'},
+    adminActor = {...person, userId, role: 'admin'};
   const store = new Store(':memory:', Buffer.alloc(32, 113).toString('base64'));
+  if (profile === 'v2') {
+    new WebStore(store, {origin: 'https://amcp.shop', masterKey: Buffer.alloc(32, 113).toString('base64')});
+    insertRegisteredClient(
+      store,
+      person.userId,
+      JSON.stringify({
+        client_id: person.userId,
+        client_name: 'AMCP evaluation-set reference solver',
+        contract_profile: 'v2',
+      }),
+    );
+  }
   store.ensureTenant(evaluationTenant);
   const bind = (id, gateway, label, accounts, scopes) =>
     store.putConnection(
@@ -312,7 +332,7 @@ export async function evaluationWorkspace() {
         throw new TypeError('The MCP evaluation fixture downloads no media');
       },
     );
-  snapshot(store, 'snapshot-northwind-2026-w36', {
+  snapshot(store, operator, 'snapshot-northwind-2026-w36', {
     name: 'Northwind weekly performance',
     client: 'Northwind Outdoors',
     connection: connections.northwindMeta,
@@ -325,7 +345,7 @@ export async function evaluationWorkspace() {
       ['120003', 'Brand Awareness Q3', 150, 120, 0],
     ],
   });
-  snapshot(store, 'snapshot-bluebell-2026-w36', {
+  snapshot(store, operator, 'snapshot-bluebell-2026-w36', {
     name: 'Bluebell weekly performance',
     client: 'Bluebell Bakery',
     connection: connections.bluebellMeta,
@@ -363,7 +383,7 @@ export async function evaluationWorkspace() {
         brief: 'A paused campaign drafted for the evaluation workspace.',
         steps: [campaignStep(connection, account, name, objective)],
       },
-      operatorActor,
+      operator,
     );
     if (!created.success) throw Error('Seeding a plan failed: ' + created.error?.code);
   }
@@ -386,5 +406,5 @@ export async function evaluationWorkspace() {
     });
   // The seeding left provider counters untouched: plans are drafts and nothing was read.
   providers.state.requests.length = 0;
-  return {store, service, actor: readerActor, providers, close: () => store.close()};
+  return {store, service, actor: reader, providers, close: () => store.close()};
 }
