@@ -262,10 +262,16 @@
       "raised": [
         "reference_words 158407 → 159392"
       ]
+    },
+    {
+      "reason": "V2-RPT-04 LinkedIn attribution windows (package linkedin-windows, 2026-11-13): the LinkedIn section of docs/REPORTING-OVERVIEW.md now says what the Overview joins from the account's conversion rules, when, how and with what outcomes (one pair, mixed, unknown with a reason), in place of the sentence that said they were not joined yet",
+      "raised": [
+        "reference_words 159392 → 159636"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159392
+    "reference_words": 159636
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
