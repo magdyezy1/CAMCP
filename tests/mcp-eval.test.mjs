@@ -142,12 +142,16 @@ test('next calls and next steps are found where AMCP puts them; outcome states f
     {success: true, data: {checks: [{next_step: 'Grant the scope.'}]}},
     {success: true, data: {execution_journal: [{next_safe_action: 'Reconcile.'}]}},
     {success: true, data: {recommendations: [{type: 'data_quality', proposal: 'Refresh a complete window.'}]}},
+    // V2-MCP-06: the step a failed snapshot's read words in meta.workflow.
+    {success: true, data: {state: 'failed'}, meta: {workflow: {next_action: 'Reconnect the affected login.'}}},
   ])
     assert.equal(offersNextStep(response), true, JSON.stringify(response));
   for (const response of [
     {success: true, data: {steps: [{error: 'WRITE_OUTCOME_UNCERTAIN'}]}},
     {success: true, data: {recommendations: [{type: 'budget', proposal: 'Raise the budget.'}]}},
     {success: false, error: {code: 'X'}},
+    {success: true, data: {state: 'failed'}, meta: {workflow: {state: 'attention_required', next_action: ''}}},
+    {success: true, data: {state: 'failed'}, meta: {workflow: {state: 'attention_required', next_action: 7}}},
   ])
     assert.equal(offersNextStep(response), false, JSON.stringify(response));
   assert.equal(

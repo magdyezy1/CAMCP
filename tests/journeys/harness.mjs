@@ -77,13 +77,17 @@ export function offeredNextCall(response) {
 /**
  * Whether a response tells the person what to do next: an offered call, a refusal's next action or remedy (also on a
  * plan's current or inspected step), a list call to find the right identifier, a blocked check's next step, an
- * execution journal's next safe action, or a data-quality recommendation that names what to refresh.
+ * execution journal's next safe action, a data-quality recommendation that names what to refresh, or the next action a
+ * workflow outcome words itself (a failed report snapshot's read: reconnect, correct the request, or why a retry does not
+ * help, V2-MCP-06).
  */
 export function offersNextStep(response) {
   const data = response?.data,
-    errors = [response?.error, data?.current?.error, data?.step?.error];
+    errors = [response?.error, data?.current?.error, data?.step?.error],
+    workflowAction = response?.meta?.workflow?.next_action;
   return !!(
     offeredNextCall(response) ||
+    (typeof workflowAction === 'string' && workflowAction.length > 0) ||
     errors.some(
       error =>
         error &&
