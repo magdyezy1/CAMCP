@@ -448,8 +448,11 @@ function reportQualityDetails(source, report) {
       ? uiText('Counted as 0 where the platform omitted the value: {metrics}', {metrics: q.omitted_as_zero.join(', ')})
       : '',
   ].filter(Boolean);
-  return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details><summary>${esc(uiText('Quality and source evidence'))}</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
+  return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details${reportSourceIsCompact(source) ? ` data-report-lineage="${esc(source.source_ref)}"` : ''}><summary>${esc(uiText('Quality and source evidence'))}</summary>${reportSourceIsCompact(source) ? '<div data-report-details-body></div>' : `<pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre>`}</details>`;
 }
+/** A v4 source of a compact answer: its lineage is not in the answer (include.lineage returns it), so its evidence loads when it is opened. */
+const reportSourceIsCompact = source =>
+  source.lineage === undefined && source.projection !== undefined && source.source_ref !== undefined;
 function refreshRecentReports(report) {
   overviewState.history = [
     {...report, rows: undefined},

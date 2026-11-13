@@ -112,18 +112,31 @@ export function page(locale, bootstrap, reply) {
     context,
     raw,
     table: report => String(raw('renderReportTable(report, report.config.metrics, bootstrap)', {report, bootstrap})),
+    /** The source cards of a report, as the page draws them under its summary. */
+    cards: report =>
+      String(
+        raw(
+          'report.sources.map((s, i) => renderReportSourceHealth(s, bootstrap.platforms, i, report.config.date_range, report)).join("")',
+          {report, bootstrap},
+        ),
+      ),
     /**
-     * Draws the table, then binds it as the page does: one stand-in for each lazy `<details>` the markup names, in the
-     * order of the markup.
+     * Draws the table and the source cards, then binds them as the page does: one stand-in for each lazy `<details>` the
+     * markup names, in the order of the markup.
      */
     bind(report) {
       const rows = view.table(report),
+        cards = view.cards(report),
         details = [...rows.matchAll(/<details data-report-details="([^"]*)"/g)].map(
           match => new DetailsStand({reportDetails: match[1].replaceAll('&amp;', '&')}),
+        ),
+        lineage = [...cards.matchAll(/<details data-report-lineage="([^"]*)"/g)].map(
+          match => new DetailsStand({reportLineage: match[1]}),
         );
-      elements.splice(0, elements.length, ...details);
+      elements.splice(0, elements.length, ...details, ...lineage);
       raw('bindReportDetails(report)', {report});
-      return {rows, details};
+      raw('bindReportLineage(report)', {report});
+      return {rows, cards, details, lineage};
     },
   };
   return view;
@@ -141,7 +154,7 @@ export async function granular(t, {grain = 'daily', platforms = ['meta']} = {}) 
       const {level, objective, report_options, ...rest} = granularSource(platform, 'ad');
       return {
         ...rest,
-        levels: platform === 'meta' ? ['campaign', 'adset', 'ad'] : ['campaign'],
+        levels: ['campaign', 'adset', 'ad'],
         statuses: ['all'],
         delivered_only: false,
         report_options:
@@ -165,7 +178,7 @@ export async function granular(t, {grain = 'daily', platforms = ['meta']} = {}) 
   return {
     reply,
     compact: await reply({action: 'get', id: queued.id, offset: 0, limit: 100}),
-    full: await reply({action: 'get', id: queued.id, offset: 0, limit: 500, include: {native: true}}),
+    full: await reply({action: 'get', id: queued.id, offset: 0, limit: 500, include: {native: true, lineage: true}}),
     bootstrap: await reply({action: 'bootstrap'}),
   };
 }

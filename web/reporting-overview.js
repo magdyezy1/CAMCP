@@ -368,6 +368,30 @@ function bindReportDetails(r) {
   });
 }
 /**
+ * A v4 source's lineage is not in a compact answer. One `get` with include.lineage carries the lineage of every source of the
+ * report, so the first card opened asks and the others find it; a request that failed is not kept, so Retry asks again.
+ */
+function bindReportLineage(r) {
+  if (!(r.sources ?? []).some(reportSourceIsCompact)) return;
+  const key = [r.id, r.completed_at].join('|');
+  document.querySelectorAll('details[data-report-lineage]').forEach(details => {
+    const source = r.sources.find(s => String(s.source_ref) === details.dataset.reportLineage);
+    if (source)
+      reportLazyDetails(details, async () => {
+        if (overviewState.lineage?.key !== key) {
+          const request = overviewCall({action: 'get', id: r.id, limit: 1, include: {lineage: true}});
+          overviewState.lineage = {key, request};
+          request.catch(() => {
+            if (overviewState.lineage?.request === request) overviewState.lineage = null;
+          });
+        }
+        const answer = await overviewState.lineage.request,
+          lineage = answer.sources.find(s => s.source_ref === source.source_ref)?.lineage;
+        return html`<pre>${JSON.stringify({quality: source.quality, lineage, query_fingerprint: source.query_fingerprint}, null, 2)}</pre>`;
+      });
+  });
+}
+/**
  * A metric cell: the formatted value, with the exact retained value on hover when formatting shortened it. `label`
  * names the column on phones, where each row reads as a card (RPT-05).
  */
@@ -951,6 +975,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
     mountReportCharts($('#report-charts'), r.charts);
   bindSnapshotAnalysis(r, root);
   bindReportDetails(r);
+  bindReportLineage(r);
   bindSheetsDeliveryRecovery(id);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];
