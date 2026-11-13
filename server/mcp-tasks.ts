@@ -27,7 +27,9 @@ import {
  * - A task follows one job. Its status is the job's: working while it is queued or running, then completed with the
  *   result of the read a polling client would make (`get` of the plan, `export_status` of the export, as a tool result),
  *   failed with the job's error, or cancelled. Nothing is stored of the result, so every read is made again, as the
- *   person and under their current rights, from this workspace's own records; no provider is ever asked.
+ *   person and under their current rights, from this workspace's own records; no provider is ever asked. The read is
+ *   made at every status, not only when the job is complete: a caller who may no longer read the report (its client
+ *   access set lost the account, say) is answered that refusal as a failed task, never the job's progress or error.
  * - A task is bound to the workspace, the person and the AI client it was made for (an OAuth connection is the
  *   actor `oauth/<client>` of its person): the identifier is random (192 bits), the document is read in the caller's own
  *   workspace, and the binding is checked besides. An identifier that is unknown, altered, expired, another person's, another
@@ -193,8 +195,28 @@ export function registerTaskHandlers(server: Server, service: MirrorService, act
   };
   const schemas = {params: z.looseObject({taskId: z.string()}), result: z.looseObject({})};
   server.setRequestHandler('tasks/get', schemas, async (params, ctx) => {
-    const {doc, job, run, handle} = open(ctx.mcpReq.envelope, params.taskId),
-      task = describe(service, tenant, doc, job, run);
+    const {doc, job, run, handle} = open(ctx.mcpReq.envelope, params.taskId);
+    // Every status is read again, as the person and under the rights they have now (P2A-03). The binding of a task names
+    // its access set by id, not by content, so a set that was narrowed after the task was made still matches it; the read
+    // a polling client would make is what checks the report's accounts. A caller who may no longer read the report is
+    // answered the refusal of that read and nothing of the job: not its progress, not its error text, no result.
+    const read = run.read(handle),
+      answer = await withExactIntegers(() => service.call(read.tool, read.arguments, actor));
+    if (answer.success !== true)
+      return {
+        taskId: doc.id,
+        status: 'failed',
+        createdAt: iso(doc.created_at),
+        lastUpdatedAt: iso(doc.created_at),
+        ttlMs: taskTtlMs,
+        pollIntervalMs: overviewPollAfterMs,
+        error: {
+          code: ProtocolErrorCode.InternalError,
+          message: String(answer.error?.message ?? 'The result of the job cannot be read.'),
+          ...(answer.error?.code ? {data: {code: String(answer.error.code)}} : {}),
+        },
+      };
+    const task = describe(service, tenant, doc, job, run);
     if (task.status === 'failed')
       return {
         ...task,
@@ -206,21 +228,9 @@ export function registerTaskHandlers(server: Server, service: MirrorService, act
       };
     if (task.status !== 'completed') return task;
     // Completed: the result is what a polling client reads, as a tool result, as the person and under their rights now.
-    const read = run.read(handle),
-      answer = await withExactIntegers(() => service.call(read.tool, read.arguments, actor));
-    if (answer.success === true)
-      return {
-        ...task,
-        result: {content: [{type: 'text', text: JSON.stringify(answer)}], structuredContent: answer},
-      };
     return {
       ...task,
-      status: 'failed',
-      error: {
-        code: ProtocolErrorCode.InternalError,
-        message: String(answer.error?.message ?? 'The result of the job cannot be read.'),
-        ...(answer.error?.code ? {data: {code: String(answer.error.code)}} : {}),
-      },
+      result: {content: [{type: 'text', text: JSON.stringify(answer)}], structuredContent: answer},
     };
   });
   server.setRequestHandler('tasks/update', schemas, async (params, ctx) => {

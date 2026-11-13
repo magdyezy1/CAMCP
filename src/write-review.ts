@@ -21,7 +21,7 @@ import {
   destructiveRequest,
   reviewApprovalPolicy,
 } from './write-approval.js';
-import {guardInput, redact, sha256, stable} from './security.js';
+import {guardInput, redact, redactCredentialShapesWithPaths, sha256, stable} from './security.js';
 import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
@@ -84,6 +84,18 @@ const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => provider
 const shownRequest = (plan: CompiledRequest): unknown => {
   const shown = reviewHooks(plan.gateway)?.shownRequest;
   return shown ? shown(plan) : plan;
+};
+/**
+ * The `request` of an inspect or prepare answer, for the AI client to show the person who approves it (P2A-02). The text
+ * of an ad is whatever its preparer wrote, and the frozen plan sends all of it, so it is shown through the credential
+ * view of Ruling 10, not through redact(): `Cookie: visit https://evil.example/landing now` is read whole, and only a
+ * credential-shaped value is hidden. When one is, `redacted` lists its path and nothing else of it (Ruling 13: no hash
+ * either, which would let a reader reverse a short secret offline), so the reader knows that something was hidden and where.
+ * The audit row and the job records are written from the plan by redact().
+ */
+const reviewedRequest = (plan: CompiledRequest) => {
+  const {value, redacted} = redactCredentialShapesWithPaths(shownRequest(plan));
+  return {request: value, ...(redacted.length ? {redacted} : {})};
 };
 
 export const writeTool = {
@@ -782,7 +794,7 @@ export class WriteReviewService {
           executed: false,
           network_requests: 0,
           review_contract_supported: true,
-          request: redact(shownRequest(plan)),
+          ...reviewedRequest(plan),
           contract_evidence: executionEvidence(plan, evidence),
           state_reads: reads.map(r => ({method: r.method, path: r.path})),
           live_permissions_verified: false,
@@ -828,7 +840,7 @@ export class WriteReviewService {
           executed: false,
           network_requests: 0,
           review_contract_supported: false,
-          request: redact(shownRequest(plan)),
+          ...reviewedRequest(plan),
           contract_evidence: executionEvidence(plan, evidence),
           error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
           live_permissions_verified: false,
@@ -976,7 +988,7 @@ export class WriteReviewService {
       review_id: reviewId,
       idempotency_key: reviewId,
       expires_at: new Date(expiresAt).toISOString(),
-      request: redact(shownRequest(plan)),
+      ...reviewedRequest(plan),
       contract_evidence: executionEvidence(plan, evidence),
       before_state: redact(state),
       spend_policy: spendPolicy,

@@ -78,6 +78,8 @@ function emptyBlock({title, body, action}) {
   if (!action?.label) throw Error('EMPTY_STATE_NEEDS_ACTION');
   const {label, href, command, variant = 'primary'} = action,
     classes = variant === 'primary' ? 'button primary' : 'button';
+  // Same-site paths only (P2A-06).
+  if (!command && !/^\/(?![/\\])[^\x00-\x20\\]{0,2047}$/.test(href)) throw Error('EMPTY_STATE_HREF');
   return html`<div class="empty"><strong>${title}</strong>${body ? html`<p>${body}</p>` : ''}${command ? html`<button class="${classes}" type="button" data-action="${command}">${label}</button>` : html`<a class="${classes}" href="${href}">${label}</a>`}</div>`;
 }
 /**

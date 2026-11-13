@@ -206,3 +206,58 @@ test('a path, not another site: what the parser resolves must stay on the pageâ€
   for (const href of ['//a', '/\\a', '/\t/a', '\\/a', '/\r\n/a'])
     assert.throws(() => UI.button({label: 'Open', href}), refusal('button'), JSON.stringify(href));
 });
+
+// P2A-06 (differential review, wave 5 round 2 part 2a): (a) the clean-up of an address was quadratic on a long run of spaces
+// inside it, so an address is judged on its length before anything reads it; (b) the attributes that take an address are
+// refused in `attrs` as event handlers and style are, since an `attrs` map lands in the markup beside the checked `href`.
+test('an address over 2,048 characters is refused before it is read, so a long run of spaces cannot stall a tab', () => {
+  const {UI} = setup(),
+    longest = '/' + 'a'.repeat(2047),
+    longestAbsolute = 'https://example.test/' + 'a'.repeat(2027);
+  assert.equal(longest.length, 2048);
+  assert.equal(longestAbsolute.length, 2048);
+  assert.equal(String(UI.button({label: 'Open', href: longest})), anchor(longest), '2,048 characters are taken');
+  assert.equal(String(UI.button({label: 'Open', href: longestAbsolute})), anchor(longestAbsolute));
+  for (const [label, href] of Object.entries({
+    'a path of 2,049 characters': '/' + 'a'.repeat(2048),
+    'an https address of 2,049 characters': 'https://example.test/' + 'a'.repeat(2028),
+    'a long run of spaces inside a path': '/' + ' '.repeat(60000) + 'x',
+    'a long run of tabs and spaces': ' \t'.repeat(40000) + '/x',
+    'a long run of control characters': '\u0001'.repeat(100000) + '/x',
+  })) {
+    const started = performance.now();
+    assert.throws(() => UI.button({label: 'Open', href}), refusal('button'), label);
+    assert.ok(performance.now() - started < 250, label + ' took ' + (performance.now() - started) + ' ms');
+  }
+});
+
+test('AmcpUI.attrs refuses the attributes that take an address, as it refuses event handlers and style', () => {
+  const {UI} = setup();
+  for (const name of ['formaction', 'src', 'srcdoc', 'action', 'data', 'xlink:href', 'onclick', 'onerror', 'style'])
+    assert.throws(
+      () => UI.attrs({[name]: 'javascript:alert(1)'}),
+      error => error.message === 'AMCP_UI_ATTRIBUTE_NAME: ' + name,
+      name,
+    );
+  // Where an attrs map lands in markup: a button (which a form may hold) and an input.
+  for (const name of ['formaction', 'srcdoc', 'src', 'action', 'data', 'xlink:href'])
+    assert.throws(
+      () => UI.button({label: 'Go', attrs: {[name]: 'javascript:alert(1)'}}),
+      /AMCP_UI_ATTRIBUTE_NAME/,
+      'button ' + name,
+    );
+  // The names the components use stay: data-* and aria-* attributes, and the plain ones.
+  for (const name of [
+    'data-mirror',
+    'data-source',
+    'aria-label',
+    'type',
+    'title',
+    'name',
+    'value',
+    'class',
+    'id',
+    'href',
+  ])
+    assert.doesNotThrow(() => UI.attrs({[name]: 'x'}), name);
+});

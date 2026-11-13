@@ -1034,7 +1034,7 @@ a worker runs after the call has answered. There are three ways to follow one, a
   job's state as its message. A notification is sent only when the progress has grown, and the first one at once. If the
   job finished in that time the call answers with the read that shows it finished (`export_status`, or `get` of the plan);
   otherwise it answers as it always did, with the job handle and its next call. A client that goes away ends the wait and
-  never cancels the job. A process holds at most 8 such calls at once; past that a call is answered at once. The earlier
+  never cancels the job. A process holds at most 8 calls, an actor 2; past that a call is answered at once. The earlier
   protocol revisions answer such a call as an event stream, only for a client that accepts one; a call with no token is
   answered at once, as before.
 - **Tasks.** On MCP revision 2026-07-28, a client that declares the extension `io.modelcontextprotocol/tasks` in the request

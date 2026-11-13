@@ -48,7 +48,10 @@ const AmcpUI = (() => {
       return Object.entries(map)
         .filter(([, value]) => value !== false && value !== null && value !== undefined)
         .map(([name, value]) => {
-          if (!/^[a-z][a-z0-9:-]*$/.test(name) || /^(?:on|style$)/.test(name))
+          if (
+            !/^[a-z][a-z0-9:-]*$/.test(name) ||
+            /^(?:on|style$|formaction$|src(?:doc)?$|action$|data$|xlink:href$)/.test(name)
+          )
             throw Error('AMCP_UI_ATTRIBUTE_NAME: ' + name);
           return html` ${name}="${value === true ? '' : value}"`;
         });
@@ -76,6 +79,7 @@ function amcpNeed(value, code) {
 // and spaces, tabs and line breaks removed), must begin `/` or `#` and resolve to the site it was on. That site is a
 // placeholder origin, because the answer does not depend on which origin a page has. No address (undefined, null, false)
 // draws no link and is not checked. The address is returned as given; the message never repeats it (it may hold a secret).
+// One over 2,048 characters is refused unread.
 const amcpHrefSite = 'https://amcp.invalid';
 function amcpHref(href, component) {
   if (href === undefined || href === null || href === false) return href;
@@ -83,7 +87,7 @@ function amcpHref(href, component) {
     new TypeError(
       'AMCP_UI_HREF: ' + component + ' takes a same-site path, a #fragment, or an https:, http: or mailto: address',
     );
-  if (typeof href !== 'string') throw refused();
+  if (typeof href !== 'string' || href.length > 2048) throw refused();
   let absolute = null;
   try {
     absolute = new URL(href);

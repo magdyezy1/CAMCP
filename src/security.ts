@@ -129,7 +129,10 @@ const textPairs = pairPass('&'),
  *   for user`);
  * - a credential name of the list above, `=` or `:`, and a value, in a sentence (`request failed access_token=abc
  *   please retry`); a value the pair pass already hid is left, so `?access_token=[REDACTED]&n=1` keeps its `&n=1`, and
- *   a name straight after `?`, `&`, `#` or `;` with `=` is the pair pass's own head (its empty value stays as it was);
+ *   a name straight after `?`, `&`, `#` or `;` with `=` and no white space around it is the pair pass's own head (its
+ *   empty value stays as it was). With white space around the `=` the pair pass reads no head (`&access_token = x`,
+ *   `;client_secret= x`), so the third alternative below hides it: the report card's old rule did, and DR2-02 lost it
+ *   (P2A-01);
  * - a Meta access token: `EAA` and sixty or more letters and digits, with no closing `\b`, which would make a long run
  *   of letters and digits that ends in `_` read again from each `EAA` inside it.
  * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
@@ -139,7 +142,9 @@ const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[
   sentenceSecrets = new RegExp(
     '(?:(?<![?&#;])\\b(?:' +
       secretKeyNames +
-      ')\\s*=|\\b(?:' +
+      ')\\s*=|(?<=[?&#;])(?:' +
+      secretKeyNames +
+      ')(?:\\s+=|=\\s)|\\b(?:' +
       secretKeyNames +
       ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+',
     'gi',
@@ -210,23 +215,42 @@ export function redactUrlSecrets(
   const out = walk(value, false);
   return {value: out, redacted};
 }
-/** The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller. */
-function redactWith(value: unknown, text: (text: string) => string): any {
-  if (Array.isArray(value)) return value.map(item => redactWith(item, text));
+/** What a key hides its value as, or undefined when the key hides nothing: the same rules for every caller. */
+const keyReplacement = (k: string): string | undefined =>
+  /^(?:shareable[-_]?preview[-_]?url|youtube[-_]?(?:tv[-_]?)?preview[-_]?url)$/i.test(k)
+    ? '[PRIVATE_PREVIEW_URL]'
+    : /^image[-_]?data$/i.test(k)
+      ? '[BINARY_REDACTED]'
+      : secretKey.test(k)
+        ? '[REDACTED]'
+        : undefined;
+/** A value that a display hid: where it stood and nothing of the value (Ruling 13: no hash of it either). */
+export interface HiddenValue {
+  path: string;
+}
+/**
+ * The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller.
+ * `hid`, when given, is told the path (`$`, then `["key"]` and `[0]` as changedStateFields spells them) of every value
+ * that was replaced, so a display can say where it hid something and never what; without it no path is built.
+ */
+function redactWith(value: unknown, text: (text: string) => string, hid?: (path: string) => void, path = '$'): any {
+  if (Array.isArray(value))
+    return value.map((item, i) => redactWith(item, text, hid, hid ? path + '[' + i + ']' : path));
   if (value && typeof value === 'object')
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [
-        k,
-        /^(?:shareable[-_]?preview[-_]?url|youtube[-_]?(?:tv[-_]?)?preview[-_]?url)$/i.test(k)
-          ? '[PRIVATE_PREVIEW_URL]'
-          : /^image[-_]?data$/i.test(k)
-            ? '[BINARY_REDACTED]'
-            : secretKey.test(k)
-              ? '[REDACTED]'
-              : redactWith(v, text),
-      ]),
+      Object.entries(value).map(([k, v]) => {
+        const at = hid ? path + '[' + JSON.stringify(k) + ']' : path,
+          replacement = keyReplacement(k);
+        if (replacement === undefined) return [k, redactWith(v, text, hid, at)];
+        if (hid && v !== replacement) hid(at);
+        return [k, replacement];
+      }),
     );
-  if (typeof value === 'string') return text(value);
+  if (typeof value === 'string') {
+    const out = text(value);
+    if (hid && out !== value) hid(path);
+    return out;
+  }
   return value;
 }
 export function redact(value: unknown): any {
@@ -239,6 +263,20 @@ export function redact(value: unknown): any {
  */
 export function redactCredentialShapes(value: unknown): any {
   return redactWith(value, credentialText);
+}
+/**
+ * redactCredentialShapes() for a display that a person reads and approves (the request of a review, P2A-02), with where it
+ * hid something: the path of each value it replaced, in the order they stand, and nothing else of it. Not a hash either
+ * (Ruling 13): when the hidden value is the credential itself, a short secret under a credential key or a field that is
+ * only a token, an unsalted sha256 of it lets whoever reads the answer reverse it offline; the path alone tells the reader
+ * that something was hidden and where. Ordinary text is shown whole, so a headline that begins with `Cookie:` or
+ * `password:` is what the frozen request sends. What is stored (the audit row, job records) keeps redact(). A value that
+ * already is its replacement hides nothing and is not listed.
+ */
+export function redactCredentialShapesWithPaths(value: unknown): {value: any; redacted: HiddenValue[]} {
+  const redacted: HiddenValue[] = [];
+  const shown = redactWith(value, credentialText, path => redacted.push({path}));
+  return {value: shown, redacted};
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {
   if (depth > 50) throw new MirrorError('INVALID_ARGUMENT', 'Input exceeds maximum nesting depth.');
