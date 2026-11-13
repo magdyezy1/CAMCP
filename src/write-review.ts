@@ -21,7 +21,7 @@ import {
   destructiveRequest,
   reviewApprovalPolicy,
 } from './write-approval.js';
-import {guardInput, redact, redactCredentialShapesWithPaths, sha256, stable} from './security.js';
+import {guardInput, redactCredentialShapesWithPaths, sha256, stable} from './security.js';
 import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
@@ -96,6 +96,18 @@ const shownRequest = (plan: CompiledRequest): unknown => {
 const reviewedRequest = (plan: CompiledRequest) => {
   const {value, redacted} = redactCredentialShapesWithPaths(shownRequest(plan));
   return {request: value, ...(redacted.length ? {redacted} : {})};
+};
+/**
+ * The `request` and the `before_state` of a prepare answer, shown the same way (P2B-05): the before-state is the provider's
+ * current state, and an ad whose current text begins `Cookie:` or `password:` was shown hidden beside a request shown whole,
+ * with nothing to say that a value was hidden. `redacted` lists the hidden values of both: the request's paths as they were
+ * (from the root of the request) and the before-state's under a `before_state` root, so the reader can tell them apart.
+ */
+const reviewedPrepare = (plan: CompiledRequest, state: unknown) => {
+  const request = redactCredentialShapesWithPaths(shownRequest(plan)),
+    before = redactCredentialShapesWithPaths({before_state: state}),
+    redacted = [...request.redacted, ...before.redacted];
+  return {request: request.value, before_state: before.value.before_state, ...(redacted.length ? {redacted} : {})};
 };
 
 export const writeTool = {
@@ -988,9 +1000,8 @@ export class WriteReviewService {
       review_id: reviewId,
       idempotency_key: reviewId,
       expires_at: new Date(expiresAt).toISOString(),
-      ...reviewedRequest(plan),
+      ...reviewedPrepare(plan, state),
       contract_evidence: executionEvidence(plan, evidence),
-      before_state: redact(state),
       spend_policy: spendPolicy,
       state_hash: stateHash,
       state_reads: reads.map(r => ({method: r.method, path: r.path})),

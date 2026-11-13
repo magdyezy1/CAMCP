@@ -23,7 +23,7 @@ const registry = new Registry(),
   admin = {...actor, role: 'admin'},
   policy = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
   connection = 'aaaaaaaa-3131-4131-8131-313131313131';
-function setup() {
+function setup(current = 'Draft') {
   const store = new Store(':memory:', key);
   store.putConnection(
     admin,
@@ -39,6 +39,7 @@ function setup() {
     },
     {accessToken: 'synthetic'},
   );
+  store.rememberResource({id: connection, tenantId: actor.tenantId, gateway: 'meta_native_action'}, '123', '111');
   const posted = [];
   const transport = new NativeTransport(async (url, init) => {
     const path = new URL(String(url)).pathname;
@@ -47,7 +48,7 @@ function setup() {
       return Response.json(
         id === 'act_123'
           ? {id: 'act_123', currency: 'USD', account_status: 1}
-          : {id, name: 'Draft', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC'},
+          : {id, name: current, status: 'PAUSED', objective: 'OUTCOME_TRAFFIC'},
       );
     }
     posted.push(new URLSearchParams(String(init.body ?? '')));
@@ -249,4 +250,73 @@ test('redactCredentialShapesWithPaths shows what redactCredentialShapes shows an
   assert.deepEqual(security.redactCredentialShapesWithPaths({a: ['b']}).redacted, []);
   assert.deepEqual(security.redactCredentialShapesWithPaths('Bearer SYNTHETICVALUE0123456789').redacted, [{path: '$'}]);
   assert.deepEqual(security.redactCredentialShapesWithPaths(null), {value: null, redacted: []});
+});
+
+// ---- P2B-05 (differential review, wave 5 round 2 part 2b): the before-state is shown the way the request is ----
+// `before_state` of a prepare answer still went through the full redact(), so an ad whose current text begins `Cookie:` was shown
+// hidden beside a request shown whole, with no `redacted` entry: the approver compared `Cookie: [REDACTED]` with `Cookie: visit ...`
+// and was not told a value was hidden. It is shown through the credential view too, and what is hidden in it is listed in
+// `redacted` by its path under a `before_state` root, so the reader can tell it from a path of the request.
+const update = (name = 'New name') => ({
+  gateway: 'meta_native_action',
+  connection_id: connection,
+  arguments: {action: 'meta_campaign_update', account_id: '123', path_params: {campaign_id: '111'}, payload: {name}},
+});
+/** The paths, in the spelling of the redacted list, of the strings of a value that hold `needle`. */
+function pathsHolding(value, needle, path = '$') {
+  if (typeof value === 'string') return value.includes(needle) ? [path] : [];
+  if (Array.isArray(value)) return value.flatMap((item, i) => pathsHolding(item, needle, path + '[' + i + ']'));
+  if (value && typeof value === 'object')
+    return Object.entries(value).flatMap(([k, v]) => pathsHolding(v, needle, path + '[' + JSON.stringify(k) + ']'));
+  return [];
+}
+
+test('the before-state of a prepared edit shows ordinary text whole, as the request does, and lists nothing (P2B-05)', async () => {
+  for (const current of ordinary) {
+    const x = setup(current);
+    try {
+      const prepared = await ok(x.service, {action: 'prepare', ...update()});
+      assert.deepEqual(
+        pathsHolding(prepared.before_state, current, '$["before_state"]').length,
+        1,
+        'whole: ' + current,
+      );
+      assert.equal(prepared.redacted, undefined, 'lists a hidden value for the before-state ' + current);
+    } finally {
+      x.store.close();
+    }
+  }
+});
+
+test('a credential-shaped value of the before-state is hidden and listed under a before_state path, beside the request’s own (P2B-05)', async () => {
+  const x = setup('Win now &password=hunter2 b c');
+  try {
+    const prepared = await ok(x.service, {action: 'prepare', ...update('Win now &token=abc123 b c')});
+    assert.ok(!JSON.stringify(prepared).includes('hunter2'), 'the before-state hides the value');
+    assert.ok(!JSON.stringify(prepared).includes('abc123'), 'the request hides the value');
+    assert.deepEqual(keysOf(prepared.redacted), ['path'], 'a path and nothing else of the value');
+    const paths = prepared.redacted.map(entry => entry.path),
+      stateAt = pathsHolding(prepared.before_state, 'Win now', '$["before_state"]');
+    assert.equal(stateAt.length, 1, 'the name stands in one place of the before-state');
+    // Where the before-state hid something is listed under its own root; the request's path is as it was.
+    assert.deepEqual(paths, [namePath, stateAt[0]]);
+    assert.ok(stateAt[0].startsWith('$["before_state"]'));
+    // The credential view keeps the name and what is around the hidden value, as it does for the request.
+    assert.match(JSON.stringify(prepared.before_state), /Win now &password=\[REDACTED\] b c/);
+  } finally {
+    x.store.close();
+  }
+});
+
+test('a before-state with nothing credential-shaped in it adds nothing to the list, and the audit row keeps the full redact() (P2B-05)', async () => {
+  const x = setup('Plain current name');
+  try {
+    const prepared = await ok(x.service, {action: 'prepare', ...update('Win now &token=abc123 b c')});
+    assert.deepEqual(prepared.redacted, [{path: namePath}], 'only the request’s own hidden value');
+    assert.equal(pathsHolding(prepared.before_state, 'Plain current name').length, 1);
+    // The audit row of the review is written from the plan by redact(), as before.
+    assert.ok(!JSON.stringify(auditRequest(x.store, 'write_prepared')).includes('abc123'));
+  } finally {
+    x.store.close();
+  }
 });
