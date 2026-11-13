@@ -23,7 +23,13 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
   const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
     text = key => (locale === 'ar' ? (catalog[key] ?? key) : key),
     form = page.locator('#overview-config'),
-    meta = page.locator('.report-platform').filter({has: page.locator('[data-report-level=meta]')});
+    meta = page.locator('.report-platform').filter({has: page.locator('[data-report-level=meta]')}),
+    // Every `get` the page sends the report service, as it sent it (website-get).
+    gets = [];
+  page.on('request', request => {
+    const body = request.url().endsWith('/api/workspace/overview') ? request.postDataJSON() : undefined;
+    if (body?.action === 'get') gets.push(body);
+  });
   // WEB-03: a Pull with no account chosen is refused at the run bar before anything is sent, focused and in view, below
   // the sticky top bar (before, the refusal appeared 1,020 px above the viewport and focus stayed on the button).
   const beforePull = site.counts(),
@@ -79,6 +85,58 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
   assert.match(await table.innerText(), /9007199254740993/);
   assert.match(await table.innerText(), /201/);
   assert.match(await table.innerText(), /=UNTRUSTED AD\(\)/);
+  // Website-get: the page loads the report compact, without the provider's rows or the lineage, and a row's source details
+  // load when a person opens them with the keyboard. The first attempt is refused to see the failure and its Retry.
+  assert.ok(
+    gets.length > 0 && gets.every(body => !body.include?.native && !body.include?.lineage),
+    JSON.stringify(gets),
+  );
+  const details = table.locator('tbody tr').first().locator('details').first(),
+    detailsAsked = gets.length;
+  let refusals = 1;
+  const refuse = async route => {
+    const body = route.request().postDataJSON();
+    if (body?.action === 'get' && body.include?.native && refusals-- > 0) await route.abort();
+    else await route.continue();
+  };
+  await page.route('**/api/workspace/overview', refuse);
+  await details.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await details.locator('[role=alert]').waitFor();
+  assert.equal(await details.evaluate(el => el.open), true);
+  assert.match(await details.innerText(), new RegExp(text('The source details could not be loaded.')));
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), text('Retry'));
+  await page.keyboard.press('Enter');
+  await details.locator('[data-report-details-body] > pre').waitFor();
+  await page.unroute('**/api/workspace/overview', refuse);
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.tagName),
+    'SUMMARY',
+    'focus returns to the disclosure',
+  );
+  const opened = gets.slice(detailsAsked);
+  assert.equal(opened.length, 2, 'the refused request and its Retry');
+  for (const body of opened) {
+    assert.deepEqual(Object.keys(body).sort(), ['action', 'entity', 'id', 'include', 'level', 'limit', 'platform']);
+    assert.deepEqual(body.include, {native: true});
+    assert.equal(body.entity, '9007199254740993');
+    assert.equal(body.platform, 'meta');
+  }
+  assert.match(await details.innerText(), new RegExp(text('Quality and source evidence')));
+  assert.match(
+    await details.locator('[data-report-details-body] > pre').innerText(),
+    /9007199254740993/,
+    'the provider’s own row',
+  );
+  await page.keyboard.press('Enter');
+  assert.equal(await details.evaluate(el => el.open), false);
+  result.source_details_on_demand = {
+    loads_without_provider_rows_or_lineage: true,
+    opened_by_keyboard: true,
+    refused_request_retried: true,
+    requests_for_the_row: opened.length,
+  };
   await page.locator('.metric-sources > summary').click();
   const mapping = page.locator('.metric-sources .report-table');
   assert.match(await mapping.innerText(), /\/actions\[action_type=purchase\]/);
