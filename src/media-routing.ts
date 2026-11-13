@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {driveDownloadUrl, downloadDriveMedia, MAX_MEDIA_BYTES} from './drive-media.js';
 import {mediaLinkUrl} from './media-link.js';
 import {createHash} from 'node:crypto';
+import type {ContractProfile} from './contract-profile.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -28,11 +29,21 @@ export function mediaImageLimit(platform: string, adAsset = false): number {
 export const mp4OnlyPlatforms: readonly string[] = ['x_ads', 'linkedin'];
 export const mediaInstructions =
   'AMCP server-side media imports: never download media in the MCP client. Put a public HTTPS link or a Google Drive share link in payload.url on a native upload action (a file uploaded on the AMCP website goes through amcp_media with its source_id), or use amcp_native_action platform_media_upload with action UPLOAD_FROM_URL. amcp_write prepare returns the frozen upload review; amcp_write execute accepts it. A native dry_run:false import prepares only; follow its returned next_call after review. Meta creative creation is supported. Returned image hashes, video IDs, URNs and asset resource names can be used in creative/ad payloads. Missing Page IDs, destinations and account write grants remain explicit prerequisites.';
-export function mediaDiscovery(gateway?: string): JsonObject | undefined {
+/**
+ * The instructions the help of a native upload gives a client of one contract profile. Under v2 (V2-MCP-06) a native import
+ * with dry_run:false saves nothing and is refused with MEDIA_REVIEW_REQUIRED, so the sentence that says it prepares the review
+ * is replaced by what it does; the listing's own text (mediaInstructions) is legacy's and is not changed.
+ */
+const nativeImportLegacy = 'A native dry_run:false import prepares only; follow its returned next_call after review.',
+  nativeImportV2 =
+    'Under the v2 contract profile a native dry_run:false import saves nothing: it is refused with MEDIA_REVIEW_REQUIRED, and its next_call, amcp_media prepare for the same file, prepares the review to follow.';
+export const mediaInstructionsFor = (profile: ContractProfile): string =>
+  profile === 'v2' ? mediaInstructions.replace(nativeImportLegacy, nativeImportV2) : mediaInstructions;
+export function mediaDiscovery(gateway?: string, profile: ContractProfile = 'legacy'): JsonObject | undefined {
   if (!gateway) return;
   if (gateway !== 'amcp_native_action' && !mediaPlatforms.includes(gateway.replace(/_native_action$/, ''))) return;
   return {
-    instructions: mediaInstructions,
+    instructions: mediaInstructionsFor(profile),
     platforms: mediaPlatforms,
     source:
       'A file uploaded on the AMCP website (source_id), a public HTTPS link, a public Drive URL, or a private file selected in a separate Drive connection',

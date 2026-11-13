@@ -137,6 +137,15 @@ function reviewInspection(gateway: string, args: JsonObject): JsonObject {
     },
   };
 }
+/**
+ * The refusal a native upload answers under the v2 contract profile (V2-MCP-06, target probe 15), as a native change answers
+ * WRITE_REVIEW_REQUIRED: nothing was fetched, saved or sent, and `next_call` is the amcp_media call that prepares the review
+ * of this very upload, the call the dry-run preview names too. Under legacy the upload itself prepares that review.
+ */
+const mediaReviewRequired = (media: JsonObject) =>
+  new MirrorError('MEDIA_REVIEW_REQUIRED', 'Use amcp_media prepare and execute for a reviewed upload.', {
+    next_call: {tool: 'amcp_media', arguments: media},
+  });
 /** Content without a captured top-level success flag: the envelope carries success once (MCP-05). */
 function withoutSuccess(content: JsonObject): JsonObject {
   if (content?.success !== true) return content;
@@ -521,6 +530,7 @@ export class MirrorService {
                 listed: () => this.listTools(),
                 firstParty: () => this.firstPartyTools(),
                 release: () => serverIdentity(),
+                profile: currentContractProfile(),
               },
               input,
             ),
@@ -596,7 +606,7 @@ export class MirrorService {
         const description = catalogListing
             ? this.introspection.catalogRequest(tool, input)
             : this.introspection.describe(tool, input),
-          media = mediaDiscovery(tool),
+          media = mediaDiscovery(tool, currentContractProfile()),
           program = conditionalProgramDescription(this.registry, tool, input.target_action);
         // read_only is AMCP's contract classification and api_version the version sent; captured values that differ
         // stay under captured_catalog, and amcp_execution says whether AMCP runs the action (MCP-10).
@@ -636,7 +646,7 @@ export class MirrorService {
         input.dry_run === false || hasMediaSource ? nativeMediaInput(plan, this.connectionId(input)) : undefined;
       if (media)
         return this.wrap(
-          input.dry_run === false ? mediaNext(await this.media().call(media, actor)) : mediaPreview(media),
+          input.dry_run === false ? mediaNext(await this.nativeUpload(media, actor)) : mediaPreview(media),
           requestId,
           start,
           tool,
@@ -905,6 +915,19 @@ export class MirrorService {
           throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the verification job.', {}, 409);
       });
     return this.verifyWrite(actor, input.review_id);
+  }
+  /**
+   * A native upload with dry_run:false: the import of a file through a native gateway's upload action or through
+   * amcp_native_action platform_media_upload. Under legacy it prepares the upload's review (amcp_media prepare), which saves
+   * the review and the file's frozen bytes. Under v2 (V2-MCP-06) a native route saves nothing and fetches nothing: whoever
+   * prepare would refuse before it fetched anything (a read-only deployment or role, a connection or an account without a
+   * write grant) is refused the same way, and anyone else is handed to amcp_media, which prepares the review a person then
+   * approves. The reviewed paths, amcp_media and amcp_write prepare, are the same under both.
+   */
+  private nativeUpload(media: JsonObject, actor: Actor) {
+    if (currentContractProfile() !== 'v2') return this.media().call(media, actor);
+    this.media().assertMayUpload(actor, media);
+    throw mediaReviewRequired(media);
   }
   private media() {
     return new MediaUploadService(
@@ -1340,7 +1363,7 @@ export class MirrorService {
         );
       }
       const media = workflowMediaInput(args);
-      return args.dry_run === false ? mediaNext(await this.media().call(media, actor)) : mediaPreview(media);
+      return args.dry_run === false ? mediaNext(await this.nativeUpload(media, actor)) : mediaPreview(media);
     }
     const afterMedia = workflow('after_media');
     if (afterMedia) return afterMedia();

@@ -399,7 +399,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Charts adds 53 entries and removes the old include-flags reason; the integration already has the new reason (mcp-typed, the same Arabic)
   // and lacks the old one, and meta-results added 'App installs' with another Arabic than charts, which now has one (meta-results', the
   // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
-  assert.equal(Object.keys(catalog).length, 12098);
+  // Package mcp-surface (V2-MCP-06) adds the Arabic of the MEDIA_REVIEW_REQUIRED refusal and its two remedies (with and without
+  // the call it names): 12,101.
+  assert.equal(Object.keys(catalog).length, 12101);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

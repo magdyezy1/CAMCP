@@ -68,6 +68,8 @@ export interface HelpContext {
   firstParty: () => ListedTool[];
   /** This build's identity (dist/release-identity.json), when it can be read. */
   release?: () => JsonObject;
+  /** The contract profile of the client asking (V2-MCP-06); legacy when absent. */
+  profile?: ContractProfile;
 }
 /** A short hash of what tools/list shows: it changes when any listed name, description or schema changes (MCP-05). */
 export const surfaceRevision = (listed: ListedTool[]) => sha256(stable(listed)).slice(0, 16);
@@ -199,7 +201,7 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
       surface_revision: surfaceRevision(listed),
     });
   const help = ctx.registry.help({gateway: input.gateway, operation: input.operation}, ctx.options),
-    media = mediaDiscovery(input.gateway),
+    media = mediaDiscovery(input.gateway, ctx.profile),
     program = conditionalProgramDescription(ctx.registry, input.gateway, input.operation);
   const contract = providerContractView(input.gateway);
   if (input.operation !== undefined) {

@@ -9,7 +9,12 @@ import {defaultContractProfile, type ContractProfile} from './contract-profile.j
  *
  * `v2Changes` lists each behaviour the v2 profile serves, one entry per behaviour, in the words a client acts on.
  */
-export const v2Changes: readonly {id: string; text: string}[] = Object.freeze([]);
+export const v2Changes: readonly {id: string; text: string}[] = Object.freeze([
+  {
+    id: 'media_handoff',
+    text: 'A native upload with dry_run:false (a native gateway’s upload action with the file in payload.url, or amcp_native_action platform_media_upload) saves no review and fetches no file. It is refused with MEDIA_REVIEW_REQUIRED and a next_call to amcp_media prepare for the same file, as a native change is refused with WRITE_REVIEW_REQUIRED and a next_call to amcp_write; run that call, show the review to the user and execute it only after they approve. A caller who could not upload is refused exactly as before. The dry_run preview, amcp_media and amcp_write prepare are unchanged.',
+  },
+]);
 
 /** The topic, for the profile this connection is served. */
 export function contractProfileTopic(profile: ContractProfile = defaultContractProfile): JsonObject {

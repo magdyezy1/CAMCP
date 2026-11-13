@@ -794,6 +794,17 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         : 'Mutations go through amcp_write: inspect, prepare, then execute the returned review.',
       mutation_retry_safe: false,
     };
+  // A native gateway's upload under the v2 contract profile (V2-MCP-06): it saves and sends nothing, and names the amcp_media
+  // call that prepares the review of the same upload.
+  if (e.code === 'MEDIA_REVIEW_REQUIRED')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action: e.details.next_call
+        ? 'Nothing was fetched, saved or sent: native gateways only read. Run details.next_call (amcp_media prepare for the same file), show the review to the user and execute it only after they approve.'
+        : 'Uploads go through amcp_media: prepare, then execute the returned review.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'PROVIDER_WRITE_SCOPE_REQUIRED')
     return {
       category: 'grant',
