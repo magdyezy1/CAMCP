@@ -274,10 +274,16 @@
       "raised": [
         "reference_words 159457 → 159815"
       ]
+    },
+    {
+      "reason": "closing-small: error toasts (the Toast section of DESIGN-SYSTEM), the connection result and the error toast in the shell browser kind (LOCAL-BROWSER-QA), the Arabic chunk gate and the planner's web readers (QUALIFICATION); +88 words, no page added",
+      "raised": [
+        "reference_words 159815 → 159903"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159815
+    "reference_words": 159903
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
