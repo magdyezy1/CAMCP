@@ -67,6 +67,8 @@ export const linkedinRuleWindowMissingWarning =
   'LinkedIn states no attribution window for at least one of the account’s conversion rules, so attribution windows stay unknown.';
 export const linkedinRulesRefusedWarning =
   'LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.';
+export const linkedinRulesBudgetWarning =
+  'LinkedIn conversion rules were not read because this report’s collection allowance could not hold the read, so attribution windows stay unknown.';
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
@@ -241,8 +243,8 @@ async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead |
 /**
  * What the account's rules say of the windows of a source whose reported entities all have website conversions as their
  * result (`results.conversions`, none `other`): the pair they share, or that they differ (`mixed`, the pairs listed and
- * the total kept), or `unknown` with the reason: no rule, a rule that states no window, or LinkedIn not returning the
- * rules. Undefined when the join says nothing new.
+ * the total kept), or `unknown` with the reason: no rule, a rule that states no window, LinkedIn not returning the rules,
+ * or the collection allowance not holding the read. Undefined when the join says nothing new.
  */
 async function linkedInSourceWindows(
   c: ReportCollection,
@@ -250,11 +252,11 @@ async function linkedInSourceWindows(
 ): Promise<LinkedInSourceWindows | undefined> {
   if (!results.conversions || results.other) return undefined;
   const read = await conversionRules(c);
-  if (read === 'refused')
+  if (typeof read === 'string')
     return {
       attribution: 'unknown',
       verified: false,
-      warnings: [linkedinRulesRefusedWarning],
+      warnings: [read === 'budget' ? linkedinRulesBudgetWarning : linkedinRulesRefusedWarning],
       conversion_windows: {
         status: 'unknown',
         basis: 'account_rules',
@@ -267,7 +269,6 @@ async function linkedInSourceWindows(
         rules_captured_at: null,
       },
     };
-  if (typeof read === 'string') return undefined;
   const join = linkedInConversionWindows(
       read.rules,
       read.rules.map(rule => String(rule.urn)),

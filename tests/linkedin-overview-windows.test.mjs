@@ -1,10 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {Store} from '../dist/src/store.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
+import {NativeCampaignReports} from '../dist/src/report-native.js';
+import {ReportCollectionBudget} from '../dist/src/report-collection-budget.js';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
 import {
   linkedinConversionRule,
+  linkedinConversionRulesPage,
   linkedinConversionRuleWithoutWindows,
 } from './fixtures/linkedin-conversion-rules-docs.mjs';
+import {
+  linkedinLevelAccount,
+  linkedinLevelAnalytics,
+  linkedinLevelCampaign,
+  linkedinLevelGroup,
+  linkedinLevelRange,
+} from './fixtures/linkedin-levels-docs.mjs';
 
 // V2-RPT-04 (plan 4.7): a v4 Overview source of LinkedIn website conversions takes its attribution windows from the
 // account's conversion rules. Every case runs the real queue, worker and LinkedIn collector over a synthetic LinkedIn
@@ -165,6 +179,109 @@ test('a rule that states no window leaves the windows unknown, even beside rules
     [windows.status, windows.rule_count, windows.unknown_rules, windows.reason, windows.single_window],
     ['unknown', 2, 1, 'rule_window_missing', null],
   );
+});
+
+// The collector alone, over the real transport, so that every request is counted against a whole-job allowance as it is
+// in a snapshot job: the account, the group and campaign analytics, the campaigns, the groups: five requests.
+function transportFixture(t, conversions) {
+  const actor = {tenantId: 'synthetic-linkedin-windows', userId: 'owner', role: 'admin'},
+    store = new Store(':memory:', Buffer.alloc(32, 78).toString('base64')),
+    paths = [];
+  t.after(() => store.close());
+  store.putConnection(
+    actor,
+    {
+      id: linkedinConnection,
+      tenantId: actor.tenantId,
+      gateway: 'linkedin_native_action',
+      accounts: ['100'],
+      enabled: true,
+      scopes: ['r_ads', 'r_ads_reporting'],
+      label: 'Synthetic',
+    },
+    {accessToken: 'synthetic'},
+  );
+  const records = {
+      group: {...linkedinLevelGroup, objectiveType: 'WEBSITE_CONVERSION'},
+      campaign: {...linkedinLevelCampaign, objectiveType: 'WEBSITE_CONVERSION'},
+    },
+    service = new MirrorService(
+      new Registry(),
+      store,
+      new NativeTransport(async raw => {
+        const url = new URL(raw);
+        paths.push(url.pathname);
+        if (url.pathname === '/rest/adAccounts/100') return Response.json(linkedinLevelAccount);
+        if (url.pathname === '/rest/adAnalytics')
+          return Response.json(linkedinLevelAnalytics(url.searchParams.get('pivot')));
+        if (url.pathname === '/rest/conversions')
+          return Response.json(
+            linkedinConversionRulesPage(conversions, Number(url.searchParams.get('start') ?? 0), 100),
+          );
+        return Response.json({
+          elements: [url.pathname.endsWith('/adCampaignGroups') ? records.group : records.campaign],
+          metadata: {},
+        });
+      }),
+    );
+  return {
+    actor,
+    paths,
+    collect: (lookup = {}) =>
+      new NativeCampaignReports(service).collect(
+        {
+          platform: 'linkedin',
+          account_id: '100',
+          connection_id: linkedinConnection,
+          level: 'campaign',
+          reporting_contract: 'overview-config-v4',
+          report_options: {complete_window: true, attribution: 'unknown'},
+        },
+        linkedinLevelRange,
+        actor,
+        {},
+        () => {},
+        lookup,
+      ),
+  };
+}
+
+test('the rules read is counted in the job’s collection allowance: it fits exactly, is not started one short, and a limit met inside it ends it', async t => {
+  const rules = count => Array.from({length: count}, (_, i) => linkedinConversionRule(String(i + 1)));
+  for (const [allowed, count, started, joined] of [
+    [8, 1, true, true],
+    [7, 1, false, false],
+    // The allowance holds the first three requests, then ends before the account is checked again: two pages of rules.
+    [8, 101, true, false],
+  ]) {
+    const f = transportFixture(t, rules(count));
+    let usage;
+    const budget = new ReportCollectionBudget(
+      undefined,
+      'synthetic-linkedin-windows',
+      state => {
+        usage = state;
+      },
+      {requests: allowed, rows: 1000, elapsed_ms: 600000, bytes: 1e9},
+    );
+    try {
+      const result = await budget.run(() => f.collect());
+      assert.equal(result.complete, true, 'the source completes either way');
+      assert.equal(f.paths.includes('/rest/conversions'), started, 'allowed ' + allowed + ': ' + f.paths.join(' '));
+      assert.equal(result.attribution, joined ? verifiedPair(30, 7) : 'unknown');
+      assert.equal(
+        result.warnings.includes(
+          'LinkedIn conversion rules were not read because this report’s collection allowance could not hold the read, so attribution windows stay unknown.',
+        ),
+        !joined,
+      );
+      assert.equal(result.conversion_windows.reason, joined ? null : 'budget');
+      assert.equal(result.rows[0].result.value, '20');
+    } finally {
+      budget.close();
+    }
+    assert.equal(usage.requests, started ? 8 : 5, 'the rules read’s requests are the job’s own');
+  }
 });
 
 test('a refused rules read leaves the windows unknown, keeps every number and leaves the report complete', async t => {
