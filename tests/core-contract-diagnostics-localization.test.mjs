@@ -16,7 +16,9 @@ const counts = {
   // the backend contract inventory (tests/backend-contract-localization.test.mjs). ARC-01 phase B (wave 4c) moves
   // the three refusals of the native read's provider steps (X's audience estimate and its status, Google's draft
   // generation) with those steps to src/provider-workflows.ts, unchanged, which that inventory owns too.
-  'src/service.ts': 13,
+  // Package mcp-surface (V2-MCP-06) adds the MEDIA_REVIEW_REQUIRED refusal of nativeUpload, which a native upload answers
+  // under the v2 contract profile (its Arabic is in web/locales/ar.json): 14.
+  'src/service.ts': 14,
   // ARC-02's reserved workspace ID refusal and reviewer connectors' administrator-access refusal.
   'src/store.ts': 90,
   // ARC-01 phase B's wire profile moves six refusals that name a provider's own headers to that provider's adapter
@@ -69,7 +71,8 @@ test('core diagnostic ownership resolves runtime imports and excludes lexical sh
 test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 223);
+  // Package mcp-surface (V2-MCP-06) adds the MEDIA_REVIEW_REQUIRED sentence of src/service.ts, owned by no other source: 223 + 1.
+  assert.equal(owned.size, 224);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

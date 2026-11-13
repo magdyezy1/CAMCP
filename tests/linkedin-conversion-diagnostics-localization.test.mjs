@@ -30,10 +30,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
     inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error.next_action;
   // The shared inventory of tests/shared-recovery-localization.test.mjs (SEC-08, CMP-03 and ARC-01 added one remedy
   // each, PRV-06 four, owner decision P5 one, and CMP-03's Microsoft location lookup two): errorRemedy's in
-  // src/errors.ts and the providers' remedy tables it consults first (ARC-04 stage C).
-  assert.equal(hints.size, 167);
+  // src/errors.ts and the providers' remedy tables it consults first (ARC-04 stage C). Package mcp-surface (V2-MCP-06) adds
+  // two: the remedies of MEDIA_REVIEW_REQUIRED, with and without the call it names.
+  assert.equal(hints.size, 169);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 166);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 168);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
