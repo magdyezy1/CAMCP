@@ -50,7 +50,13 @@ test('every Arabic page downloads less than before, and the public pages a fract
   // which the report builder loads through the charts script) merged beside charts, the page is at 0.97679 of its pre-WEB-07
   // value (587,510 of 601,471), so its margin is that ratio plus 0.005, rounded up to three decimals. Every other Arabic page
   // keeps 0.95.
-  const margin = {'ar /reporting-overview': 0.982};
+  // Merge D (D13), the lead's ruling 15: with sec-followup (+157: web/workspace.js, and web/components.js through the charts script),
+  // mcp-surface (+154: the three Arabic messages of MEDIA_REVIEW_REQUIRED in the workspace chunk), website-get (+2,355: the compact rows
+  // table and the on-demand details in web/reporting-overview.js and web/report-quality.js, and their two Arabic sentences) and
+  // closing-small (+589: the shell's growth, the error toast and the connection result's lockup in web/app.js, app.css and identity.css,
+  // and the Arabic shell chunk) merged beside Merge C's, the page is at 0.98220 of its pre-WEB-07 value (590,765 of 601,471, 10,706
+  // bytes of room), so its margin is that ratio plus 0.005, rounded up to three decimals. Every other Arabic page keeps 0.95.
+  const margin = {'ar /reporting-overview': 0.988};
   for (const key of Object.keys(current).filter(key => key.startsWith('ar ')))
     assert.ok(ratio(key) < (margin[key] ?? 0.95), key + ': ' + ratio(key));
   for (const route of ['/', '/login', '/signup', '/forgot-password', '/about'])
