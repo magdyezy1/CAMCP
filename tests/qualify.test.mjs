@@ -352,6 +352,25 @@ test('profiles run freshness gates first, require FFmpeg for the suites, and rec
   assert.throws(() => profileStages('everything'), /QUALIFY_PROFILE_UNKNOWN/);
 });
 
+// Package closing-small, item 4: the Arabic chunks (web/locales/ar/) are generated from the catalogue and from the messages
+// the scripts write, and a stale one is a missing translation in the browser. Only check-web, a stage of the full profile,
+// compared them, so a catalogue or script change that left one stale passed `npm run check:fast` (the gate before a push)
+// and failed later. The fast profile now runs the chunk check, read-only, with the other freshness gates.
+test('the fast profile checks the Arabic chunks without writing them, as a blocking freshness gate', () => {
+  const fast = profileStages('fast'),
+    stage = fast.find(s => s.name === 'locale_chunks_check');
+  assert.ok(stage, 'check:fast has a stage for the Arabic chunks');
+  assert.deepEqual(stage.args, ['tools/locale-chunks.mjs'], 'check mode: --write regenerates them, which no gate does');
+  assert.ok(fs.existsSync(stage.args[0]), stage.args[0]);
+  assert.equal(stage.blocking, true);
+  assert.equal(stage.freshness, true, 'a reused qualification runs it too');
+  assert.equal(fast.at(-1).name, 'sunset_alarms', 'the alarm, which never blocks, stays last');
+  assert.ok(
+    profileStages('full').some(s => s.name === 'locale_chunks_check'),
+    'the full profile starts with the same gates',
+  );
+});
+
 test('the full profile runs the journey and MCP evaluation against its committed baseline as a blocking stage (QA-04)', () => {
   const stage = profileStages('full').find(item => item.name === 'journey_evaluation');
   assert.deepEqual(stage && [stage.args, stage.blocking], [['tools/mcp-eval.mjs', '--check'], true]);
