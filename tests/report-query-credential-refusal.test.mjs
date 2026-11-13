@@ -198,6 +198,25 @@ test('display and storage keep the full redaction: the prose forms are still hid
   assert.deepEqual(shown, {platform: 'meta', note: '[REDACTED] funnel', other: 'Cookie: [REDACTED]'});
 });
 
+test('white space around the = after ?, &, # or ; is prose-shaped for the refusal (Ruling 10) and hidden where it is shown (P2A-01)', t => {
+  const f = fixture(t);
+  // P2A-01 made redact() hide `&access_token = x` again, as the report card always did. The refusal keeps Ruling 10's rule:
+  // a pair counts when the value stands straight after `=` or `:` (or after the name of a JSON key), so `name = value`
+  // with white space around the `=` is accepted, with or without a delimiter before the name. Decided in sec-followup:
+  // adding the delimiter does not make it more credential-shaped.
+  for (const lead of ['', '?', '&', '#', ';'])
+    for (const spacing of [' =', '= ', ' = ', '\t=', '=\t', '=\n']) {
+      const text = `see ${lead}access_token${spacing}${SECRET} now`;
+      assert.equal(security.redactCredentialShapes(text), text, JSON.stringify(text));
+      assert.doesNotThrow(() => assertReportingConfigCredentials(queryWith(f.config, text)), JSON.stringify(text));
+      assert.ok(!security.redact(text).includes('SYNTHETICVALUE'), 'shown: ' + JSON.stringify(text));
+      assert.ok(
+        !redactReportingConfig({note: text}).note.includes('SYNTHETICVALUE'),
+        'displayed: ' + JSON.stringify(text),
+      );
+    }
+});
+
 // ---- The credential-shaped view against the full redaction and the head's ----
 const names = [
   'access_token',

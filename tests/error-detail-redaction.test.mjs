@@ -148,10 +148,15 @@ test('what the redaction hid before this package it still hides, pair for pair, 
     return leads[next(leads.length)] + name + '=' + value;
   };
   for (let i = 0; i < 20000; i++) {
-    const free = Array.from(
-      {length: 1 + next(4)},
-      () => (next(3) ? '' : [' ', 'x', ' end ', 'Bearer abc.def '][next(4)]) + pair('?&', 0),
-    );
+    // P2A-01 (sec-followup): a credential name, `=` and white space is read as a spaced pair, whose value is the next token:
+    // the report card hid `&client_secret= end` before DR2-02 and does again. So an empty value is not followed by white
+    // space here (the next piece then starts glued, as it did when this sample was drawn); that shape is pinned, with its
+    // exact text, in tests/redaction-prose-and-headers.test.mjs. The draws are the same as before.
+    const free = [];
+    for (let n = 1 + next(4); n > 0; n--) {
+      const prefix = next(3) ? '' : [' ', 'x', ' end ', 'Bearer abc.def '][next(4)];
+      free.push((/=$/.test(free.join('')) && /^\s/.test(prefix) ? 'x' : prefix) + pair('?&', 0));
+    }
     const text = free.join('');
     assert.equal(redact(text), textReference(text), JSON.stringify(text));
     const link = 'https://a.example/p' + Array.from({length: 1 + next(4)}, () => pair('?&#', 0)).join(''),

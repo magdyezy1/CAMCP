@@ -129,7 +129,10 @@ const textPairs = pairPass('&'),
  *   for user`);
  * - a credential name of the list above, `=` or `:`, and a value, in a sentence (`request failed access_token=abc
  *   please retry`); a value the pair pass already hid is left, so `?access_token=[REDACTED]&n=1` keeps its `&n=1`, and
- *   a name straight after `?`, `&`, `#` or `;` with `=` is the pair pass's own head (its empty value stays as it was);
+ *   a name straight after `?`, `&`, `#` or `;` with `=` and no white space around it is the pair pass's own head (its
+ *   empty value stays as it was). With white space around the `=` the pair pass reads no head (`&access_token = x`,
+ *   `;client_secret= x`), so the third alternative below hides it: the report card's old rule did, and DR2-02 lost it
+ *   (P2A-01);
  * - a Meta access token: `EAA` and sixty or more letters and digits, with no closing `\b`, which would make a long run
  *   of letters and digits that ends in `_` read again from each `EAA` inside it.
  * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
@@ -139,7 +142,9 @@ const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[
   sentenceSecrets = new RegExp(
     '(?:(?<![?&#;])\\b(?:' +
       secretKeyNames +
-      ')\\s*=|\\b(?:' +
+      ')\\s*=|(?<=[?&#;])(?:' +
+      secretKeyNames +
+      ')(?:\\s+=|=\\s)|\\b(?:' +
       secretKeyNames +
       ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+',
     'gi',
