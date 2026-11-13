@@ -89,8 +89,9 @@ const shownRequest = (plan: CompiledRequest): unknown => {
  * The `request` of an inspect or prepare answer, for the AI client to show the person who approves it (P2A-02). The text
  * of an ad is whatever its preparer wrote, and the frozen plan sends all of it, so it is shown through the credential
  * view of Ruling 10, not through redact(): `Cookie: visit https://evil.example/landing now` is read whole, and only a
- * credential-shaped value is hidden. When one is, `redacted` lists its path and the sha256 of the value, so the reader knows
- * that something was hidden and can match it. The audit row and the job records are written from the plan by redact().
+ * credential-shaped value is hidden. When one is, `redacted` lists its path and nothing else of it (Ruling 13: no hash
+ * either, which would let a reader reverse a short secret offline), so the reader knows that something was hidden and where.
+ * The audit row and the job records are written from the plan by redact().
  */
 const reviewedRequest = (plan: CompiledRequest) => {
   const {value, redacted} = redactCredentialShapesWithPaths(shownRequest(plan));

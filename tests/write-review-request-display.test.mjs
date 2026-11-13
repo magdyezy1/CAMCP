@@ -12,8 +12,10 @@ import * as security from '../dist/src/security.js';
  * `Authorization:` and the value after `password:`, `secret:` and the other credential words. Ad text that begins with one
  * of them (`Cookie: visit https://evil.example/landing now`) reached the approver as `Cookie: [REDACTED]` while the frozen
  * plan sent the whole text, and nothing said a value was hidden. The review now shows its request through the credential
- * view of Ruling 10 (ordinary text whole, credential-shaped values hidden) and lists, as `redacted`, the path and the
- * sha256 of every value it hid. The audit row and the job records keep the full redact(). Synthetic values only.
+ * view of Ruling 10 (ordinary text whole, credential-shaped values hidden) and lists, as `redacted`, the path of every
+ * value it hid, and only the path (Ruling 13: the first version also listed an unsalted sha256 of each hidden value, which
+ * lets a reader of the answer reverse a short secret offline when the value is the credential itself). The audit row and
+ * the job records keep the full redact(). Synthetic values only.
  */
 const registry = new Registry(),
   key = Buffer.alloc(32, 31).toString('base64'),
@@ -74,6 +76,9 @@ async function ok(service, input) {
   return r.data;
 }
 const namePath = '$["body"]["name"]';
+// Ruling 13: the keys that the entries of a `redacted` list carry, all together. The only one allowed is `path`: a hash of a
+// hidden value (unsalted, of the whole field) would let a reader of the answer reverse a short secret offline.
+const keysOf = entries => [...new Set(entries.flatMap(entry => Object.keys(entry)))];
 const auditRequest = (store, event) =>
   store
     .recentAudit(actor.tenantId, 50)
@@ -133,7 +138,7 @@ test('the provider is sent the text the approver read, whole', async () => {
   }
 });
 
-test('a credential-shaped value is hidden, and inspect and prepare list its path and the sha256 of the value', async () => {
+test('a credential-shaped value is hidden, and inspect and prepare list its path and nothing else of it', async () => {
   const x = setup();
   try {
     for (const text of [
@@ -155,7 +160,9 @@ test('a credential-shaped value is hidden, and inspect and prepare list its path
           label + ' shows a credential: ' + text,
         );
         assert.ok(answer.request.body.name.includes('[REDACTED]'), label + ' hides nothing: ' + text);
-        assert.deepEqual(answer.redacted, [{path: namePath, sha256: security.sha256(text)}], label + ': ' + text);
+        // Ruling 13: no entry carries any key but `path`, and the list is the path of the one hidden value.
+        assert.deepEqual(keysOf(answer.redacted), ['path'], label + ' lists more than a path: ' + text);
+        assert.deepEqual(answer.redacted, [{path: namePath}], label + ': ' + text);
       }
       // The frozen plan keeps the whole value, and the fingerprint is the plan's.
       const review = x.store.document(actor.tenantId, 'write_review', prepared.review_id);
@@ -195,7 +202,8 @@ test('a request that inspect refuses is shown the same way: ordinary text whole,
       assert.equal(answer.error.code, 'PAUSED_CREATION_REQUIRED');
       if (hidden) {
         assert.equal(answer.request.body.name, 'Cookie: visit https://evil.example/landing now &password=[REDACTED]');
-        assert.deepEqual(answer.redacted, [{path: namePath, sha256: security.sha256(text)}]);
+        assert.deepEqual(keysOf(answer.redacted), ['path']);
+        assert.deepEqual(answer.redacted, [{path: namePath}]);
       } else {
         assert.equal(answer.request.body.name, text);
         assert.equal(answer.redacted, undefined);
@@ -223,22 +231,22 @@ test('redactCredentialShapesWithPaths shows what redactCredentialShapes shows an
   const {value: shown, redacted} = security.redactCredentialShapesWithPaths(value);
   assert.deepEqual(shown, security.redactCredentialShapes(value));
   assert.equal(shown.ordinary, value.ordinary);
+  // Ruling 13: the path of each hidden value, and no other key (no hash of the value, whatever its type).
+  assert.deepEqual(keysOf(redacted), ['path']);
   assert.deepEqual(redacted, [
-    {path: '$["headline"]', sha256: security.sha256(value.headline)},
-    {path: '$["list"][1]', sha256: security.sha256(value.list[1])},
-    {path: '$["list"][2]["deep"]', sha256: security.sha256(value.list[2].deep)},
-    {path: '$["we.ird\\"key"]', sha256: security.sha256(value['we.ird"key'])},
-    {path: '$["api_key"]', sha256: security.sha256(value.api_key)},
-    // A value of a credential key that is not a string is hashed as its stable JSON text.
-    {path: '$["cookie"]', sha256: security.sha256(security.stable(value.cookie))},
-    {path: '$["image_data"]', sha256: security.sha256('AAAA')},
+    {path: '$["headline"]'},
+    {path: '$["list"][1]'},
+    {path: '$["list"][2]["deep"]'},
+    {path: '$["we.ird\\"key"]'},
+    {path: '$["api_key"]'},
+    // A value of a credential key that is not a string is listed by its path like any other.
+    {path: '$["cookie"]'},
+    {path: '$["image_data"]'},
   ]);
   // A value that is already the replacement (a key that carries [REDACTED]) hides nothing, so it is not listed.
   assert.deepEqual(security.redactCredentialShapesWithPaths({password: '[REDACTED]', note: 'x'}).redacted, []);
   // Nothing hidden: no entries, and the root path is `$`.
   assert.deepEqual(security.redactCredentialShapesWithPaths({a: ['b']}).redacted, []);
-  assert.deepEqual(security.redactCredentialShapesWithPaths('Bearer SYNTHETICVALUE0123456789').redacted, [
-    {path: '$', sha256: security.sha256('Bearer SYNTHETICVALUE0123456789')},
-  ]);
+  assert.deepEqual(security.redactCredentialShapesWithPaths('Bearer SYNTHETICVALUE0123456789').redacted, [{path: '$'}]);
   assert.deepEqual(security.redactCredentialShapesWithPaths(null), {value: null, redacted: []});
 });
