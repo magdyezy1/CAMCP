@@ -7,6 +7,11 @@ const controls = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 const rtlScript = /[\p{Script=Arabic}\p{Script=Hebrew}]/u;
 // PDFKit 0.20 supports feature objects; its 0.17 typings only expose arrays. Mirroring is applied once by Unicode.
 const features = {rtlm: false} as unknown as PDFKit.Mixins.TextOptions['features'];
+// Fontkit places a combining mark on the glyph before it, and throws (`TypeError ... xCoordinate`) when that glyph is a space or
+// a no-break space, which has no anchor for a mark. The font has the mark, so the glyph filter lets it through, and a campaign
+// name is provider text (P2B-02). Such a run is shaped again without mark placement: the mark has no advance and is drawn where
+// the cursor is, as a mark with no base can only be.
+const featuresWithoutMarks = {rtlm: false, mark: false} as unknown as PDFKit.Mixins.TextOptions['features'];
 type Run = {text: string; rtl: boolean};
 type Line = {logical: string; runs: Run[]; width: number; rtl: boolean};
 
@@ -100,6 +105,20 @@ export function pdfTextLines(
 
 type Doc = InstanceType<typeof PDFDocument>;
 /**
+ * The width of a text in the embedded font and the features it was shaped with: the draw of the same text uses those, so
+ * what is measured is what is drawn, and a text fontkit cannot place a mark in is measured and drawn, never thrown.
+ */
+function shapedWidth(doc: Doc, text: string): {width: number; features: typeof features} {
+  try {
+    return {width: doc.widthOfString(text, {features}), features};
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+    return {width: doc.widthOfString(text, {features: featuresWithoutMarks}), features: featuresWithoutMarks};
+  }
+}
+/** The width of a text as it is drawn. */
+const measureText = (doc: Doc) => (text: string) => shapedWidth(doc, text).width;
+/**
  * Paints the runs of one line from `at` to the right, at `y`: the top of the text, or with `onBaseline` its baseline; `mode`
  * says how the letters are painted (filled by default, or as an outline, or both).
  */
@@ -118,13 +137,14 @@ function paintRuns(
         ? [...new Intl.Segmenter('und', {granularity: 'grapheme'}).segment(run.text)].map(s => s.segment)
         : [run.text];
     for (const piece of pieces) {
+      const shaped = shapedWidth(doc, piece);
       doc.text(piece, at, y, {
         lineBreak: false,
-        features,
+        features: shaped.features,
         ...(onBaseline ? {baseline: 'alphabetic' as const} : {}),
         ...mode,
       });
-      at += doc.widthOfString(piece, {features});
+      at += shaped.width;
     }
   }
 }
@@ -133,7 +153,7 @@ export function drawPdfText(doc: Doc, value: string, alignRight: boolean) {
   const width = 507,
     x = 44,
     lineHeight = doc.currentLineHeight(true) + 3;
-  const lines = pdfTextLines(value, width, text => doc.widthOfString(text, {features}));
+  const lines = pdfTextLines(value, width, measureText(doc));
   for (const line of lines) {
     if (doc.y + lineHeight > doc.page.height - 65) doc.addPage();
     const y = doc.y;
@@ -148,12 +168,7 @@ export function drawPdfText(doc: Doc, value: string, alignRight: boolean) {
 /** The width a text has in the embedded font at a size, measured the way it is drawn. */
 export function pdfTextWidth(doc: Doc, value: string, size: number, rtl?: boolean): number {
   doc.fontSize(size);
-  const [line] = pdfTextLines(
-    value,
-    100000,
-    text => doc.widthOfString(text, {features}),
-    rtl === undefined ? undefined : rtl ? 'rtl' : 'ltr',
-  );
+  const [line] = pdfTextLines(value, 100000, measureText(doc), rtl === undefined ? undefined : rtl ? 'rtl' : 'ltr');
   return line?.width ?? 0;
 }
 
@@ -186,7 +201,7 @@ export function drawPdfTextAt(
   const [line] = pdfTextLines(
     value,
     100000,
-    text => doc.widthOfString(text, {features}),
+    measureText(doc),
     options.rtl === undefined ? undefined : options.rtl ? 'rtl' : 'ltr',
   );
   if (!line?.runs.length) return 0;
