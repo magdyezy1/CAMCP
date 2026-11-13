@@ -944,20 +944,37 @@ function renderCustomMetrics() {
     }),
   );
 }
-async function loadOverviewReport(id, page = overviewState.page) {
+const reportRunning = r => ['queued', 'running'].includes(r.job.state);
+/**
+ * Loads a report and draws it. A poll (while the job or an export runs) asks for the status only: the job, the exports and the
+ * deliveries, with one row, since it draws none. A poll that finds the job finished asks for the page's rows; one that finds
+ * a finished report with an export still running lays the status over the rows already on the page.
+ */
+async function loadOverviewReport(id, page = overviewState.page, poll = false) {
   if (location.pathname !== '/reporting-overview') return;
   clearTimeout(pollTimer);
-  const sequence = ++overviewState.loadSequence;
-  const r = await overviewCall({
-    action: 'get',
-    id,
-    offset: page * 100,
-    limit: 100,
-    // The charts are asked for only where the script that draws them is loaded (V2-EXP-01). The provider's own rows and the
-    // lineage are not asked for: they load when a disclosure is opened (reportFetchRowDetails, bindReportLineage).
-    ...(typeof mountReportCharts === 'function' ? {include: {charts: true}} : {}),
-  });
+  const sequence = ++overviewState.loadSequence,
+    drawn = overviewState.report;
+  let r = await overviewCall(
+    poll
+      ? {action: 'get', id, offset: 0, limit: 1}
+      : {
+          action: 'get',
+          id,
+          offset: page * 100,
+          limit: 100,
+          // The charts are asked for only where the script that draws them is loaded (V2-EXP-01). The provider's own rows and the
+          // lineage are not asked for: they load when a disclosure is opened (reportFetchRowDetails, bindReportLineage).
+          ...(typeof mountReportCharts === 'function' ? {include: {charts: true}} : {}),
+        },
+  );
   if (location.pathname !== '/reporting-overview' || sequence !== overviewState.loadSequence) return;
+  if (poll && !reportRunning(r)) {
+    // A report that has just finished has rows to draw; one whose rows are on the page keeps them.
+    if (drawn?.id !== id || reportRunning(drawn)) return loadOverviewReport(id, page);
+    const {rows, offset, has_more, next_offset, total, charts, sources} = drawn;
+    r = {...r, rows, offset, has_more, next_offset, total, charts, sources};
+  }
   overviewState.report = r;
   overviewState.page = page;
   if (overviewState.watch?.id !== id) overviewState.watch = {id, since: Date.now()};
@@ -1027,7 +1044,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
   });
   if (pollDelay !== null)
     pollTimer = setTimeout(() => {
-      void loadOverviewReport(id).catch(e => toast(errorMessage(e)));
+      void loadOverviewReport(id, overviewState.page, true).catch(e => toast(errorMessage(e)));
     }, pollDelay);
 }
 /**
