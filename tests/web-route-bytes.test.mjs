@@ -46,7 +46,11 @@ test('every Arabic page downloads less than before, and the public pages a fract
   // Package charts (V2-EXP-01): the report builder draws the charts of a report, so it carries their script and sheet and the
   // V2 layer they draw with (about 32 KB of Brotli), which takes its Arabic page from 0.90 of its pre-WEB-07 value to 0.96. It
   // stays under that value; the 5% margin the other pages keep is not asked of the one page that gained a feature.
-  const margin = {'ar /reporting-overview': 0.97};
+  // Merge C (D13), the lead's ruling: with web-shell (the shell's growth), meta-results and sec-hardening (web/components.js,
+  // which the report builder loads through the charts script) merged beside charts, the page is at 0.97679 of its pre-WEB-07
+  // value (587,510 of 601,471), so its margin is that ratio plus 0.005, rounded up to three decimals. Every other Arabic page
+  // keeps 0.95.
+  const margin = {'ar /reporting-overview': 0.982};
   for (const key of Object.keys(current).filter(key => key.startsWith('ar ')))
     assert.ok(ratio(key) < (margin[key] ?? 0.95), key + ': ' + ratio(key));
   for (const route of ['/', '/login', '/signup', '/forgot-password', '/about'])
