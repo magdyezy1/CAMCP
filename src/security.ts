@@ -215,23 +215,48 @@ export function redactUrlSecrets(
   const out = walk(value, false);
   return {value: out, redacted};
 }
-/** The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller. */
-function redactWith(value: unknown, text: (text: string) => string): any {
-  if (Array.isArray(value)) return value.map(item => redactWith(item, text));
+/** What a key hides its value as, or undefined when the key hides nothing: the same rules for every caller. */
+const keyReplacement = (k: string): string | undefined =>
+  /^(?:shareable[-_]?preview[-_]?url|youtube[-_]?(?:tv[-_]?)?preview[-_]?url)$/i.test(k)
+    ? '[PRIVATE_PREVIEW_URL]'
+    : /^image[-_]?data$/i.test(k)
+      ? '[BINARY_REDACTED]'
+      : secretKey.test(k)
+        ? '[REDACTED]'
+        : undefined;
+/** A value that a display hid: where it stood and the sha256 of it, so a reader can match it with the frozen text. */
+export interface HiddenValue {
+  path: string;
+  sha256: string;
+}
+/**
+ * The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller.
+ * `hid`, when given, is told the path (`$`, then `["key"]` and `[0]` as changedStateFields spells them) and the original
+ * of every value that was replaced, so a display can say what it hid; without it no path is built.
+ */
+function redactWith(
+  value: unknown,
+  text: (text: string) => string,
+  hid?: (path: string, original: unknown) => void,
+  path = '$',
+): any {
+  if (Array.isArray(value))
+    return value.map((item, i) => redactWith(item, text, hid, hid ? path + '[' + i + ']' : path));
   if (value && typeof value === 'object')
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [
-        k,
-        /^(?:shareable[-_]?preview[-_]?url|youtube[-_]?(?:tv[-_]?)?preview[-_]?url)$/i.test(k)
-          ? '[PRIVATE_PREVIEW_URL]'
-          : /^image[-_]?data$/i.test(k)
-            ? '[BINARY_REDACTED]'
-            : secretKey.test(k)
-              ? '[REDACTED]'
-              : redactWith(v, text),
-      ]),
+      Object.entries(value).map(([k, v]) => {
+        const at = hid ? path + '[' + JSON.stringify(k) + ']' : path,
+          replacement = keyReplacement(k);
+        if (replacement === undefined) return [k, redactWith(v, text, hid, at)];
+        if (hid && v !== replacement) hid(at, v);
+        return [k, replacement];
+      }),
     );
-  if (typeof value === 'string') return text(value);
+  if (typeof value === 'string') {
+    const out = text(value);
+    if (hid && out !== value) hid(path, value);
+    return out;
+  }
   return value;
 }
 export function redact(value: unknown): any {
@@ -244,6 +269,21 @@ export function redact(value: unknown): any {
  */
 export function redactCredentialShapes(value: unknown): any {
   return redactWith(value, credentialText);
+}
+/**
+ * redactCredentialShapes() for a display that a person reads and approves (the request of a review, P2A-02), with where it
+ * hid something: the path and the sha256 of each value it replaced (a string by its text, any other value by its stable JSON
+ * text), in the order they stand. Ordinary text is shown whole, so a headline that begins with `Cookie:` or `password:` is
+ * what the frozen request sends; a value that is hidden is named, so the reader knows something was hidden and can match it
+ * with the frozen text. What is stored (the audit row, job records) keeps redact(). A value that already is its replacement
+ * hides nothing and is not listed.
+ */
+export function redactCredentialShapesWithPaths(value: unknown): {value: any; redacted: HiddenValue[]} {
+  const redacted: HiddenValue[] = [];
+  const shown = redactWith(value, credentialText, (path, original) =>
+    redacted.push({path, sha256: sha256(typeof original === 'string' ? original : stable(original))}),
+  );
+  return {value: shown, redacted};
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {
   if (depth > 50) throw new MirrorError('INVALID_ARGUMENT', 'Input exceeds maximum nesting depth.');
