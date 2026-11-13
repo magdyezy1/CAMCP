@@ -22,11 +22,15 @@ import {
   buildCampaignPrompt,
   campaignPlatforms,
 } from '../src/guidance.js';
-import {MirrorError} from '../src/errors.js';
+import {MirrorError, errorResult} from '../src/errors.js';
 import {serverIdentity} from '../src/server-identity.js';
 import {serverInstructionsFor} from '../src/tool-annotations.js';
 import {withContractProfile} from '../src/contract-profile.js';
 import {contractProfileOf} from '../src/mcp-client-profile.js';
+import {callIsRead} from '../src/call-kind.js';
+import {invalidCursor} from '../src/page-cursor.js';
+import {BudgetRequest, Continuation, budgetRequest, budgeted, continuationOf} from './mcp-budget.js';
+import {randomUUID} from 'node:crypto';
 /** AMCP's published legacy guide-error code; SDK v2 emits Invalid Params unless the legacy adapter restores it. */
 const resourceNotFound = -32002;
 /** SDK v2 normalizes resource errors in both eras. Preserve AMCP's published legacy guide error on legacy wires. */
@@ -171,32 +175,57 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
   // The tasks extension exists on the 2026-07-28 path only (server/mcp-tasks.ts).
   if (hooks.era === 'modern') registerTaskHandlers(server, service, actor);
   server.setRequestHandler('tools/call', async (request, ctx) => {
-    const args = request.params.arguments ?? {},
+    // The client's contract profile, read from its record at this request (V2-MCP-06): the call runs as that profile and no other.
+    const profile = contractProfileOf(service.store, actor),
+      name = request.params.name,
+      // General discovery already used this structured envelope. Text-only clients must receive the same result.
+      present = (result: JsonObject) => {
+        const presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
+        return {
+          content: [{type: 'text', text: JSON.stringify(presented)}],
+          structuredContent: presented,
+          ...(result.success === false ? {isError: true} : {}),
+        };
+      };
+    // A v2 client's byte budget and continuation are this layer's arguments: a tool never sees them. Whether the call reads, and
+    // where a continuation continues, are settled before anything runs, so a call that changes something is never run twice.
+    let budget: BudgetRequest | undefined,
+      reads = false,
+      continued: Continuation | undefined;
+    if (profile === 'v2')
+      try {
+        budget = budgetRequest(request.params.arguments ?? {});
+        reads = callIsRead(service, name, budget.args);
+        if (budget.continuation !== undefined) {
+          if (!reads) throw invalidCursor('response continuation');
+          continued = continuationOf(actor, name, budget);
+        }
+      } catch (e) {
+        return present(errorResult(e, randomUUID(), 0)) as any;
+      }
+    const args = budget ? budget.args : (request.params.arguments ?? {}),
       token = progressTokenOf(request.params._meta),
       // Only a client that declares the tasks extension in this very request is offered a task, never one inferred.
       tasksOn = hooks.era === 'modern' && declaresTasks(ctx.mcpReq.envelope),
       // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
-      call = () => service.call(request.params.name, args, actor),
+      call = () => service.call(name, args, actor),
       // A call that queues a long run is answered a task by a client that declares the extension; otherwise one that
       // carries a progress token waits for it, bounded, and reports its progress on this request's stream (V2-MCP-02).
-      // With neither, nothing differs from a plain call. The whole call runs as the client's contract profile, read from
-      // its record at this request (V2-MCP-06): a call inside it, and what it awaits, sees that profile and no other.
-      work = withContractProfile(contractProfileOf(service.store, actor), () =>
+      // With neither, nothing differs from a plain call.
+      work = withContractProfile(profile, () =>
         withExactIntegers(
           token === undefined && !tasksOn
             ? call
             : async () => {
                 const answer = await call(),
-                  offer = tasksOn
-                    ? createTask({service, actor, tool: request.params.name, args, result: answer})
-                    : undefined;
+                  offer = tasksOn ? createTask({service, actor, tool: name, args, result: answer}) : undefined;
                 if (offer) return offer;
                 return token === undefined
                   ? answer
                   : await answerWithProgress({
                       service,
                       actor,
-                      tool: request.params.name,
+                      tool: name,
                       args,
                       result: answer,
                       token,
@@ -209,13 +238,16 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
       ),
       result = await (hooks.track ? hooks.track(work) : work);
     if (result instanceof TaskOffer) return taskCallResult(result) as any;
-    // General discovery already used this structured envelope. Text-only clients must receive the same result.
-    const presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
-    return {
-      content: [{type: 'text', text: JSON.stringify(presented)}],
-      structuredContent: presented,
-      ...(result.success === false ? {isError: true} : {}),
-    };
+    // A v2 client's list read is cut at a row boundary to its budget, with the call that continues it (server/mcp-budget.ts).
+    try {
+      return present(
+        budget && reads && result.success === true
+          ? budgeted({tool: name, actor, request: budget, given: continued, envelope: result})
+          : result,
+      ) as any;
+    } catch (e) {
+      return present(errorResult(e, randomUUID(), 0)) as any;
+    }
   });
   return server;
 }

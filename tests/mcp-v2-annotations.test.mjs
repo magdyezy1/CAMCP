@@ -154,7 +154,9 @@ test('the help topic names the seven that are read-only under v2 and why each of
         assert.equal(entry.writes, toolAnnotations[entry.gateway].basis);
       }
       const ids = data.v2_changes.map(change => change.id);
-      assert.deepEqual(ids, ['annotations', 'media_handoff']);
+      // What v2 changes is listed once each; the other decisions of the package add their own entries.
+      assert.equal(new Set(ids).size, ids.length);
+      for (const id of ['annotations', 'media_handoff']) assert.ok(ids.includes(id), id);
       const annotations = data.v2_changes.find(change => change.id === 'annotations').text;
       for (const gateway of ['meta', 'tiktok', 'snapchat', 'dv360', 'linkedin', 'google_ads', 'x_ads'])
         assert.match(annotations, new RegExp(gateway));

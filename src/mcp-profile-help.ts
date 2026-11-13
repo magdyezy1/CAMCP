@@ -19,6 +19,10 @@ export const v2Changes: readonly {id: string; text: string}[] = Object.freeze([
     id: 'media_handoff',
     text: 'A native upload with dry_run:false (a native gateway’s upload action with the file in payload.url, or amcp_native_action platform_media_upload) saves no review and fetches no file. It is refused with MEDIA_REVIEW_REQUIRED and a next_call to amcp_media prepare for the same file, as a native change is refused with WRITE_REVIEW_REQUIRED and a next_call to amcp_write; run that call, show the review to the user and execute it only after they approve. A caller who could not upload is refused exactly as before. The dry_run preview, amcp_media and amcp_write prepare are unchanged.',
   },
+  {
+    id: 'response_budget',
+    text: 'An MCP read that returns a list is cut at a row boundary to a budget of 64 KiB of JSON; max_bytes (4,096 to 262,144) asks for another. A cut result has meta.budget (truncated, rows_total, rows_before, rows_returned, rows_omitted, max_bytes, and the next_call that continues it) and, in its data when that is an object, truncated and the same next_call; its own next_offset, next_cursor and provider next_call are emptied, so the continuation is the only way forward, and the last piece carries the result’s own paging again. A row is never cut: one larger than the budget is returned whole and marked over_budget. The continuation (the continuation argument of the call) belongs to the AI client, the person, the workspace and the exact arguments it was issued for, not to the access token, so it survives a token refresh; with any argument changed, or by another client, it is INVALID_CURSOR. Each piece reads the call again, so follow the pieces promptly, and ask for less with max_items or result_fields. Calls that save or send anything are never cut or re-run, an answer under the budget is returned whole, and legacy clients and the website are answered whole.',
+  },
 ]);
 
 /** The topic, for the profile this connection is served. */

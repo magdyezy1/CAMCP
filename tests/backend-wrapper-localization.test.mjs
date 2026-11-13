@@ -301,7 +301,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/mcp-client-profile.ts (which profile an AI client's record gives it) and src/mcp-profile-help.ts (the help topic that
   // announces the profiles), none with a reason of its own: three more on Merge C's 808, 811. Whoever merges it adds the files
   // of every package it is merged with to this number.
-  assert.equal(files.length, 811);
+  // Package mcp-surface adds server/mcp-budget.ts (the response budget of a v2 client's list reads) and src/call-kind.ts (whether a call
+  // only reads), neither with a reason of its own: 813.
+  assert.equal(files.length, 813);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
