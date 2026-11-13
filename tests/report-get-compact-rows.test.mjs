@@ -11,7 +11,9 @@ import {Script, createContext} from 'node:vm';
 import {overviewGranularityFixture, granularConfig, granularSource} from './fixtures/overview-granularity-data.mjs';
 import {reportEngine} from './helpers/report-engine.mjs';
 import {row as packetRow} from './helpers/report-packets.mjs';
+import {tiktokThreeLevelFixture} from './helpers/tiktok-three-level.mjs';
 import {reportSource} from '../dist/src/report-sources.js';
+import {projectOverviewV4Rows, projectOverviewV4Sources} from '../dist/src/overview-v4.js';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const esc = value =>
@@ -131,6 +133,41 @@ for (const c of cases)
       );
   });
 
+test('a native metric the person chose as a column is in the compact row: it needs no provider rows', async t => {
+  const f = tiktokThreeLevelFixture();
+  t.after(() => f.close());
+  const queued = await f.queue({
+    metrics: ['spend', 'native_tiktok_metrics_cost_per_result', 'native_tiktok_metrics_result_rate'],
+  });
+  await f.turn();
+  // The compact answer is what `get` returns; the full one is the same snapshot projected with include.native, as `get` does.
+  const stored = f.store.document(f.actor.tenantId, 'overview_report', queued.id),
+    compact = wire(await f.get(queued.id)),
+    full = wire({
+      ...compact,
+      rows: projectOverviewV4Rows(stored, stored.rows, {native: true}),
+      sources: projectOverviewV4Sources(stored, {native: true, lineage: true}),
+    }),
+    bootstrap = {
+      platforms: [{id: 'tiktok', name: 'TikTok', entity_levels: reportSource('tiktok').overview.levels}],
+      metrics: {spend: {label: 'Spend', format: 'currency'}},
+    };
+  assert.equal(compact.state, 'complete');
+  const chosen = ['native_tiktok_metrics_cost_per_result', 'native_tiktok_metrics_result_rate'];
+  assert.ok(compact.rows.length > 0);
+  compact.rows.forEach((r, index) => {
+    assert.equal(r.native, undefined, 'the provider’s own row is not in a compact row');
+    // A value the platform did not return is null in a compact row and absent in a full one: both are drawn as unknown.
+    for (const key of chosen)
+      assert.equal(r.metrics[key], full.rows[index].metrics[key] ?? null, key + ' of row ' + index);
+  });
+  assert.ok(
+    compact.rows.some(r => r.metrics.native_tiktok_metrics_cost_per_result === '0.125'),
+    'the case is real: a row has a value in the chosen column',
+  );
+  for (const locale of ['en', 'ar']) compare(locale, {compact, full, bootstrap});
+  assert.match(page('en', bootstrap).table(compact), /title="0\.125">0\.13<\/td>/, 'the exact value is on hover');
+});
 test('a recommendation’s target and actual, and a campaign group’s results by objective, are drawn from the compact row', async t => {
   const target = {kpi: 'cpm', target: 5, currency: 'USD', minimum_results: 1, conversion_lag_days: 0, context: {}},
     mixedResults = [
