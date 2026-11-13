@@ -7,7 +7,15 @@ import {
 } from '@modelcontextprotocol/server';
 import {MirrorError} from '../src/errors.js';
 import type {Actor, JsonObject} from '../src/types.js';
-import {createMcpServer, mcpCacheHints, mcpServerCapabilities, mcpServerInfo, type McpServerHooks} from './mcp.js';
+import {
+  createMcpServer,
+  mcpCacheHints,
+  mcpServerCapabilities,
+  mcpServerIcons,
+  mcpServerInfo,
+  type McpIcon,
+  type McpServerHooks,
+} from './mcp.js';
 import type {MirrorService} from '../src/service.js';
 import {serverInstructionsFor} from '../src/tool-annotations.js';
 
@@ -216,11 +224,13 @@ export interface ModernEndpoint {
  * (`legacy: 'reject'`: the earlier revisions are served by AMCP's own transport, never by this handler). `instructions`
  * is the deployment's orientation, which `server/discover` reports as `initialize` does; there is no default, so an
  * endpoint can never answer with another mode's text, which could send a read-only deployment's client to
- * prepare and execute.
+ * prepare and execute. `icons` are the deployment's own, which `server/discover` offers in its server information and no other
+ * answer carries (V2-MCP-06).
  */
 export function createModernEndpoint(options: {
   factory: McpServerFactory;
   instructions: string;
+  icons?: McpIcon[];
   onerror?: (error: Error) => void;
 }): ModernEndpoint {
   if (typeof options.instructions !== 'string' || !options.instructions)
@@ -248,7 +258,7 @@ export function createModernEndpoint(options: {
             ...discoverResult(options.instructions),
             resultType: 'complete',
             ...mcpCacheHints['server/discover'],
-            _meta: {[serverInfoKey]: mcpServerInfo()},
+            _meta: {[serverInfoKey]: mcpServerInfo(options.icons)},
           },
         });
       return handler.fetch(request, {authInfo, parsedBody: message});
@@ -292,10 +302,14 @@ export async function sendModernResponse(res: ServerResponse, response: Response
   res.end();
 }
 
-/** The modern endpoint of a deployment's service: the SDK builds each request's server for its authenticated caller. */
-export const createDeploymentEndpoint = (service: MirrorService, onerror?: (error: Error) => void) =>
+/**
+ * The modern endpoint of a deployment's service: the SDK builds each request's server for its authenticated caller. `origin` is
+ * the deployment's public origin, when it has one: its icon is offered at that address, and a deployment without one offers none.
+ */
+export const createDeploymentEndpoint = (service: MirrorService, onerror?: (error: Error) => void, origin?: string) =>
   createModernEndpoint({
     factory: modernServerFactory(service),
     instructions: serverInstructionsFor(service.policy),
+    ...(origin ? {icons: mcpServerIcons(origin)} : {}),
     ...(onerror ? {onerror} : {}),
   });

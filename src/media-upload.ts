@@ -442,6 +442,22 @@ export class MediaUploadService {
     });
   }
   readonly sources: MediaSources;
+  /**
+   * Whether this actor may upload to the input's account here: the checks `prepare` makes before it reads the account or
+   * fetches the file (who may change anything in this deployment, the connection, and the account's write grant). It throws
+   * the refusal prepare would. The v2 hand-off of a native upload asks before it offers amcp_media, so a caller who could
+   * not upload is refused as before and never handed a call that will fail (V2-MCP-06).
+   */
+  assertMayUpload(actor: Actor, input: JsonObject): void {
+    if (typeof input.platform !== 'string' || typeof input.account_id !== 'string' || !input.account_id) return;
+    const connection = typeof input.connection_id === 'string' ? input.connection_id : undefined;
+    this.access(
+      actor,
+      input.platform,
+      normalizeAccount(input.platform + '_native_action', input.account_id),
+      connection,
+    );
+  }
   private access(actor: Actor, platform: string, account: string, connectionId?: string): Connection {
     this.store.assertActorActive(actor);
     if (!this.policy.allowWrites)

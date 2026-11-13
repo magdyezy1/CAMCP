@@ -341,7 +341,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/report-chart-pdf.ts (the PDF back end: the chart, its table and the Charts section): 802.
   // Merge C, with mcp-typed (six files, 797 on its own base) and charts (eleven files, 802 on its own base): both count from 791 and their
   // new files are different files, so the merged tree measures, with this test's own inspector, 791 + 6 + 11 = 808.
-  assert.equal(files.length, 808);
+  // Package mcp-surface (V2-MCP-06) adds src/contract-profile.ts (the contract profile and the scope a client's calls run in),
+  // src/mcp-client-profile.ts (which profile an AI client's record gives it) and src/mcp-profile-help.ts (the help topic that
+  // announces the profiles), none with a reason of its own: three more on Merge C's 808, 811. Whoever merges it adds the files
+  // of every package it is merged with to this number.
+  // Package mcp-surface adds server/mcp-budget.ts (the response budget of a v2 client's list reads) and src/call-kind.ts (whether a call
+  // only reads), neither with a reason of its own: 813.
+  assert.equal(files.length, 813);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -371,7 +377,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // earlier form, and a chart setting that is not charts.disabled with known kinds: 1633 + 2.
   // Merge C, with mcp-typed (1,636 on its own base) and charts (1,635 on its own base): no reason is owned by both, so the merged tree measures,
   // with this test's own inspector, 1,633 + 3 + 2 = 1,638.
-  assert.equal(owned.size, 1638);
+  // Package mcp-surface (V2-MCP-06) owns one more: the MEDIA_REVIEW_REQUIRED refusal of src/media-routing.ts, which a native
+  // upload answers under the v2 contract profile: 1,639.
+  assert.equal(owned.size, 1639);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -452,7 +460,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Charts adds 53 entries and removes the old include-flags reason; the integration already has the new reason (mcp-typed, the same Arabic)
   // and lacks the old one, and meta-results added 'App installs' with another Arabic than charts, which now has one (meta-results', the
   // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
-  assert.equal(Object.keys(catalog).length, 12098);
+  // Package mcp-surface (V2-MCP-06) adds the Arabic of the MEDIA_REVIEW_REQUIRED refusal and its two remedies (with and without
+  // the call it names): 12,101.
+  assert.equal(Object.keys(catalog).length, 12101);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

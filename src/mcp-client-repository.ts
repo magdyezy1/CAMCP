@@ -75,3 +75,21 @@ export function registeredClient(store: Store, id: string): {data: string} | und
 export function insertRegisteredClient(store: Store, id: string, data: string) {
   store.sql().prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)').run(id, data);
 }
+/**
+ * Sets the contract profile in a registered client's record (V2-MCP-06): `v2` writes `contract_profile`, `legacy` removes
+ * it, since legacy is what a record without the field means. Returns whether the client is registered; the record is
+ * never created here, and nothing else in it changes.
+ */
+export function setRegisteredClientProfile(store: Store, id: string, profile: 'legacy' | 'v2'): boolean {
+  const changed =
+    profile === 'v2'
+      ? store
+          .sql()
+          .prepare("UPDATE amcp_mcp_clients SET data=json_set(data,'$.contract_profile','v2') WHERE id=?")
+          .run(id)
+      : store
+          .sql()
+          .prepare("UPDATE amcp_mcp_clients SET data=json_remove(data,'$.contract_profile') WHERE id=?")
+          .run(id);
+  return Number(changed.changes) > 0;
+}

@@ -1,0 +1,58 @@
+import type {JsonObject} from './types.js';
+import {defaultContractProfile, type ContractProfile} from './contract-profile.js';
+import {guideSectionMaxBytes} from './guidance.js';
+import {keptCautiousReason, v2KeptCautiousGateways, v2ReadOnlyGateways} from './tool-annotations.js';
+
+/**
+ * `amcp_workspace {action:"help",topic:"mcp_profile"}` (V2-MCP-06): what the contract profile of this connection is and what
+ * the other one changes, in the help of the tool and not in tools/list, which has no room for it. The plan asks that a
+ * changed default be announced in the tool's own help before it reaches a client; none reaches any client until its profile
+ * is set, so this is where an AI client, and the person using it, finds out what they would be switching to.
+ *
+ * `v2Changes` lists each behaviour the v2 profile serves, one entry per behaviour, in the words a client acts on.
+ */
+export const v2Changes: readonly {id: string; text: string}[] = Object.freeze([
+  {
+    id: 'annotations',
+    text: 'tools/list marks seven native gateways readOnlyHint:true: meta, tiktok, snapchat, dv360, linkedin, google_ads and x_ads (native_gateways_read_only below). Under v2 no call through them saves AMCP state or sends anything but a provider read: a native upload is handed to amcp_media (MEDIA_REVIEW_REQUIRED, below) and a native change to amcp_write (WRITE_REVIEW_REQUIRED). The other native gateways keep their annotations: the read-only ones stay read-only, and the five in native_gateways_unchanged below stay as they were because one of their actions writes. The hints of one operation are in amcp_tool_help {gateway, operation}.',
+  },
+  {
+    id: 'media_handoff',
+    text: 'A native upload with dry_run:false (a native gateway’s upload action with the file in payload.url, or amcp_native_action platform_media_upload) saves no review and fetches no file. It is refused with MEDIA_REVIEW_REQUIRED and a next_call to amcp_media prepare for the same file, as a native change is refused with WRITE_REVIEW_REQUIRED and a next_call to amcp_write; run that call, show the review to the user and execute it only after they approve. A caller who could not upload is refused exactly as before. The dry_run preview, amcp_media and amcp_write prepare are unchanged.',
+  },
+  {
+    id: 'compact_projection',
+    text: 'A read of a native gateway that pages (meta, tiktok, snapchat, dv360, linkedin, google_ads and x_ads) is compact by default when it lists rows: the nulls, empty strings and empty objects of its rows are left out, and the paging and status around them are kept. compact:false asks for the answer as the provider gave it, and compact:true compacts a single record too, which is otherwise returned whole. result_fields (field paths such as campaign.id or metrics.clicks) and max_items work on every one of these gateways, Google Ads included: the rows are found by the shape of the answer, so a Google Ads row that holds campaign and metrics side by side keeps exactly the fields asked, and a list under any name (DV360 lineItems) is cut and projected as rows. max_items sets truncated and the answer keeps its own paging. The other gateways (amcp_native_action, ga4, search console, Microsoft Ads and the rest, which take none of these arguments), the reads a workflow makes for you (a report’s collection, a campaign step), legacy clients and the website are unchanged.',
+  },
+  {
+    id: 'response_budget',
+    text: 'An MCP read that returns a list is cut at a row boundary to a budget of 64 KiB of JSON; max_bytes (4,096 to 262,144) asks for another. A cut result has meta.budget (truncated, rows_total, rows_before, rows_returned, rows_omitted, max_bytes, and the next_call that continues it) and, in its data when that is an object, truncated and the same next_call; its own next_offset, next_cursor and provider next_call are emptied, so the continuation is the only way forward, and the last piece carries the result’s own paging again. A row is never cut: one larger than the budget is returned whole and marked over_budget. The continuation (the continuation argument of the call) belongs to the AI client, the person, the workspace and the exact arguments it was issued for, not to the access token, so it survives a token refresh; with any argument changed, or by another client, it is INVALID_CURSOR. Each piece reads the call again, so follow the pieces promptly, and ask for less with max_items or result_fields. Calls that save or send anything are never cut or re-run, an answer under the budget is returned whole, and legacy clients and the website are answered whole.',
+  },
+  {
+    id: 'guide_sections',
+    text:
+      'The guides are served in sections of at most ' +
+      guideSectionMaxBytes.toLocaleString('en-US') +
+      ' bytes. resources/templates/list (the 2026-07-28 revision) offers the template amcp://guides/{guide}/{section}, and resources/read of such a URI returns one section. The help topics guides/<guide> (the sections, with their ids and sizes) and guides/<guide>/<section>, of amcp_workspace and amcp_tool_help, read the same sections, and section_uri names the resource that serves each. A heading’s section that is longer is served in parts: its own id is the first part, then <id>-part-2 and so on; every part says which one it is and names the next, and the help topic gives that as next_call. The whole guides, at their own URI amcp://guides/<guide> and in resources/list, are unchanged. A legacy client is offered no template, the URI of a section is unknown to it, and its help topics return the sections whole, as before.',
+  },
+]);
+
+/** The topic, for the profile this connection is served. */
+export function contractProfileTopic(profile: ContractProfile = defaultContractProfile): JsonObject {
+  return {
+    topic: 'mcp_profile',
+    profile,
+    meaning:
+      'AMCP serves each AI client one contract profile. legacy is every client’s profile today and what it keeps until its profile is set. v2 is opt-in per client: it changes how the MCP surface is shaped, as listed below, and nothing else. Permissions, reviews, spending policy and every other safeguard are the same in both. The profile is a record AMCP keeps for the client, so no argument, header or protocol field a request carries chooses it, and the website’s own pages are never affected.',
+    switch:
+      'No client is on v2 until its profile is set, and the control that sets it, a switch on the AI clients page, is planned. A change applies at the client’s next request and survives a token refresh.',
+    v2_changes: v2Changes.map(change => ({...change})),
+    // Which native gateways a v2 client is told only read, and why the others are not (the annotation change above).
+    native_gateways_read_only: [...v2ReadOnlyGateways],
+    native_gateways_unchanged: v2KeptCautiousGateways.map(gateway => ({
+      gateway,
+      annotations: 'the same under legacy and v2',
+      writes: keptCautiousReason(gateway),
+    })),
+  };
+}

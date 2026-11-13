@@ -14,6 +14,8 @@ import {Client} from '@modelcontextprotocol/client';
 import {InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../../dist/server/mcp.js';
 import {createWebsite} from '../../dist/server/website.js';
+import {WebStore} from '../../dist/server/web-store.js';
+import {insertRegisteredClient} from '../../dist/src/mcp-client-repository.js';
 import {createHttpApp} from '../../dist/server/http-app.js';
 import {listenForFetch} from '../../dist/tests/http-listener.js';
 import {Store} from '../../dist/src/store.js';
@@ -77,13 +79,17 @@ export function offeredNextCall(response) {
 /**
  * Whether a response tells the person what to do next: an offered call, a refusal's next action or remedy (also on a
  * plan's current or inspected step), a list call to find the right identifier, a blocked check's next step, an
- * execution journal's next safe action, or a data-quality recommendation that names what to refresh.
+ * execution journal's next safe action, a data-quality recommendation that names what to refresh, or the next action a
+ * workflow outcome words itself (a failed report snapshot's read: reconnect, correct the request, or why a retry does not
+ * help, V2-MCP-06).
  */
 export function offersNextStep(response) {
   const data = response?.data,
-    errors = [response?.error, data?.current?.error, data?.step?.error];
+    errors = [response?.error, data?.current?.error, data?.step?.error],
+    workflowAction = response?.meta?.workflow?.next_action;
   return !!(
     offeredNextCall(response) ||
+    (typeof workflowAction === 'string' && workflowAction.length > 0) ||
     errors.some(
       error =>
         error &&
@@ -625,9 +631,26 @@ function guardGlobalFetch() {
     },
   };
 }
-async function evaluationWorkspace({fault, role = 'operator'} = {}, egress) {
+/**
+ * The contract profile an evaluation runs as (V2-MCP-06, D26): `legacy` is the committed baseline's and the default; `v2` runs
+ * the same journeys as an AI client whose record opts it in. The profile is read from that record (src/mcp-client-profile.ts),
+ * so the v2 evaluator is the OAuth client `evaluator` and its identity, which every record of the run is made for, is that
+ * client's `oauth/evaluator`.
+ */
+export function evaluatorProfile(store, profile = 'legacy') {
+  if (!['legacy', 'v2'].includes(profile)) throw Error('MCP_EVAL_PROFILE: the profile is legacy or v2.');
+  if (profile === 'legacy') return 'evaluator';
+  new WebStore(store, {origin: 'https://amcp.shop', masterKey: Buffer.alloc(32, 111).toString('base64')});
+  insertRegisteredClient(
+    store,
+    'evaluator',
+    JSON.stringify({client_id: 'evaluator', client_name: 'AMCP synthetic journey evaluator', contract_profile: 'v2'}),
+  );
+  return 'oauth/evaluator';
+}
+async function evaluationWorkspace({fault, role = 'operator', profile} = {}, egress) {
   const store = new Store(':memory:', Buffer.alloc(32, 111).toString('base64')),
-    identity = {tenantId, userId: 'evaluator', role},
+    identity = {tenantId, userId: evaluatorProfile(store, profile), role},
     admin = {...identity, role: 'admin'},
     key = store.createKey(identity),
     actor = store.authenticate(key),

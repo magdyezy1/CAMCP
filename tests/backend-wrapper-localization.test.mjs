@@ -297,7 +297,13 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/report-chart-pdf.ts (the PDF back end: the chart, its table and the Charts section): 802.
   // Merge C, with mcp-typed (six files, 797 on its own base) and charts (eleven files, 802 on its own base): both count from 791 and their
   // new files are different files, so the merged tree measures, with this test's own inspector, 791 + 6 + 11 = 808.
-  assert.equal(files.length, 808);
+  // Package mcp-surface (V2-MCP-06) adds src/contract-profile.ts (the contract profile and the scope a client's calls run in),
+  // src/mcp-client-profile.ts (which profile an AI client's record gives it) and src/mcp-profile-help.ts (the help topic that
+  // announces the profiles), none with a reason of its own: three more on Merge C's 808, 811. Whoever merges it adds the files
+  // of every package it is merged with to this number.
+  // Package mcp-surface adds server/mcp-budget.ts (the response budget of a v2 client's list reads) and src/call-kind.ts (whether a call
+  // only reads), neither with a reason of its own: 813.
+  assert.equal(files.length, 813);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -395,7 +401,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Charts adds 53 entries and removes the old include-flags reason; the integration already has the new reason (mcp-typed, the same Arabic)
   // and lacks the old one, and meta-results added 'App installs' with another Arabic than charts, which now has one (meta-results', the
   // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
-  assert.equal(Object.keys(catalog).length, 12098);
+  // Package mcp-surface (V2-MCP-06) adds the Arabic of the MEDIA_REVIEW_REQUIRED refusal and its two remedies (with and without
+  // the call it names): 12,101.
+  assert.equal(Object.keys(catalog).length, 12101);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

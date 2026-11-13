@@ -208,7 +208,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     ),
     limiter = new McpRequestLimiter(store, options.mcpLimits, options.clock ?? Date.now),
     // The 2026-07-28 endpoint: one strict SDK handler for the whole app, given the caller with each request.
-    modern = modernMode === 'off' ? undefined : createDeploymentEndpoint(service);
+    modern = modernMode === 'off' ? undefined : createDeploymentEndpoint(service, undefined, origin?.origin);
   // MCP tool failures that reach no HTTP status (JSON responses are 200) still leave one metadata-only line (OPS-02).
   if (options.log) service.onToolFailure = entry => log(entry);
   // Built before /mcp authentication, which checks AI-client tokens against its authorization server (SEC-05); its

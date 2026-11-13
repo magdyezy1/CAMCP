@@ -191,6 +191,12 @@ in-process fake that refuses and counts any other host.
   hide-attention` apply deliberate regressions so the check can be seen to fail. `--write-baseline` is the only way
   to change the baseline, and it refuses a subset or a fault. Re-baseline deliberately after a change to the MCP
   surface, such as MCP-07, and record the earlier file's git blob and its measures beside the new ones (below).
+- **Under the v2 profile.** `--profile v2` runs every client of the suites, the questions included, as an AI client whose
+  record opts it into the v2 contract profile ([configuration](CONFIGURATION.md#the-contract-profile-of-an-ai-client)),
+  and compares the run with the same baseline, which stays the legacy profile's: it is never written from a profile.
+  The check then reports what the profile changes in the journeys' counts, outcomes and response bytes. At the first run
+  nothing regressed and every question was answered as before; the listing was 14 bytes smaller, and the largest response
+  of the evaluation (28,656 bytes) is under the 64 KiB response budget, so the budget cut nothing.
 - **What the first baseline shows.** All reference runs complete. Guided runs reach the goal for T3, T5 and H2 only.
   AMCP offers no next call from `capabilities` to the live `check` (T1), from `create` to `preflight` (T2), from a
   plan summary to its uncertain step (T4), from the media library to an asset's detail (T6), or from a failed

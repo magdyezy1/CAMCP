@@ -71,10 +71,10 @@ export function callHints(service, tool, args) {
  * recorded as a transcript entry; the result says whether the answer matched, whether any call was not read-only by
  * its hints, whether the store changed, and what reached the synthetic providers.
  */
-export async function answerQuestion(pair, solution = solutions[Number(pair.id.slice(1)) - 1]) {
+export async function answerQuestion(pair, solution = solutions[Number(pair.id.slice(1)) - 1], {profile} = {}) {
   if (!solution || solution.question !== pair.question)
     throw Error('MCP_EVAL_SET_DRIFT: ' + pair.id + ' has no reference solution for its question');
-  const w = await evaluationWorkspace(),
+  const w = await evaluationWorkspace({profile}),
     server = createMcpServer(w.service, w.actor),
     client = new Client({name: 'AMCP evaluation-set reference solver', version: '1.0.0'}),
     [a, b] = InMemoryTransport.createLinkedPair();
@@ -123,11 +123,11 @@ export async function answerQuestion(pair, solution = solutions[Number(pair.id.s
 }
 
 /** The set as a QA-04 suite: each question's metrics, like a task's reference run (its own calls are its reference). */
-export async function runEvaluationSet({only, transcripts = false} = {}) {
+export async function runEvaluationSet({only, transcripts = false, profile} = {}) {
   const runs = {};
   for (const pair of evaluationSet()) {
     if (only && !only.includes(pair.id) && !only.includes('evaluation_set')) continue;
-    const outcome = await answerQuestion(pair),
+    const outcome = await answerQuestion(pair, undefined, {profile}),
       reference = outcome.transcript.map(entry => ({tool: entry.tool, action: entry.action}));
     runs[pair.id] = {
       ...transcriptMetrics(outcome.transcript, {reference, goalReached: outcome.correct}),

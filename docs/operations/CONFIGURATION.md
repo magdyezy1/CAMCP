@@ -110,8 +110,8 @@ carries a `title` and annotations from one reviewed table
 (`src/tool-annotations.ts`, MCP-06). `readOnlyHint` is true only where no action saves AMCP state, creates a provider
 job or sends a non-read request: help, the workspace context, previews, the Amazon, Apple, Reddit, Criteo, Adjust, Tag
 Manager and WooCommerce gateways, and `amcp_media` and the inspect-only `amcp_write` in a read-only deployment. `tests/mcp-tool-annotations.test.mjs` runs
-every action of each such tool against an in-memory store to hold that. The other native gateways stay not read-only:
-their upload actions with `dry_run:false` prepare a media review, Microsoft's `SubmitGenerateReport` creates a report
+every action of each such tool against an in-memory store to hold that. The other native gateways stay not read-only
+for a legacy client (a [v2 client's](#the-contract-profile-of-an-ai-client) differ): their upload actions with `dry_run:false` prepare a media review, Microsoft's `SubmitGenerateReport` creates a report
 job, and GA4, Search Console and Business Profile sync metadata and disconnect. Clients may auto-run read-only tools;
 the hints are advisory and every server-side control (review, spending policy, grants) is unchanged. Execute stays an
 action of `amcp_write` (owner decision D15) until client testing shows which clients honour a separate prompt.
@@ -143,3 +143,41 @@ validates `structuredContent` against the listed `outputSchema`, and checks that
 that `isError` is set exactly on refusals, and that each refusal names its code, category, remedy, next action and
 request ID. Each tool has a call that must succeed and one that must be refused; only `amcp_ad_previews`, whose
 every call reads a provider, has no successful call there.
+
+## The contract profile of an AI client
+
+Each AI client of the MCP endpoint is served one contract profile (V2-MCP-06). A changed default is opt-in per client until
+the owner confirms that nothing depends on the old behaviour (decision D26 of the wave 5 plan). `legacy` is every client's
+profile today and what it keeps until its profile is set; `v2` is the opt-in. The profile is the `contract_profile` field of
+the client's registration record (`src/mcp-client-profile.ts`), read at every request, so a change applies at the client's
+next request and survives a token refresh. Nothing a request carries chooses it: an argument, a header, a protocol field and
+the metadata a client registers with are all ignored. An API key, a connector token, stdio, the website's own calls and the
+workers are always `legacy`, and so is a client identified by a metadata document, which has no record to hold a profile.
+No website control sets a profile yet; round 3 adds the switch to the AI clients page. `amcp_workspace help` with
+`topic:"mcp_profile"` tells a client which profile it is served and lists what `v2` changes. Permissions, reviews, spending
+policy and every other safeguard are the same in both, and the `tools/list` of a legacy client is as it was.
+
+What `v2` changes, each tested through the real HTTP stack in both protocol revisions:
+
+- **Annotations and the media hand-off.** Meta, TikTok, Snapchat, DV360, LinkedIn, Google Ads and X Ads list
+  `readOnlyHint:true`, because no call through them saves AMCP state any more: a native upload with `dry_run:false` (the
+  `payload.url` actions and `amcp_native_action platform_media_upload`) saves no review and fetches no file, and is refused
+  with `MEDIA_REVIEW_REQUIRED` and a `next_call` to `amcp_media prepare` for the same file. GA4, Search Console, Business
+  Profile, Microsoft Ads and `amcp_native_action` keep their annotations, because one of their actions writes. The v2
+  listing is 14 bytes smaller than the legacy one.
+- **Response budget.** A read that returns a list is cut at a row boundary to 64 KiB of JSON, and `max_bytes` (4,096 to
+  262,144) asks for another budget. A cut answer carries `meta.budget` (`truncated`, the row counts and the `next_call`
+  that continues it) and a row is never cut. The continuation belongs to the AI client, the person, the workspace and the
+  exact arguments, not to the access token. A call that saves or sends anything is never cut or run twice.
+- **Compact lists.** A client's own read of one of the seven gateways above that lists rows leaves out the nulls, empty
+  strings and empty objects of the rows; `compact:false` asks for the provider's answer, and `result_fields` and
+  `max_items` work on every one of them, Google Ads included.
+- **Guides in sections.** `resources/templates/list` (the 2026-07-28 revision) offers `amcp://guides/{guide}/{section}`, and
+  the help topics `guides/<guide>/<section>` read the same sections. Each is at most 12,000 bytes; a longer section is
+  served in parts that name each other. The whole guides, at their own addresses, are unchanged.
+
+Separately from the profile, the 2026-07-28 revision's `server/discover` offers the deployment's own app icon in its server
+information, at its public address; no other answer carries it, and a deployment without a public address offers none.
+
+`node tools/mcp-eval.mjs --check --profile v2` runs the journeys, the tasks and the evaluation set as a `v2` client against
+the committed baseline, which is the legacy profile's: see [qualification](QUALIFICATION.md#journey-and-mcp-evaluation-qa-04).

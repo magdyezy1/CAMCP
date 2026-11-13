@@ -332,7 +332,11 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
   writer(store, actor);
   if (input.action === 'save_monitor') {
     const p = input.monitor;
-    validate(p ?? {}, [
+    // The rule is the `monitor` object. A missing or malformed one reached the checks below as undefined and came back as
+    // an INTERNAL_ERROR, where the caller needs INVALID_ARGUMENT naming the field to send (V2-MCP-06).
+    if (!p || typeof p !== 'object' || Array.isArray(p))
+      bad('Send the monitor rule as the monitor object.', 'INVALID_ARGUMENT', {field: 'monitor'});
+    validate(p, [
       'name',
       'platform',
       'connection_id',

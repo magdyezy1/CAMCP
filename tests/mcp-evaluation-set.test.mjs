@@ -16,6 +16,8 @@ import {
   skillReport,
 } from './journeys/evaluation-set.mjs';
 import {solutions} from './fixtures/mcp-evaluation/solutions.mjs';
+import {evaluationWorkspace} from './fixtures/mcp-evaluation/workspace.mjs';
+import {contractProfileOf} from '../dist/src/mcp-client-profile.js';
 import {runIds} from './journeys/run.mjs';
 import {evaluationArguments, readBaseline} from '../tools/mcp-eval.mjs';
 
@@ -84,6 +86,28 @@ test('every answer is proven by its reference solution: read-only calls, an unch
   await assert.rejects(answerQuestion({id: 'E1', question: 'Something else?', answer: '1'}), /MCP_EVAL_SET_DRIFT/);
 });
 
+test('every answer is the same for a v2 client: the same proof, from the workspace of a client whose record opts it in', async () => {
+  const legacy = await evaluationWorkspace(),
+    v2 = await evaluationWorkspace({profile: 'v2'});
+  try {
+    assert.equal(contractProfileOf(legacy.store, legacy.actor), 'legacy');
+    assert.equal(contractProfileOf(v2.store, v2.actor), 'v2');
+    assert.equal(v2.actor.userId, 'oauth/agency-analyst');
+  } finally {
+    legacy.close();
+    v2.close();
+  }
+  for (const pair of evaluationSet()) {
+    const outcome = await answerQuestion(pair, undefined, {profile: 'v2'});
+    assert.equal(outcome.error, undefined, pair.id + ': ' + outcome.error);
+    assert.equal(outcome.answer, pair.answer, pair.id);
+    assert.deepEqual(outcome.unsafe, [], pair.id + ': every call is read-only by its own hints');
+    assert.equal(outcome.state_changed, false, pair.id + ': the store is unchanged');
+    assert.equal(outcome.providers.egress_refused, 0, pair.id);
+    assert.equal(outcome.providers.writes_refused, 0, pair.id);
+  }
+  await assert.rejects(evaluationWorkspace({profile: 'v3'}), /MCP_EVAL_PROFILE/);
+});
 test('the harness runs the set as a suite, and the committed baseline holds every question as answered', () => {
   const baseline = readBaseline();
   assert.deepEqual(Object.keys(baseline.runs.evaluation_set ?? {}), runIds.evaluation_set);

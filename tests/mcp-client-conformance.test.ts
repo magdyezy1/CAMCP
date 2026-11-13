@@ -373,7 +373,13 @@ test('MCP-03 phase 3: 2026-07-28 server/discover, tools, resources and prompts a
     });
     assert.equal(d.instructions, initialized.body.result.instructions);
     assert.equal(d.instructions, readOnlyServerInstructions, 'this read-only deployment’s own orientation');
-    assert.deepEqual(d._meta['io.modelcontextprotocol/serverInfo'], initialized.body.result.serverInfo);
+    // The same identity on both revisions; the deployment's own icon is the 2026-07-28 answer's alone (V2-MCP-06, the lead's
+    // note of 2026-11-07, tests/mcp-server-icon.test.mjs), so it is set apart and pinned here, and the rest is compared as before.
+    const {icons, ...identity} = d._meta['io.modelcontextprotocol/serverInfo'];
+    assert.deepEqual(identity, initialized.body.result.serverInfo);
+    assert.deepEqual(icons, [
+      {src: origin + '/assets/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180']},
+    ]);
     assert.ok(Number.isInteger(d.ttlMs) && d.ttlMs >= 0);
     assert.equal(d.cacheScope, 'public');
     // tools/list: the same tools in the same order as the legacy list, cacheable for this caller only.

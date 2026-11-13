@@ -15,6 +15,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {reportPollAfterMs} from './workflow-outcomes.js';
 import {BACKGROUND_RUN_KIND, backgroundRunTurn} from './campaign-background.js';
 import {tool, field, writer} from './workspace-core.js';
 import {NativeCampaignReports, nativeMetricExamples, reportRange, type AccountLookupCache} from './report-native.js';
@@ -125,7 +126,7 @@ const {
   abandonSheetsDelivery,
 } = sheetsDelivery;
 const sheetsGateway = providerById('sheets')!.gateway;
-export const overviewPollAfterMs = 5000;
+export const overviewPollAfterMs = reportPollAfterMs;
 export const overviewTool = tool(
   'amcp_reporting_overview',
   'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. It reads native reports and saves AMCP records; it never changes an advertising account. Start with bootstrap: the accounts you may use, each platform’s levels, option names and defaults (platforms[].entity_levels and platforms[].reporting_v4), metrics, objectives, and your saved reports (views), templates, schedules and destinations. Unset source options take the defaults it lists. run queues a bounded native snapshot of a saved report (id) or a config and returns estimated_requests, a next_call and poll_after_ms; poll get (1–500 rows a page) until it is final; get narrows its rows by platform, level, entity or query, list narrows the snapshots by client, platform or state, and a narrowed read continues by its next_cursor. Recommendations are advisory, frozen at capture, valid for 48 hours and held back for partial or insufficient data. compare reads two retained snapshots and sends no provider request; report_pack gives summaries, evidence and PDF/XLSX downloads. export replaces only an AMCP-owned Google Sheets tab (retries never append duplicate rows) or writes retained files; schedule creates a recurring delivery of a saved report. Every action that saves, deletes, runs, exports, schedules, retries, cancels or resolves a delivery needs confirmed:true and the operator role (create_spreadsheet: admin); editing or deleting a saved report, template or schedule also needs its expected_revision. Missing metrics stay null. Each action’s arguments, limits and rules: this tool with action:"help" and topic:<action>; the workflow guide: amcp_workspace {action:"help",topic:"guides/reporting-overview"}.',

@@ -1,4 +1,5 @@
 import type {JsonObject} from './types.js';
+import {MirrorError, errorResult} from './errors.js';
 import {workspaceWebsitePath} from './provider-workflows.js';
 
 // What following a suggested call does (MCP-09) is declared in the leaf src/call-effects.ts, so a provider's module can
@@ -95,6 +96,71 @@ export const workflowTools = [
   'amcp_workspace',
   'amcp_write',
 ];
+/**
+ * How long a client waits before it polls a queued or running report snapshot or export: the interval the answers of
+ * amcp_reporting_overview publish as `poll_after_ms` (MCP-01), and the tasks extension as its `pollIntervalMs`.
+ */
+export const reportPollAfterMs = 5000;
+/**
+ * The failure categories (src/report-errors.ts) of a report source that sending the same job again may end: the
+ * platform's own data or the platform itself. The website's source card offers Retry for the same two, and for a login that
+ * changed while the report ran. A connection or permission to put right, a request to narrow, a rate limit the worker waits
+ * out and an internal failure are not helped by a repeat, so they are offered the step their own error words.
+ */
+const retryCategories: ReadonlySet<string> = new Set(['provider_data', 'provider']);
+/**
+ * What a client does next with the report snapshot `get` returned (V2-MCP-06), as fields of meta.workflow only: the
+ * snapshot itself is what it was. A queued or running one names the same `get` the run named, and the interval to poll at.
+ * A failed one names the step its error names: the job's own retry, to be approved by the person, where a retry can end the
+ * failure (the job says it is retryable, and a source failed in a category above), and always the error's own words
+ * (`next_action`: reconnect, correct the request, or why nothing helps), taken from the source's diagnostic, else from the
+ * job's error as every refusal words it.
+ */
+function snapshotStep(data: JsonObject): JsonObject {
+  const id = data.id;
+  if (typeof id !== 'string' || !id || id.length > 160) return {};
+  if (['queued', 'running'].includes(data.state))
+    return {
+      next_call: {tool: 'amcp_reporting_overview', arguments: {action: 'get', id, limit: 1}},
+      poll_after_ms: reportPollAfterMs,
+    };
+  if (data.state !== 'failed') return {};
+  const failures: JsonObject[] = (Array.isArray(data.sources) ? data.sources : [])
+      .map((source: JsonObject) => source?.error)
+      .filter((error: unknown): error is JsonObject => !!error && typeof error === 'object' && !Array.isArray(error)),
+    jobError = data.job?.error,
+    words =
+      failures.find(error => typeof error.next_action === 'string' && error.next_action)?.next_action ??
+      (typeof jobError?.code === 'string'
+        ? errorResult(
+            new MirrorError(
+              jobError.code,
+              typeof jobError.message === 'string' ? jobError.message : '',
+              jobError.details && typeof jobError.details === 'object' ? jobError.details : {},
+            ),
+            '',
+            0,
+          ).error.next_action
+        : undefined),
+    retry =
+      data.job?.retry_available === true &&
+      typeof data.job_id === 'string' &&
+      data.job_id.length > 0 &&
+      data.job_id.length <= 160 &&
+      failures.some(error => retryCategories.has(error.category) || error.code === 'CONNECTION_AUTHORITY_CHANGED');
+  return {
+    ...(retry
+      ? {
+          next_call: {
+            tool: 'amcp_reporting_overview',
+            arguments: {action: 'retry', id: data.job_id},
+            add_after_user_approval: {confirmed: true},
+          },
+        }
+      : {}),
+    ...(words ? {next_action: words} : {}),
+  };
+}
 /** Where to look first after an uncertain or failed single write: its own audit events, read locally (MCP-07). */
 const writeHistory = (reviewId: unknown) =>
   typeof reviewId === 'string' && reviewId.length > 0 && reviewId.length <= 200
@@ -440,6 +506,8 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
   }
   const record = handoffRecord(tool!, action, data);
   if (record) result.website_path = record;
+  // A snapshot read names its next step before the page continuation below, which, when a read has one, is the next call.
+  if (tool === 'amcp_reporting_overview' && action === 'get') Object.assign(result, snapshotStep(data));
   if (data.next_call) result.next_call = data.next_call;
   if (data.poll_after_ms !== undefined) result.poll_after_ms = data.poll_after_ms;
   if (data.execute_requirements)

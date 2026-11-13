@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {conditionalPrograms} from './conditional-programs.js';
+import {defaultContractProfile, type ContractProfile} from './contract-profile.js';
 import type {JsonObject} from './types.js';
 const guides = [
   ['adjust', 'Adjust app-scoped native reporting', 'references/adjust.md'],
@@ -33,6 +34,29 @@ export const guidanceResources = guides.map(([id, title]) => ({
   mimeType: 'text/markdown',
   description: 'AMCP-maintained workflow guidance; actual permissions and native action contracts still apply.',
 }));
+/**
+ * The most a guide section is served in one piece to a client on the v2 contract profile (V2-MCP-06, decision 5), in bytes of
+ * UTF-8: about 3,000 tokens, a small part of what a client warns of for one result (10,000 tokens) and of the 64 KiB a v2 client's
+ * list read is cut to. The guides are up to 180,000 bytes and are still served whole at their own URI; a client that wants less
+ * reads sections.
+ */
+export const guideSectionMaxBytes = 12000;
+/**
+ * `amcp://guides/{guide}/{section}`, the resource template a v2 client is offered by resources/templates/list (the 2026-07-28
+ * revision); a legacy client is offered none. {guide} is a name of resources/list and {section} an id of the guide's index.
+ */
+export const guidanceResourceTemplates = [
+  {
+    uriTemplate: 'amcp://guides/{guide}/{section}',
+    name: 'guide-section',
+    title: 'AMCP guide section',
+    description:
+      'One section of an AMCP guide, at most ' +
+      guideSectionMaxBytes.toLocaleString('en-US') +
+      ' bytes. {guide} is the name of a guide in resources/list; the sections of a guide, with the ids to use as {section}, are listed by amcp_workspace help topic guides/<guide>. A heading’s section that is longer is served in parts: its own id is the first, then <id>-part-2 and so on, each naming the next.',
+    mimeType: 'text/markdown',
+  },
+];
 export const guidanceDiscovery = {
   resources: guidanceResources,
   // For clients that cannot read resources: the same guides, one section index or section per call.
@@ -44,7 +68,16 @@ export const guidanceDiscovery = {
 /** A documentation page's text after its front matter block (`---`, `key: value` lines, `---`, one blank line). */
 export const withoutDocumentationFrontMatter = (text: string) =>
   text.replace(/^---\r?\n(?:[a-z_]+:[^\r\n]*\r?\n)+---\r?\n(?:\r?\n)?/, '');
-export function readGuidance(uri: string) {
+/**
+ * A guide as a resource: `amcp://guides/{guide}` is the whole guide. With `sections` (a client on the v2 contract profile) a URI
+ * of the template `amcp://guides/{guide}/{section}` is one section, or one part of a longer one (guideParts); for any other
+ * client such a URI is as unknown as it ever was.
+ */
+export function readGuidance(uri: string, sections = false) {
+  const [, name, sectionId] = sections ? (/^amcp:\/\/guides\/([a-z0-9-]+)\/([a-z0-9-]+)$/.exec(uri) ?? []) : [],
+    section =
+      name !== undefined && guideIds.includes(name) ? guideParts(name).find(s => s.id === sectionId) : undefined;
+  if (section) return {uri, mimeType: 'text/markdown', text: section.text};
   const guide = guides.find(([id]) => uri === 'amcp://guides/' + id);
   if (!guide) throw new MirrorError('GUIDE_NOT_FOUND', 'Unknown AMCP guide URI.', {}, 404);
   const file = fileURLToPath(new URL('../../Skills/amcp-campaign-builder/' + guide[2], import.meta.url)),
@@ -62,6 +95,8 @@ export interface GuideSection {
   id: string;
   title: string;
   text: string;
+  /** Set on a part of a section longer than guideSectionMaxBytes: which part, of how many, and the id of the next. */
+  part?: {number: number; of: number; next?: string};
 }
 /** The guide sections that are generated from code rather than read from a file. */
 const generatedSections: Record<string, () => GuideSection[]> = {
@@ -124,14 +159,91 @@ export function guideSections(id: string): GuideSection[] {
   push();
   return [...sections, ...(generatedSections[id]?.() ?? [])];
 }
+const bytes = (text: string) => Buffer.byteLength(text, 'utf8');
+/** What the lines that name a part's place may take of the cap: its heading line, and the line that names the next part. */
+const partMarkerRoom = 512;
+/**
+ * A section longer than `max` bytes as parts, each within `max`, which name each other (V2-MCP-06, decision 5). The cut falls
+ * between paragraphs; a table or a list that is itself longer than a part is cut between its lines, and a fenced block that
+ * fits is never divided. The text is halved where it divides most evenly, until every part fits, so no part is a sliver of
+ * another. A part's text is its own lines, exactly, so the parts of a section, joined by a newline once the lines that name each
+ * place are taken away, are the section: a heading line `> Part n of N of "<title>".` on every part but the first, and a last
+ * line `> Part n of N. Continue with the section `<id>` of this guide.` on every part but the last. The first part keeps the
+ * section's own id, so whatever named the section reads it; the others are `<id>-part-<n>`. A single line longer than a part
+ * is kept whole in a part of its own, so a part is over `max` only then. A section that fits is returned as it is.
+ */
+export function splitGuideSection(section: GuideSection, max = guideSectionMaxBytes): GuideSection[] {
+  if (bytes(section.text) <= max) return [section];
+  const limit = max - partMarkerRoom;
+  // The units: a paragraph, table or list with the blank lines after it, a fenced block (blank lines inside it included) as one.
+  const units: string[][] = [];
+  let current: string[] = [],
+    fence = false,
+    blank = false;
+  for (const line of section.text.split('\n')) {
+    if (/^(```|~~~)/.test(line)) fence = !fence;
+    const empty = !fence && line.trim() === '';
+    if (blank && !empty) {
+      units.push(current);
+      current = [];
+    }
+    current.push(line);
+    blank = empty;
+  }
+  units.push(current);
+  // `size` counts the newline that joins a unit to the next, so a run's bytes are its sizes added, less one.
+  const unit = (lines: string[]) => ({lines, size: bytes(lines.join('\n')) + 1});
+  type Unit = ReturnType<typeof unit>;
+  const pieces = units.map(unit).flatMap(u => (u.size - 1 > limit ? u.lines.map(line => unit([line])) : [u]));
+  const divide = (run: Unit[]): Unit[][] => {
+    const total = run.reduce((n, u) => n + u.size, 0);
+    if (total - 1 <= limit || run.length < 2) return [run];
+    let at = 1,
+      gap = Infinity,
+      sum = 0;
+    for (let i = 0; i < run.length - 1; i++) {
+      sum += run[i]!.size;
+      if (Math.abs(total / 2 - sum) < gap) {
+        gap = Math.abs(total / 2 - sum);
+        at = i + 1;
+      }
+    }
+    return [...divide(run.slice(0, at)), ...divide(run.slice(at))];
+  };
+  const runs = divide(pieces),
+    of = runs.length;
+  if (of === 1) return [section];
+  return runs.map((run, i) => {
+    const number = i + 1,
+      next = number < of ? section.id + '-part-' + (number + 1) : undefined,
+      body = run.flatMap(u => u.lines).join('\n');
+    return {
+      id: number === 1 ? section.id : section.id + '-part-' + number,
+      title: section.title + ' (part ' + number + ' of ' + of + ')',
+      text:
+        (number > 1 ? '> Part ' + number + ' of ' + of + ' of "' + section.title + '".\n\n' : '') +
+        body +
+        (next
+          ? '\n\n> Part ' + number + ' of ' + of + '. Continue with the section `' + next + '` of this guide.\n'
+          : ''),
+      part: {number, of, ...(next ? {next} : {})},
+    };
+  });
+}
+/** The sections a client on the v2 contract profile is served: each heading's section, or its parts where it is longer than the cap. */
+export const guideParts = (id: string): GuideSection[] => guideSections(id).flatMap(s => splitGuideSection(s));
 const guideIds = guides.map(([id]) => id as string);
 const guideCall = (topic: string) => ({tool: 'amcp_workspace', arguments: {action: 'help', topic}});
 /**
  * `amcp_workspace {action:"help",topic}` (MCP-01): guides are readable through a tool call too, because some clients expose no
  * resource-reading tool. "guides" lists them, "guides/<name>" is one guide's section index (a few kilobytes, never the
  * whole text) and "guides/<name>/<section>" is one section, verbatim. The resources keep the whole files.
+ *
+ * For a client on the v2 contract profile (V2-MCP-06) the sections are those of guideParts: none is over guideSectionMaxBytes, a
+ * longer one is listed and read as its parts (the part says which it is and carries the next_call that reads the next), and the
+ * answers name the resource that serves each section. The other profile is answered as it always was.
  */
-export function guideTopic(topic: string): JsonObject {
+export function guideTopic(topic: string, profile: ContractProfile = defaultContractProfile): JsonObject {
   const [root, id, section, ...rest] = topic.split('/');
   if (root !== 'guides' || rest.length || (id !== undefined && !guideIds.includes(id)))
     throw new MirrorError('GUIDE_NOT_FOUND', 'Unknown AMCP guide topic.', {
@@ -151,7 +263,8 @@ export function guideTopic(topic: string): JsonObject {
       })),
       qualification: guidanceDiscovery.qualification,
     };
-  const sections = guideSections(id),
+  const v2 = profile === 'v2',
+    sections = v2 ? guideParts(id) : guideSections(id),
     resource = guidanceResources.find(r => r.name === id)!;
   if (section === undefined)
     return {
@@ -161,6 +274,7 @@ export function guideTopic(topic: string): JsonObject {
       chars: sections.reduce((n, s) => n + s.text.length, 0),
       sections: sections.map(s => ({id: s.id, title: s.title, chars: s.text.length})),
       read_section: guideCall('guides/' + id + '/<section id>'),
+      ...(v2 ? {max_section_bytes: guideSectionMaxBytes, section_uri_template: resource.uri + '/{section}'} : {}),
       qualification: guidanceDiscovery.qualification,
     };
   const found = sections.find(s => s.id === section);
@@ -170,7 +284,24 @@ export function guideTopic(topic: string): JsonObject {
       value: topic.slice(0, 200),
       index: guideCall('guides/' + id),
     });
-  return {topic: 'guides/' + id + '/' + found.id, title: found.title, uri: resource.uri, text: found.text};
+  return {
+    topic: 'guides/' + id + '/' + found.id,
+    title: found.title,
+    uri: resource.uri,
+    text: found.text,
+    ...(v2
+      ? {
+          section_uri: resource.uri + '/' + found.id,
+          ...(found.part
+            ? {
+                part: found.part.number,
+                parts: found.part.of,
+                ...(found.part.next ? {next_call: guideCall('guides/' + id + '/' + found.part.next)} : {}),
+              }
+            : {}),
+        }
+      : {}),
+  };
 }
 export const campaignPrompt = {
   name: 'amcp_build_campaign',

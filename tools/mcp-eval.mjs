@@ -6,7 +6,7 @@
 // with the same metric code, and the mcp-builder skill's LLM runner reports against the reference solutions, as ranges
 // over repeated runs.
 //
-//   node tools/mcp-eval.mjs [--check] [--only J1,T3,E4,J2/failure] [--fault <name>] [--output <new file>] [--transcripts]
+//   node tools/mcp-eval.mjs [--check] [--only J1,T3,E4,J2/failure] [--fault <name>] [--profile v2] [--output <new file>] [--transcripts]
 //   node tools/mcp-eval.mjs --write-baseline
 //   node tools/mcp-eval.mjs --sanitize <raw calls.json> --output <new file>
 //   node tools/mcp-eval.mjs --external <runs.json> [--output <new file>]
@@ -14,7 +14,9 @@
 //
 // --check (the default) exits non-zero when a count rises, an end state, handoff or tool choice gets worse, or response
 // bytes grow beyond the tolerance. --fault applies a deliberate regression (strip-next-call, hide-attention) so the
-// check can be seen to fail. --write-baseline is the only way the baseline changes; it refuses a subset or a fault.
+// check can be seen to fail. --profile v2 runs every client as one on the v2 contract profile (V2-MCP-06, D26) and compares
+// it with the same committed baseline, which is the legacy profile's: what the profile changes in the journeys' counts, outcomes
+// and response bytes is what the check then reports. --write-baseline is the only way the baseline changes; it refuses a subset or a fault.
 // Requires a built dist (npm run build). Transcripts keep argument shapes, codes, states and sizes, never values.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,7 +25,7 @@ import {fileURLToPath} from 'node:url';
 export const baselineFile = fileURLToPath(new URL('../tests/journeys/baseline.json', import.meta.url));
 export const tolerance = Object.freeze({bytesTolerance: 0.1, bytesSlack: 512});
 const usage =
-  'Use: node tools/mcp-eval.mjs [--check] [--only <ids>] [--fault <name>] [--output <new file>] [--transcripts] | ' +
+  'Use: node tools/mcp-eval.mjs [--check] [--only <ids>] [--fault <name>] [--profile legacy|v2] [--output <new file>] [--transcripts] | ' +
   '--write-baseline | --sanitize <raw.json> --output <new file> | --external <runs.json> [--output <new file>] | ' +
   '--skill-report <report.md>[,<report.md>...] [--output <new file>]';
 
@@ -52,7 +54,11 @@ export function evaluationArguments(argv) {
     else if (argument === '--transcripts') options.transcripts = true;
     else if (argument === '--only') options.only = take(index++).split(',').filter(Boolean);
     else if (argument === '--fault') options.fault = take(index++);
-    else if (argument === '--output') options.output = take(index++);
+    else if (argument === '--profile') {
+      const profile = take(index++);
+      if (!['legacy', 'v2'].includes(profile)) throw Error(usage);
+      options.profile = profile;
+    } else if (argument === '--output') options.output = take(index++);
     else if (argument === '--sanitize' || argument === '--external' || argument === '--skill-report') {
       options.mode = options.mode === 'check' ? argument.slice(2) : null;
       options.input = take(index++);
@@ -62,10 +68,14 @@ export function evaluationArguments(argv) {
   if ((seen.has('--check') && options.mode !== 'check') || options.only?.length === 0) throw Error(usage);
   if (options.mode === 'write-baseline' && (options.only || options.fault || options.output))
     throw Error('MCP_EVAL_BASELINE_PARTIAL: the baseline is written from a complete run without a fault.');
+  if (options.mode === 'write-baseline' && options.profile)
+    throw Error(
+      'MCP_EVAL_BASELINE_PROFILE: the committed baseline belongs to the legacy profile, so it is never written from a run of another.',
+    );
   if (options.mode === 'sanitize' && !options.output) throw Error(usage);
   if (
     ['sanitize', 'external', 'skill-report'].includes(options.mode) &&
-    (options.only || options.fault || options.transcripts)
+    (options.only || options.fault || options.transcripts || options.profile)
   )
     throw Error(usage);
   return options;
@@ -202,6 +212,7 @@ async function main(argv) {
     fault: options.fault ?? undefined,
     only: options.only ?? undefined,
     transcripts: options.transcripts,
+    profile: options.profile,
   });
   if (options.mode === 'write-baseline') {
     fs.writeFileSync(baselineFile, JSON.stringify(baselineFrom(record), null, 2) + '\n');
@@ -220,6 +231,7 @@ async function main(argv) {
         passed: comparison.passed,
         runs: count,
         fault: record.fault,
+        profile: record.profile,
         duration_ms: record.duration_ms,
         regressions: comparison.regressions,
         improvements: comparison.improvements.length,

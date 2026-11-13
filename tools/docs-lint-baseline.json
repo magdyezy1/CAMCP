@@ -274,10 +274,16 @@
       "raised": [
         "reference_words 159457 → 159815"
       ]
+    },
+    {
+      "reason": "Package mcp-surface (V2-MCP-06), merged after sec-followup: +818 reference words, recorded in one step on its own branch (159392 -> 160210): the documentation of the per-client contract profile and of what the v2 profile changes, in docs/operations/CONFIGURATION.md (a new section on the MCP surface page), docs/operations/QUALIFICATION.md (the evaluation under the v2 profile), docs/MEDIA-UPLOADS.md (the media hand-off) and docs/REPORTING-OVERVIEW.md (the next step of a snapshot read). The merged count is the measured one: 159815 + 818 = 160633",
+      "raised": [
+        "reference_words 159815 → 160633"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159815
+    "reference_words": 160633
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

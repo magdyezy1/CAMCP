@@ -1,4 +1,6 @@
 import type {ContractStatus} from './action-contracts.js';
+import type {ContractProfile} from './contract-profile.js';
+import {mediaPlatforms} from './media-routing.js';
 /**
  * What an MCP client is told about each tool before it calls one (MCP-06): a title and the tool annotations clients use
  * to decide when to ask the user (read-only tools may run without a prompt; destructive ones always prompt). The hints
@@ -389,7 +391,34 @@ export function nativeActionHints(
     }
   }
 }
-/** A tool's own hints, without its title, for the cases that fall back to them. */
+/**
+ * The native gateways a client on the v2 contract profile is told are read-only (V2-MCP-06, the lead's ruling 12): the media
+ * platforms' gateways, whose only write through AMCP's own state was the media review. Under v2 their uploads are handed to
+ * amcp_media (MEDIA_REVIEW_REQUIRED, which saves nothing) and their writes to amcp_write (WRITE_REVIEW_REQUIRED), so no call
+ * through them saves or sends anything but a provider read. The set is derived from the media platforms, as mediaDiscovery
+ * derives its own, so this shared module names no provider, and tests/mcp-v2-annotations.test.mjs walks every action of every
+ * one of them under v2 and fails if one writes. Under legacy their annotations are the table's above.
+ */
+export const v2ReadOnlyGateways: readonly string[] = Object.freeze(
+  mediaPlatforms.map(platform => platform + '_native_action'),
+);
+const v2NativeBasis =
+  'v2: a native upload is handed to amcp_media and a native write to amcp_write, so no call saves AMCP state or sends anything but a provider read.';
+/**
+ * The native gateways that keep today's annotations under both profiles because one of their actions writes: every
+ * `*_native_action` of the table that is not read-only and not one of the v2 read-only gateways. Each says what it writes (the
+ * reviewer's basis above), so a v2 client knows why these are not read-only: the help topic names them.
+ */
+export const v2KeptCautiousGateways: readonly string[] = Object.freeze(
+  Object.keys(toolAnnotations).filter(
+    name => /_native_action$/.test(name) && !toolAnnotations[name]!.readOnlyHint && !v2ReadOnlyGateways.includes(name),
+  ),
+);
+/** What a gateway that keeps its annotations writes, in the words of the reviewed table. */
+export const keptCautiousReason = (gateway: string): string | undefined =>
+  v2KeptCautiousGateways.includes(gateway)
+    ? toolAnnotations[gateway]?.basis
+    : undefined; /** A tool's own hints, without its title, for the cases that fall back to them. */
 export function toolHints(name: string, readOnlyDeployment: boolean): ToolHints {
   const {readOnlyHint, destructiveHint, idempotentHint, openWorldHint} = toolPresentation(
     name,
@@ -403,12 +432,15 @@ const unreviewedTools = new Set<string>();
  * The title and annotations tools/list carries for a tool. Every listed tool has a reviewed entry, which
  * tests/mcp-tool-annotations.test.mjs enforces. A tool added without one is still listed, with the most cautious
  * presentation (not read-only, destructive, not idempotent, open world) and one log line, so one missing entry cannot
- * break tools/list, help, the surface revision or the health probe for every client.
+ * break tools/list, help, the surface revision or the health probe for every client. A client on the v2 contract profile
+ * (`profile`, legacy unless the caller says otherwise) is shown the seven native gateways of v2ReadOnlyGateways as read-only;
+ * every other tool, and every tool for a legacy client, is presented as the table says.
  */
 export function toolPresentation(
   name: string,
   readOnlyDeployment: boolean,
   log: (line: string) => void = line => process.stderr.write(line + '\n'),
+  profile: ContractProfile = 'legacy',
 ) {
   const entry =
     (readOnlyDeployment ? toolAnnotations[name + ':read_only'] : undefined) ??
@@ -429,8 +461,9 @@ export function toolPresentation(
       },
     };
   }
-  const {basis: _basis, ...annotations} = entry;
-  return {title: entry.title, annotations};
+  const shown = profile === 'v2' && v2ReadOnlyGateways.includes(name) ? read(entry.title, v2NativeBasis) : entry;
+  const {basis: _basis, ...annotations} = shown;
+  return {title: shown.title, annotations};
 }
 const instructionsStart =
     'AMCP connects this assistant to the user’s advertising, analytics and commerce accounts through one workspace with reviewed changes. ' +

@@ -10,6 +10,8 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {WebStore} from '../dist/server/web-store.js';
+import {insertRegisteredClient} from '../dist/src/mcp-client-repository.js';
 
 const writes = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true};
 const providers = [
@@ -21,10 +23,15 @@ const providers = [
   ['x_ads_native_action', ['6001', '6002', '6003']],
 ];
 /** One synthetic Meta connection, or six providers with 20 accounts, readiness checks and many verified writes. */
-export function surfaceFixture({large = false, allowWrites = true} = {}) {
+export function surfaceFixture({large = false, allowWrites = true, v2 = false} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 41).toString('base64')),
-    actor = {tenantId: 'measure', userId: 'owner', role: 'admin'},
+    // A v2 client is an AI client whose registration record names the v2 contract profile (V2-MCP-06).
+    actor = {tenantId: 'measure', userId: v2 ? 'oauth/measure-v2' : 'owner', role: 'admin'},
     requests = [];
+  if (v2) {
+    new WebStore(store, {origin: 'https://measure.example.test', masterKey: Buffer.alloc(32, 41).toString('base64')});
+    insertRegisteredClient(store, 'measure-v2', JSON.stringify({client_id: 'measure-v2', contract_profile: 'v2'}));
+  }
   const transport = new NativeTransport(async request => {
     requests.push(String(request?.url ?? request));
     throw Error('Synthetic measurement makes no provider request.');
@@ -112,6 +119,23 @@ export async function measureSurface() {
         bytes: size(listed),
         tools: listed.tools.length,
         descriptions: Object.fromEntries(listed.tools.map(t => [t.name, t.description.length])),
+      };
+    } finally {
+      await c.close();
+      f.close();
+    }
+  }
+  // The same listing for a client on the v2 contract profile: what its annotations change in tools/list (V2-MCP-06).
+  out.tools_list_v2 = {};
+  for (const mode of ['reader', 'operator']) {
+    const f = surfaceFixture({allowWrites: mode === 'operator', v2: true}),
+      c = await client(f.service, f.actor);
+    try {
+      const listed = await c.client.listTools();
+      out.tools_list_v2[mode] = {
+        bytes: size(listed),
+        tools: listed.tools.length,
+        saved_bytes: out.tools_list[mode].bytes - size(listed),
       };
     } finally {
       await c.close();

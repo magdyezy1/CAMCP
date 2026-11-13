@@ -21,8 +21,8 @@ const selected = (only, groupId, id) => !only || only.includes(groupId) || only.
  * Every run starts from a fresh workspace; zero egress is asserted. Provider requests and synthetic mutations made
  * while a task's scenario is set up are not part of the run.
  */
-async function measured({fault, transcripts}, body) {
-  const f = await evaluationFixture({fault});
+async function measured({fault, transcripts, profile}, body) {
+  const f = await evaluationFixture({fault, profile});
   try {
     const outcome = await body(f);
     assert.equal(f.providers.state.egress_refused, 0, 'A journey attempted egress outside the synthetic providers');
@@ -48,13 +48,13 @@ async function measured({fault, transcripts}, body) {
 }
 
 /** All nine journeys with their four branches each. */
-export async function runJourneys({fault, only, transcripts = false} = {}) {
+export async function runJourneys({fault, only, transcripts = false, profile} = {}) {
   const runs = {};
   for (const journey of journeys)
     for (const branch of branchNames) {
       const id = journey.id + '/' + branch;
       if (!selected(only, journey.id, id)) continue;
-      const result = await measured({fault, transcripts}, async f => {
+      const result = await measured({fault, transcripts, profile}, async f => {
         const outcome = await journey.branches[branch](f);
         return {goal: outcome.goal === true, handoff: outcome.handoff ?? null};
       });
@@ -65,14 +65,14 @@ export async function runJourneys({fault, only, transcripts = false} = {}) {
 }
 
 /** The B15 tasks, each as a scripted reference run and as a guided run that follows AMCP's offered next calls. */
-export async function runTasks({fault, only, transcripts = false} = {}) {
+export async function runTasks({fault, only, transcripts = false, profile} = {}) {
   const runs = {};
   let discovery;
   for (const task of taskSet.tasks)
     for (const mode of ['reference', 'guided']) {
       const id = task.id + '/' + mode;
       if (!selected(only, task.id, id)) continue;
-      const result = await measured({fault, transcripts}, async f => {
+      const result = await measured({fault, transcripts, profile}, async f => {
         const outcome = await runTask(f, task, mode);
         return {
           goal: outcome.goalReached,
@@ -124,6 +124,7 @@ export async function runEvaluation({
   suites = ['journeys', 'tasks', 'evaluation_set'],
   only,
   transcripts = false,
+  profile,
 } = {}) {
   if (only) {
     const known = new Set([
@@ -137,20 +138,22 @@ export async function runEvaluation({
   const runs = {},
     started = Date.now();
   let discovery;
-  if (suites.includes('journeys')) runs.journeys = await runJourneys({fault, only, transcripts});
+  if (suites.includes('journeys')) runs.journeys = await runJourneys({fault, only, transcripts, profile});
   if (suites.includes('tasks')) {
-    const tasks = await runTasks({fault, only, transcripts});
+    const tasks = await runTasks({fault, only, transcripts, profile});
     runs.tasks = tasks.runs;
     discovery = tasks.discovery;
   }
   if (suites.includes('evaluation_set')) {
-    const set = await runEvaluationSet({only, transcripts});
+    const set = await runEvaluationSet({only, transcripts, profile});
     if (Object.keys(set).length || !only) runs.evaluation_set = set;
   }
   return {
     schema_version: 1,
     record_kind: 'amcp_journey_and_mcp_evaluation',
     fault: fault ?? null,
+    // The contract profile the clients of the run were served (V2-MCP-06); the committed baseline is the legacy one.
+    profile: profile ?? 'legacy',
     duration_ms: Date.now() - started,
     mcp_surface: discovery ?? null,
     task_measures: runs.tasks ? taskMeasures(runs.tasks) : undefined,

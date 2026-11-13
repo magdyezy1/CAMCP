@@ -1,6 +1,6 @@
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {bad, fingerprint, optional} from './workspace-core.js';
+import {bad, fingerprint, identifier, optional} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
 import {sha256} from './security.js';
 import {
@@ -72,8 +72,10 @@ function publicNotice(store: Store, tenant: string, n: JsonObject) {
 }
 export function monitorNotifications(store: Store, actor: Actor, input: JsonObject): JsonObject {
   store.assertActorActive(actor);
+  // The identifiers are checked before any lookup: a missing one reached the store as undefined and came back as an
+  // INTERNAL_ERROR, where the caller needs INVALID_ARGUMENT naming what to send (V2-MCP-06).
   if (input.action === 'retry_monitor_notification') {
-    const n = store.document(actor.tenantId, 'monitor_notice', input.notification_id),
+    const n = store.document(actor.tenantId, 'monitor_notice', identifier(input.notification_id, 'notification_id')),
       monitor = store.document(actor.tenantId, 'report_monitor', n.monitor_id);
     access(store, actor, monitor);
     if (n.user_id !== actor.ownerUserId) bad('Only the subscribed recipient can recover this notice.', 'FORBIDDEN');
@@ -102,7 +104,7 @@ export function monitorNotifications(store: Store, actor: Actor, input: JsonObje
       return publicNotice(store, actor.tenantId, store.document(actor.tenantId, 'monitor_notice', n.id));
     });
   }
-  const monitor = store.document(actor.tenantId, 'report_monitor', input.id);
+  const monitor = store.document(actor.tenantId, 'report_monitor', identifier(input.id));
   access(store, actor, monitor);
   const id = subscriptionId(actor, monitor.id);
   let sub = optional(store, actor.tenantId, 'monitor_subscription', id),

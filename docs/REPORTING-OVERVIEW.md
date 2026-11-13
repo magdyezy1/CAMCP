@@ -488,7 +488,8 @@ one window is one incident, and compares the value as exact decimal text, never 
 only when it is complete, its metric is an exact decimal calculated from every one of its units, and its evidence is
 newer than `max_age_hours`. Otherwise the outcome is `data_unavailable` with a `reason`, and it neither opens nor
 resolves an incident. `save_monitor` accepts `unknown` as `result_definition` or `attribution`, which is what a source
-that cannot name them reports.
+that cannot name them reports. A monitor action called without the identifier it works on (`monitor`, `id` or
+`notification_id`) is `INVALID_ARGUMENT` naming the field.
 
 <!-- overview-monitor-reasons:start -->
 
@@ -516,7 +517,12 @@ that cannot name them reports.
   (the first time a worker started it, also stored as the snapshot's `started_at`), `job.queued_ms` and
   `job.worker_recent` (any worker heartbeat in the last 90 seconds; process liveness only). The website shows
   **Queued for N minutes**. After 10 minutes without a start, or when no worker has reported recently, it says **AMCP
-  has not started this run yet**; owners get a link to worker health in Settings.
+  has not started this run yet**; owners get a link to worker health in Settings. For an MCP client, `meta.workflow` of
+  that `get` names the next step: while the snapshot is queued or running, the same `get` as `next_call` and
+  `poll_after_ms` (5,000); once it has failed, the `next_action` in the error's own words (reconnect, correct the request,
+  or why nothing helps) and, where a retry can end the failure (the job is retryable, and a source failed in the
+  platform's data or the platform itself, or its login changed), the job's `retry`, to run after the person approves.
+  The snapshot's own fields are unchanged.
 - **Polling.** The page refreshes an active snapshot every 3 s for the first minute, every 15 s up to 5 minutes, then
   every 60 s, and stops after 30 minutes with a **Refresh** button. Cancel, Retry and Refresh start a new watch.
 - **Deep links.** An open snapshot sets `?report_id=` (with the saved report's `view_id`) in the address bar.

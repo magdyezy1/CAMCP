@@ -17,14 +17,21 @@ import {
 import {MirrorService, withExactIntegers} from '../src/service.js';
 import {
   guidanceResources,
+  guidanceResourceTemplates,
   readGuidance,
   campaignPrompt,
   buildCampaignPrompt,
   campaignPlatforms,
 } from '../src/guidance.js';
-import {MirrorError} from '../src/errors.js';
+import {MirrorError, errorResult} from '../src/errors.js';
 import {serverIdentity} from '../src/server-identity.js';
 import {serverInstructionsFor} from '../src/tool-annotations.js';
+import {withContractProfile} from '../src/contract-profile.js';
+import {contractProfileOf} from '../src/mcp-client-profile.js';
+import {callIsRead} from '../src/call-kind.js';
+import {invalidCursor} from '../src/page-cursor.js';
+import {BudgetRequest, Continuation, budgetRequest, budgeted, continuationOf} from './mcp-budget.js';
+import {randomUUID} from 'node:crypto';
 /** AMCP's published legacy guide-error code; SDK v2 emits Invalid Params unless the legacy adapter restores it. */
 const resourceNotFound = -32002;
 /** SDK v2 normalizes resource errors in both eras. Preserve AMCP's published legacy guide error on legacy wires. */
@@ -72,8 +79,27 @@ export interface McpServerHooks {
   track?: <T>(work: Promise<T>) => Promise<T>;
   era?: 'legacy' | 'modern';
 }
-/** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). */
-export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
+/** An icon a server offers the client that shows one: where to fetch it, its type and its size (the Icon of the MCP revisions). */
+export interface McpIcon {
+  src: string;
+  mimeType: string;
+  sizes: string[];
+}
+/** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). `icons` are the deployment's own. */
+export const mcpServerInfo = (icons?: McpIcon[]) => ({
+  name: 'amcp',
+  version: String(serverIdentity().version),
+  ...(icons ? {icons} : {}),
+});
+/**
+ * The deployment's own icon (V2-MCP-06): the brand kit's square app icon, which the website serves from its public address
+ * (web/apple-touch-icon.png at /assets/, server/page-routes.ts; tests/mcp-server-icon.test.mjs reads the file for its size).
+ * Only the 2026-07-28 revision's server/discover offers it: the earlier revisions' initialize answer is as it was, and the
+ * identity every other result is stamped with is unchanged, so no response grows by it.
+ */
+export const mcpServerIcons = (origin: string): McpIcon[] => [
+  {src: origin + '/assets/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180']},
+];
 /**
  * What the server offers: the same tools, resources and prompts in both protocol eras, and in the 2026-07-28 revision the
  * tasks extension besides (server/mcp-tasks.ts). The earlier revisions are never told of it; server/discover reports the
@@ -119,17 +145,19 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
     service.store.assertActorActive(actor);
     return {resources: guidanceResources};
   });
-  // 2026-07-28 clients ask for resource templates (the guides are to be served as templates); AMCP has none yet. The
-  // earlier revisions never answered this method on AMCP, and keep not doing so.
+  // 2026-07-28 clients ask for resource templates. The guides' sections are the template a client on the v2 contract profile is
+  // offered (V2-MCP-06); every other client is told there are none, as it always was. The earlier revisions never answered this
+  // method on AMCP, and keep not doing so.
   if (hooks.era === 'modern')
     server.setRequestHandler('resources/templates/list', async () => {
       service.store.assertActorActive(actor);
-      return {resourceTemplates: []};
+      return {resourceTemplates: contractProfileOf(service.store, actor) === 'v2' ? guidanceResourceTemplates : []};
     });
   server.setRequestHandler('resources/read', async request => {
     service.store.assertActorActive(actor);
     try {
-      return {contents: [readGuidance(request.params.uri)]};
+      // A section of a guide is a resource for a v2 client only: for any other its URI is unknown, on both revisions.
+      return {contents: [readGuidance(request.params.uri, contractProfileOf(service.store, actor) === 'v2')]};
     } catch (e) {
       if (e instanceof MirrorError && e.code === 'GUIDE_NOT_FOUND')
         throw new ProtocolError(resourceNotFound, 'Unknown AMCP guide URI.', {
@@ -161,53 +189,90 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
   // Like every other handler, the catalog is listed only to a credential that is still active (SEC-05).
   server.setRequestHandler('tools/list', async () => {
     service.store.assertActorActive(actor);
-    return {tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any};
+    // The listing a client is shown follows its contract profile (V2-MCP-06), read from its record at this request.
+    return withContractProfile(contractProfileOf(service.store, actor), () => ({
+      tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any,
+    }));
   });
   // The tasks extension exists on the 2026-07-28 path only (server/mcp-tasks.ts).
   if (hooks.era === 'modern') registerTaskHandlers(server, service, actor);
   server.setRequestHandler('tools/call', async (request, ctx) => {
-    const args = request.params.arguments ?? {},
+    // The client's contract profile, read from its record at this request (V2-MCP-06): the call runs as that profile and no other.
+    const profile = contractProfileOf(service.store, actor),
+      name = request.params.name,
+      // General discovery already used this structured envelope. Text-only clients must receive the same result.
+      present = (result: JsonObject) => {
+        const presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
+        return {
+          content: [{type: 'text', text: JSON.stringify(presented)}],
+          structuredContent: presented,
+          ...(result.success === false ? {isError: true} : {}),
+        };
+      };
+    // A v2 client's byte budget and continuation are this layer's arguments: a tool never sees them. Whether the call reads, and
+    // where a continuation continues, are settled before anything runs, so a call that changes something is never run twice.
+    let budget: BudgetRequest | undefined,
+      reads = false,
+      continued: Continuation | undefined;
+    if (profile === 'v2')
+      try {
+        budget = budgetRequest(request.params.arguments ?? {});
+        reads = callIsRead(service, name, budget.args);
+        if (budget.continuation !== undefined) {
+          if (!reads) throw invalidCursor('response continuation');
+          continued = continuationOf(actor, name, budget);
+        }
+      } catch (e) {
+        return present(errorResult(e, randomUUID(), 0)) as any;
+      }
+    const args = budget ? budget.args : (request.params.arguments ?? {}),
       token = progressTokenOf(request.params._meta),
       // Only a client that declares the tasks extension in this very request is offered a task, never one inferred.
       tasksOn = hooks.era === 'modern' && declaresTasks(ctx.mcpReq.envelope),
       // PRV-05: native reads give the client 64-bit integers exactly, never a rounded ID of another entity.
-      call = () => service.call(request.params.name, args, actor),
+      call = () => service.call(name, args, actor),
       // A call that queues a long run is answered a task by a client that declares the extension; otherwise one that
       // carries a progress token waits for it, bounded, and reports its progress on this request's stream (V2-MCP-02).
       // With neither, nothing differs from a plain call.
-      work = withExactIntegers(
-        token === undefined && !tasksOn
-          ? call
-          : async () => {
-              const answer = await call(),
-                offer = tasksOn
-                  ? createTask({service, actor, tool: request.params.name, args, result: answer})
-                  : undefined;
-              if (offer) return offer;
-              return token === undefined
-                ? answer
-                : await answerWithProgress({
-                    service,
-                    actor,
-                    tool: request.params.name,
-                    args,
-                    result: answer,
-                    token,
-                    notify: notification => ctx.mcpReq.notify(notification),
-                    signal: ctx.mcpReq.signal,
-                    read: read => service.call(read.tool, read.arguments, actor),
-                  });
-            },
+      work = withContractProfile(
+        profile,
+        () =>
+          withExactIntegers(
+            token === undefined && !tasksOn
+              ? call
+              : async () => {
+                  const answer = await call(),
+                    offer = tasksOn ? createTask({service, actor, tool: name, args, result: answer}) : undefined;
+                  if (offer) return offer;
+                  return token === undefined
+                    ? answer
+                    : await answerWithProgress({
+                        service,
+                        actor,
+                        tool: name,
+                        args,
+                        result: answer,
+                        token,
+                        notify: notification => ctx.mcpReq.notify(notification),
+                        signal: ctx.mcpReq.signal,
+                        read: read => service.call(read.tool, read.arguments, actor),
+                      });
+                },
+          ),
+        args,
       ),
       result = await (hooks.track ? hooks.track(work) : work);
     if (result instanceof TaskOffer) return taskCallResult(result) as any;
-    // General discovery already used this structured envelope. Text-only clients must receive the same result.
-    const presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
-    return {
-      content: [{type: 'text', text: JSON.stringify(presented)}],
-      structuredContent: presented,
-      ...(result.success === false ? {isError: true} : {}),
-    };
+    // A v2 client's list read is cut at a row boundary to its budget, with the call that continues it (server/mcp-budget.ts).
+    try {
+      return present(
+        budget && reads && result.success === true
+          ? budgeted({tool: name, actor, request: budget, given: continued, envelope: result})
+          : result,
+      ) as any;
+    } catch (e) {
+      return present(errorResult(e, randomUUID(), 0)) as any;
+    }
   });
   return server;
 }
