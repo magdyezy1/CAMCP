@@ -150,8 +150,9 @@ populated/refusal/recovery cases documented below. The exact case count is the `
   groups and one glyph per link at 1280; no clipped link and a reachable footer at 800 pixels of height; the rail and its
   memory across routes and reloads; loading with the page's script and data held (the shell and header stay, one
   skeleton, focus lands on the heading, a late answer never paints over a newer route, a slow or failed Home feed stays
-  in its panel); the toast above the page, a failed page's way back to its parent and the empty states' one action; and
-  the logo's variant under forced colours on the workspace and a policy page. The reviewer pass covers the access gates.
+  in its panel); the toast above the page, an error toast that stays until dismissed, a failed page's way back to its parent
+  and the empty states' one action; and the logo's variant under forced colours on the workspace, a policy page and the
+  connection result. The reviewer pass covers the access gates.
 
 Every empty-workspace route must also open pristine (`uiHasUnsavedEdits()` is false, so a language switch asks
 nothing), and in Arabic `/dashboard`, `/reports`, `/capabilities` and `/reporting-overview` show no `.status` badge
