@@ -262,10 +262,16 @@
       "raised": [
         "reference_words 158407 → 159392"
       ]
+    },
+    {
+      "reason": "V2-MCP-06 (mcp-surface) documents the per-client contract profile and what the v2 profile changes, in docs/operations/CONFIGURATION.md (a new section on the MCP surface page), docs/operations/QUALIFICATION.md (the --profile v2 evaluation), docs/MEDIA-UPLOADS.md (the media hand-off) and docs/REPORTING-OVERVIEW.md (the next step of a snapshot read): 818 words on reference pages",
+      "raised": [
+        "reference_words 159392 → 160210"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159392
+    "reference_words": 160210
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
