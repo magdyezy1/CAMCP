@@ -55,6 +55,11 @@ export const linkedinCurrentMetadataWarning =
   'LinkedIn entity names and objectives are current metadata, not the values at delivery time.';
 export const linkedinRuleWindowsWarning =
   'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.';
+export const linkedinMixedWindowsWarning =
+  'LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.';
+/** The distinct window pairs of the account's rules, in the words of the guided join (`30d click / 7d view`). */
+export const linkedinRuleWindowPairsWarning = (pairs: string[]) =>
+  'The account’s LinkedIn conversion rules use these attribution windows: ' + pairs.join('; ') + '.';
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
@@ -228,7 +233,8 @@ async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead |
 
 /**
  * What the account's rules say of the windows of a source whose reported entities all have website conversions as their
- * result (`results.conversions`, none `other`): the pair they share. Undefined when the join says nothing new.
+ * result (`results.conversions`, none `other`): the pair they share, or that they differ (`mixed`, the pairs listed and
+ * the total kept). Undefined when the join says nothing new.
  */
 async function linkedInSourceWindows(
   c: ReportCollection,
@@ -241,11 +247,18 @@ async function linkedInSourceWindows(
     read.rules,
     read.rules.map(rule => String(rule.urn)),
   );
-  if (join.status !== 'verified_per_rule') return undefined;
+  if (join.status === 'unknown') return undefined;
   return {
     attribution: join.attribution,
     verified: true,
-    warnings: [linkedinRuleWindowsWarning],
+    warnings:
+      join.status === 'mixed'
+        ? [
+            linkedinMixedWindowsWarning,
+            linkedinRuleWindowPairsWarning(join.distinct_windows),
+            linkedinRuleWindowsWarning,
+          ]
+        : [linkedinRuleWindowsWarning],
     conversion_windows: {
       status: join.status,
       basis: 'account_rules',

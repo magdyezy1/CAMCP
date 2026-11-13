@@ -82,6 +82,44 @@ for (const level of ['adset', 'ad'])
     assert.equal(rulesRead(f).length, 1);
   });
 
+test('rules with different windows make a source mixed: the pairs are listed, the total is kept and said to combine them', async t => {
+  const {
+    f,
+    report,
+    source: s,
+  } = await run(t, 'campaign', {
+    conversions: [
+      linkedinConversionRule('501', 30, 7),
+      linkedinConversionRule('502', 7, 1),
+      linkedinConversionRule('503', 30, 7),
+    ],
+  });
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+  const mixed =
+    'LinkedIn conversion rules with mixed windows, no single window: 30d click / 7d view; 7d click / 1d view';
+  assert.equal(s.attribution, mixed);
+  assert.equal(stored(f, report).rows[0].attribution, mixed);
+  assert.equal(report.summary[0].attribution, mixed);
+  // The total is the one the source reports, untouched by the join.
+  assert.equal(report.rows[0].result.value, '7');
+  assert.equal(report.rows[0].result.label, 'LinkedIn website conversions');
+  assert.deepEqual(
+    s.warnings.filter(w => /conversion rules|conversion-rule|current metadata/.test(w)),
+    [
+      'LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.',
+      'The account’s LinkedIn conversion rules use these attribution windows: 30d click / 7d view; 7d click / 1d view.',
+      'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.',
+      'LinkedIn entity names and objectives are current metadata, not the values at delivery time.',
+    ],
+  );
+  const windows = s.level_results[0].conversion_windows;
+  assert.deepEqual(
+    [windows.status, windows.rule_count, windows.single_window, windows.unknown_rules, windows.reason],
+    ['mixed', 3, null, 0, null],
+  );
+  assert.deepEqual(windows.distinct_windows, ['30d click / 7d view', '7d click / 1d view']);
+});
+
 test('a v4 campaign-group source of website conversions takes the one window pair its account’s rules share', async t => {
   const {
     f,

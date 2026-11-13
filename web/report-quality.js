@@ -329,6 +329,27 @@ const reportSourceWarningTemplates = [
         {count: uiNumber(Number(m[1]))},
       ),
   ],
+  // V2-RPT-04: the window pairs of a LinkedIn account's conversion rules (`30d click / 7d view`), said in the platform's words.
+  [
+    /^The account’s LinkedIn conversion rules use these attribution windows: (.{1,1000})\.$/,
+    m =>
+      uiText('The account’s LinkedIn conversion rules use these attribution windows: {pairs}.', {
+        pairs: uiList(
+          m[1].split('; ').map(value => {
+            const pair = /^(\d{1,3})d click \/ (\d{1,3})d view$/.exec(value);
+            return pair
+              ? uiText('Click-through window') +
+                  ' ' +
+                  uiText('{days} days', {days: pair[1]}) +
+                  ' / ' +
+                  uiText('View-through window') +
+                  ' ' +
+                  uiText('{days} days', {days: pair[2]})
+              : value;
+          }),
+        ),
+      }),
+  ],
 ];
 function uiSourceWarning(value) {
   if (reportSourceWarnings.has(value) || /^(Detailed rows retain|LinkedIn[ ’])/.test(value)) return uiText(value);
