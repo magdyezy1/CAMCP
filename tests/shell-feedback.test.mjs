@@ -82,6 +82,50 @@ test('an empty state names one next action: a title, its words and exactly one l
   }
 });
 
+test('the link of a shell empty state goes to this site only: a path, never a script, a data address, another site or a run of spaces (P2A-06)', () => {
+  const page = homePage();
+  for (const href of [
+    '/connections',
+    '/campaigns#campaign-create',
+    '/reports?state=failed',
+    '/',
+    '/' + 'a'.repeat(2047),
+  ]) {
+    page.context.state = {title: 'Nothing here', action: {label: 'Go', href}};
+    assert.ok(String(page.run('emptyBlock(state)')).includes('href="' + href + '"'), href.slice(0, 40));
+  }
+  for (const href of [
+    'javascript:alert(1)',
+    'JAVASCRIPT:alert(1)',
+    ' javascript:alert(1)',
+    'java\tscript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    '//evil.example/x',
+    '/\\evil.example',
+    '/\t/evil.example',
+    '/\n/evil.example',
+    '/ /evil.example',
+    'https://other.example/',
+    'http://other.example/',
+    'mailto:a@example.test',
+    '#section',
+    'reports',
+    '',
+    undefined,
+    null,
+    7,
+    '/' + 'a'.repeat(2048),
+    '/' + ' '.repeat(100000) + 'x',
+  ]) {
+    page.context.state = {title: 'Nothing here', action: {label: 'Go', href}};
+    const started = performance.now();
+    assert.throws(() => page.run('emptyBlock(state)'), /EMPTY_STATE_HREF/, JSON.stringify(href)?.slice(0, 40));
+    assert.ok(performance.now() - started < 250, 'took ' + (performance.now() - started) + ' ms');
+  }
+  // A button with a command takes no address, and says nothing about one.
+  page.context.state = {title: 'Nothing here', action: {label: 'Sign in', command: 'login'}};
+  assert.ok(String(page.run('emptyBlock(state)')).includes('data-action="login"'));
+});
 test('Home’s empty panels each say what to do next, in both languages', async () => {
   const label = (locale, text) => (locale === 'ar' ? catalog[text] : text),
     sectionOf = (html, heading) => {
