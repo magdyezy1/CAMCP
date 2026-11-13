@@ -9,6 +9,8 @@ import {reportEngine} from './helpers/report-engine.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {reportChartsOrNone} from '../dist/src/report-charts.js';
 import {chartKindIds} from '../dist/src/report-chart-spec.js';
+import {saveAccessSet} from '../dist/src/access-sets.js';
+import {reportPlatforms} from '../dist/src/report-metrics.js';
 
 const spends = {c1: '20', c2: '10', c3: '5'};
 const engine = (t, more = {}) =>
@@ -177,4 +179,62 @@ test('the change of a key figure is read from the linked baseline when the repor
   // It is read, not stored: the stored snapshot has no change, and the baseline's own report has none.
   assert.equal(tile(e.stored(queued.id)).change, undefined);
   assert.equal(tile(await withCharts(e, baselineId)).change, undefined);
+});
+
+// P2A-07 (differential review, wave 5 round 2 part 2a): the baseline of a key figure's change is read only when the caller may
+// read it too. A baseline is made with the sources of its report, so today the two are reachable together; a comparison needs
+// only one shared account, so a baseline that also reaches an account outside a client's set is a read this check refuses.
+test('a client-limited key reads a charted report whose baseline reaches an account outside its set: the tiles carry no change', async t => {
+  const e = engine(t, {accounts: ['100', '200']}),
+    collect = e.overview.native.collect;
+  e.overview.native.collect = async (source, dates) => ({
+    ...(await collect(source, dates)),
+    rows: ['c1', 'c2'].map(id => row('campaign', id, {spend: dates.since === '2026-09-01' ? '10' : '25'})),
+  });
+  const queued = await e.overview.handle(
+      {
+        action: 'run',
+        confirmed: true,
+        compare: 'previous_period',
+        config: e.definition(['campaign'], {date_range: {since: '2026-09-08', until: '2026-09-14'}}),
+      },
+      e.actor,
+    ),
+    baselineId = queued.comparison.baseline_id,
+    work = id => e.overview.work(e.actor.tenantId, 'report_overview', {report_id: id});
+  await work(queued.id);
+  await work(baselineId);
+  const tile = report => report.charts.find(spec => spec.kind === 'kpi').series.find(series => series.key === 'spend'),
+    read = actor => e.overview.handle({action: 'get', id: queued.id, limit: 500, include: {charts: true}}, actor);
+  // The set reaches the account the report has; the administrator’s read shows the change, so the baseline is comparable.
+  const set = saveAccessSet(e.store, e.actor, {
+      name: 'One account',
+      bindings: [{gateway: reportPlatforms.meta.gateway, connection_id: 'login', account_id: '100'}],
+    }),
+    limited = e.store.authenticate(
+      e.store.createKey({
+        tenantId: e.actor.tenantId,
+        userId: 'connector/limited',
+        role: 'operator',
+        accessSetId: String(set.id),
+      }),
+    );
+  assert.equal(tile(await read(e.actor)).change.baseline, '20');
+  assert.equal(tile(await read(limited)).change.baseline, '20', 'the baseline is inside the set: the change is shown');
+  // The baseline is of another definition: it also reaches the second account, which the set does not.
+  const stored = e.stored(baselineId);
+  e.store.putDocument(e.actor.tenantId, 'overview_report', baselineId, {
+    ...stored,
+    config: {...stored.config, sources: [...stored.config.sources, {...stored.config.sources[0], account_id: '200'}]},
+  });
+  assert.equal(
+    tile(await read(e.actor)).change.baseline,
+    '20',
+    'still comparable for a caller who reads both accounts',
+  );
+  const seen = await read(limited);
+  assert.equal(seen.state, 'complete', 'the report itself is inside the set and reads');
+  assert.equal(tile(seen).values[0], '50');
+  assert.equal(tile(seen).change, undefined, 'no change: the baseline is not the caller’s to read');
+  assert.ok(!JSON.stringify(seen.charts).includes('"baseline"'), 'nothing of the baseline is in the charts');
 });
