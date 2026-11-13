@@ -132,12 +132,25 @@ export function chartTextWidth(text: string, size: number): number {
   }
   return r2(em * size);
 }
-/** A text cut with an ellipsis to fit `max` pixels: it is never clipped by its own box. */
+/**
+ * A text cut with an ellipsis to fit `max` pixels: it is never clipped by its own box. The cut is the longest prefix, in
+ * characters, that fits with the ellipsis after it, found by binary search (about log2 of the length measures, 8 for a name
+ * of 160 characters), not by measuring the text again after each character removed: the PDF's measure shapes and reorders
+ * what it is given, and a cut that measured every prefix cost milliseconds for each cell of a table (P2A-05). A width
+ * grows with the text, so the prefixes that fit are the shortest ones; the cut is the same text as the removal gave.
+ */
 export function fitChartText(text: string, max: number, size: number, measure = chartTextWidth): string {
   if (measure(text, size) <= max) return text;
   const letters = [...text];
-  while (letters.length && measure(letters.join('') + '…', size) > max) letters.pop();
-  return letters.join('').trimEnd() + '…';
+  // `fits` holds for `low` (the ellipsis alone is the last resort, whatever its width) and has not been shown for `high`.
+  let low = 0,
+    high = letters.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (measure(letters.slice(0, middle).join('') + '…', size) <= max) low = middle;
+    else high = middle - 1;
+  }
+  return letters.slice(0, low).join('').trimEnd() + '…';
 }
 /**
  * A text broken at its spaces into at most `lines` lines that each fit `max` pixels. When it needs more, the last line takes
