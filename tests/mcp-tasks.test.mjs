@@ -23,6 +23,8 @@ import {createHttpApp} from '../dist/server/http-app.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 import {removeTestDirectory} from '../dist/tests/temp.js';
+import {saveAccessSet} from '../dist/src/access-sets.js';
+import {reportPlatforms} from '../dist/src/report-metrics.js';
 import {reportEngine} from './helpers/report-engine.mjs';
 import {offerParkedProviders} from './helpers/parked-providers.mjs';
 import {campaignStack, campaignTool, exportStack, overviewTool, rows, until} from './helpers/mcp-long-run-stacks.mjs';
@@ -386,6 +388,135 @@ test('tasks/cancel cancels an export with the rights a cancel needs today, and a
   assert.equal((await modern(f, 'tasks/get', {taskId: task.taskId})).body.result.status, 'cancelled');
   const again = fail(await modern(f, 'tasks/cancel', {taskId: task.taskId}), -32602);
   assert.match(again.message, /finished/i);
+});
+
+// P2A-03 (differential review, wave 5 round 2 part 2a): every read of a task is made again, as the caller and under the
+// rights the caller has now, whatever the status. A task is bound to the access set by its id, not by its content, so a
+// set that is narrowed keeps the binding valid; the rights are what is read again.
+/** An AI client limited to a client access set that reaches the stack's one account, with a key of its own. */
+function limitedClient(f) {
+  const gateway = reportPlatforms.meta.gateway,
+    bind = (connection_id, account_id) => [{gateway, connection_id, account_id}];
+  // A second login with a second account: the set can later be narrowed to an account the report does not use.
+  f.store.putConnection(
+    f.actor,
+    {
+      id: 'other-login',
+      tenantId: f.actor.tenantId,
+      gateway,
+      accounts: ['200'],
+      enabled: true,
+      scopes: [],
+      label: 'Other',
+    },
+    {accessToken: 'synthetic'},
+  );
+  let set = saveAccessSet(f.store, f.actor, {name: 'Task client', bindings: bind('login', '100')});
+  return {
+    key: f.store.createKey({
+      tenantId: f.actor.tenantId,
+      userId: 'connector/task-client',
+      role: 'operator',
+      accessSetId: String(set.id),
+    }),
+    /** An administrator removes the report's account from the set and gives it another one (the same set id). */
+    narrow() {
+      set = saveAccessSet(f.store, f.actor, {
+        id: set.id,
+        revision: set.revision,
+        name: set.name,
+        bindings: bind('other-login', '200'),
+      });
+    },
+  };
+}
+const outageText = 'Synthetic outage of destination Long-run files';
+
+test('a completed task is read again under the rights of now: an access set that lost the report’s account turns it into a refusal, with no result (P2A-03)', async t => {
+  const f = await exportStack(t),
+    client = limitedClient(f),
+    task = await exportTask(f, {key: client.key}),
+    // The administrator’s own task for the same export, made while it is still running.
+    own = await exportTask(f),
+    get = async () => (await modern(f, 'tasks/get', {taskId: task.taskId}, {key: client.key})).body.result;
+  f.setJob('complete');
+  const seen = await get();
+  assert.equal(seen.status, 'completed');
+  assert.equal(seen.result.structuredContent.data.state, 'complete', 'the set reaches the account: the result is read');
+  client.narrow();
+  const refused = await get();
+  assert.equal(refused.status, 'failed');
+  assert.equal(refused.error.data.code, 'ACCOUNT_SCOPE_RESTRICTED');
+  assert.equal(refused.result, undefined, 'no result of a report the caller may no longer read');
+  assert.ok(!JSON.stringify(refused).includes('Spring sale'), 'no row of the report');
+  // The person's own (administrator) key, whose rights did not change, still reads it: the refusal is the caller's.
+  assert.equal((await modern(f, 'tasks/get', {taskId: own.taskId})).body.result.status, 'completed');
+});
+
+test('a task whose report was deleted is an unknown task, and a task of a deactivated actor is refused (P2A-03)', async t => {
+  const f = await exportStack(t),
+    task = await exportTask(f),
+    get = () => modern(f, 'tasks/get', {taskId: task.taskId});
+  f.setJob('complete');
+  assert.equal((await get()).body.result.status, 'completed');
+  // The key is revoked (the actor is deactivated): refused before any task is read, and no task data is answered.
+  const hash = createHash('sha256').update(f.key).digest('hex');
+  f.store.sql().prepare('UPDATE api_keys SET revoked=1 WHERE hash=?').run(hash);
+  const refused = await get();
+  assert.equal(refused.status, 401, JSON.stringify(refused.body));
+  assert.equal(refused.body.result, undefined);
+  assert.ok(!JSON.stringify(refused.body).includes(task.taskId) || refused.body.result === undefined);
+  f.store.sql().prepare('UPDATE api_keys SET revoked=0 WHERE hash=?').run(hash);
+  assert.equal((await get()).body.result.status, 'completed');
+  // The report is deleted, with its jobs: nothing is left to report, and the task is as if it never was.
+  const deleted = await f.overview.handle(
+    {
+      action: 'delete_report',
+      id: f.reportId,
+      confirmed: true,
+      revision: f.store.document(f.actor.tenantId, 'overview_report', f.reportId).revision,
+    },
+    f.actor,
+  );
+  assert.deepEqual([deleted.id, deleted.deleted], [f.reportId, true], JSON.stringify(deleted));
+  const gone = await get(),
+    unknown = await modern(f, 'tasks/get', {taskId: 'a'.repeat(32)});
+  assert.equal(gone.body.error.message, 'Unknown task.', JSON.stringify(gone.body));
+  assert.deepEqual([gone.status, gone.body.error], [unknown.status, unknown.body.error]);
+});
+
+test('the status and the error of a task that is working, failed or cancelled are shown only to a caller who may still read its report (P2A-03)', async t => {
+  const f = await exportStack(t),
+    client = limitedClient(f),
+    task = await exportTask(f, {key: client.key}),
+    get = async () => (await modern(f, 'tasks/get', {taskId: task.taskId}, {key: client.key})).body.result;
+  // The set reaches the account: the status is the job's, with its message and its error.
+  const working = await get();
+  assert.deepEqual([working.status, working.statusMessage], ['working', 'queued']);
+  f.setJob('failed', {code: 'UPSTREAM_UNAVAILABLE', message: outageText, retryable: true});
+  const failed = await get();
+  assert.deepEqual(
+    [failed.status, failed.error.message, failed.error.data.code],
+    ['failed', outageText, 'UPSTREAM_UNAVAILABLE'],
+  );
+  f.setJob('cancelled');
+  assert.equal((await get()).status, 'cancelled');
+  // The set loses the account: whatever the job says, the caller is answered the refusal and nothing of the job.
+  client.narrow();
+  for (const [state, error] of [
+    ['queued', null],
+    ['running', null],
+    ['failed', {code: 'UPSTREAM_UNAVAILABLE', message: outageText, retryable: true}],
+    ['cancelled', null],
+  ]) {
+    f.setJob(state, error);
+    const seen = await get();
+    assert.equal(seen.status, 'failed', state);
+    assert.equal(seen.error.data.code, 'ACCOUNT_SCOPE_RESTRICTED', state);
+    assert.equal(seen.statusMessage, undefined, state + ' shows no progress of the job');
+    assert.equal(seen.result, undefined, state);
+    assert.ok(!JSON.stringify(seen).includes(outageText), state + ' shows the job’s error text');
+  }
 });
 
 test('a task survives a restart: a fresh process on the same store follows it to its end', async t => {
