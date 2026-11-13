@@ -255,7 +255,34 @@ export async function exerciseExportOutcomes({page, site, locale, result, checks
     );
     await dialog.locator('#report-export-now').click();
     assert.equal((await (await exported).json()).success, true);
+    // Website-get: a second tab that opens the report while the export is queued polls for the status only, and shows the
+    // export's end when the worker has finished it.
+    let watching;
+    if (outcome === 'complete') {
+      const tab = await page.context().newPage(),
+        sent = [];
+      tab.on('request', request => {
+        const body = request.url().endsWith('/api/workspace/overview') ? request.postDataJSON() : undefined;
+        if (body?.action === 'get') sent.push(body);
+      });
+      await tab.goto(site.origin + '/reporting-overview?report_id=' + encodeURIComponent(report), {
+        waitUntil: 'networkidle',
+      });
+      await tab.locator('#overview-results .report-rows-table').waitFor();
+      watching = {tab, sent};
+    }
     assert.equal(await site.exportOutcomes.workOnce(), true);
+    if (watching) {
+      await watching.tab.locator('#overview-results a[href*="docs.google.com"]').waitFor({timeout: 15000});
+      const [load, ...polls] = watching.sent;
+      assert.equal(load.limit, 100, 'the load asks for a page of rows');
+      assert.ok(
+        polls.length > 0 && polls.every(body => body.limit === 1 && body.offset === 0 && body.include === undefined),
+        'a poll asks for the status only: ' + JSON.stringify(polls),
+      );
+      await watching.tab.close();
+      result.export_status_polls = {polls: polls.length, rows_asked_for_by_a_poll: 0};
+    }
     const expected = outcome === 'complete' ? receiptPattern(text).source : pattern(text('Export to a new tab')).source;
     await page.waitForFunction(
       expected => new RegExp(expected).test(document.getElementById('delivery-status')?.textContent ?? ''),
