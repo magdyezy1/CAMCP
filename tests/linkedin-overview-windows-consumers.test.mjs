@@ -8,6 +8,7 @@ import {reportEvidence} from '../dist/src/report-quality.js';
 import {reportSummary} from '../dist/src/report-summary.js';
 import {compareSnapshots} from '../dist/src/report-compare.js';
 import {evaluateMonitors, monitorOperation} from '../dist/src/report-monitors.js';
+import {DecisionReporting} from '../dist/src/decision-reporting.js';
 import {pdfActualText} from './helpers/pdf-actual-text.mjs';
 import {pdfPlainText} from './helpers/pdf-plain-text.mjs';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
@@ -69,6 +70,27 @@ test('a total never adds results measured under different attributions: the pair
     ['50', '50'],
     'each summary holds its own row’s spend, not both',
   );
+});
+
+test('an Overview group of a joined source is captured as evidence under its attribution, the pair or the mixed words', async t => {
+  for (const [rules, attribution] of [
+    [[rule('501', 30, 7)], pair],
+    [
+      [rule('501', 30, 7), rule('502', 7, 1)],
+      'LinkedIn conversion rules with mixed windows, no single window: 30d click / 7d view; 7d click / 1d view',
+    ],
+  ]) {
+    const {f, report} = await run(t, 'campaign', {conversions: rules}),
+      reporting = new DecisionReporting(f.store, (gateway, args, actor) => f.service.call(gateway, args, actor)),
+      groups = await reporting.handle({action: 'overview_sources', id: report.id}, f.actor),
+      captured = await reporting.handle(
+        {action: 'capture_overview', id: report.id, group_id: groups.groups[0].id},
+        f.actor,
+      );
+    assert.equal(groups.groups[0].semantics.attribution, attribution);
+    assert.equal(captured.semantics.attribution, attribution);
+    assert.equal(captured.totals.spend, '50');
+  }
 });
 
 /** A monitor on the context of a summary, as the monitors page builds it from a retained snapshot. */
