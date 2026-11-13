@@ -167,6 +167,52 @@ test('a rule that states no window leaves the windows unknown, even beside rules
   );
 });
 
+test('a refused rules read leaves the windows unknown, keeps every number and leaves the report complete', async t => {
+  const {report, source: s} = await run(t, 'campaign', {
+    conversions: [linkedinConversionRule('501')],
+    refused: ['/conversions'],
+  });
+  staysUnknown(
+    report,
+    s,
+    'LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.',
+  );
+  const windows = s.level_results[0].conversion_windows;
+  assert.deepEqual(
+    [windows.status, windows.basis, windows.reason, windows.rule_count, windows.rules_source_hash],
+    ['unknown', 'account_rules', 'refused', null, null],
+  );
+  assert.equal(report.rows[0].result.value, '7');
+  assert.equal(report.rows[0].result.label, 'LinkedIn website conversions');
+});
+
+test('a change of the login during the rules read still fails the source: only LinkedIn may refuse it', async t => {
+  fixClock(t);
+  const f = linkedinPipeline(t, {analytics, ...world(), conversions: [linkedinConversionRule('501')]}),
+    read = f.service.runPlan;
+  f.service.runPlan = async plan => {
+    const answer = await read(plan);
+    if (plan.path === '/rest/conversions')
+      f.store.putConnection(
+        f.actor,
+        {
+          id: linkedinConnection,
+          tenantId: f.actor.tenantId,
+          gateway: 'linkedin_native_action',
+          accounts: ['100'],
+          enabled: true,
+          scopes: ['r_ads', 'r_ads_reporting'],
+          label: 'Synthetic',
+        },
+        {accessToken: 'replaced'},
+      );
+    return answer;
+  };
+  const report = await f.run({...v4, sources: [source('campaign')]});
+  assert.equal(report.state, 'failed');
+  assert.equal(report.sources[0].error.code, 'CONNECTION_AUTHORITY_CHANGED');
+});
+
 test('a v4 campaign-group source of website conversions takes the one window pair its account’s rules share', async t => {
   const {
     f,

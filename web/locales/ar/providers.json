@@ -1436,6 +1436,7 @@
   "LinkedIn did not return an analytics row collection.": "لم يُعد LinkedIn مجموعة صفوف لبيانات التحليلات.",
   "LinkedIn did not return every entity in every split period; totals for those entities are unknown.": "لم يُعد LinkedIn كل عنصر في كل فترة مقسّمة؛ إجماليات هذه العناصر غير معروفة.",
   "LinkedIn did not return every resumable lift test of the account.": "لم يُعد LinkedIn جميع اختبارات الرفع القابلة للاستئناف لدى الحساب.",
+  "LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.": "لم يُرجع LinkedIn قواعد التحويل الخاصة بالحساب، لذلك تبقى نوافذ الإسناد غير معروفة.",
   "LinkedIn did not return the ad account.": "لم يُعد LinkedIn حساب الإعلانات.",
   "LinkedIn did not return the campaigns of the account.": "لم يُعد LinkedIn حملات الحساب.",
   "LinkedIn did not return the complete lead form list of this account.": "لم يُرجع LinkedIn القائمة الكاملة لنماذج العملاء المحتملين في هذا الحساب.",
