@@ -284,7 +284,13 @@ export class MirrorService {
     // amcp_write creates provider jobs under the owner's switch (RPT-06), so it is not annotated read-only then.
     return this.listedTools().map(t => ({
       ...t,
-      ...toolPresentation(t.name, readOnly && !(t.name === 'amcp_write' && this.policy.providerJobs === true)),
+      // The annotations follow the contract profile of the client asking (V2-MCP-06): legacy outside an MCP request.
+      ...toolPresentation(
+        t.name,
+        readOnly && !(t.name === 'amcp_write' && this.policy.providerJobs === true),
+        undefined,
+        currentContractProfile(),
+      ),
     }));
   }
   private listedTools() {
