@@ -17,6 +17,37 @@ export const origin = 'https://amcp.shop',
   redirect = 'https://claude.ai/api/mcp/auth_callback',
   adminPassword = 'synthetic-profile-admin-password';
 const sha = value => createHash('sha256').update(value).digest('hex');
+const protocol = {modern: '2026-07-28', legacy: '2025-11-25'};
+/**
+ * One raw JSON-RPC request in the framing of an era (`legacy` or `modern`), with a bearer token: what travels, so the code of an
+ * error is the wire's own and no SDK client has normalized it or kept an answer in its cache. The legacy framing is stateless
+ * (no initialize), as a client that has already initialized sends it; `initialize` itself is sent as it is.
+ */
+async function rawRequest(url, access, era, method, params = {}) {
+  const headers = {
+    'content-type': 'application/json',
+    accept: 'application/json, text/event-stream',
+    authorization: 'Bearer ' + access,
+  };
+  let body = {jsonrpc: '2.0', id: 1, method, params};
+  if (era === 'modern') {
+    Object.assign(headers, {'mcp-protocol-version': protocol.modern, 'mcp-method': method});
+    if (method === 'resources/read') headers['mcp-name'] = params.uri;
+    if (method === 'tools/call') headers['mcp-name'] = params.name;
+    body = {
+      ...body,
+      params: {
+        ...params,
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': protocol.modern,
+          'io.modelcontextprotocol/clientCapabilities': {},
+        },
+      },
+    };
+  } else if (method !== 'initialize') headers['mcp-protocol-version'] = protocol.legacy;
+  const response = await fetch(url, {method: 'POST', headers, body: JSON.stringify(body)});
+  return {status: response.status, body: await response.json()};
+}
 const refused = async () => {
   throw new Error('No provider traffic allowed');
 };
@@ -157,5 +188,7 @@ export async function oauthStack(t, {fetcher = refused, policy, modern = 'on'} =
     sha,
     /** A real SDK client of one protocol era (`legacy` or `modern`) calling with an access token or an API key. */
     client: (era, access) => connectClient(t, era, url, access),
+    /** One raw request in an era's own framing (rawRequest above): `{status, body}` as the wire carries it. */
+    wire: (access, era, method, params) => rawRequest(url, access, era, method, params),
   };
 }

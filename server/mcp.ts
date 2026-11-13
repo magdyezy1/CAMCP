@@ -79,8 +79,27 @@ export interface McpServerHooks {
   track?: <T>(work: Promise<T>) => Promise<T>;
   era?: 'legacy' | 'modern';
 }
-/** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). */
-export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
+/** An icon a server offers the client that shows one: where to fetch it, its type and its size (the Icon of the MCP revisions). */
+export interface McpIcon {
+  src: string;
+  mimeType: string;
+  sizes: string[];
+}
+/** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). `icons` are the deployment's own. */
+export const mcpServerInfo = (icons?: McpIcon[]) => ({
+  name: 'amcp',
+  version: String(serverIdentity().version),
+  ...(icons ? {icons} : {}),
+});
+/**
+ * The deployment's own icon (V2-MCP-06): the brand kit's square app icon, which the website serves from its public address
+ * (web/apple-touch-icon.png at /assets/, server/page-routes.ts; tests/mcp-server-icon.test.mjs reads the file for its size).
+ * Only the 2026-07-28 revision's server/discover offers it: the earlier revisions' initialize answer is as it was, and the
+ * identity every other result is stamped with is unchanged, so no response grows by it.
+ */
+export const mcpServerIcons = (origin: string): McpIcon[] => [
+  {src: origin + '/assets/apple-touch-icon.png', mimeType: 'image/png', sizes: ['180x180']},
+];
 /**
  * What the server offers: the same tools, resources and prompts in both protocol eras, and in the 2026-07-28 revision the
  * tasks extension besides (server/mcp-tasks.ts). The earlier revisions are never told of it; server/discover reports the

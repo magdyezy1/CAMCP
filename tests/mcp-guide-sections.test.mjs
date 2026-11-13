@@ -200,34 +200,6 @@ test('every section of every guide is served under 12,000 bytes, in parts where 
 // ---- Over the real stack ------------------------------------------------------------------------------------------------
 
 const eras = ['legacy', 'modern'];
-const protocol = {modern: '2026-07-28', legacy: '2025-11-25'};
-
-/** One raw JSON-RPC request in an era's own framing, so the code of an error is the one on the wire. */
-async function wire(s, access, era, method, params) {
-  const headers = {
-    'content-type': 'application/json',
-    accept: 'application/json, text/event-stream',
-    authorization: 'Bearer ' + access,
-    'mcp-protocol-version': protocol[era],
-  };
-  let body = {jsonrpc: '2.0', id: 1, method, params};
-  if (era === 'modern') {
-    headers['mcp-method'] = method;
-    if (method === 'resources/read') headers['mcp-name'] = params.uri;
-    body = {
-      ...body,
-      params: {
-        ...params,
-        _meta: {
-          'io.modelcontextprotocol/protocolVersion': protocol.modern,
-          'io.modelcontextprotocol/clientCapabilities': {},
-        },
-      },
-    };
-  }
-  const response = await fetch(s.url, {method: 'POST', headers, body: JSON.stringify(body)});
-  return {status: response.status, body: await response.json()};
-}
 /** Two AI clients of one workspace: one opted in to the v2 profile, and one that never was. */
 async function twoClients(t) {
   const s = await oauthStack(t),
@@ -398,7 +370,7 @@ test('an unknown resource is -32602 on the 2026-07-28 revision and -32002 on the
       ['legacy', plain.access],
     ])
       for (const uri of notThere) {
-        const answer = await wire(s, access, era, 'resources/read', {uri});
+        const answer = await s.wire(access, era, 'resources/read', {uri});
         assert.equal(answer.body.result, undefined, who + ' ' + era + ' ' + uri);
         assert.equal(
           answer.body.error?.code,
@@ -411,8 +383,8 @@ test('an unknown resource is -32602 on the 2026-07-28 revision and -32002 on the
   // A section that exists is a resource for the client that opted in, on both revisions, and for no other.
   const uri = 'amcp://guides/workspace/' + longest;
   for (const era of eras) {
-    const served = await wire(s, v2.access, era, 'resources/read', {uri}),
-      unknown = await wire(s, plain.access, era, 'resources/read', {uri});
+    const served = await s.wire(v2.access, era, 'resources/read', {uri}),
+      unknown = await s.wire(plain.access, era, 'resources/read', {uri});
     assert.equal(served.body.error, undefined, era);
     assert.equal(served.body.result.contents[0].uri, uri);
     assert.equal(unknown.body.error.code, refusal[era], era);
@@ -420,7 +392,7 @@ test('an unknown resource is -32602 on the 2026-07-28 revision and -32002 on the
   // The whole guides, by their own URI, answer both as they did.
   for (const era of eras)
     for (const access of [v2.access, plain.access]) {
-      const answer = await wire(s, access, era, 'resources/read', {uri: 'amcp://guides/workspace'});
+      const answer = await s.wire(access, era, 'resources/read', {uri: 'amcp://guides/workspace'});
       assert.equal(answer.body.result.contents[0].text, guidance.readGuidance('amcp://guides/workspace').text);
     }
 });
@@ -483,8 +455,8 @@ test('a client’s profile applies at its next request: the template and the sec
     client = await s.client('modern', v2.access),
     uri = 'amcp://guides/workspace/' + longest,
     // An SDK client keeps a list for the ttlMs the server hints (300 s), so these are raw requests: what the server answers now.
-    templates = async access => (await wire(s, access, 'modern', 'resources/templates/list', {})).body.result,
-    sectionRead = async access => (await wire(s, access, 'modern', 'resources/read', {uri})).body;
+    templates = async access => (await s.wire(access, 'modern', 'resources/templates/list', {})).body.result,
+    sectionRead = async access => (await s.wire(access, 'modern', 'resources/read', {uri})).body;
   const listed = await templates(v2.access);
   assert.equal(listed.resourceTemplates.length, 1);
   assert.equal(
