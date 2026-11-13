@@ -160,6 +160,8 @@ function browserFixture(fetcher = async () => response({})) {
       },
       querySelector: node,
       querySelectorAll: () => [],
+      // An error toast appends its Dismiss button (closing-small); the fake keeps the message in textContent.
+      append() {},
       insertAdjacentHTML(_position, html) {
         this.innerHTML += html;
       },
@@ -211,6 +213,7 @@ function browserFixture(fetcher = async () => response({})) {
     document: {
       body: {classList: {toggle() {}}},
       activeElement: null,
+      createElement: () => node('new-element'),
       querySelector: node,
       getElementById: id => node('#' + id),
       querySelectorAll: selector => (selector.startsWith('#') ? [node(selector)] : []),

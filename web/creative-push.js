@@ -770,7 +770,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
     try {
       await resumeUpload(u, file);
     } catch (e) {
-      if (current()) toast(errorMessage(e));
+      if (current()) toast(errorMessage(e), 'error');
     }
   });
   const ownerField = () => {

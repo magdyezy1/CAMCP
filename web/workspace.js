@@ -282,7 +282,7 @@ function workspaceBind(selector, fn, options = {}) {
       } catch (error) {
         failed = true;
         if (request) request.show(error);
-        else if (currentScope() && el.isConnected && error?.presented !== true) toast(errorMessage(error));
+        else if (currentScope() && el.isConnected && error?.presented !== true) toast(errorMessage(error), 'error');
       } finally {
         if (button && latest()) button.disabled = options.disabled?.(button) === true;
         // A successful re-render can restore its replacement control. Obsolete failures cannot move focus.
@@ -479,7 +479,7 @@ async function renderCampaigns() {
       `<button class="button small" data-run="` +
       esc(id) +
       `">${esc(uiText('Open'))}</button>`;
-    row.querySelector('button').addEventListener('click', () => open(id).catch(e => toast(errorMessage(e))));
+    row.querySelector('button').addEventListener('click', () => open(id).catch(e => toast(errorMessage(e), 'error')));
     if (old) old.replaceWith(row);
     else {
       planHistory.querySelector('.empty')?.remove();
@@ -696,7 +696,7 @@ async function renderMediaLibrary() {
     $('#media-review').innerHTML = mediaJobPanel(job, id);
     workspaceBind('#inspect-media-job', () => showRecovery(id, true));
     if (['queued', 'running'].includes(job.state))
-      pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e))), 4000);
+      pollTimer = setTimeout(() => showJob(id).catch(e => toast(errorMessage(e), 'error')), 4000);
   };
   let variant = null;
   $('#media-source').addEventListener('input', () => {

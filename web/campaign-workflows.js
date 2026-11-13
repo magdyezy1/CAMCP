@@ -1018,7 +1018,7 @@ function bindApprovalFields(id, summary) {
       } catch (error) {
         delete details.dataset.loaded;
         details.open = false;
-        toast(errorMessage(error));
+        toast(errorMessage(error), 'error');
       }
     });
 }

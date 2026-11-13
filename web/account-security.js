@@ -185,7 +185,7 @@ async function renderAccountSecurity() {
           await navigator.clipboard.writeText(codes);
           toast(uiText('Recovery codes copied.'));
         } catch {
-          toast(uiText('Select the codes and copy them.'));
+          toast(uiText('Select the codes and copy them.'), 'error');
         }
       });
       $('#mfa-download-codes').addEventListener('click', () => {
@@ -214,7 +214,7 @@ async function renderAccountSecurity() {
           await navigator.clipboard.writeText(r.secret);
           toast(uiText('Setup key copied.'));
         } catch {
-          toast(uiText('Select the key and copy it.'));
+          toast(uiText('Select the key and copy it.'), 'error');
         }
       });
       authBind('#mfa-enable', async f => {

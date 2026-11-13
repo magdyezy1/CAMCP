@@ -425,6 +425,7 @@
   "Disconnect this login?": "قطع هذا الاتصال؟",
   "Disconnect {name}": "فصل {name}",
   "Discovery exceeds 10,000 accounts. Use a narrower login.": "يتجاوز الاكتشاف 10,000 حساب. استخدم تسجيل دخول بصلاحيات أضيق.",
+  "Dismiss": "تجاهل",
   "Documentation": "الوثائق",
   "Download as a text file": "تنزيل كملف نصي",
   "Draft": "مسودة",

@@ -3452,6 +3452,55 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
   await page.evaluate(() => window.scrollTo(0, 0));
   if (width <= 375 || width >= 1280)
     await page.screenshot({path: path.join(shellScreens(), `shell-toast-${locale}-${width}-${appearance}.png`)});
+  // Package closing-small (WCAG 2.2.1): a failure stays until the person dismisses it. A link to a login this workspace
+  // no longer lists is the real flow: the page says so in a toast. That toast is still there after the six seconds every
+  // other toast gets, took no focus, is not written again while it waits, and goes with its Dismiss button.
+  await shellOpen(page, site, '/connections?connection_id=no-such-login', locale);
+  await page.locator('#toast:not([hidden])').waitFor({state: 'visible'});
+  const readToast = () =>
+    page.evaluate(() => {
+      const t = document.querySelector('#toast');
+      return {
+        hidden: t.hidden,
+        text: [...t.childNodes]
+          .filter(node => node.nodeType === 3)
+          .map(node => node.textContent)
+          .join(''),
+        buttons: [...t.querySelectorAll('button')].map(b => ({
+          name: b.getAttribute('aria-label'),
+          glyph: b.textContent,
+        })),
+        focusInside: t.contains(document.activeElement),
+      };
+    });
+  const failure = await readToast();
+  result.error_toast = failure;
+  assert.equal(failure.text, label('That connection is no longer in this workspace.'));
+  assert.deepEqual(failure.buttons, [{name: label('Dismiss'), glyph: '×'}], 'one labelled Dismiss button');
+  assert.equal(failure.focusInside, false, 'focus is not moved to the toast');
+  await page.evaluate(() => {
+    window.toastWrites = 0;
+    new MutationObserver(records => (window.toastWrites += records.length)).observe(document.querySelector('#toast'), {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+  });
+  if (width <= 375 || width >= 1280)
+    await page.screenshot({path: path.join(shellScreens(), `shell-toast-error-${locale}-${width}-${appearance}.png`)});
+  await page.waitForTimeout(6600);
+  assert.deepEqual(await readToast(), failure, 'the failure is still there, as it was, after six seconds');
+  assert.equal(await page.evaluate(() => window.toastWrites), 0, 'and nothing wrote the live region again');
+  await shellAccessibility(page, result, 'error-toast');
+  await page.locator('#toast button').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('#toast').waitFor({state: 'hidden'});
+  assert.equal(
+    await page.evaluate(() => document.activeElement !== document.body && !document.activeElement.closest('#toast')),
+    true,
+    'dismissed from the keyboard, focus goes back into the page',
+  );
   // The empty platform list offers its one action.
   await page.locator('#platform-search').fill('zzzz-no-platform');
   const empty = page.locator('#platform-grid .empty');

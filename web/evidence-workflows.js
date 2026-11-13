@@ -638,7 +638,7 @@ function mountEvidenceRows(report, selectionCurrent) {
           await navigator.clipboard.writeText(button.dataset.copyNative);
           toast(uiText('Native ID copied.'));
         } catch {
-          toast(uiText('Copy is unavailable in this browser. Select the ID from its tooltip instead.'));
+          toast(uiText('Copy is unavailable in this browser. Select the ID from its tooltip instead.'), 'error');
         }
       });
     $('#evidence-columns-reset').disabled = !lastPage;
