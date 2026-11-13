@@ -68,6 +68,42 @@ function amcpNeed(value, code) {
   if (value === undefined || value === null || value === '') throw Error(code);
   return value;
 }
+// The address of a link a component draws (DR2-03): a same-site path (`/x`, never `//x` or `/\x`), a fragment (`#x`), or an
+// absolute https:, http: or mailto: address. Anything else is a TypeError naming the component, so an address that comes
+// from provider or export data never becomes `javascript:`, `data:` or another site by way of a component. The address is
+// read as a browser reads it: an absolute one is judged by its parsed scheme (`JAVASCRIPT:`, `java\tscript:` and ` javascript:`
+// all parse as `javascript:`), and a relative one, after the parser's own clean-up (leading and trailing control characters
+// and spaces, tabs and line breaks removed), must begin `/` or `#` and resolve to the site it was on. That site is a
+// placeholder origin, because the answer does not depend on which origin a page has. No address (undefined, null, false)
+// draws no link and is not checked. The address is returned as given; the message never repeats it (it may hold a secret).
+const amcpHrefSite = 'https://amcp.invalid';
+function amcpHref(href, component) {
+  if (href === undefined || href === null || href === false) return href;
+  const refused = () =>
+    new TypeError(
+      'AMCP_UI_HREF: ' + component + ' takes a same-site path, a #fragment, or an https:, http: or mailto: address',
+    );
+  if (typeof href !== 'string') throw refused();
+  let absolute = null;
+  try {
+    absolute = new URL(href);
+  } catch {
+    // Not an absolute address: a path or a fragment, judged below.
+  }
+  if (absolute) {
+    if (!['https:', 'http:', 'mailto:'].includes(absolute.protocol)) throw refused();
+    return href;
+  }
+  const read = href.replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, '').replace(/[\t\n\r]/g, '');
+  let site = null;
+  try {
+    site = new URL(read, amcpHrefSite).origin;
+  } catch {
+    // Left null: refused below.
+  }
+  if (!/^(?:\/(?![/\\])|#)/.test(read) || site !== amcpHrefSite) throw refused();
+  return href;
+}
 
 // Icons: one 24px grid, drawn with the text colour; decoration beside words, so hidden from assistive technology.
 const amcpIcons = Object.freeze({
@@ -119,6 +155,7 @@ function amcpButton({
   amcpNeed(label, 'AMCP_UI_LABEL');
   amcpChoose(variant, amcpButtonVariants, 'AMCP_UI_VARIANT');
   amcpChoose(size, amcpButtonSizes, 'AMCP_UI_SIZE');
+  amcpHref(href, 'button');
   const busy = !!loading,
     inactive = !!disabled || busy,
     shown = busy && loadingLabel ? loadingLabel : label,
@@ -348,20 +385,23 @@ AmcpUI.define('skeleton', ({shape = 'text', lines = 1, label = uiText('Loadingâ€
 });
 
 // Empty and error states. An empty state always offers one next action; an error state always offers a way on.
-const amcpAction = (action, variant) => amcpButton({variant, ...action, href: action.href, attrs: action.attrs ?? {}});
+const amcpAction = (action, variant, component) => {
+  amcpHref(action.href, component);
+  return amcpButton({variant, ...action, href: action.href, attrs: action.attrs ?? {}});
+};
 AmcpUI.define('emptyState', ({title, body, action, level = 3, icon}) => {
   amcpNeed(title, 'AMCP_UI_TITLE');
   if (!action?.label) throw Error('AMCP_UI_EMPTY_STATE_NEEDS_ACTION');
   const id = AmcpUI.uid('state'),
     tag = 'h' + amcpChoose(level, [2, 3, 4], 'AMCP_UI_LEVEL');
-  return html`<section class="amcp-state" data-kind="empty" aria-labelledby="${id}">${icon && AmcpUI.icon(icon, 'amcp-state-icon')}${html`<${tag} class="amcp-state-title" id="${id}">${title}</${tag}>`}<div class="amcp-state-body">${body}</div>${amcpAction(action, 'primary')}</section>`;
+  return html`<section class="amcp-state" data-kind="empty" aria-labelledby="${id}">${icon && AmcpUI.icon(icon, 'amcp-state-icon')}${html`<${tag} class="amcp-state-title" id="${id}">${title}</${tag}>`}<div class="amcp-state-body">${body}</div>${amcpAction(action, 'primary', 'emptyState')}</section>`;
 });
 AmcpUI.define('errorState', ({title, body, retry, secondary, reference, details, level = 3}) => {
   amcpNeed(title, 'AMCP_UI_TITLE');
   if (!retry?.label) throw Error('AMCP_UI_ERROR_STATE_NEEDS_RETRY');
   const id = AmcpUI.uid('state'),
     tag = 'h' + amcpChoose(level, [2, 3, 4], 'AMCP_UI_LEVEL');
-  return html`<section class="amcp-state" data-kind="error" role="alert" aria-labelledby="${id}">${AmcpUI.icon('error', 'amcp-state-icon')}${html`<${tag} class="amcp-state-title" id="${id}">${title}</${tag}>`}<div class="amcp-state-body">${body}</div><div class="amcp-state-actions">${amcpAction(retry, 'primary')}${secondary && amcpAction(secondary, 'secondary')}</div>${reference && html`<div class="amcp-state-reference">${uiText('Reference')} <code dir="ltr">${reference}</code></div>`}${details && html`<details class="amcp-state-details"><summary>${uiText('Technical details')}</summary><div dir="auto">${details}</div></details>`}</section>`;
+  return html`<section class="amcp-state" data-kind="error" role="alert" aria-labelledby="${id}">${AmcpUI.icon('error', 'amcp-state-icon')}${html`<${tag} class="amcp-state-title" id="${id}">${title}</${tag}>`}<div class="amcp-state-body">${body}</div><div class="amcp-state-actions">${amcpAction(retry, 'primary', 'errorState')}${secondary && amcpAction(secondary, 'secondary', 'errorState')}</div>${reference && html`<div class="amcp-state-reference">${uiText('Reference')} <code dir="ltr">${reference}</code></div>`}${details && html`<details class="amcp-state-details"><summary>${uiText('Technical details')}</summary><div dir="auto">${details}</div></details>`}</section>`;
 });
 
 // Stepper: the order of a task. Each step says its state in words as well as by its marker.
@@ -391,7 +431,7 @@ AmcpUI.define('kpi', ({label, value, unit, note, id = AmcpUI.uid('kpi')}) => {
 AmcpUI.define('platformCard', ({name, status, meta, action}) => {
   amcpNeed(name, 'AMCP_UI_TITLE');
   const id = AmcpUI.uid('platform');
-  return html`<article class="amcp-card amcp-platform" aria-labelledby="${id}"><header class="amcp-card-header"><h3 class="amcp-card-title" id="${id}">${name}</h3>${status && AmcpUI.badge(status)}</header>${meta && html`<div class="amcp-card-meta">${meta}</div>`}${action && html`<div class="amcp-card-actions">${amcpAction(action, 'secondary')}</div>`}</article>`;
+  return html`<article class="amcp-card amcp-platform" aria-labelledby="${id}"><header class="amcp-card-header"><h3 class="amcp-card-title" id="${id}">${name}</h3>${status && AmcpUI.badge(status)}</header>${meta && html`<div class="amcp-card-meta">${meta}</div>`}${action && html`<div class="amcp-card-actions">${amcpAction(action, 'secondary', 'platformCard')}</div>`}</article>`;
 });
 AmcpUI.define(
   'creativeCard',

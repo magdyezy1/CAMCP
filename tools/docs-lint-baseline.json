@@ -262,10 +262,16 @@
       "raised": [
         "reference_words 158407 → 159392"
       ]
+    },
+    {
+      "reason": "Package sec-hardening (DR2-03), merged after charts: +65 reference words, recorded in one step on its own branch (156417 -> 156482): the Links bullet of docs/DESIGN-SYSTEM.md says what an href of a component accepts (a same-site path, a #fragment, or an https:, http: or mailto: address). The merged count is the measured one: 159392 + 65 = 159457",
+      "raised": [
+        "reference_words 159392 → 159457"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159392
+    "reference_words": 159457
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

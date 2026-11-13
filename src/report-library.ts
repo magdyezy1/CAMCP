@@ -3,6 +3,7 @@ import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {scheduleClockFields} from './reporting.js';
 import {sha256, stable} from './security.js';
+import {accessSetAudit} from './access-sets.js';
 import {reportDestination} from './report-file-delivery.js';
 import {currencyTargetKey} from './report-metrics.js';
 import {deleteSettledDeliveries, hasUnconfirmedDelivery, writeDefinitionSidecar} from './report-repository.js';
@@ -112,8 +113,15 @@ export class ReportLibrary {
         409,
       );
   }
+  // Under a client access set the row names it (DR2-04), as every other audit row of work done under one does.
   private audit(actor: Actor, event: string, id: string, detail: JsonObject = {}) {
-    this.store.appendAudit(actor.tenantId, 'report-library/' + id, {event, actor: actor.userId, id, ...detail});
+    this.store.appendAudit(actor.tenantId, 'report-library/' + id, {
+      event,
+      actor: actor.userId,
+      id,
+      ...accessSetAudit(actor),
+      ...detail,
+    });
   }
   private destination(actor: Actor, id: unknown) {
     return reportDestination(this.store, actor, id);

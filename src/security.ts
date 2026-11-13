@@ -26,8 +26,9 @@ export function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 /**
- * The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them. After
- * `password` (a credential in a query, as it is under an object key) come the signed-URL parameters of the object
+ * The URL parameters whose values are credentials or signatures: redact() and redactUrlSecrets() share them, together
+ * with the key names below (isSecretName). After `password` (a credential in a query, as it is under an object key)
+ * come the signed-URL parameters of the object
  * stores and CDNs that providers link to (AWS, Google Cloud, TikTok's CDN and CloudFront), which carry the same secrets
  * as `signature`.
  */
@@ -53,6 +54,21 @@ const secretParameters = new Set([
   'policy',
   'key-pair-id',
 ]);
+/**
+ * The names whose values redact() hides under an object key, and so also inside JSON text: `{"api_key":"..."}` in a
+ * provider's message hides the same value as the object does.
+ */
+const secretKeyNames =
+  'authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie|id[-_]?token|oauth[-_]?signature';
+const secretKey = new RegExp('^(?:' + secretKeyNames + ')$', 'i'),
+  jsonSecrets = new RegExp('("(?:' + secretKeyNames + ')"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)*"', 'gi');
+/**
+ * One predicate for every form (DR2-01): a name is a credential when it is a signed-URL or token parameter
+ * (`secretParameters`) or one of the names redact() hides under an object key (`secretKey`). A `?apikey=` pair in free
+ * text and a URL string in a native read result so hide what `{"apikey": ...}` does, spelling for spelling. `name` is as
+ * parameterName() gives it: percent-decoded and lower-cased.
+ */
+const isSecretName = (name: string): boolean => secretParameters.has(name) || secretKey.test(name);
 /** The two names a signed link may keep: the link is unusable without them (`signedLinks` in redactUrlSecrets). */
 const signatureParameters: ReadonlySet<string> = new Set(['sig', 'signature']);
 /** A parameter name as a URL spells it: percent-decoded and lower-cased, so `X%2DAmz%2DSignature` is `x-amz-signature`. */
@@ -70,8 +86,11 @@ function parameterName(raw: string): string {
  * consumes the head only, so the scan goes on inside its value and finds a secret pair nested there
  * (`?next=https://b.example/q?access_token=...`, `?a=b#access_token=...`); a scan of whole pairs would lose it, and the
  * redaction before it never did. Names are matched whole, case-insensitively and after percent-decoding, and a name in
- * `exempt` keeps its value. The scan is linear: a head costs at most 100 characters to read, every position is a
- * head's start at most once, and a hidden value is skipped, not read again.
+ * `exempt` keeps its value. A secret head inside a value that is already hidden is read too: its own value may run on
+ * past where the earlier one ended (a `;` ends the value of a head that `;` starts, not of one that `#` starts), and
+ * the hidden run grows to it, so no pair hides less for what stands before it and a wider list of names never shows
+ * what a narrower one hid. The scan is linear: a head costs at most 100 characters to read, every position is a
+ * head's start at most once, and a value is read from where the hidden run before it ended, never again.
  */
 const pairPass = (stop: string) => {
   const heads = new RegExp('([?&#;])([^=&;#?\\s]{1,100})=', 'g'),
@@ -79,16 +98,19 @@ const pairPass = (stop: string) => {
     joinedValue = new RegExp('[^' + stop + ';\\s]+', 'y');
   return (text: string, exempt: ReadonlySet<string>): string => {
     let out = '',
-      copied = 0;
+      copied = 0,
+      hidden = 0;
     heads.lastIndex = 0;
     for (let head = heads.exec(text); head; head = heads.exec(text)) {
       const name = parameterName(head[2]!);
-      if (!secretParameters.has(name) || exempt.has(name)) continue;
+      if (!isSecretName(name) || exempt.has(name)) continue;
       const run = head[1] === ';' ? joinedValue : value;
-      run.lastIndex = heads.lastIndex;
+      run.lastIndex = Math.max(heads.lastIndex, hidden);
       if (!run.test(text)) continue;
-      out += text.slice(copied, heads.lastIndex) + '[REDACTED]';
-      copied = heads.lastIndex = run.lastIndex;
+      // A head inside the hidden run (its `=` at or before the run's end) adds only what its value reaches beyond it:
+      // one [REDACTED] stands for the whole run, and redacting the result again changes nothing.
+      if (heads.lastIndex > hidden) out += text.slice(copied, heads.lastIndex) + '[REDACTED]';
+      copied = hidden = run.lastIndex;
     }
     return copied ? out + text.slice(copied) : text;
   };
@@ -99,13 +121,68 @@ const textPairs = pairPass('&'),
   urlPairs = pairPass('&#'),
   noExemption: ReadonlySet<string> = new Set();
 /**
- * The names whose values redact() hides under an object key, and so also inside JSON text: `{"api_key":"..."}` in a
- * provider's message hides the same value as the object does.
+ * The forms of a credential in a sentence, which have no `?`, `&`, `#` or `;` before the name for the pair pass to find
+ * (DR2-02). They are part of redact(), so the report card, the MCP error envelope and the audit row show the same text:
+ * - a header line: the value of `Authorization:`, `Proxy-Authorization:`, `Cookie:` and `Set-Cookie:` to the end of the
+ *   line (a value of white space only has nothing to hide and does not reach the next line);
+ * - `oauth_token=`, `token=`, `secret=`, `signature=` and `sig=` with a value, wherever they stand (`refused: token=abc
+ *   for user`);
+ * - a credential name of the list above, `=` or `:`, and a value, in a sentence (`request failed access_token=abc
+ *   please retry`); a value the pair pass already hid is left, so `?access_token=[REDACTED]&n=1` keeps its `&n=1`, and
+ *   a name straight after `?`, `&`, `#` or `;` with `=` is the pair pass's own head (its empty value stays as it was);
+ * - a Meta access token: `EAA` and sixty or more letters and digits, with no closing `\b`, which would make a long run
+ *   of letters and digits that ends in `_` read again from each `EAA` inside it.
+ * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
  */
-const secretKeyNames =
-  'authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie';
-const secretKey = new RegExp('^(?:' + secretKeyNames + ')$', 'i'),
-  jsonSecrets = new RegExp('("(?:' + secretKeyNames + ')"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)*"', 'gi');
+const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[ \t]*)[^\s][^\r\n]*/gi,
+  bareParameters = /\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi,
+  sentenceSecrets = new RegExp(
+    '(?:(?<![?&#;])\\b(?:' +
+      secretKeyNames +
+      ')\\s*=|\\b(?:' +
+      secretKeyNames +
+      ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+',
+    'gi',
+  ),
+  metaTokens = /\bEAA[A-Za-z0-9]{60,}/g;
+/** The text of redact(): every form above. What display, storage, errors, the MCP envelope and the audit trail show. */
+const redactedText = (text: string): string =>
+  textPairs(
+    text
+      .replace(credentialHeaders, '$1$2[REDACTED]')
+      .replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]')
+      .replace(jsonSecrets, '$1"[REDACTED]"'),
+    noExemption,
+  )
+    .replace(bareParameters, '$1=[REDACTED]')
+    .replace(sentenceSecrets, '[REDACTED]')
+    .replace(metaTokens, '[REDACTED]');
+/**
+ * What the credential refusal of saved reporting queries and settings reads (Ruling 10). redact() also hides the prose
+ * forms, which is right for what is shown, stored, reported and audited, but a query or setting refused because
+ * `Password: reset funnel` or `Cookie: Spring sale` would hide something is refused for ordinary campaign and report text.
+ * This text hides only credential-shaped content, so a value is refused when it changes: a pair of the credential list
+ * (`name=value` or `name:value` with the value straight after the separator, or `token=`, `signature=`, `sig=`), a pair
+ * after `?`, `&`, `#` or `;`, a JSON key of the list, an `Authorization:` or `Proxy-Authorization:` scheme word and a
+ * token of eight or more characters, a `Cookie:` or `Set-Cookie:` that starts with a `name=value`, a Bearer token of
+ * eight or more characters, and a Meta token. The pair pass, JSON text and Meta rule are redact()'s own. A value that is
+ * already `[REDACTED]` changes nothing, so a redacted projection can be saved back. Each scan is linear as the ones above.
+ */
+const authorizationCredentials = /\b((?:proxy-)?authorization[ \t]*:[ \t]*[A-Za-z][\w.~+-]*[ \t]+)\S{8,}/gi,
+  cookieCredentials = /\b((?:set-)?cookie[ \t]*:[ \t]*)[!#$%&'*+.^_`|~0-9A-Za-z-]+=[^\r\n]*/gi,
+  bearerCredentials = /\bBearer\s+[\w.+/=-]{8,}/gi,
+  pairCredentials = new RegExp('\\b((?:' + secretKeyNames + ')[=:]|(?:token|signature|sig)=)[^\\s,;&]+', 'gi');
+const credentialText = (text: string): string =>
+  textPairs(
+    text
+      .replace(authorizationCredentials, '$1[REDACTED]')
+      .replace(cookieCredentials, '$1[REDACTED]')
+      .replace(bearerCredentials, 'Bearer [REDACTED]')
+      .replace(jsonSecrets, '$1"[REDACTED]"'),
+    noExemption,
+  )
+    .replace(pairCredentials, '$1[REDACTED]')
+    .replace(metaTokens, '[REDACTED]');
 /**
  * Native read results keep provider text verbatim, except secrets inside URLs (SEC-04): in every string that is an
  * absolute http(s) URL, the value of each query or fragment parameter that redact() treats as secret becomes
@@ -133,8 +210,9 @@ export function redactUrlSecrets(
   const out = walk(value, false);
   return {value: out, redacted};
 }
-export function redact(value: unknown): any {
-  if (Array.isArray(value)) return value.map(redact);
+/** The keys and the structure of redact(), with the text form chosen: the rules for keys are the same for every caller. */
+function redactWith(value: unknown, text: (text: string) => string): any {
+  if (Array.isArray(value)) return value.map(item => redactWith(item, text));
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => [
@@ -145,15 +223,22 @@ export function redact(value: unknown): any {
             ? '[BINARY_REDACTED]'
             : secretKey.test(k)
               ? '[REDACTED]'
-              : redact(v),
+              : redactWith(v, text),
       ]),
     );
-  if (typeof value === 'string')
-    return textPairs(
-      value.replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]').replace(jsonSecrets, '$1"[REDACTED]"'),
-      noExemption,
-    );
+  if (typeof value === 'string') return text(value);
   return value;
+}
+export function redact(value: unknown): any {
+  return redactWith(value, redactedText);
+}
+/**
+ * The credential refusal's view of a value (Ruling 10): redact() with only the credential-shaped text forms, so a saved
+ * reporting query or setting is refused when `redactCredentialShapes(x)` differs from `x`, and ordinary text is not.
+ * Object keys are redact()'s.
+ */
+export function redactCredentialShapes(value: unknown): any {
+  return redactWith(value, credentialText);
 }
 export function guardInput(value: unknown, path = '$', depth = 0): void {
   if (depth > 50) throw new MirrorError('INVALID_ARGUMENT', 'Input exceeds maximum nesting depth.');

@@ -538,6 +538,10 @@ Arabic and in both themes; it is the review surface for the visual sign-off.
 - **Markup.** `AmcpUI.button({label, variant, size, type, disabled, loading, loadingLabel, href, pressed, expanded, controls})`
   returns a `<button type="button">`, or an `<a>` when it has an `href`. `AmcpUI.iconButton({icon, label})` is the quiet
   variant with only a glyph and needs a name.
+- **Links.** An `href` is a same-site path (`/reports`, not `//host`), a fragment (`#section`) or an absolute `https:`, `http:`
+  or `mailto:` address, read as the browser reads it, so `JAVASCRIPT:`, `java<tab>script:` and a leading space fail. Anything
+  else, a disabled link's included, throws a `TypeError` (`AMCP_UI_HREF`) naming the component. The empty, error and platform
+  components' actions and a dialog's or toast's follow the same rule.
 - **Variants.** `primary` (the main action of a region: violet fill; always 44px high and wide, whatever its size),
   `secondary` (the default: a rule and the raised surface), `quiet` (no border until hovered) and `danger` (a solid danger fill).
   Sizes `sm` (32px), `md` (40px, 32px in compact density) and `lg` (44px).
