@@ -15,6 +15,8 @@ import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {ReportingOverview} from '../dist/src/reporting-overview.js';
+import {ReportWorker} from '../dist/src/worker.js';
 import {
   budgetBinding,
   budgetRequest,
@@ -24,6 +26,7 @@ import {
 } from '../dist/server/mcp-budget.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {oauthStack} from './helpers/mcp-oauth-stack.mjs';
+import {range, row} from './helpers/report-packets.mjs';
 
 const eras = ['legacy', 'modern'];
 const bytes = value => Buffer.byteLength(JSON.stringify(value));
@@ -72,30 +75,39 @@ async function stack(t, options) {
 /**
  * The checks every list path must pass, whichever the tool and wherever the rows are: the first piece is under the budget and
  * made of whole rows; the pieces, followed, are the legacy rows in order, once each; the last piece has the result's own paging;
- * a piece's own paging is emptied, so the continuation is the only way forward.
+ * a piece's own paging is emptied, so the continuation is the only way forward. `maxBytes` asks a v2 client for another budget
+ * than the default (a legacy client cannot send one); `ignore` names the fields of the data that differ between two callers'
+ * answers by nature, the moment of the answer and a cursor, which belongs to the client it was issued to: a test that ignores
+ * one says what it checks of it instead.
  */
-async function exercise(s, era, name, args, {minPieces = 3} = {}) {
-  const legacy = await call(await s.client(era, s.older.access), name, args),
-    v2 = await s.client(era, s.newer.access);
+async function exercise(s, era, name, args, {minPieces = 3, maxBytes = defaultBudgetBytes, ignore = []} = {}) {
+  const asked = maxBytes === defaultBudgetBytes ? args : {...args, max_bytes: maxBytes},
+    legacy = await call(await s.client(era, s.older.access), name, args),
+    v2 = await s.client(era, s.newer.access),
+    moment = envelope => {
+      const copy = structuredClone(envelope);
+      for (const key of ignore) delete copy.data[key];
+      return copy;
+    };
   assert.equal(legacy.success, true, JSON.stringify(legacy.error));
   assert.equal(legacy.meta.budget, undefined, 'a legacy client is answered whole');
-  assert.ok(bytes(legacy) > defaultBudgetBytes, 'the answer is over the budget: ' + bytes(legacy));
-  const first = await call(v2, name, args);
+  assert.ok(bytes(legacy) > maxBytes, 'the answer is over the budget: ' + bytes(legacy));
+  const first = await call(v2, name, asked);
   assert.equal(first.success, true, JSON.stringify(first.error));
   const budget = first.meta.budget,
     path = budget.path,
     truth = at(legacy, path);
   assert.ok(Array.isArray(truth) && truth.length > minPieces, path);
   assert.equal(budget.truncated, true);
-  assert.equal(budget.max_bytes, defaultBudgetBytes);
-  assert.ok(bytes(first) <= defaultBudgetBytes, 'the piece is under the budget: ' + bytes(first));
+  assert.equal(budget.max_bytes, maxBytes);
+  assert.ok(bytes(first) <= maxBytes, 'the piece is under the budget: ' + bytes(first));
   assert.equal(budget.rows_total, truth.length);
   assert.equal(budget.rows_before, 0);
   assert.equal(budget.rows_returned + budget.rows_omitted, truth.length);
   // Whole rows, the legacy rows from the start.
   assert.deepEqual(at(first, path), truth.slice(0, budget.rows_returned));
   assert.ok(budget.rows_returned >= 1 && budget.rows_returned < truth.length);
-  assert.deepEqual(budget.next_call.arguments, {...args, continuation: budget.next_call.arguments.continuation});
+  assert.deepEqual(budget.next_call.arguments, {...asked, continuation: budget.next_call.arguments.continuation});
   assert.equal(typeof budget.next_call.arguments.continuation, 'string');
   // The piece's own paging is emptied, whatever it was: only the continuation goes forward.
   if (first.data && !Array.isArray(first.data)) {
@@ -111,8 +123,7 @@ async function exercise(s, era, name, args, {minPieces = 3} = {}) {
     truth,
     'the rows, in order, once each',
   );
-  for (const piece of pieces.slice(0, -1)) assert.ok(bytes(piece) <= defaultBudgetBytes, 'a piece is under the budget');
-  assert.equal(bytes(pieces.at(-1)) <= defaultBudgetBytes, true);
+  for (const piece of pieces) assert.ok(bytes(piece) <= maxBytes, 'a piece is under the budget: ' + bytes(piece));
   // The counts add up from piece to piece, and the last piece is not truncated and has the result's own paging again.
   let before = 0;
   for (const piece of pieces) {
@@ -124,7 +135,11 @@ async function exercise(s, era, name, args, {minPieces = 3} = {}) {
   assert.equal(last.meta.budget.truncated, false);
   assert.equal(last.meta.budget.rows_omitted, 0);
   assert.equal(last.meta.budget.next_call, undefined);
-  assert.deepEqual(around(last, path), around(legacy, path), 'the last piece carries the result’s own paging');
+  assert.deepEqual(
+    around(moment(last), path),
+    around(moment(legacy), path),
+    'the last piece carries the result’s own paging',
+  );
   return {legacy, first, pieces, path};
 }
 
@@ -376,6 +391,212 @@ for (const era of eras)
     // There is nowhere in a plain array to put a continuation: it is in meta.budget, and data is only rows.
     assert.ok(Array.isArray(first.data));
     for (const piece of pieces) assert.ok(piece.data.every(row => typeof row.id === 'string'));
+  });
+
+// ---- AMCP's own lists: offset paging, cursor paging, the media library and a saved report's rows ----
+
+for (const era of eras)
+  test(`${era} HTTP: an AMCP list with offset paging (the contract inventory) is cut and followed to the same rows`, async t => {
+    const s = await stack(t),
+      {legacy, pieces} = await exercise(
+        s,
+        era,
+        'amcp_workspace',
+        {action: 'contracts', gateway: 'meta_native_action', limit: 100},
+        {minPieces: 2},
+      );
+    // The inventory is longer than the page: the answer says so, and the last piece says the same.
+    assert.equal(legacy.data.has_more, true);
+    assert.equal(legacy.data.next_offset, 100);
+    assert.equal(pieces.at(-1).data.next_offset, 100);
+    for (const piece of pieces.slice(0, -1)) assert.equal(piece.data.next_offset, null);
+  });
+
+for (const era of eras)
+  test(`${era} HTTP: an AMCP list with cursor paging (the capabilities) is cut at the budget the caller asks for, and followed`, async t => {
+    const s = await stack(t),
+      {legacy, pieces} = await exercise(
+        s,
+        era,
+        'amcp_workspace',
+        {action: 'capabilities'},
+        {maxBytes: 8192, minPieces: 3, ignore: ['captured_at', 'next_cursor', 'next_call']},
+      );
+    assert.equal(legacy.data.has_more, true);
+    assert.equal(typeof legacy.data.next_cursor, 'string');
+    // A piece's cursor is emptied (the continuation is the way forward), and the last piece has the capabilities' own paging again:
+    // a cursor issued to the client that asked, and the call that reads the next page with it.
+    for (const piece of pieces.slice(0, -1)) {
+      assert.equal(piece.data.next_cursor, null);
+      assert.equal(piece.data.has_more, true);
+    }
+    const own = pieces.at(-1).data;
+    assert.equal(typeof own.next_cursor, 'string');
+    assert.deepEqual(own.next_call, {
+      ...legacy.data.next_call,
+      arguments: {...legacy.data.next_call.arguments, cursor: own.next_cursor},
+    });
+  });
+
+/** A hundred uploaded media receipts of the Meta login, the workspace's media library. */
+function mediaLibrary(s, count = 100) {
+  metaCampaigns(s, {accounts: ['123']});
+  for (let i = 0; i < count; i++)
+    s.store.putDocument('local', 'workspace_asset', 'asset-' + String(i).padStart(3, '0'), {
+      platform: 'meta',
+      connection_id: 'meta-login',
+      account_id: '123',
+      name: 'Launch image ' + i + ' ' + 'spring-launch-'.repeat(75),
+      media_type: 'image',
+      mime_type: 'image/png',
+      size_bytes: 1000 + i,
+      ready: true,
+    });
+}
+
+for (const era of eras)
+  test(`${era} HTTP: the media library list is cut and followed (a list that holds other lists beside it)`, async t => {
+    const s = await stack(t);
+    mediaLibrary(s);
+    const {legacy, first, pieces} = await exercise(s, era, 'amcp_media', {action: 'list', limit: 60}, {minPieces: 2});
+    // The library's rows are the largest list of the answer; the others (recovery, variants, presets, sources) stay as they were.
+    assert.equal(first.meta.budget.path, 'data.assets');
+    assert.equal(legacy.data.total, 100);
+    assert.deepEqual(
+      pieces.flatMap(piece => piece.data.assets.map(asset => asset.name)),
+      legacy.data.assets.map(asset => asset.name),
+    );
+    for (const piece of pieces) assert.deepEqual(piece.data.presets, legacy.data.presets);
+    // The page is 60 of the 100 receipts and names the offset of the rest; the pieces name it only at the last.
+    assert.deepEqual([legacy.data.has_more, legacy.data.next_offset], [true, 60]);
+    assert.equal(pieces.at(-1).data.next_offset, 60);
+    for (const piece of pieces.slice(0, -1)) assert.equal(piece.data.next_offset, null);
+  });
+
+const overviewAdmin = {tenantId: 'local', userId: 'budget-admin', role: 'admin'};
+/** A finished overview snapshot of `count` campaigns in the workspace the AI clients belong to: the real definition, queue, worker and row assembly over a fake collector. */
+async function snapshot(s, count) {
+  s.store.putConnection(
+    overviewAdmin,
+    {
+      id: 'report-login',
+      tenantId: 'local',
+      gateway: 'meta_native_action',
+      accounts: ['100'],
+      writeAccounts: [],
+      enabled: true,
+      scopes: [],
+      label: 'Synthetic report login',
+    },
+    {accessToken: 'synthetic'},
+  );
+  const refusedFetch = async () => {
+      throw new Error('No provider traffic allowed');
+    },
+    overview = new ReportingOverview(s.service, refusedFetch);
+  overview.native.collect = async (source, dates) => ({
+    source,
+    rows: Array.from({length: count}, (_, i) =>
+      row(
+        'campaign',
+        'c' + i,
+        {spend: String(i + 1)},
+        {campaign_name: 'Campaign ' + i + ' ' + 'spring-launch-'.repeat(6)},
+      ),
+    ),
+    currency: 'USD',
+    timezone: 'UTC',
+    complete: true,
+    collection_complete: true,
+    source_kind: 'ads',
+    date_range: dates,
+    warnings: [],
+    lineage: [],
+    captured_at: Date.now(),
+    result_definition: 'Synthetic results',
+    attribution: 'Synthetic click window',
+    quality: {version: 2, status: 'complete'},
+  });
+  overview.native.verifyAccount = async () => undefined;
+  const worker = new ReportWorker(
+      s.store,
+      async () => ({}),
+      (tenant, kind, input) => overview.work(tenant, kind, input),
+    ),
+    queued = await overview.handle(
+      {
+        action: 'run',
+        confirmed: true,
+        config: {
+          name: 'Synthetic budget report',
+          contract_version: 'overview-config-v4',
+          sources: [
+            {
+              platform: 'meta',
+              account_id: '100',
+              connection_id: 'report-login',
+              levels: ['campaign'],
+              report_options: {complete_window: true},
+            },
+          ],
+          metrics: ['spend', 'impressions', 'clicks', 'cpc', 'cpm', 'primary_result', 'cost_per_result'],
+          date_range: range,
+        },
+      },
+      overviewAdmin,
+    );
+  await worker.once();
+  return queued.id;
+}
+
+for (const era of eras)
+  test(`${era} HTTP: a saved report's rows are cut and followed, read unfiltered (offset) and filtered (cursor)`, async t => {
+    const s = await stack(t),
+      id = await snapshot(s, 620);
+    // Unfiltered: the page is 500 of the 620 rows and names the offset of the rest.
+    const unfiltered = await exercise(s, era, 'amcp_reporting_overview', {action: 'get', id, limit: 500});
+    assert.equal(unfiltered.first.meta.budget.path, 'data.rows');
+    assert.equal(unfiltered.legacy.data.rows.length, 500);
+    assert.equal(unfiltered.legacy.data.row_count, 620);
+    assert.equal(unfiltered.legacy.data.next_offset, 500);
+    assert.equal(
+      unfiltered.pieces.at(-1).data.next_offset,
+      500,
+      'the last piece names the rest of the report, as the answer does',
+    );
+    for (const piece of unfiltered.pieces.slice(0, -1)) assert.equal(piece.data.next_offset, null);
+    // Filtered: the same page, continued by a cursor bound to the caller and the arguments; a piece's cursor and next_call are
+    // emptied or replaced, and the last has the report's own, which still reads the rest.
+    const filtered = await exercise(
+      s,
+      era,
+      'amcp_reporting_overview',
+      {action: 'get', id, limit: 500, level: 'campaign'},
+      {ignore: ['next_cursor', 'next_call']},
+    );
+    assert.equal(filtered.first.meta.budget.path, 'data.rows');
+    assert.equal(typeof filtered.legacy.data.next_cursor, 'string');
+    assert.equal(filtered.legacy.data.next_offset, null);
+    for (const piece of filtered.pieces.slice(0, -1)) assert.equal(piece.data.next_cursor, null);
+    // The cursor of the last piece is the v2 client's own (a cursor belongs to the client it was issued to), and its next_call is
+    // the answer's, with that cursor.
+    const own = filtered.pieces.at(-1).data;
+    assert.equal(typeof own.next_cursor, 'string');
+    assert.notEqual(own.next_cursor, filtered.legacy.data.next_cursor);
+    assert.deepEqual(own.next_call, {
+      ...filtered.legacy.data.next_call,
+      arguments: {...filtered.legacy.data.next_call.arguments, cursor: own.next_cursor},
+    });
+    // That own next_call is a call the v2 client can make: its rows are the rest of the report, cut and followed in turn.
+    const v2 = await s.client(era, s.newer.access),
+      rest = await call(v2, 'amcp_reporting_overview', own.next_call.arguments);
+    assert.equal(rest.success, true, JSON.stringify(rest.error));
+    const restPieces = await follow(v2, 'amcp_reporting_overview', rest),
+      rows = [...filtered.pieces, ...restPieces]
+        .flatMap(piece => piece.data.rows)
+        .map(r => r.campaign_id ?? r.entity_id);
+    assert.equal(rows.length, 620);
+    assert.equal(new Set(rows).size, 620, 'every campaign once');
   });
 
 test('only a call that reads is cut, and a continuation of one that does not is refused before anything runs', async t => {
