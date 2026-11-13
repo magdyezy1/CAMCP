@@ -25,7 +25,8 @@ export interface ListedTool {
 export function ownToolHelp(tool: ListedTool, topic?: string, profile?: ContractProfile): JsonObject {
   if (topic !== undefined && (typeof topic !== 'string' || !topic || topic.length > 300))
     throw new MirrorError('INVALID_ARGUMENT', 'Use a name of at most 300 characters.', {field: 'topic'});
-  if (tool.name === 'amcp_workspace' && (topic === 'guides' || topic?.startsWith('guides/'))) return guideTopic(topic);
+  if (tool.name === 'amcp_workspace' && (topic === 'guides' || topic?.startsWith('guides/')))
+    return guideTopic(topic, profile);
   // The contract profile of this connection and what the other one changes (V2-MCP-06), announced here, not in tools/list.
   if (tool.name === 'amcp_workspace' && topic === 'mcp_profile') return contractProfileTopic(profile);
   const actions = toolActions(tool);
@@ -131,7 +132,7 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
   if (input.topic !== undefined) {
     if (input.gateway !== undefined || input.operation !== undefined)
       throw new MirrorError('INVALID_ARGUMENT', 'Ask for a topic or a gateway, not both.', {field: 'topic'});
-    return guideTopic(input.topic);
+    return guideTopic(input.topic, ctx.profile);
   }
   if (input.operation !== undefined && input.gateway === undefined)
     throw new MirrorError('INVALID_ARGUMENT', 'Name the gateway whose operation you want described.', {

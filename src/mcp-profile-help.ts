@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {defaultContractProfile, type ContractProfile} from './contract-profile.js';
+import {guideSectionMaxBytes} from './guidance.js';
 import {keptCautiousReason, v2KeptCautiousGateways, v2ReadOnlyGateways} from './tool-annotations.js';
 
 /**
@@ -26,6 +27,13 @@ export const v2Changes: readonly {id: string; text: string}[] = Object.freeze([
   {
     id: 'response_budget',
     text: 'An MCP read that returns a list is cut at a row boundary to a budget of 64 KiB of JSON; max_bytes (4,096 to 262,144) asks for another. A cut result has meta.budget (truncated, rows_total, rows_before, rows_returned, rows_omitted, max_bytes, and the next_call that continues it) and, in its data when that is an object, truncated and the same next_call; its own next_offset, next_cursor and provider next_call are emptied, so the continuation is the only way forward, and the last piece carries the result’s own paging again. A row is never cut: one larger than the budget is returned whole and marked over_budget. The continuation (the continuation argument of the call) belongs to the AI client, the person, the workspace and the exact arguments it was issued for, not to the access token, so it survives a token refresh; with any argument changed, or by another client, it is INVALID_CURSOR. Each piece reads the call again, so follow the pieces promptly, and ask for less with max_items or result_fields. Calls that save or send anything are never cut or re-run, an answer under the budget is returned whole, and legacy clients and the website are answered whole.',
+  },
+  {
+    id: 'guide_sections',
+    text:
+      'The guides are served in sections of at most ' +
+      guideSectionMaxBytes.toLocaleString('en-US') +
+      ' bytes. resources/templates/list (the 2026-07-28 revision) offers the template amcp://guides/{guide}/{section}, and resources/read of such a URI returns one section. The help topics guides/<guide> (the sections, with their ids and sizes) and guides/<guide>/<section>, of amcp_workspace and amcp_tool_help, read the same sections, and section_uri names the resource that serves each. A heading’s section that is longer is served in parts: its own id is the first part, then <id>-part-2 and so on; every part says which one it is and names the next, and the help topic gives that as next_call. The whole guides, at their own URI amcp://guides/<guide> and in resources/list, are unchanged. A legacy client is offered no template, the URI of a section is unknown to it, and its help topics return the sections whole, as before.',
   },
 ]);
 

@@ -17,6 +17,7 @@ import {
 import {MirrorService, withExactIntegers} from '../src/service.js';
 import {
   guidanceResources,
+  guidanceResourceTemplates,
   readGuidance,
   campaignPrompt,
   buildCampaignPrompt,
@@ -125,17 +126,19 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
     service.store.assertActorActive(actor);
     return {resources: guidanceResources};
   });
-  // 2026-07-28 clients ask for resource templates (the guides are to be served as templates); AMCP has none yet. The
-  // earlier revisions never answered this method on AMCP, and keep not doing so.
+  // 2026-07-28 clients ask for resource templates. The guides' sections are the template a client on the v2 contract profile is
+  // offered (V2-MCP-06); every other client is told there are none, as it always was. The earlier revisions never answered this
+  // method on AMCP, and keep not doing so.
   if (hooks.era === 'modern')
     server.setRequestHandler('resources/templates/list', async () => {
       service.store.assertActorActive(actor);
-      return {resourceTemplates: []};
+      return {resourceTemplates: contractProfileOf(service.store, actor) === 'v2' ? guidanceResourceTemplates : []};
     });
   server.setRequestHandler('resources/read', async request => {
     service.store.assertActorActive(actor);
     try {
-      return {contents: [readGuidance(request.params.uri)]};
+      // A section of a guide is a resource for a v2 client only: for any other its URI is unknown, on both revisions.
+      return {contents: [readGuidance(request.params.uri, contractProfileOf(service.store, actor) === 'v2')]};
     } catch (e) {
       if (e instanceof MirrorError && e.code === 'GUIDE_NOT_FOUND')
         throw new ProtocolError(resourceNotFound, 'Unknown AMCP guide URI.', {
