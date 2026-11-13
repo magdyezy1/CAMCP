@@ -156,7 +156,7 @@ function reportObjectiveSource(row) {
 function reportResultMapping(row) {
   const field = row.result_context?.source === 'mapped' ? row.result_context.definition?.native_metric : undefined;
   return typeof field === 'string' && field
-    ? `<p class="form-note">${esc(uiText('Result mapped by AMCP from {field}, not read from a platform result column.', {field}))}</p>`
+    ? html`<p class="form-note">${uiText('Result mapped by AMCP from {field}, not read from a platform result column.', {field})}</p>`
     : '';
 }
 
@@ -260,6 +260,39 @@ const metricFormat = (key, n, currency) => {
 /** A row's metric: its exact native decimal total when one was retained (detailed rows), otherwise its value. */
 const metricValue = (row, key) => (row.entity_level ? row.native?.exact_totals?.[key] : undefined) ?? row.metrics[key];
 /**
+ * The row of a v4 snapshot as the table reads it. `get` without include.native returns a compact row (V2-RPT-06): it names
+ * its account by `source_ref` and nests its parents, and carries neither the provider's own row nor the fields of its
+ * source. This gives the fields the renderers read: the platform, account and time zone from the row's source, the level
+ * line for a detailed row (the one with a native entity type), and the parents. A full row, and every row of an earlier
+ * snapshot, is returned as it is (the same object, so a caller can tell which it had).
+ */
+function reportRowView(r, row) {
+  if (row.platform !== undefined || row.source_ref === undefined) return row;
+  const source = (r.sources ?? []).find(s => s.source_ref === row.source_ref),
+    {campaign, adset} = row.parents ?? {};
+  return {
+    ...row,
+    platform: source?.source?.platform,
+    account_id: source?.source?.account_id,
+    timezone: source?.timezone,
+    entity_level: row.native_entity_type === undefined ? undefined : row.level,
+    parent_ids: {
+      campaign_id: campaign?.id,
+      campaign_name: campaign?.name,
+      adset_id: adset?.id,
+      adset_name: adset?.name,
+    },
+    result_context:
+      row.result_context && source?.result_definitions
+        ? {...row.result_context, definition: source.result_definitions[row.result_context.result_ref]}
+        : row.result_context,
+  };
+}
+/** What a row says about its source, whole: its result, attribution and time zone, how its result was mapped, its quality and the provider's own row. */
+function reportRowDetails(row) {
+  return html`<p>${reportResultLabel(row)}<br>${row.attribution}<br>${row.timezone}</p>${reportResultMapping(row)}${reportObjectiveResults(row)}${raw(reportQualityDetails(row))}<pre>${JSON.stringify(row.native, null, 2)}</pre>`;
+}
+/**
  * A metric cell: the formatted value, with the exact retained value on hover when formatting shortened it. `label`
  * names the column on phones, where each row reads as a card (RPT-05).
  */
@@ -291,13 +324,16 @@ function renderReportTable(r, keys, b) {
     context = uiText('Platform · objective'),
     next = uiText('Recommended next move'),
     labels = Object.fromEntries(keys.map(k => [k, reportMetricLabel(r, b, k)]));
-  const row = row => {
-    const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
+  const draw = item => {
+    // A compact row (see reportRowView) loads its source details when they are opened.
+    const row = reportRowView(r, item),
+      lazy = row !== item,
+      name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(reportRowObjective(row).group))}</small>${reportRowObjective(row).source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(reportResultLabel(row))}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportResultMapping(row)}${html`${reportObjectiveResults(row)}`}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(reportRowObjective(row).group))}</small>${reportRowObjective(row).source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details${lazy ? ` data-report-details="${esc(row.row_key)}"` : ''}><summary>${esc(uiText('Source details'))}</summary>${lazy ? '<div data-report-details-body></div>' : reportRowDetails(row)}</details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
-  return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
+  return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(draw).join('')}</tbody></table>`;
 }
 /**
  * A delivery failure in the interface language (EXP-04 A). AMCP's own message goes through errorMessage, so a
