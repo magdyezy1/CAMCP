@@ -953,8 +953,9 @@ async function loadOverviewReport(id, page = overviewState.page) {
     id,
     offset: page * 100,
     limit: 100,
-    // The charts are asked for only where the script that draws them is loaded (V2-EXP-01).
-    include: {native: true, lineage: true, charts: typeof mountReportCharts === 'function'},
+    // The charts are asked for only where the script that draws them is loaded (V2-EXP-01). The provider's own rows and the
+    // lineage are not asked for: they load when a disclosure is opened (reportFetchRowDetails, bindReportLineage).
+    ...(typeof mountReportCharts === 'function' ? {include: {charts: true}} : {}),
   });
   if (location.pathname !== '/reporting-overview' || sequence !== overviewState.loadSequence) return;
   overviewState.report = r;
