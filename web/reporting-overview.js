@@ -873,7 +873,7 @@ async function renderReportingOverview() {
       !/^[a-z][a-z0-9_]{0,47}$/.test(m.id) ||
       overviewState.custom.some(x => x.id === m.id)
     ) {
-      toast(uiText('Use a label, unique identifier and formula.'));
+      toast(uiText('Use a label, unique identifier and formula.'), 'error');
       return;
     }
     overviewState.custom.push(m);
@@ -1031,7 +1031,7 @@ async function loadOverviewReport(id, page = overviewState.page, poll = false) {
     try {
       await loadOverviewReport(id, overviewState.page + delta);
     } catch (e) {
-      toast(errorMessage(e));
+      toast(errorMessage(e), 'error');
     } finally {
       paging = false;
     }
@@ -1044,7 +1044,7 @@ async function loadOverviewReport(id, page = overviewState.page, poll = false) {
   });
   if (pollDelay !== null)
     pollTimer = setTimeout(() => {
-      void loadOverviewReport(id, overviewState.page, true).catch(e => toast(errorMessage(e)));
+      void loadOverviewReport(id, overviewState.page, true).catch(e => toast(errorMessage(e), 'error'));
     }, pollDelay);
 }
 /**

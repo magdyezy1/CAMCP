@@ -333,7 +333,8 @@ export const generatedArtifacts = [
   },
   // WEB-07, merged beside this inventory in wave 3b: the Arabic catalog chunks the browser loads and the three website
   // ratchets' recorded baselines. check-web (a full-qualification stage, so not a freshness gate here) and the suite
-  // regenerate or compare each; the named test fails when one is stale or edited past its limits.
+  // regenerate or compare each; the named test fails when one is stale or edited past its limits. The chunks are also a
+  // freshness gate of their own, `locale_chunks_check` (closing-small), as a stale chunk is a missing translation.
   {
     id: 'arabic_catalog_chunks',
     outputs: ['web/locales/ar/*.json'],

@@ -518,8 +518,8 @@ async function changeUILocale(locale) {
           /* The reloaded page opens in the previous language. */
         }
       });
-    else if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') toast(error.message);
-    else toast(uiText('The language could not be loaded. Your current view is unchanged.'));
+    else if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') toast(error.message, 'error');
+    else toast(uiText('The language could not be loaded. Your current view is unchanged.'), 'error');
     return false;
   } finally {
     applyUILocale();

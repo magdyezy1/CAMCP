@@ -286,10 +286,16 @@
       "raised": [
         "reference_words 160633 → 160654"
       ]
+    },
+    {
+      "reason": "Package closing-small, merged after website-get: +88 reference words, recorded in one step on its own branch (159815 -> 159903): error toasts (the Toast section of DESIGN-SYSTEM), the connection result and the error toast in the shell browser kind (LOCAL-BROWSER-QA), the Arabic chunk gate and the planner web readers (QUALIFICATION), no page added. The merged count is the measured one: 160654 + 88 = 160742",
+      "raised": [
+        "reference_words 160654 → 160742"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 160654
+    "reference_words": 160742
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

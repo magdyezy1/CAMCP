@@ -514,14 +514,37 @@ function confirmAction({title, consequence, confirmLabel = 'Confirm', items = []
   });
 }
 let toastTimer;
-function toast(message) {
+let toastRestore;
+// The tone is optional: an 'error' toast stays until its Dismiss button is used (WCAG 2.2.1) and never takes focus; any other
+// toast leaves after six seconds. #toast is one live region, written once per toast; the newest toast replaces the one showing.
+function toast(message, tone) {
   if (!message) return;
   clearTimeout(toastTimer);
   $('#toast').textContent = message;
+  if (tone === 'error') {
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'icon-button toast-close';
+    dismiss.setAttribute('aria-label', uiText('Dismiss'));
+    dismiss.textContent = '×';
+    dismiss.addEventListener('click', dismissToast);
+    $('#toast').append(dismiss);
+    toastRestore = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+  }
   $('#toast').hidden = false;
-  toastTimer = setTimeout(() => {
-    $('#toast').hidden = true;
-  }, 6000);
+  if (tone !== 'error')
+    toastTimer = setTimeout(() => {
+      $('#toast').hidden = true;
+    }, 6000);
+}
+// Dismiss: focus on the button goes back to where it was, or to the page heading, never to nothing.
+function dismissToast(event) {
+  const focused = document.activeElement === event.currentTarget,
+    back = toastRestore?.isConnected ? toastRestore : null;
+  $('#toast').textContent = '';
+  $('#toast').hidden = true;
+  toastRestore = null;
+  if (focused) back ? back.focus() : focusPageHeading();
 }
 // A page that fails to open says why and offers a way on, instead of a six-second toast over a page stuck loading.
 const pageErrorCauses = {
@@ -1051,6 +1074,7 @@ async function syncConnection(id, kinds) {
       uiText('Sync needs attention') +
         (reason ? ' — ' + reason : '') +
         uiText('. Open the error details below. For authorization errors, use Reauthorize.'),
+      'error',
     );
   } else toast(uiText('Accounts synced successfully.'));
 }
@@ -1141,7 +1165,7 @@ function openLinkedConnection() {
   const p = platforms.find(p => p.connections.some(c => c.id === id));
   history.replaceState(null, '', '/connections');
   if (p) openManage(p.id, id);
-  else toast(uiText('That connection is no longer in this workspace.'));
+  else toast(uiText('That connection is no longer in this workspace.'), 'error');
 }
 async function startConnection(id) {
   if (!requireLogin()) return;
@@ -1153,6 +1177,7 @@ async function startConnection(id) {
       session.administrator
         ? uiText('Add the {platform} app credentials to your server environment to enable Connect.', {platform: p.name})
         : uiText('This platform needs setup by the site administrator. Your existing connections remain available.'),
+      'error',
     );
     return;
   }
@@ -1210,7 +1235,7 @@ async function renderConnectors() {
       oauthClients = authorizations.clients;
       oauthEnded = authorizations.ended ?? [];
     } catch (e) {
-      toast(errorMessage(e));
+      toast(errorMessage(e), 'error');
     }
   } else {
     tokens = [];
@@ -1428,7 +1453,7 @@ function renderCallbackRefusal(code, platformId) {
     );
   setHtml(
     content,
-    html`<div class="callback-layout"><div class="callback-card" role="alert"><div class="callback-top"><div class="brand"><img class="logo-white" src="${publicAssetUrl('/assets/logo-white.svg')}" width="174" height="36" alt="AMCP"></div><h1>${p ? uiText('{platform} was not connected.', {platform: p.name}) : uiText('The platform was not connected.')}</h1><p>${text}</p></div><div class="callback-bottom">${signIn ? html`<a href="/login" class="button primary">${uiText('Sign in')}</a>` : html`<a href="/connections" class="button primary">${uiText('Start again')}</a>`}</div></div></div>`,
+    html`<div class="callback-layout"><div class="callback-card" role="alert"><div class="callback-top"><div class="brand"><img class="logo-ink" src="${publicAssetUrl('/assets/logo-ink.svg')}" width="174" height="36" alt="AMCP"><img class="logo-white" src="${publicAssetUrl('/assets/logo-white.svg')}" width="174" height="36" alt="AMCP"></div><h1>${p ? uiText('{platform} was not connected.', {platform: p.name}) : uiText('The platform was not connected.')}</h1><p>${text}</p></div><div class="callback-bottom">${signIn ? html`<a href="/login" class="button primary">${uiText('Sign in')}</a>` : html`<a href="/connections" class="button primary">${uiText('Start again')}</a>`}</div></div></div>`,
   );
 }
 /** A new login of an identity that is already connected (CON-05): renewing the existing login keeps its work. */
@@ -1475,7 +1500,7 @@ async function renderCallback() {
     ];
   setHtml(
     content,
-    html`<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img class="logo-white" src="${publicAssetUrl('/assets/logo-white.svg')}" width="174" height="36" alt="AMCP"></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')})}</h1><p>${result.message ? uiText(result.message) : done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')}</p></div><div class="callback-steps">${steps.map(([key, title, sub], i) => html`<div class="callback-step ${result[key] ? 'done' : failed ? 'failed' : ''}"><span class="step-number">${result[key] ? '✓' : i + 1}</span><div>${title}<small>${sub}</small></div></div>`)}</div>${(result.diagnostics ?? []).length ? html`<div class="reauthorization-errors">${result.diagnostics.map(d => raw(renderSourceDiagnostic(d)))}</div>` : ''}${renderDuplicateLogin(result)}<div class="callback-bottom"><a href="/connections" class="muted">${uiText('Back to connections')}</a>${result.connectionId ? html`<button class="button primary" data-callback-manage="${result.platform}" data-connection-id="${result.connectionId}">${uiText('Choose assets →')}</button>` : html`<a href="/connections" class="button">${uiText('Try again')}</a>`}</div></div></div>`,
+    html`<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img class="logo-ink" src="${publicAssetUrl('/assets/logo-ink.svg')}" width="174" height="36" alt="AMCP"><img class="logo-white" src="${publicAssetUrl('/assets/logo-white.svg')}" width="174" height="36" alt="AMCP"></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')})}</h1><p>${result.message ? uiText(result.message) : done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')}</p></div><div class="callback-steps">${steps.map(([key, title, sub], i) => html`<div class="callback-step ${result[key] ? 'done' : failed ? 'failed' : ''}"><span class="step-number">${result[key] ? '✓' : i + 1}</span><div>${title}<small>${sub}</small></div></div>`)}</div>${(result.diagnostics ?? []).length ? html`<div class="reauthorization-errors">${result.diagnostics.map(d => raw(renderSourceDiagnostic(d)))}</div>` : ''}${renderDuplicateLogin(result)}<div class="callback-bottom"><a href="/connections" class="muted">${uiText('Back to connections')}</a>${result.connectionId ? html`<button class="button primary" data-callback-manage="${result.platform}" data-connection-id="${result.connectionId}">${uiText('Choose assets →')}</button>` : html`<a href="/connections" class="button">${uiText('Try again')}</a>`}</div></div></div>`,
   );
   if (!done && !failed) {
     clearTimeout(pollTimer);
@@ -1868,7 +1893,7 @@ async function workingClientsChanged() {
 // WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
 function showShellAlert(message) {
   const alert = document.getElementById('shell-alert');
-  if (!alert || !message) return toast(message);
+  if (!alert || !message) return toast(message, 'error');
   alert.textContent = message;
   alert.hidden = false;
 }
@@ -2157,7 +2182,7 @@ document.addEventListener('click', async event => {
     if (el.dataset.renameLogin) {
       const label = $('#login-label')?.value.trim() ?? '';
       if (!label || label.length > 80) {
-        toast(uiText('Use a login name of 1 to 80 characters.'));
+        toast(uiText('Use a login name of 1 to 80 characters.'), 'error');
         return;
       }
       disableControl();
@@ -2237,7 +2262,7 @@ document.addEventListener('click', async event => {
         return;
       const accounts = el.dataset.revokeWriteAccess ? [] : [...writeSelected];
       if (accounts.length && !$('#confirm-write-access')?.checked) {
-        toast(uiText('Confirm account write access before saving.'));
+        toast(uiText('Confirm account write access before saving.'), 'error');
         return;
       }
       disableControl();
@@ -2256,7 +2281,7 @@ document.addEventListener('click', async event => {
     if (el.dataset.saveReportJobs || el.dataset.revokeReportJobs) {
       const accounts = el.dataset.revokeReportJobs ? [] : [...reportJobSelected];
       if (accounts.length && !$('#confirm-report-jobs')?.checked) {
-        toast(uiText('Confirm report-job access before saving.'));
+        toast(uiText('Confirm report-job access before saving.'), 'error');
         return;
       }
       disableControl();
@@ -2295,7 +2320,7 @@ document.addEventListener('click', async event => {
       if (!requireLogin()) return;
       const operator = !!el.dataset.createOperatorToken;
       if (operator && !$('#operator-token-consent')?.checked) {
-        toast(uiText('Confirm operator access before creating this token.'));
+        toast(uiText('Confirm operator access before creating this token.'), 'error');
         return;
       }
       disableControl();
@@ -2366,7 +2391,7 @@ document.addEventListener('click', async event => {
     }
   } catch (e) {
     // On the page, the error persists above the content until the next action; inside a dialog it stays a toast.
-    if (el.closest?.('dialog')) toast(errorMessage(e));
+    if (el.closest?.('dialog')) toast(errorMessage(e), 'error');
     else showShellAlert(errorLines(e));
   } finally {
     if (disabledHere && el.isConnected) el.disabled = false;
@@ -2466,10 +2491,12 @@ $('#confirm-form').addEventListener('submit', async event => {
             : uiText(
                 'Login disconnected from AMCP. AMCP could not confirm that Google revoked its access; remove AMCP in the Google Account’s third-party connections.',
               ),
+      // An unconfirmed revocation is a failure with something left to do: it stays.
+      revoke && outcome !== 'revoked' && outcome !== 'token_already_invalid' ? 'error' : undefined,
     );
   } catch (e) {
     if ($('#confirm-dialog').open) error.textContent = errorMessage(e);
-    else toast(errorMessage(e));
+    else toast(errorMessage(e), 'error');
   } finally {
     button.disabled = false;
   }

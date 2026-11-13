@@ -124,18 +124,16 @@ test('every brand element has an accessible name that contains AMCP, in Latin le
   }
 });
 
-test('each brand element is the lockup in both variants, or White only on the surfaces dark in both themes', () => {
+// Package closing-small: the connection result header (web/app.js) sits on --surface-inverse, which neither theme changes,
+// so CSS shows its White lockup always; but under forced colours the system canvas replaces that dark fill, and a light
+// forced palette made the White wordmark white on white. It holds both images like every other brand element, so the
+// forced rules of accessibility.css can swap it for Ink (the next test reads them). The sidebar was a dark surface too until
+// V2-WEB-03 made it neutral: it takes both variants, and the icon alone for the rail.
+test('each brand element is the lockup in both variants, the connection result header included', () => {
   for (const element of all) {
     const used = element.images.map(imageFile),
-      // The connection result header sits on --surface-inverse, which neither theme changes. (The sidebar did too until
-      // V2-WEB-03 made it a neutral surface: it takes both variants now, and the icon alone for the rail.)
-      dark = ['app.js'].includes(element.file),
       shell = element.file === 'index.html';
-    assert.deepEqual(
-      used,
-      dark ? ['logo-white'] : shell ? ['logo-ink', 'logo-white', 'mark'] : ['logo-ink', 'logo-white'],
-      element.file,
-    );
+    assert.deepEqual(used, shell ? ['logo-ink', 'logo-white', 'mark'] : ['logo-ink', 'logo-white'], element.file);
     for (const image of element.images.filter(image => imageFile(image) !== 'mark')) {
       assert.equal(image.class, imageFile(image), element.file + ': the class names the variant CSS shows or hides');
       assert.equal(image.alt, 'AMCP', element.file);
@@ -217,14 +215,18 @@ test('the variant rules are one set, in the stylesheet each page family loads, a
     ];
   assert.deepEqual(rules('privacy.css'), core);
   // accessibility.css adds the surface that is dark in both themes (--surface-inverse is the same in each): the
-  // connection result's header. The sidebar was one until V2-WEB-03 made it neutral. That header carries the White
-  // lockup only, so a forced palette cannot swap it for Ink: it keeps its one image rather than losing the logo.
-  assert.deepEqual(rules('accessibility.css'), [
-    ...core.map(rule =>
-      rule.replace("[data-theme='dark'] .logo-white |", "[data-theme='dark'] .logo-white, .callback-top .logo-white |"),
+  // connection result's header. The sidebar was one until V2-WEB-03 made it neutral. That header shows White and hides
+  // Ink in both themes, and joins the forced rules like every other lockup (package closing-small): they sit above it in
+  // specificity, so a light forced palette, which replaces the header's dark fill with a light canvas, shows Ink there,
+  // and a dark one White. No rule of its own is left for forced colours.
+  assert.deepEqual(
+    rules('accessibility.css'),
+    core.map(rule =>
+      rule
+        .replace("[data-theme='dark'] .logo-ink |", "[data-theme='dark'] .logo-ink, .callback-top .logo-ink |")
+        .replace("[data-theme='dark'] .logo-white |", "[data-theme='dark'] .logo-white, .callback-top .logo-white |"),
     ),
-    '@media screen and (forced-colors: active) | :root .callback-top .logo-white | display | block',
-  ]);
+  );
   for (const sheet of sheets.filter(name => !['privacy.css', 'accessibility.css'].includes(name)))
     assert.deepEqual(rules(sheet), [], sheet + ' holds lockup variant rules');
   // About takes no data-theme rule of its own (tests/web-route-bytes.test.mjs) and loads no theme.css.

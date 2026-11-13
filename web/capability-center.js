@@ -658,7 +658,7 @@ function bindCapabilityPrograms(root) {
             await navigator.clipboard.writeText(button.dataset.copyReference);
             toast(uiText('Reference copied.'));
           } catch {
-            toast(uiText('Copy failed; select the reference manually.'));
+            toast(uiText('Copy failed; select the reference manually.'), 'error');
           }
         }),
       );

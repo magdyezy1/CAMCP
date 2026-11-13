@@ -14,7 +14,8 @@ How a build is qualified and its record kept, the provenance of generated artifa
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
   test-oracle ratchet (`check:oracles`), the `generate:*` checks (the Google bid-field and Cloudflare range checks
   included), `provenance:check` ([generated-artifact provenance](#generated-artifacts-and-catalog-provenance-arc-03)),
-  `report -- --check`, `contracts:check`, `contracts:actions:check`, `docs:index:check` and the architecture ratchet
+  `report -- --check`, `contracts:check`, `contracts:actions:check`, `docs:index:check`, the Arabic chunk check
+  (`locale_chunks_check`: `node tools/locale-chunks.mjs`, read-only, about 15 seconds) and the architecture ratchet
   (`architecture:check`, [architecture](../review/ARCHITECTURE.md#8-architecture-ratchet)). The full profile then probes
   FFmpeg and ffprobe, runs the suite with
   `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), the wire-contract sweep, the
@@ -75,7 +76,8 @@ How a build is qualified and its record kept, the provenance of generated artifa
 - **Fast gate.** `npm run check:fast` runs only the freshness gates and writes no record. `tools/pre-push.sample` runs it
   before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
 - **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`
-  file and a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
+  file, and every test that builds `web/` paths when it runs (in the test, a helper or fixture or a tool it imports: a
+  change to any `web/` file selects it), a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
   `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. It also selects the suites that list
   their inputs when they run (`dynamicSuites`): `tests/mutants.test.mjs` for a catalogued module or killing test,
   `tests/web-locale-chunks.test.mjs` for `web/` and backend sources, `tests/storage-boundary.test.mjs` for `src/`

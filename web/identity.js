@@ -217,7 +217,7 @@ function authBind(selector, fn) {
       } catch (err) {
         if (generation === navigationGeneration) {
           if (error) error.textContent = errorMessage(err);
-          else toast(errorMessage(err));
+          else toast(errorMessage(err), 'error');
         }
       } finally {
         if (button?.isConnected) {

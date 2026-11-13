@@ -3452,6 +3452,55 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
   await page.evaluate(() => window.scrollTo(0, 0));
   if (width <= 375 || width >= 1280)
     await page.screenshot({path: path.join(shellScreens(), `shell-toast-${locale}-${width}-${appearance}.png`)});
+  // Package closing-small (WCAG 2.2.1): a failure stays until the person dismisses it. A link to a login this workspace
+  // no longer lists is the real flow: the page says so in a toast. That toast is still there after the six seconds every
+  // other toast gets, took no focus, is not written again while it waits, and goes with its Dismiss button.
+  await shellOpen(page, site, '/connections?connection_id=no-such-login', locale);
+  await page.locator('#toast:not([hidden])').waitFor({state: 'visible'});
+  const readToast = () =>
+    page.evaluate(() => {
+      const t = document.querySelector('#toast');
+      return {
+        hidden: t.hidden,
+        text: [...t.childNodes]
+          .filter(node => node.nodeType === 3)
+          .map(node => node.textContent)
+          .join(''),
+        buttons: [...t.querySelectorAll('button')].map(b => ({
+          name: b.getAttribute('aria-label'),
+          glyph: b.textContent,
+        })),
+        focusInside: t.contains(document.activeElement),
+      };
+    });
+  const failure = await readToast();
+  result.error_toast = failure;
+  assert.equal(failure.text, label('That connection is no longer in this workspace.'));
+  assert.deepEqual(failure.buttons, [{name: label('Dismiss'), glyph: '×'}], 'one labelled Dismiss button');
+  assert.equal(failure.focusInside, false, 'focus is not moved to the toast');
+  await page.evaluate(() => {
+    window.toastWrites = 0;
+    new MutationObserver(records => (window.toastWrites += records.length)).observe(document.querySelector('#toast'), {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+  });
+  if (width <= 375 || width >= 1280)
+    await page.screenshot({path: path.join(shellScreens(), `shell-toast-error-${locale}-${width}-${appearance}.png`)});
+  await page.waitForTimeout(6600);
+  assert.deepEqual(await readToast(), failure, 'the failure is still there, as it was, after six seconds');
+  assert.equal(await page.evaluate(() => window.toastWrites), 0, 'and nothing wrote the live region again');
+  await shellAccessibility(page, result, 'error-toast');
+  await page.locator('#toast button').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('#toast').waitFor({state: 'hidden'});
+  assert.equal(
+    await page.evaluate(() => document.activeElement !== document.body && !document.activeElement.closest('#toast')),
+    true,
+    'dismissed from the keyboard, focus goes back into the page',
+  );
   // The empty platform list offers its one action.
   await page.locator('#platform-search').fill('zzzz-no-platform');
   const empty = page.locator('#platform-grid .empty');
@@ -3537,10 +3586,20 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
 }
 
 // The logo under forced colours: the variant follows the forced palette (prefers-color-scheme), whatever the site's theme.
+// The connection result (package closing-small) is shown for a refused callback, which needs no provider answer: its
+// address names the refusal. Its header is a dark fill in both themes that forced colours replace with the palette's
+// canvas, so its lockup must follow the palette like the others (the White one was white on white under a light palette).
+const shellForcedAddress = (route, locale) =>
+  route === '/privacy'
+    ? '/privacy?lang=' + locale
+    : route === '/oauth/result'
+      ? route + '?error=OAUTH_STATE_INVALID&platform=meta'
+      : route;
 async function shellForcedBody({page, result, route, locale, width, appearance, scheme}, site) {
   await page.addInitScript(theme => localStorage.setItem('amcp.theme', theme), appearance);
   // The policy pages are static documents in one language each; their address carries it.
-  await shellOpen(page, site, route === '/privacy' ? '/privacy?lang=' + locale : route, locale);
+  await shellOpen(page, site, shellForcedAddress(route, locale), locale);
+  if (route === '/oauth/result') await page.locator('.callback-top .brand img').first().waitFor({state: 'attached'});
   assert.equal(await page.evaluate(() => matchMedia('(forced-colors: active)').matches), true, 'forced colours are on');
   assert.equal(
     await page.evaluate(scheme => matchMedia('(prefers-color-scheme: ' + scheme + ')').matches, scheme),
@@ -3575,10 +3634,22 @@ async function shellForcedBody({page, result, route, locale, width, appearance, 
     perBrand.every(count => count <= 1),
     'never both lockups at once: ' + perBrand,
   );
+  if (route === '/oauth/result') {
+    // The header shows the palette's lockup, and that wordmark is readable on the canvas behind it (the brand check
+    // measures the colour behind the image: the White one on a light canvas is 1:1, under its 4.5:1).
+    const header = (await page.evaluate(collectBrandLockups)).filter(lockup => lockup.container === 'callback-top');
+    result.forced.connection_result = header.map(brandSummary);
+    assert.equal(header.length, 1, 'the connection result header shows one lockup');
+    assert.deepEqual(
+      brandProblems(header, `connection result, ${scheme} forced palette, ${appearance} theme`),
+      [],
+      'AMCP lockup refused',
+    );
+  }
   await page.screenshot({
     path: path.join(
       shellScreens(),
-      `shell-forced-${route.slice(1) || 'home'}-${scheme}-theme-${appearance}-${width}.png`,
+      `shell-forced-${route.slice(1).replaceAll('/', '-') || 'home'}-${scheme}-theme-${appearance}-${width}.png`,
     ),
   });
 }
@@ -3662,7 +3733,7 @@ async function runShellKind(site) {
           shellFeedbackBody(args, site),
         );
   if (shellCaseSelected('forced'))
-    for (const route of ['/dashboard', '/privacy'])
+    for (const route of ['/dashboard', '/privacy', '/oauth/result'])
       for (const appearance of appearances)
         for (const scheme of ['light', 'dark'])
           await shellCase(
@@ -3674,7 +3745,7 @@ async function runShellKind(site) {
               width: 1280,
               appearance: scheme,
               forcedColors: 'active',
-              signedIn: route === '/dashboard',
+              signedIn: route !== '/privacy',
             },
             args => shellForcedBody({...args, scheme, appearance}, site),
           );

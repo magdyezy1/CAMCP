@@ -149,6 +149,31 @@ test('every page of the workspace has a subtitle of its own, from the registry, 
   for (const group of groups) assert.ok(hasArabic(catalog[group]), group + ' has no Arabic name');
 });
 
+// Package closing-small (web-shell report, "Found and not fixed" 6): the group "Reports" and the hub link "Reporting" were both
+// "التقارير", so two names the English tells apart read as one in the Arabic sidebar. The sidebar draws a group's name where the
+// group holds several pages (a group of one page is just its link), each link's label, and the footer's Account and Help.
+test('no two names the sidebar draws, which the English tells apart, read alike in Arabic', () => {
+  const several = groups.filter(group => navigation.filter(entry => entry.group === group).length > 1),
+    drawn = new Set([
+      ...several,
+      ...navigation.map(entry => entry.label),
+      ...registry.filter(entry => entry.menu === 'user').map(entry => entry.label),
+    ]),
+    readAs = new Map();
+  for (const name of drawn) {
+    assert.ok(hasArabic(catalog[name]), name + ' has no Arabic');
+    readAs.set(catalog[name], [...(readAs.get(catalog[name]) ?? []), name]);
+  }
+  assert.deepEqual(
+    [...readAs.values()].filter(names => names.length > 1),
+    [],
+    'two names that read alike',
+  );
+  // The hub is still about reports, in words of its own.
+  assert.match(catalog.Reporting, /التقارير/);
+  assert.notEqual(catalog.Reporting, catalog.Reports);
+});
+
 test('a page heading takes its subtitle from the registry, never from a sentence written beside it', () => {
   // Design review S8: pages without a heading of their own all said "Plan, review and verify work across your selected
   // accounts." The sentence under a page's heading is the registry's, so the loading frame and the page agree.

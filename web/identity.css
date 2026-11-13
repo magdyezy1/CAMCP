@@ -183,6 +183,13 @@ input[type='checkbox'] {
   border-color: var(--border-on-inverse);
   border-radius: var(--radius-lg);
 }
+.toast .icon-button,
+.toast .icon-button:hover {
+  color: inherit;
+}
+.toast .icon-button:hover {
+  background: var(--border-on-inverse);
+}
 .empty {
   background: var(--surface-raised);
   border-color: var(--border);

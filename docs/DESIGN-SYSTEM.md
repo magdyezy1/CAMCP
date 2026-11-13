@@ -401,7 +401,9 @@ inline-start side. `.delivery-status` at the foot of the delivery dialog (sticky
 `#toast.toast`, `role="status"`: a short confirmation on the inverse surface. It is the first element of `main`, in the
 page's flow at its block start, so it pushes the content down instead of covering it, and it is sticky (12px from the top
 of the window, below the 64px header on a phone) so it stays in view while the page is scrolled. One message at a time (a
-new one restarts the timer). It never carries the only copy of an error: errors stay in the page.
+new one restarts the timer). `toast(message, tone)` takes an optional tone: a toast leaves after six seconds, except one
+with the `'error'` tone, which reports a failure and stays until its Dismiss button is used (WCAG 2.2.1); focus is never
+moved to it. It never carries the only copy of an error: errors stay in the page.
 
 ### Panels and cards
 

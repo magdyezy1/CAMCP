@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {guardInput, stable, sha256} from './security.js';
+import {accessSetAudit} from './access-sets.js';
 import type {Actor, JsonObject} from './types.js';
 export type ToolCall = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
 export const obj = (x: unknown): x is JsonObject => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -102,7 +103,7 @@ export function audit(store: Store, actor: Actor, event: string, data: JsonObjec
     event,
     actor: actor.userId,
     // Work done under a client access set names the set (SEC-08).
-    ...(actor.accessSetId !== undefined ? {access_set_id: actor.accessSetId} : {}),
+    ...accessSetAudit(actor),
     ...data,
   });
 }

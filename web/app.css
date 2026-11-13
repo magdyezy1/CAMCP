@@ -693,6 +693,20 @@ dialog {
   box-shadow: 0 12px 35px var(--shadow-strong);
   z-index: 20;
 }
+/* An error toast's Dismiss button, at the inline end. */
+.toast:has(.toast-close) {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.toast-close {
+  flex: none;
+  min-inline-size: 32px;
+  min-block-size: 32px;
+  margin-block: -6px;
+  margin-inline-end: -12px;
+  font-size: var(--type-xl);
+}
 .connector-hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
