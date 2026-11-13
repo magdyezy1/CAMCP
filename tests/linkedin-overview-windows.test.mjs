@@ -137,6 +137,30 @@ test('rules with different windows make a source mixed: the pairs are listed, th
   assert.deepEqual(windows.distinct_windows, ['30d click / 7d view', '7d click / 1d view']);
 });
 
+// An attribution is a retained setting of 200 characters at most (a monitor, a capture, a report option). LinkedIn's
+// windows are 1, 7 or 30 days, so an account can hold nine different pairs, whose list is longer than that.
+test('the attribution of a source stays within 200 characters when its rules hold every pair, the pairs listed in the notes', async t => {
+  const rules = [1, 7, 30].flatMap((click, i) =>
+    [1, 7, 30].map((view, j) => linkedinConversionRule(String(i * 3 + j + 1), click, view)),
+  );
+  const {f, report, source: s} = await run(t, 'campaign', {conversions: rules});
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+  assert.ok(s.attribution.length <= 200, s.attribution.length + ': ' + s.attribution);
+  assert.ok(s.attribution.startsWith('LinkedIn conversion rules with mixed windows, no single window'), s.attribution);
+  assert.equal(report.summary[0].attribution, s.attribution);
+  assert.equal(stored(f, report).rows[0].attribution, s.attribution);
+  const windows = s.level_results[0].conversion_windows;
+  assert.equal(windows.status, 'mixed');
+  assert.equal(windows.distinct_windows.length, 9);
+  assert.ok(
+    s.warnings.includes(
+      'The account’s LinkedIn conversion rules use these attribution windows: ' +
+        windows.distinct_windows.join('; ') +
+        '.',
+    ),
+  );
+});
+
 // What an unknown attribution says: the warning it always carried, then why the account's rules could not settle it.
 const staysUnknown = (report, s, reason) => {
   assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));

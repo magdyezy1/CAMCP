@@ -16,6 +16,9 @@ export const linkedInConversionUrn = /^urn:lla:llaPartnerConversion:[1-9][0-9]{0
 export type LinkedInWindowStatus = 'verified_per_rule' | 'mixed' | 'unknown';
 
 const pair = (w: JsonObject) => w.post_click_days + 'd click / ' + w.post_view_days + 'd view';
+/** An attribution is a retained setting of at most 200 characters (a monitor, a capture, a report option). */
+const attributionLimit = 200;
+const mixedWindows = 'LinkedIn conversion rules with mixed windows, no single window';
 
 /** Joins reported conversion URNs to current rules. Pure: the reads and their bracket stay with the caller. */
 export function linkedInConversionWindows(rules: JsonObject[], conversions: string[]) {
@@ -52,7 +55,10 @@ export function linkedInConversionWindows(rules: JsonObject[], conversions: stri
         known[0]!.post_view_days +
         '-day post-view (verified per rule)'
       : status === 'mixed'
-        ? 'LinkedIn conversion rules with mixed windows, no single window: ' + pairs.join('; ')
+        ? // The pairs follow while the whole fits an attribution; an account can hold nine, and `distinct_windows` has them.
+          (mixedWindows + ': ' + pairs.join('; ')).length <= attributionLimit
+          ? mixedWindows + ': ' + pairs.join('; ')
+          : mixedWindows
         : 'unknown';
   return {
     status,
