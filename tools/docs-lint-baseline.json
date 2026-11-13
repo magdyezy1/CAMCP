@@ -274,10 +274,16 @@
       "raised": [
         "reference_words 159457 → 159815"
       ]
+    },
+    {
+      "reason": "website-get package (ruling 14): docs/REPORTING-OVERVIEW.md states that the compact v4 row keeps its recommendation's evidence and, for a LinkedIn campaign group of different objectives, its results_by_objective (21 more words)",
+      "raised": [
+        "reference_words 159815 → 159836"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159815
+    "reference_words": 159836
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
