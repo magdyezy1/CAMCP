@@ -6,6 +6,7 @@ import {reportSourceError} from '../dist/src/report-errors.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {Store} from '../dist/src/store.js';
 import {redactAtHead} from './helpers/redaction-at-head.mjs';
+import {redactAt6c80be71} from './helpers/redaction-at-6c80be71.mjs';
 
 /**
  * DR2-02 (differential review, wave 5 round 2): the report card, the MCP error envelope and the audit row hide the same
@@ -249,6 +250,86 @@ test('the review’s examples of a glued credential read as the old card read th
     assert.equal(redact(text), text, text);
 });
 
+// ---- P2B-01 (differential review, wave 5 round 2 part 2b): two credentials joined by punctuation ----
+// The alternative P2A-01 added took the value of `name = value` after `?`, `&`, `#` or `;` to the next white space, comma or
+// semicolon. When a second credential followed it glued by other punctuation (`#password =  |id_token = SECRET#`), the run
+// swallowed the second credential's name, so its value was shown, where 6c80be71 hid it through its own rule. The oracle is
+// redact() of 6c80be71, frozen: a credential it hid stays hidden.
+const joinNames = [
+  'access_token',
+  'refresh-token',
+  'client_secret',
+  'password',
+  'api_key',
+  'secret',
+  'cookie',
+  'id_token',
+  'oauth_token',
+];
+// Every punctuation character of ASCII, the empty join and a letter. A comma, a semicolon and white space end the first
+// value by themselves; they are listed so that the table says so.
+const joins = [...'!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~', '', 'x'];
+// The eight forms of the second assignment: glued, spaced `=` three ways, and `:` four ways.
+const secondForms = ['=', ' =', ' = ', '=  ', ':', ': ', ' :', ' : '];
+const SECOND = 'SECOND0123';
+
+test('a second credential joined to a spaced first assignment by punctuation stays hidden, as at 6c80be71 (P2B-01)', () => {
+  let shapes = 0,
+    hiddenAtBase = 0;
+  const lost = [],
+    notIdempotent = [];
+  for (const first of joinNames)
+    for (const lead of delimiters)
+      for (const spacing of spacings)
+        for (const join of joins)
+          for (const second of joinNames)
+            for (const form of secondForms) {
+              const text = `${lead}${first}${spacing}a${join}${second}${form}${SECOND} tail`;
+              shapes++;
+              const out = redact(text);
+              if (!redactAt6c80be71(text).includes(SECOND)) {
+                hiddenAtBase++;
+                if (out.includes(SECOND)) lost.push({text, out, base: redactAt6c80be71(text)});
+              }
+              if (redact(out) !== out) notIdempotent.push({text, out, again: redact(out)});
+            }
+  assert.equal(shapes, 9 * 4 * 6 * joins.length * 9 * 8);
+  // Most of the shapes are hidden at 6c80be71 (the second credential has its own rule): the guard against a table that
+  // stopped drawing the class.
+  assert.ok(hiddenAtBase > 200000, 'only ' + hiddenAtBase + ' shapes were hidden at 6c80be71');
+  assert.deepEqual(lost.slice(0, 3), [], lost.length + ' shapes show a credential that 6c80be71 hid');
+  assert.deepEqual(notIdempotent.slice(0, 3), [], notIdempotent.length + ' shapes are not idempotent');
+});
+
+test('the review’s examples of two joined credentials hide both values, and ordinary text stays (P2B-01)', () => {
+  // The first value is empty or short and the second credential follows it by punctuation; 6c80be71 hid the second one.
+  for (const [text, shown] of Object.entries({
+    '#password =  |id_token = SECRETVALUEddqj#': '#[REDACTED][REDACTED]',
+    // An empty first value: the credential head that follows it is hidden by its own rule, and the first head with it, so
+    // that a second pass finds nothing to hide that the first one left.
+    '?consumer_secret = ?client_secret: SECRETVALUE8fr0': '?[REDACTED]?[REDACTED]',
+    '?access_token =a<access_token = SECOND0123 tail': '?[REDACTED][REDACTED] tail',
+    'Invalid request: &access_token = abc|password = hunter2': 'Invalid request: &[REDACTED][REDACTED]',
+    'bad;password = x/api_key: SECOND0123': 'bad;[REDACTED][REDACTED]',
+  })) {
+    const out = redact(text);
+    assert.ok(
+      !out.includes('SECRETVALUE') && !out.includes('SECOND0123') && !out.includes('hunter2'),
+      `${text} -> ${out}`,
+    );
+    assert.equal(out, shown, text);
+    assert.equal(redact(out), out, 'idempotent: ' + text);
+    assert.equal(card(text), out, 'the card: ' + text);
+  }
+  // A first value that ends at white space, a comma or a semicolon is unchanged; so is text that names no credential.
+  assert.equal(redact('see &passwords = none|ids = 4'), 'see &passwords = none|ids = 4');
+  assert.equal(redact('see #topic = a|password policy = strict'), 'see #topic = a|password policy = strict');
+  assert.equal(
+    redact('Invalid request: &access_token = abc, password = hunter2'),
+    'Invalid request: &[REDACTED], [REDACTED]',
+  );
+});
+
 test('header forms hide their value to the end of the line, and only that line', () => {
   const headers = [
     'Authorization',
@@ -377,7 +458,7 @@ const oldCard = value =>
     .replace(/\bEAA[A-Za-z0-9]{60,}\b/g, '[REDACTED]')
     .slice(0, 1200);
 
-test('over 100,000 generated messages redact() never shows a credential the head or the card hid, and hides more', () => {
+test('over 100,000 generated messages redact() never shows a credential the head, the card or 6c80be71 hid, and hides more', () => {
   let seed = 20261113,
     serial = 0;
   const next = n => {
@@ -385,6 +466,7 @@ test('over 100,000 generated messages redact() never shows a credential the head
     return Math.floor(seed / 65536) % n;
   };
   // Each secret piece carries its own markers, so a credential shown whatever the text around it is found.
+  const firstValues = ['', 'a', 'bc'];
   const secretPieces = [
     m => `access_token=${m()}`,
     m => `access-token=${m()}`,
@@ -435,6 +517,19 @@ test('over 100,000 generated messages redact() never shows a credential the head
     m => `?${oldCardNames[next(13)]}=${m()}&${oldCardNames[next(13)]}${sameLine[next(5)]}${m()}&n=1`,
     m => `#${oldCardNames[next(13)]}${sameLine[next(5)]}${m()}&password${sameLine[next(5)]}${m()}`,
     m => `\n${delimiters[next(4)]}${oldCardNames[next(13)]}=\n${m()}`,
+    // P2B-01: two credentials in one run, joined by punctuation (any ASCII punctuation character, nothing, a letter): a
+    // spaced first assignment after `?`, `&`, `#` or `;` with an empty, short or secret value, then a second credential of
+    // the whole name list, glued or spaced in any of the eight forms. The first version of the fix of P2A-01 ran the first
+    // value over the next credential's name; the pieces above join their credentials by white space or by `&` only, so no
+    // draw reached it, and no oracle held what 6c80be71 hid. (Three in a row are not drawn: a middle credential in the `name:`
+    // form takes a value that runs over the third one's name, in every version of redact() since DR2-02, and the old card hid
+    // that third value; that residual is stated in the sec-followup report and in sec-followup-2's.)
+    m =>
+      `${delimiters[next(4)]}${oldCardNames[next(13)]}${sameLine[next(5)]}${firstValues[next(3)]}${joins[next(joins.length)]}${joinNames[next(9)]}${secondForms[next(8)]}${m()}`,
+    m =>
+      `${delimiters[next(4)]}${oldCardNames[next(13)]}${sameLine[next(5)]}${firstValues[next(3)]}${joins[next(joins.length)]}${joinNames[next(9)]}${secondForms[next(8)]}${m()}`,
+    m =>
+      `${delimiters[next(4)]}${oldCardNames[next(13)]}${sameLine[next(5)]}${m()}${joins[next(joins.length)]}${joinNames[next(9)]}${secondForms[next(8)]}${m()}`,
   ];
   const plain = [
     ' ',
@@ -473,15 +568,17 @@ test('over 100,000 generated messages redact() never shows a credential the head
     ).reduce((all, piece) => all + separators[next(separators.length)] + piece);
     const now = redact(text),
       was = redactAtHead(text),
-      wasOnCard = oldCard(text);
+      wasOnCard = oldCard(text),
+      wasAtBase = redactAt6c80be71(text);
     for (const marker of markers) {
       checked++;
-      if (now.includes(marker) && (!was.includes(marker) || !wasOnCard.includes(marker)))
-        regressions.push({text, now, was, wasOnCard, marker});
+      if (now.includes(marker) && (!was.includes(marker) || !wasOnCard.includes(marker) || !wasAtBase.includes(marker)))
+        regressions.push({text, now, was, wasOnCard, wasAtBase, marker});
       if (was.includes(marker) && !now.includes(marker)) gainedOnHead++;
       if (wasOnCard.includes(marker) && !now.includes(marker)) gainedOnCard++;
     }
-    if (i % 3 === 0) assert.equal(redact(now), now, 'idempotent: ' + JSON.stringify(text));
+    // Every text, not every third (P2B-01): the first version of the fix redacted twice differently in a rare shape.
+    assert.equal(redact(now), now, 'idempotent: ' + JSON.stringify(text));
   }
   assert.deepEqual(regressions.slice(0, 3), [], 'credentials shown that the head or the card hid');
   // The sample is fixed (seeded): it holds about 223,000 credentials, and redact() hides about 167,000 more than the head's

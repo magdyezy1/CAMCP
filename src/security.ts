@@ -131,22 +131,33 @@ const textPairs = pairPass('&'),
  *   please retry`); a value the pair pass already hid is left, so `?access_token=[REDACTED]&n=1` keeps its `&n=1`, and
  *   a name straight after `?`, `&`, `#` or `;` with `=` and no white space around it is the pair pass's own head (its
  *   empty value stays as it was). With white space around the `=` the pair pass reads no head (`&access_token = x`,
- *   `;client_secret= x`), so the third alternative below hides it: the report card's old rule did, and DR2-02 lost it
- *   (P2A-01);
+ *   `;client_secret= x`), so the branch of its own below hides it: the report card's old rule did, and DR2-02 lost it
+ *   (P2A-01). Its value runs to white space, a comma or a semicolon, but stops before the next credential head (a name of
+ *   the list, `=` or `:`, with the `?`, `&` or `#` that starts it), so `#password =  |id_token = x#` keeps `id_token`
+ *   for its own rule: a run that swallowed the name left the second value readable, which the redaction before P2A-01
+ *   hid (P2B-01). When a credential head follows the `=` at once the value is empty and the branch hides its own head
+ *   alone (`?password = &id_token = x` is `?[REDACTED]&[REDACTED]`): left as it was, a second pass would read what the
+ *   first one hid as a value and hide more;
  * - a Meta access token: `EAA` and sixty or more letters and digits, with no closing `\b`, which would make a long run
  *   of letters and digits that ends in `_` read again from each `EAA` inside it.
  * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
  */
 const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[ \t]*)[^\s][^\r\n]*/gi,
   bareParameters = /\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi,
+  // The next credential head, as the branch of its own below reads it: the lead it may have, a name, `=` or `:`.
+  nextCredential = '[?&#;]?\\b(?:' + secretKeyNames + ')\\s*[=:]',
   sentenceSecrets = new RegExp(
     '(?:(?<![?&#;])\\b(?:' +
       secretKeyNames +
-      ')\\s*=|(?<=[?&#;])(?:' +
+      ')\\s*=|\\b(?:' +
       secretKeyNames +
-      ')(?:\\s+=|=\\s)|\\b(?:' +
+      ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+|(?<=[?&#;])(?:' +
       secretKeyNames +
-      ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+',
+      ')(?:\\s+=|=\\s)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))(?:(?:(?!' +
+      nextCredential +
+      ')[^\\s,;])+|(?=' +
+      nextCredential +
+      '))',
     'gi',
   ),
   metaTokens = /\bEAA[A-Za-z0-9]{60,}/g;
