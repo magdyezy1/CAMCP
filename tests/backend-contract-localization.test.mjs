@@ -341,7 +341,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/report-chart-pdf.ts (the PDF back end: the chart, its table and the Charts section): 802.
   // Merge C, with mcp-typed (six files, 797 on its own base) and charts (eleven files, 802 on its own base): both count from 791 and their
   // new files are different files, so the merged tree measures, with this test's own inspector, 791 + 6 + 11 = 808.
-  assert.equal(files.length, 808);
+  // Package mcp-surface (V2-MCP-06) adds src/contract-profile.ts (the contract profile and the scope a client's calls run in),
+  // src/mcp-client-profile.ts (which profile an AI client's record gives it) and src/mcp-profile-help.ts (the help topic that
+  // announces the profiles), none with a reason of its own: three more on Merge C's 808, 811. Whoever merges it adds the files
+  // of every package it is merged with to this number.
+  assert.equal(files.length, 811);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

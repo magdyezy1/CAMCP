@@ -36,6 +36,7 @@ import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {ownToolHelp, surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
 import {toolPresentation} from './tool-annotations.js';
+import {currentContractProfile} from './contract-profile.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -557,7 +558,7 @@ export class MirrorService {
         if (warnings.length) this.argumentWarnings.set(requestId, warnings);
         if (input.action === 'help') {
           guardInput(input);
-          return this.wrap(ownToolHelp(own, input.topic), requestId, start, tool, 'help');
+          return this.wrap(ownToolHelp(own, input.topic, currentContractProfile()), requestId, start, tool, 'help');
         }
       }
       // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.

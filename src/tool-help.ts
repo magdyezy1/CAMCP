@@ -7,6 +7,8 @@ import {mediaDiscovery} from './media-routing.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
 import {providerContractView} from './contract-evidence.js';
 import {guidanceDiscovery, guideTopic} from './guidance.js';
+import type {ContractProfile} from './contract-profile.js';
+import {contractProfileTopic} from './mcp-profile-help.js';
 import {firstPartyHelp} from './tool-summaries.js';
 import {nameCandidates} from './name-candidates.js';
 import {amcpDescribed, amcpExecution} from './execution-status.js';
@@ -20,10 +22,12 @@ export interface ListedTool {
   inputSchema: JsonObject;
 }
 /** A first-party tool's own read-only help; the captured help schema remains unchanged (D17-bis). */
-export function ownToolHelp(tool: ListedTool, topic?: string): JsonObject {
+export function ownToolHelp(tool: ListedTool, topic?: string, profile?: ContractProfile): JsonObject {
   if (topic !== undefined && (typeof topic !== 'string' || !topic || topic.length > 300))
     throw new MirrorError('INVALID_ARGUMENT', 'Use a name of at most 300 characters.', {field: 'topic'});
   if (tool.name === 'amcp_workspace' && (topic === 'guides' || topic?.startsWith('guides/'))) return guideTopic(topic);
+  // The contract profile of this connection and what the other one changes (V2-MCP-06), announced here, not in tools/list.
+  if (tool.name === 'amcp_workspace' && topic === 'mcp_profile') return contractProfileTopic(profile);
   const actions = toolActions(tool);
   if (topic !== undefined && !actions.includes(topic))
     throw new MirrorError('UNKNOWN_OPERATION', 'Unknown action of this AMCP tool.', {
@@ -48,7 +52,12 @@ export function ownToolHelp(tool: ListedTool, topic?: string): JsonObject {
     delete help.summary;
     delete help.action_summaries;
   }
-  return {...help, examples};
+  // The topics of amcp_workspace help that are not actions (guides, and the contract profile of V2-MCP-06).
+  return {
+    ...help,
+    ...(tool.name === 'amcp_workspace' && topic === undefined ? {other_topics: ['guides', 'mcp_profile']} : {}),
+    examples,
+  };
 }
 export interface HelpContext {
   registry: Registry;

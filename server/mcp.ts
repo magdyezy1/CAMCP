@@ -25,6 +25,8 @@ import {
 import {MirrorError} from '../src/errors.js';
 import {serverIdentity} from '../src/server-identity.js';
 import {serverInstructionsFor} from '../src/tool-annotations.js';
+import {withContractProfile} from '../src/contract-profile.js';
+import {contractProfileOf} from '../src/mcp-client-profile.js';
 /** AMCP's published legacy guide-error code; SDK v2 emits Invalid Params unless the legacy adapter restores it. */
 const resourceNotFound = -32002;
 /** SDK v2 normalizes resource errors in both eras. Preserve AMCP's published legacy guide error on legacy wires. */
@@ -161,7 +163,10 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
   // Like every other handler, the catalog is listed only to a credential that is still active (SEC-05).
   server.setRequestHandler('tools/list', async () => {
     service.store.assertActorActive(actor);
-    return {tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any};
+    // The listing a client is shown follows its contract profile (V2-MCP-06), read from its record at this request.
+    return withContractProfile(contractProfileOf(service.store, actor), () => ({
+      tools: service.listTools().map(t => ({...t, outputSchema: toolOutputSchema(t.name)})) as any,
+    }));
   });
   // The tasks extension exists on the 2026-07-28 path only (server/mcp-tasks.ts).
   if (hooks.era === 'modern') registerTaskHandlers(server, service, actor);
@@ -174,30 +179,33 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
       call = () => service.call(request.params.name, args, actor),
       // A call that queues a long run is answered a task by a client that declares the extension; otherwise one that
       // carries a progress token waits for it, bounded, and reports its progress on this request's stream (V2-MCP-02).
-      // With neither, nothing differs from a plain call.
-      work = withExactIntegers(
-        token === undefined && !tasksOn
-          ? call
-          : async () => {
-              const answer = await call(),
-                offer = tasksOn
-                  ? createTask({service, actor, tool: request.params.name, args, result: answer})
-                  : undefined;
-              if (offer) return offer;
-              return token === undefined
-                ? answer
-                : await answerWithProgress({
-                    service,
-                    actor,
-                    tool: request.params.name,
-                    args,
-                    result: answer,
-                    token,
-                    notify: notification => ctx.mcpReq.notify(notification),
-                    signal: ctx.mcpReq.signal,
-                    read: read => service.call(read.tool, read.arguments, actor),
-                  });
-            },
+      // With neither, nothing differs from a plain call. The whole call runs as the client's contract profile, read from
+      // its record at this request (V2-MCP-06): a call inside it, and what it awaits, sees that profile and no other.
+      work = withContractProfile(contractProfileOf(service.store, actor), () =>
+        withExactIntegers(
+          token === undefined && !tasksOn
+            ? call
+            : async () => {
+                const answer = await call(),
+                  offer = tasksOn
+                    ? createTask({service, actor, tool: request.params.name, args, result: answer})
+                    : undefined;
+                if (offer) return offer;
+                return token === undefined
+                  ? answer
+                  : await answerWithProgress({
+                      service,
+                      actor,
+                      tool: request.params.name,
+                      args,
+                      result: answer,
+                      token,
+                      notify: notification => ctx.mcpReq.notify(notification),
+                      signal: ctx.mcpReq.signal,
+                      read: read => service.call(read.tool, read.arguments, actor),
+                    });
+              },
+        ),
       ),
       result = await (hooks.track ? hooks.track(work) : work);
     if (result instanceof TaskOffer) return taskCallResult(result) as any;
