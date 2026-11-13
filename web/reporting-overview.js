@@ -266,8 +266,9 @@ const metricValue = (row, key) => (row.entity_level ? row.native?.exact_totals?.
  * line for a detailed row (the one with a native entity type), and the parents. A full row, and every row of an earlier
  * snapshot, is returned as it is (the same object, so a caller can tell which it had).
  */
+const reportRowIsCompact = row => row.platform === undefined && row.source_ref !== undefined;
 function reportRowView(r, row) {
-  if (row.platform !== undefined || row.source_ref === undefined) return row;
+  if (!reportRowIsCompact(row)) return row;
   const source = (r.sources ?? []).find(s => s.source_ref === row.source_ref),
     {campaign, adset} = row.parents ?? {};
   return {
@@ -291,6 +292,80 @@ function reportRowView(r, row) {
 /** What a row says about its source, whole: its result, attribution and time zone, how its result was mapped, its quality and the provider's own row. */
 function reportRowDetails(row) {
   return html`<p>${reportResultLabel(row)}<br>${row.attribution}<br>${row.timezone}</p>${reportResultMapping(row)}${reportObjectiveResults(row)}${raw(reportQualityDetails(row))}<pre>${JSON.stringify(row.native, null, 2)}</pre>`;
+}
+/**
+ * A compact row's source details, as a full row has them: one `get` narrowed to its platform, level and entity, with the
+ * provider's own rows, and the row is found in the answer by its key. An entity has a row for each period, so the read may
+ * continue by its cursor.
+ */
+async function reportFetchRowDetails(r, row) {
+  const source = (r.sources ?? []).find(s => s.source_ref === row.source_ref);
+  let answer = await overviewCall({
+    action: 'get',
+    id: r.id,
+    limit: 100,
+    include: {native: true},
+    platform: source?.source?.platform,
+    level: row.level,
+    entity: row.entity_id,
+  });
+  for (let pages = 1; ; pages++) {
+    const found = answer.rows.find(candidate => candidate.row_key === row.row_key);
+    if (found) return found;
+    if (!answer.next_call || pages >= 100) throw Error(uiText('The source details could not be loaded.'));
+    answer = await overviewCall(answer.next_call.arguments);
+  }
+}
+/**
+ * A `<details>` whose body is drawn when it is first opened: `load` returns its markup. The disclosure is the browser's own,
+ * so its keyboard and screen reader behaviour is unchanged. The body says it is loading and is busy meanwhile; a failure says
+ * so with a Retry that asks again and returns focus to the disclosure's own control.
+ */
+function reportLazyDetails(details, load) {
+  const body = details.querySelector('[data-report-details-body]');
+  let started = false;
+  const run = async () => {
+    body.setAttribute('aria-busy', 'true');
+    setHtml(body, html`<p role="status">${uiText('Loading source details…')}</p>`);
+    try {
+      const markup = await load();
+      if (details.isConnected) setHtml(body, markup);
+    } catch {
+      if (!details.isConnected) return;
+      setHtml(
+        body,
+        html`<div role="alert" class="notice"><p>${uiText('The source details could not be loaded.')}</p><button type="button" class="button small" data-report-details-retry>${uiText('Retry')}</button></div>`,
+      );
+      body.querySelector('[data-report-details-retry]').addEventListener('click', retry);
+    } finally {
+      body.removeAttribute('aria-busy');
+    }
+  };
+  const retry = async () => {
+    await run();
+    (body.querySelector('[data-report-details-retry]') ?? details.querySelector('summary'))?.focus?.();
+  };
+  details.addEventListener('toggle', () => {
+    if (!details.open || started) return;
+    started = true;
+    return run();
+  });
+}
+/** What was loaded for the report on the page stays while it is on the page, so a redraw (a poll, a page change) asks for nothing. */
+function bindReportDetails(r) {
+  if (!r.rows.some(reportRowIsCompact)) return;
+  if (overviewState.detailsFor !== r.id) overviewState.details = new Map();
+  overviewState.detailsFor = r.id;
+  const loaded = overviewState.details;
+  document.querySelectorAll('details[data-report-details]').forEach(details => {
+    const row = r.rows.find(candidate => candidate.row_key === details.dataset.reportDetails);
+    if (row)
+      reportLazyDetails(details, async () => {
+        const key = [r.completed_at, row.row_key].join('|');
+        if (!loaded.has(key)) loaded.set(key, await reportFetchRowDetails(r, row));
+        return reportRowDetails(loaded.get(key));
+      });
+  });
 }
 /**
  * A metric cell: the formatted value, with the exact retained value on hover when formatting shortened it. `label`
@@ -875,6 +950,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
   if (Array.isArray(r.charts) && r.charts.length && typeof mountReportCharts === 'function')
     mountReportCharts($('#report-charts'), r.charts);
   bindSnapshotAnalysis(r, root);
+  bindReportDetails(r);
   bindSheetsDeliveryRecovery(id);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];
