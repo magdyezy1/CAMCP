@@ -6,7 +6,10 @@
 // field and counted the entry's own `value`. Two reads of one definition counted two ways are not another window of one report, not a
 // reconciliation and not to be added: they are refused with REPORT_SEMANTICS_MISMATCH naming the field. Captures with no basis on either
 // side (everything retained before, and Google's) compare and combine as they always did. The names of the fields are shown as they are
-// (they are built into an English sentence and `details.fields`; no label map and no Arabic exist for any of them).
+// (they are built into an English sentence and `details.fields`; no label map and no Arabic exist for any of them). Each refusal is asserted
+// by its code, its `details.fields` and the sentence of the place that refuses (`sentences` below): the code and the fields are the same in
+// all three places, so the sentence is what shows which place refused. analyze's own call of `compatibility` (src/decision-reporting.ts,
+// which combine calls with `adds`) must not be the one that refuses a baseline: it would say combine's sentence, and nothing else would notice.
 // Synthetic Meta answers behind the real service and transport; nothing leaves the process.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,12 +51,28 @@ const read = (id, more = {}) => ({
   },
   ...more,
 });
-/** The fields a refusal names, after it is proved to be a REPORT_SEMANTICS_MISMATCH. */
-const refusedFields = run => {
+// What each place says when it refuses: the fields it names are joined into its own sentence.
+const sentences = {
+  'analyze baseline': /^The baseline is not another window of the same report: (.+)\.$/,
+  reconcile: /^Retained reports cannot be reconciled: (.+)\.$/,
+  combine: /^Report semantics cannot be combined: (.+)$/,
+};
+/** The fields a refusal lists, after the sentence of `place` is proved to name exactly them. */
+const named = ({message, details}, place) => {
+  assert.ok(Array.isArray(details?.fields), place + ': the refusal lists the fields it names');
+  assert.equal(
+    sentences[place].exec(message)[1],
+    details.fields.join(', '),
+    place + ': the sentence names the fields the refusal lists',
+  );
+  return details.fields;
+};
+/** The fields a refusal names, after it is proved to be a REPORT_SEMANTICS_MISMATCH in the sentence of `place`. */
+const refusedFields = (run, place) => {
   let fields;
   assert.throws(run, error => {
-    assertRefused(error, 'REPORT_SEMANTICS_MISMATCH');
-    fields = error.details.fields;
+    assertRefused(error, 'REPORT_SEMANTICS_MISMATCH', {message: sentences[place]});
+    fields = named(error, place);
     return true;
   });
   return fields;
@@ -72,14 +91,14 @@ test('a capture that counted the requested windows is not another window of one 
     ...both(older('a'), counted('b')),
     ...both(counted('a'), read('b', {action_count_basis: 'the_entrys_own_value'})),
   ])
-    assert.deepEqual(refusedFields(run), ['action_count_basis'], what);
+    assert.deepEqual(refusedFields(run, what), ['action_count_basis'], what);
   // It is one more field beside the ones that were always checked, never instead of them.
   const other = read('b', {mapping: {...mapping, spend: '/inline_spend'}});
   for (const [what, run] of [
     ['analyze baseline', () => assertCompatibleBaseline(counted('a'), other)],
     ['reconcile', () => compareReportContext(counted('a'), other)],
   ])
-    assert.deepEqual(refusedFields(run), ['native field mapping', 'action_count_basis'], what);
+    assert.deepEqual(refusedFields(run, what), ['native field mapping', 'action_count_basis'], what);
 });
 
 test('captures with the same basis, or with none on either side, compare as they always did', () => {
@@ -199,10 +218,11 @@ function fixture() {
     },
   };
 }
-const refusedBy = async (call, args) => {
+/** The fields a refused call names, after it is proved to be a REPORT_SEMANTICS_MISMATCH in the sentence of `place`. */
+const refusedBy = async (call, args, place) => {
   const out = await call(args);
-  assertRefused(out, 'REPORT_SEMANTICS_MISMATCH');
-  return out.error.details.fields;
+  assertRefused(out, 'REPORT_SEMANTICS_MISMATCH', {message: sentences[place]});
+  return named(out.error, place);
 };
 
 test('analyze refuses a baseline counted the other way and accepts one counted the same way, through the service', async () => {
@@ -217,13 +237,14 @@ test('analyze refuses a baseline counted the other way and accepts one counted t
     assert.equal(compared.data.baseline_id, baseline);
     // The baseline was retained before the windows were counted: refused, with the field named.
     f.unstamp(baseline);
-    assert.deepEqual(await refusedBy(f.call, {action: 'analyze', id: report, baseline_id: baseline}), [
-      'action_count_basis',
-    ]);
+    assert.deepEqual(
+      await refusedBy(f.call, {action: 'analyze', id: report, baseline_id: baseline}, 'analyze baseline'),
+      ['action_count_basis'],
+    );
     // And the other way round: an older report against a baseline that counted the windows.
     const newer = await f.capture('2026-09-01', '2026-09-01');
     f.unstamp(report);
-    assert.deepEqual(await refusedBy(f.call, {action: 'analyze', id: report, baseline_id: newer}), [
+    assert.deepEqual(await refusedBy(f.call, {action: 'analyze', id: report, baseline_id: newer}, 'analyze baseline'), [
       'action_count_basis',
     ]);
     // Two older captures (neither says how it counted) are compared as before.
@@ -244,12 +265,14 @@ test('reconcile_report refuses two reads of one period counted two ways and comp
     assert.equal(compared.success, true, JSON.stringify(compared));
     // One of them was retained before the windows were counted.
     f.unstamp(second);
-    assert.deepEqual(await refusedBy(f.call, {action: 'reconcile_report', id: first, reference_id: second}), [
-      'action_count_basis',
-    ]);
-    assert.deepEqual(await refusedBy(f.call, {action: 'reconcile_report', id: second, reference_id: first}), [
-      'action_count_basis',
-    ]);
+    assert.deepEqual(
+      await refusedBy(f.call, {action: 'reconcile_report', id: first, reference_id: second}, 'reconcile'),
+      ['action_count_basis'],
+    );
+    assert.deepEqual(
+      await refusedBy(f.call, {action: 'reconcile_report', id: second, reference_id: first}, 'reconcile'),
+      ['action_count_basis'],
+    );
     // Neither says how it counted: compared as before.
     f.unstamp(first);
     assert.equal((await reconcile(first, second)).success, true);
@@ -278,14 +301,16 @@ test('combine adds the reports’ counts, so it refuses captures counted two way
       [c, [a, b]],
       [b, [c]],
     ])
-      assert.deepEqual(await refusedBy(f.call, {action: 'combine', id, ids}), ['action_count_basis']);
+      assert.deepEqual(await refusedBy(f.call, {action: 'combine', id, ids}, 'combine'), ['action_count_basis']);
     // Two that carry the same basis still combine.
     assert.deepEqual((await combine(a, [b])).data.totals.conversions, '10');
     // It is one more field beside the ones that were always checked, never instead of them: another result definition too.
     const other = await f.capture(...window, '200', 'lead');
-    assert.deepEqual(await refusedBy(f.call, {action: 'combine', id: a, ids: [other]}), ['conversion_definition']);
+    assert.deepEqual(await refusedBy(f.call, {action: 'combine', id: a, ids: [other]}, 'combine'), [
+      'conversion_definition',
+    ]);
     f.unstamp(other);
-    assert.deepEqual(await refusedBy(f.call, {action: 'combine', id: a, ids: [other]}), [
+    assert.deepEqual(await refusedBy(f.call, {action: 'combine', id: a, ids: [other]}, 'combine'), [
       'conversion_definition',
       'action_count_basis',
     ]);
