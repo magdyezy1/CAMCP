@@ -367,6 +367,33 @@ test('a source with no website conversion result is untouched: no rules read, th
   }
 });
 
+test('the rules are read once per source and job, however many periods and levels the source reports, and a refusal is not asked twice', async t => {
+  for (const [refused, attribution] of [
+    [[], verifiedPair(30, 7)],
+    [['/conversions'], 'unknown'],
+  ]) {
+    fixClock(t);
+    const f = linkedinPipeline(t, {
+        analytics,
+        ...world(),
+        conversions: [linkedinConversionRule('501')],
+        refused,
+      }),
+      report = await f.run({...v4, grain: 'daily', sources: [{...source('campaign'), levels: ['campaign', 'adset']}]});
+    assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+    const rows = stored(f, report).rows;
+    assert.equal(rows.length, 4, 'two days at two levels');
+    assert.deepEqual([...new Set(rows.map(row => row.attribution))], [attribution]);
+    assert.equal(rulesRead(f).length, 1, 'refused: ' + refused.length);
+    if (refused.length) continue;
+    // The later periods and the second level replay the read, marked as cached, in the source's lineage.
+    const lineage = (await f.overview.handle({action: 'get', id: report.id, include: {lineage: true}}, f.actor))
+      .sources[0].lineage;
+    assert.equal(lineage.filter(l => l.stage === 'conversion_rules' && !l.cached).length, 1);
+    assert.ok(lineage.filter(l => l.stage === 'conversion_rules' && l.cached).length >= 1);
+  }
+});
+
 test('a refused rules read leaves the windows unknown, keeps every number and leaves the report complete', async t => {
   const {report, source: s} = await run(t, 'campaign', {
     conversions: [linkedinConversionRule('501')],
