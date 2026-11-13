@@ -395,7 +395,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Charts adds 53 entries and removes the old include-flags reason; the integration already has the new reason (mcp-typed, the same Arabic)
   // and lacks the old one, and meta-results added 'App installs' with another Arabic than charts, which now has one (meta-results', the
   // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
-  assert.equal(Object.keys(catalog).length, 12098);
+  // Package website-get adds the Arabic of the two sentences a row's source details and a source card's evidence show while they
+  // load and when they fail to (web/reporting-overview.js, node tools/check-locales.mjs: catalog_messages 12100): 12,098 + 2 = 12,100.
+  assert.equal(Object.keys(catalog).length, 12100);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
