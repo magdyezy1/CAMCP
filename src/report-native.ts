@@ -412,6 +412,7 @@ export class NativeCampaignReports {
       lineage,
       run,
       plan,
+      call: (tool, input, current) => this.service.call(tool, input, current),
       attributionProfile: () => campaignAttributionProfile(source),
       metadata: {},
       currency: null,

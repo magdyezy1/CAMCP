@@ -15,7 +15,17 @@ import {
 } from './linkedin-reporting.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {linkedinDetailParents, linkedInCreativeMetadata} from './linkedin-detail-parents.js';
-import {invalidReportSource, optionalReadRefused, type ReportCollection, type ReportSource} from './report-source.js';
+import {
+  accessRefusalCodes,
+  invalidReportSource,
+  optionalReadRefused,
+  type ReportCollection,
+  type ReportSource,
+} from './report-source.js';
+import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
+import {linkedInConversionWindows} from './linkedin-conversion-windows.js';
+import {collectionAllowance} from './report-collection-budget.js';
+import {fingerprint} from './report-quality.js';
 import {nativeDecimal, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
 import {linkedinReportPivots} from './workflows.js';
 import {mixedObjectiveGroup, resolveObjective, type ObjectiveUnread} from './report-objectives.js';
@@ -40,6 +50,11 @@ export const linkedinMetadataUnavailableWarning =
   'LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.';
 export const linkedinMetadataLimitedWarning =
   'This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.';
+/** What the unverified-windows warning also said, which stays true when the windows are verified. */
+export const linkedinCurrentMetadataWarning =
+  'LinkedIn entity names and objectives are current metadata, not the values at delivery time.';
+export const linkedinRuleWindowsWarning =
+  'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.';
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
@@ -106,6 +121,144 @@ export function linkedinGroupObjective(
 }
 const delivered = (row: JsonObject) =>
   ['impressions', 'clicks', 'costInLocalCurrency'].some(key => (metricNumber(row[key]) ?? 0) > 0);
+/**
+ * How many of a collection's reported entities have website conversions as their own result (the result their row will
+ * hold, read from the same table), and how many have another result or none: awareness reach, clicks, views, leads, a
+ * Mixed group, an objective that was not read.
+ */
+function conversionResults(c: ReportCollection): {conversions: number; other: number} {
+  const counts = {conversions: 0, other: 0};
+  for (const raw of c.raw) {
+    const parents = c.detailRows?.parents[String(raw.pivotValues[0])],
+      definition = linkedinReportSource.readResult!(
+        raw,
+        c.detail
+          ? {level: c.detail, range: c.range, objective: parents?.objective, format: parents?.format}
+          : {level: 'campaign', range: c.range, objective: raw.objectiveType},
+      ).definition;
+    counts[definition?.native_metric === 'externalWebsiteConversions' ? 'conversions' : 'other']++;
+  }
+  return counts;
+}
+
+/**
+ * V2-RPT-04 (plan 4.7): the attribution windows of a v4 source of LinkedIn website conversions, joined from the account's
+ * current conversion rules. LinkedIn counts `externalWebsiteConversions` under each rule's own post-click and view-through
+ * windows, and the rules list does not say which campaigns a rule counts for (its `campaign_membership` stays
+ * `not_collected`), so every rule of the account is used: the source can say `mixed` when its campaigns' own rules
+ * agree, and never one pair when they differ. The words are those of the guided preset's join (src/linkedin-conversion-
+ * windows.ts), the one place that names a pair.
+ */
+interface LinkedInSourceWindows {
+  /** The attribution the source reports: the rules' windows, or `unknown`. */
+  attribution: string;
+  /** True when the attribution is the rules' own windows (one pair, or the different pairs of several rules). */
+  verified: boolean;
+  /** The notes the source adds to its warnings, in order. */
+  warnings: string[];
+  /** The decision, as the source retains it. */
+  conversion_windows: JsonObject;
+}
+type LinkedInRulesRead = {rules: JsonObject[]; source_hash: string; captured_at: number};
+type LinkedInRulesUnread = 'refused' | 'budget';
+/** The fewest requests a rules read sends: the account, one page of rules and the account again. */
+const rulesReadRequests = 3;
+
+/** One request of the rules read, in the form of the source's lineage. */
+function ruleLineage(stage: string, path: string, evidence: JsonObject): JsonObject {
+  const request: JsonObject = evidence.source_request;
+  return {
+    stage,
+    method: 'GET',
+    path,
+    origin: null,
+    api_version: request.api_version,
+    query_fingerprint: fingerprint({method: 'GET', path, query: request.query ?? request.path_params ?? {}}),
+    response_fingerprint: evidence.source_hash,
+    captured_at: evidence.captured_at,
+  };
+}
+
+/**
+ * The account's current conversion rules, read through the conversion settings read (src/linkedin-conversion-evidence.ts)
+ * after the source's analytics and metadata reads and inside the same authorization bracket, once per source and job.
+ * Its requests count against the job's whole collection allowance like every other read of the source, and a read that
+ * the allowance cannot hold is not started. LinkedIn refusing or failing the read leaves the windows unknown and the
+ * report complete. A refusal of AMCP's own (the connection, its login or its permissions changed) fails the source, as
+ * it does for every other read.
+ */
+async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead | LinkedInRulesUnread> {
+  const cached = c.lookup?.linkedinConversionRules;
+  if (cached) {
+    for (const entry of cached.lineage) c.lineage.push({...entry, cached: true});
+    return cached.read ?? 'refused';
+  }
+  const allowance = collectionAllowance();
+  if (allowance && (allowance.requests < rulesReadRequests || allowance.elapsed_ms <= 0)) return 'budget';
+  let evidence: JsonObject;
+  try {
+    evidence = await linkedInConversionEvidence(c.store, c.call, c.actor, {
+      gateway: 'linkedin_native_action',
+      account_id: c.account,
+      connection_id: c.connection,
+    });
+  } catch (error) {
+    if (!(error instanceof MirrorError) || accessRefusalCodes.has(error.code)) throw error;
+    if (error.code === 'REPORT_COLLECTION_LIMIT') return 'budget';
+    if (c.lookup) c.lookup.linkedinConversionRules = {lineage: []};
+    return 'refused';
+  }
+  const [first, last] = evidence.account_evidence.checks as JsonObject[],
+    lineage = [
+      ruleLineage('conversion_rules_account', '/rest/adAccounts/' + c.account, first!),
+      ...(evidence.source_pages as JsonObject[]).map(page =>
+        ruleLineage('conversion_rules', '/rest/conversions', page),
+      ),
+      ruleLineage('conversion_rules_account_verify', '/rest/adAccounts/' + c.account, last!),
+    ],
+    read = {
+      rules: evidence.rules as JsonObject[],
+      source_hash: evidence.source_hash,
+      captured_at: evidence.captured_at,
+    };
+  c.lineage.push(...lineage);
+  if (c.lookup) c.lookup.linkedinConversionRules = {read, lineage};
+  return read;
+}
+
+/**
+ * What the account's rules say of the windows of a source whose reported entities all have website conversions as their
+ * result (`results.conversions`, none `other`): the pair they share. Undefined when the join says nothing new.
+ */
+async function linkedInSourceWindows(
+  c: ReportCollection,
+  results: {conversions: number; other: number},
+): Promise<LinkedInSourceWindows | undefined> {
+  if (!results.conversions || results.other) return undefined;
+  const read = await conversionRules(c);
+  if (typeof read === 'string') return undefined;
+  const join = linkedInConversionWindows(
+    read.rules,
+    read.rules.map(rule => String(rule.urn)),
+  );
+  if (join.status !== 'verified_per_rule') return undefined;
+  return {
+    attribution: join.attribution,
+    verified: true,
+    warnings: [linkedinRuleWindowsWarning],
+    conversion_windows: {
+      status: join.status,
+      basis: 'account_rules',
+      rule_count: read.rules.length,
+      single_window: join.single_window,
+      distinct_windows: join.distinct_windows,
+      unknown_rules: join.unknown_conversions.length,
+      reason: null,
+      rules_source_hash: read.source_hash,
+      rules_captured_at: read.captured_at,
+    },
+  };
+}
 function groupResults(rows: JsonObject[], campaigns: Record<string, JsonObject>, rounding: Record<string, number>) {
   const grouped = new Map<string, JsonObject[]>();
   for (const row of rows) {
@@ -725,11 +878,23 @@ export const linkedinReportSource: ReportSource = {
     if (rounded) c.quality.metric_rounding = rounded;
     c.attribution = 'unknown';
     c.resultDefinition = 'Attributed external website conversions';
-    c.warnings.push(
-      c.lookup?.linkedinCampaigns?.unavailable
-        ? 'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.'
-        : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
-    );
+    // V2-RPT-04: a v4 source whose results are website conversions takes the windows of the account's conversion rules.
+    const windows =
+        c.source?.reporting_contract === 'overview-config-v4'
+          ? await linkedInSourceWindows(c, conversionResults(c))
+          : undefined,
+      metadataUnavailable = c.lookup?.linkedinCampaigns?.unavailable;
+    if (windows?.verified) {
+      c.attribution = c.verifiedAttribution = windows.attribution;
+      c.warnings.push(...windows.warnings, ...(metadataUnavailable ? [] : [linkedinCurrentMetadataWarning]));
+    } else
+      c.warnings.push(
+        metadataUnavailable
+          ? 'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.'
+          : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
+        ...(windows?.warnings ?? []),
+      );
+    if (windows) c.context.conversion_windows = windows.conversion_windows;
   },
   normalize(raw, {value, field: n, omitted}) {
     const mixed = raw.objectiveType === 'MIXED',

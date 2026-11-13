@@ -95,6 +95,15 @@ export interface AccountLookupCache {
     unavailable?: boolean;
     limited?: boolean;
   };
+  /**
+   * V2-RPT-04: the account's LinkedIn conversion rules, read once per source and job for the attribution windows of a
+   * v4 source of website conversions, with the lineage of that read. A read LinkedIn refused has no `read`: later
+   * periods and levels do not ask again.
+   */
+  linkedinConversionRules?: {
+    read?: {rules: JsonObject[]; source_hash: string; captured_at: number};
+    lineage: JsonObject[];
+  };
   /** LinkedIn group and creative metadata, under the same per-source authorization as campaign metadata. */
   linkedinGroups?: {
     groups: Record<string, JsonObject>;
@@ -218,6 +227,17 @@ export interface ReportCollection {
   resultDefinition: string;
   complete: boolean;
   collectionComplete: boolean;
+  /**
+   * A tool call the source makes for the reading person, through the same tool pipeline as the website and MCP clients
+   * (checks, authorization and the read path included): for a read of its platform that the qualified reads of the
+   * platform already make (LinkedIn's conversion rules), instead of a second one.
+   */
+  readonly call: ToolCall;
+  /**
+   * V2-RPT-04: an attribution the source verified with its platform (LinkedIn's conversion-rule windows). A detailed
+   * result reports it in place of the attribution declared in its report options.
+   */
+  verifiedAttribution?: string;
   /** Source-specific fields returned with the result (X campaigns without activity, Microsoft's report time zone). */
   readonly context: JsonObject;
   /** RPT-02 scope limits: what the source covers by design. They are disclosed, not counted as incompleteness. */

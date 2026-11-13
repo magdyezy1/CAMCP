@@ -11648,6 +11648,8 @@
   "Your fallback": "هدفك الاحتياطي",
   "Mixed": "مختلط",
   "LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.": "لم يتم التحقق بشكل مستقل من نوافذ الإسناد لقواعد تحويل LinkedIn؛ والإعداد المسبق ذي النوافذ المتحقق منها هو linkedin_campaign_conversion. أسماء الكيانات وأهدافها بيانات وصفية حالية وليست القيم وقت عرض الإعلانات.",
+  "LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.": "تأتي نوافذ الإسناد في LinkedIn من قواعد التحويل الخاصة بالحساب نفسه. لا تقرأ AMCP الحملات التي تُحتسب لها كل قاعدة، لذلك تُستخدم كل قواعد الحساب، وإعدادات القواعد هي الإعدادات الحالية وليست الإعدادات وقت عرض الإعلانات.",
+  "LinkedIn entity names and objectives are current metadata, not the values at delivery time.": "أسماء كيانات LinkedIn وأهدافها بيانات وصفية حالية وليست القيم وقت عرض الإعلانات.",
   "LinkedIn did not return a native campaign group URN.": "لم يُرجع LinkedIn معرّف URN أصليًا لمجموعة الحملات.",
   "LinkedIn did not return the requested native entity pivot.": "لم يُرجع LinkedIn محور الكيان الأصلي المطلوب.",
   "LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.": "تعذّرت قراءة بيانات LinkedIn الوصفية، لذلك تظل بعض الأسماء أو العناصر الأم أو الأهداف غير معروفة.",
