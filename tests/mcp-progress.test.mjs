@@ -12,7 +12,15 @@ import {StdioServerTransport, serveStdio} from '@modelcontextprotocol/server/std
 import {createMcpServer} from '../dist/server/mcp.js';
 import {reportEngine} from './helpers/report-engine.mjs';
 import {offerParkedProviders} from './helpers/parked-providers.mjs';
-import {campaignStack, campaignTool, exportStack, overviewTool, rows, until} from './helpers/mcp-long-run-stacks.mjs';
+import {
+  campaignStack,
+  campaignTool,
+  connectClient,
+  exportStack,
+  overviewTool,
+  rows,
+  until,
+} from './helpers/mcp-long-run-stacks.mjs';
 
 offerParkedProviders('criteo', 'woocommerce');
 // The progress module is read lazily so that the tests fail on behaviour, not on a missing import, before it exists.
@@ -151,6 +159,116 @@ test('a process holds at most maxHeld calls; the next is answered at once, and p
   assert.equal(progress.heldNow(), 1, 'the held call is still held');
   f.setJob('complete');
   assert.equal((await held).structuredContent.data.state, 'complete');
+  assert.equal(progress.heldNow(), 0);
+});
+
+// P2A-04 (differential review, wave 5 round 2 part 2a): the cap of held calls was one counter for the whole process, so one
+// caller with a progress token could keep every slot, and the notification of a stalled stream was awaited without the
+// deadline, so the bound of the hold was checked between polls only.
+test('one actor holds at most its share of the process cap; the rest is answered at once and another actor still gets a hold', async t => {
+  limits(t, {holdMs: 20000, pollMs: 25});
+  assert.equal(progress.progressLimits.maxHeld, 8);
+  assert.equal(progress.progressLimits.perActor, 2, 'a share of 2 of the 8 holds per actor');
+  const f = await exportStack(t),
+    other = await connectClient(
+      t,
+      'modern',
+      f.url,
+      f.store.createKey({tenantId: f.actor.tenantId, userId: 'second-person', role: 'admin'}),
+    ),
+    mine = [await f.connect('legacy'), await f.connect('modern'), await f.connect('legacy')],
+    seen = mine.map(() => []);
+  const holds = mine
+    .slice(0, 2)
+    .map((client, i) =>
+      client.callTool(
+        {name: overviewTool, arguments: f.exportArgs},
+        {onprogress: p => seen[i].push(p), timeout: 40000},
+      ),
+    );
+  await until(() => seen[0].length === 1 && seen[1].length === 1, 4000, 'two holds');
+  assert.equal(progress.heldNow(), 2);
+  // The same actor's third call is answered at once, with the job handle and no notification.
+  const started = Date.now(),
+    third = (
+      await mine[2].callTool(
+        {name: overviewTool, arguments: f.exportArgs},
+        {onprogress: p => seen[2].push(p), timeout: 40000},
+      )
+    ).structuredContent;
+  assert.ok(Date.now() - started < 3000, 'past its share the call is answered at once');
+  assert.deepEqual(seen[2], []);
+  assert.equal(third.success, true);
+  assert.equal(third.data.state, 'queued');
+  assert.equal(progress.heldNow(), 2, 'the share is not exceeded');
+  // Another actor's call is held: the share leaves room in the process cap for others.
+  const elsewhere = [],
+    foreign = other.callTool(
+      {name: overviewTool, arguments: f.exportArgs},
+      {onprogress: p => elsewhere.push(p), timeout: 40000},
+    );
+  await until(() => elsewhere.length === 1, 4000, 'the other actor’s hold');
+  assert.equal(progress.heldNow(), 3);
+  f.setJob('complete');
+  for (const answer of await Promise.all([...holds, foreign]))
+    assert.equal(answer.structuredContent.data.state, 'complete');
+  assert.equal(progress.heldNow(), 0, 'every hold is released');
+  // And the share is returned with the hold: the actor can hold again.
+  assert.equal(progress.heldFor({tenantId: f.actor.tenantId, userId: 'owner'}), 0);
+});
+
+/** A call to answerWithProgress for an export, with a job record that never finishes and the notify and signal given. */
+function stalledCall({notify, signal}) {
+  const result = {success: true, data: {id: 'report-1', job_id: 'job-1'}};
+  return {
+    result,
+    call: {
+      service: {store: {job: () => ({state: 'queued'})}},
+      actor: {tenantId: 't', userId: 'u', role: 'operator'},
+      tool: overviewTool,
+      args: {action: 'export'},
+      result,
+      token: 'stalled',
+      notify,
+      signal,
+      read: async () => ({success: false}),
+    },
+  };
+}
+const never = new Promise(() => {});
+const within = (promise, ms) =>
+  Promise.race([promise, new Promise(resolve => setTimeout(() => resolve('still waiting'), ms))]);
+
+test('a notification that never settles does not keep the hold past its time: the call answers what it answered', async t => {
+  limits(t, {holdMs: 400, pollMs: 25});
+  const {call, result} = stalledCall({notify: () => never, signal: new AbortController().signal}),
+    started = Date.now();
+  const answer = await within(progress.answerWithProgress(call), 4000);
+  assert.equal(answer, result, 'the call’s own answer, not a stalled wait');
+  assert.ok(Date.now() - started < 3000, 'within the hold and a little more, not at the end of the stream');
+  assert.equal(progress.heldNow(), 0, 'the slot is released');
+});
+
+test('a notification that never settles is left when the caller goes: the wait ends at once', async t => {
+  limits(t, {holdMs: 20000, pollMs: 25});
+  const stop = new AbortController(),
+    {call, result} = stalledCall({notify: () => never, signal: stop.signal}),
+    started = Date.now();
+  const waiting = progress.answerWithProgress(call);
+  await until(() => progress.heldNow() === 1, 2000, 'the hold');
+  stop.abort();
+  assert.equal(await within(waiting, 4000), result);
+  assert.ok(Date.now() - started < 3000, 'not after 20 seconds');
+  assert.equal(progress.heldNow(), 0);
+});
+
+test('a notification that fails is the stream closed: the call answers at once and the slot is released', async t => {
+  limits(t, {holdMs: 20000, pollMs: 25});
+  const {call, result} = stalledCall({
+    notify: async () => Promise.reject(new Error('closed')),
+    signal: new AbortController().signal,
+  });
+  assert.equal(await within(progress.answerWithProgress(call), 4000), result);
   assert.equal(progress.heldNow(), 0);
 });
 
