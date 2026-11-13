@@ -1,6 +1,7 @@
 // Runs the tests related to changed files (QA-01): the changed tests themselves, every test whose transitive import
-// closure contains a changed module, the tests that read a changed web/ file as text, the suites that enumerate their
-// inputs at run time (dynamicSuites), and a small critical set (write review, write outcome, review state, spend policy,
+// closure contains a changed module, the tests that read a changed web/ file as text, every test that builds web/ paths when
+// it runs (readsWebDynamically: a change to any web/ file selects it), the suites that enumerate their inputs at run time
+// (dynamicSuites), and a small critical set (write review, write outcome, review state, spend policy,
 // transport, store, Sheets, reporting). When src/, server/, tools/, docs/, generated/, codegen/ or .mirror/ change it
 // also runs the deterministic freshness checks, so a stale tracked report fails here instead of first in Railway's
 // build. It builds as `npm run build` does (buildSteps), so a fresh tree has dist/release-identity.json too.
@@ -94,6 +95,37 @@ export const dynamicSuites = [
 const freshnessScope = /^(?:src|server|tools|docs|generated|codegen|\.mirror)\//;
 const graphRoots = ['src', 'server', 'tools', 'tests', 'generated', 'codegen'];
 const posix = file => file.replaceAll('\\', '/');
+/**
+ * How a file reads web/ without naming one file the planner could match (closing-small, after Merge C found tests outside the
+ * selection): a path built when it runs (`'web/' + name`, `` `web/${name}` ``), the directory itself given to a call, listed in a
+ * list of roots or defaulted (`path.join(root, 'web', name)`, `readdirSync('web')`, `['docs', 'web']`, `dir ?? 'web'`,
+ * `'web/locales'`, `'../web'`), the website's asset server over it (`createPublicAssets(...)`), an asset URL built when it
+ * runs (`'/assets/' + name`) or the `AMCP_TEST_WEB_ROOT` switch. Any file under web/ may break such a reader, so every change
+ * under web/ selects the tests that reach one. These are the tests, helpers, fixtures and tools; `webServingReads` are the
+ * few patterns for src/ and server/, where a bare 'web' is also a data value (a list of directories, a content type) and the
+ * website's own modules say what they serve. The patterns are wide on purpose and comments are not stripped: a test selected
+ * without need costs one run, one missed costs a late failure. (Checked against an fs trace of all test files: no test read
+ * a web/ file that neither a pattern nor a literal name selected.)
+ */
+const sharedWebReads = [
+  /\bweb\/(?:['"`]\s*\+|\$\{)/,
+  /\?\?\s*(['"`])web\1/,
+  /\bcreatePublicAssets\(/,
+  /AMCP_TEST_WEB_ROOT/,
+];
+export const dynamicWebReads = [
+  ...sharedWebReads,
+  /(['"`])web\1\s*[,)\]]/,
+  /['"`](?:\.{1,2}\/|\/)web(?:\/(?:[\w.-]+\/)*[\w-]*)?['"`]|['"`]web\/(?:[\w.-]+\/)*[\w-]+['"`]/,
+  /\/assets\/(?:['"`]|\$\{)/,
+];
+export const webServingReads = [...sharedWebReads, /\b(?:join|resolve|relative)\((?:[^()\n]*,)?\s*(['"`])web\1/];
+export const readsWebDynamically = (text, backend = false) =>
+  (backend ? webServingReads : dynamicWebReads).some(pattern => pattern.test(text));
+/** The planner and its own test write those patterns as data, in code and in comments: they build no web/ path. */
+const patternFiles = new Set(['tools/related-tests.mjs', 'tests/related-tests-selection.test.mjs']);
+/** The files whose own text says how they read web/: tests, their helpers and fixtures, the tools they import and the website. */
+const webReaderCandidate = file => /^(?:tests|tools|src|server)\/.+\.(?:ts|mjs|js|cjs)$/.test(file);
 
 function listFiles(root, directory) {
   const out = [];
@@ -191,11 +223,37 @@ export function relatedPlan({root = process.cwd(), changed, direct = false}) {
     const targets = new Set(files);
     for (const test of tests)
       for (const dependency of closure(test)) if (targets.has(dependency)) add(test, 'transitive');
-    // Tests that read a changed web file as text, or fetch it from /assets/.
-    for (const file of files.filter(f => f.startsWith('web/'))) {
-      const relative = file.slice(4),
-        needles = [file, "'web', '" + relative + "'", '/assets/' + relative];
-      for (const test of tests) if (needles.some(needle => texts.get(test).includes(needle))) add(test, 'web_reader');
+    // Tests that read a changed web file as text, or fetch it from /assets/, and tests that build web/ paths when they run
+    // (readsWebDynamically). Either can sit in the test, a helper or fixture it imports, a tool, or the website's own modules:
+    // web/ files are not nodes of the import graph, so the closure is searched for the text that reads them.
+    const webFiles = files.filter(f => f.startsWith('web/'));
+    if (webFiles.length) {
+      const needles = webFiles.flatMap(file => [file, "'web', '" + file.slice(4) + "'", '/assets/' + file.slice(4)]),
+        kinds = new Map(),
+        kindOf = file => {
+          if (!kinds.has(file)) {
+            let kind = null;
+            if (webReaderCandidate(file)) {
+              const backend = /^(?:src|server)\//.test(file);
+              let text = texts.get(file) ?? fs.readFileSync(path.join(root, file), 'utf8');
+              // A backend module names a web file in a comment as often as in code: only its code counts.
+              if (backend)
+                text = text
+                  .split('\n')
+                  .filter(line => !/^\s*(?:\/\/|\/?\*)/.test(line))
+                  .join('\n');
+              if (needles.some(needle => text.includes(needle))) kind = 'web_reader';
+              else if (!patternFiles.has(file) && readsWebDynamically(text, backend)) kind = 'web_dynamic';
+            }
+            kinds.set(file, kind);
+          }
+          return kinds.get(file);
+        };
+      for (const test of tests)
+        for (const reached of closure(test)) {
+          const kind = kindOf(reached);
+          if (kind) add(test, kind);
+        }
     }
     for (const suite of dynamicSuites)
       if (texts.has(suite.test) && files.some(file => suite.inputs(file, root))) add(suite.test, 'dynamic_inputs');

@@ -4,7 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 import {
   buildSteps,
   criticalTests,
@@ -134,9 +137,14 @@ test('the suites that enumerate their inputs are selected when one of their inpu
     'tests/web-locale-chunks.test.mjs',
   ]);
   assert.deepEqual(dynamic(['tests/fixtures/storage-boundary-allowance.json']), ['tests/storage-boundary.test.mjs']);
-  // A page script or a locale file changes which chunk carries a message.
-  assert.deepEqual(dynamic(['web/owner-operations.js']), ['tests/web-locale-chunks.test.mjs']);
-  assert.deepEqual(dynamic(['web/locales/ar.json']), ['tests/web-locale-chunks.test.mjs']);
+  // A page script or a locale file changes which chunk carries a message. Every change under web/ also selects the mutants
+  // suite, for another reason: it imports tools/qualify.mjs, which snapshots web/ for the public asset version (closing-small:
+  // the tests that reach a file that reads web/ when it runs are selected for any change under it).
+  assert.deepEqual(dynamic(['web/owner-operations.js']), [
+    'tests/mutants.test.mjs',
+    'tests/web-locale-chunks.test.mjs',
+  ]);
+  assert.deepEqual(dynamic(['web/locales/ar.json']), ['tests/mutants.test.mjs', 'tests/web-locale-chunks.test.mjs']);
   // A test could spawn the admin CLI bare, and a tool could check for root.
   assert.deepEqual(dynamic(['tests/operations.test.ts']), ['tests/root-independent-cli.test.mjs']);
   assert.deepEqual(dynamic(['tools/docs-index.mjs']), ['tests/root-independent-cli.test.mjs']);
@@ -148,6 +156,172 @@ test('the suites that enumerate their inputs are selected when one of their inpu
   assert.ok(reasons.reasons.dynamic_inputs >= 1);
   // --direct keeps the earlier literal selection.
   assert.equal(relatedPlan({changed: ['web/owner-operations.js'], direct: true}).selected.length, 0);
+});
+
+// Package closing-small, item 7. Merge C's selection missed 79 of 1,130 test files. Some of them read web/ by a path they build
+// when they run (`'web/' + name`, a directory listing, createPublicAssets('web')), in their own text or in a helper, fixture,
+// tool or website module they import (tests/helpers/web-ui-dom.mjs serves five component suites, server/website.ts snapshots
+// the whole directory for every test that boots the website), so no needle named the changed file. Every change under web/ now
+// selects them: the planner may over-select, never under-select. An fs trace of every test file (scratch, not committed: 324 of
+// 1,142 touched web/) found no web/ file read by a test that neither these rules nor a literal name select.
+const temporaryTree = (t, files) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-related-web-'));
+  t.after(() => removeTestDirectory(root, 'amcp-related-web-'));
+  for (const [file, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
+    fs.writeFileSync(path.join(root, file), text);
+  }
+  return root;
+};
+const syntheticWebTree = {
+  // Builds the path itself.
+  'tests/own.test.mjs': "import fs from 'node:fs';\nconst read = name => fs.readFileSync('web/' + name, 'utf8');\n",
+  // Reads through a helper it imports.
+  'tests/helped.test.mjs': "import {load} from './helpers/load.mjs';\nload('x');\n",
+  'tests/helpers/load.mjs':
+    "import fs from 'node:fs';\nimport path from 'node:path';\nexport const load = name => fs.readFileSync(path.join('web', name));\n",
+  // Reads through a tool it imports, which lists the directory.
+  'tests/tooled.test.mjs': "import {scan} from '../tools/scan.mjs';\nscan();\n",
+  'tools/scan.mjs': "import fs from 'node:fs';\nexport const scan = () => fs.readdirSync('web');\n",
+  // Serves the directory with the website's own asset server.
+  'tests/served.test.mjs':
+    "import {createPublicAssets} from '../dist/server/public-assets.js';\ncreatePublicAssets('web');\n",
+  // Imports a website module that serves its directory by default.
+  'tests/booting.test.mjs': "import {site} from '../dist/server/site.js';\nsite();\n",
+  'server/site.ts':
+    "export const site = (options: {staticDirectory?: string} = {}) => path.resolve(options.staticDirectory ?? 'web');\n",
+  // Names one file: only a change to that file selects it. A source module that names a file is the same: its importers.
+  'tests/literal.test.mjs': "import fs from 'node:fs';\nfs.readFileSync('web/x.js', 'utf8');\n",
+  'tests/font.test.mjs': "import {font} from '../dist/src/font.js';\nfont();\n",
+  'src/font.ts': "export const font = () => resolve('web/fonts/x.ttf');\n",
+  // Uses 'web' as data, in a source module, or names no path at all: selected by no web change.
+  'tests/plain.test.mjs': "const surface = 'web';\nconsole.log('the web surface', surface);\n",
+  'tests/data.test.mjs': "import {kinds} from '../dist/src/kinds.js';\nkinds();\n",
+  'src/kinds.ts': "export const kinds = () => ['dist', 'generated', 'web', 'Skills'];\n",
+  'tests/helped-plain.test.mjs': "import {value} from './helpers/plain.mjs';\nvalue();\n",
+  'tests/helpers/plain.mjs': 'export const value = () => 1;\n',
+};
+const webDynamic = [
+  'tests/booting.test.mjs',
+  'tests/helped.test.mjs',
+  'tests/own.test.mjs',
+  'tests/served.test.mjs',
+  'tests/tooled.test.mjs',
+];
+
+test('a change under web/ selects the tests that build web/ paths when they run, in their own text, a helper or a tool', t => {
+  const root = temporaryTree(t, syntheticWebTree);
+  // A stylesheet no test names: only the readers that build their paths are selected.
+  const css = relatedPlan({root, changed: ['web/y.css']});
+  assert.deepEqual(css.selected, webDynamic);
+  assert.deepEqual(
+    Object.keys(css.reasons),
+    ['web_dynamic'],
+    'a reader that names no file is selected for the whole directory',
+  );
+  // A file one test names: that test too, as before.
+  const named = relatedPlan({root, changed: ['web/x.js']});
+  assert.deepEqual(named.selected, [...webDynamic, 'tests/literal.test.mjs'].sort());
+  assert.equal(named.reasons.web_reader, 1);
+  // A file a source module names: the tests that reach the module.
+  assert.deepEqual(
+    relatedPlan({root, changed: ['web/fonts/x.ttf']}).selected,
+    [...webDynamic, 'tests/font.test.mjs'].sort(),
+  );
+  // Nothing under web/ changed: none of them.
+  assert.deepEqual(relatedPlan({root, changed: ['src/x.ts']}).selected, []);
+  assert.deepEqual(relatedPlan({root, changed: ['docs/OPERATIONS.md']}).selected, []);
+  // --direct is the earlier literal selection and stays so.
+  assert.deepEqual(relatedPlan({root, changed: ['web/y.css'], direct: true}).selected, []);
+  // The static test DOM serves five suites through its helper: reading it is how they read web/components.js.
+  const live = relatedPlan({changed: ['web/components.js']});
+  for (const file of ['core', 'controls', 'overlays', 'table', 'dom'])
+    assert.ok(live.selected.includes(`tests/web-ui-${file}.test.mjs`), file);
+});
+
+test('the readers Merge C missed are selected for any change under web/, and tests with no business there are not', () => {
+  // Some of the 79, by how they read web/: through tests/helpers/web-ui-dom.mjs (web/components*.js), by a path built from a
+  // name, through tools/first-party-fixtures.mjs and tools/docs-links.mjs (a list of roots), and the tests that boot the website
+  // (server/website.ts reads the whole directory into one snapshot when it starts).
+  const missed = [
+    'tests/web-ui-controls.test.mjs',
+    'tests/web-ui-core.test.mjs',
+    'tests/web-ui-dom.test.mjs',
+    'tests/web-ui-overlays.test.mjs',
+    'tests/web-ui-table.test.mjs',
+    'tests/locale-persistence.test.mjs',
+    'tests/product-browser-helpers.test.mjs',
+    'tests/report-library-ui.test.mjs',
+    'tests/report-retry-deep-link.test.mjs',
+    'tests/web-tokens-v2-components.test.mjs',
+    'tests/first-party-contracts.test.mjs',
+    'tests/docs-links.test.mjs',
+    'tests/website.test.ts',
+    'tests/user-accounts.test.ts',
+    'tests/deployment-smoke.test.ts',
+  ];
+  for (const changed of ['web/app.js', 'web/identity.css', 'web/locales/ar/shell.json', 'web/mark.svg']) {
+    const {selected} = relatedPlan({changed: [changed]});
+    for (const file of missed) assert.ok(selected.includes(file), `${changed} selects ${file}`);
+    // Neither reads web/: the stdio transport, the test-oracle check and the TypeScript build stay out of a web-only change.
+    for (const file of ['tests/stdio.test.ts', 'tests/test-oracles.test.mjs', 'tests/http-startup.test.ts'])
+      assert.ok(!selected.includes(file), `${changed} selects ${file}`);
+  }
+  // The font the PDF and workbook writers embed is named in src/report-artifacts.ts: its change selects the tests that reach it.
+  assert.ok(
+    relatedPlan({changed: ['web/fonts/NotoSansArabic.ttf']}).selected.includes(
+      'tests/report-artifact-language.test.mjs',
+    ),
+  );
+});
+
+test('the patterns that say a file builds web/ paths when it runs', async () => {
+  const {readsWebDynamically} = await import('../tools/related-tests.mjs');
+  assert.equal(typeof readsWebDynamically, 'function');
+  // Tests, helpers, fixtures and tools.
+  for (const text of [
+    "fs.readFileSync('web/' + file, 'utf8')",
+    "readFileSync('web/' + file + '.js', 'utf8')",
+    'readFileSync(`web/${name}`)',
+    "path.join(root, 'web', 'app.js')",
+    "fs.readdirSync('web', {recursive: true})",
+    "fs.readdirSync('web/locales/ar')",
+    "createPublicAssets('web')",
+    "new URL('../web/', import.meta.url)",
+    "new URL('../web', import.meta.url)",
+    "process.env.AMCP_TEST_WEB_ROOT ?? 'web'",
+    "const roots = ['README.md', 'docs', 'Skills', 'web'];",
+    "add('web', name => /\\.js$/.test(name));",
+    "'/assets/' + name",
+    'fetch(`/assets/${name}`)',
+  ])
+    assert.equal(readsWebDynamically(text), true, text);
+  for (const text of [
+    "fs.readFileSync('web/app.js', 'utf8')",
+    "readFileSync('../web/app.js')",
+    "const surface = 'web';",
+    'the web page and the webcrypto API',
+    "fetch('/assets/app.js')",
+  ])
+    assert.equal(readsWebDynamically(text), false, text);
+  // Wide on purpose: a bare 'web' that is data in a test is selected too (a test selected without need costs one run).
+  assert.equal(readsWebDynamically("{type: 'web', submitted: '120'}"), true);
+  // src/ and server/: only the modules that serve or snapshot the directory, never a bare 'web' that is data.
+  for (const text of [
+    "path.resolve(options.staticDirectory ?? 'web')",
+    "createPublicAssets(path.join(releaseRoot, 'web'))",
+    "const web = path.join(root, 'web');",
+    'export function createPublicAssets(directory: string) {',
+  ])
+    assert.equal(readsWebDynamically(text, true), true, text);
+  for (const text of [
+    "const directories = ['dist', 'generated', 'web', 'Skills'];",
+    "contentTypes = ['androidApp', 'image', 'web'];",
+    "{type: 'web', submitted: '120'}",
+    "'customers/' + id + '/assets/' + asset",
+    "resolve('web/fonts/x.ttf')",
+  ])
+    assert.equal(readsWebDynamically(text, true), false, text);
 });
 
 test('--plan prints the selection without building or running anything', () => {
