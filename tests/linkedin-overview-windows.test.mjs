@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
-import {linkedinConversionRule} from './fixtures/linkedin-conversion-rules-docs.mjs';
+import {
+  linkedinConversionRule,
+  linkedinConversionRuleWithoutWindows,
+} from './fixtures/linkedin-conversion-rules-docs.mjs';
 
 // V2-RPT-04 (plan 4.7): a v4 Overview source of LinkedIn website conversions takes its attribution windows from the
 // account's conversion rules. Every case runs the real queue, worker and LinkedIn collector over a synthetic LinkedIn
@@ -118,6 +121,50 @@ test('rules with different windows make a source mixed: the pairs are listed, th
     ['mixed', 3, null, 0, null],
   );
   assert.deepEqual(windows.distinct_windows, ['30d click / 7d view', '7d click / 1d view']);
+});
+
+// What an unknown attribution says: the warning it always carried, then why the account's rules could not settle it.
+const staysUnknown = (report, s, reason) => {
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+  assert.equal(s.attribution, 'unknown');
+  assert.equal(report.summary[0].attribution, 'unknown');
+  assert.deepEqual(
+    s.warnings.filter(w => /conversion[ -]rules?|attribution windows/.test(w)),
+    [
+      'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
+      reason,
+    ],
+  );
+};
+
+test('an account without conversion rules leaves the windows unknown, says so and keeps the report complete', async t => {
+  const {report, source: s} = await run(t, 'campaign', {conversions: []});
+  staysUnknown(
+    report,
+    s,
+    'LinkedIn returned no conversion rules for this account, so attribution windows stay unknown.',
+  );
+  const windows = s.level_results[0].conversion_windows;
+  assert.deepEqual(
+    [windows.status, windows.basis, windows.rule_count, windows.reason, windows.single_window],
+    ['unknown', 'account_rules', 0, 'no_rules', null],
+  );
+});
+
+test('a rule that states no window leaves the windows unknown, even beside rules that state one', async t => {
+  const {report, source: s} = await run(t, 'campaign', {
+    conversions: [linkedinConversionRule('501', 30, 7), linkedinConversionRuleWithoutWindows('502')],
+  });
+  staysUnknown(
+    report,
+    s,
+    'LinkedIn states no attribution window for at least one of the account’s conversion rules, so attribution windows stay unknown.',
+  );
+  const windows = s.level_results[0].conversion_windows;
+  assert.deepEqual(
+    [windows.status, windows.rule_count, windows.unknown_rules, windows.reason, windows.single_window],
+    ['unknown', 2, 1, 'rule_window_missing', null],
+  );
 });
 
 test('a v4 campaign-group source of website conversions takes the one window pair its account’s rules share', async t => {

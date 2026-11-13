@@ -11652,6 +11652,8 @@
   "LinkedIn entity names and objectives are current metadata, not the values at delivery time.": "أسماء كيانات LinkedIn وأهدافها بيانات وصفية حالية وليست القيم وقت عرض الإعلانات.",
   "LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.": "قد تُحتسب قواعد تحويل LinkedIn ذات نوافذ إسناد مختلفة ضمن هذه النتيجة، لذلك قد يجمع إجماليها بينها ولا تصفه نافذة إسناد واحدة.",
   "The account’s LinkedIn conversion rules use these attribution windows: {pairs}.": "تستخدم قواعد تحويل LinkedIn في الحساب نوافذ الإسناد هذه: {pairs}.",
+  "LinkedIn returned no conversion rules for this account, so attribution windows stay unknown.": "لم يُرجع LinkedIn أي قواعد تحويل لهذا الحساب، لذلك تبقى نوافذ الإسناد غير معروفة.",
+  "LinkedIn states no attribution window for at least one of the account’s conversion rules, so attribution windows stay unknown.": "لا يذكر LinkedIn نافذة إسناد لقاعدة تحويل واحدة على الأقل من قواعد الحساب، لذلك تبقى نوافذ الإسناد غير معروفة.",
   "LinkedIn did not return a native campaign group URN.": "لم يُرجع LinkedIn معرّف URN أصليًا لمجموعة الحملات.",
   "LinkedIn did not return the requested native entity pivot.": "لم يُرجع LinkedIn محور الكيان الأصلي المطلوب.",
   "LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.": "تعذّرت قراءة بيانات LinkedIn الوصفية، لذلك تظل بعض الأسماء أو العناصر الأم أو الأهداف غير معروفة.",

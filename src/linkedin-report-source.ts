@@ -60,6 +60,11 @@ export const linkedinMixedWindowsWarning =
 /** The distinct window pairs of the account's rules, in the words of the guided join (`30d click / 7d view`). */
 export const linkedinRuleWindowPairsWarning = (pairs: string[]) =>
   'The account’s LinkedIn conversion rules use these attribution windows: ' + pairs.join('; ') + '.';
+/** Why the account's rules could not settle the windows of a source whose results are website conversions. */
+export const linkedinNoRulesWarning =
+  'LinkedIn returned no conversion rules for this account, so attribution windows stay unknown.';
+export const linkedinRuleWindowMissingWarning =
+  'LinkedIn states no attribution window for at least one of the account’s conversion rules, so attribution windows stay unknown.';
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
@@ -234,7 +239,8 @@ async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead |
 /**
  * What the account's rules say of the windows of a source whose reported entities all have website conversions as their
  * result (`results.conversions`, none `other`): the pair they share, or that they differ (`mixed`, the pairs listed and
- * the total kept). Undefined when the join says nothing new.
+ * the total kept), or `unknown` with the reason: no rule, or a rule that states no window. Undefined when the join says
+ * nothing new.
  */
 async function linkedInSourceWindows(
   c: ReportCollection,
@@ -244,21 +250,26 @@ async function linkedInSourceWindows(
   const read = await conversionRules(c);
   if (typeof read === 'string') return undefined;
   const join = linkedInConversionWindows(
-    read.rules,
-    read.rules.map(rule => String(rule.urn)),
-  );
-  if (join.status === 'unknown') return undefined;
+      read.rules,
+      read.rules.map(rule => String(rule.urn)),
+    ),
+    unknown = join.status === 'unknown',
+    reason = unknown ? (read.rules.length ? 'rule_window_missing' : 'no_rules') : null;
   return {
-    attribution: join.attribution,
-    verified: true,
+    attribution: unknown ? 'unknown' : join.attribution,
+    verified: !unknown,
     warnings:
-      join.status === 'mixed'
-        ? [
-            linkedinMixedWindowsWarning,
-            linkedinRuleWindowPairsWarning(join.distinct_windows),
-            linkedinRuleWindowsWarning,
-          ]
-        : [linkedinRuleWindowsWarning],
+      reason === 'no_rules'
+        ? [linkedinNoRulesWarning]
+        : reason === 'rule_window_missing'
+          ? [linkedinRuleWindowMissingWarning]
+          : join.status === 'mixed'
+            ? [
+                linkedinMixedWindowsWarning,
+                linkedinRuleWindowPairsWarning(join.distinct_windows),
+                linkedinRuleWindowsWarning,
+              ]
+            : [linkedinRuleWindowsWarning],
     conversion_windows: {
       status: join.status,
       basis: 'account_rules',
@@ -266,7 +277,7 @@ async function linkedInSourceWindows(
       single_window: join.single_window,
       distinct_windows: join.distinct_windows,
       unknown_rules: join.unknown_conversions.length,
-      reason: null,
+      reason,
       rules_source_hash: read.source_hash,
       rules_captured_at: read.captured_at,
     },
