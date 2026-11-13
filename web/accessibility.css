@@ -37,7 +37,8 @@ summary:focus-visible,
   display: none;
 }
 @media screen {
-  [data-theme='dark'] .logo-ink {
+  [data-theme='dark'] .logo-ink,
+  .callback-top .logo-ink {
     display: none;
   }
   [data-theme='dark'] .logo-white,
@@ -54,7 +55,7 @@ summary:focus-visible,
   }
 }
 /* Forced colours: the system palette sets the canvas and prefers-color-scheme follows it, so the lockup follows it too,
-   whatever the site's own theme says (Ink on a dark canvas vanished). The callback header has the White lockup only. */
+   whatever the site's own theme says (Ink on a dark canvas vanished); so does the callback header. */
 @media screen and (forced-colors: active) and (prefers-color-scheme: dark) {
   :root[data-theme] .logo-ink,
   :root:not([data-theme]) .logo-ink {
@@ -73,11 +74,6 @@ summary:focus-visible,
   :root[data-theme] .logo-white,
   :root:not([data-theme]) .logo-white {
     display: none;
-  }
-}
-@media screen and (forced-colors: active) {
-  :root .callback-top .logo-white {
-    display: block;
   }
 }
 input:not([type='checkbox']):not([type='radio']),

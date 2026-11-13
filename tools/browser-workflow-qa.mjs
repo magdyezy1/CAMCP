@@ -3537,10 +3537,20 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
 }
 
 // The logo under forced colours: the variant follows the forced palette (prefers-color-scheme), whatever the site's theme.
+// The connection result (package closing-small) is shown for a refused callback, which needs no provider answer: its
+// address names the refusal. Its header is a dark fill in both themes that forced colours replace with the palette's
+// canvas, so its lockup must follow the palette like the others (the White one was white on white under a light palette).
+const shellForcedAddress = (route, locale) =>
+  route === '/privacy'
+    ? '/privacy?lang=' + locale
+    : route === '/oauth/result'
+      ? route + '?error=OAUTH_STATE_INVALID&platform=meta'
+      : route;
 async function shellForcedBody({page, result, route, locale, width, appearance, scheme}, site) {
   await page.addInitScript(theme => localStorage.setItem('amcp.theme', theme), appearance);
   // The policy pages are static documents in one language each; their address carries it.
-  await shellOpen(page, site, route === '/privacy' ? '/privacy?lang=' + locale : route, locale);
+  await shellOpen(page, site, shellForcedAddress(route, locale), locale);
+  if (route === '/oauth/result') await page.locator('.callback-top .brand img').first().waitFor({state: 'attached'});
   assert.equal(await page.evaluate(() => matchMedia('(forced-colors: active)').matches), true, 'forced colours are on');
   assert.equal(
     await page.evaluate(scheme => matchMedia('(prefers-color-scheme: ' + scheme + ')').matches, scheme),
@@ -3575,10 +3585,22 @@ async function shellForcedBody({page, result, route, locale, width, appearance, 
     perBrand.every(count => count <= 1),
     'never both lockups at once: ' + perBrand,
   );
+  if (route === '/oauth/result') {
+    // The header shows the palette's lockup, and that wordmark is readable on the canvas behind it (the brand check
+    // measures the colour behind the image: the White one on a light canvas is 1:1, under its 4.5:1).
+    const header = (await page.evaluate(collectBrandLockups)).filter(lockup => lockup.container === 'callback-top');
+    result.forced.connection_result = header.map(brandSummary);
+    assert.equal(header.length, 1, 'the connection result header shows one lockup');
+    assert.deepEqual(
+      brandProblems(header, `connection result, ${scheme} forced palette, ${appearance} theme`),
+      [],
+      'AMCP lockup refused',
+    );
+  }
   await page.screenshot({
     path: path.join(
       shellScreens(),
-      `shell-forced-${route.slice(1) || 'home'}-${scheme}-theme-${appearance}-${width}.png`,
+      `shell-forced-${route.slice(1).replaceAll('/', '-') || 'home'}-${scheme}-theme-${appearance}-${width}.png`,
     ),
   });
 }
@@ -3662,7 +3684,7 @@ async function runShellKind(site) {
           shellFeedbackBody(args, site),
         );
   if (shellCaseSelected('forced'))
-    for (const route of ['/dashboard', '/privacy'])
+    for (const route of ['/dashboard', '/privacy', '/oauth/result'])
       for (const appearance of appearances)
         for (const scheme of ['light', 'dark'])
           await shellCase(
@@ -3674,7 +3696,7 @@ async function runShellKind(site) {
               width: 1280,
               appearance: scheme,
               forcedColors: 'active',
-              signedIn: route === '/dashboard',
+              signedIn: route !== '/privacy',
             },
             args => shellForcedBody({...args, scheme, appearance}, site),
           );
