@@ -97,13 +97,37 @@ test('the page loads the V2 sheets and scripts, in an order that works, and no o
   ]);
   const others = Array.from(
     ui.run(
-      "routeRegistry.filter(entry => entry.path !== '/design-system').flatMap(entry => pageAssetsFor(entry.path))",
+      "routeRegistry.filter(entry => ![ '/design-system', '/reporting-overview' ].includes(entry.path)).flatMap(entry => pageAssetsFor(entry.path))",
     ),
   );
   assert.deepEqual(
     others.filter(file => /^(?:tokens-v2|components|design-system)/.test(file)),
     [],
     'no other page pays for them',
+  );
+  // V2-EXP-01 (package charts): the report builder is the one other page that uses the layer, for the colours of its charts
+  // and the table behind each (a button and a table: not the controls, the overlays or the state page's own files). It loads
+  // them as the charts' dependencies, so a page that draws no chart pays nothing.
+  assert.deepEqual(
+    Array.from(ui.run("pageAssetsFor('/reporting-overview')")).filter(file =>
+      /^(?:tokens-v2|components|design-system|charts)/.test(file),
+    ),
+    [
+      'tokens-v2.css',
+      'components.css',
+      'components-data.css',
+      'charts.css',
+      'components.js',
+      'components-table.js',
+      'charts.js',
+    ],
+  );
+  assert.deepEqual(
+    Array.from(ui.run("pageAssetsFor('/report-library')")).filter(file =>
+      /^(?:tokens-v2|components|design-system|charts)/.test(file),
+    ),
+    [],
+    'the report library draws no chart and loads none of it',
   );
   assert.deepEqual(Array.from(ui.run("pageLocaleChunks('/design-system')")), [
     'workspace',

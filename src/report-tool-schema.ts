@@ -30,7 +30,7 @@ export const overviewRowQueryLimit = 150;
 export const overviewCursorLimit = 1024;
 /** The states a report snapshot is in; `list` filters on them. */
 export const overviewSnapshotStates = ['queued', 'running', 'complete', 'partial', 'failed', 'cancelled'] as const;
-/** What `get` adds when asked: the native fields, each source's lineage, and (accepted ahead of package charts) charts. */
+/** What `get` adds when asked: the native fields, each source's lineage, and the charts a v4 snapshot stores with it. */
 export const overviewIncludeFlags: readonly string[] = ['native', 'lineage', 'charts'];
 
 /** What the tables say across all platforms, in the order the tables list them. */

@@ -287,7 +287,17 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // and server/mcp-progress.ts, the wait of a long run that carries a progress token (V2-MCP-02): 795,
   // and server/mcp-long-runs.ts, the two long runs the progress and the tasks follow (V2-MCP-02): 796,
   // and server/mcp-tasks.ts, the tasks extension of MCP 2026-07-28 (V2-MCP-02): 797.
-  assert.equal(files.length, 797);
+  // Package charts adds src/report-chart-scale.ts, the exact ticks, labels, shares and colours every chart renderer shares
+  // (V2-EXP-01): 792, and src/report-chart-spec.ts (the shape of a chart and the words AMCP writes in one) and
+  // src/report-charts.ts (the charts of a finished snapshot): 794, then src/report-chart-kit.ts (what the builders share),
+  // src/report-chart-breakdowns.ts and src/report-chart-measures.ts (the builders) and src/report-chart-change.ts (the
+  // change of the key figures, read with the report): 798, then src/report-chart-layout.ts (where every mark of a chart
+  // sits, shared by the three renderers): 799, then src/report-chart-theme.ts (the palette, the one escape function and a
+  // spec's words in the report's language): 800, then src/report-chart-render.ts (the SVG back end): 801, then
+  // src/report-chart-pdf.ts (the PDF back end: the chart, its table and the Charts section): 802.
+  // Merge C, with mcp-typed (six files, 797 on its own base) and charts (eleven files, 802 on its own base): both count from 791 and their
+  // new files are different files, so the merged tree measures, with this test's own inspector, 791 + 6 + 11 = 808.
+  assert.equal(files.length, 808);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -377,7 +387,15 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // V2-WEB-03 (web-shell): +2 entries, the titles of Home's two empty panels (no saved campaign plans, no accounts to check).
   // Merge C, with web-shell (12,025 on its own base): measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12047;
   // a key by key three-way merge finds no clash and no key added by both), 12,026 + 21 = 12,047.
-  assert.equal(Object.keys(catalog).length, 12047);
+  // Package charts adds the Arabic of the sentences and labels a chart carries that the catalogue lacked (V2-EXP-01): 47
+  // messages (the two owned reasons above among them; the include-flags reason is the earlier one, renamed; "Change" was
+  // already there), 12,051. The page that draws the charts adds five more (charts, V2-EXP-01): the heading of its section,
+  // the button that opens a chart's table and closes it, and the two lines of the setting that switches charts off, 12,056.
+  // Merge C, with charts (12,056 on its own base): measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12098).
+  // Charts adds 53 entries and removes the old include-flags reason; the integration already has the new reason (mcp-typed, the same Arabic)
+  // and lacks the old one, and meta-results added 'App installs' with another Arabic than charts, which now has one (meta-results', the
+  // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
+  assert.equal(Object.keys(catalog).length, 12098);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

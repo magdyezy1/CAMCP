@@ -152,7 +152,9 @@ const serialize = chunk => JSON.stringify(chunk, null, 2) + '\n';
 export function chunksWith(file, dependencies) {
   const out = new Set(['shell', 'workspace', 'providers']),
     visit = name => {
-      if (out.has(moduleChunk(name))) return;
+      // A page's stylesheets (V2-WEB-02) are dependencies too, and carry no messages: they have no chunk (package charts
+      // makes the report builder depend on the V2 sheets, Merge C).
+      if (!name.endsWith('.js') || out.has(moduleChunk(name))) return;
       out.add(moduleChunk(name));
       for (const dependency of dependencies[name] ?? []) visit(dependency);
     };

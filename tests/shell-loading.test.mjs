@@ -47,6 +47,12 @@ test('the shell loads none of the V2 layer: only the state page does, the loader
   for (const path of JSON.parse(page.run('JSON.stringify(routeRegistry.map(entry => entry.path))'))) {
     const files = Array.from(page.run('pageAssetsFor(' + JSON.stringify(path) + ')'));
     if (path === '/design-system') continue;
+    // Merge C: the report builder is the one other page that lists the layer itself, through its charts script (package
+    // charts, V2-EXP-01: the colours and the table behind each chart); the shell still loads none of it for any route.
+    if (path === '/reporting-overview') {
+      assert.ok(files.includes('charts.js'), path + ' uses the layer only through its charts script');
+      continue;
+    }
     assert.deepEqual(
       files.filter(file => layer.test(file)),
       [],

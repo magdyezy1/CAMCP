@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" width="640" height="240" role="img" aria-labelledby="amcp-16oifup-t amcp-16oifup-d" lang="en" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-16oifup-t">Spend by campaign</title>
+<desc id="amcp-16oifup-d">The largest share of spend is A very long campaign name that will not fit on a narrow screen at all: 92.2% of 1,338,348.82 USD.</desc>
+<rect width="640" height="240" fill="#17141f"/>
+<line x1="186.08" y1="2" x2="186.08" y2="212" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="368.16" y1="2" x2="368.16" y2="212" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="550.24" y1="2" x2="550.24" y2="212" stroke="#51475f" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="4" y1="2" x2="4" y2="212" stroke="#988aab" stroke-width="1" shape-rendering="crispEdges"/>
+<path d="M4,22H449.58A4,4 0 0 1 453.58,26V32A4,4 0 0 1 449.58,36H4Z" fill="#9085e9"><title>A very long campaign name that will not fit on a narrow screen at all: 1,234,567.89</title></path>
+<path d="M4,66H35.97A4,4 0 0 1 39.97,70V76A4,4 0 0 1 35.97,80H4Z" fill="#9085e9"><title>Short: 98,765.43</title></path>
+<rect x="4" y="110" width="1.82" height="14" fill="#9085e9"><title>x: 5,000.00</title></rect>
+<text x="10" y="16" text-anchor="start" font-size="12" fill="#f2edf8">A very long campaign name that will not fit on a narrow screen at all</text>
+<text x="459.58" y="33" text-anchor="start" font-size="12" fill="#f2edf8">1,234,567.89</text>
+<text x="10" y="60" text-anchor="start" font-size="12" fill="#f2edf8">Short</text>
+<text x="45.97" y="77" text-anchor="start" font-size="12" fill="#f2edf8">98,765.43</text>
+<text x="10" y="104" text-anchor="start" font-size="12" fill="#f2edf8">x</text>
+<text x="11.82" y="121" text-anchor="start" font-size="12" fill="#f2edf8">5,000.00</text>
+<text x="10" y="148" text-anchor="start" font-size="12" fill="#f2edf8">مرحبا بالعالم</text>
+<text x="10" y="165" text-anchor="start" font-size="12" fill="#f2edf8">12.50</text>
+<text x="10" y="192" text-anchor="start" font-size="12" fill="#f2edf8">&lt;/svg&gt;&lt;script&gt;alert(1)&lt;/script&gt;</text>
+<text x="10" y="209" text-anchor="start" font-size="12" fill="#f2edf8">3.00</text>
+<text x="7.6" y="228" text-anchor="middle" font-size="12" fill="#c0b5ce">0</text>
+<text x="186.08" y="228" text-anchor="middle" font-size="12" fill="#c0b5ce">500,000</text>
+<text x="368.16" y="228" text-anchor="middle" font-size="12" fill="#c0b5ce">1,000,000</text>
+<text x="550.24" y="228" text-anchor="middle" font-size="12" fill="#c0b5ce">1,500,000</text>
+</svg>

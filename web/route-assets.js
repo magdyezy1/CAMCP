@@ -7,6 +7,7 @@ const pageAssetOrder = [
   'components-data.css',
   'components-overlays.css',
   'design-system.css',
+  'charts.css',
   'campaign-recipes.js',
   'creative-push.js',
   'creative-library.js',
@@ -46,6 +47,8 @@ const pageAssetOrder = [
   'components-controls.js',
   'components-table.js',
   'components-overlays.js',
+  // After the layer it draws with (V2-EXP-01).
+  'charts.js',
   'design-system.js',
 ];
 const pageAssetDependencies = {
@@ -70,6 +73,17 @@ const pageAssetDependencies = {
   'mfa-qr.js': ['vendor/qrcode-generator-2.0.4.js'],
   'report-quality.js': ['report-library.js', 'reporting-overview.js'],
   'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
+  // The charts of a report (V2-EXP-01): drawn with the V2 layer's button and table, in colours of its tokens, and worded with
+  // the report page's own coverage words. Only the report builder loads them.
+  'charts.js': [
+    'tokens-v2.css',
+    'components.css',
+    'components-data.css',
+    'charts.css',
+    'components.js',
+    'components-table.js',
+    'report-quality.js',
+  ],
   'account-approvals.js': ['owner-operations.js'],
   'design-system.js': [
     'tokens-v2.css',

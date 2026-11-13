@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {granularConfig, granularSource} from './overview-granularity-data.mjs';
+import {exerciseReportCharts} from './report-charts-browser.mjs';
 
 /** Actual editor → HTTP → worker checks; the site's providers and Sheets tab are synthetic. */
-export async function exerciseOverviewV4({page, site, locale, result}) {
+export async function exerciseOverviewV4({page, site, locale, width, appearance, output, id, result, checks}) {
   const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
     text = key => (locale === 'ar' ? (catalog[key] ?? key) : key),
     form = page.locator('#overview-config'),
@@ -228,4 +229,17 @@ export async function exerciseOverviewV4({page, site, locale, result}) {
   result.v4_retry = {provider_data_card: true, run_requests: runs.length};
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   assert(overflow <= 1, 'Source controls must fit the viewport: ' + overflow);
+  // V2-EXP-01: the charts of the report the page now shows, then a snapshot with a chart of every shape.
+  await exerciseReportCharts({
+    page,
+    site,
+    locale,
+    width,
+    appearance,
+    output,
+    id,
+    snapshotId: envelope.data.id,
+    result,
+    checks,
+  });
 }

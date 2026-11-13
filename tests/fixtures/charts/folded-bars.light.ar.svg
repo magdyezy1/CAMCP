@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 504" width="640" height="504" role="img" aria-labelledby="amcp-1y11cpf-t amcp-1y11cpf-d" lang="ar" direction="ltr" font-family="Aptos, Segoe UI, Noto Sans Arabic, sans-serif">
+<title id="amcp-1y11cpf-t">الإنفاق حسب الحملة</title>
+<desc id="amcp-1y11cpf-d">أكبر حصة من الإنفاق لـ ⁨Campaign c1⁩: ⁨17.8%⁩ من ⁨559.00 USD⁩. تُجمع البنود الأصغر تحت «أخرى»: ⁨2⁩.</desc>
+<rect width="640" height="504" fill="#fffdf8"/>
+<line x1="344.16" y1="2" x2="344.16" y2="476" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="52.32" y1="2" x2="52.32" y2="476" stroke="#e5e1eb" stroke-width="1" shape-rendering="crispEdges"/>
+<line x1="636" y1="2" x2="636" y2="476" stroke="#8e87a0" stroke-width="1" shape-rendering="crispEdges"/>
+<path d="M636,22H56.32A4,4 0 0 0 52.32,26V32A4,4 0 0 0 56.32,36H636Z" fill="#6250d6"><title>Campaign c1: 100.00</title></path>
+<path d="M636,66H114.69A4,4 0 0 0 110.69,70V76A4,4 0 0 0 114.69,80H636Z" fill="#6250d6"><title>Campaign c2: 90.00</title></path>
+<path d="M636,110H173.06A4,4 0 0 0 169.06,114V120A4,4 0 0 0 173.06,124H636Z" fill="#6250d6"><title>Campaign c3: 80.00</title></path>
+<path d="M636,154H231.42A4,4 0 0 0 227.42,158V164A4,4 0 0 0 231.42,168H636Z" fill="#6250d6"><title>Campaign c4: 70.00</title></path>
+<path d="M636,198H289.79A4,4 0 0 0 285.79,202V208A4,4 0 0 0 289.79,212H636Z" fill="#6250d6"><title>Campaign c5: 60.00</title></path>
+<path d="M636,242H348.16A4,4 0 0 0 344.16,246V252A4,4 0 0 0 348.16,256H636Z" fill="#6250d6"><title>Campaign c6: 50.00</title></path>
+<path d="M636,286H406.53A4,4 0 0 0 402.53,290V296A4,4 0 0 0 406.53,300H636Z" fill="#6250d6"><title>Campaign c7: 40.00</title></path>
+<path d="M636,330H464.9A4,4 0 0 0 460.9,334V340A4,4 0 0 0 464.9,344H636Z" fill="#6250d6"><title>Campaign c8: 30.00</title></path>
+<path d="M636,374H523.26A4,4 0 0 0 519.26,378V384A4,4 0 0 0 523.26,388H636Z" fill="#6250d6"><title>Campaign c9: 20.00</title></path>
+<path d="M636,418H581.63A4,4 0 0 0 577.63,422V428A4,4 0 0 0 581.63,432H636Z" fill="#6250d6"><title>Campaign c10: 10.00</title></path>
+<path d="M636,462H587.47A4,4 0 0 0 583.47,466V472A4,4 0 0 0 587.47,476H636Z" fill="#8e87a0"><title>أخرى: 9.00</title></path>
+<text x="630" y="16" text-anchor="end" font-size="12" fill="#222137">Campaign c1</text>
+<text x="46.32" y="33" text-anchor="end" font-size="12" fill="#222137">100.00</text>
+<text x="630" y="60" text-anchor="end" font-size="12" fill="#222137">Campaign c2</text>
+<text x="104.69" y="77" text-anchor="end" font-size="12" fill="#222137">90.00</text>
+<text x="630" y="104" text-anchor="end" font-size="12" fill="#222137">Campaign c3</text>
+<text x="163.06" y="121" text-anchor="end" font-size="12" fill="#222137">80.00</text>
+<text x="630" y="148" text-anchor="end" font-size="12" fill="#222137">Campaign c4</text>
+<text x="221.42" y="165" text-anchor="end" font-size="12" fill="#222137">70.00</text>
+<text x="630" y="192" text-anchor="end" font-size="12" fill="#222137">Campaign c5</text>
+<text x="279.79" y="209" text-anchor="end" font-size="12" fill="#222137">60.00</text>
+<text x="630" y="236" text-anchor="end" font-size="12" fill="#222137">Campaign c6</text>
+<text x="338.16" y="253" text-anchor="end" font-size="12" fill="#222137">50.00</text>
+<text x="630" y="280" text-anchor="end" font-size="12" fill="#222137">Campaign c7</text>
+<text x="396.53" y="297" text-anchor="end" font-size="12" fill="#222137">40.00</text>
+<text x="630" y="324" text-anchor="end" font-size="12" fill="#222137">Campaign c8</text>
+<text x="454.9" y="341" text-anchor="end" font-size="12" fill="#222137">30.00</text>
+<text x="630" y="368" text-anchor="end" font-size="12" fill="#222137">Campaign c9</text>
+<text x="513.26" y="385" text-anchor="end" font-size="12" fill="#222137">20.00</text>
+<text x="630" y="412" text-anchor="end" font-size="12" fill="#222137">Campaign c10</text>
+<text x="571.63" y="429" text-anchor="end" font-size="12" fill="#222137">10.00</text>
+<text x="630" y="456" text-anchor="start" font-size="12" fill="#222137" direction="rtl" unicode-bidi="embed">أخرى</text>
+<text x="577.47" y="473" text-anchor="end" font-size="12" fill="#222137">9.00</text>
+<text x="632.4" y="492" text-anchor="middle" font-size="12" fill="#696678">0</text>
+<text x="344.16" y="492" text-anchor="middle" font-size="12" fill="#696678">50</text>
+<text x="52.32" y="492" text-anchor="middle" font-size="12" fill="#696678">100</text>
+</svg>

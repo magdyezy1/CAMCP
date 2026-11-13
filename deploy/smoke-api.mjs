@@ -53,11 +53,9 @@ export async function checkApplication({base, origin, password, writes, restart}
   ];
   for (const path of paths) assert.equal((await api(path)).status, 200, path);
   const page = await (await api('/reporting-overview')).text();
-  assert.match(
-    page,
-    /href="\/reporting-overview" data-route="reporting-overview"/,
-    'Reporting Overview navigation is present',
-  );
+  // V2-WEB-03: the shell draws its navigation from the route registry (web/routes.js), so the served page carries the empty
+  // navigation the registry fills; that Reporting Overview is one of its entries is asserted on the registry below.
+  assert.match(page, /<nav aria-label="Main navigation"/, 'The page carries the navigation the route registry fills');
   const assetVersion = /src="\/assets\/v\/([0-9a-f]{64})\/theme\.js"/.exec(page)?.[1];
   assert.ok(assetVersion, 'The page binds initial assets to one complete public snapshot');
   // The report builder's script loads with its page, not with the shell (WEB-07): the page loader and the route
@@ -71,6 +69,11 @@ export async function checkApplication({base, origin, password, writes, restart}
   assert.ok(!page.includes('reporting-overview.js'), 'The report builder is not part of the shell every page loads');
   const registry = await api(snapshot + 'routes.js');
   assert.equal(registry.status, 200, 'The versioned route registry is served');
+  assert.match(
+    await registry.text(),
+    /\{\s*path: '\/reporting-overview',[^{}]*\bnav: true\b/,
+    'Reporting Overview navigation is present: the route registry lists the page as a navigation entry',
+  );
   assert.match(
     await registry.text(),
     /\{\s*path: '\/reporting-overview',[^{}]*\bassets: \[[^\]]*'reporting-overview\.js'/,

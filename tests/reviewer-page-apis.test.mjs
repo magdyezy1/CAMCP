@@ -440,11 +440,14 @@ const admits = testAccountGate(),
   shellScripts = [...fs.readFileSync('web/index.html', 'utf8').matchAll(/<script src="\/assets\/([^"]+)"/g)].map(
     match => match[1],
   );
-/** A page's feature scripts and everything they load first (web/route-assets.js); vendor files name no API. */
+/**
+ * A page's feature scripts and everything they load first (web/route-assets.js); vendor files name no API, and neither does a
+ * stylesheet (the report builder loads the charts' sheet and the V2 layer's, V2-EXP-01).
+ */
 const pageScripts = files => {
   const out = new Set();
   const add = file => {
-    if (out.has(file) || file.startsWith('vendor/')) return;
+    if (out.has(file) || file.startsWith('vendor/') || !file.endsWith('.js')) return;
     out.add(file);
     for (const dependency of plan.dependencies[file] ?? []) add(dependency);
   };

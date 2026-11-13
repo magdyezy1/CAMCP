@@ -353,13 +353,18 @@ test('list narrows snapshots by state, platform and client, and continues only b
   assertRefused(await f.call({action: 'list', limit: 1, cursor: one.data.next_cursor}), 'INVALID_CURSOR');
 });
 
-test('include accepts charts as a flag the reads leave alone, and still refuses any other key or a non-boolean', async t => {
+test('include accepts charts as a flag that adds the charts of the snapshot and nothing else, and still refuses any other key or a non-boolean', async t => {
   const f = fixture(t),
     {id} = await f.report(['meta']),
     plain = await f.call({action: 'get', id, limit: 5}),
     withCharts = await f.call({action: 'get', id, limit: 5, include: {charts: true}});
   assert.equal(withCharts.success, true, JSON.stringify(withCharts.error));
-  assert.deepEqual(withCharts.data, plain.data);
+  // Merge C: this package accepted the flag and answered the plain read until package charts (V2-EXP-01) returned the
+  // charts of a v4 snapshot there. The answer is now the plain one and its charts, field for field and nothing more.
+  const {charts, ...rest} = withCharts.data;
+  assert.ok(Array.isArray(charts) && charts.length > 0, 'the charts of the snapshot come back');
+  assert.equal(Object.hasOwn(plain.data, 'charts'), false, 'a plain read carries none');
+  assert.deepEqual(rest, plain.data);
   assertRefused(await f.call({action: 'get', id, include: {charts: 'yes'}}), 'INVALID_REPORT');
   assertRefused(await f.call({action: 'get', id, include: {raw: true}}), 'INVALID_REPORT');
   const listed = f.service.listTools().find(item => item.name === tool);
@@ -375,7 +380,7 @@ test('the help of get and list names the filters and the cursor with their rules
   for (const name of ['client', 'platform', 'state', 'cursor']) assert.ok(list[name], 'list ' + name);
   for (const name of ['client', 'state', 'entity', 'query']) assert.equal(name in get && name in list, false, name);
   assert.match(get.cursor.description, /INVALID_CURSOR/);
-  assert.match(get.include.description, /charts:true is accepted and adds nothing/);
+  assert.match(get.include.description, /charts:true adds the charts a v4 snapshot stores with it/);
   assert.match(get.entity.description, /the rows under it/);
   assert.match(list.state.description, /queued, running, complete, partial, failed or cancelled/);
   assert.match(list.client.description, /all of whose sources are accounts of this client profile/);

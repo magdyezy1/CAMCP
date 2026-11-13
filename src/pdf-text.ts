@@ -10,14 +10,22 @@ const features = {rtlm: false} as unknown as PDFKit.Mixins.TextOptions['features
 type Run = {text: string; rtl: boolean};
 type Line = {logical: string; runs: Run[]; width: number; rtl: boolean};
 
-/** Unicode bidi reorders runs; Fontkit receives logical Arabic text so contextual shaping remains intact. */
-export function pdfTextLines(value: string, width: number, measure: (text: string) => number): Line[] {
+/**
+ * Unicode bidi reorders runs; Fontkit receives logical Arabic text so contextual shaping remains intact. The base direction
+ * is found in the text unless `direction` gives it (the picture of a chart sets the direction of its report, not of its text).
+ */
+export function pdfTextLines(
+  value: string,
+  width: number,
+  measure: (text: string) => number,
+  direction?: 'ltr' | 'rtl',
+): Line[] {
   if (value.length > 8192 || !Number.isFinite(width) || width <= 0)
     throw new MirrorError('REPORT_ARTIFACT_LIMIT', 'Narrow the report text before PDF rendering.');
   const lines: Line[] = [];
   for (const paragraph of value.split(/\r\n|[\r\n]/)) {
     const text = paragraph.trim(),
-      embedding = bidi.getEmbeddingLevels(text),
+      embedding = bidi.getEmbeddingLevels(text, direction),
       rtl = !!(embedding.paragraphs[0]?.level! & 1);
     const range = (start: number, end: number): Line => {
       const order = bidi.getReorderedIndices(text, embedding, start, end).slice(start, end + 1);
@@ -90,7 +98,38 @@ export function pdfTextLines(value: string, width: number, measure: (text: strin
   return lines;
 }
 
-export function drawPdfText(doc: InstanceType<typeof PDFDocument>, value: string, alignRight: boolean) {
+type Doc = InstanceType<typeof PDFDocument>;
+/**
+ * Paints the runs of one line from `at` to the right, at `y`: the top of the text, or with `onBaseline` its baseline; `mode`
+ * says how the letters are painted (filled by default, or as an outline, or both).
+ */
+function paintRuns(
+  doc: Doc,
+  line: Line,
+  at: number,
+  y: number,
+  onBaseline = false,
+  mode: {stroke?: boolean; fill?: boolean} = {},
+) {
+  for (const run of line.runs) {
+    // Numeric Arabic-script runs are LTR under Unicode. Shaping each grapheme prevents Fontkit reversing digits.
+    const pieces =
+      !run.rtl && rtlScript.test(run.text)
+        ? [...new Intl.Segmenter('und', {granularity: 'grapheme'}).segment(run.text)].map(s => s.segment)
+        : [run.text];
+    for (const piece of pieces) {
+      doc.text(piece, at, y, {
+        lineBreak: false,
+        features,
+        ...(onBaseline ? {baseline: 'alphabetic' as const} : {}),
+        ...mode,
+      });
+      at += doc.widthOfString(piece, {features});
+    }
+  }
+}
+
+export function drawPdfText(doc: Doc, value: string, alignRight: boolean) {
   const width = 507,
     x = 44,
     lineHeight = doc.currentLineHeight(true) + 3;
@@ -98,21 +137,81 @@ export function drawPdfText(doc: InstanceType<typeof PDFDocument>, value: string
   for (const line of lines) {
     if (doc.y + lineHeight > doc.page.height - 65) doc.addPage();
     const y = doc.y;
-    let at = x + (alignRight || line.rtl ? width - line.width : 0);
     doc.markContent('Span', {actual: line.logical});
-    for (const run of line.runs) {
-      // Numeric Arabic-script runs are LTR under Unicode. Shaping each grapheme prevents Fontkit reversing digits.
-      const pieces =
-        !run.rtl && rtlScript.test(run.text)
-          ? [...new Intl.Segmenter('und', {granularity: 'grapheme'}).segment(run.text)].map(s => s.segment)
-          : [run.text];
-      for (const piece of pieces) {
-        doc.text(piece, at, y, {lineBreak: false, features});
-        at += doc.widthOfString(piece, {features});
-      }
-    }
+    paintRuns(doc, line, x + (alignRight || line.rtl ? width - line.width : 0), y);
     doc.endMarkedContent();
     doc.x = x;
     doc.y = y + lineHeight;
   }
+}
+
+/** The width a text has in the embedded font at a size, measured the way it is drawn. */
+export function pdfTextWidth(doc: Doc, value: string, size: number, rtl?: boolean): number {
+  doc.fontSize(size);
+  const [line] = pdfTextLines(
+    value,
+    100000,
+    text => doc.widthOfString(text, {features}),
+    rtl === undefined ? undefined : rtl ? 'rtl' : 'ltr',
+  );
+  return line?.width ?? 0;
+}
+
+export interface PdfTextAtOptions {
+  size?: number;
+  color?: string;
+  /** The base direction of the text: the report's, not found in the text, so a number in an Arabic report sets as the report does. */
+  rtl?: boolean;
+  /** A figure that stands out: its letters filled and stroked a little. */
+  bold?: boolean;
+  /** An outline of this colour and width drawn before the letters, so a label can be read over a hatch. */
+  halo?: {color: string; width: number};
+}
+/**
+ * One line of text at an absolute position, for the labels of a chart: the left, centre or right edge of the text is at `x`
+ * (physical, whatever the language) and `baseline` is where its letters stand. Arabic is shaped and reordered as the flowing
+ * text is, the logical text travels with it (so a reader and an extraction get the words), and the cursor of the flowing text
+ * is left where it was. Returns the width the text has in the embedded font.
+ */
+export function drawPdfTextAt(
+  doc: Doc,
+  value: string,
+  x: number,
+  baseline: number,
+  anchor: 'left' | 'center' | 'right',
+  options: PdfTextAtOptions = {},
+): number {
+  const size = options.size ?? 10;
+  doc.fontSize(size);
+  const [line] = pdfTextLines(
+    value,
+    100000,
+    text => doc.widthOfString(text, {features}),
+    options.rtl === undefined ? undefined : options.rtl ? 'rtl' : 'ltr',
+  );
+  if (!line?.runs.length) return 0;
+  const cursor = {x: doc.x, y: doc.y},
+    start = x - (anchor === 'right' ? line.width : anchor === 'center' ? line.width / 2 : 0);
+  if (options.halo) {
+    // The outline is decoration, not text: a reader of the file does not meet it twice.
+    doc.markContent('Artifact');
+    doc.save();
+    doc.lineWidth(options.halo.width).lineJoin('round').strokeColor(options.halo.color);
+    paintRuns(doc, line, start, baseline, true, {stroke: true});
+    doc.restore();
+    doc.endMarkedContent();
+  }
+  const color = options.color ?? '#000000';
+  doc.fillColor(color);
+  doc.markContent('Span', {actual: line.logical});
+  if (options.bold) {
+    doc.save();
+    doc.lineWidth(size * 0.04).strokeColor(color);
+    paintRuns(doc, line, start, baseline, true, {stroke: true, fill: true});
+    doc.restore();
+  } else paintRuns(doc, line, start, baseline, true);
+  doc.endMarkedContent();
+  doc.x = cursor.x;
+  doc.y = cursor.y;
+  return line.width;
 }

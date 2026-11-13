@@ -89,6 +89,7 @@ import {
   expandOverviewV4Sources,
   overviewV4Scope,
   overviewV4Sources,
+  projectOverviewV4Charts,
   projectOverviewV4Rows,
   projectOverviewV4Sources,
   projectOverviewV4Summaries,
@@ -102,6 +103,8 @@ import {
 } from './overview-v4.js';
 import {applyScopedRollups} from './report-scope-rollups.js';
 import {calculateSnapshot, duplicateRowsError, snapshotOutcome} from './report-row-assembly.js';
+import {reportChartsOrNone} from './report-charts.js';
+import {chartKindIds, chartKinds} from './report-chart-spec.js';
 import {ensureNoticeRecord, settleNotices, spendNotices} from './report-definition-migration.js';
 export {objectiveMigrationNotice} from './report-definition-migration.js';
 import {
@@ -576,6 +579,30 @@ export class ReportingOverview {
     }
     if (input.partial_delivery !== undefined && !['allow_marked', 'complete_only'].includes(input.partial_delivery))
       throw new MirrorError('INVALID_REPORT', 'Choose marked partial delivery or complete reports only.');
+    // V2-EXP-01: which charts the report leaves out. A setting of the current form only, kept in the v4 definition (the
+    // form the build before V2 reads has none), and stored the way it is meant: sorted, without repeats, absent when empty.
+    let charts: JsonObject | undefined;
+    if (input.charts !== undefined) {
+      const setting = input.charts;
+      if (!v4)
+        throw new MirrorError(
+          'INVALID_REPORT',
+          'Chart settings belong to the current report form: send contract_version overview-config-v4.',
+        );
+      if (
+        !setting ||
+        typeof setting !== 'object' ||
+        Array.isArray(setting) ||
+        Object.keys(setting).some(key => key !== 'disabled') ||
+        !Array.isArray(setting.disabled) ||
+        setting.disabled.some((kind: unknown) => typeof kind !== 'string' || !chartKindIds.includes(kind))
+      )
+        throw new MirrorError('INVALID_REPORT', 'Use charts.disabled with chart kinds from the list in bootstrap.', {
+          chart_kinds: chartKindIds,
+        });
+      const disabled = [...new Set<string>(setting.disabled)].sort();
+      if (disabled.length) charts = {disabled};
+    }
     return {
       ...(v4 ? {contract_version: overviewConfigV4} : {}),
       formula_version: formulaVersion,
@@ -592,6 +619,7 @@ export class ReportingOverview {
       custom_metrics: custom,
       targets: policies,
       objectives: input.objectives ?? [],
+      ...(charts ? {charts} : {}),
       version: 1,
     };
   }
@@ -759,6 +787,8 @@ export class ReportingOverview {
         metric_sources: metricSources,
         objectives: objectiveGroups,
         objective_fallback_groups: objectiveFallbackGroups,
+        // V2-EXP-01: the charts a report can switch off (config.charts.disabled), so the editor keeps no list of its own.
+        chart_kinds: chartKinds,
         views: ownerRecords.views.map(publicDefinition),
         templates: templates.map(publicDefinition),
         schedules: ownerRecords.schedules.map(publicDefinition),
@@ -1000,10 +1030,14 @@ export class ReportingOverview {
         cursor = filtered && more ? encodeOffsetCursor(start.binding!, offset + limit) : null;
       const job = store.job(tenant, r.job_id),
         now = Date.now(),
-        active = ['queued', 'running'].includes(job.state);
+        active = ['queued', 'running'].includes(job.state),
+        // V2-EXP-01: the charts are stored with the snapshot and returned when asked for (include: {charts: true}): a
+        // plain get of a three-level report stays under a third of the bytes of the three single-level gets it replaces.
+        {charts: _stored, ...visible} = publicReport(store, tenant, r);
       return {
-        ...publicReport(store, tenant, r),
+        ...visible,
         ...projectOverviewV4Summaries(r),
+        ...(input.include?.charts === true ? projectOverviewV4Charts(r, this.chartBaseline(actor, r)) : {}),
         rows: projectOverviewV4Rows(r, matched.slice(offset, offset + limit), input.include),
         sources: projectOverviewV4Sources(r, input.include),
         row_count: r.rows.length,
@@ -1400,6 +1434,23 @@ export class ReportingOverview {
       ...compareSnapshots(current, baseline, {offset: input.offset, limit: input.limit}),
       paired: baselineId === current.comparison?.baseline_id,
     };
+  }
+  /**
+   * V2-EXP-01: the baseline a snapshot's key figures are compared with when the report is read: the snapshot linked by
+   * `compare: previous_period`, if this actor may read it. A read of two retained snapshots, no provider request. Absent
+   * when the snapshot has no key figures, no link, or a baseline the actor cannot reach: the figures then show no change.
+   */
+  private chartBaseline(actor: Actor, report: JsonObject): JsonObject | undefined {
+    const id = report.comparison?.baseline_id;
+    if (typeof id !== 'string' || !report.charts?.some((chart: JsonObject) => chart.kind === 'kpi')) return undefined;
+    try {
+      const baseline = this.service.store.document(actor.tenantId, 'overview_report', id);
+      this.access(actor, baseline.config);
+      return baseline;
+    } catch (error) {
+      if (error instanceof MirrorError) return undefined;
+      throw error;
+    }
   }
   /** EXP-03 B: an export cannot replace another report's owned tab (rollback: AMCP_SHEETS_DESTINATION_OWNERSHIP=off). */
   private assertDestinationOwner(tenant: string, report: JsonObject, destinationId: string) {
@@ -2125,6 +2176,22 @@ export class ReportingOverview {
     const {nativeFields, rows, summary, windowSummary} = await calculateSnapshot(results, r.config);
     const outcome = snapshotOutcome(results, rows, r.config),
       {state, failures} = outcome,
+      // V2-EXP-01: the charts are computed here, once, and stored with the snapshot. They add to the rows and never fail a
+      // report: one that cannot be computed is left out and audited.
+      charts = reportChartsOrNone(
+        {config: r.config, state, rows, summary, window_summary: windowSummary},
+        {
+          platformNames: Object.fromEntries(
+            Object.entries(reportPlatforms).map(([id, platform]) => [id, platform.name]),
+          ),
+        },
+        error =>
+          store.appendAudit(tenant, 'report-overview/' + r.id, {
+            event: 'report_charts_unavailable',
+            report_id: r.id,
+            code: error instanceof MirrorError ? error.code : 'CHART_COMPUTATION_FAILED',
+          }),
+      ),
       sources =
         r.config.contract_version === overviewConfigV4
           ? overviewV4Sources(results, rows, r.config.sources)
@@ -2148,6 +2215,8 @@ export class ReportingOverview {
         completed_at: Date.now(),
         summary,
         ...(windowSummary ? {window_summary: windowSummary} : {}),
+        // Named even when absent, so charts an earlier finish of this snapshot stored never outlive a recomputation.
+        charts,
         native_metrics: [...nativeFields],
         row_count: rows.length,
       };

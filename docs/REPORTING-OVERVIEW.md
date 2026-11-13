@@ -430,8 +430,8 @@ Each note is `{metric, known, total, unit, reason}`, where `unit` is `rows` or `
 
 - The website's summary and whole-window cards list each note ("spend: 26 of 28 rows") and end with "Limited coverage:
   these totals may be incomplete.", also when the source itself is complete. The HTML client pack puts the same words
-  beside the values and under its table. A period of the spend sparkline built from some of its rows is a hollow mark,
-  never a dip.
+  beside the values and under its table. A period of the spend sparkline, or of the spend-over-time chart, built from
+  some of its rows is a hollow mark, never a dip.
 - CSV and the Sheets tab: a `Coverage` column names, row by row, the figures that are short ("spend: 1 of 2
   measurements"). After the data rows, one `Coverage note` row per short summary names the platform, the rolled-up label
   and the notes in its `Campaign` column, with the account, currency, time zone, dates and level in their own columns,
@@ -467,8 +467,8 @@ column note says that values with more digits than a number holds exactly are ke
 before.
 
 **Reading a snapshot.** `get` returns a v4 row without its native evidence, and a source without `native`,
-`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them.
-`include:{charts:true}` is accepted and adds nothing until the chart definitions are returned there. A
+`native_account_evidence` and `lineage`; `include:{native:true}` and `include:{lineage:true}` return them. A v4
+snapshot's `charts` are returned with `include:{charts:true}` and only then, so a plain `get` keeps its size. A
 `window_summary[].series` point is `{date_from, spend}` and, when its period was calculated from fewer units than it
 has, also `coverage` in the shape of a metric's, so a week with one unknown campaign is a short point and not a dip.
 
@@ -530,7 +530,8 @@ that cannot name them reports.
   `entity_count`, decisions counted once per entity and a `series` of spend per period (oldest first). `get` returns
   it; `list` pages leave it out. The website shows one tile per account with a spend sparkline (an image with a text
   summary; an unknown period leaves a gap, and a period calculated from some of its rows is a hollow mark) instead of
-  one card per period. Older grouped snapshots keep their per-period cards.
+  one card per period; where the snapshot carries a drawn spend-over-time chart ([Charts](#charts-v2-exp-01)), the chart
+  takes the sparkline's place. Older grouped snapshots keep their per-period cards.
 - **Results table.** The row header is the entity name only, at most 40 characters (the full name stays on hover and
   in the context cell), and stays visible while the metrics scroll sideways, at the inline start in both directions.
   IDs, level, parents, account, currency, timezone and source details sit in the **Platform · objective** cell. Daily
@@ -742,6 +743,45 @@ snapshots only: no provider request and no saved change.
 On **Evidence and analysis** (`/reports`), the **Earlier comparison report** select applies the same rule as the server
 (same account, report type, grain and measurement definitions, equal length, ending before this report starts) and
 shows disabled entries with their reason.
+
+## Charts (V2-EXP-01)
+
+A finished v4 snapshot stores its charts beside its rows. The server computes them once (`src/report-charts.ts`: pure, no
+provider, no job); the website, the SVG back end and the PDF only draw what is stored, so the three agree and an MCP client
+receives the same data. A snapshot from before charts, and every v3 snapshot, has none and is not recomputed.
+
+- **The set.** `kpi` (the key figures of each summary and their change since the previous period), `trend` (spend and
+  results over time, from two periods), `spend_by_entity` (spend by campaign, or by the level a source reports at its top,
+  and by platform where a currency has two; the ten largest and Other), `cost_vs_target` (cost per result with its target
+  marked, where a target applies), `spend_by_objective` (a stacked bar per platform, never a pie; the three largest and
+  Other) and `top_ads` (the ads with the most results; no picture until previews supply one in round 3). A chart with
+  nothing honest to show is not drawn: its `notes` say why and its `table` keeps the data.
+- **Never.** A bar that does not start at zero, or a second axis. A mix of currencies or result definitions (each gets its
+  own chart and a note). An unknown value drawn as zero (it is a gap, "No data"). A value below zero, a single entry, or a
+  chart with no known value drawn at all (the table has it). A short period drawn as a dip: a period calculated from fewer
+  rows is a hollow mark off the line, and the coverage notes say how many. Rolled-up totals sharing a chart with native
+  ones (the rolled-up label shows). A partial report says so on every chart.
+- **Exact numbers.** Values are exact decimal text, ticks are exact decimal arithmetic (a step of 1, 2 or 5 times a power of
+  ten), and `value_labels` are the text a reader reads, made once, so no renderer formats a number.
+- **Colour follows the key.** Three hues and a neutral for Other, validated in both themes (`--chart-*`,
+  [design system](DESIGN-SYSTEM.md#charts)). A series takes its hue from its key, never its rank, and two series on one chart
+  never share one (the later takes the next free hue). Paper and forced colours add a stripe or dot texture, and every chart
+  has a table.
+- **The sentence.** One takeaway from the data, no model: `{key, params, text}`, said through the website's catalog and the
+  artifact catalogue (Arabic in the same commit).
+- **Reading.** `get` returns `charts` only with `include:{charts:true}` (about 6 KB for the audit's three-level TikTok
+  report), and `list` and `compare_candidates` never. A key figure's change since the previous period is read at `get` time
+  from the linked baseline (`comparison.baseline_id`, through `comparisonEligibility` and `compareSnapshots`, because the
+  baseline can finish later); there is none without a linked baseline, or across currencies.
+- **Switching off.** `charts:{disabled:[kinds]}` in a v4 definition, with kinds from the bootstrap's `chart_kinds`; it is
+  stored in the v4 form only, so a rollback ignores it. The builder lists each kind in a **Charts** section.
+- **Where.** The report results page (a drawn trend replaces the small spend line on each summary card), the **Charts**
+  section of the PDF (the first 24, each with picture, notes and table) and `chartSvg` for round 3's HTML report. A picture
+  has one tab stop: the arrow keys, Home and End move between marks, hover and focus show a tooltip, Escape dismisses it, and
+  **Show table** opens a real table (`aria-expanded`). Arabic mirrors the layout; time stays left to right in Latin digits.
+- **Rendered checks.** The `granular-reporting` kind of the [browser qualification](LOCAL-BROWSER-QA.md) reads the charts of
+  the run it made, then a snapshot with a chart of every shape, in both languages and themes at four widths: the palette as
+  painted, every label inside its picture, keyboard, tooltip, table, paper textures, axe and the Arabic leak probe.
 
 ## Coverage
 

@@ -256,10 +256,16 @@
       "raised": [
         "reference_words 157730 → 158407"
       ]
+    },
+    {
+      "reason": "Package charts (V2-EXP-01), merged after web-shell: +985 reference words. It recorded +998 in one step on its own branch (156417 -> 157415): +18 words of an earlier sentence, +675 for the Charts section of docs/REPORTING-OVERVIEW.md and +305 for the Charts subsection of docs/DESIGN-SYSTEM.md. 13 words fewer here: the merge keeps charts' sentence on include:{charts:true} (the charts are returned there) and drops mcp-typed's 13-word sentence that said the flag was accepted and added nothing until then. The merged count is the measured one: 158407 + 985 = 159392",
+      "raised": [
+        "reference_words 158407 → 159392"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 158407
+    "reference_words": 159392
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

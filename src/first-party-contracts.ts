@@ -2043,7 +2043,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     config:
       'A report definition: name, grain, date_range and sources (one account each, with the levels, statuses, ID lists and options bootstrap platforms[].reporting_v4 lists for its platform). A level, status or option a source leaves out takes the default bootstrap lists; a v3 definition (one level, no levels) is still accepted.',
     include:
-      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage; charts:true is accepted and adds nothing until the chart definitions ship. Without them rows and sources are compact.',
+      'get: native:true returns each row whole with its native fields; lineage:true adds each source’s lineage; charts:true adds the charts a v4 snapshot stores with it (an older snapshot has none). Without them rows and sources are compact.',
     platform:
       'get: only the rows of this platform; list: only the snapshots with a source of this platform. A platform ID from bootstrap platforms[].id.',
     level:
