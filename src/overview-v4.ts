@@ -655,10 +655,7 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
           const {known, total} = coverageCounts(value);
           return fields.includes(name) && (value.unavailable_reason !== undefined || known < total);
         }),
-      ),
-      recommendation =
-        row.recommendation &&
-        Object.fromEntries(Object.entries(row.recommendation).filter(([key]) => key !== 'evidence'));
+      );
     return {
       ...(include.native === true
         ? visible
@@ -687,13 +684,16 @@ export function projectOverviewV4Rows(snapshot: JsonObject, rows: JsonObject[], 
                 }
               : {}),
             ...(row.other_results?.length ? {other_results: row.other_results} : {}),
+            // AMCP's own values that the website prints in its rows table and cannot rebuild from the rest of the compact
+            // row (ruling 14): a campaign group's results by objective, and below, a recommendation's evidence.
+            ...(row.results_by_objective !== undefined ? {results_by_objective: row.results_by_objective} : {}),
             metrics: Object.fromEntries(fields.map(key => [key, row.metrics?.[key] ?? null])),
             ...(Object.keys(partial).length ? {metrics_coverage: partial} : {}),
             ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
             ...(row.quality?.metric_calculation_rounding
               ? {quality: {metric_calculation_rounding: row.quality.metric_calculation_rounding}}
               : {}),
-            recommendation,
+            recommendation: row.recommendation,
           }),
       level: row.entity_level ?? 'campaign',
       objective: {

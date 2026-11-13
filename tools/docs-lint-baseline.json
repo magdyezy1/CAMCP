@@ -280,10 +280,16 @@
       "raised": [
         "reference_words 159815 → 160633"
       ]
+    },
+    {
+      "reason": "Package website-get (ruling 14), merged after mcp-surface: +21 reference words, recorded in one step on its own branch (159815 -> 159836): docs/REPORTING-OVERVIEW.md states that the compact v4 row keeps its recommendation evidence and, for a LinkedIn campaign group of different objectives, its results_by_objective. The merged count is the measured one: 160633 + 21 = 160654",
+      "raised": [
+        "reference_words 160633 → 160654"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 160633
+    "reference_words": 160654
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

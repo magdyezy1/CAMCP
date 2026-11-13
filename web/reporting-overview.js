@@ -156,7 +156,7 @@ function reportObjectiveSource(row) {
 function reportResultMapping(row) {
   const field = row.result_context?.source === 'mapped' ? row.result_context.definition?.native_metric : undefined;
   return typeof field === 'string' && field
-    ? `<p class="form-note">${esc(uiText('Result mapped by AMCP from {field}, not read from a platform result column.', {field}))}</p>`
+    ? html`<p class="form-note">${uiText('Result mapped by AMCP from {field}, not read from a platform result column.', {field})}</p>`
     : '';
 }
 
@@ -260,6 +260,138 @@ const metricFormat = (key, n, currency) => {
 /** A row's metric: its exact native decimal total when one was retained (detailed rows), otherwise its value. */
 const metricValue = (row, key) => (row.entity_level ? row.native?.exact_totals?.[key] : undefined) ?? row.metrics[key];
 /**
+ * The row of a v4 snapshot as the table reads it. `get` without include.native returns a compact row (V2-RPT-06): it names
+ * its account by `source_ref` and nests its parents, and carries neither the provider's own row nor the fields of its
+ * source. This gives the fields the renderers read: the platform, account and time zone from the row's source, the level
+ * line for a detailed row (the one with a native entity type), and the parents. A full row, and every row of an earlier
+ * snapshot, is returned as it is (the same object, so a caller can tell which it had).
+ */
+const reportRowIsCompact = row => row.platform === undefined && row.source_ref !== undefined;
+function reportRowView(r, row) {
+  if (!reportRowIsCompact(row)) return row;
+  const source = (r.sources ?? []).find(s => s.source_ref === row.source_ref),
+    {campaign, adset} = row.parents ?? {};
+  return {
+    ...row,
+    platform: source?.source?.platform,
+    account_id: source?.source?.account_id,
+    timezone: source?.timezone,
+    entity_level: row.native_entity_type === undefined ? undefined : row.level,
+    parent_ids: {
+      campaign_id: campaign?.id,
+      campaign_name: campaign?.name,
+      adset_id: adset?.id,
+      adset_name: adset?.name,
+    },
+    result_context:
+      row.result_context && source?.result_definitions
+        ? {...row.result_context, definition: source.result_definitions[row.result_context.result_ref]}
+        : row.result_context,
+  };
+}
+/** What a row says about its source, whole: its result, attribution and time zone, how its result was mapped, its quality and the provider's own row. */
+function reportRowDetails(row) {
+  return html`<p>${reportResultLabel(row)}<br>${row.attribution}<br>${row.timezone}</p>${reportResultMapping(row)}${reportObjectiveResults(row)}${raw(reportQualityDetails(row))}<pre>${JSON.stringify(row.native, null, 2)}</pre>`;
+}
+/**
+ * A compact row's source details, as a full row has them: one `get` narrowed to its platform, level and entity, with the
+ * provider's own rows, and the row is found in the answer by its key. An entity has a row for each period, so the read may
+ * continue by its cursor.
+ */
+async function reportFetchRowDetails(r, row) {
+  const source = (r.sources ?? []).find(s => s.source_ref === row.source_ref);
+  let answer = await overviewCall({
+    action: 'get',
+    id: r.id,
+    limit: 100,
+    include: {native: true},
+    platform: source?.source?.platform,
+    level: row.level,
+    entity: row.entity_id,
+  });
+  for (let pages = 1; ; pages++) {
+    const found = answer.rows.find(candidate => candidate.row_key === row.row_key);
+    if (found) return found;
+    if (!answer.next_call || pages >= 100) throw Error(uiText('The source details could not be loaded.'));
+    answer = await overviewCall(answer.next_call.arguments);
+  }
+}
+/**
+ * A `<details>` whose body is drawn when it is first opened: `load` returns its markup. The disclosure is the browser's own,
+ * so its keyboard and screen reader behaviour is unchanged. The body says it is loading and is busy meanwhile; a failure says
+ * so with a Retry that asks again and returns focus to the disclosure's own control.
+ */
+function reportLazyDetails(details, load) {
+  const body = details.querySelector('[data-report-details-body]');
+  let started = false;
+  const run = async () => {
+    body.setAttribute('aria-busy', 'true');
+    setHtml(body, html`<p role="status">${uiText('Loading source details…')}</p>`);
+    try {
+      const markup = await load();
+      if (details.isConnected) setHtml(body, markup);
+    } catch {
+      if (!details.isConnected) return;
+      setHtml(
+        body,
+        html`<div role="alert" class="notice"><p>${uiText('The source details could not be loaded.')}</p><button type="button" class="button small" data-report-details-retry>${uiText('Retry')}</button></div>`,
+      );
+      body.querySelector('[data-report-details-retry]').addEventListener('click', retry);
+    } finally {
+      body.removeAttribute('aria-busy');
+    }
+  };
+  const retry = async () => {
+    await run();
+    (body.querySelector('[data-report-details-retry]') ?? details.querySelector('summary'))?.focus?.();
+  };
+  details.addEventListener('toggle', () => {
+    if (!details.open || started) return;
+    started = true;
+    return run();
+  });
+}
+/** What was loaded for the report on the page stays while it is on the page, so a redraw (a poll, a page change) asks for nothing. */
+function bindReportDetails(r) {
+  if (!r.rows.some(reportRowIsCompact)) return;
+  if (overviewState.detailsFor !== r.id) overviewState.details = new Map();
+  overviewState.detailsFor = r.id;
+  const loaded = overviewState.details;
+  document.querySelectorAll('details[data-report-details]').forEach(details => {
+    const row = r.rows.find(candidate => candidate.row_key === details.dataset.reportDetails);
+    if (row)
+      reportLazyDetails(details, async () => {
+        const key = [r.completed_at, row.row_key].join('|');
+        if (!loaded.has(key)) loaded.set(key, await reportFetchRowDetails(r, row));
+        return reportRowDetails(loaded.get(key));
+      });
+  });
+}
+/**
+ * A v4 source's lineage is not in a compact answer. One `get` with include.lineage carries the lineage of every source of the
+ * report, so the first card opened asks and the others find it; a request that failed is not kept, so Retry asks again.
+ */
+function bindReportLineage(r) {
+  if (!(r.sources ?? []).some(reportSourceIsCompact)) return;
+  const key = [r.id, r.completed_at].join('|');
+  document.querySelectorAll('details[data-report-lineage]').forEach(details => {
+    const source = r.sources.find(s => String(s.source_ref) === details.dataset.reportLineage);
+    if (source)
+      reportLazyDetails(details, async () => {
+        if (overviewState.lineage?.key !== key) {
+          const request = overviewCall({action: 'get', id: r.id, limit: 1, include: {lineage: true}});
+          overviewState.lineage = {key, request};
+          request.catch(() => {
+            if (overviewState.lineage?.request === request) overviewState.lineage = null;
+          });
+        }
+        const answer = await overviewState.lineage.request,
+          lineage = answer.sources.find(s => s.source_ref === source.source_ref)?.lineage;
+        return html`<pre>${JSON.stringify({quality: source.quality, lineage, query_fingerprint: source.query_fingerprint}, null, 2)}</pre>`;
+      });
+  });
+}
+/**
  * A metric cell: the formatted value, with the exact retained value on hover when formatting shortened it. `label`
  * names the column on phones, where each row reads as a card (RPT-05).
  */
@@ -291,13 +423,16 @@ function renderReportTable(r, keys, b) {
     context = uiText('Platform · objective'),
     next = uiText('Recommended next move'),
     labels = Object.fromEntries(keys.map(k => [k, reportMetricLabel(r, b, k)]));
-  const row = row => {
-    const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
+  const draw = item => {
+    // A compact row (see reportRowView) loads its source details when they are opened.
+    const row = reportRowView(r, item),
+      lazy = row !== item,
+      name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(reportRowObjective(row).group))}</small>${reportRowObjective(row).source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(reportResultLabel(row))}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportResultMapping(row)}${html`${reportObjectiveResults(row)}`}${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(reportRowObjective(row).group))}</small>${reportRowObjective(row).source ? html`<small>${reportObjectiveSource(row)}</small>` : ''}<small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details${lazy ? ` data-report-details="${esc(row.row_key)}"` : ''}><summary>${esc(uiText('Source details'))}</summary>${lazy ? '<div data-report-details-body></div>' : reportRowDetails(row)}</details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
-  return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
+  return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(draw).join('')}</tbody></table>`;
 }
 /**
  * A delivery failure in the interface language (EXP-04 A). AMCP's own message goes through errorMessage, so a
@@ -809,19 +944,37 @@ function renderCustomMetrics() {
     }),
   );
 }
-async function loadOverviewReport(id, page = overviewState.page) {
+const reportRunning = r => ['queued', 'running'].includes(r.job.state);
+/**
+ * Loads a report and draws it. A poll (while the job or an export runs) asks for the status only: the job, the exports and the
+ * deliveries, with one row, since it draws none. A poll that finds the job finished asks for the page's rows; one that finds
+ * a finished report with an export still running lays the status over the rows already on the page.
+ */
+async function loadOverviewReport(id, page = overviewState.page, poll = false) {
   if (location.pathname !== '/reporting-overview') return;
   clearTimeout(pollTimer);
-  const sequence = ++overviewState.loadSequence;
-  const r = await overviewCall({
-    action: 'get',
-    id,
-    offset: page * 100,
-    limit: 100,
-    // The charts are asked for only where the script that draws them is loaded (V2-EXP-01).
-    include: {native: true, lineage: true, charts: typeof mountReportCharts === 'function'},
-  });
+  const sequence = ++overviewState.loadSequence,
+    drawn = overviewState.report;
+  let r = await overviewCall(
+    poll
+      ? {action: 'get', id, offset: 0, limit: 1}
+      : {
+          action: 'get',
+          id,
+          offset: page * 100,
+          limit: 100,
+          // The charts are asked for only where the script that draws them is loaded (V2-EXP-01). The provider's own rows and the
+          // lineage are not asked for: they load when a disclosure is opened (reportFetchRowDetails, bindReportLineage).
+          ...(typeof mountReportCharts === 'function' ? {include: {charts: true}} : {}),
+        },
+  );
   if (location.pathname !== '/reporting-overview' || sequence !== overviewState.loadSequence) return;
+  if (poll && !reportRunning(r)) {
+    // A report that has just finished has rows to draw; one whose rows are on the page keeps them.
+    if (drawn?.id !== id || reportRunning(drawn)) return loadOverviewReport(id, page);
+    const {rows, offset, has_more, next_offset, total, charts, sources} = drawn;
+    r = {...r, rows, offset, has_more, next_offset, total, charts, sources};
+  }
   overviewState.report = r;
   overviewState.page = page;
   if (overviewState.watch?.id !== id) overviewState.watch = {id, since: Date.now()};
@@ -839,6 +992,8 @@ async function loadOverviewReport(id, page = overviewState.page) {
   if (Array.isArray(r.charts) && r.charts.length && typeof mountReportCharts === 'function')
     mountReportCharts($('#report-charts'), r.charts);
   bindSnapshotAnalysis(r, root);
+  bindReportDetails(r);
+  bindReportLineage(r);
   bindSheetsDeliveryRecovery(id);
   authBind('[data-report-diagnostic]', async button => {
     const s = r.sources[Number(button.dataset.reportDiagnostic)];
@@ -889,7 +1044,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
   });
   if (pollDelay !== null)
     pollTimer = setTimeout(() => {
-      void loadOverviewReport(id).catch(e => toast(errorMessage(e)));
+      void loadOverviewReport(id, overviewState.page, true).catch(e => toast(errorMessage(e)));
     }, pollDelay);
 }
 /**

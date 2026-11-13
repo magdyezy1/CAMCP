@@ -462,7 +462,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
   // Package mcp-surface (V2-MCP-06) adds the Arabic of the MEDIA_REVIEW_REQUIRED refusal and its two remedies (with and without
   // the call it names): 12,101.
-  assert.equal(Object.keys(catalog).length, 12101);
+  // Package website-get adds the Arabic of the two sentences a row's source details and a source card's evidence show while they
+  // load and when they fail to (web/reporting-overview.js, node tools/check-locales.mjs: catalog_messages 12100): 12,098 + 2 = 12,100.
+  // Merge D, with mcp-surface (12,101 on its own base) and website-get (12,100 on its own base): measured on the merged catalogue
+  // (node tools/check-locales.mjs: catalog_messages 12103; the two add different keys), 12,098 + 3 + 2 = 12,103.
+  assert.equal(Object.keys(catalog).length, 12103);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

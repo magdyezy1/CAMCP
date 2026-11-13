@@ -2449,6 +2449,8 @@
   "Period": "الفترة",
   "Recommended next move": "الخطوة التالية المقترحة",
   "Source details": "تفاصيل المصدر",
+  "Loading source details…": "جارٍ تحميل تفاصيل المصدر…",
+  "The source details could not be loaded.": "تعذر تحميل تفاصيل المصدر.",
   "{kpi} target {target} · actual {actual}": "{kpi} المستهدف {target} · الفعلي {actual}",
   "Rows {start}–{end} of {total}. A dash means unavailable.": "الصفوف {start}–{end} من {total}. تعني الشرطة أن القيمة غير متاحة.",
   "← Previous": "السابق →",
