@@ -93,7 +93,7 @@ test('rules with different windows make a source mixed: the pairs are listed, th
     s.warnings.filter(w => /conversion rules|conversion-rule|current metadata/.test(w)),
     [
       'LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.',
-      'The account’s LinkedIn conversion rules use these attribution windows: 30d click / 7d view; 7d click / 1d view.',
+      'The account’s LinkedIn conversion rules state these attribution windows: 30d click / 7d view; 7d click / 1d view.',
       'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.',
       'LinkedIn entity names and objectives are current metadata, not the values at delivery time.',
     ],
@@ -103,6 +103,23 @@ test('rules with different windows make a source mixed: the pairs are listed, th
     [windows.status, windows.rule_count, windows.single_window, windows.unknown_rules, windows.reason],
     ['mixed', 3, null, 0, null],
   );
+  assert.deepEqual(windows.distinct_windows, ['30d click / 7d view', '7d click / 1d view']);
+});
+
+// A rule that states no window leaves the windows of the others as they are: different pairs are still different pairs, so
+// the source is mixed (never one pair), and the rule without a window is counted in the retained decision.
+test('different pairs beside a rule that states no window are still mixed, with the rule counted', async t => {
+  const {report, source: s} = await run(t, 'campaign', {
+    conversions: [
+      linkedinConversionRule('501', 30, 7),
+      linkedinConversionRule('502', 7, 1),
+      linkedinConversionRuleWithoutWindows('503'),
+    ],
+  });
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+  assert.match(s.attribution, /^LinkedIn conversion rules with mixed windows, no single window: /);
+  const windows = s.level_results[0].conversion_windows;
+  assert.deepEqual([windows.status, windows.rule_count, windows.unknown_rules, windows.reason], ['mixed', 3, 1, null]);
   assert.deepEqual(windows.distinct_windows, ['30d click / 7d view', '7d click / 1d view']);
 });
 
@@ -123,7 +140,7 @@ test('the attribution of a source stays within 200 characters when its rules hol
   assert.equal(windows.distinct_windows.length, 9);
   assert.ok(
     s.warnings.includes(
-      'The account’s LinkedIn conversion rules use these attribution windows: ' +
+      'The account’s LinkedIn conversion rules state these attribution windows: ' +
         windows.distinct_windows.join('; ') +
         '.',
     ),
@@ -415,7 +432,7 @@ test('a refused rules read leaves the windows unknown, keeps every number and le
   staysUnknown(
     report,
     s,
-    'LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.',
+    'LinkedIn conversion rules for this account could not be read, so attribution windows stay unknown.',
   );
   const windows = s.level_results[0].conversion_windows;
   assert.deepEqual(

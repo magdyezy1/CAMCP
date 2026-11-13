@@ -66,7 +66,7 @@
   "Set a {kpi} target in {currency} for this objective or campaign.": "حدّد هدفًا لمؤشر {kpi} بعملة {currency} لهذا الهدف أو الحملة.",
   "Some rows have no value for {metrics}. They are left out of the total and never counted as 0.": "بعض الصفوف لا قيمة لها في {metrics}. تُستبعد من الإجمالي ولا تُحتسب صفرًا.",
   "Spend anomaly": "إنفاق غير معتاد",
-  "The account’s LinkedIn conversion rules use these attribution windows: {pairs}.": "تستخدم قواعد تحويل LinkedIn في الحساب نوافذ الإسناد هذه: {pairs}.",
+  "The account’s LinkedIn conversion rules state these attribution windows: {pairs}.": "تذكر قواعد تحويل LinkedIn في الحساب نوافذ الإسناد هذه: {pairs}.",
   "Thresholded": "خاضع لحدود إظهار البيانات",
   "TikTok declared {declared} rows and returned {returned}.": "عدد الصفوف التي أعلنت عنها TikTok: {declared}، وعدد الصفوف التي أعادتها: {returned}.",
   "Tolerance": "هامش التفاوت",

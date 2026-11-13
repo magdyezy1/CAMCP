@@ -59,14 +59,14 @@ export const linkedinMixedWindowsWarning =
   'LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.';
 /** The distinct window pairs of the account's rules, in the words of the guided join (`30d click / 7d view`). */
 export const linkedinRuleWindowPairsWarning = (pairs: string[]) =>
-  'The account’s LinkedIn conversion rules use these attribution windows: ' + pairs.join('; ') + '.';
+  'The account’s LinkedIn conversion rules state these attribution windows: ' + pairs.join('; ') + '.';
 /** Why the account's rules could not settle the windows of a source whose results are website conversions. */
 export const linkedinNoRulesWarning =
   'LinkedIn returned no conversion rules for this account, so attribution windows stay unknown.';
 export const linkedinRuleWindowMissingWarning =
   'LinkedIn states no attribution window for at least one of the account’s conversion rules, so attribution windows stay unknown.';
 export const linkedinRulesRefusedWarning =
-  'LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.';
+  'LinkedIn conversion rules for this account could not be read, so attribution windows stay unknown.';
 export const linkedinRulesBudgetWarning =
   'LinkedIn conversion rules were not read because this report’s collection allowance could not hold the read, so attribution windows stay unknown.';
 export const linkedinMixedResultsWarning =
