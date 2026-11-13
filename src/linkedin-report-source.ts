@@ -69,6 +69,8 @@ export const linkedinRulesRefusedWarning =
   'LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.';
 export const linkedinRulesBudgetWarning =
   'LinkedIn conversion rules were not read because this report’s collection allowance could not hold the read, so attribution windows stay unknown.';
+export const linkedinMixedResultsWarning =
+  'LinkedIn conversion-rule windows were not joined because this source also reports results that are not website conversions, or whose objective is unknown, so no single set of windows describes it.';
 
 /** LinkedIn analytics report days in UTC. */
 const reportZone = 'UTC';
@@ -240,34 +242,46 @@ async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead |
   return read;
 }
 
+/** The record of a join that read no rule: unknown, and why. */
+const noRuleRead = (reason: string): JsonObject => ({
+  status: 'unknown',
+  basis: 'account_rules',
+  rule_count: null,
+  single_window: null,
+  distinct_windows: [],
+  unknown_rules: null,
+  reason,
+  rules_source_hash: null,
+  rules_captured_at: null,
+});
+
 /**
  * What the account's rules say of the windows of a source whose reported entities all have website conversions as their
  * result (`results.conversions`, none `other`): the pair they share, or that they differ (`mixed`, the pairs listed and
  * the total kept), or `unknown` with the reason: no rule, a rule that states no window, LinkedIn not returning the rules,
- * or the collection allowance not holding the read. Undefined when the join says nothing new.
+ * or the collection allowance not holding the read. One pair cannot describe a source that also reports results that are
+ * not website conversions (its rows share one attribution): it stays `unknown`, and the rules are not read. A source with
+ * no website conversion result has nothing to join (undefined).
  */
 async function linkedInSourceWindows(
   c: ReportCollection,
   results: {conversions: number; other: number},
 ): Promise<LinkedInSourceWindows | undefined> {
-  if (!results.conversions || results.other) return undefined;
+  if (!results.conversions) return undefined;
+  if (results.other)
+    return {
+      attribution: 'unknown',
+      verified: false,
+      warnings: [linkedinMixedResultsWarning],
+      conversion_windows: noRuleRead('not_conversion_only'),
+    };
   const read = await conversionRules(c);
   if (typeof read === 'string')
     return {
       attribution: 'unknown',
       verified: false,
       warnings: [read === 'budget' ? linkedinRulesBudgetWarning : linkedinRulesRefusedWarning],
-      conversion_windows: {
-        status: 'unknown',
-        basis: 'account_rules',
-        rule_count: null,
-        single_window: null,
-        distinct_windows: [],
-        unknown_rules: null,
-        reason: read,
-        rules_source_hash: null,
-        rules_captured_at: null,
-      },
+      conversion_windows: noRuleRead(read),
     };
   const join = linkedInConversionWindows(
       read.rules,

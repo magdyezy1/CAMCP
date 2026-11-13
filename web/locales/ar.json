@@ -11656,6 +11656,7 @@
   "LinkedIn states no attribution window for at least one of the account’s conversion rules, so attribution windows stay unknown.": "لا يذكر LinkedIn نافذة إسناد لقاعدة تحويل واحدة على الأقل من قواعد الحساب، لذلك تبقى نوافذ الإسناد غير معروفة.",
   "LinkedIn did not return the account’s conversion rules, so attribution windows stay unknown.": "لم يُرجع LinkedIn قواعد التحويل الخاصة بالحساب، لذلك تبقى نوافذ الإسناد غير معروفة.",
   "LinkedIn conversion rules were not read because this report’s collection allowance could not hold the read, so attribution windows stay unknown.": "لم تُقرأ قواعد تحويل LinkedIn لأن الحد المسموح للجمع في هذا التقرير لا يتسع لهذه القراءة، لذلك تبقى نوافذ الإسناد غير معروفة.",
+  "LinkedIn conversion-rule windows were not joined because this source also reports results that are not website conversions, or whose objective is unknown, so no single set of windows describes it.": "لم تُضمّ نوافذ قواعد تحويل LinkedIn لأن هذا المصدر يُبلغ أيضًا عن نتائج ليست تحويلات موقع، أو هدفها غير معروف، لذلك لا تصفه مجموعة نوافذ واحدة.",
   "LinkedIn did not return a native campaign group URN.": "لم يُرجع LinkedIn معرّف URN أصليًا لمجموعة الحملات.",
   "LinkedIn did not return the requested native entity pivot.": "لم يُرجع LinkedIn محور الكيان الأصلي المطلوب.",
   "LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.": "تعذّرت قراءة بيانات LinkedIn الوصفية، لذلك تظل بعض الأسماء أو العناصر الأم أو الأهداف غير معروفة.",

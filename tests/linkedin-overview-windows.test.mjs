@@ -284,6 +284,89 @@ test('the rules read is counted in the job’s collection allowance: it fits exa
   }
 });
 
+// Two campaigns in the account: one counts website conversions, the other leads or whatever the test gives it.
+const campaignRecord = (id, objectiveType) => ({
+  id,
+  account: owner,
+  campaignGroup: groupUrn,
+  name: 'Campaign ' + id,
+  objectiveType,
+  status: 'ACTIVE',
+  type: 'SPONSORED_UPDATES',
+});
+const twoCampaigns = second => ({
+  campaigns: {30: campaignRecord(30, 'WEBSITE_CONVERSION'), 31: campaignRecord(31, second)},
+  analytics: pivot =>
+    pivot === 'CAMPAIGN'
+      ? [
+          {pivotValues: [campaignUrn], ...delivered},
+          {
+            pivotValues: ['urn:li:sponsoredCampaign:31'],
+            impressions: '500',
+            clicks: '50',
+            costInLocalCurrency: '20',
+            oneClickLeads: '3',
+          },
+        ]
+      : analytics(pivot),
+});
+
+test('a source that also reports results that are not website conversions cannot take one pair, and says so without reading the rules', async t => {
+  const {
+    f,
+    report,
+    source: s,
+  } = await run(t, 'adset', {
+    conversions: [linkedinConversionRule('501')],
+    ...twoCampaigns('LEAD_GENERATION'),
+  });
+  staysUnknown(
+    report,
+    s,
+    'LinkedIn conversion-rule windows were not joined because this source also reports results that are not website conversions, or whose objective is unknown, so no single set of windows describes it.',
+  );
+  assert.equal(report.rows.length, 2);
+  assert.deepEqual(
+    report.summary.map(x => x.attribution),
+    ['unknown', 'unknown'],
+  );
+  assert.equal(rulesRead(f).length, 0);
+  const windows = s.level_results[0].conversion_windows;
+  assert.deepEqual(
+    [windows.status, windows.reason, windows.rule_count, windows.rules_source_hash],
+    ['unknown', 'not_conversion_only', null, null],
+  );
+});
+
+test('a source with no website conversion result is untouched: no rules read, the attribution line it always had, no windows record', async t => {
+  for (const [level, objective] of [
+    ['campaign', 'LEAD_GENERATION'],
+    ['adset', 'WEBSITE_VISIT'],
+    ['ad', 'BRAND_AWARENESS'],
+    ['adset', 'ENGAGEMENT'],
+  ]) {
+    const {
+      f,
+      report,
+      source: s,
+    } = await run(t, level, {
+      conversions: [linkedinConversionRule('501')],
+      ...world(objective),
+    });
+    assert.equal(report.state, 'complete', level + ' ' + objective);
+    assert.equal(s.attribution, 'unknown', level + ' ' + objective);
+    assert.deepEqual(
+      s.warnings.filter(w => /conversion[ -]rules?|attribution windows/.test(w)),
+      [
+        'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Entity names and objectives are current metadata, not the values at delivery time.',
+      ],
+      level + ' ' + objective,
+    );
+    assert.equal(rulesRead(f).length, 0, level + ' ' + objective);
+    assert.equal(s.level_results[0].conversion_windows, undefined, level + ' ' + objective);
+  }
+});
+
 test('a refused rules read leaves the windows unknown, keeps every number and leaves the report complete', async t => {
   const {report, source: s} = await run(t, 'campaign', {
     conversions: [linkedinConversionRule('501')],
