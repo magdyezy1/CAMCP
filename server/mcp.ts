@@ -212,29 +212,32 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
       // A call that queues a long run is answered a task by a client that declares the extension; otherwise one that
       // carries a progress token waits for it, bounded, and reports its progress on this request's stream (V2-MCP-02).
       // With neither, nothing differs from a plain call.
-      work = withContractProfile(profile, () =>
-        withExactIntegers(
-          token === undefined && !tasksOn
-            ? call
-            : async () => {
-                const answer = await call(),
-                  offer = tasksOn ? createTask({service, actor, tool: name, args, result: answer}) : undefined;
-                if (offer) return offer;
-                return token === undefined
-                  ? answer
-                  : await answerWithProgress({
-                      service,
-                      actor,
-                      tool: name,
-                      args,
-                      result: answer,
-                      token,
-                      notify: notification => ctx.mcpReq.notify(notification),
-                      signal: ctx.mcpReq.signal,
-                      read: read => service.call(read.tool, read.arguments, actor),
-                    });
-              },
-        ),
+      work = withContractProfile(
+        profile,
+        () =>
+          withExactIntegers(
+            token === undefined && !tasksOn
+              ? call
+              : async () => {
+                  const answer = await call(),
+                    offer = tasksOn ? createTask({service, actor, tool: name, args, result: answer}) : undefined;
+                  if (offer) return offer;
+                  return token === undefined
+                    ? answer
+                    : await answerWithProgress({
+                        service,
+                        actor,
+                        tool: name,
+                        args,
+                        result: answer,
+                        token,
+                        notify: notification => ctx.mcpReq.notify(notification),
+                        signal: ctx.mcpReq.signal,
+                        read: read => service.call(read.tool, read.arguments, actor),
+                      });
+                },
+          ),
+        args,
       ),
       result = await (hooks.track ? hooks.track(work) : work);
     if (result instanceof TaskOffer) return taskCallResult(result) as any;

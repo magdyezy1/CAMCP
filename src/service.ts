@@ -36,7 +36,7 @@ import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {ownToolHelp, surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
 import {toolPresentation} from './tool-annotations.js';
-import {currentContractProfile} from './contract-profile.js';
+import {currentContractProfile, isClientCall} from './contract-profile.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -62,7 +62,7 @@ import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
-import {projectResponse} from './projection.js';
+import {projectResponse, type ResponseControls} from './projection.js';
 import {WriteReviewService, providerJobWriteTool, readOnlyWriteTool, writeTool} from './write-review.js';
 import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
@@ -1071,6 +1071,24 @@ export class MirrorService {
       this.contractMemory.delivered(session, gateway);
     return result;
   }
+  /**
+   * The response controls of a native read. Under the v2 contract profile (V2-MCP-06) a read of a gateway that compiles its own
+   * controls is compact when it is a list, unless the call says compact:false, and its rows are found by shape, so result_fields
+   * and max_items work on every paging gateway, Google Ads included. Only the client's own call is shaped: the reads a workflow
+   * makes while serving it (a report's collection, a preflight, a campaign step) keep the response the provider gave, as do the
+   * delegated gateways and everything under legacy.
+   */
+  private v2Controls(plan: CompiledRequest, input: JsonObject): ResponseControls | undefined {
+    const controls = plan.responseControls;
+    if (
+      currentContractProfile() !== 'v2' ||
+      !isClientCall(input) ||
+      this.registry.tools.get(plan.gateway)?.mode === 'delegated'
+    )
+      return controls;
+    const compact = input.compact === true ? true : input.compact === false ? false : 'lists';
+    return {...controls, compact, shape: 'structural'};
+  }
   /** `review` is the gateway input as the caller sent it, when `input` is only its nested arguments (delegated tools). */
   async runPlan(
     plan: CompiledRequest,
@@ -1238,7 +1256,7 @@ export class MirrorService {
       const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;
       const projected = projectResponse(
         nativeCsv ? {data: nativeCsv.data} : result.data,
-        plan.responseControls,
+        this.v2Controls(plan, input),
         plan.gateway,
       );
       if (nativeCsv) {

@@ -15,8 +15,19 @@ export const contractProfiles = ['legacy', 'v2'] as const;
 export type ContractProfile = (typeof contractProfiles)[number];
 export const defaultContractProfile: ContractProfile = 'legacy';
 
-const scope = new AsyncLocalStorage<ContractProfile>();
-/** Runs `run`, and everything it awaits, as a client on `profile`: tool calls nested inside it inherit the profile. */
-export const withContractProfile = <T>(profile: ContractProfile, run: () => T): T => scope.run(profile, run);
+interface Scope {
+  readonly profile: ContractProfile;
+  readonly own?: object;
+}
+const scope = new AsyncLocalStorage<Scope>();
+/**
+ * Runs `run`, and everything it awaits, as a client on `profile`: tool calls nested inside it inherit the profile. `own` is the
+ * arguments object of the call the client itself made: a workflow that serves that call makes calls of its own, with objects of
+ * its own, which are not the client's (isClientCall).
+ */
+export const withContractProfile = <T>(profile: ContractProfile, run: () => T, own?: object): T =>
+  scope.run({profile, own}, run);
 /** The profile of the call in flight: the client's inside a scope, else legacy. */
-export const currentContractProfile = (): ContractProfile => scope.getStore() ?? defaultContractProfile;
+export const currentContractProfile = (): ContractProfile => scope.getStore()?.profile ?? defaultContractProfile;
+/** Whether `input` is the arguments of the call the client made, not of one a workflow made while serving it. */
+export const isClientCall = (input: object): boolean => scope.getStore()?.own === input;

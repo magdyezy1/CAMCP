@@ -4,7 +4,16 @@ import {nativeFields, assertSameAlias} from './parameters.js';
 export interface ResponseControls {
   fields?: string[];
   maxItems?: number;
-  compact?: boolean;
+  /** Leave out nulls, empty strings and empty objects: always (true), or only from a response that is a list ('lists', v2). */
+  compact?: boolean | 'lists';
+  /**
+   * How the rows of a response are found. Unset, by the names of the keys that hold them (baseContainers, the gateway's own set):
+   * a row with a child named like a container (a Google Ads row's campaign beside its metrics) is then taken for a wrapper,
+   * and a list under another name (DV360's lineItems) for a record. structural (the v2 contract profile, V2-MCP-06) finds
+   * them by shape: a container holds a list or an envelope, and a response that holds lists and has no identity of its own is
+   * an envelope. Gateways with their own container set keep it.
+   */
+  shape?: 'structural';
 }
 const metadata =
   /^(?:.*[Ee]rror.*|.*[Ff]ail.*|warnings?|paging|pagination|page_info|pageInfo|page|page_size|pageSize|total_pages|links|metadata|meta|summary|request_id|requestId|request_status|status|code|message|success|truncated|total|total_count|totalCount|totalResults|has_more|hasMore|count|offset|limit|start|cursor|next.*|previous.*)$/;
@@ -133,8 +142,24 @@ export function projectResponse(
 ): {data: unknown; truncated: boolean} {
   if (!controls) return {data, truncated: false};
   let truncated = false;
-  const containers = gatewayContainers[gateway ?? ''] ?? baseContainers;
-  function visit(value: unknown, record = false, projectRecords = true): unknown {
+  const containers = gatewayContainers[gateway ?? ''] ?? baseContainers,
+    structural = controls.shape === 'structural' && !gatewayContainers[gateway ?? ''];
+  // By shape (v2): a container holds a list or an envelope; the root of a response that holds lists of objects and names no
+  // identity of its own (a record has an id, a name, a resource name) is an envelope, whatever its lists are called.
+  const holdsRows = (v: unknown): boolean => Array.isArray(v) || (object(v) && isEnvelope(v, false)),
+    identity = ['id', 'name', 'resourceName', 'resource_name', 'urn'],
+    isEnvelope = (value: JsonObject, root: boolean): boolean =>
+      structural
+        ? Object.keys(value).some(k => containers.has(k) && holdsRows(value[k])) ||
+          (root &&
+            !identity.some(k => k in value) &&
+            Object.values(value).some(v => Array.isArray(v) && v.some(x => object(x) || Array.isArray(x))))
+        : Object.keys(value).some(k => containers.has(k) && typeof value[k] === 'object');
+  // 'lists' (the v2 default) compacts a response that is a list of rows and leaves a single record as it is.
+  const compactOn =
+    controls.compact === true ||
+    (controls.compact === 'lists' && (Array.isArray(data) || (object(data) && isEnvelope(data, true))));
+  function visit(value: unknown, record = false, projectRecords = true, root = false): unknown {
     if (Array.isArray(value)) {
       const rows = value.filter((v, i) => {
         if (controls!.maxItems === undefined || i < controls!.maxItems || failure(v)) return true;
@@ -145,7 +170,7 @@ export function projectResponse(
     }
     if (!object(value)) return value;
     // A container with some failed children still allows shaping its successful siblings.
-    const envelope = Object.keys(value).some(k => containers.has(k) && typeof value[k] === 'object');
+    const envelope = isEnvelope(value, root);
     if (!envelope && failure(value)) return value;
     const didProject = projectRecords && !!controls!.fields && record && !envelope;
     const selected = didProject ? select(value, controls!.fields!) : value;
@@ -156,11 +181,10 @@ export function projectResponse(
         continue;
       }
       const shaped = visit(v, containers.has(key), projectRecords && !didProject);
-      if (controls!.compact && (shaped === null || shaped === '' || (object(shaped) && !Object.keys(shaped).length)))
-        continue;
+      if (compactOn && (shaped === null || shaped === '' || (object(shaped) && !Object.keys(shaped).length))) continue;
       out[key] = shaped;
     }
     return out;
   }
-  return {data: visit(data, true), truncated};
+  return {data: visit(data, true, true, true), truncated};
 }
