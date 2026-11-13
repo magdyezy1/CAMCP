@@ -609,6 +609,8 @@ export const linkedinReportSource: ReportSource = {
     'oneClickLeads',
   ],
   minimumRequestsPerPeriod: 1,
+  // The conversion rules a v4 source of website conversions reads once per job (the estimate is made before its results are known).
+  requestsPerSource: contract => (contract === 'overview-config-v4' ? rulesReadRequests : 0),
   requestsPerPeriod(level, contract, context) {
     if (contract !== 'overview-config-v4') return level === 'campaign' ? 2 : 1;
     const fields = selectedMetrics(context ? windowDays(context.range) : 1, true, context?.source.native_metrics),

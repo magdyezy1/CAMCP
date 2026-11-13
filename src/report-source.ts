@@ -446,6 +446,13 @@ export interface ReportSource {
     context?: {source: JsonObject; range: {since: string; until: string}},
   ): number;
   /**
+   * V2-RPT-04: the requests a v4 source sends once per source and job beyond its account lookup, which the first-page
+   * request estimate adds for the first level of the source (its other levels and its periods share them): LinkedIn's
+   * conversion rules read. A source that may or may not send them is counted as if it did, as the baseline counts the
+   * metadata of every level.
+   */
+  requestsPerSource?(contract?: string): number;
+  /**
    * True when `requestsPerPeriod` is a lower bound because the size of what the level reads is unknown until it is read
    * (an unscoped Snapchat account has as many campaigns as it has): the estimate says so instead of looking exact.
    */

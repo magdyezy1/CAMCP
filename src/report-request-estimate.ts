@@ -71,6 +71,8 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         requests:
           lookups +
           window +
+          // What a source sends once per job (LinkedIn's conversion rules) is paid by its first level; the others share it.
+          (firstLookup ? (reportSource(source.platform)?.requestsPerSource?.(source.reporting_contract) ?? 0) : 0) +
           periods *
             dataRequestsPerPeriod(source.platform, level, source.reporting_contract, {
               source,

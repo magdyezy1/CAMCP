@@ -7,6 +7,7 @@ import {NativeTransport} from '../../dist/src/transport.js';
 import {ReportingOverview} from '../../dist/src/reporting-overview.js';
 import {ReportWorker} from '../../dist/src/worker.js';
 import {googleEvidenceRow, googleEvidenceResponse} from './google-evidence-data.mjs';
+import {linkedinConversionRulesPage} from './linkedin-conversion-rules-docs.mjs';
 import {
   snapchatEvidenceAccount,
   snapchatEvidenceCampaign,
@@ -268,6 +269,8 @@ export function overviewGranularityFixture({unpaced = false} = {}) {
     if (url.hostname === 'api.linkedin.com') {
       if (url.pathname === '/rest/adAccounts/100')
         return Response.json({id: 100, name: 'Synthetic LinkedIn', currency: 'USD'});
+      // V2-RPT-04: the account finder of a v4 source of website conversions, for an account that has no conversion rule.
+      if (url.pathname === '/rest/conversions') return Response.json(linkedinConversionRulesPage([]));
       if (url.pathname === '/rest/adAccounts/100/creatives') {
         assert.equal(url.searchParams.get('q'), 'criteria');
         return parent('linkedin', url, {

@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {ReportCollectionBudget} from '../dist/src/report-collection-budget.js';
+import {estimateCollectionRequests} from '../dist/src/report-request-estimate.js';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
 import {
   analytics,
@@ -357,6 +358,26 @@ test('a source with no website conversion result is untouched: no rules read, th
     assert.equal(rulesRead(f).length, 0, level + ' ' + objective);
     assert.equal(s.level_results[0].conversion_windows, undefined, level + ' ' + objective);
   }
+});
+
+// The estimate made before any request is a first-page baseline that may be conservative and may not fall short of what
+// the run sends (tests/report-status-v4.test.mjs): the rules read is three requests the baseline did not count.
+test('the request estimate counts the rules read once per LinkedIn source, for every level it reports and not again for each', async t => {
+  const {f, report} = await run(t, 'campaign', {conversions: [linkedinConversionRule('501')]}),
+    config = stored(f, report).config,
+    estimate = estimateCollectionRequests(config).estimated_requests;
+  assert.ok(estimate >= f.requests.length, estimate + ' for ' + f.requests.length + ' sent');
+  // Account lookup, group and campaign analytics, campaigns and groups metadata: five reads; the rules read adds three.
+  assert.equal(estimate, 5 + 3);
+  // A second level of the same source shares the lookup and the rules read: it adds only its own three reads.
+  const both = {...config, sources: config.sources.map(entry => ({...entry, levels: ['campaign', 'adset']}))};
+  assert.equal(estimateCollectionRequests(both).estimated_requests - estimate, 3);
+  // A source that reads no rules is estimated as if it did: the estimate is made before its results are known.
+  const lead = await run(t, 'campaign', {conversions: [], ...world('LEAD_GENERATION')});
+  assert.equal(rulesRead(lead.f).length, 0);
+  assert.ok(
+    estimateCollectionRequests(stored(lead.f, lead.report).config).estimated_requests >= lead.f.requests.length,
+  );
 });
 
 test('the rules are read once per source and job, however many periods and levels the source reports, and a refusal is not asked twice', async t => {
