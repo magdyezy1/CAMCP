@@ -48,9 +48,16 @@ free of vulnerabilities. Raw reports and the exact lock delta are retained as lo
   metadata, private cache policy, role/authority checks, modern-protocol feature flags and request correlation.
   Stdio uses the SDK factory to serve both protocol eras.
 - The SDK normalizes missing-resource errors in both eras. A narrowly scoped transport adapter preserves AMCP's
-  published `-32002` for unknown guides on legacy HTTP/stdio/in-memory wires; modern replies retain `-32602`. Other errors are
-  untouched. The SDK's empty cancellation response is translated to AMCP's existing connection-closed result, with
-  abort and in-flight accounting preserved.
+  published `-32002` for unknown guides on legacy HTTP/stdio/in-memory wires; modern replies retain `-32602`. Four other
+  changes to protocol errors are listed in the next bullet. The SDK's empty cancellation response is translated to AMCP's
+  existing connection-closed result, with abort and in-flight accounting preserved.
+- Corrected 2026-11-14 (F-L4-09): this record first said that other errors were untouched. The audit's wire comparison of
+  2026-11-06, of the build before the SDK change against this one, found four differences in protocol errors. The message
+  of every protocol error loses its `MCP error -32xxx: ` prefix, while its code and data stay. A malformed `tools/call`
+  goes from -32603 with the raw schema issues as its message to -32602 with `Invalid tools/call request: [...]`. A `task`
+  parameter on `tools/call`, which the earlier build refused with -32603, is ignored. On the modern path a wrong-typed
+  `clientInfo` or an invalid `logLevel`, which the earlier build served, answers 400 with -32602 and without AMCP's
+  `data.code`.
 - The v2 client separately reconstructs a missing-resource exception with code `-32602` and only the URI in its
   data. The introspection test now captures the incoming in-memory reply before that conversion: the legacy wire
   still carries `-32002`, URI and guide index, while the client exception is checked independently. Existing
