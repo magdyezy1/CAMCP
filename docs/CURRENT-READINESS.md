@@ -7,8 +7,9 @@ tier: operator
 
 What AMCP does today, how far each part has been accepted, and what is left. This page describes branch `Work-here`
 of `magdyezy1/CAMCP` as deployed on amcp.shop on 2026-10-18 (the [deployment record](records/DEPLOYMENT-2026-10-18.md)
-names the revision) together with the later work no deployment report covers yet: wave 4b, pushed on 2026-10-24, and
-wave 4c, merged and qualified on 2026-10-30 (section 2). It was rewritten on 2026-10-22 (DOC-01).
+names the revision) together with the later work no deployment report covers yet: wave 4b, pushed on 2026-10-24, wave
+4c, merged and qualified on 2026-10-30, and the V2 work of `Work-here-V2` (section 2). It was rewritten on 2026-10-22
+(DOC-01).
 
 Numbers in this page and every table marked "generated" are written from the code and the committed ledgers by
 `npm run docs:index`, and `npm run docs:index:check` (part of `npm run check` and the Docker build) fails when one of
@@ -72,6 +73,24 @@ grants it is always refused, a full qualification that finds an installed ffprob
 Reviewer, as the owner decided on 2026-10-31; outside its own test workspace a test account is a viewer. Its release
 gate, container parity and rendered browser qualification passed on 2026-10-31 ([qualification
 record](records/QUALIFICATION-4c-r7-2026-10-31.md)); no deployment of wave 4c has been reported yet.
+
+### V2 on `Work-here-V2`
+
+This tree also holds the V2 work of rounds 1 and 2, which no deployment reports: Reporting Overview v4 (campaign, ad set
+or ad group and ad levels for every platform within bounded requests, scoped and delivered-only reads, platform-led
+objectives, exact totals with row coverage, saved reports upgraded when they run), LinkedIn conversion-rule attribution
+windows, ad previews behind provider hooks, charts in the report page and its PDF, the SDK v2 MCP server with typed
+report schemas, progress, tasks and a per-client contract profile (D26), one route registry and shell with the V2
+components, and the owner's brand kit. Automated tests with synthetic fakes and loopback browsers check all of it. No live
+check has run: staging does not exist (blocked: no staging (D20)), provider use is not permitted during development, and
+live deployment is the owner's deferral (C11).
+
+**Tool-list budget.** The limit of 95 KiB (97,280 bytes) on `tools/list` is not raised. Measured on this tree on
+2026-11-14 with `node tools/measure-tool-list.mjs`: <!-- fact:tools_list_bytes_writes -->97,253<!-- /fact --> bytes with
+reviewed writes (27 under the limit) and <!-- fact:tools_list_bytes_read_only -->94,857<!-- /fact --> read-only; a client
+whose registration record says `v2` is served 97,239 and 94,843. Tasks 16 to 18 fit under D14 without a raise: the typed
+report schemas were paid for by savings first (argument notes moved to the help), and progress, tasks and the profile add
+no listing entry. The next addition to the listing must find savings, or the limit is re-recorded under D14.
 
 ## 3. Package status
 
