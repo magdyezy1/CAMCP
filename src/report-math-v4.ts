@@ -79,6 +79,18 @@ export function withCalculationBudget<T>(
   return budgets.run(new CalculationBudget(limits.work, limits.elapsed_ms), fn);
 }
 /**
+ * A calculation over many rows written as steps: it `yield`s between units of work, so that the report worker, which shares
+ * its thread with the website and the MCP endpoint, can hand the event loop back between two of them (NF-1). Each pass
+ * over the rows after the row loop (advice, summaries) is one, and its one-call function runs the steps with `finish`.
+ */
+export type Steps<T> = Generator<void, T, void>;
+/** Runs steps to their end in one block, which is what a pass called as a plain function does. */
+export function finish<T>(steps: Steps<T>): T {
+  let next = steps.next();
+  while (!next.done) next = steps.next();
+  return next.value;
+}
+/**
  * Called as a formula starts: notices when the report's time is spent, after which no formula is calculated. Spent work
  * ends only the arithmetic on large numbers (meter, below), so the ordinary metrics of later rows still calculate.
  */

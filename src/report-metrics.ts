@@ -704,11 +704,21 @@ export function windowRecommendations(
   policy: JsonObject = {},
   custom: JsonObject[] = [],
   now = Date.now(),
-  adapter?: {
-    aggregate(rows: JsonObject[], custom: JsonObject[]): JsonObject;
-    recommend(row: JsonObject, policy: JsonObject, now: number): JsonObject;
-  },
+  adapter?: WindowAdapter,
 ): JsonObject[] {
+  for (const group of windowGroups(rows, adapter)) shareWindowRecommendation(group, policy, custom, now, adapter);
+  return rows;
+}
+/** How a report version aggregates the rows of one entity and advises on the aggregate (v4: exact decimal metrics). */
+export interface WindowAdapter {
+  aggregate(rows: JsonObject[], custom: JsonObject[]): JsonObject;
+  recommend(row: JsonObject, policy: JsonObject, now: number): JsonObject;
+}
+/**
+ * The rows of each entity that has more than one; v4 tells entities apart by currency, attribution, objective and result
+ * definition too.
+ */
+export function windowGroups(rows: JsonObject[], adapter?: WindowAdapter): JsonObject[][] {
   const groups = new Map<string, JsonObject[]>();
   for (const row of rows) {
     const key = adapter
@@ -724,52 +734,61 @@ export function windowRecommendations(
     if (members) members.push(row);
     else groups.set(key, [row]);
   }
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-    const base: JsonObject = {},
-      qualities = group.map(row => row.quality ?? {}),
-      open = qualities.filter(q => q.open_window === true);
-    for (const key of additiveMetrics) {
-      const values = group.map(row => row.metrics?.[key]);
-      base[key] = values.every(v => typeof v === 'number' && Number.isFinite(v))
-        ? values.reduce((sum, v) => sum + v, 0)
-        : null;
-    }
-    const aggregate = {
-      ...group[0],
-      omitted_as_zero: [...new Set(group.flatMap(row => row.omitted_as_zero ?? []))],
-      date_from: group.map(row => row.date_from).sort()[0],
-      date_to: group
-        .map(row => row.date_to)
-        .sort()
-        .at(-1),
-      complete: group.every(row => row.complete),
-      captured_at: Math.min(...group.map(row => row.captured_at)),
-      quality: {
-        ...(open.length ? {open_window: true, window_closes_at: open.at(-1)!.window_closes_at ?? null} : {}),
-        ...(qualities.some(q => q.reporting_window_declared_complete === false)
-          ? {reporting_window_declared_complete: false}
-          : {}),
-        measurement_complete: qualities.some(q => q.measurement_complete === false)
-          ? false
-          : qualities.every(q => q.measurement_complete === true)
-            ? true
-            : null,
-      },
-      ...(adapter ? adapter.aggregate(group, custom) : {metrics: calculateMetrics(base, custom)}),
-    };
-    const shared = adapter ? adapter.recommend(aggregate, policy, now) : campaignRecommendation(aggregate, policy, now);
-    for (const row of group)
-      row.recommendation = {
-        ...shared,
-        basis: 'entity_window',
-        evidence: {
-          ...shared.evidence,
-          periods: group.length,
-          date_from: aggregate.date_from,
-          date_to: aggregate.date_to,
-        },
-      };
+  return [...groups.values()].filter(group => group.length >= 2);
+}
+/**
+ * The one recommendation the rows of an entity share (basis `entity_window`): from their aggregate over the whole window.
+ * It is one unit of work, so a pass over many entities can hand the event loop back between two of them (NF-1).
+ */
+export function shareWindowRecommendation(
+  group: JsonObject[],
+  policy: JsonObject = {},
+  custom: JsonObject[] = [],
+  now = Date.now(),
+  adapter?: WindowAdapter,
+): void {
+  const base: JsonObject = {},
+    qualities = group.map(row => row.quality ?? {}),
+    open = qualities.filter(q => q.open_window === true);
+  for (const key of additiveMetrics) {
+    const values = group.map(row => row.metrics?.[key]);
+    base[key] = values.every(v => typeof v === 'number' && Number.isFinite(v))
+      ? values.reduce((sum, v) => sum + v, 0)
+      : null;
   }
-  return rows;
+  const aggregate = {
+    ...group[0],
+    omitted_as_zero: [...new Set(group.flatMap(row => row.omitted_as_zero ?? []))],
+    date_from: group.map(row => row.date_from).sort()[0],
+    date_to: group
+      .map(row => row.date_to)
+      .sort()
+      .at(-1),
+    complete: group.every(row => row.complete),
+    captured_at: Math.min(...group.map(row => row.captured_at)),
+    quality: {
+      ...(open.length ? {open_window: true, window_closes_at: open.at(-1)!.window_closes_at ?? null} : {}),
+      ...(qualities.some(q => q.reporting_window_declared_complete === false)
+        ? {reporting_window_declared_complete: false}
+        : {}),
+      measurement_complete: qualities.some(q => q.measurement_complete === false)
+        ? false
+        : qualities.every(q => q.measurement_complete === true)
+          ? true
+          : null,
+    },
+    ...(adapter ? adapter.aggregate(group, custom) : {metrics: calculateMetrics(base, custom)}),
+  };
+  const shared = adapter ? adapter.recommend(aggregate, policy, now) : campaignRecommendation(aggregate, policy, now);
+  for (const row of group)
+    row.recommendation = {
+      ...shared,
+      basis: 'entity_window',
+      evidence: {
+        ...shared.evidence,
+        periods: group.length,
+        date_from: aggregate.date_from,
+        date_to: aggregate.date_to,
+      },
+    };
 }

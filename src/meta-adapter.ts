@@ -20,6 +20,7 @@ import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion, metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
+import {metaAbsent} from './meta-catalogs.js';
 import {normalizeAccount} from './account-id.js';
 import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
@@ -135,6 +136,18 @@ function metaAdIdentityRead(plan: CompiledRequest): string | undefined {
   )
     return undefined;
   return metaRoute('([1-9][0-9]{0,31})$').exec(plan.path)?.[1];
+}
+/**
+ * A failed identity probe as it may be kept in the audit and returned (src/provider-workflows.ts safeError). An ad that is
+ * another account's (the observer's refusal below) and an ad Meta says does not exist or cannot be loaded are one refusal,
+ * "Not in this account": which of the two it was is not the caller's to learn, and the audit rows are the caller's too, since
+ * the activity history shows a reader the error of every failed request on the accounts they reach (NF-2). A failure that
+ * says nothing about whose ad it is, and every other read, keeps its error.
+ */
+export function metaAdIdentityRefusal(plan: CompiledRequest, error: unknown): unknown {
+  if (!plan.nested || !metaAdIdentityRead(plan)) return error;
+  if (!(error instanceof MirrorError) || (error.code !== 'ACCOUNT_SCOPE_MISMATCH' && !metaAbsent(error))) return error;
+  return new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403);
 }
 /** Meta's ownership learning from a successful account-scoped read or an exact identity proof. */
 function observeMeta(plan: CompiledRequest, connection: Connection, id: string, data: unknown, store: Store) {

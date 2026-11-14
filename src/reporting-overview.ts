@@ -1603,7 +1603,7 @@ export class ReportingOverview {
     // Rechecked when the job runs: a tab claimed by another report after this export was queued stays protected.
     this.assertDestinationOwner(tenant, r, e.destination_id);
     const result = await this.sheets.write(actor, e.destination_id, r, () => {
-      this.currentReport(tenant, r.id);
+      this.reportCurrent(tenant, r.id);
       this.access(actor, r.config);
     });
     store.transaction(() => {
@@ -1736,15 +1736,34 @@ export class ReportingOverview {
       );
     for (const delivery of pending) abandonSheetsDelivery(store, actor, delivery, 'report_deleted');
   }
-  private currentReport(tenant: string, id: string) {
-    const r = this.service.store.document(tenant, 'overview_report', id);
+  /**
+   * What ends a job that works for a report: the report cancelled, or made by a schedule that was then paused, edited or
+   * removed. `r` holds the three fields these stand on (`state`, `schedule_id`, `schedule_version`).
+   */
+  private assertCurrent(tenant: string, r: JsonObject) {
     if (r.state === 'cancelled') throw new MirrorError('JOB_CANCELLED', 'Report cancelled.');
     if (r.schedule_id) {
       const schedule = this.service.store.document(tenant, 'overview_schedule', r.schedule_id);
       if (!schedule.is_active || (schedule.definition_version ?? 0) !== (r.schedule_version ?? 0))
         throw new MirrorError('JOB_CANCELLED', 'The report schedule was edited, paused or removed.');
     }
+  }
+  /** The report a job works for, read whole (the delivery of its files needs its rows) and checked current. */
+  private currentReport(tenant: string, id: string) {
+    const r = this.service.store.document(tenant, 'overview_report', id);
+    this.assertCurrent(tenant, r);
     return r;
+  }
+  /**
+   * The same check for a guard that has no use for the report, which is every actor check a job makes while it runs: it
+   * reads the three fields the check stands on, fresh each time, and not the whole stored snapshot, which holds every
+   * row of the report and took 0.8 s to parse at the 25,000-row ceiling, five times in the tail of a job (NF-1b).
+   */
+  private reportCurrent(tenant: string, id: string) {
+    this.assertCurrent(
+      tenant,
+      this.service.store.documentFields(tenant, 'overview_report', id, ['state', 'schedule_id', 'schedule_version']),
+    );
   }
   tick() {
     const store = this.service.store;
@@ -1923,12 +1942,12 @@ export class ReportingOverview {
     let r = store.document(tenant, 'overview_report', input.report_id);
     const actor = store.restoreJobActor(tenant, r.id, r.actor_binding),
       access = () => {
-        this.currentReport(tenant, r.id);
+        this.reportCurrent(tenant, r.id);
         this.access(actor, r.config);
       };
     store.bindActorCheck(actor, () => {
       leaseCheck();
-      this.currentReport(tenant, r.id);
+      this.reportCurrent(tenant, r.id);
     });
     access();
     if (finishedSnapshot(r)) {
@@ -2226,7 +2245,9 @@ export class ReportingOverview {
       if (notices.length) Object.assign(record, {notices});
       store.putDocument(tenant, 'overview_report', r.id, record);
     });
-    evaluateMonitors(store, actor, r.id);
+    // The monitors evaluate the record this job has just written, which is in memory, not a read of it back from the store
+    // (five parses of the whole snapshot, NF-1b); their actor and connection checks are made against the store as before.
+    evaluateMonitors(store, actor, r.id, record);
     store.journal(tenant, r.id, state === 'failed' ? 'failed' : 'responded', {report_id: r.id, rows: rows.length});
     if (state === 'failed') {
       const reason = failures

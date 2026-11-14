@@ -67,6 +67,7 @@ import {providerOf} from './provider-adapters.js';
 import {DocumentRepository} from './document-repository.js';
 import {mcpRateLimitsSQL} from './mcp-rate-limit-repository.js';
 import {
+  fieldPath,
   isServicePartition,
   maintenanceSweeps,
   servicePartitions,
@@ -2657,6 +2658,23 @@ export class Store {
       .get(tenantId, kind, id) as {data: string; revision: number} | undefined;
     if (!row) throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
     return {...JSON.parse(row.data), id, revision: row.revision};
+  }
+  /**
+   * Some top-level fields of a document as SQLite reads them (json_extract), for a check that stands on a few facts of a
+   * document whose payload is large: a report snapshot holds every row of the report (170 MB at the ceiling), and parsing
+   * it in JavaScript to read its state took about 0.8 s, five times in the tail of one job (NF-1b). The read is fresh
+   * every time, like `document`: nothing is kept. A field the document does not hold is null; NOT_FOUND as `document`.
+   */
+  documentFields(tenantId: string, kind: string, id: string, names: readonly string[]): JsonObject {
+    const row = this.db
+      .prepare(
+        'SELECT ' +
+          names.map((name, i) => 'json_extract(data,' + fieldPath(name) + ') AS f' + i).join(',') +
+          ' FROM documents WHERE tenant_id=? AND kind=? AND id=?',
+      )
+      .get(tenantId, kind, id) as JsonObject | undefined;
+    if (!row) throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+    return Object.fromEntries(names.map((name, i) => [name, row['f' + i]]));
   }
   documents(tenantId: string, kind: string): JsonObject[] {
     return (

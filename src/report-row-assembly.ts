@@ -2,9 +2,9 @@ import {fingerprint} from './report-quality.js';
 import {MirrorError} from './errors.js';
 import {reportSource} from './report-sources.js';
 import {resolveObjective, unusedObjectiveOverrides, type ResolvedObjective} from './report-objectives.js';
-import {reportMetricsSummaryV4, reportSummary, reportWindowSummary} from './report-summary.js';
-import {calculateMetricsV4, withCalculationBudget} from './report-math-v4.js';
-import {assignRecommendationsV4, recommendationV4} from './report-advice-v4.js';
+import {reportMetricsSummaryV4, reportSummarySteps, reportWindowSummarySteps} from './report-summary.js';
+import {calculateMetricsV4, withCalculationBudget, type Steps} from './report-math-v4.js';
+import {assignRecommendationSteps, recommendationV4} from './report-advice-v4.js';
 import {
   calculateMetrics,
   campaignRecommendation,
@@ -101,11 +101,31 @@ export function duplicateRowsError(result: JsonObject, defaultRange: JsonObject)
 
 /**
  * The worker shares its thread with the website and the MCP endpoint, so a calculation over many rows hands the event loop
- * back as it goes: after about 20 ms it waits one turn (F-L9-01). Everything between two turns is one row's work, which the
- * calculation budget bounds.
+ * back as it goes: after about 20 ms it waits one turn (F-L9-01). Everything between two turns is one unit of work: a
+ * row in the row loop, and in the passes after it (advice, summaries) one entity, one metric of a group or one group (NF-1).
+ * The calculation budget bounds the work of a unit that calculates numbers.
  */
 const sliceMs = 20;
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+/** The 20 ms slices of one calculation: `due` says the slice is spent, `handBack` gives the event loop a turn and starts another. */
+function slices() {
+  let start = performance.now();
+  return {
+    due: () => performance.now() - start >= sliceMs,
+    async handBack() {
+      await turn();
+      start = performance.now();
+    },
+  };
+}
+type Slices = ReturnType<typeof slices>;
+/** Runs the steps of a pass, handing the event loop back between two of them whenever the slice is spent. */
+async function runSteps<T>(steps: Steps<T>, slice: Slices): Promise<T> {
+  for (let next = steps.next(); ; next = steps.next()) {
+    if (next.done) return next.value;
+    if (slice.due()) await slice.handBack();
+  }
+}
 
 /**
  * The report rows of every requested packet, in packet order. A packet that supports a scope rollup contributes no
@@ -118,16 +138,13 @@ export async function assembleReportRows(
   custom: JsonObject[],
 ): Promise<JsonObject[]> {
   const v4 = config.contract_version === overviewConfigV4,
-    rows: JsonObject[] = [];
-  let sliceStart = performance.now();
+    rows: JsonObject[] = [],
+    slice = slices();
   for (const result of results) {
     if (result.source.scope_supporting) continue;
     const seen = new Set<string>();
     for (const row of result.rows) {
-      if (performance.now() - sliceStart >= sliceMs) {
-        await turn();
-        sliceStart = performance.now();
-      }
+      if (slice.due()) await slice.handBack();
       const source = result.source,
         {key, period, context, rowKey} = rowIdentity(result, row, config.date_range);
       if (seen.has(rowKey)) throw duplicateRows(row);
@@ -207,7 +224,11 @@ export async function assembleReportRows(
   }
   noteUnusedObjectiveOverrides(results);
   // DEC-01: grouped periods share one entity-window recommendation instead of per-period small-sample advice.
-  if (v4) assignRecommendationsV4(rows, config.targets, custom, (config.grain ?? 'total') !== 'total');
+  if (v4)
+    await runSteps(
+      assignRecommendationSteps(rows, config.targets, custom, (config.grain ?? 'total') !== 'total'),
+      slice,
+    );
   else if ((config.grain ?? 'total') !== 'total') windowRecommendations(rows, config.targets, custom);
   return rows;
 }
@@ -340,14 +361,19 @@ export function calculateSnapshot(results: JsonObject[], config: JsonObject) {
     const nativeFields = reportNativeFields(results),
       custom = reportCustomMetrics(config, nativeFields),
       rows = await assembleReportRows(results, config, custom),
-      v4 = config.contract_version === overviewConfigV4;
+      v4 = config.contract_version === overviewConfigV4,
+      slice = slices(),
+      summary = await runSteps(reportSummarySteps(rows, custom, v4), slice);
     return {
       nativeFields,
       custom,
       rows,
-      summary: reportSummary(rows, custom, v4),
+      summary,
       // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
-      windowSummary: (config.grain ?? 'total') !== 'total' ? reportWindowSummary(rows, custom, v4) : undefined,
+      windowSummary:
+        (config.grain ?? 'total') !== 'total'
+          ? await runSteps(reportWindowSummarySteps(rows, custom, v4), slice)
+          : undefined,
     };
   });
 }
