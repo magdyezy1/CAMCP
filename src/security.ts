@@ -137,7 +137,11 @@ const textPairs = pairPass('&'),
  *   for its own rule: a run that swallowed the name left the second value readable, which the redaction before P2A-01
  *   hid (P2B-01). When a credential head follows the `=` at once the value is empty and the branch hides its own head
  *   alone (`?password = &id_token = x` is `?[REDACTED]&[REDACTED]`): left as it was, a second pass would read what the
- *   first one hid as a value and hide more;
+ *   first one hid as a value and hide more. The first branch (`name=` not after a delimiter, `name:` anywhere) keeps the run
+ *   it has had since DR2-02, so that nothing it hid is shown (the redaction of 6c80be71 is the reference of the tests), and
+ *   when that run ends in a credential head it hides the value of the head as well: a name and then `=` or `:` after white
+ *   space (`client-secret :x?/PASSWORD :y`), or a name and its `=` or `:` with the value after white space. The run had
+ *   swallowed that head, so the third credential of such a chain was readable (Ruling 16);
  * - a Meta access token: `EAA` and sixty or more letters and digits, with no closing `\b`, which would make a long run
  *   of letters and digits that ends in `_` read again from each `EAA` inside it.
  * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
@@ -146,12 +150,23 @@ const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[
   bareParameters = /\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi,
   // The next credential head, as the branch of its own below reads it: the lead it may have, a name, `=` or `:`.
   nextCredential = '[?&#;]?\\b(?:' + secretKeyNames + ')\\s*[=:]',
+  // The value of the first branch: its run, then the value of the head the run ends in, and so on along a chain (Ruling 16): a
+  // name and a separator after any white space, or a name and its separator with the value after white space.
+  headValue =
+    '(?:(?<=\\b(?:' +
+    secretKeyNames +
+    '))\\s*[=:]\\s*|(?<=\\b(?:' +
+    secretKeyNames +
+    ')[=:])\\s+)(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+',
+  runValue = '\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+(?:' + headValue + ')*',
   sentenceSecrets = new RegExp(
     '(?:(?<![?&#;])\\b(?:' +
       secretKeyNames +
       ')\\s*=|\\b(?:' +
       secretKeyNames +
-      ')\\s*:)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))[^\\s,;]+|(?<=[?&#;])(?:' +
+      ')\\s*:)' +
+      runValue +
+      '|(?<=[?&#;])(?:' +
       secretKeyNames +
       ')(?:\\s+=|=\\s)\\s*(?!\\[REDACTED\\](?![^\\s,;&]))(?:(?:(?!' +
       nextCredential +
