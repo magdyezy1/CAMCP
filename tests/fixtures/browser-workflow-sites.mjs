@@ -41,6 +41,8 @@ offerParkedProviders('woocommerce');
 
 /** Fixture kinds whose own fake provider accepts its declared synthetic mutations (QA-03, owner decision D26). */
 export const syntheticWriteKinds = Object.freeze(['write-journey', 'spend-policy-edit', 'export-outcomes']);
+/** Fixture kinds that run on the granular reporting fixture: its fake providers, worker and report editor. */
+const granularKinds = Object.freeze(['granular-reporting', 'report-pdf-export']);
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind, {listen = listenForFetch, protocol = 'http'} = {}) {
@@ -55,7 +57,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
       // OWNER-REVIEWER-QA: an invited test account in its own workspace, the view Meta's app reviewers use.
       'reviewer',
       ...syntheticWriteKinds,
-      'granular-reporting',
+      ...granularKinds,
       'period-comparison',
       'conditional-programs',
       'conditional-programs-denied',
@@ -134,7 +136,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
     refused++;
     throw Error('Synthetic browser fixture refuses external requests');
   };
-  if (kind === 'granular-reporting') {
+  if (granularKinds.includes(kind)) {
     fixture = overviewGranularityFixture();
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
@@ -477,7 +479,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
       masterKey: Buffer.alloc(32, keyByte).toString('base64'),
       tenantId: fixture.actor.tenantId,
       authEnv: {},
-      fetcher: kind === 'granular-reporting' ? fixture.fetcher : blocked,
+      fetcher: granularKinds.includes(kind) ? fixture.fetcher : blocked,
     },
     {web, accounts, mcpOAuth} = createWebsite(fixture.store, options, false, fixture.service),
     // OWNER-REVIEWER-QA: the reviewer is the invited test account of its own workspace, never a deployment member.
@@ -491,7 +493,7 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
         'shell',
         'components',
         'worker-health',
-        'granular-reporting',
+        ...granularKinds,
         'period-comparison',
         'catalog-groups',
         ...syntheticWriteKinds,
@@ -568,16 +570,27 @@ export async function browserWorkflowSite(kind, {listen = listenForFetch, protoc
     conditionalProgram: fixture.programGate,
     periodComparison:
       kind === 'period-comparison' ? {reset: () => fixture.reset(), drain: () => fixture.drain()} : undefined,
-    granular:
-      kind === 'granular-reporting'
-        ? {
-            workOnce: () => fixture.worker.once(),
-            tabs: fixture.tabs,
-            requests: fixture.requests,
-            store: fixture.store,
-            tenant: fixture.actor.tenantId,
-          }
-        : undefined,
+    granular: granularKinds.includes(kind)
+      ? {
+          workOnce: () => fixture.worker.once(),
+          tabs: fixture.tabs,
+          requests: fixture.requests,
+          store: fixture.store,
+          tenant: fixture.actor.tenantId,
+          // The names the fake Meta account gives its campaign, ad set and ad from now on (the rows of every level).
+          providerNames: names =>
+            fixture.mutate((rows, platform) =>
+              platform === 'meta'
+                ? rows.map(row => ({
+                    ...row,
+                    ...(row.campaign_name === undefined ? {} : {campaign_name: names.campaign}),
+                    ...(row.adset_name === undefined ? {} : {adset_name: names.adset}),
+                    ...(row.ad_name === undefined ? {} : {ad_name: names.ad}),
+                  }))
+                : rows,
+            ),
+        }
+      : undefined,
     wooConnection: kind.startsWith('woocommerce-connection')
       ? {
           input: wooConnectionInput(),

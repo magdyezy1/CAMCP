@@ -132,6 +132,11 @@ populated/refusal/recovery cases documented below. The exact case count is the `
   real keys (chips, tabs, the searchable list, the scope tree, the table's column chooser and density toggle, the dialog
   and side sheet with an inert page and focus returned, toasts that never take focus), target sizes of 24 pixels (44 for a
   primary action), the one focus ring, forced colours and the Arabic leak probe on the page and in its five states.
+- The report PDF export (`--kinds report-pdf-export`, P2B-02), at 1280 pixels in English and Arabic: a report whose
+  provider names carry a combining mark directly after a space and after a no-break space, in Latin and in Arabic, is run
+  through the editor and the worker and exported with the report pack page's own PDF button, in both PDF languages. Each
+  download must be a PDF that opens (`tests/helpers/pdf-structure.mjs`) and carry the entities' names as the provider sent
+  them; `tests/report-pdf-export-site.test.mjs` runs the same exports over HTTP without a browser.
 - Reviewer pass (`--kinds reviewer`): an invited test account opens each `testAccount` route and `/help` at 320 and
   1280 pixels in both languages; its navigation lists only those, no API response fails while a page loads, and Help
   lands on Home; `tests/reviewer-page-apis.test.mjs` checks their scripts against the test-account gate.

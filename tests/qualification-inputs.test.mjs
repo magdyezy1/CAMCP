@@ -23,6 +23,11 @@ test('the browser runner input map covers every loaded non-dist module, includin
     'tests/fixtures/conditional-program-browser.mjs',
     'tests/fixtures/conditional-program-data.mjs',
     'tests/fixtures/overview-granularity-data.mjs',
+    // The kind `report-pdf-export` (P2B-02): its exercise, its names and the reader of the PDF it downloads.
+    'tests/fixtures/report-pdf-export-browser.mjs',
+    'tests/fixtures/report-pdf-export-data.mjs',
+    'tests/helpers/pdf-structure.mjs',
+    'tests/helpers/pdf-actual-text.mjs',
     'tests/fixtures/portfolio-refusal-data.mjs',
     'tests/fixtures/google-hour-evidence-data.mjs',
     'tools/browser-accessibility.mjs',

@@ -27,6 +27,7 @@ import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program
 import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
 import {exerciseOverviewV4} from '../tests/fixtures/overview-v4-browser.mjs';
 import {exercisePeriodComparison} from '../tests/fixtures/period-comparison-browser.mjs';
+import {exerciseReportPdfExport} from '../tests/fixtures/report-pdf-export-browser.mjs';
 import {exerciseComponents} from '../tests/fixtures/components-browser.mjs';
 import {appearanceChoice, selectAppearance} from '../tests/fixtures/shell-browser.mjs';
 import {
@@ -84,6 +85,9 @@ const fixtureKinds = [
   'granular-reporting',
   // RPT-07: the Overview period comparison (previous equal window, Compare to, delta columns).
   'period-comparison',
+  // P2B-02: a report whose provider names carry a combining mark after a space and after a no-break space, in Latin and in
+  // Arabic, exported to PDF through the report pack page in both PDF languages; the download must be a PDF that opens.
+  'report-pdf-export',
   'conditional-programs',
   'conditional-programs-denied',
   'conditional-programs-stale',
@@ -865,6 +869,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await exerciseOverviewV4({page, site, locale, width, appearance, output, id, result, checks: {intermediate}});
     } else if (workflow === 'period-comparison') {
       await exercisePeriodComparison({page, site, locale, result, checks: {intermediate, tables: checkTables}});
+    } else if (workflow === 'report-pdf-export') {
+      await exerciseReportPdfExport({page, site, locale, output, id, result});
     } else if (workflow === 'components') {
       await exerciseComponents({page, site, locale, width, appearance, output, id, result, checks: {intermediate}});
     } else if (workflow?.startsWith('conditional-programs')) {
@@ -3957,6 +3963,10 @@ async function runFixture(kind, site) {
           for (const width of [851, 1024, 1150, 1280]) await shellChromeCase(site, route, locale, width);
     } else if (kind === 'shell') {
       await runShellKind(site);
+    } else if (kind === 'report-pdf-export') {
+      // A download is not laid out by the width of the page: one wide case for each language of the page, light theme.
+      for (const locale of ['en', 'ar'])
+        await renderedCase(site, kind, '/reporting-overview', locale, 1280, true, kind, 'light');
     } else if (kind === 'reviewer') {
       // OWNER-REVIEWER-QA: every page the registry opens to a test account, then each member page it leaves out, at
       // the reduced matrix (two widths, both languages, light theme).
