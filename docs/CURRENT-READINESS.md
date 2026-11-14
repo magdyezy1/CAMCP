@@ -81,9 +81,10 @@ or ad group and ad levels for every platform within bounded requests, scoped and
 objectives, exact totals with row coverage, saved reports upgraded when they run), LinkedIn conversion-rule attribution
 windows, ad previews behind provider hooks, charts in the report page and its PDF, the SDK v2 MCP server with typed
 report schemas, progress, tasks and a per-client contract profile (D26), one route registry and shell with the V2
-components, and the owner's brand kit. Automated tests with synthetic fakes and loopback browsers check all of it. No live
-check has run: staging does not exist (blocked: no staging (D20)), provider use is not permitted during development, and
-live deployment is the owner's deferral (C11).
+components, the owner's brand kit, and the fixes of two differential reviews (credential redaction, audited transport
+refusals, PDF export of names with combining marks). Automated tests with synthetic fakes and loopback browsers check
+all of it. No live check has run: staging does not exist (blocked: no staging (D20)), provider use is not permitted
+during development, and live deployment is the owner's deferral (C11).
 
 **Tool-list budget.** The limit of 95 KiB (97,280 bytes) on `tools/list` is not raised. Measured on this tree on
 2026-11-14 with `node tools/measure-tool-list.mjs`: <!-- fact:tools_list_bytes_writes -->97,253<!-- /fact --> bytes with
