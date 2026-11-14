@@ -292,10 +292,16 @@
       "raised": [
         "reference_words 160654 → 160742"
       ]
+    },
+    {
+      "reason": "Ruling 16 of wave 5 (package sec-followup-2, 2026-11-14): docs/LOCAL-BROWSER-QA.md lists the new browser kind report-pdf-export (a report whose provider names carry a combining mark after a space and after a no-break space, exported to PDF through the real page, in both languages), the first committed kind that exports a report PDF",
+      "raised": [
+        "reference_words 160742 → 160831"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 160742
+    "reference_words": 160831
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
