@@ -108,3 +108,10 @@ fixture writes; none reaches a provider. No budget or golden was re-recorded to 
 The SDK-only commit and the preserved complete v1 offline dependency tree provide the foundation's rollback before
 later SDK-dependent features. Existing advisory remediation and the remaining Round 2 packages are not qualified
 by this record.
+
+Corrected 2026-11-14 (F-L4-14): that rollback holds only for the SDK foundation as qualified here. Once the [compatible
+dependency remediation](QUALIFICATION-V2-R2-DEPENDENCIES-2026-11-04.md) (`f32c79b1`) is on top of it, rolling back means
+reverting both commits, the SDK commit (`3b950b2d`) and that patch, together with the preserved v1 tree, and the patch is
+undone with it: that tree predates the seven patched versions and brings back the unauthenticated crash on a valid gzip
+frame followed by a corrupt trailer which the patch closes. Reverting only the SDK commit leaves a lock that names the v1
+packages and the seven patched versions, a set that neither preserved tree holds; no such third tree is preserved.
