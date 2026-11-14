@@ -268,10 +268,16 @@
       "raised": [
         "reference_words 159392 → 159636"
       ]
+    },
+    {
+      "reason": "V2-RPT-04 P2B-08 (c): the LinkedIn Overview documentation now says the join reads only the rules the account owns, that a rule shared from or owned by another account is not read, that the source claims what it read and not a verification per rule, and that a changed login fails the source (+44 reference words, all in docs/REPORTING-OVERVIEW.md)",
+      "raised": [
+        "reference_words 159636 → 159680"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 159636
+    "reference_words": 159680
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
