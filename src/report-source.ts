@@ -234,8 +234,9 @@ export interface ReportCollection {
    */
   readonly call: ToolCall;
   /**
-   * V2-RPT-04: an attribution the source verified with its platform (LinkedIn's conversion-rule windows). A detailed
-   * result reports it in place of the attribution declared in its report options.
+   * V2-RPT-04: an attribution the source took from its platform's own settings (LinkedIn's conversion-rule windows, as
+   * the account's rules state them; not a verification per rule, P2B-08). A detailed result reports it in place of the
+   * attribution declared in its report options.
    */
   verifiedAttribution?: string;
   /** Source-specific fields returned with the result (X campaigns without activity, Microsoft's report time zone). */

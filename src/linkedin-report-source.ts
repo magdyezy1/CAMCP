@@ -52,11 +52,12 @@ export const linkedinMetadataUnavailableWarning =
   'LinkedIn metadata could not be read, so some names, parents or objectives remain unknown.';
 export const linkedinMetadataLimitedWarning =
   'This LinkedIn source reports more than 2000 entities, so names, parents and objectives beyond that bound stay unknown.';
-/** What the unverified-windows warning also said, which stays true when the windows are verified. */
+/** What the unverified-windows warning also said, which stays true when the windows are joined from the account’s rules. */
 export const linkedinCurrentMetadataWarning =
   'LinkedIn entity names and objectives are current metadata, not the values at delivery time.';
+/** What the join read, and what it did not (P2B-08): the account finder returns the rules the account owns, none shared from another. */
 export const linkedinRuleWindowsWarning =
-  'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.';
+  'LinkedIn attribution windows come from the conversion rules this account owns. AMCP does not read which campaigns a rule counts for, so every owned rule is used. A rule shared from or owned by another account is not read, so a campaign may count a rule whose windows are not shown here. Rule settings are current, not the settings at delivery time.';
 export const linkedinMixedWindowsWarning =
   'LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.';
 /** The distinct window pairs of the account's rules, in the words of the guided join (`30d click / 7d view`). */
@@ -164,13 +165,15 @@ function conversionResults(c: ReportCollection): {conversions: number; other: nu
  * current conversion rules. LinkedIn counts `externalWebsiteConversions` under each rule's own post-click and view-through
  * windows, and the rules list does not say which campaigns a rule counts for (its `campaign_membership` stays
  * `not_collected`), so every rule of the account is used: the source can say `mixed` when its campaigns' own rules
- * agree, and never one pair when they differ. The words are those of the guided preset's join (src/linkedin-conversion-
- * windows.ts), the one place that names a pair.
+ * agree, and never one pair when the rules it read differ. It claims what it read and no more (P2B-08): the account finder
+ * returns the rules the account owns, so a rule shared from or owned by another account, which a campaign may count, is not
+ * among them. The pair is said in the words of the guided preset's join (src/linkedin-conversion-windows.ts), the one place
+ * that names a pair, but as `per account rules`: the guided preset looks up each conversion it reports, this source cannot.
  */
 interface LinkedInSourceWindows {
-  /** The attribution the source reports: the rules' windows, or `unknown`. */
+  /** The attribution the source reports: the account's rules' windows, or `unknown`. */
   attribution: string;
-  /** True when the attribution is the rules' own windows (one pair, or the different pairs of several rules). */
+  /** True when the attribution is the rules' own windows (one pair, or the different pairs of several rules); not a verification. */
   verified: boolean;
   /** The notes the source adds to its warnings, in order. */
   warnings: string[];
@@ -309,6 +312,7 @@ async function linkedInSourceWindows(
   const join = linkedInConversionWindows(
       read.rules,
       read.rules.map(rule => String(rule.urn)),
+      'account_rules',
     ),
     unknown = join.status === 'unknown',
     reason = unknown ? (read.rules.length ? 'rule_window_missing' : 'no_rules') : null;

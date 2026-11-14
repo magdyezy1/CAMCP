@@ -12,13 +12,13 @@ import {DecisionReporting} from '../dist/src/decision-reporting.js';
 import {pdfActualText} from './helpers/pdf-actual-text.mjs';
 import {pdfPlainText} from './helpers/pdf-plain-text.mjs';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
-import {analytics, fixClock, run, stored, verifiedPair, world} from './helpers/linkedin-windows-world.mjs';
+import {analytics, fixClock, run, stored, accountRulesPair, world} from './helpers/linkedin-windows-world.mjs';
 import {linkedinConversionRule} from './fixtures/linkedin-conversion-rules-docs.mjs';
 
 // V2-RPT-04: what reads a source's attribution after the join. Every consumer takes it from the source's period, so the
 // pair has to reach all of them, and a total must never add results measured under different windows.
 const rule = (id, click, view) => linkedinConversionRule(id, click, view);
-const pair = verifiedPair(30, 7);
+const pair = accountRulesPair(30, 7);
 const squash = text => text.replace(/\s+/g, '');
 const pdfWords = bytes => squash(pdfPlainText(bytes).join(' ') + ' ' + pdfActualText(bytes));
 
@@ -50,9 +50,11 @@ test('every surface that shows a snapshot shows the pair in words: MCP, CSV, wor
   const evidence = reportEvidence(snapshot).sources[0];
   assert.equal(evidence.attribution, pair);
   assert.ok(
-    evidence.warnings.some(w => /^LinkedIn attribution windows come from the account’s own conversion rules/.test(w)),
+    evidence.warnings.some(w =>
+      /^LinkedIn attribution windows come from the conversion rules this account owns/.test(w),
+    ),
   );
-  assert.equal(evidence.level_results[0].conversion_windows.status, 'verified_per_rule');
+  assert.equal(evidence.level_results[0].conversion_windows.status, 'single_window');
   assert.deepEqual(evidence.level_results[0].conversion_windows.single_window, {
     post_click_days: 30,
     post_view_days: 7,

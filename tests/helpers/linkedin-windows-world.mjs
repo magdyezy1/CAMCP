@@ -16,9 +16,15 @@ export const owner = 'urn:li:sponsoredAccount:100',
     report_options: {complete_window: true, attribution: 'unknown'},
   }),
   v4 = {contract_version: 'overview-config-v4', metrics: ['spend', 'clicks', 'primary_result', 'cost_per_result']},
-  /** The attribution the join gives one pair, in the words of the guided preset's join. */
-  verifiedPair = (click, view) =>
-    'LinkedIn conversion rules: ' + click + '-day post-click / ' + view + '-day post-view (verified per rule)';
+  /**
+   * The attribution the join gives one pair, in the words of the guided preset's join but for what it claims: the source's
+   * analytics are not split by conversion, so it names the account's own rules it read, never a verification per rule.
+   */
+  accountRulesPair = (click, view) =>
+    'LinkedIn conversion rules: ' + click + '-day post-click / ' + view + '-day post-view (per account rules)';
+/** What a joined source says it read: the rules the account owns, never a rule shared from or owned by another account. */
+export const accountRulesNote =
+  'LinkedIn attribution windows come from the conversion rules this account owns. AMCP does not read which campaigns a rule counts for, so every owned rule is used. A rule shared from or owned by another account is not read, so a campaign may count a rule whose windows are not shown here. Rule settings are current, not the settings at delivery time.';
 export const urnOf = {CAMPAIGN_GROUP: groupUrn, CAMPAIGN: campaignUrn, CREATIVE: creativeUrn};
 export const world = (objectiveType = 'WEBSITE_CONVERSION') => ({
   groups: {20: {id: 20, account: owner, name: 'Group One', status: 'ACTIVE'}},

@@ -11,6 +11,8 @@ import {saveAccessSet} from '../dist/src/access-sets.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
 import {
+  accountRulesNote,
+  accountRulesPair,
   analytics,
   campaignUrn,
   delivered,
@@ -22,7 +24,6 @@ import {
   source,
   stored,
   v4,
-  verifiedPair,
   world,
 } from './helpers/linkedin-windows-world.mjs';
 import {
@@ -58,15 +59,15 @@ for (const level of ['adset', 'ad'])
       },
     });
     assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
-    assert.equal(s.attribution, verifiedPair(7, 1));
-    assert.equal(stored(f, report).rows[0].attribution, verifiedPair(7, 1));
-    assert.equal(report.summary[0].attribution, verifiedPair(7, 1));
+    assert.equal(s.attribution, accountRulesPair(7, 1));
+    assert.equal(stored(f, report).rows[0].attribution, accountRulesPair(7, 1));
+    assert.equal(report.summary[0].attribution, accountRulesPair(7, 1));
     assert.equal(
       s.warnings.some(w => unverifiedWarning.test(w)),
       false,
       JSON.stringify(s.warnings),
     );
-    assert.equal(s.level_results[0].conversion_windows.status, 'verified_per_rule');
+    assert.equal(s.level_results[0].conversion_windows.status, 'single_window');
     assert.equal(rulesRead(f).length, 1);
   });
 
@@ -96,7 +97,7 @@ test('rules with different windows make a source mixed: the pairs are listed, th
     [
       'LinkedIn conversion rules with different attribution windows may count toward this result, so its total can combine them and no single attribution window describes it.',
       'The account’s LinkedIn conversion rules state these attribution windows: 30d click / 7d view; 7d click / 1d view.',
-      'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.',
+      accountRulesNote,
       'LinkedIn entity names and objectives are current metadata, not the values at delivery time.',
     ],
   );
@@ -147,6 +148,26 @@ test('the attribution of a source stays within 200 characters when its rules hol
         '.',
     ),
   );
+});
+
+// P2B-08 (c): the account's rule list holds the rules the account owns. A rule shared from or owned by another account, which a
+// campaign may count, is not in it, so a joined source claims what it read and never that it verified a rule. (The guided
+// preset looks up each conversion it reports, so a conversion without a rule is unknown there: it keeps its words.)
+test('a joined source claims only the account’s own rules: nothing it says is a verification per rule, and it says which rules are not read', async t => {
+  for (const rules of [
+    [linkedinConversionRule('501', 30, 7), linkedinConversionRule('502', 30, 7)],
+    [linkedinConversionRule('501', 30, 7), linkedinConversionRule('502', 7, 1)],
+  ]) {
+    const {report, source: s} = await run(t, 'campaign', {conversions: rules});
+    assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+    const said = JSON.stringify([s.attribution, s.warnings, s.level_results[0].conversion_windows]);
+    assert.doesNotMatch(said, /verif/i, said);
+    assert.ok(s.warnings.includes(accountRulesNote), JSON.stringify(s.warnings));
+    assert.ok(
+      s.warnings.some(w => /A rule shared from or owned by another account is not read/.test(w)),
+      JSON.stringify(s.warnings),
+    );
+  }
 });
 
 // What an unknown attribution says: the warning it always carried, then why the account's rules could not settle it.
@@ -330,7 +351,7 @@ test('the rules read is counted in the job’s collection allowance: it fits exa
       const result = await budget.run(() => f.collect());
       assert.equal(result.complete, true, 'the source completes either way');
       assert.equal(f.paths.includes('/rest/conversions'), started, 'allowed ' + allowed + ': ' + f.paths.join(' '));
-      assert.equal(result.attribution, joined ? verifiedPair(30, 7) : 'unknown');
+      assert.equal(result.attribution, joined ? accountRulesPair(30, 7) : 'unknown');
       assert.equal(
         result.warnings.includes(
           'LinkedIn conversion rules were not read because this report’s collection allowance could not hold the read, so attribution windows stay unknown.',
@@ -457,7 +478,7 @@ test('the request estimate says the rules read is a minimum: an account with 1,0
   const rules = Array.from({length: 1000}, (_, i) => linkedinConversionRule(String(i + 1))),
     {f, report} = await run(t, 'campaign', {conversions: rules});
   assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
-  assert.equal(report.sources[0].attribution, verifiedPair(30, 7));
+  assert.equal(report.sources[0].attribution, accountRulesPair(30, 7));
   // The read sent the account, ten pages of a hundred rules and the account again, beside the source's own five reads.
   assert.equal(rulesRead(f).length, 10);
   assert.equal(f.requests.length, 5 + 2 + 10);
@@ -488,7 +509,7 @@ test('the request estimate says the rules read is a minimum: an account with 1,0
 
 test('the rules are read once per source and job, however many periods and levels the source reports, and a refusal is not asked twice', async t => {
   for (const [refused, attribution] of [
-    [[], verifiedPair(30, 7)],
+    [[], accountRulesPair(30, 7)],
     [['/conversions'], 'unknown'],
   ]) {
     fixClock(t);
@@ -618,7 +639,7 @@ test('a token refresh between the analytics reads and the rules read is the same
   });
   const report = await f.run({...v4, sources: [source('campaign')]});
   assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.error ?? x.warnings)));
-  assert.equal(report.sources[0].attribution, verifiedPair(30, 7));
+  assert.equal(report.sources[0].attribution, accountRulesPair(30, 7));
   assert.equal(rulesRead(f).length, 1);
 });
 
@@ -663,20 +684,16 @@ test('a v4 campaign-group source of website conversions takes the one window pai
   assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
   assert.equal(row.objective.native, 'WEBSITE_CONVERSION');
   // The pair, in words, on the source, the stored row and the summary every consumer reads.
-  assert.equal(s.attribution, verifiedPair(30, 7));
-  assert.equal(stored(f, report).rows[0].attribution, verifiedPair(30, 7));
-  assert.equal(report.summary[0].attribution, verifiedPair(30, 7));
+  assert.equal(s.attribution, accountRulesPair(30, 7));
+  assert.equal(stored(f, report).rows[0].attribution, accountRulesPair(30, 7));
+  assert.equal(report.summary[0].attribution, accountRulesPair(30, 7));
   // The old "not independently verified" line goes; what stays true is said on its own.
   assert.equal(
     s.warnings.some(w => unverifiedWarning.test(w)),
     false,
     JSON.stringify(s.warnings),
   );
-  assert.ok(
-    s.warnings.includes(
-      'LinkedIn attribution windows come from the account’s own conversion rules. AMCP does not read which campaigns a rule counts for, so every rule of the account is used, and rule settings are current, not the settings at delivery time.',
-    ),
-  );
+  assert.ok(s.warnings.includes(accountRulesNote));
   assert.ok(
     s.warnings.includes('LinkedIn entity names and objectives are current metadata, not the values at delivery time.'),
   );
@@ -697,7 +714,7 @@ test('a v4 campaign-group source of website conversions takes the one window pai
   const windows = s.level_results[0].conversion_windows;
   assert.deepEqual(
     [windows.status, windows.basis, windows.rule_count, windows.reason],
-    ['verified_per_rule', 'account_rules', 2, null],
+    ['single_window', 'account_rules', 2, null],
   );
   assert.deepEqual(windows.single_window, {post_click_days: 30, post_view_days: 7});
   assert.deepEqual(windows.distinct_windows, ['30d click / 7d view']);

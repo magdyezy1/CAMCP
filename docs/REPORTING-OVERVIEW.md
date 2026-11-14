@@ -245,11 +245,13 @@ split window leaves the source partial.
 
 Attribution windows are joined only into a v4 source whose every reported entity has website conversions as its result;
 any other source keeps `unknown` and the warning that its windows are not verified. After the analytics and metadata
-reads, in the same authorization bracket and inside the collection allowance, AMCP reads the account's own conversion
-rules once per source and job (the account, the rules, the account again: at least three requests, counted in the
-allowance). LinkedIn's rule list does not say which campaigns a rule counts for, so every rule is used. Rules that all
+reads, in the same authorization bracket (the source fails if its login or permissions change after it starts) and
+inside the collection allowance, AMCP reads the conversion rules the account owns once per source and job (the account,
+the rules, the account again: at least three requests, counted in the allowance). LinkedIn's rule list does not say
+which campaigns a rule counts for, so every rule in it is used, and a rule shared from or owned by another account,
+which a campaign may count, is not read. The source claims what it read, not a verification per rule: rules that all
 state one pair of post-click and view-through windows give that pair as the attribution ("LinkedIn conversion rules:
-30-day post-click / 7-day post-view (verified per rule)"), and the unverified warning goes. Rules whose pairs differ
+30-day post-click / 7-day post-view (per account rules)"), and the unverified warning goes. Rules whose pairs differ
 give a mixed attribution with the distinct pairs in the source's notes, and the total is kept. No rule, a rule without
 windows, a read LinkedIn refuses or an allowance that cannot hold the read leave `unknown` with the reason beside the
 warning, and the report stays complete. A source that also reports other results (leads, clicks, views, reach, a Mixed
