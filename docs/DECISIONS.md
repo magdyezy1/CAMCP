@@ -18,7 +18,7 @@ Canonical IDs: `D`, `R` and `P` are the owner questions of the 2026-10-08 engine
 
 | Date | Instruction | Outcome | Revisit trigger | Governs |
 |---|---|---|---|---|
-| 2026-11-05 | "Finish Task 12 completely"; "Do not begin Task 13"; "Do not push the final accepted integration as part of this handoff" | Accepted for that handoff: Round 2 stopped after Task 12 ([Task 12 record](records/IMPLEMENTATION-V2-R2-TASK12-2026-11-05.md)) and nothing was pushed in it. The row below stays the plan for later rounds: publish only to Work-here-V2, after the round gates | The owner asks to start Task 13 or to push | V2-RPT-07, D15 |
+| 2026-11-05 | "Finish Task 12 completely"; "Do not begin Task 13"; "Do not push the final accepted integration as part of this handoff" | Followed for that handoff: Round 2 stopped after Task 12 ([Task 12 record](records/IMPLEMENTATION-V2-R2-TASK12-2026-11-05.md)) and its records claim no push. The row below stays the plan for later rounds: publish only to Work-here-V2, after the round gates | The owner asks to start Task 13 or to push | V2-RPT-07, D15 |
 | 2026-11-04 | Continue Round 2 of the approved V2 plan; live deployment stays deferred | SDK v2 foundation first, preserving existing clients; [qualification](records/QUALIFICATION-V2-R2-SDK-2026-11-04.md) records its state. Publish only to Work-here-V2 after the round gates | Owner changes scope | V2-MCP-13, D15, D21 |
 
 ## October 2026: delivery instructions
