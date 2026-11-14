@@ -10,18 +10,37 @@ import type {JsonObject} from './types.js';
  *  - the rules use different window pairs: `mixed`, and no single window describes the report;
  *  - a reported conversion has no current rule (deleted or not owned) or a rule without both windows: `unknown`.
  * LinkedIn documents post-click and view-through windows of 1, 7 or 30 days (Conversion Tracking, li-lms-2026-09).
+ *
+ * P2B-08: the Overview source joins the same rules but its analytics are not split by conversion, so it has no conversion to
+ * look up in them (basis `account_rules`). It says what it read and no more: the windows of the rules the account owns, which
+ * do not include a rule shared from or owned by another account, one of which a campaign may count. One pair is
+ * `single_window` and its attribution says `per account rules`; a verification per rule is the guided preset's claim alone.
  */
 export const linkedInConversionWindowSentinel = 'verified_per_rule';
 export const linkedInConversionUrn = /^urn:lla:llaPartnerConversion:[1-9][0-9]{0,19}$/;
-export type LinkedInWindowStatus = 'verified_per_rule' | 'mixed' | 'unknown';
+export type LinkedInWindowStatus = 'verified_per_rule' | 'single_window' | 'mixed' | 'unknown';
+/**
+ * What a join claims. `conversion_rules` (the default, the guided preset): each conversion the report counted is looked up
+ * among the account's rules, so its windows are verified per rule, and a conversion without a rule is unknown. `account_rules`
+ * (the Overview source): nothing is looked up, the windows are those the account's own rules state, and nothing is verified.
+ */
+export type LinkedInWindowBasis = 'conversion_rules' | 'account_rules';
 
 const pair = (w: JsonObject) => w.post_click_days + 'd click / ' + w.post_view_days + 'd view';
+/** An attribution is a retained setting of at most 200 characters (a monitor, a capture, a report option). */
+const attributionLimit = 200;
+const mixedWindows = 'LinkedIn conversion rules with mixed windows, no single window';
 
 /** Joins reported conversion URNs to current rules. Pure: the reads and their bracket stay with the caller. */
-export function linkedInConversionWindows(rules: JsonObject[], conversions: string[]) {
+export function linkedInConversionWindows(
+  rules: JsonObject[],
+  conversions: string[],
+  basis: LinkedInWindowBasis = 'conversion_rules',
+) {
   if (!Array.isArray(rules) || !Array.isArray(conversions))
     bad('LinkedIn conversion windows need the reported conversions and current rules.', 'REPORT_SHAPE_CHANGED');
-  const byUrn = new Map(rules.map(rule => [String(rule.urn), rule])),
+  const own = basis === 'account_rules',
+    byUrn = new Map(rules.map(rule => [String(rule.urn), rule])),
     windows = [...new Set(conversions)].sort().map(urn => {
       if (!linkedInConversionUrn.test(urn))
         bad('LinkedIn returned a conversion pivot that is not a conversion rule URN.', 'REPORT_SHAPE_CHANGED');
@@ -36,37 +55,50 @@ export function linkedInConversionWindows(rules: JsonObject[], conversions: stri
         post_click_days: known ? click : null,
         post_view_days: known ? view : null,
         // A rule missing from the current account read (deleted, shared or foreign) never inherits a window.
-        status: known ? 'verified_per_rule' : 'unknown',
+        status: known ? (own ? 'stated' : 'verified_per_rule') : 'unknown',
         reason: rule ? (known ? null : 'rule_window_missing') : 'rule_not_found',
       };
     });
-  const known = windows.filter(w => w.status === 'verified_per_rule'),
+  const known = windows.filter(w => w.status !== 'unknown'),
     pairs = [...new Set(known.map(pair))].sort(),
     status: LinkedInWindowStatus =
-      pairs.length > 1 ? 'mixed' : known.length === windows.length && windows.length ? 'verified_per_rule' : 'unknown';
-  const attribution =
-    status === 'verified_per_rule'
-      ? 'LinkedIn conversion rules: ' +
-        known[0]!.post_click_days +
-        '-day post-click / ' +
-        known[0]!.post_view_days +
-        '-day post-view (verified per rule)'
-      : status === 'mixed'
-        ? 'LinkedIn conversion rules with mixed windows, no single window: ' + pairs.join('; ')
-        : 'unknown';
+      pairs.length > 1
+        ? 'mixed'
+        : known.length === windows.length && windows.length
+          ? own
+            ? 'single_window'
+            : 'verified_per_rule'
+          : 'unknown',
+    one = status === 'verified_per_rule' || status === 'single_window';
+  const attribution = one
+    ? 'LinkedIn conversion rules: ' +
+      known[0]!.post_click_days +
+      '-day post-click / ' +
+      known[0]!.post_view_days +
+      '-day post-view (' +
+      (own ? 'per account rules' : 'verified per rule') +
+      ')'
+    : status === 'mixed'
+      ? // The pairs follow while the whole fits an attribution; an account can hold nine, and `distinct_windows` has them.
+        (mixedWindows + ': ' + pairs.join('; ')).length <= attributionLimit
+        ? mixedWindows + ': ' + pairs.join('; ')
+        : mixedWindows
+      : 'unknown';
   return {
     status,
     attribution,
-    single_window:
-      status === 'verified_per_rule'
-        ? {post_click_days: known[0]!.post_click_days, post_view_days: known[0]!.post_view_days}
-        : null,
+    single_window: one ? {post_click_days: known[0]!.post_click_days, post_view_days: known[0]!.post_view_days} : null,
     distinct_windows: pairs,
     unknown_conversions: windows.filter(w => w.status === 'unknown').map(w => w.conversion),
     windows,
     windows_fingerprint: fingerprint(windows),
-    meaning:
-      status === 'verified_per_rule'
+    meaning: own
+      ? status === 'single_window'
+        ? "All of the account's own conversion rules state the same post-click and post-view windows. LinkedIn's rule list does not say which campaigns a rule counts for, and a rule shared from or owned by another account is not in it. Windows describe today's rule settings, not historical changes."
+        : status === 'mixed'
+          ? "The account's own conversion rules state different attribution windows. No single window describes a result that may combine them."
+          : 'The account has no conversion rule, or at least one of its own rules states no window, so the windows are unknown.'
+      : status === 'verified_per_rule'
         ? "Every reported conversion was joined to a current LinkedIn conversion rule with the same post-click and post-view windows. The rules were read in the same authorization bracket as the analytics response. Windows describe today's rule settings, not historical changes."
         : status === 'mixed'
           ? 'The reported conversions use rules with different attribution windows. No single window describes this report; declared single-window references and comparisons are refused.'

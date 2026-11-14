@@ -292,10 +292,16 @@
       "raised": [
         "reference_words 160654 → 160742"
       ]
+    },
+    {
+      "reason": "Package linkedin-windows (V2-RPT-04, plan 4.7), merged after closing-small in Merge E: +288 reference words, recorded in two steps on its own branch (159392 -> 159636, +244: the LinkedIn section of docs/REPORTING-OVERVIEW.md says what the Overview joins from the account's conversion rules, when, how and with what outcomes (one pair, mixed, unknown with a reason), in place of the sentence that said they were not joined yet; 159636 -> 159680, +44, P2B-08 (c): the join reads only the rules the account owns, a rule shared from or owned by another account is not read, the source claims what it read and not a verification per rule, and a changed login fails the source). The merged count is the measured one: 160742 + 288 = 161030",
+      "raised": [
+        "reference_words 160742 → 161030"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 160742
+    "reference_words": 161030
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

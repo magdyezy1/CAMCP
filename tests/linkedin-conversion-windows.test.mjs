@@ -267,3 +267,45 @@ test('the window join is pure and never inherits a window for a missing rule', (
   assert.equal(missingWindow.windows[0].reason, 'rule_window_missing');
   assert.throws(() => linkedInConversionWindows(rules, ['urn:li:sponsoredCreative:1']), {code: 'REPORT_SHAPE_CHANGED'});
 });
+
+// P2B-08 (c): the Overview joins the account's own rules, not the conversions its analytics counted (they are not split by
+// conversion), so it cannot say the windows are verified per rule: the same join says what it read. The guided join, which
+// looks up each conversion it reports, keeps its words byte for byte.
+test('the join over the account’s own rules claims those rules, never a verification per rule, and the guided join keeps its words', () => {
+  const stated = (id, click, view) => ({
+      id,
+      urn: 'urn:lla:llaPartnerConversion:' + id,
+      post_click_days: click,
+      post_view_days: view,
+    }),
+    one = [stated('1', 30, 7), stated('2', 30, 7)],
+    urns = rules => rules.map(r => r.urn),
+    guided = linkedInConversionWindows(one, urns(one)),
+    own = linkedInConversionWindows(one, urns(one), 'account_rules');
+  assert.equal(guided.status, 'verified_per_rule');
+  assert.equal(
+    guided.attribution,
+    'LinkedIn conversion rules: 30-day post-click / 7-day post-view (verified per rule)',
+  );
+  assert.equal(own.status, 'single_window');
+  assert.equal(own.attribution, 'LinkedIn conversion rules: 30-day post-click / 7-day post-view (per account rules)');
+  assert.deepEqual(own.single_window, {post_click_days: 30, post_view_days: 7});
+  assert.doesNotMatch(JSON.stringify(own), /verif/i);
+  // Different pairs and a rule without a window say what they said before, with no verification in the words either.
+  const mixed = [stated('1', 30, 7), stated('2', 7, 1)],
+    unknown = [stated('1', 30, 7), stated('2', 30, null)];
+  for (const [rules, status, attribution] of [
+    [
+      mixed,
+      'mixed',
+      'LinkedIn conversion rules with mixed windows, no single window: 30d click / 7d view; 7d click / 1d view',
+    ],
+    [unknown, 'unknown', 'unknown'],
+  ]) {
+    const kept = linkedInConversionWindows(rules, urns(rules)),
+      said = linkedInConversionWindows(rules, urns(rules), 'account_rules');
+    assert.deepEqual([said.status, said.attribution], [status, attribution]);
+    assert.deepEqual([kept.status, kept.attribution], [status, attribution]);
+    assert.doesNotMatch(JSON.stringify(said), /verif/i);
+  }
+});

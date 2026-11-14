@@ -241,8 +241,24 @@ after a window is split. Frequency stays unavailable.
 Every position uses inclusive UTC report days, including a rolling window resolved near midnight in another zone.
 Creative detail is limited to the current UTC month and previous five calendar months; too-old or rounded windows
 explain the requested and returned dates. An empty window is refused rather than zero-filled; an empty part of a
-split window leaves the source partial. The current provider attribution line is retained; conversion-rule windows
-are not joined into Overview yet.
+split window leaves the source partial.
+
+Attribution windows are joined only into a v4 source whose every reported entity has website conversions as its result;
+any other source keeps `unknown` and the warning that its windows are not verified. After the analytics and metadata
+reads, in the same authorization bracket (the source fails if its login or permissions change after it starts) and
+inside the collection allowance, AMCP reads the conversion rules the account owns once per source and job (the account,
+the rules, the account again: at least three requests, counted in the allowance). LinkedIn's rule list does not say
+which campaigns a rule counts for, so every rule in it is used, and a rule shared from or owned by another account,
+which a campaign may count, is not read. The source claims what it read, not a verification per rule: rules that all
+state one pair of post-click and view-through windows give that pair as the attribution ("LinkedIn conversion rules:
+30-day post-click / 7-day post-view (per account rules)"), and the unverified warning goes. Rules whose pairs differ
+give a mixed attribution with the distinct pairs in the source's notes, and the total is kept. No rule, a rule without
+windows, a read LinkedIn refuses or an allowance that cannot hold the read leave `unknown` with the reason beside the
+warning, and the report stays complete. A source that also reports other results (leads, clicks, views, reach, a Mixed
+group) stays `unknown`, because a source has one attribution. The windows are the rules' current settings, not those at
+delivery time. The campaign and creative positions report the joined attribution instead of the declared one, and
+`conversion_windows` in each level's result keeps the decision. A monitor or comparison made on `unknown` before the
+join no longer matches: declare it again from a new snapshot. v3 reports are unchanged.
 
 At 15,000 rows, AMCP halves the date window down to one day. One period shares at most 32 analytics reads across
 all metric batches and campaign/group pivots; metadata reads retain their own bounds. A capped day or exhausted
@@ -801,7 +817,7 @@ receives the same data. A snapshot from before charts, and every v3 snapshot, ha
 | Meta           | Campaign Insights with account attribution (or an explicit attribution profile), and the row's insights results (the objective-specific result aliases when a row has none)                                                                                                                                                                                                                                    |
 | TikTok         | Integrated campaign report plus objective inventory                                                                                                                                                                                                                                                                                                                                                            |
 | Snapchat       | Campaign totals/inventory and account-local day boundaries                                                                                                                                                                                                                                                                                                                                                     |
-| LinkedIn       | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
+| LinkedIn       | Campaign adAnalytics with verified account currency, native UTC period/completion checks and, for website conversions, the account's conversion-rule windows (else unknown). Campaign names and objectives come from one bounded read of the account's own campaigns per job; a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted       |
 | X Ads          | Campaigns, line items and promoted tweets; exact hourly chunks and current native parents/status. Campaign objectives come from bounded line-item metadata; mixed/refused metadata stays unknown. Planning, placement gaps and recovery are described above                                                                                                                                                    |
 | Microsoft Ads  | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download                                                                                                                                                                                                                                                                                               |
 | Apple Ads      | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records                                                                                                                                                                                                                                                                                                       |

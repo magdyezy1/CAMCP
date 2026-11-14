@@ -79,6 +79,9 @@ test('the optional-read rules keep their import path and answer as before', () =
       'FORBIDDEN',
       'MEMBERSHIP_REVOKED',
       'ACCOUNT_ACCESS_REVOKED',
+      // P2B-08 (linkedin-windows): a client access set narrowed during a read refuses the account (SEC-08); it is AMCP's own
+      // refusal, so it fails the source like the others instead of passing for a provider's refusal of an optional read.
+      'ACCOUNT_SCOPE_RESTRICTED',
     ],
   );
   const legacy = e =>

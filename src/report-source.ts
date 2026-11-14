@@ -109,6 +109,15 @@ export interface AccountLookupCache {
     unavailable?: boolean;
     limited?: boolean;
   };
+  /**
+   * V2-RPT-04: the account's LinkedIn conversion rules, read once per source and job for the attribution windows of a
+   * v4 source of website conversions, with the lineage of that read. A read LinkedIn refused has no `read`: later
+   * periods and levels do not ask again.
+   */
+  linkedinConversionRules?: {
+    read?: {rules: JsonObject[]; source_hash: string; captured_at: number};
+    lineage: JsonObject[];
+  };
   /** LinkedIn group and creative metadata, under the same per-source authorization as campaign metadata. */
   linkedinGroups?: {
     groups: Record<string, JsonObject>;
@@ -232,6 +241,18 @@ export interface ReportCollection {
   resultDefinition: string;
   complete: boolean;
   collectionComplete: boolean;
+  /**
+   * A tool call the source makes for the reading person, through the same tool pipeline as the website and MCP clients
+   * (checks, authorization and the read path included): for a read of its platform that the qualified reads of the
+   * platform already make (LinkedIn's conversion rules), instead of a second one.
+   */
+  readonly call: ToolCall;
+  /**
+   * V2-RPT-04: an attribution the source took from its platform's own settings (LinkedIn's conversion-rule windows, as
+   * the account's rules state them; not a verification per rule, P2B-08). A detailed result reports it in place of the
+   * attribution declared in its report options.
+   */
+  verifiedAttribution?: string;
   /** Source-specific fields returned with the result (X campaigns without activity, Microsoft's report time zone). */
   readonly context: JsonObject;
   /** RPT-02 scope limits: what the source covers by design. They are disclosed, not counted as incompleteness. */
@@ -439,6 +460,19 @@ export interface ReportSource {
     contract?: string,
     context?: {source: JsonObject; range: {since: string; until: string}},
   ): number;
+  /**
+   * V2-RPT-04: the requests a v4 source sends once per source and job beyond its account lookup, which the first-page
+   * request estimate adds for the first level of the source (its other levels and its periods share them): LinkedIn's
+   * conversion rules read. A source that may or may not send them is counted as if it did, as the baseline counts the
+   * metadata of every level.
+   */
+  requestsPerSource?(contract?: string): number;
+  /**
+   * True when `requestsPerSource` is a lower bound because how much the source reads once is unknown until it is read
+   * (an account holds up to 1,000 LinkedIn conversion rules, a request to each hundred, and the estimate counts the first
+   * page): the entry of the estimate that pays for the read says so, as `requestsLowerBound` does for a level (P2B-08).
+   */
+  requestsPerSourceLowerBound?(contract?: string): boolean;
   /**
    * True when `requestsPerPeriod` is a lower bound because the size of what the level reads is unknown until it is read
    * (an unscoped Snapchat account has as many campaigns as it has): the estimate says so instead of looking exact.
@@ -664,7 +698,11 @@ export const campaignAllowanceWarning = (read: number, total: number) =>
  */
 export const unmatchedScopeWarning = (count: number) =>
   count + ' requested ID' + (count === 1 ? '' : 's') + ' matched no entity in this account.';
-/** AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. */
+/**
+ * AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. That
+ * includes the refusal of an account a client access set no longer reaches (SEC-08): the set can be narrowed while a source
+ * is read, and the next request then refuses with ACCOUNT_SCOPE_RESTRICTED (403), which no provider said.
+ */
 export const accessRefusalCodes: ReadonlySet<string> = new Set([
   'CONNECTION_REQUIRED',
   'CONNECTION_AUTHORITY_CHANGED',
@@ -675,6 +713,7 @@ export const accessRefusalCodes: ReadonlySet<string> = new Set([
   'FORBIDDEN',
   'MEMBERSHIP_REVOKED',
   'ACCOUNT_ACCESS_REVOKED',
+  'ACCOUNT_SCOPE_RESTRICTED',
 ]);
 /**
  * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),
