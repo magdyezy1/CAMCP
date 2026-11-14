@@ -151,7 +151,7 @@ otherwise unknown with a reason. The server supplies the platform tables and ava
   For LinkedIn, the campaign position is a campaign group. Unmatched overrides are retained and reported; native IDs
   on rows remain unchanged.
 - `objective` has two meanings: in an ad-hoc v3 config a value other than `unknown` overrides the source, and in a saved or
-  v4 config it is the fallback `objective_fallback`, which fills only the gaps the platform leaves (D22). A legacy
+  v4 config it is the fallback `objective_fallback`, which fills only the gaps the platform leaves (V2 plan D22). A legacy
   `unknown` is treated as absent. No saved definition is silently converted.
 
 | Source label        | Meaning                                                           |

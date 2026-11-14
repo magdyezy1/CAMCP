@@ -5,7 +5,7 @@ tier: operator
 
 # Round 2 Task 13: Apple Ads owner read acceptance
 
-Live checks are blocked: no staging (D20); Apple comes last, after the other platforms. Later use an
+Live checks are blocked: no staging (V2 plan D20); Apple comes last, after the other platforms. Later use an
 authorized staging ad account, reporting workers only, read-only: no OAuth or settings changes, no advertising mutations,
 no real Sheets, no asynchronous jobs. Keep identifiers private. Each check settles one item under "Still unpinned" in
 `docs/records/APPLE-ADS-PLATFORM-PINS-2026-11-06.md`. On a small account probe paging with `pageSize` 2.

@@ -5,7 +5,7 @@ tier: operator
 
 # Round 2 Task 12: owner read acceptance
 
-Live checks are blocked: no staging (D20). Later use authorized staging, reporting workers only.
+Live checks are blocked: no staging (V2 plan D20). Later use authorized staging, reporting workers only.
 No OAuth/settings changes, advertising mutations, real Sheets or async jobs. Keep identifiers private.
 
 1. Record revision, currency/timezone and closed dates. Owner checks late data before declaring completeness.
