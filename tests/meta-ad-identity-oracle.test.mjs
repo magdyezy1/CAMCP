@@ -1,6 +1,7 @@
 // F-L3-03 (audit L3, L9 F-L9-03): the Meta ad identity probe is for amcp_ad_previews only, and it tells a reader nothing
 // about an ad outside their access set. A reader limited to one client's account asks for an ad of another account of the
-// same login, and for an ad that does not exist: both get the same answer.
+// same login, and for an ad that does not exist: both get the same answer. NF-2 (post-patch validation of the wave 5 Round 2
+// fixes): and the activity history, which projects the audit rows of the probe, tells them apart by nothing either.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
@@ -10,6 +11,8 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {saveAccessSet} from '../dist/src/access-sets.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {AdPreviews} from '../dist/src/ad-previews.js';
+import {MirrorError} from '../dist/src/errors.js';
+import {nativeReadSteps} from '../dist/src/provider-workflows.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const admin = {tenantId: 'synthetic-meta-oracle', userId: 'admin', role: 'admin'},
@@ -40,7 +43,8 @@ function fixture(t) {
     },
     {accessToken: 'synthetic'},
   );
-  // 111 is an ad of account 100, 222 an ad of account 200 (another client's, same login); every other ID does not exist.
+  // 111 is an ad of account 100, 222 an ad of account 200 (another client's, same login); 444 is refused by Meta as a request
+  // (it says nothing about whose ad it is); every other ID does not exist.
   const service = new MirrorService(
     new Registry(),
     store,
@@ -61,6 +65,19 @@ function fixture(t) {
         });
       if (id === '222')
         return Response.json({id: '222', account_id: '200', name: 'FOREIGN CLIENT AD', effective_status: 'ACTIVE'});
+      if (id === '444')
+        return Response.json(
+          {
+            error: {
+              message: 'Invalid parameter',
+              type: 'OAuthException',
+              code: 100,
+              error_subcode: 1487,
+              fbtrace_id: 'synthetic',
+            },
+          },
+          {status: 400},
+        );
       return Response.json(
         {
           error: {
@@ -238,4 +255,149 @@ test('F-L3-03: the identity authorizer admits only the exact two-field read, and
     {gateway: 'tiktok_native_action'},
   ])
     assert.equal(ask({nested: true, ...near}), false, JSON.stringify(near));
+});
+
+/**
+ * One previews call of `actor` for `id`, and the audit rows it left, oldest first: the probe's request_started and
+ * request_failed, and the refusal of the nested call itself.
+ */
+async function audited(f, actor, id) {
+  const newest = () => f.store.recentAudit(admin.tenantId, 1)[0]?.seq ?? 0,
+    before = newest(),
+    out = await f.service.call('amcp_ad_previews', previews(id), actor);
+  return {
+    out,
+    rows: f.store
+      .recentAudit(admin.tenantId, 100)
+      .filter(r => r.seq > before)
+      .reverse(),
+  };
+}
+/** A value as text without what differs between two calls by construction: the ID asked for, request IDs and latency. */
+const withoutIdentity = (value, id) =>
+  JSON.stringify(value, (key, v) =>
+    ['requestId', 'request_id', 'latencyMs'].includes(key) ? undefined : v,
+  ).replaceAll(id, '<id>');
+const trailWithoutIdentity = (rows, id) => rows.map(row => withoutIdentity(JSON.parse(row.event), id));
+/** The activity history as `actor` reads it, filtered to the probe's rows: what a reader of the audit is shown. */
+async function shown(f, actor) {
+  const page = await f.service.call('amcp_workspace', {action: 'history', search: 'meta_ad_id_get', limit: 100}, actor);
+  assert.equal(page.success, true, JSON.stringify(page.error));
+  return page.data;
+}
+const forHistory = (event, id) =>
+  JSON.stringify({...event, id: undefined, at: undefined, request_id: undefined}).replaceAll(id, '<id>');
+
+for (const [who, caller] of [
+  ['a reader limited to one client', f => f.limited],
+  ['the workspace admin, who has full access', () => admin],
+])
+  test(`NF-2: ${who} leaves the same audit trail and history for a foreign ad as for an absent one`, async t => {
+    const f = fixture(t),
+      actor = caller(f),
+      foreign = await audited(f, actor, '222'),
+      absent = await audited(f, actor, '333');
+    // Both answers were already one (F-L3-03), the whole envelope, not only its data; the rows behind them are now one too.
+    for (const out of [foreign.out, absent.out]) assert.deepEqual(out.data.previews, []);
+    assert.equal(withoutIdentity(absent.out, '333'), withoutIdentity(foreign.out, '222'));
+    assert.equal(foreign.rows.length, 3, 'request started, request failed, the nested call refused');
+    assert.equal(absent.rows.length, 3);
+    assert.deepEqual(trailWithoutIdentity(absent.rows, '333'), trailWithoutIdentity(foreign.rows, '222'));
+    const failed = JSON.parse(foreign.rows[1].event);
+    assert.equal(failed.event, 'request_failed');
+    assert.equal(failed.error.code, 'ACCOUNT_SCOPE_MISMATCH');
+    assert.equal(failed.error.message, 'Not in this account');
+    // What the history shows of them (the website's activity page projects the same rows).
+    const page = await shown(f, actor),
+      events = page.events.filter(e => e.event === 'request_failed');
+    assert.equal(events.length, 2, 'the history shows both failures');
+    assert.equal(forHistory(events[0], '333'), forHistory(events[1], '222'));
+    assert.doesNotMatch(
+      JSON.stringify(page),
+      /UPSTREAM_ERROR|Unsupported get request|fbtrace|synthetic|FOREIGN CLIENT AD|HTTP 400/,
+    );
+    assert.deepEqual(
+      events.map(e => e.diagnostics.map(d => d.code)),
+      [['ACCOUNT_SCOPE_MISMATCH'], ['ACCOUNT_SCOPE_MISMATCH']],
+    );
+  });
+
+test('NF-2: a failure that says nothing about whose ad it is is still recorded as what it was, so the comparison above can find a difference', async t => {
+  const f = fixture(t),
+    refused = await audited(f, f.limited, '444'),
+    absent = await audited(f, f.limited, '333');
+  assert.equal(refused.out.success, false, 'Meta refusing the request fails the call');
+  const failed = JSON.parse(refused.rows[1].event);
+  assert.equal(failed.event, 'request_failed');
+  assert.equal(failed.error.code, 'UPSTREAM_ERROR');
+  assert.notDeepEqual(trailWithoutIdentity(refused.rows, '444'), trailWithoutIdentity(absent.rows, '333'));
+  const page = await shown(f, f.limited),
+    codes = page.events.filter(e => e.event === 'request_failed').map(e => e.error.code);
+  assert.deepEqual(codes, ['ACCOUNT_SCOPE_MISMATCH', 'UPSTREAM_ERROR']);
+});
+
+test('NF-2: only the previews tool’s own identity probe has its refusals made one; every other failure and every other read keeps its error', () => {
+  const plan = {
+      gateway: 'meta_native_action',
+      action: 'meta_ad_id_get',
+      method: 'GET',
+      path: '/v26.0/150',
+      query: {fields: 'id,account_id'},
+      headers: {},
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      accountId: '100',
+      evidence: 'TEST',
+      warnings: [],
+      nested: true,
+    },
+    upstream = (status, error) =>
+      new MirrorError(
+        'UPSTREAM_ERROR',
+        'Platform returned HTTP ' + status,
+        {http_status: status, upstream: {error}},
+        status,
+      ),
+    gone = upstream(400, {
+      code: 100,
+      error_subcode: 33,
+      message: "Unsupported get request. Object with ID '150' does not exist, cannot be loaded.",
+      fbtrace_id: 'synthetic',
+    });
+  // Whatever way the probe finds that an ad is not the account’s, the refusal is one.
+  for (const error of [
+    new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403),
+    gone,
+    upstream(404, {message: 'Not found'}),
+    new MirrorError('NOT_FOUND', 'No such object.', {}, 404),
+  ]) {
+    const out = nativeReadSteps.safeError(plan, error);
+    assert.ok(out instanceof MirrorError, error.code);
+    assert.deepEqual(
+      [out.code, out.message, out.details, out.status],
+      ['ACCOUNT_SCOPE_MISMATCH', 'Not in this account', {}, 403],
+    );
+  }
+  // A failure that says nothing about whose ad it is stays itself.
+  for (const error of [
+    upstream(400, {code: 100, error_subcode: 1487, message: 'Invalid parameter'}),
+    upstream(500, {message: 'Service unavailable'}),
+    new MirrorError('PLATFORM_RATE_LIMIT', 'Meta asked for a pause.', {}, 429, true),
+    new MirrorError('AUTH_EXPIRED', 'Reconnect the account.', {}, 401),
+    new Error('socket closed'),
+  ])
+    assert.equal(nativeReadSteps.safeError(plan, error), error, error.code ?? error.message);
+  // Another caller, another read, another provider: the same absence stays what it was.
+  for (const near of [
+    {nested: false},
+    {nested: undefined},
+    {query: {fields: 'id,account_id,name'}},
+    {query: {fields: 'id,account_id', limit: '1'}},
+    {path: '/v26.0/act_150'},
+    {action: 'meta_ad_list'},
+    {method: 'POST'},
+    {gateway: 'tiktok_native_action'},
+  ])
+    assert.equal(nativeReadSteps.safeError({...plan, ...near}, gone), gone, JSON.stringify(near));
 });

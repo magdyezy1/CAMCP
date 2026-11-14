@@ -10,6 +10,7 @@ import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
 import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
 import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
+import {metaAdIdentityRefusal} from './meta-adapter.js';
 import {fetchMetaExistingPosts, metaPostActions, redactMetaPostInput} from './meta-existing-posts.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {
@@ -421,9 +422,12 @@ export const nativeReadSteps = Object.freeze({
   keep: keepResultIds,
   /** What a read produced besides its data (Google's generated drafts). */
   produced: (plan: CompiledRequest, data: unknown): JsonObject | undefined => googleGenerationResult(plan, data),
-  /** A failed read's refusal as it may be kept and returned (Business Profile's private place-action links). */
+  /**
+   * A failed read's refusal as it may be kept and returned (Business Profile's private place-action links; Meta's ad
+   * identity probe, whose two refusals are one, NF-2).
+   */
   safeError: (plan: CompiledRequest, error: unknown): unknown =>
-    placeActionReadKind(plan) ? placeActionSafeError(error) : error,
+    placeActionReadKind(plan) ? placeActionSafeError(error) : metaAdIdentityRefusal(plan, error),
 });
 
 /** A tool call the service makes on the person's behalf (a nested call). */

@@ -54,12 +54,12 @@ Listed items include `source_ad_id`, preserving separate ads that share a creati
 
 ## Access and safety
 
-Native reads enforce accounts, grants, ownership, rate limits and audit. Audit stores sizes/hashes;
-preview links are never stored. Named Meta identity must match before broader reads or caching;
+Native reads enforce accounts, grants, ownership, rate limits and audit. Audit stores sizes/hashes,
+never preview links. Named Meta identity must match before broader reads or caching;
 full unknown-node reads remain refused. That `id,account_id` read is this tool's alone: a direct
 `meta_native_action` call with an unproven ID is refused before any provider read. A foreign ad and one Meta cannot
-load answer alike, `Not in this account`. The metadata stays a second read, so the one unproven read stays two fields
-wide. TikTok and Reddit use account-scoped filters. Explicit foreign ownership
+load answer alike, in the audit too: `Not in this account`. The metadata stays a second read, so the unproven read stays two
+fields. TikTok and Reddit use account-scoped filters. Explicit foreign ownership
 is refused. LinkedIn finder ownership lasts five minutes.
 
 Only HTTPS platform-host links are returned; markup is withheld. A link that spells `&` or `;` before its query is
