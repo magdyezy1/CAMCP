@@ -719,9 +719,10 @@ export const accessRefusalCodes: ReadonlySet<string> = new Set([
  * What the job says of itself, and no provider said: the report was cancelled, or its schedule edited, paused or removed
  * (JOB_CANCELLED, which keeps the default status 400 that the HTTP contract names), or the worker lost the job's lease
  * (STALE_JOB_LEASE, 409). The job's bound actor check raises them inside any store call a source makes, so they can
- * surface in the middle of an optional read; they end the source whatever their status.
+ * surface in the middle of an optional read; they end the source whatever their status. A decision that a failed read is the
+ * provider's refusal, here or in a provider's own predicate, asks this set and keeps no list of its own.
  */
-const jobControlCodes: ReadonlySet<string> = new Set(['STALE_JOB_LEASE', 'JOB_CANCELLED']);
+export const jobControlCodes: ReadonlySet<string> = new Set(['STALE_JOB_LEASE', 'JOB_CANCELLED']);
 /**
  * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),
  * after which the rows stay with unknown values and a warning. A malformed or partial response (REPORT_*), a retryable

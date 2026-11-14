@@ -790,6 +790,64 @@ test('AMCP’s own whole-job limit during the active-entities read is not mistak
   );
 });
 
+// jobcontrol: and the job's own stop is not X's refusal of it either. A report that is cancelled, or whose schedule is edited,
+// paused or removed, is JOB_CANCELLED with MirrorError's default status 400 (src/reporting-overview.ts currentReport), which the
+// job's bound actor check raises inside any read; a worker that lost its lease is STALE_JOB_LEASE, 409. The status test of
+// xRefusedRead took the first for X's HTTP 400, and the source went on to request every entity instead. The fixture answers the
+// active-set placement only, so a request that follows the fallback is stopped by its observer, with a code of its own.
+const afterTheRead = plan => {
+  if (plan.path === '/12/stats/accounts/abc')
+    throw new MirrorError('SYNTHETIC_STOP', 'Analytics were requested instead.', {}, 500);
+};
+test('a cancelled report or a lost lease during the active-entities read is not mistaken for X refusing it', async t => {
+  for (const stop of [
+    new MirrorError('JOB_CANCELLED', 'Report cancelled.'),
+    new MirrorError('JOB_CANCELLED', 'The report schedule was edited, paused or removed.'),
+    new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report/export job.', {}, 409),
+  ]) {
+    const f = fixture(t, {
+      observe(plan) {
+        if (plan.path.endsWith('/active_entities')) throw stop;
+        afterTheRead(plan);
+      },
+    });
+    await assert.rejects(
+      () => f.collect('adset'),
+      error => assertRefused(error, stop.code),
+      stop.code + ': ' + stop.message,
+    );
+    assert.equal(
+      f.saved.some(value => value.x_detail_v1?.active_fallback === true),
+      false,
+      'the fallback is never recorded for a stop that is not X’s refusal',
+    );
+  }
+});
+// X's own refusals of the same read (HTTP 400, 404 and 422) still keep the bounded path: the fallback is recorded and the
+// entities are requested instead.
+for (const status of [400, 404, 422])
+  test(
+    'X refusing the active-entities read (HTTP ' + status + ') records the fallback and requests the entities',
+    async t => {
+      const f = fixture(t, {
+        observe(plan) {
+          if (plan.path.endsWith('/active_entities'))
+            throw new MirrorError('UPSTREAM_ERROR', 'X refused the request.', {http_status: status}, status);
+          afterTheRead(plan);
+        },
+      });
+      await assert.rejects(
+        () => f.collect('adset'),
+        error => assertRefused(error, 'SYNTHETIC_STOP'),
+      );
+      assert.equal(f.analytics().length, 1, 'the entities are requested instead');
+      assert.equal(
+        f.saved.some(value => value.x_detail_v1?.active_fallback === true),
+        true,
+        'the fallback is recorded',
+      );
+    },
+  );
 // F-L7-16: the population bounds are named with the condition that reached them.
 const populationFixture = (t, handler) =>
   fixture(t, {

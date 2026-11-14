@@ -1,6 +1,12 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {overviewCapabilities, optionalReadRefused, reportList, type ReportSource} from './report-source.js';
+import {
+  jobControlCodes,
+  overviewCapabilities,
+  optionalReadRefused,
+  reportList,
+  type ReportSource,
+} from './report-source.js';
 import {tiktokDetailParents} from './tiktok-detail-parents.js';
 import {tiktokGuidedReporting} from './tiktok-guided-reports.js';
 import {tiktokCollectionCheck} from './tiktok-report-pagination.js';
@@ -157,7 +163,8 @@ export const tiktokReportSource: ReportSource = {
     // per source and job (cached across periods, like the account lookup) names the events per campaign, so
     // summaries never add conversions of different events into one result. The read is optional: a non-retryable
     // failure (a refusal, or more pages than the bound) keeps the source with the generic result definition and a
-    // warning; a retryable one retries the job.
+    // warning; a retryable one retries the job; and the job's own stop (a cancelled report, a lost lease) ends the source,
+    // on either contract. A v3 source (an older saved report) keeps its legacy rule for every other non-retryable failure.
     let adgroupEvents = c.lookup?.tiktokEvents;
     if (adgroupEvents?.lineage) c.lineage.push({...adgroupEvents.lineage, cached: true});
     if (!adgroupEvents) {
@@ -210,7 +217,7 @@ export const tiktokReportSource: ReportSource = {
           ...(v4 ? {groups} : {}),
         };
       } catch (e) {
-        if (!(e instanceof MirrorError) || e.retryable) throw e;
+        if (!(e instanceof MirrorError) || e.retryable || jobControlCodes.has(e.code)) throw e;
         if (v4 && e.code !== 'INCOMPLETE_REPORT' && !optionalReadRefused(e) && !tiktokDetailParents.bodyRefused?.(e))
           throw e;
         adgroupEvents = {events: {}, unavailable: true};

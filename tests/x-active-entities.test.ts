@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {Store} from '../src/store.js';
 import {MirrorError} from '../src/errors.js';
 import {xCampaignReport, xGroupSets} from '../src/x-campaign-report.js';
-import {xActiveEntities} from '../src/x-active-entities.js';
+import {xActiveEntities, xRefusedRead} from '../src/x-active-entities.js';
 import {NativeCampaignReports} from '../src/report-native.js';
+import {assertRefused} from './helpers/assert-refused.js';
 import type {Actor, CompiledRequest, JsonObject} from '../src/types.js';
 
 // RPT-03: X analytics are planned from X active entities, not the whole (deleted-inclusive) inventory. All provider
@@ -200,6 +201,57 @@ test('RPT-03: web conversions are requested apart, so a rejected conversion requ
   assert.ok(calls.every(c => !String(c.metric_groups).includes('WEB_CONVERSION')));
 });
 
+// jobcontrol: the job's own stop is not X's rejection of a request. A report that is cancelled, or whose schedule is edited,
+// paused or removed, is JOB_CANCELLED with MirrorError's default status 400 (src/reporting-overview.ts currentReport), which
+// the job's bound actor check raises inside any read; a worker that lost its lease is STALE_JOB_LEASE, 409. The status test of
+// xRefusedRead took the first for X's HTTP 400: the step was recorded as "X rejected ..." and the report went on to the next.
+const jobStops = () => [
+  new MirrorError('JOB_CANCELLED', 'Report cancelled.'),
+  new MirrorError('JOB_CANCELLED', 'The report schedule was edited, paused or removed.'),
+  new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report/export job.', {}, 409),
+];
+const xRefusal = (status: number) =>
+  new MirrorError('UPSTREAM_ERROR', 'X refused the request.', {http_status: status}, status);
+test('jobcontrol: a job-control error is never X’s refusal of a read, whatever its status; X’s own refusals (HTTP 400, 404 and 422) still are', () => {
+  for (const [code, status] of [
+    ['JOB_CANCELLED', 400],
+    ['JOB_CANCELLED', 404],
+    ['JOB_CANCELLED', 422],
+    ['STALE_JOB_LEASE', 409],
+    ['STALE_JOB_LEASE', 400],
+    ['STALE_JOB_LEASE', 404],
+    ['STALE_JOB_LEASE', 422],
+  ] as const)
+    assert.equal(xRefusedRead(new MirrorError(code, 'Synthetic', {}, status)), false, code + ' at ' + status);
+  for (const status of [400, 404, 422]) assert.equal(xRefusedRead(xRefusal(status)), true, 'X at ' + status);
+});
+
+test('jobcontrol: a cancelled report or a lost lease during an analytics request ends the report, never as X’s rejection of the request', async () => {
+  const end = start + day;
+  for (const stop of jobStops()) {
+    const calls: JsonObject[] = [];
+    await assert.rejects(
+      () =>
+        xCampaignReport(campaigns(1), start, end, ['WEB_CONVERSION'], async q => {
+          if (q.metric_groups === 'WEB_CONVERSION') throw stop;
+          return analytics(calls)(q);
+        }),
+      (e: MirrorError) => assertRefused(e, stop.code),
+      stop.code + ': ' + stop.message,
+    );
+  }
+  // X's own rejections of a request still keep the spend and mark the coverage partial.
+  for (const status of [400, 404, 422]) {
+    const report = await xCampaignReport(campaigns(1), start, end, ['WEB_CONVERSION'], async q => {
+      if (q.metric_groups === 'WEB_CONVERSION') throw xRefusal(status);
+      return analytics([])(q);
+    });
+    assert.equal(report.complete, false, 'HTTP ' + status);
+    assert.equal(report.rows[0]!.metrics.spend, 24, 'HTTP ' + status);
+    assert.match(report.warnings.join(' '), /X rejected ALL_ON_TWITTER \/ WEB_CONVERSION/, 'HTTP ' + status);
+  }
+});
+
 test('RPT-03: malformed or partial active-entities responses fail closed', async () => {
   const end = start + day;
   for (const response of [
@@ -309,5 +361,43 @@ test('RPT-03: a rejected active-entities read keeps the bounded inventory path w
     assert.match(result.warnings.join(' '), /refused the active-entities read/);
   } finally {
     small.store.close();
+  }
+});
+
+// jobcontrol: the same read at the campaign level of the Overview source. The job's own stop ends the source and sends no
+// analytics instead; X's own refusals (HTTP 400, 404 and 422) keep the bounded inventory path with the warning, as before.
+test('jobcontrol: a cancelled report or a lost lease during the active-entities read ends the source, never as X’s refusal of it', async () => {
+  const day1 = {since: '2026-06-01', until: '2026-06-01'},
+    source = {platform: 'x', account_id: 'abc', connection_id: 'x-conn'};
+  for (const stop of jobStops()) {
+    const f = xService(() => {
+      throw stop;
+    });
+    try {
+      await assert.rejects(
+        () => f.native.collect(source, day1, actor),
+        (e: MirrorError) => assertRefused(e, stop.code),
+        stop.code + ': ' + stop.message,
+      );
+      assert.equal(
+        f.requests.some(p => p.path.startsWith('/12/stats/accounts/abc') && !p.path.endsWith('_entities')),
+        false,
+        'no analytics were requested instead',
+      );
+    } finally {
+      f.store.close();
+    }
+  }
+  for (const status of [400, 404, 422]) {
+    const f = xService(() => {
+      throw xRefusal(status);
+    });
+    try {
+      const result = await f.native.collect(source, day1, actor);
+      assert.equal(result.rows.length, 300, 'HTTP ' + status);
+      assert.match(result.warnings.join(' '), /refused the active-entities read/, 'HTTP ' + status);
+    } finally {
+      f.store.close();
+    }
   }
 });
