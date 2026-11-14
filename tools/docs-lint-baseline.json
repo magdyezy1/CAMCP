@@ -310,10 +310,16 @@
       "raised": [
         "reference_words 161045 → 161070"
       ]
+    },
+    {
+      "reason": "Package docs, item 6: +89 reference words. docs/LOCAL-BROWSER-QA.md says in one bullet what the browser runner's --https mode does, what it proves (the same cases over loopback TLS with a certificate made for the run; nothing about the deployed site) and when it is required (security software that injects a script into plain-HTTP pages, which the runner counts as external egress); no page added. The recorded count is the measured one: 161070 + 89 = 161159",
+      "raised": [
+        "reference_words 161070 → 161159"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161070
+    "reference_words": 161159
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
