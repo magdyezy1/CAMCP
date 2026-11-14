@@ -65,9 +65,9 @@ components choose the V2 names below. Its explicit dark theme and system-dark th
 checked independently of the loaded token sheets.
 
 **Where it loads.** The static public pages (Privacy, Terms, Data deletion and 404, in both languages) link it third,
-after `public-tokens.css`. The workspace shell (`index.html`) and About do not: the sheet is 2,374 Brotli bytes, and
-`en /about`, `en /report-library` and `en /reporting-overview` have 52, 343 and 1,197 bytes of room under their recorded
-route budgets, which are not raised for it. A route that uses V2 lists the sheet among its page assets, directly or
+after `public-tokens.css`. The workspace shell (`index.html`) and About do not: the sheet would add its bytes to every
+route that loads them, and a recorded route budget (`tools/web-route-bytes-baseline.json`) is never raised for a sheet;
+`node tools/web-route-bytes.mjs` prints each route's room. A route that uses V2 lists the sheet among its page assets, directly or
 through a component sheet that depends on it (`web/route-assets.js`), so it reaches only the routes that need it. The report
 builder loads it too, for its charts (`web/charts.js` brings the sheet, the button and the table of this layer).
 
