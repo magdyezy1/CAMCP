@@ -25,6 +25,7 @@ import {
 import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
 import {linkedInConversionWindows} from './linkedin-conversion-windows.js';
 import {storedLogin} from './connection-authority.js';
+import {bad} from './workspace-core.js';
 import {collectionAllowance} from './report-collection-budget.js';
 import {fingerprint} from './report-quality.js';
 import {nativeDecimal, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
@@ -231,12 +232,7 @@ async function conversionRules(
   const allowance = collectionAllowance();
   if (allowance && (allowance.requests < rulesReadRequests || allowance.elapsed_ms <= 0)) return 'budget';
   if (sourceAuthorization(c) !== authorization)
-    throw new MirrorError(
-      'CONNECTION_AUTHORITY_CHANGED',
-      'The LinkedIn login or permissions changed. Capture a new report.',
-      {},
-      409,
-    );
+    bad('The LinkedIn login or permissions changed. Capture a new report.', 'CONNECTION_AUTHORITY_CHANGED');
   let evidence: JsonObject;
   try {
     evidence = await linkedInConversionEvidence(c.store, c.call, c.actor, {
