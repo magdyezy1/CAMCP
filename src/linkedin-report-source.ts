@@ -181,6 +181,8 @@ interface LinkedInSourceWindows {
   conversion_windows: JsonObject;
 }
 type LinkedInRulesRead = {rules: JsonObject[]; source_hash: string; captured_at: number};
+/** What the job says of itself, and no provider said: the worker lost its lease, or the report was cancelled (as report-periods.ts). */
+const jobControlCodes = ['STALE_JOB_LEASE', 'JOB_CANCELLED'];
 type LinkedInRulesUnread = 'refused' | 'budget';
 /** The fewest requests a rules read sends: the account, one page of rules and the account again. */
 const rulesReadRequests = 3;
@@ -244,8 +246,15 @@ async function conversionRules(
       connection_id: c.connection,
     });
   } catch (error) {
-    if (!(error instanceof MirrorError) || accessRefusalCodes.has(error.code)) throw error;
+    // Only LinkedIn refusing the read, or answering with something that is not the rules, leaves the windows unknown (P2C-02).
+    // Everything else ends the source: AMCP's own refusals (the access set), a job that lost its lease or was cancelled, and
+    // what the other optional reads end the source with (optionalReadRefused): invalid counters and any other REPORT_* code, a
+    // failure that a retry may fix (a 429, a 503, a collection yield: the job retries), a credential failure, and an answer
+    // that is not a refusal of the read (an HTTP status other than 400, 403 or 404).
+    if (!(error instanceof MirrorError) || accessRefusalCodes.has(error.code) || jobControlCodes.includes(error.code))
+      throw error;
     if (error.code === 'REPORT_COLLECTION_LIMIT') return 'budget';
+    if (!optionalReadRefused(error)) throw error;
     if (c.lookup) c.lookup.linkedinConversionRules = {lineage: []};
     return 'refused';
   }
