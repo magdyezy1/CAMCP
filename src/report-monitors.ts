@@ -88,8 +88,14 @@ function summaryUnavailable(
   if (!(s.observed_at > 0 && s.observed_at <= now)) return 'evidence_time_unknown';
   return now - s.observed_at > maxAgeHours * 3600000 ? 'stale_evidence' : null;
 }
-export function evaluateMonitors(store: Store, actor: Actor, reportId: string) {
-  const report = read(store, actor, 'overview_report', reportId),
+/**
+ * Evaluates the active monitors of the workspace against a finished snapshot. A job that has just written the snapshot
+ * passes the record it wrote (`built`), so it is not read back from the store, which means parsing every row of it
+ * (NF-1b); the actor is checked as `read` checks it. Every other caller has only the report's ID and reads it.
+ */
+export function evaluateMonitors(store: Store, actor: Actor, reportId: string, built?: JsonObject) {
+  if (built) store.assertActorActive(actor);
+  const report = built ?? read(store, actor, 'overview_report', reportId),
     // A v4 snapshot holds exact decimal text and says how much of each figure stands behind it; v3 holds numbers.
     v4 = report.config.contract_version === overviewConfigV4,
     outcomes: JsonObject[] = [];
