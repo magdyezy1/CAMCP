@@ -401,3 +401,24 @@ test('NF-2: only the previews tool’s own identity probe has its refusals made 
   ])
     assert.equal(nativeReadSteps.safeError({...plan, ...near}, gone), gone, JSON.stringify(near));
 });
+
+test('NF-2: a direct identity probe is refused before any request, so it leaves no request row in the history to tell a foreign ad from an absent one', async t => {
+  const f = fixture(t),
+    readers = [
+      ['a reader limited to one client', f.limited],
+      ['the workspace admin', admin],
+    ];
+  for (const [who, actor] of readers)
+    for (const id of ['111', '222', '333'])
+      assertRefused(await f.service.call('meta_native_action', probe(id), actor), 'RESOURCE_SCOPE_REQUIRED');
+  assert.equal(f.requests.length, 0, 'nothing was sent');
+  for (const [who, actor] of readers) {
+    const page = await shown(f, actor);
+    // The refusal came before request_started: no request event and no error code for any ID, whoever reads.
+    assert.deepEqual(
+      page.events.filter(e => e.error !== undefined || /^request_/.test(e.event)),
+      [],
+      who,
+    );
+  }
+});
