@@ -298,10 +298,16 @@
       "raised": [
         "reference_words 160742 → 161030"
       ]
+    },
+    {
+      "reason": "Package docs, item 8: +18 reference words. docs/operations/QUALIFICATION.md says that npm run test:related runs its selection in batches of 60 files, so that a long selection fits any host's command line (no page added). The recorded count is the measured one: 161030 + 18 = 161048",
+      "raised": [
+        "reference_words 161030 → 161048"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161030
+    "reference_words": 161048
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
