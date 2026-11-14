@@ -69,7 +69,7 @@ or audit suppression is used to force a clean result.
 The complete Round 2 closing gates must use the patched dependency graph after all feature packages. This record does
 not extend the SDK-only browser/container qualification to different dependencies or establish production readiness.
 Provider and OAuth reads and actual Sheets exports are not permitted during development (plan principle 4); live checks
-on staging are blocked: no staging (D20); live deployment is deferred by the owner (C11, 2026-11-03: "leave the live
+on staging are blocked: no staging (V2 plan D20); live deployment is deferred by the owner (2026-11-03: "leave the live
 deployment for now, push to github, live deployment in a later stage").
 
 The lockfile is normalized to repository LF line endings before the full gate; its parsed graph is unchanged. This

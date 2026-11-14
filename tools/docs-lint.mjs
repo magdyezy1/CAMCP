@@ -14,6 +14,11 @@
 // record. The pages that already break a rule are recorded in tools/docs-lint-baseline.json with their counts, which
 // may only fall; any other page must have none.
 //
+// A decision number in parentheses, "(D20)", is the engineering review's decision of that number in
+// docs/DECISIONS.md, and "(C11)" a criterion of docs/acceptance/ASSISTIVE-TECHNOLOGY.md. The V2 plan numbers its own
+// decisions D1 to D26, so a page that cites one of those writes "V2 plan D20" (citationProblems(), P2C-04). The rule
+// reads every page of docs/, records included.
+//
 // The review's targets (2026-10-08 engineering review, DOC-03): about 25,000 words of current documentation and a
 // duplicate-line share under 5%. The word budget counts the current pages of the owner and operator tiers, the pages
 // their readers read to do their work. Every other maintained page is a reference page: the engineering tier's guides
@@ -74,18 +79,20 @@ export function currentPages(root = process.cwd()) {
 export const budgeted = page => page.status === 'current' && (page.tier === 'owner' || page.tier === 'operator');
 /** Whether a maintained page counts in the reference total: a classified page outside the budget. */
 export const referenced = page => page.tier !== null && !budgeted(page);
-/** A page's lines outside fenced code. */
-const prose = text => {
+/** A page's lines outside fenced code, each with its line number. */
+const proseLines = text => {
   let fence = null;
-  return text.split('\n').filter(line => {
+  return text.split('\n').flatMap((line, index) => {
     const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (open && (!fence || open[1][0] === fence[0])) {
       fence = fence ? null : open[1];
-      return false;
+      return [];
     }
-    return !fence;
+    return fence ? [] : [{line, number: index + 1}];
   });
 };
+/** A page's lines outside fenced code. */
+const prose = text => proseLines(text).map(entry => entry.line);
 const longLines = text => [
   ...new Set(
     prose(text)
@@ -159,6 +166,113 @@ export function measure(root = process.cwd()) {
   };
 }
 
+/**
+ * What each decision of docs/DECISIONS.md is about: the words a sentence that cites it uses (P2C-04). The 2026-10-08
+ * engineering review's decisions D1 to D27 and the V2 plan's D1 to D26 share their numbers, so a bare "(D20)" in a V2
+ * record sent the reader to "Conditional-program observations" when the plan's staging decision was meant. Each
+ * pattern matches its own row (tests/docs-lint.test.mjs holds the table to the record, so a new row needs a subject
+ * here), and citationProblems() refuses an unqualified citation whose sentence uses none of its words.
+ */
+export const decisionSubjects = Object.freeze({
+  D1: /railway|healthcheck|build settings|build evidence|restart policy/i,
+  D2: /cloudflare|analytics|beacon/i,
+  D3: /legal|registration|audience|security contact|privacy|terms|effective date/i,
+  D4: /backup|restore/i,
+  D5: /client[- ]address|rate limit|client_ip_source/i,
+  D6: /batch|per-key limit|rate_limited/i,
+  D7: /spend(?:ing)?[-_ ]cap|total budget|max_total_budget/i,
+  D8: /deletion switch|allow_deletion|feed-driven deletion/i,
+  D9: /spend[- ]policy|expected_revision/i,
+  D10: /rounding|decimal places|fractional/i,
+  D11: /unconfirmed|settle window|release tab|sheets deliver/i,
+  D12: /idempotency claim|spend reservation|early refusal/i,
+  D13: /daylight|nonexistent local time/i,
+  D14: /must-pass|response budget|external-client|evaluation sessions|10k-token/i,
+  D15: /directory listing|listing goals|tool shape|one write tool/i,
+  D16: /refresh-token|reuse window|ai-client authorization/i,
+  D17: /captured|catalog|frozen|withheld|naming-compatibility|denominator|digest|privacy review|raw capture/i,
+  D18: /read-only mode|validate_provider|provider_job/i,
+  D19: /login lifecycle|write-grant|renewal/i,
+  D20: /conditional|observation|not a grant|never a grant/i,
+  D21: /error detail|provider status|request id/i,
+  D22: /attention feed|uncertain standalone|reauthorization-required/i,
+  D23: /upload|media timing|media capacity|thirty minutes/i,
+  D24: /secure_delete|secure delete|sqlite/i,
+  D25: /package closure|release records|three-axis|re-assessment|package-status|taxonomy|re-baselined/i,
+  D26: /test tooling|ratchet|architecture|synthetic mutations|literal colours/i,
+  D27: /arabic|latin digits|date style|page names/i,
+});
+/** The rows D1 to D27 of docs/DECISIONS.md: id to its title and its text; empty where the tree has no such page. */
+export function decisionRows(root = process.cwd()) {
+  const file = path.join(root, 'docs/DECISIONS.md'),
+    rows = new Map();
+  if (fs.existsSync(file))
+    for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+      const m = /^\| (D\d{1,2}) \| (.+?) \| (.+?) \|/.exec(line);
+      if (m && !rows.has(m[1])) rows.set(m[1], {title: m[2], text: m[2] + ' ' + m[3]});
+    }
+  return rows;
+}
+/** The pages whose own D and C numbers are the ones they define: the decision record and the assistive-technology criteria. */
+const numberingPages = new Set(['docs/DECISIONS.md', 'docs/acceptance/ASSISTIVE-TECHNOLOGY.md']);
+/** A parenthesis that opens with a decision or criterion number, "(D20)" or "(D14, D20)": a qualified "(V2 plan D20)" is not one. */
+const citation = /\(((?:D|C)\d{1,2}(?:[,;/] ?(?:D|C)\d{1,2})*)(?=[),; ])/g;
+/**
+ * The unqualified citations of docs/ whose row has another subject (P2C-04). "(D20)" names a row of
+ * docs/DECISIONS.md and "(C11)" a criterion of docs/acceptance/ASSISTIVE-TECHNOLOGY.md, the one page that may cite one.
+ * A record that means the V2 plan's decision writes "V2 plan D20", which is not matched. A "(Dnn)" passes where the
+ * thirty words before it (and the line above) use the subject of its row; any other is refused with the row it lands
+ * on. A tree without docs/DECISIONS.md has no rows to compare with and passes.
+ */
+export function citationProblems(root = process.cwd()) {
+  const rows = decisionRows(root),
+    problems = [];
+  if (!rows.size) return problems;
+  const check = file => {
+    const text = fs.readFileSync(path.join(root, file), 'utf8'),
+      lines = text.split('\n');
+    for (const {line, number} of proseLines(text))
+      for (const m of line.matchAll(citation)) {
+        const before = ((lines[number - 2] ?? '') + ' ' + line.slice(0, m.index))
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(-30)
+          .join(' ');
+        for (const id of m[1].match(/[DC]\d{1,2}/g)) {
+          const where = file + ':' + number + ': (' + id + ') ',
+            plan = 'if the decision of the V2 plan is meant, write "V2 plan ' + id + '"';
+          if (id[0] === 'C')
+            problems.push(
+              where +
+                'is a criterion of docs/acceptance/ASSISTIVE-TECHNOLOGY.md, which this page is not: say what is meant, with the words and the date of the owner where there are some',
+            );
+          else if (!rows.has(id)) problems.push(where + 'is not a decision of docs/DECISIONS.md; ' + plan);
+          else if (!decisionSubjects[id])
+            problems.push(
+              where +
+                'is "' +
+                rows.get(id).title +
+                '" in docs/DECISIONS.md, which tools/docs-lint.mjs has no subject for',
+            );
+          else if (!decisionSubjects[id].test(before))
+            problems.push(
+              where + 'is "' + rows.get(id).title + '" in docs/DECISIONS.md, which this sentence is not about; ' + plan,
+            );
+        }
+      }
+  };
+  const visit = relative => {
+    const entries = fs.readdirSync(path.join(root, relative), {withFileTypes: true});
+    for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+      const file = posix(path.join(relative, entry.name));
+      if (entry.isDirectory()) visit(file);
+      else if (file.endsWith('.md') && !numberingPages.has(file)) check(file);
+    }
+  };
+  if (fs.existsSync(path.join(root, 'docs'))) visit('docs');
+  return problems;
+}
+
 /** Every page above its recorded counts (a page with no record must have none). An empty list passes. */
 export function lintProblems(root = process.cwd(), baseline = readBaseline(root)) {
   const {counts, owners} = measure(root),
@@ -191,7 +305,7 @@ export function lintProblems(root = process.cwd(), baseline = readBaseline(root)
         problems.push(file + ': ' + value + ' ' + what + ', above ' + (allowed[metric] ?? 0) + example);
       }
   }
-  return problems;
+  return [...problems, ...citationProblems(root)];
 }
 /**
  * The size targets: the owner and operator tiers' current pages within their word budget, the duplicate-line share of

@@ -175,6 +175,47 @@ test('a credential-shaped value is hidden, and inspect and prepare list its path
   }
 });
 
+// P2C-01 (differential review, wave 5 round 2 part 2c): the cookie rule of the credential view took the end of a line before the Bearer
+// rule and the JSON rule, so a Bearer token folded onto the next line of a cookie header, and a JSON secret whose string holds a
+// cookie pair, were shown to the approver (`Cookie: [REDACTED]` and the token under it; the secret before the cookie word).
+test('a folded Bearer token and a JSON secret that holds a cookie pair are hidden in the request of a review, and their path is listed (P2C-01)', async () => {
+  const x = setup();
+  try {
+    for (const [text, shown] of [
+      ['Cookie: a=b Bearer\nSYNTHETICVALUE0123456789', 'Cookie: [REDACTED]\n[REDACTED]'],
+      [
+        'Set-Cookie: sid=1; Path=/; Bearer \r\n\tSYNTHETICVALUE0123456789; HttpOnly',
+        'Set-Cookie: [REDACTED]\r\n\t[REDACTED]; HttpOnly',
+      ],
+      ['{"api_key":"SYNTHETICVALUE0123456789\'Cookie: a=b","x":1}', '{"api_key":"[REDACTED]","x":1}'],
+      ['{"cookie":"sid=SYNTHETICVALUE0123456789; Cookie: a=b"}', '{"cookie":"[REDACTED]"}'],
+      ['Cookie: a=b; {"password":\n"SYNTHETICVALUE0123456789"}', 'Cookie: [REDACTED]\n"[REDACTED]"}'],
+    ]) {
+      const inspected = await ok(x.service, {action: 'inspect', ...write(text)}),
+        prepared = await ok(x.service, {action: 'prepare', ...write(text)});
+      for (const [label, answer] of [
+        ['inspect', inspected],
+        ['prepare', prepared],
+      ]) {
+        assert.ok(
+          !JSON.stringify(answer).includes('SYNTHETICVALUE'),
+          label + ' shows a credential: ' + JSON.stringify(text),
+        );
+        assert.equal(answer.request.body.name, shown, label + ': ' + JSON.stringify(text));
+        assert.deepEqual(answer.redacted, [{path: namePath}], label + ': ' + JSON.stringify(text));
+      }
+      // The frozen plan keeps the whole value, and the audit row keeps the full redact(), which hides the same credential.
+      const review = x.store.document(actor.tenantId, 'write_review', prepared.review_id);
+      assert.equal(review.plan.body.name, text);
+      const audited = auditRequest(x.store, 'write_prepared').body.name;
+      assert.equal(audited, security.redact(text));
+      assert.ok(!audited.includes('SYNTHETICVALUE'), 'the audit row shows a credential: ' + JSON.stringify(text));
+    }
+  } finally {
+    x.store.close();
+  }
+});
+
 test('the stored audit row keeps the full redact(): the review display and the audit row are different views', async () => {
   const x = setup();
   try {

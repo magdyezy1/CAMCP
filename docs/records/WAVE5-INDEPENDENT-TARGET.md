@@ -11,7 +11,7 @@ the `Work-here` baseline at 4035ad7c, the read-only evidence collected on 2026-1
 documentation pins. This file records what the implementation must do and how it should be built, so the audit that
 follows measures the code against an independent standard rather than against its own explanation.
 
-Terms: **R1** and **R2** are rounds 1 and 2. **Dn** is an owner decision from section 12 of the plan. A "probe" is a
+Terms: **R1** and **R2** are rounds 1 and 2. **Dn** is an owner decision from section 12 of the V2 plan, not one of `docs/DECISIONS.md`. A "probe" is a
 specific input the audit must run or trace, chosen because it is where a plausible implementation breaks.
 
 ## 1. Required behaviour
@@ -83,7 +83,7 @@ its v3 path.
 functions in their own modules, testable without a job. `work()` keeps job control only.
 
 **Stored forms.** Saved definitions, schedules and snapshots read v3 and write v4, and the v3 fields stay beside the v4
-fields so that `Work-here` can still read a definition after a rollback (D21). Old snapshots render as recorded. They
+fields so that `Work-here` can still read a definition after a rollback (V2 plan D21). Old snapshots render as recorded. They
 are never recomputed.
 
 **Lineage once.** Lineage is stored per source. Rows carry `source_ref`. `get` returns neither lineage nor raw native
@@ -125,7 +125,7 @@ definition. An account with mixed objectives shows one group per objective.
   including AMCP's own state. Saving a media review counts as state.
 - **Response budget.** A list result over budget is cut at a row boundary with `truncated`, counts and a continuing
   `next_call`. The continuation must be bound to the caller. Website calls are unaffected. Defaults that change for
-  existing clients are announced in round 2 and stay opt-in per client from round 3 (D26).
+  existing clients are announced in round 2 and stay opt-in per client from round 3 (V2 plan D26).
 - **D17** holds: the frozen help schema stays byte-identical in `tools/list`.
 
 ### 3.4 Charts
@@ -141,7 +141,7 @@ Stay framework-free. New components are written with `html```, add zero raw HTML
 RTL and both themes. The shell keeps the header and frame during a route change, shows skeletons and fills sections as
 data arrives, so one failing section cannot blank a page. `web/routes.js` stays the only registry for navigation,
 server shell routes and asset order. `web/mark.svg` stays byte-identical. Pages not yet moved keep working through
-token aliases, and only finished screens ship (D25).
+token aliases, and only finished screens ship (V2 plan D25).
 
 ## 4. Module boundaries
 
@@ -163,10 +163,10 @@ Shared modules import provider modules only through the registries (`tools/archi
 ## 5. Compatibility obligations
 
 1. v3 definitions, schedules and snapshots run or render unchanged (principle 9).
-2. A stored definition written by V2 must be readable by `Work-here` at 4035ad7c (D21): `level`, `objective` and the
+2. A stored definition written by V2 must be readable by `Work-here` at 4035ad7c (V2 plan D21): `level`, `objective` and the
    other v3 fields stay valid for that code.
 3. A saved hand-chosen `objective` keeps overriding through round 1. In round 2 it becomes a fallback, with a one-time
-   "numbers changed" note on the next delivery and in History (D22).
+   "numbers changed" note on the next delivery and in History (V2 plan D22).
 4. Saved LinkedIn reports show campaign groups in the campaign position from round 1, with a one-time note, and their
    stored definitions are not rewritten.
 5. Clients on today's protocol versions and on 2026-07-28 both work.
@@ -206,10 +206,10 @@ Shared modules import provider modules only through the registries (`tools/archi
 
 - **TikTok.** Requests carry STATUS_ALL and `enable_total_metrics`. Daily windows split at 30 days. Pages run
   1..total_page. A page longer than page_size, or more rows than declared, is refused. Fewer rows are kept and marked
-  partial with both counts (D2). Collection is complete when additive sums equal `total_metrics`, independent of page
+  partial with both counts (V2 plan D2). Collection is complete when additive sums equal `total_metrics`, independent of page
   counts. "-" is unknown. Campaign-level results are "-", so they roll up from ad groups.
-- **LinkedIn.** Position map: campaign group, campaign, creative (D5). The window resolves in UTC. Absent cost with
-  zero impressions and zero clicks is spend 0 marked `provider_omitted` (D3), and absent cost with any delivery stays
+- **LinkedIn.** Position map: campaign group, campaign, creative (V2 plan D5). The window resolves in UTC. Absent cost with
+  zero impressions and zero clicks is spend 0 marked `provider_omitted` (V2 plan D3), and absent cost with any delivery stays
   unknown. At most 20 metrics, 15,000 elements with no paging (split near the cap), reach for 92 days or less. Names
   are the creative's `name`, else "Ad <id>", never a URN.
 - **Meta.** Objective comes from the campaign. Results are read with the row's `optimization_goal`. A named preview ID
@@ -220,7 +220,7 @@ Shared modules import provider modules only through the registries (`tools/archi
   selects the result. `creative_preview_link` has a 90-day lifetime.
 - **Zones.** LinkedIn UTC; Meta, TikTok and Snapchat the account zone. A run at 01:00 Cairo time must give a complete
   LinkedIn window.
-- **Apple.** Doc-shaped fixtures only, because it is not connected (D24).
+- **Apple.** Doc-shaped fixtures only, because it is not connected (V2 plan D24).
 
 ## 9. Required tests
 
@@ -276,11 +276,11 @@ unverified without it.
 | --- | --- |
 | V2-MCP-13 | v2 packages at the approved versions, nothing left on v1. Every MCP test and journey passes unchanged, eval:mcp unchanged. Clients on today's version and on 2026-07-28 both work. D17 byte-identical. tools/list measured. Container parity and full gate on the rebuilt dependency folder. supply-chain-risk-auditor and differential-review recorded. |
 | V2-RPT-03 | Pinned tables tested value by value. A Meta row's result equals insights `results` for its goal. A TikTok ad group's result equals its `result` metric, and campaign rows combine ad groups only when they share a goal. LinkedIn lead-gen reports oneClickLeads, and awareness reports reach for 92 days or less. Mixed-objective summaries never add different results. Meta detail runs without `result_action_type`. |
-| V2-RPT-06 | Saved hand-chosen objectives become fallbacks, with the one-time note (D22), v3 forms stay readable (D21). A snapshot holds campaign, middle and ad rows on each three-level platform. Scope filters work, and requests are estimated per level. A get without include carries no lineage, and a 3-level TikTok get is under a third of today's bytes. v3 definitions and schedules run unchanged; old snapshots render as recorded. Totals carry coverage; the cross-level check is shown. Defaults are echoed and listed in bootstrap. |
+| V2-RPT-06 | Saved hand-chosen objectives become fallbacks, with the one-time note (V2 plan D22), v3 forms stay readable (V2 plan D21). A snapshot holds campaign, middle and ad rows on each three-level platform. Scope filters work, and requests are estimated per level. A get without include carries no lineage, and a 3-level TikTok get is under a third of today's bytes. v3 definitions and schedules run unchanged; old snapshots render as recorded. Totals carry coverage; the cross-level check is shown. Defaults are echoed and listed in bootstrap. |
 | V2-RPT-07 | A fixture per platform and level. Bootstrap names every level natively. Live per platform. Apple through an owner runbook step. |
 | V2-EXP-01 | Golden SVGs per chart type. PDF render check by text extraction. Palette validator passes in both themes. Every chart has its table. Web charts are axe-clean with keyboard tooltips. Charts never mix currencies or results. |
 | V2-MCP-02 | Typed config. Bootstrap returns option rules and defaults. Filters on get and list. Include flags. Typed outputSchema for both tools. Progress with a progressToken. Tasks where declared. Polling and next_call kept. Eval cases pass, and schemas validate real responses. |
-| V2-MCP-06 | Annotation tests show native gateways read-only. Media hand-off returns MEDIA_REVIEW_REQUIRED with a next_call. Truncation and continuation tested on every list path. Guide sections under a size cap. Response and tool-list bytes measured (D14). New defaults announced in round 2, opt-in per client from round 3 (D26). |
+| V2-MCP-06 | Annotation tests show native gateways read-only. Media hand-off returns MEDIA_REVIEW_REQUIRED with a next_call. Truncation and continuation tested on every list path. Guide sections under a size cap. Response and tool-list bytes measured (V2 plan D14). New defaults announced in round 2, opt-in per client from round 3 (V2 plan D26). |
 | V2-WEB-02 | A members-only component page shows every state. Zero raw HTML writes. Browser cases per component in EN and AR, both themes. |
 | V2-WEB-03 | check-routes passes on the new registry. Keyboard, drawer and geometry cases updated. No clipping at 800px height. One-row top bar at 320px. Section-level loading. Error links follow `parent`. |
 

@@ -80,11 +80,12 @@ This tree also holds the V2 work of rounds 1 and 2, which no deployment reports:
 or ad group and ad levels for every platform within bounded requests, scoped and delivered-only reads, platform-led
 objectives, exact totals with row coverage, saved reports upgraded when they run), LinkedIn conversion-rule attribution
 windows, ad previews behind provider hooks, charts in the report page and its PDF, the SDK v2 MCP server with typed
-report schemas, progress, tasks and a per-client contract profile (D26), one route registry and shell with the V2
+report schemas, progress, tasks and a per-client contract profile (V2 plan D26), one route registry and shell with the V2
 components, the owner's brand kit, and the fixes of the differential reviews (credential redaction, audited transport
 refusals, PDF export of names with combining marks). Its only checks so far are automated tests with synthetic fakes and
-loopback browsers. No live check has run: staging does not exist (blocked: no staging (D20)), provider use is not
-permitted during development, and live deployment is the owner's deferral (C11).
+loopback browsers. No live check has run: staging does not exist (blocked: no staging (V2 plan D20)), provider use is not
+permitted during development, and live deployment is the owner's deferral of 2026-11-03 (quoted in [the V2 round 1
+qualification](records/QUALIFICATION-V2-R1-2026-11-03.md)).
 
 **Tool-list budget.** The limit of 95 KiB (97,280 bytes) on `tools/list` is not raised. Measured on this tree on
 2026-11-14 with `node tools/measure-tool-list.mjs`: <!-- fact:tools_list_bytes_writes -->97,253<!-- /fact --> bytes with

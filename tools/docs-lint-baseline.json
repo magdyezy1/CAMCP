@@ -310,10 +310,16 @@
       "raised": [
         "reference_words 161119 → 161322"
       ]
+    },
+    {
+      "reason": "P2C-04: three reference pages (REPORTING-OVERVIEW, ROUND2-APPLE-READ-ACCEPTANCE, ROUND2-TASK12-READ-ACCEPTANCE) qualify the V2 plan decisions D20 and D22 as V2 plan Dnn, 6 words more in total",
+      "raised": [
+        "reference_words 161322 → 161328"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161322
+    "reference_words": 161328
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

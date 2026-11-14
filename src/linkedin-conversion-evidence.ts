@@ -1,7 +1,7 @@
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {providerFactDetails} from './errors.js';
+import {MirrorError, nestedError, providerFactDetails} from './errors.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {storedLogin} from './connection-authority.js';
@@ -160,13 +160,25 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
       result = await call(gateway, request, actor);
     current();
     // A provider refusal keeps its allow-listed facts (status, request ID, code, layer; never its body) for the website
-    // to name (WEB-03, owner decision D21).
-    if (result.success !== true)
-      bad(
-        result.error?.message ?? 'Conversion configuration could not be read.',
-        result.error?.code ?? 'MEASUREMENT_EVIDENCE_INVALID',
-        providerFactDetails(result.error),
+    // to name (WEB-03, owner decision D21). It also keeps what the failure said of itself, as every nested provider error
+    // does (nestedError): the HTTP status, and that a retry may fix it. Whoever called the read decides what a refusal and
+    // what a retry mean, and a new error that is never retryable and always 400 hid a 429 and a 503 from them (P2C-02).
+    if (result.success !== true) {
+      const failure = nestedError(result, {
+        code: 'MEASUREMENT_EVIDENCE_INVALID',
+        message: 'Conversion configuration could not be read.',
+      });
+      throw new MirrorError(
+        failure.code,
+        failure.message,
+        {
+          ...providerFactDetails(result.error),
+          ...(failure.details.retry_after_ms === undefined ? {} : {retry_after_ms: failure.details.retry_after_ms}),
+        },
+        failure.status,
+        failure.retryable,
       );
+    }
     const data = result.data?.data;
     if (
       !obj(data) ||

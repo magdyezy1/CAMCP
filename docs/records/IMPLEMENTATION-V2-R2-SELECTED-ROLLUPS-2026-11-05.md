@@ -49,5 +49,5 @@ row/byte limits. The subsequent [filtered qualification receipt](QUALIFICATION-V
 records the passing checkpoint. This is not full B/C or Round 2 acceptance.
 Automatic legacy migration, schedule/template/UI completion, remaining packages and final release gates remain.
 Live provider and OAuth reads and actual Sheets exports are not permitted during development (plan principle 4); live
-checks on staging are blocked: no staging (D20); deployment to amcp.shop and Railway is deferred by the owner (C11,
-2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage").
+checks on staging are blocked: no staging (V2 plan D20); deployment to amcp.shop and Railway is deferred by the owner
+(2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage").

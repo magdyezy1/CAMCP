@@ -89,6 +89,6 @@ acceptance requires a fresh filtered candidate containing these follow-up fixes.
 The corrected checkpoint subsequently passed fresh filtered qualification, recorded in the
 [2026-11-05 receipt](QUALIFICATION-V2-R2-REPORT-SCOPES-2026-11-05.md). This record must not be read as full B/C or
 Round 2 acceptance. No dependency or tool input schema was changed. Live provider and OAuth reads and actual Sheets
-exports are not permitted during development (plan principle 4); live checks on staging are blocked: no staging (D20);
-deployment to amcp.shop and Railway is deferred by the owner (C11, 2026-11-03: "leave the live deployment for now, push
+exports are not permitted during development (plan principle 4); live checks on staging are blocked: no staging (V2 plan D20);
+deployment to amcp.shop and Railway is deferred by the owner (2026-11-03: "leave the live deployment for now, push
 to github, live deployment in a later stage").

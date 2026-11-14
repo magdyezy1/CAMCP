@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {MirrorError} from '../dist/src/errors.js';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -216,8 +217,9 @@ test('a rule that states no window leaves the windows unknown, even beside rules
 
 // The collector alone, over the real transport, so that every request is counted against a whole-job allowance as it is
 // in a snapshot job: the account, the group and campaign analytics, the campaigns, the groups: five requests. `accounts`
-// are the accounts the one login lists; `hooks.fetch(path)` runs as LinkedIn is asked, while the request is in flight.
-function transportFixture(t, conversions, {accounts = ['100']} = {}) {
+// are the accounts the one login lists; `hooks.fetch(path)` runs as LinkedIn is asked, while the request is in flight; `respond(path)`
+// may answer a request itself (a response of its own, such as a refusal or a throttle) instead of the synthetic LinkedIn.
+function transportFixture(t, conversions, {accounts = ['100'], respond} = {}) {
   const actor = {tenantId: 'synthetic-linkedin-windows', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 78).toString('base64')),
     paths = [],
@@ -240,25 +242,31 @@ function transportFixture(t, conversions, {accounts = ['100']} = {}) {
       group: {...linkedinLevelGroup, objectiveType: 'WEBSITE_CONVERSION'},
       campaign: {...linkedinLevelCampaign, objectiveType: 'WEBSITE_CONVERSION'},
     },
+    // The transport's retry never waits here: a failure that it would retry costs no time.
     service = new MirrorService(
       new Registry(),
       store,
-      new NativeTransport(async raw => {
-        const url = new URL(raw);
-        paths.push(url.pathname);
-        hooks.fetch?.(url.pathname);
-        if (url.pathname === '/rest/adAccounts/100') return Response.json(linkedinLevelAccount);
-        if (url.pathname === '/rest/adAnalytics')
-          return Response.json(linkedinLevelAnalytics(url.searchParams.get('pivot')));
-        if (url.pathname === '/rest/conversions')
-          return Response.json(
-            linkedinConversionRulesPage(conversions, Number(url.searchParams.get('start') ?? 0), 100),
-          );
-        return Response.json({
-          elements: [url.pathname.endsWith('/adCampaignGroups') ? records.group : records.campaign],
-          metadata: {},
-        });
-      }),
+      new NativeTransport(
+        async raw => {
+          const url = new URL(raw);
+          paths.push(url.pathname);
+          hooks.fetch?.(url.pathname);
+          const answered = respond?.(url.pathname);
+          if (answered) return answered;
+          if (url.pathname === '/rest/adAccounts/100') return Response.json(linkedinLevelAccount);
+          if (url.pathname === '/rest/adAnalytics')
+            return Response.json(linkedinLevelAnalytics(url.searchParams.get('pivot')));
+          if (url.pathname === '/rest/conversions')
+            return Response.json(
+              linkedinConversionRulesPage(conversions, Number(url.searchParams.get('start') ?? 0), 100),
+            );
+          return Response.json({
+            elements: [url.pathname.endsWith('/adCampaignGroups') ? records.group : records.campaign],
+            metadata: {},
+          });
+        },
+        async () => {},
+      ),
     );
   return {
     actor,
@@ -669,6 +677,131 @@ for (const [read, path] of [
       assert.equal(lookup.linkedinConversionRules, undefined);
       assert.equal(lookup.linkedinCampaigns?.unavailable, undefined);
       assert.equal(f.paths.at(-1), path, f.paths.join(' '));
+    },
+  );
+
+// P2C-02 (differential review, wave 5 round 2 part 2c): only LinkedIn may refuse or fail the rules read and leave the windows
+// unknown. The catch of the rules read kept every error that was not AMCP's own access refusal as LinkedIn's: the conversion
+// evidence read turns a failed answer into a new error that was never retryable and always had status 400, and the catch took it
+// for a refusal. A worker that lost the job's lease, a report that was cancelled, counters found invalid, and a transient failure of
+// LinkedIn's (a 429, a 503) all ended the source complete, with unknown windows, a reason that was not true and a refusal
+// remembered for the rest of the job, where every other optional read (optionalReadRefused) fails the source, or retries the job,
+// and the period collector fails it for the first three.
+//
+// A lost lease, a cancelled job and invalid counters come as the job's own check gives them: its allowance's save callback throws
+// as a request is counted: the 6th request of the source is the rules read's account check, the 7th its rules page, the 8th the
+// account check after them.
+for (const [code, status] of [
+  ['STALE_JOB_LEASE', 409],
+  ['JOB_CANCELLED', 400],
+  ['REPORT_BUDGET_INVALID', 400],
+])
+  for (const [during, counted] of [
+    ['the account check before the rules', 6],
+    ['the rules page', 7],
+    ['the account check after the rules', 8],
+  ])
+    test(code + ' during ' + during + ' ends the source with that error, never as LinkedIn’s refusal', async t => {
+      const f = transportFixture(t, [linkedinConversionRule('501')]),
+        lookup = {};
+      let thrown = false;
+      const budget = new ReportCollectionBudget(
+        undefined,
+        'synthetic-linkedin-windows',
+        state => {
+          if (thrown || state.requests !== counted) return;
+          thrown = true;
+          throw new MirrorError(code, 'Synthetic job control.', {}, status);
+        },
+        {requests: 1200, rows: 1000, elapsed_ms: 600000, bytes: 1e9},
+      );
+      try {
+        const outcome = await budget
+          .run(() => f.collect(lookup))
+          .then(
+            result => ({result}),
+            error => ({error}),
+          );
+        assert.ok(
+          outcome.error,
+          'the source completed, taking ' +
+            code +
+            ' for LinkedIn’s refusal: ' +
+            JSON.stringify(outcome.result?.warnings),
+        );
+        assertRefused(outcome.error, code);
+        assert.equal(lookup.linkedinConversionRules, undefined, 'nothing is remembered as a refusal of LinkedIn’s');
+        assert.equal(
+          f.paths.length,
+          counted - 1,
+          'no request is sent after the one that was stopped: ' + f.paths.join(' '),
+        );
+      } finally {
+        budget.close();
+      }
+    });
+
+// A failure that LinkedIn says a retry may fix keeps its flag and its status, so the job is retried and not finished with unknown
+// windows; a refusal (HTTP 400, 403 or 404) and an answer that is not the rules leave the windows unknown, as before.
+for (const [what, answer] of [
+  [
+    'a 429 with a Retry-After',
+    () => Response.json({message: 'Throttled'}, {status: 429, headers: {'retry-after': '3'}}),
+  ],
+  [
+    'a 503 with a Retry-After',
+    () => Response.json({message: 'Unavailable'}, {status: 503, headers: {'retry-after': '3'}}),
+  ],
+])
+  test(
+    'a transient failure of LinkedIn during the rules read (' +
+      what +
+      ') ends the source retryable, never as a refusal',
+    async t => {
+      const f = transportFixture(t, [linkedinConversionRule('501')], {
+          respond: path => (path === '/rest/conversions' ? answer() : undefined),
+        }),
+        lookup = {},
+        outcome = await f.collect(lookup).then(
+          result => ({result}),
+          error => ({error}),
+        );
+      assert.ok(
+        outcome.error,
+        'the source completed, taking a transient failure for LinkedIn’s refusal: ' +
+          JSON.stringify(outcome.result?.warnings),
+      );
+      assert.equal(outcome.error.retryable, true, outcome.error.code);
+      assert.ok(outcome.error.status >= 429, 'the status of LinkedIn’s answer is kept: ' + outcome.error.status);
+      assert.equal(lookup.linkedinConversionRules, undefined, 'nothing is remembered as a refusal of LinkedIn’s');
+      assert.equal(
+        f.paths.at(-1),
+        '/rest/conversions',
+        'no request is sent after the one that failed: ' + f.paths.join(' '),
+      );
+    },
+  );
+
+for (const status of [400, 403, 404])
+  test(
+    'a refusal of LinkedIn’s (HTTP ' +
+      status +
+      ') of the rules read leaves the windows unknown, once, and the source complete',
+    async t => {
+      const f = transportFixture(t, [linkedinConversionRule('501')], {
+          respond: path => (path === '/rest/conversions' ? Response.json({message: 'Refused'}, {status}) : undefined),
+        }),
+        lookup = {},
+        result = await f.collect(lookup);
+      assert.equal(result.complete, true);
+      assert.equal(result.attribution, 'unknown');
+      assert.equal(result.conversion_windows.reason, 'refused');
+      assert.deepEqual(
+        lookup.linkedinConversionRules,
+        {lineage: []},
+        'the refusal is remembered, so the job asks once',
+      );
+      assert.equal(f.paths.filter(p => p === '/rest/conversions').length, 1);
     },
   );
 
