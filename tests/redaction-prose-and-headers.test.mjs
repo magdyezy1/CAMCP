@@ -115,6 +115,15 @@ const hidden = {
   ],
   'a header with no space after the colon': [`Cookie:sid=${SECRET}`, ['Cookie:']],
   'a header with a space before the colon': [`Cookie : sid=${SECRET}`, ['Cookie :']],
+  // P2C-01: bee1db0e hid both, and the header rule of DR2-02 showed them again.
+  'a Bearer token folded onto the next line of a header (P2C-01)': [
+    `Authorization: Bearer\n${SECRET}`,
+    ['Authorization:'],
+  ],
+  'a JSON secret whose value holds a header word (P2C-01)': [
+    `{"cookie":"sid=${SECRET}; Authorization: x","n":1}`,
+    ['{"cookie":"', '"n":1}'],
+  ],
 };
 
 test('the review examples read the same on the card, in the MCP envelope and in the audit row, and hide the credential', async () => {
@@ -361,6 +370,184 @@ test('header forms hide their value to the end of the line, and only that line',
   });
 });
 
+// ---- P2C-01 (differential review, wave 5 round 2 part 2c): the header rule ran first and took the end of the line ----
+// DR2-02 added the header rule and put it before the Bearer and the JSON rules. It hides a value to the end of its line, so a Bearer token
+// folded onto the next line (`Authorization: Bearer`, then the token) was shown, and a JSON secret whose value holds a header word was shown
+// up to that word: the rule took the closing quote, and the JSON rule then found no string to close. bee1db0e had only the Bearer and the
+// JSON rules, and hid both. The oracle is redact() of bee1db0e, frozen (`redactAtHead`): a credential it hid stays hidden; the credentials
+// that 6c80be71 hid by the sweep (`Cookie: {"password":"x"}`, a header line with its own value) are checked beside it.
+const NBSP = String.fromCharCode(0xa0);
+const headerWords = [
+  'Authorization',
+  'authorization',
+  'Proxy-Authorization',
+  'Cookie',
+  'COOKIE',
+  'Set-Cookie',
+  'set-cookie',
+];
+// What can stand between `Bearer` and its token, after the white space of the line: every kind of line break, the obsolete fold (a break
+// and an indent), blank lines, and white space before the break.
+const breaks = ['\n', '\r\n', '\r', '\r\n ', '\r\n\t', '\n\n', '\n  ', ' \n', '\t\r\n', NBSP + '\n'];
+const jsonKeys = [
+  'api_key',
+  'cookie',
+  'password',
+  'authorization',
+  'set-cookie',
+  'access_token',
+  'secret',
+  'client-secret',
+];
+
+test('a Bearer token folded onto the next line of a header is hidden, after every header word and every break, as at bee1db0e (P2C-01)', () => {
+  let shapes = 0;
+  for (const name of headerWords)
+    for (const gap of [': ', ':', ' : ', ':\t'])
+      for (const before of ['', 'x ', 'Basic ', 'a=b; '])
+        for (const trail of ['', ' ', '\t', NBSP])
+          for (const brk of breaks) {
+            const text = `HTTP/1.1 401${brk}${name}${gap}${before}Bearer${trail}${brk}${SECRET} tail`;
+            shapes++;
+            const out = redact(text);
+            // The guard against a table that stopped drawing the class: bee1db0e hid every one of these tokens.
+            assert.ok(!redactAtHead(text).includes(SECRET), `bee1db0e shows ${JSON.stringify(text)}`);
+            assert.ok(!out.includes('SYNTHETICVALUE'), `${JSON.stringify(text)} shows the token: ${out}`);
+            assert.ok(
+              out.includes(`${name}${gap}[REDACTED]`) && out.endsWith(' tail'),
+              `${JSON.stringify(text)} lost its text: ${out}`,
+            );
+            assert.equal(redact(out), out, 'idempotent: ' + JSON.stringify(text));
+          }
+  assert.equal(shapes, 7 * 4 * 4 * 4 * breaks.length);
+});
+
+test('a folded Bearer token reads the same on the card, in the MCP envelope and in the audit row, line breaks kept (P2C-01)', async () => {
+  for (const [text, shown] of Object.entries({
+    // The review's three shapes, then the two header words the review named.
+    [`Authorization: Bearer\n${SECRET}`]: 'Authorization: [REDACTED]\n[REDACTED]',
+    [`Authorization: Bearer\r\n ${SECRET}`]: 'Authorization: [REDACTED]\r\n [REDACTED]',
+    [`Cookie: Bearer \n${SECRET}`]: 'Cookie: [REDACTED]\n[REDACTED]',
+    [`Proxy-Authorization: Bearer\n\n  ${SECRET} and the rest\nNext line`]:
+      'Proxy-Authorization: [REDACTED]\n\n  [REDACTED] and the rest\nNext line',
+    [`Set-Cookie: sid=1; Path=/; Bearer\t\r\n\t${SECRET}; HttpOnly`]:
+      'Set-Cookie: [REDACTED]\r\n\t[REDACTED]; HttpOnly',
+    // A chain of Bearer words hides the last token, as bee1db0e's pairing of the words did.
+    [`Cookie:Bearer\nBearer Bearer \n${SECRET}`]: 'Cookie:[REDACTED]\n[REDACTED]',
+    [`Authorization: Bearer\nBearer ${SECRET}`]: 'Authorization: [REDACTED]\n[REDACTED]',
+    // The token may hold a name or a header word after a dot or a dash, and it is hidden to its end.
+    [`Authorization: Bearer\n${SECRET}.password.sig`]: 'Authorization: [REDACTED]\n[REDACTED]',
+  })) {
+    const shownOn = await surfaces(text);
+    assert.deepEqual(shownOn, {card: shown, envelope: shown, audit: shown}, JSON.stringify(text));
+    assert.equal(redact(text), shown, JSON.stringify(text));
+    assert.equal(redact(shown), shown, 'idempotent: ' + JSON.stringify(text));
+  }
+  // What the next line holds that a Bearer token cannot be: the next header, a credential and its separator, a JSON string, or nothing.
+  // The rules after this one read those, as before.
+  for (const [text, shown] of Object.entries({
+    [`Authorization: Bearer\nCookie: sid=${SECRET}`]: 'Authorization: [REDACTED]\nCookie: [REDACTED]',
+    [`Authorization: Bearer\nsecret = ${SECRET}`]: 'Authorization: [REDACTED]\n[REDACTED]',
+    [`Authorization: Bearer\nabc-Cookie: ${SECRET}`]: 'Authorization: [REDACTED]\n[REDACTED]Cookie: [REDACTED]',
+    // The bare names (`token=`, `signature=`, `sig=`) hide the value that follows them, whatever it starts with.
+    [`Authorization: Bearer\ntoken="${SECRET}"`]: 'Authorization: [REDACTED]\ntoken=[REDACTED]',
+    [`Cookie: a=b Bearer\nsig='${SECRET}'`]: 'Cookie: [REDACTED]\nsig=[REDACTED]',
+    [`Authorization: Bearer\nsignature=(${SECRET})`]: 'Authorization: [REDACTED]\nsignature=[REDACTED]',
+    [`Authorization: Bearer\n{"password":"${SECRET}"}`]: 'Authorization: [REDACTED]\n{"password":"[REDACTED]"}',
+    'Authorization: Bearer\n': 'Authorization: [REDACTED]\n',
+    'Authorization: Bearer': 'Authorization: [REDACTED]',
+  })) {
+    assert.equal(redact(text), shown, JSON.stringify(text));
+    assert.equal(redact(shown), shown, 'idempotent: ' + JSON.stringify(text));
+    assert.ok(!redact(text).includes('SYNTHETICVALUE'), JSON.stringify(text));
+  }
+  // A Bearer token that is not at the end of a header's line is the Bearer rule's, as before.
+  assert.equal(redact(`GET /x\nBearer\n${SECRET}\nHost: h`), 'GET /x\nBearer [REDACTED]\nHost: h');
+});
+
+// The review's three JSON shapes, each with every JSON key, every header word and both orders: a header word inside the string of a
+// secret (the string ends after it, or it holds a value), a header word before the JSON, and a key split from its string by a line.
+const jsonShapes = {
+  'a header word and its value inside the string': [
+    (key, word) => `{"${key}":"sid=${SECRET}; ${word}: x","n":1}`,
+    key => `{"${key}":"[REDACTED]","n":1}`,
+  ],
+  'a header word that ends the string, with no value': [
+    (key, word) => `{"${key}":"${SECRET}'${word}: ","x":1}`,
+    key => `{"${key}":"[REDACTED]","x":1}`,
+  ],
+  'a header word with a spaced colon and a value of two parts': [
+    (key, word) => `{"${key}" : "${SECRET} ${word} : a=b; c","n":1}`,
+    key => `{"${key}" : "[REDACTED]","n":1}`,
+  ],
+  'a header word and a Bearer value inside the string': [
+    (key, word) => `{"${key}":"${word}: Bearer ${SECRET}"}`,
+    key => `{"${key}":"[REDACTED]"}`,
+  ],
+  'a key split from its string by a line, a header word inside the string': [
+    (key, word) => `{"${key}":\n"${SECRET} ${word}: x"}`,
+    key => `{"${key}":\n"[REDACTED]"}`,
+  ],
+  'a header word before the JSON (the sweep hid it already)': [
+    (key, word) => `${word}: {"${key}":"${SECRET}"}`,
+    (key, word) => `${word}: [REDACTED]`,
+  ],
+  'a header word before a key split from its string by a line': [
+    (key, word) => `${word}: {"${key}":\n"${SECRET}"}`,
+    (key, word) => `${word}: [REDACTED]\n"[REDACTED]"}`,
+  ],
+};
+
+test('a JSON secret whose value holds a header word, and one split from its string after a header word, is hidden, as at bee1db0e (P2C-01)', async () => {
+  let shapes = 0;
+  for (const [label, [make, expected]] of Object.entries(jsonShapes))
+    for (const key of jsonKeys)
+      for (const word of headerWords) {
+        const text = make(key, word);
+        const out = redact(text);
+        shapes++;
+        assert.ok(!redactAtHead(text).includes(SECRET), `${label}: bee1db0e shows ${JSON.stringify(text)}`);
+        assert.ok(!out.includes('SYNTHETICVALUE'), `${label}: ${JSON.stringify(text)} shows the credential: ${out}`);
+        assert.equal(out, expected(key, word), `${label}: ${JSON.stringify(text)}`);
+        assert.equal(redact(out), out, 'idempotent: ' + JSON.stringify(text));
+      }
+  assert.equal(shapes, Object.keys(jsonShapes).length * jsonKeys.length * headerWords.length);
+  // The review's three: the card, the envelope and the audit row read the same.
+  for (const text of [
+    `{"api_key":"${SECRET}'Cookie: ","x":1}`,
+    `{"cookie":"sid=${SECRET}; Authorization: x"}`,
+    `Cookie: {"password":\n"${SECRET}"}`,
+  ]) {
+    const out = redact(text);
+    assert.deepEqual(await surfaces(text), {card: out, envelope: out, audit: out}, JSON.stringify(text));
+  }
+  // A header word in a string that is not a secret's starts the sweep to the end of its line, as it did: the rule cannot tell that the
+  // line is JSON. The secret after it is hidden all the same.
+  assert.equal(
+    redact(`{"note":"call Cookie: x later","api_key":"${SECRET}; Authorization: y","n":1}`),
+    '{"note":"call Cookie: [REDACTED]',
+    'a header word in an ordinary string still hides to the end of its line, as before',
+  );
+});
+
+test('a rule that removes a key leaves its string beside a quote that can begin another key: one redact() hides it all, and a second changes nothing (P2C-01)', () => {
+  // A string that holds a quote of its own (the JSON is not valid): the JSON rule takes the quote that starts the next key as the
+  // end of the string. A rule after it (the header rule, the sentence rule) removes the key of that string and leaves the string
+  // beside a quote that can now start a key, which a second redact() hid: the JSON rule runs last as well. The last case is a
+  // backslash before a line break, which the JSON rule cannot read as an escape, and which a later rule took away.
+  const ideographic = String.fromCharCode(0x3000);
+  for (const text of [
+    `Authorization: \r{"cookie":\r"sid=${SECRET}; Authorization: x{"cookie":""}`,
+    `Cookie:\t${ideographic} {"password":\n"${SECRET}{"cookie":""}`,
+    `-{"api_key":"${SECRET} Cookie:\nook\\\rie:  ","x":1}`,
+    `Cookie: {"password":\n"${SECRET}{"cookie":"y"}`,
+  ]) {
+    const once = redact(text);
+    assert.ok(!once.includes('SYNTHETICVALUE'), `${JSON.stringify(text)} shows the credential: ${once}`);
+    assert.equal(redact(once), once, 'idempotent: ' + JSON.stringify(text));
+  }
+});
+
 test('ordinary prose is left alone, on every surface', async () => {
   for (const text of [
     'Unexpected token } in JSON at position 4',
@@ -465,6 +652,14 @@ test('over 100,000 generated messages redact() never shows a credential the head
     seed = (seed * 1664525 + 1013904223) % 4294967296;
     return Math.floor(seed / 65536) % n;
   };
+  // A JSON piece that holds a header word in a secret's string says so: 6c80be71's header rule, started by that word, took the closing
+  // quote and the rest of the line (and the JSON rule, with the quote gone, ran its string on to the next quote, over the lines that
+  // follow), so it hid text no rule of its own reads, the other pieces of the message. The JSON rule now reads the string whole, as
+  // bee1db0e's did, and leaves the text after it to the rules that read it. Such a text is held to bee1db0e and the old card, which
+  // are the oracles of this change, and not to 6c80be71; every other text is held to all three, and the 400,000 bodies of Ruling 16
+  // below hold 6c80be71 for every shape of their generator.
+  let sweptByAccident = false;
+  const headerInJson = text => ((sweptByAccident = true), text);
   // Each secret piece carries its own markers, so a credential shown whatever the text around it is found.
   const firstValues = ['', 'a', 'bc'];
   const secretPieces = [
@@ -529,6 +724,20 @@ test('over 100,000 generated messages redact() never shows a credential the head
       `${delimiters[next(4)]}${oldCardNames[next(13)]}${sameLine[next(5)]}${firstValues[next(3)]}${joins[next(joins.length)]}${joinNames[next(9)]}${secondForms[next(8)]}${m()}`,
     m =>
       `${delimiters[next(4)]}${oldCardNames[next(13)]}${sameLine[next(5)]}${m()}${joins[next(joins.length)]}${joinNames[next(9)]}${secondForms[next(8)]}${m()}`,
+    // P2C-01: a line break (of any kind, with an indent, with white space before it) inside a header value, between `Bearer` and its
+    // token; a JSON secret whose value holds a header word (with a value or without, a Bearer value, a key split from its string by a
+    // line); a header word before the JSON. Every draw before this one put `Bearer` and its token on one line and no header word in a
+    // JSON string, so none reached the end-of-line of the header rule and its closing quote; bee1db0e hid all of these.
+    m =>
+      `${headerWords[next(7)]}${[': ', ':', ' : '][next(3)]}Bearer${['', ' ', '\t'][next(3)]}${breaks[next(breaks.length)]}${m()}`,
+    m => `${headerWords[next(7)]}: ${['a=b', 'x', 'Basic y'][next(3)]} Bearer${breaks[next(breaks.length)]}${m()}`,
+    m =>
+      headerInJson(
+        `{"${jsonKeys[next(8)]}":"${m()}; ${headerWords[next(7)]}: ${['x', '', 'a=b', 'Bearer y'][next(4)]}"${['}', ',"n":1}'][next(2)]}\n`,
+      ),
+    m => headerInJson(`{"${jsonKeys[next(8)]}":"${m()}'${headerWords[next(7)]}: "}\n`),
+    m => `${headerWords[next(7)]}: {"${jsonKeys[next(8)]}":${breaks[next(breaks.length)]}"${m()}"}`,
+    m => headerInJson(`{"${jsonKeys[next(8)]}":${breaks[next(breaks.length)]}"${m()} ${headerWords[next(7)]}: x"}\n`),
   ];
   const plain = [
     ' ',
@@ -562,6 +771,7 @@ test('over 100,000 generated messages redact() never shows a credential the head
         markers.push(marker);
         return marker;
       };
+    sweptByAccident = false;
     const text = Array.from({length: 1 + next(5)}, () =>
       next(3) ? plain[next(plain.length)] + secretPieces[next(secretPieces.length)](mark) : plain[next(plain.length)],
     ).reduce((all, piece) => all + separators[next(separators.length)] + piece);
@@ -571,7 +781,10 @@ test('over 100,000 generated messages redact() never shows a credential the head
       wasAtBase = redactAt6c80be71(text);
     for (const marker of markers) {
       checked++;
-      if (now.includes(marker) && (!was.includes(marker) || !wasOnCard.includes(marker) || !wasAtBase.includes(marker)))
+      if (
+        now.includes(marker) &&
+        (!was.includes(marker) || !wasOnCard.includes(marker) || (!sweptByAccident && !wasAtBase.includes(marker)))
+      )
         regressions.push({text, now, was, wasOnCard, wasAtBase, marker});
       if (was.includes(marker) && !now.includes(marker)) gainedOnHead++;
       if (wasOnCard.includes(marker) && !now.includes(marker)) gainedOnCard++;
@@ -579,7 +792,11 @@ test('over 100,000 generated messages redact() never shows a credential the head
     // Every text, not every third (P2B-01): the first version of the fix redacted twice differently in a rare shape.
     assert.equal(redact(now), now, 'idempotent: ' + JSON.stringify(text));
   }
-  assert.deepEqual(regressions.slice(0, 3), [], 'credentials shown that the head or the card hid');
+  assert.deepEqual(
+    regressions.slice(0, 3),
+    [],
+    regressions.length + ' credentials shown that the head or the card hid',
+  );
   // The sample is fixed (seeded): it holds about 223,000 credentials, and redact() hides about 167,000 more than the head's
   // redaction and 46,000 more than the card did. Before P2A-01 was closed 24,401 of them were shown that the card hid (every
   // glued lead with a spaced `=`); the first version of this test, which drew no such shape, found none.
@@ -625,6 +842,27 @@ test('the new rules keep redaction linear on hostile text', () => {
     ('token_secret:x-api_key =' + 'y'.repeat(40) + ' ').repeat(5000),
     'password:'.repeat(60000),
     ('access-token:' + 'a,').repeat(60000),
+    // P2C-01: a header that ends in Bearer, then a line break and a token, over and over; a chain of Bearer words; a long white space
+    // between Bearer and what follows; a token made of header words, names and glued Bearer words; JSON strings that hold header words;
+    // a key split from its string by a line after a header word.
+    'Authorization: Bearer\n'.repeat(60000),
+    'Cookie: Bearer\nTOKEN\n'.repeat(60000),
+    'Authorization: Bearer\n' + 'Bearer '.repeat(30000),
+    'Authorization: Bearer\n' + 'Bearer\n'.repeat(30000),
+    'Authorization: Bearer' + ' '.repeat(300000) + '\n' + ' '.repeat(300000) + 'token',
+    'Authorization: Bearer\n' + '\n'.repeat(300000) + 'token',
+    ('Cookie: Bearer' + ' '.repeat(100) + '\n').repeat(2000),
+    ('Cookie: Bearer' + NBSP.repeat(100) + '\n').repeat(2000),
+    'Authorization: Bearer\n' + 'cookie'.repeat(40000),
+    'Authorization: Bearer\n' + 'a.password'.repeat(30000),
+    'Authorization: Bearer\n' + ('a.password' + ' '.repeat(100)).repeat(2000),
+    'Authorization: Bearer\n' + 'xBearer'.repeat(40000),
+    'Cookie: ' + 'x'.repeat(300000) + ' Bearer ' + 'y'.repeat(300000),
+    '{"api_key":"a Cookie: b"}'.repeat(12000),
+    '{"password":"'.repeat(25000),
+    ('"password":' + '\n'.repeat(50)).repeat(5000),
+    'Cookie: {"password":\n'.repeat(15000),
+    '"'.repeat(300000),
   ]) {
     const started = performance.now();
     redact(hostile);

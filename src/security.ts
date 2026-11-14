@@ -124,7 +124,12 @@ const textPairs = pairPass('&'),
  * The forms of a credential in a sentence, which have no `?`, `&`, `#` or `;` before the name for the pair pass to find
  * (DR2-02). They are part of redact(), so the report card, the MCP error envelope and the audit row show the same text:
  * - a header line: the value of `Authorization:`, `Proxy-Authorization:`, `Cookie:` and `Set-Cookie:` to the end of the
- *   line (a value of white space only has nothing to hide and does not reach the next line);
+ *   line (a value of white space only has nothing to hide and does not reach the next line). A value that ends in `Bearer`
+ *   takes the token that a line break puts below it (`Authorization: Bearer` and the token on the next line, which is how an
+ *   obsolete folded header and a wrapped YAML scalar read): bee1db0e's Bearer rule hid it, and the sweep, which runs first,
+ *   had taken the word `Bearer` out of that rule's reach (P2C-01). The token is hidden in place, line breaks kept, after any
+ *   `Bearer` words that start the line, and it is not a token when it is the start of the next header, of a credential name
+ *   and its separator, or of a Bearer of its own: the rules after this one read those, as they did before;
  * - `oauth_token=`, `token=`, `secret=`, `signature=` and `sig=` with a value, wherever they stand (`refused: token=abc
  *   for user`);
  * - a credential name of the list above, `=` or `:`, and a value, in a sentence (`request failed access_token=abc
@@ -146,8 +151,28 @@ const textPairs = pairPass('&'),
  *   of letters and digits that ends in `_` read again from each `EAA` inside it.
  * Each scan is linear: a match consumes what it hides, and a failed start costs at most the white space after its name.
  */
-const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[ \t]*)[^\s][^\r\n]*/gi,
-  bareParameters = /\b(oauth[_-]?token|token|secret|signature|sig)=[^\s,;&]+/gi,
+const headerNames = '(?:proxy-)?authorization|(?:set-)?cookie',
+  bareNames = 'oauth[_-]?token|token|secret|signature|sig',
+  // The header line, then (only when its value ends in `Bearer` and white space of the line) the line break, the `Bearer` words
+  // that start the next line and the token: a token is not the start of another header, of a credential name with its separator
+  // (the bare names too: `token="x"`) or of a Bearer with white space after it, at any character of it, so the rules after this
+  // one still read those. Linear: the optional part is tried once, where the sweep ends, and a failed look behind costs the
+  // white space before it.
+  credentialHeaders = new RegExp(
+    '\\b(' +
+      headerNames +
+      ')([ \\t]*:[ \\t]*)[^\\s][^\\r\\n]*(?:(?<=Bearer[^\\S\\r\\n]*)((?:\\r\\n|\\r|\\n)\\s*)(?:Bearer\\s+)*(?:(?!\\b(?:' +
+      headerNames +
+      ')[ \\t]*:[ \\t]*[^\\s]|\\b(?:' +
+      secretKeyNames +
+      ')\\s*[=:]|\\b(?:' +
+      bareNames +
+      ')=|Bearer\\s)[\\w.+/=-])+)?',
+    'gi',
+  ),
+  hideHeader = (_line: string, name: string, colon: string, folded?: string) =>
+    name + colon + '[REDACTED]' + (folded === undefined ? '' : folded + '[REDACTED]'),
+  bareParameters = new RegExp('\\b(' + bareNames + ')=[^\\s,;&]+', 'gi'),
   // The next credential head, as the branch of its own below reads it: the lead it may have, a name, `=` or `:`.
   nextCredential = '[?&#;]?\\b(?:' + secretKeyNames + ')\\s*[=:]',
   // The value of the first branch: its run, then the value of the head the run ends in, and so on along a chain (Ruling 16): a
@@ -176,18 +201,29 @@ const credentialHeaders = /\b((?:proxy-)?authorization|(?:set-)?cookie)([ \t]*:[
     'gi',
   ),
   metaTokens = /\bEAA[A-Za-z0-9]{60,}/g;
-/** The text of redact(): every form above. What display, storage, errors, the MCP envelope and the audit trail show. */
+/**
+ * The text of redact(): every form above. What display, storage, errors, the MCP envelope and the audit trail show.
+ * JSON secrets are hidden three times (P2C-01). The header rule hides to the end of a line: a JSON string that holds a header
+ * word lost its closing quote to it, and a key split from its string by a line lost the key, so the JSON rule found no
+ * string, where bee1db0e's JSON rule, which saw the text whole, hid both. So the rule runs first, on the text as it was sent.
+ * It runs again where it always ran, after the header and Bearer rules and before the pair pass and the sentence rules, which
+ * then read a text whose secret strings are hidden. And it runs last: a rule that removes a key (the header rule, the
+ * sentence rule) leaves its string beside a quote that can then begin another key, which a second redact() would hide, so
+ * that redact(redact(x)) is redact(x).
+ */
 const redactedText = (text: string): string =>
   textPairs(
     text
-      .replace(credentialHeaders, '$1$2[REDACTED]')
+      .replace(jsonSecrets, '$1"[REDACTED]"')
+      .replace(credentialHeaders, hideHeader)
       .replace(/Bearer\s+[\w.+/=-]+/gi, 'Bearer [REDACTED]')
       .replace(jsonSecrets, '$1"[REDACTED]"'),
     noExemption,
   )
     .replace(bareParameters, '$1=[REDACTED]')
     .replace(sentenceSecrets, '[REDACTED]')
-    .replace(metaTokens, '[REDACTED]');
+    .replace(metaTokens, '[REDACTED]')
+    .replace(jsonSecrets, '$1"[REDACTED]"');
 /**
  * What the credential refusal of saved reporting queries and settings reads (Ruling 10). redact() also hides the prose
  * forms, which is right for what is shown, stored, reported and audited, but a query or setting refused because
