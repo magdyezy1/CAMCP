@@ -6,6 +6,7 @@ import {assertReportingConfigCredentials, redactReportingConfig} from '../dist/s
 import * as security from '../dist/src/security.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {redactAtHead} from './helpers/redaction-at-head.mjs';
+import {credentialViewAt1400f714} from './helpers/credential-view-at-1400f714.mjs';
 
 /**
  * Ruling 10 (A): the credential refusal of saved reporting queries and settings refuses credential-shaped content, not
@@ -306,6 +307,17 @@ test('the credential-shaped view stays linear on hostile text', () => {
     'EAA'.repeat(100000),
     'EAA' + 'a'.repeat(300000) + '_',
     '?password='.repeat(60000),
+    // P2C-01: a cookie header that ends in Bearer, a line break and a token, over and over; a chain of Bearer words; long white
+    // space between Bearer and what follows; tokens made of names and glued Bearer words; JSON strings that hold a cookie pair.
+    'Cookie: a=b Bearer\n'.repeat(60000),
+    'Cookie: a=b Bearer\nTOKENTOKEN\n'.repeat(40000),
+    'Cookie: a=b Bearer\n' + 'Bearer '.repeat(30000),
+    'Cookie: a=b Bearer' + ' '.repeat(300000) + '\n' + ' '.repeat(300000) + 'tokentoken',
+    ('Cookie: a=b Bearer' + ' '.repeat(100) + '\n').repeat(2000),
+    'Cookie: a=b Bearer\n' + 'a.password'.repeat(30000),
+    'Cookie: a=b Bearer\n' + 'xBearer'.repeat(40000),
+    '{"api_key":"a Cookie: b=c"}'.repeat(12000),
+    '{"password":"'.repeat(25000),
   ]) {
     const started = performance.now();
     security.redactCredentialShapes(hostile);
@@ -314,4 +326,180 @@ test('the credential-shaped view stays linear on hostile text', () => {
       'took ' + (performance.now() - started) + ' ms on ' + hostile.slice(0, 24),
     );
   }
+});
+
+// ---- P2C-01 (differential review, wave 5 round 2 part 2c): the cookie rule took the end of a line before the Bearer and JSON rules ----
+// The view had the flaw of redact(): its cookie rule hides a value that starts with `name=` to the end of its line, and it ran before
+// the Bearer rule and the JSON rule. So a Bearer token folded onto the next line of a cookie header, and a JSON secret whose string
+// holds a cookie pair or an authorization token (the rule took the closing quote, and the JSON rule then found no string), were
+// shown where a review shows its request. The refusal was never wrong (the rule changed the text, so the value was refused all the
+// same); the display was. The JSON rule now runs first and last, and the cookie rule takes a folded token of eight or more characters,
+// hidden in place with its line breaks kept, as redact()'s header rule does. The frozen view of 1400f714 is the oracle: what it
+// refused is refused, what it accepted is accepted, and what it hid stays hidden.
+const foldedShapes = {
+  'a Bearer token folded onto the next line of a cookie header': [
+    `Cookie: a=b Bearer\n${SECRET}`,
+    'Cookie: [REDACTED]\n[REDACTED]',
+  ],
+  'the same with an obsolete fold, an indent and text after the token': [
+    `Cookie: sid=1; Path=/; Bearer \r\n\t${SECRET}; HttpOnly`,
+    'Cookie: [REDACTED]\r\n\t[REDACTED]; HttpOnly',
+  ],
+  'Set-Cookie, blank lines and text after the token': [
+    `Set-Cookie: session=1; Bearer\n\n  ${SECRET} tail`,
+    'Set-Cookie: [REDACTED]\n\n  [REDACTED] tail',
+  ],
+  'a chain of Bearer words, the last token hidden': [
+    `Cookie: a=b Bearer\nBearer Bearer \n${SECRET}`,
+    'Cookie: [REDACTED]\n[REDACTED]',
+  ],
+  'a JSON secret whose string holds a cookie pair': [
+    `{"api_key":"${SECRET}'Cookie: a=b","x":1}`,
+    '{"api_key":"[REDACTED]","x":1}',
+  ],
+  'a JSON secret whose string holds a cookie header': [
+    `{"cookie":"sid=${SECRET}; Cookie: a=b"}`,
+    '{"cookie":"[REDACTED]"}',
+  ],
+  'a JSON secret whose string holds an authorization scheme and token': [
+    `{"cookie":"sid=${SECRET}; Authorization: Basic abcdefghijkl"}`,
+    '{"cookie":"[REDACTED]"}',
+  ],
+  'a JSON key split from its string by a line, after a cookie pair': [
+    `Cookie: a=b; {"password":\n"${SECRET}"}`,
+    'Cookie: [REDACTED]\n"[REDACTED]"}',
+  ],
+};
+// Ordinary text near those shapes, which the view accepts and keeps accepting: no `name=` after the cookie word, a token of under
+// eight characters (Ruling 10, decision 5), a JSON key that is not a credential's.
+const nearShapes = [
+  'Cookie: Spring sale Bearer\nfollow',
+  'Cookie: a Bearer',
+  '{"note":"Cookie: Spring sale"}',
+  '{"title":"Authorization: pending"}',
+  'Set-Cookie: policy review Bearer\n\nnext',
+];
+
+test('a Bearer token folded onto the next line of a cookie header and a JSON secret that holds a cookie pair are hidden where the view is shown, and refused as before (P2C-01)', t => {
+  const f = fixture(t);
+  for (const [label, [text, shown]] of Object.entries(foldedShapes)) {
+    // The refusal, in every string of the configuration, with its own messages: the decision is the frozen view's.
+    assert.notEqual(credentialViewAt1400f714(text), text, 'the frozen view refused it: ' + label);
+    assert.throws(
+      () => assertReportingConfigCredentials(queryWith(f.config, text)),
+      e => assertRefused(e, 'INVALID_ARGUMENT', {message: queryRefusal}),
+      'query: ' + label,
+    );
+    assert.throws(
+      () => assertReportingConfigCredentials(encodedWith(text)),
+      e => assertRefused(e, 'INVALID_ARGUMENT', {message: queryRefusal}),
+      'encoded body: ' + label,
+    );
+    assert.throws(
+      () => f.settings(text),
+      e => assertRefused(e, 'INVALID_ARGUMENT', {message: settingsRefusal}),
+      'settings: ' + label,
+    );
+    // The view a review shows hides the credential, in place, and lists where.
+    const view = security.redactCredentialShapes(text);
+    assert.ok(
+      !view.includes('SYNTHETICVALUE') && !view.includes('abcdefghijkl'),
+      `${label}: the view shows it: ${view}`,
+    );
+    assert.equal(view, shown, label);
+    assert.deepEqual(security.redactCredentialShapesWithPaths(text), {value: shown, redacted: [{path: '$'}]}, label);
+    // What it shows can be saved back: it holds nothing credential-shaped, and the view of it is itself.
+    assert.equal(security.redactCredentialShapes(shown), shown, 'idempotent: ' + label);
+    assert.doesNotThrow(() => assertReportingConfigCredentials(queryWith(f.config, shown)), 'saved back: ' + label);
+    assert.equal(f.settings(shown).dry_run, true, 'saved back, settings: ' + label);
+    // And the full redaction hides what the view hides.
+    assert.ok(!security.redact(text).includes('SYNTHETICVALUE'), 'redact(): ' + label);
+  }
+  for (const text of nearShapes) {
+    assert.equal(credentialViewAt1400f714(text), text, 'the frozen view accepted it: ' + text);
+    assert.equal(security.redactCredentialShapes(text), text, 'still accepted: ' + text);
+    assert.doesNotThrow(() => assertReportingConfigCredentials(queryWith(f.config, text)), text);
+    assert.equal(f.settings(text).dry_run, true, 'settings: ' + text);
+  }
+});
+
+// What the view hid is hidden, and what it refused is refused, over generated texts built of those shapes and of the old ones. A
+// marker has nine characters, so a Bearer token that carries one is one the view reads. A JSON piece that holds a cookie pair or an
+// authorization token in a secret's string is flagged: the old cookie rule, started by it, took the closing quote and the rest of the
+// line, and the JSON rule, with the quote gone, ran its string on to the next quote over the lines that follow, so it hid text that
+// no rule of the view reads (the other pieces of the message). The JSON rule now reads the string whole. Such a text is held to the
+// decision, which is the refusal, and not to the markers that stand after it.
+test('over 60,000 generated texts the view refuses what it refused at 1400f714 and accepts what it accepted, and hides what it hid (P2C-01)', () => {
+  let seed = 20261115,
+    serial = 0;
+  const next = k => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return Math.floor(seed / 65536) % k;
+  };
+  const words = ['Cookie', 'cookie', 'Set-Cookie', 'COOKIE'],
+    keys = ['api_key', 'cookie', 'password', 'authorization', 'client-secret', 'access_token'],
+    breaks = ['\n', '\r\n', '\r', '\r\n ', '\r\n\t', '\n\n', ' \n', '\n  '];
+  let flagged = false;
+  const accident = text => ((flagged = true), text);
+  const shapePieces = [
+    m => `${words[next(4)]}: a=b Bearer${breaks[next(8)]}${m()}`,
+    m => `${words[next(4)]}: sid=1; Path=/; Bearer ${breaks[next(8)]}Bearer ${m()}`,
+    m => `${words[next(4)]}: x=y Bearer\t${breaks[next(8)]}${m()} tail`,
+    () => `${words[next(4)]}: x=y Bearer${breaks[next(8)]}short`,
+    m => `${words[next(4)]}: a=b Bearer\ntoken="${m()}"`,
+    m => `${words[next(4)]}: a=b Bearer\nsig='${m()}'`,
+    m => `${words[next(4)]}: a=b Bearer\n${words[next(4)]}: c=${m()}`,
+    m => `${words[next(4)]}: a=b; {"${keys[next(6)]}":${breaks[next(8)]}"${m()}"}`,
+    m => accident(`{"${keys[next(6)]}":"${m()}'${words[next(4)]}: a=b","x":1}\n`),
+    m => accident(`{"${keys[next(6)]}":"${m()}; Authorization: Basic abcdefghijkl"}\n`),
+    m => accident(`{"${keys[next(6)]}":${breaks[next(8)]}"${m()} ${words[next(4)]}: a=b"}\n`),
+    m => `Authorization: Bearer${breaks[next(8)]}${m()}`,
+    m => `Bearer ${m()}`,
+    m => `access_token=${m()}`,
+    m => `?client-secret=${m()}&n=1`,
+    m => `{"password":"${m()}"}`,
+    () => 'Cookie: Spring sale',
+    () => 'Password: reset funnel',
+    () => 'Authorization: pending',
+    () => '{"note":"Cookie: Spring sale"}',
+  ];
+  const filler = ['', ' ', 'request failed ', 'Platform said: ', 'HTTP/1.1 400\r\n', 'see '],
+    glue = [' ', '\n', ' ; ', ', ', '\r\n'];
+  let regressions = [],
+    checked = 0,
+    refusedNow = 0,
+    gained = 0;
+  for (let i = 0; i < 60000; i++) {
+    const markers = [],
+      mark = () => {
+        const marker = 'MRK' + String(++serial).padStart(6, '0');
+        markers.push(marker);
+        return marker;
+      };
+    flagged = false;
+    const text = Array.from(
+      {length: 1 + next(4)},
+      () => filler[next(filler.length)] + shapePieces[next(shapePieces.length)](mark),
+    ).reduce((all, piece) => all + glue[next(glue.length)] + piece);
+    const now = security.redactCredentialShapes(text),
+      was = credentialViewAt1400f714(text);
+    // The refusal is the frozen view's: a text changes now if and only if it changed then.
+    assert.equal(now !== text, was !== text, 'the refusal differs from the frozen view: ' + JSON.stringify(text));
+    if (now !== text) {
+      refusedNow++;
+      // Never a refusal the full redaction would not also make.
+      assert.ok(security.redact(text) !== text, 'refused but redact() leaves it: ' + JSON.stringify(text));
+    }
+    for (const marker of markers) {
+      checked++;
+      if (was.includes(marker) && !now.includes(marker)) gained++;
+      if (!flagged && now.includes(marker) && !was.includes(marker)) regressions.push({text, now, was, marker});
+    }
+  }
+  assert.deepEqual(regressions.slice(0, 3), [], regressions.length + ' credentials shown that the frozen view hid');
+  // The sample is fixed (seeded): it holds about 112,000 credentials and about 56,000 refused texts.
+  assert.ok(checked > 100000 && refusedNow > 50000, 'the sample checked ' + checked + ' and refused ' + refusedNow);
+  // The sample draws the class: about 40,000 credentials that the frozen view showed and the view hides now (the folded tokens and
+  // the strings that hold a cookie pair).
+  assert.ok(gained > 30000, 'the view hides only ' + gained + ' credentials that the frozen view showed');
 });

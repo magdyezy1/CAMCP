@@ -234,22 +234,44 @@ const redactedText = (text: string): string =>
  * token of eight or more characters, a `Cookie:` or `Set-Cookie:` that starts with a `name=value`, a Bearer token of
  * eight or more characters, and a Meta token. The pair pass, JSON text and Meta rule are redact()'s own. A value that is
  * already `[REDACTED]` changes nothing, so a redacted projection can be saved back. Each scan is linear as the ones above.
+ * The view has the order and the folded token of redact() (P2C-01): the cookie rule hides to the end of a line, so a Bearer
+ * token folded onto the next line of a cookie header, and a JSON secret whose string holds a cookie pair (the rule took the
+ * closing quote), were shown where a review shows its request. The refusal was never wrong, since the cookie rule changed the
+ * text; the display was. The JSON rule runs first, where it ran, and last; the cookie rule takes the folded token that the
+ * Bearer rule reads (eight or more characters), hidden in place, and not one that starts the next cookie header, a credential
+ * name with its separator, a bare name with `=` or a `Bearer` with white space after it. What the view refuses is unchanged.
  */
 const authorizationCredentials = /\b((?:proxy-)?authorization[ \t]*:[ \t]*[A-Za-z][\w.~+-]*[ \t]+)\S{8,}/gi,
-  cookieCredentials = /\b((?:set-)?cookie[ \t]*:[ \t]*)[!#$%&'*+.^_`|~0-9A-Za-z-]+=[^\r\n]*/gi,
+  cookieName = "[!#$%&'*+.^_`|~0-9A-Za-z-]+",
+  cookieCredentials = new RegExp(
+    '\\b((?:set-)?cookie[ \\t]*:[ \\t]*)' +
+      cookieName +
+      '=[^\\r\\n]*(?:(?<=Bearer[^\\S\\r\\n]*)((?:\\r\\n|\\r|\\n)\\s*)(?:Bearer\\s+)*(?:(?!\\b(?:set-)?cookie[ \\t]*:[ \\t]*' +
+      cookieName +
+      '=|\\b(?:' +
+      secretKeyNames +
+      ')[=:]|\\b(?:' +
+      bareNames +
+      ')=|\\bBearer\\s)[\\w.+/=-]){8,})?',
+    'gi',
+  ),
+  hideCookie = (_line: string, head: string, folded?: string) =>
+    head + '[REDACTED]' + (folded === undefined ? '' : folded + '[REDACTED]'),
   bearerCredentials = /\bBearer\s+[\w.+/=-]{8,}/gi,
   pairCredentials = new RegExp('\\b((?:' + secretKeyNames + ')[=:]|(?:token|signature|sig)=)[^\\s,;&]+', 'gi');
 const credentialText = (text: string): string =>
   textPairs(
     text
+      .replace(jsonSecrets, '$1"[REDACTED]"')
       .replace(authorizationCredentials, '$1[REDACTED]')
-      .replace(cookieCredentials, '$1[REDACTED]')
+      .replace(cookieCredentials, hideCookie)
       .replace(bearerCredentials, 'Bearer [REDACTED]')
       .replace(jsonSecrets, '$1"[REDACTED]"'),
     noExemption,
   )
     .replace(pairCredentials, '$1[REDACTED]')
-    .replace(metaTokens, '[REDACTED]');
+    .replace(metaTokens, '[REDACTED]')
+    .replace(jsonSecrets, '$1"[REDACTED]"');
 /**
  * Native read results keep provider text verbatim, except secrets inside URLs (SEC-04): in every string that is an
  * absolute http(s) URL, the value of each query or fragment parameter that redact() treats as secret becomes
