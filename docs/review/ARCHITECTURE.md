@@ -743,7 +743,7 @@ lookup and its per-job cache, each request's read path (`runPlan`, its refusals 
 result envelope. A source also declares its report day boundary (`fixedTimezone`, `timezoneRead`, read by
 `src/report-windows.ts`) and the provider rule changes that refuse saved queries (`savedQueryRules`, Reddit's
 breakdown rules, read by the reporting bootstrap). The collected rows of every platform and level were captured on the
-source before the move (`tests/fixtures/report-collect-golden.json`, 72 scenarios, written by
+source before the move (`tests/fixtures/report-collect-golden.json`, 73 scenarios, written by
 `tools/report-collect-golden.mjs`), and `tests/report-collect-golden.test.mjs` keeps them byte-identical.
 
 The five guided platforms (`guidedReportSources`: Google, Snapchat, TikTok, LinkedIn, Meta) declare their guided
