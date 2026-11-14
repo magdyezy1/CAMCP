@@ -10,6 +10,7 @@ import {
   xObjectivesMixedWarning,
   xObjectivesUnavailableWarning,
 } from '../dist/src/x-campaign-report.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const actor = {tenantId: 'x-objectives', userId: 'owner', role: 'admin'};
 const range = {since: '2026-06-01', until: '2026-06-01'};
@@ -163,6 +164,47 @@ test('a connection removed or a login changed during the line item read fails th
       try {
         await assert.rejects(f.collect(), e => e.code === code);
         assert.ok(!f.requests.some(p => p.path.startsWith('/12/stats/accounts/')), 'no analytics after the refusal');
+      } finally {
+        f.close();
+      }
+    }
+  } finally {
+    delete process.env.AMCP_X_ACTIVE_ENTITIES;
+  }
+});
+
+// jobcontrol: the job's own stop is not X's answer. A report that is cancelled, or whose schedule is edited, paused or removed, is
+// JOB_CANCELLED with MirrorError's default status 400 (src/reporting-overview.ts currentReport), which the job's bound actor check
+// raises inside any read; a worker that lost its lease is STALE_JOB_LEASE, 409. The status test alone took the first for X's
+// refusal (HTTP 400): the source kept collecting with unknown objectives, and saved them as unavailable in its checkpoint.
+test('a cancelled report or a lost lease during the line item read fails the source, never as X’s refusal', async () => {
+  process.env.AMCP_X_ACTIVE_ENTITIES = 'off';
+  try {
+    for (const stop of [
+      new MirrorError('JOB_CANCELLED', 'Report cancelled.'),
+      new MirrorError('JOB_CANCELLED', 'The report schedule was edited, paused or removed.'),
+      new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report/export job.', {}, 409),
+    ]) {
+      const f = fixture(stop);
+      try {
+        const outcome = await f.collect().then(
+          result => ({result}),
+          error => ({error}),
+        );
+        assert.ok(
+          outcome.error,
+          'the source completed, taking ' + stop.code + ' for X’s refusal: ' + JSON.stringify(outcome.result?.warnings),
+        );
+        assertRefused(outcome.error, stop.code);
+        assert.ok(
+          !f.requests.some(p => p.path.startsWith('/12/stats/accounts/')),
+          'no analytics after the job stopped',
+        );
+        assert.equal(
+          f.saved.find(v => v.x_objectives),
+          undefined,
+          'objectives saved as unavailable, as if X refused the read',
+        );
       } finally {
         f.close();
       }

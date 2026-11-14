@@ -680,6 +680,54 @@ for (const [read, path] of [
     },
   );
 
+// jobcontrol (the other optional reads of P2C-02): only LinkedIn may refuse a metadata read and leave names and objectives unknown.
+// A report that is cancelled, or whose schedule is edited, paused or removed, is the job's own stop: JOB_CANCELLED, which keeps
+// MirrorError's default status 400 (src/reporting-overview.ts currentReport). The job binds that check to its actor, so every store
+// call the source makes raises it, through the real service, as here while the metadata request is in flight. optionalReadRefused
+// took it for LinkedIn's refusal (a 400): the source recorded the names as unread, went on, and ended with the same error only
+// where a later guard raised it again.
+for (const [what, message] of [
+  ['a report is cancelled', 'Report cancelled.'],
+  ['the schedule of a report is paused', 'The report schedule was edited, paused or removed.'],
+])
+  for (const [read, path] of [
+    ['the campaigns’ names and objectives', '/rest/adAccounts/100/adCampaigns'],
+    ['the campaign groups’ names', '/rest/adAccounts/100/adCampaignGroups'],
+  ])
+    test(
+      'when ' +
+        what +
+        ' while ' +
+        read +
+        ' are read, the source ends with JOB_CANCELLED, never with LinkedIn’s refusal',
+      async t => {
+        const f = transportFixture(t, [linkedinConversionRule('501')]),
+          lookup = {};
+        let stopped = false;
+        f.store.bindActorCheck(f.actor, () => {
+          if (stopped) throw new MirrorError('JOB_CANCELLED', message);
+        });
+        f.hooks.fetch = requested => {
+          if (requested === path) stopped = true;
+        };
+        const outcome = await f.collect(lookup).then(
+          result => ({result}),
+          error => ({error}),
+        );
+        assert.ok(
+          outcome.error,
+          'the source completed, taking the stop of the job for LinkedIn’s refusal: ' +
+            JSON.stringify(outcome.result?.warnings),
+        );
+        assertRefused(outcome.error, 'JOB_CANCELLED');
+        // Nothing is remembered as a refusal of LinkedIn's, and no request is sent after the one that was in flight.
+        assert.equal(lookup.linkedinCampaigns?.unavailable, undefined, 'campaign names recorded as unread');
+        assert.equal(lookup.linkedinGroups?.unavailable, undefined, 'group names recorded as unread');
+        assert.equal(lookup.linkedinConversionRules, undefined);
+        assert.equal(f.paths.at(-1), path, f.paths.join(' '));
+      },
+    );
+
 // P2C-02 (differential review, wave 5 round 2 part 2c): only LinkedIn may refuse or fail the rules read and leave the windows
 // unknown. The catch of the rules read kept every error that was not AMCP's own access refusal as LinkedIn's: the conversion
 // evidence read turns a failed answer into a new error that was never retryable and always had status 400, and the catch took it
