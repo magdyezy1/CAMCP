@@ -304,10 +304,16 @@
       "raised": [
         "reference_words 161030 → 161048"
       ]
+    },
+    {
+      "reason": "Package docs, F-L2-13 second half: +25 reference words. docs/REPORTING-OVERVIEW.md says in one sentence that objective has two meanings, an override in an ad-hoc v3 config and the fallback objective_fallback in a saved or v4 config (D22), and the sentence it replaces and one phrase of the resolution order are reworded to agree (no page added). The recorded count is the measured one: 161045 + 25 = 161070",
+      "raised": [
+        "reference_words 161045 → 161070"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161045
+    "reference_words": 161070
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
