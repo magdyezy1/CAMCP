@@ -752,6 +752,16 @@ const sourceFacts = [
   'no_activity_count',
 ] as const;
 
+/**
+ * What a source's `projection.advice_evidence` says about where a recommendation's evidence is (P2B-06): in the row, the compact
+ * one included (ruling 14, `projectOverviewV4Rows`). It said `include_native` from the compact row's first version, which left
+ * the evidence out for its size, until ruling 14 put it back: a snapshot retained in between still holds the old word, and its
+ * compact row is made at every read, so it holds the evidence too. `get` says the word that is true for such a snapshot
+ * (`projectOverviewV4Sources`) and leaves the retained one as it is.
+ */
+const adviceEvidenceInRow = 'row',
+  adviceEvidenceNativeOnly = 'include_native';
+
 /** Account sources own lineage once; level/period evidence retains its context without copied lineage arrays. */
 export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], configured: JsonObject[]) {
   const withoutLineage = (value: any): any =>
@@ -832,7 +842,7 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
       projection: {
         quality: 'source_level_period',
         metric_coverage: 'partial_rows_only',
-        advice_evidence: 'include_native',
+        advice_evidence: adviceEvidenceInRow,
       },
       row_count: requested.reduce((sum, packet) => sum + (packet.scope?.returned_rows ?? packet.rows.length), 0),
       scoped_row_count: requested.reduce((sum, packet) => sum + packet.rows.length, 0),
@@ -871,6 +881,11 @@ export function overviewV4Sources(results: JsonObject[], rows: JsonObject[], con
   });
 }
 
+/** A source retained with the word that stopped being true at ruling 14, read with the one that is (P2B-06). */
+const withCurrentAdviceEvidence = (source: any): any =>
+  source?.projection?.advice_evidence === adviceEvidenceNativeOnly
+    ? {...source, projection: {...source.projection, advice_evidence: adviceEvidenceInRow}}
+    : source;
 export function projectOverviewV4Sources(snapshot: JsonObject, include: JsonObject = {}) {
   if (snapshot.config?.contract_version !== overviewConfigV4) return snapshot.sources;
   const project = (value: any): any =>
@@ -887,7 +902,8 @@ export function projectOverviewV4Sources(snapshot: JsonObject, include: JsonObje
               .map(([key, child]) => [key, project(child)]),
           )
         : value;
-  return project(snapshot.sources);
+  const sources = project(snapshot.sources);
+  return Array.isArray(sources) ? sources.map(withCurrentAdviceEvidence) : sources;
 }
 
 /**

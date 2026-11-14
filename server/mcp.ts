@@ -14,7 +14,8 @@ import {
   taskCallResult,
   tasksExtension,
 } from './mcp-tasks.js';
-import {MirrorService, withExactIntegers} from '../src/service.js';
+import {MirrorService, auditedInput, withExactIntegers} from '../src/service.js';
+import {accessSetAudit} from '../src/access-sets.js';
 import {
   guidanceResources,
   guidanceResourceTemplates,
@@ -208,6 +209,29 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
           structuredContent: presented,
           ...(result.success === false ? {isError: true} : {}),
         };
+      },
+      // A refusal this layer makes (a refused budget or continuation) is built outside MirrorService.call, so it writes the audit
+      // row that the same refusal inside the service writes: the tool, the access set, the arguments as the audit keeps them (the
+      // row is redacted as every row is) and the outcome, under the request ID the envelope names (P2B-03).
+      refuse = (e: unknown) => {
+        const requestId = randomUUID(),
+          sent = request.params.arguments;
+        let result: JsonObject = errorResult(e, requestId, 0);
+        try {
+          service.store.appendAudit(actor.tenantId, requestId, {
+            tool: name,
+            ...accessSetAudit(actor),
+            input: auditedInput(
+              name,
+              sent && typeof sent === 'object' && !Array.isArray(sent) ? (sent as JsonObject) : {},
+            ),
+            outcome: result,
+          });
+        } catch {
+          // The envelope must not promise an audit record that was never written.
+          result = {...result, meta: {...result.meta, audit_recorded: false}};
+        }
+        return present(result) as any;
       };
     // A v2 client's byte budget and continuation are this layer's arguments: a tool never sees them. Whether the call reads, and
     // where a continuation continues, are settled before anything runs, so a call that changes something is never run twice.
@@ -223,7 +247,7 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
           continued = continuationOf(actor, name, budget);
         }
       } catch (e) {
-        return present(errorResult(e, randomUUID(), 0)) as any;
+        return refuse(e);
       }
     const args = budget ? budget.args : (request.params.arguments ?? {}),
       token = progressTokenOf(request.params._meta),
@@ -271,7 +295,7 @@ export function createMcpServer(service: MirrorService, actor: Actor, hooks: Mcp
           : result,
       ) as any;
     } catch (e) {
-      return present(errorResult(e, randomUUID(), 0)) as any;
+      return refuse(e);
     }
   });
   return server;

@@ -8,7 +8,9 @@ import assert from 'node:assert/strict';
 import Ajv from 'ajv';
 import {Client, InMemoryTransport} from '@modelcontextprotocol/client';
 import {createMcpServer} from '../dist/server/mcp.js';
-import {overviewConfigV4, projectOverviewV4Rows} from '../dist/src/overview-v4.js';
+import {overviewConfigV4, projectOverviewV4Rows, projectOverviewV4Sources} from '../dist/src/overview-v4.js';
+import {saveAccessSet} from '../dist/src/access-sets.js';
+import {reportPlatforms} from '../dist/src/report-metrics.js';
 import {reportEngine} from './helpers/report-engine.mjs';
 import {row} from './helpers/report-packets.mjs';
 import {offerParkedProviders} from './helpers/parked-providers.mjs';
@@ -203,4 +205,101 @@ test('an MCP client reads the compact row with its evidence: the typed output ac
     'next_offset',
     'next_cursor',
   ]);
+});
+
+// ---- P2B-06 (differential review, wave 5 round 2 part 2b): the marker a source retains, read together with the row it describes ----
+// Each v4 source retains `projection`, which says how its rows are shown. Its `advice_evidence` said `include_native`: the evidence
+// of a recommendation is returned with include.native only. That was the compact row until ruling 14 and is the opposite of what the
+// row holds since, so a client (or a document) that trusts a retained snapshot's own description skips the evidence the row carries.
+// The marker is read here with the row: in a real report, for a key limited to a client access set, and in a snapshot that was
+// retained before the marker was corrected (the compact row is made at every read, so an old snapshot's row holds the evidence too).
+/** What a client does with the marker: `include_native` sends it to include.native for the evidence; any other word does not. */
+const sendsToNative = marker => marker === 'include_native';
+const holdsEvidence = rows => rows.some(r => r.recommendation?.evidence !== undefined);
+
+test('the projection a v4 source retains says where a recommendation’s evidence is, and the compact row it describes holds it there', async t => {
+  const f = await targeted(t),
+    compact = await f.compact(),
+    full = await f.full(),
+    shown = compact.sources[0].projection.advice_evidence;
+  // The case is real: every row rests on the target, so every recommendation has evidence, in the compact answer and the full one.
+  assert.ok(compact.rows.every(r => r.recommendation.evidence?.target === 5));
+  assert.ok(full.rows.every(r => r.recommendation.evidence?.target === 5));
+  // Read together: a marker that sends the client to include.native for the evidence contradicts a compact row that holds it.
+  assert.equal(
+    sendsToNative(shown),
+    !holdsEvidence(compact.rows),
+    'the marker says ' + shown + ' while the compact row holds the evidence',
+  );
+  // It says where the evidence is, and the same word is retained with the snapshot and returned by every read of it.
+  assert.equal(shown, 'row');
+  assert.equal(full.sources[0].projection.advice_evidence, shown);
+  assert.equal(f.stored(f.id).sources[0].projection.advice_evidence, shown, 'retained with the snapshot');
+});
+
+test('a snapshot retained with the old marker is read with what its row holds, and what is retained is not rewritten', () => {
+  const evidence = {kpi: 'cpa', actual: '1.5', target: 2, currency: 'USD', results: 12},
+    recommendation = {decision: 'scale', reason: 'Performance is comfortably above target.', evidence},
+    old = {quality: 'source_level_period', metric_coverage: 'partial_rows_only', advice_evidence: 'include_native'},
+    snapshot = {
+      config: {contract_version: overviewConfigV4, metrics: ['spend']},
+      sources: [
+        {source_ref: 0, projection: old},
+        {source_ref: 1, projection: {quality: 'source_level_period'}},
+      ],
+    },
+    before = JSON.stringify(snapshot),
+    [source, other] = projectOverviewV4Sources(snapshot),
+    [row] = projectOverviewV4Rows(snapshot, [
+      {entity_id: '1', source_ref: 0, objective: 'X', metrics: {spend: '1'}, recommendation},
+    ]);
+  // Read together: the compact row of this old snapshot holds the evidence, so the source that describes it says so.
+  assert.deepEqual(row.recommendation.evidence, evidence);
+  assert.equal(sendsToNative(source.projection.advice_evidence), false);
+  assert.equal(source.projection.advice_evidence, 'row');
+  // Only that word changes: the other words of the projection stay, and a projection without it is left as it is.
+  const {advice_evidence: _read, ...kept} = source.projection,
+    {advice_evidence: _recorded, ...recorded} = old;
+  assert.deepEqual(kept, recorded);
+  assert.deepEqual(other.projection, {quality: 'source_level_period'});
+  assert.equal(JSON.stringify(snapshot), before, 'the retained snapshot is never rewritten');
+  assert.equal(snapshot.sources[0].projection.advice_evidence, 'include_native');
+});
+
+test('a key limited to a client access set reads the compact row and the marker an unlimited reader reads, with the evidence of its own full read', async t => {
+  const f = await targeted(t),
+    set = saveAccessSet(f.store, f.actor, {
+      name: 'One account',
+      bindings: [{gateway: reportPlatforms.meta.gateway, connection_id: 'login', account_id: '100'}],
+    }),
+    limited = f.store.authenticate(
+      f.store.createKey({
+        tenantId: f.actor.tenantId,
+        userId: 'connector/limited',
+        role: 'operator',
+        accessSetId: String(set.id),
+      }),
+    ),
+    read = include => f.overview.handle({action: 'get', id: f.id, limit: 500, include}, limited),
+    compact = await read(undefined),
+    full = await read({native: true}),
+    unlimited = await f.compact();
+  assert.equal(compact.state, 'complete', 'the report is inside the set and reads');
+  assert.ok(
+    compact.rows.every(r => r.recommendation.evidence?.target === 5),
+    'the lean row holds the evidence for a limited key',
+  );
+  assert.deepEqual(
+    compact.rows.map(r => r.recommendation),
+    full.rows.map(r => r.recommendation),
+    'the lean row holds what the key’s own include.native row holds',
+  );
+  assert.deepEqual(
+    compact.rows.map(r => r.recommendation),
+    unlimited.rows.map(r => r.recommendation),
+    'and what an unlimited reader sees',
+  );
+  assert.equal(sendsToNative(compact.sources[0].projection.advice_evidence), !holdsEvidence(compact.rows));
+  assert.equal(compact.sources[0].projection.advice_evidence, 'row');
+  assert.deepEqual(compact.sources[0].projection, unlimited.sources[0].projection);
 });

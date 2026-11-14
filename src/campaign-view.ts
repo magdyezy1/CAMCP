@@ -262,6 +262,9 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
       'effects',
       'unchanged_since_review',
       'request',
+      // What the request and the before-state hide, by path (P2A-02, P2B-05): the request is shown through the credential view, and
+      // an approver reading this view is told that a value was hidden and where, as the full review tells (Ruling 16).
+      'redacted',
       'state_hash',
     ]),
     state_summary: state.map((entry, i) => ({

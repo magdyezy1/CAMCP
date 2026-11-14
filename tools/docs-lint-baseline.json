@@ -298,10 +298,16 @@
       "raised": [
         "reference_words 160742 → 161030"
       ]
+    },
+    {
+      "reason": "Package sec-followup-2 (Ruling 16 of wave 5, kind report-pdf-export), merged after linkedin-windows in Merge E: +89 reference words, recorded in one step on its own branch (160742 -> 160831): docs/LOCAL-BROWSER-QA.md lists the new browser kind report-pdf-export (a report whose provider names carry a combining mark after a space and after a no-break space, exported to PDF through the real page in both languages), the first committed kind that exports a report PDF. The merged count is the measured one: 161030 + 89 = 161119",
+      "raised": [
+        "reference_words 161030 → 161119"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161030
+    "reference_words": 161119
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

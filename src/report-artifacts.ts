@@ -446,7 +446,9 @@ export async function reportPdf(report: JsonObject, presentation: JsonObject = {
         'This report contains a character outside the embedded PDF font. Use Excel or HTML to preserve the complete text.',
       );
     doc.fontSize(size).fillColor(color);
-    if (locale.rtl || /[\p{Script=Arabic}]/u.test(s)) drawPdfText(doc, s, locale.rtl);
+    // A text with a combining mark is drawn by drawPdfText as Arabic is: fontkit cannot place a mark after a no-break space, and
+    // PDFKit's own text call throws for it where drawPdfText shapes the run again without mark placement (P2B-02).
+    if (locale.rtl || /[\p{Script=Arabic}\p{M}]/u.test(s)) drawPdfText(doc, s, locale.rtl);
     else doc.text(s, {width: 507, lineGap: 3});
   };
   const room = (height: number) => {
