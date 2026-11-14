@@ -140,7 +140,7 @@ schema, and a definition saved by an earlier build still validates. What differs
 ## Objective sources
 
 Each row retains the native `objective`, its AMCP `objective_group`, `objective_source` and `objective_reason`.
-Resolution follows this order: an explicit campaign-position override; a saved legacy hand-chosen `objective`;
+Resolution follows this order: an explicit campaign-position override; a v3 config's hand-chosen `objective`;
 the provider's declared objective; conservative inference or mapping where supported; the report's fallback;
 otherwise unknown with a reason. The server supplies the platform tables and available choices through bootstrap.
 
@@ -150,7 +150,8 @@ otherwise unknown with a reason. The server supplies the platform tables and ava
 - `objective_overrides` is a per-source map of campaign-position IDs to chosen groups, with at most 500 entries.
   For LinkedIn, the campaign position is a campaign group. Unmatched overrides are retained and reported; native IDs
   on rows remain unchanged.
-- A legacy `objective` other than `unknown` keeps overriding the source for saved-report compatibility. A legacy
+- `objective` has two meanings: in an ad-hoc v3 config a value other than `unknown` overrides the source, and in a saved or
+  v4 config it is the fallback `objective_fallback`, which fills only the gaps the platform leaves (D22). A legacy
   `unknown` is treated as absent. No saved definition is silently converted.
 
 | Source label        | Meaning                                                           |
