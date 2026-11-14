@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, {after, before, mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {MirrorError} from '../dist/src/errors.js';
@@ -17,6 +17,13 @@ import {
   linkedinLevelAnalytics as analytics,
   linkedinLevelRange as range,
 } from './fixtures/linkedin-levels-docs.mjs';
+
+// LinkedIn's creative level and its daily evidence read only the current and five previous calendar months of the clock
+// (src/linkedin-reporting.ts, src/linkedin-report-source.ts), and these fixtures' report days are 2026-09-01 and 2026-09-02.
+// Against the real clock the six tests that reach the creative level start failing in March 2027, so the file runs at a fixed
+// instant inside that window (package docs, item 9).
+before(() => mock.timers.enable({apis: ['Date'], now: Date.UTC(2026, 10, 6)}));
+after(() => mock.timers.reset());
 
 const groupUrn = 'urn:li:sponsoredCampaignGroup:20',
   campaignUrn = 'urn:li:sponsoredCampaign:30',

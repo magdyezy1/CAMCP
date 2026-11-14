@@ -103,6 +103,16 @@ test('the committed status page is what its sources say now, and it is generated
   assert.ok(page.includes('](' + path.posix.relative('docs', latest.file) + '), ' + latest.date + '.'));
 });
 
+// F-L10-09: the page printed a link and no results while the newest qualification record had no "## Runs" table (the focused
+// checkpoints of 2026-11-05), and the gates of Round 1, the SDK foundation and the dependency patch were on no page. A newer
+// record has to carry its table of runs, or the page says nothing about what ran.
+test('the newest qualification record has a table of runs, so the page shows results and not a link alone', () => {
+  const latest = latestQualification('.');
+  assert.ok(latest.runs.length > 2, latest.file + ' has no table under "## Runs"');
+  const lines = fs.readFileSync(statusPage, 'utf8').split('\n');
+  for (const row of latest.runs) assert.ok(lines.includes(row), row.slice(0, 80));
+});
+
 test('the page follows its sources: each axis, provider access, the ledger and the newest qualification record', t => {
   const root = tree(t),
     text = statusText(root, facts());

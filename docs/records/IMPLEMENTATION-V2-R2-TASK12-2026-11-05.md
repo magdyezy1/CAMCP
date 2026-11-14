@@ -38,7 +38,8 @@ The optional Google Search keyword fourth-level stretch is deferred: current v4 
 projection and editor represent three positions. A fourth position would require its own contract and integration
 qualification; keywords are not relabelled as ads. DV360 reporting remains outside the approved scope.
 
-Primary references checked on 2026-11-05: [X analytics](https://docs.x.com/x-ads-api/analytics),
+Primary references (the date they were read is MISSING: this line first said 2026-11-05, and no fetch of that day is
+recorded): [X analytics](https://docs.x.com/x-ads-api/analytics),
 [X campaign reference](https://docs.x.com/x-ads-api/campaign-management/reference),
 [X pagination](https://docs.x.com/x-ads-api/fundamentals/pagination),
 [Snapchat campaigns](https://developers.snap.com/marketing-api/Ads-API/campaigns), and

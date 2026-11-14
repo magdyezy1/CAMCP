@@ -45,4 +45,6 @@ Local regressions exercise actual native request shapes, every supported stored 
 queued legacy runs, manual/scheduled claims, retries, History deletion, schedule linking, edits, idempotency, failed
 transactions, read-only authorization, templates and actual bilingual artifacts. This implementation record does not
 assert full Round 2 acceptance. Website control/default integration, remaining reporting work, Packages D–I and final
-release gates remain. All live provider/OAuth, amcp.shop, Railway, actual Sheets and deployment checks are deferred.
+release gates remain. Live provider and OAuth reads and actual Sheets exports are not permitted during development (plan
+principle 4); live checks on staging are blocked: no staging (D20); deployment to amcp.shop and Railway is deferred by the
+owner (C11, 2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage").

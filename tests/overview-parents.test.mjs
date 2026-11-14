@@ -1,5 +1,5 @@
 // RPT-07: native parent identity on detailed Overview rows whose report response carries none. Synthetic fixtures only.
-import test from 'node:test';
+import test, {after, before, mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
@@ -23,6 +23,13 @@ import {
   granularRange,
 } from './fixtures/overview-granularity-data.mjs';
 import {snapchatEvidenceAccount, snapchatEvidenceCampaign} from './fixtures/snapchat-evidence-data.mjs';
+
+// LinkedIn's creative level reads only the current and five previous calendar months of the clock
+// (src/linkedin-report-source.ts), and the report days of these fixtures are 2026-09-01 and 2026-09-02. Against the real clock
+// the three tests that run a LinkedIn creative report start failing in March 2027, so the file runs at a fixed instant inside
+// that window (package docs, item 9).
+before(() => mock.timers.enable({apis: ['Date'], now: Date.UTC(2026, 10, 6)}));
+after(() => mock.timers.reset());
 
 async function run(f, config) {
   const queued = await f.overview.handle({action: 'run', config, confirmed: true}, f.actor);

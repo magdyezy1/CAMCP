@@ -45,5 +45,7 @@ fresh candidate. No unverified Meta native Results inner shape was invented. San
 atomic backup operations passed with their required local permissions; no assertion was disabled.
 
 Website integration, remaining reporting work, Packages D–I and full browser/container/MCP/evaluation/release gates
-remain. Arabic copy still needs the planned native-speaker review. Meta's native Results inner shape and all live
-provider/OAuth, amcp.shop, Railway, actual Sheets and deployment checks remain owner-deferred. No Round 2 push is claimed.
+remain. Arabic copy still needs the planned native-speaker review. Meta's native Results inner shape needs one live read by
+the lead on staging (blocked: no staging (D20)). Live provider and OAuth reads and actual Sheets exports are not permitted
+during development (plan principle 4); deployment to amcp.shop and Railway is deferred by the owner (C11, 2026-11-03:
+"leave the live deployment for now, push to github, live deployment in a later stage"). No Round 2 push is claimed.

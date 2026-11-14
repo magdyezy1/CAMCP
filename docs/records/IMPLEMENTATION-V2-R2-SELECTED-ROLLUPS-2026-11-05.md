@@ -48,4 +48,6 @@ retries, mixed-pipeline refusal, measurement provenance, coverage, mixed meaning
 row/byte limits. The subsequent [filtered qualification receipt](QUALIFICATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md)
 records the passing checkpoint. This is not full B/C or Round 2 acceptance.
 Automatic legacy migration, schedule/template/UI completion, remaining packages and final release gates remain.
-All live provider/OAuth, amcp.shop, Railway, actual Sheets and deployment acceptance stays owner-deferred.
+Live provider and OAuth reads and actual Sheets exports are not permitted during development (plan principle 4); live
+checks on staging are blocked: no staging (D20); deployment to amcp.shop and Railway is deferred by the owner (C11,
+2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage").

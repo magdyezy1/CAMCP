@@ -134,6 +134,12 @@ test('owner health shows the cached media-processor state: not_checked, availabl
   resetMediaProcessorProbe();
   try {
     assert.equal(await health(), 'not_checked');
+    // The health call above started the host's own probe: owner health reads the configured FFmpeg through
+    // startMediaProcessorProbe, which is one probe per process. The stub below was then ignored and the test read the host's
+    // FFmpeg, so it passed where one is configured and failed where none is (package docs, item 10). Let that probe finish, then
+    // forget it, so the stub is the only probe the rest of the test sees. The test runs and asserts on every host.
+    await startMediaProcessorProbe();
+    resetMediaProcessorProbe();
     await startMediaProcessorProbe(printing(line));
     assert.equal(await health(), 'available');
     resetMediaProcessorProbe();

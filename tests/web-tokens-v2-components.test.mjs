@@ -130,8 +130,8 @@ test('the static public pages load the V2 sheet third; the shell and About leave
     '404-ar.html',
   ])
     assert.deepEqual(links(page).slice(0, 3), ['tokens.css', 'public-tokens.css', 'tokens-v2.css'], page);
-  // en /about and the en routes /report-library and /reporting-overview have 52, 343 and 1,197 Brotli bytes of room under
-  // their recorded budgets, and the sheet is 2,374: the shell and About do not link it (docs/DESIGN-SYSTEM.md).
+  // The sheet would add its bytes to every route that loads the shell or About, and a recorded route budget is never raised for
+  // a sheet, so neither links it (docs/DESIGN-SYSTEM.md, "Where it loads"; the room of each route is in web-route-bytes).
   assert.ok(!links('index.html').includes('tokens-v2.css'));
   assert.ok(!links('about.html').includes('tokens-v2.css'));
 });

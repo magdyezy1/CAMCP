@@ -19,3 +19,7 @@ secrets/
 auth.json
 tokens.json
 .release/
+# The evidence package of the Codex session: the owner's private conversation history and logs. Never committed or pushed
+# (F-L10-01); tests/private-evidence-paths.test.mjs fails when either path exists in the tree.
+codex-changes-evidence/
+Codex changes.md

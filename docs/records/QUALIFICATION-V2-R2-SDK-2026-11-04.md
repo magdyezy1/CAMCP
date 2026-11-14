@@ -8,8 +8,10 @@ tier: engineering
 V2-MCP-13 is the first, isolated package of Round 2. The owner approved the SDK v2 download with the V2 plan on
 2026-11-01 and requested Round 2 on 2026-11-04. Source starts at published `bdda0cbd`, on `codex/v2-round2`.
 **The isolated SDK foundation is locally qualified at `3b950b2df14a3af3b83383e3588c47a079070841`.** No Round 2 push
-or live acceptance is claimed. Live deployment and provider checks remain explicitly deferred by the owner. Other
-Round 2 feature packages follow this foundation; the existing dependency findings are addressed separately.
+or live acceptance is claimed. Provider checks are not permitted during development (plan principle 4) and live checks on
+staging are blocked: no staging (D20); live deployment is deferred by the owner (C11, 2026-11-03: "leave the live
+deployment for now, push to github, live deployment in a later stage"). Other Round 2 feature packages follow this
+foundation; the existing dependency findings are addressed separately.
 
 ## Dependency scope and review
 
@@ -46,9 +48,16 @@ free of vulnerabilities. Raw reports and the exact lock delta are retained as lo
   metadata, private cache policy, role/authority checks, modern-protocol feature flags and request correlation.
   Stdio uses the SDK factory to serve both protocol eras.
 - The SDK normalizes missing-resource errors in both eras. A narrowly scoped transport adapter preserves AMCP's
-  published `-32002` for unknown guides on legacy HTTP/stdio/in-memory wires; modern replies retain `-32602`. Other errors are
-  untouched. The SDK's empty cancellation response is translated to AMCP's existing connection-closed result, with
-  abort and in-flight accounting preserved.
+  published `-32002` for unknown guides on legacy HTTP/stdio/in-memory wires; modern replies retain `-32602`. Four other
+  changes to protocol errors are listed in the next bullet. The SDK's empty cancellation response is translated to AMCP's
+  existing connection-closed result, with abort and in-flight accounting preserved.
+- Corrected 2026-11-14 (F-L4-09): this record first said that other errors were untouched. The audit's wire comparison of
+  2026-11-06, of the build before the SDK change against this one, found four differences in protocol errors. The message
+  of every protocol error loses its `MCP error -32xxx: ` prefix, while its code and data stay. A malformed `tools/call`
+  goes from -32603 with the raw schema issues as its message to -32602 with `Invalid tools/call request: [...]`. A `task`
+  parameter on `tools/call`, which the earlier build refused with -32603, is ignored. On the modern path a wrong-typed
+  `clientInfo` or an invalid `logLevel`, which the earlier build served, answers 400 with -32602 and without AMCP's
+  `data.code`.
 - The v2 client separately reconstructs a missing-resource exception with code `-32602` and only the URI in its
   data. The introspection test now captures the incoming in-memory reply before that conversion: the legacy wire
   still carries `-32002`, URI and guide index, while the client exception is checked independently. Existing
@@ -99,3 +108,10 @@ fixture writes; none reaches a provider. No budget or golden was re-recorded to 
 The SDK-only commit and the preserved complete v1 offline dependency tree provide the foundation's rollback before
 later SDK-dependent features. Existing advisory remediation and the remaining Round 2 packages are not qualified
 by this record.
+
+Corrected 2026-11-14 (F-L4-14): that rollback holds only for the SDK foundation as qualified here. Once the [compatible
+dependency remediation](QUALIFICATION-V2-R2-DEPENDENCIES-2026-11-04.md) (`f32c79b1`) is on top of it, rolling back means
+reverting both commits, the SDK commit (`3b950b2d`) and that patch, together with the preserved v1 tree, and the patch is
+undone with it: that tree predates the seven patched versions and brings back the unauthenticated crash on a valid gzip
+frame followed by a corrupt trailer which the patch closes. Reverting only the SDK commit leaves a lock that names the v1
+packages and the seven patched versions, a set that neither preserved tree holds; no such third tree is preserved.

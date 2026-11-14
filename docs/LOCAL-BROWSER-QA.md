@@ -24,6 +24,11 @@ paused at the owner's 2026-10-04 direction; this command starts no hosted workfl
   record. A qualification run that takes longer than the runtime budget exits non-zero. The budget is 75 minutes, a
   proposed default in `tools/browser-qualification.mjs` until the owner sets it (decision D26 leaves the budget
   pending); `AMCP_QA_RUNTIME_BUDGET_MINUTES` (whole minutes, 1–600) sets another for a run.
+- `--https` serves the fixture sites over loopback TLS with a certificate made for the run and trusted by nothing,
+  ignoring certificate errors for that one certificate only; every other origin stays blocked, and `results.json` records
+  the transport. It proves the same cases on pages that security software cannot rewrite, and nothing about the deployed
+  site's certificate or headers. It is required where security software injects a script into plain-HTTP pages: the
+  runner counts that script as external egress and fails every case. It combines with `--kinds` and `--qualification`.
 - `results.json` carries a `summary`: distinct scenarios (a fixture kind on a route), fixture kinds, presentation
   variants, WCAG rules left incomplete or violated per rule (intermediate states included), Arabic leaks per route,
   write-journey outcomes, synthetic and provider writes, focus rings measured, and the run's duration against the

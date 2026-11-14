@@ -304,10 +304,16 @@
       "raised": [
         "reference_words 161030 → 161119"
       ]
+    },
+    {
+      "reason": "Package docs (wave 5 documentation items, F-L2-13, F-L10-01), merged after sec-followup-2 in Merge F: +203 reference words, recorded in four steps on its own branch (161030 -> 161233: item 8 +18, docs/operations/QUALIFICATION.md says that npm run test:related runs its selection in batches of 60 files; F-L2-13 second half +25, docs/REPORTING-OVERVIEW.md says in one sentence that objective has two meanings; item 6 +89, docs/LOCAL-BROWSER-QA.md says in one bullet what the runner --https mode proves and when it is required; item 4 +76, docs/DECISIONS.md gains the row of the owner request of 2026-11-05; and two falls of 3 and 2 words recorded in their own commits, the design system rule and the F-L10-05 wording). Both this package and sec-followup-2 add words to docs/LOCAL-BROWSER-QA.md in different places and the file merged without overlap. The merged count is the measured one: 161119 + 203 = 161322",
+      "raised": [
+        "reference_words 161119 → 161322"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161119
+    "reference_words": 161322
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

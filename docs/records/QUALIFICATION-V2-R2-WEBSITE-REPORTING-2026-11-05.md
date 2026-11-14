@@ -10,7 +10,8 @@ editor, retained snapshot presentation and lazy delivery. The
 [implementation record](IMPLEMENTATION-V2-R2-WEBSITE-REPORTING-2026-11-05.md) describes the behavior. This accepts the
 editor checkpoint; it does not complete Round 2 or its full browser/container/MCP/evaluation gates.
 
-The candidate binds 3,324 public source files at source tree
+The candidate binds 3,325 public source files (this record first said 3,324; the tree of `16915f8c` holds 3,325 tracked
+files, and so does the candidate's manifest) at source tree
 `ef76fccec7d8f8e6dc99e3eb4a1eed0faa3d0062bc3f0f91177d9190f85e82b7` and packaged runtime
 `2878073910166999ba9ebbc5ad2adb20bd5eaec7e4702a46da18afa4ce197d15`. All 29 changed public inputs
 matched their frozen hashes before the named implementation commit. Added-content review found no local paths or
@@ -67,6 +68,8 @@ external attempts still fail and security software remains enabled. No test key 
 Full qualification needs the same explicit local transport option before its closing run.
 
 The remaining reporting acceptance audit, Packages D–I and final full browser/container/MCP/evaluation/docs/prepush
-gates remain. Arabic copy still needs the planned native-speaker review. Meta's native Results inner shape and all
-live provider/OAuth, amcp.shop, Railway, actual Sheets and deployment checks remain owner-deferred. No Round 2 push
+gates remain. Arabic copy still needs the planned native-speaker review. Meta's native Results inner shape needs one live
+read by the lead on staging (blocked: no staging (D20)). Live provider and OAuth reads and actual Sheets exports are not
+permitted during development (plan principle 4); deployment to amcp.shop and Railway is deferred by the owner (C11,
+2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage"). No Round 2 push
 is claimed.
