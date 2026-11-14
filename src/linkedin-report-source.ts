@@ -637,7 +637,10 @@ export const linkedinReportSource: ReportSource = {
   ],
   minimumRequestsPerPeriod: 1,
   // The conversion rules a v4 source of website conversions reads once per job (the estimate is made before its results are known).
+  // Three is the read's first page; an account holds up to 1,000 rules, a request to each hundred (twelve requests with 1,000),
+  // and how many it holds is known only when they are read, so the estimate says its figure is a lower bound (P2B-08).
   requestsPerSource: contract => (contract === 'overview-config-v4' ? rulesReadRequests : 0),
+  requestsPerSourceLowerBound: contract => contract === 'overview-config-v4',
   requestsPerPeriod(level, contract, context) {
     if (contract !== 'overview-config-v4') return level === 'campaign' ? 2 : 1;
     const fields = selectedMetrics(context ? windowDays(context.range) : 1, true, context?.source.native_metrics),

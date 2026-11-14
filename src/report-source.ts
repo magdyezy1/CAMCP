@@ -453,6 +453,12 @@ export interface ReportSource {
    */
   requestsPerSource?(contract?: string): number;
   /**
+   * True when `requestsPerSource` is a lower bound because how much the source reads once is unknown until it is read
+   * (an account holds up to 1,000 LinkedIn conversion rules, a request to each hundred, and the estimate counts the first
+   * page): the entry of the estimate that pays for the read says so, as `requestsLowerBound` does for a level (P2B-08).
+   */
+  requestsPerSourceLowerBound?(contract?: string): boolean;
+  /**
    * True when `requestsPerPeriod` is a lower bound because the size of what the level reads is unknown until it is read
    * (an unscoped Snapchat account has as many campaigns as it has): the estimate says so instead of looking exact.
    */

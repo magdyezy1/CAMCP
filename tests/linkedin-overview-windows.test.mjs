@@ -449,6 +449,43 @@ test('the request estimate counts the rules read once per LinkedIn source, for e
   );
 });
 
+// P2B-08 (a): how many rules an account holds is known only when they are read, a hundred to a request (the account, a page
+// each, the account again), so what the estimate counts for the read, its first page, is a minimum. The estimate has one
+// word for a figure that depends on what the account holds (`lower_bound` on the entry, as for Snapchat's and Apple's
+// unscoped levels), and the entry that pays for the read says it; the entries that do not pay for it do not.
+test('the request estimate says the rules read is a minimum: an account with 1,000 rules costs twelve requests for it, and three are counted', async t => {
+  const rules = Array.from({length: 1000}, (_, i) => linkedinConversionRule(String(i + 1))),
+    {f, report} = await run(t, 'campaign', {conversions: rules});
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.warnings)));
+  assert.equal(report.sources[0].attribution, verifiedPair(30, 7));
+  // The read sent the account, ten pages of a hundred rules and the account again, beside the source's own five reads.
+  assert.equal(rulesRead(f).length, 10);
+  assert.equal(f.requests.length, 5 + 2 + 10);
+  const config = stored(f, report).config,
+    estimate = estimateCollectionRequests(config);
+  // The figure is the first page, as for every read of a v4 report, so it is below what a large list sends, and it says so.
+  assert.equal(estimate.estimated_requests, 5 + 3);
+  assert.ok(estimate.estimated_requests < f.requests.length);
+  assert.equal(estimate.sources[0].lower_bound, true);
+  // A source's second level shares the read, so only the level that pays for it is a minimum.
+  const both = estimateCollectionRequests({
+    ...config,
+    sources: config.sources.map(entry => ({...entry, levels: ['campaign', 'adset']})),
+  });
+  assert.deepEqual(
+    both.sources.map(entry => [entry.level, entry.lower_bound]),
+    [
+      ['campaign', true],
+      ['adset', undefined],
+    ],
+  );
+  // A v3 report reads no rules, so its estimate is not a minimum on that account.
+  const old = linkedinPipeline(t, {analytics, ...world()}),
+    v3 = await old.run({sources: [{platform: 'linkedin', account_id: '100', connection_id: 'login'}]});
+  assert.equal(v3.state, 'complete');
+  assert.equal(estimateCollectionRequests(stored(old, v3).config).sources[0].lower_bound, undefined);
+});
+
 test('the rules are read once per source and job, however many periods and levels the source reports, and a refusal is not asked twice', async t => {
   for (const [refused, attribution] of [
     [[], verifiedPair(30, 7)],

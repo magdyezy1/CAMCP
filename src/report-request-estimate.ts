@@ -56,14 +56,19 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         window =
           config.date_range_rule?.source_timezone === 'account' && !fixedReportTimezones[source.platform] ? 1 : 0;
       if (lookupKey !== null) seenAccounts.add(lookupKey);
-      const context = {source, range: daily ? config.date_range : windows[0]!};
+      const context = {source, range: daily ? config.date_range : windows[0]!},
+        reports = reportSource(source.platform),
+        // What a source sends once per job (LinkedIn's conversion rules) is paid by its first level; the others share it.
+        perSource = firstLookup ? (reports?.requestsPerSource?.(source.reporting_contract) ?? 0) : 0;
       return {
         platform: source.platform,
         account_id: source.account_id,
         ...(source.source_ref !== undefined ? {source_ref: source.source_ref, level} : {}),
         ...(source.scope_supporting ? {purpose: 'scope_rollup', visible: false} : {}),
-        // The size of what the level reads is unknown until it is read (an account's campaigns, unscoped): a lower bound.
-        ...(reportSource(source.platform)?.requestsLowerBound?.(level, source.reporting_contract, context)
+        // The size of what the level reads is unknown until it is read (an account's campaigns, unscoped), or of what the
+        // source reads once and this level pays for (an account's LinkedIn conversion rules): a lower bound.
+        ...(reports?.requestsLowerBound?.(level, source.reporting_contract, context) ||
+        (perSource > 0 && reports?.requestsPerSourceLowerBound?.(source.reporting_contract))
           ? {lower_bound: true}
           : {}),
         periods: count,
@@ -71,8 +76,7 @@ export function estimateCollectionRequests(config: JsonObject, limit = reportCol
         requests:
           lookups +
           window +
-          // What a source sends once per job (LinkedIn's conversion rules) is paid by its first level; the others share it.
-          (firstLookup ? (reportSource(source.platform)?.requestsPerSource?.(source.reporting_contract) ?? 0) : 0) +
+          perSource +
           periods *
             dataRequestsPerPeriod(source.platform, level, source.reporting_contract, {
               source,
