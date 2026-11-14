@@ -14,7 +14,7 @@ not recomputed. The status page reads its table of runs from the newest qualific
 
 | Run | Revision | Result |
 | --- | --- | --- |
-| Round 2 closing gate on the final tree (every test file with FFmpeg, the full browser matrix, container-layout parity, `eval:mcp`) | not run yet | The last full browser matrix and the last container-layout parity ran at `3b950b2d`; read their 1,392 cases and 8,688 tests as last run there, not as current (F-L10-03). F-L10-04 asks for the full-profile stages of Wave 4c round 7 to return to this gate. |
+| Round 2 closing gates on the final tree ([acceptance record](/docs/records/WAVE5-ROUNDS-1-2-CLAUDE-ACCEPTANCE.md)) | `7e409d1d` | Full gate (gate2): 10,451 tests, 10,450 pass, 1 skipped (the history guard of P2C-03), 4 of 4 capture tests, 616 s. All six closing gates passed: parity 10,453 of 10,455 tests (2 skips); full profile 10,454 of 10,455 (1 named skip), 33 of 33 mutants; browser 1,524 of 1,524 cases; `eval:mcp` 0 regressions; oracle and migration 77 tests; probes 282 tests. The same six passed at `e876960e`. |
 | sec-followup-2: differential review part 2b | `4d215294` | Every test file (1,162): 10,338 tests, 10,316 pass, 1 fails (the test that needs FFmpeg, absent from the host), 21 skipped. `npm run check:fast` passed. `mcp-eval --check` 64 runs, 0 regressions (profile v2: 1 improvement, the listing). Browser `granular-reporting`, `period-comparison` and `report-pdf-export` over `--https`: 34 of 34 passed, no WCAG violation, 0 provider writes. Pre-push scan clean. |
 | linkedin-windows merged into the integration | `8a3131b3` | Every test file (1,159): 10,342 tests, only the two expected failures (the FFmpeg test; `en /reporting-overview` over its route budget before its re-record). `npm run check:fast` passed. `mcp-eval --check` 64 runs, 0 regressions. Browser kinds empty, components, granular-reporting, period-comparison, ad-previews and shell over `--https`: 434 of 434 passed. |
 | The integration with closing-small, website-get, mcp-surface and sec-followup | `f7f43b54` | Every test file (1,156, run before its route-budget commit): 10,311 tests, 10,287 pass, 21 skipped, 3 fail (the FFmpeg test and two route-byte tests, green after the commit). `npm run check:fast` passed, also at this head. `mcp-eval --check` 64 runs, 0 regressions on both profiles. Browser, the same six kinds: 434 of 434 passed; `export-outcomes`, which makes synthetic writes, 4 of 4. |
@@ -26,13 +26,32 @@ not recomputed. The status page reads its table of runs from the newest qualific
 | Round 1 closing gate `wave5-r1-gate-2`, with the container-layout parity, the evaluation and the browser run `wave5-r1-browser-3` | `1a7d7722` | 8,679 of 8,679 main tests and 4 of 4 capture tests passed with FFmpeg required (515 s; the first run's one failure was fixed in `d0566cd7`). Container-layout parity 8,682 passed, one skip, 8,683 with capture. `eval:mcp` 60 runs, 0 regressions. Browser 1,392 of 1,392 in 52.09 minutes. |
 | Live checks of every ticket (reads and writes on provider accounts, the deployed site) | none | Blocked: no staging (V2 plan D20). Provider use is not permitted during development. No row above claims a live read, a live write or a deployment. |
 
+## The Round 2 closing gates
+
+The first row is the Round 2 closing gate on the final tree; its figures are copied from [the acceptance record](WAVE5-ROUNDS-1-2-CLAUDE-ACCEPTANCE.md),
+whose sections 16 and 18 give the command, revision, numbers and source of each gate and section 19 the history behind the revisions. The same
+six gates ran once on each of two heads and passed on both: `e876960e`, the integration head before Merge G, and `7e409d1d`, the final head after
+the three fix packages of Merge G (final-fixes, nf-fixes and jobcontrol; 56 files changed between them). They are container-layout parity, the
+full qualification profile, the full browser matrix over https, `eval:mcp` on both profiles, the Work-here oracle with the migration tests, and
+the target's probes. On `7e409d1d` they gave: parity 10,455 tests, 10,453 pass, 2 skipped (1,703 s); the full profile 10,454 of 10,455 tests
+pass, 1 named skip, 33 of 33 mutants killed, 29 stages (861 s); the browser matrix 1,524 of 1,524 cases in 62.32 minutes, with no automated
+WCAG violation and no provider write; `eval:mcp` 64 runs on each profile, 0 regressions; the oracle and migration tests 23 + 9 + 37 + 8 and the
+storage-boundary check; the probes 282 tests. The lead's gate2 `claude-r2-merge-g` also ran on `7e409d1d`: 10,451 tests, 10,450 pass, 1 skipped,
+4 of 4 capture tests, 616 s.
+
+On `7e409d1d` the full profile differs from the recipe of `e876960e` in one named allowance and one setup step. It ran with one `--allow-skip`
+for the history guard of P2C-03, which cannot run in a candidate without `.git` and passes 5 of 5 in the worktree (ruling 20 of the acceptance
+record), and `sh` was on the PATH from the start, so it ran once. Every gate is local and synthetic: container-layout parity is a layout check
+on Windows, not the Linux image, and none of them is a live check or a deployment (V2 plan D20).
+
 ## What the rows rest on
 
-The three rows after the closing gate (sec-followup-2, linkedin-windows and the integration of `f7f43b54`) are the V2 remediation
+The three rows after the closing gates (sec-followup-2, linkedin-windows and the integration of `f7f43b54`) are the V2 remediation
 packages. Each ran every test file on its own worktree, in batches of 60 and four at a time, and the report of that head records the
 numbers. The earlier rows are the records of the qualification and implementation work of Round 1 and Round 2 (links below). A
 related selection runs the tests that import a changed file; only the rows that say "every test file" ran the whole suite.
 
+- [Round 1–2 audit and acceptance](WAVE5-ROUNDS-1-2-CLAUDE-ACCEPTANCE.md)
 - [Round 1 qualification](QUALIFICATION-V2-R1-2026-11-03.md)
 - [SDK v2 foundation](QUALIFICATION-V2-R2-SDK-2026-11-04.md)
 - [Dependency remediation](QUALIFICATION-V2-R2-DEPENDENCIES-2026-11-04.md)
