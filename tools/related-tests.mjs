@@ -53,6 +53,43 @@ export function runBuild(spawn = spawnSync) {
   }
   return 0;
 }
+/**
+ * The selection runs in batches, never as one command (package docs, item 8): a change to a shared module selects about a
+ * thousand files, and Windows refuses a command line past 32,767 characters (spawn ENAMETOOLONG), so one `node --test <every
+ * file>` could not start there. A batch holds at most `testBatchSize` files and `testBatchCharacters` characters of file
+ * names (each counted with its separator), far under that limit and under every host's.
+ */
+export const testBatchSize = 60;
+export const testBatchCharacters = 8000;
+/** The files split into batches of at most `size` files and `characters` characters, in order. A name over the budget stands alone. */
+export function testBatches(files, size = testBatchSize, characters = testBatchCharacters) {
+  const batches = [];
+  let batch = [],
+    used = 0;
+  for (const file of files) {
+    if (batch.length && (batch.length >= size || used + file.length + 1 > characters)) {
+      batches.push(batch);
+      batch = [];
+      used = 0;
+    }
+    batch.push(file);
+    used += file.length + 1;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
+}
+/**
+ * Runs the test files with `node --test`, one command per batch (`spawn` has spawnSync's signature). Every batch runs, so a
+ * failure does not hide the rest of the selection; the status is the first failing batch's (a killed one is 1), else 0.
+ */
+export function runTests(files, spawn = spawnSync) {
+  let status = 0;
+  for (const batch of testBatches(files)) {
+    const result = spawn(process.execPath, ['--test', ...batch], {stdio: 'inherit'});
+    if (status === 0 && (result.status ?? 1) !== 0) status = result.status ?? 1;
+  }
+  return status;
+}
 /** The mutant catalogue tools/mutants.mjs applies (not imported here: mutants.mjs imports this module). */
 export const mutantCatalogue = 'tests/fixtures/mutant-catalogue.json';
 const backendSource = file => scanRoots.some(root => file.startsWith(root + '/')) && /\.ts$/.test(file);
@@ -308,7 +345,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     status = 1;
     console.error('Stale tracked outputs (' + stale.join(', ') + '): regenerate them before pushing.');
   }
-  const run = plan.selected.map(t => (t.endsWith('.ts') ? 'dist/' + t.replace(/\.ts$/, '.js') : t));
+  const run = plan.selected.map(t => (t.endsWith('.ts') ? 'dist/' + t.replace(/\.ts$/, '.js') : t)),
+    batches = testBatches(run).length;
   console.log(
     'Selected ' +
       run.length +
@@ -318,11 +356,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       Object.entries(plan.reasons)
         .map(([reason, n]) => n + ' ' + reason)
         .join(', ') +
-      ').',
+      ')' +
+      (batches > 1 ? ', run in ' + batches + ' batches' : '') +
+      '.',
   );
-  if (run.length) {
-    const tests = spawnSync(process.execPath, ['--test', ...run], {stdio: 'inherit'});
-    if ((tests.status ?? 1) !== 0) status = tests.status ?? 1;
-  }
+  const tests = runTests(run);
+  if (tests !== 0) status = tests;
   process.exit(status);
 }

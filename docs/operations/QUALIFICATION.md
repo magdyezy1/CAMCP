@@ -77,7 +77,7 @@ How a build is qualified and its record kept, the provenance of generated artifa
   before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
 - **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`
   file, and every test that builds `web/` paths when it runs (in the test, a helper or fixture or a tool it imports: a
-  change to any `web/` file selects it), a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
+  change to any `web/` file selects it), a small critical set, prints selected and possible counts, runs the selection in batches of 60 files so that a long one fits any host's command line, and appends the freshness checks when `src/`,
   `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. It also selects the suites that list
   their inputs when they run (`dynamicSuites`): `tests/mutants.test.mjs` for a catalogued module or killing test,
   `tests/web-locale-chunks.test.mjs` for `web/` and backend sources, `tests/storage-boundary.test.mjs` for `src/`

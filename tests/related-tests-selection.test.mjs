@@ -16,6 +16,9 @@ import {
   mutantCatalogue,
   relatedPlan,
   runBuild,
+  runTests,
+  testBatchCharacters,
+  testBatchSize,
 } from '../tools/related-tests.mjs';
 import {catalogueFile} from '../tools/mutants.mjs';
 
@@ -99,6 +102,104 @@ test('the build is the one `npm run build` runs: tsc, then the release identity,
   assert.equal(
     runBuild(() => ({status: null})),
     1,
+  );
+});
+
+// Package docs (item 8): the tool ran its selection as one `node --test <every file>` command. A change to a shared module
+// selects about a thousand files, and Windows refuses a command line past 32,767 characters (spawn ENAMETOOLONG on 889 files),
+// so a long selection could not be run there. The selection now runs in batches, each far under that limit and every host's.
+const windowsCommandLimit = 32767;
+const longSelection = Array.from({length: 1000}, (_, i) => 'tests/' + 'a-long-test-name-'.repeat(2) + i + '.test.mjs');
+const recordingSpawn = (calls, status = () => 0) => {
+  return (command, args, options) => {
+    calls.push({command, args, options});
+    return {status: status(calls.length)};
+  };
+};
+
+test('the selected tests run in batches: a selection over the Windows command-line limit never becomes one command', () => {
+  assert.ok(
+    longSelection.join(' ').length > windowsCommandLimit,
+    'the selection is over the limit that stopped Windows',
+  );
+  const calls = [];
+  assert.equal(runTests(longSelection, recordingSpawn(calls)), 0);
+  assert.ok(
+    calls.length >= Math.ceil(longSelection.length / testBatchSize),
+    'one command per batch of at most the size',
+  );
+  for (const {command, args, options} of calls) {
+    assert.equal(command, process.execPath);
+    assert.equal(args[0], '--test');
+    assert.deepEqual(options, {stdio: 'inherit'});
+    assert.ok(args.length - 1 <= testBatchSize, args.length - 1 + ' files in one command');
+    assert.ok(args.slice(1).join(' ').length <= testBatchCharacters, 'the names of a batch fit their budget');
+    assert.ok([command, ...args].join(' ').length < windowsCommandLimit / 2, 'far under the Windows limit');
+  }
+  assert.deepEqual(
+    calls.flatMap(({args}) => args.slice(1)),
+    longSelection,
+    'every file runs once, in the selection’s order',
+  );
+  // The real selection of a change to a shared module (about a thousand files) is split the same way.
+  const real = relatedPlan({changed: ['src/errors.ts']}).selected,
+    realCalls = [];
+  runTests(real, recordingSpawn(realCalls));
+  assert.deepEqual(
+    realCalls.flatMap(({args}) => args.slice(1)),
+    real,
+  );
+  for (const {args} of realCalls) assert.ok([...args].join(' ').length < windowsCommandLimit / 2);
+});
+
+test('a batch also ends at its character budget, a name longer than it runs alone, and nothing selected runs nothing', () => {
+  const names = Array.from({length: 7}, (_, i) => 'tests/' + String(i).repeat(3000) + '.test.mjs'),
+    // How many 3,000-character names the budget holds, each counted with its separator.
+    per = Math.floor(testBatchCharacters / (names[0].length + 1)),
+    expected = [],
+    calls = [];
+  assert.ok(per > 1 && per < names.length && per < testBatchSize, 'the budget, not the count, ends these batches');
+  for (let left = names.length; left > 0; left -= per) expected.push(Math.min(per, left));
+  runTests(names, recordingSpawn(calls));
+  assert.deepEqual(
+    calls.map(({args}) => args.length - 1),
+    expected,
+  );
+  for (const {args} of calls) assert.ok(args.slice(1).join(' ').length <= testBatchCharacters);
+  const oversized = ['tests/' + 'x'.repeat(testBatchCharacters * 2) + '.test.mjs', 'tests/short.test.mjs'],
+    alone = [];
+  runTests(oversized, recordingSpawn(alone));
+  assert.deepEqual(
+    alone.map(({args}) => args.slice(1)),
+    oversized.map(name => [name]),
+    'a name over the budget is never split and never shares a command',
+  );
+  runTests([], () => {
+    throw new Error('an empty selection starts no command');
+  });
+});
+
+test('the status of the batches is the run’s: the first failing batch, a killed one is 1, and a failure does not stop the rest', () => {
+  const files = Array.from({length: testBatchSize * 5}, (_, i) => 'tests/f' + i + '.test.mjs'),
+    calls = [],
+    statuses = [0, 3, 0, 1, null];
+  assert.equal(
+    runTests(
+      files,
+      recordingSpawn(calls, n => statuses[n - 1]),
+    ),
+    3,
+    'the first failing batch’s status',
+  );
+  assert.equal(calls.length, 5, 'every batch runs');
+  assert.equal(
+    runTests(files.slice(0, 1), () => ({status: null})),
+    1,
+    'a killed batch fails the run',
+  );
+  assert.equal(
+    runTests(files, () => ({status: 0})),
+    0,
   );
 });
 
