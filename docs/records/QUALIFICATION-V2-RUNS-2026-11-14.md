@@ -28,8 +28,8 @@ not recomputed. The status page reads its table of runs from the newest qualific
 
 ## What the rows rest on
 
-The first three rows after the closing gate are the integration of the V2 remediation packages, each run by an integration agent
-on its own worktree, with every test file in batches of 60 at four at a time, and the integration report of each head records the
+The three rows after the closing gate (sec-followup-2, linkedin-windows and the integration of `f7f43b54`) are the V2 remediation
+packages. Each ran every test file on its own worktree, in batches of 60 and four at a time, and the report of that head records the
 numbers. The earlier rows are the records of the qualification and implementation work of Round 1 and Round 2 (links below). A
 related selection runs the tests that import a changed file; only the rows that say "every test file" ran the whole suite.
 
