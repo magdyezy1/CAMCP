@@ -3,10 +3,18 @@ import {
   campaignRecommendation,
   metricDefinitions,
   parseMetricFormula,
-  windowRecommendations,
+  shareWindowRecommendation,
+  windowGroups,
   type ReportAdviceMath,
+  type WindowAdapter,
 } from './report-metrics.js';
-import {compareReportValuesV4, evaluateReportFormulaV4, isCalculationLimit} from './report-math-v4.js';
+import {
+  compareReportValuesV4,
+  evaluateReportFormulaV4,
+  finish,
+  isCalculationLimit,
+  type Steps,
+} from './report-math-v4.js';
 import {reportMetricsSummaryV4} from './report-summary.js';
 import type {JsonObject} from './types.js';
 
@@ -114,6 +122,15 @@ export function assignRecommendationsV4(
   custom: JsonObject[],
   grouped: boolean,
 ) {
+  return finish(assignRecommendationSteps(rows, policy, custom, grouped));
+}
+/** The steps of assignRecommendationsV4: it yields after each row and after each entity (NF-1). */
+export function* assignRecommendationSteps(
+  rows: JsonObject[],
+  policy: JsonObject,
+  custom: JsonObject[],
+  grouped: boolean,
+): Steps<JsonObject[]> {
   const meanings = new Map<string, Set<string>>();
   for (const row of rows) {
     const key = row.objective_group + ':' + row.currency,
@@ -124,15 +141,18 @@ export function assignRecommendationsV4(
       if (definition) definitions.add(definition);
     meanings.set(key, definitions);
     row.recommendation = recommendationV4(row, policy, custom);
+    yield;
   }
-  if (grouped) windowRecommendationsV4(rows, policy, custom);
-  for (const row of rows)
+  if (grouped) yield* windowRecommendationSteps(rows, policy, custom);
+  for (const row of rows) {
     if (!policy[row.campaign_key] && (meanings.get(row.objective_group + ':' + row.currency)?.size ?? 0) > 1)
       row.recommendation = {
         ...campaignRecommendation({...row, complete: false}, policy),
         reason:
           'This objective contains different result definitions. Set a campaign-specific target before comparing costs.',
       };
+    yield;
+  }
   return rows;
 }
 export function windowRecommendationsV4(
@@ -141,12 +161,26 @@ export function windowRecommendationsV4(
   custom: JsonObject[],
   now = Date.now(),
 ) {
-  return windowRecommendations(rows, policy, custom, now, {
+  return finish(windowRecommendationSteps(rows, policy, custom, now));
+}
+/** The steps of windowRecommendationsV4: one entity's shared recommendation is one unit, and it yields after each (NF-1). */
+export function* windowRecommendationSteps(
+  rows: JsonObject[],
+  policy: JsonObject,
+  custom: JsonObject[],
+  now = Date.now(),
+): Steps<JsonObject[]> {
+  const adapter: WindowAdapter = {
     aggregate: group => {
       const summary = reportMetricsSummaryV4(group, custom),
         one = summary.result_groups.length === 1 ? summary.result_groups[0] : undefined;
       return {...summary, result_context: one ?? {unavailable_reason: 'mixed_goals'}};
     },
     recommend: (row, targets, at) => recommendationV4(row, targets, custom, at),
-  });
+  };
+  for (const group of windowGroups(rows, adapter)) {
+    shareWindowRecommendation(group, policy, custom, now, adapter);
+    yield;
+  }
+  return rows;
 }

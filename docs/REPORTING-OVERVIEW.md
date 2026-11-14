@@ -474,7 +474,7 @@ never written as 100%.
 exact value, and each metric is rounded once, to nine places, half to even. A numerator or denominator past 4,096 digits,
 a report that spends its calculation budget (about a third of a second of arithmetic on large numbers) or its time
 (two minutes) ends that metric: it is unavailable with `unavailable_reason:"calculation_limit"`, as is any metric that
-uses it, never a rounded guess. Ordinary reports are unaffected, and row assembly hands the event loop back every 20 ms.
+uses it, never a rounded guess. Ordinary reports are unaffected, and the calculation hands the event loop back every 20 ms.
 
 **Numbers in files.** A v4 snapshot keeps every metric as exact decimal text. The CSV carries that text unchanged. Excel
 and Sheets write a number when the text is exactly the number a spreadsheet cell holds (the double prints back as the

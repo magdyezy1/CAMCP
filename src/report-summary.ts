@@ -4,11 +4,13 @@ import {
   calculateMetricsV4,
   coverageCounts,
   evaluateReportFormulaExact,
+  finish,
   formulaDependencies,
   isCalculationLimit,
   roundReportValue,
   sumReportValuesV4,
   type ExactValues,
+  type Steps,
 } from './report-math-v4.js';
 import {groupReportResults, unavailableReportResult} from './report-results.js';
 
@@ -32,6 +34,13 @@ export interface MetricCoverage {
  * every value it needs, and a two-part one says how many with `known_pairs`.
  */
 export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[] = []) {
+  return finish(reportMetricsSummarySteps(group, custom));
+}
+/**
+ * The steps of reportMetricsSummaryV4: it yields after each metric, so the summary of a group of thousands of rows, in
+ * which every metric costs a sum over all of them, is not one block of the thread it shares with the website (NF-1).
+ */
+export function* reportMetricsSummarySteps(group: JsonObject[], custom: JsonObject[] = []) {
   const cells: JsonObject[] = group.flatMap(row =>
       row.native?.exact_rows?.length ? row.native.exact_rows.map((metrics: JsonObject) => ({metrics})) : [row],
     ),
@@ -93,6 +102,34 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     leafCache.set(name, found);
     return found;
   };
+  // A metric is calculated from the rows that have every input it needs, and one input summed over one set of rows is one
+  // number for every metric that uses that set, so it is summed once: thirty custom metrics over the same four inputs
+  // summed each input thirty times (NF-1). A set is named `*` when it is every row (an input summed over every row is
+  // that input's own total), otherwise by the inputs the rows were chosen for, which choose the same rows each time.
+  const allRows = '*',
+    sums = new Map<string, string | null>(),
+    pairs = new Map<string, {paired: JsonObject[]; rowSet: string}>(),
+    pairedRows = (names: string[]) => {
+      const needed = [...names].sort().join('\u0000');
+      let found = pairs.get(needed);
+      if (!found) {
+        const paired = cells.filter(row =>
+          names.every(name => row.metrics[name] !== null && row.metrics[name] !== undefined),
+        );
+        found = {paired, rowSet: paired.length === cells.length ? allRows : needed};
+        pairs.set(needed, found);
+      }
+      return found;
+    },
+    sumOf = (name: string, paired: JsonObject[], rowSet: string) => {
+      const key = rowSet + '\u0000' + name;
+      let value = sums.get(key);
+      if (value === undefined) {
+        value = sumReportValuesV4(paired.map(row => row.metrics[name])).value;
+        sums.set(key, value);
+      }
+      return value;
+    };
   for (const [key, definition] of Object.entries(metricDefinitions)) {
     if (definition.formula) continue;
     if (definition.aggregation !== 'sum') {
@@ -101,6 +138,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     }
     const summed = sumReportValuesV4(cells.map(row => row.metrics[key])),
       currencyUnknown = definition.format === 'currency' && cells.length > 1 && !currencyKnown;
+    sums.set(allRows + '\u0000' + key, summed.value);
     metrics[key] = currencyUnknown ? null : summed.value;
     coverage[key] = {
       ...summed.coverage,
@@ -108,6 +146,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
       report_rows: group.length,
       ...(currencyUnknown ? {unavailable_reason: 'unknown_currency'} : {}),
     };
+    yield;
   }
   for (const [key, definition] of [
     ...Object.entries(metricDefinitions),
@@ -117,15 +156,11 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
     const baseFields = bases(key),
       dependencies = baseFields === null ? leaves(key) : [...baseFields],
       additive = baseFields !== null,
-      paired = cells.filter(row =>
-        dependencies.every(name => row.metrics[name] !== null && row.metrics[name] !== undefined),
-      ),
+      {paired, rowSet} = pairedRows(dependencies),
       unknownCurrency = !currencyKnown && dependencies.some(name => definitions[name]?.format === 'currency'),
       values: JsonObject =
         additive && paired.length && !unknownCurrency
-          ? Object.fromEntries(
-              dependencies.map(name => [name, sumReportValuesV4(paired.map(row => row.metrics[name])).value]),
-            )
+          ? Object.fromEntries(dependencies.map(name => [name, sumOf(name, paired, rowSet)]))
           : {};
     // A metric that depends on another starts from its exact fraction and is rounded once, on output (F-L5-20); one that
     // reaches a calculation bound is unavailable and says why (F-L9-01).
@@ -163,6 +198,7 @@ export function reportMetricsSummaryV4(group: JsonObject[], custom: JsonObject[]
             : {}),
     };
     if (evaluated.rounded) rounding[key] = 1;
+    yield;
   }
   const scope = JSON.stringify([
       group[0]!.platform,
@@ -289,6 +325,14 @@ export const windowSeriesLimit = 400;
  * `window_summary`.
  */
 export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 = false): JsonObject[] {
+  return finish(reportWindowSummarySteps(rows, custom, v4));
+}
+/** The steps of reportWindowSummary: it yields after each metric of a group and after each group (NF-1). */
+export function* reportWindowSummarySteps(
+  rows: JsonObject[],
+  custom: JsonObject[] = [],
+  v4 = false,
+): Steps<JsonObject[]> {
   const groups = new Map<string, JsonObject[]>();
   for (const row of rows) {
     const key = JSON.stringify([
@@ -307,7 +351,8 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
     if (members) members.push(row);
     else groups.set(key, [row]);
   }
-  return [...groups.values()].map(group => {
+  const summaries: JsonObject[] = [];
+  for (const group of groups.values()) {
     const first = group[0]!,
       periods = new Map<string, JsonObject[]>(),
       entities = new Map<string, JsonObject>();
@@ -326,7 +371,10 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       for (const key of Array.isArray(row.omitted_as_zero) ? row.omitted_as_zero : [])
         if (v4 ? row.metrics[key] !== null && row.metrics[key] !== undefined : typeof values[key] === 'number')
           omitted[key] = (omitted[key] ?? 0) + 1;
-    return {
+    const detail: JsonObject = v4
+      ? yield* reportMetricsSummarySteps(group, custom)
+      : {metrics: calculateMetrics(values, custom)};
+    summaries.push({
       platform: first.platform,
       account_id: first.account_id,
       currency: first.currency,
@@ -341,7 +389,7 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
       ...(first.entity_level ? {entity_level: first.entity_level, native_entity_type: first.native_entity_type} : {}),
       entity_count: entities.size,
       complete: group.every(r => r.complete),
-      ...(v4 ? reportMetricsSummaryV4(group, custom) : {metrics: calculateMetrics(values, custom)}),
+      ...detail,
       ...(Object.keys(omitted).length ? {omitted_as_zero: omitted} : {}),
       decisions: [...entities.values()].reduce((counts: JsonObject, r) => {
         const k = r.recommendation?.decision ?? 'unknown';
@@ -353,8 +401,10 @@ export function reportWindowSummary(rows: JsonObject[], custom: JsonObject[] = [
         spend: v4 ? sumReportValuesV4(rows.map(row => row.metrics.spend)).value : additiveValues(rows).spend,
         ...(v4 ? seriesCoverage(rows) : {}),
       })),
-    };
-  });
+    });
+    yield;
+  }
+  return summaries;
 }
 /**
  * How much of a period stands behind its point of the spend series (F-L5-26). A point calculated from fewer units than it
@@ -391,6 +441,10 @@ export function seriesCoverage(rows: JsonObject[], metric = 'spend'): {coverage?
 }
 /** Sum only additive columns within one account, currency and result definition. */
 export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 = false): JsonObject[] {
+  return finish(reportSummarySteps(rows, custom, v4));
+}
+/** The steps of reportSummary: it yields after each metric of a group and after each group (NF-1). */
+export function* reportSummarySteps(rows: JsonObject[], custom: JsonObject[] = [], v4 = false): Steps<JsonObject[]> {
   const groups = new Map<string, JsonObject[]>();
   for (const row of rows) {
     const key = JSON.stringify([
@@ -411,7 +465,8 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
     group.push(row);
     groups.set(key, group);
   }
-  return [...groups.values()].map(group => {
+  const summaries: JsonObject[] = [];
+  for (const group of groups.values()) {
     const first = group[0]!,
       values = additiveValues(group),
       omitted: Record<string, number> = {};
@@ -420,7 +475,10 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
       for (const key of Array.isArray(row.omitted_as_zero) ? row.omitted_as_zero : [])
         if (v4 ? row.metrics[key] !== null && row.metrics[key] !== undefined : typeof values[key] === 'number')
           omitted[key] = (omitted[key] ?? 0) + 1;
-    return {
+    const detail: JsonObject = v4
+      ? yield* reportMetricsSummarySteps(group, custom)
+      : {metrics: calculateMetrics(values, custom)};
+    summaries.push({
       platform: first.platform,
       account_id: first.account_id,
       currency: first.currency,
@@ -435,13 +493,15 @@ export function reportSummary(rows: JsonObject[], custom: JsonObject[] = [], v4 
         ? {entity_level: first.entity_level, native_entity_type: first.native_entity_type, entity_count: group.length}
         : {campaign_count: group.length}),
       complete: group.every(r => r.complete),
-      ...(v4 ? reportMetricsSummaryV4(group, custom) : {metrics: calculateMetrics(values, custom)}),
+      ...detail,
       ...(Object.keys(omitted).length ? {omitted_as_zero: omitted} : {}),
       decisions: group.reduce((counts: JsonObject, r) => {
         const k = r.recommendation.decision;
         counts[k] = (counts[k] ?? 0) + 1;
         return counts;
       }, {}),
-    };
-  });
+    });
+    yield;
+  }
+  return summaries;
 }
