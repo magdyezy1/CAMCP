@@ -316,10 +316,16 @@
       "raised": [
         "reference_words 161070 → 161159"
       ]
+    },
+    {
+      "reason": "Package docs, item 4 (F-L10-14): +76 reference words. docs/DECISIONS.md gains the row of the owner's 2026-11-05 request (finish Task 12, do not begin Task 13, no push in that handoff), which the 2026-11-04 row did not reflect; no page added. The recorded count is the measured one: 161157 + 76 = 161233",
+      "raised": [
+        "reference_words 161157 → 161233"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161157
+    "reference_words": 161233
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
