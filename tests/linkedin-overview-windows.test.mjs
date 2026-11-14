@@ -7,6 +7,8 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {ReportCollectionBudget} from '../dist/src/report-collection-budget.js';
 import {estimateCollectionRequests} from '../dist/src/report-request-estimate.js';
+import {saveAccessSet} from '../dist/src/access-sets.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {linkedinConnection, linkedinPipeline} from './helpers/linkedin-pipeline.mjs';
 import {
   analytics,
@@ -192,11 +194,13 @@ test('a rule that states no window leaves the windows unknown, even beside rules
 });
 
 // The collector alone, over the real transport, so that every request is counted against a whole-job allowance as it is
-// in a snapshot job: the account, the group and campaign analytics, the campaigns, the groups: five requests.
-function transportFixture(t, conversions) {
+// in a snapshot job: the account, the group and campaign analytics, the campaigns, the groups: five requests. `accounts`
+// are the accounts the one login lists; `hooks.fetch(path)` runs as LinkedIn is asked, while the request is in flight.
+function transportFixture(t, conversions, {accounts = ['100']} = {}) {
   const actor = {tenantId: 'synthetic-linkedin-windows', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 78).toString('base64')),
-    paths = [];
+    paths = [],
+    hooks = {};
   t.after(() => store.close());
   store.putConnection(
     actor,
@@ -204,7 +208,7 @@ function transportFixture(t, conversions) {
       id: linkedinConnection,
       tenantId: actor.tenantId,
       gateway: 'linkedin_native_action',
-      accounts: ['100'],
+      accounts,
       enabled: true,
       scopes: ['r_ads', 'r_ads_reporting'],
       label: 'Synthetic',
@@ -221,6 +225,7 @@ function transportFixture(t, conversions) {
       new NativeTransport(async raw => {
         const url = new URL(raw);
         paths.push(url.pathname);
+        hooks.fetch?.(url.pathname);
         if (url.pathname === '/rest/adAccounts/100') return Response.json(linkedinLevelAccount);
         if (url.pathname === '/rest/adAnalytics')
           return Response.json(linkedinLevelAnalytics(url.searchParams.get('pivot')));
@@ -236,8 +241,11 @@ function transportFixture(t, conversions) {
     );
   return {
     actor,
+    store,
+    service,
     paths,
-    collect: (lookup = {}) =>
+    hooks,
+    collect: (lookup = {}, as = actor) =>
       new NativeCampaignReports(service).collect(
         {
           platform: 'linkedin',
@@ -248,12 +256,56 @@ function transportFixture(t, conversions) {
           report_options: {complete_window: true, attribution: 'unknown'},
         },
         linkedinLevelRange,
-        actor,
+        as,
         {},
         () => {},
         lookup,
       ),
   };
+}
+
+/**
+ * A person limited to one client's account (SEC-08), reading through the fixture's real service and transport, so the set is
+ * enforced at every request as in production. An administrator narrows the set while the request to `path` is in flight and
+ * puts it back as that request ends: the source then sees a refusal that no provider made, and nothing else changes, so what
+ * the source does with it shows in what it returns.
+ */
+function clientNarrowedDuring(f, path) {
+  const binding = account => [
+    {gateway: 'linkedin_native_action', connection_id: linkedinConnection, account_id: account},
+  ];
+  let set = saveAccessSet(f.store, f.actor, {name: 'Client', bindings: binding('100')});
+  const edit = account => {
+      set = saveAccessSet(f.store, f.actor, {
+        id: set.id,
+        revision: set.revision,
+        name: 'Client',
+        bindings: binding(account),
+      });
+    },
+    client = f.store.authenticate(
+      f.store.createKey({
+        tenantId: f.actor.tenantId,
+        userId: 'connector/client',
+        role: 'operator',
+        accessSetId: String(set.id),
+      }),
+    ),
+    runPlan = f.service.runPlan.bind(f.service);
+  let narrowed = false;
+  f.hooks.fetch = requested => {
+    if (requested !== path || narrowed) return;
+    narrowed = true;
+    edit('200');
+  };
+  f.service.runPlan = async (...args) => {
+    try {
+      return await runPlan(...args);
+    } finally {
+      if (narrowed && set.bindings[0].account_id === '200') edit('100');
+    }
+  };
+  return client;
 }
 
 test('the rules read is counted in the job’s collection allowance: it fits exactly, is not started one short, and a limit met inside it ends it', async t => {
@@ -469,6 +521,35 @@ test('a change of the login during the rules read still fails the source: only L
   assert.equal(report.state, 'failed');
   assert.equal(report.sources[0].error.code, 'CONNECTION_AUTHORITY_CHANGED');
 });
+
+// P2B-08 (d): a client access set narrowed during a read is AMCP's refusal of the account (ACCOUNT_SCOPE_RESTRICTED, SEC-08),
+// like a removed connection or a changed login. Only the provider may refuse an optional read, so it fails the source at the
+// read; before, it passed for LinkedIn's refusal, and a source whose set was restored a moment later completed with it.
+for (const [read, path] of [
+  ['the conversion rules', '/rest/conversions'],
+  ['the campaigns’ names and objectives', '/rest/adAccounts/100/adCampaigns'],
+])
+  test(
+    'a client access set narrowed while ' + read + ' are read fails the source with that refusal, never as LinkedIn’s',
+    async t => {
+      const f = transportFixture(t, [linkedinConversionRule('501')], {accounts: ['100', '200']}),
+        client = clientNarrowedDuring(f, path),
+        lookup = {},
+        outcome = await f.collect(lookup, client).then(
+          result => ({result}),
+          error => ({error}),
+        );
+      assert.ok(
+        outcome.error,
+        'the source completed, taking the refusal for LinkedIn’s: ' + JSON.stringify(outcome.result?.warnings),
+      );
+      assertRefused(outcome.error, 'ACCOUNT_SCOPE_RESTRICTED');
+      // Nothing is remembered as a refusal of LinkedIn's, and no request is sent after the read that was refused.
+      assert.equal(lookup.linkedinConversionRules, undefined);
+      assert.equal(lookup.linkedinCampaigns?.unavailable, undefined);
+      assert.equal(f.paths.at(-1), path, f.paths.join(' '));
+    },
+  );
 
 test('a v4 campaign-group source of website conversions takes the one window pair its account’s rules share', async t => {
   const {

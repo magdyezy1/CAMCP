@@ -675,7 +675,11 @@ export const campaignAllowanceWarning = (read: number, total: number) =>
  */
 export const unmatchedScopeWarning = (count: number) =>
   count + ' requested ID' + (count === 1 ? '' : 's') + ' matched no entity in this account.';
-/** AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. */
+/**
+ * AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. That
+ * includes the refusal of an account a client access set no longer reaches (SEC-08): the set can be narrowed while a source
+ * is read, and the next request then refuses with ACCOUNT_SCOPE_RESTRICTED (403), which no provider said.
+ */
 export const accessRefusalCodes: ReadonlySet<string> = new Set([
   'CONNECTION_REQUIRED',
   'CONNECTION_AUTHORITY_CHANGED',
@@ -686,6 +690,7 @@ export const accessRefusalCodes: ReadonlySet<string> = new Set([
   'FORBIDDEN',
   'MEMBERSHIP_REVOKED',
   'ACCOUNT_ACCESS_REVOKED',
+  'ACCOUNT_SCOPE_RESTRICTED',
 ]);
 /**
  * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),

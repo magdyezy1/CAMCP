@@ -450,6 +450,8 @@ test('RPT-07: only a provider refusal skips an optional metadata read; AMCP acce
     new MirrorError('RESOURCE_SCOPE_REQUIRED', 'Synthetic', {}, 403),
     new MirrorError('CONNECTION_AUTHORITY_CHANGED', 'Synthetic'),
     new MirrorError('MEMBERSHIP_REVOKED', 'Synthetic', {}, 403),
+    // P2B-08: a client access set narrowed during the read (SEC-08) is AMCP's refusal of the account, not the provider's.
+    new MirrorError('ACCOUNT_SCOPE_RESTRICTED', 'Synthetic', {}, 403),
     new MirrorError('REPORT_SHAPE_CHANGED', 'Synthetic', {}, 400),
     new MirrorError('REPORT_ACCOUNT_MISMATCH', 'Synthetic', {}, 403),
     new MirrorError('PLATFORM_RATE_LIMIT', 'Synthetic', {}, 429, true),
