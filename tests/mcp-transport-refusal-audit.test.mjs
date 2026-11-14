@@ -40,7 +40,8 @@ test('a v2 transport refusal leaves one audit row like its twin in the service, 
   // The twin: a refusal inside MirrorService.call, from a call that reaches the service, as the same client.
   const beforeTwin = rowsOf(s, tenant).length;
   const twin = await call(v2, 'meta_native_action', {action: 'DESCRIBE_ACTION'});
-  assert.equal(twin.success, false, 'the twin is refused inside the service');
+  // DESCRIBE_ACTION without its target_action is refused by the service itself, not by the transport.
+  assertRefused(twin, 'INVALID_ARGUMENT');
   const twinRows = rowsOf(s, tenant).slice(beforeTwin);
   assert.equal(twinRows.length, 1, 'the twin is audited: ' + JSON.stringify(twinRows));
   const shape = Object.keys(twinRows[0]).sort();
