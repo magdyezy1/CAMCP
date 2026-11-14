@@ -121,4 +121,4 @@ The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `R
   name `7d_click`, `1d_view` and `1d_click` and none names `1d_ev`. AMCP reads the key named as the request names it.
 - The unknown answers of a capture (a list that does not add, under several windows or under a window with no key) are tested
   with a mapping of such a list on a synthetic read only; no preset maps one, and none was run against a live account.
-- The V2 code has not been read against a live account: that check waits for staging (D20).
+- The V2 code has not been read against a live account: that check waits for staging (V2 plan D20).

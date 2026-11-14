@@ -46,5 +46,5 @@ requests remain blocked and fail the check. No security software is disabled.
 These are local implementation checks, not full Round 2 acceptance. Fresh filtered qualification, remaining reporting
 packages, components/navigation and the final browser/container/MCP/evaluation/publication gates remain. Live provider
 and OAuth reads and actual Google Sheets exports are not permitted during development (plan principle 4); live checks on
-staging are blocked: no staging (D20); deployment to amcp.shop and Railway is deferred by the owner (C11, 2026-11-03:
+staging are blocked: no staging (V2 plan D20); deployment to amcp.shop and Railway is deferred by the owner (2026-11-03:
 "leave the live deployment for now, push to github, live deployment in a later stage").

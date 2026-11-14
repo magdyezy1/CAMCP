@@ -67,7 +67,7 @@ v4 response is 76,308 bytes (31.6%). The original one-third target failed before
 The fixture retains one shared account lookup plus four independent detail verification reads and sixteen unique
 source references. These values describe the fixture, not a live account or a universal compression guarantee.
 
-Implementation `0d40db01` and its separate D13/D14 recording `b045748c` passed a fresh filtered checkpoint:
+Implementation `0d40db01` and its separate V2 plan D13/D14 recording `b045748c` passed a fresh filtered checkpoint:
 8,308 tests in 930 files, zero failures/skips, all six freshness checks, fast qualification, static browser checks
 and all 58 route budgets. The frozen public input tree is
 `8af3449f7cd60bbf74d0fe56fd07600c7ece887d958ec60b82e9001c6f97418c`; its packaged runtime is
@@ -87,9 +87,9 @@ candidate; no full mutation campaign was run. Further status/scoped-empty/delive
 migration, schedules/templates and complete website integration remain in progress.
 
 Meta's native result inner shape remains unverified: it needs one live read by the lead on staging, blocked: no staging
-(D20). Honest pinned scalar/action mappings remain labelled mapped. Unknown Reddit conversion and structured X
+(V2 plan D20). Honest pinned scalar/action mappings remain labelled mapped. Unknown Reddit conversion and structured X
 attribution-channel results are not fabricated. Live provider and OAuth reads and actual Sheets exports are not permitted
-during development (plan principle 4); live checks on staging are blocked: no staging (D20); deployment to amcp.shop is
-deferred by the owner (C11, 2026-11-03: "leave the live deployment for now, push to github, live deployment in a later
+during development (plan principle 4); live checks on staging are blocked: no staging (V2 plan D20); deployment to amcp.shop is
+deferred by the owner (2026-11-03: "leave the live deployment for now, push to github, live deployment in a later
 stage"). Arabic additions still need the planned native-speaker review. This checkpoint adds no dependency and
 authorizes no live mutation.

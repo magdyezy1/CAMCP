@@ -14,9 +14,9 @@ No lane merge was necessary. Existing detached reviewer worktrees were left alon
 and verified remotely. This receipt follow-up changes only the record. The file name and the documentation index carry
 2026-11-03, the UTC day on which the accepted browser run began (23:26 UTC); the title's 2026-11-04 is the day the
 qualification passed in Cairo time.
-The owner deferred live deployment and asked for the GitHub push (C11, 2026-11-03: "leave the live deployment for now,
-push to github, live deployment in a later stage"). Task 29's live checks are blocked: no staging (D20). No live provider
-acceptance is claimed. Production promotion belongs to the owner (D21).
+The owner deferred live deployment and asked for the GitHub push (2026-11-03: "leave the live deployment for now,
+push to github, live deployment in a later stage"). Task 29's live checks are blocked: no staging (V2 plan D20). No live provider
+acceptance is claimed. Production promotion belongs to the owner (V2 plan D21).
 
 ## Implementation commits
 
@@ -46,8 +46,8 @@ acceptance is claimed. Production promotion belongs to the owner (D21).
 | 23: unloaded V2 tokens and brand pin | `823bf6ab` |
 | 24: local Arabic WOFF2 subset | `b4142acb` |
 | 27: final reference coverage | `7dc93e20` |
-| 26: evaluation baseline (D14) | `a26860b2` |
-| 26: reference-word total (D13) | `89966db9` |
+| 26: evaluation baseline (V2 plan D14) | `a26860b2` |
+| 26: reference-word total (V2 plan D13) | `89966db9` |
 | 28: delivery-history fixture dependency and notice escaping | `d0566cd7` |
 
 ## Decisions and compatibility
@@ -107,8 +107,8 @@ include English Overview 177,596 / 177,616 bytes and About 15,777 / 15,848 bytes
 The full pre-baseline evaluation has 60 runs and no worse end state, handoff or tool-choice result. H1/guided improves
 from a one-call dead end to the completed reference workflow: three calls, one approval and two synthetic requests,
 with zero unnecessary calls. Its 3,952 response bytes are the aggregate of those three responses, matching the current
-reference run; the old one-call dead end used 1,260. This intended completed-workflow cost is the planned D14
-re-record, while the 40 KB response and 95 KiB listing tests stay unchanged. Both H1 and T7 reference/guided runs
+reference run; the old one-call dead end used 1,260. This intended completed-workflow cost is the planned
+re-record under V2 plan D14, while the 40 KB response and 95 KiB listing tests stay unchanged. Both H1 and T7 reference/guided runs
 reach success with `handoff_success:true`.
 
 ## Qualification results
@@ -128,8 +128,8 @@ reach success with `handoff_success:true`.
 | MCP evaluation | Canonical clean build: 60 synthetic runs pass, 0 regressions, no harness fault, 5,338 ms |
 | Differential review | Manual source review of T, R, P, M and W against the base and representative rendered review completed; split allowance and stale help findings fixed; no unresolved source finding |
 | Pre-push scan and remote reconciliation | Clean across all 43 published commits and 13,418 added lines; retained live sample unchanged; all required CI-skip/model endings verified. Fresh fetch confirmed an ancestor; push and remote head verification succeeded. The record-only receipt is scanned separately |
-| Staging live reads | Blocked: no staging (D20); no live qualification operation performed |
-| Deployment | Deferred by the owner (C11); no deployment operation performed |
+| Staging live reads | Blocked: no staging (V2 plan D20); no live qualification operation performed |
+| Deployment | Deferred by the owner (2026-11-03, quoted above); no deployment operation performed |
 
 The full gate used a filtered public candidate with a literal empty live sample and the reviewed local dependencies.
 Its regenerated public reports matched the checkout. Synthetic requests and fixture writes are local evidence.
@@ -178,5 +178,5 @@ Qualified head `ac9c5f487baa4509500e1204899744ab4890d28f` was pushed to `origin 
 remote-head read at 2026-11-04 00:22:48 UTC. The update fast-forwarded the base; no force, other branch or tag was
 pushed. This record-only receipt follows that publication; the local run journal records the final published head
 including this receipt. Runtime and browser input digests remain those recorded above. No hosted CI or deployment
-result is claimed. Live deployment remains deferred by the owner (C11); Task 29's live checks remain blocked: no staging
-(D20).
+result is claimed. Live deployment remains deferred by the owner (2026-11-03, quoted above); Task 29's live checks remain blocked: no staging
+(V2 plan D20).

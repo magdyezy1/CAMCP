@@ -35,8 +35,8 @@ candidate with 8,322 passing tests is preserved as superseded evidence; it is no
 
 Selected-ad-only ancestor rollups, automatic legacy migration and its durable notice lifecycle, schedules,
 templates, website controls, exports, remaining Round 2 packages and final release gates still require work.
-Meta's native result inner shape needs one live read by the lead on staging (blocked: no staging (D20)) and remains
+Meta's native result inner shape needs one live read by the lead on staging (blocked: no staging (V2 plan D20)) and remains
 unverified. Live provider and OAuth reads and actual Sheets exports are not permitted during development (plan principle
-4); deployment to amcp.shop and Railway is deferred by the owner (C11, 2026-11-03: "leave the live deployment for now,
+4); deployment to amcp.shop and Railway is deferred by the owner (2026-11-03: "leave the live deployment for now,
 push to github, live deployment in a later stage"). Arabic additions still require the planned native-speaker review. No
 push is claimed.

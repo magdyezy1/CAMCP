@@ -11,8 +11,11 @@ import path from 'node:path';
 import {
   baselineFile,
   budgetProblems,
+  citationProblems,
   commitRecordPages,
   currentPages,
+  decisionRows,
+  decisionSubjects,
   lintProblems,
   measure,
   packageCounts,
@@ -288,4 +291,143 @@ test('a package count is three numbers that add up to the 28 packages, or the co
   for (const text of ['20/0/0', '1/2/3', '13/14/1/2', '2026/10/23', 'B13/14/1', 'v13/14/1', '13/14/1-2', '0.13/14/1'])
     assert.equal(packageCounts(text), 0, text);
   assert.equal(packageCounts('13/14/1 then 13/15/0 and 13 implemented / 15 partial / zero open'), 3);
+});
+
+// P2C-04 (differential review, wave 5 round 2 part 2c): the V2 plan numbers its decisions D1 to D26, and the V2 records cited them as
+// `(D20)`, `(D26)` and `(C11)`, where docs/DECISIONS.md defines D20 as "Conditional-program observations" and D26 as "Test tooling" (the
+// 2026-10-08 engineering review numbers its questions D1 to D27), and docs/acceptance/ASSISTIVE-TECHNOLOGY.md defines C11 as the NVDA
+// keyboard criterion. A reader who followed "no staging (D20)" found another decision, so the statements that no live check has run
+// and that staging is blocked could not be traced to the owner's words. A citation that means the plan's is written `V2 plan D20`; an
+// unqualified `(Dnn)` must name the subject of its row in docs/DECISIONS.md; an unqualified `(Cnn)` is a criterion of the
+// assistive-technology page, and only that page may write one.
+const ledger = [
+  '# Decisions',
+  '',
+  '| ID | Decision | Outcome |',
+  '|---|---|---|',
+  '| D3 | Product audience, registration and legal identity | Accepted (a): the operator legal identity and the legal pages. |',
+  '| D20 | Conditional-program observations | Accepted: retain them as timestamped "not a grant" records. |',
+  '| D26 | Test tooling | Accepted: an architecture ratchet that blocks only regressions. |',
+].join('\n');
+
+test('an unqualified decision citation whose row has another subject is refused; "V2 plan Dnn" and a citation that names its row’s subject are not (P2C-04)', t => {
+  const root = temporary(t);
+  write(root, 'docs/DECISIONS.md', ledger + '\n');
+  write(
+    root,
+    'docs/records/V2-QUALIFICATION.md',
+    [
+      '# Record',
+      '',
+      'Live checks are blocked: no staging (D20).',
+      'Live checks are blocked: no staging (V2 plan D20).',
+      'The V2 server keeps a per-client contract profile (D26), which the review calls test tooling.',
+      'Spend 0 marked `provider_omitted` for a row with no delivery (D3).',
+      '```',
+      'a fenced example is not prose: (D20)',
+      '```',
+      '',
+    ].join('\n'),
+  );
+  write(
+    root,
+    'docs/OPERATIONS.md',
+    [
+      '# Operations',
+      '',
+      'The owner approved the legal pages (D3).',
+      'Retain the timestamped observation of a conditional program, never a grant (D20).',
+      'The architecture ratchet blocks only regressions (D26).',
+      'The review of the plan answers an unknown question (D99).',
+      '',
+    ].join('\n'),
+  );
+  const problems = citationProblems(root);
+  assert.equal(problems.length, 4, problems.join('\n'));
+  // The file and the line, the row the citation lands on, and what to write if the plan's decision is meant.
+  assert.ok(
+    problems.some(p =>
+      /^docs\/records\/V2-QUALIFICATION\.md:3: \(D20\) is "Conditional-program observations" in docs\/DECISIONS\.md/.test(
+        p,
+      ),
+    ),
+    problems.join('\n'),
+  );
+  assert.ok(
+    problems.every(p => p.startsWith('docs/')),
+    problems.join('\n'),
+  );
+  assert.ok(problems.find(p => p.includes('(D20)')).includes('write "V2 plan D20"'), problems.join('\n'));
+  // A sentence that cites a row by words of another subject is refused even where the word `test tooling` follows the citation.
+  assert.ok(
+    problems.some(p => p.includes(':5: (D26) is "Test tooling"')),
+    problems.join('\n'),
+  );
+  // The same sentence about spend 0 cites D3, whose row is about the audience and the legal identity.
+  assert.ok(
+    problems.some(p => p.includes(':6: (D3) is "Product audience, registration and legal identity"')),
+    problems.join('\n'),
+  );
+  // An id that is no row of the decision record.
+  assert.ok(
+    problems.some(p => /^docs\/OPERATIONS\.md:6: \(D99\) is not a decision of docs\/DECISIONS\.md/.test(p)),
+    problems.join('\n'),
+  );
+  // lintProblems reports them with the rest of the freeze.
+  assert.ok(lintProblems(root, {pages: {}}).some(p => p.includes('(D20) is "Conditional-program observations"')));
+});
+
+test('an unqualified criterion citation is refused on every page but the assistive-technology one, and a tree without the decision record is not judged (P2C-04)', t => {
+  const root = temporary(t);
+  write(root, 'docs/DECISIONS.md', ledger + '\n');
+  write(root, 'docs/records/V2-QUALIFICATION.md', '# Record\n\nLive deployment is the owner’s deferral (C11).\n');
+  write(
+    root,
+    'docs/acceptance/ASSISTIVE-TECHNOLOGY.md',
+    '# Assistive technology\n\nThe journey completes without a mouse (C11); the validation message is announced (C7).\n',
+  );
+  const problems = citationProblems(root);
+  assert.equal(problems.length, 1, problems.join('\n'));
+  assert.match(
+    problems[0],
+    /^docs\/records\/V2-QUALIFICATION\.md:3: \(C11\) is a criterion of docs\/acceptance\/ASSISTIVE-TECHNOLOGY\.md, which this page is not/,
+  );
+  // Without docs/DECISIONS.md there is no row to compare with, as in a partial tree.
+  fs.rmSync(path.join(root, 'docs/DECISIONS.md'));
+  assert.deepEqual(citationProblems(root), []);
+});
+
+test('each subject names its own row in docs/DECISIONS.md, so the table cannot drift from the record, and the repository cites by it (P2C-04)', () => {
+  const rows = decisionRows('.');
+  assert.deepEqual(
+    [...rows.keys()],
+    Array.from({length: 27}, (_, i) => 'D' + (i + 1)),
+    'the rows D1 to D27 of the decision record',
+  );
+  assert.deepEqual(Object.keys(decisionSubjects).sort(), [...rows.keys()].sort());
+  for (const [id, row] of rows) assert.match(row.text, decisionSubjects[id], id + ': ' + row.title);
+  // Every citation of the repository: qualified as the plan's, or about the subject of its row.
+  assert.deepEqual(citationProblems('.'), []);
+});
+
+test('each id of a parenthesised list is judged by itself, and a date after an id is not an id (P2C-04)', t => {
+  const root = temporary(t);
+  write(root, 'docs/DECISIONS.md', ledger + '\n');
+  write(
+    root,
+    'docs/records/V2-QUALIFICATION.md',
+    [
+      '# Record',
+      '',
+      'The owner approved the legal pages and live checks are blocked (D3, D20).',
+      'Live deployment is deferred (D20, 2026-11-03: "leave the live deployment for now").',
+      'The owner approved the legal pages (D3; V2 plan D20).',
+      '',
+    ].join('\n'),
+  );
+  // D3 names its subject on line 3 and passes there; D20 does not, so only D20 is refused, on lines 3 and 4. Line 5 qualifies its second id.
+  assert.deepEqual(
+    citationProblems(root).map(problem => problem.split(' is ')[0]),
+    ['docs/records/V2-QUALIFICATION.md:3: (D20)', 'docs/records/V2-QUALIFICATION.md:4: (D20)'],
+  );
 });
