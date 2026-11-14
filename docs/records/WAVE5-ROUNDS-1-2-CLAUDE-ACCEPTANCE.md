@@ -38,6 +38,7 @@ States are kept apart throughout: **implemented** (code exists), **tested** (a t
 21. Remaining risks or blockers
 22. Final Round 1–2 acceptance
 23. Readiness for Round 3
+24. Addendum (2026-11-15): the Linux build of `b90e9fcb`, its fix and the go-live decision
 
 ## 1. Independent target architecture
 
@@ -911,6 +912,7 @@ This record is committed on top of `7e409d1d` in commits that change documentati
 Then the label is decided again, on that evidence.
 
 ## 23. Readiness for Round 3
+24. Addendum (2026-11-15): the Linux build of `b90e9fcb`, its fix and the go-live decision
 
 **Not started.** Round 3 needs the owner's explicit authorization, and nothing of it has begun.
 
@@ -945,3 +947,34 @@ Then the label is decided again, on that evidence.
 
    Each redaction change follows the differential method of rulings 10, 16 and 18.
 5. **The recorded residuals** of sections 9, 10 and 21.
+
+## 24. Addendum (2026-11-15): the Linux build of `b90e9fcb`, its fix and the go-live decision
+
+Written by the principal engineer after the push of `b90e9fcb` (section 20).
+
+**What happened.** Railway built `Work-here-V2` at `b90e9fcb` with the Dockerfile's `npm run check`, on `node:24-bookworm-slim`. That tag had moved to Node v24.22.3 (2026-11-10, a security release that bundles SQLite 3.54.1). 30 of 10,451 tests failed, so nothing was deployed and production kept serving `Work-here`:
+
+- **29 report-scope tests.** From SQLite 3.54 on, a scalar subquery's JSON result loses its JSON subtype inside `json_array` and `json_object`: `json_array((SELECT json_group_array(...)))` is `[[]]` on 3.53.3 and `["[]"]` on 3.54.1. The saved reports' account selectors therefore reached the code as strings and were refused with `REPORT_SCOPE_UNAVAILABLE`. That SQL is in `Work-here` too (wave 4c), so a fresh `Work-here` build fails on that Node as well.
+- **1 test of the browser runner's TLS helper.** Round 2 added it, and it needs `openssl`, which the Linux image does not install.
+
+**Why the gates did not see it.** Every gate of sections 16 and 18 ran on one Windows host with Node v24.19.0 (SQLite 3.53.3), and the container check is a layout check, not the Linux image (16.5). The image's base tag floats. The build's own `npm run check` is what kept the failing image from deploying.
+
+**The fix.** Package `sqlite354` (`904c186d`, `ffdba18f`, on `b90e9fcb`):
+
+- `json(...)` now wraps the five JSON-valued scalar subqueries that a JSON function receives: the encoded and resource account selectors, the media library's usage references and resources, and the Operations feed's plan scopes. The text is the same on every SQLite version.
+- A new test pins the nested values on the running SQLite. On Node v24.22.3 it failed 5 of 6 before the change.
+- The TLS test checks the certificate where openssl exists and the tool's own refusal where it does not, and it checks the refusal on every host.
+
+The checks that passed:
+
+- **Every test file, on both Node versions.** 10,458 tests, 10,457 pass, 0 fail, 1 skipped on each (`.runtime/wave5-claude/impl/sqlite354-REPORT.md`, local).
+- **Gate2 on `ffdba18f`, on both Node versions.** `claude-r2-sqlite354` (Node v24.19.0) and `claude-r2-sqlite354-n22` (Node v24.22.3): `check` exit 0 in 540 s and 539 s; 10,458 tests, 10,457 pass, 0 fail, 1 skipped (the history guard of P2C-03, which a candidate without `.git` cannot read); 4 of 4 capture tests. Results are in `.runtime/engineering-review/gates/` (local).
+
+The Node v24.22.3 used here is the official Windows build, checked against nodejs.org's SHA-256 list and downloaded with the owner's approval of 2026-11-14.
+
+**The go-live decision.** The principal engineer asked the owner which Railway service builds `Work-here-V2`, and whether a passing build may deploy V2 to production. On 2026-11-15 the owner answered: "Push, and V2 may go live". This push may therefore deploy V2.
+
+- V2 goes live with the dependencies that section 21 lists for ratification before any deployment.
+- `Work-here` stays at `4035ad7c` as the rollback target (V2 plan D21); v4-only definitions fail closed on it (F-L10-11).
+- The deployment and the checks after it are in the principal engineer's final owner report, because this file cannot record the push that carries it.
+- The label of section 22 stays BLOCKED. Going live is not a live qualification, and the live checks still need the owner's staging (V2 plan D1 and D20).
