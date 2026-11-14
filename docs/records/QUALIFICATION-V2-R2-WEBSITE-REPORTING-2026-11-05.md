@@ -10,7 +10,8 @@ editor, retained snapshot presentation and lazy delivery. The
 [implementation record](IMPLEMENTATION-V2-R2-WEBSITE-REPORTING-2026-11-05.md) describes the behavior. This accepts the
 editor checkpoint; it does not complete Round 2 or its full browser/container/MCP/evaluation gates.
 
-The candidate binds 3,324 public source files at source tree
+The candidate binds 3,325 public source files (this record first said 3,324; the tree of `16915f8c` holds 3,325 tracked
+files, and so does the candidate's manifest) at source tree
 `ef76fccec7d8f8e6dc99e3eb4a1eed0faa3d0062bc3f0f91177d9190f85e82b7` and packaged runtime
 `2878073910166999ba9ebbc5ad2adb20bd5eaec7e4702a46da18afa4ce197d15`. All 29 changed public inputs
 matched their frozen hashes before the named implementation commit. Added-content review found no local paths or

@@ -28,7 +28,8 @@ recovery. The first integrated focused run passed 83 tests in six files; broader
 qualification remain pending at the time of this implementation record. No live provider request or deployment was
 performed. X and Apple additional-level work and the rest of Round 2 remain separate.
 
-Primary references checked on 2026-11-05:
+Primary references (the date they were read is MISSING: this line first said 2026-11-05, and no fetch of that day is
+recorded):
 
 - [Snapchat campaigns](https://developers.snap.com/marketing-api/Ads-API/campaigns): account campaign collection,
   `read_deleted_entities`, bounded `limit`, cursor continuation, and its incompatibility with explicit sorting.

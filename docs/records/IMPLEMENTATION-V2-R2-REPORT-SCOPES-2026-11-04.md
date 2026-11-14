@@ -35,6 +35,9 @@ retaining all delivery states can remain representable. No retained v3 snapshot 
 
 Child-ID filters at a parent reporting level still exclude identities they cannot establish and disclose the
 uncertainty. They do not invent a parent total for selected children; further scope qualification remains pending.
+**Superseded on 2026-11-05** by the [selected descendant rollups](IMPLEMENTATION-V2-R2-SELECTED-ROLLUPS-2026-11-05.md): where
+native child parent identities establish membership, a parent row now carries a labelled total of its selected children
+(**Rolled up from selected ads**); a missing parent identity still never invents a total.
 
 ## Status evidence and requests
 

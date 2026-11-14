@@ -11,7 +11,9 @@ implementation, review and integration roles to one session; work was committed 
 No lane merge was necessary. Existing detached reviewer worktrees were left alone.
 
 **Local closing qualification passed on 2026-11-04 (Africa/Cairo).** Qualified head `ac9c5f48` was pushed to GitHub
-and verified remotely. This receipt follow-up changes only the record.
+and verified remotely. This receipt follow-up changes only the record. The file name and the documentation index carry
+2026-11-03, the UTC day on which the accepted browser run began (23:26 UTC); the title's 2026-11-04 is the day the
+qualification passed in Cairo time.
 The owner deferred live deployment and asked for the GitHub push (C11, 2026-11-03: "leave the live deployment for now,
 push to github, live deployment in a later stage"). Task 29's live checks are blocked: no staging (D20). No live provider
 acceptance is claimed. Production promotion belongs to the owner (D21).
