@@ -86,7 +86,10 @@ deliberate defect: one killed, zero survived, invalid or timed out. This was one
 candidate; no full mutation campaign was run. Further status/scoped-empty/delivery-uncertainty cases, automatic
 migration, schedules/templates and complete website integration remain in progress.
 
-Meta's native result inner shape remains unverified and owner-live-deferred. Honest pinned scalar/action mappings
-remain labelled mapped. Unknown Reddit conversion and structured X attribution-channel results are not fabricated.
-All live providers/OAuth, amcp.shop, deployment and actual Sheets acceptance remain owner-deferred. Arabic additions
-still need the planned native-speaker review. This checkpoint adds no dependency and authorizes no live mutation.
+Meta's native result inner shape remains unverified: it needs one live read by the lead on staging, blocked: no staging
+(D20). Honest pinned scalar/action mappings remain labelled mapped. Unknown Reddit conversion and structured X
+attribution-channel results are not fabricated. Live provider and OAuth reads and actual Sheets exports are not permitted
+during development (plan principle 4); live checks on staging are blocked: no staging (D20); deployment to amcp.shop is
+deferred by the owner (C11, 2026-11-03: "leave the live deployment for now, push to github, live deployment in a later
+stage"). Arabic additions still need the planned native-speaker review. This checkpoint adds no dependency and
+authorizes no live mutation.

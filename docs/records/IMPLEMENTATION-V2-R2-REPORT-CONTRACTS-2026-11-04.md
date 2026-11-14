@@ -55,5 +55,7 @@ and the pinned Meta SDK/captured Reddit schema identified in the fixture. Public
 2026-11-04; TikTok's public metric page did not expose readable text during this session, so its earlier documented
 pin remains explicitly distinguished from a fresh page extraction.
 
-Live provider/OAuth, amcp.shop, deployment and actual Sheets acceptance remain owner-deferred. Arabic copy still
-requires the planned native-speaker sign-off. Nothing in this record authorizes a live mutation or publication.
+Live provider and OAuth reads and actual Sheets exports are not permitted during development (plan principle 4); live
+checks on staging are blocked: no staging (D20); deployment to amcp.shop is deferred by the owner (C11, 2026-11-03: "leave
+the live deployment for now, push to github, live deployment in a later stage"). Arabic copy still requires the planned
+native-speaker sign-off. Nothing in this record authorizes a live mutation or publication.

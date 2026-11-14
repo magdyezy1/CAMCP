@@ -36,6 +36,8 @@ measurement context and omissions replace full-parent context, and that unknown 
 stored IDs after canonicalization.
 
 Automatic saved-report migration and durable notices, schedule/template/UI completion, remaining Round 2 packages
-and final browser/container/evaluation/release gates remain unfinished. Meta's native result inner shape and all
-live provider/OAuth, amcp.shop, Railway, actual Sheets and deployment acceptance remain owner-deferred. Arabic copy
-still needs the planned native-speaker review. No Round 2 push is claimed.
+and final browser/container/evaluation/release gates remain unfinished. Meta's native result inner shape needs one live
+read by the lead on staging (blocked: no staging (D20)). Live provider and OAuth reads and actual Sheets exports are not
+permitted during development (plan principle 4); deployment to amcp.shop and Railway is deferred by the owner (C11,
+2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage"). Arabic copy still
+needs the planned native-speaker review. No Round 2 push is claimed.

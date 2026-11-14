@@ -67,6 +67,8 @@ external attempts still fail and security software remains enabled. No test key 
 Full qualification needs the same explicit local transport option before its closing run.
 
 The remaining reporting acceptance audit, Packages D–I and final full browser/container/MCP/evaluation/docs/prepush
-gates remain. Arabic copy still needs the planned native-speaker review. Meta's native Results inner shape and all
-live provider/OAuth, amcp.shop, Railway, actual Sheets and deployment checks remain owner-deferred. No Round 2 push
+gates remain. Arabic copy still needs the planned native-speaker review. Meta's native Results inner shape needs one live
+read by the lead on staging (blocked: no staging (D20)). Live provider and OAuth reads and actual Sheets exports are not
+permitted during development (plan principle 4); deployment to amcp.shop and Railway is deferred by the owner (C11,
+2026-11-03: "leave the live deployment for now, push to github, live deployment in a later stage"). No Round 2 push
 is claimed.

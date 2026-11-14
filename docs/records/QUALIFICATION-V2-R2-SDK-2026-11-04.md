@@ -8,8 +8,10 @@ tier: engineering
 V2-MCP-13 is the first, isolated package of Round 2. The owner approved the SDK v2 download with the V2 plan on
 2026-11-01 and requested Round 2 on 2026-11-04. Source starts at published `bdda0cbd`, on `codex/v2-round2`.
 **The isolated SDK foundation is locally qualified at `3b950b2df14a3af3b83383e3588c47a079070841`.** No Round 2 push
-or live acceptance is claimed. Live deployment and provider checks remain explicitly deferred by the owner. Other
-Round 2 feature packages follow this foundation; the existing dependency findings are addressed separately.
+or live acceptance is claimed. Provider checks are not permitted during development (plan principle 4) and live checks on
+staging are blocked: no staging (D20); live deployment is deferred by the owner (C11, 2026-11-03: "leave the live
+deployment for now, push to github, live deployment in a later stage"). Other Round 2 feature packages follow this
+foundation; the existing dependency findings are addressed separately.
 
 ## Dependency scope and review
 
