@@ -24,6 +24,7 @@ import {
 } from './report-source.js';
 import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
 import {linkedInConversionWindows} from './linkedin-conversion-windows.js';
+import {storedLogin} from './connection-authority.js';
 import {collectionAllowance} from './report-collection-budget.js';
 import {fingerprint} from './report-quality.js';
 import {nativeDecimal, nativeDetailLookupLimit, nativeDetailLookupLimitedWarning} from './overview-native-detail.js';
@@ -196,14 +197,32 @@ function ruleLineage(stage: string, path: string, evidence: JsonObject): JsonObj
 }
 
 /**
+ * The login and permissions a read of this source is bound to, as the conversion rules read stamps its own bracket (the same
+ * login and sorted scopes). Taken when the source starts, it is the bracket of the whole source.
+ */
+function sourceAuthorization(c: ReportCollection): string {
+  const connection = c.store.resolveConnection(c.actor, 'linkedin_native_action', c.account, c.connection);
+  return fingerprint({login: storedLogin(c.store, connection), scopes: [...connection.scopes].sort()});
+}
+
+/**
  * The account's current conversion rules, read through the conversion settings read (src/linkedin-conversion-evidence.ts)
  * after the source's analytics and metadata reads and inside the same authorization bracket, once per source and job.
  * Its requests count against the job's whole collection allowance like every other read of the source, and a read that
  * the allowance cannot hold is not started. LinkedIn refusing or failing the read leaves the windows unknown and the
  * report complete. A refusal of AMCP's own (the connection, its login or its permissions changed) fails the source, as
  * it does for every other read.
+ *
+ * The read brackets itself with the login and permissions it finds when it starts, which would hide a change since the
+ * source's first request (P2B-08): the guided preset keeps one bracket over its analytics and its rules. So the source's own
+ * stamp (`authorization`, taken when the source started) is compared with the current one first, and a login replaced or
+ * permissions changed since then fails the source before any rule is requested. Nothing awaits between that comparison and
+ * the read's own stamp, so no change can fall between them.
  */
-async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead | LinkedInRulesUnread> {
+async function conversionRules(
+  c: ReportCollection,
+  authorization: string,
+): Promise<LinkedInRulesRead | LinkedInRulesUnread> {
   const cached = c.lookup?.linkedinConversionRules;
   if (cached) {
     for (const entry of cached.lineage) c.lineage.push({...entry, cached: true});
@@ -211,6 +230,13 @@ async function conversionRules(c: ReportCollection): Promise<LinkedInRulesRead |
   }
   const allowance = collectionAllowance();
   if (allowance && (allowance.requests < rulesReadRequests || allowance.elapsed_ms <= 0)) return 'budget';
+  if (sourceAuthorization(c) !== authorization)
+    throw new MirrorError(
+      'CONNECTION_AUTHORITY_CHANGED',
+      'The LinkedIn login or permissions changed. Capture a new report.',
+      {},
+      409,
+    );
   let evidence: JsonObject;
   try {
     evidence = await linkedInConversionEvidence(c.store, c.call, c.actor, {
@@ -266,6 +292,7 @@ const noRuleRead = (reason: string): JsonObject => ({
 async function linkedInSourceWindows(
   c: ReportCollection,
   results: {conversions: number; other: number},
+  authorization: string,
 ): Promise<LinkedInSourceWindows | undefined> {
   if (!results.conversions) return undefined;
   if (results.other)
@@ -275,7 +302,7 @@ async function linkedInSourceWindows(
       warnings: [linkedinMixedResultsWarning],
       conversion_windows: noRuleRead('not_conversion_only'),
     };
-  const read = await conversionRules(c);
+  const read = await conversionRules(c, authorization);
   if (typeof read === 'string')
     return {
       attribution: 'unknown',
@@ -640,6 +667,9 @@ export const linkedinReportSource: ReportSource = {
    */
   async collect(c) {
     c.timezone = reportZone;
+    // V2-RPT-04: the login and permissions this source starts under, which its conversion rules read is held to (P2B-08).
+    const overviewV4 = c.source?.reporting_contract === 'overview-config-v4',
+      authorization = overviewV4 ? sourceAuthorization(c) : undefined;
     if (String(c.metadata.id ?? '') !== c.account)
       throw new MirrorError('REPORT_ACCOUNT_MISMATCH', 'LinkedIn returned a different or missing account ID.');
     if (typeof c.currency !== 'string' || !/^[A-Z]{3}$/.test(c.currency))
@@ -939,10 +969,7 @@ export const linkedinReportSource: ReportSource = {
     c.attribution = 'unknown';
     c.resultDefinition = 'Attributed external website conversions';
     // V2-RPT-04: a v4 source whose results are website conversions takes the windows of the account's conversion rules.
-    const windows =
-        c.source?.reporting_contract === 'overview-config-v4'
-          ? await linkedInSourceWindows(c, conversionResults(c))
-          : undefined,
+    const windows = overviewV4 ? await linkedInSourceWindows(c, conversionResults(c), authorization!) : undefined,
       metadataUnavailable = c.lookup?.linkedinCampaigns?.unavailable;
     if (windows?.verified) {
       c.attribution = c.verifiedAttribution = windows.attribution;

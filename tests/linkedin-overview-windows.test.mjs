@@ -522,6 +522,69 @@ test('a change of the login during the rules read still fails the source: only L
   assert.equal(report.sources[0].error.code, 'CONNECTION_AUTHORITY_CHANGED');
 });
 
+// P2B-08 (b): the rules read is held to the login and permissions the source started under, not only to those it found when it
+// began: a login replaced, or permissions changed, after the source's analytics and metadata reads gives the rules of the same
+// account as the other login sees them, which are not the rules of the reads they would describe. The guided preset keeps one
+// bracket over its analytics and its rules (src/linkedin-conversion-windows.ts); so does the Overview source. The change comes
+// as the last read before the rules returns, so the rules read itself starts under the new login and cannot see it.
+const loginRecord = (f, scopes = ['r_ads', 'r_ads_reporting']) => ({
+  id: linkedinConnection,
+  tenantId: f.actor.tenantId,
+  gateway: 'linkedin_native_action',
+  accounts: ['100'],
+  enabled: true,
+  scopes,
+  label: 'Synthetic',
+});
+/** Runs `change` once, as the read of the path ending with `suffix` returns: between that read and whatever comes next. */
+function changeAfter(f, suffix, change) {
+  const read = f.service.runPlan;
+  let done = false;
+  f.service.runPlan = async plan => {
+    const answer = await read(plan);
+    if (!done && plan.path.endsWith(suffix)) {
+      done = true;
+      change();
+    }
+    return answer;
+  };
+}
+for (const [change, replace] of [
+  ['a login replaced', f => f.store.putConnection(f.actor, loginRecord(f), {accessToken: 'replaced'})],
+  ['permissions narrowed', f => f.store.updateConnection(f.actor, loginRecord(f, ['r_ads']))],
+])
+  test(
+    change + ' between the analytics reads and the rules read fails the source, and no rule is read after it',
+    async t => {
+      fixClock(t);
+      const f = linkedinPipeline(t, {analytics, ...world(), conversions: [linkedinConversionRule('501')]});
+      changeAfter(f, '/adCampaignGroups', () => replace(f));
+      const report = await f.run({...v4, sources: [source('campaign')]});
+      assert.equal(report.state, 'failed', JSON.stringify(report.sources.map(x => x.attribution)));
+      assert.equal(report.sources[0].error.code, 'CONNECTION_AUTHORITY_CHANGED');
+      assert.equal(rulesRead(f).length, 0);
+      assert.equal(
+        f.requests.filter(p => p.path === '/rest/adAccounts/100').length,
+        1,
+        'the account lookup only: the rules read sent no account check either',
+      );
+    },
+  );
+
+test('a token refresh between the analytics reads and the rules read is the same login: the windows are joined', async t => {
+  fixClock(t);
+  const f = linkedinPipeline(t, {analytics, ...world(), conversions: [linkedinConversionRule('501')]});
+  changeAfter(f, '/adCampaignGroups', () => {
+    const connection = f.store.resolveConnection(f.actor, 'linkedin_native_action', '100', linkedinConnection),
+      held = f.store.connectionCredentials(connection);
+    f.store.completeCredentialRefresh(connection, held, {...held, accessToken: 'refreshed'});
+  });
+  const report = await f.run({...v4, sources: [source('campaign')]});
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources.map(x => x.error ?? x.warnings)));
+  assert.equal(report.sources[0].attribution, verifiedPair(30, 7));
+  assert.equal(rulesRead(f).length, 1);
+});
+
 // P2B-08 (d): a client access set narrowed during a read is AMCP's refusal of the account (ACCOUNT_SCOPE_RESTRICTED, SEC-08),
 // like a removed connection or a changed login. Only the provider may refuse an optional read, so it fails the source at the
 // read; before, it passed for LinkedIn's refusal, and a source whose set was restored a moment later completed with it.
