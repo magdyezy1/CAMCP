@@ -468,3 +468,27 @@ test('RPT-07: only a provider refusal skips an optional metadata read; AMCP acce
   ])
     assert.equal(optionalReadRefused(error), false, error.code ?? error.message);
 });
+
+// jobcontrol: the job's own errors are not a provider's answer. JOB_CANCELLED (a report cancelled, or its schedule edited, paused or
+// removed: src/reporting-overview.ts currentReport) keeps MirrorError's default status 400, which the HTTP contract names, so the
+// status test alone took it for the provider's refusal wherever the job's bound actor check raised it inside an optional read.
+// STALE_JOB_LEASE carries 409 wherever it is thrown, so the status test already refused it; the table pins both by code.
+test('jobcontrol: a job-control error is never a provider’s refusal of an optional read, whatever its status; a provider’s refusal still is', () => {
+  const refusal = (code, status, retryable = false) => new MirrorError(code, 'Synthetic', {}, status, retryable);
+  for (const [code, status] of [
+    // As the job raises them.
+    ['JOB_CANCELLED', 400],
+    ['STALE_JOB_LEASE', 409],
+    // By code, not by the status of today.
+    ['JOB_CANCELLED', 403],
+    ['JOB_CANCELLED', 404],
+    ['STALE_JOB_LEASE', 400],
+    ['STALE_JOB_LEASE', 403],
+    ['STALE_JOB_LEASE', 404],
+  ])
+    assert.equal(optionalReadRefused(refusal(code, status)), false, code + ' at ' + status);
+  // The provider's own answers are untouched: its 400, 403 and 404 refuse the read, and a retryable failure never does.
+  for (const status of [400, 403, 404])
+    assert.equal(optionalReadRefused(refusal('PLATFORM_ERROR', status)), true, 'PLATFORM_ERROR at ' + status);
+  assert.equal(optionalReadRefused(refusal('PLATFORM_RATE_LIMIT', 429, true)), false, 'a retryable 429');
+});

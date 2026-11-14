@@ -716,9 +716,17 @@ export const accessRefusalCodes: ReadonlySet<string> = new Set([
   'ACCOUNT_SCOPE_RESTRICTED',
 ]);
 /**
+ * What the job says of itself, and no provider said: the report was cancelled, or its schedule edited, paused or removed
+ * (JOB_CANCELLED, which keeps the default status 400 that the HTTP contract names), or the worker lost the job's lease
+ * (STALE_JOB_LEASE, 409). The job's bound actor check raises them inside any store call a source makes, so they can
+ * surface in the middle of an optional read; they end the source whatever their status.
+ */
+const jobControlCodes: ReadonlySet<string> = new Set(['STALE_JOB_LEASE', 'JOB_CANCELLED']);
+/**
  * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),
  * after which the rows stay with unknown values and a warning. A malformed or partial response (REPORT_*), a retryable
- * failure, or a removed connection, changed login or scope refusal (accessRefusalCodes) fails the source instead.
+ * failure, a removed connection, changed login or scope refusal (accessRefusalCodes), or the job's own stop
+ * (jobControlCodes) fails the source instead.
  */
 export function optionalReadRefused(e: unknown): e is MirrorError {
   return (
@@ -727,6 +735,7 @@ export function optionalReadRefused(e: unknown): e is MirrorError {
     !e.code.startsWith('REPORT_') &&
     e.details.layer !== 'credential' &&
     !accessRefusalCodes.has(e.code) &&
+    !jobControlCodes.has(e.code) &&
     [400, 403, 404].includes(e.status)
   );
 }
