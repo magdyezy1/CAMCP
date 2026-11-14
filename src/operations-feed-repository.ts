@@ -60,6 +60,8 @@ const connectionFeedSQL = `SELECT id, kind, revision, at, metadata FROM (SELECT 
   WHERE c.tenant_id=?) WHERE json_extract(metadata,'$.state')<>'healthy'`;
 
 // Resolve interdependent SQL fragments on first use, after module initialization; retain one immutable query.
+// The plan branch of `scopes` wraps its scalar subquery in json(): SQLite 3.54 does not keep a subquery's JSON subtype, so
+// the enclosing json_object would quote the array as a string.
 let cachedQuery: string | undefined;
 const query = () =>
   (cachedQuery ??= `WITH feed AS (
@@ -85,11 +87,11 @@ const query = () =>
         WHEN 'overview_report' THEN CASE WHEN j.state IN ('failed','cancelled') THEN j.state ELSE coalesce(json_extract(d.data,'$.state'),j.state,'unknown') END
         ELSE json_extract(d.data,'$.state') END,
       'scopes', CASE d.kind
-        WHEN 'campaign_run' THEN (SELECT json_group_array(json_object('gateway',
+        WHEN 'campaign_run' THEN json((SELECT json_group_array(json_object('gateway',
           CASE WHEN json_extract(s.value,'$.kind')='media' THEN json_extract(s.value,'$.arguments.platform')||'_native_action'
             ELSE json_extract(s.value,'$.gateway') END,
           'connection_id',json_extract(s.value,'$.connection_id'),'account_id',json_extract(s.value,'$.account_id')))
-          FROM json_each(d.data,'$.steps') s)
+          FROM json_each(d.data,'$.steps') s))
         WHEN 'media_review' THEN json_array(json_object('gateway',json_extract(d.data,'$.plan.platform')||'_native_action',
           'connection_id',json_extract(d.data,'$.plan.connection_id'),'account_id',json_extract(d.data,'$.plan.account_id')))
         WHEN 'report_incident' THEN json_array(json_object('platform',json_extract(d.data,'$.platform'),

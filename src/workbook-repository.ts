@@ -68,15 +68,17 @@ const encodedValid = (bag: string) => `CASE WHEN ${bodyType(bag)}='text'
   THEN json_type(${bodyCell(bag)})='object' ELSE 0 END`;
 // json_each preserves repeated keys: conflicting duplicate identifiers must not be hidden by first/last-key parsing.
 // Nine projected occurrences are sufficient to reject more than eight; arbitrary body fields never leave SQLite.
+// Each scalar subquery is wrapped in json(): from SQLite 3.54 (bundled with Node 24.22.3) a subquery's result does not keep
+// its JSON subtype, so the enclosing json_array would quote the array as a string. json() marks it as JSON on every version.
 const encodedAnchors = `CASE WHEN ${encodedSupported} THEN json_array(${bodyLocations
   .map(
-    bag => `(
+    bag => `json((
   SELECT json_group_array(CASE WHEN v.type='text' THEN substr(v.value,1,201)
     WHEN v.type='null' THEN NULL ELSE json('{"invalid":true}') END)
   FROM (SELECT type,value FROM json_each(CASE WHEN ${encodedValid(bag)} THEN ${bodyCell(bag)} ELSE '{}' END)
     WHERE CASE json_extract(j.input,'$.query_config.gateway')
       ${encodedBodyGateways.map(g => `WHEN '${g}' THEN key IN (${accountAliases[g]!.map(key => `'${key}'`).join(',')})`).join('\n')} ELSE 0 END
-    LIMIT 9) v)`,
+    LIMIT 9) v))`,
   )
   .join(',')}) ELSE json_array() END`;
 const encodedInvalid = `CASE WHEN ${encodedSupported} AND (${bodyLocations.map(bag => `(${bodyType(bag)}='text' AND NOT (${encodedValid(bag)}))`).join(' OR ')}) THEN 1 ELSE 0 END`;
@@ -163,9 +165,10 @@ export function reportResourceFieldsSQL(native: string) {
         return `CASE WHEN ${key}='${named[0]![0]}' THEN '${named[0]![1]}' ELSE '${otherwise}' END`;
       return `CASE ${key} ${named.map(([field, kind]) => `WHEN '${field}' THEN '${kind}'`).join(' ')} ELSE '${otherwise}' END`;
     },
-    project = (where: string, kind: string) => `(SELECT json_group_array(json_object('kind',v.kind,'value',
+    // Wrapped in json() as encodedAnchors is: SQLite 3.54 does not keep a scalar subquery's JSON subtype.
+    project = (where: string, kind: string) => `json((SELECT json_group_array(json_object('kind',v.kind,'value',
       CASE WHEN v.type='text' THEN substr(v.value,1,513) ELSE json('{"invalid":true}') END))
-      FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v)`,
+      FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v))`,
     invalidBody = (body: string) => `EXISTS(SELECT 1 FROM json_tree(${bounded}) r
       WHERE r.path='$' AND r.key='${body}' AND r.type!='object')`,
     anchors = selectorProviders.map(

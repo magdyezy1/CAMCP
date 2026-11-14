@@ -51,16 +51,18 @@ export function libraryAssetPage(store: Store, tenant: string, after: string): J
 }
 
 // A usage claim requires an exact retained review and an explicit result-reference path, never just a dependency.
+// The two inner subqueries are wrapped in json(): SQLite 3.54 does not keep a scalar subquery's JSON subtype, so without it
+// json_object would quote each array as a string. The outer subquery is a result column, which the reader parses.
 const usageProjection = `SELECT d.id,json_extract(d.data,'$.user_id') AS user_id,json_extract(d.data,'$.principal') AS principal,json_extract(d.data,'$.name') AS name,
   (SELECT json_group_array(json_object('id',json_extract(s.value,'$.id'),'kind',json_extract(s.value,'$.kind'),
     'gateway',CASE WHEN json_extract(s.value,'$.kind')='media' THEN json_extract(s.value,'$.arguments.platform')||'_native_action' ELSE json_extract(s.value,'$.gateway') END,
     'account_id',json_extract(s.value,'$.account_id'),'connection_id',json_extract(s.value,'$.connection_id'),
     'review_id',json_extract(s.value,'$.review_id'),'status',json_extract(s.value,'$.status'),'action',json_extract(s.value,'$.arguments.action'),
-    'references',(SELECT json_group_array(t.value) FROM json_tree(s.value,'$.arguments') t WHERE t.key='$ref' AND t.type='text'),
-    'resources',(SELECT json_group_array(x.value) FROM json_tree(s.value) x WHERE x.type IN ('text','integer') AND
+    'references',json((SELECT json_group_array(t.value) FROM json_tree(s.value,'$.arguments') t WHERE t.key='$ref' AND t.type='text')),
+    'resources',json((SELECT json_group_array(x.value) FROM json_tree(s.value) x WHERE x.type IN ('text','integer') AND
       ((x.key='created_id' AND x.path='$.result') OR (x.key='media_id' AND x.path='$.result') OR
        (x.key IN ('resource_id','id') AND (instr(replace(x.path,'"',''),'$.verification.verified_resources[')=1 OR instr(replace(x.path,'"',''),'$.result.verified_resources[')=1)) OR
-       (x.key='resource_id' AND instr(x.path,'$.verification.checks[')=1)))))
+       (x.key='resource_id' AND instr(x.path,'$.verification.checks[')=1))))))
     FROM json_each(d.data,'$.steps') s) AS steps
   FROM documents d WHERE d.tenant_id=? AND d.kind='campaign_run' AND d.id>?
     AND EXISTS(SELECT 1 FROM json_each(d.data,'$.steps') s WHERE json_extract(s.value,'$.kind')='media' AND json_extract(s.value,'$.review_id')=?)`;

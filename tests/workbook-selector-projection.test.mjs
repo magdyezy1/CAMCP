@@ -14,7 +14,8 @@ import {registeredProviderHooks} from '../dist/src/provider-hooks.js';
 /**
  * ARC-01 (reporting, wave 4c round 6): the workbook selectors' SQL projection is written by the store layer
  * (src/workbook-repository.ts) from the selectors the providers' reportScope hooks declare as data. Its SQL text is the
- * text the projection named the five gateways with before; `legacyResourceFieldsSQL` is that function as it was.
+ * text the projection named the five gateways with before; `legacyResourceFieldsSQL` is that function as it was, except
+ * that package sqlite354 wraps each selector array in json(): SQLite 3.54 does not keep a scalar subquery's JSON subtype.
  */
 function legacyResourceFieldsSQL(native) {
   const source = "CASE WHEN length(CAST(j.input AS BLOB))<=131072 THEN j.input ELSE '{}' END",
@@ -42,9 +43,9 @@ function legacyResourceFieldsSQL(native) {
     gtm = `${direct} AND ${key} IN ('path','parent','accountid')`,
     business = `${direct} AND ${key} IN ('name','parent','accountid','locationid')`,
     reddit = `${direct} AND ${key} IN ('accountid','adaccountid')`,
-    project = (where, kind) => `(SELECT json_group_array(json_object('kind',v.kind,'value',
+    project = (where, kind) => `json((SELECT json_group_array(json_object('kind',v.kind,'value',
       CASE WHEN v.type='text' THEN substr(v.value,1,513) ELSE json('{"invalid":true}') END))
-      FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v)`,
+      FROM (SELECT r.type,r.value,${kind} AS kind FROM json_tree(${bounded}) r WHERE ${where} LIMIT 9) v))`,
     invalidBody = body => `EXISTS(SELECT 1 FROM json_tree(${bounded}) r
       WHERE r.path='$' AND r.key='${body}' AND r.type!='object')`;
   return `'resource_account_anchors',CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
