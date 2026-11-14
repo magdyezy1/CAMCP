@@ -452,7 +452,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Charts adds 53 entries and removes the old include-flags reason; the integration already has the new reason (mcp-typed, the same Arabic)
   // and lacks the old one, and meta-results added 'App installs' with another Arabic than charts, which now has one (meta-results', the
   // website's wording of App Installs), so 51 of the 53 are new: 12,047 + 51 = 12,098.
-  assert.equal(Object.keys(catalog).length, 12098);
+  // Package linkedin-windows (V2-RPT-04, plan 4.7): +9 entries, the Arabic of the notes a LinkedIn source carries when the account's
+  // conversion-rule windows are joined, mixed or left unknown with their reason; measured (node tools/check-locales.mjs:
+  // catalog_messages 12107), 12,098 + 9 = 12,107. Moved by the lead with the owner's approval of 2026-11-14.
+  assert.equal(Object.keys(catalog).length, 12107);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
