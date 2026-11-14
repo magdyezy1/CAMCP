@@ -3560,13 +3560,13 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
     assert.equal(state.actions[0].primary, false, title + ': secondary beside the page’s own primary action');
   }
   // The failed page's way back: Schedules is a child of Reporting, so its way back is not Connections.
-  await context.route('**/api/workspace/overview', intercepted =>
+  const refuseOverview = intercepted =>
     intercepted.fulfill({
       status: 500,
       contentType: 'application/json',
       body: JSON.stringify({success: false, error: {code: 'INTERNAL_ERROR', message: 'Synthetic refusal'}}),
-    }),
-  );
+    });
+  await context.route('**/api/workspace/overview', refuseOverview);
   await page.goto(site.origin + '/schedules', {waitUntil: 'networkidle'});
   await page.locator('.page-error').waitFor({state: 'visible'});
   const back = page.locator('.page-error a.button');
@@ -3585,6 +3585,10 @@ async function shellFeedbackBody({page, context, result, locale, width, appearan
   await shellAccessibility(page, result, 'error');
   if (width <= 375 || width >= 1280)
     await page.screenshot({path: path.join(shellScreens(), `shell-page-error-${locale}-${width}-${appearance}.png`)});
+  // The refusal is the failed page's alone. Reporting, where the way back leads, reads the same endpoint when it
+  // loads, so with the refusal still in place it fails too and ends on an error of its own, and whether the check
+  // below sees that error depends on timing. Only the route added above is removed; the case's egress block stays.
+  await context.unroute('**/api/workspace/overview', refuseOverview);
   await back.click();
   await page.waitForURL(site.origin + '/report-library');
   await page.locator('#content h1').waitFor({state: 'visible'});
