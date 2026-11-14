@@ -19,7 +19,9 @@ secrets/
 auth.json
 tokens.json
 .release/
-# The evidence package of the Codex session: the owner's private conversation history and logs. Never committed or pushed
-# (F-L10-01); tests/private-evidence-paths.test.mjs fails when either path exists in the tree.
+# The evidence package of the Codex session: the owner's private conversation history and logs. Never in the history of the
+# integration branch and never pushed from it (F-L10-01, P2C-03). It is in the history of the local branches codex/v2-round2 and
+# claude/v2-target-record, which are never pushed. tests/private-evidence-paths.test.mjs fails when either path exists in the
+# tree, or when a commit reachable from HEAD touches one.
 codex-changes-evidence/
 Codex changes.md
