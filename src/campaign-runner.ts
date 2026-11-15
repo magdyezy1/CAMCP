@@ -1802,14 +1802,13 @@ export class CampaignRunner {
   /** create: a draft plan of explicit or templated steps, created once per creation key. */
   private createPlan({input, actor}: CampaignCall): JsonObject {
     const origin = this.origins.get(input);
-    if (
-      typeof input.name !== 'string' ||
-      !input.name.trim() ||
-      input.name.length > 100 ||
-      typeof input.brief !== 'string' ||
-      input.brief.length > 12000
-    )
-      bad('Provide a campaign name and brief.');
+    if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 100)
+      bad('Provide a campaign name of 1–100 characters; brief is optional and defaults to the name.');
+    // The brief defaults to the name when it is left out (R2.5 T4, owner General 3, 2026-11-15): a plan's steps say what
+    // it does and its name what it is. A brief that is sent is checked as before, and is saved as sent.
+    const brief = input.brief === undefined ? input.name : input.brief;
+    if (typeof brief !== 'string' || brief.length > 12000)
+      bad('brief must be text of at most 12,000 characters, or left out: it then defaults to the name.');
     // A profile outside the actor's client access set is not found (SEC-08).
     const profile = input.profile_id ? visibleProfile(this.store, actor, input.profile_id) : undefined,
       variables = {...(profile?.variables ?? {}), ...(input.variables ?? {}), profile: profile ?? {}};
@@ -1909,7 +1908,7 @@ export class CampaignRunner {
     const catalog_retirement = catalog_lineage ? catalogRetirementCreationBinding(this.store, actor, input) : undefined;
     const creation_fingerprint = fingerprint({
       name: input.name,
-      brief: input.brief,
+      brief,
       user: actor.userId,
       profile_id: profile?.id ?? null,
       profile_revision: profile?.revision ?? null,
@@ -1945,7 +1944,7 @@ export class CampaignRunner {
     assertPlanRoom(this.store, actor);
     const run = {
       name: input.name,
-      brief: input.brief,
+      brief,
       ...ownership(actor),
       profile_id: profile?.id ?? null,
       profile_revision: profile?.revision ?? null,

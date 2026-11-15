@@ -785,9 +785,10 @@ const rows: Record<string, Row[]> = {
     helpRow(),
     row(
       'create',
-      'Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template.',
-      ['name', 'brief'],
+      'Saves a campaign dependency plan from a name and explicit native steps or an approved template; the brief is optional.',
+      ['name'],
       [
+        'brief',
         'steps',
         'profile_id',
         'template',
@@ -1951,6 +1952,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
     ad_format: 'Meta only: the placement to preview.',
   },
   [C]: {
+    brief:
+      'create: optional, up to 12,000 characters, the purpose of the plan. Left out, it defaults to name (R2.5 T4, owner 2026-11-15); a brief that is sent is saved as sent. clone: optional; left out, it says which campaign the plan copies.',
     acknowledge_temporary_sources:
       'create: true when media steps use temporary files (source_id src-…, an upload or import not retained), deleted 30 minutes after they started; the plan then records and shows their deadline. Without it such a plan is refused.',
     detail:
