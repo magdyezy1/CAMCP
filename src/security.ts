@@ -30,7 +30,8 @@ export function stable(value: unknown): string {
  * with the key names below (isSecretName). After `password` (a credential in a query, as it is under an object key)
  * come the signed-URL parameters of the object
  * stores and CDNs that providers link to (AWS, Google Cloud, TikTok's CDN and CloudFront), which carry the same secrets
- * as `signature`.
+ * as `signature`. `ticket` (R2.5 M1, L1-02) is the one of TikTok's advertiser licence link: a credential to that document.
+ * It is a parameter name only, like `token` and `key`: an ordinary property called `ticket` is not a secret.
  */
 const secretParameters = new Set([
   'access_token',
@@ -53,6 +54,7 @@ const secretParameters = new Set([
   'x-goog-credential',
   'policy',
   'key-pair-id',
+  'ticket',
 ]);
 /**
  * The names whose values redact() hides under an object key, and so also inside JSON text: `{"api_key":"..."}` in a
