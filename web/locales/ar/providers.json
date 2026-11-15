@@ -2560,6 +2560,7 @@
   "Snapchat products change only through product feeds; retire them in the feed.": "لا تتغير منتجات Snapchat إلا عبر خلاصات المنتجات؛ أوقفها في الخلاصة.",
   "Snapchat refused the parent read.": "رفضت Snapchat قراءة العناصر الأم.",
   "Snapchat repeated a continuation cursor while listing the campaigns of this account, so the list cannot be proven complete.": "كرر Snapchat مؤشر متابعة أثناء سرد حملات هذا الحساب، فلا يمكن إثبات اكتمال القائمة.",
+  "Snapchat reported a swipe-up window of {swipe} and a view window of {view}, not the {requestedSwipe} and {requestedView} requested. Capture again with swipe_up_attribution_window {swipe} and view_attribution_window {view} to match it.": "أبلغ Snapchat عن نافذة إسناد بعد السحب مقدارها {swipe} ونافذة إسناد بعد المشاهدة مقدارها {view}، وليس {requestedSwipe} و{requestedView} كما طُلب. أعد الالتقاط مع swipe_up_attribution_window بالقيمة {swipe} وview_attribution_window بالقيمة {view} لمطابقتها.",
   "Snapchat requires FIRST_NAME and LAST_NAME fields.": "يتطلب Snapchat الحقلين FIRST_NAME وLAST_NAME.",
   "Snapchat requires an EMAIL or PHONE_NUMBER field.": "يتطلب Snapchat حقل EMAIL أو PHONE_NUMBER.",
   "Snapchat returned a malformed product row.": "أرجع Snapchat صف منتج غير سليم.",

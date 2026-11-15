@@ -380,8 +380,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package mcp-surface (V2-MCP-06) owns one more: the MEDIA_REVIEW_REQUIRED refusal of src/media-routing.ts, which a native
   // upload answers under the v2 contract profile: 1,639.
   // Package r25-m0-live (Round 2.5, item 1) owns two more: the date and date-order refusals of dateRange for a guided
-  // capture's window (src/workflows.ts, templates that name the semantics key): 1,641.
-  assert.equal(owned.size, 1641);
+  // capture's window (src/workflows.ts, templates that name the semantics key): 1,641. Its item 5 owns one more: the template of
+  // Snapchat's refusal of attribution windows it did not use, which names the windows it did (src/snapchat-evidence.ts; the earlier
+  // sentence is kept for a window outside the closed sets, and is raised through bad()): 1,642.
+  assert.equal(owned.size, 1642);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -479,8 +481,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // semantics.complete (TikTok and Snapchat; raised through bad(), so no owned reason changes): 12,114 + 2 = 12,116. Its item 3
   // adds the Arabic of LinkedIn's remedy for an empty analytics answer (src/linkedin-remedies.ts): 12,117. Its item 4 rewords
   // Microsoft's refusal of a payload AccountId that is not the call's account_id (the owned reason is replaced one for one, the
-  // old entry leaves the catalogue) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118.
-  assert.equal(Object.keys(catalog).length, 12118);
+  // old entry leaves the catalogue) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118. Its
+  // item 5 adds the Arabic of the Snapchat template that names the windows Snapchat used: 12,119.
+  assert.equal(Object.keys(catalog).length, 12119);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

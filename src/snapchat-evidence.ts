@@ -102,6 +102,41 @@ export function snapchatNextCursor(data: JsonObject, path: string, query: JsonOb
   return next.token;
 }
 
+/**
+ * The attribution windows a guided Snapchat capture can ask for (the closed sets of the guided presets,
+ * src/snapchat-guided-reports.ts). A refusal names a window only when it is one of these, so it never echoes text the
+ * provider chose and every value it names is one the agent can send back.
+ */
+const swipeWindows: readonly unknown[] = ['1_DAY', '7_DAY', '28_DAY'];
+const viewWindows: readonly unknown[] = ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'];
+/**
+ * The refusal of a stats read that used other attribution windows than the request (R25 M0, owner 2026-11-15, error 13 of
+ * the live checks): it names the swipe-up and view windows Snapchat used and the ones asked for, so the agent can ask for
+ * the pair Snapchat used. A window outside the closed sets, or none, keeps the earlier sentence and names no value.
+ */
+function attributionRefusal(stat: JsonObject, query: JsonObject): never {
+  const returned = {swipe: stat.swipe_up_attribution_window, view: stat.view_attribution_window},
+    requested = {swipe: query.swipe_up_attribution_window, view: query.view_attribution_window};
+  if (
+    swipeWindows.includes(returned.swipe) &&
+    viewWindows.includes(returned.view) &&
+    swipeWindows.includes(requested.swipe) &&
+    viewWindows.includes(requested.view)
+  )
+    throw new MirrorError(
+      'REPORT_SEMANTICS_MISMATCH',
+      'Snapchat reported a swipe-up window of {swipe} and a view window of {view}, not the {requestedSwipe} and {requestedView} requested. Capture again with swipe_up_attribution_window {swipe} and view_attribution_window {view} to match it.',
+      {
+        requested: {swipe_up_attribution_window: requested.swipe, view_attribution_window: requested.view},
+        returned: {swipe_up_attribution_window: returned.swipe, view_attribution_window: returned.view},
+      },
+      400,
+      false,
+      {swipe: returned.swipe, view: returned.view, requestedSwipe: requested.swipe, requestedView: requested.view},
+    );
+  return bad('Snapchat returned different attribution settings.', 'REPORT_SEMANTICS_MISMATCH');
+}
+
 /** What the evidence keeps of a parent campaign: its name and its objective (the v2 value when the campaign has one). */
 export function campaignFacts(campaign: JsonObject): JsonObject {
   const objective = campaign.objective_v2_properties?.objective_v2_type ?? campaign.objective;
@@ -295,9 +330,11 @@ export async function collectSnapchatEvidence(
       instant(stat.end_time) !== through
     )
       bad('Snapchat returned a different reporting window or grain.', 'REPORT_DATE_MISMATCH');
-    for (const key of nativeLeads ? [] : ['swipe_up_attribution_window', 'view_attribution_window'])
-      if (stat[key] !== args.query[key])
-        bad('Snapchat returned different attribution settings.', 'REPORT_SEMANTICS_MISMATCH');
+    if (
+      !nativeLeads &&
+      ['swipe_up_attribution_window', 'view_attribution_window'].some(key => stat[key] !== args.query[key])
+    )
+      attributionRefusal(stat, args.query);
     for (const key of nativeLeads ? [] : ['action_report_time', 'conversion_source_types'])
       if (stat[key] !== undefined && stat[key] !== args.query[key])
         bad('Snapchat returned a different conversion definition.', 'REPORT_SEMANTICS_MISMATCH');
