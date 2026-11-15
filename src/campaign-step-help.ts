@@ -13,6 +13,70 @@ const obj = (x: unknown): x is JsonObject => !!x && typeof x === 'object' && !Ar
 export const stepShape =
   '. Each step is {"id","kind":"write","gateway","connection_id","account_id","arguments":{"action","payload"},"depends_on":[earlier ids]}; later steps use results as {"$ref":"<step id>#/data/<JSON pointer>"}.';
 
+/** The note of the steps argument in the help of create: the shape of a step, and where its worked example is. */
+export const stepsNote =
+  'create: 1–50 explicit steps, in order' +
+  stepShape +
+  ' A media step has no gateway: its arguments are the amcp_media prepare inputs and its platform names the gateway. help create returns a worked example (worked_example).';
+
+/** The call that returns the worked example: where every refusal of create that a caller can correct points. */
+export const createHelpCall = {tool: 'amcp_campaign', arguments: {action: 'help', topic: 'create'}};
+
+/**
+ * A worked example of a plan for amcp_campaign help create: a campaign, then an ad group that waits for it and takes its
+ * new ID from its verified result. It names no provider, because a step sends what its provider documents (shared help may
+ * name none): the parts only a workspace can know are placeholders in angle brackets, each declared with what it stands for.
+ * With every placeholder given its real value it is a plan create accepts (tests/campaign-step-help.test.mjs runs it).
+ */
+export const planExample: JsonObject = {
+  tool: 'amcp_campaign',
+  arguments: {
+    action: 'create',
+    name: 'Spring launch',
+    steps: [
+      {
+        id: 'campaign',
+        kind: 'write',
+        gateway: '<gateway>',
+        connection_id: '<connection_id>',
+        account_id: '<account_id>',
+        description: 'Create the paused campaign',
+        arguments: {action: '<campaign create action>', payload: {name: '<campaign name>'}},
+      },
+      {
+        id: 'ad_group',
+        kind: 'write',
+        gateway: '<gateway>',
+        connection_id: '<connection_id>',
+        account_id: '<account_id>',
+        description: 'Create the paused ad group under the new campaign',
+        depends_on: ['campaign'],
+        arguments: {
+          action: '<ad group create action>',
+          payload: {campaign_id: {$ref: 'campaign#/data/id'}, name: '<ad group name>'},
+        },
+      },
+    ],
+  },
+  placeholders: {
+    '<gateway>': 'The native gateway of the account; amcp_tool_help without arguments lists them.',
+    '<connection_id>':
+      'The connection that holds the login of that account; amcp_workspace capabilities lists it beside the account.',
+    '<account_id>': 'The account the step writes to, written the way its gateway takes it.',
+    '<campaign create action>':
+      'The native action that creates a campaign; amcp_tool_help with the gateway lists its actions.',
+    '<ad group create action>': 'The native action that creates an ad group, ad set or ad squad of that gateway.',
+    '<campaign name>': 'The name of the campaign, in the native field its create action takes.',
+    '<ad group name>': 'The name of the ad group, in the native field its create action takes.',
+  },
+  notes: [
+    'A step is a native write (kind "write": the gateway, connection_id and account_id of the account, and the native tool input in arguments) or a media upload (kind "media": no gateway, the amcp_media prepare inputs in arguments).',
+    'depends_on lists the ids of earlier steps. A later step takes a value from one of them as {"$ref":"<step id>#/data/<JSON pointer>"}: the pointer reads that step’s verified result, where data is the provider’s response (get with step_id shows it), so the pointer to a new ID is where that provider puts it.',
+    'brief is optional and defaults to name. gateway and account_id belong inside each step, not at the top level of create.',
+    'create saves a draft plan and sends nothing to a provider: each step is its own reviewed write once the plan is approved (approve, then run; or prepare_next and execute_next one step at a time).',
+  ],
+};
+
 /**
  * A value that may be repeated in a refusal: a short plain identifier (a gateway, a connection or an account), never free
  * text. The response of a refusal is logged and audited, and an identifier is not a secret; arguments are never repeated.

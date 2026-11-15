@@ -76,7 +76,7 @@ import {
   writer,
   type ToolCall,
 } from './workspace-core.js';
-import {correctedStep, stepShape, topLevelMoves} from './campaign-step-help.js';
+import {correctedStep, createHelpCall, stepShape, topLevelMoves} from './campaign-step-help.js';
 import {visibleProfile} from './client-scope.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 export const campaignTool = tool(
@@ -1810,6 +1810,8 @@ export class CampaignRunner {
         bad(moved ? message + ' ' + moved.message : message, 'INVALID_ARGUMENT', {
           ...details,
           ...(moved ? {move: moved.move} : {}),
+          // The help that has the worked example of a plan.
+          help_call: createHelpCall,
         });
     if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 100)
       refuse('Provide a campaign name of 1–100 characters; brief is optional and defaults to the name.');

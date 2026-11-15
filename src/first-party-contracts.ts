@@ -2,6 +2,7 @@ import {Ajv} from 'ajv';
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {operationStates} from './operation-types.js';
+import {stepsNote} from './campaign-step-help.js';
 
 /**
  * The per-action contracts of AMCP's own tools (MCP-07): what each action of amcp_workspace, amcp_campaign,
@@ -1952,6 +1953,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
     ad_format: 'Meta only: the placement to preview.',
   },
   [C]: {
+    steps: stepsNote,
     brief:
       'create: optional, up to 12,000 characters, the purpose of the plan. Left out, it defaults to name (R2.5 T4, owner 2026-11-15); a brief that is sent is saved as sent. clone: optional; left out, it says which campaign the plan copies.',
     acknowledge_temporary_sources:
