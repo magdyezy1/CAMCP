@@ -14,7 +14,7 @@
 import type {Action, Catalog, CompiledRequest, Connection, Credentials, JsonObject, ToolDefinition} from './types.js';
 import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
-import type {ProviderErrorCandidate} from './provider-error-core.js';
+import type {ProviderErrorCandidate, ProviderErrorToken} from './provider-error-core.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
@@ -260,6 +260,13 @@ export interface ErrorEnvelope {
    * and drops what fails, so a hook cannot put free text into a message.
    */
   tokens?(body: unknown): readonly ProviderErrorCandidate[];
+  /**
+   * Whether the code and enum of a token row may be quoted in a message (the review's S2-1). A pattern closes a token's
+   * alphabet, not its meaning, so a provider whose codes are words of its own choosing (Google Ads' error families and
+   * enums) vouches for them against a schema AMCP vendors: the words stay in `details.provider_errors` whatever this says,
+   * and a message quotes them only when it says true. A provider whose codes are numbers needs none: a number is quoted.
+   */
+  quotable?(row: ProviderErrorToken): boolean;
   /**
    * The provider's own first sentence for the refusal (Google Ads' first error message, Meta's user message, TikTok's
    * message): third-party text, which `details.provider_message` keeps cleaned, clipped and marked untrusted, and no

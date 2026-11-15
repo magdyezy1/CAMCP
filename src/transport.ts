@@ -12,7 +12,6 @@ import {
   providerRequestId,
   type ProviderErrorClass,
 } from './provider-error-taxonomy.js';
-import {describeProviderErrors} from './provider-error-core.js';
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
@@ -789,7 +788,7 @@ export class NativeTransport {
     // G9 (Round 2.5, M0): the closed-set tokens of the provider's documented error shape, and its own first sentence.
     // The tokens go into the message (below) and `provider_errors`; the sentence goes only to `provider_message`, which
     // the envelope marks untrusted beside `upstream`: provider text is never part of a message.
-    const refusal = providerRefusal(plan.gateway, data);
+    const refusal = providerRefusal(plan.gateway, data, undefined, plan.body);
     const errorDetails = (c?: ProviderErrorClass) => ({
       upstream: redact(data),
       ...(refusal.text !== undefined ? {provider_message: refusal.text} : {}),
@@ -853,14 +852,14 @@ export class NativeTransport {
         code = c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
         retryable = c ? c.retryable : response.status === 429 || response.status >= 500;
       // With tokens the message is a template (so the website shows it in Arabic) filled with the tokens' words only.
-      throw refusal.errors.length
+      throw refusal.echo
         ? new MirrorError(
             code,
             'Platform returned HTTP {status}: {refusal}.',
             errorDetails(c),
             response.status,
             retryable,
-            {status: response.status, refusal: describeProviderErrors(refusal.errors)},
+            {status: response.status, refusal: refusal.echo},
           )
         : new MirrorError(
             code,
@@ -878,14 +877,14 @@ export class NativeTransport {
         const c = classify(true),
           status =
             c?.layer === 'credential' ? 401 : c?.layer === 'rate_limit' ? 429 : c?.layer === 'consent' ? 403 : 502;
-        throw refusal.errors.length
+        throw refusal.echo
           ? new MirrorError(
               c?.code ?? 'PLATFORM_ERROR',
               'Platform reported an unsuccessful result: {refusal}.',
               errorDetails(c),
               status,
               c?.retryable ?? false,
-              {refusal: describeProviderErrors(refusal.errors)},
+              {refusal: refusal.echo},
             )
           : new MirrorError(
               c?.code ?? 'PLATFORM_ERROR',

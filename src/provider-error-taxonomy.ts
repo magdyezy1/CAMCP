@@ -3,6 +3,7 @@ import {providerHooks} from './provider-hooks.js';
 import type {ErrorEnvelope} from './provider-adapter.js';
 import {redact} from './security.js';
 import {
+  describeProviderErrors,
   errorInteger,
   errorObject,
   errorToken,
@@ -111,14 +112,17 @@ export function providerErrorCode(gateway: string, body: unknown): string | numb
 /**
  * What a refusal says apart from its classification (G9, Round 2.5 M0): the rows of closed-set tokens its provider's wire
  * profile finds in the documented error shape (every token checked against its pattern here, whatever the hook returned:
- * `errors`), and the provider's own first sentence, redacted like `details.upstream`, cleaned and clipped (`text`). The
- * tokens may be echoed in a message; the sentence never is (src/errors.ts keeps provider text out of messages).
+ * `errors`), the part of them a message may quote (`echo`, the review's S2-1: numbers, words the provider's schema holds,
+ * places the `request` AMCP sent holds, and the operation's index; empty when nothing can be quoted), and the provider's own
+ * first sentence, redacted like `details.upstream`, cleaned and clipped (`text`). The sentence is never echoed (src/errors.ts
+ * keeps provider text out of messages), and the rows are marked untrusted with it.
  */
 export function providerRefusal(
   gateway: string,
   body: unknown,
   own: ErrorEnvelope | undefined = envelope(gateway),
-): {errors: ProviderErrorToken[]; text?: string} {
+  request?: unknown,
+): {errors: ProviderErrorToken[]; echo: string; text?: string} {
   // A hook that fails costs its own part of this decoration, never the refusal it decorates: the refusal is thrown
   // right after, and nothing here may replace it with a crash.
   const attempt = <T>(read: () => T): T | undefined => {
@@ -129,8 +133,16 @@ export function providerRefusal(
       }
     },
     sentence = attempt(() => own?.text?.(body)),
-    text = typeof sentence === 'string' ? attempt(() => providerMessageText(redact(sentence))) : undefined;
-  return {errors: providerErrorTokens(attempt(() => own?.tokens?.(body))), ...(text !== undefined ? {text} : {})};
+    text = typeof sentence === 'string' ? attempt(() => providerMessageText(redact(sentence))) : undefined,
+    errors = providerErrorTokens(attempt(() => own?.tokens?.(body))),
+    echo =
+      attempt(() =>
+        describeProviderErrors(errors, {
+          known: row => attempt(() => own?.quotable?.(row)) === true,
+          request,
+        }),
+      ) ?? '';
+  return {errors, echo, ...(text !== undefined ? {text} : {})};
 }
 
 /**

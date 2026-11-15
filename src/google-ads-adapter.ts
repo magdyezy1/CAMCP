@@ -39,6 +39,7 @@ import {
   extendGoogleAdsTool,
   googleAdsActionAliases,
   googleAdsActionVersion,
+  googleAdsContract,
   googleAdsCustomers,
   googleAdsRequestChange,
   googleAdsVersion,
@@ -50,7 +51,13 @@ import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
 // Wave 4c round 6 (w4c-arc6-tables): the Data Manager routes' origin, which its wire contract names.
 import {dataManagerOrigin} from './google-data-manager-routes.js';
-import {boundedWait, errorObject, errorToken, type ProviderErrorCandidate} from './provider-error-core.js';
+import {
+  boundedWait,
+  errorObject,
+  errorToken,
+  type ProviderErrorCandidate,
+  type ProviderErrorToken,
+} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
 import {
@@ -95,6 +102,41 @@ function googleErrorCode(body: unknown): string | number | undefined {
     }
   return errorToken(error.status);
 }
+/** An error family as its token spells it: assetGroupError is ASSET_GROUP_ERROR. */
+const googleErrorFamily = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+/**
+ * The error families and the family/enum pairs of the pinned ErrorCode schema of the version AMCP sends (the review's S2-1):
+ * the property names are the families and each lists its enums. Built once, the first time a refusal asks, from the vendored
+ * Discovery document; a missing schema leaves both sets empty, so nothing is quoted rather than anything.
+ */
+let googleKnownErrors: {families: ReadonlySet<string>; pairs: ReadonlySet<string>} | undefined;
+function googleErrorNames() {
+  if (!googleKnownErrors) {
+    const families = new Set<string>(),
+      pairs = new Set<string>(),
+      schema = errorObject(
+        errorObject(
+          errorObject(
+            errorObject(pinnedJson<JsonObject>('generated/vendor-routes.json').schemaComponents)[googleAdsContract],
+          ).schemas,
+        )['GoogleAdsGoogleads' + googleAdsVersion.toUpperCase() + 'Errors__ErrorCode'],
+      );
+    for (const [key, property] of Object.entries(errorObject(schema.properties))) {
+      const family = googleErrorFamily(key);
+      families.add(family);
+      for (const value of Array.isArray(errorObject(property).enum) ? errorObject(property).enum : [])
+        if (typeof value === 'string') pairs.add(family + '/' + value);
+    }
+    googleKnownErrors = {families, pairs};
+  }
+  return googleKnownErrors;
+}
+/** Whether Google's own schema holds the family and enum of a token row: only then may a message quote the words. */
+function googleErrorQuotable(row: ProviderErrorToken): boolean {
+  const {families, pairs} = googleErrorNames();
+  if (row.code === undefined || typeof row.code !== 'string') return false;
+  return row.enum === undefined ? families.has(row.code) : pairs.has(row.code + '/' + row.enum);
+}
 /** The errors of the GoogleAdsFailure details of a refusal (at most ten of ten, as googleErrorCode reads them). */
 function googleFailureErrors(body: unknown): Record<string, any>[] {
   const error = errorObject(errorObject(body).error),
@@ -121,7 +163,7 @@ function googleProviderErrors(body: unknown): ProviderErrorCandidate[] {
         .map(errorObject),
       first = elements[0];
     return {
-      code: family?.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase(),
+      code: family === undefined ? undefined : googleErrorFamily(family),
       enum: value,
       operation_index:
         first && /^(?:mutate_operations|mutateOperations|operations)$/.test(String(first.fieldName))
@@ -756,6 +798,7 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       code: googleErrorCode,
       classify: classifyGoogleError,
       tokens: googleProviderErrors,
+      quotable: googleErrorQuotable,
       text: googleProviderText,
     }),
   }),

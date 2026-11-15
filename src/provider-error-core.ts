@@ -70,24 +70,104 @@ export function providerMessageText(raw: unknown): string | undefined {
     .trim();
   return text || undefined;
 }
+/** The longest echo of a refusal's rows in a message: what the `{refusal}` slot holds, cut at a row boundary. */
+export const maxEchoLength = 160;
+const maxPathSegments = 8;
+const pathSegment = /^([A-Za-z][A-Za-z0-9_]{0,63})(?:\[(\d{1,7})\])?$/;
+/** A request's name for a field, with the case and the underscores that differ between a provider's proto name and its JSON. */
+const looseName = (name: string) => name.replace(/_/g, '').toLowerCase();
 /**
- * What a message says of a refusal's rows, from tokens only: the code and enum, then where (`at <field path>`, or the
- * operation when no path is known), the first `maxEchoedErrors` rows joined by "; ".
+ * A request value as the provider reads it: a string that holds a JSON object or list (Meta takes its object parameters as
+ * JSON text) is that object or list.
  */
-export function describeProviderErrors(rows: readonly ProviderErrorToken[]): string {
-  return rows
-    .slice(0, maxEchoedErrors)
-    .map(row => {
-      const what = [typeof row.code === 'number' ? 'code ' + row.code : row.code, row.enum].filter(Boolean).join(' '),
-        where =
-          row.field_path !== undefined
-            ? 'at ' + row.field_path
-            : row.operation_index !== undefined
-              ? 'at operation ' + row.operation_index
-              : '';
-      return [what, where].filter(Boolean).join(' ');
-    })
-    .join('; ');
+function opened(value: unknown): unknown {
+  if (typeof value !== 'string' || value.length > 1000000) return value;
+  const head = value.trimStart()[0];
+  if (head !== '{' && head !== '[') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+/**
+ * Whether the field path of a refusal is a place in the request AMCP sent (the review's S2-1): a path is the provider's
+ * choice of words, so it is quoted in a message only when the request holds it. At most eight segments, each a name of at
+ * most 64 characters with at most one list index; each is looked up among the request's own names without case or
+ * underscores (a provider's proto name against the JSON AMCP sent), through a parameter that holds JSON text. Only the last
+ * segment may be missing from the request, the field a refusal says it lacks, and only under a parent the request holds: a
+ * lone name the request never held is nothing to quote.
+ */
+export function fieldPathInRequest(path: string, request: unknown): boolean {
+  const segments = path.split('.');
+  if (segments.length > maxPathSegments) return false;
+  let node: unknown = request;
+  for (const [position, segment] of segments.entries()) {
+    const parts = pathSegment.exec(segment),
+      parent = opened(node),
+      lastBelowRoot = position === segments.length - 1 && position > 0;
+    if (!parts || !parent || typeof parent !== 'object' || Array.isArray(parent)) return false;
+    const [, name = '', listIndex] = parts,
+      key = Object.keys(parent).find(k => looseName(k) === looseName(name));
+    if (key === undefined) return lastBelowRoot;
+    node = (parent as Record<string, unknown>)[key];
+    if (listIndex !== undefined) {
+      const list = opened(node),
+        index = Number(listIndex);
+      if (!Array.isArray(list)) return false;
+      if (index >= list.length) return lastBelowRoot;
+      node = list[index];
+    }
+  }
+  return true;
+}
+/** What a refusal's provider and request can vouch for when a message quotes its rows. */
+export interface ProviderEcho {
+  /** Whether the provider's own schema holds this row's code and enum: words are the provider's choice, not AMCP's. */
+  readonly known?: (row: ProviderErrorToken) => boolean;
+  /** The request AMCP sent, in which the field paths of the rows are looked up. */
+  readonly request?: unknown;
+}
+/** One row as a message quotes it: its number, the words the provider vouches for, then the place or the operation. */
+function describeRow(row: ProviderErrorToken, echo: ProviderEcho): string {
+  const words = (typeof row.code === 'string' || row.enum !== undefined) && echo.known?.(row) === true,
+    what = [
+      typeof row.code === 'number' ? 'code ' + row.code : undefined,
+      words ? [row.code, row.enum].filter(Boolean).join(' ') : undefined,
+    ]
+      .filter(Boolean)
+      .join(' '),
+    operation = row.operation_index !== undefined ? 'at operation ' + row.operation_index : '',
+    place =
+      row.field_path !== undefined && echo.request !== undefined && fieldPathInRequest(row.field_path, echo.request)
+        ? 'at ' + row.field_path
+        : operation;
+  // A row too long with its place is quoted with its operation, and then with its words alone; never cut in the middle.
+  for (const parts of [[what, place], [what, operation], [what]]) {
+    const text = parts.filter(Boolean).join(' ');
+    if (text && text.length <= maxEchoLength) return text;
+  }
+  return '';
+}
+/**
+ * What a message says of a refusal's rows: only what AMCP can check against its own data (the review's S2-1). A number is
+ * quoted (Meta's and TikTok's codes); words are quoted when the provider's schema holds them (`echo.known`); a place when
+ * the request holds it (`fieldPathInRequest`), else the operation's index; whatever else the rows hold stays in the
+ * details, which the envelope marks untrusted. At most `maxEchoedErrors` rows, each once, and `maxEchoLength` characters,
+ * ending at a row boundary. Empty when nothing can be quoted: the message then keeps its old words.
+ */
+export function describeProviderErrors(rows: readonly ProviderErrorToken[], echo: ProviderEcho = {}): string {
+  const described: string[] = [];
+  let length = 0;
+  for (const row of rows) {
+    const text = describeRow(row, echo);
+    if (!text || described.includes(text)) continue;
+    const joined = length + (described.length ? 2 : 0) + text.length;
+    if (described.length >= maxEchoedErrors || joined > maxEchoLength) break;
+    described.push(text);
+    length = joined;
+  }
+  return described.join('; ');
 }
 export const errorMinute = 60000;
 /** A provider wait, between one second and one day. */

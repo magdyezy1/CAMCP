@@ -1195,13 +1195,16 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     SHEETS_PERMISSION_DENIED: 'Reconnect Google Sheets and select an editable spreadsheet.',
   };
   // Details that echo what a provider returned: the transport's error body, the provider's own first sentence of it
-  // (provider_message, G9), a validate-only response, and the schema errors of a provider response, whose values and
-  // property names come from it. Connection labels, which workspace members write, are marked the same way (MCP-09).
+  // (provider_message, G9) and the rows of tokens it chose (provider_errors: a pattern closes their alphabet, not their
+  // meaning, so a message quotes only the part AMCP can check), a validate-only response, and the schema errors of a
+  // provider response, whose values and property names come from it. Connection labels, which workspace members write, are
+  // marked the same way (MCP-09).
   const untrustedPaths = Object.keys(e.details)
     .filter(
       k =>
         k === 'upstream' ||
         k === 'provider_message' ||
+        k === 'provider_errors' ||
         k === 'response' ||
         (k === 'errors' && e.code === 'UPSTREAM_RESPONSE_INVALID') ||
         (k === 'candidates' && e.code === 'AMBIGUOUS_CONNECTION'),
