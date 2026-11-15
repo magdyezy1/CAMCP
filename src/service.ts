@@ -36,7 +36,7 @@ import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {ownToolHelp, surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
 import {toolPresentation} from './tool-annotations.js';
-import {currentContractProfile, isClientCall} from './contract-profile.js';
+import {currentContractProfile, isClientCall, withContractProfile} from './contract-profile.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -674,7 +674,18 @@ export class MirrorService {
           start,
           tool,
         );
-      return this.wrap(await this.runPlan(plan, sent, actor, requestId), requestId, start, tool);
+      // The contract profile knows the client's own call by the identity of its arguments object (isClientCall), and the copy
+      // an alias is run as is another object: the call runs in a scope that names the copy as the client's, so that a v2
+      // client is answered through an alias exactly as through the canonical name (the review's S3-1).
+      const run = () => this.runPlan(plan, sent, actor, requestId);
+      return this.wrap(
+        await (sent !== input && isClientCall(input)
+          ? withContractProfile(currentContractProfile(), run, sent)
+          : run()),
+        requestId,
+        start,
+        tool,
+      );
     } catch (e) {
       failed = true;
       // A genuine SQLite capacity or contention failure becomes its AMCP refusal (OPS-02), not INTERNAL_ERROR.

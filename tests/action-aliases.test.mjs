@@ -6,6 +6,7 @@ import {Introspection} from '../dist/src/introspection.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService, strictOptions} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {withContractProfile} from '../dist/src/contract-profile.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -376,6 +377,39 @@ test('a read through a near-miss name answers as its canonical name does and war
     // The canonical name draws no warning.
     assert.deepEqual(aliasWarnings(exact), []);
     assert.equal(exact.meta.argument_warnings, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+// The review's S3-1: the contract profile recognises a client's own call by the identity of its arguments object, and the
+// copy a near-miss name is run as is another object, so a v2 client was answered in the legacy shape through an alias.
+test('under the v2 contract profile a read through a near-miss name is answered exactly as its canonical name is', async () => {
+  const f = fixture();
+  try {
+    f.campaigns.set('100', {...f.campaigns.get('100'), budget: null});
+    // As the MCP layer makes a client's call: in the client's profile, naming the arguments of the call as its own.
+    const ask = (profile, name) => {
+      const args = {action: name, account_id: account, params: {page_size: 10}};
+      return withContractProfile(profile, () => f.call(TIKTOK, args), args);
+    };
+    const exact = await ask('v2', 'tiktok_campaign_get'),
+      near = await ask('v2', 'campaign_get');
+    assert.equal(near.success, true, JSON.stringify(near));
+    // The premise: v2 compacts the rows of a list, so the null a row carries is left out of the canonical answer.
+    assert.equal(JSON.stringify(exact.data).includes('"budget"'), false, JSON.stringify(exact.data));
+    assert.deepEqual(near.data, exact.data);
+    assert.equal(aliasWarnings(near)[0]?.canonical, 'tiktok_campaign_get');
+    // Legacy keeps the null, through either name, as before.
+    const legacyExact = await ask('legacy', 'tiktok_campaign_get'),
+      legacyNear = await ask('legacy', 'campaign_get');
+    assert.equal(JSON.stringify(legacyExact.data).includes('"budget":null'), true);
+    assert.deepEqual(legacyNear.data, legacyExact.data);
+    // A call that is not the client's own, made inside its profile (what a workflow makes), is not compacted for an alias either.
+    const made = await withContractProfile('v2', () =>
+      f.call(TIKTOK, {action: 'campaign_get', account_id: account, params: {page_size: 10}}),
+    );
+    assert.deepEqual(made.data, legacyExact.data);
   } finally {
     f.store.close();
   }
