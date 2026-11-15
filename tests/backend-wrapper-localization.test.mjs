@@ -418,7 +418,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m0-errors (Round 2.5, M0: LEAD-01) adds the Arabic of the five messages that name why a capability selection
   // left nothing to describe, and of four of their five next steps (the fifth is CONNECTION_REQUIRED's, already translated):
   // measured (node tools/check-locales.mjs: catalog_messages 12121), 12,112 + 9 = 12,121.
-  assert.equal(Object.keys(catalog).length, 12121);
+  // Its LEAD-03 adds the Arabic of the health refusal and of its next step: measured (catalog_messages 12123), 12,121 + 2.
+  assert.equal(Object.keys(catalog).length, 12123);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

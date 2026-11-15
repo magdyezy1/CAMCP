@@ -107,7 +107,9 @@ test('an administrator sees connection status and queue depth, and nothing that 
     ]);
     assert.equal(JSON.stringify(admin).includes('Client name'), false);
     const member = await f.call('health', roles.member!);
-    assert.match(member.error.message, /Administrators see connection status and job queues/);
+    // LEAD-03 (package r25-m0-errors): the sentence that said "Administrators see ... ask one of them or the owner" is
+    // replaced by the rule itself (tests/owner-health-refusal.test.mjs pins the whole text).
+    assert.match(member.error.message, /and an administrator its connection status and job queues/);
   } finally {
     f.store.close();
   }

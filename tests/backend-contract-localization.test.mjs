@@ -381,7 +381,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // with this test's own inspector, 1,633 + 3 + 2 = 1,638.
   // Package mcp-surface (V2-MCP-06) owns one more: the MEDIA_REVIEW_REQUIRED refusal of src/media-routing.ts, which a native
   // upload answers under the v2 contract profile: 1,639.
-  assert.equal(owned.size, 1639);
+  // Package r25-m0-errors (Round 2.5, M0: LEAD-03) owns one more: the OWNER_REQUIRED refusal of workspace health in
+  // src/spend-policy.ts, now a sentence of its own that states the rule (it was built from a template and a tail): 1,640.
+  assert.equal(owned.size, 1640);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -477,7 +479,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m0-errors (Round 2.5, M0: LEAD-01) adds the Arabic of the five messages that name why a capability selection
   // left nothing to describe, and of four of their five next steps (the fifth is CONNECTION_REQUIRED's, already translated):
   // measured (node tools/check-locales.mjs: catalog_messages 12121), 12,112 + 9 = 12,121.
-  assert.equal(Object.keys(catalog).length, 12121);
+  // Its LEAD-03 adds the Arabic of the health refusal and of its next step: measured (catalog_messages 12123), 12,121 + 2.
+  assert.equal(Object.keys(catalog).length, 12123);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -447,6 +447,17 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Wait for the active media lease. Use amcp_media recovery with the original review_id; resume only when resume_available is true and continuation is confirmed. Do not allocate a replacement or change the idempotency key.',
       mutation_retry_safe: false,
     };
+  // LEAD-03 (Round 2.5, owner 2026-11-15): health refused to a member below administrator, or to an AI client connection
+  // (operator or reader only): the owner's view is on the website, and what a session can read is capabilities and check.
+  // A reviewer test account's refusal carries no required_role, so it keeps the generic advice below.
+  if (e.code === 'OWNER_REQUIRED' && e.details.required_role === 'owner or administrator')
+    return {
+      category: 'permission',
+      owner: 'workspace_owner',
+      action:
+        'Nothing in the request changes this. The workspace owner reads the health on the website at /settings (Review friction and the workspace health); from an AI client, amcp_workspace capabilities shows each account’s readiness and blockers, and amcp_workspace check one account’s prerequisites.',
+      mutation_retry_safe: false,
+    };
   // Nothing in the request can change who may do this (Snapchat S7): the way forward is the person who can.
   if (e.code === 'OWNER_REQUIRED')
     return {
