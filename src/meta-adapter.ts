@@ -236,8 +236,16 @@ const metaCompile: CompileHooks = Object.freeze({
  * takes Meta's post workflow; its captured actions take their documented overrides; it documents rule update and
  * delete beyond the captured catalog, which maps only creation (src/meta-ad-rules.ts).
  */
+/**
+ * Meta's curated spelling (T7; the lead's decision (b) of the review, 2026-11-15): the ad account's read named without its
+ * path-parameter word, which no generic rule produces. One read, one action; the generator holds it to its own rules (unique, no
+ * exact name, a read only).
+ */
+const metaActionAliases = (a: Action): readonly string[] =>
+  (a.canonical_name || a.name) === 'meta_ad_account_id_get' ? ['meta_ad_account_get'] : [];
 const metaCatalog: CatalogHooks = Object.freeze({
   tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
+  aliases: metaActionAliases,
   action: metaActionOverride,
   supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
   // Its captured catalog is read at the Graph API version AMCP sends (src/catalog-versions.ts).

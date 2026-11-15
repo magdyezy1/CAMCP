@@ -174,6 +174,47 @@ test('compiling a near-miss name gives the very request its canonical name does'
   }
 });
 
+// Decision (b) of the lead's review, 2026-11-15: two curated read-only spellings that no rule can produce, because one drops
+// a path-parameter word and the other is a synonym. Each is the provider's own hook entry, held to the generator's rules.
+test('meta_ad_account_get and snapchat_adaccount_get resolve to their ad-account reads, with the deprecation warning', async () => {
+  const f = fixture();
+  try {
+    for (const [gateway, near, canonical, input] of [
+      [META, 'meta_ad_account_get', 'meta_ad_account_id_get', {ad_account_id: '123'}],
+      [SNAPCHAT, 'snapchat_adaccount_get', 'snapchat_adaccounts_ad_account_id_get', {ad_account_id: '123'}],
+    ]) {
+      const resolved = registry.resolveAction(gateway, near);
+      assert.equal(resolved.alias?.canonical, canonical, near);
+      // A read: the very action its canonical name reaches, a GET that the captured catalog and the ledger both classify so.
+      assert.equal(resolved.action, registry.action(gateway, canonical), near);
+      assert.equal(resolved.action.read_only, true, near);
+      assert.equal(resolved.action.method, 'GET', near);
+      assert.equal(ledger.get(gateway + '/' + canonical), 'native_read', near);
+      assert.equal(registry.actionAliases(gateway).ambiguous.has(near), false, near);
+      // It compiles to the very read its canonical name does.
+      const compiled = compiler.compile(gateway, {...input, action: near}, strictOptions);
+      assert.deepEqual(compiled, compiler.compile(gateway, {...input, action: canonical}, strictOptions), near);
+      assert.equal(compiled.readOnly, true, near);
+      // The call that names it carries the warning that names the canonical action, and the canonical name carries none.
+      const preview = await f.call(gateway, {...input, action: near, dry_run: true}),
+        exact = await f.call(gateway, {...input, action: canonical, dry_run: true});
+      assert.equal(preview.success, true, JSON.stringify(preview));
+      assert.equal(preview.data.action, canonical, near);
+      assert.equal(aliasWarnings(preview)[0]?.used, near);
+      assert.equal(aliasWarnings(preview)[0]?.canonical, canonical);
+      assert.deepEqual(aliasWarnings(exact), []);
+      // It is no listing's: not an enum value, not a name any other lookup offers.
+      assert.equal(registry.action(gateway, near), undefined, near);
+    }
+    // Nothing near them became an alias: the typo of one is refused, and the two writes beside the Meta read are not reached.
+    assert.equal(registry.resolveAction(META, 'meta_ad_account_gett').action, undefined);
+    assert.equal(registry.resolveAction(SNAPCHAT, 'snapchat_adaccount_gett').action, undefined);
+    assert.equal(registry.resolveAction(META, 'meta_ad_account_create').alias, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a write alias compiles to a write that reads nothing, and no read alias compiles to one', () => {
   const write = compiler.compile(
     TIKTOK,
@@ -221,6 +262,11 @@ const prefixes = {
   linkedin_native_action: 'linkedin_',
   x_ads_native_action: 'x_',
   [GOOGLE]: 'google_ads_v23_',
+};
+/** The spellings no rule produces, which a provider's hook adds by decision (the lead's review, 2026-11-15): nothing else is exempt. */
+const curated = {
+  [META]: {meta_ad_account_get: 'meta_ad_account_id_get'},
+  [SNAPCHAT]: {snapchat_adaccount_get: 'snapchat_adaccounts_ad_account_id_get'},
 };
 function structuralForms(name, prefix, read) {
   const bases = new Set([name]);
@@ -336,7 +382,10 @@ test('across the gateways no alias collides with a name, leads to a write by a r
             forms.add('google_ads_v25_' + k.slice(prefix.length));
             forms.add('google_ads_' + k.slice(prefix.length));
           }
-      assert.ok(forms.has(spelling), gateway + ' ' + spelling + ' is not a form of ' + keys.join(' | '));
+      assert.ok(
+        forms.has(spelling) || curated[gateway]?.[spelling] === entry.canonical,
+        gateway + ' ' + spelling + ' is not a form of ' + keys.join(' | '),
+      );
     }
   }
   assert.ok(total > 3000, 'aliases generated: ' + total);
