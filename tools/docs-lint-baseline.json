@@ -316,10 +316,16 @@
       "raised": [
         "reference_words 161322 → 161328"
       ]
+    },
+    {
+      "reason": "Package r25-m0-review (Round 2.5 M0, the lead's review fixes S2-1 and S2-2): +251 reference words, recorded in one step on its own branch (161328 -> 161579): docs/ADDING-A-REVIEWED-FAMILY.md says when a family declares what its write does (operation), how a provider declares it once for its families, and that a ledger sweep checks every route the review accepts. The merged count is the measured one.",
+      "raised": [
+        "reference_words 161328 → 161579"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161328
+    "reference_words": 161579
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
