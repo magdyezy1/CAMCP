@@ -1804,12 +1804,13 @@ export class CampaignRunner {
   private createPlan({input, actor}: CampaignCall): JsonObject {
     const origin = this.origins.get(input);
     // A gateway, account or connection beside the name, where each step takes its own, is the mistake the White Friday
-    // agent made first: the refusals a caller can correct say so and name where each one goes (R2.5 T4).
+    // agent made first: the refusals a caller can correct say so and name where each one goes (R2.5 T4), in details.hint and
+    // details.move, beside a message that stays one sentence the website can show in Arabic (R2.5 S3-3).
     const moved = topLevelMoves(input),
       refuse = (message: string, details: JsonObject = {}): never =>
-        bad(moved ? message + ' ' + moved.message : message, 'INVALID_ARGUMENT', {
+        bad(message, 'INVALID_ARGUMENT', {
           ...details,
-          ...(moved ? {move: moved.move} : {}),
+          ...(moved ? {hint: moved.hint, move: moved.move} : {}),
           // The help that has the worked example of a plan.
           help_call: createHelpCall,
         });

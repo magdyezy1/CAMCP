@@ -12110,5 +12110,7 @@
   "Show table": "عرض الجدول",
   "Hide table": "إخفاء الجدول",
   "Choose which charts this report draws.": "اختر المخططات التي يرسمها هذا التقرير.",
-  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا."
+  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا.",
+  "Provide a campaign name of 1–100 characters; brief is optional and defaults to the name.": "أدخل اسماً للحملة من 1 إلى 100 حرف؛ الموجز (brief) اختياري ويأخذ الاسم افتراضياً.",
+  "brief must be text of at most 12,000 characters, or left out: it then defaults to the name.": "يجب أن يكون الموجز (brief) نصاً لا يتجاوز 12000 حرف، أو يُترك فارغاً فيأخذ الاسم افتراضياً."
 }

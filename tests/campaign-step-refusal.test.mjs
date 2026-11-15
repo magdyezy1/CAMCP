@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {CONNECTION, fill, harness, placeholdersOf, step} from './helpers/campaign-step-fixture.mjs';
 
@@ -89,6 +90,29 @@ test('an identifier that is not plain text is replaced by its placeholder in the
   assert.equal(example.gateway, '<gateway>');
   assert.equal(example.connection_id, '<connection_id>');
   assert.ok(!JSON.stringify(refused.error.details).includes('Ignore the review'));
+});
+
+// S3-3 (the lead's review of this package): the website calls create from its plan form and its creative push, so a person
+// can read what create refuses with. A sentence the website shows needs its Arabic in the same commit that adds it, and a
+// message that carries another sentence behind it has no key to look up: the sentence about the top level of create is
+// therefore in details.hint, and each message is one sentence the catalogue holds.
+test('each sentence a refusal of create says as its message has its Arabic', async t => {
+  const f = harness(t),
+    ar = JSON.parse(readFileSync(new URL('../web/locales/ar.json', import.meta.url), 'utf8'));
+  const refusals = [
+    await f.call({action: 'create', name: ' ', steps: [step()]}),
+    await f.call({action: 'create', name: 'Synthetic plan', brief: 7, steps: [step()]}),
+    // The same refusals with a gateway at the top level of create: the message is the same sentence, with the hint beside it.
+    await f.call({action: 'create', name: ' ', gateway: 'meta_native_action', steps: [step()]}),
+    await f.call({action: 'create', name: 'Synthetic plan', brief: 7, account_id: '123', steps: [step()]}),
+  ];
+  for (const refused of refusals) {
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.match(ar[refused.error.message] ?? '', /[؀-ۿ]/, 'no Arabic for: ' + refused.error.message);
+  }
+  assert.equal(refusals[0].error.message, refusals[2].error.message);
+  assert.equal(refusals[1].error.message, refusals[3].error.message);
+  assert.ok(refusals[2].error.details.hint && !refusals[0].error.details.hint);
 });
 
 // S4-7 (the lead's review of this package): the corrected step repeated any value that looked like a plain identifier, so a
@@ -224,10 +248,13 @@ test('gateway and account_id at the top level of create are named, with the path
     steps: [{id: 'campaign', kind: 'write', arguments: {action: 'meta_campaign_create', payload: {}}}],
   });
   assertRefused(refused, 'INVALID_ARGUMENT');
-  assert.match(refused.error.message, /gateway and account_id/);
-  assert.match(refused.error.message, /steps\[\]\.gateway/);
-  assert.match(refused.error.message, /steps\[\]\.account_id/);
-  assert.match(refused.error.message, /top level/);
+  // The sentence that says so is in details.hint, and the message stays one sentence a person can read in Arabic (S3-3).
+  const hint = refused.error.details.hint;
+  assert.match(hint, /gateway and account_id/);
+  assert.match(hint, /steps\[\]\.gateway/);
+  assert.match(hint, /steps\[\]\.account_id/);
+  assert.match(hint, /top level/);
+  assert.doesNotMatch(refused.error.message, /top level/);
   assert.deepEqual(refused.error.details.move, [
     {from: 'gateway', to: 'steps[].gateway'},
     {from: 'account_id', to: 'steps[].account_id'},
@@ -257,7 +284,7 @@ test('a connection_id at the top level is the same mistake, and one name is name
   assertRefused(refused, 'INVALID_ARGUMENT');
   assert.deepEqual(refused.error.details.move, [{from: 'connection_id', to: 'steps[].connection_id'}]);
   assert.equal(refused.error.details.example.connection_id, CONNECTION);
-  assert.match(refused.error.message, /Move connection_id into each step/);
+  assert.match(refused.error.details.hint, /Move connection_id into each step/);
 });
 
 test('the top-level hint reaches the refusals that come before any step, and only when it is the mistake made', async t => {
@@ -271,13 +298,15 @@ test('the top-level hint reaches the refusals that come before any step, and onl
     const refused = await f.call({action: 'create', ...input});
     assertRefused(refused, 'INVALID_ARGUMENT');
     assert.ok(refused.error.details.move?.length >= 1, label + ' names what to move');
-    assert.match(refused.error.message, /top level/, label);
+    assert.match(refused.error.details.hint, /top level/, label);
+    assert.doesNotMatch(refused.error.message, /top level/, label);
   }
   // Without gateway, account_id or connection_id at the top level a refusal is as it was: no hint, no move.
   for (const steps of [[step('a', {connection_id: undefined})], []]) {
     const plain = await f.call({action: 'create', name: 'Synthetic plan', steps});
     assertRefused(plain, 'INVALID_ARGUMENT');
     assert.equal(plain.error.details?.move, undefined);
+    assert.equal(plain.error.details?.hint, undefined);
     assert.doesNotMatch(plain.error.message, /top level/);
   }
   // A plan that is valid is created as before, whatever else sits at the top level.

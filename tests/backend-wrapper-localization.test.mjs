@@ -415,7 +415,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge E, with linkedin-windows (12,107 on its own base) and Merge D's head (12,103): measured on the merged catalogue
   // (node tools/check-locales.mjs: catalog_messages 12112; a key by key three-way merge finds no clash and no key added by both),
   // 12,103 + 9 = 12,112. The owner approved moving this pin for this package (2026-11-14).
-  assert.equal(Object.keys(catalog).length, 12112);
+  // Package r25-m0-review (S3-3, the lead's review of 2026-11-15): +2 entries, the Arabic of the two sentences amcp_campaign create
+  // refuses a name or a brief with, which the website's plan form shows; measured (node tools/check-locales.mjs: catalog_messages
+  // 12114), 12,112 + 2 = 12,114.
+  assert.equal(Object.keys(catalog).length, 12114);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

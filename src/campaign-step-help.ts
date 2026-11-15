@@ -126,14 +126,16 @@ const stepFields = ['gateway', 'account_id', 'connection_id'];
 /**
  * The fields a caller put at the top level of create that belong inside each step (the White Friday mistake: gateway and
  * account_id beside the name, the steps without them), with the sentence that says so and where each one goes; undefined
- * when none of them is there. Only the names are repeated, never their values.
+ * when none of them is there. Only the names are repeated, never their values. The sentence is the refusal's `details.hint`,
+ * beside its message and not behind it: the message stays one sentence the website can show in Arabic (R2.5 S3-3), and a
+ * sentence built from the names that were given has no single form to look up.
  */
-export function topLevelMoves(input: JsonObject): {message: string; move: JsonObject[]} | undefined {
+export function topLevelMoves(input: JsonObject): {hint: string; move: JsonObject[]} | undefined {
   const names = stepFields.filter(k => input[k] !== undefined);
   if (!names.length) return undefined;
   const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0];
   return {
-    message:
+    hint:
       'Move ' +
       list +
       ' into each step (' +
