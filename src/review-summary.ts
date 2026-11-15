@@ -2,6 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import {budgetUnits, currencyMinorDigits} from './budget-units.js';
 import {stateTarget} from './write-effects.js';
 import {providerOf} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 
 /**
  * A one-line, server-authored summary of a reviewed write (WRT-05 Stage E), shown above the exact native table, which
@@ -96,6 +97,20 @@ function createdThing(segments: string[]): {noun?: string} | undefined {
   const named = /^create-([^/]+)$/i.exec(last) ?? /:create_([^/:]+)$/i.exec(last);
   return named ? {noun: named[1]} : undefined;
 }
+/**
+ * Whether a POST writes into the collection directly under the account its provider declares for the reads of such a
+ * create (LinkedIn's …/adAccounts/1/adCampaigns, X's …/accounts/1/promoted_tweets, Snapchat's …/adaccounts/1/media),
+ * whatever the collection is called: the shape the review's own state reads call a collection create, since they read the
+ * account for it (src/write-snapshots.ts). The account itself and a member of a collection are not under it.
+ */
+function underAccount(plan: CompiledRequest): boolean {
+  const account = providerHooks(plan.gateway)?.writes?.accountPath?.exec(plan.path)?.[0];
+  return (
+    plan.method === 'POST' &&
+    account !== undefined &&
+    plan.path.slice(account.length).split('/').filter(Boolean).length === 1
+  );
+}
 /** What the request does: an operation and the entities it acts on. */
 function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
@@ -113,7 +128,7 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
       ? 'delete'
       : /:publish$/.test(plan.path)
         ? 'publish'
-        : verb || (/(?:^|_)(?:create|post)(?:_|$)/.test(action) && segments.at(-1) === key)
+        : verb || (/(?:^|_)(?:create|post)(?:_|$)/.test(action) && (segments.at(-1) === key || underAccount(plan)))
           ? 'create'
           : 'update';
   // A create names what it creates: a known collection anywhere in the path, else the noun before its verb, never the verb.

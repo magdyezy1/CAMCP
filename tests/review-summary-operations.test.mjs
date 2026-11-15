@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
+import {providerHooks} from '../dist/src/provider-hooks.js';
 
 /**
  * Round 2.5, package r25-m0-review, T3: the review summary is what the person approving reads, so it must name the
@@ -261,4 +262,92 @@ test('a delete keeps its words, on a REST route and on an RPC route that ends in
   );
   assert.equal(rpc.operation, 'delete');
   assert.match(rpc.text, /^Delete 1 /);
+});
+
+// T3b: the same defect on a REST collection the path shape does not recognize. The old rule knew 14 collection names;
+// a campaign of LinkedIn (…/adAccounts/1/adCampaigns) is none of them, so its create read "Update 1 adCampaigns … status
+// ACTIVE → DRAFT": the ACTIVE is the account's, the first status in the account read.
+test('a LinkedIn campaign create reads as a create and borrows no status from the account it is created in', () => {
+  const account = [{id: 123, name: 'Synthetic account', currency: 'USD', status: 'ACTIVE'}];
+  for (const [action, path, entity] of [
+    ['linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post', '/rest/adAccounts/123/adCampaigns', 'adCampaigns'],
+    [
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_post',
+      '/rest/adAccounts/123/adCampaignGroups',
+      'adCampaignGroups',
+    ],
+  ]) {
+    const s = reviewSummary(
+      plan('linkedin_native_action', action, 'POST', path, {name: 'Synthetic', status: 'DRAFT'}),
+      account,
+    );
+    assert.deepEqual([s.operation, s.entity, s.count], ['create', entity, 1], path);
+    assert.equal(s.text, 'Create 1 ' + entity + ' in account Synthetic account (123); status DRAFT.', path);
+    assert.deepEqual(s.status, [{field: '/status', to: 'DRAFT'}], path);
+  }
+});
+
+test('a create directly under the account of X and Snapchat reads as a create, and a member route of the same family does not', () => {
+  const x = reviewSummary(
+    plan(
+      'x_ads_native_action',
+      'x_accounts_account_id_promoted_tweets_post',
+      'POST',
+      '/12/accounts/123/promoted_tweets',
+      {
+        line_item_id: 'a1',
+        tweet_ids: ['t1'],
+      },
+    ),
+    [{data: {id: '123', name: 'Synthetic account', currency: 'USD'}}],
+  );
+  assert.deepEqual([x.operation, x.entity], ['create', 'promoted_tweets']);
+  const snap = reviewSummary(
+    plan(
+      'snapchat_native_action',
+      'snapchat_adaccounts_ad_account_id_media_create',
+      'POST',
+      '/v1/adaccounts/123/media',
+      {
+        media: [{name: 'Synthetic media', type: 'VIDEO'}],
+      },
+    ),
+    [{adaccounts: [{adaccount: {id: '123', name: 'Synthetic account', currency: 'USD', status: 'ACTIVE'}}]}],
+  );
+  assert.deepEqual([snap.operation, snap.entity], ['create', 'media']);
+  // The account itself, a member of a collection and a collection's own update stay updates.
+  for (const [gateway, action, method, path] of [
+    ['linkedin_native_action', 'linkedin_rest_ad_accounts_ad_account_id_post', 'POST', '/rest/adAccounts/123'],
+    ['x_ads_native_action', 'x_accounts_account_id_campaigns_campaign_id_put', 'PUT', '/12/accounts/123/campaigns/c9'],
+    ['snapchat_native_action', 'snapchat_adaccounts_ad_account_id_pixels_update', 'PUT', '/v1/adaccounts/123/pixels'],
+  ])
+    assert.equal(reviewSummary(plan(gateway, action, method, path, {status: 'PAUSED'}), []).operation, 'update', path);
+});
+
+test('every ledger POST to a collection directly under its provider’s account path reads as a create when it creates', () => {
+  const registry = new Registry(),
+    found = new Map();
+  for (const r of actionContracts(registry)) {
+    const route = registry.action(r.gateway, r.action),
+      accountPath = providerHooks(r.gateway)?.writes?.accountPath;
+    if (!r.method || !r.path || !accountPath || (route ? route.read_only !== false : r.method === 'GET')) continue;
+    // The oracle is the route template: a POST whose last segment is a literal, on the account's own collection.
+    const template = r.path.split('?')[0],
+      path = template.replace(/\{[^}]+\}/g, '123'),
+      account = accountPath.exec(path)?.[0],
+      last = template.split('/').filter(Boolean).at(-1);
+    if (r.method !== 'POST' || !account || path.slice(account.length).split('/').filter(Boolean).length !== 1) continue;
+    if (/^\{/.test(last) || /^create(?:-|$)/.test(last)) continue;
+    const creates = /(?:^|_)(?:create|post)(?:_|$)/.test(r.action.toLowerCase());
+    const s = reviewSummary(plan(r.gateway, r.action, r.method, path, {status: 'PAUSED'}), [
+      {id: 123, status: 'ACTIVE'},
+    ]);
+    assert.equal(s.operation === 'create', creates, r.gateway + ' ' + r.action + ' ' + path + ' reads ' + s.operation);
+    assert.equal(s.status?.[0]?.from, undefined, r.action + ' must not borrow the account’s status');
+    if (creates) found.set(r.gateway, (found.get(r.gateway) ?? 0) + 1);
+  }
+  // LinkedIn’s two campaign collections, and the X and Snapchat collections the path shape did not know.
+  assert.ok(found.get('linkedin_native_action') >= 2, JSON.stringify([...found]));
+  assert.ok(found.get('x_ads_native_action') >= 15, JSON.stringify([...found]));
+  assert.ok(found.get('snapchat_native_action') >= 15, JSON.stringify([...found]));
 });

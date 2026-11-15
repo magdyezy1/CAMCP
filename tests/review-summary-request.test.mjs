@@ -135,6 +135,25 @@ const cases = [
     text: 'Create 1 campaign in account Synthetic account (123); status PAUSED.',
     sent: {method: 'POST', path: '/customers/123/campaigns:mutate', suffix: true},
   },
+  {
+    // T3b: LinkedIn's campaign collection is none of the names the old path test knew, so this read "Update 1 adCampaigns
+    // … status ACTIVE → PAUSED", the ACTIVE being the account's.
+    label: 'LinkedIn: a create in the collection directly under the account',
+    gateway: 'linkedin_native_action',
+    args: {
+      action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',
+      payload: {name: 'Synthetic campaign', status: 'PAUSED', account: 'urn:li:sponsoredAccount:123'},
+    },
+    read: p =>
+      p.endsWith('/adAccounts/123')
+        ? {id: 123, name: 'Synthetic account', currency: 'USD', status: 'ACTIVE'}
+        : {id: Number(p.split('/').at(-1)), name: 'Synthetic campaign', status: 'PAUSED'},
+    write: null,
+    status: 201,
+    headers: {'x-restli-id': '111'},
+    text: 'Create 1 adCampaigns in account Synthetic account (123); status PAUSED.',
+    sent: {method: 'POST', path: '/adAccounts/123/adCampaigns', suffix: true},
+  },
 ];
 
 /** The review a create gets from amcp_write, and the write that execute then sends. */
@@ -170,7 +189,11 @@ async function prepareAndExecute(c) {
             // Meta writes a form, the others JSON.
             body: text.trim().startsWith('{') ? JSON.parse(text) : Object.fromEntries(new URLSearchParams(text)),
           });
-          return new Response(JSON.stringify(c.write));
+          // LinkedIn answers a create with the new ID in a header and no body.
+          return new Response(c.write === null ? null : JSON.stringify(c.write), {
+            status: c.status ?? 200,
+            headers: c.headers,
+          });
         }
         return new Response(JSON.stringify(c.read(p, init ?? {})));
       }),
