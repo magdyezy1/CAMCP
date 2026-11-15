@@ -40,3 +40,25 @@ export function correctedStep(step: unknown, top: JsonObject = {}): JsonObject {
       : {action: '<native action>', payload: {}},
   };
 }
+
+/** What create takes inside each step and not at its own top level. */
+const stepFields = ['gateway', 'account_id', 'connection_id'];
+/**
+ * The fields a caller put at the top level of create that belong inside each step (the White Friday mistake: gateway and
+ * account_id beside the name, the steps without them), with the sentence that says so and where each one goes; undefined
+ * when none of them is there. Only the names are repeated, never their values.
+ */
+export function topLevelMoves(input: JsonObject): {message: string; move: JsonObject[]} | undefined {
+  const names = stepFields.filter(k => input[k] !== undefined);
+  if (!names.length) return undefined;
+  const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names.at(-1) : names[0];
+  return {
+    message:
+      'Move ' +
+      list +
+      ' into each step (' +
+      names.map(k => 'steps[].' + k).join(', ') +
+      '): create does not take them at its top level.',
+    move: names.map(k => ({from: k, to: 'steps[].' + k})),
+  };
+}

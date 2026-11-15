@@ -76,7 +76,7 @@ import {
   writer,
   type ToolCall,
 } from './workspace-core.js';
-import {correctedStep, stepShape} from './campaign-step-help.js';
+import {correctedStep, stepShape, topLevelMoves} from './campaign-step-help.js';
 import {visibleProfile} from './client-scope.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 export const campaignTool = tool(
@@ -1803,35 +1803,51 @@ export class CampaignRunner {
   /** create: a draft plan of explicit or templated steps, created once per creation key. */
   private createPlan({input, actor}: CampaignCall): JsonObject {
     const origin = this.origins.get(input);
+    // A gateway, account or connection beside the name, where each step takes its own, is the mistake the White Friday
+    // agent made first: the refusals a caller can correct say so and name where each one goes (R2.5 T4).
+    const moved = topLevelMoves(input),
+      refuse = (message: string, details: JsonObject = {}): never =>
+        bad(moved ? message + ' ' + moved.message : message, 'INVALID_ARGUMENT', {
+          ...details,
+          ...(moved ? {move: moved.move} : {}),
+        });
     if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 100)
-      bad('Provide a campaign name of 1–100 characters; brief is optional and defaults to the name.');
+      refuse('Provide a campaign name of 1–100 characters; brief is optional and defaults to the name.');
     // The brief defaults to the name when it is left out (R2.5 T4, owner General 3, 2026-11-15): a plan's steps say what
     // it does and its name what it is. A brief that is sent is checked as before, and is saved as sent.
     const brief = input.brief === undefined ? input.name : input.brief;
     if (typeof brief !== 'string' || brief.length > 12000)
-      bad('brief must be text of at most 12,000 characters, or left out: it then defaults to the name.');
+      refuse('brief must be text of at most 12,000 characters, or left out: it then defaults to the name.');
     // A profile outside the actor's client access set is not found (SEC-08).
     const profile = input.profile_id ? visibleProfile(this.store, actor, input.profile_id) : undefined,
       variables = {...(profile?.variables ?? {}), ...(input.variables ?? {}), profile: profile ?? {}};
     noSecrets(variables);
     const raw = input.steps ?? profile?.templates?.[input.template];
     if (!Array.isArray(raw) || !raw.length || raw.length > 50)
-      bad('Provide 1–50 explicit steps, or choose an approved saved template.');
+      refuse('Provide 1–50 explicit steps, or choose an approved saved template.');
     const steps = origin ? structuredClone(raw) : substitute(raw, variables),
       seen = new Set<string>();
     for (const s of steps) {
-      validate(s, [
-        'id',
-        'kind',
-        'gateway',
-        'connection_id',
-        'account_id',
-        'arguments',
-        'depends_on',
-        'description',
-        'expected_currency',
-        'prerequisites',
-      ]);
+      // A step with keys it does not take, or none at all, is answered with its correction too, keeping the refusal's own
+      // details (what it does not take and what it does).
+      try {
+        validate(s, [
+          'id',
+          'kind',
+          'gateway',
+          'connection_id',
+          'account_id',
+          'arguments',
+          'depends_on',
+          'description',
+          'expected_currency',
+          'prerequisites',
+        ]);
+      } catch (error) {
+        if (error instanceof MirrorError && error.code === 'INVALID_ARGUMENT' && (!obj(s) || error.details.unsupported))
+          refuse(error.message, {...error.details, example: correctedStep(s, input)});
+        throw error;
+      }
       const problems = [
         !/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) && 'id must start with a letter (up to 51 letters, digits, _ or -)',
         seen.has(s.id) && 'id must be unique',
@@ -1856,7 +1872,7 @@ export class CampaignRunner {
       ].filter(Boolean);
       // The step is answered with its own correction (R2.5 T4): the shape was learned only by failing.
       if (problems.length)
-        bad('Step ' + JSON.stringify(String(s.id ?? '')) + ': ' + problems.join('; ') + stepShape, 'INVALID_ARGUMENT', {
+        refuse('Step ' + JSON.stringify(String(s.id ?? '')) + ': ' + problems.join('; ') + stepShape, {
           example: correctedStep(s, input),
         });
       const deps = s.depends_on ?? [];
