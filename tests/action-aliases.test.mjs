@@ -415,6 +415,34 @@ test('under the v2 contract profile a read through a near-miss name is answered 
   }
 });
 
+// The review's S3-2: only Introspection.describe canonicalized target_action; the service passed the raw name to the
+// conditional-program lookup and to the AMCP description, which match by exact name.
+test('DESCRIBE_ACTION of a near-miss name is answered as its canonical name is, with its conditional program', async () => {
+  const f = fixture();
+  try {
+    for (const [near, canonical] of [
+      ['rest_media_planning_post', 'linkedin_rest_media_planning_post'],
+      ['rest_targeting_audience_insights_post', 'linkedin_rest_targeting_audience_insights_post'],
+    ]) {
+      const exact = await f.call('linkedin_native_action', {action: 'DESCRIBE_ACTION', target_action: canonical}),
+        alias = await f.call('linkedin_native_action', {action: 'DESCRIBE_ACTION', target_action: near});
+      assert.equal(exact.success, true, JSON.stringify(exact));
+      assert.equal(alias.success, true, JSON.stringify(alias));
+      // The premise: the canonical name carries the block that says to inspect the conditional workflow first.
+      assert.equal(typeof exact.data.amcp_conditional_program?.workflow_id, 'string', canonical);
+      assert.deepEqual(alias.data.amcp_conditional_program, exact.data.amcp_conditional_program, near);
+      assert.deepEqual(alias.data, exact.data, near);
+      const [warning] = aliasWarnings(alias);
+      assert.equal(warning?.field, 'target_action');
+      assert.equal(warning?.used, near);
+      assert.equal(warning?.canonical, canonical);
+      assert.deepEqual(aliasWarnings(exact), []);
+    }
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a refused call through a near-miss name carries the same warning, so the caller learns the name even when it fails', async () => {
   const f = fixture();
   try {

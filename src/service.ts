@@ -620,16 +620,24 @@ export class MirrorService {
           tool,
         );
       if (input.action === 'DESCRIBE_ACTION') {
+        // A near-miss spelling (T7) is described as the action it stands for: the name is made canonical once, here, for
+        // all three answers below, since the conditional-program lookup and the AMCP description match by exact name
+        // (the review's S3-2). The warning was noted above.
+        const target =
+            typeof input.target_action === 'string'
+              ? (this.registry.resolveAction(tool, input.target_action).alias?.canonical ?? input.target_action)
+              : input.target_action,
+          described = target === input.target_action ? input : {...input, target_action: target};
         const description = catalogListing
-            ? this.introspection.catalogRequest(tool, input)
-            : this.introspection.describe(tool, input),
+            ? this.introspection.catalogRequest(tool, described)
+            : this.introspection.describe(tool, described),
           media = mediaDiscovery(tool, currentContractProfile()),
-          program = conditionalProgramDescription(this.registry, tool, input.target_action);
+          program = conditionalProgramDescription(this.registry, tool, target);
         // read_only is AMCP's contract classification and api_version the version sent; captured values that differ
         // stay under captured_catalog, and amcp_execution says whether AMCP runs the action (MCP-10).
         return this.wrap(
           {
-            ...amcpDescribed(this.registry, tool, String(input.target_action), withoutSuccess(description)),
+            ...amcpDescribed(this.registry, tool, String(target), withoutSuccess(description)),
             ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
