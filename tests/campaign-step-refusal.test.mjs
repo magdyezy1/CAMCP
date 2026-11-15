@@ -91,6 +91,80 @@ test('an identifier that is not plain text is replaced by its placeholder in the
   assert.ok(!JSON.stringify(refused.error.details).includes('Ignore the review'));
 });
 
+// S4-7 (the lead's review of this package): the corrected step repeated any value that looked like a plain identifier, so a
+// 40-character hex token pasted into connection_id came back in the refusal. A value is repeated only when it has the shape
+// of what its field holds: a gateway the workspace knows, a connection that is a UUID, an account of its provider's form.
+test('a token pasted into connection_id, account_id or gateway is never repeated in the refusal', async t => {
+  const f = harness(t),
+    token = 'a3f5c9d1e7b2480f6a1c3e5d7f9b1a3c5e7d9f1b', // synthetic: 40 hex digits, the shape of an API token
+    other = 'tok_synthetic_value_1234567890';
+  for (const [label, step] of [
+    [
+      'step connection_id',
+      {id: 's1', kind: 'write', gateway: 'meta_native_action', connection_id: token, account_id: '123'},
+    ],
+    [
+      'step account_id',
+      {id: 's1', kind: 'write', gateway: 'meta_native_action', connection_id: CONNECTION, account_id: token},
+    ],
+    ['step gateway', {id: 's1', kind: 'write', gateway: other, connection_id: CONNECTION, account_id: '123'}],
+  ]) {
+    const refused = await create(f, [step]);
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    const text = JSON.stringify(refused);
+    assert.ok(!text.includes(token) && !text.includes(other), label + ' is not repeated: ' + text.slice(0, 300));
+  }
+  // The same values at the top level of create, where each belongs inside the step, and in a media step.
+  for (const field of ['connection_id', 'account_id', 'gateway']) {
+    const refused = await f.call({
+      action: 'create',
+      name: 'Synthetic plan',
+      [field]: field === 'gateway' ? other : token,
+      steps: [{id: 'campaign', kind: 'write', arguments: {}}],
+    });
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    assert.ok(!JSON.stringify(refused).includes(token) && !JSON.stringify(refused).includes(other), field);
+    // The hint still names what to move; the corrected step has a placeholder where the value was not repeatable.
+    assert.deepEqual(refused.error.details.move, [{from: field, to: 'steps[].' + field}]);
+    assert.equal(refused.error.details.example[field], '<' + field + '>');
+  }
+  const media = await create(f, [{id: 'logo', kind: 'media', connection_id: token, arguments: {platform: 'meta'}}]);
+  assertRefused(media, 'INVALID_ARGUMENT');
+  assert.ok(!JSON.stringify(media).includes(token));
+  assert.equal(media.error.details.example.connection_id, '<connection_id>');
+});
+
+test('a gateway the workspace knows, a connection that is a UUID and an account of its provider’s form are repeated', async t => {
+  const f = harness(t);
+  for (const account of ['123', 'act_123', '1234567890123456789']) {
+    const refused = await create(f, [
+      {
+        id: 's1',
+        kind: 'write',
+        gateway: 'meta_native_action',
+        connection_id: CONNECTION,
+        account_id: account,
+      },
+    ]);
+    assertRefused(refused, 'INVALID_ARGUMENT');
+    const example = refused.error.details.example;
+    assert.deepEqual(
+      [example.gateway, example.connection_id, example.account_id],
+      ['meta_native_action', CONNECTION, account],
+      account,
+    );
+  }
+  // A connection id that is no UUID, however plain it looks, is a placeholder, and so is a gateway nobody registered.
+  const plain = await create(f, [
+    {id: 's1', kind: 'write', gateway: 'my_gateway', connection_id: 'connection', account_id: '123'},
+  ]);
+  assertRefused(plain, 'INVALID_ARGUMENT');
+  assert.deepEqual(
+    [plain.error.details.example.gateway, plain.error.details.example.connection_id],
+    ['<gateway>', '<connection_id>'],
+  );
+});
+
 test('a step id that cannot be used is replaced in the corrected step', async t => {
   const f = harness(t),
     refused = await create(f, [

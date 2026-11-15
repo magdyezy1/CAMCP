@@ -1,4 +1,6 @@
 import type {JsonObject} from './types.js';
+import {normalizeAccount} from './account-id.js';
+import {providerOf} from './provider-adapters.js';
 
 /**
  * What an agent needs to write the steps of an amcp_campaign plan (R2.5 T4, owner General 3, 2026-11-15). The shape of a
@@ -80,27 +82,39 @@ export const planExample: JsonObject = {
 };
 
 /**
- * A value that may be repeated in a refusal: a short plain identifier (a gateway, a connection or an account), never free
- * text. The response of a refusal is logged and audited, and an identifier is not a secret; arguments are never repeated.
+ * A value that may be repeated in a refusal has the shape of what its field holds, never just the look of a plain word
+ * (R2.5 S4-7: a 40-character hex token pasted into connection_id was a plain identifier, and came back in the refusal,
+ * which is logged and audited). A gateway is one the workspace's providers register, a connection is a UUID, and an
+ * account has its provider's form: its own normalization of it, a short identifier that is no long run of hex digits (the
+ * shape of a token). Anything else is a placeholder. Arguments are never repeated.
  */
-const identifier = (v: unknown): string | undefined =>
-  typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$/.test(v) ? v : undefined;
+const connectionShape = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  accountShape = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,35}$/;
+const gatewayOf = (v: unknown): string | undefined => (typeof v === 'string' && providerOf(v) ? v : undefined);
+const connectionOf = (v: unknown): string | undefined =>
+  typeof v === 'string' && connectionShape.test(v) ? v : undefined;
+const accountOf = (gateway: string | undefined, v: unknown): string | undefined => {
+  if (typeof v !== 'string' || !accountShape.test(v)) return undefined;
+  const form = gateway ? normalizeAccount(gateway, v) : v;
+  return accountShape.test(form) && !/^[0-9a-f]{32,}$/i.test(form) ? v : undefined;
+};
 
 /**
- * The corrected minimal step for the kind of a refused step: what the caller sent that is plain and right (the step's id,
- * gateway, connection and account, and a gateway, connection or account given at the top level of create, where it
- * belongs inside the step), and for everything else a placeholder. A media step has no gateway: its platform names it.
- * Its arguments are the placeholders of its kind, never the caller's.
+ * The corrected minimal step for the kind of a refused step: what the caller sent that has the shape of its field (the
+ * step's id, a registered gateway, a connection that is a UUID and an account of its provider's form, and the same given
+ * at the top level of create, where each belongs inside the step), and for everything else a placeholder. A media step has
+ * no gateway: its platform names it. Its arguments are the placeholders of its kind, never the caller's.
  */
 export function correctedStep(step: unknown, top: JsonObject = {}): JsonObject {
   const s = obj(step) ? step : {},
-    media = s.kind === 'media';
+    media = s.kind === 'media',
+    gateway = gatewayOf(s.gateway) ?? gatewayOf(top.gateway);
   return {
     id: typeof s.id === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) ? s.id : 'step_1',
     kind: media ? 'media' : 'write',
-    ...(media ? {} : {gateway: identifier(s.gateway) ?? identifier(top.gateway) ?? '<gateway>'}),
-    connection_id: identifier(s.connection_id) ?? identifier(top.connection_id) ?? '<connection_id>',
-    account_id: identifier(s.account_id) ?? identifier(top.account_id) ?? '<account_id>',
+    ...(media ? {} : {gateway: gateway ?? '<gateway>'}),
+    connection_id: connectionOf(s.connection_id) ?? connectionOf(top.connection_id) ?? '<connection_id>',
+    account_id: accountOf(gateway, s.account_id) ?? accountOf(gateway, top.account_id) ?? '<account_id>',
     arguments: media
       ? {platform: '<platform>', source_url: '<https link to the file>'}
       : {action: '<native action>', payload: {}},
