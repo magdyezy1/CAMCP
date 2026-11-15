@@ -213,7 +213,8 @@ test('only the identity fields decide the reviewed state (property, 400 random r
  * its comments blanked:
  *  - an object that names `advertiser_ids`, the query of that read, also names `fields`;
  *  - the route itself is written only where it is built or compared: the shared read (tiktok-advertiser-state.ts), the
- *    adapter's scope check and readiness read, and two reads that already name their own `fields`.
+ *    adapter's scope check and readiness read, and the two reads that already name their own `fields` (the change-log
+ *    review reads four of them and reduces the answer itself; the report job reads the currency and time zone).
  */
 const blank = text =>
   text
@@ -266,7 +267,7 @@ test('lint: the advertiser info route is written only where it is built through 
     'src/tiktok-advertiser-state.ts',
     // The scope check of the route and the readiness account read (see above).
     'src/tiktok-adapter.ts',
-    // Reads that already name their own fields, none a review state.
+    // Reads that already name their own fields.
     'src/tiktok-change-logs.ts',
     'src/tiktok-report-jobs.ts',
   ]);

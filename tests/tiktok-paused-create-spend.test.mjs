@@ -218,6 +218,49 @@ for (const [what, kind, edit] of [
     });
   });
 
+/**
+ * The White Friday request, with invented values: a paused Search traffic campaign with an infinite budget mode. Both
+ * defects met in it: the advertiser row it read rotated (T1, STATE_CHANGED at execute) and its budget_mode asked for
+ * spend_change_confirmed (Q14). It now prepares and executes with the licence ticket rotating, the balance falling and no
+ * flag, and sends exactly what was reviewed. Run both with TikTok narrowing its answer to `fields` (what it does) and
+ * ignoring them (the projection alone holds the row steady).
+ */
+for (const honourFields of [true, false])
+  test(
+    'the White Friday campaign create prepares and executes with a rotating advertiser row and no spend flag (TikTok ' +
+      (honourFields ? 'narrows its answer to fields' : 'ignores fields') +
+      ')',
+    async () => {
+      await withCreates(
+        async f => {
+          const review = await reviewOf(f, 'campaign', p => ({
+            ...p,
+            campaign_name: 'Synthetic_WhiteFriday_Search_Traffic',
+            is_search_campaign: true,
+          }));
+          assert.equal(review.execute_requirements.spend_change_confirmed, false);
+          const done = await f.execute(review, {});
+          assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 600));
+          assert.ok(f.world.reads >= 2, 'the advertiser is read at prepare and again at execute');
+          assert.deepEqual(f.sent, [
+            {
+              path: '/v1.3/campaign/create/',
+              body: {
+                advertiser_id: f.world.id,
+                campaign_name: 'Synthetic_WhiteFriday_Search_Traffic',
+                objective_type: 'TRAFFIC',
+                is_search_campaign: true,
+                budget_mode: 'BUDGET_MODE_INFINITE',
+                operation_status: 'DISABLE',
+              },
+            },
+          ]);
+        },
+        {rotating: true, honourFields},
+      );
+    },
+  );
+
 test('an ENABLE ad group under a serving campaign is refused at prepare, with or without the flag', async () => {
   await withCreates(async f => {
     f.parents.campaign = 'ENABLE';
