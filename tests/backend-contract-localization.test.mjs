@@ -355,7 +355,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // reason of its own: one more on the integration's 813, 814.
   // Merge r25-m0-merge, with r25-m0-t1, r25-m0-review and r25-m0-errors (each 814 on the same base of 813, and each adds a
   // different file): the merged tree measures 813 + 1 + 1 + 1 = 816.
-  assert.equal(files.length, 816);
+  // Package r25-m1-diff (Round 2.5, M1: L5-04) adds src/review-diff.ts, which of the changed fields of a STATE_CHANGED
+  // matter, with no reason of its own: one more on the integration's 816, 817 on its own base. Whoever merges it adds the
+  // files of every package it is merged with to this number.
+  assert.equal(files.length, 817);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

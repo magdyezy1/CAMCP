@@ -26,6 +26,7 @@ import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonO
 import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
+import {materialFields, surfacedMaterial} from './review-diff.js';
 import {accountWriteGranted, assertAccountWrite} from './write-access.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
@@ -243,7 +244,10 @@ const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),
 });
-/** The call that prepares an expired review's original request again (reviews prepared before this field existed have none). */
+/**
+ * The call that prepares a review's original request again (reviews prepared before this field existed have none): for an
+ * expired review, and for one whose state changed since it was prepared (STATE_CHANGED, R25 M1, L5-04).
+ */
 const expiredNext = (review: JsonObject): JsonObject =>
   review.prepare_input
     ? {
@@ -1290,16 +1294,23 @@ export class WriteReviewService {
       expectedHash = reviewStateHash(expectedState),
       actualHash = reviewStateHash(current);
     const creativeImpact = writeImpact(plan, current, review.creative_edit_confirmed === true, review.connection_id);
-    if (actualHash !== expectedHash)
+    if (actualHash !== expectedHash) {
+      const changed = changedStateFields(expectedState, current);
+      // R25 M1 (L5-04, T2): the refusal says which of the changed fields matter (`material`) and hands back the call that
+      // prepares the same request again. The check is as strict as it was: every changed path still refuses, nothing is
+      // claimed or sent, and no flag or retry exists. Preparing again is a call for the agent and the user to make.
       fail(
         'STATE_CHANGED',
         'The provider configuration changed after preparation. Prepare and review a fresh request.',
         {
           expected_state_hash: expectedHash,
           actual_state_hash: actualHash,
-          changed_fields: changedStateFields(expectedState, current),
+          changed_fields: changed,
+          ...surfacedMaterial(materialFields(changed, review.reads, plan)),
+          ...expiredNext(review),
         },
       );
+    }
     familyOf(plan)?.stateChecks?.(plan, current, false);
     const c = this.access(actor, plan, review.connection_id),
       auth = await this.credentials.get(c);

@@ -426,17 +426,26 @@ export class WriteGroups {
         .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
         .get(actor.tenantId, group.parts[failure.part]);
       // Nothing of the group was sent: the group's own refusal, under the group's review id.
-      if (sent === 0 && !claimed)
+      if (sent === 0 && !claimed) {
+        const details: JsonObject = {
+          ...failure.error.details,
+          ...(failure.error.details.review_id !== undefined ? {review_id: id, part_review_id: group.parts[0]} : {}),
+        };
+        // R25 M1 (L5-04): a part refused for a changed state names the call that prepares that part, 25 records of the
+        // request. The group is prepared again whole, with the call it was prepared by (none for a group kept before
+        // groups recorded theirs, which then names no call rather than a part's).
+        if (failure.error.code === 'STATE_CHANGED') {
+          delete details.next_call;
+          Object.assign(details, prepareAgain);
+        }
         throw new MirrorError(
           failure.error.code,
           failure.error.message,
-          {
-            ...failure.error.details,
-            ...(failure.error.details.review_id !== undefined ? {review_id: id, part_review_id: group.parts[0]} : {}),
-          },
+          details,
           failure.error.status,
           failure.error.retryable,
         );
+      }
       this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
       this.store.uncertain(actor.tenantId, id);
       // The parts never sent, the stopped one included when it was refused before sending. Each is an ordinary review:
