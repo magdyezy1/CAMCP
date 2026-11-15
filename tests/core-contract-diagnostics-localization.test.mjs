@@ -24,7 +24,10 @@ const counts = {
   // ARC-01 phase B's wire profile moves six refusals that name a provider's own headers to that provider's adapter
   // (Reddit's User-Agent, Microsoft's developer token and account, Amazon's client ID, Google Ads' login customer) and
   // X's OAuth 1.0a credentials to src/oauth1.ts; tests/backend-contract-localization.test.mjs keeps their Arabic.
-  'src/transport.ts': 36,
+  // Package r25-m0-errors (G9) adds the two templates a provider refusal uses when its provider's own error tokens are
+  // known ("Platform returned HTTP {status}: {refusal}." and "Platform reported an unsuccessful result: {refusal}."):
+  // 36 + 2, each with its Arabic in web/locales/ar.json.
+  'src/transport.ts': 38,
   // ARC-01 phase B (wave 4c, the delegated compiler): the ten refusals of GA4's property scope, Business Profile's
   // location scope and read mask, and Reddit's report window and fields moved with their rules to those providers'
   // adapters, unchanged; tests/backend-contract-localization.test.mjs keeps their Arabic.
@@ -72,7 +75,8 @@ test('all six selected core sources require every authored reason with native fi
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
   // Package mcp-surface (V2-MCP-06) adds the MEDIA_REVIEW_REQUIRED sentence of src/service.ts, owned by no other source: 223 + 1.
-  assert.equal(owned.size, 224);
+  // Package r25-m0-errors (G9) adds the two src/transport.ts templates, owned by no other source: 224 + 2.
+  assert.equal(owned.size, 226);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

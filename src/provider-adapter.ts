@@ -14,6 +14,7 @@
 import type {Action, Catalog, CompiledRequest, Connection, Credentials, JsonObject, ToolDefinition} from './types.js';
 import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+import type {ProviderErrorCandidate} from './provider-error-core.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
@@ -252,6 +253,19 @@ export interface ErrorEnvelope {
   code?(body: unknown): string | number | undefined;
   /** A refusal its documented tables classify (Meta's codes, Google Ads' quota errors...); undefined for the generic. */
   classify?(input: ProviderErrorInput, context: ProviderErrorContext): ProviderErrorClass | undefined;
+  /**
+   * The rows of closed-set tokens its documented error shape holds (G9, src/provider-error-core.ts): each error's code and
+   * enum, the index of the failing operation and the field path (Google Ads' GoogleAdsFailure, Meta's blame fields, TikTok's
+   * code). Only what the shape says structurally, never text; the transport checks every token against its pattern again
+   * and drops what fails, so a hook cannot put free text into a message.
+   */
+  tokens?(body: unknown): readonly ProviderErrorCandidate[];
+  /**
+   * The provider's own first sentence for the refusal (Google Ads' first error message, Meta's user message, TikTok's
+   * message): third-party text, which `details.provider_message` keeps cleaned, clipped and marked untrusted, and no
+   * message ever carries.
+   */
+  text?(body: unknown): unknown;
 }
 
 /**

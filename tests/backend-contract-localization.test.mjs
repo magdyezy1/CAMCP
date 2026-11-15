@@ -383,7 +383,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // upload answers under the v2 contract profile: 1,639.
   // Package r25-m0-errors (Round 2.5, M0: LEAD-03) owns one more: the OWNER_REQUIRED refusal of workspace health in
   // src/spend-policy.ts, now a sentence of its own that states the rule (it was built from a template and a tail): 1,640.
-  assert.equal(owned.size, 1640);
+  // Its G9 owns two more, in src/transport.ts: the templates of a provider refusal that names its closed-set tokens (HTTP
+  // error and unsuccessful result, each with a {refusal} slot): 1,642.
+  assert.equal(owned.size, 1642);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -481,7 +483,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // measured (node tools/check-locales.mjs: catalog_messages 12121), 12,112 + 9 = 12,121.
   // Its LEAD-03 adds the Arabic of the health refusal and of its next step: measured (catalog_messages 12123), 12,121 + 2.
   // Its L3-02 adds the Arabic of the next step of a write throttled after it was sent: measured (catalog_messages 12124).
-  assert.equal(Object.keys(catalog).length, 12124);
+  // Its G9 adds the Arabic of the two provider refusal templates: measured (catalog_messages 12126).
+  assert.equal(Object.keys(catalog).length, 12126);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

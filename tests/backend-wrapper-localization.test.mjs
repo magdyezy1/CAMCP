@@ -420,7 +420,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // measured (node tools/check-locales.mjs: catalog_messages 12121), 12,112 + 9 = 12,121.
   // Its LEAD-03 adds the Arabic of the health refusal and of its next step: measured (catalog_messages 12123), 12,121 + 2.
   // Its L3-02 adds the Arabic of the next step of a write throttled after it was sent: measured (catalog_messages 12124).
-  assert.equal(Object.keys(catalog).length, 12124);
+  // Its G9 adds the Arabic of the two provider refusal templates: measured (catalog_messages 12126).
+  assert.equal(Object.keys(catalog).length, 12126);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

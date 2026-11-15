@@ -50,7 +50,7 @@ import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
 // Wave 4c round 6 (w4c-arc6-tables): the Data Manager routes' origin, which its wire contract names.
 import {dataManagerOrigin} from './google-data-manager-routes.js';
-import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
+import {boundedWait, errorObject, errorToken, type ProviderErrorCandidate} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
 import {
@@ -95,6 +95,50 @@ function googleErrorCode(body: unknown): string | number | undefined {
     }
   return errorToken(error.status);
 }
+/** The errors of the GoogleAdsFailure details of a refusal (at most ten of ten, as googleErrorCode reads them). */
+function googleFailureErrors(body: unknown): Record<string, any>[] {
+  const error = errorObject(errorObject(body).error),
+    rows: Record<string, any>[] = [];
+  for (const detail of Array.isArray(error.details) ? error.details.slice(0, 10) : [])
+    for (const row of Array.isArray(errorObject(detail).errors) ? errorObject(detail).errors.slice(0, 10) : [])
+      rows.push(errorObject(row));
+  return rows;
+}
+/**
+ * The closed-set tokens of a Google Ads refusal (G9): each GoogleAdsFailure error's error family and enum (`errorCode` is
+ * a oneof of one: `{assetGroupError: "NOT_ENOUGH_MARKETING_IMAGE_ASSET"}` is ASSET_GROUP_ERROR and that enum), the index of
+ * the failing operation (the first path element when it is the request's operation list) and the field path
+ * (`location.fieldPathElements`, as validation.fieldPaths reads them). The transport checks every token again and drops
+ * what fails its pattern; no message text is read here.
+ */
+function googleProviderErrors(body: unknown): ProviderErrorCandidate[] {
+  return googleFailureErrors(body).map(row => {
+    const [family, value] = Object.entries(errorObject(row.errorCode))[0] ?? [],
+      elements: Record<string, any>[] = (
+        Array.isArray(errorObject(row.location).fieldPathElements) ? errorObject(row.location).fieldPathElements : []
+      )
+        .slice(0, 20)
+        .map(errorObject),
+      first = elements[0];
+    return {
+      code: family?.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase(),
+      enum: value,
+      operation_index:
+        first && /^(?:mutate_operations|mutateOperations|operations)$/.test(String(first.fieldName))
+          ? first.index
+          : undefined,
+      // A path is the whole list of names or nothing: one element without a name leaves no path to trust.
+      field_path:
+        elements.length && elements.every(p => typeof p.fieldName === 'string')
+          ? elements.map(p => p.fieldName + (Number.isInteger(p.index) ? '[' + p.index + ']' : '')).join('.')
+          : undefined,
+    };
+  });
+}
+/** Google's own first sentence of a refusal: its first error's message, else the response's (third-party text). */
+const googleProviderText = (body: unknown): unknown =>
+  googleFailureErrors(body).find(row => typeof row.message === 'string' && row.message)?.message ??
+  errorObject(errorObject(body).error).message;
 /** Google Ads QuotaErrorDetails.retryDelay ("30s", "1.5s"), as milliseconds. */
 function googleRetryDelay(row: Record<string, any>): number | undefined {
   const value = errorObject(errorObject(row.details).quotaErrorDetails).retryDelay,
@@ -708,7 +752,12 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     },
     sessionHeaders: (plan: CompiledRequest) =>
       plan.path.startsWith('/resumable/upload/') ? ['x-goog-upload-url', 'x-goog-upload-chunk-granularity'] : [],
-    errors: Object.freeze({code: googleErrorCode, classify: classifyGoogleError}),
+    errors: Object.freeze({
+      code: googleErrorCode,
+      classify: classifyGoogleError,
+      tokens: googleProviderErrors,
+      text: googleProviderText,
+    }),
   }),
   // Writes and campaigns (wave 4c): the guided Search recipes, then Performance Max (CMP-07).
   campaign: Object.freeze({

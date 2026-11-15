@@ -32,6 +32,7 @@ import {
   errorObject,
   metaRegainAccessMs,
   providerReference,
+  type ProviderErrorCandidate,
 } from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
@@ -379,6 +380,22 @@ export const metaHooks: ProviderHooks = Object.freeze({
       bodyRequestId: (body: unknown) => providerReference(errorObject(errorObject(body).error).fbtrace_id),
       code: (body: unknown) => errorInteger(errorObject(errorObject(body).error).code),
       classify: classifyMetaError,
+      // G9: Meta's error code, and one row for each field it blames (error_data.blame_field_specs, a list of name lists:
+      // [["targeting", "geo_locations"]] is targeting.geo_locations, as validation.fieldPaths reads them).
+      tokens: (body: unknown): ProviderErrorCandidate[] => {
+        const error = errorObject(errorObject(body).error),
+          code = errorInteger(error.code),
+          blame = errorObject(error.error_data).blame_field_specs,
+          paths = (Array.isArray(blame) ? blame : [])
+            .slice(0, 20)
+            .map((spec: unknown) => [spec].flat().map(String).join('.'));
+        return paths.length ? paths.map(field_path => ({code, field_path})) : [{code}];
+      },
+      // Its user-facing message when it gives one, else its message: third-party text, kept in details.provider_message.
+      text: (body: unknown) => {
+        const error = errorObject(errorObject(body).error);
+        return typeof error.error_user_msg === 'string' && error.error_user_msg ? error.error_user_msg : error.message;
+      },
     }),
   }),
   // Writes and campaigns (wave 4c): the guided website recipes.

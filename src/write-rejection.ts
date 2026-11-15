@@ -48,9 +48,10 @@ export function rejectedError(e: unknown, reviewId: string): unknown {
   if (!(e instanceof MirrorError)) return e;
   return new MirrorError(
     e.code,
-    e.message,
+    e.localization?.key ?? e.message,
     {...e.details, submission: 'rejected', review_id: reviewId, key_retired: true},
     e.status,
     false,
+    e.localization?.values,
   );
 }

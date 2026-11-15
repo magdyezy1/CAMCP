@@ -40,12 +40,14 @@ export function groupPartSeconds(slowestPrepareMs = 0): number {
 /** The same refusal, marked as one that sent nothing: the review stays valid and may be executed again. */
 export function notSent(e: unknown, reviewId: string): unknown {
   if (!(e instanceof MirrorError)) return e;
+  // The copy keeps the template and slot values of a message that has them (G9), so its translation still applies.
   return new MirrorError(
     e.code,
-    e.message,
+    e.localization?.key ?? e.message,
     {...e.details, submission: 'not_sent', review_id: reviewId},
     e.status,
     e.retryable,
+    e.localization?.values,
   );
 }
 /**
@@ -56,7 +58,7 @@ export function uncertainNext(e: unknown, reviewId: string): unknown {
   if (!(e instanceof MirrorError) || e.details.next_call !== undefined) return e;
   return new MirrorError(
     e.code,
-    e.message,
+    e.localization?.key ?? e.message,
     {
       ...e.details,
       review_id: reviewId,
@@ -64,6 +66,7 @@ export function uncertainNext(e: unknown, reviewId: string): unknown {
     },
     e.status,
     e.retryable,
+    e.localization?.values,
   );
 }
 /**

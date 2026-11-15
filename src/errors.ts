@@ -1194,13 +1194,14 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     EMAIL_SETUP_REQUIRED: 'Ask the owner to configure and verify the site email sender.',
     SHEETS_PERMISSION_DENIED: 'Reconnect Google Sheets and select an editable spreadsheet.',
   };
-  // Details that echo what a provider returned: the transport's error body, a validate-only response, and the schema
-  // errors of a provider response, whose values and property names come from it. Connection labels, which workspace
-  // members write, are marked the same way (MCP-09).
+  // Details that echo what a provider returned: the transport's error body, the provider's own first sentence of it
+  // (provider_message, G9), a validate-only response, and the schema errors of a provider response, whose values and
+  // property names come from it. Connection labels, which workspace members write, are marked the same way (MCP-09).
   const untrustedPaths = Object.keys(e.details)
     .filter(
       k =>
         k === 'upstream' ||
+        k === 'provider_message' ||
         k === 'response' ||
         (k === 'errors' && e.code === 'UPSTREAM_RESPONSE_INVALID') ||
         (k === 'candidates' && e.code === 'AMBIGUOUS_CONNECTION'),

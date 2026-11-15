@@ -8,9 +8,11 @@ import type {Store} from './store.js';
 import {
   classifyProviderError,
   providerErrorTaxonomyEnabled,
+  providerRefusal,
   providerRequestId,
   type ProviderErrorClass,
 } from './provider-error-taxonomy.js';
+import {describeProviderErrors} from './provider-error-core.js';
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
@@ -784,8 +786,14 @@ export class NativeTransport {
     // A provider's own request reference beside its request ID (LinkedIn's x-li-fabric).
     const fabric = wire?.fabric?.(response),
       taxonomy = providerErrorTaxonomyEnabled();
+    // G9 (Round 2.5, M0): the closed-set tokens of the provider's documented error shape, and its own first sentence.
+    // The tokens go into the message (below) and `provider_errors`; the sentence goes only to `provider_message`, which
+    // the envelope marks untrusted beside `upstream`: provider text is never part of a message.
+    const refusal = providerRefusal(plan.gateway, data);
     const errorDetails = (c?: ProviderErrorClass) => ({
       upstream: redact(data),
+      ...(refusal.text !== undefined ? {provider_message: refusal.text} : {}),
+      ...(refusal.errors.length ? {provider_errors: refusal.errors} : {}),
       http_status: response.status,
       // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
       ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined
@@ -841,14 +849,26 @@ export class NativeTransport {
       return c;
     };
     if (!response.ok) {
-      const c = classify(false);
-      throw new MirrorError(
-        c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
-        'Platform returned HTTP ' + response.status,
-        errorDetails(c),
-        response.status,
-        c ? c.retryable : response.status === 429 || response.status >= 500,
-      );
+      const c = classify(false),
+        code = c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
+        retryable = c ? c.retryable : response.status === 429 || response.status >= 500;
+      // With tokens the message is a template (so the website shows it in Arabic) filled with the tokens' words only.
+      throw refusal.errors.length
+        ? new MirrorError(
+            code,
+            'Platform returned HTTP {status}: {refusal}.',
+            errorDetails(c),
+            response.status,
+            retryable,
+            {status: response.status, refusal: describeProviderErrors(refusal.errors)},
+          )
+        : new MirrorError(
+            code,
+            'Platform returned HTTP ' + response.status,
+            errorDetails(c),
+            response.status,
+            retryable,
+          );
     }
     if (data && typeof data === 'object') {
       const d = data as JsonObject;
@@ -858,13 +878,22 @@ export class NativeTransport {
         const c = classify(true),
           status =
             c?.layer === 'credential' ? 401 : c?.layer === 'rate_limit' ? 429 : c?.layer === 'consent' ? 403 : 502;
-        throw new MirrorError(
-          c?.code ?? 'PLATFORM_ERROR',
-          'Platform reported an unsuccessful result.',
-          errorDetails(c),
-          status,
-          c?.retryable ?? false,
-        );
+        throw refusal.errors.length
+          ? new MirrorError(
+              c?.code ?? 'PLATFORM_ERROR',
+              'Platform reported an unsuccessful result: {refusal}.',
+              errorDetails(c),
+              status,
+              c?.retryable ?? false,
+              {refusal: describeProviderErrors(refusal.errors)},
+            )
+          : new MirrorError(
+              c?.code ?? 'PLATFORM_ERROR',
+              'Platform reported an unsuccessful result.',
+              errorDetails(c),
+              status,
+              c?.retryable ?? false,
+            );
       }
     }
   }
