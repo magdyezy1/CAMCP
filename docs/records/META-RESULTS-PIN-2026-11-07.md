@@ -116,9 +116,62 @@ The older objectives of R18 are v4 provider values (`LINK_CLICKS` to traffic, `R
   `cost_per_action_type`, `cost_per_conversion`, `cost_per_unique_action_type`, `unique_actions`, `purchase_roas`,
   `website_purchase_roas`, `mobile_app_purchase_roas` and the catalog and product lists are taken to have an action's keys,
   because Meta types them all as AdsActionStats, which the per-window `cost_per_result` of R13 suggests. That each of them is
-  split by window, and that a ratio or a cost of two windows has no value of its own, are assumptions.
+  split by window, and that a ratio or a cost of two windows has no value of its own, are assumptions. (Partly answered on
+  2026-11-15, see the addendum below: `action_values`, `purchase_roas`, `website_purchase_roas`, `cost_per_action_type` and
+  `unique_actions` were read and carry the window keys; `conversions` and `conversion_values` were not returned; the rest are
+  still unread.)
 - The key under which Meta returns the engaged-view window AMCP asks for as `1d_ev` was not seen: the notes of the live read
-  name `7d_click`, `1d_view` and `1d_click` and none names `1d_ev`. AMCP reads the key named as the request names it.
+  name `7d_click`, `1d_view` and `1d_click` and none names `1d_ev`. AMCP reads the key named as the request names it. (Closed on
+  2026-11-15, see the addendum below: Meta returns it as `1d_ev`.)
 - The unknown answers of a capture (a list that does not add, under several windows or under a window with no key) are tested
   with a mapping of such a list on a synthetic read only; no preset maps one, and none was run against a live account.
 - The V2 code has not been read against a live account: that check waits for staging (V2 plan D20).
+- Added 2026-11-15 (see the addendum below): what a daily read returns, with `1d_ev` among the windows, for the days of a range
+  that lie before the start of `1d_ev` data (a day in June 2026 on the one account read). A row of those days without a `1d_ev`
+  key, a row with a `1d_ev` key of zero and no row at all are the possibilities, and none was seen. One read-only daily
+  insights read (`time_increment` 1) with `1d_click`, `1d_view` and `1d_ev`, on a range that starts before that date, on the
+  owner's named Meta test account, settles it.
+
+## Addendum 2026-11-15: explicit windows give no `default` entry, and `1d_ev` is read as `1d_ev`
+
+This corrects R9 above, which said that explicit windows give one value per requested window "plus `default`". It closes the
+sixth item of "Still unverified" (the key of the engaged-view window) and answers part of the fifth (the lists of action stats
+other than `actions`: R21 and R22 read five of them, and R23 notes two that were not returned).
+
+Read on 2026-11-15, in the read part of the Rounds 1 and 2 live checks, through the production connector's `meta_native_action`,
+action `meta_insights_get` (GET, Graph v26.0), on the owner's named Meta test account: campaign and ad levels under the default
+attribution, and one campaign under explicit windows, then one capture of AMCP's own guided preset (`amcp_reporting
+capture_preset`, `meta_campaign`) on the same account. Read only; no write, no report job. It asked Meta for the three windows
+`1d_click`, `1d_view` and `1d_ev`, with `use_unified_attribution_setting` and `use_account_attribution_setting` both false (the
+form every guided capture sends). R26 is a second read of the lead's, below. As in the record above, no account, campaign or
+custom conversion ID and no spend, impression or count of a read is kept here; a date appears only where R24 and R26 say what
+moved it.
+
+| #   | Fact                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R20 | Under those settings `results` and `cost_per_result` each carried one value for each requested window and **no `default` entry**. R9 is wrong for this form: the entries of the requested windows are the whole list, so their exact sum is the result and no entry names the ad set's own setting.                                                                                                          |
+| R21 | The engaged-view window comes back spelled `1d_ev`: as `attribution_windows: ["1d_ev"]` in a `results` or `cost_per_result` value, and as a literal key beside `value` in an entry of `actions`, `action_values`, `purchase_roas`, `website_purchase_roas` and `cost_per_action_type`.                                                                                                                       |
+| R22 | `unique_actions` carried only the keys `1d_click` and `1d_view` on the entries returned: no `1d_ev` key.                                                                                                                                                                                                                                                                                                     |
+| R23 | `conversions` and `conversion_values` were not returned on any row of these reads.                                                                                                                                                                                                                                                                                                                           |
+| R24 | Asking for `1d_ev` moved the first `date_start` of the `maximum` preset on that account to a day in June 2026, against a day in October 2023 when it was not asked for: on this account `1d_ev` data starts much later than the data of the other windows.                                                                                                                                                   |
+| R25 | AMCP's own guided capture with the same three windows worked: it sent them as `action_attribution_windows`, with both `use_*_attribution_setting` false, `time_increment` 1 and impression-time reporting, and kept the rows with `action_count_basis: "requested_attribution"`.                                                                                                                             |
+| R26 | Read by the lead on 2026-11-15, read only, on the same account: with an explicit `time_range` of 2026-01-01 to 2026-11-14, adding `1d_ev` to `action_attribution_windows` left `date_start` at 2026-01-01, and spend and impressions were identical to the run without it. Only `date_preset: maximum` moved `date_start` (to 2026-06-15) once `1d_ev` was requested. So an explicit range is not truncated. |
+
+What AMCP does with them. Nothing in the reader changes: rule 5 already reads the sum of the requested windows' entries under
+explicit windows, with a requested window that has no entry counting 0, and the `default` entry is only the answer under the ad
+set's own setting or when the values hold no requested window. `tests/meta-results-reader.test.mjs` pins the form of R20, from
+invented numbers: three entries and no `default` (with a cost per window, and the cost of the sum derived from spend), one
+window alone, and a window left out. AMCP reads `1d_ev` under the key named as the request names it, as it did, and R21 shows
+that key is the right one.
+
+Not settled by these reads. R24 and R26 are one account's observations of when `1d_ev` data begins (a day in June 2026), not a
+date Meta documents. R26 shows that an explicit range is not truncated when `1d_ev` is asked for: its start and its spend and
+impressions are the same. It does not show what a daily read returns for the days of such a range that lie before that start,
+and no daily read has crossed it. Three things are possible and none was observed: those days have a row with no `1d_ev` key,
+a row with a `1d_ev` key of zero, or no row. If the key is absent, rule 5 counts a requested window with no entry as 0, so the
+engaged-view conversions of those days would be left out without the report saying so. AMCP's own row checks
+(`src/meta-guided-reports.ts`, `src/meta-report.ts`) test that each row's day lies in the requested window, not that every day
+of it has a row, so a missing row would pass them; R26 is why that is not expected for an explicit range. The read that settles
+it is added to "Still unverified" above. How a report should label `1d_ev` values before Meta's start of `1d_ev` data stays a
+design item for a later round (M9): detected from the data of the report and recorded as observed, never as a date Meta
+documents. The code is unchanged.

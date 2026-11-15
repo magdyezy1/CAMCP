@@ -86,6 +86,19 @@ export const googleGuidedReporting: GuidedReporting = {
   dimensions: {native_ad_network: v => typeof v === 'string' && googleReportAdNetworks.includes(v)},
   presets,
   presetPrefix: 'google_',
+  // What amcp_reporting capture_preset help shows of Google's presets (R25 M0, owner 2026-11-15, observation 7 of the live checks).
+  help: {
+    preset: 'google_campaign',
+    account: '1234567890',
+    timezone: 'Asia/Riyadh',
+    currency: 'USD',
+    source: 'Google Ads campaign report',
+    rules: [
+      'semantics.timezone and semantics.currency are the customer’s own, as Google reports them; the capture refuses a different one.',
+      'semantics.complete may be true or false. semantics.attribution names the attribution settings in text, or unknown when they are not established; conversions use metrics.conversions.',
+      'The ad group, ad, keyword, search term, Performance Max search term, device, hour, country and network presets take the same arguments.',
+    ],
+  },
   // DEC-01: an allocation models campaign × day evidence by native campaign ID.
   allocation: {preset: 'google_campaign', entity: id => typeof id === 'string' && /^\d{1,40}$/.test(id)},
   presetRequest(preset, input, range, context) {

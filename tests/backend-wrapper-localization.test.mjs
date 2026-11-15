@@ -440,7 +440,21 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // started from 12,112 and they add different keys, so no package's own pin is the merged count. Measured on the merged
   // catalogue (node tools/check-locales.mjs: catalog_messages 12130, problems none): 12,112 + 2 (hotfix) + 2 (review) + 14
   // (errors) = 12,130.
-  assert.equal(Object.keys(catalog).length, 12130);
+  // Package r25-m0-live (Round 2.5) item 1 adds the Arabic of the two date refusals of a guided capture's window (direct
+  // reasons, not wrapper reasons): measured (node tools/check-locales.mjs: catalog_messages 12114), 12,112 + 2 = 12,114. Its
+  // item 2 adds the two sentences that name semantics.complete (TikTok and Snapchat; raised through bad(), which this
+  // inventory does not own): 12,114 + 2 = 12,116. Its item 3 adds the Arabic of LinkedIn's remedy for an empty analytics
+  // answer (a remedy, not a refusal reason): 12,117. Its item 4 replaces Microsoft's AccountId refusal (a direct reason, one for
+  // one) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118. Its item 5 adds the Arabic
+  // of the Snapchat template that names the windows Snapchat used (a direct reason, not a wrapper reason): 12,119. Its item 7
+  // replaces two previews sentences that promised links open for anyone who has them with three that do not (two entries leave, three
+  // enter): 12,120. Its review fix S2-1 rewords a remedy (one entry leaves, one enters) and adds the Arabic of the TikTok page-count
+  // remedy (a remedy, not a refusal reason): 12,121.
+  // Merge r25-m0-merge, live (12,121 on its own base of 12,112, nine more) on the 12,130 above: the TikTok page-count remedy is
+  // translated by both the hotfix (its wording) and live (the reworded one, which wins, the lead's decision of 2026-11-15), and
+  // the code carries only live's, so the hotfix's entry is dropped and counted once. Measured on the merged catalogue (node
+  // tools/check-locales.mjs: catalog_messages 12138, problems none; ar.json has 12,138 keys and no duplicate): 12,130 + 9 - 1.
+  assert.equal(Object.keys(catalog).length, 12138);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -28,9 +28,12 @@ for (const rule of answerRules)
   test('REPORT_INCOMPLETE on ' + rule + ' says what AMCP saw, that a retry cannot help and what to do', () => {
     const remedy = errorRemedy(refusal(rule));
     assert.notEqual(remedy.action, providerDataAction);
-    // What AMCP saw, with the rule that names it.
+    // What AMCP saw, and where the check that failed is named. Not by the path of the argument that names it
+    // (details.page_facts.rule): the website shows this text as written, and a remedy that names an MCP client's argument is
+    // never shown to a person (r25-m0-live S2-1; tests/website-provider-remedies.test.mjs runs both pages).
     assert.match(remedy.action, /page counts/);
-    assert.match(remedy.action, /details\.page_facts\.rule/);
+    assert.match(remedy.action, /\(the details name the check that failed\)/);
+    assert.doesNotMatch(remedy.action, /details\.|page_facts/);
     // That retrying the same request returns the same answer, and never advice to retry it.
     assert.match(remedy.action, /Retrying the same request returns the same answer/);
     assert.doesNotMatch(remedy.action, /Retry the report/);
@@ -69,12 +72,17 @@ test('refusals a retry can help, and refusals that are not this check, keep the 
     new MirrorError('REPORT_INCOMPLETE', 'Synthetic.', {page_facts: 'page_not_echoed'}, 502),
     new MirrorError('REPORT_INCOMPLETE', 'Synthetic.', {page_facts: ['page_not_echoed']}, 502),
     new MirrorError('REPORT_DUPLICATE_ROWS', 'Synthetic.', {page_facts: facts('duplicate_tuple')}, 502),
-    new MirrorError('REPORT_EMPTY_AMBIGUOUS', 'Synthetic.', {page_facts: facts('page_not_echoed')}, 502),
   ];
   for (const error of generic) {
     assert.equal(errorRemedy(error).action, providerDataAction, error.code + ' ' + JSON.stringify(error.details));
     assert.equal(reportSourceError(error, tiktok).next_action, providerDataAction, error.code);
   }
+  // REPORT_EMPTY_AMBIGUOUS has LinkedIn's own remedy (r25-m0-live item 3), which TikTok's page facts do not change: the page-count
+  // rule above answers REPORT_INCOMPLETE only. (The package r25-hotfix listed this code with the ones that keep the retry advice.)
+  const empty = new MirrorError('REPORT_EMPTY_AMBIGUOUS', 'Synthetic.', {page_facts: facts('page_not_echoed')}, 502);
+  assert.match(errorRemedy(empty).action, /^No rows cannot tell no activity from missing reporting access/);
+  assert.doesNotMatch(errorRemedy(empty).action, /page counts|TikTok/);
+  assert.equal(reportSourceError(empty, tiktok).next_action, errorRemedy(empty).action);
   // A changed response shape keeps its own provider-shape advice, with its caution about a submitted write.
   const shape = errorRemedy(
     new MirrorError('REPORT_SHAPE_CHANGED', 'Synthetic.', {page_facts: facts('page_not_echoed')}, 502),

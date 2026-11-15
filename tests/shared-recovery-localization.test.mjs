@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 176 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 178 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -78,12 +78,22 @@ test('all 176 shared recovery hints have authored Arabic with exact native tool 
   // started from 142 and 169 and add different hints, so no package's own pin is the merged count. Measured on the merged tree
   // (the inspectors this test uses: sharedRecoveryHints and inspectSharedRecoveryHints over src/errors.ts): 142 + 1 (hotfix item
   // 2) + 6 (errors) = 149 in src/errors.ts, and 169 + 2 (hotfix) + 6 (errors) = 177 in all.
-  assert.equal(hints.size, 177);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 149);
+  // Package r25-m0-live (Round 2.5) adds LinkedIn's remedy for an empty analytics answer to its table (item 3, src/linkedin-remedies.ts)
+  // and, to src/errors.ts, the remedy of an account ID the request names twice, differently (item 4): 143, 171 in all. Its review fix
+  // S2-1 declares, in TikTok's own table (src/tiktok-remedies.ts), the remedy of a report whose page counts the check refused, worded
+  // for people as r25-hotfix item 1 declared it for MCP clients: 143 in src/errors.ts, 172 in all (the LinkedIn remedy is reworded, not added).
+  // Merge r25-m0-merge, live (143 in src/errors.ts and 172 in all on its own base of 142 and 169) on the 177 above: the hotfix and
+  // live declare the same TikTok page-count remedy in TikTok's own table, live's wording wins (the lead's decision of 2026-11-15),
+  // and it is one hint, not two. What live adds on top of the hotfix and errors is LinkedIn's remedy (+1, its own table) and the
+  // account-conflict remedy (+1, src/errors.ts): 169 + 1 (hotfix, upstream response) + 1 (the TikTok remedy, once) + 6 (errors)
+  // + 2 (live) = 179 in all, and 142 + 1 + 6 + 1 = 150 in src/errors.ts, as this test's own inspectors measure them on the
+  // merged tree. (Live's note for the hotfix alone, 173 and 144, is this plus the errors package's six.)
+  assert.equal(hints.size, 179);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 150);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 176);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 178);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

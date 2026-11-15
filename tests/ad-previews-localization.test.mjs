@@ -115,7 +115,10 @@ test('every notice the tool answers with, on every platform, has Arabic in the c
     }
   // What the platforms say is covered once per sentence; the notices below are the ones the page showed in English.
   for (const text of [
-    'Preview links open for anyone who has them and expire; share them only with people who may see these ads. AMCP does not store them.',
+    // Package r25-m0-live (Round 2.5, item 7): the shared notice no longer promises that a link opens for anyone who has it, and
+    // LinkedIn's names the link that opens without a sign-in and the one that may need one (tests/ad-preview-link-access.test.mjs).
+    'Preview links expire, and a platform may need its own sign-in to show some of them; share them only with people who may see these ads. AMCP does not store them.',
+    'Preview links expire; share them only with people who may see these ads. AMCP does not store them. The mobile link (device MOBILE_WEBSITE) opens without a LinkedIn sign-in; the desktop link (device DESKTOP_WEBSITE) may show LinkedIn’s error page unless the viewer is signed in to LinkedIn.',
     'TikTok keeps an ad preview link for 30 days.',
     'This ad has no live preview link: Reddit disables it when preview_expiry is empty or past. Setting a new preview_expiry is a reviewed ad change.',
     'Replace ASSET_GROUP_ID with a Performance Max asset group ID, or pass adGroupAds resource names (customers/…/adGroupAds/…~…) of video ads in ad_ids.',

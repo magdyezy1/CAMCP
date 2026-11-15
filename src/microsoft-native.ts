@@ -22,6 +22,7 @@ import {
 import type {Action, CompiledRequest, Connection, DeclaredOperation, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {sameNativeAccount} from './account-id.js';
 import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {guardInput, stable} from './security.js';
 
@@ -271,8 +272,19 @@ export function compileMicrosoft(input: JsonObject): CompiledRequest {
   for (const k of Object.keys(body))
     if (!c.fields.includes(k)) fail('Unsupported top-level payload field: ' + k, {allowed: c.fields});
   for (const k of c.required) if (body[k] === undefined || body[k] === null) fail('Missing ' + k);
-  if (body.AccountId !== undefined && body.AccountId !== input.account_id)
-    throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'AccountId must match account_id.', {}, 403);
+  if (body.AccountId !== undefined) {
+    // R25 M0 (owner 2026-11-15, error 11 of the live checks): the number of account_id's digits is the same account. It is
+    // sent as the decimal string AMCP's contract documents for every ID (docs/MICROSOFT-ADS.md). Another ID, or no ID, is
+    // refused as a fault of the request, with both roles named: it is not a grant (the account is the one selected).
+    if (!sameNativeAccount(microsoftGateway, body.AccountId, input.account_id))
+      throw new MirrorError(
+        'ACCOUNT_SCOPE_MISMATCH',
+        'AccountId in the payload is not the account_id of the call. Send the same ID as a string in both, or leave AccountId out of the payload: AMCP fills it from account_id.',
+        {field: 'AccountId', account_conflict: true},
+        403,
+      );
+    body.AccountId = input.account_id;
+  }
   for (const [k, v] of Object.entries(body)) {
     if (['AccountId', 'CampaignId', 'AdGroupId'].includes(k)) id(v, k);
     if (/Ids$/.test(k) && k !== 'ReportRequestId' && v !== null) ids(v, k);

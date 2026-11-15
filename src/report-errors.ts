@@ -74,6 +74,9 @@ export function reportErrorCategory(
   status?: number,
 ): ReportErrorCategory {
   for (const [category, codes] of categoryCodes) if (codes.has(code)) return category;
+  // An account ID the request names twice, differently, is the request's fault, not a permission, whatever HTTP status it
+  // carries (R25 M0 review S4-1; src/errors.ts reviewRemedy says the same on the MCP error).
+  if (code === 'ACCOUNT_SCOPE_MISMATCH' && details.account_conflict === true) return 'request';
   const layer =
     typeof details.layer === 'string' && Object.hasOwn(layerCategories, details.layer)
       ? layerCategories[details.layer]
@@ -237,7 +240,9 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     if (Number.isSafeInteger(e.details[key])) diagnostic[key] = e.details[key];
   const specific = String(providerCode ?? e.code);
   // An account sync keeps its own sync wording below; the retry action names a report. A provider that declares a remedy
-  // for a refusal of its own that a retry cannot help (TikTok's page counts, r25-hotfix) has the card say that instead.
+  // for a refusal of its own that a retry cannot help (TikTok's page counts, r25-hotfix; LinkedIn's empty answer,
+  // r25-m0-live) has the card say that instead. The card shows next_action as written, so such a remedy is worded for people,
+  // with no tool, action or argument name (WEB-03; tests/website-provider-remedies.test.mjs).
   if (category === 'provider_data' && !syncing)
     diagnostic.next_action = providerRemedy(e.code, e.details)?.action ?? providerDataAction;
   else if (source.platform === 'google' && specific === 'AUTHORIZATION_ERROR')

@@ -53,6 +53,30 @@ for (const sample of samples.samples)
     });
   });
 
+// Package r25-m0-live (Round 2.5, item 8: rows 5.2 and 5.3 of the live checks of 2026-11-15). Under explicit windows Meta's
+// `results` carried one entry for each requested window and no `default` entry, which the record of 2026-11-07 (R9) had said
+// it adds. The samples above of that form (no default entry; the addendum of docs/records/META-RESULTS-PIN-2026-11-07.md)
+// pin that the reader sums the requested windows' entries without one. What it must not do is invent a default: the same
+// entries read under the ad set's own setting have no number for that setting, and are an unverified shape, not a guess.
+test('Meta results: entries of explicit windows only, with no default, give no number under the ad set’s own setting', () => {
+  const sample = samples.samples.find(item => item.form === 'explicit windows including 1d_ev, no default entry');
+  assert.ok(sample, 'the sample of the live form is in the fixture');
+  assert.equal(
+    sample.row.results[0].values.some(item => item.attribution_windows?.includes('default')),
+    false,
+    'the sample holds no default entry',
+  );
+  const explicit = read(sample.row, sample.request.attribution_windows);
+  assert.equal(explicit.result.value, '7');
+  const own = read(sample.row, null);
+  assert.equal(own.unavailable_reason, 'unverified_native_shape');
+  assert.equal(own.result.value, null);
+  assert.equal(own.definition, null);
+  // A window that was not requested does not stand in for the one that was: 1d_ev alone is not the sum of the three.
+  assert.equal(read(sample.row, ['1d_ev']).result.value, '1');
+  assert.equal(read(sample.row, ['1d_click']).result.value, '4');
+});
+
 test('Meta results: every indicator of the declared table gives its id, label, aggregation and cost unit', () => {
   assert.equal(samples.indicators.length, 20);
   const windowLess = new Set(['estimated_ad_recallers', 'profile_visit_view', 'total_profile_visits']);

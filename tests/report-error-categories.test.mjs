@@ -115,6 +115,23 @@ test('a layer that is not one of the closed set names no category, even a name e
     assert.equal(reportErrorCategory('X', {layer}, 400), 'internal', JSON.stringify(layer));
 });
 
+// Review S4-1 (r25-m0-live): an account ID the request names twice, differently, is refused with HTTP 403, so the Overview card
+// filed it as a permission ("Manage connections") while the MCP error says the request is at fault. The card reads the flag too.
+test('an account conflict is a fault of the request on the source card, as on the MCP error; another account-scope refusal is still a permission', () => {
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {account_conflict: true}, 403), 'request');
+  assert.equal(
+    reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {account_conflict: true, field: 'AccountId'}, 403),
+    'request',
+  );
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {}, 403), 'permission');
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {resource: 'creatives/1'}, 403), 'permission');
+  // Only on this code, and only the flag set to true.
+  assert.equal(reportErrorCategory('WRITE_ACCOUNT_FORBIDDEN', {account_conflict: true}, 403), 'permission');
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {account_conflict: 'true'}, 403), 'permission');
+  const card = reportSourceError(new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'm', {account_conflict: true}, 403), tiktok);
+  assert.equal(card.category, 'request');
+});
+
 test('the twelve provider-data codes exclude AMCP request limits', () => {
   assert.deepEqual([...providerDataCodes].sort(), [
     'DUPLICATE_CAMPAIGN_ROWS',
@@ -358,13 +375,11 @@ test('nestedError keeps the allow-listed details, retryable and a provider-data 
 });
 
 test('MCP keeps category report for provider-data codes and gives them the retry action', () => {
-  for (const code of [
-    'REPORT_INCOMPLETE',
-    'REPORT_DUPLICATE_ROWS',
-    'REPORT_EMPTY_AMBIGUOUS',
-    'REPORT_ID_MISSING',
-    'REPORT_METRIC_AMBIGUOUS',
-  ]) {
+  // Package r25-m0-live (Round 2.5, item 3) takes REPORT_EMPTY_AMBIGUOUS out of this list: a retry of an empty answer gives
+  // the same answer, so LinkedIn declares a remedy of its own for it (src/linkedin-remedies.ts), which
+  // tests/report-empty-ambiguous-remedy.test.mjs pins. Its category is still report.
+  assert.equal(errorRemedy(new MirrorError('REPORT_EMPTY_AMBIGUOUS', 'm', {}, 502)).category, 'report');
+  for (const code of ['REPORT_INCOMPLETE', 'REPORT_DUPLICATE_ROWS', 'REPORT_ID_MISSING', 'REPORT_METRIC_AMBIGUOUS']) {
     const r = errorRemedy(new MirrorError(code, 'm', {}, 502));
     assert.deepEqual([r.category, r.action, r.mutation_retry_safe], ['report', providerDataAction, false], code);
   }
@@ -392,8 +407,9 @@ test('MCP keeps category report for provider-data codes and gives them the retry
     assert.notEqual(p.action, providerDataAction, code);
     assert.match(p.action, /submitted write/, code);
   }
-  // Every provider-data code is one or the other: nothing is left telling the caller to correct its request.
-  const own = new Set(['REPORT_SHAPE_CHANGED', 'REPORT_RESPONSE_INVALID']);
+  // Every provider-data code is one or the other: nothing is left telling the caller to correct its request. The empty
+  // answer (package r25-m0-live, item 3) has a remedy of its own that says what to do instead of retrying.
+  const own = new Set(['REPORT_SHAPE_CHANGED', 'REPORT_RESPONSE_INVALID', 'REPORT_EMPTY_AMBIGUOUS']);
   for (const code of providerDataCodes)
     assert.equal(errorRemedy(new MirrorError(code, 'm', {}, 502)).action === providerDataAction, !own.has(code), code);
   // AMCP's own size limit is a different failure: the generic report family names its narrowing.

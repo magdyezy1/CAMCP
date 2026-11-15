@@ -16,6 +16,21 @@ import {unavailableOperations} from './unavailable-operations.js';
 import {contextOperation, contextOperationHelp} from './context-operations.js';
 import {firstPartyContract, toolActions} from './first-party-contracts.js';
 import {planExample} from './campaign-step-help.js';
+import {capturePresetHelp} from './report-presets.js';
+import {previewLinkAccessHelp} from './ad-previews.js';
+
+/**
+ * What the help of one first-party action adds to its contract, by tool and action (R25 M0, owner 2026-11-15): a function of
+ * the day it is asked, kept out of tools/list. amcp_reporting capture_preset's worked calls are the platforms' own. A key of
+ * a tool alone is what its root help adds: amcp_ad_previews says which links need a sign-in, which its description, pinned
+ * by the tool surface golden, cannot.
+ */
+const helpAdditions: Readonly<Record<string, () => JsonObject>> = {
+  'amcp_reporting capture_preset': () => capturePresetHelp(),
+  amcp_ad_previews: () => previewLinkAccessHelp(),
+};
+const helpAddition = (tool: string, action: string | undefined): JsonObject =>
+  helpAdditions[action === undefined ? tool : tool + ' ' + action]?.() ?? {};
 
 export interface ListedTool {
   name: string;
@@ -62,6 +77,7 @@ export function ownToolHelp(tool: ListedTool, topic?: string, profile?: Contract
   return {
     ...help,
     ...(worked ? {worked_example: structuredClone(worked)} : {}),
+    ...helpAddition(tool.name, topic),
     ...(tool.name === 'amcp_workspace' && topic === undefined ? {other_topics: ['guides', 'mcp_profile']} : {}),
     examples,
   };
@@ -175,7 +191,11 @@ export function toolHelp(ctx: HelpContext, input: JsonObject): JsonObject {
         ...nameCandidates(input.operation, actions),
         list_call: {tool: own.name, arguments: {action: 'help'}},
       });
-    return {...firstPartyHelp(own, listed.find(t => t.name === own.name)!.description, input.operation), ...extras};
+    return {
+      ...firstPartyHelp(own, listed.find(t => t.name === own.name)!.description, input.operation),
+      ...helpAddition(own.name, input.operation),
+      ...extras,
+    };
   }
   if (input.gateway === 'amcp_tool_help') {
     if (input.operation !== undefined)

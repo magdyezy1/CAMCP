@@ -170,7 +170,8 @@ export class Compiler {
             throw new MirrorError(
               'ACCOUNT_SCOPE_MISMATCH',
               'Conflicting account identifiers are not allowed.',
-              {field: key},
+              // account_conflict: the request is at fault, not a grant (R25 M0, owner 2026-11-15; src/errors.ts reviewRemedy).
+              {field: key, account_conflict: true},
               403,
             );
       for (const key of aliases[gateway] ?? []) if (values[key] === undefined) values[key] = accountId;

@@ -38,9 +38,16 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // the health refusal (LEAD-03) and of a write the provider throttled after it was sent (L3-02), as the shared inventory
   // counts them. Merge r25-m0-merge: the hotfix's pin (171 on its own base) and the errors package's (175) both started
   // from 169 and add different hints, so the merged count is measured, not either pin: 169 + 2 + 6 = 177.
-  assert.equal(hints.size, 177);
+  // Package r25-m0-live (Round 2.5) adds two: LinkedIn's
+  // remedy for an empty analytics answer (item 3, src/linkedin-remedies.ts) and the remedy of an account ID the request names twice,
+  // differently (item 4, src/errors.ts): 171. Its review fix S2-1 adds one more, in TikTok's own table (src/tiktok-remedies.ts): the
+  // remedy of a report whose page counts the check refused, worded for people (the one r25-hotfix item 1 declares for MCP clients): 172.
+  // Merge r25-m0-merge, live on the 177 above: the hotfix and live declare that same TikTok remedy and it is one hint (live's
+  // wording wins, the lead's decision of 2026-11-15), so live adds LinkedIn's remedy and the account-conflict remedy on top of
+  // the hotfix and errors; the merged count is measured by this test's own inspector, not either pin: 177 + 2 = 179.
+  assert.equal(hints.size, 179);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 176);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 178);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

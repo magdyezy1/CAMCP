@@ -1,5 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
+import {accountConflict} from './account-id.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -82,7 +83,12 @@ export function assertDV360Sdf(p: CompiledRequest): void {
       403,
     );
   if (b.advertiserId !== p.accountId || !id(b.advertiserId))
-    fail('ACCOUNT_SCOPE_MISMATCH', 'advertiserId must be the selected advertiser.', {}, 403);
+    fail(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'advertiserId must be the selected advertiser.',
+      accountConflict(b.advertiserId),
+      403,
+    );
   const extra = Object.keys(b).filter(
     k => !['version', 'advertiserId', 'parentEntityFilter', 'idFilter', 'inventorySourceFilter'].includes(k),
   );

@@ -49,14 +49,16 @@ export function tiktokDailyRange(semantics: JsonObject, allowUndeclared = false)
   } catch {
     return bad('Declare the native advertiser IANA timezone.');
   }
-  if (
-    (!allowUndeclared && semantics.complete !== true) ||
-    through < from ||
-    through >= today ||
-    Date.parse(through) - Date.parse(from) >= 366 * 86400000
-  )
+  if (through < from || through >= today || Date.parse(through) - Date.parse(from) >= 366 * 86400000)
     bad(
       'TikTok guided evidence requires a declared complete window of 1–366 closed days in the advertiser timezone.',
+      'INVALID_DATE_RANGE',
+    );
+  // R25 M0 (owner 2026-11-15, error 4 of the live checks): a window that is closed but not declared so is refused with the
+  // key to set. The window is checked first: declaring complete a window that is not closed would not be accepted.
+  if (!allowUndeclared && semantics.complete !== true)
+    bad(
+      'Set semantics.complete to true for a closed window of 1–366 days in the advertiser timezone.',
       'INVALID_DATE_RANGE',
     );
 }

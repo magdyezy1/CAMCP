@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {accountConflict} from './account-id.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
@@ -52,7 +53,12 @@ export function assertDV360AudienceEdit(p: CompiledRequest): void {
   )
     invalid('An audience edit takes advertiserId and updateMask in the query and nothing else.');
   if (p.query.advertiserId !== p.accountId || !id(p.query.advertiserId))
-    fail('ACCOUNT_SCOPE_MISMATCH', 'advertiserId must be the selected advertiser, the owner of the audience.', {}, 403);
+    fail(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'advertiserId must be the selected advertiser, the owner of the audience.',
+      accountConflict(p.query.advertiserId),
+      403,
+    );
   const mask = maskOf(p);
   if (!mask.length || mask.some(f => !editable.includes(f)) || new Set(mask).size !== mask.length)
     invalid(

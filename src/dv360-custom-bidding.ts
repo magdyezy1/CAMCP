@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
+import {accountConflict} from './account-id.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
@@ -66,7 +67,9 @@ export function assertDV360Bidding(p: CompiledRequest): void {
     fail(
       'ACCOUNT_SCOPE_MISMATCH',
       'advertiserId in the body must be the selected advertiser; partner-owned algorithms are outside this contract.',
-      {},
+      // A request that names another advertiser is at fault, not a grant (review S3-2); the compile hook has already sent the
+      // number of the selected advertiser's digits as its string (src/dv360-adapter.ts).
+      accountConflict(b.advertiserId),
       403,
     );
   if (kind === 'create') {

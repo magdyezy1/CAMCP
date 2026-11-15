@@ -32,7 +32,10 @@ const counts = {
   // location scope and read mask, and Reddit's report window and fields moved with their rules to those providers'
   // adapters, unchanged; tests/backend-contract-localization.test.mjs keeps their Arabic.
   'src/delegated-native.ts': 27,
-  'src/workflows.ts': 52,
+  // Package r25-m0-live (Round 2.5, item 1) adds two refusals to dateRange, raised when a guided capture names its window
+  // keys: a date that is missing or not a calendar day, and dates in the wrong order. Each is a template that carries the
+  // semantics key the agent wrote, with its Arabic in web/locales/ar.json: 52 + 2.
+  'src/workflows.ts': 54,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const owned = new Set(
@@ -76,7 +79,11 @@ test('all six selected core sources require every authored reason with native fi
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
   // Package mcp-surface (V2-MCP-06) adds the MEDIA_REVIEW_REQUIRED sentence of src/service.ts, owned by no other source: 223 + 1.
   // Package r25-m0-errors (G9) adds the two src/transport.ts templates, owned by no other source: 224 + 2.
-  assert.equal(owned.size, 226);
+  // Package r25-m0-live adds the two date refusals of src/workflows.ts above: 224 + 2.
+  // Merge r25-m0-merge, with r25-m0-errors (226 on its own base of 224) and r25-m0-live (226 on the same base): the two sets are
+  // different files and different sentences, so the value line merged without a conflict and was wrong: 224 + 2 + 2 = 228, as
+  // this test's own inspector measures it on the merged tree (the per-file table above carries each package's own file).
+  assert.equal(owned.size, 228);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

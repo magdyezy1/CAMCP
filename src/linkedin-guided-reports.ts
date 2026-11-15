@@ -53,6 +53,21 @@ const presets = [
 export const linkedinGuidedReporting: GuidedReporting = {
   presets,
   presetPrefix: 'linkedin_',
+  // What amcp_reporting capture_preset help shows of LinkedIn's presets (R25 M0, owner 2026-11-15, observation 7 of the live checks).
+  help: {
+    preset: 'linkedin_campaign',
+    account: '123456789',
+    timezone: 'UTC',
+    currency: 'USD',
+    source: 'LinkedIn Campaign Manager analytics',
+    rules: [
+      'semantics.timezone must be UTC: LinkedIn reports its dates in UTC.',
+      'The window lies in the current month and the previous five calendar months, through today in UTC: LinkedIn keeps daily rows for no longer.',
+      'semantics.complete may be true or false. semantics.attribution names the attribution settings in text, or unknown when they are not established.',
+      'The campaign × conversion preset (linkedin_campaign_conversion) takes semantics.attribution verified_per_rule: AMCP reads each conversion’s windows from its rule.',
+      'An empty answer is refused as REPORT_EMPTY_AMBIGUOUS, because no activity and missing reporting access look alike; no zero is saved.',
+    ],
+  },
   // DEC-01: an allocation models campaign evidence kept with its original URNs, UTC daily analytics mapping and
   // verified account currency.
   allocation: {

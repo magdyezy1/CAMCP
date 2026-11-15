@@ -482,6 +482,104 @@
         "definition_id": null,
         "reason": "unverified_native_shape"
       }
+    },
+    {
+      "form": "explicit windows including 1d_ev, no default entry",
+      "about": "The live read of 2026-11-15 (the addendum of the record): 1d_click, 1d_view and 1d_ev asked for with both use_*_attribution_setting false give one entry per window and no default. The result is the exact sum of the three entries; no entry names the ad set's own setting, so the cost of the sum is derived from spend. The numbers are invented.",
+      "request": {"attribution_windows": ["1d_click", "1d_view", "1d_ev"]},
+      "row": {
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "impressions": "1000",
+        "spend": "28",
+        "results": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [
+              {"value": "4", "attribution_windows": ["1d_click"]},
+              {"value": "2", "attribution_windows": ["1d_view"]},
+              {"value": "1", "attribution_windows": ["1d_ev"]}
+            ]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [
+              {"value": "7", "attribution_windows": ["1d_click"]},
+              {"value": "14", "attribution_windows": ["1d_view"]},
+              {"value": "28", "attribution_windows": ["1d_ev"]}
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "value": "7",
+        "cost_per_result": "4",
+        "cost_source": "derived",
+        "source": "provider",
+        "definition_id": "meta:website_purchases",
+        "reason": null
+      }
+    },
+    {
+      "form": "one explicit window alone, no default entry",
+      "about": "Only 1d_click asked for, so the list holds only its entry and no default: the window's own value, with Meta's own cost for that window. The numbers are invented.",
+      "request": {"attribution_windows": ["1d_click"]},
+      "row": {
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "impressions": "1000",
+        "spend": "28",
+        "results": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [{"value": "4", "attribution_windows": ["1d_click"]}]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [{"value": "7", "attribution_windows": ["1d_click"]}]
+          }
+        ]
+      },
+      "expect": {
+        "value": "4",
+        "cost_per_result": "7",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:website_purchases",
+        "reason": null
+      }
+    },
+    {
+      "form": "a requested 1d_ev window with no entry, no default entry",
+      "about": "1d_click and 1d_ev asked for, and Meta counted nothing in the engaged-view window: its entry is left out (a requested window with no entry counts 0) and there is no default. The numbers are invented.",
+      "request": {"attribution_windows": ["1d_click", "1d_ev"]},
+      "row": {
+        "optimization_goal": "OFFSITE_CONVERSIONS",
+        "impressions": "1000",
+        "spend": "27",
+        "results": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [{"value": "3", "attribution_windows": ["1d_click"]}]
+          }
+        ],
+        "cost_per_result": [
+          {
+            "indicator": "actions:offsite_conversion.fb_pixel_purchase",
+            "values": [{"value": "9", "attribution_windows": ["1d_click"]}]
+          }
+        ]
+      },
+      "expect": {
+        "value": "3",
+        "cost_per_result": "9",
+        "cost_source": "provider",
+        "source": "provider",
+        "definition_id": "meta:website_purchases",
+        "reason": null
+      }
     }
   ],
   "indicators": [

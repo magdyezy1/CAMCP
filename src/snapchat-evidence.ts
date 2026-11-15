@@ -48,16 +48,16 @@ export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
   }
   const start = Date.parse(sem.date_from),
     end = Date.parse(sem.date_to);
-  if (
-    (!allowUndeclared && sem.complete !== true) ||
-    end < start ||
-    end - start >= 31 * 86400000 ||
-    sem.date_to >= today
-  ) {
+  if (end < start || end - start >= 31 * 86400000 || sem.date_to >= today) {
     // The Overview allows an undeclared window, so its refusal does not speak of a declaration (F-L7-13).
     if (allowUndeclared) bad('Snapchat evidence requires 1–31 closed days.');
     bad('Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.');
   }
+  // R25 M0 (owner 2026-11-15, error 4 of the live checks, which TikTok's capture shares): a closed window that is not
+  // declared so is refused with the key to set. The window is checked first: declaring complete a window that is not
+  // closed would not be accepted.
+  if (!allowUndeclared && sem.complete !== true)
+    bad('Set semantics.complete to true for a closed window of 1–31 days in the account timezone.');
   const days: {date: string; start: number; end: number}[] = [];
   for (let at = start; at <= end; at += 86400000) {
     const date = new Date(at).toISOString().slice(0, 10),
@@ -100,6 +100,44 @@ export function snapchatNextCursor(data: JsonObject, path: string, query: JsonOb
   if (next.refused === 'link')
     incomplete('Snapchat continuation changed the account, report settings or authorized route.');
   return next.token;
+}
+
+/**
+ * The attribution windows a guided Snapchat capture can ask for (the closed sets of the guided presets,
+ * src/snapchat-guided-reports.ts). A refusal names a window only when it is one of these, so it never echoes text the
+ * provider chose and every value it names is one the agent can send back.
+ */
+const swipeWindows: readonly unknown[] = ['1_DAY', '7_DAY', '28_DAY'];
+const viewWindows: readonly unknown[] = ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'];
+/**
+ * Whether a guided Snapchat preset takes this pair of attribution windows: each in its closed set, and a seven-day view
+ * window with at least a seven-day swipe window (the rule of src/snapchat-guided-reports.ts presetRequest, which asks this).
+ */
+export function snapchatWindowsTaken(swipe: unknown, view: unknown): boolean {
+  return swipeWindows.includes(swipe) && viewWindows.includes(view) && !(view === '7_DAY' && swipe === '1_DAY');
+}
+/**
+ * The refusal of a stats read that used other attribution windows than the request (R25 M0, owner 2026-11-15, error 13 of
+ * the live checks): it names the swipe-up and view windows Snapchat used and the ones asked for, so the agent can ask for
+ * the pair Snapchat used. A pair the presets do not take, a window outside the closed sets, or none keeps the earlier
+ * sentence and names no value (review S4-3: the advice must be a request the presets accept).
+ */
+function attributionRefusal(stat: JsonObject, query: JsonObject): never {
+  const returned = {swipe: stat.swipe_up_attribution_window, view: stat.view_attribution_window},
+    requested = {swipe: query.swipe_up_attribution_window, view: query.view_attribution_window};
+  if (snapchatWindowsTaken(returned.swipe, returned.view) && snapchatWindowsTaken(requested.swipe, requested.view))
+    throw new MirrorError(
+      'REPORT_SEMANTICS_MISMATCH',
+      'Snapchat reported a swipe-up window of {swipe} and a view window of {view}, not the {requestedSwipe} and {requestedView} requested. Capture again with swipe_up_attribution_window {swipe} and view_attribution_window {view} to match it.',
+      {
+        requested: {swipe_up_attribution_window: requested.swipe, view_attribution_window: requested.view},
+        returned: {swipe_up_attribution_window: returned.swipe, view_attribution_window: returned.view},
+      },
+      400,
+      false,
+      {swipe: returned.swipe, view: returned.view, requestedSwipe: requested.swipe, requestedView: requested.view},
+    );
+  return bad('Snapchat returned different attribution settings.', 'REPORT_SEMANTICS_MISMATCH');
 }
 
 /** What the evidence keeps of a parent campaign: its name and its objective (the v2 value when the campaign has one). */
@@ -295,9 +333,11 @@ export async function collectSnapchatEvidence(
       instant(stat.end_time) !== through
     )
       bad('Snapchat returned a different reporting window or grain.', 'REPORT_DATE_MISMATCH');
-    for (const key of nativeLeads ? [] : ['swipe_up_attribution_window', 'view_attribution_window'])
-      if (stat[key] !== args.query[key])
-        bad('Snapchat returned different attribution settings.', 'REPORT_SEMANTICS_MISMATCH');
+    if (
+      !nativeLeads &&
+      ['swipe_up_attribution_window', 'view_attribution_window'].some(key => stat[key] !== args.query[key])
+    )
+      attributionRefusal(stat, args.query);
     for (const key of nativeLeads ? [] : ['action_report_time', 'conversion_source_types'])
       if (stat[key] !== undefined && stat[key] !== args.query[key])
         bad('Snapchat returned a different conversion definition.', 'REPORT_SEMANTICS_MISMATCH');

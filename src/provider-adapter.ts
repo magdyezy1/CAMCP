@@ -1026,6 +1026,11 @@ export interface AdPreviewHooks {
   select?(request: AdPreviewRequest): Promise<AdPreviewSelection>;
   /** For a platform without a readable preview: the answer's fields (its explanation, or the write that creates one). */
   explain?(route: AdPreviewRoute): JsonObject;
+  /**
+   * For a platform whose links do not all open for anyone who has them: which of its links opens without its sign-in and
+   * which may not. The help of amcp_ad_previews lists it (src/ad-previews.ts), since the tool description cannot say it.
+   */
+  readonly linkAccess?: string;
 }
 
 /**

@@ -391,7 +391,14 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/spend-policy.ts, now a sentence of its own that states the rule (it was built from a template and a tail): 1,640.
   // Its G9 owns two more, in src/transport.ts: the templates of a provider refusal that names its closed-set tokens (HTTP
   // error and unsuccessful result, each with a {refusal} slot): 1,642.
-  assert.equal(owned.size, 1642);
+  // Package r25-m0-live (Round 2.5, item 1) owns two more: the date and date-order refusals of dateRange for a guided
+  // capture's window (src/workflows.ts, templates that name the semantics key): 1,641. Its item 5 owns one more: the template of
+  // Snapchat's refusal of attribution windows it did not use, which names the windows it did (src/snapchat-evidence.ts; the earlier
+  // sentence is kept for a window outside the closed sets, and is raised through bad()): 1,642.
+  // Merge r25-m0-merge, with r25-m0-errors (1,642 on its own base) and r25-m0-live (1,642 on the same base of 1,639): each adds
+  // three different owned reasons, so the value line merged without a conflict and was wrong. No reason is owned by both:
+  // 1,639 + 3 + 3 = 1,645, as this test's own inspector measures it on the merged tree.
+  assert.equal(owned.size, 1645);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -503,7 +510,22 @@ test('all actual directly owned backend reasons have Arabic with original native
   // started from 12,112 and they add different keys, so no package's own pin is the merged count. Measured on the merged
   // catalogue (node tools/check-locales.mjs: catalog_messages 12130, problems none): 12,112 + 2 (hotfix) + 2 (review) + 14
   // (errors) = 12,130.
-  assert.equal(Object.keys(catalog).length, 12130);
+  // Package r25-m0-live (Round 2.5) item 1 adds the Arabic of the two date refusals of a guided capture's window: measured
+  // (node tools/check-locales.mjs: catalog_messages 12114), 12,112 + 2 = 12,114. Its item 2 adds the two sentences that name
+  // semantics.complete (TikTok and Snapchat; raised through bad(), so no owned reason changes): 12,114 + 2 = 12,116. Its item 3
+  // adds the Arabic of LinkedIn's remedy for an empty analytics answer (src/linkedin-remedies.ts): 12,117. Its item 4 rewords
+  // Microsoft's refusal of a payload AccountId that is not the call's account_id (the owned reason is replaced one for one, the
+  // old entry leaves the catalogue) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118. Its
+  // item 5 adds the Arabic of the Snapchat template that names the windows Snapchat used: 12,119. Its item 7 replaces the previews
+  // notice that promised links open for anyone who has them and the page's line that said the same (two entries leave) with the notice
+  // that makes no such promise, LinkedIn's that names its two links and the page's new line (three enter): 12,119 + 3 - 2 = 12,120.
+  // Its review fix S2-1 rewords LinkedIn's remedy for an empty analytics answer so that it names no tool or action (the old entry
+  // leaves, the new one enters) and adds the Arabic of the TikTok page-count remedy worded for people (src/tiktok-remedies.ts): 12,121.
+  // Merge r25-m0-merge, live (12,121 on its own base of 12,112, nine more) on the 12,130 above: the TikTok page-count remedy is
+  // translated by both the hotfix (its wording) and live (the reworded one, which wins, the lead's decision of 2026-11-15), and
+  // the code carries only live's, so the hotfix's entry is dropped and counted once. Measured on the merged catalogue (node
+  // tools/check-locales.mjs: catalog_messages 12138, problems none; ar.json has 12,138 keys and no duplicate): 12,130 + 9 - 1.
+  assert.equal(Object.keys(catalog).length, 12138);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
@@ -522,7 +544,11 @@ test('all actual directly owned backend reasons have Arabic with original native
       'Install FFmpeg and ffprobe, or configure AMCP_FFMPEG_PATH and AMCP_FFPROBE_PATH.',
       ['FFmpeg', 'ffprobe', 'AMCP_FFMPEG_PATH', 'AMCP_FFPROBE_PATH'],
     ],
-    ['AccountId must match account_id.', ['AccountId', 'account_id']],
+    // Package r25-m0-live (item 4): the sentence that replaced 'AccountId must match account_id.'.
+    [
+      'AccountId in the payload is not the account_id of the call. Send the same ID as a string in both, or leave AccountId out of the payload: AMCP fills it from account_id.',
+      ['AccountId', 'account_id'],
+    ],
     ['New Microsoft entities require Status: Paused.', ['Status: Paused']],
     [
       'Choose square, portrait, vertical or landscape, with contain or crop.',

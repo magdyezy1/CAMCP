@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
+import {accountConflict} from './account-id.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
@@ -96,7 +97,12 @@ export function assertDV360InventoryGroup(p: CompiledRequest): void {
             ' and nothing else; partnerId would act with partner access, which this connection is not bound to.',
     );
   if (kind !== 'source_bulk' && p.query.advertiserId !== p.accountId)
-    fail('ACCOUNT_SCOPE_MISMATCH', 'advertiserId must be the selected advertiser.', {}, 403);
+    fail(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'advertiserId must be the selected advertiser.',
+      accountConflict(p.query.advertiserId),
+      403,
+    );
   if (kind === 'group_delete' || kind === 'source_delete') {
     if (p.body !== undefined && !(obj(p.body) && !Object.keys(p.body).length)) invalid('Deletion takes no body.');
     return;
@@ -134,7 +140,7 @@ export function assertDV360InventoryGroup(p: CompiledRequest): void {
     fail(
       'ACCOUNT_SCOPE_MISMATCH',
       'bulkEdit names the selected advertiser, the owner of the group, in body.advertiserId.',
-      {},
+      accountConflict(b.advertiserId),
       403,
     );
   const created = b.createdAssignedInventorySources ?? [],

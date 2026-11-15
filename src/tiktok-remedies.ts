@@ -30,7 +30,9 @@ const pageCountRefusal = (details: Record<string, unknown>): boolean => {
  */
 export const tiktokRemedies: readonly ProviderRemedy[] = [
   // A report whose page counts AMCP's check refused (live checks of 2026-11-15, error 7). It names what AMCP saw, that
-  // the same request returns the same answer, and what to do, instead of the shared advice to retry the report.
+  // the same request returns the same answer, and what to do, instead of the shared advice to retry the report. It names no
+  // argument or path (details.page_facts.rule) in the text: the website shows it as written, on the Overview's source card
+  // and on the evidence page (WEB-03; r25-m0-live S2-1, tests/website-provider-remedies.test.mjs).
   {
     codes: ['REPORT_INCOMPLETE'],
     when: pageCountRefusal,
@@ -38,7 +40,7 @@ export const tiktokRemedies: readonly ProviderRemedy[] = [
       category: 'report',
       owner: 'operator',
       action:
-        'TikTok’s page counts for this report were missing or did not match the page AMCP asked for or the rows TikTok returned, so AMCP did not accept it as complete (details.page_facts.rule names the check that failed). Retrying the same request returns the same answer. Report these details to support, or narrow the request (a shorter date range, or fewer levels) and send that instead.',
+        'TikTok’s page counts for this report were missing or did not match the page AMCP asked for or the rows TikTok returned, so AMCP did not accept it as complete (the details name the check that failed). Retrying the same request returns the same answer. Report these details to support, or narrow the request (a shorter date range, or fewer levels) and send that instead.',
       mutation_retry_safe: false,
     },
   },

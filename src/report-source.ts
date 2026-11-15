@@ -331,6 +331,28 @@ export interface GuidedDimension {
 }
 
 /**
+ * The worked call a platform's guided reporting shows in amcp_reporting capture_preset help (R25 M0): the call is
+ * `{action: 'capture_preset', preset, account_id, ...arguments, semantics}`, its semantics built from a closed window and
+ * the values here. Every call the help shows is run through the real checks of the capture by tests/capture-preset-help.test.mjs.
+ */
+export interface GuidedPresetHelp {
+  /** The preset the call captures. */
+  readonly preset: string;
+  /** An invented account ID in the platform's own form. */
+  readonly account: string;
+  /** An IANA timezone and a currency an account of the platform might have, and a source_name that suits its report. */
+  readonly timezone: string;
+  readonly currency: string;
+  readonly source: string;
+  /** The call's other arguments, beside `preset`, `account_id` and `semantics` (Meta's result action and windows, Snapchat's windows). */
+  readonly arguments?: JsonObject;
+  /** The `semantics` keys the preset sets itself from those arguments, which the call leaves out. */
+  readonly sets?: readonly string[];
+  /** What the platform's presets require that the call keeps, one sentence each. */
+  readonly rules: readonly string[];
+}
+
+/**
  * A platform's guided reporting (amcp_reporting's capture presets and their evidence, ARC-04 stage F): what the shared
  * guided modules (src/report-breakdowns.ts and the modules above it) ask the platform instead of naming it.
  */
@@ -375,6 +397,12 @@ export interface GuidedReporting {
   readonly presets?: readonly JsonObject[];
   /** The prefix every one of the platform's preset IDs starts with (`linkedin_`), by which a capture names its preset. */
   readonly presetPrefix?: string;
+  /**
+   * What amcp_reporting capture_preset help shows of the platform's presets (R25 M0, owner 2026-11-15, observation 7 of the
+   * live checks): one worked call and the rules of the platform that it keeps. The shared help (src/report-presets.ts
+   * capturePresetHelp) only assembles what each platform declares.
+   */
+  readonly help?: GuidedPresetHelp;
   /** Whether a capture of `preset` takes a parent campaign filter (Snapchat's parent-scoped presets); none when absent. */
   campaignFilter?(preset: JsonObject): boolean;
   /**

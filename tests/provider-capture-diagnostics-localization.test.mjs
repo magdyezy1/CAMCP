@@ -6,11 +6,13 @@ import {parsers} from 'prettier/plugins/babel';
 import {inspectReportingFailures, inspectProviderCaptureRemedies, localeProblems} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
+// Package r25-m0-live (Round 2.5, item 2) adds one refusal sentence to each of TikTok's and Snapchat's: the one that names
+// semantics.complete when a closed window is not declared so. The sentence each kept for a window that is not closed is unchanged.
 const collectors = {
   'src/meta-evidence.ts': 16,
   'src/linkedin-evidence.ts': 6,
-  'src/tiktok-reporting.ts': 15,
-  'src/snapchat-evidence.ts': 38,
+  'src/tiktok-reporting.ts': 16,
+  'src/snapchat-evidence.ts': 39,
 };
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 function formatter(locale) {
@@ -79,7 +81,7 @@ test('provider refusal ownership includes exact collector literals and only Snap
     assert.equal(inspectReportingFailures(sample, file).size, 0);
 });
 
-test('all 75 selected provider refusal sentences have authored Arabic without codes or native fallbacks', () => {
+test('all 77 selected provider refusal sentences have authored Arabic without codes or native fallbacks', () => {
   let count = 0;
   for (const [file, expected] of Object.entries(collectors)) {
     const messages = inspectReportingFailures(readFileSync(file, 'utf8'), file);
@@ -92,7 +94,7 @@ test('all 75 selected provider refusal sentences have authored Arabic without co
     }
     count += messages.size;
   }
-  assert.equal(count, 75);
+  assert.equal(count, 77);
 });
 
 test('additional capture remedy ownership selects required, argument and scope hints without dynamic or unrelated families', () => {
@@ -108,8 +110,8 @@ test('additional capture remedy ownership selects required, argument and scope h
 test('all actual selected refusal codes format in English and Arabic with authored hints and unchanged structured retry semantics', () => {
   const values = ownedCodes(),
     remedies = inspectProviderCaptureRemedies(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts');
-  assert.equal(values.length, 76);
-  assert.equal(new Set(values.map(value => value.message)).size, 75);
+  assert.equal(values.length, 78);
+  assert.equal(new Set(values.map(value => value.message)).size, 77);
   assert.equal(remedies.size, 8);
   assert.deepEqual(localeProblems(catalog, remedies), []);
   const reached = new Set();
