@@ -477,8 +477,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m0-live (Round 2.5) item 1 adds the Arabic of the two date refusals of a guided capture's window: measured
   // (node tools/check-locales.mjs: catalog_messages 12114), 12,112 + 2 = 12,114. Its item 2 adds the two sentences that name
   // semantics.complete (TikTok and Snapchat; raised through bad(), so no owned reason changes): 12,114 + 2 = 12,116. Its item 3
-  // adds the Arabic of LinkedIn's remedy for an empty analytics answer (src/linkedin-remedies.ts): 12,117.
-  assert.equal(Object.keys(catalog).length, 12117);
+  // adds the Arabic of LinkedIn's remedy for an empty analytics answer (src/linkedin-remedies.ts): 12,117. Its item 4 rewords
+  // Microsoft's refusal of a payload AccountId that is not the call's account_id (the owned reason is replaced one for one, the
+  // old entry leaves the catalogue) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118.
+  assert.equal(Object.keys(catalog).length, 12118);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
@@ -497,7 +499,11 @@ test('all actual directly owned backend reasons have Arabic with original native
       'Install FFmpeg and ffprobe, or configure AMCP_FFMPEG_PATH and AMCP_FFPROBE_PATH.',
       ['FFmpeg', 'ffprobe', 'AMCP_FFMPEG_PATH', 'AMCP_FFPROBE_PATH'],
     ],
-    ['AccountId must match account_id.', ['AccountId', 'account_id']],
+    // Package r25-m0-live (item 4): the sentence that replaced 'AccountId must match account_id.'.
+    [
+      'AccountId in the payload is not the account_id of the call. Send the same ID as a string in both, or leave AccountId out of the payload: AMCP fills it from account_id.',
+      ['AccountId', 'account_id'],
+    ],
     ['New Microsoft entities require Status: Paused.', ['Status: Paused']],
     [
       'Choose square, portrait, vertical or landscape, with contain or crop.',

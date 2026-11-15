@@ -685,6 +685,17 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Inspect the exact action, method and reviewed route support. A catalog entry is not a write contract; use a supported workflow or add a tested contract.',
       mutation_retry_safe: false,
     };
+  // A request that carries an account ID other than the call's account_id (R25 M0, owner 2026-11-15, error 11 of the live
+  // checks): the fault is in the request, which names the account twice and differently. The account the call selected is
+  // the one it is granted, so no grant, role or connection is involved.
+  if (e.code === 'ACCOUNT_SCOPE_MISMATCH' && e.details.account_conflict === true)
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was sent, and no permission needs to change. The request names an account ID that is not the account_id of the call. Send the same ID in both, or leave it out of the request: AMCP fills it from account_id.',
+      mutation_retry_safe: false,
+    };
   if (
     [
       'WRITE_ACCOUNT_FORBIDDEN',

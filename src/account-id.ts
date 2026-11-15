@@ -10,3 +10,20 @@ export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
   return providerOf(gateway)?.account?.normalize?.(value) ?? value;
 }
+/**
+ * Whether a native request's own account field names the call's account (R25 M0, owner 2026-11-15, error 11 of the live
+ * checks): the string the provider documents, or the number whose decimal digits are that string, which an agent writes
+ * when it types an ID as JSON. Both are compared in the form the provider binds (`normalizeAccount`). A number counts
+ * only as a safe integer: a larger one has already lost digits and names no ID. Anything else (a boolean, an object, a
+ * list, a fraction, another string) is another account. A provider that compiles its own requests (Microsoft's
+ * `compile.own`, which the shared alias check in src/compiler.ts never sees) asks this instead of comparing with `!==`.
+ */
+export function sameNativeAccount(gateway: string, field: unknown, accountId: string): boolean {
+  const text =
+    typeof field === 'string'
+      ? field
+      : typeof field === 'number' && Number.isSafeInteger(field)
+        ? String(field)
+        : undefined;
+  return text !== undefined && normalizeAccount(gateway, text) === normalizeAccount(gateway, accountId);
+}
