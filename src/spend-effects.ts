@@ -133,8 +133,11 @@ function withoutUnsharedBudgets(plan: CompiledRequest): CompiledRequest {
 /**
  * True when a field of the request is named for budgets, bids or spend, or a status field is set to an active value.
  * The generic confirmation rule of preflight.ts; it reads names, never content (owner decision, review 2026-09-28).
+ * A creation its provider pins paused (`pausedCreation`: TikTok's creates, Q14, owner 2026-11-15) is not read at all.
  */
 export function namesSpendField(plan: CompiledRequest): boolean {
+  // Q14, owner 2026-11-15: a create the provider's shape pins paused (TikTok's) can start no spend, whatever it names.
+  if (providerOf(plan.gateway)?.pausedCreation?.(plan)) return false;
   if (changedFieldNames(withoutUnsharedBudgets(plan)).some(name => spendWords.test(name))) return true;
   const active = (v: unknown, depth: number): boolean => {
     if (depth > maxDepth) return false;

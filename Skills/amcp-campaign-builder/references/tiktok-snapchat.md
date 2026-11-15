@@ -76,7 +76,7 @@ Read the actual returned eligibility and restrictions before using an identity.
 
 Snapchat creative updates support the documented collection PUT, `snapchat_adaccounts_ad_account_id_creatives_update` with a complete `payload: {creatives: [{id, ad_account_id, type, ...native configuration}]}`. Each target gets an exact snapshot and must belong to the selected connection/account. `INCOMPLETE_CREATIVE_REPLACEMENT` lists omitted existing fields (including nested defaults); explicitly preserve intended settings or use PATCH. `INVALID_CREATIVE_REPLACEMENT` requires preserving immutable identity/type and configuration. An edited shared creative can affect all attached ads and trigger re-review; inspect `creative_impact`. Prepare lists the ads that use the edited creative from a bounded read of the account's ads (at most 25 pages): `affected_ad_ids` and `affected_ads` (id, name, status, ad squad), `incomplete: false`. Past the bound, or when that read fails (`SNAPCHAT_ADS_READ_INVALID` when Snapchat returns an ads page AMCP cannot read completely), `affected_ad_ids: null` with `incomplete: true` is unknown, not zero; inspect may still show `null` since it reads nothing. Do not infer that a historical PATCH error means the provider removed PATCH.
 
-TikTok: campaign → ad group → ad. Use `tiktok_native_action`; advertiser IDs remain strings. New campaigns require `operation_status: DISABLE`. A new ad group may be `ENABLE` when the review reads its campaign as `DISABLE`, and a new ad when its ad group reads `DISABLE` or, if the ad group is enabled, its campaign does (the review then reads that campaign too); under serving parents they start `DISABLE` (`PARENT_SERVING`). An owner policy with `allow_activation: false` still refuses any `ENABLE` create. Discover authorized identities, Spark/non-Spark eligibility, placement constraints and objective-specific conversion settings. TikTok's Business API app/token flow differs from its consumer OAuth APIs; do not invent a refresh endpoint from another TikTok product.
+TikTok: campaign → ad group → ad. Use `tiktok_native_action`; advertiser IDs remain strings. New campaigns require `operation_status: DISABLE`. A new ad group may be `ENABLE` when the review reads its campaign as `DISABLE`, and a new ad when its ad group reads `DISABLE` or, if the ad group is enabled, its campaign does (the review then reads that campaign too); under serving parents they start `DISABLE` (`PARENT_SERVING`). An owner policy with `allow_activation: false` still refuses any `ENABLE` create. A paused create, and an `ENABLE` ad group or ad under a parent the review reads as `DISABLE`, needs no `spend_change_confirmed` (its budget, budget mode and bid are still checked against the owner spending policy); enabling an existing campaign, ad group or ad, and any edit that widens spend, still needs it. Discover authorized identities, Spark/non-Spark eligibility, placement constraints and objective-specific conversion settings. TikTok's Business API app/token flow differs from its consumer OAuth APIs; do not invent a refresh endpoint from another TikTok product.
 
 For native tiktok_ad_create, put exactly **one** ad record in payload.creatives per AMCP review, alongside advertiser_id and adgroup_id. Set creatives[0].operation_status: DISABLE, or ENABLE under a disabled ad group or campaign as above. A top-level operation_status does not pause that record and is refused. Image/video IDs, string identity IDs, format, text, URL and CTA belong to that creative. AMCP verifies the exact returned ad ID against a flat /ad/get/ record and its parent. Do not force all TikTok flows into a flat create payload: the official SDK's native AdCreateBody uses creatives, while Smart+ has a different creative_list/ad_configuration contract, covered by the Upgraded Smart+ sections below; a custom identity is created with `tiktok_identity_create` (see "TikTok custom identities"). Reuse an existing identity only after discovering its authorization and placement eligibility. Pixel requirements depend on the objective and tracking setup; never invent a pixel, music ID, or assume every image is a carousel. The fixtures exercise ID transfer, not live format or account acceptance.
 
@@ -354,9 +354,9 @@ Ads" and "Get Smart Text recommendations"
 - App, catalog, search, promotional, iOS dedicated and RTA campaigns and allowlist-only Goal-based
   budget increase fail with `INVALID_TIKTOK_SMART_PLUS_CAMPAIGN` before any request.
 - The advertiser is read before review and execution. The campaign budget is a new budget under
-  the owner spending policy (`POLICY_BUDGET_LIMIT`), and execution needs
-  `spend_change_confirmed: true`. A paused create is allowed under a policy that forbids
-  activation; turning the campaign on is a reviewed status change.
+  the owner spending policy (`POLICY_BUDGET_LIMIT`). A paused create needs no
+  `spend_change_confirmed` and is allowed under a policy that forbids activation; turning the
+  campaign on is a reviewed status change, which does need it.
 - Verification reads `/smart_plus/campaign/get/` and compares the name, objective, destination,
   paused status, budget settings, industries (as a set) and PO number. Upgraded Smart+ ad groups,
   ads and campaign edits have their own sections below.
@@ -391,7 +391,8 @@ Ads" and "Get Smart Text recommendations"
 - The review reads the advertiser, the campaign, the pixel (shared pixels are allowed, unbound ones
   are not), the custom conversion and referenced audiences (owned and available only) before review
   and again before execution. Other ad group types and settings fail with
-  `INVALID_TIKTOK_SMART_PLUS_ADGROUP`. Execution needs `spend_change_confirmed: true`.
+  `INVALID_TIKTOK_SMART_PLUS_ADGROUP`. A paused create needs no `spend_change_confirmed`; the
+  budget and bid are still checked against the owner spending policy.
 - Verification reads `/smart_plus/adgroup/get/` and compares every sent field; targeting lists,
   actions and placements compare as sets and price ranges by their endpoints.
 - **Instant Form lead generation:** in an Upgraded Smart+ lead generation campaign, send

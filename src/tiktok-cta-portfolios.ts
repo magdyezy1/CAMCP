@@ -4,6 +4,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * Dynamic call-to-action portfolios, per API for Business v1.3 "Create a portfolio", "Get a portfolio by ID", "Get
@@ -245,7 +246,7 @@ export const tiktokCtaPortfolioFamily: ReviewedFamily = defineFamily({
   },
   snapshots: (plan, stateRead) => {
     const id = normalizeAccount(plan.gateway, plan.accountId!);
-    return [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})];
+    return [tiktokAdvertiserRead(stateRead, id)];
   },
   impact: plan => tiktokCtaPortfolioImpact(plan),
   outcome: (plan, result) => {

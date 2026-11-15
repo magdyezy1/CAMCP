@@ -2,6 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
+import {tiktokAdvertiserInfoPath, tiktokAdvertiserQuery} from './tiktok-advertiser-state.js';
 
 /**
  * TikTok audiences by rule, per API for Business v1.3 "Create an audience by rule", "Get audience details" and the
@@ -241,8 +242,12 @@ export function tiktokRuleAudienceSnapshots(p: CompiledRequest): Read[] {
         s,
       ),
     ];
+  // Its reader reduces the answer to the advertiser's presence; the read still asks for the identity fields only (T1).
   return [
-    {...read(p, 'tiktok_advertiser_info_get', '/v1.3/advertiser/info/', {}, s), query: {advertiser_ids: [p.accountId]}},
+    {
+      ...read(p, 'tiktok_advertiser_info_get', tiktokAdvertiserInfoPath, {}, s),
+      query: tiktokAdvertiserQuery(p.accountId!),
+    },
   ];
 }
 export function isTiktokRuleAudienceRead(p: CompiledRequest): p is Read {

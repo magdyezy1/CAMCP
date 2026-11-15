@@ -4,6 +4,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * Paused Upgraded Smart+ website-conversion and lead-generation campaigns, per API for Business v1.3 "Create an
@@ -215,7 +216,7 @@ export const tiktokSmartPlusCampaignFamily: ReviewedFamily = defineFamily({
   },
   snapshots: (plan, stateRead) => {
     const id = normalizeAccount(plan.gateway, plan.accountId!);
-    return [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})];
+    return [tiktokAdvertiserRead(stateRead, id)];
   },
   impact: tiktokSmartPlusCampaignImpact,
   outcome: (plan, result) => {

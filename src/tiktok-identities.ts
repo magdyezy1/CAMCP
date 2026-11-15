@@ -4,6 +4,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * TikTok custom identities, per API for Business v1.3 "Create an identity", "Get info about an identity" and
@@ -120,7 +121,7 @@ export const tiktokIdentityFamily: ReviewedFamily = defineFamily({
   },
   snapshots: (plan, stateRead) => {
     const id = normalizeAccount(plan.gateway, plan.accountId!);
-    const reads = [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
+    const reads = [tiktokAdvertiserRead(stateRead, id)],
       image = tiktokIdentityImage(plan);
     if (image !== undefined) {
       const read = stateRead(tiktokImageInfoPath, {advertiser_id: id, image_ids: [image]});

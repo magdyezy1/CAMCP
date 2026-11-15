@@ -493,9 +493,8 @@ export class MediaUploadService {
         p.path = '/v1/adaccounts/' + account;
         break;
       case 'tiktok':
-        p.path = '/v1.3/advertiser/info/';
-        p.query = {advertiser_ids: [account]};
-        break;
+        // The advertiser's identity fields only (T1, Q15): its adapter says which, and the review keeps no more.
+        return providerHooks(p.gateway)!.review!.accountState!(p, account);
       case 'google_ads':
         p.path = googleAdsCustomers() + account + '/googleAds:search';
         p.method = 'POST';

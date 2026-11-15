@@ -511,6 +511,12 @@ export interface ReviewProjections {
   observed?(read: CompiledRequest, data: JsonObject): JsonObject;
   /** The verification cache version that retires older proofs of a write (Google's value-bidding campaigns). */
   verificationVersion?(plan: CompiledRequest): string | undefined;
+  /**
+   * The read of account `id` that the state of an amcp_media upload is kept from, where the provider asks only for the
+   * fields its `snapshot` keeps (TikTok's advertiser info, T1): `read` is the upload's shared account read, returned with
+   * its path and query set. Absent: the upload reads the account as it always did.
+   */
+  accountState?(read: CompiledRequest, id: string): CompiledRequest;
 }
 
 /**
@@ -1097,6 +1103,13 @@ export interface ProviderAdapter {
   readonly everyWriteConfirmsSpend?: true;
   /** A creation field that names a budget but moves no money (Meta's unshared ad set budgets), src/spend-effects.ts. */
   readonly spendNeutralCreation?: SpendNeutralCreation;
+  /**
+   * A creation that cannot start spend (TikTok's creates, Q14, owner 2026-11-15), src/spend-effects.ts: everything it
+   * creates is pinned paused, or active only under a parent the review reads as paused, so no budget, bid or status
+   * field of it names a spend and the field-name match skips it. The owner's caps, allow_activation, the flag on every
+   * ENABLE of an existing object and the paused-parent check are other rules and still apply.
+   */
+  readonly pausedCreation?: (plan: CompiledRequest) => boolean;
   readonly paging?: PagingFacts;
   /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
   readonly executionOptions?: true;
