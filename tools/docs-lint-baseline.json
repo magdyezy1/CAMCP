@@ -322,10 +322,16 @@
       "raised": [
         "reference_words 161328 → 161579"
       ]
+    },
+    {
+      "reason": "Package r25-m0-merge (Round 2.5 M0, merge task 1): +123 reference words, the two sentences r25-m0-t1 gave for whoever merges it (its report, Docs): docs/WRITE-OPERATIONS.md says that a TikTok create its shape pins paused needs no spend_change_confirmed (owner decision Q14, 2026-11-15) and which gates stay, and docs/ADDING-A-REVIEWED-FAMILY.md names pausedCreation as the third adapter fact. The merged count is the measured one: the merged tree of the four packages measured 161579 before the sentences, 161579 + 123 = 161702.",
+      "raised": [
+        "reference_words 161579 → 161702"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161579
+    "reference_words": 161702
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
