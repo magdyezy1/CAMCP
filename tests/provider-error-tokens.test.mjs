@@ -10,6 +10,7 @@ import {rejectedError} from '../dist/src/write-rejection.js';
 import {MirrorError, errorResult, untrustedProviderContent} from '../dist/src/errors.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {providerRefusal} from '../dist/src/provider-error-taxonomy.js';
+import {redact} from '../dist/src/security.js';
 import {
   describeProviderErrors,
   fieldPathInRequest,
@@ -822,6 +823,87 @@ test('Google: a family and enum are quoted only when the pinned v25 ErrorCode sc
   // The other two providers quote numbers, which need no schema.
   for (const gateway of ['tiktok_native_action', 'meta_native_action'])
     assert.equal(providerHooks(gateway)?.wire?.errors?.quotable, undefined, gateway);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// No credential in a token (the review's S2-2).
+
+// The shape redact() hides in upstream (a Meta access token: EAA and at least sixty letters and digits), at the longest a
+// path segment may be (64 characters), so that the segment pattern of the echo does not already refuse it.
+const credentialShaped = 'EAA' + 'b9'.repeat(30);
+
+test('a token shaped like a credential is dropped, as the body it came from is redacted', async () => {
+  assert.equal(credentialShaped.length, 63);
+  assert.notEqual(redact(credentialShaped), credentialShaped, 'the fixture is what redact() hides');
+  // The rule of providerRefusal, on its own: a token that redact() would change is dropped, its row keeps the rest.
+  assert.deepEqual(
+    providerRefusal('any', {}, {tokens: () => [{code: 100, field_path: 'targeting.' + credentialShaped}]}).errors,
+    [{code: 100}],
+  );
+  assert.deepEqual(providerRefusal('any', {}, {tokens: () => [{field_path: credentialShaped}, {code: 7}]}).errors, [
+    {code: 7},
+  ]);
+  // Meta: a blamed field that is the shape of a token.
+  const meta = await refused(
+    'meta',
+    {
+      error: {
+        message: 'x',
+        code: 100,
+        error_data: {blame_field_specs: [['targeting', credentialShaped]]},
+      },
+    },
+    400,
+    sent('meta', {targeting: '{"age_min": 18}'}),
+  );
+  // Google: a fieldName that is the shape of a token, under a parent the request holds.
+  const google = await refused(
+    'google',
+    googleFailure(
+      googleError(
+        'assetGroupError',
+        'NOT_ENOUGH_MARKETING_IMAGE_ASSET',
+        'x',
+        ['mutate_operations', 3],
+        ['asset_group_operation'],
+        ['create'],
+        [credentialShaped],
+      ),
+    ),
+    400,
+    sent('google', googleBody),
+  );
+  assert.deepEqual(meta.details.provider_errors, [{code: 100}]);
+  assert.deepEqual(google.details.provider_errors, [
+    {code: 'ASSET_GROUP_ERROR', enum: 'NOT_ENOUGH_MARKETING_IMAGE_ASSET', operation_index: 3},
+  ]);
+  assert.equal(meta.message, 'Platform returned HTTP 400: code 100.');
+  assert.equal(
+    google.message,
+    'Platform returned HTTP 400: ASSET_GROUP_ERROR NOT_ENOUGH_MARKETING_IMAGE_ASSET at operation 3.',
+  );
+  for (const e of [meta, google]) {
+    const result = errorResult(e, 'request', 0);
+    assert.doesNotMatch(JSON.stringify([result.error.message, result.error.message_localization]), /EAA/);
+    assert.doesNotMatch(JSON.stringify(e.details.provider_errors), /EAA/);
+    // The body stays whole in upstream, with the credential redacted, as before.
+    assert.doesNotMatch(JSON.stringify(e.details.upstream), /EAAb9/);
+    assert.match(JSON.stringify(e.details.upstream), /\[REDACTED\]/);
+  }
+});
+
+test('no name of the pinned Google error schema is altered by redact(), so none is dropped for looking like a secret', () => {
+  const props = JSON.parse(fs.readFileSync('generated/vendor-routes.json', 'utf8')).schemaComponents['google-ads-v25']
+    .schemas['GoogleAdsGoogleadsV25Errors__ErrorCode'].properties;
+  for (const [family, property] of Object.entries(props)) {
+    const code = family.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+    assert.equal(redact(code), code, code);
+    for (const value of property.enum) assert.equal(redact(value), value, value);
+  }
+  assert.deepEqual(
+    providerErrorTokens([{code: 'ASSET_GROUP_ERROR', enum: 'NOT_ENOUGH_MARKETING_IMAGE_ASSET'}]).length,
+    1,
+  );
 });
 
 // ---------------------------------------------------------------------------------------------------------------------

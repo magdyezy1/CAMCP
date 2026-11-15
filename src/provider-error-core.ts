@@ -37,22 +37,34 @@ export const maxEchoedErrors = 3;
 const wordToken = /^[A-Z][A-Z0-9_]{0,79}$/,
   fieldPathToken = /^[A-Za-z0-9_.[\]]{1,200}$/;
 const maxIndex = 9999999;
-/** A row of closed-set tokens from what a provider hook found, or undefined when no token passes its pattern. */
-export function providerErrorToken(raw: unknown): ProviderErrorToken | undefined {
+/**
+ * A row of closed-set tokens from what a provider hook found, or undefined when no token passes its pattern. `clean` is a
+ * further test a string token must pass (the review's S2-2: it is the credential check of src/provider-error-taxonomy.ts):
+ * one that fails is dropped like a token that fails its pattern, and its row keeps the rest.
+ */
+export function providerErrorToken(
+  raw: unknown,
+  clean: (token: string) => boolean = () => true,
+): ProviderErrorToken | undefined {
   const row = errorObject(raw),
     token: ProviderErrorToken = {};
-  if (typeof row.code === 'string' ? wordToken.test(row.code) : Number.isSafeInteger(row.code) && row.code >= 0)
+  if (
+    typeof row.code === 'string'
+      ? wordToken.test(row.code) && clean(row.code)
+      : Number.isSafeInteger(row.code) && row.code >= 0
+  )
     token.code = row.code;
-  if (typeof row.enum === 'string' && wordToken.test(row.enum)) token.enum = row.enum;
+  if (typeof row.enum === 'string' && wordToken.test(row.enum) && clean(row.enum)) token.enum = row.enum;
   if (Number.isSafeInteger(row.operation_index) && row.operation_index >= 0 && row.operation_index <= maxIndex)
     token.operation_index = row.operation_index;
-  if (typeof row.field_path === 'string' && fieldPathToken.test(row.field_path)) token.field_path = row.field_path;
+  if (typeof row.field_path === 'string' && fieldPathToken.test(row.field_path) && clean(row.field_path))
+    token.field_path = row.field_path;
   return Object.keys(token).length ? token : undefined;
 }
 /** The valid rows of a list a provider hook built, in order, at most `maxProviderErrors`. */
-export const providerErrorTokens = (rows: unknown): ProviderErrorToken[] =>
+export const providerErrorTokens = (rows: unknown, clean?: (token: string) => boolean): ProviderErrorToken[] =>
   (Array.isArray(rows) ? rows : [])
-    .map(providerErrorToken)
+    .map(row => providerErrorToken(row, clean))
     .filter((row): row is ProviderErrorToken => row !== undefined)
     .slice(0, maxProviderErrors);
 /**

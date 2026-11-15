@@ -134,7 +134,12 @@ export function providerRefusal(
     },
     sentence = attempt(() => own?.text?.(body)),
     text = typeof sentence === 'string' ? attempt(() => providerMessageText(redact(sentence))) : undefined,
-    errors = providerErrorTokens(attempt(() => own?.tokens?.(body))),
+    // A token that redact() would change is dropped, as the body it came from is redacted in details.upstream: a credential
+    // has the shape of a word, and no pattern of a closed alphabet keeps it out (the review's S2-2).
+    errors = providerErrorTokens(
+      attempt(() => own?.tokens?.(body)),
+      token => redact(token) === token,
+    ),
     echo =
       attempt(() =>
         describeProviderErrors(errors, {
