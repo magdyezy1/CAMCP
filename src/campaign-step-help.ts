@@ -32,7 +32,9 @@ export const planExample: JsonObject = {
   tool: 'amcp_campaign',
   arguments: {
     action: 'create',
-    name: 'Spring launch',
+    // Not a string the Arabic catalogue holds: a literal of src/ that is one reads as a server message to localize
+    // (tools/locale-chunks.mjs), which moves it between chunks of web/locales/ar.
+    name: 'Autumn launch',
     steps: [
       {
         id: 'campaign',

@@ -62,7 +62,7 @@ test('the worked example is the answer of create’s help alone, and a copy no c
   first.data.worked_example.arguments.name = 'Changed by a caller';
   first.data.worked_example.arguments.steps.length = 0;
   const second = await f.call({action: 'help', topic: 'create'});
-  assert.equal(second.data.worked_example.arguments.name, 'Spring launch');
+  assert.equal(second.data.worked_example.arguments.name, 'Autumn launch');
   assert.equal(second.data.worked_example.arguments.steps.length, 2);
   for (const topic of [undefined, 'get', 'recover_step', 'approve']) {
     const other = await f.call({action: 'help', ...(topic ? {topic} : {})});
