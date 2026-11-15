@@ -5,6 +5,7 @@ import {Store} from '../../dist/src/store.js';
 import {Registry} from '../../dist/src/catalog.js';
 import {MirrorService} from '../../dist/src/service.js';
 import {createHttpApp} from '../../dist/server/http-app.js';
+import {listenForFetch} from '../../dist/tests/http-listener.js';
 
 const origin = 'https://amcp.example',
   master = Buffer.alloc(32, 94).toString('base64'),
@@ -21,8 +22,10 @@ const origin = 'https://amcp.example',
       },
     },
     mcpModernProtocol: 'on',
-  }),
-  server = app.listen(0, '127.0.0.1', () => process.send({event: 'ready', port: server.address().port}));
+  });
+// The tests reach it through fetch (its health check), so an OS-chosen port that Fetch forbids is released and asked again
+// (tests/http-listener.ts). The parent sends nothing before it hears ready, so the message handler is in place by then.
+const server = await listenForFetch(app);
 process.on('message', message => {
   if (message !== 'stop') return;
   server.close(() => {
@@ -31,3 +34,4 @@ process.on('message', message => {
   });
   server.closeAllConnections();
 });
+process.send({event: 'ready', port: server.address().port});

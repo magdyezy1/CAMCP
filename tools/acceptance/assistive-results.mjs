@@ -11,7 +11,6 @@
 //   node tools/acceptance/assistive-results.mjs summary <record.json>  sessions and issues per journey
 //   node tools/acceptance/assistive-results.mjs serve <journey>        the synthetic fixture host of one journey
 import fs from 'node:fs';
-import http from 'node:http';
 import path from 'node:path';
 import {createHash, randomBytes} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -582,16 +581,18 @@ async function seedSchedule(site) {
  * Starts the synthetic fixture host of one journey, as the automated browser matrix uses it (an in-memory workspace on
  * 127.0.0.1 whose provider answers are synthetic and which refuses every other request), and a second loopback server
  * whose one-time link signs a browser in to it. Kinds with a report worker have it run every few seconds, as the worker
- * process would. Nothing is saved after close().
+ * process would. Nothing is saved after close(). options.workIntervalMs sets that period; options.listen(handler) binds
+ * the second server in place of the default, which never keeps a port that Fetch forbids (tests/http-listener.ts).
  */
 export async function serveJourney(id, options = {}) {
   const journey = assistiveJourneys.find(j => j.id === id);
   if (!journey) throw Error('Name a journey: ' + assistiveJourneys.map(j => j.id).join(', ') + '.');
-  let browserWorkflowSite;
+  let browserWorkflowSite, listenForFetch;
   try {
     ({browserWorkflowSite} = await import(
       pathToFileURL(path.join(root, 'tests/fixtures/browser-workflow-sites.mjs')).href
     ));
+    ({listenForFetch} = await import(pathToFileURL(path.join(root, 'dist/tests/http-listener.js')).href));
   } catch (error) {
     throw Error('The fixture host runs the built application: run npm run build first (' + error.message + ').');
   }
@@ -605,7 +606,7 @@ export async function serveJourney(id, options = {}) {
     const token = randomBytes(24).toString('base64url'),
       signIn = '/sign-in/' + token;
     let used = false;
-    helper = http.createServer((req, res) => {
+    const handler = (req, res) => {
       const headers = {
         'cache-control': 'no-store',
         'referrer-policy': 'no-referrer',
@@ -625,11 +626,11 @@ export async function serveJourney(id, options = {}) {
           location: site.origin + journey.route,
         })
         .end();
-    });
-    await new Promise((resolve, reject) => {
-      helper.once('error', reject);
-      helper.listen(0, '127.0.0.1', resolve);
-    });
+    };
+    // The link is fetched by the tests and opened in a browser, and both refuse the ports Fetch forbids, which an OS-chosen
+    // port can land on: the draw is released and asked again (tests/http-listener.ts). options.listen is the seam a test uses
+    // to force such a draw, as browserWorkflowSite's is.
+    helper = await (options.listen ?? listenForFetch)(handler);
     const work = site.granular?.workOnce ?? site.exportOutcomes?.workOnce;
     let running = false;
     if (work) {

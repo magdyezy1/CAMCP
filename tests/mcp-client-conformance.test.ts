@@ -869,8 +869,9 @@ test('MCP-03 phase 3: progress a handler sends reaches the client on the request
       return server;
     },
   });
-  // The HTTP layer in miniature: the same web request, endpoint call and response writer that /mcp uses.
-  const listener = http.createServer(async (req, res) => {
+  // The HTTP layer in miniature: the same web request, endpoint call and response writer that /mcp uses. Reached through
+  // fetch, so an OS-chosen port that Fetch forbids is released and asked again (tests/http-listener.ts).
+  const listener = await listenForFetch(async (req, res) => {
     const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(chunk as Buffer);
     const message = JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -879,7 +880,6 @@ test('MCP-03 phase 3: progress a handler sends reaches the client on the request
       await endpoint.handle(await toWebRequest(req, message), {headers: req.headers, message, authInfo: caller}),
     );
   });
-  await new Promise<void>(resolve => listener.listen(0, '127.0.0.1', resolve));
   try {
     const call = modernToolCall('long_task', 'long-1', {progressToken: 'progress-1'}),
       response = await fetch('http://127.0.0.1:' + (listener.address() as {port: number}).port + '/mcp', {

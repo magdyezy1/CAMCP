@@ -8,11 +8,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import http from 'node:http';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {createHttpApp} from '../dist/server/http-app.js';
+import {listenForFetch} from '../dist/tests/http-listener.js';
 import {answerShape, captured, fill, shapeOf} from './helpers/sdk-exchange.mjs';
 
 const exchange = JSON.parse(fs.readFileSync('tests/fixtures/mcp-sdk-1.32.1-exchange.json', 'utf8')),
@@ -36,8 +36,8 @@ async function deployment(t, mode) {
       },
       ...(mode ? {mcpModernProtocol: mode} : {}),
     }),
-    server = http.createServer(app);
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    // Reached through fetch: an OS-chosen port that Fetch forbids is released and asked again (tests/http-listener.ts).
+    server = await listenForFetch(app);
   t.after(async () => {
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
