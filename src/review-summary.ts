@@ -134,7 +134,9 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
     collection = [...segments].reverse().find(s => Object.hasOwn(singular, s.replace(/:.*/, ''))) ?? '',
     key = collection.replace(/:.*/, ''),
     rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1,
-    verb = createdThing(segments);
+    // A verb is read only on a POST, as every route of the ledger that ends in one is: a PUT or a PATCH to an object whose
+    // ID is the word create is an update of it.
+    verb = plan.method === 'POST' ? createdThing(segments) : undefined;
   const action = plan.action.toLowerCase();
   const operation =
     plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive

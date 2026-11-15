@@ -477,3 +477,31 @@ test('the request amcp_write inspect compiles for a LinkedIn collection POST wit
   assert.equal((await summarize(undefined)).summary.operation, 'create');
   assert.equal((await summarize('CREATE')).summary.operation, 'create');
 });
+
+// A path that ends in the word create is a create only when it is a POST, as every such route of the ledger is: an object
+// whose ID is the word create, written by a PUT or a PATCH, is an update of it (and the review could not read it first).
+test('a PUT or PATCH to a path that ends in create is an update, and a POST to it is the create it says', () => {
+  for (const method of ['PUT', 'PATCH']) {
+    const s = reviewSummary(
+      plan(
+        'x_ads_native_action',
+        'x_accounts_account_id_campaigns_campaign_id_put',
+        method,
+        '/12/accounts/123/campaigns/create',
+        {
+          entity_status: 'ACTIVE',
+        },
+      ),
+      [{data: {id: 'create', name: 'Synthetic', entity_status: 'PAUSED'}}],
+    );
+    assert.equal(s.operation, 'update', method);
+    assert.deepEqual(s.status, [{field: '/entity_status', from: 'PAUSED', to: 'ACTIVE'}], method);
+  }
+  assert.equal(
+    reviewSummary(
+      tiktok('tiktok_campaign_create', '/v1.3/campaign/create/', {operation_status: 'DISABLE'}),
+      advertiserRead,
+    ).operation,
+    'create',
+  );
+});

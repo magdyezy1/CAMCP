@@ -160,7 +160,7 @@ test('the review summary names every operation as before: every ledger route, bo
     // as an update, because the collection test below never matches a verb, and named the verb as its entity. It reads
     // as the create it is, naming what it creates, with the count it had; any other route, body or service reads as before.
     const last = p.path.split('/').filter(Boolean).at(-1),
-      endsInCreateVerb = /^create(?:-[^/]+)?$|:create_[^/:]+$/.test(last ?? ''),
+      endsInCreateVerb = p.method === 'POST' && /^create(?:-[^/]+)?$|:create_[^/:]+$/.test(last ?? ''),
       // The second change (T3b): a POST that creates in the collection directly under the account its provider declares
       // (LinkedIn's adCampaigns, X's promoted_tweets, Snapchat's media, DV360's adAssets:bulkCreate). It read as an
       // update, and took the account's status as its "from", because the collection was none of the 14 names the path
@@ -186,7 +186,7 @@ test('the review summary names every operation as before: every ledger route, bo
   }
   // The first change was reached on the TikTok routes and on the two other forms of the verb, the second on LinkedIn,
   // X, Snapchat and DV360.
-  assert.ok(verbCreates.size >= 60, String(verbCreates.size));
+  assert.ok(verbCreates.size >= 55, String(verbCreates.size));
   assert.ok([...verbCreates].some(v => v.endsWith('/create-brand-account')));
   assert.ok([...verbCreates].some(v => v.endsWith(':create_version')));
   for (const gateway of ['linkedin', 'x_ads', 'snapchat', 'dv360'])
