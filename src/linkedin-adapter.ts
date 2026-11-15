@@ -511,5 +511,11 @@ function linkedinConfirms(_plan: CompiledRequest, result: TransportResult, {hasI
  */
 function linkedinOperation(plan: CompiledRequest): DeclaredOperation | undefined {
   const parts = plan.path.split('/').filter(Boolean);
-  return plan.method === 'POST' && parts[0] === 'rest' && parts.length % 2 === 0 ? {operation: 'create'} : undefined;
+  if (plan.method !== 'POST' || parts[0] !== 'rest' || parts.length % 2 !== 0) return undefined;
+  // A BATCH_CREATE lists what it creates under elements, and a CREATE is one entity (R2.5 S3-2).
+  const batch = Object.entries(plan.headers ?? {}).some(
+      ([name, value]) => /^x-restli-method$/i.test(name) && String(value).trim().toUpperCase() === 'BATCH_CREATE',
+    ),
+    elements = batch ? obj(plan.body).elements : undefined;
+  return {operation: 'create', count: Array.isArray(elements) ? elements.length : undefined};
 }

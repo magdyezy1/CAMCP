@@ -178,6 +178,82 @@ test('a TikTok ad create names the status of its own creative record, not the ad
   assert.deepEqual(s.status, [{field: '/creatives/0/operation_status', to: 'DISABLE'}]);
 });
 
+// S3-2 (the lead's review of this package): a request that creates several entities read "Create 1 ...", which was true of
+// no one of them. A TikTok ad create makes one ad for each of its creatives; Snapchat's record lists and LinkedIn's
+// BATCH_CREATE make one entity for each element. The count is each provider's fact, read where the provider says it.
+test('a TikTok ad create names how many ads it makes, one for each creative, and a Smart+ ad is one ad', () => {
+  const three = reviewSummary(
+    tiktok('tiktok_ad_create', '/v1.3/ad/create/', {
+      advertiser_id: '123',
+      adgroup_id: '201',
+      creatives: [
+        {ad_name: 'Synthetic ad 1', operation_status: 'DISABLE'},
+        {ad_name: 'Synthetic ad 2', operation_status: 'DISABLE'},
+        {ad_name: 'Synthetic ad 3', operation_status: 'DISABLE'},
+      ],
+    }),
+    advertiserRead,
+  );
+  assert.deepEqual([three.operation, three.entity, three.count], ['create', 'ad', 3]);
+  assert.equal(
+    three.text,
+    'Create 3 ads in account Synthetic account (123); operation_status DISABLE; operation_status DISABLE; operation_status DISABLE.',
+  );
+  // One creative, no list, an empty list and a list that is not one are each a single ad, as before.
+  for (const creatives of [[{ad_name: 'Synthetic ad'}], [], 'none', undefined])
+    assert.equal(
+      reviewSummary(tiktok('tiktok_ad_create', '/v1.3/ad/create/', {advertiser_id: '123', creatives}), advertiserRead)
+        .count,
+      1,
+      JSON.stringify(creatives),
+    );
+  // A Smart+ ad holds its creatives in one ad: its creative_list is not a count of ads.
+  const smart = reviewSummary(
+    tiktok('tiktok_smart_plus_ad_create', '/v1.3/smart_plus/ad/create/', {
+      advertiser_id: '123',
+      adgroup_id: '201',
+      creative_list: [{creative_info: {}}, {creative_info: {}}, {creative_info: {}}],
+    }),
+    advertiserRead,
+  );
+  assert.deepEqual([smart.operation, smart.entity, smart.count], ['create', 'ad', 1]);
+});
+
+test('a Snapchat record list and a LinkedIn BATCH_CREATE name how many entities they create', () => {
+  const feeds = sample('snapchat_catalog_product_feed_create', {
+    body: {product_feeds: [{name: 'Synthetic feed 1'}, {name: 'Synthetic feed 2'}]},
+  });
+  const two = reviewSummary(feeds, []);
+  assert.deepEqual([two.operation, two.entity, two.count], ['create', 'product_feeds', 2]);
+  assert.equal(two.text, 'Create 2 product_feeds in account 123.');
+  assert.equal(reviewSummary({...feeds, body: {product_feeds: [{name: 'Synthetic feed'}]}}, []).count, 1);
+  assert.equal(reviewSummary({...feeds, body: {}}, []).count, 1);
+  // The known collections kept their counts.
+  const squads = reviewSummary(
+    plan(
+      'snapchat_native_action',
+      'snapchat_campaigns_campaign_id_adsquads_create',
+      'POST',
+      '/v1/campaigns/c1/adsquads',
+      {
+        adsquads: [{name: 'a'}, {name: 'b'}, {name: 'c'}],
+      },
+    ),
+    [],
+  );
+  assert.deepEqual([squads.operation, squads.entity, squads.count], ['create', 'ad squad', 3]);
+  // LinkedIn lists the elements of a BATCH_CREATE; a plain CREATE is one.
+  const rules = sample('linkedin_rest_dmp_segments_segment_id_engagement_rules_post', {
+    headers: {'X-RestLi-Method': 'BATCH_CREATE'},
+    body: {elements: [{rule: 1}, {rule: 2}, {rule: 3}]},
+  });
+  const batch = reviewSummary(rules, []);
+  assert.deepEqual([batch.operation, batch.entity, batch.count], ['create', 'engagementRules', 3]);
+  assert.equal(batch.text, 'Create 3 engagementRules in account 123.');
+  assert.equal(reviewSummary({...rules, headers: {'X-RestLi-Method': 'CREATE'}, body: {rule: 1}}, []).count, 1);
+  assert.equal(reviewSummary({...rules, headers: {}, body: {elements: [{rule: 1}, {rule: 2}]}}, []).count, 1);
+});
+
 test('every ledger route that ends in the verb create reads as a create, whatever the first record read says', () => {
   const registry = new Registry(),
     routes = actionContracts(registry).filter(r => {

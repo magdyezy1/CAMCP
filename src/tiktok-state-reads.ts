@@ -12,14 +12,19 @@ import {tiktokAdgroupConversionRead} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
 
 /**
- * What a TikTok write does for the review's summary beyond the verb its path ends in (R2.5 S2-2): the verb create is read
- * from the path, and so are update and delete, but a negative keyword is added with …/negative_keyword/add/, a create the
- * path rules did not know.
+ * What a TikTok write does for the review's summary beyond the verb its path ends in (R2.5 S2-2, S3-2): the verb create is
+ * read from the path, and so are update and delete, but a negative keyword is added with …/negative_keyword/add/, a create
+ * the path rules did not know, and an ad create makes one ad for each of the creatives it lists (a Smart+ ad holds its
+ * creatives in one ad, so its creative_list counts nothing).
  */
 export function tiktokOperation(plan: CompiledRequest): DeclaredOperation | undefined {
-  return plan.method === 'POST' && /\/negative_keyword\/add\/$/.test(plan.path)
-    ? {operation: 'create', entity: 'negative keyword'}
-    : undefined;
+  if (plan.method !== 'POST') return undefined;
+  if (/\/negative_keyword\/add\/$/.test(plan.path)) return {operation: 'create', entity: 'negative keyword'};
+  if (plan.path === '/v1.3/ad/create/') {
+    const creatives = object(plan.body).creatives;
+    return {operation: 'create', count: Array.isArray(creatives) ? creatives.length : undefined};
+  }
+  return undefined;
 }
 
 export function tiktokStateReads(plan: CompiledRequest, base: StateReadBuilder): CompiledRequest[] {
