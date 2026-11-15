@@ -44,7 +44,9 @@ test('the catalog registry names no provider: it consults the providers’ catal
 });
 
 test('the providers’ catalog hooks: frozen, of the contract, and each tool extended by one provider', () => {
-  const known = new Set(['tools', 'action', 'version', 'supplemental', 'own', 'helpArguments', 'help']),
+  // Package r25-m0-errors (Round 2.5, M0: T7) adds `aliases`: the near-miss spellings a provider contributes for its own
+  // action names (Google Ads: the version-neutral ones), which src/action-aliases.ts holds to the same rules as its own.
+  const known = new Set(['tools', 'action', 'version', 'supplemental', 'own', 'helpArguments', 'help', 'aliases']),
     extended = new Map();
   for (const hooks of registeredProviderHooks.filter(h => h.catalog)) {
     assert.ok(Object.isFrozen(hooks.catalog), hooks.gateway);

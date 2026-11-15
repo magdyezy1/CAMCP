@@ -31,10 +31,13 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // The shared inventory of tests/shared-recovery-localization.test.mjs (SEC-08, CMP-03 and ARC-01 added one remedy
   // each, PRV-06 four, owner decision P5 one, and CMP-03's Microsoft location lookup two): errorRemedy's in
   // src/errors.ts and the providers' remedy tables it consults first (ARC-04 stage C). Package mcp-surface (V2-MCP-06) adds
-  // two: the remedies of MEDIA_REVIEW_REQUIRED, with and without the call it names.
-  assert.equal(hints.size, 169);
+  // two: the remedies of MEDIA_REVIEW_REQUIRED, with and without the call it names. Package r25-m0-errors (Round 2.5, M0)
+  // adds six: the next steps of CAPABILITY_ACCOUNT_UNAVAILABLE's four causes that had none of their own (LEAD-01), of the
+  // health refusal (LEAD-03) and of a write the provider throttled after it was sent (L3-02), as the shared inventory
+  // counts them.
+  assert.equal(hints.size, 175);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 168);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 174);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
