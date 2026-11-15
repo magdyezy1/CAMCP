@@ -32,6 +32,7 @@ import {
   errorObject,
   metaRegainAccessMs,
   providerReference,
+  type ProviderErrorCandidate,
 } from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
@@ -235,8 +236,16 @@ const metaCompile: CompileHooks = Object.freeze({
  * takes Meta's post workflow; its captured actions take their documented overrides; it documents rule update and
  * delete beyond the captured catalog, which maps only creation (src/meta-ad-rules.ts).
  */
+/**
+ * Meta's curated spelling (T7; the lead's decision (b) of the review, 2026-11-15): the ad account's read named without its
+ * path-parameter word, which no generic rule produces. One read, one action; the generator holds it to its own rules (unique, no
+ * exact name, a read only).
+ */
+const metaActionAliases = (a: Action): readonly string[] =>
+  (a.canonical_name || a.name) === 'meta_ad_account_id_get' ? ['meta_ad_account_get'] : [];
 const metaCatalog: CatalogHooks = Object.freeze({
   tools: Object.freeze({amcp_native_action: extendMetaPostWorkflow}),
+  aliases: metaActionAliases,
   action: metaActionOverride,
   supplemental: Object.freeze({actions: metaRuleActions, requires: 'catalog' as const}),
   // Its captured catalog is read at the Graph API version AMCP sends (src/catalog-versions.ts).
@@ -379,6 +388,22 @@ export const metaHooks: ProviderHooks = Object.freeze({
       bodyRequestId: (body: unknown) => providerReference(errorObject(errorObject(body).error).fbtrace_id),
       code: (body: unknown) => errorInteger(errorObject(errorObject(body).error).code),
       classify: classifyMetaError,
+      // G9: Meta's error code, and one row for each field it blames (error_data.blame_field_specs, a list of name lists:
+      // [["targeting", "geo_locations"]] is targeting.geo_locations, as validation.fieldPaths reads them).
+      tokens: (body: unknown): ProviderErrorCandidate[] => {
+        const error = errorObject(errorObject(body).error),
+          code = errorInteger(error.code),
+          blame = errorObject(error.error_data).blame_field_specs,
+          paths = (Array.isArray(blame) ? blame : [])
+            .slice(0, 20)
+            .map((spec: unknown) => [spec].flat().map(String).join('.'));
+        return paths.length ? paths.map(field_path => ({code, field_path})) : [{code}];
+      },
+      // Its user-facing message when it gives one, else its message: third-party text, kept in details.provider_message.
+      text: (body: unknown) => {
+        const error = errorObject(errorObject(body).error);
+        return typeof error.error_user_msg === 'string' && error.error_user_msg ? error.error_user_msg : error.message;
+      },
     }),
   }),
   // Writes and campaigns (wave 4c): the guided website recipes.

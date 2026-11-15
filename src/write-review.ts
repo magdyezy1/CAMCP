@@ -735,17 +735,26 @@ export class WriteReviewService {
     )
       fail('INVALID_ARGUMENT', 'prepare requires gateway and arguments.');
     const isDelegated = this.registry.tools.get(input.gateway)?.mode === 'delegated',
-      nativeArgs = isDelegated ? object(input.arguments.arguments) : input.arguments;
-    if (['aggregate_pages', 'paginate', 'allPages'].some(k => input.arguments[k] || nativeArgs[k]))
+      // A near-miss action name (T7, src/action-aliases.ts) is prepared as the canonical action it stands for, before
+      // anything reads the name: the review, the stored prepare input and the calls that re-send it name the canonical
+      // action, and every gate that decides on the action decides on the one its canonical name reaches. The caller is
+      // told of the alias in the response (MirrorService.actionAliasWarnings).
+      alias =
+        !isDelegated && typeof input.arguments.action === 'string'
+          ? this.registry.resolveAction(input.gateway, input.arguments.action).alias
+          : undefined,
+      given: JsonObject = alias ? {...input.arguments, action: alias.canonical} : input.arguments,
+      nativeArgs = isDelegated ? object(given.arguments) : given;
+    if (['aggregate_pages', 'paginate', 'allPages'].some(k => given[k] || nativeArgs[k]))
       fail('MUTATION_PAGINATION_FORBIDDEN', 'A reviewed mutation executes exactly one request.');
     // Enhanced-mode native_request lets the caller choose the action and the path independently, and several families
     // classify by action; a reviewed mutation must come from a catalog action whose route the compiler derived.
-    if (input.arguments.native_request !== undefined || nativeArgs.native_request !== undefined)
+    if (given.native_request !== undefined || nativeArgs.native_request !== undefined)
       fail(
         'WRITE_CONTRACT_UNAVAILABLE',
         'Reviewed writes use catalog actions. native_request is a read-only extension; name the catalog action and its params instead.',
       );
-    const args = isDelegated ? {...input.arguments} : {...input.arguments, dry_run: true};
+    const args = isDelegated ? {...given} : {...given, dry_run: true};
     this.registry.validate(input.gateway, args, this.options);
     const unavailable = unsupportedProviderAlias(input.gateway, nativeArgs.action);
     if (input.action === 'inspect' && unavailable) {
@@ -976,7 +985,7 @@ export class WriteReviewService {
       ...(providerCheck ? {provider_check: providerCheck} : {}),
       prepare_input: {
         gateway: input.gateway,
-        arguments: input.arguments,
+        arguments: given,
         ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
         ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
         ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),

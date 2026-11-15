@@ -33,10 +33,14 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // src/errors.ts and the providers' remedy tables it consults first (ARC-04 stage C). Package mcp-surface (V2-MCP-06) adds
   // two: the remedies of MEDIA_REVIEW_REQUIRED, with and without the call it names. Package r25-hotfix item 1 adds one, in
   // TikTok's own table: the remedy of a report whose page counts the check refused. Item 2 adds one, in src/errors.ts: the
-  // remedy of a provider response that does not match the pinned contract of its route.
-  assert.equal(hints.size, 171);
+  // remedy of a provider response that does not match the pinned contract of its route. Package r25-m0-errors (Round 2.5,
+  // M0) adds six: the next steps of CAPABILITY_ACCOUNT_UNAVAILABLE's four causes that had none of their own (LEAD-01), of
+  // the health refusal (LEAD-03) and of a write the provider throttled after it was sent (L3-02), as the shared inventory
+  // counts them. Merge r25-m0-merge: the hotfix's pin (171 on its own base) and the errors package's (175) both started
+  // from 169 and add different hints, so the merged count is measured, not either pin: 169 + 2 + 6 = 177.
+  assert.equal(hints.size, 177);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 170);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 176);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

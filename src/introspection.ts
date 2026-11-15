@@ -11,7 +11,10 @@ import {providerHooks} from './provider-hooks.js';
 export class Introspection {
   constructor(private registry: Registry) {}
   describe(gateway: string, input: JsonObject): JsonObject {
-    const name = input.target_action;
+    // A near-miss name (T7) is described as the action it stands for: the captured description is kept under that name.
+    const given = input.target_action,
+      name =
+        typeof given === 'string' ? (this.registry.resolveAction(gateway, given).alias?.canonical ?? given) : given;
     if (!name) throw new MirrorError('INVALID_ARGUMENT', 'target_action is required for DESCRIBE_ACTION.');
     const effective = this.registry.action(gateway, name);
     // An action its provider describes itself (Meta's account ad label read), before the captured descriptions.

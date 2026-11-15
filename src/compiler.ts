@@ -64,6 +64,12 @@ export class Compiler {
   constructor(private registry: Registry) {}
   compile(gateway: string, input: JsonObject, options: CallOptions): CompiledRequest {
     guardInput(input);
+    // A near-miss name (T7, src/action-aliases.ts) compiles as its canonical action, before anything reads the name: the
+    // provider's hooks, the route and every later rule see the one action the call stands for, never a second route to it.
+    if (typeof input.action === 'string') {
+      const named = this.registry.resolveAction(gateway, input.action);
+      if (named.alias) input = {...input, action: named.alias.canonical};
+    }
     // The provider's part of the compiler (ARC-01 phase B, src/<provider>-adapter.ts): what only it says about its
     // requests, consulted at the step where the compiler named the provider before. The compiler keeps every rule and
     // the order of every step.

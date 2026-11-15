@@ -23,6 +23,7 @@ import type {
 } from './types.js';
 import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+import type {ProviderErrorCandidate, ProviderErrorToken} from './provider-error-core.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
@@ -261,6 +262,26 @@ export interface ErrorEnvelope {
   code?(body: unknown): string | number | undefined;
   /** A refusal its documented tables classify (Meta's codes, Google Ads' quota errors...); undefined for the generic. */
   classify?(input: ProviderErrorInput, context: ProviderErrorContext): ProviderErrorClass | undefined;
+  /**
+   * The rows of closed-set tokens its documented error shape holds (G9, src/provider-error-core.ts): each error's code and
+   * enum, the index of the failing operation and the field path (Google Ads' GoogleAdsFailure, Meta's blame fields, TikTok's
+   * code). Only what the shape says structurally, never text; the transport checks every token against its pattern again
+   * and drops what fails, so a hook cannot put free text into a message.
+   */
+  tokens?(body: unknown): readonly ProviderErrorCandidate[];
+  /**
+   * Whether the code and enum of a token row may be quoted in a message (the review's S2-1). A pattern closes a token's
+   * alphabet, not its meaning, so a provider whose codes are words of its own choosing (Google Ads' error families and
+   * enums) vouches for them against a schema AMCP vendors: the words stay in `details.provider_errors` whatever this says,
+   * and a message quotes them only when it says true. A provider whose codes are numbers needs none: a number is quoted.
+   */
+  quotable?(row: ProviderErrorToken): boolean;
+  /**
+   * The provider's own first sentence for the refusal (Google Ads' first error message, Meta's user message, TikTok's
+   * message): third-party text, which `details.provider_message` keeps cleaned, clipped and marked untrusted, and no
+   * message ever carries.
+   */
+  text?(body: unknown): unknown;
 }
 
 /**
@@ -719,6 +740,13 @@ export interface CatalogHooks {
   readonly version?: CatalogVersion;
   /** Its documented actions beyond the captured catalog (Meta's rule updates, Google's Data Manager, Apple's v1). */
   readonly supplemental?: SupplementalActions;
+  /**
+   * The spellings of an action's name beyond the generic ones (T7, src/action-aliases.ts: the name without the provider
+   * prefix, and for a read the name without or with the other of `_get` and `_list`): Google Ads' names keep the
+   * recorded version, so its version-neutral and current-version spellings are its own. A spelling that is an exact
+   * name, that two actions claim, or that reads and leads to a write is dropped, as the generic ones are.
+   */
+  aliases?(action: Action): readonly string[];
   /**
    * Its tool and catalog are AMCP's own rather than captured (Microsoft Advertising), registered when the registry
    * holds AMCP's tools; the catalog's actions are its routes.

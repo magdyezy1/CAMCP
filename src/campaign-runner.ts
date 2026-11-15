@@ -414,6 +414,12 @@ export class CampaignRunner {
     private inspectConversionGoals?: (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>,
     /** The Microsoft location lookup (CMP-03, src/microsoft-locations.ts); absent, the lookup is unavailable. */
     private lookupMicrosoftLocations?: (actor: Actor, input: JsonObject) => Promise<JsonObject>,
+    /**
+     * The canonical name of an action a step names (T7, src/action-aliases.ts): a near-miss spelling comes back as the
+     * action it stands for, and the caller is told where it was written (`field`); any other name comes back as it is.
+     * Absent, names are saved as given.
+     */
+    private canonicalAction?: (gateway: string, name: string, field: string) => string,
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -1830,7 +1836,7 @@ export class CampaignRunner {
       refuse('Provide 1–50 explicit steps, or choose an approved saved template.');
     const steps = origin ? structuredClone(raw) : substitute(raw, variables),
       seen = new Set<string>();
-    for (const s of steps) {
+    for (const [index, s] of steps.entries()) {
       // A step with keys it does not take, or none at all, is answered with its correction too, keeping the refusal's own
       // details (what it does not take and what it does).
       try {
@@ -1883,6 +1889,14 @@ export class CampaignRunner {
         bad('Dependencies must refer to earlier steps.');
       seen.add(s.id);
       noSecrets(s.arguments);
+      // A near-miss action name (T7) is saved under its canonical name: the plan, its hash and its steps' reviews name
+      // the one action the step stands for, and the response says where the caller wrote the alias.
+      if (s.kind === 'write' && typeof s.arguments.action === 'string' && this.canonicalAction)
+        s.arguments.action = this.canonicalAction(
+          s.gateway,
+          s.arguments.action,
+          'steps[' + index + '].arguments.action',
+        );
       const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway;
       this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
       if (

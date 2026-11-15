@@ -1,4 +1,5 @@
 import type {
+  CatalogHooks,
   ContractHooks,
   ExpectState,
   ProviderHooks,
@@ -8,7 +9,7 @@ import type {
   ScopeContext,
   StateTarget,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, Credentials, DeclaredOperation, JsonObject} from './types.js';
+import type {Action, CompiledRequest, Connection, Credentials, DeclaredOperation, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
@@ -338,6 +339,14 @@ const snapchatContracts: ContractHooks = Object.freeze({
 });
 
 /**
+ * Snapchat's curated spelling (T7; the lead's decision (b) of the review, 2026-11-15): the ad account's read under the word
+ * agents use for it, a synonym no generic rule produces. It reaches the canonical action of GET /v1/adaccounts/{ad_account_id};
+ * the generator holds it to its own rules (unique, no exact name, a read only).
+ */
+const snapchatActionAliases = (a: Action): readonly string[] =>
+  (a.canonical_name || a.name) === 'snapchat_adaccounts_ad_account_id_get' ? ['snapchat_adaccount_get'] : [];
+const snapchatCatalog: CatalogHooks = Object.freeze({aliases: snapchatActionAliases});
+/**
  * Snapchat's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning
  * POSTs, the by-ID entity reads, the audience, bid and forecasting estimates, and the catalog and Ads Library searches.
  * Its scope: the catalog comparison's internal reads, and ownership of the global IDs its account lists and creations
@@ -346,6 +355,7 @@ const snapchatContracts: ContractHooks = Object.freeze({
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
+  catalog: snapchatCatalog,
   // Its ads, their creatives' ownership and their previews for amcp_ad_previews (src/ad-previews.ts).
   previews: snapchatAdPreviews,
   signedLinkFields: (plan: CompiledRequest) =>

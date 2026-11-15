@@ -36,7 +36,7 @@ import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {ownToolHelp, surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
 import {toolPresentation} from './tool-annotations.js';
-import {currentContractProfile, isClientCall} from './contract-profile.js';
+import {currentContractProfile, isClientCall, withContractProfile} from './contract-profile.js';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {AsyncLocalStorage} from 'node:async_hooks';
@@ -44,6 +44,7 @@ import type {ServiceTimingCategory} from './service-timings.js';
 import type {ToolContext} from './tool-actions.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry, listsActions} from './catalog.js';
+import {actionAliasWarning} from './action-aliases.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
 import {Store} from './store.js';
@@ -452,6 +453,16 @@ export class MirrorService {
             // The runner's provider steps (src/provider-workflows.ts): Google's recipe goals, Microsoft's locations.
             (a, scope, current) => campaignProviderSteps.goals(this.workflowContext(), a, scope, current),
             (a, lookup) => campaignProviderSteps.locations(this.workflowContext(), a, lookup),
+            // A plan step's near-miss action name (T7) is saved under its canonical name, and the response says so.
+            (gateway, name, field) => {
+              const alias =
+                this.registry.tools.get(gateway)?.mode === 'direct'
+                  ? this.registry.resolveAction(gateway, name).alias
+                  : undefined;
+              if (!alias) return name;
+              this.noteArgumentWarning(requestId, actionAliasWarning(field, alias.used, alias.canonical));
+              return alias.canonical;
+            },
           ).handle(input, actor),
           requestId,
           start,
@@ -580,6 +591,8 @@ export class MirrorService {
           return this.wrap(ownToolHelp(own, input.topic, currentContractProfile()), requestId, start, tool, 'help');
         }
       }
+      // A near-miss action name (T7) is reported beside the result, whether the call answers or is refused.
+      for (const warning of this.actionAliasWarnings(tool, input)) this.noteArgumentWarning(requestId, warning);
       // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.
       const call = (t: string, a: JsonObject, u: Actor) => {
         this.nested.add(a);
@@ -612,16 +625,24 @@ export class MirrorService {
           tool,
         );
       if (input.action === 'DESCRIBE_ACTION') {
+        // A near-miss spelling (T7) is described as the action it stands for: the name is made canonical once, here, for
+        // all three answers below, since the conditional-program lookup and the AMCP description match by exact name
+        // (the review's S3-2). The warning was noted above.
+        const target =
+            typeof input.target_action === 'string'
+              ? (this.registry.resolveAction(tool, input.target_action).alias?.canonical ?? input.target_action)
+              : input.target_action,
+          described = target === input.target_action ? input : {...input, target_action: target};
         const description = catalogListing
-            ? this.introspection.catalogRequest(tool, input)
-            : this.introspection.describe(tool, input),
+            ? this.introspection.catalogRequest(tool, described)
+            : this.introspection.describe(tool, described),
           media = mediaDiscovery(tool, currentContractProfile()),
-          program = conditionalProgramDescription(this.registry, tool, input.target_action);
+          program = conditionalProgramDescription(this.registry, tool, target);
         // read_only is AMCP's contract classification and api_version the version sent; captured values that differ
         // stay under captured_catalog, and amcp_execution says whether AMCP runs the action (MCP-10).
         return this.wrap(
           {
-            ...amcpDescribed(this.registry, tool, String(input.target_action), withoutSuccess(description)),
+            ...amcpDescribed(this.registry, tool, String(target), withoutSuccess(description)),
             ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
@@ -644,23 +665,40 @@ export class MirrorService {
           start,
           tool,
         );
+      // A near-miss action name (T7) runs as its canonical action, so the refusal that names the call to make instead
+      // (WRITE_REVIEW_REQUIRED) names the canonical one too; the first-party markers of the call go with it. The audit
+      // record of a refusal keeps what the caller sent.
+      const alias =
+          typeof input.action === 'string' ? this.registry.resolveAction(tool, input.action).alias : undefined,
+        sent = alias ? this.withAction(input, alias.canonical) : input;
       // A read a first-party workflow sends for the person is marked, for the provider read authorizers that admit a
       // read on that path only (Meta's ad identity probe, F-L3-03); a caller's own call never is.
-      const compiled = this.compiler.compile(tool, input, this.options),
-        plan = this.nested.has(input) && compiled.readOnly ? {...compiled, nested: true as const} : compiled;
+      const compiled = this.compiler.compile(tool, sent, this.options),
+        plan = this.nested.has(sent) && compiled.readOnly ? {...compiled, nested: true as const} : compiled;
       const hasMediaSource = ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'].some(
         k => plan.body && typeof plan.body === 'object' && (plan.body as JsonObject)[k] !== undefined,
       );
       const media =
-        input.dry_run === false || hasMediaSource ? nativeMediaInput(plan, this.connectionId(input)) : undefined;
+        sent.dry_run === false || hasMediaSource ? nativeMediaInput(plan, this.connectionId(sent)) : undefined;
       if (media)
         return this.wrap(
-          input.dry_run === false ? mediaNext(await this.nativeUpload(media, actor)) : mediaPreview(media),
+          sent.dry_run === false ? mediaNext(await this.nativeUpload(media, actor)) : mediaPreview(media),
           requestId,
           start,
           tool,
         );
-      return this.wrap(await this.runPlan(plan, input, actor, requestId), requestId, start, tool);
+      // The contract profile knows the client's own call by the identity of its arguments object (isClientCall), and the copy
+      // an alias is run as is another object: the call runs in a scope that names the copy as the client's, so that a v2
+      // client is answered through an alias exactly as through the canonical name (the review's S3-1).
+      const run = () => this.runPlan(plan, sent, actor, requestId);
+      return this.wrap(
+        await (sent !== input && isClientCall(input)
+          ? withContractProfile(currentContractProfile(), run, sent)
+          : run()),
+        requestId,
+        start,
+        tool,
+      );
     } catch (e) {
       failed = true;
       // A genuine SQLite capacity or contention failure becomes its AMCP refusal (OPS-02), not INTERNAL_ERROR.
@@ -842,6 +880,46 @@ export class MirrorService {
 
   /** Report-only argument findings of the call in flight, by request ID (MCP-07); wrap puts them under meta. */
   private argumentWarnings = new Map<string, JsonObject[]>();
+  /** One more report-only finding of the call in flight, after the ones already noted. */
+  private noteArgumentWarning(requestId: string, warning: JsonObject) {
+    this.argumentWarnings.set(requestId, [...(this.argumentWarnings.get(requestId) ?? []), warning]);
+  }
+  /**
+   * The near-miss action names (T7) a call writes, where it writes them: a native gateway's `action` (and the
+   * `target_action` of its DESCRIBE_ACTION), and the `arguments.action` that amcp_write prepares or inspects. Only a
+   * spelling that resolves is reported (an exact name draws nothing, an unknown one is refused by its own call). The
+   * names of a plan's steps are reported by amcp_campaign create, which also saves them under the canonical name.
+   */
+  private actionAliasWarnings(tool: string, input: JsonObject): JsonObject[] {
+    const found: JsonObject[] = [],
+      note = (gateway: unknown, name: unknown, field: string) => {
+        if (
+          typeof gateway !== 'string' ||
+          typeof name !== 'string' ||
+          this.registry.tools.get(gateway)?.mode !== 'direct'
+        )
+          return;
+        const alias = this.registry.resolveAction(gateway, name).alias;
+        if (alias) found.push(actionAliasWarning(field, alias.used, alias.canonical));
+      };
+    if (this.registry.tools.get(tool)?.mode === 'direct') {
+      note(tool, input.action, 'action');
+      if (input.action === 'DESCRIBE_ACTION') note(tool, input.target_action, 'target_action');
+    } else if (
+      tool === writeTool.name &&
+      (input.action === 'prepare' || input.action === 'inspect') &&
+      input.arguments &&
+      typeof input.arguments === 'object'
+    )
+      note(input.gateway, input.arguments.action, 'arguments.action');
+    return found;
+  }
+  /** A copy of a call that names another action, carrying the first-party marks the original had (src/service.ts nested). */
+  private withAction(input: JsonObject, action: string): JsonObject {
+    const copy = {...input, action};
+    if (this.nested.has(input)) this.nested.add(copy);
+    return copy;
+  }
   private wrap(data: unknown, requestId: string, start: number, tool?: string, action?: unknown) {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
     const warnings = this.argumentWarnings.get(requestId);

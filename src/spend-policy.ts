@@ -80,16 +80,29 @@ export function ownerAccess(store: Store, actor: Actor, action?: string) {
       {action: action ?? null},
       403,
     );
+  // LEAD-03 (Round 2.5, owner 2026-11-15): health is read by the owner (the whole view) or an administrator (connection
+  // status and job queues): ownerOperations answers an administrator before it gets here, so what is refused here is a
+  // member below administrator, and every AI client connection, which is only ever operator or reader (owner decision
+  // D16, server/mcp-oauth.ts). Its refusal says so, where the owner reads the view, and what a session can read instead;
+  // it once told such a session to "ask one of them or the owner", and said "only the owner" beside a required_role of
+  // "owner or administrator".
+  if (!workspaceOwner(store, actor) && action === 'health')
+    throw new MirrorError(
+      'OWNER_REQUIRED',
+      'Only the workspace owner can read the whole workspace health (policies, e-mail, storage and backups), and an administrator its connection status and job queues. An AI client connection is limited to the operator or reader role, so it can read neither; the owner reads the whole view on the website at /settings, under Review friction and the workspace health.',
+      {
+        action,
+        required_role: 'owner or administrator',
+        website_path: '/settings',
+        next_call: {tool: 'amcp_workspace', arguments: {action: 'capabilities'}},
+      },
+      403,
+    );
   if (!workspaceOwner(store, actor))
     throw new MirrorError(
       'OWNER_REQUIRED',
-      'Only the workspace owner can ' +
-        act +
-        '.' +
-        (action === 'health'
-          ? ' Administrators see connection status and job queues; ask one of them or the owner.'
-          : ''),
-      {action: action ?? null, required_role: action === 'health' ? 'owner or administrator' : 'owner'},
+      'Only the workspace owner can ' + act + '.',
+      {action: action ?? null, required_role: 'owner'},
       403,
     );
 }

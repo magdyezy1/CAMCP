@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 170 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 176 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -67,12 +67,23 @@ test('all 170 shared recovery hints have authored Arabic with exact native tool 
   // Package r25-hotfix item 1 adds the remedy of a TikTok report whose page counts the check refused, to TikTok's own table
   // (src/tiktok-remedies.ts): 142 in src/errors.ts, 170 in all. Item 2 adds the remedy of a provider response that does
   // not match the pinned contract of its route, to src/errors.ts: 143, 171 in all.
-  assert.equal(hints.size, 171);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 143);
+  // Package r25-m0-errors (Round 2.5, M0: LEAD-01) adds the next steps of CAPABILITY_ACCOUNT_UNAVAILABLE's five causes: the
+  // one for an account no connection covers is CONNECTION_REQUIRED's sentence (one string), so four are new: 146, 173 in all
+  // (on the integration's 142 and 169, before the hotfix).
+  // Its LEAD-03 adds the next step of the refusal of workspace health (OWNER_REQUIRED with required_role "owner or
+  // administrator"): 147, 174 in all.
+  // Its L3-02 adds the next step of a write the provider throttled after it was sent (PLATFORM_RATE_LIMIT with the status
+  // call of an uncertain write): 148, 175 in all.
+  // Merge r25-m0-merge, with r25-hotfix (143 in src/errors.ts, 171 in all on its own base) and r25-m0-errors (148, 175): both
+  // started from 142 and 169 and add different hints, so no package's own pin is the merged count. Measured on the merged tree
+  // (the inspectors this test uses: sharedRecoveryHints and inspectSharedRecoveryHints over src/errors.ts): 142 + 1 (hotfix item
+  // 2) + 6 (errors) = 149 in src/errors.ts, and 169 + 2 (hotfix) + 6 (errors) = 177 in all.
+  assert.equal(hints.size, 177);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 149);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 170);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 176);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

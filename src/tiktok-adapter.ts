@@ -567,6 +567,13 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     errors: Object.freeze({
       code: (body: unknown) => errorInteger(errorObject(body).code),
       classify: classifyTikTokError,
+      // G9: a refusal's code is all TikTok gives structurally (its parameter errors name a field only in free text, which
+      // is never parsed here); its message is third-party text, kept in details.provider_message.
+      tokens: (body: unknown) => {
+        const code = errorInteger(errorObject(body).code);
+        return code !== undefined && code !== 0 ? [{code}] : [];
+      },
+      text: (body: unknown) => errorObject(body).message,
     }),
   }),
   // Writes and campaigns (wave 4c): the guided traffic and conversion packs (CMP-07).

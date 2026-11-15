@@ -2,8 +2,10 @@ import type {Actor, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import {actionContracts} from './action-contracts.js';
+import {MirrorError} from './errors.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
+import {echoedText} from './provider-error-core.js';
 import {accountMetadataView, resolveAccountMetadata, type ResolvedAccountMetadata} from './account-metadata.js';
 import {conditionalProgram, programObservation} from './conditional-programs.js';
 import {readinessBinding, readinessLifetimeMs, recordedGrants} from './readiness.js';
@@ -382,6 +384,46 @@ function memberRole(store: Store, actor: Actor, c: Connection, account: string):
         meaning: 'No member role is recorded for this account. Sync the LinkedIn login in Connections to record it.',
       };
 }
+/**
+ * Why a selection of workflow, connection and account left nothing to describe (LEAD-01, Round 2.5, owner 2026-11-15).
+ * It once said only "select a currently configured account and login", whatever the cause, and its remedy named nothing.
+ * Each cause now names itself with the caller's own value (clipped, control characters out), and its next step is its own
+ * (src/errors.ts): `account_uncovered`, where no configured connection covers the account, is the one CONNECTION_REQUIRED
+ * answers, and the others say what is actually wrong with the connection they name.
+ */
+function unavailableSelection(
+  graph: JsonObject,
+  connections: ReadonlyMap<string, Connection>,
+  input: JsonObject,
+): MirrorError {
+  // What the refusal repeats of the caller's own values is cleaned like a provider's sentence (the review's S3-4).
+  const shown = (v: unknown) => echoedText(String(v), 100) ?? '',
+    scope: JsonObject[] = graph.workflows.filter((w: JsonObject) => !input.workflow_id || w.id === input.workflow_id),
+    connection = input.connection_id ? connections.get(input.connection_id) : undefined,
+    refusal = (reason: string, message: string, values: Record<string, string>) =>
+      new MirrorError('CAPABILITY_ACCOUNT_UNAVAILABLE', message, {reason, ...values}, 400, false, values),
+    connection_id = input.connection_id ? shown(input.connection_id) : '',
+    account_id = input.account_id ? shown(input.account_id) : '';
+  if (input.connection_id && !connection)
+    return refusal('connection_unknown', 'Connection {connection_id} is not one of your configured connections.', {
+      connection_id,
+    });
+  // The connection is one of the caller's, but none of the selected workflows runs on its provider.
+  if (connection && !scope.some(w => w.gateway === connection.gateway))
+    return refusal('workflow_provider', 'This workflow does not run on the provider of connection {connection_id}.', {
+      connection_id,
+    });
+  if (connection && input.account_id)
+    return refusal('connection_account', 'Connection {connection_id} does not include account {account_id}.', {
+      connection_id,
+      account_id,
+    });
+  if (connection)
+    return refusal('connection_empty', 'Connection {connection_id} has no account selected for this workflow.', {
+      connection_id,
+    });
+  return refusal('account_uncovered', 'No configured connection covers account {account_id}.', {account_id});
+}
 export function enrichCapabilities(
   store: Store,
   registry: Registry,
@@ -638,7 +680,7 @@ export function enrichCapabilities(
     })
     .filter((w: JsonObject) => !(input.connection_id || input.account_id) || w.accounts.length);
   if ((input.account_id || input.connection_id) && !workflows.length)
-    bad('Select a currently configured account and login for this workflow.', 'CAPABILITY_ACCOUNT_UNAVAILABLE');
+    throw unavailableSelection(graph, connections, input);
   for (const w of workflows) {
     nodes.set(w.id, {id: w.id, kind: w.kind, name: w.name});
     for (const d of [

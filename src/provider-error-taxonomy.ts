@@ -1,6 +1,17 @@
 import {providerHttpErrorCode} from './errors.js';
 import {providerHooks} from './provider-hooks.js';
-import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
+import type {ErrorEnvelope} from './provider-adapter.js';
+import {redact} from './security.js';
+import {
+  describeProviderErrors,
+  errorInteger,
+  errorObject,
+  errorToken,
+  providerErrorTokens,
+  providerMessageText,
+  providerReference,
+  type ProviderErrorToken,
+} from './provider-error-core.js';
 
 // The values the classification reads live in the leaf src/provider-error-core.ts, which the provider adapters' wire
 // profiles read too; the types below are imported by those adapters as types only, so no runtime cycle forms.
@@ -96,6 +107,47 @@ export function providerErrorCode(gateway: string, body: unknown): string | numb
     errorToken(root.error_code) ??
     errorToken(first(root.errors).code)
   );
+}
+
+/**
+ * What a refusal says apart from its classification (G9, Round 2.5 M0): the rows of closed-set tokens its provider's wire
+ * profile finds in the documented error shape (every token checked against its pattern here, whatever the hook returned:
+ * `errors`), the part of them a message may quote (`echo`, the review's S2-1: numbers, words the provider's schema holds,
+ * places the `request` AMCP sent holds, and the operation's index; empty when nothing can be quoted), and the provider's own
+ * first sentence, redacted like `details.upstream`, cleaned and clipped (`text`). The sentence is never echoed (src/errors.ts
+ * keeps provider text out of messages), and the rows are marked untrusted with it.
+ */
+export function providerRefusal(
+  gateway: string,
+  body: unknown,
+  own: ErrorEnvelope | undefined = envelope(gateway),
+  request?: unknown,
+): {errors: ProviderErrorToken[]; echo: string; text?: string} {
+  // A hook that fails costs its own part of this decoration, never the refusal it decorates: the refusal is thrown
+  // right after, and nothing here may replace it with a crash.
+  const attempt = <T>(read: () => T): T | undefined => {
+      try {
+        return read();
+      } catch {
+        return undefined;
+      }
+    },
+    sentence = attempt(() => own?.text?.(body)),
+    text = typeof sentence === 'string' ? attempt(() => providerMessageText(redact(sentence))) : undefined,
+    // A token that redact() would change is dropped, as the body it came from is redacted in details.upstream: a credential
+    // has the shape of a word, and no pattern of a closed alphabet keeps it out (the review's S2-2).
+    errors = providerErrorTokens(
+      attempt(() => own?.tokens?.(body)),
+      token => redact(token) === token,
+    ),
+    echo =
+      attempt(() =>
+        describeProviderErrors(errors, {
+          known: row => attempt(() => own?.quotable?.(row)) === true,
+          request,
+        }),
+      ) ?? '';
+  return {errors, echo, ...(text !== undefined ? {text} : {})};
 }
 
 /**

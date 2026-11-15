@@ -37,7 +37,9 @@ import {googleContractEvidence, googleJson, validateGoogleRequest} from './googl
 import {
   currentGoogleAdsCapture,
   extendGoogleAdsTool,
+  googleAdsActionAliases,
   googleAdsActionVersion,
+  googleAdsContract,
   googleAdsCustomers,
   googleAdsRequestChange,
   googleAdsVersion,
@@ -49,7 +51,13 @@ import legacyMapping from './google-legacy-mapping.json' with {type: 'json'};
 import {dataManagerActions} from './google-data-manager-routes.js';
 // Wave 4c round 6 (w4c-arc6-tables): the Data Manager routes' origin, which its wire contract names.
 import {dataManagerOrigin} from './google-data-manager-routes.js';
-import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
+import {
+  boundedWait,
+  errorObject,
+  errorToken,
+  type ProviderErrorCandidate,
+  type ProviderErrorToken,
+} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 // Writes and campaigns (wave 4c).
 import {
@@ -94,6 +102,85 @@ function googleErrorCode(body: unknown): string | number | undefined {
     }
   return errorToken(error.status);
 }
+/** An error family as its token spells it: assetGroupError is ASSET_GROUP_ERROR. */
+const googleErrorFamily = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+/**
+ * The error families and the family/enum pairs of the pinned ErrorCode schema of the version AMCP sends (the review's S2-1):
+ * the property names are the families and each lists its enums. Built once, the first time a refusal asks, from the vendored
+ * Discovery document; a missing schema leaves both sets empty, so nothing is quoted rather than anything.
+ */
+let googleKnownErrors: {families: ReadonlySet<string>; pairs: ReadonlySet<string>} | undefined;
+function googleErrorNames() {
+  if (!googleKnownErrors) {
+    const families = new Set<string>(),
+      pairs = new Set<string>(),
+      schema = errorObject(
+        errorObject(
+          errorObject(
+            errorObject(pinnedJson<JsonObject>('generated/vendor-routes.json').schemaComponents)[googleAdsContract],
+          ).schemas,
+        )['GoogleAdsGoogleads' + googleAdsVersion.toUpperCase() + 'Errors__ErrorCode'],
+      );
+    for (const [key, property] of Object.entries(errorObject(schema.properties))) {
+      const family = googleErrorFamily(key);
+      families.add(family);
+      for (const value of Array.isArray(errorObject(property).enum) ? errorObject(property).enum : [])
+        if (typeof value === 'string') pairs.add(family + '/' + value);
+    }
+    googleKnownErrors = {families, pairs};
+  }
+  return googleKnownErrors;
+}
+/** Whether Google's own schema holds the family and enum of a token row: only then may a message quote the words. */
+function googleErrorQuotable(row: ProviderErrorToken): boolean {
+  const {families, pairs} = googleErrorNames();
+  if (row.code === undefined || typeof row.code !== 'string') return false;
+  return row.enum === undefined ? families.has(row.code) : pairs.has(row.code + '/' + row.enum);
+}
+/** The errors of the GoogleAdsFailure details of a refusal (at most ten of ten, as googleErrorCode reads them). */
+function googleFailureErrors(body: unknown): Record<string, any>[] {
+  const error = errorObject(errorObject(body).error),
+    rows: Record<string, any>[] = [];
+  for (const detail of Array.isArray(error.details) ? error.details.slice(0, 10) : [])
+    for (const row of Array.isArray(errorObject(detail).errors) ? errorObject(detail).errors.slice(0, 10) : [])
+      rows.push(errorObject(row));
+  return rows;
+}
+/**
+ * The closed-set tokens of a Google Ads refusal (G9): each GoogleAdsFailure error's error family and enum (`errorCode` is
+ * a oneof of one: `{assetGroupError: "NOT_ENOUGH_MARKETING_IMAGE_ASSET"}` is ASSET_GROUP_ERROR and that enum), the index of
+ * the failing operation (the first path element when it is the request's operation list) and the field path
+ * (`location.fieldPathElements`, as validation.fieldPaths reads them). The transport checks every token again and drops
+ * what fails its pattern; no message text is read here.
+ */
+function googleProviderErrors(body: unknown): ProviderErrorCandidate[] {
+  return googleFailureErrors(body).map(row => {
+    const [family, value] = Object.entries(errorObject(row.errorCode))[0] ?? [],
+      elements: Record<string, any>[] = (
+        Array.isArray(errorObject(row.location).fieldPathElements) ? errorObject(row.location).fieldPathElements : []
+      )
+        .slice(0, 20)
+        .map(errorObject),
+      first = elements[0];
+    return {
+      code: family === undefined ? undefined : googleErrorFamily(family),
+      enum: value,
+      operation_index:
+        first && /^(?:mutate_operations|mutateOperations|operations)$/.test(String(first.fieldName))
+          ? first.index
+          : undefined,
+      // A path is the whole list of names or nothing: one element without a name leaves no path to trust.
+      field_path:
+        elements.length && elements.every(p => typeof p.fieldName === 'string')
+          ? elements.map(p => p.fieldName + (Number.isInteger(p.index) ? '[' + p.index + ']' : '')).join('.')
+          : undefined,
+    };
+  });
+}
+/** Google's own first sentence of a refusal: its first error's message, else the response's (third-party text). */
+const googleProviderText = (body: unknown): unknown =>
+  googleFailureErrors(body).find(row => typeof row.message === 'string' && row.message)?.message ??
+  errorObject(errorObject(body).error).message;
 /** Google Ads QuotaErrorDetails.retryDelay ("30s", "1.5s"), as milliseconds. */
 function googleRetryDelay(row: Record<string, any>): number | undefined {
   const value = errorObject(errorObject(row.details).quotaErrorDetails).retryDelay,
@@ -587,6 +674,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       capture: currentGoogleAdsCapture,
       tool: extendGoogleAdsTool,
     }),
+    // T7 (Round 2.5 M0): the version-neutral and current-version spellings of the recorded v23 names.
+    aliases: googleAdsActionAliases,
   }),
   // Its requests are compiled by its own compiler with ProtoJSON validation (src/compiler.ts): a vendor snapshot's
   // Google Ads routes are never delegated.
@@ -705,7 +794,13 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     },
     sessionHeaders: (plan: CompiledRequest) =>
       plan.path.startsWith('/resumable/upload/') ? ['x-goog-upload-url', 'x-goog-upload-chunk-granularity'] : [],
-    errors: Object.freeze({code: googleErrorCode, classify: classifyGoogleError}),
+    errors: Object.freeze({
+      code: googleErrorCode,
+      classify: classifyGoogleError,
+      tokens: googleProviderErrors,
+      quotable: googleErrorQuotable,
+      text: googleProviderText,
+    }),
   }),
   // Writes and campaigns (wave 4c): the guided Search recipes, then Performance Max (CMP-07).
   campaign: Object.freeze({

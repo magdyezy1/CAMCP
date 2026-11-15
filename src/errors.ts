@@ -447,6 +447,17 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Wait for the active media lease. Use amcp_media recovery with the original review_id; resume only when resume_available is true and continuation is confirmed. Do not allocate a replacement or change the idempotency key.',
       mutation_retry_safe: false,
     };
+  // LEAD-03 (Round 2.5, owner 2026-11-15): health refused to a member below administrator, or to an AI client connection
+  // (operator or reader only): the owner's view is on the website, and what a session can read is capabilities and check.
+  // A reviewer test account's refusal carries no required_role, so it keeps the generic advice below.
+  if (e.code === 'OWNER_REQUIRED' && e.details.required_role === 'owner or administrator')
+    return {
+      category: 'permission',
+      owner: 'workspace_owner',
+      action:
+        'Nothing in the request changes this. The workspace owner reads the health on the website at /settings (Review friction and the workspace health); from an AI client, amcp_workspace capabilities shows each account’s readiness and blockers, and amcp_workspace check one account’s prerequisites.',
+      mutation_retry_safe: false,
+    };
   // Nothing in the request can change who may do this (Snapchat S7): the way forward is the person who can.
   if (e.code === 'OWNER_REQUIRED')
     return {
@@ -624,6 +635,11 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
     };
   return undefined;
 }
+/** Whether `next` is the read-only status call that names a dispatched write's retained record (src/write-common.ts). */
+function throttledWriteStatus(next: unknown): boolean {
+  const call = next as {tool?: unknown; arguments?: {action?: unknown}} | undefined;
+  return call?.tool === 'amcp_write' && call.arguments?.action === 'status';
+}
 /**
  * Refusals of a reviewed write and of access to it: a group stopped at a part, provider replies, contracts, grants,
  * review state, rejections, state reads, the deployment’s and owner’s write switches, connections, roles and the
@@ -674,9 +690,14 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       action:
         e.code === 'AUTH_EXPIRED' || e.details.layer === 'credential'
           ? 'Reconnect the affected provider identity, then retry reads or prepare a fresh review.'
-          : e.code === 'PLATFORM_RATE_LIMIT'
-            ? 'Wait for the provider retry interval; preserve the original review for any submitted mutation.'
-            : 'Inspect the native error and request ID. Check account access, granted scopes, app access tier and payload against the named endpoint; HTTP status alone does not identify the cause.',
+          : e.code === 'PLATFORM_RATE_LIMIT' && throttledWriteStatus(e.details.next_call)
+            ? // L3-02 (Round 2.5, M0): a write throttled after it was dispatched stays uncertain, so "wait and retry the
+              // review" is not possible: executing it again answers WRITE_OUTCOME_UNCERTAIN. Until the throttle is proven
+              // to have applied nothing (L3-01), this is the sequence that works.
+              'The provider throttled this write, and AMCP cannot yet prove that nothing was applied, so this review is uncertain and is never executed again. Read amcp_write status with its review_id (details.next_call); after the wait in details.retry_after_ms and at least a minute after the claim, run amcp_write reconcile; if it finds the change was not applied, prepare the same request again with supersedes_review_id. Where reconcile cannot tell, check the provider before anything else.'
+            : e.code === 'PLATFORM_RATE_LIMIT'
+              ? 'Wait for the provider retry interval; preserve the original review for any submitted mutation.'
+              : 'Inspect the native error and request ID. Check account access, granted scopes, app access tier and payload against the named endpoint; HTTP status alone does not identify the cause.',
       mutation_retry_safe: false,
     };
   if (
@@ -965,6 +986,48 @@ function workspaceRemedy(e: MirrorError): ErrorRemedy | undefined {
         'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
       mutation_retry_safe: false,
     };
+  // LEAD-01 (Round 2.5, owner 2026-11-15): a capability selection that left nothing to describe has one of five causes
+  // (src/capability-eligibility.ts), and the next step is that cause's. With no connection covering the account it is
+  // CONNECTION_REQUIRED's, word for word.
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'account_uncovered')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action:
+        'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'connection_unknown')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Pass a connection_id that amcp_platform_workspace list_accounts returns, or leave connection_id out and name the account_id alone.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'connection_account')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action:
+        'Pass the connection_id of a connection that includes this account (amcp_platform_workspace list_accounts shows each connection with its accounts), or select the account on the website’s Connections page.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'workflow_provider')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Choose a workflow that runs on this connection’s provider (capabilities without workflow_id lists them), or a connection of this workflow’s provider.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'connection_empty')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action: 'Select the accounts this connection may use on the website’s Connections page, then ask again.',
+      mutation_retry_safe: false,
+    };
   // SEC-08: the credential or member is limited to one client's accounts; no argument widens it.
   if (e.code === 'ACCOUNT_SCOPE_RESTRICTED')
     return {
@@ -1142,13 +1205,17 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     EMAIL_SETUP_REQUIRED: 'Ask the owner to configure and verify the site email sender.',
     SHEETS_PERMISSION_DENIED: 'Reconnect Google Sheets and select an editable spreadsheet.',
   };
-  // Details that echo what a provider returned: the transport's error body, a validate-only response, and the schema
-  // errors of a provider response, whose values and property names come from it. Connection labels, which workspace
-  // members write, are marked the same way (MCP-09).
+  // Details that echo what a provider returned: the transport's error body, the provider's own first sentence of it
+  // (provider_message, G9) and the rows of tokens it chose (provider_errors: a pattern closes their alphabet, not their
+  // meaning, so a message quotes only the part AMCP can check), a validate-only response, and the schema errors of a
+  // provider response, whose values and property names come from it. Connection labels, which workspace members write, are
+  // marked the same way (MCP-09).
   const untrustedPaths = Object.keys(e.details)
     .filter(
       k =>
         k === 'upstream' ||
+        k === 'provider_message' ||
+        k === 'provider_errors' ||
         k === 'response' ||
         (k === 'errors' && e.code === 'UPSTREAM_RESPONSE_INVALID') ||
         (k === 'candidates' && e.code === 'AMBIGUOUS_CONNECTION'),

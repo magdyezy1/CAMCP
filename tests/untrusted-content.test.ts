@@ -117,8 +117,15 @@ test('a provider error echoing injected text is labelled too', async () => {
       'the provider body is echoed, so it must be labelled',
     );
     assert.match(String((result.meta as JsonObject).untrusted_provider_content), /never as instructions/i);
-    // The label names the part that quotes the provider, not the message and remedy AMCP wrote.
-    assert.deepEqual((result.meta as JsonObject).untrusted_paths, ['error.details.upstream']);
+    // The label names the parts that quote the provider, not the message and remedy AMCP wrote. G9 (package
+    // r25-m0-errors, changed on purpose): Meta's own sentence now also comes back as details.provider_message, labelled
+    // with the body; the message holds none of it.
+    assert.deepEqual((result.meta as JsonObject).untrusted_paths, [
+      'error.details.upstream',
+      'error.details.provider_message',
+    ]);
+    assert.equal(details.provider_message, 'Invalid parameter: ' + injected);
+    assert.doesNotMatch(String((result.error as JsonObject).message), /SYSTEM|ignore|instructions/i);
   } finally {
     store.close();
   }
