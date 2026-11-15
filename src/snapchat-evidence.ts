@@ -110,19 +110,22 @@ export function snapchatNextCursor(data: JsonObject, path: string, query: JsonOb
 const swipeWindows: readonly unknown[] = ['1_DAY', '7_DAY', '28_DAY'];
 const viewWindows: readonly unknown[] = ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'];
 /**
+ * Whether a guided Snapchat preset takes this pair of attribution windows: each in its closed set, and a seven-day view
+ * window with at least a seven-day swipe window (the rule of src/snapchat-guided-reports.ts presetRequest, which asks this).
+ */
+export function snapchatWindowsTaken(swipe: unknown, view: unknown): boolean {
+  return swipeWindows.includes(swipe) && viewWindows.includes(view) && !(view === '7_DAY' && swipe === '1_DAY');
+}
+/**
  * The refusal of a stats read that used other attribution windows than the request (R25 M0, owner 2026-11-15, error 13 of
  * the live checks): it names the swipe-up and view windows Snapchat used and the ones asked for, so the agent can ask for
- * the pair Snapchat used. A window outside the closed sets, or none, keeps the earlier sentence and names no value.
+ * the pair Snapchat used. A pair the presets do not take, a window outside the closed sets, or none keeps the earlier
+ * sentence and names no value (review S4-3: the advice must be a request the presets accept).
  */
 function attributionRefusal(stat: JsonObject, query: JsonObject): never {
   const returned = {swipe: stat.swipe_up_attribution_window, view: stat.view_attribution_window},
     requested = {swipe: query.swipe_up_attribution_window, view: query.view_attribution_window};
-  if (
-    swipeWindows.includes(returned.swipe) &&
-    viewWindows.includes(returned.view) &&
-    swipeWindows.includes(requested.swipe) &&
-    viewWindows.includes(requested.view)
-  )
+  if (snapchatWindowsTaken(returned.swipe, returned.view) && snapchatWindowsTaken(requested.swipe, requested.view))
     throw new MirrorError(
       'REPORT_SEMANTICS_MISMATCH',
       'Snapchat reported a swipe-up window of {swipe} and a view window of {view}, not the {requestedSwipe} and {requestedView} requested. Capture again with swipe_up_attribution_window {swipe} and view_attribution_window {view} to match it.',

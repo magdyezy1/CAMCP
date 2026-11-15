@@ -1,7 +1,12 @@
 import {bad} from './workspace-core.js';
 import type {JsonObject} from './types.js';
 import type {GuidedReporting} from './report-source.js';
-import {collectSnapchatEvidence, snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
+import {
+  collectSnapchatEvidence,
+  snapchatDailyRange,
+  snapchatReportId,
+  snapchatWindowsTaken,
+} from './snapchat-evidence.js';
 import {snapchatAllocationEvidence} from './snapchat-allocation-evidence.js';
 import {snapchatAllocationDraft} from './snapchat-allocation-draft.js';
 
@@ -76,12 +81,7 @@ export const snapchatGuidedReporting: GuidedReporting = {
       view = input.view_attribution_window;
     if (leads && (swipe !== undefined || view !== undefined))
       bad('Native lead-form submissions do not use the purchase attribution window controls.');
-    if (
-      !leads &&
-      (!['1_DAY', '7_DAY', '28_DAY'].includes(swipe) ||
-        !['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(view) ||
-        (view === '7_DAY' && swipe === '1_DAY'))
-    )
+    if (!leads && !snapchatWindowsTaken(swipe, view))
       bad(
         'Choose explicit supported Snapchat swipe and view attribution windows; a seven-day view requires at least a seven-day swipe window.',
       );
