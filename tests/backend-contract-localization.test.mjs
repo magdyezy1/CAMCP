@@ -482,8 +482,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // adds the Arabic of LinkedIn's remedy for an empty analytics answer (src/linkedin-remedies.ts): 12,117. Its item 4 rewords
   // Microsoft's refusal of a payload AccountId that is not the call's account_id (the owned reason is replaced one for one, the
   // old entry leaves the catalogue) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118. Its
-  // item 5 adds the Arabic of the Snapchat template that names the windows Snapchat used: 12,119.
-  assert.equal(Object.keys(catalog).length, 12119);
+  // item 5 adds the Arabic of the Snapchat template that names the windows Snapchat used: 12,119. Its item 7 replaces the previews
+  // notice that promised links open for anyone who has them and the page's line that said the same (two entries leave) with the notice
+  // that makes no such promise, LinkedIn's that names its two links and the page's new line (three enter): 12,119 + 3 - 2 = 12,120.
+  assert.equal(Object.keys(catalog).length, 12120);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

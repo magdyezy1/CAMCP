@@ -49,6 +49,15 @@ export function authorizeLinkedInAdPreview(p: CompiledRequest, c: Connection, st
   return !!creative && store.ownsResource(c, selected, 'creatives/' + creative);
 }
 
+/**
+ * What LinkedIn's previews say of who can open their links (R25 M0, owner 2026-11-15, observation 6 of the live checks): the
+ * answer carries a link for each placement, named by its device. Live, the mobile link rendered the ad on its own, while the
+ * desktop link showed LinkedIn's error page to a viewer without a LinkedIn session; the desktop link is only known to need one.
+ * It replaces the shared notice of the answer (src/ad-previews.ts), which makes no promise about any platform's links.
+ */
+export const linkedInPreviewMeaning =
+  'Preview links expire; share them only with people who may see these ads. AMCP does not store them. The mobile link (device MOBILE_WEBSITE) opens without a LinkedIn sign-in; the desktop link (device DESKTOP_WEBSITE) may show LinkedIn’s error page unless the viewer is signed in to LinkedIn.';
+
 /** Only the documented accurate-preview iframe's src, never links embedded elsewhere in provider HTML. */
 export function linkedInPreviewLinks(elements: unknown, now: number): AdPreviewLink[] {
   if (!Array.isArray(elements) || elements.length > 100 || !Number.isFinite(now)) return [];
@@ -297,7 +306,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         ...(rejected ? {note: 'LinkedIn returned no safe iframe preview link for one or more placements.'} : {}),
       };
     },
-    extra: {...paging, ...notListed(missing)},
+    extra: {...paging, ...notListed(missing), meaning: linkedInPreviewMeaning},
   };
 }
 

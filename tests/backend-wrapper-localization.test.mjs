@@ -419,8 +419,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // inventory does not own): 12,114 + 2 = 12,116. Its item 3 adds the Arabic of LinkedIn's remedy for an empty analytics
   // answer (a remedy, not a refusal reason): 12,117. Its item 4 replaces Microsoft's AccountId refusal (a direct reason, one for
   // one) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118. Its item 5 adds the Arabic
-  // of the Snapchat template that names the windows Snapchat used (a direct reason, not a wrapper reason): 12,119.
-  assert.equal(Object.keys(catalog).length, 12119);
+  // of the Snapchat template that names the windows Snapchat used (a direct reason, not a wrapper reason): 12,119. Its item 7
+  // replaces two previews sentences that promised links open for anyone who has them with three that do not (two entries leave, three
+  // enter): 12,120.
+  assert.equal(Object.keys(catalog).length, 12120);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

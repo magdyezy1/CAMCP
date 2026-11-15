@@ -299,8 +299,11 @@ export class AdPreviews {
           has_more: false,
           order: 'native',
           executed: false,
+          // R25 M0 (owner 2026-11-15, observation 6 of the live checks): no promise that a link opens for anyone. Live, a
+          // LinkedIn desktop link showed an error page without a LinkedIn session. A platform whose links differ says so in
+          // its own `meaning` (extra, below: LinkedIn's names its two links).
           meaning:
-            'Preview links open for anyone who has them and expire; share them only with people who may see these ads. AMCP does not store them.',
+            'Preview links expire, and a platform may need its own sign-in to show some of them; share them only with people who may see these ads. AMCP does not store them.',
           ...extra,
         };
       };

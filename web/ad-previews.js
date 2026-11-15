@@ -1,6 +1,7 @@
 'use strict';
 // Preview your ads: the platform's own preview links for ads that already exist (amcp_ad_previews). Links open in a
-// new tab; they work for anyone who has them and expire, so the panel says so.
+// new tab. They expire, and a platform may need its own sign-in to show some of them (a LinkedIn desktop link did not
+// render without a LinkedIn session), so the panel says so rather than promising that anyone can open them.
 
 const previewGateways = {
   meta_native_action: 'meta',
@@ -58,7 +59,7 @@ function adPreviewsPanel() {
   const {options: targets, preselect, hidden} = previewTargets();
   return `<section class="panel workspace-form ad-previews" aria-labelledby="previews-title">
 <h2 id="previews-title">${esc(uiText('Preview your ads'))}</h2>
-<p class="workspace-copy">${esc(uiText("Get each platform's own preview links for ads that already exist. Anyone with a link can open it, and links expire."))}</p>
+<p class="workspace-copy">${esc(uiText("Get each platform's own preview links for ads that already exist. Links expire, and a platform may need its own sign-in to show some of them."))}</p>
 <form id="preview-form">
 <label>${esc(uiText('Advertising account'))}<select name="target" required>${
     (targets.length && !preselect
