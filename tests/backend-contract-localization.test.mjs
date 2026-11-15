@@ -347,7 +347,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // of every package it is merged with to this number.
   // Package mcp-surface adds server/mcp-budget.ts (the response budget of a v2 client's list reads) and src/call-kind.ts (whether a call
   // only reads), neither with a reason of its own: 813.
-  assert.equal(files.length, 813);
+  // Package r25-m0-errors (Round 2.5, M0: T7) adds src/action-aliases.ts, the generator of near-miss action names, with no
+  // reason of its own: one more on the integration's 813, 814. Whoever merges it adds the files of every package it is merged with.
+  assert.equal(files.length, 814);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

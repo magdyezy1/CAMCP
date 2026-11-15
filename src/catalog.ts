@@ -7,6 +7,7 @@ import {catalogVersions, currentCapture} from './catalog-versions.js';
 import {pinnedJson} from './pinned-json.js';
 import {describedTool, describesOwnText} from './tool-notes.js';
 import {nameCandidates, searchTerm} from './name-candidates.js';
+import {actionAliasTable, type ActionAliasTable} from './action-aliases.js';
 import {providerAdapters} from './provider-adapters.js';
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
@@ -132,9 +133,42 @@ export class Registry {
       if (!strict && this.routes.has(key)) continue;
       this.routes.set(key, action);
     }
+    this.aliasTables.clear();
+  }
+  /**
+   * The near-miss spellings of a gateway's action names (T7, src/action-aliases.ts): generated from its exact names the
+   * first time one is asked for, held apart from `routes` so that nothing that lists, counts or validates action names
+   * (tools/list, the contracts ledger, did_you_mean) ever sees one.
+   */
+  private aliasTables = new Map<string, ActionAliasTable>();
+  actionAliases(gateway: string): ActionAliasTable {
+    let table = this.aliasTables.get(gateway);
+    if (!table) {
+      const prefix = gateway + '/',
+        names = new Map<string, Action>();
+      for (const [key, action] of this.routes) if (key.startsWith(prefix)) names.set(key.slice(prefix.length), action);
+      this.aliasTables.set(gateway, (table = actionAliasTable(names, providerHooks(gateway)?.catalog?.aliases)));
+    }
+    return table;
+  }
+  /**
+   * The action a name stands for. An exact name (or its lower case) resolves as it always did. Failing that, a near-miss
+   * spelling that stands for exactly one action resolves to that action, the very one its canonical name reaches, and
+   * `alias` names what was used and what to send instead: every caller that tells a person or an agent what it ran
+   * reports it. A spelling that stands for more than one is no alias.
+   */
+  resolveAction(
+    gateway: string,
+    name: string,
+  ): {action: Action | undefined; alias?: {used: string; canonical: string}} {
+    const exact = this.routes.get(gateway + '/' + name) ?? this.routes.get(gateway + '/' + name.toLowerCase());
+    if (exact) return {action: exact};
+    const {aliases} = this.actionAliases(gateway),
+      entry = aliases.get(name) ?? aliases.get(name.toLowerCase());
+    return entry ? {action: entry.action, alias: {used: name, canonical: entry.canonical}} : {action: undefined};
   }
   action(gateway: string, name: string): Action | undefined {
-    return this.routes.get(gateway + '/' + name) ?? this.routes.get(gateway + '/' + name.toLowerCase());
+    return this.resolveAction(gateway, name).action;
   }
   validate(tool: string, input: JsonObject, options: CallOptions) {
     guardInput(input);

@@ -37,6 +37,7 @@ import {googleContractEvidence, googleJson, validateGoogleRequest} from './googl
 import {
   currentGoogleAdsCapture,
   extendGoogleAdsTool,
+  googleAdsActionAliases,
   googleAdsActionVersion,
   googleAdsCustomers,
   googleAdsRequestChange,
@@ -587,6 +588,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       capture: currentGoogleAdsCapture,
       tool: extendGoogleAdsTool,
     }),
+    // T7 (Round 2.5 M0): the version-neutral and current-version spellings of the recorded v23 names.
+    aliases: googleAdsActionAliases,
   }),
   // Its requests are compiled by its own compiler with ProtoJSON validation (src/compiler.ts): a vendor snapshot's
   // Google Ads routes are never delegated.

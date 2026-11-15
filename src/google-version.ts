@@ -60,6 +60,19 @@ export function currentGoogleAdsCapture(data: JsonObject): JsonObject {
     ? {...data, api_version: googleAdsVersion, actions: data.actions.map((a: JsonObject) => currentGoogleAdsRecord(a))}
     : currentGoogleAdsRecord(data);
 }
+/** The version the captured action names carry (`google_ads_v23_…`), which they keep by decision (see above). */
+const recordedActionPrefix = 'google_ads_v23_';
+/**
+ * The spellings of a recorded `google_ads_v23_<rpc>` action name beyond the generic ones (T7, L2-04 and L6-21): the
+ * spelling at the version AMCP sends (`google_ads_v25_<rpc>`) and the one without a version (`google_ads_<rpc>`). Both
+ * resolve with a deprecation warning that names the recorded name, which stays the canonical one: callers use the recorded
+ * names, so no spelling is withdrawn. The generic rule already gives the name without its prefix (`google_ads_search`).
+ */
+export function googleAdsActionAliases(a: Action): readonly string[] {
+  if (!a.name.startsWith(recordedActionPrefix)) return [];
+  const rpc = a.name.slice(recordedActionPrefix.length);
+  return ['google_ads_' + googleAdsVersion + '_' + rpc, 'google_ads_' + rpc];
+}
 /** The captured catalog's Google Ads action at the current version, listed as it is sent. */
 export function googleAdsActionVersion(a: Action): Action {
   const renamed = changedRequests[a.name]?.required;

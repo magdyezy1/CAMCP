@@ -303,7 +303,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // of every package it is merged with to this number.
   // Package mcp-surface adds server/mcp-budget.ts (the response budget of a v2 client's list reads) and src/call-kind.ts (whether a call
   // only reads), neither with a reason of its own: 813.
-  assert.equal(files.length, 813);
+  // Package r25-m0-errors (Round 2.5, M0: T7) adds src/action-aliases.ts, the generator of near-miss action names, with no
+  // wrapper reason: one more on the integration's 813, 814. Whoever merges it adds the files of every package it is merged with.
+  assert.equal(files.length, 814);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

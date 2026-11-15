@@ -705,6 +705,13 @@ export interface CatalogHooks {
   /** Its documented actions beyond the captured catalog (Meta's rule updates, Google's Data Manager, Apple's v1). */
   readonly supplemental?: SupplementalActions;
   /**
+   * The spellings of an action's name beyond the generic ones (T7, src/action-aliases.ts: the name without the provider
+   * prefix, and for a read the name without or with the other of `_get` and `_list`): Google Ads' names keep the
+   * recorded version, so its version-neutral and current-version spellings are its own. A spelling that is an exact
+   * name, that two actions claim, or that reads and leads to a write is dropped, as the generic ones are.
+   */
+  aliases?(action: Action): readonly string[];
+  /**
    * Its tool and catalog are AMCP's own rather than captured (Microsoft Advertising), registered when the registry
    * holds AMCP's tools; the catalog's actions are its routes.
    */
