@@ -57,3 +57,23 @@ export const step = (id = 'campaign', extra = {}) => ({
   arguments: {action: 'meta_campaign_create', payload: {name: 'Synthetic campaign', status: 'PAUSED'}},
   ...extra,
 });
+/** Every string of a value that is an angle-bracket placeholder, in order of appearance. */
+export const placeholdersOf = value =>
+  typeof value === 'string'
+    ? /^<[^<>]+>$/.test(value)
+      ? [value]
+      : []
+    : Array.isArray(value)
+      ? value.flatMap(placeholdersOf)
+      : value && typeof value === 'object'
+        ? Object.values(value).flatMap(placeholdersOf)
+        : [];
+/** The value with each placeholder string replaced by the real value of the same name. */
+export const fill = (value, real) =>
+  typeof value === 'string'
+    ? (real[value] ?? value)
+    : Array.isArray(value)
+      ? value.map(v => fill(v, real))
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fill(v, real)]))
+        : value;

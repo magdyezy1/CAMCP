@@ -76,6 +76,7 @@ import {
   writer,
   type ToolCall,
 } from './workspace-core.js';
+import {correctedStep, stepShape} from './campaign-step-help.js';
 import {visibleProfile} from './client-scope.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 export const campaignTool = tool(
@@ -1853,14 +1854,11 @@ export class CampaignRunner {
             new Set(s.prerequisites).size !== s.prerequisites.length) &&
           'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_pixel" or "linkedin_lead_form"',
       ].filter(Boolean);
+      // The step is answered with its own correction (R2.5 T4): the shape was learned only by failing.
       if (problems.length)
-        bad(
-          'Step ' +
-            JSON.stringify(String(s.id ?? '')) +
-            ': ' +
-            problems.join('; ') +
-            '. Each step is {"id","kind":"write","gateway","connection_id","account_id","arguments":{"action","payload"},"depends_on":[earlier ids]}; later steps use results as {"$ref":"<step id>#/data/<JSON pointer>"}.',
-        );
+        bad('Step ' + JSON.stringify(String(s.id ?? '')) + ': ' + problems.join('; ') + stepShape, 'INVALID_ARGUMENT', {
+          example: correctedStep(s, input),
+        });
       const deps = s.depends_on ?? [];
       if (!Array.isArray(deps) || new Set(deps).size !== deps.length || deps.some(d => !seen.has(d)))
         bad('Dependencies must refer to earlier steps.');
