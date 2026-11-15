@@ -1975,6 +1975,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out.',
     patch:
       'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
+    arguments:
+      'recover_step: the corrected arguments of the step, whole, as the native tool input object {"action","payload"} that steps[].arguments of create holds (help create has a worked example); instead of patch. validate_provider: the native tool input {"action","payload"} of the one request the provider validates without applying it.',
     idempotency_key:
       'create, create_from_recipe and clone: an optional stable key (8–100 letters, digits, hyphens or underscores); identical input reuses the original plan. execute_next: the review’s own key.',
     brief_id:

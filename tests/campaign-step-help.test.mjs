@@ -138,3 +138,19 @@ test('every refusal of create a caller can correct points at the help that has t
   assertRefused(dependency, 'INVALID_ARGUMENT', {message: /Dependencies must refer to earlier steps/});
   assert.equal(dependency.error.details?.help_call, undefined);
 });
+
+test('the topics that take a step’s own arguments teach the same shape and point at the worked example', async t => {
+  const f = harness(t);
+  for (const topic of ['recover_step', 'validate_provider']) {
+    const help = await f.call({action: 'help', topic});
+    assert.equal(help.success, true, topic + ' ' + JSON.stringify(help.error));
+    const note = help.data.arguments.arguments.description;
+    assert.match(note, /"action"/, topic);
+    assert.match(note, /"payload"/, topic);
+    assert.match(note, /help create/, topic);
+    assert.deepEqual(help.data.contract.arguments_schema.properties.arguments.description, note, topic);
+  }
+  // recover_step says what its arguments replace; validate_provider what its arguments are checked as.
+  const recover = (await f.call({action: 'help', topic: 'recover_step'})).data.arguments.arguments.description;
+  assert.match(recover, /recover_step: .*step/);
+});
