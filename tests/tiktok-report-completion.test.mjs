@@ -48,8 +48,11 @@ test('TikTok integrated pagination requires explicit consistent native completio
     d => {
       d.data.page_info.page = 2;
     },
+    // r25-hotfix (V2-RPT-01): 3 is neither the page size asked for (2) nor the row count (1). A page_size of 1, the row count,
+    // used to be refused here; TikTok reports that for a report that fits on one page (read live on 2026-11-15), so it is
+    // accepted now and asserted after this loop.
     d => {
-      d.data.page_info.page_size = 1;
+      d.data.page_info.page_size = 3;
     },
     d => {
       d.data.page_info.total_number = '1';
@@ -80,6 +83,13 @@ test('TikTok integrated pagination requires explicit consistent native completio
   // Rows with no page counts at all are refused; an empty list with none is an empty report (F-L1-01), so nothing follows it.
   assert.throws(() => nextPage(plan, {code: 0, data: {list: [row(1)]}}), {code: 'REPORT_INCOMPLETE'});
   assert.equal(nextPage(plan, {code: 0, data: {list: []}}), null);
+  // r25-hotfix (V2-RPT-01): the one-row page whose page_size is its row count is a whole report on page one, as TikTok
+  // answers it live, and completes. A page_size that is neither the request nor the row count is still refused (above).
+  const whole = response([row(1)]);
+  whole.data.page_info.page_size = 1;
+  const out = await paginate(plan, async () => whole);
+  assert.equal(out.truncated, false);
+  assert.equal(out.data.data.list.length, 1);
 });
 test('TikTok integrated aggregation refuses changing totals and duplicate native dimension tuples', async () => {
   for (const tail of [response([row(3), row(4)], 2, 2, 4), response([row(1)], 2, 2, 3)]) {
