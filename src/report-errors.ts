@@ -74,6 +74,9 @@ export function reportErrorCategory(
   status?: number,
 ): ReportErrorCategory {
   for (const [category, codes] of categoryCodes) if (codes.has(code)) return category;
+  // An account ID the request names twice, differently, is the request's fault, not a permission, whatever HTTP status it
+  // carries (R25 M0 review S4-1; src/errors.ts reviewRemedy says the same on the MCP error).
+  if (code === 'ACCOUNT_SCOPE_MISMATCH' && details.account_conflict === true) return 'request';
   const layer =
     typeof details.layer === 'string' && Object.hasOwn(layerCategories, details.layer)
       ? layerCategories[details.layer]

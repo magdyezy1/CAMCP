@@ -115,6 +115,23 @@ test('a layer that is not one of the closed set names no category, even a name e
     assert.equal(reportErrorCategory('X', {layer}, 400), 'internal', JSON.stringify(layer));
 });
 
+// Review S4-1 (r25-m0-live): an account ID the request names twice, differently, is refused with HTTP 403, so the Overview card
+// filed it as a permission ("Manage connections") while the MCP error says the request is at fault. The card reads the flag too.
+test('an account conflict is a fault of the request on the source card, as on the MCP error; another account-scope refusal is still a permission', () => {
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {account_conflict: true}, 403), 'request');
+  assert.equal(
+    reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {account_conflict: true, field: 'AccountId'}, 403),
+    'request',
+  );
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {}, 403), 'permission');
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {resource: 'creatives/1'}, 403), 'permission');
+  // Only on this code, and only the flag set to true.
+  assert.equal(reportErrorCategory('WRITE_ACCOUNT_FORBIDDEN', {account_conflict: true}, 403), 'permission');
+  assert.equal(reportErrorCategory('ACCOUNT_SCOPE_MISMATCH', {account_conflict: 'true'}, 403), 'permission');
+  const card = reportSourceError(new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'm', {account_conflict: true}, 403), tiktok);
+  assert.equal(card.category, 'request');
+});
+
 test('the twelve provider-data codes exclude AMCP request limits', () => {
   assert.deepEqual([...providerDataCodes].sort(), [
     'DUPLICATE_CAMPAIGN_ROWS',
