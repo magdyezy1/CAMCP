@@ -110,12 +110,17 @@ test('every code a provider declares is raised by AMCP, and each prefix covers o
       );
 });
 
+// Details that satisfy a rule narrowed by `when`: Meta's rule reads `fields`; TikTok's page-count rule (r25-hotfix) reads
+// `page_facts.rule`. A rule none of them satisfies fails the test below, so a new `when` names its sample here.
+const whenSamples = [{fields: ['is_adset_budget_sharing_enabled']}, {page_facts: {rule: 'page_not_echoed'}}];
+
 test('errorRemedy answers a provider’s refusal with the remedy it declares, before any shared rule, as a copy', () => {
   for (const rule of providerRemedies)
     for (const name of rule.codes) {
       const code = sample(name),
-        details = rule.when ? {fields: ['is_adset_budget_sharing_enabled']} : {},
-        declared = providerRemedy(code, details);
+        details = rule.when ? whenSamples.find(candidate => rule.when(candidate)) : {};
+      assert.ok(details, name + ' is narrowed by a `when` that no sample of details satisfies');
+      const declared = providerRemedy(code, details);
       assert.ok(declared, code);
       assert.deepEqual(errorRemedy(new MirrorError(code, 'Synthetic.', details)), declared, code);
       // A refusal raised from the provider's reply carries it as details.upstream: the declared remedy still answers.

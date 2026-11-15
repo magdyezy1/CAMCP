@@ -421,8 +421,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // one) and adds the Arabic of the remedy that says the request is at fault: 12,117 + 2 - 1 = 12,118. Its item 5 adds the Arabic
   // of the Snapchat template that names the windows Snapchat used (a direct reason, not a wrapper reason): 12,119. Its item 7
   // replaces two previews sentences that promised links open for anyone who has them with three that do not (two entries leave, three
-  // enter): 12,120.
-  assert.equal(Object.keys(catalog).length, 12120);
+  // enter): 12,120. Its review fix S2-1 rewords a remedy (one entry leaves, one enters) and adds the Arabic of the TikTok page-count
+  // remedy (a remedy, not a refusal reason): 12,121.
+  assert.equal(Object.keys(catalog).length, 12121);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

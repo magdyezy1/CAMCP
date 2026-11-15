@@ -237,7 +237,9 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     if (Number.isSafeInteger(e.details[key])) diagnostic[key] = e.details[key];
   const specific = String(providerCode ?? e.code);
   // An account sync keeps its own sync wording below; the retry action names a report. A provider that declares a remedy
-  // for its own provider-data code (LinkedIn's empty answer, which a retry cannot change) gives its card that remedy.
+  // for a refusal of its own that a retry cannot help (TikTok's page counts, r25-hotfix; LinkedIn's empty answer,
+  // r25-m0-live) has the card say that instead. The card shows next_action as written, so such a remedy is worded for people,
+  // with no tool, action or argument name (WEB-03; tests/website-provider-remedies.test.mjs).
   if (category === 'provider_data' && !syncing)
     diagnostic.next_action = providerRemedy(e.code, e.details)?.action ?? providerDataAction;
   else if (source.platform === 'google' && specific === 'AUTHORIZATION_ERROR')

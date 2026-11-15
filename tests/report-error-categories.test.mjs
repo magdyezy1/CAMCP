@@ -133,7 +133,7 @@ test('the twelve provider-data codes exclude AMCP request limits', () => {
   assert.equal(reportErrorCategory('INCOMPLETE_REPORT', {}, 400), 'request');
 });
 
-test('a provider-data diagnostic carries its page facts and the retry action, never an HTTP status', () => {
+test('a provider-data diagnostic carries its page facts and its remedy, never an HTTP status', () => {
   const facts = {
     page: 2,
     page_size: 1000,
@@ -154,7 +154,21 @@ test('a provider-data diagnostic carries its page facts and the retry action, ne
   assert.deepEqual(d.page_facts, facts);
   assert.equal(d.declared_rows, 1500);
   assert.equal(d.returned_rows, 1300);
-  assert.equal(d.next_action, providerDataAction);
+  // r25-hotfix (error 7): page_longer_than_size checks what one answer says, so TikTok's remedy says a retry returns the
+  // same answer (src/tiktok-remedies.ts) where this test used to pin the shared retry action. A rule that may follow
+  // TikTok's data moving (rows short of the total) keeps the retry action.
+  assert.notEqual(d.next_action, providerDataAction);
+  assert.match(d.next_action, /Retrying the same request returns the same answer/);
+  const moving = reportSourceError(
+    new MirrorError(
+      'REPORT_INCOMPLETE',
+      'm',
+      {...details, page_facts: {...details.page_facts, rule: 'fewer_rows_than_declared'}},
+      502,
+    ),
+    tiktok,
+  );
+  assert.equal(moving.next_action, providerDataAction);
 });
 
 test('page facts keep only integer, null or string values, and counts only integers', () => {

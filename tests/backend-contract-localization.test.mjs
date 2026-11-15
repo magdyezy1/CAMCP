@@ -485,7 +485,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // item 5 adds the Arabic of the Snapchat template that names the windows Snapchat used: 12,119. Its item 7 replaces the previews
   // notice that promised links open for anyone who has them and the page's line that said the same (two entries leave) with the notice
   // that makes no such promise, LinkedIn's that names its two links and the page's new line (three enter): 12,119 + 3 - 2 = 12,120.
-  assert.equal(Object.keys(catalog).length, 12120);
+  // Its review fix S2-1 rewords LinkedIn's remedy for an empty analytics answer so that it names no tool or action (the old entry
+  // leaves, the new one enters) and adds the Arabic of the TikTok page-count remedy worded for people (src/tiktok-remedies.ts): 12,121.
+  assert.equal(Object.keys(catalog).length, 12121);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

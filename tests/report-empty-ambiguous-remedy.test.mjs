@@ -76,11 +76,14 @@ test('an empty LinkedIn capture names what to do, not a retry, and saves no zero
   assert.deepEqual([remedy.owner, remedy.mutation_retry_safe], ['operator', false]);
   assert.notEqual(remedy.action, providerDataAction);
   assert.doesNotMatch(remedy.action, /Retry the report/);
-  // The three things an agent can do, in LinkedIn's terms.
+  // The three things an agent can do, in LinkedIn's terms. The limit of five months is the daily capture's, so the text says so
+  // (the Overview raises the same code for a read of all rows, whose limit is another). No tool, action or argument is named:
+  // the website shows the text as written (S2-1 of the lead's review; tests/website-provider-remedies.test.mjs).
   assert.match(remedy.action, /Widen the window within LinkedIn’s limit/);
-  assert.match(remedy.action, /the current month and the previous five calendar months/);
+  assert.match(remedy.action, /\(for daily rows, the current month and the previous five calendar months\)/);
   assert.match(remedy.action, /check that this login can read the account’s reporting/i);
-  assert.match(remedy.action, /read the account natively \(linkedin_native_action linkedin_rest_ad_analytics_get\)/);
+  assert.match(remedy.action, /read the account’s analytics natively \(LinkedIn’s adAnalytics read\)/);
+  assert.doesNotMatch(remedy.action, /linkedin_native_action|linkedin_rest_ad_analytics_get/);
   assert.match(remedy.action, /tell no activity from no access/);
   assert.equal(next, remedy.action, 'the MCP next_action is the remedy');
   // An empty answer is still refused as it was: nothing is retained as evidence.
@@ -123,10 +126,14 @@ test('every other provider-data code keeps its retry action, on the MCP error an
   }
 });
 
-test('the remedy has Arabic that keeps the native action name, in the catalogue the website loads', () => {
+test('the remedy has Arabic that keeps the names it uses, in the catalogue the website loads', () => {
   const {action} = providerRemedy('REPORT_EMPTY_AMBIGUOUS', {});
   assert.ok(Object.hasOwn(catalog, action), 'Arabic for the remedy');
   assert.match(catalog[action], /\p{Script=Arabic}/u);
-  for (const token of ['linkedin_native_action', 'linkedin_rest_ad_analytics_get'])
-    assert.ok(catalog[action].includes(token), token);
+  for (const token of ['LinkedIn', 'adAnalytics']) assert.ok(catalog[action].includes(token), token);
+  // The text it replaced (which named a tool and an action) is no longer in the catalogue.
+  assert.deepEqual(
+    Object.keys(catalog).filter(key => key.startsWith('No rows cannot tell no activity from missing reporting access')),
+    [action],
+  );
 });
