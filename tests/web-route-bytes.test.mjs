@@ -56,7 +56,12 @@ test('every Arabic page downloads less than before, and the public pages a fract
   // closing-small (+589: the shell's growth, the error toast and the connection result's lockup in web/app.js, app.css and identity.css,
   // and the Arabic shell chunk) merged beside Merge C's, the page is at 0.98220 of its pre-WEB-07 value (590,765 of 601,471, 10,706
   // bytes of room), so its margin is that ratio plus 0.005, rounded up to three decimals. Every other Arabic page keeps 0.95.
-  const margin = {'ar /reporting-overview': 0.988};
+  // Round 2.5 M0 (D13, r25-m0-merge, by the same rule): the page was at 0.98460 of that value at a5cc8e04 (592,210) and is at
+  // 0.98900 with r25-m0-t1 (0), r25-m0-review (+119: the two sentences create refuses a name or brief with), r25-m0-errors
+  // (+1,387: its 14 messages) and r25-m0-live (+1,141: its 9) merged: 594,857 of 601,471, 6,614 bytes under it. It is all Arabic
+  // catalogue (the providers chunk +1,144 and the workspace chunk +1,503, which the page loads; no script or sheet moved on
+  // this page), so the margin is 0.98900 plus 0.005, rounded up: 0.995. The next Arabic page is /reports at 0.933 of 0.95.
+  const margin = {'ar /reporting-overview': 0.995};
   for (const key of Object.keys(current).filter(key => key.startsWith('ar ')))
     assert.ok(ratio(key) < (margin[key] ?? 0.95), key + ': ' + ratio(key));
   for (const route of ['/', '/login', '/signup', '/forgot-password', '/about'])
