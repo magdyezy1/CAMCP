@@ -411,9 +411,10 @@ test('an automatic-targeting ad group in a campaign-budget campaign is created o
     assert.equal(impact.scope, 'smart_plus_adgroups');
     assert.equal(impact.may_affect_serving, false);
     assert.match(impact.adgroup.budget, /campaign budget/);
-    assert.equal((await f.execute(p.data.review_id, {})).error?.code, 'SPEND_CONFIRMATION_REQUIRED');
-    assert.equal(f.writes.length, 0);
-    const done = await f.execute(p.data.review_id);
+    // Q14 (owner, 2026-11-15; package r25-m0-t1): an ad group created DISABLE names no spend, so its budget mode and bid
+    // need no spend_change_confirmed. This asserted SPEND_CONFIRMATION_REQUIRED before.
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, false);
+    const done = await f.execute(p.data.review_id, {});
     assert.equal(done.success, true, JSON.stringify(done));
     assert.equal(f.writes.length, 1);
     const {advertiser_id, ...sent} = f.writes[0];

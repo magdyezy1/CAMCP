@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Store} from '../dist/src/store.js';
-import {Registry} from '../dist/src/catalog.js';
-import {MirrorService} from '../dist/src/service.js';
-import {NativeTransport} from '../dist/src/transport.js';
 import {familyFixture} from './helpers/family-conformance.mjs';
+import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {
   advertiserWorld,
@@ -30,8 +27,6 @@ import smartPlusCampaigns from './family-descriptors/tiktok-smart-plus-campaigns
  * (tests/helpers/tiktok-advertiser-noise.mjs). The protection is proven as well: a changed currency, status or name
  * still stops the write.
  */
-const gateway = 'tiktok_native_action',
-  key = Buffer.alloc(32, 58).toString('base64');
 const spec = a => JSON.stringify([...a].sort());
 
 /** A TikTok that answers the advertiser read of a descriptor's flow from `world`, and everything else as it does. */
@@ -54,139 +49,13 @@ const descriptorFlow = (name, d) => ({
 });
 
 /** The three standard creates (no reviewed family of their own): a campaign, an ad group and an ad, all paused. */
-const standardBodies = id => ({
-  campaign: {
-    action: 'tiktok_campaign_create',
-    payload: {
-      advertiser_id: id,
-      campaign_name: 'Synthetic campaign',
-      objective_type: 'TRAFFIC',
-      budget_mode: 'BUDGET_MODE_INFINITE',
-      operation_status: 'DISABLE',
-    },
-  },
-  adgroup: {
-    action: 'tiktok_adgroup_create',
-    payload: {
-      advertiser_id: id,
-      campaign_id: '300',
-      adgroup_name: 'Synthetic ad group',
-      promotion_type: 'WEBSITE',
-      placement_type: 'PLACEMENT_TYPE_AUTOMATIC',
-      location_ids: ['6252001'],
-      budget_mode: 'BUDGET_MODE_DAY',
-      budget: 50,
-      schedule_type: 'SCHEDULE_FROM_NOW',
-      schedule_start_time: '2027-01-01 00:00:00',
-      optimization_goal: 'CLICK',
-      billing_event: 'CPC',
-      bid_type: 'BID_TYPE_NO_BID',
-      operation_status: 'DISABLE',
-    },
-  },
-  ad: {
-    action: 'tiktok_ad_create',
-    payload: {
-      advertiser_id: id,
-      adgroup_id: '200',
-      creatives: [
-        {
-          ad_name: 'Synthetic ad',
-          ad_format: 'SINGLE_IMAGE',
-          image_ids: ['img-1'],
-          ad_text: 'Synthetic',
-          call_to_action: 'LEARN_MORE',
-          landing_page_url: 'https://example.test/',
-          identity_type: 'CUSTOMIZED_USER',
-          identity_id: '7777',
-          operation_status: 'DISABLE',
-        },
-      ],
-    },
+const standardFlow = kind => ({
+  name: 'a standard ' + kind + ' create',
+  make(world) {
+    const f = standardCreates(world, {tenant: 'advertiser-rotation-' + kind});
+    return {...f, prepare: () => f.prepare(kind), execute: review => f.execute(review)};
   },
 });
-function standardFlow(kind) {
-  return {
-    name: 'a standard ' + kind + ' create',
-    make(world) {
-      const actor = {tenantId: 'advertiser-rotation-' + kind, userId: 'operator', role: 'operator'},
-        owner = {...actor, userId: 'owner', role: 'admin'},
-        store = new Store(':memory:', key),
-        connection = {
-          id: 'login',
-          tenantId: actor.tenantId,
-          gateway,
-          accounts: [world.id],
-          writeAccounts: [world.id],
-          enabled: true,
-          label: 'Synthetic TikTok',
-          scopes: [],
-        },
-        sent = [],
-        requests = [],
-        page = {page: 1, page_size: 100, total_number: 1, total_page: 1};
-      store.putConnection(owner, connection, {accessToken: 'synthetic'});
-      // The campaign and ad group an agent's earlier reads showed AMCP in this account.
-      for (const id of ['300', '200']) store.rememberResource(connection, world.id, id);
-      const transport = new NativeTransport(async (raw, init = {}) => {
-        const url = new URL(String(raw)),
-          path = url.pathname.replace('/open_api', ''),
-          method = init.method ?? 'GET';
-        requests.push(method + ' ' + path);
-        if (method === 'POST') {
-          sent.push({path, body: JSON.parse(init.body)});
-          return Response.json(answer({campaign_id: '301', adgroup_id: '201', ad_ids: ['101']}));
-        }
-        if (path === '/v1.3/advertiser/info/') return Response.json(answer({list: [advertiserAnswer(world, url)]}));
-        if (path === '/v1.3/campaign/get/')
-          return Response.json(
-            answer({
-              list: [{campaign_id: '300', advertiser_id: world.id, operation_status: 'DISABLE'}],
-              page_info: page,
-            }),
-          );
-        if (path === '/v1.3/adgroup/get/')
-          return Response.json(
-            answer({
-              list: [{adgroup_id: '200', campaign_id: '300', advertiser_id: world.id, operation_status: 'DISABLE'}],
-              page_info: page,
-            }),
-          );
-        throw new Error('Unexpected TikTok request ' + method + ' ' + path);
-      });
-      const service = new MirrorService(new Registry(), store, transport, undefined, {
-        allowWrites: true,
-        requireBeforeState: true,
-        maxBudgetChange: 0,
-      });
-      const call = (tool, input) => service.call(tool, input, actor),
-        body = standardBodies(world.id)[kind];
-      return {
-        store,
-        tenant: actor.tenantId,
-        world,
-        sent,
-        requests,
-        prepare: () =>
-          call('amcp_write', {
-            action: 'prepare',
-            gateway,
-            connection_id: connection.id,
-            arguments: {action: body.action, account_id: world.id, payload: body.payload},
-          }),
-        execute: review =>
-          call('amcp_write', {
-            action: 'execute',
-            review_id: review.review_id,
-            idempotency_key: review.idempotency_key ?? review.review_id,
-            confirmed: true,
-            spend_change_confirmed: true,
-          }),
-        close: () => store.close(),
-      };
-    },
-  };
-}
 
 // The nine write flows that read the advertiser row. (The tenth consumer, the amcp_media upload, is in
 // tests/tiktok-advertiser-media.test.mjs.)

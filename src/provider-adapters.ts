@@ -255,12 +255,34 @@ function googleMutateOperations(plan: CompiledRequest): {operation: string; enti
   };
 }
 /**
+ * Q14, owner 2026-11-15: a TikTok create that cannot start spend. Its body pins what it creates paused: a campaign, or a
+ * Smart+ campaign, ad group or ad, created DISABLE, or a standard ad group or ad created DISABLE or ENABLE. The ENABLE
+ * child is allowed only under a parent the review reads as paused: src/paused-parents.ts checks that when the state is
+ * read, at prepare and again at execute, before anything is sent, and refuses a serving or unread parent (PARENT_SERVING).
+ * A key named budget_mode or budget in such a create, or its ENABLE under a paused parent, names no spend, so the
+ * spending field-name match skips it. The owner's caps, allow_activation, and the flag on every ENABLE of an existing
+ * object (a status update) and on every update that widens spend are other rules, not touched here.
+ */
+const tiktokCreateRoute = /^\/v1\.3\/(?:smart_plus\/)?(?:campaign|adgroup|ad)\/create\/$/;
+function tiktokPausedCreation(plan: CompiledRequest): boolean {
+  const body = plan.body;
+  if (plan.method !== 'POST' || !tiktokCreateRoute.test(plan.path) || !parentRecord(body)) return false;
+  // The standard ad group and ad are the paused-parent levels (their statuses are the ones that rule names).
+  const child = providerOf(plan.gateway)?.pausedParents?.(plan),
+    statuses: unknown[] = child ? child.statuses(body) : [body.operation_status],
+    allowed: unknown[] = child ? [child.paused, child.active] : ['DISABLE'];
+  return statuses.length === 1 && allowed.includes(statuses[0]);
+}
+/**
  * The facts of the review's summary and spending stages (ARC-01 phase B: branches of src/review-summary.ts,
  * src/preflight.ts and src/spend-effects.ts), by provider ID, each moved unchanged and frozen here; each adapter takes
  * its ID's entry. tests/provider-review-stages.test.mjs compares every stage with its branch as it was.
  */
 const reviewStageFacts: Readonly<
-  Record<string, Pick<ProviderAdapter, 'reviewOperations' | 'everyWriteConfirmsSpend' | 'spendNeutralCreation'>>
+  Record<
+    string,
+    Pick<ProviderAdapter, 'reviewOperations' | 'everyWriteConfirmsSpend' | 'spendNeutralCreation' | 'pausedCreation'>
+  >
 > = {
   google: {reviewOperations: Object.freeze({summarize: googleMutateOperations})},
   reddit: {everyWriteConfirmsSpend: true},
@@ -273,6 +295,7 @@ const reviewStageFacts: Readonly<
       value: false,
     }),
   },
+  tiktok: {pausedCreation: tiktokPausedCreation},
 };
 
 // Wave 4c round 6 (w4c-arc6-tables): each provider's withdrawn methods and unsupported aliases, moved unchanged from

@@ -225,9 +225,10 @@ test('a paused campaign with a shared budget is created once and verifies', asyn
     assert.equal(impact.may_affect_serving, false);
     assert.equal(impact.campaign.budget_mode, 'BUDGET_MODE_DYNAMIC_DAILY_BUDGET');
     assert.equal(impact.campaign.currency, 'SAR');
-    assert.equal((await f.execute(p.data.review_id, {})).error?.code, 'SPEND_CONFIRMATION_REQUIRED');
-    assert.equal(f.writes.length, 0);
-    const done = await f.execute(p.data.review_id);
+    // Q14 (owner, 2026-11-15; package r25-m0-t1): a campaign created DISABLE names no spend, so its budget needs no
+    // spend_change_confirmed. This asserted SPEND_CONFIRMATION_REQUIRED before. The owner's cap below still applies.
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, false);
+    const done = await f.execute(p.data.review_id, {});
     assert.equal(done.success, true, JSON.stringify(done));
     assert.equal(f.writes.length, 1);
     const {advertiser_id, ...sent} = f.writes[0];

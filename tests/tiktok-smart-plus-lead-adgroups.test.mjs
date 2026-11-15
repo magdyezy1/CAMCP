@@ -183,8 +183,10 @@ test('an Instant Form lead generation ad group reads its advertiser and campaign
     );
     assert.match(p.data.creative_impact.effect, /Instant Form lead generation ad group/);
     assert.equal(p.data.creative_impact.adgroup.pixel, null);
-    assert.equal((await f.execute(p.data.review_id, {})).error?.code, 'SPEND_CONFIRMATION_REQUIRED');
-    assert.equal((await f.execute(p.data.review_id)).success, true);
+    // Q14 (owner, 2026-11-15; package r25-m0-t1): a lead ad group created DISABLE names no spend, so it needs no
+    // spend_change_confirmed. This asserted SPEND_CONFIRMATION_REQUIRED before.
+    assert.equal(p.data.execute_requirements.spend_change_confirmed, false);
+    assert.equal((await f.execute(p.data.review_id, {})).success, true);
     assert.equal(f.writes.length, 1);
     const v = await f.verify(p.data.review_id);
     assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 600));
