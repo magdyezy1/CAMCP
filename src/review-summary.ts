@@ -82,6 +82,20 @@ function accountOf(state: unknown[]): {name?: string; currency?: string} {
 export function stateCurrency(state: unknown): string | undefined {
   return accountOf(Array.isArray(state) ? state : [state]).currency;
 }
+/**
+ * The thing a route creates when its last segment is the verb create, or undefined when it is not one. A REST route
+ * names its collection last (POST /v1/adaccounts/1/campaigns), so its path shape says what it does; an RPC route names
+ * the verb last (POST /v1.3/campaign/create/), or a verb and its noun (…/create-brand-account), or calls a custom
+ * method on a resource (…/workspaces/3:create_version). The collection test never matched those, so every such create
+ * read as an update, and the update then took a current status from the account read (R2.5 T3, owner 2026-11-15: the
+ * approver must see the real operation). Only creation is read from the verb: any other verb keeps the words it had.
+ */
+function createdThing(segments: string[]): {noun?: string} | undefined {
+  const last = segments.at(-1) ?? '';
+  if (/^create$/i.test(last)) return {noun: segments.at(-2)};
+  const named = /^create-([^/]+)$/i.exec(last) ?? /:create_([^/:]+)$/i.exec(last);
+  return named ? {noun: named[1]} : undefined;
+}
 /** What the request does: an operation and the entities it acts on. */
 function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
@@ -91,17 +105,23 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
   const segments = plan.path.split('/').filter(Boolean),
     collection = [...segments].reverse().find(s => Object.hasOwn(singular, s.replace(/:.*/, ''))) ?? '',
     key = collection.replace(/:.*/, ''),
-    rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1;
+    rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1,
+    verb = createdThing(segments);
   const action = plan.action.toLowerCase();
   const operation =
     plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive
       ? 'delete'
       : /:publish$/.test(plan.path)
         ? 'publish'
-        : /(?:^|_)(?:create|post)(?:_|$)/.test(action) && segments.at(-1) === key
+        : verb || (/(?:^|_)(?:create|post)(?:_|$)/.test(action) && segments.at(-1) === key)
           ? 'create'
           : 'update';
-  return {operation, entity: singular[key] ?? (key || segments.at(-1) || 'resource'), count: rows};
+  // A create names what it creates: a known collection anywhere in the path, else the noun before its verb, never the verb.
+  return {
+    operation,
+    entity: singular[key] ?? (key || verb?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
+    count: rows,
+  };
 }
 export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObject {
   const {operation, entity, count} = operationOf(plan),

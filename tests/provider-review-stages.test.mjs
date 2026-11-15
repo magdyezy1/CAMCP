@@ -144,16 +144,35 @@ test('the review summary names every operation as before: every ledger route, bo
     plans.push(plan('google_ads_native_action', 'DELETE', '/v25/customers/1/campaigns/2', 'x_delete', {body}));
     plans.push(plan(undefined, 'POST', '/v25/customers/1/campaigns:mutate', 'x', {body}));
   }
-  const summarized = new Set();
+  const summarized = new Set(),
+    verbCreates = new Set();
   for (const p of plans) {
     const expected = run(() => copiedOperationOf(p)),
       got = run(() => {
         const {operation, entity, count} = reviewSummary(p, []);
         return {operation, entity, count};
-      });
-    assert.deepEqual(got, expected, JSON.stringify([p.gateway, p.method, p.path, p.action, p.body]));
+      }),
+      label = JSON.stringify([p.gateway, p.method, p.path, p.action, p.body]);
+    // R2.5 T3 (package r25-m0-review, owner 2026-11-15): the one change to this branch. A route whose last segment is the
+    // verb create (TikTok's /v1.3/identity/create/, Criteo's …/create-brand-account, Tag Manager's …:create_version) read
+    // as an update, because the collection test below never matches a verb, and named the verb as its entity. It reads
+    // as the create it is, naming what it creates, with the count it had; any other route, body or service reads as before.
+    const last = p.path.split('/').filter(Boolean).at(-1),
+      endsInCreateVerb = /^create(?:-[^/]+)?$|:create_[^/:]+$/.test(last ?? '');
+    if (endsInCreateVerb && expected.result?.operation === 'update') {
+      assert.equal(got.result?.operation, 'create', label);
+      assert.equal(got.result.count, expected.result.count, label);
+      // Its entity is what it did name, or, where it named the verb itself, a noun.
+      if (expected.result.entity === last) assert.notEqual(got.result.entity, last, label);
+      else assert.equal(got.result.entity, expected.result.entity, label);
+      verbCreates.add(p.gateway + ' ' + p.path);
+    } else assert.deepEqual(got, expected, label);
     if (p.gateway === 'google_ads_native_action' && expected.result) summarized.add(expected.result.operation);
   }
+  // The change was reached on the TikTok routes and on the two other forms of the verb.
+  assert.ok(verbCreates.size >= 60, String(verbCreates.size));
+  assert.ok([...verbCreates].some(v => v.endsWith('/create-brand-account')));
+  assert.ok([...verbCreates].some(v => v.endsWith(':create_version')));
   assert.ok(plans.length > 20000, String(plans.length));
   // Google Ads' operations were reached in every form the branch gave.
   assert.deepEqual([...summarized].sort(), ['change', 'create', 'remove', 'update']);
