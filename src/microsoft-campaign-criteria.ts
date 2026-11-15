@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import {compileMicrosoft, getByIdsPayload} from './microsoft-native.js';
 
 /**
@@ -86,6 +86,12 @@ function microsoftCriterionKind(p: CompiledRequest): boolean {
     microsoftCriterionWrite(p) &&
     microsoftCriterionContracts().some(c => c.name === p.action && c.path === p.path && c.method === p.method)
   );
+}
+/** What the review's summary names for an AddCampaignCriterions (R2.5 S2-1): a create of every row it lists. A deletion keeps its words. */
+export function microsoftCriterionOperation(p: CompiledRequest): DeclaredOperation | undefined {
+  const rows = obj(p.body) ? p.body.CampaignCriterions : undefined;
+  if (p.method !== 'POST') return undefined;
+  return {operation: 'create', entity: 'campaign criterion', count: Array.isArray(rows) ? rows.length : undefined};
 }
 /** The one campaign a criterion write changes. */
 export function criterionCampaign(p: CompiledRequest): string {
@@ -299,6 +305,7 @@ export const microsoftCriterionFamily: ReviewedFamily = defineFamily({
   name: 'microsoft_location_targets',
   files: ['src/microsoft-campaign-criteria.ts', ['tests/microsoft-campaign-criteria.test.ts']],
   kind: microsoftCriterionKind,
+  operation: microsoftCriterionOperation,
   snapshots: microsoftCriterionSnapshots,
   prerequisites: microsoftCriterionPrerequisites,
   impact: microsoftCriterionImpact,

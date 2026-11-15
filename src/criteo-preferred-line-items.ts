@@ -4,7 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {defineFamily, fail, stateReadOf} from './family-kit.js';
+import {createsOnPost, defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media preferred (onsite display) line items on API 2026-07 (unchanged from 2026-01), per the pinned
@@ -598,6 +598,7 @@ export const criteoPreferredFamily: ReviewedFamily = defineFamily({
   name: 'criteo_preferred_line_items',
   files: ['src/criteo-preferred-line-items.ts', ['tests/criteo-preferred-line-items.test.mjs']],
   kind: criteoPreferredKind,
+  operation: createsOnPost,
   assert: assertCriteoPreferred,
   scope: assertCriteoPreferredScopes,
   authorize: (plan, connection, id, store) => authorizeCriteoPreferred(plan, connection, store, id),

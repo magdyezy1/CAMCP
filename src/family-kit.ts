@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 
 /**
  * The reviewed-family kit (ARC-04 stage C): what family modules each declared for themselves. A leaf that imports no
@@ -61,6 +61,19 @@ export function familyCodeError(code: string, status = 400): OneCodeRefusal {
 export function failWithStatus(status: number): StatusRefusal {
   return (code, message, details = {}, override = status) => fail(code, message, details, override);
 }
+
+/**
+ * The `operation` of a family, or of a provider, whose POST requests each create what their route names (a card, a
+ * catalog, a report job, a Reddit ad group) and whose other methods update or delete it: the review's summary names every
+ * POST a create (R2.5 S2-2), and leaves any other method to its path rules.
+ */
+export const createsOnPost = (plan: CompiledRequest): DeclaredOperation | undefined =>
+  plan.method === 'POST' ? {operation: 'create'} : undefined;
+/** `createsOnPost` for a family whose route does not name what it creates (a report job's route ends in the report's kind). */
+export const createsOnPostAs =
+  (entity: string) =>
+  (plan: CompiledRequest): DeclaredOperation | undefined =>
+    plan.method === 'POST' ? {operation: 'create', entity} : undefined;
 
 /** The fields only a write request carries, which a family's state read clears. */
 export type WriteOnlyField = 'responseControls' | 'specialTransport';
@@ -185,6 +198,7 @@ export const familyStages = Object.freeze({
     'exemptFromActivationScan',
     'destructive',
     'publishes',
+    'operation',
     'policyAmounts',
     'requiresSpendPolicy',
     'personalData',

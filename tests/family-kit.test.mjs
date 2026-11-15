@@ -114,8 +114,9 @@ test('each hook belongs to one stage, the stages are frozen, and every hook a re
       seen.set(hook, stage);
     }
   }
-  // ReviewedFamily's members (everyFamilyHookHasAStage holds that each has a stage when the build compiles).
-  assert.equal(seen.size, 57);
+  // ReviewedFamily's members (everyFamilyHookHasAStage holds that each has a stage when the build compiles). 58 since
+  // `operation` (R2.5 S2-1, package r25-m0-review): the summary's reading of what a write does, declared by its family.
+  assert.equal(seen.size, 58);
   for (const family of reviewedFamilies())
     for (const member of Object.keys(family)) assert.ok(seen.has(member), family.name + ' ' + member);
 });
@@ -249,10 +250,11 @@ test('the X families declare themselves through the kit and no module of waves 1
   for (const file of wave) {
     const source = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /^function fail\(/m, file);
-    // Their state reads come from the kit too (readOf, stateReadOf: tests/family-reads.test.mjs).
+    // Their state reads come from the kit too (readOf, stateReadOf: tests/family-reads.test.mjs), and a family whose POSTs all
+    // create declares it with the kit's createsOnPost (R2.5 S2-2).
     assert.match(
       source,
-      /^import \{(?:defineFamily, )?fail(?:, readOf)?(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m,
+      /^import \{(?:createsOnPost, )?(?:defineFamily, )?fail(?:, readOf)?(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m,
       file,
     );
     if (file.startsWith('src/x-')) assert.match(source, /: ReviewedFamily = defineFamily\(\{$/m, file);

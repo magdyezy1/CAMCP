@@ -8,10 +8,21 @@
  * to leave it out, tests/meta-version.test.mjs (which reads every string literal of a Meta module as a name AMCP may
  * send) accepts that name in this module because it checks that the read never asks for it.
  */
-import type {CompiledRequest} from './types.js';
+import type {CompiledRequest, DeclaredOperation} from './types.js';
 import type {StateReadBuilder} from './provider-adapter.js';
 import {object, fail} from './write-common.js';
 import {metaCreativeCreate, metaCreativeIdentityReads} from './meta-creative-state.js';
+
+/**
+ * What a Meta write does for the review's summary (R2.5 S2-2), as the Graph API builds its URLs, which the state reads
+ * below tell apart the same way: a POST to an edge of a node (/{id}/{edge}, or an account's own /act_{id}/{edge}) creates
+ * what the edge holds (a pixel, an audience, a label, a copy, a catalog's product set), and a POST to the node itself
+ * (/{id}) edits it. Before this, only the 14 collections the path rules knew read as creates: the rest read "Update 1
+ * adspixels". A request that carries another method is no create (the summary applies that guard to every declaration).
+ */
+export function metaOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  return plan.method === 'POST' && /^\/v[^/]+\/[^/]+\/[^/]+$/.test(plan.path) ? {operation: 'create'} : undefined;
+}
 
 export function metaStateReads(plan: CompiledRequest, base: StateReadBuilder): CompiledRequest[] | undefined {
   const body = object(plan.body);

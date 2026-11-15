@@ -92,7 +92,7 @@ test('each provider declares exactly the review hooks of the parts the review na
       'rejectionIsNonApplied',
       'snapshots',
     ],
-    google_business_native_action: ['accessPolicy', 'publishesLive', 'shownRequest'],
+    google_business_native_action: ['accessPolicy', 'operation', 'publishesLive', 'shownRequest'],
     meta_native_action: [
       'confirms',
       'createdLookup',
@@ -100,11 +100,12 @@ test('each provider declares exactly the review hooks of the parts the review na
       'currencyCapRefusal',
       'impact',
       'namedTargets',
+      'operation',
       'ownState',
       'parentChecks',
       'snapshots',
     ],
-    tiktok_native_action: ['confirms', 'deletes', 'morePages', 'prerequisites', 'snapshots'],
+    tiktok_native_action: ['confirms', 'deletes', 'morePages', 'operation', 'prerequisites', 'snapshots'],
     snapchat_native_action: [
       'accountPath',
       'accountSnapshots',
@@ -114,6 +115,7 @@ test('each provider declares exactly the review hooks of the parts the review na
       'dependentReads',
       'impact',
       'observeState',
+      'operation',
       'ownedReferences',
       'prerequisites',
       'recordCount',
@@ -121,15 +123,22 @@ test('each provider declares exactly the review hooks of the parts the review na
     ],
     x_ads_native_action: ['accountPath', 'confirms', 'parentChecks', 'snapshots'],
     // The spending policy's: a creative's activation field.
-    linkedin_native_action: ['accountPath', 'activationRule', 'confirms'],
-    dv360_native_action: ['accountPath', 'confirms'],
+    linkedin_native_action: ['accountPath', 'activationRule', 'confirms', 'operation'],
+    dv360_native_action: ['accountPath', 'confirms', 'operation'],
     microsoft_ads_native_action: ['emptyErrors', 'writeGrant'],
     // The spending policy's: a shared budget's current value.
-    apple_ads_native_action: ['policyState', 'prerequisites', 'sharedAccounts', 'sharedState', 'writePermission'],
-    reddit_native_action: ['writeScopes'],
-    ga4_native_action: ['verificationPhase', 'writePermission'],
-    gtm_native_action: ['concurrency', 'outcomeData', 'publishesLive', 'writePermission'],
-    google_search_console_native_action: ['publishesLive', 'writePermission'],
+    apple_ads_native_action: [
+      'operation',
+      'policyState',
+      'prerequisites',
+      'sharedAccounts',
+      'sharedState',
+      'writePermission',
+    ],
+    reddit_native_action: ['operation', 'writeScopes'],
+    ga4_native_action: ['operation', 'verificationPhase', 'writePermission'],
+    gtm_native_action: ['concurrency', 'operation', 'outcomeData', 'publishesLive', 'writePermission'],
+    google_search_console_native_action: ['operation', 'publishesLive', 'writePermission'],
   });
   for (const hooks of registeredProviderHooks)
     for (const part of [hooks.writes, hooks.writes?.ownState])

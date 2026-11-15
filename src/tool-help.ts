@@ -15,12 +15,15 @@ import {amcpDescribed, amcpExecution} from './execution-status.js';
 import {unavailableOperations} from './unavailable-operations.js';
 import {contextOperation, contextOperationHelp} from './context-operations.js';
 import {firstPartyContract, toolActions} from './first-party-contracts.js';
+import {planExample} from './campaign-step-help.js';
 
 export interface ListedTool {
   name: string;
   description: string;
   inputSchema: JsonObject;
 }
+/** The worked examples of the actions whose call cannot be learned from a flat schema, by tool and action (R2.5 T4). */
+const workedExamples: Readonly<Record<string, JsonObject>> = {'amcp_campaign/create': planExample};
 /** A first-party tool's own read-only help; the captured help schema remains unchanged (D17-bis). */
 export function ownToolHelp(tool: ListedTool, topic?: string, profile?: ContractProfile): JsonObject {
   if (topic !== undefined && (typeof topic !== 'string' || !topic || topic.length > 300))
@@ -53,9 +56,12 @@ export function ownToolHelp(tool: ListedTool, topic?: string, profile?: Contract
     delete help.summary;
     delete help.action_summaries;
   }
+  // The worked example of an action whose call a flat schema cannot teach (R2.5 T4), a copy no caller can change.
+  const worked = topic === undefined ? undefined : workedExamples[tool.name + '/' + topic];
   // The topics of amcp_workspace help that are not actions (guides, and the contract profile of V2-MCP-06).
   return {
     ...help,
+    ...(worked ? {worked_example: structuredClone(worked)} : {}),
     ...(tool.name === 'amcp_workspace' && topic === undefined ? {other_topics: ['guides', 'mcp_profile']} : {}),
     examples,
   };

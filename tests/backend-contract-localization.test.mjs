@@ -349,7 +349,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // only reads), neither with a reason of its own: 813.
   // Package r25-m0-t1 (T1) adds src/tiktok-advertiser-state.ts, the advertiser row a TikTok review keeps, with no reason of
   // its own: 814.
-  assert.equal(files.length, 814);
+  // Package r25-m0-review (Round 2.5) adds src/campaign-step-help.ts (the step shape of amcp_campaign create: the correction
+  // of a refused step, the top-level hint and the worked example of help create), with no reason of its own: 814 on its own base.
+  // Merge r25-m0-merge, with r25-m0-t1 and r25-m0-review (each 814 on the same base of 813, and each adds a different file): the
+  // merged tree measures 813 + 1 + 1 = 815.
+  assert.equal(files.length, 815);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -480,7 +484,13 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-hotfix (item 2, error 16 of the same live checks): +1 entry, the Arabic of the remedy for a provider response
   // that does not match the pinned contract of its route (src/errors.ts), which the package brief requires; measured
   // (node tools/check-locales.mjs: catalog_messages 12114), 12,113 + 1 = 12,114.
-  assert.equal(Object.keys(catalog).length, 12114);
+  // Package r25-m0-review (S3-3, the lead's review of 2026-11-15): +2 entries, the Arabic of the two sentences amcp_campaign create
+  // refuses a name or a brief with, which the website's plan form shows; measured on its own base (node tools/check-locales.mjs:
+  // catalog_messages 12114), 12,112 + 2 = 12,114.
+  // Merge r25-m0-merge, with r25-hotfix (12,114 on its own base) and r25-m0-review (12,114 on its own base): both started from
+  // 12,112 and they add different keys, so the pin merged without a conflict in its value and would have been wrong. Measured
+  // on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12116, problems none): 12,112 + 2 + 2 = 12,116.
+  assert.equal(Object.keys(catalog).length, 12116);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

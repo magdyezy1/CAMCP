@@ -1,7 +1,9 @@
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import {budgetUnits, currencyMinorDigits} from './budget-units.js';
 import {stateTarget} from './write-effects.js';
+import {familyOf} from './reviewed-families.js';
 import {providerOf} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 
 /**
  * A one-line, server-authored summary of a reviewed write (WRT-05 Stage E), shown above the exact native table, which
@@ -49,8 +51,8 @@ export function exactAmount(native: unknown, perUnit: number, places = 2): strin
   if (decimals.length < places) decimals = decimals.padEnd(places, '0');
   return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + (decimals ? '.' + decimals : '');
 }
-/** The account record a review read (a currency marks it), as id, name and currency. */
-function accountOf(state: unknown[]): {name?: string; currency?: string} {
+/** The record of the account a review read (a currency marks it), or undefined. */
+function accountRecord(state: unknown[]): JsonObject | undefined {
   const find = (v: unknown, depth: number): JsonObject | undefined => {
     if (depth > 5) return undefined;
     if (Array.isArray(v)) {
@@ -69,7 +71,17 @@ function accountOf(state: unknown[]): {name?: string; currency?: string} {
     }
     return undefined;
   };
-  const record = find(state, 0);
+  return find(state, 0);
+}
+/** Whether `record` is `inside` or holds it (an advertiser holds its general settings, where its currency is). */
+function holds(record: unknown, inside: JsonObject, depth = 0): boolean {
+  if (record === inside) return true;
+  if (depth > 5 || !record || typeof record !== 'object') return false;
+  return Object.values(record).some(v => holds(v, inside, depth + 1));
+}
+/** The account a review read, as name and currency. */
+function accountOf(state: unknown[]): {name?: string; currency?: string} {
+  const record = accountRecord(state);
   if (!record) return {};
   const name = record.descriptiveName ?? record.descriptive_name ?? record.name,
     currency = record.currency ?? record.currencyCode ?? record.currency_code;
@@ -82,8 +94,72 @@ function accountOf(state: unknown[]): {name?: string; currency?: string} {
 export function stateCurrency(state: unknown): string | undefined {
   return accountOf(Array.isArray(state) ? state : [state]).currency;
 }
+/**
+ * The thing a route creates when its last segment is the verb create, or undefined when it is not one. A REST route
+ * names its collection last (POST /v1/adaccounts/1/campaigns), so its path shape says what it does; an RPC route names
+ * the verb last (POST /v1.3/campaign/create/), or a verb and its noun (…/create-brand-account), or calls a custom
+ * method on a resource (…/workspaces/3:create_version). The collection test never matched those, so every such create
+ * read as an update, and the update then took a current status from the account read (R2.5 T3, owner 2026-11-15: the
+ * approver must see the real operation). Only creation is read from the verb: any other verb keeps the words it had.
+ */
+function createdThing(segments: string[]): {noun?: string} | undefined {
+  const last = segments.at(-1) ?? '';
+  if (/^create$/i.test(last)) return {noun: segments.at(-2)};
+  const named = /^create-([^/]+)$/i.exec(last) ?? /:create_([^/:]+)$/i.exec(last);
+  return named ? {noun: named[1]} : undefined;
+}
+/**
+ * Whether a POST writes into the collection directly under the account its provider declares for the reads of such a
+ * create (LinkedIn's …/adAccounts/1/adCampaigns, X's …/accounts/1/promoted_tweets, Snapchat's …/adaccounts/1/media),
+ * whatever the collection is called: the shape the review's own state reads call a collection create, since they read the
+ * account for it (src/write-snapshots.ts). The account itself and a member of a collection are not under it.
+ */
+function underAccount(plan: CompiledRequest): boolean {
+  const account = providerHooks(plan.gateway)?.writes?.accountPath?.exec(plan.path)?.[0];
+  return (
+    plan.method === 'POST' &&
+    account !== undefined &&
+    plan.path.slice(account.length).split('/').filter(Boolean).length === 1
+  );
+}
+/**
+ * Whether the request names a method other than a plain create, in a header (LinkedIn's Rest.li method on any POST,
+ * X-HTTP-Method-Override) or in the query string a REST server reads (the keys the compiler recognizes as tunnels). A POST
+ * to a collection that says BATCH_PARTIAL_UPDATE updates what it names whatever its path looks like, so a path alone must
+ * not make it a create: that summary would hide an update, and its status, from the person approving it (R2.5 T3).
+ */
+function namesOtherMethod(plan: CompiledRequest): boolean {
+  // A value is read as the compiler reads an override (String(value)), so a query value of ['PUT'] names PUT too.
+  const other = (v: unknown) => v !== undefined && !/^(?:POST|CREATE|BATCH_CREATE)$/i.test(String(v).trim());
+  return (
+    Object.entries(plan.headers ?? {}).some(([name, value]) => /method/i.test(name) && other(value)) ||
+    ['method', '_method', 'http_method', 'method_override'].some(key => other(plan.query?.[key]))
+  );
+}
+/**
+ * What the review's own side declares the write does (R2.5 S2, owner 2026-11-15: the approver must read the real
+ * operation): the family that reviews it, then its provider, for the writes the review accepts (a registered family's, or
+ * the provider's generic entity writes, as src/reviewed-routes.ts decides). Each claims its routes by method and path, so
+ * an answer cannot be had by naming an action, and each already tells a create from an edit to plan the review's reads.
+ * A write the review does not accept is read from its path. A summary never refuses: a family that cannot be asked (two
+ * claiming one request is refused elsewhere, before anything is sent) leaves the path to be read.
+ */
+function declaredOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  if (plan.readOnly || plan.specialTransport) return undefined;
+  try {
+    const family = familyOf(plan);
+    return (
+      family?.operation?.(plan) ??
+      (family || providerOf(plan.gateway)?.entityWrites?.claims(plan)
+        ? providerHooks(plan.gateway)?.writes?.operation?.(plan)
+        : undefined)
+    );
+  } catch {
+    return undefined;
+  }
+}
 /** What the request does: an operation and the entities it acts on. */
-function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
+function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number; plural?: string} {
   const body = plan.body as unknown;
   // A provider whose writes name their operations themselves summarizes them (Google Ads' :mutate operations).
   const provided = providerOf(plan.gateway)?.reviewOperations;
@@ -91,24 +167,60 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
   const segments = plan.path.split('/').filter(Boolean),
     collection = [...segments].reverse().find(s => Object.hasOwn(singular, s.replace(/:.*/, ''))) ?? '',
     key = collection.replace(/:.*/, ''),
-    rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1;
-  const action = plan.action.toLowerCase();
-  const operation =
-    plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive
-      ? 'delete'
-      : /:publish$/.test(plan.path)
-        ? 'publish'
-        : /(?:^|_)(?:create|post)(?:_|$)/.test(action) && segments.at(-1) === key
+    rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1,
+    // A verb is read only on a POST, as every route of the ledger that ends in one is: a PUT or a PATCH to an object whose
+    // ID is the word create is an update of it, and so is a POST that names another method (R2.5 S4-1: one guard for every
+    // way a path can read as a create). The noun stays the route's either way: it is what the request acts on.
+    thing = plan.method === 'POST' ? createdThing(segments) : undefined,
+    verb = thing && !namesOtherMethod(plan) ? thing : undefined;
+  const action = plan.action.toLowerCase(),
+    deletes = plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive,
+    // A deletion stays what the method or the destructive flag says, whatever a family declares.
+    declared = deletes ? undefined : declaredOperation(plan);
+  const operation = deletes
+    ? 'delete'
+    : /:publish$/.test(plan.path)
+      ? 'publish'
+      : declared
+        ? // A request that names another method is no create, however it is declared (the one guard of every path).
+          declared.operation === 'create' && namesOtherMethod(plan)
+          ? 'update'
+          : declared.operation
+        : verb ||
+            (/(?:^|_)(?:create|post)(?:_|$)/.test(action) &&
+              (segments.at(-1) === key || underAccount(plan)) &&
+              !namesOtherMethod(plan))
           ? 'create'
           : 'update';
-  return {operation, entity: singular[key] ?? (key || segments.at(-1) || 'resource'), count: rows};
+  // A create names what it creates: a known collection anywhere in the path, else the noun before its verb, never the verb.
+  return {
+    operation,
+    entity:
+      declared?.entity ??
+      singular[key] ??
+      (key || thing?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
+    count:
+      declared?.count !== undefined && Number.isSafeInteger(declared.count) && declared.count >= 1
+        ? declared.count
+        : rows,
+    ...(declared?.plural ? {plural: declared.plural} : {}),
+  };
 }
 export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObject {
-  const {operation, entity, count} = operationOf(plan),
+  const {operation, entity, count, plural} = operationOf(plan),
     account = accountOf(state),
     unit = budgetUnits[plan.gateway],
-    // A current status is named only for a single existing target: the first record read is not every target's.
-    target = operation === 'create' || count !== 1 ? undefined : stateTarget(state);
+    // A current status is named only for a single existing target: the first record read is not every target's, and the
+    // account's read, which most reviews make first, is no target at all unless the request writes the account itself (a
+    // path that is its provider's account path and nothing after it). Skipping it can only leave a "from" out, never show
+    // another entity's status as the current one (R2.5 S3-1).
+    accountRead = accountRecord(state),
+    accountPath = providerHooks(plan.gateway)?.writes?.accountPath?.exec(plan.path)?.[0],
+    writesAccount = accountPath !== undefined && accountPath.length === plan.path.length,
+    target =
+      operation === 'create' || count !== 1
+        ? undefined
+        : stateTarget(state, accountRead && !writesAccount ? record => holds(record, accountRead) : undefined);
   const amounts: JsonObject[] = [],
     statuses: JsonObject[] = [];
   const walk = (v: unknown, path: string, depth: number) => {
@@ -149,8 +261,8 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
       ' ' +
       count +
       ' ' +
-      entity +
-      (count === 1 ? '' : 's') +
+      // Several of a thing: the plural its declaration gives, else the word and an s (a raw collection name already has one).
+      (count === 1 ? entity : (plural ?? (/s$/.test(entity) ? entity : entity + 's'))) +
       (accountText ? ' in account ' + accountText : ''),
     ...amounts
       .slice(0, 5)

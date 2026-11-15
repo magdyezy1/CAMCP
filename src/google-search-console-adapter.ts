@@ -1,5 +1,5 @@
 import type {DelegatedHooks, DelegatedScopeContext, ProviderHooks, ScopeContext} from './provider-adapter.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
@@ -144,6 +144,9 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
     writePermission: assertMeasurementScopes,
     // A sitemap submission takes effect for everyone at once (src/write-effects.ts).
     publishesLive: (plan: CompiledRequest) => plan.method === 'PUT' && plan.path.includes('/sitemaps/'),
+    // A PUT to a site's own URL adds the site (sites.add); a PUT below it submits a sitemap (R2.5 S2-2).
+    operation: (plan: CompiledRequest): DeclaredOperation | undefined =>
+      plan.method === 'PUT' && /\/sites\/[^/]+$/.test(plan.path) ? {operation: 'create', entity: 'site'} : undefined,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts); its
   // catalog has write actions, which its gateway previews or refuses.

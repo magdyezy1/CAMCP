@@ -2,6 +2,7 @@ import type {DelegatedHooks, DelegatedScopeContext, ProviderHooks} from './provi
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {createsOnPost} from './family-kit.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 // Writes and campaigns (wave 4c).
 import {assertMeasurementScopes} from './measurement-writes.js';
@@ -148,6 +149,8 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
     writePermission: assertMeasurementScopes,
     // A provider job's verification read shows its phase: running is pending, failed is failed (src/write-verification.ts).
     verificationPhase: measurementVerificationPhase,
+    // Its reviewed writes are the report task and audience export it creates with a POST (R2.5 S2-2).
+    operation: createsOnPost,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts), whose
   // catalog has write actions, previewed or refused; and the properties the owner marks for the realtime test-identity

@@ -7,7 +7,7 @@ import type {
   ProviderVerificationRead,
   StateTarget,
 } from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {Registry} from './catalog.js';
 import {
@@ -148,6 +148,8 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: dv360Confirms,
     accountPath: /^\/v\d+\/advertisers\/[^/]+/,
+    // A POST to a collection creates a member of it, and a custom method says what it does (R2.5 S2-2).
+    operation: dv360Operation,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts): the
   // captured description with the sentences AMCP does not hold corrected, and the routing summary tools/list shows.
@@ -245,4 +247,24 @@ function dv360Confirms(
       creatives: 'creativeId',
     };
   return hasId(d[key[kind]!]) && (plan.method === 'POST' || String(d[key[kind]!]) === last);
+}
+/**
+ * What a DV360 write does for the review's summary (R2.5 S2-2), as the v4 API builds its URLs (Google's API design): a POST
+ * to a collection creates a member of it, and a POST that ends in a custom method (…:bulkEdit, …:duplicate) says what it
+ * does by that method's name: bulkCreate and create make new entities, and duplicate makes a copy of one. Any other custom
+ * method (bulkEdit, bulkUpdate, replace, editAssignedTargetingOptions) changes what exists, and keeps the path's reading.
+ */
+function dv360Operation(plan: CompiledRequest): DeclaredOperation | undefined {
+  if (plan.method !== 'POST') return undefined;
+  const method = /:([A-Za-z]+)$/.exec(plan.path)?.[1];
+  if (method === undefined || method === 'create' || method === 'duplicate') return {operation: 'create'};
+  if (method !== 'bulkCreate') return undefined;
+  // A bulkCreate lists the entities it makes under the collection's own key (adAssets:bulkCreate takes {adAssets: [...]}).
+  const collection = /([A-Za-z]+):bulkCreate$/.exec(plan.path)?.[1],
+    rows = collection && plan.body && typeof plan.body === 'object' ? (plan.body as JsonObject)[collection] : undefined;
+  return {
+    operation: 'create',
+    entity: collection === 'adAssets' ? 'ad asset' : collection,
+    count: Array.isArray(rows) ? rows.length : undefined,
+  };
 }

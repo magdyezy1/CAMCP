@@ -19,7 +19,7 @@ import {
   positiveLocation,
   locationCriteriaPayload,
 } from './microsoft-campaign-criteria.js';
-import type {Action, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
+import type {Action, CompiledRequest, Connection, DeclaredOperation, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyCodeError, type OneCodeRefusal} from './family-kit.js';
@@ -700,11 +700,32 @@ export function microsoftSearchVerification(
   }));
 }
 
+/** What one row of each kind is called in the summary of an Add. */
+const rowNames: Readonly<Record<string, string>> = Object.freeze({
+  Campaigns: 'campaign',
+  AdGroups: 'ad group',
+  Ads: 'ad',
+  Keywords: 'keyword',
+});
+/**
+ * What a Search write does for the review's summary (R2.5 S2-1, owner 2026-11-15: the approver must read the real
+ * operation). The Add, the Update and the Delete of a kind share one route and differ by method, which no path rule
+ * reads, so every Add of the launch recipe read "Update 1 Campaigns", for one campaign or twenty. An Add creates every row
+ * it lists under its kind's key. An Update or a Delete is left to the summary's own reading, as it always was.
+ */
+export function microsoftOperation(p: CompiledRequest): DeclaredOperation | undefined {
+  const kind = microsoftContracts.get(p.action)?.kind,
+    rows = object(p.body) && kind ? p.body[kind] : undefined;
+  if (p.method !== 'POST' || !kind) return undefined;
+  return {operation: 'create', entity: rowNames[kind], count: Array.isArray(rows) ? rows.length : undefined};
+}
+
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const microsoftSearchFamily: ReviewedFamily = defineFamily({
   name: 'microsoft_search',
   files: ['src/microsoft-native.ts', ['tests/microsoft.test.ts']],
   kind: microsoftSearchKind,
+  operation: microsoftOperation,
   snapshots: microsoftSnapshots,
   prerequisites: microsoftLocationGuard,
   outcome: microsoftOutcome,

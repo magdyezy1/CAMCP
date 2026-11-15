@@ -5,7 +5,9 @@ import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {familyOf} from '../dist/src/reviewed-families.js';
+import {reviewedWriteFamily} from '../dist/src/reviewed-routes.js';
 import {providerAdapters} from '../dist/src/provider-adapters.js';
+import {providerHooks} from '../dist/src/provider-hooks.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
 import {spendConfirmationError} from '../dist/src/preflight.js';
 import {changedFieldNames, deliveryEditFields, namesSpendField, numericStatusPaths} from '../dist/src/spend-effects.js';
@@ -144,16 +146,94 @@ test('the review summary names every operation as before: every ledger route, bo
     plans.push(plan('google_ads_native_action', 'DELETE', '/v25/customers/1/campaigns/2', 'x_delete', {body}));
     plans.push(plan(undefined, 'POST', '/v25/customers/1/campaigns:mutate', 'x', {body}));
   }
-  const summarized = new Set();
+  const summarized = new Set(),
+    verbCreates = new Set(),
+    accountCreates = new Set(),
+    declaredCreates = new Set();
+  // The family that reviews a write, then its provider (for a write the review accepts), asked what the write does (R2.5 S2):
+  // a create it declares, or nothing.
+  const declaredCreate = p => {
+    try {
+      if (p.readOnly || p.specialTransport) return undefined;
+      return (
+        familyOf(p)?.operation?.(p) ??
+        (reviewedWriteFamily(p) ? providerHooks(p.gateway)?.writes?.operation?.(p) : undefined)
+      );
+    } catch {
+      return undefined;
+    }
+  };
   for (const p of plans) {
     const expected = run(() => copiedOperationOf(p)),
       got = run(() => {
         const {operation, entity, count} = reviewSummary(p, []);
         return {operation, entity, count};
-      });
-    assert.deepEqual(got, expected, JSON.stringify([p.gateway, p.method, p.path, p.action, p.body]));
+      }),
+      label = JSON.stringify([p.gateway, p.method, p.path, p.action, p.body]);
+    // R2.5 T3 (package r25-m0-review, owner 2026-11-15): the one change to this branch. A route whose last segment is the
+    // verb create (TikTok's /v1.3/identity/create/, Criteo's …/create-brand-account, Tag Manager's …:create_version) read
+    // as an update, because the collection test below never matches a verb, and named the verb as its entity. It reads
+    // as the create it is, naming what it creates, with the count it had; any other route, body or service reads as before.
+    const last = p.path.split('/').filter(Boolean).at(-1),
+      endsInCreateVerb = p.method === 'POST' && /^create(?:-[^/]+)?$|:create_[^/:]+$/.test(last ?? ''),
+      // The second change (T3b): a POST that creates in the collection directly under the account its provider declares
+      // (LinkedIn's adCampaigns, X's promoted_tweets, Snapchat's media, DV360's adAssets:bulkCreate). It read as an
+      // update, and took the account's status as its "from", because the collection was none of the 14 names the path
+      // test knew. Its entity is the collection's name, as it was.
+      account = providerHooks(p.gateway)?.writes?.accountPath?.exec(p.path)?.[0],
+      createsUnderAccount =
+        p.method === 'POST' &&
+        account !== undefined &&
+        p.path.slice(account.length).split('/').filter(Boolean).length === 1 &&
+        /(?:^|_)(?:create|post)(?:_|$)/.test(p.action.toLowerCase());
+    if (endsInCreateVerb && expected.result?.operation === 'update') {
+      assert.equal(got.result?.operation, 'create', label);
+      assert.equal(got.result.count, expected.result.count, label);
+      // Its entity is what it did name, or, where it named the verb itself, a noun.
+      if (expected.result.entity === last) assert.notEqual(got.result.entity, last, label);
+      else assert.equal(got.result.entity, expected.result.entity, label);
+      verbCreates.add(p.gateway + ' ' + p.path);
+    } else if (declaredCreate(p)?.operation === 'create' && expected.result?.operation === 'update') {
+      // The third change (R2.5 S2, owner 2026-11-15): a create the write's own family or provider declares (Microsoft
+      // Advertising's Add, which shares its route with its Update and tells them apart by method; Meta's POST to an edge;
+      // Rest.li's POST to a collection; a Tag Manager collection; a DV360 custom method). It read as an update of one entity,
+      // whatever it listed; it reads as the create it is, with the count and the entity its declaration gives, and the entity
+      // and count it had where the declaration names none. It comes before the second change, whose routes it also reads.
+      const declared = declaredCreate(p);
+      assert.equal(got.result?.operation, 'create', label);
+      assert.equal(got.result.count, declared.count ?? expected.result.count, label);
+      assert.equal(got.result.entity, declared.entity ?? expected.result.entity, label);
+      declaredCreates.add(p.gateway + ' ' + p.action);
+    } else if (createsUnderAccount && expected.result?.operation === 'update') {
+      assert.deepEqual(got, {result: {...expected.result, operation: 'create'}}, label);
+      accountCreates.add(p.gateway + ' ' + p.path);
+    } else assert.deepEqual(got, expected, label);
     if (p.gateway === 'google_ads_native_action' && expected.result) summarized.add(expected.result.operation);
   }
+  // The first change was reached on the TikTok routes and on the two other forms of the verb, the second on LinkedIn,
+  // X, Snapchat and DV360.
+  assert.ok(verbCreates.size >= 55, String(verbCreates.size));
+  assert.ok([...verbCreates].some(v => v.endsWith('/create-brand-account')));
+  assert.ok([...verbCreates].some(v => v.endsWith(':create_version')));
+  // The second change is reached on the routes no declaration claims (X's, here); a route its provider declares is read by
+  // the third, so each of these providers is reached by one of them.
+  for (const gateway of ['linkedin', 'x_ads', 'snapchat', 'dv360'])
+    assert.ok(
+      [...accountCreates, ...declaredCreates].some(v => v.startsWith(gateway + '_native_action ')),
+      gateway + ' ' + accountCreates.size,
+    );
+  assert.ok(
+    [...accountCreates].some(v => v.startsWith('x_ads_native_action ')),
+    'the second change: ' + accountCreates.size,
+  );
+  // The third on the Adds of Microsoft Advertising, and on the providers whose own URLs say what a POST does.
+  for (const action of ['AddCampaigns', 'AddAdGroups', 'AddAds', 'AddKeywords', 'AddCampaignCriterions'])
+    assert.ok(declaredCreates.has('microsoft_ads_native_action ' + action), action + ' ' + [...declaredCreates].join());
+  for (const gateway of ['meta', 'linkedin', 'snapchat', 'reddit', 'dv360', 'x_ads', 'criteo'])
+    assert.ok(
+      [...declaredCreates].some(v => v.startsWith(gateway + '_native_action ')),
+      gateway + ' ' + declaredCreates.size,
+    );
   assert.ok(plans.length > 20000, String(plans.length));
   // Google Ads' operations were reached in every form the branch gave.
   assert.deepEqual([...summarized].sort(), ['change', 'create', 'remove', 'update']);

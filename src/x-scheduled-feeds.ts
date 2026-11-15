@@ -17,7 +17,7 @@ import {
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
-import {defineFamily} from './family-kit.js';
+import {createsOnPost, defineFamily} from './family-kit.js';
 
 /**
  * Scheduled feeds of X catalogs, opened by the owner on 2026-09-29. X Ads API v12, "Catalog Management API Reference"
@@ -291,6 +291,7 @@ export const xScheduledFeedFamily: ReviewedFamily = defineFamily({
   verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-scheduled-feeds.ts', ['tests/x-scheduled-feeds.test.mjs']],
   kind: xScheduledFeedKind,
+  operation: createsOnPost,
   assert: plan => assertXScheduledFeed(plan),
   authorize: authorizeXScheduledFeed,
   snapshots: xScheduledFeedSnapshots,

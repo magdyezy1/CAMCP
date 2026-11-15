@@ -4,7 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {defineFamily, fail, readOf} from './family-kit.js';
+import {createsOnPost, defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Creatives of a Criteo Retail Media account, API 2026-07, from the pinned OpenAPI document (CreateCreative,
@@ -536,6 +536,7 @@ export const criteoCreativeFamily: ReviewedFamily = defineFamily({
   name: 'criteo_creatives',
   files: ['src/criteo-creatives.ts', ['tests/criteo-creatives.test.mjs']],
   kind: criteoCreativeKind,
+  operation: createsOnPost,
   assert: plan => assertCriteoCreative(plan),
   scope: (c, write) => assertCriteoCreativeScopes(c, write),
   authorize: authorizeCriteoCreative,

@@ -8,6 +8,7 @@ import type {
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {createsOnPost} from './family-kit.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
@@ -258,6 +259,8 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
       ['POST', 'PATCH'].includes(plan.method) && /\/placeActionLinks(?:\/[^/]+)?$/.test(plan.path),
     // The owner's spending policy (src/spend-policy.ts): its switches over the administrator access a write grants.
     accessPolicy: assertBusinessAccessPolicy,
+    // Its reviewed POSTs create an administrator or a place action link; its updates are PATCHes (R2.5 S2-2).
+    operation: createsOnPost,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts); its
   // catalog has write actions, which its gateway previews or refuses.

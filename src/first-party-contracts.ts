@@ -2,6 +2,7 @@ import {Ajv} from 'ajv';
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {operationStates} from './operation-types.js';
+import {stepsNote} from './campaign-step-help.js';
 
 /**
  * The per-action contracts of AMCP's own tools (MCP-07): what each action of amcp_workspace, amcp_campaign,
@@ -785,9 +786,10 @@ const rows: Record<string, Row[]> = {
     helpRow(),
     row(
       'create',
-      'Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template.',
-      ['name', 'brief'],
+      'Saves a campaign dependency plan from a name and explicit native steps or an approved template; the brief is optional.',
+      ['name'],
       [
+        'brief',
         'steps',
         'profile_id',
         'template',
@@ -1951,6 +1953,9 @@ const argumentNotes: Record<string, Record<string, string>> = {
     ad_format: 'Meta only: the placement to preview.',
   },
   [C]: {
+    steps: stepsNote,
+    brief:
+      'create: optional, up to 12,000 characters, the purpose of the plan. Left out, it defaults to name (R2.5 T4, owner 2026-11-15); a brief that is sent is saved as sent. clone: optional; left out, it says which campaign the plan copies.',
     acknowledge_temporary_sources:
       'create: true when media steps use temporary files (source_id src-…, an upload or import not retained), deleted 30 minutes after they started; the plan then records and shows their deadline. Without it such a plan is refused.',
     detail:
@@ -1970,6 +1975,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'clone: {set: [{step_id, path, value}], drop: [step_id]}. set changes one field of a step’s arguments by JSON pointer ("/payload/operations/0/create/amount_micros"); drop leaves a step and its dependants out.',
     patch:
       'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
+    arguments:
+      'recover_step: the corrected arguments of the step, whole, as the native tool input object {"action","payload"} that steps[].arguments of create holds (help create has a worked example); instead of patch. validate_provider: the native tool input {"action","payload"} of the one request the provider validates without applying it.',
     idempotency_key:
       'create, create_from_recipe and clone: an optional stable key (8–100 letters, digits, hyphens or underscores); identical input reuses the original plan. execute_next: the review’s own key.',
     brief_id:

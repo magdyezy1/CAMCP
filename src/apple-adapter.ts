@@ -2,6 +2,7 @@ import type {CatalogHooks, ProviderHooks, WireHeaders} from './provider-adapter.
 import type {CompiledRequest, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {createsOnPost} from './family-kit.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 // Writes and campaigns (wave 4c).
 import type {SharedAccountContext} from './provider-adapter.js';
@@ -170,6 +171,8 @@ export const appleHooks: ProviderHooks = Object.freeze({
     prerequisites: appleSharedBudgetScope,
     // The owner's spending policy (src/spend-policy.ts) compares a shared budget with its own current value alone.
     policyState: appleBudgetState,
+    // Apple creates with a POST and updates with a PUT: every POST its review accepts creates (R2.5 S2-2).
+    operation: createsOnPost,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts).
   notes: Object.freeze({

@@ -3,7 +3,7 @@ import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from '
 import {changedStateFields, normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
 type Read = (p: CompiledRequest) => Promise<TransportResult>;
@@ -27,6 +27,22 @@ export const xTargetingBatchRoute = (p: CompiledRequest): boolean =>
   /^\/12\/batch\/accounts\/[a-z0-9]{1,32}\/targeting_criteria$/.test(p.path);
 export const xTargetingBatchDeletes = (p: CompiledRequest): boolean =>
   xTargetingBatchRoute(p) && Array.isArray(p.body) && operations(p).some(o => o?.operation_type === 'Delete');
+/**
+ * What a batch does, for the review's summary (R2.5 S2-2): its items each create or delete a targeting criterion, and one
+ * request may hold both. A batch of creates creates that many, a batch of deletes deletes them, and a mixed one is a change.
+ * The summary read the route as an update of one entity, whatever the batch held.
+ */
+export function xTargetingBatchOperation(p: CompiledRequest): DeclaredOperation | undefined {
+  const items = Array.isArray(p.body) ? (p.body as unknown[]) : [],
+    types = new Set(items.map(o => (object(o) ? o.operation_type : undefined)));
+  if (!items.length || [...types].some(t => t !== 'Create' && t !== 'Delete')) return undefined;
+  return {
+    operation: types.size > 1 ? 'change' : types.has('Create') ? 'create' : 'delete',
+    count: items.length,
+    entity: 'targeting criterion',
+    plural: 'targeting criteria',
+  };
+}
 
 export function assertXTargetingBatch(p: CompiledRequest) {
   if (!xTargetingBatchRoute(p)) return;
@@ -477,6 +493,7 @@ export const xTargetingBatchRouteFamily: ReviewedFamily = defineFamily({
   name: 'x_targeting_batch',
   files: ['src/x-targeting-batch.ts', ['tests/x-targeting-batch.test.mjs']],
   kind: xTargetingBatchRoute,
+  operation: xTargetingBatchOperation,
   assert: plan => assertXTargetingBatch(plan),
   snapshots: xTargetingBatchSnapshots,
   state: (plan, readers) =>

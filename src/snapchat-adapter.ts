@@ -8,7 +8,7 @@ import type {
   ScopeContext,
   StateTarget,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, Credentials, DeclaredOperation, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
@@ -503,6 +503,9 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     // A request writes a list of records, and a creative edit or segment replacement changes more than its target.
     recordCount: (body: JsonObject, kind: string) => (Array.isArray(body[kind]) ? body[kind].length : undefined),
     impact: snapchatWriteImpact,
+    // Snapchat creates with a POST and updates with a PUT or a PATCH: every POST its review accepts creates, one entity for
+    // each record of the list its route takes (R2.5 S2-2, S3-2).
+    operation: snapchatOperation,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts);
   // its captured LIST_ACTIONS lists 25 actions a page by `cursor` in its own envelope (src/introspection.ts).
@@ -558,6 +561,17 @@ function snapchatConfirms(
         (plan.method === 'POST' || String(r[singular].id) === String(plan.method === 'PUT' ? b[kind][i].id : last)),
     )
   );
+}
+
+/**
+ * What a Snapchat write does for the review's summary (R2.5 S2-2, S3-2): a POST creates, one entity for each record of the
+ * list its route takes (…/product_feeds takes {product_feeds: [...]}), where the summary used to count only the collections
+ * it knew; any other method updates or deletes what exists.
+ */
+function snapchatOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  if (plan.method !== 'POST') return undefined;
+  const records = object(plan.body)[plan.path.split('/').at(-1) ?? ''];
+  return {operation: 'create', count: Array.isArray(records) ? records.length : undefined};
 }
 
 // Writes and campaigns (wave 4c): moved verbatim from splittableBatch (src/write-groups.ts).
