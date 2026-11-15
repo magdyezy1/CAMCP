@@ -116,6 +116,37 @@ test('the help of the semantics argument names every key the capture accepts, an
     assert.match(note, rule);
 });
 
+// S3-1 of the lead's review: the note rides in the contract of every action that reads `semantics`, which are capture and
+// capture_preset. Only the guided collectors compare a declared timezone and currency with the account (TikTok, Meta, Google
+// Ads and Snapchat, after they read it); a generic capture sends the caller's own native read, reads no account, and checks the
+// form of each value (src/decision-reporting.ts semantic()). The note must not say of capture what only capture_preset does.
+test('the semantics note says which action checks timezone and currency against the account: capture_preset does, capture keeps them as declared', async t => {
+  const f = fixture(t);
+  const notes = new Map();
+  for (const action of ['capture', 'capture_preset']) {
+    const help = await f.help(action);
+    assert.equal(help.success, true, action + ' ' + JSON.stringify(help.error));
+    notes.set(action, help.data.arguments.semantics.description);
+  }
+  // The note is one text for both actions, so what it says of the check is true of each.
+  assert.equal(notes.get('capture'), notes.get('capture_preset'));
+  for (const [action, note] of notes) {
+    assert.match(
+      note,
+      /timezone: the IANA name of the platform account’s own timezone \(UTC for LinkedIn\); capture_preset checks it against the account, capture keeps it as declared\./,
+      action,
+    );
+    assert.match(
+      note,
+      /currency: the account’s 3-letter ISO currency code in capitals; capture_preset checks it against the account, capture keeps it as declared\./,
+      action,
+    );
+    // Nothing is said to be checked against the account without naming the action that checks it.
+    assert.doesNotMatch(note, /checked against the account/, action);
+  }
+  assert.equal(f.requests(), 0);
+});
+
 test('the help stays within its response budget and leaves tools/list alone', async t => {
   const f = fixture(t),
     help = await f.help('capture_preset');

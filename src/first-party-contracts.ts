@@ -2076,9 +2076,12 @@ const argumentNotes: Record<string, Record<string, string>> = {
   },
   [R]: {
     // R25 M0 (owner 2026-11-15, observation 7 of the live checks): the keys took six failed calls to learn. The platforms' own
-    // rules and a worked call for each are in the help of capture_preset (`worked_examples`).
+    // rules and a worked call for each are in the help of capture_preset (`worked_examples`). The note rides in the contract of
+    // both actions that read `semantics`, so it says only what both do: capture checks the form of each value and keeps timezone
+    // and currency as declared (src/decision-reporting.ts semantic()); only capture_preset's guided collectors compare them with
+    // the account they read (review S3-1; tests/capture-preset-help.test.mjs).
     semantics:
-      'The declared meaning of the figures, an object with only these keys. date_from and date_to: the window, as calendar dates written YYYY-MM-DD, date_from not after date_to. timezone: the IANA name of the platform account’s own timezone, checked against the account. currency: the account’s 3-letter ISO currency code in capitals, checked against the account. complete: true when the window has closed and its data is complete, false when it is not; a platform may require true. attribution: text of 1 to 200 characters naming the attribution settings, or unknown when they are not established; a preset that takes attribution windows sets it from them. source_name: text of 1 to 200 characters naming where the figures come from, or unknown. conversion_definition: text that capture requires; capture_preset sets it, so leave it out there. Any other key is refused. capture_preset help lists a worked call for each platform, with its rules.',
+      'The declared meaning of the figures, an object with only these keys. date_from and date_to: the window, as calendar dates written YYYY-MM-DD, date_from not after date_to. timezone: the IANA name of the platform account’s own timezone (UTC for LinkedIn); capture_preset checks it against the account, capture keeps it as declared. currency: the account’s 3-letter ISO currency code in capitals; capture_preset checks it against the account, capture keeps it as declared. complete: true when the window has closed and its data is complete, false when it is not; a platform may require true. attribution: text of 1 to 200 characters naming the attribution settings, or unknown when they are not established; a preset that takes attribution windows sets it from them. source_name: text of 1 to 200 characters naming where the figures come from, or unknown. conversion_definition: text that capture requires; capture_preset sets it, so leave it out there. Any other key is refused. capture_preset help lists a worked call for each platform, with its rules.',
   },
 };
 /** The AMCP tools the table covers. */
