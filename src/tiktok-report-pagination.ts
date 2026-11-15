@@ -64,6 +64,14 @@ export function tiktokPageCheck(
     refuse = (rule: TikTokPageRule): never => {
       throw new MirrorError('REPORT_INCOMPLETE', tiktokPageCountMessage, {page_facts: facts(rule)}, 502);
     };
+  // What TikTok's integrated report answered when read live on 2026-11-15 (r25-hotfix, V2-RPT-01):
+  //  - an empty report echoes the requested page_size (requested 1000, total 0 gave 1000);
+  //  - a report that fits on one page reports its row count as page_size (requested 1000 with 7, 14, 28 or 30 rows gave
+  //    7, 14, 28 or 30; requested 10 with 2 rows gave 2; requested 5 with 3 rows gave 3);
+  //  - a report of several pages echoes the requested size on every page, the partial last page included (requested 20
+  //    with 60 rows gave 20 on each of 3 pages).
+  // So a non-empty page still has to echo the request, except the one page of a whole report that fits on it (below).
+  //
   // TikTok documents no values for an empty report (wave-5 provider documentation, T3), so the first page of a
   // collection with no rows whose counts say there is nothing (total absent or 0, pages absent, 0 or 1) is an empty
   // report whatever its page and page_size say: absent, zero or another integer. Rows, a total above zero, several
@@ -78,14 +86,25 @@ export function tiktokPageCheck(
       (info.total_number === undefined || info.total_number === 0) &&
       (info.total_page === undefined || info.total_page === 0 || info.total_page === 1) &&
       optionalCount(info.page) &&
-      optionalCount(info.page_size);
+      optionalCount(info.page_size),
+    // A whole report on its first page: page 1 of 1, its total_number and page_size both its own row count, and no more
+    // rows than the page size asked for. Only then is page_size not the request. Every other fact (a short page of a
+    // longer report, a later page, a total or count that disagrees) still has to echo the request.
+    wholeReportOnPageOne =
+      request.page === 1 &&
+      info.page === 1 &&
+      info.total_page === 1 &&
+      rows.length > 0 &&
+      rows.length <= request.size &&
+      info.total_number === rows.length &&
+      info.page_size === rows.length;
   if (!emptyReport && !object(data.page_info)) refuse('page_info_missing');
   if (
     !Number.isSafeInteger(request.page) ||
     request.page < 1 ||
     !Number.isSafeInteger(request.size) ||
     request.size < 1 ||
-    (!emptyReport && (info.page !== request.page || info.page_size !== request.size))
+    (!emptyReport && (info.page !== request.page || (info.page_size !== request.size && !wholeReportOnPageOne)))
   )
     refuse('page_not_echoed');
   for (const key of ['total_number', 'total_page'])

@@ -1,4 +1,5 @@
 import {MirrorError, providerDataAction, providerDataCodes, providerHttpErrorCode} from './errors.js';
+import {providerRemedy} from './provider-remedies.js';
 import {redact} from './security.js';
 import type {JsonObject} from './types.js';
 import {reportPlatforms} from './report-metrics.js';
@@ -235,8 +236,10 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
   for (const key of ['declared_rows', 'returned_rows'])
     if (Number.isSafeInteger(e.details[key])) diagnostic[key] = e.details[key];
   const specific = String(providerCode ?? e.code);
-  // An account sync keeps its own sync wording below; the retry action names a report.
-  if (category === 'provider_data' && !syncing) diagnostic.next_action = providerDataAction;
+  // An account sync keeps its own sync wording below; the retry action names a report. A provider that declares a remedy
+  // for a refusal of its own that a retry cannot help (TikTok's page counts, r25-hotfix) has the card say that instead.
+  if (category === 'provider_data' && !syncing)
+    diagnostic.next_action = providerRemedy(e.code, e.details)?.action ?? providerDataAction;
   else if (source.platform === 'google' && specific === 'AUTHORIZATION_ERROR')
     diagnostic.next_action =
       'Google returned a generic authorization denial, not a confirmed missing OAuth scope. Explorer Access supports account lookup and reporting. In Connections, use Reauthorize on this saved Google login, choose the Google user with access to this account and approve Google Ads access. Sync alone reuses the saved authorization. If a fresh authorization still fails and the saved OAuth client matches the approved Cloud project, contact Google Ads API support with the provider request ID, account ID and request path below.';

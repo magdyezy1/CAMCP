@@ -11,6 +11,10 @@ import {ReportWorker} from '../../dist/src/worker.js';
  * ad groups and ads (campaign, ad group and ad inventory reads, and BASIC integrated reports at the three data levels),
  * answering in the documented shapes. `state.hook(url)` may return a Response (or a promise of one) to replace an answer.
  * No network is used: the transport's fetcher is this provider.
+ *
+ * `pageSizeAnswer` is what an integrated report says in `page_info.page_size`. 'requested' (the default) echoes the page
+ * size asked for. 'live' is what TikTok answered when read on 2026-11-15 (r25-hotfix): the row count when the whole report
+ * fits on one page and is not empty, the requested size otherwise (an empty report, and every page of a longer one).
  */
 export function tiktokThreeLevelFixture({
   campaigns = 1,
@@ -19,6 +23,7 @@ export function tiktokThreeLevelFixture({
   days = ['2026-09-01', '2026-09-02'],
   goal = 'CONVERT',
   eventFor = () => 'COMPLETE_PAYMENT',
+  pageSizeAnswer = 'requested',
 } = {}) {
   const actor = {tenantId: 'synthetic-tiktok-levels', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', Buffer.alloc(32, 127).toString('base64')),
@@ -117,11 +122,13 @@ export function tiktokThreeLevelFixture({
     }
     const page = Number(url.searchParams.get('page') ?? 1),
       pageSize = Number(url.searchParams.get('page_size') ?? 1000),
+      answered =
+        !entity && pageSizeAnswer === 'live' && list.length > 0 && list.length < pageSize ? list.length : pageSize,
       data = {
         list: list.slice((page - 1) * pageSize, page * pageSize),
         page_info: {
           page,
-          page_size: pageSize,
+          page_size: answered,
           total_number: list.length,
           total_page: Math.ceil(list.length / pageSize),
         },

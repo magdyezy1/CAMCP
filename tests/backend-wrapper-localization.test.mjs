@@ -413,7 +413,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Merge E, with linkedin-windows (12,107 on its own base) and Merge D's head (12,103): measured on the merged catalogue
   // (node tools/check-locales.mjs: catalog_messages 12112; a key by key three-way merge finds no clash and no key added by both),
   // 12,103 + 9 = 12,112. The owner approved moving this pin for this package (2026-11-14).
-  assert.equal(Object.keys(catalog).length, 12112);
+  // Package r25-hotfix (item 1, error 7 of the live checks of 2026-11-15): +1 entry, the Arabic of the TikTok page-count remedy
+  // (src/tiktok-remedies.ts), which the package brief requires; measured (node tools/check-locales.mjs: catalog_messages
+  // 12113), 12,112 + 1 = 12,113.
+  assert.equal(Object.keys(catalog).length, 12113);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

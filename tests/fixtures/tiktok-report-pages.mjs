@@ -14,6 +14,32 @@ const emptyReport = (name, data) => ({
   pages: [data],
   expected: {complete: true, returned: 0, rule: 'empty_report'},
 });
+// r25-hotfix item 1: a page with the page_info TikTok really sent, whatever its size. A sample may name the page size the
+// collector asks for (`size`, 1000 when absent), because TikTok answers page_size according to it.
+const shaped = (length, info, start = 1) => ({list: rows(length, start), page_info: info});
+// Read live from TikTok's integrated report on 2026-11-15: a report that fits on one page reports its row count as
+// page_size (requested 1000 with 7, 14, 28 or 30 rows gave 7, 14, 28 or 30; requested 10 with 2 rows gave 2; requested 5
+// with 3 rows gave 3). Rows are synthetic.
+const wholeReport = (count, size = 1000) => ({
+  name: 'one page of ' + count + ' rows reports its row count as page_size (requested ' + size + ')',
+  size,
+  pages: [shaped(count, {page: 1, page_size: count, total_number: count, total_page: 1})],
+  expected: {complete: true, returned: count},
+});
+// A report of several pages echoes the requested size on every page, the partial last page included (requested 20 with 60
+// rows gave 20 on each of 3 pages; requested 25 gave 25 on pages 1 and 3).
+const pagesOf = (size, counts) => ({
+  name: 'three pages of 60 rows at ' + size + ' echo the requested size',
+  size,
+  pages: counts.map((count, i) =>
+    shaped(
+      count,
+      {page: i + 1, page_size: size, total_number: 60, total_page: counts.length},
+      1 + counts.slice(0, i).reduce((sum, n) => sum + n, 0),
+    ),
+  ),
+  expected: {complete: true, returned: 60},
+});
 export function tiktokPageFixtures() {
   return [
     {name: 'short last page', pages: [page(1000, 1), page(500, 2, 1500, 2, 1001)], expected: {complete: true}},
@@ -131,6 +157,47 @@ export function tiktokPageFixtures() {
       name: 'no rows, null totals',
       pages: [{list: [], page_info: {page: 1, page_size: 1000, total_number: null, total_page: null}}],
       expected: {code: 'REPORT_INCOMPLETE', rule: 'total_not_integer'},
+    },
+    // r25-hotfix item 1 (V2-RPT-01): what TikTok answers live. Appended, because tests index the first samples.
+    wholeReport(7),
+    wholeReport(14),
+    wholeReport(28),
+    wholeReport(30),
+    wholeReport(2, 10),
+    wholeReport(3, 5),
+    wholeReport(1),
+    wholeReport(999),
+    pagesOf(20, [20, 20, 20]),
+    pagesOf(25, [25, 25, 10]),
+    emptyReport('empty report as TikTok answers it live (requested 1000, total 0 gives 1000)', {
+      list: [],
+      page_info: {page: 1, page_size: 1000, total_number: 0, total_page: 0},
+    }),
+    // What stays refused beside them: a page_size that is neither the request nor the row count of a whole report.
+    {
+      name: 'one page whose page_size is below its row count',
+      pages: [shaped(7, {page: 1, page_size: 5, total_number: 7, total_page: 1})],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
+    },
+    {
+      name: 'one page whose page_size is above its row count and is not the request',
+      pages: [shaped(7, {page: 1, page_size: 10, total_number: 7, total_page: 1})],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
+    },
+    {
+      name: 'one page whose total_number is above its rows',
+      pages: [shaped(7, {page: 1, page_size: 7, total_number: 9, total_page: 1})],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
+    },
+    {
+      name: 'a second page that reports its own row count instead of the request',
+      pages: [page(1000, 1), shaped(500, {page: 2, page_size: 500, total_number: 1500, total_page: 2}, 1001)],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
+    },
+    {
+      name: 'a page longer than the request that reports its own row count',
+      pages: [shaped(1001, {page: 1, page_size: 1001, total_number: 1001, total_page: 1})],
+      expected: {code: 'REPORT_INCOMPLETE', rule: 'page_not_echoed'},
     },
   ];
 }

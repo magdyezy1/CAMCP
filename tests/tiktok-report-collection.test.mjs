@@ -10,6 +10,7 @@ import * as rules from '../dist/src/tiktok-report-pagination.js';
 import {DecisionReporting} from '../dist/src/decision-reporting.js';
 import {collectDetailedOverview} from '../dist/src/overview-granularity.js';
 import {tiktokPageFixtures, reportDay} from './fixtures/tiktok-report-pages.mjs';
+import {tiktokThreeLevelFixture} from './helpers/tiktok-three-level.mjs';
 
 const actor = {tenantId: 'synthetic-tiktok-pages', userId: 'owner', role: 'admin'};
 const connection = 'ffffffff-1111-4111-8111-111111111115';
@@ -80,17 +81,19 @@ for (const sample of tiktokPageFixtures()) {
   for (const collector of ['guided', 'integrated']) {
     test(collector + ': ' + sample.name, async t => {
       const f = fixture(t, sample);
+      // A sample may name the page size the collector asks for (r25-hotfix): TikTok answers page_size according to it.
+      const asked = {...query, page_size: sample.size ?? 1000};
       const run = () =>
         collector === 'guided'
           ? collectTikTokDailyReport(
               f.store,
               f.call,
               actor,
-              {action: plan.action, account_id: '100', connection_id: connection, query},
+              {action: plan.action, account_id: '100', connection_id: connection, query: asked},
               semantics,
               {allowPartial: true},
             )
-          : paginate(plan, async request => ({code: 0, data: sample.pages[request.query.page - 1]}));
+          : paginate({...plan, query: asked}, async request => ({code: 0, data: sample.pages[request.query.page - 1]}));
       if (sample.expected.code) {
         await assert.rejects(run, error => {
           assert.equal(error.code, sample.expected.code);
@@ -119,12 +122,67 @@ for (const sample of tiktokPageFixtures()) {
           'an empty page keeps its page facts as evidence of the pattern TikTok used',
         );
       if (sample.expected.rule) {
-        const checked = rules.tiktokPageCheck(sample.pages[0], {page: 1, size: 1000}, {total: null, returned: 0});
+        const checked = rules.tiktokPageCheck(
+          sample.pages[0],
+          {page: 1, size: sample.size ?? 1000},
+          {total: null, returned: 0},
+        );
         assert.equal(checked.facts.rule, sample.expected.rule);
       }
     });
   }
 }
+
+// r25-hotfix item 1 (V2-RPT-01): production refused every non-empty TikTok report of 1 to 999 rows, because TikTok reports
+// the row count as page_size when a report fits on one page. These run such a report (7 rows, the size of the first live
+// one) through the routes a person reaches, with the real modules: the guided capture, and the whole Overview report job
+// (queue, worker, collectors, service, transport and pagination) at every level.
+const wholeReport = count =>
+  tiktokPageFixtures().find(sample => sample.name.startsWith('one page of ' + count + ' rows'));
+
+test('amcp_reporting capture_preset completes a one-page report whose page_size is its row count', async t => {
+  const f = fixture(t, wholeReport(7));
+  const reporting = new DecisionReporting(f.store, f.call);
+  const result = await reporting.handle(
+    {action: 'capture_preset', preset: 'tiktok_campaign', account_id: '100', connection_id: connection, semantics},
+    actor,
+  );
+  assert.equal(result.row_count, 7);
+  assert.deepEqual([result.collection.complete, result.collection.declared, result.collection.returned], [true, 7, 7]);
+  assert.deepEqual(
+    result.source_pages.map(sourcePage => [sourcePage.page, sourcePage.row_count, sourcePage.total_rows]),
+    [[1, 7, 7]],
+  );
+  assert.equal(f.store.documents(actor.tenantId, 'decision_report').length, 1);
+});
+
+test('an Overview report completes at campaign, ad group and ad level when each is a one-page report of 7 rows', async t => {
+  // 7 campaigns with one ad group and one ad each, over one day: every level is one page of 7 rows, and the provider
+  // answers page_size 7 for each, as TikTok did live.
+  const f = tiktokThreeLevelFixture({
+    campaigns: 7,
+    groupsPerCampaign: 1,
+    adsPerGroup: 1,
+    days: [reportDay],
+    pageSizeAnswer: 'live',
+  });
+  t.after(() => f.close());
+  const queued = await f.queue();
+  await f.turn();
+  const report = await f.get(queued.id);
+  assert.equal(report.state, 'complete', JSON.stringify(report.sources));
+  for (const level of ['campaign', 'adset', 'ad']) {
+    const result = report.sources[0].level_results.find(item => item.level === level);
+    assert.equal(result.error, undefined, level);
+    assert.equal(result.row_count, 7, level);
+  }
+  const reads = f.state.requests.filter(url => url.pathname.endsWith('/report/integrated/get/'));
+  assert.ok(reads.length >= 3, 'a report was read for each level');
+  assert.ok(
+    reads.every(url => url.searchParams.get('page_size') === '1000'),
+    'every report was asked for 1000 rows a page',
+  );
+});
 
 test('evidence captures refuse partial collections with both counts and keep no evidence', async t => {
   const f = fixture(
