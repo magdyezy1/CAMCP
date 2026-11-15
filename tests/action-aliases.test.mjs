@@ -52,8 +52,52 @@ test('the near-miss names of the White Friday report resolve to the one action t
     // The alias reaches the very action its canonical name does: nothing about it is a second route.
     assert.ok(resolved.action, used);
     assert.equal(resolved.action, registry.action(gateway, canonical), used);
-    assert.equal(registry.action(gateway, used), registry.action(gateway, canonical), used);
+    // Registry.action() stays exact, as at the base (the review's S3-3): an alias is resolved only where it is warned of.
+    assert.equal(registry.action(gateway, used), undefined, used);
     assert.equal(resolved.action.canonical_name || resolved.action.name, canonical, used);
+  }
+});
+
+// The review's S3-3: Registry.action() resolved aliases for every caller, so amcp_tool_help answered an alias with a reduced
+// record and no warning (it refused it at the base), and decision reporting, the workflow engine, capability eligibility
+// and execution status resolved it silently. The sites that canonicalize and warn call resolveAction themselves.
+test('Registry.action() is exact, as at the base: an alias is no name to the callers that do not warn of it', () => {
+  for (const [gateway, near, canonical] of [
+    [TIKTOK, 'campaign_get', 'tiktok_campaign_get'],
+    [TIKTOK, 'tiktok_file_image_ad_info', 'tiktok_file_image_ad_info_get'],
+    [GOOGLE, 'google_ads_search', 'google_ads_v23_google_ads_search'],
+    [GOOGLE, 'google_ads_v25_google_ads_search', 'google_ads_v23_google_ads_search'],
+    ['linkedin_native_action', 'rest_media_planning_post', 'linkedin_rest_media_planning_post'],
+  ]) {
+    assert.equal(registry.action(gateway, near), undefined, near);
+    assert.equal(registry.action(gateway, near.toUpperCase()), undefined, near);
+    assert.ok(registry.action(gateway, canonical), canonical);
+    assert.equal(registry.resolveAction(gateway, near).action, registry.action(gateway, canonical), near);
+  }
+  // The exact lookups are what they were: a name, its lower case, a captured alias, a friendly name.
+  for (const [gateway, name] of [
+    [TIKTOK, 'tiktok_campaign_get'],
+    [TIKTOK, 'TIKTOK_CAMPAIGN_GET'],
+    [GOOGLE, 'FETCH_CAMPAIGNS'],
+    [META, 'meta_campaign_id_update'],
+    ['dv360_native_action', 'ADVERTISERS_AD_ASSETS_CREATE'],
+  ])
+    assert.ok(registry.action(gateway, name), name);
+});
+
+test('amcp_tool_help refuses a near-miss operation with the names it could have meant, as it did before aliases', async () => {
+  const f = fixture();
+  try {
+    const canonical = await f.call('amcp_tool_help', {gateway: TIKTOK, operation: 'tiktok_campaign_get'});
+    assert.equal(canonical.success, true, JSON.stringify(canonical));
+    const near = await f.call('amcp_tool_help', {gateway: TIKTOK, operation: 'campaign_get'});
+    assert.equal(near.success, false, JSON.stringify(near));
+    assert.equal(near.error.code, 'UNKNOWN_OPERATION');
+    assert.ok(near.error.details.did_you_mean.includes('tiktok_campaign_get'), JSON.stringify(near.error.details));
+    // The help names no alias and carries no alias warning: nothing was resolved.
+    assert.deepEqual(aliasWarnings(near), []);
+  } finally {
+    f.store.close();
   }
 });
 

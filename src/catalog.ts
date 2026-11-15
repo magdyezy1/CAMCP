@@ -161,14 +161,19 @@ export class Registry {
     gateway: string,
     name: string,
   ): {action: Action | undefined; alias?: {used: string; canonical: string}} {
-    const exact = this.routes.get(gateway + '/' + name) ?? this.routes.get(gateway + '/' + name.toLowerCase());
+    const exact = this.action(gateway, name);
     if (exact) return {action: exact};
     const {aliases} = this.actionAliases(gateway),
       entry = aliases.get(name) ?? aliases.get(name.toLowerCase());
     return entry ? {action: entry.action, alias: {used: name, canonical: entry.canonical}} : {action: undefined};
   }
+  /**
+   * The action an exact name stands for (or its lower case), as it always did. A near-miss spelling is no name here (the
+   * review's S3-3): only the sites that canonicalize it and tell the caller what to send call `resolveAction`, so no other
+   * lookup (help, the workflow engine, capability eligibility, execution status, decision reporting) resolves one silently.
+   */
   action(gateway: string, name: string): Action | undefined {
-    return this.resolveAction(gateway, name).action;
+    return this.routes.get(gateway + '/' + name) ?? this.routes.get(gateway + '/' + name.toLowerCase());
   }
   validate(tool: string, input: JsonObject, options: CallOptions) {
     guardInput(input);
