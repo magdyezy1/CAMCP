@@ -416,6 +416,7 @@ its consolidation moved it here.
 
 | Date | Document |
 |---|---|
+| — | [AMCP Round 2.5: a seamless MCP connector. The plan for your approval](plan/workflow-seamlessness.md) |
 | — | [Write coverage: batch history](records/COVERAGE-BATCH-HISTORY.md) |
 | — | [Deployment guide notes of the October 2026 deliveries](records/DEPLOY-RAILWAY-BATCH-NOTES-2026-10.md) |
 | — | [Design, accessibility and UX-copy review — October 2026](records/DESIGN-REVIEW-2026-10.md) |

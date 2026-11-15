@@ -52,9 +52,11 @@ const recordFolders = Object.freeze(['docs/records/', 'docs/implementation/', 'd
  * counts in neither the word budget nor the reference total of tools/docs-lint.mjs, nor in its freeze, so the label
  * alone would take a hand-written page out of all three. The exceptions are the redirect stubs of docs/moved.json and
  * these pages, each reviewed to be what it says where links expect it (DOC-03, 2026-10-24): dated pages and proposals
- * of the review folder. Another needs its entry here, or moves to docs/records/ or docs/archive/.
+ * of the review folder, and the plan of Round 2.5, which the owner approved on 2026-11-15 and whose own section 12 puts
+ * in docs/plan/ (Round 2.5 M0, merge task 4). Another needs its entry here, or moves to docs/records/ or docs/archive/.
  */
 export const reviewedOutsideRecords = Object.freeze({
+  'docs/plan/workflow-seamlessness.md': 'record',
   'docs/review/ACCESSIBILITY.md': 'record',
   'docs/review/IMPLEMENTATION-2026-10-01.md': 'record',
   'docs/review/PRODUCT-BLUEPRINT-2026-10-01.md': 'proposal',
