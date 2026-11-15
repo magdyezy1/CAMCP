@@ -379,7 +379,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // with this test's own inspector, 1,633 + 3 + 2 = 1,638.
   // Package mcp-surface (V2-MCP-06) owns one more: the MEDIA_REVIEW_REQUIRED refusal of src/media-routing.ts, which a native
   // upload answers under the v2 contract profile: 1,639.
-  assert.equal(owned.size, 1639);
+  // Package r25-m0-live (Round 2.5, item 1) owns two more: the date and date-order refusals of dateRange for a guided
+  // capture's window (src/workflows.ts, templates that name the semantics key): 1,641.
+  assert.equal(owned.size, 1641);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned refusals are unchanged.
@@ -472,7 +474,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge E, with linkedin-windows (12,107 on its own base) and Merge D's head (12,103): measured on the merged catalogue
   // (node tools/check-locales.mjs: catalog_messages 12112; a key by key three-way merge finds no clash and no key added by both),
   // 12,103 + 9 = 12,112. The owner approved moving this pin for this package (2026-11-14).
-  assert.equal(Object.keys(catalog).length, 12112);
+  // Package r25-m0-live (Round 2.5) item 1 adds the Arabic of the two date refusals of a guided capture's window: measured
+  // (node tools/check-locales.mjs: catalog_messages 12114), 12,112 + 2 = 12,114.
+  assert.equal(Object.keys(catalog).length, 12114);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

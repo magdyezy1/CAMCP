@@ -12,6 +12,8 @@ import {guidedReportSources} from './report-sources.js';
 const guided = guidedReportSources.map(source => source.guided!);
 export const reportPresets = guided.flatMap(platform => platform.presets!);
 const presetPlatform = new Map(guided.flatMap(platform => platform.presets!.map(preset => [preset.id, platform])));
+/** The keys of `semantics` a capture's window is read from. A refusal of its dates names them (R25 M0, owner 2026-11-15). */
+const windowKeys = {since: 'semantics.date_from', until: 'semantics.date_to'};
 
 /** Guided evidence must retain its requested native hierarchy, reporting window and grain. */
 export function validatePresetRows(preset: string | undefined, input: JsonObject, rows: JsonObject[]) {
@@ -24,6 +26,6 @@ export function reportPreset(input: JsonObject, context?: {overviewV4?: true}): 
   const platform = presetPlatform.get(preset.id)!;
   if (input.campaign_id !== undefined && !platform.campaignFilter?.(preset))
     bad('A campaign filter requires a qualified parent-scoped Snapchat preset.');
-  const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to});
+  const range = dateRange({since: input.semantics?.date_from, until: input.semantics?.date_to}, windowKeys);
   return platform.presetRequest!(preset, input, range, context);
 }

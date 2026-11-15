@@ -12110,5 +12110,7 @@
   "Show table": "عرض الجدول",
   "Hide table": "إخفاء الجدول",
   "Choose which charts this report draws.": "اختر المخططات التي يرسمها هذا التقرير.",
-  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا."
+  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا.",
+  "Set {field} to a calendar date written YYYY-MM-DD.": "اضبط {field} على تاريخ تقويم مكتوب بصيغة YYYY-MM-DD.",
+  "{from} must not be after {to}.": "يجب ألا يأتي {from} بعد {to}."
 }

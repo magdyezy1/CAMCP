@@ -29,7 +29,10 @@ const counts = {
   // location scope and read mask, and Reddit's report window and fields moved with their rules to those providers'
   // adapters, unchanged; tests/backend-contract-localization.test.mjs keeps their Arabic.
   'src/delegated-native.ts': 27,
-  'src/workflows.ts': 52,
+  // Package r25-m0-live (Round 2.5, item 1) adds two refusals to dateRange, raised when a guided capture names its window
+  // keys: a date that is missing or not a calendar day, and dates in the wrong order. Each is a template that carries the
+  // semantics key the agent wrote, with its Arabic in web/locales/ar.json: 52 + 2.
+  'src/workflows.ts': 54,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const owned = new Set(
@@ -72,7 +75,8 @@ test('all six selected core sources require every authored reason with native fi
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
   // Package mcp-surface (V2-MCP-06) adds the MEDIA_REVIEW_REQUIRED sentence of src/service.ts, owned by no other source: 223 + 1.
-  assert.equal(owned.size, 224);
+  // Package r25-m0-live adds the two date refusals of src/workflows.ts above: 224 + 2.
+  assert.equal(owned.size, 226);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

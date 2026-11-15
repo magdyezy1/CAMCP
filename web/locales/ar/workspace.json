@@ -1130,6 +1130,7 @@
   "Send the same part again in a moment. Parts already received are kept.": "أرسل الجزء نفسه مجددًا بعد قليل. تُحفظ الأجزاء التي استُلِمت بالفعل.",
   "Sessions": "الجلسات",
   "Set whether higher or lower is better for this target KPI (direction) before recommending a change.": "حدّد ما إذا كانت القيمة الأعلى أم الأقل أفضل لمؤشر هذا الهدف (direction) قبل التوصية بأي تغيير.",
+  "Set {field} to a calendar date written YYYY-MM-DD.": "اضبط {field} على تاريخ تقويم مكتوب بصيغة YYYY-MM-DD.",
   "Share of spend": "حصة الإنفاق",
   "Sign in to AMCP ↗": "تسجيل الدخول إلى AMCP ↗",
   "Sign in to pick up where you left off.": "سجّل الدخول لتتابع من حيث توقفت.",
@@ -1719,5 +1720,6 @@
   "worker attempts · Updated": "محاولات للعامل · آخر تحديث",
   "you back.": "رجوعك.",
   "{count} campaign/resource rows": "عدد صفوف الحملات أو الموارد: {count}",
+  "{from} must not be after {to}.": "يجب ألا يأتي {from} بعد {to}.",
   "← Back to sign in": "→ العودة إلى تسجيل الدخول"
 }

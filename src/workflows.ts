@@ -83,17 +83,41 @@ function limit(value: unknown, fallback = 100, max = 500) {
     throw new MirrorError('INVALID_LIMIT', 'Requested row limit is outside its supported range.');
   return Number(n);
 }
-export function dateRange(value: unknown): {since: string; until: string} {
+/**
+ * The names a caller gives the two ends of a range when they are not `since` and `until`: a guided capture takes its
+ * window from `semantics.date_from` and `semantics.date_to`, and its refusals name those keys (R25 M0, owner 2026-11-15:
+ * every error tells the agent exactly what to change).
+ */
+export interface DateRangeFields {
+  since: string;
+  until: string;
+}
+export function dateRange(value: unknown, fields?: DateRangeFields): {since: string; until: string} {
   const r = obj(value);
-  for (const field of ['since', 'until'])
+  for (const field of ['since', 'until'] as const)
     if (
       typeof r[field] !== 'string' ||
       !/^\d{4}-\d{2}-\d{2}$/.test(r[field]) ||
       Number.isNaN(Date.parse(r[field])) ||
       new Date(r[field]).toISOString().slice(0, 10) !== r[field]
     )
-      throw new MirrorError('INVALID_DATE_RANGE', 'Use valid calendar dates in YYYY-MM-DD format.');
-  if (r.since > r.until) throw new MirrorError('INVALID_DATE_RANGE', 'since must not be after until.');
+      throw fields
+        ? new MirrorError(
+            'INVALID_DATE_RANGE',
+            'Set {field} to a calendar date written YYYY-MM-DD.',
+            {field: fields[field]},
+            400,
+            false,
+            {field: fields[field]},
+          )
+        : new MirrorError('INVALID_DATE_RANGE', 'Use valid calendar dates in YYYY-MM-DD format.');
+  if (r.since > r.until)
+    throw fields
+      ? new MirrorError('INVALID_DATE_RANGE', '{from} must not be after {to}.', {field: fields.until}, 400, false, {
+          from: fields.since,
+          to: fields.until,
+        })
+      : new MirrorError('INVALID_DATE_RANGE', 'since must not be after until.');
   if (Date.parse(r.until) - Date.parse(r.since) > 3660 * 86400000)
     throw new MirrorError('INVALID_DATE_RANGE', 'Split reporting ranges longer than ten years.');
   return {since: r.since, until: r.until};
