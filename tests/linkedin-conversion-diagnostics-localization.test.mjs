@@ -32,10 +32,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // each, PRV-06 four, owner decision P5 one, and CMP-03's Microsoft location lookup two): errorRemedy's in
   // src/errors.ts and the providers' remedy tables it consults first (ARC-04 stage C). Package mcp-surface (V2-MCP-06) adds
   // two: the remedies of MEDIA_REVIEW_REQUIRED, with and without the call it names. Package r25-hotfix item 1 adds one, in
-  // TikTok's own table: the remedy of a report whose page counts the check refused.
-  assert.equal(hints.size, 170);
+  // TikTok's own table: the remedy of a report whose page counts the check refused. Item 2 adds one, in src/errors.ts: the
+  // remedy of a provider response that does not match the pinned contract of its route.
+  assert.equal(hints.size, 171);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 169);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 170);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

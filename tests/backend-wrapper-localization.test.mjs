@@ -416,7 +416,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-hotfix (item 1, error 7 of the live checks of 2026-11-15): +1 entry, the Arabic of the TikTok page-count remedy
   // (src/tiktok-remedies.ts), which the package brief requires; measured (node tools/check-locales.mjs: catalog_messages
   // 12113), 12,112 + 1 = 12,113.
-  assert.equal(Object.keys(catalog).length, 12113);
+  // Package r25-hotfix (item 2, error 16 of the same live checks): +1 entry, the Arabic of the remedy for a provider response
+  // that does not match the pinned contract of its route (src/errors.ts), which the package brief requires; measured
+  // (node tools/check-locales.mjs: catalog_messages 12114), 12,113 + 1 = 12,114.
+  assert.equal(Object.keys(catalog).length, 12114);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

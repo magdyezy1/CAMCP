@@ -645,6 +645,17 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       mutation_retry_safe: false,
     };
   }
+  // A provider's answer that did not match AMCP's pinned contract for its route (src/delegated-native.ts, which names the
+  // route's vendor method): nothing the caller sends is to change, so the remedy names no access, scope, tier or payload
+  // (r25-hotfix, error 16 of the live checks of 2026-11-15). A write that reached the provider is never sent again.
+  if (e.code === 'UPSTREAM_RESPONSE_INVALID' && typeof e.details.vendor_method === 'string' && e.details.vendor_method)
+    return {
+      category: 'provider',
+      owner: 'provider_or_account_admin',
+      action:
+        'The provider’s response did not match AMCP’s pinned contract for this route, and the details name the mismatch. A different request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [

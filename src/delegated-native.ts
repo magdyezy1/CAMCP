@@ -1,4 +1,4 @@
-import {Ajv} from 'ajv';
+import {Ajv, type ErrorObject} from 'ajv';
 import addFormatsModule from 'ajv-formats';
 import {MirrorError} from './errors.js';
 import {guardInput, stable as stableStringify} from './security.js';
@@ -73,6 +73,118 @@ const extraAliases: Record<string, string[]> = {
   limitToId: ['limitToIds'],
 };
 const forbiddenQuery = new Set(['access_token', 'oauth_token', 'key']);
+/** An Ajv for vendor schemas: unknown keywords tolerated, every error reported, nothing coerced, defaulted or removed. */
+function vendorAjv(): Ajv {
+  const ajv = new Ajv({
+    strict: false,
+    allErrors: true,
+    useDefaults: false,
+    coerceTypes: false,
+    removeAdditional: false,
+  });
+  (addFormatsModule as unknown as (ajv: Ajv) => void)(ajv);
+  ajv.addFormat('long-id', {
+    type: 'string',
+    validate: (value: string) => /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n,
+  });
+  return ajv;
+}
+
+/**
+ * Properties a provider's answer carries that the pinned schema of its route does not declare (r25-hotfix, 5.8b of the
+ * live checks of 2026-11-15, when Reddit added `ugc_addon_default_on` to its account read). A provider adding a response
+ * field is not a contract break, so a read still succeeds; this says where and which, never what the values were.
+ */
+export interface VendorSchemaDrift {
+  /** The pinned route's own name for the operation, which AMCP wrote (never provider text). */
+  vendor_method: string;
+  /**
+   * Each place that carried some, and their names. A place is a JSON Pointer in which the answer itself is `/` and a row
+   * index, or a key the provider chose, is `*`.
+   */
+  unexpected: {path: string; properties: string[]}[];
+  /** How many names beyond the limit are not listed. */
+  omitted?: number;
+}
+const driftNameLimit = 50;
+const clipText = (text: string, limit: number) => text.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, limit);
+const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * The drift of (place, name) pairs: each pair once, the places and the names in order, at most `driftNameLimit` names
+ * listed and the rest counted. The same order whatever the order of the pages or of the provider's properties.
+ */
+function vendorDrift(vendorMethod: string, pairs: Iterable<readonly [string, string]>, omitted = 0) {
+  const unique = new Map<string, readonly [string, string]>();
+  for (const pair of pairs) unique.set(pair[0] + '\u0000' + pair[1], pair);
+  const sorted = [...unique.values()].sort((a, b) => byText(a[0], b[0]) || byText(a[1], b[1])),
+    kept = sorted.slice(0, driftNameLimit),
+    places = new Map<string, string[]>();
+  for (const [path, name] of kept) places.set(path, [...(places.get(path) ?? []), name]);
+  const left = omitted + sorted.length - kept.length;
+  if (!kept.length) return undefined;
+  const drift: VendorSchemaDrift = {
+    vendor_method: vendorMethod,
+    unexpected: [...places].map(([path, properties]) => ({path, properties})),
+  };
+  if (left) drift.omitted = left;
+  return drift;
+}
+/**
+ * The place of an instance path: a segment is shown only when it looks like a property name. A row index, an ID, and a key
+ * the provider chose for a map (an advertiser's own text, an e-mail address) are `*`, so one place stands for every row
+ * and no value the answer chose reaches the drift or the audit.
+ */
+const propertyName = /^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/;
+const placeOf = (instancePath: string) =>
+  (
+    '/' +
+    instancePath
+      .split('/')
+      .slice(1)
+      .map(segment => (propertyName.test(segment) ? segment : '*'))
+      .join('/')
+  ).slice(0, 200);
+/** The drift a strict validation reported: its `additionalProperties` errors, rows collapsed into one place. */
+function driftOf(errors: readonly ErrorObject[] | null | undefined, vendorMethod: string) {
+  const pairs: [string, string][] = [];
+  for (const error of errors ?? []) {
+    const name = (error.params as {additionalProperty?: unknown} | undefined)?.additionalProperty;
+    if (error.keyword === 'additionalProperties' && typeof name === 'string')
+      pairs.push([placeOf(error.instancePath), clipText(name, 80)]);
+  }
+  return vendorDrift(vendorMethod, pairs);
+}
+/** The drifts of the pages of one read as one: by place, names once, the name limit applied again. */
+export function mergeVendorDrift(parts: readonly VendorSchemaDrift[]): VendorSchemaDrift | undefined {
+  if (!parts.length) return undefined;
+  return vendorDrift(
+    parts[0]!.vendor_method,
+    parts.flatMap(part =>
+      part.unexpected.flatMap(({path, properties}) => properties.map(name => [path, name] as const)),
+    ),
+    parts.reduce((sum, part) => sum + (part.omitted ?? 0), 0),
+  );
+}
+// The keywords whose value is a map of names to schemas (the keys are names, not keywords) and those whose value is data.
+const schemaMaps = new Set(['properties', 'patternProperties', 'definitions', '$defs', 'schemas', 'dependentSchemas']);
+const dataKeywords = new Set(['enum', 'const', 'default', 'example', 'examples']);
+/**
+ * A copy of a vendor schema, or of its components, with every closed object opened: each `additionalProperties: false` is
+ * left out, wherever it occurs, so an object may carry properties the schema does not declare while each declared one
+ * keeps its type, enum, format and required checks. A typed `additionalProperties` (a map of text, say) is not closed and
+ * stays as it is. Never changes its argument: the pinned data is shared with the request checks, which stay strict.
+ */
+function openClosedObjects(node: unknown, namesOnly = false): unknown {
+  if (Array.isArray(node)) return node.map(item => openClosedObjects(item));
+  if (!node || typeof node !== 'object') return node;
+  const out: JsonObject = {};
+  for (const [key, value] of Object.entries(node)) {
+    if (!namesOnly && key === 'additionalProperties' && value === false) continue;
+    out[key] =
+      !namesOnly && dataKeywords.has(key) ? value : openClosedObjects(value, !namesOnly && schemaMaps.has(key));
+  }
+  return out;
+}
 /**
  * The provider's part of the delegated compiler (ARC-01 phase B, src/<provider>-adapter.ts), consulted at the step where
  * the compiler named the provider; the compiler keeps every rule and the order of every step.
@@ -244,19 +356,13 @@ export class DelegatedNativeCompiler {
   readonly data: VendorRoutes;
   private routes = new Map<string, VendorRoute>();
   private validators = new Map<string, ReturnType<Ajv['compile']>>();
-  private ajv = new Ajv({
-    strict: false,
-    allErrors: true,
-    useDefaults: false,
-    coerceTypes: false,
-    removeAdditional: false,
-  });
+  private ajv = vendorAjv();
+  // The checks a read applies to a response (validateReadResponse): the pinned schemas with their closed objects opened,
+  // compiled apart from the strict ones, and the components they share, opened once per source.
+  private readValidators = new Map<string, ReturnType<Ajv['compile']>>();
+  private readAjv?: Ajv;
+  private readComponents = new Map<string, unknown>();
   constructor(data?: VendorRoutes) {
-    (addFormatsModule as unknown as (ajv: Ajv) => void)(this.ajv);
-    this.ajv.addFormat('long-id', {
-      type: 'string',
-      validate: (value: string) => /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n,
-    });
     const source = data ?? pinnedJson<VendorRoutes>('generated/vendor-routes.json');
     // A provider compiled by its own entry point (Google Ads' direct compilation and ProtoJSON validation): a vendor
     // snapshot must not accidentally create a second delegated API.
@@ -281,9 +387,14 @@ export class DelegatedNativeCompiler {
   isNativeOperation(gateway: string, operation: string): boolean {
     return this.data.routes.some(r => r.gateway === gateway && r.operation === operation);
   }
-  validateResponse(plan: CompiledRequest, data: unknown, status: number): void {
+  /**
+   * The strict check of a route's pinned response schema for a status: its route, schema and key, and whether `data`
+   * satisfies it exactly as pinned, with the errors if not. Nothing when the route pins no response schema; a status it
+   * does not document is refused.
+   */
+  private responseCheck(plan: CompiledRequest, data: unknown, status: number) {
     const route = this.routes.get(plan.gateway + '/' + plan.action);
-    if (!route?.responseSchemas) return;
+    if (!route?.responseSchemas) return undefined;
     const schema = route.responseSchemas[String(status)];
     if (!schema)
       throw new MirrorError(
@@ -298,13 +409,49 @@ export class DelegatedNativeCompiler {
       validator = this.ajv.compile({...schema, components: this.data.schemaComponents?.[route.sourceFile]});
       this.validators.set(key, validator);
     }
-    if (!validator(data))
-      throw new MirrorError(
-        'UPSTREAM_RESPONSE_INVALID',
-        'Vendor response does not satisfy its published JSON schema.',
-        {errors: validator.errors, vendor_method: route.vendorMethod},
-        502,
-      );
+    const valid = !!validator(data);
+    return {route, schema, key, valid, errors: valid ? null : [...(validator.errors ?? [])]};
+  }
+  private invalidResponse(route: VendorRoute, errors: unknown) {
+    return new MirrorError(
+      'UPSTREAM_RESPONSE_INVALID',
+      'Vendor response does not satisfy its published JSON schema.',
+      {errors, vendor_method: route.vendorMethod},
+      502,
+    );
+  }
+  /**
+   * The check of a reviewed write's response: exactly as pinned. A write's response is held to its pinned schema as it
+   * always was, a closed object included, because a response that names something it should not (an account or a profile
+   * of someone else) must not pass as the answer to this write. A read uses validateReadResponse.
+   */
+  validateResponse(plan: CompiledRequest, data: unknown, status: number): void {
+    const checked = this.responseCheck(plan, data, status);
+    if (checked && !checked.valid) throw this.invalidResponse(checked.route, checked.errors);
+  }
+  /**
+   * The check of a read's response (r25-hotfix, 5.8b of the live checks of 2026-11-15). A published response schema is not
+   * a closed contract: a provider adds response fields without breaking it. The answer must satisfy the pinned schema
+   * exactly, or satisfy it once its closed objects are opened (every type, enum, format and required check of the declared
+   * properties stays): then it is accepted, and the properties it added are returned as drift for the caller to report.
+   * Anything else is refused as before, and the refusal names the mismatch, never an added property.
+   */
+  validateReadResponse(plan: CompiledRequest, data: unknown, status: number): VendorSchemaDrift | undefined {
+    const checked = this.responseCheck(plan, data, status);
+    if (!checked || checked.valid) return undefined;
+    let validator = this.readValidators.get(checked.key);
+    if (!validator) {
+      const source = checked.route.sourceFile;
+      if (!this.readComponents.has(source))
+        this.readComponents.set(source, openClosedObjects(this.data.schemaComponents?.[source]));
+      validator = (this.readAjv ??= vendorAjv()).compile({
+        ...(openClosedObjects(checked.schema) as JsonObject),
+        components: this.readComponents.get(source),
+      });
+      this.readValidators.set(checked.key, validator);
+    }
+    if (!validator(data)) throw this.invalidResponse(checked.route, validator.errors);
+    return driftOf(checked.errors, checked.route.vendorMethod);
   }
   compile(gateway: string, input: JsonObject): CompiledRequest {
     guardInput(input);

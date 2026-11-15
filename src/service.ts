@@ -57,7 +57,12 @@ import {runWithQuotaPurpose} from './provider-quota.js';
 import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
 import {ScopeGuard} from './scope.js';
-import {DelegatedNativeCompiler, delegatedParameterMatches} from './delegated-native.js';
+import {
+  DelegatedNativeCompiler,
+  delegatedParameterMatches,
+  mergeVendorDrift,
+  type VendorSchemaDrift,
+} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
@@ -1158,6 +1163,8 @@ export class MirrorService {
       request: plan,
     });
     try {
+      // The properties a provider's answers carry that the pinned schema of their route does not declare, over every page.
+      const drifts: VendorSchemaDrift[] = [];
       // A report job's read keeps its login from the first request to the last (Criteo, TikTok and X).
       const reportAccess = (p: CompiledRequest) => {
         if (reportJob(p.gateway)?.sameLogin?.(p)) {
@@ -1185,7 +1192,10 @@ export class MirrorService {
         const activeAccount = scope.authorize(p, active);
         reportAccess(p);
         nativeReadSteps.received(p, data, status, activeAccount);
-        this.delegatedCompiler.validateResponse(p, data, status);
+        // A read tolerates what its provider added to a response and reports it; any other deviation from the pinned
+        // schema is refused (r25-hotfix, 5.8b of the live checks of 2026-11-15). Reviewed writes keep the strict check.
+        const drift = this.delegatedCompiler.validateReadResponse(p, data, status);
+        if (drift) drifts.push(drift);
         // The providers' response contracts, and the data a provider's read returns instead of the page (Reddit's
         // account history without people, PRV-07; Business Profile's place actions).
         const provided = nativeReadSteps.page(p, result);
@@ -1288,6 +1298,8 @@ export class MirrorService {
         ...result,
         data: scrubbed.value,
         ...(scrubbed.redacted ? {url_secrets_redacted: scrubbed.redacted} : {}),
+        // Names and places, never values: this is under data, which the envelope labels untrusted, and the audit keeps it.
+        ...(drifts.length ? {vendor_schema_drift: mergeVendorDrift(drifts)} : {}),
         ...(generation ? {generation} : {}),
         truncated: result.truncated || projected.truncated,
         ...(projected.truncated ? {response_truncated: true} : {}),
