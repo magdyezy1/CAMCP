@@ -3,12 +3,18 @@
 // it". Live, LinkedIn's mobile link rendered the ad standalone, while its desktop link showed LinkedIn's error page without a
 // LinkedIn session. The notice no longer promises that: the shared one says a platform may need its own sign-in for some links,
 // and LinkedIn's own (src/linkedin-ad-previews.ts) says which of its two links opens without one and which may need one, by the
-// device each placement names. The tool's long description is pinned by tests/tool-surface-golden.test.mjs and is not
-// changed here. The Arabic of each sentence is in the catalogue the page loads (tests/ad-previews-localization.test.mjs).
+// device each placement names. The tool's long description is pinned by tests/tool-surface-golden.test.mjs (tools/list in its
+// full-description form) and by tests/mcp-own-help.test.mjs (the help repeats it), so it is not changed here, and neither is
+// tools/list (the lead, 2026-11-15: no re-recorded golden, 27 bytes of room in the operator listing). The correction the
+// description cannot carry is in the help of the tool instead, as `link_access`. The Arabic of each sentence is in the
+// catalogue the page loads (tests/ad-previews-localization.test.mjs); the help is for MCP clients and has none.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {AdPreviews} from '../dist/src/ad-previews.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
 import {Store} from '../dist/src/store.js';
 import {loaderFiles, chunksWith} from '../tools/locale-chunks.mjs';
 
@@ -125,6 +131,55 @@ test('each sentence has Arabic in the catalogue and in the chunks the page loads
   }
   for (const token of ['MOBILE_WEBSITE', 'DESKTOP_WEBSITE', 'LinkedIn'])
     assert.ok(catalog[linkedin].includes(token), token);
+});
+
+/** The service of the listing and the help, with no provider reachable. */
+function helpOf(t) {
+  const store = new Store(':memory:', key);
+  t.after(() => store.close());
+  store.ensureTenant(actor.tenantId);
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async () => {
+      throw Error('No provider request is expected');
+    }),
+    undefined,
+    {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+  );
+  // The tool by its listed name: a literal call of a default-call tool with `action` is read by the scan of
+  // tests/first-party-contracts.test.mjs as a call of that default action, which has no `action` argument.
+  const preview = service.firstPartyTools().find(tool => tool.name === 'amcp_ad_previews');
+  return {service, preview, call: (tool, args) => service.call(tool, args, actor)};
+}
+
+test('the help of amcp_ad_previews says which links need a sign-in, because its pinned description cannot', async t => {
+  const {call, preview} = helpOf(t),
+    own = await call(preview.name, {action: 'help'}),
+    legacy = await call('amcp_tool_help', {gateway: preview.name});
+  for (const help of [own, legacy]) assert.equal(help.success, true, JSON.stringify(help.error));
+  const access = own.data.link_access;
+  assert.ok(access, 'the help names link_access');
+  assert.match(access.note, /a platform may need its own sign-in to show some of them/);
+  // It says outright that the description's own sentence does not hold, since the description cannot be corrected here.
+  assert.match(access.note, /does not hold for every platform/);
+  // Only a platform that knows which of its links needs a sign-in says so (from its own hooks); no other makes a claim.
+  assert.deepEqual(Object.keys(access.platforms), ['linkedin']);
+  assert.equal(access.platforms.linkedin, linkedin, 'the sentence of the answer, not a second wording');
+  assert.deepEqual(legacy.data.link_access, access, 'both routes to the help say the same');
+  // The addition is this tool's alone, and it stays inside the help byte budget the existing tests measure.
+  const workspace = await call('amcp_workspace', {action: 'help'});
+  assert.equal(workspace.success, true, JSON.stringify(workspace.error));
+  assert.equal(workspace.data.link_access, undefined);
+  assert.ok(Buffer.byteLength(JSON.stringify(own)) <= 40000, 'help bytes: ' + Buffer.byteLength(JSON.stringify(own)));
+});
+
+test('tools/list keeps its wording: the compact text says only that links expire, and names no platform', t => {
+  const listed = helpOf(t)
+    .service.listTools()
+    .find(tool => tool.name === 'amcp_ad_previews');
+  assert.match(listed.description, /with links that expire\./);
+  assert.doesNotMatch(listed.description, /anyone|sign-in|LinkedIn/i);
 });
 
 test('the page’s own line above the results makes no promise either', () => {

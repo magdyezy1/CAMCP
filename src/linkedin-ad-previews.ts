@@ -310,4 +310,10 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
   };
 }
 
-export const linkedinAdPreviews: AdPreviewHooks = Object.freeze({platform: 'linkedin', normalize, select});
+export const linkedinAdPreviews: AdPreviewHooks = Object.freeze({
+  platform: 'linkedin',
+  normalize,
+  select,
+  // The same sentence the answer carries, for the help of the tool (R25 M0 live checks, observation 6).
+  linkAccess: linkedInPreviewMeaning,
+});

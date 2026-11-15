@@ -16,16 +16,20 @@ import {unavailableOperations} from './unavailable-operations.js';
 import {contextOperation, contextOperationHelp} from './context-operations.js';
 import {firstPartyContract, toolActions} from './first-party-contracts.js';
 import {capturePresetHelp} from './report-presets.js';
+import {previewLinkAccessHelp} from './ad-previews.js';
 
 /**
  * What the help of one first-party action adds to its contract, by tool and action (R25 M0, owner 2026-11-15): a function of
- * the day it is asked, kept out of tools/list. amcp_reporting capture_preset's worked calls are the platforms' own.
+ * the day it is asked, kept out of tools/list. amcp_reporting capture_preset's worked calls are the platforms' own. A key of
+ * a tool alone is what its root help adds: amcp_ad_previews says which links need a sign-in, which its description, pinned
+ * by the tool surface golden, cannot.
  */
 const helpAdditions: Readonly<Record<string, () => JsonObject>> = {
   'amcp_reporting capture_preset': () => capturePresetHelp(),
+  amcp_ad_previews: () => previewLinkAccessHelp(),
 };
 const helpAddition = (tool: string, action: string | undefined): JsonObject =>
-  action === undefined ? {} : (helpAdditions[tool + ' ' + action]?.() ?? {});
+  helpAdditions[action === undefined ? tool : tool + ' ' + action]?.() ?? {};
 
 export interface ListedTool {
   name: string;

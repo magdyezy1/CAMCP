@@ -74,6 +74,25 @@ export const previewTool = {
 type Row = AdPreviewRow;
 
 /**
+ * What the help of amcp_ad_previews says of who can open a link (R25 M0, observation 6 of the live checks of 2026-11-15).
+ * The tool description says links "open for anyone who has them"; no platform promises that, and LinkedIn's desktop link did
+ * not. tools/list shows that description in its full form and tests/tool-surface-golden.test.mjs pins it, as does the
+ * description the help repeats (tests/mcp-own-help.test.mjs), so the correction rides beside it: this note, and each
+ * platform's own sentence from its hooks (`linkAccess`), for a platform that has said which of its links needs a sign-in.
+ */
+export function previewLinkAccessHelp(): JsonObject {
+  const platforms: JsonObject = {};
+  for (const {previews} of adPreviewProviders)
+    if (previews?.linkAccess) platforms[previews.platform] = previews.linkAccess;
+  return {
+    link_access: {
+      note: 'Preview links expire, and a platform may need its own sign-in to show some of them. This corrects the sentence of the description that links open for anyone who has them: it does not hold for every platform.',
+      platforms,
+    },
+  };
+}
+
+/**
  * The platform links in a preview response, wherever the platform put them: string values that are HTTPS URLs, and
  * the `src`/`href` of HTML (Meta and LinkedIn return iframe markup). Only HTTPS links on the platform's own hosts
  * count (its `linkHosts`); the markup itself is provider content and is never returned.
