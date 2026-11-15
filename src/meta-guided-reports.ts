@@ -119,6 +119,27 @@ export const metaGuidedReporting: GuidedReporting = {
   dimensions,
   presets,
   presetPrefix: 'meta_',
+  // What amcp_reporting capture_preset help shows of Meta's presets (R25 M0, owner 2026-11-15, observation 7 of the live checks).
+  help: {
+    preset: 'meta_campaign',
+    account: '1234567890',
+    timezone: 'Africa/Cairo',
+    currency: 'USD',
+    source: 'Meta Ads campaign insights',
+    arguments: {
+      result_action_type: 'offsite_conversion.fb_pixel_purchase',
+      attribution_windows: ['1d_click', '1d_view'],
+    },
+    sets: ['attribution'],
+    rules: [
+      'result_action_type is the exact native Meta action type the report counts as its result; overlapping aliases are never combined.',
+      'attribution_windows is required. ' +
+        metaWindowsMessage +
+        ' semantics.attribution is set from them: leave it out.',
+      'semantics.timezone and semantics.currency are the ad account’s own; the capture refuses a different one.',
+      'semantics.complete may be true or false.',
+    ],
+  },
   // DEC-01: an allocation models campaign × day evidence by native campaign ID.
   allocation: {preset: 'meta_campaign', entity: id => typeof id === 'string' && /^\d{1,40}$/.test(id)},
   presetRequest(preset, input, range, context) {

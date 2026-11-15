@@ -20,6 +20,59 @@ export function validatePresetRows(preset: string | undefined, input: JsonObject
   // The platform whose presets the capture's preset is named under checks its rows (LinkedIn, Meta).
   guided.find(platform => preset?.startsWith(platform.presetPrefix!))?.validateRows?.(preset!, input, rows);
 }
+/**
+ * The window of a worked call in the help: seven closed days that end two days ago in UTC. That is a closed window in any
+ * timezone and inside every platform's limit, whatever day the help is read, so a worked call never goes stale (R25 M0).
+ */
+function exampleWindow(today: Date): {date_from: string; date_to: string} {
+  const day = (offset: number) =>
+    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - offset))
+      .toISOString()
+      .slice(0, 10);
+  return {date_from: day(8), date_to: day(2)};
+}
+/**
+ * What amcp_reporting capture_preset help adds to its contract (R25 M0, owner 2026-11-15, observation 7 of the live checks, which
+ * took six failed calls to learn the keys of `semantics`): one worked call for each platform with guided presets, and the rules
+ * of that platform that the call keeps. Each platform declares its own (`GuidedReporting.help`); the call's `semantics` is built
+ * here from a closed window and the platform's values, leaving out the keys its preset sets itself.
+ */
+export function capturePresetHelp(today: Date = new Date()): JsonObject {
+  const window = exampleWindow(today);
+  return {
+    worked_examples: guided.flatMap(platform => {
+      const help = platform.help;
+      if (!help || !platform.presetPrefix) return [];
+      const semantics: JsonObject = {
+        ...window,
+        timezone: help.timezone,
+        currency: help.currency,
+        complete: true,
+        attribution: 'unknown',
+        source_name: help.source,
+      };
+      for (const key of help.sets ?? []) delete semantics[key];
+      return [
+        {
+          platform: platform.presetPrefix.replace(/_$/, ''),
+          call: {
+            tool: 'amcp_reporting',
+            arguments: {
+              action: 'capture_preset',
+              preset: help.preset,
+              account_id: help.account,
+              ...help.arguments,
+              semantics,
+            },
+          },
+          rules: [...help.rules],
+        },
+      ];
+    }),
+    worked_examples_meaning:
+      'Each call is complete as written: its window is seven closed days that ended before today, inside the platform’s limit. Replace the account, timezone, currency and source_name with the ones of the account you capture; the capture checks the timezone and currency against the platform’s own and refuses a different one.',
+  };
+}
 export function reportPreset(input: JsonObject, context?: {overviewV4?: true}): JsonObject {
   const preset = reportPresets.find(p => p.id === input.preset);
   if (!preset) bad('Choose a supported capture preset.');

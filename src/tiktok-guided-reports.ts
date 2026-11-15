@@ -23,6 +23,21 @@ const presets = ['campaign', 'adgroup', 'ad'].map(level => ({
 export const tiktokGuidedReporting: GuidedReporting = {
   presets,
   presetPrefix: 'tiktok_',
+  // What amcp_reporting capture_preset help shows of TikTok's presets (R25 M0, owner 2026-11-15, observation 7 of the live checks).
+  help: {
+    preset: 'tiktok_campaign',
+    account: '1234567890123456789',
+    timezone: 'Asia/Riyadh',
+    currency: 'USD',
+    source: 'TikTok Ads campaign report',
+    rules: [
+      'The window is 1–366 closed days in the advertiser timezone: semantics.date_to must be a day that has already ended there.',
+      'semantics.complete must be true: it declares that the window has closed and its data is complete.',
+      'semantics.timezone and semantics.currency are the advertiser’s own, as TikTok reports them; the capture refuses a different one.',
+      'semantics.attribution names the attribution settings in text, or unknown when they are not established; AMCP does not set it.',
+      'Campaign, ad group and ad each have a preset (tiktok_campaign, tiktok_adgroup, tiktok_ad) that takes the same arguments.',
+    ],
+  },
   presetRequest(preset, input, range, context) {
     if (typeof input.account_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.account_id))
       bad('Use the exact TikTok advertiser ID.');

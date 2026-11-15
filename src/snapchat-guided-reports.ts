@@ -42,6 +42,24 @@ const parentScoped = (preset: JsonObject) =>
 export const snapchatGuidedReporting: GuidedReporting = {
   presets,
   presetPrefix: 'snapchat_',
+  // What amcp_reporting capture_preset help shows of Snapchat's presets (R25 M0, owner 2026-11-15, observation 7 of the live checks).
+  help: {
+    preset: 'snapchat_campaign',
+    account: '00000000-0000-4000-8000-000000000000',
+    timezone: 'America/Los_Angeles',
+    currency: 'USD',
+    source: 'Snapchat Ads campaign stats',
+    arguments: {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'},
+    sets: ['attribution'],
+    rules: [
+      'The window is 1–31 closed days in the account timezone: semantics.date_to must be a day that has already ended there.',
+      'semantics.complete must be true: it declares that the window has closed and its data is complete.',
+      'swipe_up_attribution_window is 1_DAY, 7_DAY or 28_DAY, and view_attribution_window is none, 1_HOUR, 3_HOUR, 6_HOUR, 1_DAY or 7_DAY; a seven-day view needs at least a seven-day swipe window. semantics.attribution is set from them: leave it out.',
+      'Snapchat may report other windows than the ones asked for: the refusal then names the pair it used, and asking for that pair matches it.',
+      'The native lead presets (snapchat_campaign_leads and the ad squad and ad ones) take neither window argument. The ad squad presets, and the ad lead preset, take the exact parent campaign_id.',
+      'semantics.timezone and semantics.currency are the ad account’s own; the capture refuses a different one.',
+    ],
+  },
   campaignFilter: parentScoped,
   // DEC-01: an allocation models parent-bound ad-squad evidence, with the exact campaign ownership it was read under.
   allocation: {
