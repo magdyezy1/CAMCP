@@ -5,6 +5,7 @@ import {actionContracts} from '../dist/src/action-contracts.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {compileMicrosoft} from '../dist/src/microsoft-native.js';
+import {reviewedWriteRoutes} from './helpers/ledger-write-plans.mjs';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
@@ -180,12 +181,14 @@ test('a TikTok ad create names the status of its own creative record, not the ad
 test('every ledger route that ends in the verb create reads as a create, whatever the first record read says', () => {
   const registry = new Registry(),
     routes = actionContracts(registry).filter(r => {
-      // A captured action says whether it only reads; a provider's own contract rows (Criteo's, Tag Manager's) do not.
+      // A captured action says whether it only reads; a provider's own contract rows (Criteo's, Tag Manager's) do not, and
+      // DV360's captured actions carry no flag at all (read_only is null), which is not a read: a route is a write unless
+      // its capture says that it only reads (R2.5 S4-4: the sweep used to skip every DV360 route).
       const route = registry.action(r.gateway, r.action);
       return (
         r.method &&
         r.path &&
-        (route ? route.read_only === false : r.method !== 'GET') &&
+        (route ? route.read_only !== true : r.method !== 'GET') &&
         // The oracle is the provider's own route template: its last segment is the verb create, as a segment of its
         // own, as the head of a hyphenated one, or as a custom method (:create_version).
         /(?:^|\/)create(?:-[^/]+)?\/?$|:create_[^/:]+$/.test(r.path.split('?')[0])
@@ -328,29 +331,31 @@ test('a create directly under the account of X and Snapchat reads as a create, a
     assert.equal(reviewSummary(plan(gateway, action, method, path, {status: 'PAUSED'}), []).operation, 'update', path);
 });
 
-test('every ledger POST to a collection directly under its provider’s account path reads as a create when it creates', () => {
+// S4-4 (the lead's review of this package): this sweep's expected value was the code's own rule (the action name's create
+// or post token), which proves nothing for LinkedIn and X, whose names carry only the HTTP method. Whether a reviewed route
+// reads as a create is now swept against an oracle of its own, DV360's routes included, in
+// tests/review-summary-ledger.test.mjs. What stays here is the safety property of every route under an account, and it
+// still skips the routes whose capture has no read_only flag (DV360's), which S3-1 brings in with the fix they need.
+test('a ledger POST to a collection directly under its provider’s account path borrows no status from the account', () => {
   const registry = new Registry(),
     found = new Map();
   for (const r of actionContracts(registry)) {
     const route = registry.action(r.gateway, r.action),
       accountPath = providerHooks(r.gateway)?.writes?.accountPath;
     if (!r.method || !r.path || !accountPath || (route ? route.read_only !== false : r.method === 'GET')) continue;
-    // The oracle is the route template: a POST whose last segment is a literal, on the account's own collection.
     const template = r.path.split('?')[0],
       path = template.replace(/\{[^}]+\}/g, '123'),
       account = accountPath.exec(path)?.[0],
       last = template.split('/').filter(Boolean).at(-1);
     if (r.method !== 'POST' || !account || path.slice(account.length).split('/').filter(Boolean).length !== 1) continue;
     if (/^\{/.test(last) || /^create(?:-|$)/.test(last)) continue;
-    const creates = /(?:^|_)(?:create|post)(?:_|$)/.test(r.action.toLowerCase());
     const s = reviewSummary(plan(r.gateway, r.action, r.method, path, {status: 'PAUSED'}), [
       {id: 123, status: 'ACTIVE'},
     ]);
-    assert.equal(s.operation === 'create', creates, r.gateway + ' ' + r.action + ' ' + path + ' reads ' + s.operation);
     assert.equal(s.status?.[0]?.from, undefined, r.action + ' must not borrow the account’s status');
-    if (creates) found.set(r.gateway, (found.get(r.gateway) ?? 0) + 1);
+    found.set(r.gateway, (found.get(r.gateway) ?? 0) + 1);
   }
-  // LinkedIn’s two campaign collections, and the X and Snapchat collections the path shape did not know.
+  // The sweep reaches LinkedIn’s, X’s and Snapchat’s collections under their accounts.
   assert.ok(found.get('linkedin_native_action') >= 2, JSON.stringify([...found]));
   assert.ok(found.get('x_ads_native_action') >= 15, JSON.stringify([...found]));
   assert.ok(found.get('snapchat_native_action') >= 15, JSON.stringify([...found]));
@@ -603,6 +608,132 @@ test('a Microsoft Advertising Add reads as a create of every row it lists, with 
     assert.deepEqual([s.operation, s.entity, s.count], ['create', entity, count], action);
     assert.equal(s.text, text, action);
   }
+});
+
+// S2-2 (the lead's review of this package): every create the review accepts reads as a create. The route styles of the
+// ledger are swept in tests/review-summary-ledger.test.mjs; here is one route of each style, from the ledger's own sample
+// of it, with what the summary names, and what it must not name. Each answer is the review's own side's: a family's, or its
+// provider's for the writes the review accepts, who read the method and the path they claim a request by.
+const samples = new Map(reviewedWriteRoutes().map(({row, plan}) => [row.action, plan]));
+const sample = (action, overrides = {}) => {
+  assert.ok(samples.has(action), action + ' is a reviewed route of the ledger');
+  return {...samples.get(action), ...overrides};
+};
+// [route, [operation, entity, count], one route of a style the summary used to read as an update]
+const styles = [
+  ['Meta: a POST to an edge of an account', 'meta_ad_account_id_adspixels_create', ['create', 'adspixels', 1]],
+  ['Meta: a POST to an edge of a node', 'meta_product_catalog_id_product_sets_create', ['create', 'product_sets', 1]],
+  ['Meta: a POST to a node', 'meta_pixel_id_update', ['update', '123', 1]],
+  ['Meta: a POST that deletes', 'meta_value_rule_set_id_delete_rule_set_create', ['delete', 'delete_rule_set', 1]],
+  ['LinkedIn: a POST to a collection', 'linkedin_rest_lead_forms_post', ['create', 'leadForms', 1]],
+  [
+    'LinkedIn: a POST to a collection below an entity',
+    'linkedin_rest_dmp_segments_segment_id_engagement_rules_post',
+    ['create', 'engagementRules', 1],
+  ],
+  ['LinkedIn: a POST to an entity', 'linkedin_rest_lead_forms_lead_form_id_post', ['update', '123', 1]],
+  ['LinkedIn: a PUT', 'linkedin_rest_campaign_conversions_put', ['update', 'campaignConversions', 1]],
+  ['Snapchat: a POST below a catalog', 'snapchat_catalog_product_feed_create', ['create', 'product_feeds', 1]],
+  ['Snapchat: a PUT to the same collection', 'snapchat_catalog_product_feed_update', ['update', 'product_feeds', 1]],
+  ['Reddit: a POST', 'CREATE_AD_GROUP', ['create', 'ad_groups', 1]],
+  ['Reddit: a PATCH', 'UPDATE_AD_GROUP', ['update', '123', 1]],
+  ['Tag Manager: a POST to a collection', 'CREATE_TAG', ['create', 'tags', 1]],
+  ['Tag Manager: a custom method that creates', 'CREATE_CONTAINER_VERSION', ['create', 'version', 1]],
+  ['Tag Manager: a custom method', 'REVERT_TAG', ['update', '123:revert', 1]],
+  ['Tag Manager: a PUT', 'UPDATE_TAG', ['update', '123', 1]],
+  ['DV360: a POST to a collection', 'DV360_ADVERTISERS_CHANNELS_SITES_CREATE', ['create', 'sites', 1]],
+  ['DV360: a custom method that duplicates', 'DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE', ['create', 'line item', 1]],
+  ['DV360: a custom method that edits', 'DV360_ADVERTISERS_CHANNELS_SITES_BULK_EDIT', ['update', 'sites:bulkEdit', 1]],
+  ['DV360: a custom method that creates', 'DV360_ADVERTISERS_AD_ASSETS_BULK_CREATE', ['create', 'ad asset', 1]],
+  ['Apple Ads: a POST', 'apple_ads_v1_adgroup_create', ['create', 'adgroups', 1]],
+  ['Apple Ads: a PUT', 'apple_ads_v1_adgroup_update', ['update', '123', 1]],
+  ['Google Analytics: a report task', 'ga4_create_report_task', ['create', 'reportTasks', 1]],
+  ['Business Profile: a POST', 'CREATE_LOCATION_ADMIN', ['create', 'admins', 1]],
+  ['Business Profile: a PATCH', 'PATCH_LOCATION_ADMIN', ['update', '123', 1]],
+  ['Search Console: a PUT to a site', 'ADD_SITE', ['create', 'site', 1]],
+  ['Search Console: a PUT to its sitemap', 'SUBMIT_SITEMAP', ['update', '123', 1]],
+  ['Criteo: a POST', 'CREATE_CAMPAIGNS_BY_ACCOUNT_ID', ['create', 'campaign', 1]],
+  ['Criteo: a POST that appends', 'APPEND_AUDIENCE_TARGETS_BY_LINE_ITEM_ID', ['update', 'append', 1]],
+  ['Criteo: a report job', 'GENERATE_ASYNC_CAMPAIGNS_REPORT', ['create', 'performance report', 1]],
+  ['X: a POST to a card type', 'x_accounts_account_id_cards_poll_post', ['create', 'poll', 1]],
+  ['X: a POST to a catalog', 'x_product_catalogs_post', ['create', 'product_catalogs', 1]],
+  ['X: a report job', 'x_stats_jobs_accounts_account_id_post', ['create', 'report job', 1]],
+  ['X: a PUT', 'x_accounts_account_id_campaigns_campaign_id_put', ['update', 'campaign', 1]],
+  ['TikTok: an add', 'tiktok_search_ad_negative_keyword_add', ['create', 'negative keyword', 1]],
+  ['TikTok: an update', 'tiktok_search_ad_negative_keyword_update', ['update', 'update', 1]],
+];
+
+test('one route of each style of the review’s writes reads as the operation it is', () => {
+  for (const [style, action, [operation, entity, count]] of styles) {
+    const s = reviewSummary(sample(action), []);
+    assert.deepEqual([s.operation, s.entity, s.count], [operation, entity, count], style + ' (' + action + ')');
+    assert.match(s.text, new RegExp('^' + operation[0].toUpperCase() + operation.slice(1) + ' ' + count + ' '), style);
+  }
+  assert.equal(
+    reviewSummary(sample('meta_ad_account_id_adspixels_create'), []).text,
+    'Create 1 adspixels in account 123.',
+  );
+});
+
+test('a declared create is no create for a request that names another method, or for a route the review does not accept, or by the name it carries', () => {
+  // The guard of every path: a collection POST that says BATCH_PARTIAL_UPDATE updates what it names.
+  const lead = sample('linkedin_rest_lead_forms_post');
+  assert.equal(reviewSummary(lead, []).operation, 'create');
+  assert.equal(reviewSummary({...lead, headers: {'X-RestLi-Method': 'BATCH_PARTIAL_UPDATE'}}, []).operation, 'update');
+  const edge = sample('meta_ad_account_id_adspixels_create');
+  assert.equal(reviewSummary({...edge, query: {method: ['PUT']}}, []).operation, 'update');
+  // A route no family and no entity write of its provider claims is not reviewed, and the provider answers only for what
+  // the review accepts: its summary is read from the path, as it was.
+  const preview = {...edge, action: 'meta_ad_account_id_adpreviews_create', path: '/v26.0/act_123/adpreviews'};
+  assert.equal(reviewSummary(preview, []).operation, 'update');
+  // The name a caller gives an action decides nothing: a node POST is an update whatever it is called.
+  const node = {...sample('meta_pixel_id_update'), action: 'meta_ad_account_id_adspixels_create'};
+  assert.equal(reviewSummary(node, []).operation, 'update');
+  // A deletion stays what the method says, whatever a provider declares for its other POSTs.
+  assert.equal(reviewSummary({...edge, method: 'DELETE', destructive: true}, []).operation, 'delete');
+  // A read, or a request a transport of its own carries, is not summarized by the review's declarations.
+  assert.equal(reviewSummary({...edge, readOnly: true}, []).operation, 'update');
+  assert.equal(reviewSummary({...edge, specialTransport: 'vendor_media'}, []).operation, 'update');
+});
+
+// What a batch of X does its body decides: every item is a Create, an Update or a Delete, and the summary named the route's
+// collection for every one of them ("Create 1 campaign"), whatever the batch held and however long it was.
+const batchOf = (type, n) =>
+  Array.from({length: n}, (_, i) => ({operation_type: type, params: {line_item_id: 'a' + i}}));
+test('a batch of X reads as the operation of its items, with their count, and a mixed one as a change', () => {
+  const campaigns = 'x_batch_accounts_account_id_campaigns_post',
+    targeting = 'x_batch_accounts_account_id_targeting_criteria_post';
+  for (const [action, body, expected, text] of [
+    [campaigns, batchOf('Create', 3), ['create', 'campaign', 3], 'Create 3 campaigns in account 123.'],
+    [campaigns, batchOf('Update', 2), ['update', 'campaign', 2], 'Update 2 campaigns in account 123.'],
+    [campaigns, batchOf('Delete', 2), ['delete', 'campaign', 2], 'Delete 2 campaigns in account 123.'],
+    ['x_batch_accounts_account_id_line_items_post', batchOf('Create', 1), ['create', 'line item', 1], undefined],
+    [
+      targeting,
+      batchOf('Create', 2),
+      ['create', 'targeting criterion', 2],
+      'Create 2 targeting criteria in account 123.',
+    ],
+    [
+      targeting,
+      batchOf('Delete', 3),
+      ['delete', 'targeting criterion', 3],
+      'Delete 3 targeting criteria in account 123.',
+    ],
+    [
+      targeting,
+      [...batchOf('Create', 1), ...batchOf('Delete', 1)],
+      ['change', 'targeting criterion', 2],
+      'Change 2 targeting criteria in account 123.',
+    ],
+  ]) {
+    const s = reviewSummary(sample(action, {body}), []);
+    assert.deepEqual([s.operation, s.entity, s.count], expected, action + ' ' + JSON.stringify(body).slice(0, 60));
+    if (text) assert.equal(s.text, text);
+  }
+  // A body that lists no operation, or one the family would refuse, is read from the route as before.
+  for (const body of [[], {}, null, [{operation_type: 'Replace', params: {}}]])
+    assert.equal(reviewSummary(sample(targeting, {body}), []).operation, 'update', JSON.stringify(body));
 });
 
 test('a Microsoft Advertising Update and Delete read exactly as they did, and a create the request does not claim stays an update', () => {

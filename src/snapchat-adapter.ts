@@ -13,6 +13,7 @@ import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
 import {fail, object} from './write-common.js';
+import {createsOnPost} from './family-kit.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {snapAdCreativePaths} from './snapchat-ad-creatives.js';
 import {assertSnapLeadCreativeRefs, assertSnapLeadForms, snapLeadFormProjection} from './snapchat-lead-forms.js';
@@ -503,6 +504,8 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     // A request writes a list of records, and a creative edit or segment replacement changes more than its target.
     recordCount: (body: JsonObject, kind: string) => (Array.isArray(body[kind]) ? body[kind].length : undefined),
     impact: snapchatWriteImpact,
+    // Snapchat creates with a POST and updates with a PUT or a PATCH: every POST its review accepts creates (R2.5 S2-2).
+    operation: createsOnPost,
   }),
   // Wave 4c round 6 (w4c-arc6-versions): what tools/list and amcp_tool_help say of its gateway (src/tool-notes.ts);
   // its captured LIST_ACTIONS lists 25 actions a page by `cursor` in its own envelope (src/introspection.ts).

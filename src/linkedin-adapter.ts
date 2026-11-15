@@ -9,7 +9,7 @@ import {
   type ScopeContext,
   type StateTarget,
 } from './provider-adapter.js';
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, DeclaredOperation, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -442,6 +442,8 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
   writes: Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: linkedinConfirms,
+    // The summary names a POST to a collection a create and a POST to an entity an update, as Rest.li does.
+    operation: linkedinOperation,
     accountPath: /^\/rest\/adAccounts\/[^/]+/,
     // The owner's spending policy (src/spend-policy.ts): a creative spells activation as its intendedStatus.
     activationRule: (plan: CompiledRequest) =>
@@ -499,4 +501,15 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
 /** A create returns 201 with its x-restli-id; any other write 204. */
 function linkedinConfirms(_plan: CompiledRequest, result: TransportResult, {hasId}: MutationResponse): boolean {
   return result.status === 201 ? hasId(result.headers['x-restli-id']) : result.status === 204;
+}
+/**
+ * What a LinkedIn write does for the review's summary (R2.5 S2-2), as Rest.li builds its URLs: a collection is
+ * /rest/{collection} and an entity /rest/{collection}/{key}, so a path alternates the two (a collection below an entity is
+ * /rest/{collection}/{key}/{collection}), and a POST to a collection creates (Rest.li's CREATE) while a POST to an entity
+ * updates it (PARTIAL_UPDATE). Before this, only the account's own collections read as creates. A POST whose headers name
+ * another Rest.li method is no create (the summary applies that guard to every declaration).
+ */
+function linkedinOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  const parts = plan.path.split('/').filter(Boolean);
+  return plan.method === 'POST' && parts[0] === 'rest' && parts.length % 2 === 0 ? {operation: 'create'} : undefined;
 }

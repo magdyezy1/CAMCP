@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {createsOnPost, defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {sha256, stable} from './security.js';
 import {normalizeReviewState} from './review-state-core.js';
 import type {Store} from './store.js';
@@ -599,6 +599,7 @@ export const criteoCampaignFamily: ReviewedFamily = defineFamily({
   name: 'criteo_campaigns',
   files: ['src/criteo-campaign-writes.ts', ['tests/criteo-campaign-writes.test.ts']],
   kind: criteoCampaignKind,
+  operation: createsOnPost,
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
     assertCriteoCampaign(plan);

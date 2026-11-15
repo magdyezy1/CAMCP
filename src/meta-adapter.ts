@@ -45,7 +45,7 @@ import {metaWriteShapeBefore} from './meta-write-shape.js';
 import type {ReviewStateContext} from './provider-adapter.js';
 import {metaAdSetAudienceChoice} from './meta-contracts.js';
 import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
-import {metaStateReads} from './meta-state-reads.js';
+import {metaOperation, metaStateReads} from './meta-state-reads.js';
 import {metaCreativeImpact} from './meta-creative-features.js';
 import {metaActivationGates, metaActivationRecord, metaActivationSteps} from './meta-recipe-activation.js';
 import {metaPreflight} from './meta-preflight.js';
@@ -405,8 +405,10 @@ export const metaHooks: ProviderHooks = Object.freeze({
   writes: Object.freeze({
     // Its response contract for the one mutation (src/write-outcome.ts).
     confirms: metaConfirms,
-    // An account-edge creation reads the account and its parent, a node edit the node (src/meta-state-reads.ts).
+    // An account-edge creation reads the account and its parent, a node edit the node (src/meta-state-reads.ts), and the
+    // summary names them as the review's reads do: a POST to an edge creates, a POST to a node edits.
     snapshots: metaStateReads,
+    operation: metaOperation,
     ownState: Object.freeze({
       claims: metaCreativeCreate,
       state: async (plan: CompiledRequest, {store, transport, credentials, actor, access}: ReviewStateContext) => ({

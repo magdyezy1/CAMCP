@@ -1,5 +1,5 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
@@ -8,6 +8,19 @@ import type {VendorRoute} from './delegated-native.js';
 import {assertMeasurementScopes} from './measurement-writes.js';
 import {fail, object} from './write-common.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
+
+/**
+ * The resource collections of the Tag Manager API v2 a POST creates a member of (R2.5 S2-2): its reference names each
+ * `…/{collection}` of accounts, containers, workspaces and their entities, and a custom method (…:create_version, …/revert,
+ * …/bulk_update, …/sync) is none of them. The workspace write families match these routes themselves; the summary asks
+ * them by the one structure the API shares.
+ */
+const gtmCollections =
+  /\/(?:tags|triggers|variables|folders|templates|zones|clients|transformations|gtag_config|built_in_variables|containers|workspaces|environments|user_permissions)$/;
+/** A POST to a collection creates a member of it; any other Tag Manager write acts on what exists, or is a custom method. */
+function gtmOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  return plan.method === 'POST' && gtmCollections.test(plan.path) ? {operation: 'create'} : undefined;
+}
 
 /**
  * Google Tag Manager's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a
@@ -76,6 +89,8 @@ export const gtmHooks: ProviderHooks = Object.freeze({
     concurrency: gtmConcurrency,
     // A container version's publish takes effect for everyone at once (src/write-effects.ts).
     publishesLive: (plan: CompiledRequest) => plan.method === 'POST' && /:publish$/.test(plan.path),
+    // A POST to a resource's collection creates a member of it (R2.5 S2-2); the others act on what exists.
+    operation: gtmOperation,
     // An outcome shows the safe configuration of the response and of its failures (src/write-outcome.ts).
     outcomeData: gtmSafeConfiguration,
   }),

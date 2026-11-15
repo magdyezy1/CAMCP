@@ -9,6 +9,7 @@ import type {
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
+import {createsOnPost} from './family-kit.js';
 import {redditNextPage} from './reddit-paging.js';
 // Writes and campaigns (wave 4c).
 import type {TransportResult} from './transport.js';
@@ -250,7 +251,8 @@ export const redditHooks: ProviderHooks = Object.freeze({
     }),
   }),
   // Its review needs adsread and adsedit on the connection, before the family's scope check (src/write-review.ts).
-  writes: Object.freeze({writeScopes: assertRedditWriteScopes}),
+  // Reddit creates with a POST and updates with a PATCH: every POST its review accepts creates (R2.5 S2-2).
+  writes: Object.freeze({writeScopes: assertRedditWriteScopes, operation: createsOnPost}),
   // Wave 4c round 6 (w4c-arc6-versions): its catalog has write actions, which its gateway previews or refuses
   // (src/tool-notes.ts).
   notes: Object.freeze({delegatedWrites: true as const}),

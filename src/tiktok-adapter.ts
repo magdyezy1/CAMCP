@@ -79,7 +79,7 @@ import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
-import {tiktokStateReads} from './tiktok-state-reads.js';
+import {tiktokOperation, tiktokStateReads} from './tiktok-state-reads.js';
 import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
 import {object} from './write-common.js';
@@ -597,6 +597,8 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       (plan.body as JsonObject).operation_status === 'DELETE',
     // A campaign, ad group or ad write's state reads: the advertiser and parent of a create, or its exact targets.
     snapshots: tiktokStateReads,
+    // The creates the verb in a path does not show (a negative keyword's add), for the summary (R2.5 S2-2).
+    operation: tiktokOperation,
     morePages: tiktokInstantFormFollowUps,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
       tiktokAdgroupConversionPrerequisites(plan, values);

@@ -11,7 +11,16 @@
  * profile, its part of ScopeGuard, its write-shape and state checks, the review's projections of its reads) is its
  * hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
-import type {Action, Catalog, CompiledRequest, Connection, Credentials, JsonObject, ToolDefinition} from './types.js';
+import type {
+  Action,
+  Catalog,
+  CompiledRequest,
+  Connection,
+  Credentials,
+  DeclaredOperation,
+  JsonObject,
+  ToolDefinition,
+} from './types.js';
 import type {MirrorError} from './errors.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import type {Store} from './store.js';
@@ -1500,6 +1509,14 @@ export interface WriteReviewHooks {
   publishesLive?(plan: CompiledRequest): boolean;
   /** How many records a write lists where one request writes several (Snapchat's record lists); undefined for one. */
   recordCount?(body: JsonObject, kind: string): number | undefined;
+  /**
+   * What a write does, for the one-line summary the person approving it reads (src/review-summary.ts, R2.5 S2-2): a create,
+   * an update or a delete, with how many entities it writes and what one is called where the path does not say. It answers
+   * from how the provider builds its URLs (Graph's edges and nodes, Rest.li's collections and entities, a custom method
+   * after a colon, a POST that always creates), for the writes its review accepts (a registered family's or its own entity
+   * writes) and after the family's own `operation`; a write it cannot read, undefined, is left to the summary's path rules.
+   */
+  operation?(plan: CompiledRequest): DeclaredOperation | undefined;
   /** A write the provider documents as a deletion on a route that is not one (TikTok's status update to DELETE). */
   deletes?(plan: CompiledRequest): boolean;
   /**

@@ -127,20 +127,29 @@ function namesOtherMethod(plan: CompiledRequest): boolean {
   );
 }
 /**
- * What the family that reviews this write declares it does (R2.5 S2, owner 2026-11-15: the approver must read the real
- * operation): the family claims its routes by method and path, so its answer cannot be had by naming an action, and it
- * already tells a create from an edit to plan the review's reads. A summary never refuses: a family that cannot be asked
- * (two claiming one request is refused elsewhere, before anything is sent) leaves the path to be read.
+ * What the review's own side declares the write does (R2.5 S2, owner 2026-11-15: the approver must read the real
+ * operation): the family that reviews it, then its provider, for the writes the review accepts (a registered family's, or
+ * the provider's generic entity writes, as src/reviewed-routes.ts decides). Each claims its routes by method and path, so
+ * an answer cannot be had by naming an action, and each already tells a create from an edit to plan the review's reads.
+ * A write the review does not accept is read from its path. A summary never refuses: a family that cannot be asked (two
+ * claiming one request is refused elsewhere, before anything is sent) leaves the path to be read.
  */
 function declaredOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  if (plan.readOnly || plan.specialTransport) return undefined;
   try {
-    return familyOf(plan)?.operation?.(plan);
+    const family = familyOf(plan);
+    return (
+      family?.operation?.(plan) ??
+      (family || providerOf(plan.gateway)?.entityWrites?.claims(plan)
+        ? providerHooks(plan.gateway)?.writes?.operation?.(plan)
+        : undefined)
+    );
   } catch {
     return undefined;
   }
 }
 /** What the request does: an operation and the entities it acts on. */
-function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
+function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number; plural?: string} {
   const body = plan.body as unknown;
   // A provider whose writes name their operations themselves summarizes them (Google Ads' :mutate operations).
   const provided = providerOf(plan.gateway)?.reviewOperations;
@@ -184,10 +193,11 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
       declared?.count !== undefined && Number.isSafeInteger(declared.count) && declared.count >= 1
         ? declared.count
         : rows,
+    ...(declared?.plural ? {plural: declared.plural} : {}),
   };
 }
 export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObject {
-  const {operation, entity, count} = operationOf(plan),
+  const {operation, entity, count, plural} = operationOf(plan),
     account = accountOf(state),
     unit = budgetUnits[plan.gateway],
     // A current status is named only for a single existing target: the first record read is not every target's.
@@ -232,8 +242,8 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
       ' ' +
       count +
       ' ' +
-      entity +
-      (count === 1 ? '' : 's') +
+      // Several of a thing: the plural its declaration gives, else the word and an s (a raw collection name already has one).
+      (count === 1 ? entity : (plural ?? (/s$/.test(entity) ? entity : entity + 's'))) +
       (accountText ? ' in account ' + accountText : ''),
     ...amounts
       .slice(0, 5)

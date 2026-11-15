@@ -250,10 +250,11 @@ test('the X families declare themselves through the kit and no module of waves 1
   for (const file of wave) {
     const source = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /^function fail\(/m, file);
-    // Their state reads come from the kit too (readOf, stateReadOf: tests/family-reads.test.mjs).
+    // Their state reads come from the kit too (readOf, stateReadOf: tests/family-reads.test.mjs), and a family whose POSTs all
+    // create declares it with the kit's createsOnPost (R2.5 S2-2).
     assert.match(
       source,
-      /^import \{(?:defineFamily, )?fail(?:, readOf)?(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m,
+      /^import \{(?:createsOnPost, )?(?:defineFamily, )?fail(?:, readOf)?(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m,
       file,
     );
     if (file.startsWith('src/x-')) assert.match(source, /: ReviewedFamily = defineFamily\(\{$/m, file);

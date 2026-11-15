@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {defineFamily, fail, stateReadOf} from './family-kit.js';
+import {createsOnPost, defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media auction (Onsite Sponsored Products) line items on API 2026-07 (unchanged from 2026-01), per the
@@ -1003,6 +1003,7 @@ export const criteoLineItemFamily: ReviewedFamily = defineFamily({
   name: 'criteo_auction_line_items',
   files: ['src/criteo-auction-line-items.ts', ['tests/criteo-auction-line-items.test.mjs']],
   kind: criteoLineItemKind,
+  operation: createsOnPost,
   assert: plan => assertCriteoLineItem(plan),
   scope: (c, write) => assertCriteoLineItemScopes(c, write),
   authorize: (plan, connection, account, store) => authorizeCriteoLineItem(plan, connection, store, account),

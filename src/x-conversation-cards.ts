@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail, stateReadOf} from './family-kit.js';
+import {createsOnPost, defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * X poll, image conversation and video conversation cards, per X Ads API v12 Creatives reference ("Poll Cards", "Image
@@ -395,6 +395,7 @@ export const xConversationCardFamily: ReviewedFamily = defineFamily({
   name: 'x_conversation_cards',
   files: ['src/x-conversation-cards.ts', ['tests/x-conversation-cards.test.mjs']],
   kind: xConversationCardKind,
+  operation: createsOnPost,
   assert: assertXConversationCard,
   snapshots: xConversationCardSnapshots,
   isRead: isXConversationCardRead,

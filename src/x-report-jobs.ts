@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {createsOnPostAs, defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {sha256, scopeKey, stable} from './security.js';
 import {xRead, xReader} from './x-creative-writes.js';
 import type {Store} from './store.js';
@@ -719,6 +719,7 @@ export const xReportFamily: ReviewedFamily = defineFamily({
   name: 'x_report_jobs',
   files: ['src/x-report-jobs.ts / src/x-report-download.ts', ['tests/x-report-jobs.test.ts']],
   kind: xReportKind,
+  operation: createsOnPostAs('report job'),
   // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
   effect: 'provider_job',
   assert: plan => {

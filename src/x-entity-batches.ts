@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
@@ -177,6 +177,17 @@ export function xEntityBatchKind(p: CompiledRequest): Kind | undefined {
 const operations = (p: CompiledRequest): {operation_type: Op; params: JsonObject}[] =>
   Array.isArray(p.body) ? (p.body as {operation_type: Op; params: JsonObject}[]) : [];
 const opOf = (p: CompiledRequest): Op => operations(p)[0]!.operation_type;
+/**
+ * What a batch does, for the review's summary (R2.5 S2-2): one operation type for every item (AMCP reviews a batch of one
+ * type), so a batch of Create items creates that many entities, an Update batch updates them and a Delete batch deletes
+ * them. The summary read the route's collection for every batch, "Create 1 campaign", whatever its type or size.
+ */
+export function xEntityBatchOperation(p: CompiledRequest): DeclaredOperation | undefined {
+  const items = operations(p),
+    type = object(items[0]) ? items[0].operation_type : undefined,
+    operation = type === 'Create' ? 'create' : type === 'Update' ? 'update' : type === 'Delete' ? 'delete' : undefined;
+  return operation ? {operation, count: items.length} : undefined;
+}
 /** A Delete batch removes entities: the owner policy on deletions applies to it. */
 export const xEntityBatchDeletes = (p: CompiledRequest): boolean =>
   !!xEntityBatchKind(p) &&
@@ -734,6 +745,7 @@ export const xEntityBatchFamily: ReviewedFamily = defineFamily({
   name: 'x_entity_batches',
   files: ['src/x-entity-batches.ts', ['tests/x-entity-batches.test.mjs']],
   kind: xEntityBatchKind,
+  operation: xEntityBatchOperation,
   assert: assertXEntityBatch,
   snapshots: xEntityBatchSnapshots,
   isRead: isXEntityBatchRead,

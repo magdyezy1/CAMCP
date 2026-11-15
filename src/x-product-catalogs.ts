@@ -19,7 +19,7 @@ import {
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
-import {defineFamily} from './family-kit.js';
+import {createsOnPost, defineFamily} from './family-kit.js';
 
 /**
  * X product catalogs, opened by the owner on 2026-09-29. X Ads API v12, "Catalog Management API Reference" (docs.x.com,
@@ -249,6 +249,7 @@ export const xCatalogFamily: ReviewedFamily = defineFamily({
   verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-product-catalogs.ts', ['tests/x-product-catalogs.test.mjs']],
   kind: xCatalogKind,
+  operation: createsOnPost,
   assert: plan => assertXCatalog(plan),
   authorize: authorizeXCatalog,
   snapshots: xCatalogSnapshots,
