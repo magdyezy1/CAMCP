@@ -20,12 +20,16 @@ import {capturePresetHelp} from './report-presets.js';
 import {previewLinkAccessHelp} from './ad-previews.js';
 
 /**
- * What the help of one first-party action adds to its contract, by tool and action (R25 M0, owner 2026-11-15): a function of
- * the day it is asked, kept out of tools/list. amcp_reporting capture_preset's worked calls are the platforms' own. A key of
- * a tool alone is what its root help adds: amcp_ad_previews says which links need a sign-in, which its description, pinned
- * by the tool surface golden, cannot.
+ * What the help of one first-party action adds to its contract, by tool and action (R25 M0, owner 2026-11-15), kept out of
+ * tools/list. amcp_reporting capture_preset's worked calls are the platforms' own, a function of the day it is asked. A key
+ * of a tool alone is what its root help adds: amcp_ad_previews says which links need a sign-in, which its description,
+ * pinned by the tool surface golden, cannot. amcp_campaign create's worked example (T4: the shape of a plan's steps was
+ * learned only by failing) is here too, as `worked_example` (one plan; capture_preset's `worked_examples` are several
+ * calls), so `amcp_campaign help topic:"create"` and `amcp_tool_help {gateway: "amcp_campaign", operation: "create"}`
+ * answer with the same one (merge task 2, r25-m0-review's S4-6), each a copy no caller can change.
  */
 const helpAdditions: Readonly<Record<string, () => JsonObject>> = {
+  'amcp_campaign create': () => ({worked_example: structuredClone(planExample)}),
   'amcp_reporting capture_preset': () => capturePresetHelp(),
   amcp_ad_previews: () => previewLinkAccessHelp(),
 };
@@ -37,8 +41,6 @@ export interface ListedTool {
   description: string;
   inputSchema: JsonObject;
 }
-/** The worked examples of the actions whose call cannot be learned from a flat schema, by tool and action (R2.5 T4). */
-const workedExamples: Readonly<Record<string, JsonObject>> = {'amcp_campaign/create': planExample};
 /** A first-party tool's own read-only help; the captured help schema remains unchanged (D17-bis). */
 export function ownToolHelp(tool: ListedTool, topic?: string, profile?: ContractProfile): JsonObject {
   if (topic !== undefined && (typeof topic !== 'string' || !topic || topic.length > 300))
@@ -71,12 +73,10 @@ export function ownToolHelp(tool: ListedTool, topic?: string, profile?: Contract
     delete help.summary;
     delete help.action_summaries;
   }
-  // The worked example of an action whose call a flat schema cannot teach (R2.5 T4), a copy no caller can change.
-  const worked = topic === undefined ? undefined : workedExamples[tool.name + '/' + topic];
   // The topics of amcp_workspace help that are not actions (guides, and the contract profile of V2-MCP-06).
   return {
     ...help,
-    ...(worked ? {worked_example: structuredClone(worked)} : {}),
+    // What the help of this action adds: its worked example or calls, the same through amcp_tool_help below.
     ...helpAddition(tool.name, topic),
     ...(tool.name === 'amcp_workspace' && topic === undefined ? {other_topics: ['guides', 'mcp_profile']} : {}),
     examples,
