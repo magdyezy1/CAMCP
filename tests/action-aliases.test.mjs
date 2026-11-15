@@ -718,7 +718,8 @@ test('a spend-changing write prepared through a near-miss name needs the approva
         idempotency_key: prepared.data.review_id,
         confirmed: true,
       });
-      assertRefused(refused, refused.error?.code, {writes: () => f.writes.length});
+      assert.equal(refused.success, false, name + ' ' + JSON.stringify(refused));
+      assert.equal(refused.error.code, 'SPEND_CONFIRMATION_REQUIRED', name);
       codes.push(refused.error.code);
     }
     assert.equal(codes[0], codes[1], 'the alias is refused as the canonical name is');
@@ -757,6 +758,7 @@ test('a write prepared through a near-miss name is refused on a read-only deploy
       idempotency_key: 'direct-write-key',
     });
     assert.equal(direct.success, false);
+    assert.equal(direct.error.code, 'LIVE_WRITES_DISABLED');
     assert.equal(f.writes.length, 0);
     assert.equal(f.campaigns.get('100').operation_status, 'ENABLE');
   } finally {
