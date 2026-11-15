@@ -635,6 +635,11 @@ function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
     };
   return undefined;
 }
+/** Whether `next` is the read-only status call that names a dispatched write's retained record (src/write-common.ts). */
+function throttledWriteStatus(next: unknown): boolean {
+  const call = next as {tool?: unknown; arguments?: {action?: unknown}} | undefined;
+  return call?.tool === 'amcp_write' && call.arguments?.action === 'status';
+}
 /**
  * Refusals of a reviewed write and of access to it: a group stopped at a part, provider replies, contracts, grants,
  * review state, rejections, state reads, the deployment’s and owner’s write switches, connections, roles and the
@@ -674,9 +679,14 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       action:
         e.code === 'AUTH_EXPIRED' || e.details.layer === 'credential'
           ? 'Reconnect the affected provider identity, then retry reads or prepare a fresh review.'
-          : e.code === 'PLATFORM_RATE_LIMIT'
-            ? 'Wait for the provider retry interval; preserve the original review for any submitted mutation.'
-            : 'Inspect the native error and request ID. Check account access, granted scopes, app access tier and payload against the named endpoint; HTTP status alone does not identify the cause.',
+          : e.code === 'PLATFORM_RATE_LIMIT' && throttledWriteStatus(e.details.next_call)
+            ? // L3-02 (Round 2.5, M0): a write throttled after it was dispatched stays uncertain, so "wait and retry the
+              // review" is not possible: executing it again answers WRITE_OUTCOME_UNCERTAIN. Until the throttle is proven
+              // to have applied nothing (L3-01), this is the sequence that works.
+              'The provider throttled this write, and AMCP cannot yet prove that nothing was applied, so this review is uncertain and is never executed again. Read amcp_write status with its review_id (details.next_call); after the wait in details.retry_after_ms and at least a minute after the claim, run amcp_write reconcile; if it finds the change was not applied, prepare the same request again with supersedes_review_id. Where reconcile cannot tell, check the provider before anything else.'
+            : e.code === 'PLATFORM_RATE_LIMIT'
+              ? 'Wait for the provider retry interval; preserve the original review for any submitted mutation.'
+              : 'Inspect the native error and request ID. Check account access, granted scopes, app access tier and payload against the named endpoint; HTTP status alone does not identify the cause.',
       mutation_retry_safe: false,
     };
   if (
