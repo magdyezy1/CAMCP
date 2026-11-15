@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {standardCreates, standardBodies} from './helpers/tiktok-standard-creates.mjs';
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
@@ -116,6 +118,69 @@ test('the refusal lists the changed target before the changed account, by the ro
   } finally {
     f.close();
   }
+});
+
+const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
+/** What the refusal of a changed state must tell a reader, in this order, whatever its wording. */
+const remedyMeaning = [
+  /Nothing was sent/,
+  /details\.material/,
+  /details\.next_call/,
+  /before_state/,
+  /No flag skips this check/,
+  /details\.recurring_paths/,
+  /report those paths/,
+];
+
+test('the refusal says that nothing was sent, what to check, how to prepare again, and that no flag skips the check', async () => {
+  await changedCurrency('diff-remedy', ({refused}) => {
+    const {remedy, next_action: nextAction} = refused.error;
+    assert.equal(remedy.category, 'state');
+    assert.equal(remedy.mutation_retry_safe, false);
+    for (const [what, text] of [
+      ['remedy.action', remedy.action],
+      ['next_action', nextAction],
+    ])
+      for (const part of remedyMeaning) assert.match(text, part, what);
+  });
+});
+
+test('both words of the refusal are in Arabic, with the names of the fields and of the call kept', async () => {
+  await changedCurrency('diff-remedy-ar', ({refused}) => {
+    for (const english of new Set([refused.error.remedy.action, refused.error.next_action])) {
+      const arabic = catalog[english];
+      assert.equal(typeof arabic, 'string', 'no Arabic for: ' + english);
+      assert.match(arabic, /[؀-ۿ]/u);
+      for (const name of ['details.material', 'details.next_call', 'before_state', 'details.recurring_paths'])
+        assert.ok(arabic.includes(name), name + ' in: ' + arabic);
+    }
+  });
+});
+
+test('a STATE_CHANGED that is not the refusal of the review check keeps its general remedy, which never says nothing was sent', () => {
+  // The acceptance of a read-back that moved on (src/campaign-runner.ts) happens after the write was sent; a state read
+  // that did not hold still (a family's) has no review check behind it. "Nothing was sent" is true of neither.
+  const acceptance = new MirrorError(
+      'STATE_CHANGED',
+      'The state changed since that diff.',
+      {field: 'actual_hash', step_id: 's1', actual_hash: 'h'},
+      409,
+    ),
+    unsteady = new MirrorError('STATE_CHANGED', 'The feed changed while it was read. Prepare again.');
+  for (const e of [acceptance, unsteady]) {
+    const {error} = errorResult(e, 'request', 1);
+    assert.equal(error.remedy.category, 'state');
+    assert.equal(error.remedy.mutation_retry_safe, false);
+    for (const text of [error.remedy.action, error.next_action]) assert.doesNotMatch(text, /Nothing was sent/);
+    assert.ok(error.next_action);
+  }
+  // The review check is told apart by what it carries: the two hashes and the changed fields.
+  const review = new MirrorError('STATE_CHANGED', 'Changed.', {
+    expected_state_hash: 'a',
+    actual_state_hash: 'b',
+    changed_fields: ['$[0]["x"]'],
+  });
+  assert.match(errorResult(review, 'request', 1).error.remedy.action, /Nothing was sent/);
 });
 
 test('no flag skips the state check: every acknowledgement together still leaves the changed review refused', async () => {
