@@ -21,7 +21,7 @@ const real = {
   '<ad group name>': 'Synthetic ad group',
 };
 
-test('help for create carries a worked example of a plan whose steps createPlan accepts as written', async t => {
+test('help for create carries a worked example of a plan whose steps createPlan accepts once its declared placeholders are filled', async t => {
   const f = harness(t),
     help = await f.call({action: 'help', topic: 'create'});
   assert.equal(help.success, true, JSON.stringify(help.error));
@@ -52,7 +52,9 @@ test('help for create carries a worked example of a plan whose steps createPlan 
     plan.data.steps.map(s => [s.id, s.kind, s.depends_on]),
     example.arguments.steps.map(s => [s.id, s.kind, s.depends_on ?? []]),
   );
-  // Left as written, its placeholders are refused by the checks a plan always has (no such connection), not accepted.
+  // Left as written it is not accepted: no workspace has a connection called "<connection_id>", so the lookup of the first
+  // step's connection refuses it (CONNECTION_REQUIRED). That refusal comes before the second step is read, so it proves the
+  // first step's structure only; the second is proved by the run above, in which every placeholder has its real value.
   assertRefused(await f.call(structuredClone(example.arguments)), 'CONNECTION_REQUIRED');
 });
 
