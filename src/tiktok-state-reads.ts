@@ -9,6 +9,7 @@ import type {StateReadBuilder} from './provider-adapter.js';
 import {normalizeAccount} from './account-id.js';
 import {object, fail} from './write-common.js';
 import {tiktokAdgroupConversionRead} from './tiktok-adgroup-conversions.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 import {tiktokCtaPortfolioReads} from './tiktok-cta-portfolios.js';
 
 export function tiktokStateReads(plan: CompiledRequest, base: StateReadBuilder): CompiledRequest[] {
@@ -17,7 +18,7 @@ export function tiktokStateReads(plan: CompiledRequest, base: StateReadBuilder):
   const match = /^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.exec(plan.path);
   if (!match) fail('WRITE_CONTRACT_UNAVAILABLE', 'This TikTok action has no implemented state-read contract.');
   if (match[2] === 'create') {
-    const reads = [base('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
+    const reads = [tiktokAdvertiserRead(base, id)],
       parent = match[1] === 'adgroup' ? 'campaign' : match[1] === 'ad' ? 'adgroup' : undefined;
     if (parent) {
       const parentId = body[parent + '_id'];

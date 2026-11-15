@@ -5,6 +5,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {tiktokAudienceGetPath, tiktokLookalikePath} from './tiktok-paths.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * TikTok lookalike audiences, per API for Business v1.3 "Create a lookalike audience", "Get audience details" and
@@ -218,7 +219,7 @@ export const tiktokLookalikeFamily: ReviewedFamily = defineFamily({
       custom_audience_ids: [tiktokLookalikeSeed(plan)],
     });
     seed.action = 'tiktok_dmp_custom_audience_get';
-    return [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]}), seed];
+    return [tiktokAdvertiserRead(stateRead, id), seed];
   },
   impact: tiktokLookalikeImpact,
   outcome: (plan, result) => {

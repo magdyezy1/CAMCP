@@ -11,6 +11,7 @@ import {
 } from './tiktok-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * TikTok saved audiences (reusable targeting), per API for Business v1.3 "Create a Saved Audience", "Get details
@@ -156,7 +157,7 @@ export const tiktokSavedAudienceFamily: ReviewedFamily = defineFamily({
   },
   snapshots: (plan, stateRead) => {
     const id = normalizeAccount(plan.gateway, plan.accountId!);
-    const reads = [stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]})],
+    const reads = [tiktokAdvertiserRead(stateRead, id)],
       audiences = tiktokSavedAudienceAudiences(plan);
     if (audiences.length) {
       const read = stateRead(tiktokAudienceGetPath, {advertiser_id: id, custom_audience_ids: audiences});

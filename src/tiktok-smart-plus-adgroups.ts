@@ -12,6 +12,7 @@ import {
 } from './tiktok-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {defineFamily} from './family-kit.js';
+import {tiktokAdvertiserRead} from './tiktok-advertiser-state.js';
 
 /**
  * Paused Upgraded Smart+ website-conversion and Instant Form lead generation ad groups, per API for Business v1.3
@@ -552,7 +553,7 @@ export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = defineFamily({
   snapshots: (plan, stateRead) => {
     const id = normalizeAccount(plan.gateway, plan.accountId!);
     return [
-      stateRead('/v1.3/advertiser/info/', {advertiser_ids: [id]}),
+      tiktokAdvertiserRead(stateRead, id),
       ...tiktokSmartPlusAdgroupReads(plan).map(r => {
         const read = stateRead(r.path, r.query);
         read.action = r.action;

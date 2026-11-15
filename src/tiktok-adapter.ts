@@ -80,6 +80,7 @@ import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 import {tiktokStateReads} from './tiktok-state-reads.js';
+import {tiktokAdvertiserInfoPath, tiktokAdvertiserQuery, tiktokAdvertiserState} from './tiktok-advertiser-state.js';
 import {tiktokClone} from './tiktok-campaign-clone.js';
 import {tiktokActivationSteps} from './tiktok-recipe-activation.js';
 import {object} from './write-common.js';
@@ -317,15 +318,20 @@ function tiktokStateTarget(read: CompiledRequest, _result: TransportResult, data
 }
 
 /**
- * The state a review keeps of a TikTok read: the pixels, the Smart+ and Instant Form states, a CTA portfolio and a
- * custom conversion's eligibility in their own projections, and a native list (the image, audience and conversion
- * lists in theirs); any other response whole.
+ * The state a review keeps of a TikTok read: the pixels, the Smart+ and Instant Form states, the advertiser's identity
+ * fields (T1, Q15), a CTA portfolio and a custom conversion's eligibility in their own projections, and a native list
+ * (the image, audience and conversion lists in theirs); any other response whole.
  */
 function tiktokSnapshot(read: CompiledRequest, d: JsonObject): unknown {
   if (read.path === tiktokPixelListPath && Array.isArray(d.data?.pixels)) return {data: tiktokPixelState(d)};
   const state =
     tiktokSmartPlusAdState(read, d) ?? tiktokSmartPlusAdgroupCampaignState(read, d) ?? tiktokInstantFormState(read, d);
   if (state) return state;
+  // The advertiser row, wherever it is read from (a create, the media upload) and whether the answer is fresh or a saved
+  // review's: its identity fields only. The signed licence link and the balance change without any change by the
+  // user, and the contact record is nothing a write depends on (T1, Q15, owner 2026-11-15).
+  const advertiser = read.path === tiktokAdvertiserInfoPath ? tiktokAdvertiserState(d) : undefined;
+  if (advertiser) return advertiser;
   if (read.path === tiktokPortfolioGetPath && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
     return {data: tiktokCtaPortfolioState(read, d.data)};
   if (read.path === tiktokConversionGetPath && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
@@ -385,6 +391,12 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
   return data.data?.list?.[0];
 }
+/** The read an amcp_media upload keeps the advertiser's state from: its identity fields only, as a review keeps them (T1). */
+function tiktokAccountState(read: CompiledRequest, id: string): CompiledRequest {
+  read.path = tiktokAdvertiserInfoPath;
+  read.query = tiktokAdvertiserQuery(id);
+  return read;
+}
 
 // Wave 4c (transport and catalog): TikTok's part of the catalog compiler (src/compiler.ts).
 const plain = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? {...v} : {});
@@ -433,7 +445,12 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       target: tiktokStateTarget,
     }),
   }),
-  review: Object.freeze({snapshot: tiktokSnapshot, verification: tiktokVerification, observed: tiktokObserved}),
+  review: Object.freeze({
+    snapshot: tiktokSnapshot,
+    verification: tiktokVerification,
+    observed: tiktokObserved,
+    accountState: tiktokAccountState,
+  }),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

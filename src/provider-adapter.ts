@@ -511,6 +511,12 @@ export interface ReviewProjections {
   observed?(read: CompiledRequest, data: JsonObject): JsonObject;
   /** The verification cache version that retires older proofs of a write (Google's value-bidding campaigns). */
   verificationVersion?(plan: CompiledRequest): string | undefined;
+  /**
+   * The read of account `id` that the state of an amcp_media upload is kept from, where the provider asks only for the
+   * fields its `snapshot` keeps (TikTok's advertiser info, T1): `read` is the upload's shared account read, returned with
+   * its path and query set. Absent: the upload reads the account as it always did.
+   */
+  accountState?(read: CompiledRequest, id: string): CompiledRequest;
 }
 
 /**

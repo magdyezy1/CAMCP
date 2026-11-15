@@ -56,7 +56,8 @@ test('each provider declares its own projections, frozen', () => {
     {
       google_ads_native_action: ['snapshot', 'verification', 'observed', 'verificationVersion'],
       meta_native_action: ['verification'],
-      tiktok_native_action: ['snapshot', 'verification', 'observed'],
+      // r25-m0-t1 (T1): TikTok also declares the advertiser read an amcp_media upload keeps the state of (accountState).
+      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState'],
       snapchat_native_action: ['snapshot', 'verification', 'observed'],
       linkedin_native_action: ['verificationHeaders', 'verification'],
       x_ads_native_action: ['snapshot', 'verification', 'observed'],
