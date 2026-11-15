@@ -9,6 +9,7 @@
 // (tools/list is unchanged: tests/tool-surface-golden.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {isDeepStrictEqual} from 'node:util';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -41,12 +42,20 @@ function fixture(t) {
 const platforms = ['google', 'meta', 'tiktok', 'snapchat', 'linkedin'];
 
 test('capture_preset help carries one worked call for each platform that has guided presets, built from the day it is asked', async t => {
+  // The help is built from the clock at the moment it is asked. The instants around the ask say which day that was, so a run
+  // across midnight UTC compares with the day the help used, not with a clock read later (S4-5 of the lead's review).
   const f = fixture(t),
-    help = await f.help('capture_preset');
+    before = new Date(),
+    help = await f.help('capture_preset'),
+    after = new Date();
   assert.equal(help.success, true, JSON.stringify(help.error));
   const examples = help.data.worked_examples;
+  const moment = [before, after].find(instant =>
+    isDeepStrictEqual(presets.capturePresetHelp(instant).worked_examples, examples),
+  );
+  assert.ok(moment, 'the help is the one of the moment it was asked');
   assert.deepEqual(examples.map(example => example.platform).sort(), [...platforms].sort());
-  const day = offset => new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+  const day = offset => new Date(moment.getTime() - offset * 86400000).toISOString().slice(0, 10);
   for (const example of examples) {
     assert.equal(example.call.tool, 'amcp_reporting', example.platform);
     const args = example.call.arguments;

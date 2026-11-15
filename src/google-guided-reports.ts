@@ -96,7 +96,7 @@ export const googleGuidedReporting: GuidedReporting = {
     rules: [
       'semantics.timezone and semantics.currency are the customer’s own, as Google reports them; the capture refuses a different one.',
       'semantics.complete may be true or false. semantics.attribution names the attribution settings in text, or unknown when they are not established; conversions use metrics.conversions.',
-      'The ad group, ad, keyword, search term, device, hour, country and network presets take the same arguments.',
+      'The ad group, ad, keyword, search term, Performance Max search term, device, hour, country and network presets take the same arguments.',
     ],
   },
   // DEC-01: an allocation models campaign × day evidence by native campaign ID.
