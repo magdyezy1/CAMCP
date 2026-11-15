@@ -1,6 +1,7 @@
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import {budgetUnits, currencyMinorDigits} from './budget-units.js';
 import {stateTarget} from './write-effects.js';
+import {familyOf} from './reviewed-families.js';
 import {providerOf} from './provider-adapters.js';
 import {providerHooks} from './provider-hooks.js';
 
@@ -125,6 +126,19 @@ function namesOtherMethod(plan: CompiledRequest): boolean {
     ['method', '_method', 'http_method', 'method_override'].some(key => other(plan.query?.[key]))
   );
 }
+/**
+ * What the family that reviews this write declares it does (R2.5 S2, owner 2026-11-15: the approver must read the real
+ * operation): the family claims its routes by method and path, so its answer cannot be had by naming an action, and it
+ * already tells a create from an edit to plan the review's reads. A summary never refuses: a family that cannot be asked
+ * (two claiming one request is refused elsewhere, before anything is sent) leaves the path to be read.
+ */
+function declaredOperation(plan: CompiledRequest): DeclaredOperation | undefined {
+  try {
+    return familyOf(plan)?.operation?.(plan);
+  } catch {
+    return undefined;
+  }
+}
 /** What the request does: an operation and the entities it acts on. */
 function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
@@ -140,12 +154,19 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
     // way a path can read as a create). The noun stays the route's either way: it is what the request acts on.
     thing = plan.method === 'POST' ? createdThing(segments) : undefined,
     verb = thing && !namesOtherMethod(plan) ? thing : undefined;
-  const action = plan.action.toLowerCase();
-  const operation =
-    plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive
-      ? 'delete'
-      : /:publish$/.test(plan.path)
-        ? 'publish'
+  const action = plan.action.toLowerCase(),
+    deletes = plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive,
+    // A deletion stays what the method or the destructive flag says, whatever a family declares.
+    declared = deletes ? undefined : declaredOperation(plan);
+  const operation = deletes
+    ? 'delete'
+    : /:publish$/.test(plan.path)
+      ? 'publish'
+      : declared
+        ? // A request that names another method is no create, however it is declared (the one guard of every path).
+          declared.operation === 'create' && namesOtherMethod(plan)
+          ? 'update'
+          : declared.operation
         : verb ||
             (/(?:^|_)(?:create|post)(?:_|$)/.test(action) &&
               (segments.at(-1) === key || underAccount(plan)) &&
@@ -155,8 +176,14 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
   // A create names what it creates: a known collection anywhere in the path, else the noun before its verb, never the verb.
   return {
     operation,
-    entity: singular[key] ?? (key || thing?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
-    count: rows,
+    entity:
+      declared?.entity ??
+      singular[key] ??
+      (key || thing?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
+    count:
+      declared?.count !== undefined && Number.isSafeInteger(declared.count) && declared.count >= 1
+        ? declared.count
+        : rows,
   };
 }
 export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObject {

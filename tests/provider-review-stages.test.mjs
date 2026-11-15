@@ -147,7 +147,16 @@ test('the review summary names every operation as before: every ledger route, bo
   }
   const summarized = new Set(),
     verbCreates = new Set(),
-    accountCreates = new Set();
+    accountCreates = new Set(),
+    declaredCreates = new Set();
+  // The family that reviews a write, asked what the write does (R2.5 S2): a create it declares, or nothing.
+  const declaredCreate = p => {
+    try {
+      return familyOf(p)?.operation?.(p);
+    } catch {
+      return undefined;
+    }
+  };
   for (const p of plans) {
     const expected = run(() => copiedOperationOf(p)),
       got = run(() => {
@@ -181,6 +190,16 @@ test('the review summary names every operation as before: every ledger route, bo
     } else if (createsUnderAccount && expected.result?.operation === 'update') {
       assert.deepEqual(got, {result: {...expected.result, operation: 'create'}}, label);
       accountCreates.add(p.gateway + ' ' + p.path);
+    } else if (declaredCreate(p)?.operation === 'create' && expected.result?.operation === 'update') {
+      // The third change (R2.5 S2-1, owner 2026-11-15): a create the write's own family declares (Microsoft Advertising's
+      // Add, which shares its route with its Update and tells them apart by method, so no path rule could read it). It read
+      // as an update of one entity, whatever it listed; it reads as the create it is, with the count and the entity its
+      // family gives, and the entity and count it had where the family names none.
+      const declared = declaredCreate(p);
+      assert.equal(got.result?.operation, 'create', label);
+      assert.equal(got.result.count, declared.count ?? expected.result.count, label);
+      assert.equal(got.result.entity, declared.entity ?? expected.result.entity, label);
+      declaredCreates.add(p.gateway + ' ' + p.action);
     } else assert.deepEqual(got, expected, label);
     if (p.gateway === 'google_ads_native_action' && expected.result) summarized.add(expected.result.operation);
   }
@@ -194,6 +213,9 @@ test('the review summary names every operation as before: every ledger route, bo
       [...accountCreates].some(v => v.startsWith(gateway + '_native_action ')),
       gateway + ' ' + accountCreates.size,
     );
+  // The third on the Adds of Microsoft Advertising.
+  for (const action of ['AddCampaigns', 'AddAdGroups', 'AddAds', 'AddKeywords', 'AddCampaignCriterions'])
+    assert.ok(declaredCreates.has('microsoft_ads_native_action ' + action), action + ' ' + [...declaredCreates].join());
   assert.ok(plans.length > 20000, String(plans.length));
   // Google Ads' operations were reached in every form the branch gave.
   assert.deepEqual([...summarized].sort(), ['change', 'create', 'remove', 'update']);

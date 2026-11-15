@@ -1,4 +1,4 @@
-import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {Actor, CompiledRequest, Connection, Credentials, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {Store} from './store.js';
 import type {PersonalDataSpec} from './personal-data.js';
@@ -317,6 +317,15 @@ export interface ReviewedFamily {
    * sitemap, a public link), which the review discloses (write-effects.ts); undefined leaves it to the route rules.
    */
   publishes?(plan: CompiledRequest): boolean;
+  /**
+   * What the request does, for the one-line summary the person approving it reads (src/review-summary.ts, R2.5 S2): a
+   * create, an update or a delete, with how many entities it writes and what one is called where its path does not say.
+   * The family answers for the routes it claims, from the method and path it matched them by (never from the name the
+   * caller gave the action), as its own planning of the review's reads already tells a create from an edit; undefined
+   * leaves the summary to read the path. The summary never names a create for a request that carries another method,
+   * and a deletion stays whatever the method or the destructive flag says.
+   */
+  operation?(plan: CompiledRequest): DeclaredOperation | undefined;
   /** Warnings shown with the request at review. */
   warnings?(plan: CompiledRequest): string[];
   /** Owner-policy amounts, when the generic budget scan cannot find them. */

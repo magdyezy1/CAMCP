@@ -185,6 +185,7 @@ export const familyStages = Object.freeze({
     'exemptFromActivationScan',
     'destructive',
     'publishes',
+    'operation',
     'policyAmounts',
     'requiresSpendPolicy',
     'personalData',

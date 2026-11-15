@@ -113,6 +113,19 @@ export interface Credentials {
   appleKeyId?: string;
   applePrivateKey?: string;
 }
+/**
+ * What a reviewed write does, as the family or provider that reviews it declares it (R2.5 S2, src/review-summary.ts): the
+ * operation, and, where one request writes several entities, how many, and what one of them is called when its path does
+ * not say. The summary's vocabulary is closed, so a declaration names one of three; a route that publishes keeps its path's
+ * reading, and a deletion stays whatever the method or the destructive flag says.
+ */
+export interface DeclaredOperation {
+  operation: 'create' | 'update' | 'delete';
+  /** How many entities the request writes (a positive integer); one when omitted. */
+  count?: number;
+  /** What one of them is called, in the singular ('campaign'), when the request's path does not name it. */
+  entity?: string;
+}
 export interface CompiledRequest {
   gateway: string;
   action: string;

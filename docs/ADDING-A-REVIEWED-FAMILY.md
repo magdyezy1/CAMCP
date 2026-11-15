@@ -165,6 +165,15 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in its provide
 (`src/provider-adapters.ts`, read as `bodyDeletionValues` by `src/execution-risk.ts`);
 `tests/deletion-policy-coverage.test.mjs` fails until a value of a pinned document is classified there or exempted.
 
+The review's one-line summary (`src/review-summary.ts`) is what the person approving a write reads first, so it must name
+what the write does. It reads the path of a write it has no declaration for, which tells a create only on the route
+shapes it knows. When your family's writes share a route and differ by method (Microsoft's Add, Update and Delete), or
+the path alone does not say what they do, declare `operation(plan)`: `{operation: 'create' | 'update' | 'delete', count?,
+entity?}`, with how many entities the request writes and what one is called (in the singular). Answer from the method
+and path that `kind` matched, never from the name the caller gave the action; return undefined for what you leave to the
+summary. A create is never named for a request that carries another method, and a delete stays whatever the method or the
+destructive flag says.
+
 ## Steps
 
 1. Write the module. Keep each hook a named, exported function so tests can call it directly.

@@ -4,6 +4,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
+import {compileMicrosoft} from '../dist/src/microsoft-native.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
@@ -535,4 +536,89 @@ test('a PUT or PATCH to a path that ends in create is an update, and a POST to i
     ).operation,
     'create',
   );
+});
+
+// S2-1 (the lead's review of this package): Microsoft Advertising's Add, Update and Delete share one route and differ by
+// method, so no path rule told them apart: every Add of the launch recipe read "Update 1 Campaigns", for one campaign or
+// twenty. The reviewed family of these writes matches them by method and path and declares what each does, as the review's
+// own planning already tells a create from an edit; the summary asks it before it reads the path.
+const microsoftPlan = (action, payload) => compileMicrosoft({action, account_id: '123', campaign_id: '100', payload});
+const searchCampaign = {CampaignType: 'Search', BudgetType: 'DailyBudgetStandard', Status: 'Paused'};
+const responsiveAd = {
+  Type: 'ResponsiveSearch',
+  Headlines: [{Text: 'Synthetic headline'}],
+  Descriptions: [{Text: 'Synthetic description'}],
+  FinalUrls: ['https://example.com'],
+};
+const addsOfTheRecipe = [
+  [
+    'AddCampaigns',
+    {
+      Campaigns: [
+        {Name: 'A', DailyBudget: 10, ...searchCampaign},
+        {Name: 'B', DailyBudget: 12, ...searchCampaign},
+      ],
+    },
+    ['campaign', 2],
+    'Create 2 campaigns in account 123; DailyBudget 10.00 in account currency (10 account currency); DailyBudget 12.00 in account currency (12 account currency).',
+  ],
+  [
+    'AddAdGroups',
+    {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]},
+    ['ad group', 1],
+    'Create 1 ad group in account 123.',
+  ],
+  [
+    'AddAds',
+    {AdGroupId: '200', Ads: [responsiveAd, responsiveAd, responsiveAd]},
+    ['ad', 3],
+    'Create 3 ads in account 123.',
+  ],
+  [
+    'AddKeywords',
+    {
+      AdGroupId: '200',
+      Keywords: [
+        {Text: 'a', MatchType: 'Exact', Status: 'Paused'},
+        {Text: 'b', MatchType: 'Exact', Status: 'Paused'},
+      ],
+    },
+    ['keyword', 2],
+    'Create 2 keywords in account 123.',
+  ],
+  [
+    'AddCampaignCriterions',
+    {
+      CriterionType: 'Targets',
+      CampaignCriterions: [{CampaignId: '100', Criterion: {Type: 'LocationCriterion', LocationId: '190'}}],
+    },
+    ['campaign criterion', 1],
+    'Create 1 campaign criterion in account 123.',
+  ],
+];
+
+test('a Microsoft Advertising Add reads as a create of every row it lists, with its money as before', () => {
+  for (const [action, payload, [entity, count], text] of addsOfTheRecipe) {
+    const s = reviewSummary(microsoftPlan(action, payload), []);
+    assert.deepEqual([s.operation, s.entity, s.count], ['create', entity, count], action);
+    assert.equal(s.text, text, action);
+  }
+});
+
+test('a Microsoft Advertising Update and Delete read exactly as they did, and a create the request does not claim stays an update', () => {
+  // The same route and body shapes as the Adds: the method is what tells them apart, and nothing else about them changes.
+  const update = reviewSummary(microsoftPlan('UpdateCampaigns', {Campaigns: [{Id: '1', Status: 'Active'}]}), []);
+  assert.deepEqual([update.operation, update.entity, update.count], ['update', 'Campaigns', 1]);
+  assert.equal(update.text, 'Update 1 Campaigns in account 123.');
+  const remove = reviewSummary(microsoftPlan('DeleteCampaigns', {CampaignIds: ['1', '2']}), []);
+  assert.deepEqual([remove.operation, remove.entity, remove.count], ['delete', 'Campaigns', 1]);
+  assert.equal(remove.text, 'Delete 1 Campaigns in account 123.');
+  const add = microsoftPlan('AddAdGroups', {CampaignId: '100', AdGroups: [{Name: 'G', Status: 'Paused'}]});
+  // The answer is the family's, who claims the request by its method and its path as well as its name: the same name on a
+  // path of no Microsoft route is read from the path as it always was.
+  assert.equal(reviewSummary({...add, path: '/CampaignManagement/v13/AdGroups/Other'}, []).operation, 'update');
+  // A request that names another method is no create here either; and a body that lists no rows is counted as one.
+  assert.equal(reviewSummary({...add, headers: {'X-HTTP-Method-Override': 'PUT'}}, []).operation, 'update');
+  for (const body of [{}, {AdGroups: 'none'}, {AdGroups: []}, null])
+    assert.equal(reviewSummary({...add, body}, []).count, 1, JSON.stringify(body));
 });

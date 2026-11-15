@@ -154,6 +154,39 @@ const cases = [
     text: 'Create 1 adCampaigns in account Synthetic account (123); status PAUSED.',
     sent: {method: 'POST', path: '/adAccounts/123/adCampaigns', suffix: true},
   },
+  {
+    // S2-1: Microsoft Advertising's Add, Update and Delete share one route and differ by method. Its family declares what
+    // the write does, so two campaigns read as two creates and not "Update 1 Campaigns". Its reads are POSTs too.
+    label: 'Microsoft Advertising: an Add of two campaigns on a route it shares with its Update',
+    gateway: 'microsoft_ads_native_action',
+    connection: {accountCustomers: {123: '456'}, scopes: ['https://ads.microsoft.com/msads.manage']},
+    args: {
+      action: 'AddCampaigns',
+      payload: {
+        Campaigns: [
+          {
+            Name: 'Synthetic A',
+            CampaignType: 'Search',
+            DailyBudget: 10,
+            BudgetType: 'DailyBudgetStandard',
+            Status: 'Paused',
+          },
+          {
+            Name: 'Synthetic B',
+            CampaignType: 'Search',
+            DailyBudget: 12,
+            BudgetType: 'DailyBudgetStandard',
+            Status: 'Paused',
+          },
+        ],
+      },
+    },
+    postRead: p => p.endsWith('/Account/Query'),
+    read: () => ({Account: {Id: '123', ParentCustomerId: '456', CurrencyCode: 'USD'}}),
+    write: {CampaignIds: ['101', '102'], PartialErrors: null},
+    text: 'Create 2 campaigns in account 123; DailyBudget 10.00 in account currency (10 account currency); DailyBudget 12.00 in account currency (12 account currency).',
+    sent: {method: 'POST', path: '/CampaignManagement/v13/Campaigns'},
+  },
 ];
 
 /** The review a create gets from amcp_write, and the write that execute then sends. */
@@ -170,6 +203,7 @@ async function prepareAndExecute(c) {
       enabled: true,
       label: 'Synthetic',
       scopes: [],
+      ...c.connection,
     };
     store.putConnection(admin, connection, {accessToken: 'synthetic', developerToken: 'synthetic'});
     // The resource the create makes is the account's, as its read-back needs it to be.
@@ -180,7 +214,8 @@ async function prepareAndExecute(c) {
       new NativeTransport(async (input, init) => {
         const url = new URL(String(input)),
           p = url.pathname.replace('/open_api', ''),
-          read = (init?.method ?? 'GET') === 'GET' || p.endsWith('/googleAds:search');
+          // A read is a GET, or a POST the provider reads with (Google Ads' search, Microsoft's account query).
+          read = (init?.method ?? 'GET') === 'GET' || p.endsWith('/googleAds:search') || c.postRead?.(p) === true;
         if (!read) {
           const text = String(init.body);
           written.push({
