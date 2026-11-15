@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {accountConflict} from './account-id.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
@@ -66,7 +67,12 @@ export function assertDV360BiddingFile(p: CompiledRequest): void {
       403,
     );
   if (p.accountId !== undefined && p.accountId !== p.query.advertiserId)
-    fail('ACCOUNT_SCOPE_MISMATCH', 'advertiserId must be the selected advertiser.', {}, 403);
+    fail(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'advertiserId must be the selected advertiser.',
+      accountConflict(p.query.advertiserId),
+      403,
+    );
   const b = p.body,
     f = field(kind),
     ref = obj(b) ? b[f] : undefined;
@@ -115,7 +121,12 @@ export function authorizeDV360BiddingFile(p: CompiledRequest, c: Connection, acc
   if (dv360BiddingFileKind(p)) {
     assertDV360BiddingFile(p);
     if (p.query.advertiserId !== account)
-      fail('ACCOUNT_SCOPE_MISMATCH', 'advertiserId must be the selected advertiser.', {}, 403);
+      fail(
+        'ACCOUNT_SCOPE_MISMATCH',
+        'advertiserId must be the selected advertiser.',
+        accountConflict(p.query.advertiserId),
+        403,
+      );
     assertDV360BiddingFileScope(c);
     return true;
   }

@@ -1,4 +1,5 @@
 import {providerOf} from './provider-adapters.js';
+import type {JsonObject} from './types.js';
 
 /**
  * A provider account ID in the form AMCP binds and compares (ARC-04 stage B, ARC-01's account concern): each provider
@@ -26,4 +27,12 @@ export function sameNativeAccount(gateway: string, field: unknown, accountId: st
         ? String(field)
         : undefined;
   return text !== undefined && normalizeAccount(gateway, text) === normalizeAccount(gateway, accountId);
+}
+/**
+ * The details of the refusal of a request that names an advertiser or account that is not the call's (R25 M0, review S3-2): with
+ * `account_conflict`, errorRemedy (src/errors.ts) says the request is at fault and no grant is involved. A request that names
+ * none is not in conflict, so its refusal keeps the details it had and its remedy never says to leave out what AMCP does not fill.
+ */
+export function accountConflict(named: unknown): JsonObject {
+  return named === undefined || named === null || named === '' ? {} : {account_conflict: true};
 }

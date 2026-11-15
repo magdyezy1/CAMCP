@@ -1,4 +1,5 @@
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {accountConflict} from './account-id.js';
+import {failWithStatus, familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {pinnedJson} from './pinned-json.js';
@@ -22,6 +23,8 @@ const fail: ReasonFirstRefusal = familyErrors('INVALID_DV360_SEARCH', {
   ACCOUNT_SCOPE_MISMATCH: 403,
   INSUFFICIENT_SCOPE: 403,
 });
+/** The refusal of a request that names another advertiser than the selected one, which carries its details (review S3-2). */
+const deny = failWithStatus(403);
 const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
 
 /** The exact documented POST search creates no assignment, list, task or job.
@@ -56,7 +59,12 @@ export function validateDV360TargetingSearch(p: CompiledRequest) {
     BigInt(p.accountId) > 9223372036854775807n ||
     b.advertiserId !== p.accountId
   )
-    fail('The native advertiserId must match the selected advertiser.', 'ACCOUNT_SCOPE_MISMATCH');
+    // A request that names another advertiser is at fault, not a grant (review S3-2).
+    deny(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'The native advertiserId must match the selected advertiser.',
+      accountConflict(b.advertiserId),
+    );
   if (
     Object.keys(b).some(k => !['advertiserId', 'pageSize', 'pageToken', variant.input].includes(k)) ||
     !obj(b[variant.input]) ||
@@ -75,7 +83,11 @@ export function authorizeDV360TargetingSearch(p: CompiledRequest, c: Connection,
   if (!dv360TargetingSearchRoute(p)) return false;
   validateDV360TargetingSearch(p);
   if (p.accountId !== account || (p.body as JsonObject).advertiserId !== account)
-    fail('Search context must match the selected advertiser.', 'ACCOUNT_SCOPE_MISMATCH');
+    deny(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'Search context must match the selected advertiser.',
+      accountConflict((p.body as JsonObject).advertiserId),
+    );
   if (!c.scopes.includes('https://www.googleapis.com/auth/display-video'))
     fail('Reconnect the selected DV360 connection with display-video scope.', 'INSUFFICIENT_SCOPE');
   return true;

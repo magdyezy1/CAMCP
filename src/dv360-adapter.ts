@@ -1,4 +1,5 @@
 import type {
+  CompileDraft,
   CompileHooks,
   ContractHooks,
   ContractNote,
@@ -7,6 +8,7 @@ import type {
   ProviderVerificationRead,
   StateTarget,
 } from './provider-adapter.js';
+import {sameNativeAccount} from './account-id.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {Registry} from './catalog.js';
@@ -38,14 +40,39 @@ const stateIds: Record<string, string> = {
 };
 
 /**
+ * R25 M0 (review S3-2, error 11 of the live checks of 2026-11-15): an agent that types an ID as JSON writes the advertiser as a
+ * number. The shared alias check already reads such a number as the selected advertiser (it compares IDs as text), but the typed
+ * write contracts compare the body's and the query's advertiserId with the selected advertiser as strings, and refused it as an
+ * ACCOUNT_SCOPE_MISMATCH that read as a grant problem. The number of the selected advertiser's digits is sent as the string
+ * DV360's int64 JSON takes, here, before any review is frozen; sameNativeAccount (src/account-id.ts) decides, and counts only a
+ * safe integer. Anything else stays as written, and the contracts refuse it.
+ */
+function advertiserIdAsString(draft: CompileDraft): undefined {
+  const account = draft.accountId;
+  if (account === undefined) return undefined;
+  const sameNumber = (value: unknown) => typeof value === 'number' && sameNativeAccount(draft.gateway, value, account);
+  if (sameNumber(draft.query.advertiserId)) draft.query.advertiserId = account;
+  const body = draft.body;
+  if (
+    body !== null &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    sameNumber((body as JsonObject).advertiserId)
+  )
+    draft.body = {...(body as JsonObject), advertiserId: account};
+  return undefined;
+}
+
+/**
  * Wave 4c (transport and catalog): DV360's part of the catalog compiler (src/compiler.ts). A request may name its
- * catalog route by resource and RPC; its parameters go in the query whatever the method; the targeting search is
- * planned as a reviewed read before the report job's controls.
+ * catalog route by resource and RPC; its parameters go in the query whatever the method; the advertiser it names as a
+ * number is the string; the targeting search is planned as a reviewed read before the report job's controls.
  */
 const dv360Compile: CompileHooks = Object.freeze({
   resourceAction: (registry: Registry, input: JsonObject) =>
     registry.data.supplemental.find(a => a.raw.resource === input.resource && a.raw.rpc === input.method),
   queryParameters: true as const,
+  request: advertiserIdAsString,
   beforeJob: dv360TargetingSearchPlan,
 });
 
