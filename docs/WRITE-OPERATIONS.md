@@ -67,7 +67,7 @@ Submit the same review only after confirming its intended change:
 }
 ```
 
-Budget, bid, spend or activation changes additionally require `spend_change_confirmed:true`. New serving entities must explicitly be paused or draft.
+Budget, bid, spend or activation changes additionally require `spend_change_confirmed:true`. New serving entities must explicitly be paused or draft. A TikTok create that its shape pins paused needs no `spend_change_confirmed` for its budget, bid or status fields (owner decision Q14, 2026-11-15): a campaign, or a Smart+ campaign, ad group or ad, created `DISABLE`, or a standard ad group or ad created `DISABLE`, or `ENABLE` under a parent the review reads as paused. The owner's caps, `allow_activation`, the paused-parent check (`PARENT_SERVING`, also when the parent's status is unread, and again at execute) and the flag on enabling an existing object or widening spend are unchanged.
 
 `prepare` returns `execute_requirements` — `{confirmed, idempotency_key, spend_change_confirmed, creative_edit_confirmed, reasons[]}` — decided by the same rules execute applies, so a client asks the user once instead of discovering a missing flag from a refused execute, and `expires_in_seconds`. Execute still re-checks everything. The spending acknowledgement is decided structurally as well as by field names (`src/spend-effects.ts`):
 
