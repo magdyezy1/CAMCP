@@ -318,6 +318,71 @@ test('an update keeps its "Update … from → to" wording, and the same words u
   assert.deepEqual(meta.status, [{field: '/status', from: 'ACTIVE', to: 'PAUSED'}]);
 });
 
+// S3-1 (the lead's review of this package): the "from" of a status change is the current status of the entity written, never
+// the account's or a parent's. The first record of the review's reads that has a status was taken for it, and the account is
+// the first read of most reviews, so a write that is not read as a create (a route that no declaration covers, or an update
+// whose target is read after the account) borrowed the account's status: the PAUSED of an ad account shown as the "from" of a
+// catalog feed. A write of the account itself keeps its own.
+test('the "from" of an update is the status of its target, never the status of the account read before it', () => {
+  const account = {
+      adaccounts: [{adaccount: {id: '123', name: 'Synthetic account', currency: 'USD', status: 'PAUSED'}}],
+    },
+    campaign = {campaigns: [{campaign: {id: '456', name: 'Synthetic campaign', status: 'PAUSED'}}]};
+  const update = plan(
+    'snapchat_native_action',
+    'snapchat_adaccounts_ad_account_id_campaigns_update',
+    'PUT',
+    '/v1/adaccounts/123/campaigns',
+    {campaigns: [{id: '456', name: 'Synthetic campaign', status: 'ACTIVE'}]},
+  );
+  // The account is read first and is ACTIVE below: the old rule named its status, which equals the new one, so no "from" was
+  // shown at all for a campaign that is in fact being activated.
+  const s = reviewSummary(update, [
+    {adaccounts: [{adaccount: {...account.adaccounts[0].adaccount, status: 'ACTIVE'}}]},
+    campaign,
+  ]);
+  assert.equal(s.operation, 'update');
+  assert.deepEqual(s.status, [{field: '/campaigns/0/status', from: 'PAUSED', to: 'ACTIVE'}]);
+  // With the target read first it was never wrong, and it still reads the same.
+  assert.deepEqual(reviewSummary(update, [campaign, account]).status, s.status);
+  // When the account is the only record with a status there is no target to name: no "from" is better than a wrong one.
+  assert.deepEqual(reviewSummary(update, [account]).status, [{field: '/campaigns/0/status', to: 'ACTIVE'}]);
+});
+
+test('a write of the account itself keeps the status it had, and a parent read is no target either', () => {
+  const settings = plan(
+    'linkedin_native_action',
+    'linkedin_rest_ad_accounts_ad_account_id_post',
+    'POST',
+    '/rest/adAccounts/123',
+    {patch: {$set: {status: 'PAUSED'}}},
+  );
+  const own = reviewSummary(settings, [{id: 123, name: 'Synthetic account', currency: 'USD', status: 'ACTIVE'}]);
+  assert.deepEqual(own.status, [{field: '/patch/$set/status', from: 'ACTIVE', to: 'PAUSED'}]);
+  // An edit of a campaign below that account reads the account first; its "from" is the campaign's.
+  const campaign = plan(
+    'linkedin_native_action',
+    'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+    'POST',
+    '/rest/adAccounts/123/adCampaigns/456',
+    {patch: {$set: {status: 'PAUSED'}}},
+  );
+  const edit = reviewSummary(campaign, [
+    {id: 123, name: 'Synthetic account', currency: 'USD', status: 'PAUSED'},
+    {id: 456, name: 'Synthetic campaign', status: 'ACTIVE'},
+  ]);
+  assert.deepEqual(edit.status, [{field: '/patch/$set/status', from: 'ACTIVE', to: 'PAUSED'}]);
+  // A provider whose account record names its status in another field is unaffected; a Meta node edit keeps its status.
+  const meta = reviewSummary(
+    plan('meta_native_action', 'meta_campaign_id_update', 'POST', '/v26.0/111', {status: 'PAUSED'}),
+    [
+      {id: 'act_123', account_status: 1, currency: 'USD'},
+      {id: '111', name: 'Spring', status: 'ACTIVE'},
+    ],
+  );
+  assert.deepEqual(meta.status, [{field: '/status', from: 'ACTIVE', to: 'PAUSED'}]);
+});
+
 test('a LinkedIn partial update, a POST to a member, stays an update and keeps its current status', () => {
   const s = reviewSummary(
     plan(
@@ -410,31 +475,33 @@ test('a create directly under the account of X and Snapchat reads as a create, a
 // S4-4 (the lead's review of this package): this sweep's expected value was the code's own rule (the action name's create
 // or post token), which proves nothing for LinkedIn and X, whose names carry only the HTTP method. Whether a reviewed route
 // reads as a create is now swept against an oracle of its own, DV360's routes included, in
-// tests/review-summary-ledger.test.mjs. What stays here is the safety property of every route under an account, and it
-// still skips the routes whose capture has no read_only flag (DV360's), which S3-1 brings in with the fix they need.
+// tests/review-summary-ledger.test.mjs. What stays here is the safety property of every route under an account, reviewed or
+// not, DV360's included (its captures carry no read_only flag, which is not a read): it never takes the account's status.
 test('a ledger POST to a collection directly under its provider’s account path borrows no status from the account', () => {
   const registry = new Registry(),
     found = new Map();
   for (const r of actionContracts(registry)) {
     const route = registry.action(r.gateway, r.action),
       accountPath = providerHooks(r.gateway)?.writes?.accountPath;
-    if (!r.method || !r.path || !accountPath || (route ? route.read_only !== false : r.method === 'GET')) continue;
+    if (!r.method || !r.path || !accountPath || (route ? route.read_only === true : r.method === 'GET')) continue;
     const template = r.path.split('?')[0],
       path = template.replace(/\{[^}]+\}/g, '123'),
       account = accountPath.exec(path)?.[0],
       last = template.split('/').filter(Boolean).at(-1);
     if (r.method !== 'POST' || !account || path.slice(account.length).split('/').filter(Boolean).length !== 1) continue;
     if (/^\{/.test(last) || /^create(?:-|$)/.test(last)) continue;
+    // What a review reads of the account: its currency marks it, as every provider's account read carries one.
     const s = reviewSummary(plan(r.gateway, r.action, r.method, path, {status: 'PAUSED'}), [
-      {id: 123, status: 'ACTIVE'},
+      {id: 123, name: 'Synthetic account', currency: 'USD', status: 'ACTIVE'},
     ]);
     assert.equal(s.status?.[0]?.from, undefined, r.action + ' must not borrow the account’s status');
     found.set(r.gateway, (found.get(r.gateway) ?? 0) + 1);
   }
-  // The sweep reaches LinkedIn’s, X’s and Snapchat’s collections under their accounts.
+  // The sweep reaches LinkedIn’s, X’s, Snapchat’s and DV360’s collections under their accounts.
   assert.ok(found.get('linkedin_native_action') >= 2, JSON.stringify([...found]));
   assert.ok(found.get('x_ads_native_action') >= 15, JSON.stringify([...found]));
   assert.ok(found.get('snapchat_native_action') >= 15, JSON.stringify([...found]));
+  assert.ok(found.get('dv360_native_action') >= 4, JSON.stringify([...found]));
 });
 
 // T3c: a request that names a method other than a create is no create, whatever its path looks like. LinkedIn takes a

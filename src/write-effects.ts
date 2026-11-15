@@ -65,8 +65,14 @@ export function writeEffects(plan: CompiledRequest, state?: unknown[]): WriteEff
   if (!destructive && !publishes && !stops) return undefined;
   return {destructive, irreversible: destructive, publishes_live: publishes, stops_delivery: stops};
 }
-/** The first record of the review's before-state, as id, name and status, for the reason text. */
-export function stateTarget(state: unknown[]): {id?: string; name?: string; status?: string} | undefined {
+/**
+ * The first record of the review's before-state, as id, name and status, for the reason text. `skip` names a record that is
+ * no target (the account's read, or a parent's, which most reviews read first): it and what it holds are passed over.
+ */
+export function stateTarget(
+  state: unknown[],
+  skip?: (record: JsonObject) => boolean,
+): {id?: string; name?: string; status?: string} | undefined {
   const find = (v: unknown, depth: number): JsonObject | undefined => {
     if (depth > 5) return undefined;
     if (Array.isArray(v)) {
@@ -76,7 +82,7 @@ export function stateTarget(state: unknown[]): {id?: string; name?: string; stat
       }
       return undefined;
     }
-    if (!object(v)) return undefined;
+    if (!object(v) || skip?.(v)) return undefined;
     if (statusKeys.some(k => typeof v[k] === 'string')) return v;
     for (const x of Object.values(v)) {
       const found = find(x, depth + 1);

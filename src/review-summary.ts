@@ -51,8 +51,8 @@ export function exactAmount(native: unknown, perUnit: number, places = 2): strin
   if (decimals.length < places) decimals = decimals.padEnd(places, '0');
   return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + (decimals ? '.' + decimals : '');
 }
-/** The account record a review read (a currency marks it), as id, name and currency. */
-function accountOf(state: unknown[]): {name?: string; currency?: string} {
+/** The record of the account a review read (a currency marks it), or undefined. */
+function accountRecord(state: unknown[]): JsonObject | undefined {
   const find = (v: unknown, depth: number): JsonObject | undefined => {
     if (depth > 5) return undefined;
     if (Array.isArray(v)) {
@@ -71,7 +71,17 @@ function accountOf(state: unknown[]): {name?: string; currency?: string} {
     }
     return undefined;
   };
-  const record = find(state, 0);
+  return find(state, 0);
+}
+/** Whether `record` is `inside` or holds it (an advertiser holds its general settings, where its currency is). */
+function holds(record: unknown, inside: JsonObject, depth = 0): boolean {
+  if (record === inside) return true;
+  if (depth > 5 || !record || typeof record !== 'object') return false;
+  return Object.values(record).some(v => holds(v, inside, depth + 1));
+}
+/** The account a review read, as name and currency. */
+function accountOf(state: unknown[]): {name?: string; currency?: string} {
+  const record = accountRecord(state);
   if (!record) return {};
   const name = record.descriptiveName ?? record.descriptive_name ?? record.name,
     currency = record.currency ?? record.currencyCode ?? record.currency_code;
@@ -200,8 +210,17 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
   const {operation, entity, count, plural} = operationOf(plan),
     account = accountOf(state),
     unit = budgetUnits[plan.gateway],
-    // A current status is named only for a single existing target: the first record read is not every target's.
-    target = operation === 'create' || count !== 1 ? undefined : stateTarget(state);
+    // A current status is named only for a single existing target: the first record read is not every target's, and the
+    // account's read, which most reviews make first, is no target at all unless the request writes the account itself (a
+    // path that is its provider's account path and nothing after it). Skipping it can only leave a "from" out, never show
+    // another entity's status as the current one (R2.5 S3-1).
+    accountRead = accountRecord(state),
+    accountPath = providerHooks(plan.gateway)?.writes?.accountPath?.exec(plan.path)?.[0],
+    writesAccount = accountPath !== undefined && accountPath.length === plan.path.length,
+    target =
+      operation === 'create' || count !== 1
+        ? undefined
+        : stateTarget(state, accountRead && !writesAccount ? record => holds(record, accountRead) : undefined);
   const amounts: JsonObject[] = [],
     statuses: JsonObject[] = [];
   const walk = (v: unknown, path: string, depth: number) => {
