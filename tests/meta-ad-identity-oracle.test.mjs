@@ -8,7 +8,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
-import {saveAccessSet} from '../dist/src/access-sets.js';
+import {accessSetKind, saveAccessSet} from '../dist/src/access-sets.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {AdPreviews} from '../dist/src/ad-previews.js';
 import {MirrorError} from '../dist/src/errors.js';
@@ -25,8 +25,18 @@ const probe = id => ({
   query: {fields: 'id,account_id'},
 });
 const previews = (...ids) => ({platform: 'meta', account_id: '100', connection_id: login, ad_ids: ids});
+/**
+ * The text with the ID a call asked for replaced by <id>, where it stands as an ID and not inside a longer token. The audit
+ * rows of a reader limited to an access set carry its id, a UUID drawn at random: one that held the digits of the ad ID
+ * ('222') was altered in that ad's trail only, and the comparison of the two trails failed about once in a hundred runs.
+ */
+const withoutId = (text, id) =>
+  text.replaceAll(
+    new RegExp('(?<![0-9A-Za-z_-])' + id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![0-9A-Za-z_-])', 'g'),
+    '<id>',
+  );
 
-function fixture(t) {
+function fixture(t, accessSetId) {
   const store = new Store(':memory:', Buffer.alloc(32, 93).toString('base64')),
     requests = [];
   t.after(() => store.close());
@@ -97,10 +107,21 @@ function fixture(t) {
     undefined,
     {allowWrites: false, requireBeforeState: true, maxBudgetChange: 0},
   );
-  const set = saveAccessSet(store, admin, {
-    name: 'client-a',
-    bindings: [{gateway: 'meta_native_action', connection_id: login, account_id: '100'}],
-  });
+  const bindings = [{gateway: 'meta_native_action', connection_id: login, account_id: '100'}];
+  // saveAccessSet draws the id of the set at random (a UUID), and the audit rows of a reader limited to the set carry it. A
+  // test may choose the id instead, to force a draw it would otherwise leave to chance: the document saveAccessSet writes.
+  let set;
+  if (accessSetId === undefined) set = saveAccessSet(store, admin, {name: 'client-a', bindings});
+  else {
+    store.putDocument(
+      admin.tenantId,
+      accessSetKind,
+      accessSetId,
+      {name: 'client-a', bindings, updated_at: Date.now(), updated_by: admin.userId},
+      0,
+    );
+    set = {id: accessSetId};
+  }
   return {
     store,
     service,
@@ -136,7 +157,7 @@ test('F-L3-03: through the previews tool a foreign ad and an ad that does not ex
   assert.deepEqual(foreign.data.not_found, ['222']);
   assert.deepEqual(absent.data.not_found, ['333']);
   // Apart from the ID they name, the two answers are the same text.
-  const text = (out, id) => JSON.stringify(out.data).replaceAll(id, '<id>');
+  const text = (out, id) => withoutId(JSON.stringify(out.data), id);
   assert.equal(text(foreign, '222'), text(absent, '333'));
   // One identity read each, nothing broader: the foreign ad's name was never requested.
   assert.deepEqual(f.requests, ['/v26.0/222?id,account_id', '/v26.0/333?id,account_id']);
@@ -275,9 +296,10 @@ async function audited(f, actor, id) {
 }
 /** A value as text without what differs between two calls by construction: the ID asked for, request IDs and latency. */
 const withoutIdentity = (value, id) =>
-  JSON.stringify(value, (key, v) =>
-    ['requestId', 'request_id', 'latencyMs'].includes(key) ? undefined : v,
-  ).replaceAll(id, '<id>');
+  withoutId(
+    JSON.stringify(value, (key, v) => (['requestId', 'request_id', 'latencyMs'].includes(key) ? undefined : v)),
+    id,
+  );
 const trailWithoutIdentity = (rows, id) => rows.map(row => withoutIdentity(JSON.parse(row.event), id));
 /** The activity history as `actor` reads it, filtered to the probe's rows: what a reader of the audit is shown. */
 async function shown(f, actor) {
@@ -286,41 +308,71 @@ async function shown(f, actor) {
   return page.data;
 }
 const forHistory = (event, id) =>
-  JSON.stringify({...event, id: undefined, at: undefined, request_id: undefined}).replaceAll(id, '<id>');
+  withoutId(JSON.stringify({...event, id: undefined, at: undefined, request_id: undefined}), id);
+
+/**
+ * What NF-2 asks of one call for a foreign ad and one for an absent ad by `actor`: the whole answer, the audit rows behind
+ * it and what the history shows of them are one, apart from the ID the call named.
+ */
+async function assertOneTrail(f, actor) {
+  const foreign = await audited(f, actor, '222'),
+    absent = await audited(f, actor, '333');
+  // Both answers were already one (F-L3-03), the whole envelope, not only its data; the rows behind them are now one too.
+  for (const out of [foreign.out, absent.out]) assert.deepEqual(out.data.previews, []);
+  assert.equal(withoutIdentity(absent.out, '333'), withoutIdentity(foreign.out, '222'));
+  assert.equal(foreign.rows.length, 3, 'request started, request failed, the nested call refused');
+  assert.equal(absent.rows.length, 3);
+  assert.deepEqual(trailWithoutIdentity(absent.rows, '333'), trailWithoutIdentity(foreign.rows, '222'));
+  const failed = JSON.parse(foreign.rows[1].event);
+  assert.equal(failed.event, 'request_failed');
+  assert.equal(failed.error.code, 'ACCOUNT_SCOPE_MISMATCH');
+  assert.equal(failed.error.message, 'Not in this account');
+  // What the history shows of them (the website's activity page projects the same rows).
+  const page = await shown(f, actor),
+    events = page.events.filter(e => e.event === 'request_failed');
+  assert.equal(events.length, 2, 'the history shows both failures');
+  assert.equal(forHistory(events[0], '333'), forHistory(events[1], '222'));
+  assert.doesNotMatch(
+    JSON.stringify(page),
+    /UPSTREAM_ERROR|Unsupported get request|fbtrace|synthetic|FOREIGN CLIENT AD|HTTP 400/,
+  );
+  assert.deepEqual(
+    events.map(e => e.diagnostics.map(d => d.code)),
+    [['ACCOUNT_SCOPE_MISMATCH'], ['ACCOUNT_SCOPE_MISMATCH']],
+  );
+}
 
 for (const [who, caller] of [
   ['a reader limited to one client', f => f.limited],
   ['the workspace admin, who has full access', () => admin],
 ])
   test(`NF-2: ${who} leaves the same audit trail and history for a foreign ad as for an absent one`, async t => {
-    const f = fixture(t),
-      actor = caller(f),
-      foreign = await audited(f, actor, '222'),
-      absent = await audited(f, actor, '333');
-    // Both answers were already one (F-L3-03), the whole envelope, not only its data; the rows behind them are now one too.
-    for (const out of [foreign.out, absent.out]) assert.deepEqual(out.data.previews, []);
-    assert.equal(withoutIdentity(absent.out, '333'), withoutIdentity(foreign.out, '222'));
-    assert.equal(foreign.rows.length, 3, 'request started, request failed, the nested call refused');
-    assert.equal(absent.rows.length, 3);
-    assert.deepEqual(trailWithoutIdentity(absent.rows, '333'), trailWithoutIdentity(foreign.rows, '222'));
-    const failed = JSON.parse(foreign.rows[1].event);
-    assert.equal(failed.event, 'request_failed');
-    assert.equal(failed.error.code, 'ACCOUNT_SCOPE_MISMATCH');
-    assert.equal(failed.error.message, 'Not in this account');
-    // What the history shows of them (the website's activity page projects the same rows).
-    const page = await shown(f, actor),
-      events = page.events.filter(e => e.event === 'request_failed');
-    assert.equal(events.length, 2, 'the history shows both failures');
-    assert.equal(forHistory(events[0], '333'), forHistory(events[1], '222'));
-    assert.doesNotMatch(
-      JSON.stringify(page),
-      /UPSTREAM_ERROR|Unsupported get request|fbtrace|synthetic|FOREIGN CLIENT AD|HTTP 400/,
-    );
-    assert.deepEqual(
-      events.map(e => e.diagnostics.map(d => d.code)),
-      [['ACCOUNT_SCOPE_MISMATCH'], ['ACCOUNT_SCOPE_MISMATCH']],
-    );
+    const f = fixture(t);
+    await assertOneTrail(f, caller(f));
   });
+
+test('NF-2: the same holds whatever digits the random id of the reader’s access set holds', async t => {
+  // The audit rows of a reader limited to an access set carry its id, a UUID that saveAccessSet draws at random. When it held
+  // the digits of the ad ID a trail was compared by ('222' or '333'), the ID was replaced inside it too, in that ad's trail
+  // only, and the comparison failed about once in a hundred runs (seen once, under Node 24.22.3). Here the draw is forced.
+  for (const accessSetId of [
+    '9bccb19e-043f-4250-80c6-8c975070c9a7',
+    '9bccb19e-043f-4250-80c6-8c9750222c9a',
+    '9bccb19e-043f-4250-80c6-8c9750333c9a',
+    '9bccb19e-222f-4250-80c6-8c9750333c9a',
+  ]) {
+    const f = fixture(t, accessSetId);
+    await assertOneTrail(f, f.limited);
+    // The comparison still finds a real difference with that id: Meta refusing the request says nothing about whose ad it is.
+    const refused = await audited(f, f.limited, '444'),
+      absent = await audited(f, f.limited, '333');
+    assert.notDeepEqual(
+      trailWithoutIdentity(refused.rows, '444'),
+      trailWithoutIdentity(absent.rows, '333'),
+      accessSetId,
+    );
+  }
+});
 
 test('NF-2: a failure that says nothing about whose ad it is is still recorded as what it was, so the comparison above can find a difference', async t => {
   const f = fixture(t),
