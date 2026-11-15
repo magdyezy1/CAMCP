@@ -111,6 +111,19 @@ function underAccount(plan: CompiledRequest): boolean {
     plan.path.slice(account.length).split('/').filter(Boolean).length === 1
   );
 }
+/**
+ * Whether the request names a method other than a plain create, in a header (LinkedIn's Rest.li method on any POST,
+ * X-HTTP-Method-Override) or in the query string a REST server reads (the keys the compiler recognizes as tunnels). A POST
+ * to a collection that says BATCH_PARTIAL_UPDATE updates what it names whatever its path looks like, so a path alone must
+ * not make it a create: that summary would hide an update, and its status, from the person approving it (R2.5 T3).
+ */
+function namesOtherMethod(plan: CompiledRequest): boolean {
+  const other = (v: unknown) => typeof v === 'string' && !/^(?:POST|CREATE|BATCH_CREATE)$/i.test(v.trim());
+  return (
+    Object.entries(plan.headers ?? {}).some(([name, value]) => /method/i.test(name) && other(value)) ||
+    ['method', '_method', 'http_method', 'method_override'].some(key => other(plan.query?.[key]))
+  );
+}
 /** What the request does: an operation and the entities it acts on. */
 function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
@@ -128,7 +141,10 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
       ? 'delete'
       : /:publish$/.test(plan.path)
         ? 'publish'
-        : verb || (/(?:^|_)(?:create|post)(?:_|$)/.test(action) && (segments.at(-1) === key || underAccount(plan)))
+        : verb ||
+            (/(?:^|_)(?:create|post)(?:_|$)/.test(action) &&
+              (segments.at(-1) === key || underAccount(plan)) &&
+              !namesOtherMethod(plan))
           ? 'create'
           : 'update';
   // A create names what it creates: a known collection anywhere in the path, else the noun before its verb, never the verb.

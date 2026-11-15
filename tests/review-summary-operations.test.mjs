@@ -4,6 +4,9 @@ import {Registry} from '../dist/src/catalog.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
+import {Store} from '../dist/src/store.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
 
 /**
  * Round 2.5, package r25-m0-review, T3: the review summary is what the person approving reads, so it must name the
@@ -350,4 +353,127 @@ test('every ledger POST to a collection directly under its provider’s account 
   assert.ok(found.get('linkedin_native_action') >= 2, JSON.stringify([...found]));
   assert.ok(found.get('x_ads_native_action') >= 15, JSON.stringify([...found]));
   assert.ok(found.get('snapchat_native_action') >= 15, JSON.stringify([...found]));
+});
+
+// T3c: a request that names a method other than a create is no create, whatever its path looks like. LinkedIn takes a
+// Rest.li method on any POST (restli_method), and the compiler tunnels a method override too: a collection POST that says
+// BATCH_PARTIAL_UPDATE updates what it names, so a summary that read "Create" would hide an update (and its status) from
+// the person approving it. The exact request shows the header; the summary must not contradict it.
+const collectionPost = (action, path, headers = {}, query = {}) => ({
+  ...plan('linkedin_native_action', action, 'POST', path, {status: 'ACTIVE'}),
+  headers,
+  query,
+});
+const campaigns = ['linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post', '/rest/adAccounts/123/adCampaigns'];
+// Creatives are one of the 14 collection names the old rule knew: the same guard applies to it.
+const creatives = ['linkedin_rest_ad_accounts_ad_account_id_creatives_post', '/rest/adAccounts/123/creatives'];
+
+test('a collection POST that names an update method reads as an update, and one that names a create still reads as a create', () => {
+  for (const [action, path] of [campaigns, creatives]) {
+    for (const method of [
+      'PARTIAL_UPDATE',
+      'BATCH_PARTIAL_UPDATE',
+      'UPDATE',
+      'BATCH_UPDATE',
+      'ACTION',
+      'partial_update',
+    ]) {
+      const s = reviewSummary(collectionPost(action, path, {'X-RestLi-Method': method}), []);
+      assert.equal(s.operation, 'update', path + ' ' + method);
+      assert.match(s.text, /^Update 1 /, path + ' ' + method);
+    }
+    for (const headers of [
+      {},
+      {'X-RestLi-Method': 'CREATE'},
+      {'X-RestLi-Method': 'BATCH_CREATE'},
+      {'X-HTTP-Method-Override': 'POST'},
+    ]) {
+      const s = reviewSummary(collectionPost(action, path, headers), []);
+      assert.equal(s.operation, 'create', path + ' ' + JSON.stringify(headers));
+    }
+  }
+});
+
+test('a method override, in a header or in the query string a REST server reads, makes a collection POST no create', () => {
+  const [action, path] = campaigns;
+  for (const headers of [
+    {'X-HTTP-Method-Override': 'PUT'},
+    {'X-HTTP-Method-Override': 'PATCH'},
+    {'X-Method-Override': 'put'},
+  ])
+    assert.equal(reviewSummary(collectionPost(action, path, headers), []).operation, 'update', JSON.stringify(headers));
+  for (const query of [{method: 'PUT'}, {_method: 'PATCH'}, {http_method: 'PUT'}, {method_override: 'PATCH'}])
+    assert.equal(reviewSummary(collectionPost(action, path, {}, query), []).operation, 'update', JSON.stringify(query));
+  // A query parameter that only has a similar name, or says POST, is not an override.
+  for (const query of [{method: 'POST'}, {payment_method: 'card'}, {fields: 'id'}])
+    assert.equal(reviewSummary(collectionPost(action, path, {}, query), []).operation, 'create', JSON.stringify(query));
+  // The same on the known collections of other providers (S4): a Snapchat ad squad POST that tunnels a PUT.
+  const squad = {
+    ...plan(
+      'snapchat_native_action',
+      'snapchat_campaigns_campaign_id_adsquads_create',
+      'POST',
+      '/v1/campaigns/c1/adsquads',
+      {
+        adsquads: [{status: 'ACTIVE'}],
+      },
+    ),
+    headers: {'X-HTTP-Method-Override': 'PUT'},
+  };
+  assert.equal(reviewSummary(squad, []).operation, 'update');
+  assert.equal(reviewSummary({...squad, headers: {}}, []).operation, 'create');
+});
+
+test('the request amcp_write inspect compiles for a LinkedIn collection POST with a Rest.li update method reads as an update', async t => {
+  const store = new Store(':memory:', Buffer.alloc(32, 5).toString('base64')),
+    operator = {tenantId: 'synthetic-summary', userId: 'op', role: 'operator'};
+  t.after(() => store.close());
+  store.putConnection(
+    {...operator, role: 'admin'},
+    {
+      id: 'c',
+      tenantId: operator.tenantId,
+      gateway: 'linkedin_native_action',
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: [],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async () => {
+      throw new Error('inspect sends nothing');
+    }),
+    undefined,
+    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+  );
+  const summarize = async restli => {
+    const result = await service.call(
+      'amcp_write',
+      {
+        action: 'inspect',
+        gateway: 'linkedin_native_action',
+        arguments: {
+          account_id: '123',
+          action: campaigns[0],
+          ...(restli ? {restli_method: restli} : {}),
+          payload: {entities: {456: {patch: {$set: {status: 'ACTIVE'}}}}},
+        },
+      },
+      operator,
+    );
+    assert.equal(result.success, true, JSON.stringify(result.error));
+    return {request: result.data.request, summary: reviewSummary(result.data.request, [])};
+  };
+  const batch = await summarize('BATCH_PARTIAL_UPDATE');
+  assert.equal(batch.request.headers['X-RestLi-Method'], 'BATCH_PARTIAL_UPDATE');
+  assert.equal(batch.summary.operation, 'update');
+  assert.equal((await summarize('PARTIAL_UPDATE')).summary.operation, 'update');
+  // Without a method of its own the same collection POST is a create, and so is one that names CREATE.
+  assert.equal((await summarize(undefined)).summary.operation, 'create');
+  assert.equal((await summarize('CREATE')).summary.operation, 'create');
 });
