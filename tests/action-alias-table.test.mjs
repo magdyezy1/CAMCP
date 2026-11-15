@@ -166,6 +166,26 @@ test('names that are not executable routes (no path) and legacy upper-case names
   for (const spelling of legacy.aliases.keys()) assert.doesNotMatch(spelling, /[A-Z]/);
 });
 
+// The review's S4-2: a spelling a provider has retired is refused with the replacement it names (src/retired-provider-actions.ts,
+// "match the alias, not its shared route"). A generated spelling that equals one would resolve it to another action instead,
+// so the table leaves it out, whether a rule or a provider's own hook would have produced it.
+test('a spelling the provider has retired is no alias, whatever rule would have produced it', () => {
+  const retired = spelling => ['campaign_create', 'tt_ad_make', 'ad_get'].includes(spelling),
+    extra = a => (a.name === 'tt_ad_create' ? ['tt_ad_make'] : []),
+    own = actionAliasTable(synthetic, extra, retired);
+  // Without the list the rules do produce all three; with it none is an alias or an ambiguous spelling.
+  const free = actionAliasTable(synthetic, extra);
+  for (const spelling of ['campaign_create', 'tt_ad_make', 'ad_get'])
+    assert.ok(free.aliases.has(spelling) || free.ambiguous.has(spelling), spelling + ' would be produced');
+  for (const spelling of ['campaign_create', 'tt_ad_make', 'ad_get']) {
+    assert.equal(own.aliases.has(spelling), false, spelling);
+    assert.equal(own.ambiguous.has(spelling), false, spelling);
+  }
+  // Everything else is as it was.
+  assert.equal(own.aliases.get('campaign_get')?.canonical, 'tt_campaign_get');
+  assert.equal(own.aliases.get('ad_create')?.canonical, 'tt_ad_create');
+});
+
 test('the deprecation warning names the spelling used, the canonical name and where the caller wrote it', () => {
   const w = actionAliasWarning('arguments.action', 'campaign_get', 'tiktok_campaign_get');
   assert.equal(w.code, 'ACTION_ALIAS_DEPRECATED');

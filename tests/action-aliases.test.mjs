@@ -7,6 +7,8 @@ import {Store} from '../dist/src/store.js';
 import {MirrorService, strictOptions} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {withContractProfile} from '../dist/src/contract-profile.js';
+import {actionContracts} from '../dist/src/action-contracts.js';
+import {unsupportedProviderAliases} from '../dist/src/retired-provider-actions.js';
 import {providerHooks} from '../dist/src/provider-hooks.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -241,6 +243,69 @@ function namesOf(gateway, canonical) {
   return names;
 }
 
+// The second oracle of the read rule (the review's S4-1): AMCP's own classification, the action-contract ledger, which treats
+// as writes some actions the captured catalog flags as reads (a report-task create, shareable previews).
+const ledger = new Map(actionContracts(registry).map(c => [c.gateway + '/' + c.action, c.status])),
+  ledgerWrites = new Set(['reviewed_write_family', 'blocked_write', 'media_workflow']);
+
+test('the ledger classifies no action a read spelling leads to as a write, and it is a stricter oracle than the captured flag', () => {
+  // Not vacuous: the ledger holds writes the captured flag calls reads, so the two oracles differ.
+  const stricter = [...ledger].filter(
+    ([key, status]) =>
+      ledgerWrites.has(status) && registry.action(...key.split(/\/(.*)/s).slice(0, 2))?.read_only === true,
+  );
+  assert.ok(stricter.length >= 3, 'captured reads the ledger treats as writes: ' + stricter.length);
+  let read = 0;
+  for (const gateway of Object.keys(prefixes))
+    for (const [spelling, entry] of registry.actionAliases(gateway).aliases)
+      if (/_(get|list)$/.test(spelling)) {
+        read++;
+        const status = ledger.get(gateway + '/' + entry.canonical);
+        assert.ok(status !== undefined, gateway + ' ' + entry.canonical + ' is in the ledger');
+        assert.equal(
+          ledgerWrites.has(status),
+          false,
+          gateway + ' ' + spelling + ' leads to ' + entry.canonical + ' (' + status + ')',
+        );
+      }
+  assert.ok(read > 1000, 'read-looking aliases checked: ' + read);
+});
+
+// The review's S4-2: no generated spelling revives a spelling a provider has retired.
+test('no generated alias is a spelling a provider has retired', () => {
+  assert.ok(unsupportedProviderAliases.length >= 1);
+  for (const row of unsupportedProviderAliases) {
+    const {aliases, ambiguous} = registry.actionAliases(row.gateway);
+    assert.equal(aliases.has(row.action), false, row.action);
+    assert.equal(ambiguous.has(row.action), false, row.action);
+    assert.equal(registry.resolveAction(row.gateway, row.action).alias, undefined, row.action);
+  }
+});
+
+test('the registry leaves a spelling the provider has retired out of its alias table', () => {
+  // None of today's retired spellings is one a rule would produce, so the wiring is shown with a synthetic row.
+  const row = {
+    gateway: TIKTOK,
+    action: 'campaign_create',
+    version: 'v0',
+    source: 'synthetic',
+    checked_at: '2026-11-15',
+    reason: 'Synthetic.',
+    replacement: 'tiktok_campaign_create',
+  };
+  assert.equal(new Registry().resolveAction(TIKTOK, 'campaign_create').alias?.canonical, 'tiktok_campaign_create');
+  unsupportedProviderAliases.push(row);
+  try {
+    const fresh = new Registry();
+    assert.equal(fresh.resolveAction(TIKTOK, 'campaign_create').action, undefined);
+    assert.equal(fresh.actionAliases(TIKTOK).aliases.has('campaign_create'), false);
+    assert.equal(fresh.actionAliases(TIKTOK).aliases.get('campaign_get')?.canonical, 'tiktok_campaign_get');
+  } finally {
+    unsupportedProviderAliases.splice(unsupportedProviderAliases.indexOf(row), 1);
+  }
+  assert.equal(new Registry().resolveAction(TIKTOK, 'campaign_create').alias?.canonical, 'tiktok_campaign_create');
+});
+
 test('across the gateways no alias collides with a name, leads to a write by a read spelling, or is anything but a form of a name', () => {
   let total = 0;
   for (const [gateway, prefix] of Object.entries(prefixes)) {
@@ -301,8 +366,7 @@ test('aliases stay out of every listing: the schema enums, the catalog, and the 
     for (const listed of [...refusal.details.allowed, ...refusal.details.did_you_mean])
       assert.equal(every.has(listed), false, gateway + ' offers ' + listed);
   }
-  // The catalog's counts are unchanged by the table.
-  assert.equal(registry.catalogs.get(TIKTOK).actions.length, 561);
+  // The catalog's counts are unchanged by the table: each gateway's listed catalog is the captured one (asserted above).
 });
 
 test('DESCRIBE_ACTION answers a near-miss target_action as it answers its canonical name', () => {
@@ -326,7 +390,7 @@ const actor = {tenantId: 'action-aliases', userId: 'operator', role: 'operator'}
   owner = {...actor, role: 'admin'},
   CONNECTION = '29292929-2929-4292-8292-292929292929',
   account = '7000000000000000002';
-function fixture() {
+function fixture({allowWrites = true} = {}) {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
     owner,
@@ -371,7 +435,7 @@ function fixture() {
     throw new Error('Unexpected TikTok request ' + method + ' ' + path);
   });
   const service = new MirrorService(new Registry(), store, transport, undefined, {
-    allowWrites: true,
+    allowWrites,
     requireBeforeState: true,
     maxBudgetChange: 0,
   });
@@ -583,6 +647,69 @@ test('a write alias keeps every gate its canonical name has: an ambiguous or unk
     assertRefused(canonicalRead, 'UNSUPPORTED_PARAMETER', {writes: () => f.writes.length});
     assertRefused(read, 'UNSUPPORTED_PARAMETER', {writes: () => f.writes.length});
     assert.equal(f.store.db.prepare("SELECT COUNT(*) AS n FROM documents WHERE kind='write_review'").get().n, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+// The review's S4-7: the R2.5 rule asks for a negative test per gate a package touches, and the alias gates are plan-based.
+test('a spend-changing write prepared through a near-miss name needs the approval its canonical name needs, and sends nothing without it', async () => {
+  const f = fixture();
+  try {
+    // ENABLE of a paused campaign is a spend change: its review says it needs the approval, and execute refuses without it.
+    f.campaigns.set('100', {...f.campaigns.get('100'), operation_status: 'DISABLE'});
+    const codes = [];
+    for (const name of ['tiktok_campaign_status_update', 'campaign_status_update']) {
+      const prepared = await f.prepare(name, 'ENABLE');
+      assert.equal(prepared.success, true, name + ' ' + JSON.stringify(prepared));
+      assert.equal(prepared.data.execute_requirements?.spend_change_confirmed, true, name);
+      const refused = await f.call('amcp_write', {
+        action: 'execute',
+        review_id: prepared.data.review_id,
+        idempotency_key: prepared.data.review_id,
+        confirmed: true,
+      });
+      assertRefused(refused, refused.error?.code, {writes: () => f.writes.length});
+      codes.push(refused.error.code);
+    }
+    assert.equal(codes[0], codes[1], 'the alias is refused as the canonical name is');
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.campaigns.get('100').operation_status, 'DISABLE');
+    // With the approval the same kind of review executes once: the refusal above was the missing approval, nothing else.
+    const prepared = await f.prepare('campaign_status_update', 'ENABLE'),
+      executed = await f.execute(prepared.data.review_id);
+    assert.equal(executed.success, true, JSON.stringify(executed));
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a write prepared through a near-miss name is refused on a read-only deployment as its canonical name is, with nothing sent', async () => {
+  const f = fixture({allowWrites: false});
+  try {
+    const codes = [];
+    for (const name of ['tiktok_campaign_status_update', 'campaign_status_update']) {
+      const refused = await f.prepare(name);
+      assert.equal(refused.success, false, name + ' ' + JSON.stringify(refused));
+      codes.push(refused.error.code);
+    }
+    assert.equal(codes[0], 'LIVE_WRITES_DISABLED');
+    assert.equal(codes[1], codes[0], 'the alias is refused as the canonical name is');
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.requests.length, 0, 'nothing was sent to the provider, not even a read');
+    // A direct call with dry_run:false through the alias is refused too, before any review.
+    const direct = await f.call(TIKTOK, {
+      action: 'campaign_status_update',
+      account_id: account,
+      payload: {campaign_ids: ['100'], operation_status: 'DISABLE'},
+      dry_run: false,
+      confirmed: true,
+      idempotency_key: 'direct-write-key',
+    });
+    assert.equal(direct.success, false);
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.campaigns.get('100').operation_status, 'ENABLE');
   } finally {
     f.store.close();
   }

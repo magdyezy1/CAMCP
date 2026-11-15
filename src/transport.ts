@@ -788,37 +788,42 @@ export class NativeTransport {
     // G9 (Round 2.5, M0): the closed-set tokens of the provider's documented error shape, and its own first sentence.
     // The tokens go into the message (below) and `provider_errors`; the sentence goes only to `provider_message`, which
     // the envelope marks untrusted beside `upstream`: provider text is never part of a message.
-    const refusal = providerRefusal(plan.gateway, data, undefined, plan.body);
-    const errorDetails = (c?: ProviderErrorClass) => ({
-      upstream: redact(data),
-      ...(refusal.text !== undefined ? {provider_message: refusal.text} : {}),
-      ...(refusal.errors.length ? {provider_errors: refusal.errors} : {}),
-      http_status: response.status,
-      // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
-      ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined
-        ? {}
-        : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
-      request_id: providerRequestId(plan.gateway, response.headers, data) ?? null,
-      ...(fabric ? {provider_fabric: fabric} : {}),
-      ...(c
-        ? {
-            layer: c.layer,
-            ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
-            ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
-            ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
-            // A version refusal names the version sent and the reviewed default (PRV-02, LinkedIn).
-            ...(c.layer === 'api_version' && wire?.versionSent ? wire.versionSent(headers) : {}),
-          }
-        : {}),
-      ...(response.status === 403
-        ? {
-            scope_denial:
-              providerHttpErrorCode(403, data, response.headers.get('www-authenticate')) === 'INSUFFICIENT_SCOPE',
-          }
-        : {}),
-      // The login a refused request was sent under (Google Ads' login customer).
-      ...(wire?.sentLogin ? wire.sentLogin(headers) : {}),
-    });
+    // It is read only where a refusal is thrown (below): a response that succeeded asks nothing of the provider's hooks.
+    let decoration: ReturnType<typeof providerRefusal> | undefined;
+    const refusalOf = () => (decoration ??= providerRefusal(plan.gateway, data, undefined, plan.body));
+    const errorDetails = (c?: ProviderErrorClass) => {
+      const {text, errors} = refusalOf();
+      return {
+        upstream: redact(data),
+        ...(text !== undefined ? {provider_message: text} : {}),
+        ...(errors.length ? {provider_errors: errors} : {}),
+        http_status: response.status,
+        // A refusal only the deployment owner can lift (app_eligibility, CON-06) offers no retry time.
+        ...(c?.layer === 'app_eligibility' || (c?.retryAfterMs ?? retryDelay) === undefined
+          ? {}
+          : {retry_after_ms: c?.retryAfterMs ?? retryDelay}),
+        request_id: providerRequestId(plan.gateway, response.headers, data) ?? null,
+        ...(fabric ? {provider_fabric: fabric} : {}),
+        ...(c
+          ? {
+              layer: c.layer,
+              ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
+              ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
+              ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
+              // A version refusal names the version sent and the reviewed default (PRV-02, LinkedIn).
+              ...(c.layer === 'api_version' && wire?.versionSent ? wire.versionSent(headers) : {}),
+            }
+          : {}),
+        ...(response.status === 403
+          ? {
+              scope_denial:
+                providerHttpErrorCode(403, data, response.headers.get('www-authenticate')) === 'INSUFFICIENT_SCOPE',
+            }
+          : {}),
+        // The login a refused request was sent under (Google Ads' login customer).
+        ...(wire?.sentLogin ? wire.sentLogin(headers) : {}),
+      };
+    };
     // A documented provider throttle reported outside HTTP 429 (Meta codes at HTTP 400, a Google Ads quota body)
     // counts as a rate limit and opens the shared cooldown at the scope the provider names. Nothing is retried
     // here: the error carries retry_after_ms, so neither the transport nor a worker repeats it immediately.
@@ -852,14 +857,15 @@ export class NativeTransport {
         code = c?.code ?? providerHttpErrorCode(response.status, data, response.headers.get('www-authenticate')),
         retryable = c ? c.retryable : response.status === 429 || response.status >= 500;
       // With tokens the message is a template (so the website shows it in Arabic) filled with the tokens' words only.
-      throw refusal.echo
+      const echo = refusalOf().echo;
+      throw echo
         ? new MirrorError(
             code,
             'Platform returned HTTP {status}: {refusal}.',
             errorDetails(c),
             response.status,
             retryable,
-            {status: response.status, refusal: refusal.echo},
+            {status: response.status, refusal: echo},
           )
         : new MirrorError(
             code,
@@ -877,14 +883,15 @@ export class NativeTransport {
         const c = classify(true),
           status =
             c?.layer === 'credential' ? 401 : c?.layer === 'rate_limit' ? 429 : c?.layer === 'consent' ? 403 : 502;
-        throw refusal.echo
+        const echo = refusalOf().echo;
+        throw echo
           ? new MirrorError(
               c?.code ?? 'PLATFORM_ERROR',
               'Platform reported an unsuccessful result: {refusal}.',
               errorDetails(c),
               status,
               c?.retryable ?? false,
-              {refusal: refusal.echo},
+              {refusal: echo},
             )
           : new MirrorError(
               c?.code ?? 'PLATFORM_ERROR',

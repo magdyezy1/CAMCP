@@ -48,17 +48,20 @@ function commonPrefix(names: readonly string[]): string {
 
 /**
  * The alias table of one gateway, from its exact names (every name, canonical name and captured alias of its actions,
- * each with the action it reaches) and the provider's own spellings for an action.
+ * each with the action it reaches) and the provider's own spellings for an action. `retired` says which spellings the
+ * provider has withdrawn: they are refused with the replacement they name, never resolved to another action, so no rule and
+ * no provider hook may produce one (the review's S4-2).
  */
 export function actionAliasTable(
   names: ReadonlyMap<string, Action>,
   extra?: (action: Action) => readonly string[],
+  retired?: (spelling: string) => boolean,
 ): ActionAliasTable {
   const spelled = [...names].filter(([name]) => shape.test(name)),
     prefix = commonPrefix(spelled.map(([name]) => name)),
     claims = new Map<string, Map<string, Action>>();
   const claim = (spelling: string, source: Action) => {
-    if (spelling.length > longest || !shape.test(spelling) || names.has(spelling)) return;
+    if (spelling.length > longest || !shape.test(spelling) || names.has(spelling) || retired?.(spelling)) return;
     const canonical = source.canonical_name || source.name,
       target = names.get(canonical) ?? source;
     // A spelling that reads may not lead to an action that does not: a write is never reached by a name that reads.

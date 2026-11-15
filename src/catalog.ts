@@ -8,6 +8,7 @@ import {pinnedJson} from './pinned-json.js';
 import {describedTool, describesOwnText} from './tool-notes.js';
 import {nameCandidates, searchTerm} from './name-candidates.js';
 import {actionAliasTable, type ActionAliasTable} from './action-aliases.js';
+import {unsupportedProviderAlias} from './retired-provider-actions.js';
 import {providerAdapters} from './provider-adapters.js';
 import {providerHooks, registeredProviderHooks} from './provider-hooks.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
@@ -147,7 +148,14 @@ export class Registry {
       const prefix = gateway + '/',
         names = new Map<string, Action>();
       for (const [key, action] of this.routes) if (key.startsWith(prefix)) names.set(key.slice(prefix.length), action);
-      this.aliasTables.set(gateway, (table = actionAliasTable(names, providerHooks(gateway)?.catalog?.aliases)));
+      this.aliasTables.set(
+        gateway,
+        (table = actionAliasTable(
+          names,
+          providerHooks(gateway)?.catalog?.aliases,
+          spelling => unsupportedProviderAlias(gateway, spelling) !== undefined,
+        )),
+      );
     }
     return table;
   }
