@@ -424,6 +424,37 @@ test('a method override, in a header or in the query string a REST server reads,
   assert.equal(reviewSummary({...squad, headers: {}}, []).operation, 'create');
 });
 
+// S4-1 (the lead's review of this package): the guard belongs to every way a path can read as a create. A POST to a route
+// that ends in the verb create, carrying an override, updates what it names too; and a method given as anything but a
+// string (the compiler reads every override with String(), so a query value of ['PUT'] tunnels a PUT) is read the same way.
+test('a verb route that names another method is no create, and a method that is not a string is read as the compiler reads it', () => {
+  const verbPost = (headers = {}, query = {}) => ({
+    ...tiktok('tiktok_campaign_create', '/v1.3/campaign/create/', {operation_status: 'DISABLE'}),
+    headers,
+    query,
+  });
+  for (const headers of [{'X-HTTP-Method-Override': 'PATCH'}, {'X-HTTP-Method-Override': 'put'}, {'X-Method': 'PUT'}])
+    assert.equal(reviewSummary(verbPost(headers), advertiserRead).operation, 'update', JSON.stringify(headers));
+  for (const query of [{method: 'PUT'}, {_method: 'PATCH'}, {http_method: 'PUT'}, {method_override: 'PATCH'}])
+    assert.equal(reviewSummary(verbPost({}, query), advertiserRead).operation, 'update', JSON.stringify(query));
+  // The same route without an override, or with one that says POST, is the create it is.
+  for (const [headers, query] of [
+    [{}, {}],
+    [{'X-HTTP-Method-Override': 'POST'}, {}],
+    [{}, {method: 'POST'}],
+    [{}, {payment_method: 'card'}],
+  ])
+    assert.equal(reviewSummary(verbPost(headers, query), advertiserRead).operation, 'create', JSON.stringify(query));
+  // The compiler reads a query value with String(): an array of one method is that method.
+  const [action, path] = campaigns;
+  for (const query of [{method: ['PUT']}, {_method: ['PATCH']}, {http_method: ['PUT', 'PATCH']}]) {
+    assert.equal(reviewSummary(collectionPost(action, path, {}, query), []).operation, 'update', JSON.stringify(query));
+    assert.equal(reviewSummary(verbPost({}, query), advertiserRead).operation, 'update', JSON.stringify(query));
+  }
+  assert.equal(reviewSummary(collectionPost(action, path, {}, {method: ['POST']}), []).operation, 'create');
+  assert.equal(reviewSummary(collectionPost(action, path, {}, {method: undefined}), []).operation, 'create');
+});
+
 test('the request amcp_write inspect compiles for a LinkedIn collection POST with a Rest.li update method reads as an update', async t => {
   const store = new Store(':memory:', Buffer.alloc(32, 5).toString('base64')),
     operator = {tenantId: 'synthetic-summary', userId: 'op', role: 'operator'};

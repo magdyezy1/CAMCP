@@ -118,7 +118,8 @@ function underAccount(plan: CompiledRequest): boolean {
  * not make it a create: that summary would hide an update, and its status, from the person approving it (R2.5 T3).
  */
 function namesOtherMethod(plan: CompiledRequest): boolean {
-  const other = (v: unknown) => typeof v === 'string' && !/^(?:POST|CREATE|BATCH_CREATE)$/i.test(v.trim());
+  // A value is read as the compiler reads an override (String(value)), so a query value of ['PUT'] names PUT too.
+  const other = (v: unknown) => v !== undefined && !/^(?:POST|CREATE|BATCH_CREATE)$/i.test(String(v).trim());
   return (
     Object.entries(plan.headers ?? {}).some(([name, value]) => /method/i.test(name) && other(value)) ||
     ['method', '_method', 'http_method', 'method_override'].some(key => other(plan.query?.[key]))
@@ -135,8 +136,10 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
     key = collection.replace(/:.*/, ''),
     rows = object(body) && Array.isArray(body[key]) ? body[key].length : Array.isArray(body) ? 1 : 1,
     // A verb is read only on a POST, as every route of the ledger that ends in one is: a PUT or a PATCH to an object whose
-    // ID is the word create is an update of it.
-    verb = plan.method === 'POST' ? createdThing(segments) : undefined;
+    // ID is the word create is an update of it, and so is a POST that names another method (R2.5 S4-1: one guard for every
+    // way a path can read as a create). The noun stays the route's either way: it is what the request acts on.
+    thing = plan.method === 'POST' ? createdThing(segments) : undefined,
+    verb = thing && !namesOtherMethod(plan) ? thing : undefined;
   const action = plan.action.toLowerCase();
   const operation =
     plan.method === 'DELETE' || /(?:^|_)delete(?:_|$)/.test(action) || plan.destructive
@@ -152,7 +155,7 @@ function operationOf(plan: CompiledRequest): {operation: string; entity: string;
   // A create names what it creates: a known collection anywhere in the path, else the noun before its verb, never the verb.
   return {
     operation,
-    entity: singular[key] ?? (key || verb?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
+    entity: singular[key] ?? (key || thing?.noun?.replace(/[-_]+/g, ' ') || segments.at(-1) || 'resource'),
     count: rows,
   };
 }
