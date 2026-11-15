@@ -68,20 +68,28 @@ export const providerErrorTokens = (rows: unknown, clean?: (token: string) => bo
     .filter((row): row is ProviderErrorToken => row !== undefined)
     .slice(0, maxProviderErrors);
 /**
- * The provider's own sentence for a refusal, as `details.provider_message` keeps it: control characters (and the Unicode
- * line and paragraph separators) become spaces, runs of white space one space, at most 200 characters. It is third-party
- * text: the envelope marks it untrusted and it is never part of a message.
+ * The provider's own sentence for a refusal, as `details.provider_message` keeps it: cleaned as `echoedText` cleans, at
+ * most 200 characters. It is third-party text: the envelope marks it untrusted and it is never part of a message.
  */
-export function providerMessageText(raw: unknown): string | undefined {
+export const providerMessageText = (raw: unknown): string | undefined => echoedText(raw, 200);
+/**
+ * Text a message or a field repeats from outside AMCP's own words, cleaned (the review's S3-4): control characters, the
+ * Unicode line and paragraph separators and the invisible format characters (category Cf: Unicode tag characters, which spell
+ * ASCII a model reads and a person does not see, bidi controls and zero-width characters) become spaces, runs of white
+ * space one space; at most `max` code points, so the cut never leaves half of a character; a lone surrogate, which no
+ * well-formed text holds, becomes U+FFFD. Undefined when nothing is left.
+ */
+export function echoedText(raw: unknown, max: number): string | undefined {
   if (typeof raw !== 'string') return undefined;
-  const text = raw
-    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ')
-    .replace(/ {2,}/g, ' ')
-    .trim()
-    .slice(0, 200)
-    .trim();
-  return text || undefined;
+  const cleaned = raw
+      .replace(/[\p{Cc}\p{Cf}\u2028\u2029]/gu, ' ')
+      .replace(/ {2,}/g, ' ')
+      .trim(),
+    cut = wellFormed([...cleaned].slice(0, max).join('')).trim();
+  return cut || undefined;
 }
+// String.prototype.toWellFormed is in every Node this runs on (20 and later) and not yet in the TypeScript library of its target.
+const wellFormed = (text: string): string => (text as string & {toWellFormed(): string}).toWellFormed();
 /** The longest echo of a refusal's rows in a message: what the `{refusal}` slot holds, cut at a row boundary. */
 export const maxEchoLength = 160;
 const maxPathSegments = 8;

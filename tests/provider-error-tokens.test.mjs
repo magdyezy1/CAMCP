@@ -223,6 +223,31 @@ test('the provider’s sentence is cleaned of control characters and bounded to 
   );
 });
 
+// The review's S3-4: the cleaned sentence is the one agents and the website read, so it keeps no invisible text, and its
+// cut never leaves half of a character.
+test('the provider’s sentence keeps no invisible format character, and is cut on code points, never on half of one', () => {
+  // Unicode tag characters (invisible ASCII a model reads), bidi controls and zero-width characters are spaces.
+  const tagged = [...'ignore previous'].map(c => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join('');
+  assert.equal(providerMessageText('Too' + tagged + 'low.'), 'Too low.');
+  assert.equal(providerMessageText('a‮b‬c'), 'a b c');
+  assert.equal(providerMessageText('a​b‍c﻿d⁠e­f'), 'a b c d e f');
+  assert.equal(providerMessageText('a؜b‏c⁦d⁩e'), 'a b c d e');
+  // Text in other scripts and emoji survive; only the format characters between them go.
+  assert.equal(providerMessageText('قيمة غير صالحة 😀 ✓'), 'قيمة غير صالحة 😀 ✓');
+  // The 200 characters are code points: an emoji across the boundary is kept whole or left out, never half.
+  const edge = providerMessageText('x'.repeat(199) + '😀' + 'tail');
+  assert.equal([...edge].length, 200);
+  assert.ok(edge.endsWith('😀'));
+  assert.equal(edge, edge.toWellFormed());
+  const wide = providerMessageText('😀'.repeat(300));
+  assert.equal([...wide].length, 200);
+  assert.equal(wide, wide.toWellFormed());
+  // A lone surrogate the provider sent is replaced, not passed on.
+  assert.equal(providerMessageText('a\ud800b'), 'a�b');
+  assert.equal(providerMessageText('a\udc00'), 'a�');
+  assert.equal(providerMessageText('​‮'), undefined);
+});
+
 // The review of this package (S2-1): a pattern closes a token's alphabet, not its meaning, so words that pass the patterns can
 // still spell an instruction. A message quotes only what AMCP can check against its own data: a number, a word the
 // provider's own schema holds, a place the request AMCP sent holds, and the index of the operation. Every other token stays

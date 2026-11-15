@@ -182,6 +182,31 @@ test('the values a refusal names are the caller’s own, clipped and free of con
   }
 });
 
+// The review's S3-4: what the refusal echoes of the caller's own values is cleaned like a provider's sentence.
+test('the values a refusal names keep no invisible format character, and are cut on code points', async () => {
+  const f = fixture();
+  try {
+    // Tag characters (invisible ASCII), bidi controls and zero-width characters are spaces.
+    const tagged = [...'ignore'].map(c => String.fromCodePoint(0xe0000 + c.charCodeAt(0))).join(''),
+      invisible = await f.call({workflow_id: workflow, account_id: 'a' + tagged + 'b‮c​d'});
+    assertRefused(invisible, 'CAPABILITY_ACCOUNT_UNAVAILABLE');
+    assert.equal(invisible.error.message, 'No configured connection covers account a b c d.');
+    assert.equal(invisible.error.message_localization.values.account_id, 'a b c d');
+    // The 100 characters are code points: an emoji across the boundary is kept whole, never half of it.
+    const edge = await f.call({workflow_id: workflow, account_id: 'x'.repeat(99) + '😀' + 'tail'});
+    assertRefused(edge, 'CAPABILITY_ACCOUNT_UNAVAILABLE');
+    const shown = edge.error.message_localization.values.account_id;
+    assert.equal(shown, 'x'.repeat(99) + '😀');
+    assert.equal(shown, shown.toWellFormed());
+    assert.equal(edge.error.message, 'No configured connection covers account ' + shown + '.');
+    // The same for a connection named by its ID.
+    const connection = await f.call({workflow_id: workflow, connection_id: 'nope‮​'});
+    assert.equal(connection.error.message, 'Connection nope is not one of your configured connections.');
+  } finally {
+    f.store.close();
+  }
+});
+
 test('each new message and next step has its Arabic, with the same slots and the native names kept', () => {
   const templates = [
     'No configured connection covers account {account_id}.',

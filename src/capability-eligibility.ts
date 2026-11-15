@@ -5,6 +5,7 @@ import {actionContracts} from './action-contracts.js';
 import {MirrorError} from './errors.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
+import {echoedText} from './provider-error-core.js';
 import {accountMetadataView, resolveAccountMetadata, type ResolvedAccountMetadata} from './account-metadata.js';
 import {conditionalProgram, programObservation} from './conditional-programs.js';
 import {readinessBinding, readinessLifetimeMs, recordedGrants} from './readiness.js';
@@ -395,10 +396,8 @@ function unavailableSelection(
   connections: ReadonlyMap<string, Connection>,
   input: JsonObject,
 ): MirrorError {
-  const shown = (v: unknown) =>
-      String(v)
-        .replace(/[\u0000-\u001f]/g, ' ')
-        .slice(0, 100),
+  // What the refusal repeats of the caller's own values is cleaned like a provider's sentence (the review's S3-4).
+  const shown = (v: unknown) => echoedText(String(v), 100) ?? '',
     scope: JsonObject[] = graph.workflows.filter((w: JsonObject) => !input.workflow_id || w.id === input.workflow_id),
     connection = input.connection_id ? connections.get(input.connection_id) : undefined,
     refusal = (reason: string, message: string, values: Record<string, string>) =>
