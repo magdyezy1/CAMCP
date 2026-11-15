@@ -954,6 +954,48 @@ function workspaceRemedy(e: MirrorError): ErrorRemedy | undefined {
         'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
       mutation_retry_safe: false,
     };
+  // LEAD-01 (Round 2.5, owner 2026-11-15): a capability selection that left nothing to describe has one of five causes
+  // (src/capability-eligibility.ts), and the next step is that cause's. With no connection covering the account it is
+  // CONNECTION_REQUIRED's, word for word.
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'account_uncovered')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action:
+        'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'connection_unknown')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Pass a connection_id that amcp_platform_workspace list_accounts returns, or leave connection_id out and name the account_id alone.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'connection_account')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action:
+        'Pass the connection_id of a connection that includes this account (amcp_platform_workspace list_accounts shows each connection with its accounts), or select the account on the website’s Connections page.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'workflow_provider')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Choose a workflow that runs on this connection’s provider (capabilities without workflow_id lists them), or a connection of this workflow’s provider.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'CAPABILITY_ACCOUNT_UNAVAILABLE' && e.details.reason === 'connection_empty')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action: 'Select the accounts this connection may use on the website’s Connections page, then ask again.',
+      mutation_retry_safe: false,
+    };
   // SEC-08: the credential or member is limited to one client's accounts; no argument widens it.
   if (e.code === 'ACCOUNT_SCOPE_RESTRICTED')
     return {

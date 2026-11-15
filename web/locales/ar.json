@@ -12110,5 +12110,14 @@
   "Show table": "عرض الجدول",
   "Hide table": "إخفاء الجدول",
   "Choose which charts this report draws.": "اختر المخططات التي يرسمها هذا التقرير.",
-  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا."
+  "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا.",
+  "No configured connection covers account {account_id}.": "لا يغطي أي اتصال مُهيَّأ الحساب {account_id}.",
+  "Connection {connection_id} is not one of your configured connections.": "الاتصال {connection_id} ليس من اتصالاتك المُهيَّأة.",
+  "Connection {connection_id} does not include account {account_id}.": "الاتصال {connection_id} لا يتضمن الحساب {account_id}.",
+  "This workflow does not run on the provider of connection {connection_id}.": "لا يعمل سير العمل هذا على مزوّد الاتصال {connection_id}.",
+  "Connection {connection_id} has no account selected for this workflow.": "لم يُحدَّد أي حساب للاتصال {connection_id} لسير العمل هذا.",
+  "Pass a connection_id that amcp_platform_workspace list_accounts returns, or leave connection_id out and name the account_id alone.": "مرّر connection_id تعيده amcp_platform_workspace list_accounts، أو احذف connection_id وسمِّ account_id وحده.",
+  "Pass the connection_id of a connection that includes this account (amcp_platform_workspace list_accounts shows each connection with its accounts), or select the account on the website’s Connections page.": "مرّر connection_id لاتصال يتضمن هذا الحساب (تعرض amcp_platform_workspace list_accounts كل اتصال مع حساباته)، أو حدِّد الحساب في صفحة «الاتصالات» على الموقع.",
+  "Choose a workflow that runs on this connection’s provider (capabilities without workflow_id lists them), or a connection of this workflow’s provider.": "اختر سير عمل يعمل على مزوّد هذا الاتصال (تسرده capabilities دون workflow_id)، أو اتصالاً من مزوّد سير العمل هذا.",
+  "Select the accounts this connection may use on the website’s Connections page, then ask again.": "حدِّد الحسابات التي يجوز لهذا الاتصال استخدامها في صفحة «الاتصالات» على الموقع، ثم اسأل مرة أخرى."
 }

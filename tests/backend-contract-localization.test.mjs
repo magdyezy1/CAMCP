@@ -474,7 +474,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Merge E, with linkedin-windows (12,107 on its own base) and Merge D's head (12,103): measured on the merged catalogue
   // (node tools/check-locales.mjs: catalog_messages 12112; a key by key three-way merge finds no clash and no key added by both),
   // 12,103 + 9 = 12,112. The owner approved moving this pin for this package (2026-11-14).
-  assert.equal(Object.keys(catalog).length, 12112);
+  // Package r25-m0-errors (Round 2.5, M0: LEAD-01) adds the Arabic of the five messages that name why a capability selection
+  // left nothing to describe, and of four of their five next steps (the fifth is CONNECTION_REQUIRED's, already translated):
+  // measured (node tools/check-locales.mjs: catalog_messages 12121), 12,112 + 9 = 12,121.
+  assert.equal(Object.keys(catalog).length, 12121);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
