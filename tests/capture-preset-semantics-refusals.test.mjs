@@ -1,8 +1,9 @@
-// Package r25-m0-live (Round 2.5, item 1: error 2 of the live checks of 2026-11-15). A refusal of amcp_reporting
-// capture_preset that is about one key of `semantics` names that key, as the agent wrote it, and says what to put there.
-// Before this package an empty `semantics` was refused as "Use valid calendar dates in YYYY-MM-DD format." (no field),
-// which cost an agent calls it could not have avoided. Nothing here reaches a provider: every refusal below is made
-// before the first request, and the transport fails the test if one is sent.
+// Package r25-m0-live (Round 2.5, items 1 and 2: errors 2 and 4 of the live checks of 2026-11-15). A refusal of
+// amcp_reporting capture_preset that is about one key of `semantics` names that key, as the agent wrote it, and says what
+// to put there. Before this package an empty `semantics` was refused as "Use valid calendar dates in YYYY-MM-DD format."
+// (no field) and a TikTok window with valid dates but no `complete:true` as a date range problem that never named
+// `complete`; both cost an agent calls it could not have avoided. Nothing here reaches a provider: every refusal below is
+// made before the first request, and the transport fails the test if one is sent.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,11 +11,13 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {tiktokDailyRange} from '../dist/src/tiktok-reporting.js';
+import {snapchatDailyRange} from '../dist/src/snapchat-evidence.js';
 import {dateRange} from '../dist/src/workflows.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
-  arabic = /[؀-ۿ]/u;
+  arabic = /\p{Script=Arabic}/u;
 const actor = {tenantId: 'synthetic-preset-refusals', userId: 'reader', role: 'admin'};
 function fixture(t) {
   const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));
@@ -136,4 +139,111 @@ test('a date_range that is not a preset capture keeps the generic date messages,
     () => dateRange({since: '2026-01-07', until: '2026-01-01'}),
     error => assertRefused(error, 'INVALID_DATE_RANGE', {message: /^since must not be after until\.$/}),
   );
+});
+
+// ---- Item 2: the closed-window declaration is named ----
+
+// Every guided preset that takes a window only when it is declared complete: the three TikTok presets and the six Snapchat
+// ones (purchases, which choose attribution windows, and native lead submissions, which do not; ad squads and lead ads
+// read one parent campaign). No other family has the rule, so no other family is listed.
+const parent = '22222222-2222-4222-8222-222222222222',
+  snapchatAccount = '11111111-1111-4111-8111-111111111111';
+const tiktokPresets = ['tiktok_campaign', 'tiktok_adgroup', 'tiktok_ad'].map(preset => ({preset, account_id: '100'}));
+const snapchatPresets = [
+  'snapchat_campaign',
+  'snapchat_adsquad',
+  'snapchat_ad',
+  'snapchat_campaign_leads',
+  'snapchat_adsquad_leads',
+  'snapchat_ad_leads',
+].map(preset => ({
+  preset,
+  account_id: snapchatAccount,
+  ...(preset.includes('adsquad') || preset === 'snapchat_ad_leads' ? {campaign_id: parent} : {}),
+  ...(preset.endsWith('_leads') ? {} : {swipe_up_attribution_window: '28_DAY', view_attribution_window: '1_DAY'}),
+}));
+const tiktokComplete = 'Set semantics.complete to true for a closed window of 1–366 days in the advertiser timezone.',
+  snapchatComplete = 'Set semantics.complete to true for a closed window of 1–31 days in the account timezone.';
+
+test('TikTok: valid dates without complete:true are refused naming semantics.complete, true and the window rule', async t => {
+  const f = fixture(t);
+  for (const family of tiktokPresets)
+    for (const more of [{}, {complete: false}, {complete: 'true'}, {complete: 1}, {complete: null}]) {
+      const result = await f.refuse({...family, semantics: semantics(more)});
+      assertRefused(result, 'INVALID_DATE_RANGE', {
+        message: new RegExp('^' + tiktokComplete.replaceAll('.', '\\.') + '$'),
+      });
+    }
+  assert.equal(f.requests(), 0);
+  assert.match(catalog[tiktokComplete], arabic);
+  for (const token of ['semantics.complete', 'true', '366']) assert.ok(catalog[tiktokComplete].includes(token), token);
+});
+
+test('Snapchat: valid dates without complete:true are refused naming semantics.complete, true and the window rule, on all six presets', async t => {
+  const f = fixture(t);
+  for (const family of snapchatPresets)
+    for (const more of [{}, {complete: false}, {complete: 'true'}]) {
+      const result = await f.refuse({...family, semantics: semantics(more)});
+      assertRefused(result, 'INVALID_ARGUMENT', {
+        message: new RegExp('^' + snapchatComplete.replaceAll('.', '\\.') + '$'),
+      });
+    }
+  assert.equal(f.requests(), 0);
+  assert.match(catalog[snapchatComplete], arabic);
+  for (const token of ['semantics.complete', 'true', '31']) assert.ok(catalog[snapchatComplete].includes(token), token);
+});
+
+// The gate keeps refusing what it refused. Only its wording for the missing declaration changed: a window that is not
+// closed, or longer than the preset takes, is refused whether or not complete is true, with the sentence it always had.
+test('a window that is open or too long is still refused with complete:true, with the earlier wording, on every preset', async t => {
+  const f = fixture(t),
+    tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  for (const [group, windows, code, message] of [
+    [
+      tiktokPresets,
+      [
+        {date_from: '2026-01-01', date_to: tomorrow},
+        {date_from: '2024-01-01', date_to: '2026-01-07'},
+      ],
+      'INVALID_DATE_RANGE',
+      /^TikTok guided evidence requires a declared complete window of 1–366 closed days in the advertiser timezone\.$/,
+    ],
+    [
+      snapchatPresets,
+      [
+        {date_from: '2026-01-01', date_to: tomorrow},
+        {date_from: '2025-11-01', date_to: '2026-01-07'},
+      ],
+      'INVALID_ARGUMENT',
+      /^Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration\.$/,
+    ],
+  ])
+    for (const family of group)
+      for (const window of windows)
+        assertRefused(await f.refuse({...family, semantics: semantics({...window, complete: true})}), code, {message});
+  assert.equal(f.requests(), 0);
+});
+
+test('a window that is open and not declared complete gets the window sentence, not the declaration one (declaring it would not help)', async t => {
+  const f = fixture(t),
+    tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  assertRefused(
+    await f.refuse({...tiktokPresets[0], semantics: semantics({date_to: tomorrow})}),
+    'INVALID_DATE_RANGE',
+    {message: /^TikTok guided evidence requires a declared complete window of 1–366 closed days/},
+  );
+  assertRefused(
+    await f.refuse({...snapchatPresets[0], semantics: semantics({date_to: tomorrow})}),
+    'INVALID_ARGUMENT',
+    {
+      message: /^Snapchat guided evidence requires 1–31 closed days/,
+    },
+  );
+});
+
+test('a closed window with complete:true passes the date rule of both presets; the Overview, which may leave it undeclared, still may', () => {
+  assert.doesNotThrow(() => tiktokDailyRange(semantics({complete: true})));
+  assert.doesNotThrow(() => snapchatDailyRange(semantics({complete: true})));
+  assert.doesNotThrow(() => tiktokDailyRange(semantics({}), true));
+  assert.doesNotThrow(() => snapchatDailyRange(semantics({}), true));
 });

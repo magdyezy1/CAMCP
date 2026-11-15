@@ -1129,6 +1129,8 @@
   "Send the parts the details name, then complete the upload again. Parts already received are kept for as long as the upload lasts (30 minutes).": "أرسل الأجزاء التي تحدّدها التفاصيل، ثم أكمل الرفع مجددًا. تُحفظ الأجزاء المستلمة طوال مدة صلاحية الرفع البالغة 30 دقيقة.",
   "Send the same part again in a moment. Parts already received are kept.": "أرسل الجزء نفسه مجددًا بعد قليل. تُحفظ الأجزاء التي استُلِمت بالفعل.",
   "Sessions": "الجلسات",
+  "Set semantics.complete to true for a closed window of 1–31 days in the account timezone.": "اضبط semantics.complete على true لفترة منتهية من 1–31 يومًا بحسب المنطقة الزمنية للحساب.",
+  "Set semantics.complete to true for a closed window of 1–366 days in the advertiser timezone.": "اضبط semantics.complete على true لفترة منتهية من 1–366 يومًا بحسب المنطقة الزمنية للمعلن.",
   "Set whether higher or lower is better for this target KPI (direction) before recommending a change.": "حدّد ما إذا كانت القيمة الأعلى أم الأقل أفضل لمؤشر هذا الهدف (direction) قبل التوصية بأي تغيير.",
   "Set {field} to a calendar date written YYYY-MM-DD.": "اضبط {field} على تاريخ تقويم مكتوب بصيغة YYYY-MM-DD.",
   "Share of spend": "حصة الإنفاق",

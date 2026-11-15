@@ -48,16 +48,16 @@ export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
   }
   const start = Date.parse(sem.date_from),
     end = Date.parse(sem.date_to);
-  if (
-    (!allowUndeclared && sem.complete !== true) ||
-    end < start ||
-    end - start >= 31 * 86400000 ||
-    sem.date_to >= today
-  ) {
+  if (end < start || end - start >= 31 * 86400000 || sem.date_to >= today) {
     // The Overview allows an undeclared window, so its refusal does not speak of a declaration (F-L7-13).
     if (allowUndeclared) bad('Snapchat evidence requires 1–31 closed days.');
     bad('Snapchat guided evidence requires 1–31 closed days and an explicit complete-window declaration.');
   }
+  // R25 M0 (owner 2026-11-15, error 4 of the live checks, which TikTok's capture shares): a closed window that is not
+  // declared so is refused with the key to set. The window is checked first: declaring complete a window that is not
+  // closed would not be accepted.
+  if (!allowUndeclared && sem.complete !== true)
+    bad('Set semantics.complete to true for a closed window of 1–31 days in the account timezone.');
   const days: {date: string; start: number; end: number}[] = [];
   for (let at = start; at <= end; at += 86400000) {
     const date = new Date(at).toISOString().slice(0, 10),

@@ -12112,5 +12112,7 @@
   "Choose which charts this report draws.": "اختر المخططات التي يرسمها هذا التقرير.",
   "A chart that is switched off is not drawn or stored for a report you pull from now on.": "لا يُرسم المخطط المُعطَّل ولا يُحفظ في التقارير التي تسحبها من الآن فصاعدًا.",
   "Set {field} to a calendar date written YYYY-MM-DD.": "اضبط {field} على تاريخ تقويم مكتوب بصيغة YYYY-MM-DD.",
-  "{from} must not be after {to}.": "يجب ألا يأتي {from} بعد {to}."
+  "{from} must not be after {to}.": "يجب ألا يأتي {from} بعد {to}.",
+  "Set semantics.complete to true for a closed window of 1–366 days in the advertiser timezone.": "اضبط semantics.complete على true لفترة منتهية من 1–366 يومًا بحسب المنطقة الزمنية للمعلن.",
+  "Set semantics.complete to true for a closed window of 1–31 days in the account timezone.": "اضبط semantics.complete على true لفترة منتهية من 1–31 يومًا بحسب المنطقة الزمنية للحساب."
 }
