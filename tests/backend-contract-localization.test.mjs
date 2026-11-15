@@ -476,8 +476,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 12,103 + 9 = 12,112. The owner approved moving this pin for this package (2026-11-14).
   // Package r25-m0-live (Round 2.5) item 1 adds the Arabic of the two date refusals of a guided capture's window: measured
   // (node tools/check-locales.mjs: catalog_messages 12114), 12,112 + 2 = 12,114. Its item 2 adds the two sentences that name
-  // semantics.complete (TikTok and Snapchat; raised through bad(), so no owned reason changes): 12,114 + 2 = 12,116.
-  assert.equal(Object.keys(catalog).length, 12116);
+  // semantics.complete (TikTok and Snapchat; raised through bad(), so no owned reason changes): 12,114 + 2 = 12,116. Its item 3
+  // adds the Arabic of LinkedIn's remedy for an empty analytics answer (src/linkedin-remedies.ts): 12,117.
+  assert.equal(Object.keys(catalog).length, 12117);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

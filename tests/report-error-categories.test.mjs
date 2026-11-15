@@ -344,13 +344,11 @@ test('nestedError keeps the allow-listed details, retryable and a provider-data 
 });
 
 test('MCP keeps category report for provider-data codes and gives them the retry action', () => {
-  for (const code of [
-    'REPORT_INCOMPLETE',
-    'REPORT_DUPLICATE_ROWS',
-    'REPORT_EMPTY_AMBIGUOUS',
-    'REPORT_ID_MISSING',
-    'REPORT_METRIC_AMBIGUOUS',
-  ]) {
+  // Package r25-m0-live (Round 2.5, item 3) takes REPORT_EMPTY_AMBIGUOUS out of this list: a retry of an empty answer gives
+  // the same answer, so LinkedIn declares a remedy of its own for it (src/linkedin-remedies.ts), which
+  // tests/report-empty-ambiguous-remedy.test.mjs pins. Its category is still report.
+  assert.equal(errorRemedy(new MirrorError('REPORT_EMPTY_AMBIGUOUS', 'm', {}, 502)).category, 'report');
+  for (const code of ['REPORT_INCOMPLETE', 'REPORT_DUPLICATE_ROWS', 'REPORT_ID_MISSING', 'REPORT_METRIC_AMBIGUOUS']) {
     const r = errorRemedy(new MirrorError(code, 'm', {}, 502));
     assert.deepEqual([r.category, r.action, r.mutation_retry_safe], ['report', providerDataAction, false], code);
   }
@@ -378,8 +376,9 @@ test('MCP keeps category report for provider-data codes and gives them the retry
     assert.notEqual(p.action, providerDataAction, code);
     assert.match(p.action, /submitted write/, code);
   }
-  // Every provider-data code is one or the other: nothing is left telling the caller to correct its request.
-  const own = new Set(['REPORT_SHAPE_CHANGED', 'REPORT_RESPONSE_INVALID']);
+  // Every provider-data code is one or the other: nothing is left telling the caller to correct its request. The empty
+  // answer (package r25-m0-live, item 3) has a remedy of its own that says what to do instead of retrying.
+  const own = new Set(['REPORT_SHAPE_CHANGED', 'REPORT_RESPONSE_INVALID', 'REPORT_EMPTY_AMBIGUOUS']);
   for (const code of providerDataCodes)
     assert.equal(errorRemedy(new MirrorError(code, 'm', {}, 502)).action === providerDataAction, !own.has(code), code);
   // AMCP's own size limit is a different failure: the generic report family names its narrowing.

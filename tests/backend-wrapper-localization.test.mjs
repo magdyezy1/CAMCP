@@ -416,8 +416,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m0-live (Round 2.5) item 1 adds the Arabic of the two date refusals of a guided capture's window (direct
   // reasons, not wrapper reasons): measured (node tools/check-locales.mjs: catalog_messages 12114), 12,112 + 2 = 12,114. Its
   // item 2 adds the two sentences that name semantics.complete (TikTok and Snapchat; raised through bad(), which this
-  // inventory does not own): 12,114 + 2 = 12,116.
-  assert.equal(Object.keys(catalog).length, 12116);
+  // inventory does not own): 12,114 + 2 = 12,116. Its item 3 adds the Arabic of LinkedIn's remedy for an empty analytics
+  // answer (a remedy, not a refusal reason): 12,117.
+  assert.equal(Object.keys(catalog).length, 12117);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
