@@ -20,7 +20,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {MirrorError, errorRemedy} from './errors.js';
+import {MirrorError, errorRemedy, refusedByStateCheck} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
@@ -239,6 +239,14 @@ const alreadyCurrent = (step: JsonObject, error: JsonObject | undefined) =>
   !Array.isArray(error.details.no_op_evidence) &&
   error.details.upstream === undefined &&
   error.details.response === undefined;
+/**
+ * The refusal of a step's review for a changed provider state, with nothing sent (R25 M1, L5-04): the review's own state
+ * check refused it (src/errors.ts refusedByStateCheck, raised before anything is claimed) and no idempotency claim exists
+ * for the review. The claim is the proof that nothing was sent; a refusal that has one, whatever it says, is never this,
+ * so an uncertain write is never taken for an unsent one. Such a step goes back to pending instead of failing.
+ */
+export const unsentStateChange = (error: JsonObject | undefined, claim: JsonObject | undefined) =>
+  refusedByStateCheck(error) && !claim;
 /**
  * A build its provider refused outright, which provably created nothing (its adapter's `campaign.refusedBuild`, ARC-01
  * phase B: Google's googleAds:mutate builds without partial failure refused with a definitive 4xx, the owner's decision
@@ -882,6 +890,20 @@ export class CampaignRunner {
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
         return stop(out, 'needs_attention');
+      // R25 M1 (L5-04): a step refused for a changed provider state went back to pending, unsent. The plan's approval is of
+      // the plan, not of a state that moved after the review, so run never prepares and executes that step again on its
+      // own: it stops, whether or not the plan is a push of independent uploads, and the agent and the user decide.
+      if (
+        step?.status === 'pending' &&
+        (typeof step.error === 'string' ? step.error : step.error?.code) === 'STATE_CHANGED'
+      )
+        return stop(out, 'state_changed', {
+          reason:
+            'Step ' +
+            prepared.step_id +
+            ' was refused because the provider’s state changed after its review was prepared. Nothing was sent. Show the user what changed (current.error.details.material, then changed_fields); prepare_next prepares the step again over the state as it is now, and run continues after that. No flag skips this check.',
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+        });
       // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
       // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
       // The review stays ready; run continues once the person has acted. A compact row names only the error code.
@@ -2469,6 +2491,8 @@ export class CampaignRunner {
     }
     const review = prepared.data;
     delete next.busy;
+    // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it.
+    if (refusedByStateCheck(next.error)) delete next.error;
     // An expired review prepared again for the same request over unchanged state says so (WRT-05).
     if (
       typeof next.review?.fingerprint === 'string' &&
@@ -2590,6 +2614,20 @@ export class CampaignRunner {
       run.state = before.state;
       this.save(actor, run);
       removalBinding.changed!();
+    }
+    // R25 M1 (L5-04): a review whose provider state changed since it was prepared is refused before anything is claimed or
+    // sent, so the step is not failed and needs no recover_step. It goes back to pending with what changed
+    // (`changed_fields`, `material`, `recurring_paths`) and the call that prepares it again, which is the plan's own:
+    // the standalone prepare the write's refusal names would prepare a review that no step holds. Only the refusal of the
+    // review's own check qualifies, and only while no claim exists for the review: a STATE_CHANGED of any other kind keeps
+    // the outcome it had, since nothing proves it unsent. The check is as strict as before: this step is not executed
+    // again until the agent and the user prepare it again (see run, which stops here).
+    if (!result.success && unsentStateChange(result.error, this.claim(actor, step.review_id))) {
+      const again = {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}};
+      step.error = {...result.error, details: {...result.error.details, next_call: again}};
+      step.status = 'pending';
+      run.state = 'attention';
+      return this.respond(input, this.save(actor, run), step.id, {next_call: again});
     }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.

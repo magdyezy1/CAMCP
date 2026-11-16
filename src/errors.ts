@@ -645,13 +645,17 @@ function throttledWriteStatus(next: unknown): boolean {
  * changed fields, raised before anything is claimed or sent (src/write-review.ts, src/media-upload.ts). Every other
  * STATE_CHANGED keeps the general remedy: the acceptance of a read-back that moved on (src/campaign-runner.ts) comes after
  * the write was sent, and a state read that did not hold still has no review check behind it, so "nothing was sent" is
- * true of neither.
+ * true of neither. The plan engine uses it for the same reason: a step so refused was never claimed, and goes back to pending.
  */
-const refusedByStateCheck = (e: MirrorError) =>
-  e.code === 'STATE_CHANGED' &&
-  typeof e.details.expected_state_hash === 'string' &&
-  typeof e.details.actual_state_hash === 'string' &&
-  Array.isArray(e.details.changed_fields);
+export const refusedByStateCheck = (e: {code?: unknown; details?: unknown} | undefined): boolean => {
+  const details = (e?.details ?? {}) as Record<string, unknown>;
+  return (
+    e?.code === 'STATE_CHANGED' &&
+    typeof details.expected_state_hash === 'string' &&
+    typeof details.actual_state_hash === 'string' &&
+    Array.isArray(details.changed_fields)
+  );
+};
 /**
  * Refusals of a reviewed write and of access to it: a group stopped at a part, provider replies, contracts, grants,
  * review state, rejections, state reads, the deployment’s and owner’s write switches, connections, roles and the

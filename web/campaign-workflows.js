@@ -675,9 +675,16 @@ const runStopLabels = {
     'This step needs a person’s approval on the AMCP website before it runs. Nothing was sent, and its review stays ready. Open its approval page, then continue the run once the step is approved.',
   needs_owner_approval:
     'Only the workspace owner runs a change beyond a spending cap. Nothing was sent, and the step’s review stays ready. The owner continues the run, or approves the step on its approval page first.',
+  // R25 M1 (L5-04): the provider changed after the step's review was prepared. Nothing was claimed or sent, and the step went
+  // back to pending; a plan approval is of the plan, not of a state that moved, so the run does not prepare it again on its
+  // own, and neither does a Continue: the person reviews the step again on its current state.
+  state_changed:
+    'The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
   // A plan its preflight blocked returns the blocked view, not a run (src/campaign-background.ts).
   blocked: 'A prerequisite blocks this plan. Correct the blocked step, then run the plan again.',
 };
+/** execute_next's answer for a step its review's state check refused: pending again, nothing sent (src/campaign-runner.ts). */
+const campaignStateChanged = out => out?.current?.status === 'pending' && out.current.error?.code === 'STATE_CHANGED';
 // A stopped step's way forward, by the call the server names for it (src/campaign-runner.ts stopped()).
 const runRecoveryLabels = {
   recover_step:
@@ -754,6 +761,8 @@ function runOutcomeView(out, run) {
     lines.push(uiText('Prerequisites checked: nothing blocks this plan.'));
   else if (out?.background?.state) lines.push(campaignBackgroundLabel(out.background));
   else if (out?.approved) lines.push(uiText('Plan approved. Run it when you are ready; the approval lasts 24 hours.'));
+  // A step its review's state check refused, sent back to pending unsent (R25 M1, L5-04): never announced as saved.
+  else if (!recovery && campaignStateChanged(out)) lines.push(uiText(runStopLabels.state_changed));
   // The step a call executed and that did not complete (design review 2026-10): it was announced as "Saved.".
   else if (!recovery && Object.hasOwn(executedStepOutcomes, out?.current?.status ?? ''))
     lines.push(uiText(executedStepOutcomes[out.current.status]));
@@ -781,7 +790,9 @@ function runOutcomeView(out, run) {
         ? `<a class="button primary" href="${esc(path)}">${esc(uiText('Open the approval page'))}</a>`
         : button('outcome-review-step', uiText('Review the step'), true),
     );
-  } else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
+  } else if (stopped === 'state_changed' || (!stopped && !recovery && campaignStateChanged(out)))
+    controls.push(button('outcome-review-step', uiText('Review the step'), true));
+  else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
   else if (recovery === 'confirm_absent')
     controls.push(button('outcome-confirm-absent', uiText('Check the provider'), true));
   else if (recovery === 'reconcile_step') controls.push(button('outcome-read-back', uiText('Read back'), true));

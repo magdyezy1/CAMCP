@@ -261,6 +261,9 @@ for (const locale of ['en', 'ar'])
       needs_destructive_confirmed: ['outcome-review-step'],
       needs_website_approval: ['outcome-review-step'],
       needs_owner_approval: ['outcome-review-step'],
+      // R25 M1 (L5-04): the provider's state changed after the step's review. Nothing was sent, and Continue would be the
+      // automatic retry that never exists: the person reviews the step again, on its current state.
+      state_changed: ['outcome-review-step'],
     };
     const labels = p.run('runStopLabels');
     for (const [stopped, controls] of Object.entries(expected)) {
@@ -982,6 +985,44 @@ for (const locale of ['en', 'ar'])
     assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'failed'}]}), 'amend');
     assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'verified'}]}), '');
   });
+
+// R25 M1 (L5-04): a plan step whose review was refused for a changed provider state goes back to pending, unsent. The
+// answer of execute_next is a saved plan with a pending step, which the page used to announce as "Saved.".
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a step sent back to pending for a changed provider state is not announced as saved, and offers its review again',
+    () => {
+      const p = campaignPage(locale),
+        plan = {id: 'plan-1', steps: [{id: 'campaign', review_id: 'review-1', status: 'pending'}]};
+      p.context.plan = plan;
+      const answer = error => ({
+        view: 'compact',
+        id: 'plan-1',
+        state: 'attention',
+        steps: [{id: 'campaign', status: 'pending', error}],
+        current: {step_id: 'campaign', status: 'pending', error: {code: error}},
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: 'plan-1'}},
+      });
+      p.context.out = answer('STATE_CHANGED');
+      const html = p.run('runOutcomeView(out, plan)'),
+        text = visible(html),
+        wording = p.run('runStopLabels').state_changed;
+      assert.ok(text.includes(t(locale, wording)), 'says the provider changed and nothing was sent');
+      assert.ok(!text.includes(t(locale, 'Saved.')), 'not "Saved."');
+      assert.doesNotMatch(text, agentTokens);
+      assert.deepEqual(
+        [...html.matchAll(/id="(outcome-[a-z-]+)"/g)].map(m => m[1]),
+        ['outcome-review-step'],
+        'one control: the step is reviewed again, never continued',
+      );
+      // Another pending step, an expired review prepared again, is as it was: saved, for the next review.
+      p.context.out = answer('REVIEW_EXPIRED');
+      const other = visible(p.run('runOutcomeView(out, plan)'));
+      assert.ok(other.includes(t(locale, 'Saved. Review the next step when you are ready.')));
+      assert.ok(!other.includes(t(locale, wording)));
+    },
+  );
 
 // Design review 2026-10 (WEB-03): an uncertain write told people not to "retry with a new key" and to avoid "a new
 // idempotency key"; the page now says what happened and the one safe thing to do, in its own words.

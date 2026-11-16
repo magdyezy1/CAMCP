@@ -229,6 +229,7 @@
   "The proposal’s evidence report changed after the plan was created.": "تغيّر تقرير البيانات الذي استند إليه المقترح بعد إنشاء الخطة.",
   "The proposal’s evidence report type does not qualify.": "نوع تقرير البيانات الذي استند إليه المقترح غير مؤهل.",
   "The proposal’s evidence report was deleted.": "حُذف تقرير البيانات الذي استند إليه المقترح.",
+  "The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.": "تغيّرت المنصة بعد تحضير هذه الخطوة، ولذلك لم يُرسل أي شيء. راجع الخطوة مجددًا لترى حالتها الحالية. لا شيء يتجاوز هذا الفحص.",
   "The provider holds different values than this step sent. Compare them: accept them if they are right, or correct the step with a new reviewed change.": "تحتفظ المنصة بقيم مختلفة عمّا أرسلته هذه الخطوة. قارن بينها: اقبلها إن كانت صحيحة، أو صحّح الخطوة بتغيير جديد خاضع للمراجعة.",
   "The provider refused this step after it was sent, and AMCP cannot prove nothing was created. Check the provider before you correct it.": "رفضت المنصة هذه الخطوة بعد إرسالها، ولا يستطيع AMCP إثبات أنه لم يُنشأ أي شيء. تحقق من المنصة قبل أن تصحّحها.",
   "The provider refused this step after it was sent, and AMCP cannot prove nothing was created. Check the provider first: a resource of the same name created since then means the step may have been applied.": "رفضت المنصة هذه الخطوة بعد إرسالها، ولا يستطيع AMCP إثبات أن شيئًا لم يُنشأ. تحقّق من المنصة أولًا: وجود مورد بالاسم نفسه أُنشئ منذ ذلك الحين يعني أن الخطوة ربما طُبّقت.",

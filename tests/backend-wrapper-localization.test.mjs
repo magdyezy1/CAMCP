@@ -460,7 +460,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m1-diff (Round 2.5, M1: L5-04, T2): +1 entry, the Arabic of the remedy of the refusal of a review's state check
   // (src/errors.ts; its next step is the same sentence); measured on its own base (node tools/check-locales.mjs:
   // catalog_messages 12139), 12,138 + 1 = 12,139.
-  assert.equal(Object.keys(catalog).length, 12139);
+  // Its item 2 (L5-04): +1 entry, the website's wording of the stop of a plan run at a step whose provider state changed after its
+  // review (web/campaign-workflows.js runStopLabels.state_changed, also shown for the step execute_next sent back to pending):
+  // measured (node tools/check-locales.mjs: catalog_messages 12140), 12,139 + 1 = 12,140.
+  assert.equal(Object.keys(catalog).length, 12140);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

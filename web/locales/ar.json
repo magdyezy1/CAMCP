@@ -11476,6 +11476,7 @@
   "The owner requires a person’s approval on the AMCP website before this change is executed. Nothing was sent.": "يشترط المالك موافقة شخص في موقع AMCP قبل تنفيذ هذا التغيير. لم يُرسَل أي شيء.",
   "Only the workspace owner executes a change beyond a spending cap the owner set. Nothing was sent.": "لا ينفّذ تغييرًا يتجاوز حدًا للإنفاق وضعه المالك إلا مالك مساحة العمل. لم يُرسَل أي شيء.",
   "The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent.": "يشترط المالك إقرارًا صريحًا قبل حذف أي شيء في هذا الحساب. لم يُرسَل أي شيء.",
+  "The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.": "تغيّرت المنصة بعد تحضير هذه الخطوة، ولذلك لم يُرسل أي شيء. راجع الخطوة مجددًا لترى حالتها الحالية. لا شيء يتجاوز هذا الفحص.",
   "A prerequisite blocks this plan. Correct the blocked step, then run the plan again.": "يوقف متطلبٌ مسبق هذه الخطة. صحّح الخطوة المتوقفة، ثم شغّل الخطة مرة أخرى.",
   "Correct the blocked step. It is reviewed again under a new key, and steps already verified are never sent again.": "صحّح الخطوة المتوقفة. ستُراجَع مجددًا بمفتاح جديد، ولن تُرسَل الخطوات التي تم التحقق منها مرة أخرى أبدًا.",
   "The provider refused this step after it was sent, and AMCP cannot prove nothing was created. Check the provider before you correct it.": "رفضت المنصة هذه الخطوة بعد إرسالها، ولا يستطيع AMCP إثبات أنه لم يُنشأ أي شيء. تحقق من المنصة قبل أن تصحّحها.",
