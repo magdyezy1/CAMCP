@@ -45,9 +45,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m0-merge, live on the 177 above: the hotfix and live declare that same TikTok remedy and it is one hint (live's
   // wording wins, the lead's decision of 2026-11-15), so live adds LinkedIn's remedy and the account-conflict remedy on top of
   // the hotfix and errors; the merged count is measured by this test's own inspector, not either pin: 177 + 2 = 179.
-  assert.equal(hints.size, 179);
+  // Package r12-fix (item 3, V2-RPT-05) declares five remedies in the providers' own tables, none in src/errors.ts: Snapchat's four for
+  // a stats answer whose timestamp AMCP refused (src/snapchat-remedies.ts) and X's one for an entity whose parent is in neither
+  // list (src/x-remedies.ts): 179 + 5 = 184, as tests/shared-recovery-localization.test.mjs counts them.
+  assert.equal(hints.size, 184);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 178);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 183);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
