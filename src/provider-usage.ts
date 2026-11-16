@@ -242,6 +242,16 @@ export class ProviderUsage {
 export type PacingMode = 'observe' | 'enforce';
 export const pacingMode = (env: NodeJS.ProcessEnv = process.env): PacingMode =>
   env.AMCP_PROVIDER_PACING_MODE === 'enforce' ? 'enforce' : 'observe';
+/**
+ * Throws when AMCP_PROVIDER_PACING_MODE is set to anything but observe or enforce: start-up refuses it (server/runtime.ts), as it
+ * does a misspelt AMCP_PROVIDER_QUOTA_MODE or AMCP_WIRE_CONTRACTS, so that "Enforce" never silently stays observe (S4-7 of the lead's
+ * review). A value that changes later still fails safe to observe (`pacingMode`).
+ */
+export function assertPacingMode(env: NodeJS.ProcessEnv = process.env): void {
+  const value = env.AMCP_PROVIDER_PACING_MODE;
+  if (value !== undefined && value !== '' && value !== 'observe' && value !== 'enforce')
+    throw new Error('AMCP_PROVIDER_PACING_MODE must be observe or enforce.');
+}
 
 /**
  * The logins and accounts a call sent requests for, which the service shows the limits of in the answer's `meta`. The
@@ -263,13 +273,31 @@ export async function collectUsageTouches<T>(run: () => Promise<T>): Promise<{re
   try {
     return {result: await touches.run(mine, run), touched: mine};
   } finally {
-    if (parent) for (const t of mine) if (parent.length < maxTouches) parent.push(t);
+    if (parent) for (const t of mine) addTouch(parent, t);
   }
+}
+/**
+ * One touch per login and account: a repeat of one already named is not another, so a call of hundreds of requests to a few accounts
+ * never uses up the room a later account needs (S4-8 of the lead's review).
+ */
+function addTouch(list: UsageTouch[], touch: UsageTouch): void {
+  if (list.length >= maxTouches) return;
+  if (
+    list.some(
+      t =>
+        t.tenantId === touch.tenantId &&
+        t.gateway === touch.gateway &&
+        t.connectionId === touch.connectionId &&
+        t.accountId === touch.accountId,
+    )
+  )
+    return;
+  list.push(touch);
 }
 /** Notes that the running call sent a request for this login and account; nothing outside a collecting call. */
 export function noteUsageTouch(touch: UsageTouch): void {
   const list = touches.getStore();
-  if (list && list.length < maxTouches) list.push(touch);
+  if (list) addTouch(list, touch);
 }
 
 /**

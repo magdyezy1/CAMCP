@@ -273,7 +273,7 @@ test('a bucket over its limit that names no wait cools for a minute, the wait th
   assert.deepEqual(full.rateLimit(c, '123'), {state: 'ok', usage_pct: 100});
 });
 
-test('usage is a connection’s own: another login, another workspace and another provider never see it', async () => {
+test('usage is kept per workspace and provider: another workspace never sees it, and another login of the same workspace shares only the login-level app usage', async () => {
   const transport = new NativeTransport(
     async () =>
       json({data: []}, 200, {'x-app-usage': appUsage(55), 'x-business-use-case-usage': businessUseCase([ads(55)])}),

@@ -10,6 +10,7 @@ import {checkVolumeMarker, verifyDataVolume, type VolumeLog, type VolumeStat} fr
 import {MirrorError} from '../src/errors.js';
 import {sqliteDiagnostic} from '../src/sqlite-diagnostics.js';
 import {quotaPolicyFromEnv} from '../src/provider-quota.js';
+import {assertPacingMode} from '../src/provider-usage.js';
 /** Metadata-only start-up lines: info on stdout for HTTP and the worker; everything on stderr for stdio MCP. */
 export function startupLog(entry: AmcpConfig['entry']): VolumeLog {
   return line =>
@@ -42,6 +43,8 @@ export function createRuntime(
       }
     // PRV-05: what a wire-contract violation does (off, shadow or enforce); a misspelt mode stops startup.
     assertWireContractMode();
+    // R2.5 M2 (MT3): what a provider's usage headers do (observe or enforce); a misspelt mode stops startup.
+    assertPacingMode();
     for (const problem of config.problems) log({level: 'warn', event: 'config_problem', message: problem});
     // Configuration that still starts but needs the operator’s attention (PRV-04): stated once, at startup, without
     // any secret’s value (each provider's warning in src/provider-startup.ts: Google's developer token); owner health

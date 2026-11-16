@@ -11,12 +11,16 @@ import type {CompiledRequest, JsonObject} from './types.js';
 // found nothing created.
 //
 // The proof is closed. It accepts only a code that TikTok's "Return codes" table
-// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06 for the adapter's mapping,
-// src/tiktok-adapter.ts) defines as a refusal of the request itself, and only in the answer that table describes: HTTP 200,
+// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06 for the adapter's mapping, src/tiktok-adapter.ts,
+// and read again 2026-11-16 by the lead's review of this package, when each of the nine codes below was found, on the page, to be a
+// validation, permission or eligibility refusal) defines as a refusal of the request itself, and only in the answer that table
+// describes: HTTP 200,
 // with nothing in `data`. Everything else stays uncertain, as before: a failure on TikTok's side (5xxxx), a throttle (40100,
 // 40132, 40133), a credential failure, a code the reading leaves unmapped, an answer that carries data (TikTok may then have
-// applied part of the request), any other HTTP status, and a response that was lost. The table's page is not pinned in
-// `.mirror/VENDOR/`: this list is the one place to change when it is read again.
+// applied part of the request), any other HTTP status, and a response that was lost. The page's other codes the review named stay
+// out as well: 20001 (partially successful), 40016 and 40502 (throttles), 40050 (duplicated requests), 40202 (a write conflict a retry
+// may resolve) and 60001. The table's page is not pinned in `.mirror/VENDOR/` (a pin needs a download, which is the lead's to make):
+// this list is the one place to change when it is read again.
 
 /**
  * The parameter and business-logic errors of the table, which src/tiktok-adapter.ts names as the codes it leaves unmapped

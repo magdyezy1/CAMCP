@@ -93,7 +93,9 @@ import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
 // TikTok's return codes, from TikTok API for Business "Return codes"
-// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06). AMCP calls API v1.3: the page labelled
+// (https://business-api.tiktok.com/portal/docs/return-codes/v2.0, read 2026-11-06, and read again 2026-11-16 by the lead's review of
+// package r25-m2-refusal, where it still matched: the nine codes of src/tiktok-write-rejection.ts are, on that page, validation,
+// permission or eligibility refusals). AMCP calls API v1.3: the page labelled
 // v1.3 covers Business Messaging only, and the three codes it shares with this table agree. TikTok reports a code in the
 // body of an HTTP 200 answer (and in the body of an HTTP error). Only the codes of these sets are mapped; every other code,
 // the parameter and business-logic ones included (40000, 40002, 40006 to 40008 and the rest), keeps the generic

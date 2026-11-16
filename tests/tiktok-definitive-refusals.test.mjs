@@ -352,12 +352,20 @@ test('the set of refusals TikTok’s return-code table defines is closed: nothin
     50002, 51305, 99999,
   ])
     assert.equal(tiktokRejectionIsNonApplied(plan, 200, {code, data: {}}), false, String(code));
+  // The codes of TikTok's table that the lead's review of this package named as never proofs (S4-2): 40016, the first throttle
+  // of its throttle section; 40050, "duplicated requests", the likely answer to a repeated request_id; 40202, a write conflict a retry
+  // may resolve; 40502, the maximum ad limit; and 60001.
+  for (const code of [40016, 40050, 40202, 40502, 60001])
+    assert.equal(tiktokRejectionIsNonApplied(plan, 200, {code, data: {}}), false, String(code));
   // Not a proof for any other provider's request, a read, or a code that is not an integer.
   assert.equal(
     tiktokRejectionIsNonApplied({...plan, gateway: 'meta_native_action'}, 200, {code: 40002, data: {}}),
     false,
   );
   assert.equal(tiktokRejectionIsNonApplied(plan, 200, {code: '40002', data: {}}), false);
+  // A read is no write: the same refusal of a read applied nothing because it applies nothing, and is no proof.
+  for (const code of [...tiktokRefusalCodes])
+    assert.equal(tiktokRejectionIsNonApplied({...plan, readOnly: true}, 200, {code, data: {}}), false, String(code));
   assert.equal(tiktokRejectionIsNonApplied(plan, 201, {code: 40002, data: {}}), false);
   assert.equal(tiktokRejectionIsNonApplied(plan, 400, {code: 40002, data: {}}), false);
 });

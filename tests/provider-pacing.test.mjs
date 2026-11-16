@@ -508,3 +508,39 @@ test('a bucket’s block is shared through the store with the same bucket alone:
     }
   });
 });
+
+test('a misspelt AMCP_PROVIDER_PACING_MODE stops startup before anything opens, as a misspelt quota mode or wire-contract mode does (S4-7)', async () => {
+  const {assertPacingMode} = await import('../dist/src/provider-usage.js');
+  for (const ok of [undefined, '', 'observe', 'enforce']) assertPacingMode({AMCP_PROVIDER_PACING_MODE: ok});
+  for (const bad of ['Enforce', 'enforced', 'on', 'true', '1', ' enforce', 'OBSERVE'])
+    assert.throws(() => assertPacingMode({AMCP_PROVIDER_PACING_MODE: bad}), /observe or enforce/, JSON.stringify(bad));
+  // The composition root runs it: createRuntime refuses before the database opens (a valid value would open one, so none is tried).
+  const {createRuntime} = await import('../dist/server/runtime.js');
+  const {loadConfig} = await import('../dist/server/config.js');
+  for (const bad of ['Enforce', 'enforced'])
+    await mode(bad, async () =>
+      assert.throws(
+        () => createRuntime(loadConfig({}, 'stdio'), {log: () => {}}),
+        /AMCP_PROVIDER_PACING_MODE must be observe or enforce/,
+        bad,
+      ),
+    );
+});
+
+test('a call that sent many requests keeps one touch per login and account, so a later account is never dropped (S4-8)', async () => {
+  const {collectUsageTouches, noteUsageTouch} = await import('../dist/src/provider-usage.js');
+  const touch = account => ({tenantId: 't', gateway: meta, connectionId: 'm', accountId: account});
+  const {touched} = await collectUsageTouches(async () => {
+    for (let i = 0; i < 300; i++) noteUsageTouch(touch('123'));
+    noteUsageTouch(touch('456'));
+    // A nested call hands what it touched up, and a repeat of an account already named is not a second touch.
+    await collectUsageTouches(async () => {
+      for (let i = 0; i < 300; i++) noteUsageTouch(touch('123'));
+      noteUsageTouch(touch('789'));
+    });
+  });
+  assert.deepEqual(
+    touched.map(t => t.accountId),
+    ['123', '456', '789'],
+  );
+});

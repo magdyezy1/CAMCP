@@ -12,7 +12,8 @@ import {errorObject} from './provider-error-core.js';
 //    "total_time": 25, "estimated_time_to_regain_access": 19, "ads_api_access_tier": "standard_access"}]}: per business object and
 //    rate-limit type, the percentages and, once the object is blocked, the minutes until it is not.
 // Meta throttles a bucket when a percentage passes 100: the app's and the ad account's are blocked above 100 (an ad account says
-// for how many seconds), and a business use case is blocked when it names the minutes until access is regained, which is the only
+// for how many seconds: the time until its usage resets to 0, so under enforce an upper bound of the block), and a business use case
+// is blocked when it names the minutes until access is regained, which is the only
 // sign Meta gives of it (S3-1 of the lead's review: at 100, or at 100 and beyond with no wait named, nothing is blocked yet). A
 // business use case limits the requests of its own type alone: AMCP counts a request in ads_insights where it reads Insights and
 // in ads_management otherwise, and any other type Meta lists is shown and never paces. Only the numbers are kept; a type, the one
