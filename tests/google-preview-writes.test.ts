@@ -1429,6 +1429,51 @@ test('an entry that fails two of its checks still gets the refusal of an answer 
   }
 });
 
+// r12-gpreview round 2, lead review S4-4. `amcp_campaign verify` on a failed outcome refuses before it reads anything ("Inspect
+// the retained partial failure before recovery."); for an answer AMCP did not accept it had no details, so it still got the
+// advice to check access, scopes and tier that the refusal of the execute no longer gives.
+test('amcp_campaign verify on a refused answer gets the refusal of an answer that does not match, and on any other failure keeps its own', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    f.reply(() => answerOf([wantedUi], withLink('shareablePreviewUrl', 'https://127.0.0.1/preview-verify-marker')));
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    const sent = f.calls.length;
+    const v = await f.verify(r);
+    assertRefused(v, 'WRITE_PARTIAL_OR_FAILED');
+    // Its own message, and the facts the execute's refusal carried, so its remedy is the same one.
+    assert.equal(v.error.message, 'Inspect the retained partial failure before recovery.');
+    assert.deepEqual(v.error.details, e.error.details);
+    assert.equal(v.error.details.response_mismatch.reason, 'host_not_accepted');
+    assert.equal(v.error.remedy.action, e.error.remedy.action);
+    assert.match(v.error.next_action, /response did not match AMCP’s contract for this route/);
+    assert.doesNotMatch(v.error.next_action, /account access|granted scopes|access tier|payload/i);
+    assert.deepEqual([v.error.category, v.error.remedy.owner], ['provider', 'amcp']);
+    // Marked untrusted like the execute's, nothing is read or sent, and no link is in the answer.
+    assert.deepEqual(v.meta.untrusted_paths, ['error.details.response_mismatch']);
+    assert.equal(f.calls.length, sent);
+    assert.ok(!JSON.stringify(v).includes('preview-verify-marker'));
+  } finally {
+    f.store.close();
+  }
+  // Any other failed outcome keeps the refusal it had: a partial answer the provider reported itself (a preview had expired).
+  const g = fixture();
+  try {
+    const r = await g.prepare([ui, video]);
+    g.mode('one_expired');
+    assertRefused(await g.execute(r), 'WRITE_PARTIAL_OR_FAILED');
+    const v = await g.verify(r);
+    assertRefused(v, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(v.error.message, 'Inspect the retained partial failure before recovery.');
+    assert.equal(v.error.details, undefined);
+    assert.match(v.error.next_action, /Check account access, granted scopes, app access tier and payload/);
+  } finally {
+    g.store.close();
+  }
+});
+
 test('a failure the provider reports itself, a partial answer, keeps its message and its remedy', async () => {
   const f = fixture();
   try {
