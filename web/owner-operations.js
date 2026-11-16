@@ -491,10 +491,10 @@ function ownerReviewFriction(r) {
         ? [['Approvals on the website', r.approvals.approved, r.approvals.per_100_prepares]]
         : []),
     ],
-    // L6-11 (R25 M1): the media reviews the report counts apart from writes: prepared, uploads sent, and the refusals for an
-    // expired review and a changed state, with the paths that changed. An older answer without `media` shows nothing here.
     // R25 M1: the fields that changed in more than a share of a provider's prepares (the server states the rule).
     alarms = Array.isArray(r.volatile_path_alarms) ? r.volatile_path_alarms : [],
+    // L6-11 (R25 M1): the media reviews the report counts apart from writes: prepared, uploads sent, and the refusals for an
+    // expired review and a changed state, with the paths that changed. An older answer without `media` shows nothing here.
     m = r.media,
     mediaRows =
       m && Number.isSafeInteger(m.prepares)
