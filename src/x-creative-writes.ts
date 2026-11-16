@@ -4,6 +4,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyCodeError, type OneCodeRefusal, stateReadOf} from './family-kit.js';
 import {stable, sha256} from './security.js';
+import {xAccountState, xCampaignState, xLineItemState} from './x-identity-state.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -418,7 +419,10 @@ export async function readXCreativeState(p: CompiledRequest, send: Read): Promis
     kind = xCreativeKind(p),
     b = (p.body ?? {}) as JsonObject,
     states: unknown[] = [];
-  states.push({account: await read.single('', p.accountId!)});
+  // The account is read as an ACCOUNT and a promotion's line item and campaign as PARENTS (R2.5 M1, L4-13): a review keeps
+  // their identity, so a flight, a budget or a computed `servable` that moves cannot refuse the promotion. The card and the
+  // Tweets are what the write uses or changes, and keep their protection.
+  states.push({account: xAccountState(await read.single('', p.accountId!))});
   let card: JsonObject | undefined;
   if (kind === 'card_update' || kind === 'card_delete') {
     card = await read.single(cardSuffix(p), p.path.split('/').at(-1)!);
@@ -491,8 +495,8 @@ export async function readXCreativeState(p: CompiledRequest, send: Read): Promis
     if (typeof parent.campaign_id !== 'string' || !native.test(parent.campaign_id))
       fail('X did not identify the parent campaign.');
     states.push({
-      line_item: parent,
-      campaign: await read.single('/campaigns/' + parent.campaign_id, parent.campaign_id),
+      line_item: xLineItemState(parent),
+      campaign: xCampaignState(await read.single('/campaigns/' + parent.campaign_id, parent.campaign_id)),
     });
     const tweets = await read.tweets(b.tweet_ids.split(','));
     states.push({tweets: tweets.map(tweetView).sort((a, b) => a.id_str!.localeCompare(b.id_str!))});

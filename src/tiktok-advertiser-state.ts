@@ -35,9 +35,15 @@ export const tiktokAdvertiserQuery = (advertiser: string): JsonObject => ({
   fields: [...fields],
 });
 
-/** The advertiser read of a reviewed write, built the way every state read is (src/write-snapshots.ts stateRead). */
-export const tiktokAdvertiserRead = (stateRead: StateReadBuilder, advertiser: string): CompiledRequest =>
-  stateRead(tiktokAdvertiserInfoPath, tiktokAdvertiserQuery(advertiser));
+/**
+ * The advertiser read of a reviewed write, built the way every state read is (src/write-snapshots.ts stateRead), in the
+ * ACCOUNT role (R2.5 M1): the account a create is made in. Its projection stays path-keyed, so a review saved before the role
+ * existed is projected the same way.
+ */
+export const tiktokAdvertiserRead = (stateRead: StateReadBuilder, advertiser: string): CompiledRequest => ({
+  ...stateRead(tiktokAdvertiserInfoPath, tiktokAdvertiserQuery(advertiser)),
+  stateRole: 'account',
+});
 
 /**
  * One advertiser row as a review keeps it: its seven identity fields, as TikTok gave them, and nothing else. Idempotent

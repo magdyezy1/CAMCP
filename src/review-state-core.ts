@@ -108,6 +108,31 @@ const unorderedFields = new Set([
   'excluded_languages',
 ]);
 
+/**
+ * What a review keeps of an account or a parent row (R2.5 M1, plan idea 1, the roles ACCOUNT and PARENT): the listed fields,
+ * as the provider gave them, and nothing else. A dot reaches into a nested record (`generalConfig.currencyCode`). Idempotent
+ * (a row it kept projects to itself) and monotone (it only drops), so a state saved before is projected again at execute. A
+ * value that is no record is no row and is left as it is.
+ */
+export function pickIdentity(row: unknown, paths: readonly string[]): unknown {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return row;
+  const source = row as Record<string, unknown>,
+    out: Record<string, unknown> = {},
+    nested = new Map<string, string[]>();
+  for (const path of paths) {
+    const dot = path.indexOf('.'),
+      head = dot < 0 ? path : path.slice(0, dot);
+    if (!Object.hasOwn(source, head)) continue;
+    if (dot < 0) out[head] = source[head];
+    else nested.set(head, [...(nested.get(head) ?? []), path.slice(dot + 1)]);
+  }
+  for (const [head, rest] of nested) {
+    const value = source[head];
+    if (value && typeof value === 'object' && !Array.isArray(value)) out[head] = pickIdentity(value, rest);
+  }
+  return out;
+}
+
 function project(value: unknown, matches: (name: string) => boolean, urls: boolean, key: string): unknown {
   if (Array.isArray(value)) {
     const values = value.map(item => project(item, matches, urls, ''));

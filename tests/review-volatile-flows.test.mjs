@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Registry} from '../dist/src/catalog.js';
-import {Store} from '../dist/src/store.js';
-import {MirrorService} from '../dist/src/service.js';
-import {NativeTransport} from '../dist/src/transport.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {lifecycle} from './helpers/review-lifecycle.mjs';
 
 /**
  * R2.5 M1 (package r25-m1-hash): the objects a review changes keep their protection, minus the fields that change by
@@ -15,70 +12,6 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  *     status change is a real change.
  * Nothing leaves the process; every value is synthetic.
  */
-const registry = new Registry(),
-  key = Buffer.alloc(32, 61).toString('base64'),
-  actor = {tenantId: 'test', userId: 'writer', role: 'operator'},
-  admin = {...actor, role: 'admin'},
-  policy = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true};
-
-/** Prepares, lets the provider change its answer, executes: what execute answered and how many writes were sent. */
-async function lifecycle({gateway, args, answer}) {
-  const store = new Store(':memory:', key),
-    connection = {
-      id: 'connection',
-      tenantId: 'test',
-      gateway: gateway + '_native_action',
-      accounts: ['123'],
-      writeAccounts: ['123'],
-      enabled: true,
-      label: 'Synthetic',
-      scopes: [],
-    };
-  store.putConnection(admin, connection, {
-    accessToken: 'synthetic',
-    consumerKey: 'synthetic',
-    consumerSecret: 'synthetic',
-    tokenSecret: 'synthetic',
-  });
-  store.rememberResource(connection, '123', '111');
-  let phase = 'prepare',
-    writes = 0;
-  const service = new MirrorService(
-    registry,
-    store,
-    new NativeTransport(async (input, init = {}) => {
-      const url = new URL(String(input));
-      if ((init.method ?? 'GET') === 'GET') return Response.json(answer(url.pathname, phase));
-      writes++;
-      return args.status === 204 ? new Response(null, {status: 204}) : Response.json(args.response);
-    }),
-    undefined,
-    policy,
-  );
-  try {
-    const {status: _s, response: _r, ...request} = args;
-    const prepared = await service.call(
-      'amcp_write',
-      {action: 'prepare', gateway: gateway + '_native_action', arguments: {account_id: '123', ...request}},
-      actor,
-    );
-    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
-    phase = 'execute';
-    const done = await service.call(
-      'amcp_write',
-      {
-        action: 'execute',
-        review_id: prepared.data.review_id,
-        idempotency_key: prepared.data.idempotency_key,
-        confirmed: true,
-      },
-      actor,
-    );
-    return {done, writes: () => writes};
-  } finally {
-    store.close();
-  }
-}
 
 // --- X ---------------------------------------------------------------------------------------------------------------
 
@@ -95,8 +28,8 @@ const xCase = row => ({
     action: 'x_accounts_account_id_campaigns_campaign_id_put',
     path_params: {campaign_id: '111'},
     payload: {name: 'Renamed'},
-    response: {data: {id: '111'}},
   },
+  reply: {response: {data: {id: '111'}}},
   answer: (path, phase) => ({data: row(phase), request: {params: {}}}),
 });
 
@@ -155,8 +88,8 @@ const liCase = row => ({
     path_params: {campaign_id: '111'},
     restli_method: 'PARTIAL_UPDATE',
     payload: {patch: {$set: {name: 'Renamed'}}},
-    status: 204,
   },
+  reply: {response: null},
   answer: (path, phase) => row(phase),
 });
 

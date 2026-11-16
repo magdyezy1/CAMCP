@@ -66,9 +66,11 @@ export const standardBodies = id => ({
 /**
  * A fixture over the advertiser `world` (tests/helpers/tiktok-advertiser-noise.mjs). `parents` holds the status of the
  * campaign 300 and the ad group 200 the creates sit under, which a test may change at any time; a status set to
- * undefined leaves the field out of the row TikTok returns. `sent` lists every provider write.
+ * undefined leaves the field out of the row TikTok returns. `sent` lists every provider write. `parentExtra(kind, n)`
+ * (r25-m1-hash) adds fields to the row of the `campaign` or `adgroup` parent on its n-th read, for noise that rotates or
+ * for the configuration a parent carries; none by default.
  */
-export function standardCreates(world, {tenant = 'standard-creates'} = {}) {
+export function standardCreates(world, {tenant = 'standard-creates', parentExtra = () => ({})} = {}) {
   const actor = {tenantId: tenant, userId: 'operator', role: 'operator'},
     owner = {...actor, userId: 'owner', role: 'admin'},
     store = new Store(':memory:', key),
@@ -83,6 +85,7 @@ export function standardCreates(world, {tenant = 'standard-creates'} = {}) {
       scopes: [],
     },
     parents = {campaign: 'DISABLE', adgroup: 'DISABLE'},
+    parentReads = {campaign: 0, adgroup: 0},
     sent = [],
     requests = [],
     page = {page: 1, page_size: 100, total_number: 1, total_page: 1};
@@ -102,14 +105,29 @@ export function standardCreates(world, {tenant = 'standard-creates'} = {}) {
     if (path === '/v1.3/campaign/get/')
       return Response.json(
         answer({
-          list: [{campaign_id: '300', advertiser_id: world.id, operation_status: parents.campaign}],
+          list: [
+            {
+              campaign_id: '300',
+              advertiser_id: world.id,
+              operation_status: parents.campaign,
+              ...parentExtra('campaign', ++parentReads.campaign),
+            },
+          ],
           page_info: page,
         }),
       );
     if (path === '/v1.3/adgroup/get/')
       return Response.json(
         answer({
-          list: [{adgroup_id: '200', campaign_id: '300', advertiser_id: world.id, operation_status: parents.adgroup}],
+          list: [
+            {
+              adgroup_id: '200',
+              campaign_id: '300',
+              advertiser_id: world.id,
+              operation_status: parents.adgroup,
+              ...parentExtra('adgroup', ++parentReads.adgroup),
+            },
+          ],
           page_info: page,
         }),
       );

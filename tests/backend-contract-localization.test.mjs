@@ -358,7 +358,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m1-hash (Round 2.5, M1: L5-02) adds six leaves, with no reason of their own: the flat-resource names of
   // src/review-flat-telemetry.ts and each provider's review table that its adapter and family modules share
   // (src/{x,linkedin,snapchat,criteo,google}-review-volatile.ts): 816 + 6 = 822.
-  assert.equal(files.length, 822);
+  // The roles of the same package add two more, with no reason of their own: the identity of a TikTok parent row and of an
+  // X account and its parents (src/tiktok-parent-state.ts, src/x-identity-state.ts): 822 + 2 = 824.
+  assert.equal(files.length, 824);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

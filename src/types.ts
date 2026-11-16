@@ -177,6 +177,14 @@ export interface CompiledRequest {
    * may admit a read on that path only (Meta's ad identity probe, F-L3-03).
    */
   nested?: true;
+  /**
+   * The role of a state read in a review (R2.5 M1, plan idea 1): `account` for the read of the account a write creates
+   * something in, `parent` for the read of the parent a child is created under. Set where the read is built (src/write-snapshots.ts,
+   * the provider's own reads), never by a caller; a read of the objects a write changes has none. The provider's snapshot keeps
+   * only the identity of such a read (who it is, its status, its currency and time zone), so a field that changes without any
+   * edit (a balance, a signed link, a counter) cannot refuse a write; what a write changes keeps its whole protection.
+   */
+  stateRole?: 'account' | 'parent';
   scopeContext?: {
     metaReportReviewId?: string;
     campaignId?: string;

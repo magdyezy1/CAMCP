@@ -46,6 +46,8 @@ export function tiktokStateReads(plan: CompiledRequest, base: StateReadBuilder):
         page_size: 100,
       });
       read.action = 'tiktok_' + parent + '_get';
+      // The parent a child is created under (R2.5 M1): a review keeps its identity (src/tiktok-parent-state.ts).
+      read.stateRole = 'parent';
       reads.push(read);
     }
     const conversion = tiktokAdgroupConversionRead(plan);

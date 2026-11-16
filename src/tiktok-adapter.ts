@@ -77,6 +77,7 @@ import {
   tiktokTrafficRecipe,
 } from './tiktok-launch-recipes.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
+import {tiktokParentState} from './tiktok-parent-state.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
@@ -328,6 +329,11 @@ function tiktokSnapshot(read: CompiledRequest, d: JsonObject): unknown {
   const state =
     tiktokSmartPlusAdState(read, d) ?? tiktokSmartPlusAdgroupCampaignState(read, d) ?? tiktokInstantFormState(read, d);
   if (state) return state;
+  // The parent a child create is made under (R2.5 M1, the PARENT role): its identity, and what a gate of the child reads.
+  if (read.stateRole === 'parent') {
+    const parent = tiktokParentState(read, d);
+    if (parent) return parent;
+  }
   // The advertiser row, wherever it is read from (a create, the media upload) and whether the answer is fresh or a saved
   // review's: its identity fields only. The signed licence link and the balance change without any change by the
   // user, and the contact record is nothing a write depends on (T1, Q15, owner 2026-11-15).

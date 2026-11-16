@@ -1604,7 +1604,8 @@ export class MediaUploadService {
           filename: name + '.' + file.extension,
           size: file.bytes.length,
           sha256: sha256(file.bytes),
-          read: this.accountRead(input.platform, account),
+          // The account the media is uploaded under, read as an ACCOUNT (R2.5 M1): a review keeps its identity.
+          read: {...this.accountRead(input.platform, account), stateRole: 'account'},
           ...(file.source_drive ? {source_drive: file.source_drive} : {}),
           ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
           ...('origin' in file && file.origin ? {origin: file.origin} : {}),

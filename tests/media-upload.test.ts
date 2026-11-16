@@ -27,6 +27,8 @@ function fixture(
     finalizeObject?: boolean;
     statusResponse?: JsonObject;
     libraryResponse?: JsonObject;
+    // r25-m1-hash (R2.5 M1): the account row of X, LinkedIn and DV360 carries fields that change at every read.
+    rotate?: boolean;
   } = {},
 ) {
   const store = new Store(':memory:', key),
@@ -90,7 +92,17 @@ function fixture(
       return new Response(null, {status: 201, headers: {etag: '"part-1"'}});
     }
     if (method === 'GET' || path.endsWith('/googleAds:search')) {
-      const extra = {name: stateChanged ? 'Changed' : 'Account'};
+      const extra = {
+        name: stateChanged ? 'Changed' : 'Account',
+        // Fields no one edits, under names no review table lists: a balance, a count, a signed link (r25-m1-hash).
+        ...(options.rotate && ['linkedin', 'x_ads', 'dv360'].includes(platform)
+          ? {
+              balance: 1000 - calls.length,
+              notes_count: calls.length,
+              logo_url: 'https://cdn.example.test/l.png?x-expires=' + calls.length + '&x-signature=s' + calls.length,
+            }
+          : {}),
+      };
       const reply = (data: JsonObject) =>
         Response.json({
           ...data,
@@ -354,6 +366,55 @@ for (const platform of ['meta', 'snapchat', 'tiktok', 'google_ads', 'linkedin', 
         }
       },
     );
+
+// R2.5 M1 (package r25-m1-hash, the ACCOUNT role): the account an upload is made under is its identity, and nothing that
+// changes at every read (a balance, a count, a signed link).
+for (const platform of ['linkedin', 'x_ads', 'dv360'])
+  test(
+    platform + ' image: an account row whose balance, counters and signed link change is the same account',
+    async () => {
+      const f = fixture(platform, 'image', {rotate: true});
+      try {
+        const prepared = await f.prepare();
+        assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 600));
+        const shown = JSON.stringify(prepared.data);
+        for (const noise of ['balance', 'notes_count', 'logo_url', 'x-signature'])
+          assert.equal(shown.includes(noise), false, 'the review shows ' + noise);
+        const out = await f.call({
+          action: 'execute',
+          review_id: prepared.data.review_id,
+          idempotency_key: prepared.data.idempotency_key,
+          confirmed: true,
+        });
+        assert.equal(out.success, true, JSON.stringify(out).slice(0, 600));
+      } finally {
+        f.close();
+      }
+    },
+  );
+for (const platform of ['linkedin', 'x_ads', 'dv360'])
+  test(
+    platform + ' image: a changed account name between review and execute is STATE_CHANGED, beside the rotation',
+    async () => {
+      const f = fixture(platform, 'image', {rotate: true});
+      try {
+        const prepared = await f.prepare();
+        assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 600));
+        f.change();
+        const out = await f.call({
+          action: 'execute',
+          review_id: prepared.data.review_id,
+          idempotency_key: prepared.data.idempotency_key,
+          confirmed: true,
+        });
+        assert.equal(out.success, false);
+        assert.equal(out.error.code, 'STATE_CHANGED', JSON.stringify(out).slice(0, 600));
+        assert.deepEqual(out.error.details.changed_fields, [(platform === 'x_ads' ? '$["data"]' : '$') + '["name"]']);
+      } finally {
+        f.close();
+      }
+    },
+  );
 
 test('Google media reprojects a saved older envelope while preserving the original upload claim', async () => {
   const f = fixture('google_ads');

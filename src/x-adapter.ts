@@ -10,6 +10,7 @@ import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
 import {xReviewVolatile} from './x-review-volatile.js';
+import {xRoleRecord} from './x-identity-state.js';
 // Writes and campaigns (wave 4c).
 import {validateXTargetingState, xTargetingKind, xTargetingSnapshots} from './x-targeting-writes.js';
 import {authorizeXAudienceEstimate, xAudienceEstimatePlan, xAudienceEstimateRoute} from './x-audience-estimate.js';
@@ -97,7 +98,12 @@ export const xHooks: ProviderHooks = Object.freeze({
   }),
   // A response's records are under data, the rest is its envelope; a write is verified by each record it returned.
   review: Object.freeze({
-    snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    snapshot(read: CompiledRequest, d: JsonObject) {
+      if (!Object.hasOwn(d, 'data')) return d;
+      // The account a create is made in, and the parent a promotion or a criterion goes under, are kept to their identity.
+      const role = xRoleRecord(read, d.data);
+      return {data: role === undefined ? d.data : role};
+    },
     volatile: xReviewVolatile,
     verification(
       plan: CompiledRequest,
