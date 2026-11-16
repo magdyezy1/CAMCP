@@ -17,6 +17,12 @@ export const gateway = 'tiktok_native_action';
 export const stamp = ms => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
 const idKey = {campaign: 'campaign_id', adgroup: 'adgroup_id', ad: 'ad_id'};
 const nameKey = {campaign: 'campaign_name', adgroup: 'adgroup_name', ad: 'ad_name'};
+/** The fields of a create that TikTok echoes in its lists, besides the name and the parent. */
+const echoed = {
+  campaign: ['objective_type', 'budget_mode', 'budget', 'operation_status'],
+  adgroup: ['budget_mode', 'budget', 'optimization_goal', 'billing_event', 'bid_type', 'operation_status'],
+  ad: ['ad_format', 'operation_status'],
+};
 
 export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
   const world = advertiserWorld({rotating: false}),
@@ -90,6 +96,10 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
           ...(kind === 'adgroup' ? {campaign_id: body.campaign_id} : {}),
           ...(kind === 'ad' ? {adgroup_id: body.adgroup_id} : {}),
           operation_status: 'DISABLE',
+          // What TikTok echoes of the create beside its name and parent (the fields a lookup compares with the frozen request).
+          ...Object.fromEntries(
+            Object.entries(kind === 'ad' ? creative : body).filter(([k]) => echoed[kind].includes(k)),
+          ),
           create_time: stamp(state.now()),
         };
       // The provider applied the create (unless a test says it did not) and the answer was lost.

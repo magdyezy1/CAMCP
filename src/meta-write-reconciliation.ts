@@ -2,6 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {object} from './write-common.js';
+import {agrees, sameValue, type Echo} from './created-agreement.js';
 import {metaProductSetKind, metaProductSetListRead} from './meta-product-sets.js';
 import {metaProductFeedKind, metaProductFeedListRead} from './meta-product-feeds.js';
 import {metaProductCatalogKind, metaProductCatalogListRead} from './meta-product-catalogs.js';
@@ -61,13 +62,21 @@ const receipt = (found: JsonObject[]): JsonObject => ({id: found[0]!.id});
  * Dates rows by their creation time: in the window around the claim means created by this write, a time outside it means
  * another's, and a time that is missing or cannot be read cannot be placed against the claim (`undated`).
  */
-function byTime(rows: JsonObject[], claimedAt: number, timeOf: (r: JsonObject) => number | undefined) {
+function byTime(
+  rows: JsonObject[],
+  claimedAt: number,
+  timeOf: (r: JsonObject) => number | undefined,
+  // Whether the fields Meta echoes agree with the frozen request (R2.5 M2, lead review S2-3): an object of the same name, made in
+  // the window, that differs in one of them is another's, a doubt that is shown and never called created.
+  agree: (r: JsonObject) => boolean = () => true,
+) {
   const found: JsonObject[] = [],
     undated: JsonObject[] = [];
   for (const r of rows) {
     const at = timeOf(r);
     if (at === undefined) undated.push(shown(r));
-    else if (at >= claimedAt - skewMs && at <= claimedAt + afterMs) found.push(shown(r, at));
+    else if (at >= claimedAt - skewMs && at <= claimedAt + afterMs)
+      (agree(r) ? found : undated).push(shown(r, agree(r) ? at : undefined));
   }
   return {found, undated};
 }
@@ -88,10 +97,18 @@ function seen(context: CreatedLookupContext | undefined, key: 'sets' | 'feeds'):
   return Array.isArray(rows) ? new Set(rows.map(r => String(object(r).id))) : undefined;
 }
 
+const same = (...names: string[]): Echo[] => names.map(n => [n, n]);
+/** The fields Meta echoes of a campaign, ad set or ad create that the lookup compares with the frozen request. */
+const edgeEchoes: Record<string, readonly Echo[]> = {
+  campaigns: same('objective', 'status', 'daily_budget', 'lifetime_budget'),
+  adsets: same('status', 'daily_budget', 'lifetime_budget', 'optimization_goal', 'billing_event'),
+  ads: same('status'),
+};
 /** Meta campaign, ad set and ad creates: the account's edge filtered by the frozen name, created in the window of the claim. */
-function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: string): CreatedLookup {
+function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: string, body: JsonObject): CreatedLookup {
+  const echoes = edgeEchoes[edge[3]!] ?? [];
   const request = read('/' + edge[1] + '/' + edge[2] + '/' + edge[3], {
-    fields: 'id,name,created_time',
+    fields: ['id', 'name', 'created_time', ...echoes.map(([, listed]) => listed)].join(','),
     filtering: JSON.stringify([{field: 'name', operator: 'EQUAL', value: name}]),
     limit: 25,
   });
@@ -104,6 +121,7 @@ function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: st
           rows.filter(r => r.name === name),
           submittedAt,
           isoTime,
+          r => agrees(body, r, echoes),
         );
       return verdict(found, undated, complete);
     },
@@ -116,6 +134,7 @@ function metaCatalogEdgeCreated(
   name: string,
   before: Set<string> | undefined,
   inCatalog: (r: JsonObject) => boolean,
+  agree: (r: JsonObject) => boolean,
 ): CreatedLookup {
   return {
     reads: [first],
@@ -124,10 +143,11 @@ function metaCatalogEdgeCreated(
       const {rows, complete} = listed(responses),
         named = rows.filter(r => folded(r.name) === folded(name) && inCatalog(r));
       // Without the review's list nothing of that name can be told from an older one.
+      const fresh = before ? named.filter(r => !before.has(String(r.id))) : [];
       return before
         ? verdict(
-            named.filter(r => !before.has(String(r.id))).map(r => shown(r)),
-            [],
+            fresh.filter(agree).map(r => shown(r)),
+            fresh.filter(r => !agree(r)).map(r => shown(r)),
             complete,
           )
         : verdict(
@@ -140,7 +160,12 @@ function metaCatalogEdgeCreated(
   };
 }
 /** An audience: of the frozen name in the account, made in the window of the claim, as its `time_created` says. */
-function metaAudienceCreated(plan: CompiledRequest, first: CompiledRequest, name: string): CreatedLookup {
+function metaAudienceCreated(
+  plan: CompiledRequest,
+  first: CompiledRequest,
+  name: string,
+  body: JsonObject,
+): CreatedLookup {
   return {
     reads: [first],
     more: responses => nextPage(first, responses),
@@ -155,6 +180,7 @@ function metaAudienceCreated(plan: CompiledRequest, first: CompiledRequest, name
           ),
           submittedAt,
           unixTime,
+          r => agrees(body, r, same('subtype')),
         );
       return verdict(found, undated, complete);
     },
@@ -178,6 +204,23 @@ function metaUndatedCreated(first: CompiledRequest, name: string, live: (r: Json
   };
 }
 
+/** Whether a listed product set holds what the review froze: its filter (as JSON, whichever way it is written) and retailer ID. */
+function setAgrees(body: JsonObject, listedSet: JsonObject): boolean {
+  const json = (v: unknown) => {
+    if (typeof v !== 'string') return v;
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  };
+  const asked = json(body.filter),
+    got = json(listedSet.filter);
+  return (
+    (asked === undefined || got === undefined || got === null || sameValue(asked, got)) &&
+    agrees(body, listedSet, [['retailer_id', 'retailer_id']])
+  );
+}
 export function metaCreated(
   plan: CompiledRequest,
   read: StateReadBuilder,
@@ -186,12 +229,29 @@ export function metaCreated(
   const name = object(plan.body).name;
   if (plan.method !== 'POST' || typeof name !== 'string' || !name.trim()) return undefined;
   if (metaProductSetKind(plan) === 'create')
-    return metaCatalogEdgeCreated(metaProductSetListRead(plan), name, seen(context, 'sets'), r => {
-      const catalog = object(r.product_catalog).id;
-      return catalog === undefined || String(catalog) === plan.path.split('/')[2];
-    });
+    return metaCatalogEdgeCreated(
+      metaProductSetListRead(plan),
+      name,
+      seen(context, 'sets'),
+      r => {
+        const catalog = object(r.product_catalog).id;
+        return catalog === undefined || String(catalog) === plan.path.split('/')[2];
+      },
+      r => setAgrees(object(plan.body), r),
+    );
   if (metaProductFeedKind(plan) === 'create')
-    return metaCatalogEdgeCreated(metaProductFeedListRead(plan), name, seen(context, 'feeds'), () => true);
+    return metaCatalogEdgeCreated(
+      metaProductFeedListRead(plan),
+      name,
+      seen(context, 'feeds'),
+      () => true,
+      r =>
+        agrees(
+          object(plan.body),
+          r,
+          same('deletion_enabled', 'default_currency', 'feed_type', 'delimiter', 'encoding', 'quoted_fields_mode'),
+        ),
+    );
   if (metaProductCatalogKind(plan) === 'create')
     return metaUndatedCreated(metaProductCatalogListRead(plan), name, () => true);
   const edge = /^\/(v\d+\.\d+)\/(act_\d+)\/(campaigns|adsets|ads|adcreatives|customaudiences)$/.exec(plan.path);
@@ -199,8 +259,9 @@ export function metaCreated(
   const listing = (fields: string) => read('/' + edge[1] + '/' + edge[2] + '/' + edge[3], {fields, limit: 100});
   if (edge[3] === 'adcreatives')
     return metaUndatedCreated(listing('id,name,status'), name, r => r.status !== 'DELETED');
-  if (edge[3] === 'customaudiences') return metaAudienceCreated(plan, listing('id,account_id,name,time_created'), name);
-  return name.length > 400 ? undefined : metaEdgeCreated(read, edge, name);
+  if (edge[3] === 'customaudiences')
+    return metaAudienceCreated(plan, listing('id,account_id,name,time_created,subtype'), name, object(plan.body));
+  return name.length > 400 ? undefined : metaEdgeCreated(read, edge, name, object(plan.body));
 }
 /** A Meta node edit (a POST to the node's ID): the receipt names the node. */
 export function metaNamedTargets(plan: CompiledRequest): JsonObject | undefined {

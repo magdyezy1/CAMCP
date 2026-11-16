@@ -2,6 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {normalizeAccount} from './account-id.js';
 import {object} from './write-common.js';
+import {agrees, type Echo} from './created-agreement.js';
 
 /**
  * TikTok's part of the read-only reconciliation of an uncertain write (R2.5 M2, L1-07 created-lookup part, L5-05): the
@@ -26,14 +27,21 @@ interface Kind {
   name: string;
   /** The parent: its IDs filter, the body field that names it, and the field of a row that names it. */
   parent?: {filter: string; body: string; row: string};
+  /**
+   * The fields TikTok echoes of the create (R2.5 M2, lead review S2-3): a same-name object of the same parent that differs in one of
+   * them is another object, shown and never called this write's.
+   */
+  echoes: readonly Echo[];
   /** The `data` of the answer TikTok gives to the create, which a plan's later steps read the new ID from. */
   receipt(id: string): JsonObject;
 }
+const echo = (...names: string[]): Echo[] => names.map(name => [name, name]);
 const kinds: Record<string, Kind> = {
   '/v1.3/campaign/create/': {
     kind: 'campaign',
     id: 'campaign_id',
     name: 'campaign_name',
+    echoes: echo('objective_type', 'budget_mode', 'budget', 'operation_status'),
     receipt: id => ({campaign_id: id}),
   },
   '/v1.3/adgroup/create/': {
@@ -41,6 +49,7 @@ const kinds: Record<string, Kind> = {
     id: 'adgroup_id',
     name: 'adgroup_name',
     parent: {filter: 'campaign_ids', body: 'campaign_id', row: 'campaign_id'},
+    echoes: echo('budget_mode', 'budget', 'optimization_goal', 'billing_event', 'bid_type', 'operation_status'),
     receipt: id => ({adgroup_id: id}),
   },
   '/v1.3/ad/create/': {
@@ -48,6 +57,8 @@ const kinds: Record<string, Kind> = {
     id: 'ad_id',
     name: 'ad_name',
     parent: {filter: 'adgroup_ids', body: 'adgroup_id', row: 'adgroup_id'},
+    // An ad's fields are those of its one creative.
+    echoes: echo('ad_format', 'operation_status'),
     receipt: id => ({ad_ids: [id]}),
   },
 };
@@ -83,14 +94,22 @@ export function tiktokCreated(
         ? object(Array.isArray(body.creatives) ? body.creatives[0] : undefined).ad_name
         : body[spec.name],
     name = typeof given === 'string' ? given.trim() : '',
-    parent = spec.parent ? body[spec.parent.body] : undefined;
+    parent = spec.parent ? body[spec.parent.body] : undefined,
+    // What the review froze, to compare with what TikTok echoes: the body, or for an ad the one creative it names.
+    requested = spec.kind === 'ad' ? object(Array.isArray(body.creatives) ? body.creatives[0] : undefined) : body;
   if (!name || name.length > 512 || (spec.parent && (typeof parent !== 'string' || !/^\d{1,32}$/.test(parent))))
     return undefined;
   const from = context.claimedAt - skewMs,
     to = context.claimedAt + afterMs;
   const list = read_('/v1.3/' + spec.kind + '/get/', {
     advertiser_id: normalizeAccount(plan.gateway, plan.accountId),
-    fields: [spec.id, spec.name, ...(spec.parent ? [spec.parent.row] : []), 'create_time'],
+    fields: [
+      spec.id,
+      spec.name,
+      ...(spec.parent ? [spec.parent.row] : []),
+      ...spec.echoes.map(([, listed]) => listed),
+      'create_time',
+    ],
     filtering: {
       ...(spec.parent ? {[spec.parent.filter]: [parent]} : {}),
       creation_filter_start_time: written(from),
@@ -115,6 +134,12 @@ export function tiktokCreated(
         if (spec.parent && row[spec.parent.row] !== undefined && String(row[spec.parent.row]) !== parent) continue;
         const at = read(row.create_time),
           id = String(row[spec.id]);
+        // Same name and parent, another object: it differs in a field the review froze. A name is no identity, so it is a doubt
+        // (shown, never called created), not a match.
+        if (!agrees(requested, row, spec.echoes)) {
+          undated.push({id, name});
+          continue;
+        }
         if (at !== undefined && at >= from && at <= to)
           found.push({index: found.length, id, name, created_time: row.create_time});
         else if (at === undefined || (at >= from - zoneMs && at <= to + zoneMs)) undated.push({id, name});

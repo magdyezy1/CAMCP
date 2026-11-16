@@ -23,7 +23,7 @@ import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './prov
 import {ownsRecord} from './actor-identity.js';
 import {mayResolve, pendingUncertainMs, reconciliationFreshMs, retainedReview, writeStatus} from './write-records.js';
 import {object} from './write-common.js';
-import {writeClaim} from './job-repository.js';
+import {openWriteClaims, writeClaim} from './job-repository.js';
 
 /**
  * Read-only reconciliation of an uncertain reviewed write (WRT-08 Stage B). A write whose response was lost may or
@@ -245,8 +245,35 @@ export class WriteReconciler {
     };
     return {read, count: () => count};
   }
+  /**
+   * The IDs that the receipts of this workspace's other completed writes name, since since: objects another review made (or was
+   * accepted as having made), which are not this write's, whatever their name and parent (R2.5 M2, lead review S2-3).
+   */
+  private othersObjects(tenant: string, reviewId: string, since: number): Set<string> {
+    const ids = new Set<string>(),
+      walk = (v: unknown): void => {
+        if (typeof v === 'string' || typeof v === 'number') ids.add(String(v));
+        else if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+      };
+    for (const claim of openWriteClaims(this.store, tenant, since)) {
+      if (claim.state !== 'complete' || claim.key === reviewId || typeof claim.result !== 'string') continue;
+      try {
+        const result = JSON.parse(claim.result);
+        walk(result.data);
+        walk(result.observed_ids);
+      } catch {}
+    }
+    return ids;
+  }
   /** One round of observation: the targets' current values, the reviewed state, or the created resources. */
-  private async observe(review: JsonObject, plan: CompiledRequest, read: Read, claimedAt: number): Promise<JsonObject> {
+  private async observe(
+    tenant: string,
+    review: JsonObject,
+    plan: CompiledRequest,
+    read: Read,
+    claimedAt: number,
+  ): Promise<JsonObject> {
     const lookup = findCreated(plan, {state: Array.isArray(review.state) ? review.state : [], claimedAt});
     if (lookup) {
       const responses: TransportResult[] = [];
@@ -257,7 +284,12 @@ export class WriteReconciler {
         for (const request of next) responses.push(await read(request));
         next = lookup.more?.(responses) ?? [];
       }
-      const {found, expected, complete, undated = []} = lookup.match(responses, claimedAt);
+      const matched = lookup.match(responses, claimedAt),
+        // An object that another review's receipt names is that review's, however alike: it is neither found nor a doubt.
+        others = this.othersObjects(tenant, String(review.id), claimedAt - 120000),
+        found = matched.found.filter(f => !others.has(String(f.id))),
+        undated = (matched.undated ?? []).filter(u => !others.has(String(u.id))),
+        {expected, complete} = matched;
       // Applied only when each record has its one dated match and nothing of that name is left that the lookup cannot tell
       // from an older object; absent only when the list was complete and holds nothing of that name at all (R2.5 M2).
       const all = found.length === expected && found.every((f, i) => f.index === i) && !undated.length;
@@ -416,7 +448,7 @@ export class WriteReconciler {
     try {
       for (let round = 0; round < 2; round++) {
         if (round) await pause(roundPauseMs());
-        rounds.push(await this.observe(review, plan, read, claimedAt));
+        rounds.push(await this.observe(actor.tenantId, review, plan, read, claimedAt));
       }
     } catch (e) {
       if (!providerFailure(e)) throw e;

@@ -41,17 +41,36 @@ test('each standard TikTok create has a lookup that lists the advertiser by crea
   const expected = {
     campaign: {
       path: '/v1.3/campaign/get/',
-      fields: ['campaign_id', 'campaign_name', 'create_time'],
+      fields: [
+        'campaign_id',
+        'campaign_name',
+        'objective_type',
+        'budget_mode',
+        'budget',
+        'operation_status',
+        'create_time',
+      ],
       filtering: window,
     },
     adgroup: {
       path: '/v1.3/adgroup/get/',
-      fields: ['adgroup_id', 'adgroup_name', 'campaign_id', 'create_time'],
+      fields: [
+        'adgroup_id',
+        'adgroup_name',
+        'campaign_id',
+        'budget_mode',
+        'budget',
+        'optimization_goal',
+        'billing_event',
+        'bid_type',
+        'operation_status',
+        'create_time',
+      ],
       filtering: {campaign_ids: ['300'], ...window},
     },
     ad: {
       path: '/v1.3/ad/get/',
-      fields: ['ad_id', 'ad_name', 'adgroup_id', 'create_time'],
+      fields: ['ad_id', 'ad_name', 'adgroup_id', 'ad_format', 'operation_status', 'create_time'],
       filtering: {adgroup_ids: ['200'], ...window},
     },
   };

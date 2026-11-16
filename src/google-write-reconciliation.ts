@@ -5,6 +5,7 @@ import {googleAdsCustomers} from './google-version.js';
 import {normalize} from './verification-core.js';
 import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import {object} from './write-common.js';
+import {agrees, type Echo} from './created-agreement.js';
 import {googleBuildLookup} from './google-atomic-builds.js';
 import {googleAssetLinkCreates} from './google-asset-links.js';
 import {googleListingGroupLookup, googleListingGroupTree} from './google-listing-groups.js';
@@ -19,6 +20,25 @@ const googleCreatable: Record<string, string> = {
   campaignBudgets: 'campaign_budget',
   adGroups: 'ad_group',
   assetGroups: 'asset_group',
+};
+/**
+ * The fields Google echoes of each named create that the lookup compares with the frozen request (R2.5 M2, lead review S2-3), as the
+ * normalized row spells them (snake_case); a name is no identity, so another object of that name that differs in one is a doubt.
+ */
+const createdEchoes: Record<string, readonly Echo[]> = {
+  campaign_budget: [
+    ['amount_micros', 'amount_micros'],
+    ['delivery_method', 'delivery_method'],
+  ],
+  campaign: [
+    ['status', 'status'],
+    ['advertising_channel_type', 'advertising_channel_type'],
+  ],
+  ad_group: [
+    ['status', 'status'],
+    ['type', 'type'],
+  ],
+  asset_group: [['status', 'status']],
 };
 const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 const rowsOf = (response: unknown, entity: string): JsonObject[] => {
@@ -46,15 +66,17 @@ export function googleCreated(
     operations = object(plan.body).operations;
   if (!resource || !Array.isArray(operations) || !operations.length || operations.some(op => !object(op).create))
     return undefined;
-  const names = operations.map(op => object(op).create.name);
+  const creates = operations.map(op => object(object(op).create)),
+    names = creates.map(c => c.name),
+    echoes = createdEchoes[resource] ?? [];
   if (!names.every(gaqlText) || new Set(names).size !== names.length) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!);
   const query =
     'SELECT ' +
-    resource +
-    '.resource_name, ' +
-    resource +
-    '.name FROM ' +
+    [resource + '.resource_name', resource + '.name', ...echoes.map(([, listed]) => resource + '.' + listed)].join(
+      ', ',
+    ) +
+    ' FROM ' +
     resource +
     ' WHERE ' +
     resource +
@@ -65,15 +87,19 @@ export function googleCreated(
     reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
     match(responses) {
       const rows = (normalize(object(responses[0]?.data).results ?? [], googleAdsReviewVolatile) as JsonObject[]).map(
-        r => object(r[resource]),
-      );
-      const found = names.map(name => rows.filter(r => r.name === name));
+          r => object(r[resource]),
+        ),
+        named = names.map(name => rows.filter(r => r.name === name)),
+        // Another object of that name that differs in a field the review froze is a doubt, never this write's (R2.5 M2, S2-3).
+        found = named.map((list, i) => list.filter(r => agrees(creates[i]!, r, echoes))),
+        doubts = named.flatMap((list, i) => list.filter(r => !agrees(creates[i]!, r, echoes)));
       return {
         expected: names.length,
         complete: !object(responses[0]?.data).nextPageToken,
         found: found.every(list => list.length === 1)
           ? found.map((list, index) => ({index, id: list[0]!.resource_name, name: names[index]}))
           : found.flat().map(r => ({id: r.resource_name, name: r.name})),
+        ...(doubts.length ? {undated: doubts.map(r => ({id: r.resource_name, name: r.name}))} : {}),
       };
     },
     receipt: found => ({results: found.map(f => ({resourceName: f.id}))}),

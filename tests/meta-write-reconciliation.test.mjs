@@ -1,4 +1,4 @@
-﻿import test, {before, after} from 'node:test';
+import test, {before, after} from 'node:test';
 import assert from 'node:assert/strict';
 import {Registry} from '../dist/src/catalog.js';
 import {Compiler} from '../dist/src/compiler.js';
@@ -74,7 +74,10 @@ const reads = {
   set: ['/v26.0/' + catalog + '/product_sets', {fields: setFields, limit: 100}],
   feed: ['/v26.0/' + catalog + '/product_feeds', {fields: feedFields, limit: 100}],
   catalog: ['/v26.0/' + business + '/owned_product_catalogs', {fields: 'id,name', limit: 100}],
-  audience: ['/v26.0/act_' + account + '/customaudiences', {fields: 'id,account_id,name,time_created', limit: 100}],
+  audience: [
+    '/v26.0/act_' + account + '/customaudiences',
+    {fields: 'id,account_id,name,time_created,subtype', limit: 100},
+  ],
   creative: ['/v26.0/act_' + account + '/adcreatives', {fields: 'id,name,status', limit: 100}],
 };
 for (const [kind, [path, query]] of Object.entries(reads))
