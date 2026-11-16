@@ -286,6 +286,12 @@ export class NativeTransport {
   >();
   private budgets = new Map<string, {tokens: number; at: number}>();
   private cooldowns = new Map<string, number>();
+  /**
+   * The end of every cooldown this transport opened or was refused on, under the keys the view reads (usageKeys), in wall-clock
+   * milliseconds (R2.5 M2, MT3). A provider with rate keys of its own (X: per access token, origin and endpoint) cools those, which no
+   * connection and account can compute, so the view cannot find them in the cooldown map or in the shared store.
+   */
+  private readonly coolingUntil = new Map<string, number>();
   /** What the providers' responses said of their rate limits (the rate governor, R2.5 M2, MT3; src/provider-usage.ts). */
   private readonly usage = new ProviderUsage();
   readonly metrics = {
@@ -335,15 +341,39 @@ export class NativeTransport {
   }
   /**
    * The view of the provider's limits for this login and account that the response `meta` and `check` show (R2.5 M2, MT3):
-   * `cooling` while a throttle is known, from a header or from a refusal, `ok` with the worst usage seen, `unknown` before any
-   * response has said, and `not_exposed` for a provider that declares it sends none.
+   * `cooling` while a throttle is known, `ok` with the worst usage seen, `unknown` before any response has said, and
+   * `not_exposed` for a provider that declares it sends none. A throttle is known from what the transport refuses on: this
+   * process's own cooldowns, the shared store's (another process's, or this one's before a restart; S2-1 of the lead's review),
+   * and the cooldowns it opened or was refused on under a provider's own rate keys (X), so the view never says ok or unknown
+   * while a request of that login or account would be refused for a cooldown it can see.
    */
   rateLimit(connection: Pick<Connection, 'id' | 'tenantId' | 'gateway'>, accountId?: string): RateLimitView {
     const keys = this.usageKeys(connection, accountId),
-      now = performance.now(),
-      cooled = Math.max(this.cooldowns.get(keys.login) ?? 0, this.cooldowns.get(keys.account) ?? 0),
-      wire = providerHooks(connection.gateway)?.wire;
-    return this.usage.view(keys, wire?.usage?.exposed, cooled > now ? Date.now() + (cooled - now) : undefined);
+      wire = providerHooks(connection.gateway)?.wire,
+      monotonic = performance.now(),
+      now = Date.now();
+    let cooled = 0;
+    for (const key of new Set([keys.login, keys.account])) {
+      const local = this.cooldowns.get(key) ?? 0;
+      cooled = Math.max(cooled, local > monotonic ? now + (local - monotonic) : 0, this.coolingUntil.get(key) ?? 0);
+      try {
+        cooled = Math.max(cooled, this.coordination?.providerCooldownUntil(key) ?? 0);
+      } catch {
+        // The view is advice: a store that cannot be read says nothing, and never fails the answer it rides on.
+      }
+    }
+    return this.usage.view(keys, wire?.usage?.exposed, cooled > now ? cooled : undefined);
+  }
+  /**
+   * Notes that a cooldown of `rateKey` was opened, or refused a request, for `ms` more: under the key the view reads for that
+   * level of the request's login and account. Bounded and never throwing: it is bookkeeping for the view.
+   */
+  private noteCooling({connection, plan, userRateKey, accountRateKey}: WireRoute, rateKey: string, ms: number) {
+    const view = this.usageKeys(connection, plan.accountId),
+      key = rateKey === accountRateKey && accountRateKey !== userRateKey ? view.account : view.login,
+      until = Date.now() + ms;
+    if (until > (this.coolingUntil.get(key) ?? 0) && (this.coolingUntil.has(key) || this.coolingUntil.size < 4096))
+      this.coolingUntil.set(key, until);
   }
   private prune() {
     const now = performance.now();
@@ -351,6 +381,8 @@ export class NativeTransport {
     for (const [key, c] of this.circuits)
       if (!c.probing && now - c.at > 60000 && c.until <= now) this.circuits.delete(key);
     for (const [key, until] of this.cooldowns) if (until <= now) this.cooldowns.delete(key);
+    const wall = Date.now();
+    for (const [key, until] of this.coolingUntil) if (until <= wall) this.coolingUntil.delete(key);
     if (this.budgets.size >= 4096 || this.circuits.size >= 4096 || this.cooldowns.size >= 4096)
       throw new MirrorError(
         'PROVIDER_COORDINATION_BUSY',
@@ -703,7 +735,14 @@ export class NativeTransport {
           429,
           true,
         );
-      this.coordination?.assertProviderCooldown(rateKey);
+      try {
+        this.coordination?.assertProviderCooldown(rateKey);
+      } catch (e) {
+        // A cooldown another process opened, or this one before a restart: what refuses a request here is what the view shows.
+        if (e instanceof MirrorError && typeof e.details?.retry_after_ms === 'number')
+          this.noteCooling(route, rateKey, e.details.retry_after_ms);
+        throw e;
+      }
     }
     this.countPacedRequest(route);
     this.coordination?.providerPermit(key, undefined, issuerPermit);
@@ -808,6 +847,7 @@ export class NativeTransport {
     for (const {key, ms} of blocks) {
       this.cooldowns.set(key, Math.max(this.cooldowns.get(key) ?? 0, performance.now() + ms));
       this.coordination?.providerCooldown(key, ms);
+      this.noteCooling(route, key, ms);
     }
     this.metrics.pacingEnforced++;
     this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'pacing_enforced');
@@ -837,6 +877,7 @@ export class NativeTransport {
       const rateKey = wire?.accountThrottle?.(response) === true ? accountRateKey : userRateKey;
       this.cooldowns.set(rateKey, performance.now() + retryDelay);
       this.coordination?.providerCooldown(rateKey, retryDelay);
+      this.noteCooling(route, rateKey, retryDelay);
     }
   }
   /** The response body in the form the provider documents for the request, read within the size limit and deadline. */
@@ -932,6 +973,7 @@ export class NativeTransport {
       const rateKey = c.cooldownScope === 'account' ? accountRateKey : userRateKey;
       this.cooldowns.set(rateKey, Math.max(this.cooldowns.get(rateKey) ?? 0, performance.now() + c.retryAfterMs));
       this.coordination?.providerCooldown(rateKey, c.retryAfterMs);
+      this.noteCooling(route, rateKey, c.retryAfterMs);
     };
     const classify = (inBody: boolean) => {
       if (!taxonomy) return undefined;

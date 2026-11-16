@@ -375,7 +375,9 @@ export class MirrorService {
    * provider reported, or cooling with when a throttle ends. A call that sent no request (nor any a call it ran sent), and one
    * whose providers have said nothing or send nothing (unknown, not exposed), is answered as it was: a constant "unknown" on every
    * answer would be bytes of no information, which the journeys budget (tests/journeys/baseline.json). amcp_workspace check says
-   * unknown and not exposed. The view carries no payload, account or login.
+   * unknown and not exposed. A call that failed carries the view only when it is cooling (S2-1 of the lead's review): a limit that
+   * is fine is no news about a refusal, and next to a rate-limit refusal it would read as "retry now". The view carries no
+   * payload, account or login.
    */
   private withRateLimit(result: JsonObject, touched: UsageTouch[]): JsonObject {
     if (!touched.length) return result;
@@ -388,7 +390,7 @@ export class MirrorService {
       views.push(this.transport.rateLimit({id: t.connectionId, tenantId: t.tenantId, gateway: t.gateway}, t.accountId));
     }
     const view = rateLimitSummary(views);
-    return view && (view.state === 'ok' || view.state === 'cooling')
+    return view && (view.state === 'cooling' || (view.state === 'ok' && result.success !== false))
       ? {...result, meta: {...(result.meta as JsonObject), rate_limit: view}}
       : result;
   }
