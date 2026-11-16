@@ -61,7 +61,11 @@ test('each advertising provider’s exact account read is the route the shared s
     tiktok_native_action: {
       method: 'GET',
       path: '/v1.3/advertiser/info/',
-      query: {advertiser_ids: ['123']},
+      // r25-m1-hash (M0's "Found, not fixed" 3, L1-02): the seven fields of Q15, as every other advertiser read asks for them.
+      query: {
+        advertiser_ids: ['123'],
+        fields: ['advertiser_id', 'name', 'status', 'role', 'currency', 'timezone', 'country'],
+      },
       headers: {},
     },
     google_ads_native_action: {
