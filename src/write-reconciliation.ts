@@ -31,15 +31,23 @@ import {writeClaim} from './job-repository.js';
  * connection, guarded like every state read, in two rounds after a minimum delay, and classifies the write:
  *
  * - `appears_applied`: every target holds what was sent (an update or removal), or each created resource is found
- *   (a create, through its provider's created lookup, `findCreated`: Google Ads by name, Meta by name and creation
- *   time);
- * - `appears_not_applied`: no target holds it and the reviewed state is unchanged, or no created resource exists;
- * - `indeterminate`: anything else (the reads disagree, the state moved elsewhere, no read contract).
+ *   (a create, through its provider's created lookup, `findCreated`: Google Ads by name and parent, Meta by name and
+ *   creation time or by the sets and feeds the review saw, TikTok by name, parent and creation window; R2.5 M2);
+ * - `appears_not_applied`: no target holds it and the reviewed state is unchanged, or no created resource exists in a
+ *   whole list;
+ * - `indeterminate`: anything else (the reads disagree, the state moved elsewhere, no read contract, two matches, a match
+ *   nothing dates, a list that is not whole).
  *
  * The classification is advisory and timestamped: a provider may still apply a request after the reads. Nothing is
  * sent and the idempotency key stays uncertain unless the user accepts "applied", which records the observed result as
  * the review's receipt (so `amcp_campaign verify` and a plan's `reconcile_step` can continue). A review found not
  * applied may be replaced by a new review that records `supersedes_uncertain`; the old one is never sent.
+ *
+ * The check is also the worker's (R2.5 M2, owner 2026-11-15: "fail closed on uncertain writes, then reconcile them
+ * automatically"): every write that ends uncertain gets a job (src/write-reconcile-job.ts) that makes these same reads at its
+ * claim time plus a minute, again under a cooldown until the write is classified (`automatic`). It changes nothing but the
+ * stored classification, which `amcp_write status` and the operations page show. A prepare of a create identical to an
+ * uncertain one is refused (src/write-duplicates.ts).
  */
 const reconciliationKind = 'write_reconciliation';
 // How long a reconciliation may be acted on (accepted, or replaced) before the provider must be read again: defined with
