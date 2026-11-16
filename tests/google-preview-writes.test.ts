@@ -21,6 +21,7 @@ import {
   readGooglePreviewState,
 } from '../src/google-preview-writes.js';
 import type {Connection, JsonObject} from '../src/types.js';
+import {mismatchedAnswerDetails} from '../src/errors.js';
 import {removeTestDirectory} from './temp.js';
 import {assertRefused} from './helpers/assert-refused.js';
 
@@ -1213,6 +1214,10 @@ test('every answer that is not the pinned v25 shape still refuses, and names the
     } catch {
       wrong.push(label + ': says ' + JSON.stringify(safe.response_mismatch) + ', not ' + JSON.stringify(mismatch));
     }
+    // The refusal that says the answer was not accepted (src/service.ts failedWrite) answers only for an outcome whose facts keep
+    // to a closed vocabulary (src/errors.ts mismatchedAnswerDetails, lead review S4-1): every mismatch this family can name
+    // must be within it, or the refusal would silently fall back to the advice to check access, scopes and tier.
+    if (!mismatchedAnswerDetails(safe)) wrong.push(label + ': outside the vocabulary of the refusal');
   }
   assert.deepEqual(wrong, []);
   assert.ok(cases.length >= 40, String(cases.length));
@@ -1233,11 +1238,15 @@ test('an answer with another status, or that is no object, names that', () => {
       reason: 'not_an_object',
     });
   }
+  // Both are within the vocabulary of the refusal that says the answer was not accepted (see the table above).
+  assert.ok(mismatchedAnswerDetails(googlePreviewSafeOutcome(p, {status: 202, data: good}).data), 'status');
+  assert.ok(mismatchedAnswerDetails(googlePreviewSafeOutcome(p, {status: 200, data: null}).data), 'body');
   // The answer that matches is not described as a mismatch.
   assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: good}), true);
   const safe = googlePreviewSafeOutcome(p, {status: 200, data: good}).data;
   assert.equal(safe.response_mismatch, undefined);
   assert.equal(safe.native_response_valid, undefined);
+  assert.equal(mismatchedAnswerDetails(safe), undefined);
 });
 
 test('the fields an answer adds are named only as plain identifiers, and at most eight', () => {
