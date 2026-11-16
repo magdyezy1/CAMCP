@@ -151,7 +151,8 @@ export function microsoftCriterionSnapshots(p: CompiledRequest): CompiledRequest
   const campaign = criterionCampaign(p),
     read = (action: string, payload: JsonObject) => compileMicrosoft({action, account_id: p.accountId, payload});
   return [
-    read('GetAccount', {}),
+    // The account is read as an ACCOUNT (R2.5 M1, S3-3): a review keeps its identity (src/microsoft-account-state.ts).
+    {...read('GetAccount', {}), stateRole: 'account'},
     // The parent campaign read by exact ID under the account header: a campaign of another account is not returned.
     read('GetCampaignsByIds', getByIdsPayload('Campaigns', undefined, [campaign])),
     read('GetCampaignCriterionsByIds', locationCriteriaPayload(campaign)),

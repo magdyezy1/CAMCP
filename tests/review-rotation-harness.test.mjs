@@ -60,20 +60,6 @@ const narrowedAtSource = {
 const ownParentReads = {
   x_creatives: [/\/line_items\/line1$/, /\/campaigns\/campaign1$/],
 };
-// FOUND, NOT FIXED (r25-m1-hash): the families below read their provider's account and hash the whole row, so a balance
-// that falls between review and execute refuses them. Microsoft's and Reddit's are outside the four providers whose account
-// and parent reads M1 keeps to identity (TikTok, X, LinkedIn, DV360); keeping an account to its identity needs that
-// provider's own account fields from its documentation, which this package did not have and did not guess (a field named
-// wrong would drop real identity from the review). Each is held to the gap: it must still fail by that field, so one that
-// gets fixed must leave this list, and a family of the four providers may never be on it. The list only shrinks.
-const notYetRotationSafe = {
-  microsoft_asset_links: 'the Account/Query answer is kept whole in its state',
-  microsoft_location_targets: 'the Account/Query answer is kept whole in its state',
-  microsoft_search: 'the Account/Query answer is kept whole in its state',
-  reddit_classic: 'the ad_accounts answer is kept whole in its state',
-  reddit_creatives: 'the ad_accounts answer is kept whole in its state',
-};
-
 /**
  * What changes at every read, by the role of the read: a signed URL and a bumped timestamp (under a name the provider's table
  * holds) for any, and a falling balance for the account only. A parent carries no balance: it is a campaign, an ad group or a
@@ -162,7 +148,7 @@ async function classify(d) {
   }
 }
 
-const coverage = {rotated: [], narrowed: [], none: [], notYet: []};
+const coverage = {rotated: [], narrowed: [], none: []};
 for (const d of descriptors) {
   test(name(d) + ': a rotating account or parent read is no change, and a real change still is', async t => {
     const reads = await classify(d),
@@ -178,31 +164,6 @@ for (const d of descriptors) {
     }
     if (exempt) {
       coverage.narrowed.push(name(d));
-      return;
-    }
-    if (notYetRotationSafe[d.family] !== undefined) {
-      coverage.notYet.push(name(d));
-      assert.ok(
-        !/^(?:tiktok|x|linkedin|dv360)_/.test(d.family),
-        name(d) + ' is of a provider whose reads M1 keeps to identity',
-      );
-      // Held to the gap: rotation still refuses it, by the balance and by nothing else.
-      const f = familyFixture(rotating(d, matches));
-      try {
-        const prepared = await f.prepare();
-        assert.equal(prepared.success, true, name(d) + ' prepares');
-        const refused = await f.execute(prepared.data);
-        assertRefused(refused, 'STATE_CHANGED', {writes: f.sent.length});
-        assert.ok(
-          (refused.error.details?.changed_fields ?? []).every(p => p.includes('"balance"')),
-          name(d) +
-            ': ' +
-            JSON.stringify(refused.error.details?.changed_fields) +
-            ' is more than the balance: update the list',
-        );
-      } finally {
-        f.close();
-      }
       return;
     }
     coverage.rotated.push(name(d));
@@ -238,13 +199,22 @@ for (const d of descriptors) {
 }
 
 test('coverage: every family descriptor is rotated or listed with why it is not (100%)', t => {
-  const all = [...coverage.rotated, ...coverage.narrowed, ...coverage.none, ...coverage.notYet];
+  const all = [...coverage.rotated, ...coverage.narrowed, ...coverage.none];
   assert.equal(all.length, descriptors.length, 'every descriptor ran its check');
   assert.deepEqual(all.sort(), descriptors.map(name).sort(), 'no descriptor is counted twice or missing');
-  assert.deepEqual(
-    coverage.notYet.map(n => n.replace(/ \(variant.*$/, '')).sort(),
-    Object.keys(notYetRotationSafe).sort(),
-  );
+  // Microsoft's and Reddit's families were held to a documented gap in the first pass (their account row was hashed whole, so a
+  // falling balance refused them); their accounts are kept to their identity now (S3-3), and every one of them is rotated.
+  for (const family of [
+    'microsoft_asset_links',
+    'microsoft_location_targets',
+    'microsoft_search',
+    'reddit_classic',
+    'reddit_creatives',
+  ])
+    assert.ok(
+      coverage.rotated.some(n => n.startsWith(family)),
+      family + ' is rotated',
+    );
   t.diagnostic(
     'rotation coverage: ' +
       descriptors.length +
@@ -253,9 +223,7 @@ test('coverage: every family descriptor is rotated or listed with why it is not 
       ', narrowed at the source ' +
       coverage.narrowed.length +
       ', no account or parent read ' +
-      coverage.none.length +
-      ', held to a documented gap ' +
-      coverage.notYet.length,
+      coverage.none.length,
   );
   // The rotation is exercised where it can be: at least the families of the four providers of M1 that read an account or a
   // parent (the count is what the harness found at its head; a family that loses its role falls out of it and fails here).

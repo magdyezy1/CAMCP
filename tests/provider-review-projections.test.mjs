@@ -67,9 +67,10 @@ test('each provider declares its own projections, frozen', () => {
       snapchat_native_action: ['snapshot', 'verification', 'observed', 'volatile'],
       linkedin_native_action: ['volatile', 'identity', 'verificationHeaders', 'verification'],
       x_ads_native_action: ['snapshot', 'identity', 'volatile', 'verification', 'observed'],
-      microsoft_ads_native_action: ['volatile', 'snapshot', 'observed'],
+      // r25-m1-hash (S3-3): Microsoft's and Reddit's `identity` keep the account they read to its identity as well.
+      microsoft_ads_native_action: ['volatile', 'snapshot', 'identity', 'observed'],
       apple_ads_native_action: ['volatile', 'snapshot', 'observed'],
-      reddit_native_action: ['snapshot', 'volatile', 'verification', 'observed'],
+      reddit_native_action: ['snapshot', 'identity', 'volatile', 'verification', 'observed'],
       dv360_native_action: ['volatile', 'identity', 'verification'],
       ga4_native_action: ['volatile'],
       gtm_native_action: ['snapshot', 'volatile'],

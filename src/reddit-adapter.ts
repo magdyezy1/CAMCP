@@ -23,6 +23,7 @@ import {
 } from './reddit-extensions.js';
 import {assertRedditReportRules} from './reddit-report-rules.js';
 import {redditAdPreviews} from './reddit-ad-previews.js';
+import {redditAccountState} from './reddit-account-state.js';
 
 /** The other names Reddit's tool arguments give its native parameters. */
 const redditAliases: Record<string, string[]> = {
@@ -155,6 +156,12 @@ export const redditHooks: ProviderHooks = Object.freeze({
   // A response's records are under data, the rest is its envelope.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    // The ad account a write is made in (the role `account`) is kept to its identity (S3-3): it carries no balance, and
+    // what changes by itself in it is `modified_at`, which the table drops; the rest of its row is not what a write depends on.
+    identity: (read: CompiledRequest, d: JsonObject) =>
+      read.stateRole === 'account' && d.data && typeof d.data === 'object' && !Array.isArray(d.data)
+        ? {data: redditAccountState(d.data)}
+        : undefined,
     volatile: redditReviewVolatile,
     verification(
       plan: CompiledRequest,

@@ -570,7 +570,8 @@ export function microsoftSnapshots(plan: CompiledRequest): CompiledRequest[] {
   const c = microsoftContracts.get(plan.action)!,
     b = plan.body as JsonObject,
     read = (action: string, payload: JsonObject) => compileMicrosoft({action, account_id: plan.accountId, payload});
-  const reads = [read('GetAccount', {})];
+  // The account is read as an ACCOUNT (R2.5 M1, S3-3): a review keeps its identity (src/microsoft-account-state.ts).
+  const reads: CompiledRequest[] = [{...read('GetAccount', {}), stateRole: 'account'}];
   if (b.CampaignId) reads.push(read('GetCampaignsByIds', getByIdsPayload('Campaigns', undefined, [b.CampaignId])));
   if (b.AdGroupId) {
     reads.push(read('GetCampaignsByIds', getByIdsPayload('Campaigns', undefined, [plan.scopeContext!.campaignId])));

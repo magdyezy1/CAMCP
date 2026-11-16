@@ -319,7 +319,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // roles first added for a TikTok parent row (src/tiktok-parent-state.ts) is gone.
   // The rotation harness adds one more: the identity of a LinkedIn ad account, which the adapter and the families that read
   // the account themselves share (src/linkedin-account-state.ts): 823 + 1 = 824.
-  assert.equal(files.length, 824);
+  // The accounts of Microsoft and Reddit are kept to their identity too (lead review S3-3), each in a module of its own with no
+  // wrapper reason of its own (src/microsoft-account-state.ts, src/reddit-account-state.ts): 824 + 2 = 826.
+  assert.equal(files.length, 826);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

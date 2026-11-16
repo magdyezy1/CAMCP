@@ -363,7 +363,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // roles first added for a TikTok parent row (src/tiktok-parent-state.ts) is gone.
   // The rotation harness adds one more: the identity of a LinkedIn ad account, which the adapter and the families that read
   // the account themselves share (src/linkedin-account-state.ts): 823 + 1 = 824.
-  assert.equal(files.length, 824);
+  // The accounts of Microsoft and Reddit are kept to their identity too (lead review S3-3), each in a module of its own with no
+  // reason of its own (src/microsoft-account-state.ts, src/reddit-account-state.ts): 824 + 2 = 826.
+  assert.equal(files.length, 826);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

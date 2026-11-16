@@ -9,6 +9,8 @@ import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import {advertiserWorld} from './helpers/tiktok-advertiser-noise.mjs';
 import {familyFixture} from './helpers/family-conformance.mjs';
 import xCreatives from './family-descriptors/x-creatives.mjs';
+import microsoftSearch from './family-descriptors/microsoft-search.mjs';
+import redditClassic from './family-descriptors/reddit-classic.mjs';
 
 /**
  * R2.5 M1 (package r25-m1-hash, plan idea 1, the three read roles; L5-01, L4-13, M0's "Found, not fixed" 3 and 4).
@@ -110,6 +112,56 @@ const scenarios = [
     // Non-identity fields of the same record: the domain of the advertiser is its configuration, not who it is.
     nested: {generalConfig: {domainUrl: 'https://shop.example.test'}},
   },
+  {
+    // The `AdvertiserAccount` of the Customer Management API (.mirror/VENDOR/microsoft-customer-management-v13.json): no
+    // balance, but a row version, the user who last modified it and its financial status change without any edit (S3-3).
+    name: 'Microsoft account',
+    gateway: 'microsoft_ads_native_action',
+    path: '/CustomerManagement/v13/Account/Query',
+    action: 'GetAccount',
+    role: 'account',
+    wrap: row => ({Account: row, TrackingId: 'synthetic-tracking'}),
+    state: row => ({Account: row}),
+    identity: {
+      Id: '123',
+      Number: 'X0000123',
+      Name: 'Synthetic account',
+      ParentCustomerId: '456',
+      CurrencyCode: 'USD',
+      TimeZone: 'ArabianStandardTime',
+      AccountLifeCycleStatus: 'Active',
+      PauseReason: 0,
+    },
+    rotating: n => ({
+      TimeStamp: 'AAAAAAAA' + n,
+      LastModifiedByUserId: 5000 + n,
+      LastModifiedTime: '2026-11-16T10:0' + n + ':00Z',
+      AccountFinancialStatus: n % 2 ? 'ClearFinancialStatus' : 'PendingFinancialStatus',
+    }),
+    where: field => '$["Account"]["' + field + '"]',
+  },
+  {
+    // The `AdAccount` of the Reddit Ads API (.mirror/VENDOR/reddit-v3.json): no balance either; `modified_at` changes by itself,
+    // and `admin_approval` and `suspension_reason` change at Reddit's decision (status, so they stay).
+    name: 'Reddit ad account',
+    gateway: 'reddit_native_action',
+    path: '/api/v3/ad_accounts/a2_111',
+    role: 'account',
+    wrap: row => ({data: row, request_id: 'synthetic-request'}),
+    state: row => ({data: row}),
+    identity: {
+      id: 'a2_111',
+      name: 'Synthetic account',
+      currency: 'USD',
+      time_zone_id: 'Asia/Riyadh',
+      business_id: 'b_1',
+      type: 'STANDARD',
+      admin_approval: 'APPROVED',
+      suspension_reason: null,
+    },
+    rotating: n => ({modified_at: '2026-11-16T10:0' + n + ':00Z'}),
+    where: field => '$["data"]["' + field + '"]',
+  },
 ];
 const isRecord = v => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The identity of a row with the non-identity fields of the same record beside it (a nested record merges). */
@@ -138,9 +190,11 @@ const other = value =>
   typeof value === 'boolean' ? !value : Array.isArray(value) ? [...value, 'ZZ_CHANGED'] : String(value) + '-changed';
 
 for (const s of scenarios) {
-  const asRead = read(s.gateway, s.path, {stateRole: s.role}),
-    asTarget = read(s.gateway, s.path),
-    row = (n = 1) => ({...merged(structuredClone(s.identity), s.nested), ...rotating(n)});
+  // A scenario may name the action of the read (Microsoft's snapshot reads its result field by it) and what its provider
+  // changes by itself under its own names, beside the noise every account has.
+  const asRead = read(s.gateway, s.path, {stateRole: s.role, ...(s.action ? {action: s.action} : {})}),
+    asTarget = read(s.gateway, s.path, s.action ? {action: s.action} : {}),
+    row = (n = 1) => ({...merged(structuredClone(s.identity), s.nested), ...rotating(n), ...s.rotating?.(n)});
 
   test(s.name + ': a review keeps its identity and nothing that changes without the user', () => {
     const kept = normalizeSnapshot(asRead, s.wrap(row(1)));
@@ -643,6 +697,116 @@ for (const provider of ['x', 'linkedin', 'dv360']) {
   });
 }
 
+// --- Microsoft and Reddit: the account row, through the real lifecycle of their families (S3-3) -------------------------------
+
+/**
+ * The descriptor's family prepared and executed with its provider's answer to the account read rewritten by `rewrite(json,
+ * phase)`: at review (`prepare`) and at execute, so a field may differ between the two.
+ */
+async function accountFlow(descriptor, isAccountRead, rewrite) {
+  let phase = 'prepare';
+  const f = familyFixture({
+    ...descriptor,
+    provider: async request => {
+      const answer = await descriptor.provider(request);
+      if (!answer || answer instanceof Response || !isAccountRead(request)) return answer;
+      return {...answer, json: rewrite(structuredClone(answer.json), phase)};
+    },
+  });
+  try {
+    const p = await f.prepare();
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+    phase = 'execute';
+    const done = await f.execute(p.data);
+    return {done, writes: () => f.sent.length};
+  } finally {
+    f.close();
+  }
+}
+const microsoftAccount = (phase, change = {}) => ({
+  Id: '123',
+  Number: 'X0000123',
+  Name: 'Synthetic account',
+  ParentCustomerId: '456',
+  CurrencyCode: 'USD',
+  TimeZone: 'ArabianStandardTime',
+  AccountLifeCycleStatus: 'Active',
+  PauseReason: 0,
+  TimeStamp: phase === 'prepare' ? 'AAAAAAAA1' : 'AAAAAAAA2',
+  LastModifiedByUserId: phase === 'prepare' ? 5001 : 9001,
+  LastModifiedTime: phase === 'prepare' ? '2026-11-16T10:00:00Z' : '2026-11-16T10:04:00Z',
+  AccountFinancialStatus: phase === 'prepare' ? 'ClearFinancialStatus' : 'PendingFinancialStatus',
+  ...(phase === 'execute' ? change : {}),
+});
+const microsoftFlow = change =>
+  accountFlow(
+    microsoftSearch,
+    ({path}) => path.endsWith('/Account/Query'),
+    (json, phase) => ({...json, Account: microsoftAccount(phase, change)}),
+  );
+const redditAccount = (phase, change = {}) => ({
+  id: 'a2_111',
+  name: 'Account',
+  currency: 'USD',
+  time_zone_id: 'Asia/Riyadh',
+  business_id: 'b_1',
+  type: 'STANDARD',
+  admin_approval: 'APPROVED',
+  suspension_reason: null,
+  modified_at: phase === 'prepare' ? '2026-11-16T10:00:00Z' : '2026-11-16T10:04:00Z',
+  ...(phase === 'execute' ? change : {}),
+});
+const redditFlow = change =>
+  accountFlow(
+    redditClassic,
+    ({method, path}) => method === 'GET' && path === '/api/v3/ad_accounts/a2_111',
+    (json, phase) => ({...json, data: redditAccount(phase, change)}),
+  );
+
+test('microsoft write: an account row whose row version, last modifier and financial status change is the same account', async () => {
+  const {done, writes} = await microsoftFlow({});
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
+  assert.equal(writes(), 1);
+});
+test('microsoft write: a real change of the account’s identity is STATE_CHANGED naming that field, and nothing is sent', async () => {
+  for (const [field, change] of [
+    ['Number', {Number: 'X0000124'}],
+    ['Name', {Name: 'Renamed elsewhere'}],
+    ['ParentCustomerId', {ParentCustomerId: '457'}],
+    ['CurrencyCode', {CurrencyCode: 'EUR'}],
+    ['TimeZone', {TimeZone: 'GMTStandardTime'}],
+    ['AccountLifeCycleStatus', {AccountLifeCycleStatus: 'Pause'}],
+    ['PauseReason', {PauseReason: 2}],
+  ]) {
+    const {done, writes} = await microsoftFlow(change);
+    assertRefused(done, 'STATE_CHANGED', {writes});
+    assert.deepEqual(done.error.details.changed_fields, ['$[0]["Account"]["' + field + '"]'], field);
+  }
+  // A different account ID is refused by the contract's own check of the answer, before any comparison.
+  const {done, writes} = await microsoftFlow({Id: '124'});
+  assertRefused(done, 'STATE_TARGET_MISMATCH', {writes});
+});
+test('reddit write: an ad account row whose modification time changes is the same account', async () => {
+  const {done, writes} = await redditFlow({});
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
+  assert.equal(writes(), 1);
+});
+test('reddit write: a real change of the ad account’s identity or state is STATE_CHANGED naming that field, and nothing is sent', async () => {
+  for (const [field, change] of [
+    ['name', {name: 'Renamed elsewhere'}],
+    ['currency', {currency: 'EUR'}],
+    ['time_zone_id', {time_zone_id: 'Europe/London'}],
+    ['business_id', {business_id: 'b_2'}],
+    ['type', {type: 'AGENCY'}],
+    ['admin_approval', {admin_approval: 'SUSPENDED'}],
+    ['suspension_reason', {suspension_reason: 'POLICY'}],
+  ]) {
+    const {done, writes} = await redditFlow(change);
+    assertRefused(done, 'STATE_CHANGED', {writes});
+    assert.deepEqual(done.error.details.changed_fields, ['$[0]["data"]["' + field + '"]'], field);
+  }
+});
+
 // --- X creatives: the account and the parents of a promotion --------------------------------------------------------------
 
 // `setup` gives the line item and the campaign what X returns of them at review; `change` edits them before execute.
@@ -762,6 +926,25 @@ test('X promotion: the parent line item or campaign changing status or name is S
 });
 
 // --- Every create names its account and its parents -----------------------------------------------------------------------
+
+test('lint: a Microsoft or Reddit write reads its account as an ACCOUNT, and the object it changes carries no role (S3-3)', async () => {
+  for (const descriptor of [microsoftSearch, redditClassic]) {
+    const f = familyFixture(descriptor);
+    try {
+      const p = await f.prepare();
+      assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+      const stored = f.store.document('conformance-' + descriptor.family, 'write_review', p.data.review_id);
+      // The account first; then what the write changes (its target), never marked.
+      assert.deepEqual(
+        stored.reads.map(r => r.stateRole ?? null),
+        ['account', null],
+        descriptor.family,
+      );
+    } finally {
+      f.close();
+    }
+  }
+});
 
 test('lint: the reads a create makes of its account and its parent carry their role, and no other read does', () => {
   const plan = (gateway, path, body, fields = {}) => ({
