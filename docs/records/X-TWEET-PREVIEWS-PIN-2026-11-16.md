@@ -59,9 +59,10 @@ contracts` and the help of the action show it anchored and the advisory `read_un
   200. An entry is a Tweet, with the promoted-Tweet IDs of the call that share it. `limit` counts promoted Tweets, so a call can
   return fewer entries when some of them share a Tweet, and a Tweet promoted twice whose promotions fall in two calls has an
   entry in each, naming the promoted Tweets that call selected.
-- Only the `src` of the `preview` iframe is read (TP4), and returned only when it is https on exactly `ton.twimg.com` at exactly
-  `/ads-manager/tweet-preview/index.html`, with no user information, port or fragment. The host of TP6's older example is not
-  accepted, and X's snippet is never returned.
+- Only the `src` of the `preview` iframe is read (TP4), and returned only when it is written as X writes it:
+  `https://ton.twimg.com/ads-manager/tweet-preview/index.html?` (the scheme and host may differ in case; no default port, escape,
+  dot segment or full-width letter), with no user information or fragment, and a query of exactly one `data` parameter that has a
+  value (other parameters may stay). The host of TP6's older example is not accepted, and X's snippet is never returned.
 - A Tweet that X has no entry for is reported `not_returned` (TP3), and one whose snippet fails the rule above, or has two
   entries, `link_not_accepted`. The answer says that X states no expiry (TP5) and states none itself.
 

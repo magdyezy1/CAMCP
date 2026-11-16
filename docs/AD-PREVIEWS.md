@@ -65,7 +65,7 @@ is refused. LinkedIn finder ownership lasts five minutes.
 
 Only HTTPS platform-host links are returned; markup is withheld. A link that spells `&` or `;` before its query is
 refused, and the page opens https links only. X's link is the iframe's `src`, only when it is exactly
-`ton.twimg.com/ads-manager/tweet-preview/index.html`; otherwise the Tweet has a `reason`. LinkedIn accepts iframe sources only, reports
+`ton.twimg.com/ads-manager/tweet-preview/index.html` with one `data` parameter; otherwise the Tweet has a `reason`. LinkedIn accepts iframe sources only, reports
 rejected placements and retains `links` as URLs with additive `placements` metadata. Meta response fields remain
 unpinned. Links expire; share only with authorized viewers.
 

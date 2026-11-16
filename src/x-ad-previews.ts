@@ -57,13 +57,18 @@ type Reason = keyof typeof xPreviewReasons;
 const previewHost = 'ton.twimg.com',
   previewPath = '/ads-manager/tweet-preview/index.html',
   /** What AMCP reads of one snippet; the example runs to a thousand characters or more (TP4), so this is a wide margin. */
-  snippetLimit = 16384;
+  snippetLimit = 16384,
+  /** The start of X's page as X writes it. The scheme and the host are read in any case; nothing else may be spelt another way. */
+  previewOrigin = new RegExp('^https://' + previewHost.replaceAll('.', '\\.'), 'i');
 
 /**
  * The preview link of one `preview` snippet of X's answer, or null. The snippet must be one `<iframe ...>` start tag (X's
  * leaves its closing tag out, which is allowed) and nothing else: no other markup or text, no srcdoc, one src, quoted or
- * not, with no space, control character, angle bracket, backslash or fragment. The src must read as an https URL with no
- * user information or port whose host is exactly ton.twimg.com and whose path is exactly /ads-manager/tweet-preview/index.html.
+ * not, with no space, control character, angle bracket, backslash or fragment. The src, once `&amp;` is read, must begin
+ * with https://ton.twimg.com/ads-manager/tweet-preview/index.html? as X writes it: only the scheme and the host may differ in case,
+ * since the URL parser reads a default port, an escape or a full-width letter in the host, a dot segment or a missing slash as
+ * the same page and X's own snippet has none of them. Read as a URL it has no user information or port, the host and the path
+ * exactly, and a query of exactly one `data` parameter that has a value (TP4); other parameters may stay.
  * `&amp;` is the only entity read, between parameters; the URL parser takes any other entity as the text it is (an HTML parser
  * would read `&sol;` as a slash, F-L3-13 of the other platforms' links), so none can be part of that exact host or path, and one
  * left after `&amp;` is read is no link. The link returned is the URL that was validated, in its normal form, never the text
@@ -89,6 +94,9 @@ export function xPreviewLink(snippet: unknown): string | null {
   if (!src || attributes.has('srcdoc') || /[\x00-\x20\x7f<>#\\]/.test(src)) return null;
   const decoded = src.replaceAll('&amp;', '&');
   if (/&#?\w+;/.test(decoded)) return null;
+  // The text itself is X's page and a query: the URL parser would take other spellings for the same page (see above).
+  const origin = previewOrigin.exec(decoded);
+  if (!origin || !decoded.startsWith(previewPath + '?', origin[0].length)) return null;
   let url: URL;
   try {
     url = new URL(decoded);
@@ -105,6 +113,9 @@ export function xPreviewLink(snippet: unknown): string | null {
     url.href.length > snippetLimit
   )
     return null;
+  // Exactly one data parameter, with a value: a link without X's payload previews nothing, and a second one is not X's.
+  const data = url.searchParams.getAll('data');
+  if (data.length !== 1 || !data[0]) return null;
   return url.href;
 }
 

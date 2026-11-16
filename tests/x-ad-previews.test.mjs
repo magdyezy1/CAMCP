@@ -571,7 +571,8 @@ test('a Tweet X does not answer for is reported missing, an extra or doubled ans
 });
 
 // What X's snippet may be and what it may not. The good ones keep what the live answer has (single quotes, no closing tag), and
-// the other spellings an HTML parser reads the same way; the link returned is always the validated URL, never the snippet.
+// the other spellings an HTML parser reads the same way (the scheme and the host are read in any case); the link returned is always
+// the validated URL, never the snippet. The link is X's page followed by a query that holds exactly one data parameter (TP4).
 const goodPath = '/ads-manager/tweet-preview/index.html';
 const accepted = [
   ['the live shape', `<iframe class='tweet-preview' src='${host}?data=A%2FB%3D'>`, host + '?data=A%2FB%3D'],
@@ -590,13 +591,9 @@ const accepted = [
     `<iframe src='HTTPS://TON.TWIMG.COM${goodPath}?data=A'>`,
     host + '?data=A',
   ],
-  ['the default port spelt out', `<iframe src='https://ton.twimg.com:443${goodPath}?data=A'>`, host + '?data=A'],
-  [
-    'a dot segment that resolves to the path',
-    `<iframe src='https://ton.twimg.com/ads-manager/x/../tweet-preview/index.html?data=A'>`,
-    host + '?data=A',
-  ],
-  ['no query at all', `<iframe src='${host}'>`, host],
+  ['a mixed-case scheme and host', `<iframe src='HtTpS://Ton.Twimg.Com${goodPath}?data=A'>`, host + '?data=A'],
+  // The other parameters of the query may stay, before the data or after it.
+  ['another parameter before data', `<iframe src='${host}?lang=en&amp;data=A'>`, host + '?lang=en&data=A'],
 ];
 const refused = [
   ['another host', `<iframe src='https://evil.example${goodPath}?data=A'>`],
@@ -663,6 +660,36 @@ const refused = [
   ['another element', `<img src='${host}?data=A'>`],
   ['a link element', `<a href='${host}?data=A'>`],
   ['no markup, only the URL', `${host}?data=A`],
+  // Review S4-2. The URL parser reads each of these as X's page, but X does not write its page that way: the link is X's page as X
+  // spells it (the scheme and the host in any case, the path and the query mark exactly), with a query that holds one data parameter.
+  ['the default port spelt out', `<iframe src='https://ton.twimg.com:443${goodPath}?data=A'>`],
+  [
+    'a dot segment that resolves to the path',
+    `<iframe src='https://ton.twimg.com/ads-manager/x/../tweet-preview/index.html?data=A'>`,
+  ],
+  [
+    'an escaped dot segment that resolves to the path',
+    `<iframe src='https://ton.twimg.com/ads-manager/tweet-preview/%2e%2e/tweet-preview/index.html?data=A'>`,
+  ],
+  ['an escape in the host', `<iframe src='https://%74on.twimg.com${goodPath}?data=A'>`],
+  ['an escaped dot in the host', `<iframe src='https://ton%2Etwimg.com${goodPath}?data=A'>`],
+  ['a full-width letter in the host', `<iframe src='https://ｔon.twimg.com${goodPath}?data=A'>`],
+  ['an ideographic full stop in the host', `<iframe src='https://ton。twimg.com${goodPath}?data=A'>`],
+  ['a soft hyphen in the host', `<iframe src='https://ton.twimg­.com${goodPath}?data=A'>`],
+  ['a zero-width space in the host', `<iframe src='https://ton.twim​g.com${goodPath}?data=A'>`],
+  ['one slash after the scheme', `<iframe src='https:/ton.twimg.com${goodPath}?data=A'>`],
+  ['three slashes after the scheme', `<iframe src='https:///ton.twimg.com${goodPath}?data=A'>`],
+  ['no slashes after the scheme', `<iframe src='https:ton.twimg.com${goodPath}?data=A'>`],
+  ['empty user information', `<iframe src='https://@ton.twimg.com${goodPath}?data=A'>`],
+  ['the query mark written as an escape', `<iframe src='${host}%3Fdata=A'>`],
+  ['no query at all', `<iframe src='${host}'>`],
+  ['a query mark with nothing after it', `<iframe src='${host}?'>`],
+  ['a query without data', `<iframe src='${host}?lang=en'>`],
+  ['a parameter that only ends in data', `<iframe src='${host}?xdata=A'>`],
+  ['data twice', `<iframe src='${host}?data=A&amp;data=B'>`],
+  ['data twice, one name written with an escape', `<iframe src='${host}?data=A&amp;%64ata=B'>`],
+  ['data with no value', `<iframe src='${host}?data='>`],
+  ['data with no equals sign', `<iframe src='${host}?data'>`],
   ['an empty string', ''],
   ['white space only', '   '],
   ['a snippet over the size cap', `<iframe src='${host}?data=${'A'.repeat(16384)}'>`],
