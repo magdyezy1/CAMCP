@@ -716,7 +716,7 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
       category: 'provider',
       owner: 'amcp',
       action:
-        'The provider’s response did not match AMCP’s contract for this route, and the details name the mismatch. A new request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
+        'The provider’s response did not match AMCP’s contract for this route, and the details name the mismatch when AMCP could determine it. A new request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
       mutation_retry_safe: false,
     };
   const provider =

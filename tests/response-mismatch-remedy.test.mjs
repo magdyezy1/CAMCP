@@ -27,8 +27,12 @@ test('WRITE_PARTIAL_OR_FAILED for an answer that does not match says what happen
   assert.notEqual(remedy.action, oldRemedy);
   // What happened.
   assert.match(remedy.action, /response did not match AMCP’s contract for this route/);
-  // Where the mismatch is named.
-  assert.match(remedy.action, /the details name the mismatch/);
+  // Where the mismatch is named, and only when AMCP could determine it: an outcome stored before the mismatch was named, replayed
+  // after its 24-hour receipt expired, has only the answer's hash in its details (r12-gpreview, lead review S3-2).
+  assert.match(
+    remedy.action,
+    /the details name the mismatch when AMCP could determine it\. A new request will not help\./,
+  );
   // That nothing the caller sends changes it, and what to do.
   assert.match(remedy.action, /A new request will not help/);
   assert.match(remedy.action, /Report these details to support/);
@@ -89,4 +93,9 @@ test('the message and the remedy have their Arabic strings, and are not left as 
   }
   // The Arabic keeps what the English says it does not do: it never tells the caller to correct access, scopes or tier.
   assert.notEqual(catalog[remedy], catalog[oldRemedy]);
+  // The clause was reworded in place (S3-2): the sentence it replaced is not left in the catalogue beside it, so no count moves.
+  const earlier = Object.keys(catalog).filter(key =>
+    /and the details name the mismatch\. A new request will not help/.test(key),
+  );
+  assert.deepEqual(earlier, []);
 });
