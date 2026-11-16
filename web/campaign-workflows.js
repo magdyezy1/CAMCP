@@ -676,8 +676,8 @@ const runStopLabels = {
   needs_owner_approval:
     'Only the workspace owner runs a change beyond a spending cap. Nothing was sent, and the step’s review stays ready. The owner continues the run, or approves the step on its approval page first.',
   // R25 M1 (L5-04): the provider changed after the step's review was prepared. Nothing was claimed or sent, and the step went
-  // back to pending; a plan approval is of the plan, not of a state that moved, so the run does not prepare it again on its
-  // own, and neither does a Continue: the person reviews the step again on its current state.
+  // back to pending; a plan approval is of the plan, not of a state that moved, so the run stops instead of preparing the
+  // step again on its own, and the outcome offers no Continue: the person reviews the step again on its current state.
   state_changed:
     'The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
   // A plan its preflight blocked returns the blocked view, not a run (src/campaign-background.ts).
@@ -708,11 +708,13 @@ const executedStepOutcomes = {
 };
 /**
  * The plan's one emphasized action once a step went wrong (design review 2026-10): a read-back for a step whose result
- * is not confirmed, otherwise the correction of a failed or blocked step; '' when neither applies.
+ * is not confirmed, otherwise the correction of a failed or blocked step, otherwise (R25 M1, L5-04) the review of a step
+ * whose review the state check refused, which is pending again and not broken; '' when none applies.
  */
 function campaignNextSafeAction(run) {
   if (run?.steps?.some(s => s.status === 'uncertain' && s.review_id)) return 'reconcile';
-  return run?.steps && campaignNeedsAmendment(run) ? 'amend' : '';
+  if (run?.steps && campaignNeedsAmendment(run)) return 'amend';
+  return run?.steps?.some(s => s.status === 'pending' && s.error?.code === 'STATE_CHANGED') ? 'review' : '';
 }
 function runRecoveryKind(out) {
   const call = out?.next_call,
@@ -1042,6 +1044,8 @@ function bindCampaignWorkflow(run, open, current, after) {
     show = html => {
       if (current()) $('#campaign-review').innerHTML = html;
     };
+  // A step whose state check refused its review is reviewed again: that is the plan's emphasized action (R25 M1, L5-04).
+  if (campaignNextSafeAction(run) === 'review') $('#next-campaign')?.classList.add('primary');
   // DEC-02: an allocation plan shows its outcome review (a local read; capturing it is a separate choice).
   if (run.allocation) void mountAllocationOutcome(run, current);
   // The plan is read again, then the response's outcome is shown with its control (WEB-03) by the new view.

@@ -1021,6 +1021,34 @@ for (const locale of ['en', 'ar'])
       const other = visible(p.run('runOutcomeView(out, plan)'));
       assert.ok(other.includes(t(locale, 'Saved. Review the next step when you are ready.')));
       assert.ok(!other.includes(t(locale, wording)));
+      // The plan's one emphasized action is that review: the step is not broken, so no correction is offered for it, and
+      // Run does not lead (a non-empty lead takes the emphasis off Run).
+      const refused = {steps: [{id: 'campaign', status: 'pending', error: {code: 'STATE_CHANGED'}}]};
+      assert.equal(p.run('campaignNextSafeAction')(refused), 'review');
+      assert.equal(p.run('campaignNeedsAmendment')(refused), false);
+      assert.equal(
+        p.run('campaignNextSafeAction')({
+          steps: [{id: 'campaign', status: 'pending', error: {code: 'REVIEW_EXPIRED'}}],
+        }),
+        '',
+      );
+      assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'pending'}]}), '');
+      // The plan's row of buttons follows: "Review next step" is the emphasized one only for a refused review.
+      for (const [steps, classes] of [
+        [refused.steps, ['primary']],
+        [[{id: 'campaign', status: 'pending'}], []],
+      ]) {
+        const next = p.node('#next-campaign');
+        next.classList = {
+          names: [],
+          add(name) {
+            this.names.push(name);
+          },
+        };
+        p.context.plan = {id: 'plan-1', steps};
+        p.run('bindCampaignWorkflow(plan, async () => true, () => true)');
+        assert.deepEqual(next.classList.names, classes, JSON.stringify(steps));
+      }
     },
   );
 

@@ -40,9 +40,9 @@ Owner decision D26 lets the browser fixture accept its own synthetic mutations. 
 1280 pixels in English and Arabic, light appearance only, to bound runtime:
 
 - `write-journey` (`/campaigns`): for each outcome (accepted, uncertain, refused) a saved one-step plan is prepared,
-  reviewed, refused without consent (the refusal is announced and nothing is sent), consented and executed. Accepted
+  reviewed, refused without consent (the refusal is announced; nothing is sent), consented and executed. Accepted
   ends `verified`; uncertain ends `uncertain` with `WRITE_OUTCOME_UNCERTAIN` and offers only a read-back; refused
-  meets an account change after the review and ends `failed` with `STATE_CHANGED` before anything is sent.
+  meets an account change after review, stays `pending` with `STATE_CHANGED`, sends nothing and offers Review the step.
 - `spend-policy-edit` (`/settings`): the form shows the stored policy; a one-field tightening saves without a
   question and keeps every other setting (WRT-03); a weakening names what weakens, saves nothing when cancelled and
   changes only that field when confirmed.

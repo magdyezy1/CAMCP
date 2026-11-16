@@ -85,8 +85,10 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
     const envelope = await (await executed).json();
     assert.equal(envelope.success, true, JSON.stringify(envelope.error));
     await page.locator('#campaign-review [role=status]').waitFor();
+    // R25 M1 (r25-m1-diff, L5-04): a step whose review the state check refused is pending again, unsent, with the refusal
+    // on it; it ended failed before, which the page offered to "correct" as a broken step.
     const step = envelope.data.steps.find(s => s.id === 'campaign'),
-      expected = {accepted: 'verified', uncertain: 'uncertain', refused: 'failed'}[outcome];
+      expected = {accepted: 'verified', uncertain: 'uncertain', refused: 'pending'}[outcome];
     assert.equal(step.status, expected, outcome);
     await steps.locator('.status').first().waitFor();
     assert.equal((await steps.locator('.status').first().textContent()).trim(), text(statusText[expected]));
@@ -107,16 +109,27 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
             accepted: 'Every step of this plan is done.',
             uncertain:
               'The provider’s answer to this step was lost, so AMCP cannot confirm the change. It is never sent again: use Read back submitted step to check the account.',
-            refused: 'This step did not complete. What happened and what to do are shown with the step.',
+            refused:
+              'The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
           }[outcome],
         ),
       ),
       outcome + ': ' + said,
     );
-    // The way on is the emphasized action of the plan: a read-back for an uncertain step, a correction for a refused one.
+    // The way on is the emphasized action of the plan: a read-back for an uncertain step, a new review for a refused one
+    // (it is pending again, not broken, so no "Correct blocked step" is offered, and Run is not the emphasized action).
     if (outcome === 'uncertain')
       assert.match(await page.locator('#reconcile-campaign').getAttribute('class'), /\bprimary\b/);
-    if (outcome === 'refused') assert.match(await page.locator('#amend-campaign').getAttribute('class'), /\bprimary\b/);
+    if (outcome === 'refused') {
+      assert.match(await page.locator('#outcome-review-step').getAttribute('class'), /\bprimary\b/);
+      assert.match(await page.locator('#next-campaign').getAttribute('class'), /\bprimary\b/);
+      assert.equal(
+        await page.locator('#amend-campaign').count(),
+        0,
+        'A refused review is not a broken step to correct',
+      );
+      assert.equal(await page.locator('#run-campaign.primary').count(), 0, 'Run is not the emphasized action');
+    }
     const after = site.counts();
     assert.equal(after.syntheticWrites - before.syntheticWrites, outcome === 'refused' ? 0 : 1, outcome);
     assert.equal(after.writes, 0, 'Synthetic journeys never write to a provider');
@@ -130,7 +143,7 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
     });
   }
 }
-const statusText = {verified: 'Verified', uncertain: 'Uncertain', failed: 'Failed'};
+const statusText = {verified: 'Verified', uncertain: 'Uncertain', failed: 'Failed', pending: 'Pending'};
 
 /**
  * WRT-03 round trip: the form shows the stored policy, a save that changes one field keeps every other setting, and a
