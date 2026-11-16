@@ -28,6 +28,7 @@ import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
+import type {ReviewVolatile} from './review-state-core.js';
 // Writes and campaigns (wave 4c): what the review gives a provider's own state read.
 import type {Actor} from './types.js';
 import type {NativeTransport} from './transport.js';
@@ -521,6 +522,28 @@ export interface ProviderVerificationRead extends VerificationRead {
 export interface ReviewProjections {
   /** The state a review keeps of a read, before normalization: its configuration, not its envelope; `data` by default. */
   snapshot?(read: CompiledRequest, data: JsonObject): unknown;
+  /**
+   * What this provider's answers carry that changes by itself (R2.5 M1, plan idea 1, L5-02): response metadata, delivery
+   * and review telemetry, meters and last-modified times, as field names (`review_status*` names a family). A review
+   * hashes the rest, so a field not listed is protected. Only names that no user edit changes: never a configuration
+   * field. The table replaces the one set every provider shared; src/review-state-core.ts applies it, idempotently and
+   * without adding anything, to every state this provider's reviews keep, hash and compare. It also declares where the
+   * provider itself signs links, which it signs anew at every read: `signed-host:<host>` (`*.` for the hosts below a domain)
+   * for its own asset, preview and licence hosts, and `signed-field:<name>` for a field it fills with a link it generated
+   * (lead review S2-2). A link there loses its signing and expiry parameters; a URL anywhere else (a landing page, a tracking
+   * URL) is the advertiser's, and a provider with no such entry keeps every URL whole.
+   */
+  readonly volatile?: ReviewVolatile;
+  /**
+   * What a review keeps of the read of an ACCOUNT (R2.5 M1, plan idea 1: `read.stateRole === 'account'`, the account a write
+   * creates something in): its identity (who it is, its status, its currency and time zone), as the provider gave it, and
+   * nothing that changes without an edit. Applied by the state stage to every read of this provider that carries a role,
+   * before any family's own projection; undefined for a read it keeps no record for. A `parent` read is not the account's:
+   * it is kept whole, as a target is (the budget, bid, flight and targeting of a parent decide what the child spends by), so
+   * a provider answers `undefined` for it. Idempotent and monotone (it only drops), so a saved review's state is projected
+   * again at execute.
+   */
+  identity?(read: CompiledRequest, data: JsonObject): unknown;
   /**
    * The write's headers its verification reads keep (LinkedIn's versioning headers); none by default. Its state reads
    * keep the same (src/write-snapshots.ts stateRead, wave 4c).

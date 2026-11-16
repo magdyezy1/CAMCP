@@ -3,6 +3,7 @@ import type {CreatedLookup, StateReadBuilder} from './provider-adapter.js';
 import {normalizeAccount} from './account-id.js';
 import {googleAdsCustomers} from './google-version.js';
 import {normalize} from './verification-core.js';
+import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import {object} from './write-common.js';
 
 // Writes and campaigns (ARC-01 phase B, wave 4c): Google Ads' parts of the read-only reconciliation of an uncertain
@@ -43,7 +44,9 @@ export function googleCreated(plan: CompiledRequest, read: StateReadBuilder): Cr
   return {
     reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
     match(responses) {
-      const rows = (normalize(object(responses[0]?.data).results ?? []) as JsonObject[]).map(r => object(r[resource]));
+      const rows = (normalize(object(responses[0]?.data).results ?? [], googleAdsReviewVolatile) as JsonObject[]).map(
+        r => object(r[resource]),
+      );
       const found = names.map(name => rows.filter(r => r.name === name));
       return {
         expected: names.length,

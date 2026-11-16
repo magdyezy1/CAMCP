@@ -59,7 +59,12 @@ export function xTargetingSnapshots(plan: CompiledRequest): CompiledRequest[] {
     responseControls: undefined,
     specialTransport: undefined,
   });
-  return xTargetingKind(plan) === 'delete' ? [read(plan.path)] : [read(account + '/line_items/' + parent(plan))];
+  // A criterion is created under its line item, which is read as a PARENT (R2.5 M1: whole but for what X computes by itself;
+  // its status is what the paused-parent check below reads, its budget and flight what the criterion will serve under); a
+  // deletion reads the criterion itself.
+  return xTargetingKind(plan) === 'delete'
+    ? [read(plan.path)]
+    : [{...read(account + '/line_items/' + parent(plan)), stateRole: 'parent'}];
 }
 
 /** A criterion carries no status of its own, and X exposes no atomic non-batch path, so a

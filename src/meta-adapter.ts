@@ -9,6 +9,8 @@ import type {
   StateTarget,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
+import {flatResourceTelemetry} from './review-flat-telemetry.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
@@ -252,6 +254,28 @@ const metaCatalog: CatalogHooks = Object.freeze({
   version: Object.freeze({version: metaApiVersion, action: metaActionVersion, capture: currentMetaCapture}),
 });
 
+/**
+ * What changes by itself in a Meta answer (R2.5 M1, L5-02 and L3-14). A Graph node is a flat resource of the fields the
+ * read selected, so the flat-resource names apply (`effective_status`, `updated_time`, `delivery_status`, `insights`);
+ * beyond them Meta's meters, counters and delivery diagnostics, which no edit changes: an account's `amount_spent` and
+ * `balance`, `spend`, `delivery_info`, `learning_stage_info`, `issues_info`, an ad's `ad_review_feedback`, an audience's
+ * `approximate_count_*` and a catalog's `product_count`. Meta's reads select named fields only, so none of these is asked
+ * for by a state read; tests/review-meta-volatile-lint.test.mjs holds the reads to that, and this table is the second guard
+ * (a family that selects one to decide something projects it away: a catalog's count becomes whether it has products).
+ */
+const metaReviewVolatile: ReviewVolatile = Object.freeze([
+  ...flatResourceTelemetry,
+  'amount_spent',
+  'balance',
+  'spend',
+  'delivery_info',
+  'learning_stage_info',
+  'issues_info',
+  'ad_review_feedback',
+  'approximate_count_*',
+  'product_count',
+]);
+
 export const metaHooks: ProviderHooks = Object.freeze({
   gateway: 'meta_native_action',
   compile: metaCompile,
@@ -282,7 +306,7 @@ export const metaHooks: ProviderHooks = Object.freeze({
       },
     }),
   }),
-  review: Object.freeze({verification: metaVerification}),
+  review: Object.freeze({verification: metaVerification, volatile: metaReviewVolatile}),
   reads: Object.freeze({
     batch: (key: string) => key === 'batch',
     // GET act_<id>/value_rule_set. The fixed act_ path binds it, so it has no authorizer of its own.

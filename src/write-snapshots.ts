@@ -72,9 +72,10 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
   // A provider's own reads of a create by its account (Snapchat's: outside an account, and its owned dependencies).
   const accountReads = writes?.accountSnapshots?.(plan, base, account);
   if (accountReads) return accountReads;
-  // On collection creates, snapshot the account. On edits/deletes, the catalog must expose a matching GET.
+  // On collection creates, snapshot the account (the ACCOUNT role: a review keeps its identity, R2.5 M1). On edits/deletes,
+  // the catalog must expose a matching GET, and the objects it reads are the write's own: no role.
   if (plan.method === 'POST' && account && plan.path.slice(account.length).split('/').filter(Boolean).length === 1)
-    return [base(account)];
+    return [{...base(account), stateRole: 'account'}];
   if (samePath && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(plan.method)) return [base(plan.path)];
   fail(
     'WRITE_CONTRACT_UNAVAILABLE',

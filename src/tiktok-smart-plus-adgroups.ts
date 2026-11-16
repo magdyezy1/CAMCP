@@ -557,6 +557,9 @@ export const tiktokSmartPlusAdgroupFamily: ReviewedFamily = defineFamily({
       ...tiktokSmartPlusAdgroupReads(plan).map(r => {
         const read = stateRead(r.path, r.query);
         read.action = r.action;
+        // The Smart+ campaign an ad group is created in is its PARENT (R2.5 M1, S3-5): metadata for the review's ordering and
+        // the rotation harness; its state is the family's own projection.
+        if (r.path === '/v1.3/smart_plus/campaign/get/') read.stateRole = 'parent';
         return read;
       }),
     ];

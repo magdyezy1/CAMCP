@@ -1,7 +1,8 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
-import {changedStateFields} from './review-state-core.js';
+import {changedComparableFields} from './review-state-core.js';
+import {googleBusinessReviewVolatile} from './google-review-volatile.js';
 import {
   assertPlaceActionScope as assertBusinessScope,
   placeActionSafeError,
@@ -247,7 +248,7 @@ export async function verifyBusinessNotification(
   const original = before[0] as JsonObject,
     expected = {account: original.account, setting: desired(p, original)},
     actual = await currentState(p, send),
-    changed = changedStateFields([expected], [actual]),
+    changed = changedComparableFields([expected], [actual], googleBusinessReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,

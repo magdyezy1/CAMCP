@@ -145,12 +145,16 @@ test('ARC-04 stage B: the review-state projection helpers come from one leaf, re
     state = await import('../dist/src/review-state.js');
   for (const name of ['normalizeReviewState', 'reviewStateHash', 'changedStateFields'])
     assert.equal(state[name], core[name], name);
-  // The projection drops volatile fields, sorts keys and membership-only arrays, and keeps other arrays in order.
-  assert.deepEqual(core.normalizeReviewState({b: 1, updatedTime: 'x', countries: ['US', 'DE'], ids: [2, 1]}), {
-    b: 1,
-    countries: ['DE', 'US'],
-    ids: [2, 1],
-  });
-  assert.equal(core.reviewStateHash({a: 1, stats: {x: 1}}), core.reviewStateHash({a: 1}));
-  assert.deepEqual(core.changedStateFields({a: 1, b: [1, 2]}, {a: 2, b: [1]}), ['$["a"]', '$["b"][1]']);
+  // The projection drops the volatile fields of the table it is given (r25-m1-hash: a provider's `review.volatile`, not
+  // one set for every provider), sorts keys and membership-only arrays, and keeps other arrays in order.
+  assert.deepEqual(
+    core.normalizeReviewState({b: 1, updatedTime: 'x', countries: ['US', 'DE'], ids: [2, 1]}, ['updated_time']),
+    {
+      b: 1,
+      countries: ['DE', 'US'],
+      ids: [2, 1],
+    },
+  );
+  assert.equal(core.reviewStateHash({a: 1, stats: {x: 1}}, ['stats']), core.reviewStateHash({a: 1}, ['stats']));
+  assert.deepEqual(core.changedStateFields({a: 1, b: [1, 2]}, {a: 2, b: [1]}, []), ['$["a"]', '$["b"][1]']);
 });

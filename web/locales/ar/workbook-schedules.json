@@ -32,7 +32,6 @@
   "Moved on {date}. This schedule stays paused here while the Reporting overview schedule delivers to its Google Sheets report tab.": "نُقل في {date}. يبقى هذا الجدول متوقفًا مؤقتًا هنا بينما يسلّم جدول النظرة العامة على التقارير إلى علامة تبويب التقرير الخاصة به في Google Sheets.",
   "Moved to Reporting overview": "نُقل إلى النظرة العامة على التقارير",
   "Moving creates one Reporting overview report and schedule with this clock, delivering to a Google Sheets report tab of this workbook’s spreadsheet, and pauses this schedule. The saved query stays unchanged, and the move can be undone.": "ينشئ النقل تقريرًا وجدولًا واحدًا في النظرة العامة على التقارير بهذا التوقيت، يسلّم إلى علامة تبويب تقرير في Google Sheets ضمن جدول بيانات هذا المصنف، ويوقف هذا الجدول مؤقتًا. يبقى الاستعلام المحفوظ دون تغيير، ويمكن التراجع عن النقل.",
-  "Name": "الاسم",
   "Open Reporting overview": "افتح النظرة العامة على التقارير",
   "Pauses the Reporting overview schedule (its report and snapshots stay) and restores this schedule as it was before the move. If its saved query changed since the move, this schedule stays paused for review.": "يوقف جدول النظرة العامة على التقارير مؤقتًا (يبقى تقريره ولقطاته) ويعيد هذا الجدول إلى ما كان عليه قبل النقل. إذا تغيّر استعلامه المحفوظ منذ النقل، يبقى هذا الجدول متوقفًا مؤقتًا للمراجعة.",
   "Preview of future clock times, including while paused. Already queued runs keep their state.": "معاينة لأوقات التشغيل المقبلة، بما فيها أثناء الإيقاف المؤقت. تحتفظ التشغيلات الموجودة في قائمة الانتظار بحالتها.",

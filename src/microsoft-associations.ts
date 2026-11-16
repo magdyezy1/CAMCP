@@ -79,7 +79,8 @@ export function microsoftAssociationSnapshots(p: CompiledRequest, compile: Compi
     entityIds = [...new Set(pairs.map(r => r.EntityId))].sort(),
     assetIds = [...new Set(pairs.map(r => r.AdExtensionId))].sort(),
     types = p.scopeContext!.microsoftExtensionTypes!.join(' '),
-    reads = [read('GetAccount', {})];
+    // The account is read as an ACCOUNT (R2.5 M1, S3-3): a review keeps its identity (src/microsoft-account-state.ts).
+    reads: CompiledRequest[] = [{...read('GetAccount', {}), stateRole: 'account'}];
   if (b.AssociationType === 'Campaign')
     reads.push(read('GetCampaignsByIds', {CampaignIds: entityIds, CampaignType: 'Search'}));
   if (b.AssociationType === 'AdGroup')

@@ -14,7 +14,7 @@ import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {verificationReads, normalize, differing, entity} from './verification-reads.js';
 import {validateState} from './write-state.js';
-import {normalizeSnapshot, reviewStateHash} from './review-state.js';
+import {normalizeSnapshot, reviewStateHash, reviewVolatile} from './review-state.js';
 import {stateRead} from './write-snapshots.js';
 import {fingerprint, optional} from './workspace-core.js';
 // Each provider's created-resource lookups and named targets (ARC-01 phase B, wave 4c): its adapter's `writes` hooks.
@@ -181,7 +181,8 @@ export class WriteReconciler {
       const before = family?.stateAsRead
         ? review.state
         : (review.state as unknown[]).map((v, i) => normalizeSnapshot(review.reads[i], v));
-      unchanged = reviewStateHash(now) === reviewStateHash(before);
+      unchanged =
+        reviewStateHash(now, reviewVolatile(plan.gateway)) === reviewStateHash(before, reviewVolatile(plan.gateway));
     }
     if (!targets)
       return {
@@ -196,8 +197,9 @@ export class WriteReconciler {
       if (!Object.keys(object(item.expected)).length) continue;
       const response = await read(item.read);
       validateState(item.read, response);
-      const actual = normalize(entity(item.read, object(response.data)));
-      checks.push({id: item.id, matched: differing(normalize(item.expected), actual).length === 0});
+      const volatile = reviewVolatile(plan.gateway),
+        actual = normalize(entity(item.read, object(response.data)), volatile);
+      checks.push({id: item.id, matched: differing(normalize(item.expected, volatile), actual).length === 0});
     }
     const applied = checks.length > 0 && checks.every(c => c.matched === true);
     return {

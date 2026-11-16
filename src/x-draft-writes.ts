@@ -2,6 +2,8 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {xRead, xReader} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state-core.js';
+import {xReviewVolatile} from './x-review-volatile.js';
+import {xAccountState} from './x-identity-state.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -115,7 +117,7 @@ function view(value: unknown, expectedId?: string): JsonObject {
     new Set(row.media_keys).size !== row.media_keys.length
   )
     fail('X returned malformed draft attachments.');
-  return normalizeReviewState(row) as JsonObject;
+  return normalizeReviewState(row, xReviewVolatile) as JsonObject;
 }
 function desired(p: CompiledRequest, before?: JsonObject): JsonObject {
   const b = (p.body ?? {}) as JsonObject,
@@ -161,7 +163,7 @@ async function author(read: ReturnType<typeof xReader>, user: string) {
   const selected = rows.filter(r => r.user_id === user);
   if (selected.length !== 1 || selected[0]!.promotable_user_type !== 'FULL')
     fail('The draft author must currently be a FULL promotable user of this account.');
-  return normalizeReviewState(selected[0]) as JsonObject;
+  return normalizeReviewState(selected[0], xReviewVolatile) as JsonObject;
 }
 async function drafts(read: ReturnType<typeof xReader>, user: string) {
   const rows = await read.list('/draft_tweets', {user_id: user, count: 200});
@@ -181,7 +183,7 @@ async function attachments(read: ReturnType<typeof xReader>, value: JsonObject) 
     const rows = await read.list('/cards/all', {card_uris: value.card_uri});
     if (rows.length !== 1 || rows[0]!.card_uri !== value.card_uri || rows[0]!.deleted !== false)
       fail('The exact card is unavailable in this account.');
-    out.card = normalizeReviewState(rows[0]);
+    out.card = normalizeReviewState(rows[0], xReviewVolatile);
   }
   for (const key of value.media_keys) {
     const row = await read.single('/media_library/' + key, key, 'media_key');
@@ -194,7 +196,7 @@ async function attachments(read: ReturnType<typeof xReader>, value: JsonObject) 
     // Native signed playback URLs and whether the media was used are observations.
     // Content identity, metadata and unknown fields remain protected.
     const {media_url, poster_media_url, tweeted, ...configuration} = row;
-    out.media.push(normalizeReviewState(configuration));
+    out.media.push(normalizeReviewState(configuration, xReviewVolatile));
   }
   if (out.media.length > 1 && out.media.some((r: JsonObject) => r.media_type !== 'IMAGE'))
     input('A draft supports up to four images, one GIF or one video; do not mix types.');
@@ -215,7 +217,8 @@ export async function readXDraftState(p: CompiledRequest, send: Read): Promise<u
     account = await read.single('', p.accountId!),
     draft = kind === 'create' ? undefined : view(await read.single('/draft_tweets/' + id(p), id(p)), id(p)),
     user = draft?.user_id ?? (p.body as JsonObject).as_user_id;
-  const state: JsonObject = {account: normalizeReviewState(account), author: await author(read, user)};
+  // The account is kept to its identity (R2.5 M1, the ACCOUNT role).
+  const state: JsonObject = {account: xAccountState(account) as JsonObject, author: await author(read, user)};
   if (draft) state.draft = draft;
   if (kind === 'create') {
     state.existing_draft_ids = (await drafts(read, user)).map(r => r.id).sort();

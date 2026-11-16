@@ -1,6 +1,8 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
-import {changedStateFields, normalizeReviewState} from './review-state-core.js';
+import {changedComparableFields, normalizeReviewState} from './review-state-core.js';
+import {xReviewVolatile} from './x-review-volatile.js';
+import {xAccountState} from './x-identity-state.js';
 import {sha256, stable} from './security.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
 import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
@@ -115,7 +117,7 @@ function projection(r: JsonObject): JsonObject {
   // These resource fields are provider observations. Preserve unknown configuration,
   // including unknown ordered arrays; only collection identity order is normalized.
   const {servable, reasons_not_servable, localized_name, ...configuration} = r;
-  return normalizeReviewState(configuration) as JsonObject;
+  return normalizeReviewState(configuration, xReviewVolatile) as JsonObject;
 }
 function criterion(raw: unknown, account: string): JsonObject {
   if (
@@ -343,7 +345,8 @@ async function snapshot(p: CompiledRequest, read: Reader, parents: string[], pre
     fail('The targeting collection escaped its requested line items.');
   rows.sort((a, b) => a.id.localeCompare(b.id, 'en'));
   return {
-    account,
+    // The account is kept to its identity (R2.5 M1, the ACCOUNT role); its currency was checked above, from the whole row.
+    account: xAccountState(account),
     lines,
     campaigns,
     criteria: rows,
@@ -458,7 +461,7 @@ export async function verifyXTargetingBatch(p: CompiledRequest, result: JsonObje
     references: s.references,
   };
   const actual = {...a, criteria: actualRows},
-    changed = changedStateFields(expected, actual),
+    changed = changedComparableFields(expected, actual, xReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,

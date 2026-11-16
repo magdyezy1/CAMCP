@@ -10,6 +10,8 @@ import type {
 } from './provider-adapter.js';
 import {sameNativeAccount} from './account-id.js';
 import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
+import {flatResourceTelemetry} from './review-flat-telemetry.js';
+import {pickIdentity} from './review-state-core.js';
 import type {TransportResult} from './transport.js';
 import type {Registry} from './catalog.js';
 import {
@@ -88,6 +90,22 @@ const dv360Contracts: ContractHooks = Object.freeze({
 });
 
 /**
+ * What a review keeps of the advertiser a DV360 create is made in (R2.5 M1, L5-01): its IDs and names, its entity status, and
+ * the currency and time zone of its general settings. Its billing, serving, creative and data-access configuration, its
+ * integration details and its update time are not what a create under it depends on. No source-side field selection is sent
+ * for this read (none is used for DV360 anywhere in this repository), so the projection is the narrowing.
+ */
+const dv360AdvertiserFields: readonly string[] = Object.freeze([
+  'advertiserId',
+  'partnerId',
+  'name',
+  'displayName',
+  'entityStatus',
+  'generalConfig.currencyCode',
+  'generalConfig.timeZone',
+]);
+
+/**
  * Display & Video 360's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
  * targeting option search, a POST the catalog marks as a write, is a reviewed read. The account read is the advertiser.
  * On the wire, the targeting search is checked before it is sent and its response after, and the advertiser asset
@@ -120,6 +138,12 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     }),
   }),
   review: Object.freeze({
+    // Its resources are flat (a record's `updateTime` is `update_time`): the flat-resource names change by themselves.
+    volatile: flatResourceTelemetry,
+    // The advertiser a create is made in is kept to its identity (R2.5 M1, the ACCOUNT role, L5-01); a read of what a write
+    // changes is kept whole, minus the fields of the table above.
+    identity: (read: CompiledRequest, d: JsonObject) =>
+      read.stateRole === 'account' ? pickIdentity(d, dv360AdvertiserFields) : undefined,
     // A created campaign, insertion order, line item or creative is read back by its returned ID, an update in place.
     verification(
       plan: CompiledRequest,

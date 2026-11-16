@@ -3,7 +3,9 @@ import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './fam
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
-import {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
+import {normalizeReviewState, comparableStateHash, changedComparableFields} from './review-state-core.js';
+import {linkedinReviewVolatile} from './linkedin-review-volatile.js';
+import {linkedinAccountState} from './linkedin-account-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -330,7 +332,7 @@ function configuration(v: JsonObject, template = false): JsonObject {
   const {created, lastModified, approximateMemberCount, ...config} = v;
   if (template && Object.hasOwn(config, 'targetingCriteria'))
     config.targetingCriteria = criteriaProjection(config.targetingCriteria);
-  return normalizeReviewState(config) as JsonObject;
+  return normalizeReviewState(config, linkedinReviewVolatile) as JsonObject;
 }
 function reader(p: CompiledRequest, request: (p: CompiledRequest) => Promise<TransportResult>) {
   const deadline = performance.now() + 60000;
@@ -439,7 +441,12 @@ async function snapshot(p: CompiledRequest, get: ReturnType<typeof reader>, pref
       fail('Matched segments require exact account ownership, compatible facet type and READY or ARCHIVED status.');
     segments[key] = configuration({...row, id: key});
   }
-  return {account: configuration({...selected, id: p.accountId}), templates, segments};
+  // The account is kept to its identity (R2.5 M1, the ACCOUNT role): a balance or a version that moves is no change.
+  return {
+    account: configuration(linkedinAccountState({...selected, id: p.accountId}) as JsonObject),
+    templates,
+    segments,
+  };
 }
 async function complete(
   p: CompiledRequest,
@@ -515,7 +522,8 @@ export async function verifyLinkedInTemplate(
     const key = targets(p)[0]!;
     expected.templates[key] = configuration({...expected.templates[key], ...desired(p)}, true);
   } else for (const key of targets(p)) delete expected.templates[key];
-  const fields = changedStateFields(expected, actual),
+  // A verification compares what the write sent with what is stored: no URL rule (changedComparableFields).
+  const fields = changedComparableFields(expected, actual, linkedinReviewVolatile),
     match = completeReceipt && fields.length === 0;
   return {
     status: match ? 'verified' : 'inconclusive',
@@ -523,8 +531,8 @@ export async function verifyLinkedInTemplate(
       {
         description: 'Complete account-scoped saved audiences and referenced segments match the reviewed change',
         matched: match,
-        expected_state_hash: reviewStateHash(expected),
-        actual_state_hash: reviewStateHash(actual),
+        expected_state_hash: comparableStateHash(expected, linkedinReviewVolatile),
+        actual_state_hash: comparableStateHash(actual, linkedinReviewVolatile),
         changed_fields: fields,
       },
     ],

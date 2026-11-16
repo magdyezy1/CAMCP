@@ -1,5 +1,6 @@
 import type {CatalogHooks, ProviderHooks, WireHeaders} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject, ToolDefinition} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {createsOnPost} from './family-kit.js';
@@ -82,6 +83,8 @@ export const appleHooks: ProviderHooks = Object.freeze({
     }),
   }),
   review: Object.freeze({
+    // A campaign's last modification (`modificationTime`), beside what its status observations (`observational`) leave.
+    volatile: Object.freeze(['modification_time']) as ReviewVolatile,
     snapshot(_read: CompiledRequest, d: JsonObject) {
       if (!Object.hasOwn(d, 'result')) return d;
       const result = Object.fromEntries(Object.entries(d.result ?? {}).filter(([key]) => !observational.has(key)));

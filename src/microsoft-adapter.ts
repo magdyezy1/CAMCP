@@ -1,5 +1,6 @@
 import type {CatalogHooks, ProviderHooks, RefreshRequest, ScopeContext, WireHeaders} from './provider-adapter.js';
 import type {Catalog, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
@@ -28,6 +29,7 @@ import {nameCandidates, searchTerm} from './name-candidates.js';
 // Wave 4c round 6 (w4c-arc6-tables): its wire contract, the pinned WSDL type model.
 import {microsoftWireContract} from './microsoft-wire-contract.js';
 import {noPreviewRoute} from './ad-preview-kit.js';
+import {microsoftAccountState} from './microsoft-account-state.js';
 
 /**
  * Wave 4c (transport and catalog): Microsoft's part of the catalog registry (src/catalog.ts). Its tool and catalog are
@@ -173,10 +175,18 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
   }),
   // A contract's result field is its state and what its verification read shows; the rest is its envelope.
   review: Object.freeze({
+    // A campaign management entity's last modification (`LastModifiedTime`), beside the configuration of its records.
+    volatile: Object.freeze(['last_modified_time']) as ReviewVolatile,
     snapshot(read: CompiledRequest, d: JsonObject) {
       const field = microsoftContracts.get(read.action)?.result;
       return field && Object.hasOwn(d, field) ? {[field]: d[field]} : d;
     },
+    // The account a write is made in (`GetAccount`, the role `account`) is kept to its identity: its row carries a row
+    // version, the user who last modified it and its financial status, which change without any edit (S3-3).
+    identity: (read: CompiledRequest, d: JsonObject) =>
+      read.stateRole === 'account' && d.Account && typeof d.Account === 'object' && !Array.isArray(d.Account)
+        ? {Account: microsoftAccountState(d.Account)}
+        : undefined,
     observed: (plan: CompiledRequest, data: JsonObject) => data[microsoftContracts.get(plan.action)!.result]?.[0],
   }),
   scope: Object.freeze({resource: microsoftResourceScope, observe: observeMicrosoft}),

@@ -815,7 +815,9 @@ export function dv360TargetingSnapshots(p: CompiledRequest): CompiledRequest[] {
   }
   const holders =
     e.level === 'advertiser'
-      ? [stateRead(p, '/v4/advertisers/' + a, {kind: 'advertiser'})]
+      ? // The advertiser whose targeting is assigned (R2.5 M1, the ACCOUNT role): a review keeps its identity; the
+        // targeting itself is read below.
+        [{...stateRead(p, '/v4/advertisers/' + a, {kind: 'advertiser'}), stateRole: 'account' as const}]
       : e.level === 'ad_group'
         ? e.owners.map(id => dv360AdGroupStateRead(p, {adGroupId: id}))
         : e.owners.map(id => stateRead(p, '/v4/advertisers/' + a + '/lineItems/' + id, {kind: 'line_item'}));

@@ -1,5 +1,6 @@
 import type {DelegatedHooks, ProviderHooks, ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {criteoReviewVolatile} from './criteo-review-volatile.js';
 import type {Store} from './store.js';
 import type {VendorRoute} from './delegated-native.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
@@ -64,6 +65,8 @@ export const criteoHooks: ProviderHooks = Object.freeze({
   gateway: 'criteo_native_action',
   previews: noPreviewRoute('criteo', 'Criteo has no ad preview route in its API that AMCP can read.'),
   delegated: criteoDelegated,
+  // Its campaign and line-item resources are flat (`updatedAt` is `updated_at`): the flat-resource names change by themselves.
+  review: Object.freeze({volatile: criteoReviewVolatile}),
   reads: Object.freeze({
     postRead: (_plan: CompiledRequest, pathname: string) =>
       /\/(?:search|preview)$/.test(pathname) ||

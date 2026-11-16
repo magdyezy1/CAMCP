@@ -7,6 +7,7 @@ import type {
   ScopeContext,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {createsOnPost} from './family-kit.js';
@@ -22,6 +23,7 @@ import {
 } from './reddit-extensions.js';
 import {assertRedditReportRules} from './reddit-report-rules.js';
 import {redditAdPreviews} from './reddit-ad-previews.js';
+import {redditAccountState, redditFundingInstrumentState} from './reddit-account-state.js';
 
 /** The other names Reddit's tool arguments give its native parameters. */
 const redditAliases: Record<string, string[]> = {
@@ -110,6 +112,24 @@ function observeReddit(plan: CompiledRequest, connection: Connection, id: string
         store.rememberResource(connection, id, collection + '/' + entity.id);
 }
 /**
+ * What changes by itself in a Reddit record (R2.5 M1, L5-02): Reddit computes `modified_at`, `updated_at`, `effective_status`
+ * and `delivery_status` (a write that sends one is refused as server-derived, src/reddit-writes.ts), and a pixel's
+ * `last_fired_at` is its last event (PRV-06 D: a review keeps whether and how recently it fired, not the time). The status a
+ * user sets is `configured_status`, which stays. A funding instrument's `billable_amount` is its outstanding debt, a meter that
+ * grows with every day the account spends, and `is_servable` and `reasons_not_servable` are what Reddit computes from it
+ * (`components_schema_funding_instrument` of `.mirror/VENDOR/reddit-v3.json`; no other schema of Reddit carries these three).
+ */
+const redditReviewVolatile: ReviewVolatile = Object.freeze([
+  'modified_at',
+  'updated_at',
+  'effective_status',
+  'delivery_status',
+  'last_fired_at',
+  'billable_amount',
+  'is_servable',
+  'reasons_not_servable',
+]);
+/**
  * Reddit's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: reports, plus
  * the PRV-07 planning and history reads (src/reddit-extensions.ts), are POST reads. Its scope: the planning reads'
  * authorizer, the reference reads, and ownership of the global IDs its account lists and creations show. A review keeps
@@ -141,6 +161,18 @@ export const redditHooks: ProviderHooks = Object.freeze({
   // A response's records are under data, the rest is its envelope.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    // The ad account a write is made in (the role `account`) is kept to its identity (S3-3): it carries no balance, and
+    // what changes by itself in it is `modified_at`, which the table drops; the rest of its row is not what a write depends on.
+    // The funding instrument a campaign names (the role `reference`, S3-4) is kept to what the campaign depends on: its meter
+    // and its computed servable state grow and flip as the account spends.
+    identity(read: CompiledRequest, d: JsonObject) {
+      if (read.stateRole === 'account' && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
+        return {data: redditAccountState(d.data)};
+      if (read.stateRole === 'reference' && Array.isArray(d.data))
+        return {data: d.data.map(redditFundingInstrumentState)};
+      return undefined;
+    },
+    volatile: redditReviewVolatile,
     verification(
       plan: CompiledRequest,
       result: JsonObject,

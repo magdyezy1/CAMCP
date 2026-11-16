@@ -7,6 +7,7 @@ import type {
   ScopeContext,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {googleBusinessReviewVolatile} from './google-review-volatile.js';
 import {MirrorError} from './errors.js';
 import {createsOnPost} from './family-kit.js';
 import {errorObject} from './provider-error-core.js';
@@ -182,6 +183,8 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
   // Wave 4c (transport and catalog): its tool takes the operations AMCP adds to the captured definition.
   catalog: Object.freeze({tools: Object.freeze({google_business_native_action: extendGoogleBusinessTool})}),
   delegated: businessDelegated,
+  // Its resources are flat (a record's `updateTime` is `update_time`): the flat-resource names change by themselves.
+  review: Object.freeze({volatile: googleBusinessReviewVolatile}),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

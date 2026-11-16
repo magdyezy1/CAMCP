@@ -1,7 +1,8 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
-import {changedStateFields} from './review-state-core.js';
+import {changedComparableFields} from './review-state-core.js';
+import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import {redact, stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -465,7 +466,7 @@ export async function verifyGooglePreview(
   send: Send,
 ): Promise<JsonObject> {
   const actual = await readGooglePreviewState(p, send),
-    changed = changedStateFields(state, actual),
+    changed = changedComparableFields(state, actual, googleAdsReviewVolatile),
     rows = raw ? receipt(p, {data: raw, status: outcome.status, headers: {}}) : undefined;
   const status = rows?.every(r => r.status === 'generated') && !changed.length ? 'verified' : 'inconclusive';
   return {

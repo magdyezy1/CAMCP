@@ -11,6 +11,7 @@ import {
   type StateTarget,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
@@ -391,6 +392,30 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
   return data.data?.list?.[0];
 }
+/**
+ * What changes by itself in a TikTok row (R2.5 M1, L5-02): a campaign, ad group or ad's last modification (`modify_time`),
+ * the delivery state TikTok computes from its parents and budget (`secondary_status`; the status a user sets is
+ * `operation_status`, which stays), and the request ID of an answer that is kept whole. Answers are projected to their
+ * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name.
+ *
+ * It also declares where TikTok signs the links it hands out, which are signed anew at every read (lead review S2-2): the
+ * advertiser's licence document (`ads.tiktok.com`, the `ticket` of the White Friday report), its media CDNs (`x-expires`
+ * and `x-signature`), and the fields TikTok fills with such a link (`license_url`, an ad's `profile_image_url`). A link on
+ * any other host is the advertiser's own (a landing page, a tracking URL) and keeps every parameter in the review.
+ */
+const tiktokReviewVolatile: ReviewVolatile = Object.freeze([
+  'secondary_status',
+  'modify_time',
+  'request_id',
+  'signed-host:ads.tiktok.com',
+  'signed-host:*.tiktokcdn.com',
+  'signed-host:*.tiktokcdn-us.com',
+  'signed-host:*.ibyteimg.com',
+  'signed-host:*.byteimg.com',
+  'signed-host:*.tiktokv.com',
+  'signed-field:license_url',
+  'signed-field:profile_image_url',
+]);
 /** The read an amcp_media upload keeps the advertiser's state from: its identity fields only, as a review keeps them (T1). */
 function tiktokAccountState(read: CompiledRequest, id: string): CompiledRequest {
   read.path = tiktokAdvertiserInfoPath;
@@ -450,6 +475,7 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     verification: tiktokVerification,
     observed: tiktokObserved,
     accountState: tiktokAccountState,
+    volatile: tiktokReviewVolatile,
   }),
   scope: Object.freeze({
     authorizers: Object.freeze([
@@ -542,11 +568,14 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.',
     }),
   }),
-  // The advertiser info read takes a list of one advertiser and returns it in data.list.
+  // The advertiser info read takes a list of one advertiser and returns it in data.list. It asks for the seven fields an
+  // advertiser is known by (Q15, owner 2026-11-15; R2.5 M1, L1-02): without `fields` TikTok's answer carries the advertiser's
+  // contact record, a signed licence link and its balance, which readiness, plan preflight and report collection kept as
+  // evidence. What they read of it (the name, the currency and the time zone) is among the seven.
   accountRead: Object.freeze({
     plan(read: CompiledRequest, id: string) {
-      read.path = '/v1.3/advertiser/info/';
-      read.query = {advertiser_ids: [id]};
+      read.path = tiktokAdvertiserInfoPath;
+      read.query = tiktokAdvertiserQuery(id);
       return read;
     },
     account: (data: JsonObject) => data.data?.list?.[0],

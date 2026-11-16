@@ -25,7 +25,7 @@ import {guardInput, redactCredentialShapesWithPaths, sha256, stable} from './sec
 import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
-import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
+import {normalizeSnapshot, reviewStateHash, changedStateFields, reviewVolatile} from './review-state.js';
 import {accountWriteGranted, assertAccountWrite} from './write-access.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
@@ -925,7 +925,7 @@ export class WriteReviewService {
         destructive &&
         reviewApprovalPolicy(this.store, actor.tenantId, plan.gateway, plan.accountId ?? '')
           .require_destructive_confirmation;
-    const stateHash = reviewStateHash(state),
+    const stateHash = reviewStateHash(state, reviewVolatile(plan.gateway)),
       spendPolicy = checkSpendPolicy(this.store, actor, plan, state),
       requirements = executeRequirements(
         actor,
@@ -1286,9 +1286,11 @@ export class WriteReviewService {
     const expectedState = familyOf(plan)?.stateAsRead
       ? review.state
       : review.state.map((value: unknown, i: number) => normalizeSnapshot(review.reads[i], value));
-    const current = await this.state(actor, plan, review.connection_id, review.reads),
-      expectedHash = reviewStateHash(expectedState),
-      actualHash = reviewStateHash(current);
+    // Both sides are hashed with the table of the provider whose reviewed state this is (R2.5 M1, review.volatile).
+    const volatile = reviewVolatile(plan.gateway),
+      current = await this.state(actor, plan, review.connection_id, review.reads),
+      expectedHash = reviewStateHash(expectedState, volatile),
+      actualHash = reviewStateHash(current, volatile);
     const creativeImpact = writeImpact(plan, current, review.creative_edit_confirmed === true, review.connection_id);
     if (actualHash !== expectedHash)
       fail(
@@ -1297,7 +1299,7 @@ export class WriteReviewService {
         {
           expected_state_hash: expectedHash,
           actual_state_hash: actualHash,
-          changed_fields: changedStateFields(expectedState, current),
+          changed_fields: changedStateFields(expectedState, current, volatile),
         },
       );
     familyOf(plan)?.stateChecks?.(plan, current, false);

@@ -13,6 +13,9 @@ const registry = new Registry(),
 const key = Buffer.alloc(32, 21).toString('base64');
 
 test('state projection normalizes scalar sets across providers, preserves configuration and ordered object arrays', () => {
+  // r25-m1-hash: what changes by itself is a table the caller names (a provider's `review.volatile`), not a set every
+  // provider shares; this projection test names the telemetry its fixture carries, and the assertions are unchanged.
+  const volatile = ['delivery_status', 'updated_at', 'metrics', 'request_id', 'sub_request_status'];
   const a = {
     nested: {country_codes: ['US', 'GB'], status: 'PAUSED'},
     delivery_status: ['A', 'B'],
@@ -27,19 +30,20 @@ test('state projection normalizes scalar sets across providers, preserves config
     delivery_status: ['B', 'A', 'C'],
     nested: {status: 'PAUSED', country_codes: ['GB', 'US']},
   };
-  assert.equal(reviewStateHash(a), reviewStateHash(b));
+  assert.equal(reviewStateHash(a, volatile), reviewStateHash(b, volatile));
   for (const field of ['name', 'status', 'daily_budget_micro', 'schedule', 'targeting', 'bid', 'pacing']) {
     const x = {...a, [field]: 'old'},
       y = {...a, [field]: 'new'};
-    assert.notEqual(reviewStateHash(x), reviewStateHash(y), field);
-    assert.ok(changedStateFields(x, y).some(p => p.includes(field)));
+    assert.notEqual(reviewStateHash(x, volatile), reviewStateHash(y, volatile), field);
+    assert.ok(changedStateFields(x, y, volatile).some(p => p.includes(field)));
   }
-  assert.notEqual(reviewStateHash(['a', 'a', 'b']), reviewStateHash(['a', 'b']));
-  assert.notEqual(reviewStateHash([1]), reviewStateHash(['1']));
-  assert.notEqual(reviewStateHash([{id: '1'}, {id: '2'}]), reviewStateHash([{id: '2'}, {id: '1'}]));
-  assert.deepEqual(normalizeReviewState({requestId: 'a', sub_request_status: 'SUCCESS', config: {status: 'PAUSED'}}), {
-    config: {status: 'PAUSED'},
-  });
+  assert.notEqual(reviewStateHash(['a', 'a', 'b'], volatile), reviewStateHash(['a', 'b'], volatile));
+  assert.notEqual(reviewStateHash([1], volatile), reviewStateHash(['1'], volatile));
+  assert.notEqual(reviewStateHash([{id: '1'}, {id: '2'}], volatile), reviewStateHash([{id: '2'}, {id: '1'}], volatile));
+  assert.deepEqual(
+    normalizeReviewState({requestId: 'a', sub_request_status: 'SUCCESS', config: {status: 'PAUSED'}}, volatile),
+    {config: {status: 'PAUSED'}},
+  );
 });
 
 for (const change of ['telemetry', 'budget', 'failure'])

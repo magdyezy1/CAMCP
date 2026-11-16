@@ -177,6 +177,20 @@ export interface CompiledRequest {
    * may admit a read on that path only (Meta's ad identity probe, F-L3-03).
    */
   nested?: true;
+  /**
+   * The role of a state read in a review (R2.5 M1, plan idea 1): `account` for the read of the account a write creates
+   * something in, `parent` for the read of the parent a child is created under. Set where the read is built (src/write-snapshots.ts,
+   * the provider's own reads), never by a caller; a read of the objects a write changes has none. The role decides how much of
+   * the row the review keeps, and the account is the only container kept to its identity (who it is, its status, its currency
+   * and time zone, `review.identity`): a balance, a signed link or a counter of an account is nothing a write depends on. A
+   * `parent` is read as a target is, whole but for the fields its provider's table says change by themselves
+   * (`review.volatile`), because its budget, bid, flight, schedule, targeting and status are what the child is created under
+   * (lead review S2-1). The role is metadata for the review's ordering of what changed (R2.5 M1, `material`) and for the
+   * rotation harness; it narrows nothing for a parent. A `reference` is an object a write only names (a funding instrument a
+   * Reddit campaign is paid from): its provider keeps its existence and the fields the write uses of it (`review.identity`),
+   * not its meters and computed state (lead review S3-4).
+   */
+  stateRole?: 'account' | 'parent' | 'reference';
   scopeContext?: {
     metaReportReviewId?: string;
     campaignId?: string;

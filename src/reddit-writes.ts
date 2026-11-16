@@ -355,7 +355,10 @@ export function redditSnapshots(plan: CompiledRequest): CompiledRequest[] {
     d = (plan.body as JsonObject).data;
   const read = (path: string): CompiledRequest =>
     readOf(plan, {action: 'AMCP_STATE_READ', path, query: {}, clears: []});
-  const reads = [read('/api/v3/ad_accounts/' + plan.accountId)];
+  // The ad account is read as an ACCOUNT (R2.5 M1, S3-3): a review keeps its identity (src/reddit-account-state.ts). Never a
+  // read that is the write's own target: that is the object the write changes, and keeps its whole protection.
+  const accountPath = '/api/v3/ad_accounts/' + plan.accountId,
+    reads: CompiledRequest[] = [{...read(accountPath), ...(plan.path === accountPath ? {} : {stateRole: 'account'})}];
   if (!route.create) reads.push(read(plan.path));
   const parents: Record<string, string> = {
     campaign_id: 'campaigns',
@@ -368,10 +371,13 @@ export function redditSnapshots(plan: CompiledRequest): CompiledRequest[] {
     if (d[field]) reads.push(read('/api/v3/' + kind + '/' + d[field]));
   if (d.post_id)
     reads.push({...read('/api/v3/ad_accounts/' + plan.accountId + '/profiles'), redditProfilesState: true});
+  // The funding instrument a campaign names is a REFERENCE (R2.5 M1, S3-4): a review keeps which instrument it is, its
+  // currency, credit limit and flight, not its meter (`billable_amount` grows with every day the account spends).
   if (d.funding_instrument_id)
     reads.push({
       ...read('/api/v3/ad_accounts/' + plan.accountId + '/funding_instruments'),
       query: {funding_instrument_ids: d.funding_instrument_id, mode: 'ALL'},
+      stateRole: 'reference',
     });
   // PRV-06 D: the account's pixel list must name the pixel; its activity is a follow-up of that list (followUps).
   if (identifier(d.conversion_pixel_id)) reads.push(pixelRead(plan, 'membership', d.conversion_pixel_id));

@@ -1,5 +1,6 @@
 import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
+import {flatResourceTelemetry} from './review-flat-telemetry.js';
 import type {TransportResult} from './transport.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
@@ -45,7 +46,11 @@ export const gtmHooks: ProviderHooks = Object.freeze({
   }),
   // A review keeps a Tag Manager resource's configuration, its authorization code as a digest and its container
   // access and trigger lists in one order (src/gtm-workflow-writes.ts).
-  review: Object.freeze({snapshot: (_read: CompiledRequest, d: JsonObject) => gtmSafeConfiguration(d)}),
+  // Its entities are flat resources: the flat-resource names change by themselves.
+  review: Object.freeze({
+    snapshot: (_read: CompiledRequest, d: JsonObject) => gtmSafeConfiguration(d),
+    volatile: flatResourceTelemetry,
+  }),
   reads: Object.freeze({
     postRead: (_plan: CompiledRequest, pathname: string) => /\/folders\/[^/:]+:entities$/.test(pathname),
   }),

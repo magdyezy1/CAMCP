@@ -2,7 +2,8 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
-import {changedStateFields} from './review-state-core.js';
+import {changedComparableFields} from './review-state-core.js';
+import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -258,7 +259,7 @@ export async function verifyGoogleDismissal(p: CompiledRequest, state: unknown[]
   const expected = structuredClone(state[0]) as JsonObject;
   for (const row of Object.values(expected.recommendations) as JsonObject[]) row.dismissed = true;
   const actual = await currentState(p, send, true),
-    changed = changedStateFields([expected], [actual]),
+    changed = changedComparableFields([expected], [actual], googleAdsReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,

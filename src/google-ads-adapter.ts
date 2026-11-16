@@ -12,6 +12,7 @@ import type {
   WireHeaders,
 } from './provider-adapter.js';
 import type {Action, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -696,6 +697,7 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     verification: googleVerification,
     observed: googleObserved,
     verificationVersion: googleVerificationVersion,
+    volatile: googleAdsReviewVolatile,
   }),
   scope: Object.freeze({
     // Generation drafts need the Ads scope on the selected connection.

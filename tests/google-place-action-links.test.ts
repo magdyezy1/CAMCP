@@ -194,7 +194,15 @@ function fixture(file = ':memory:') {
         else {
           if (value.isPreferred && mode !== 'wrong_preference')
             for (const v of links.values()) if (v.placeActionType === value.placeActionType) v.isPreferred = false;
-          links.set(id, structuredClone(value));
+          // The provider keeps another query value than the one it was sent (the write was not applied as sent).
+          links.set(
+            id,
+            structuredClone(
+              mode === 'other_query' && typeof value.uri === 'string'
+                ? {...value, uri: value.uri.replace('=NEW', '=OLD')}
+                : value,
+            ),
+          );
         }
       }
       if (mode === 'foreign_receipt') value.name = 'locations/999/placeActionLinks/1';
@@ -651,6 +659,29 @@ test('ignored writes and incorrect preference side effects remain inconclusive, 
     assert.notEqual((await f.service.verifyWrite(actor, r.data.review_id)).status, 'verified');
   } finally {
     f.store.close();
+  }
+});
+test('a link the provider keeps with another query value than the one sent is inconclusive, whatever the parameter is called (S3-1)', async () => {
+  // A link write that was not applied as sent must not verify: the read-back is compared with what was sent, with no rule that
+  // treats any query parameter as one that changes by itself.
+  for (const parameter of ['ticket', 'expires', 'x-expires', 'utm_term']) {
+    const f = fixture();
+    try {
+      const r = await prepared(
+        f,
+        args('PATCH_PLACE_ACTION_LINK', {uri: 'https://example.com/book?' + parameter + '=NEW'}),
+      );
+      f.mode('other_query');
+      assert.equal((await f.execute(r)).success, true);
+      const verified = await f.service.verifyWrite(actor, r.data.review_id);
+      assert.equal(verified.status, 'inconclusive', parameter);
+      assert.ok(
+        JSON.stringify(verified).includes('uri'),
+        'the changed field is named: ' + JSON.stringify(verified).slice(0, 400),
+      );
+    } finally {
+      f.store.close();
+    }
   }
 });
 test('concurrent execute and SQLite reopen retain the original mutation claim', async () => {

@@ -3044,6 +3044,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},
@@ -3186,7 +3195,7 @@
       "path": "/v1.3/advertiser/info/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "cd3329e12b5d548e88545eb6ae2d01962d5e02a1e590418de7b872d0d466904a",
+      "query_fingerprint": "1b141b154a129cda9353f205f474b5a23b3be9a1a80fb3e6220aa113b213df55",
       "response_fingerprint": "013b08653d39baf0a5f8e3407317cf60797c57efe5d040378e779bf1946243e3",
       "captured_at": "<epoch-ms>"
      },
@@ -3221,7 +3230,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "95c72dbfda7b8d39110389e980489feb344fcfb2c6ccf4b6ad37621a101ccda8",
+    "query_fingerprint": "0c226c6a1f2679f2acf79cab9bcedc3dd99317f43ad6d0e2f19bbb7976ea18de",
     "rows": [
      {
       "campaign_id": "11",
@@ -3345,6 +3354,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},
@@ -3485,7 +3503,7 @@
       "path": "/v1.3/advertiser/info/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "cd3329e12b5d548e88545eb6ae2d01962d5e02a1e590418de7b872d0d466904a",
+      "query_fingerprint": "1b141b154a129cda9353f205f474b5a23b3be9a1a80fb3e6220aa113b213df55",
       "response_fingerprint": "013b08653d39baf0a5f8e3407317cf60797c57efe5d040378e779bf1946243e3",
       "captured_at": "<epoch-ms>"
      },
@@ -3510,7 +3528,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "60a77a0eeb46dd554ec77e59dd769e0fc746720953448188d4cd7aa304469daf",
+    "query_fingerprint": "b5979a9d54d21e2b8b44473fdf1270c3f08861d509fc07d96324d70972fdc6b9",
     "rows": [
      {
       "campaign_id": "11",
@@ -3625,6 +3643,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},
@@ -3778,6 +3805,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},
@@ -3991,6 +4027,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},
@@ -4022,7 +4067,7 @@
       "path": "/v1.3/advertiser/info/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "cd3329e12b5d548e88545eb6ae2d01962d5e02a1e590418de7b872d0d466904a",
+      "query_fingerprint": "1b141b154a129cda9353f205f474b5a23b3be9a1a80fb3e6220aa113b213df55",
       "response_fingerprint": "013b08653d39baf0a5f8e3407317cf60797c57efe5d040378e779bf1946243e3",
       "captured_at": "<epoch-ms>"
      },
@@ -4057,7 +4102,7 @@
       "captured_at": "<epoch-ms>"
      }
     ],
-    "query_fingerprint": "ba23f7e71e5aada46ab841df0a416884785cf00b17330c856c60369618e1abe2",
+    "query_fingerprint": "458754b74709e755129f034581a52f26ae10b2caf69c9031eb21c5e95fa58746",
     "rows": [
      {
       "campaign_id": "11",
@@ -4179,7 +4224,7 @@
       "path": "/v1.3/advertiser/info/",
       "origin": null,
       "api_version": "v1.3",
-      "query_fingerprint": "cd3329e12b5d548e88545eb6ae2d01962d5e02a1e590418de7b872d0d466904a",
+      "query_fingerprint": "1b141b154a129cda9353f205f474b5a23b3be9a1a80fb3e6220aa113b213df55",
       "response_fingerprint": "013b08653d39baf0a5f8e3407317cf60797c57efe5d040378e779bf1946243e3",
       "captured_at": "<epoch-ms>",
       "cached": true
@@ -4216,7 +4261,7 @@
       "cached": true
      }
     ],
-    "query_fingerprint": "cd0113f67a17e837355cf76346df33f045f32493ecfc244a8ec5c2bb4cf3e56a",
+    "query_fingerprint": "b3bdd65f3fc51bef4a14da7194ccb25549db391a74fedc9f3066a931e6ad65b2",
     "rows": [
      {
       "campaign_id": "11",
@@ -4344,7 +4389,7 @@
      "path": "/v1.3/advertiser/info/",
      "origin": null,
      "api_version": "v1.3",
-     "query_fingerprint": "cd3329e12b5d548e88545eb6ae2d01962d5e02a1e590418de7b872d0d466904a",
+     "query_fingerprint": "1b141b154a129cda9353f205f474b5a23b3be9a1a80fb3e6220aa113b213df55",
      "response_fingerprint": "013b08653d39baf0a5f8e3407317cf60797c57efe5d040378e779bf1946243e3",
      "captured_at": "<epoch-ms>"
     },
@@ -4376,7 +4421,7 @@
     "path": "/v1.3/advertiser/info/",
     "origin": null,
     "api_version": "v1.3",
-    "query_fingerprint": "cd3329e12b5d548e88545eb6ae2d01962d5e02a1e590418de7b872d0d466904a",
+    "query_fingerprint": "1b141b154a129cda9353f205f474b5a23b3be9a1a80fb3e6220aa113b213df55",
     "response_fingerprint": "013b08653d39baf0a5f8e3407317cf60797c57efe5d040378e779bf1946243e3",
     "captured_at": "<epoch-ms>"
    }
@@ -4394,6 +4439,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},
@@ -4491,6 +4545,15 @@
       "query": {
        "advertiser_ids": [
         "7000"
+       ],
+       "fields": [
+        "advertiser_id",
+        "name",
+        "status",
+        "role",
+        "currency",
+        "timezone",
+        "country"
        ]
       },
       "headers": {},

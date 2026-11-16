@@ -4,7 +4,7 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
-import {normalizeSnapshot, reviewStateHash, changedStateFields} from '../src/review-state.js';
+import {normalizeSnapshot, reviewStateHash, changedStateFields, reviewVolatile} from '../src/review-state.js';
 import {writeContractGateways} from '../src/write-shape.js';
 import {validateState} from '../src/write-state.js';
 import type {CompiledRequest, JsonObject} from '../src/types.js';
@@ -111,7 +111,7 @@ for (const surface of ['rpc', 'legacy'])
             queryResourceConsumption: '999',
             futureEnvelopeTelemetry: {queryCost: 999},
           }));
-          old.state_hash = reviewStateHash(old.state);
+          old.state_hash = reviewStateHash(old.state, reviewVolatile(gateway));
           store.putDocument(actor.tenantId, 'write_review', r.review_id, old);
         }
         executing = true;
@@ -369,16 +369,18 @@ for (const layout of layouts)
       orderedSteps: ['first', 'second'],
       futureConfiguration: 'initial',
     };
+    // Each provider's table (its `review.volatile`) is what its layout's hash leaves out (R2.5 M1).
+    const volatile = reviewVolatile(layout.gateway);
     const a = normalizeSnapshot(read, layout.wrap(resource, 1)),
       b = normalizeSnapshot(read, layout.wrap(resource, 2));
-    assert.equal(reviewStateHash(a), reviewStateHash(b));
-    assert.deepEqual(changedStateFields(a, b), []);
+    assert.equal(reviewStateHash(a, volatile), reviewStateHash(b, volatile));
+    assert.deepEqual(changedStateFields(a, b, volatile), []);
     for (const field of Object.keys(resource)) {
       const altered = field === 'orderedSteps' ? ['second', 'first'] : 'changed';
       const next = normalizeSnapshot(read, layout.wrap({...resource, [field]: altered}, 2));
-      assert.notEqual(reviewStateHash(a), reviewStateHash(next), field);
+      assert.notEqual(reviewStateHash(a, volatile), reviewStateHash(next, volatile), field);
       assert.ok(
-        changedStateFields(a, next).some(p => p.includes(field)),
+        changedStateFields(a, next, volatile).some(p => p.includes(field)),
         field,
       );
     }
@@ -395,10 +397,11 @@ test('Google result order is a resource set; nested configuration order, types a
   const rows = [1, 2].map(id => ({
     campaign: {resourceName: 'customers/123/campaigns/' + id, ordered: ['a', 'b'], labels: ['a', 'a']},
   }));
+  const volatile = reviewVolatile(gateway);
   const a = normalizeSnapshot(read, {results: rows, queryResourceConsumption: '50'});
   assert.equal(
-    reviewStateHash(a),
-    reviewStateHash(normalizeSnapshot(read, {results: [...rows].reverse(), queryResourceConsumption: '99'})),
+    reviewStateHash(a, volatile),
+    reviewStateHash(normalizeSnapshot(read, {results: [...rows].reverse(), queryResourceConsumption: '99'}), volatile),
   );
   for (const ordered of [
     ['b', 'a'],
@@ -406,8 +409,11 @@ test('Google result order is a resource set; nested configuration order, types a
     [1, 'b'],
   ])
     assert.notEqual(
-      reviewStateHash(a),
-      reviewStateHash(normalizeSnapshot(read, {results: [{campaign: {...rows[0]!.campaign, ordered}}, rows[1]]})),
+      reviewStateHash(a, volatile),
+      reviewStateHash(
+        normalizeSnapshot(read, {results: [{campaign: {...rows[0]!.campaign, ordered}}, rows[1]]}),
+        volatile,
+      ),
     );
   assert.throws(() => normalizeSnapshot(read, {results: [rows[0], rows[0]]}), {code: 'STATE_RESOURCE_INVALID'});
 });

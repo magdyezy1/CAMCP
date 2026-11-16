@@ -586,7 +586,8 @@ export const linkedinLeadFormFamily: ReviewedFamily = defineFamily({
   observe: (read, connection, account, data, store) => observeLinkedInLeadForms(read, connection, store, account, data),
   snapshots: (plan, stateRead) => {
     const id = normalizeAccount(plan.gateway, plan.accountId!);
-    return [stateRead('/rest/adAccounts/' + id)];
+    // The account the form is made under (R2.5 M1, the ACCOUNT role): a review keeps its identity.
+    return [{...stateRead('/rest/adAccounts/' + id), stateRole: 'account'}];
   },
   isRead: isLinkedInLeadFormRead,
   validateState: validateLinkedInLeadFormState,

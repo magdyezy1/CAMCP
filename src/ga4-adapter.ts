@@ -1,5 +1,6 @@
 import type {DelegatedHooks, DelegatedScopeContext, ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {flatResourceTelemetry} from './review-flat-telemetry.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {createsOnPost} from './family-kit.js';
@@ -99,6 +100,8 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
       /^\/v1beta\/properties\/[^/:]+\/audienceExports\/[^/:]+:query$/.test(pathname) ||
       /^\/v1alpha\/properties\/[^/:]+\/reportTasks\/[^/:]+:query$/.test(pathname),
   }),
+  // Its Admin API resources are flat (a property's `updateTime` is `update_time`): the flat-resource names change by themselves.
+  review: Object.freeze({volatile: flatResourceTelemetry}),
   // Readiness reads the selected property on the Admin API (CON-03).
   accountRead: Object.freeze({
     readiness: (id: string, read: (path: string, origin: string) => CompiledRequest) =>

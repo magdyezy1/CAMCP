@@ -107,8 +107,13 @@ export function assertRedditCreative(p: CompiledRequest): void {
 const read = (p: CompiledRequest, path: string): CompiledRequest =>
   stateReadOf(p, 'AMCP_REDDIT_CREATIVE_READ', path, {}, {redditProfilesState: undefined});
 export function redditCreativeSnapshots(p: CompiledRequest): CompiledRequest[] {
-  const c = redditCreativeKind(p)!;
-  const reads = [read(p, '/api/v3/ad_accounts/' + p.accountId)];
+  const c = redditCreativeKind(p)!,
+    accountPath = '/api/v3/ad_accounts/' + p.accountId;
+  // The ad account is read as an ACCOUNT (R2.5 M1, S3-3): a review keeps its identity (src/reddit-account-state.ts). Never a
+  // read that is the write's own target: that is the object the write changes, and keeps its whole protection.
+  const reads: CompiledRequest[] = [
+    {...read(p, accountPath), ...(p.path === accountPath ? {} : {stateRole: 'account'})},
+  ];
   if (!c.create) reads.push(read(p, p.path));
   if (!c.create || redditPostCreation(p))
     reads.push({...read(p, '/api/v3/ad_accounts/' + p.accountId + '/profiles'), redditProfilesState: true});
