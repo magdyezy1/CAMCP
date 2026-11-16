@@ -88,6 +88,9 @@ function world(over = {}) {
     // cursor a list that ends carries.
     forceNext: false,
     endAs: null,
+    // A page that is exactly as large as the page size it was asked for carries a cursor, as a collection that cannot tell
+    // whether another row follows does.
+    fullPageCursor: false,
     ...over,
   };
 }
@@ -114,7 +117,7 @@ function api(w, log) {
               ? w.forceNext === true
                 ? 'more'
                 : w.forceNext
-              : start + size < rows.length
+              : start + size < rows.length || (w.fullPageCursor && rows.slice(start, start + size).length === size)
                 ? String(start + size)
                 : w.endAs,
           ),
@@ -223,6 +226,9 @@ const ok = out => {
   assert.equal(out.success, true, JSON.stringify(out));
   return out.data;
 };
+// A read that names its IDs asks for a page of the most IDs X takes in a filter (200: record X-TWEET-PREVIEWS-PIN-2026-11-16, R1 to R3),
+// whatever number it names: an answer to such a read is complete when it carries no cursor.
+const named = '200';
 const entry = (id, promoted, name = null) => ({
   ad_id: id,
   name,
@@ -246,7 +252,7 @@ test('named by a promoted-Tweet ID and a dark Tweet ID, the live shape gives two
   // Tweets with tweet_type PUBLISHED (X documents tweet_ids as a comma-separated list and tweet_type as required).
   assert.deepEqual(
     f.reads('/promoted_tweets').map(r => r.query),
-    [{promoted_tweet_ids: 'pt1', with_deleted: 'true', count: '1'}],
+    [{promoted_tweet_ids: 'pt1', with_deleted: 'true', count: named}],
   );
   assert.deepEqual(
     f.reads('/tweets').map(r => r.query),
@@ -256,7 +262,7 @@ test('named by a promoted-Tweet ID and a dark Tweet ID, the live shape gives two
         tweet_type: 'PUBLISHED',
         timeline_type: 'NULLCAST',
         include_mentions_and_replies: 'true',
-        count: '1',
+        count: named,
       },
     ],
   );
@@ -341,7 +347,7 @@ test('campaign_ids are resolved through the line items of the page read, and a l
   // The page’s distinct line items, once, in one read that also lists deleted and draft ones.
   assert.deepEqual(
     f.reads('/line_items').map(r => r.query),
-    [{line_item_ids: 'li1,li2', with_deleted: 'true', with_draft: 'true', count: '2'}],
+    [{line_item_ids: 'li1,li2', with_deleted: 'true', with_draft: 'true', count: named}],
   );
   const both = ok(await f.previews({campaign_ids: ['cm1'], statuses: ['all']}));
   assert.deepEqual(
@@ -488,7 +494,7 @@ test('named IDs ignore statuses, but the campaign and line item filters still ap
     line_item_ids: 'li2',
     with_deleted: 'true',
     with_draft: 'true',
-    count: '1',
+    count: named,
   });
   // A dark Tweet has no campaign or line item to match: with a filter it is left out, and X’s Tweets are not even read.
   const before = f.reads('/tweets').length,
@@ -504,6 +510,31 @@ test('named IDs are asked for once, and two IDs of one Tweet are one entry, in t
   assert.equal(f.reads('/promoted_tweets')[0].query.promoted_tweet_ids, 'pt2,pt1');
   assert.equal(f.reads('/tweets')[0].query.tweet_ids, tweet(90));
   assert.equal(f.reads('/tweet_previews').length, 1);
+});
+
+test('a read that names its IDs asks for a page larger than them, so an answer with exactly those IDs is complete', async t => {
+  // X may end a page that is exactly as large as the page size it was asked for with a cursor, as a collection that cannot tell
+  // whether another row follows does: a page the size of the IDs named would then look incomplete when every ID was found.
+  const f = fixture(t, world({fullPageCursor: true})),
+    all = ok(await f.previews({ad_ids: ['pt1', 'pt2', tweet(90)]}));
+  assert.deepEqual(
+    all.previews.map(p => [p.tweet_id, p.promoted_tweet_ids]),
+    [
+      [tweet(1), ['pt1', 'pt2']],
+      [tweet(90), []],
+    ],
+  );
+  const lines = ok(await f.previews({ad_ids: ['pt1', 'pt2'], campaign_ids: ['cm1', 'cm2']}));
+  assert.deepEqual(
+    lines.previews.map(p => p.promoted_tweet_ids),
+    [['pt1', 'pt2']],
+  );
+  const reads = f.log.filter(r => r.path !== '/tweet_previews');
+  assert.deepEqual([...new Set(reads.map(r => r.path))].sort(), ['/line_items', '/promoted_tweets', '/tweets']);
+  for (const read of reads) assert.equal(read.query.count, named, read.path);
+  // The list of the account's promoted Tweets is not one of them: it is read a page of 100 at a time, as before.
+  assert.equal(ok(await f.previews()).has_more, false, 'a list with fewer rows than its page ends where X ends it');
+  assert.equal(f.reads('/promoted_tweets').at(-1).query.count, '100');
 });
 
 test('a Tweet X does not answer for is reported missing, an extra or doubled answer is not taken, and nothing is dropped silently', async t => {

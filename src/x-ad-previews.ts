@@ -32,6 +32,14 @@ const promotedAction = 'x_accounts_account_id_promoted_tweets_get',
 
 /** X documents up to 200 `tweet_ids` in one tweet_previews request (record X-TWEET-PREVIEWS-PIN-2026-11-16, TP2). */
 export const xTweetPreviewBatch = 200;
+/**
+ * The page size of a read that names its IDs. X takes up to 200 IDs in each of those filters (`promoted_tweet_ids`, `line_item_ids`,
+ * `tweet_ids`: R1 to R3 of the record) and a page of up to 1000 rows, so a page of 200 holds any answer to such a read. It is not
+ * the number of IDs named: X can end a page that is exactly as large as its page size with a cursor, as a collection that cannot tell
+ * whether another row follows does, and an answer with every ID named would then look incomplete. With the larger page, an answer
+ * that still carries a cursor really is incomplete, and is refused.
+ */
+const namedPage = 200;
 /** X states no expiry for a preview (TP5), so the answer says that and no `expires_at` is made up. */
 export const xNoExpiry = 'X states no expiry for this preview link.';
 /**
@@ -48,7 +56,7 @@ type Reason = keyof typeof xPreviewReasons;
 /** Where X's preview page is (TP4); the live answer of 2026-11-16 and the version 12 page agree, an older guide example does not. */
 const previewHost = 'ton.twimg.com',
   previewPath = '/ads-manager/tweet-preview/index.html',
-  /** What AMCP reads of one snippet; the example runs to about a thousand characters (TP4), so this is a wide margin. */
+  /** What AMCP reads of one snippet; the example runs to a thousand characters or more (TP4), so this is a wide margin. */
   snippetLimit = 16384;
 
 /**
@@ -109,7 +117,11 @@ export function xPreviewBatches<T>(ids: readonly T[], size = xTweetPreviewBatch)
 
 /** An entity of X's own (campaign, line item, promoted Tweet): lower-case letters and digits. */
 const entityId = /^[a-z0-9]{1,32}$/,
-  /** A Tweet's own ID has 15 digits or more, which no entity ID of X has, so the two can be told apart. */
+  /**
+   * A Tweet's own ID has 15 digits or more. X's entity IDs are short lower-case base 36 (the documentation's examples have 5 to 11
+   * characters), so the two are told apart by their shape. If one were ever taken for the other, the ID would not be in the list it
+   * is looked up in and would be reported not found: nothing is previewed on a guess.
+   */
   tweetIdOf = /^[1-9][0-9]{14,24}$/,
   /** A Tweet ID as X's lists state it (src/x-portfolio.ts takes the same). */
   listedTweetId = /^[1-9][0-9]{0,24}$/;
@@ -215,7 +227,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
       await read({
         action: lineItemsAction,
         ...base,
-        query: {line_item_ids: unknown.join(','), with_deleted: true, with_draft: true, count: unknown.length},
+        query: {line_item_ids: unknown.join(','), with_deleted: true, with_draft: true, count: namedPage},
       }),
       account,
       unknown.length,
@@ -251,7 +263,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
         await read({
           action: promotedAction,
           ...base,
-          query: {promoted_tweet_ids: promotedNamed.join(','), with_deleted: true, count: promotedNamed.length},
+          query: {promoted_tweet_ids: promotedNamed.join(','), with_deleted: true, count: namedPage},
         }),
         account,
         promotedNamed.length,
@@ -279,7 +291,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
             tweet_type: 'PUBLISHED',
             timeline_type: 'NULLCAST',
             include_mentions_and_replies: true,
-            count: lookup.length,
+            count: namedPage,
           },
         }),
         account,

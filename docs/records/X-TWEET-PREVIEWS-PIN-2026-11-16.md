@@ -50,7 +50,9 @@ contracts` and the help of the action show it anchored and the advisory `read_un
   campaign. A Tweet named by its own ID is looked up among the account's dark Tweets (R3 with `timeline_type: NULLCAST`, for
   the default user) before it is previewed, since TP1 says nothing of whose Tweets are previewed; a Tweet named with its
   promoted Tweet is proven by that promotion. An ID that is neither an entity ID of X nor a Tweet ID (15 digits or more) is
-  not sent.
+  not sent. A read that names its IDs asks for a page of 200 (the most IDs X takes in a filter, R1 to R3), whatever number
+  it names, so that an answer with every ID is complete: X can end a page that is exactly as large as its page size with a
+  cursor, and one that still carries a cursor on a page of 200 is refused.
 - The Tweets of one call (at most ten) are previewed by one read with `tweet_type: PUBLISHED` (TP2, TP3), in batches of at most
   200. An entry is a Tweet, with the promoted-Tweet IDs of the call that share it.
 - Only the `src` of the `preview` iframe is read (TP4), and returned only when it is https on exactly `ton.twimg.com` at exactly
