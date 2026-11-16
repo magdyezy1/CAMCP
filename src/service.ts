@@ -51,7 +51,14 @@ import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
-import {connectorReadOnly, errorResult, MirrorError, readOnlyDeployment, untrustedProviderContent} from './errors.js';
+import {
+  connectorReadOnly,
+  errorResult,
+  MirrorError,
+  mismatchedAnswerDetails,
+  readOnlyDeployment,
+  untrustedProviderContent,
+} from './errors.js';
 import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
 import {currentRequestId} from './request-context.js';
 import {runWithQuotaPurpose} from './provider-quota.js';
@@ -153,43 +160,26 @@ const mediaReviewRequired = (media: JsonObject) =>
     next_call: {tool: 'amcp_media', arguments: media},
   });
 /**
- * The refusal of a write whose outcome says it did not succeed. When the family marks the outcome
- * `native_response_valid: false`, the provider's own answer did not match what AMCP reviewed (it is kept encrypted, and the
- * outcome's `response_mismatch` names where): the cause is the answer and no part of the request, so the refusal says that,
- * carries the facts, and its remedy is not to check access, scopes or tier (r12-gpreview, found live 2026-11-16, when
- * Google answered a shareable-preview generation with HTTP 200). Only fixed vocabulary goes into the error, which is AMCP's
- * own text: the fields a provider's answer added stay in the outcome, under data. Any other failed outcome is a provider
- * that reported an incomplete or failed mutation, as before.
+ * The refusal of a write whose outcome says it did not succeed. When the outcome is the one a family stores for "the
+ * provider's own answer did not match what AMCP reviewed" (`native_response_valid: false`, with nothing else in its data
+ * but the answer's hash and the closed-set facts of where it differed: mismatchedAnswerDetails, src/errors.ts), the cause is
+ * the answer and no part of the request, so the refusal says that, carries the facts, and its remedy is not to check access,
+ * scopes or tier (r12-gpreview, found live 2026-11-16, when Google answered a shareable-preview generation with HTTP 200).
+ * A provider's own body that carries the marker and fields of its own switches nothing (lead review S4-1). Any other failed
+ * outcome is a provider that reported an incomplete or failed mutation, as before.
  */
 const failedWrite = (result: JsonObject): MirrorError => {
-  const data = result.data;
-  if (!data || typeof data !== 'object' || data.native_response_valid !== false)
-    return new MirrorError(
-      'WRITE_PARTIAL_OR_FAILED',
-      'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.',
-    );
-  const mismatch = data.response_mismatch,
-    facts =
-      mismatch && typeof mismatch === 'object'
-        ? Object.fromEntries(
-            Object.entries(mismatch).filter(
-              ([, v]) =>
-                (typeof v === 'number' && Number.isSafeInteger(v)) ||
-                (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(v)),
-            ),
-          )
-        : {};
-  return new MirrorError(
-    'WRITE_PARTIAL_OR_FAILED',
-    'The provider answered, but its answer does not match what AMCP reviewed for this request, so AMCP did not accept it.',
-    {
-      native_response_valid: false,
-      ...(typeof data.response_hash === 'string' && /^[a-f0-9]{64}$/.test(data.response_hash)
-        ? {response_hash: data.response_hash}
-        : {}),
-      ...(Object.keys(facts).length ? {response_mismatch: facts} : {}),
-    },
-  );
+  const details = mismatchedAnswerDetails(result.data);
+  return details
+    ? new MirrorError(
+        'WRITE_PARTIAL_OR_FAILED',
+        'The provider answered, but its answer does not match what AMCP reviewed for this request, so AMCP did not accept it.',
+        details,
+      )
+    : new MirrorError(
+        'WRITE_PARTIAL_OR_FAILED',
+        'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.',
+      );
 };
 /** Content without a captured top-level success flag: the envelope carries success once (MCP-05). */
 function withoutSuccess(content: JsonObject): JsonObject {
@@ -556,12 +546,24 @@ export class MirrorService {
       category: 'write',
       run: async ({input, actor, tool, requestId, start}) => {
         const result: any = await this.reviewed(input, actor);
+        const wrapped = this.wrap(result, requestId, start, tool, input.action);
+        if (result.success !== false) return wrapped;
+        const refusal = errorResult(failedWrite(result), requestId, Date.now() - start),
+          marked = refusal.meta.untrusted_paths as string[] | undefined;
         return {
-          ...this.wrap(result, requestId, start, tool, input.action),
-          ...(result.success === false
+          ...wrapped,
+          success: false,
+          error: refusal.error,
+          // What the refusal's own details mark as a provider's text (response_mismatch) joins what the response marks (r12-gpreview).
+          ...(marked
             ? {
-                success: false,
-                error: errorResult(failedWrite(result), requestId, Date.now() - start).error,
+                meta: {
+                  ...wrapped.meta,
+                  untrusted_provider_content: untrustedProviderContent,
+                  untrusted_paths: [
+                    ...new Set([...((wrapped.meta.untrusted_paths as string[] | undefined) ?? []), ...marked]),
+                  ],
+                },
               }
             : {}),
         };

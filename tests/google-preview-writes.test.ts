@@ -1310,6 +1310,8 @@ test('the refusal of an answer that does not match says so, carries the facts an
     assert.deepEqual(e.data.data.response_mismatch.unexpected, ['requestId']);
     assert.ok(e.meta.untrusted_paths.includes('data'));
     assert.ok(!JSON.stringify(e.error).includes('requestId'));
+    // The error's own copy of the facts is marked untrusted too, like the provider's rows of tokens (lead review S4-1).
+    assert.deepEqual(e.meta.untrusted_paths, ['data', 'error.details.response_mismatch']);
     assert.ok(!JSON.stringify(e).includes('documented/preview-0'));
     // The remedy: what happened, that a new request will not help, and to report it; never to check access, scopes or tier.
     assert.match(e.error.remedy.action, /response did not match AMCP’s contract for this route/);
@@ -1386,6 +1388,42 @@ test('the live path: an outcome stored without its mismatch is explained on repl
     assert.equal(f.calls.length, sent);
     // The link is in none of the answers.
     for (const x of [e, again, late]) assert.ok(!JSON.stringify(x).includes('documented/preview-'));
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an entry that fails two of its checks still gets the refusal of an answer that does not match, with its list in the outcome only', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    f.reply(() =>
+      answerOf([wantedUi], a => {
+        previewsOf(a)[0].uiPreviewResult.shareablePreviewUrl = 'https://127.0.0.1/preview';
+        previewsOf(a)[0].expirationDateTime = 'tomorrow';
+        return a;
+      }),
+    );
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    // The outcome names both; the list is part of the family's own vocabulary, so it does not stop the refusal from saying
+    // the answer was not accepted (lead review S4-1), but only the first failure's own facts are in the error.
+    assert.deepEqual(e.data.data.response_mismatch, {
+      check: 'link',
+      reason: 'host_not_accepted',
+      entry: 0,
+      field: 'shareablePreviewUrl',
+      also: [{check: 'expiration', reason: 'format', entry: 0}],
+    });
+    assert.equal(e.error.message, mismatchMessage);
+    assert.deepEqual(e.error.details, {
+      native_response_valid: false,
+      response_hash: e.data.data.response_hash,
+      response_mismatch: {check: 'link', reason: 'host_not_accepted', entry: 0, field: 'shareablePreviewUrl'},
+    });
+    assert.match(e.error.remedy.action, /response did not match AMCP’s contract for this route/);
+    assert.ok(!JSON.stringify(e).includes('documented/preview-'));
   } finally {
     f.store.close();
   }
