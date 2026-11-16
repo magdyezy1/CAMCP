@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -380,7 +380,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // 828, 829 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // Its item 2 adds src/tiktok-write-reconciliation.ts, TikTok's lookup of an uncertain campaign, ad group or ad create, with no
   // reason of its own (it reads and classifies; it refuses nothing): 830.
-  assert.equal(files.length, 830);
+  // Its item 3 adds src/write-duplicates.ts, the guard against creating twice (a prepare of a create identical to an uncertain one is
+  // refused), whose refusal goes through the write stages' shared ail, so it owns no reason here: 831.
+  assert.equal(files.length, 831);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

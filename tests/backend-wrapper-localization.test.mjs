@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parsers} from 'prettier/plugins/babel';
 import {backendContractSourceFiles, inspectBackendWrapperFailures, localeProblems} from '../tools/check-locales.mjs';
@@ -336,7 +336,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adds the files of every package it is merged with to this number.
   // Its item 2 adds src/tiktok-write-reconciliation.ts, TikTok's lookup of an uncertain campaign, ad group or ad create, with no
   // wrapper reason of its own: 830.
-  assert.equal(files.length, 830);
+  // Its item 3 adds src/write-duplicates.ts, the guard against creating twice, whose refusal is raised through the write stages' shared
+  // ail (imported, not a wrapper this module defines): 831.
+  assert.equal(files.length, 831);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

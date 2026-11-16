@@ -126,6 +126,26 @@ export function writeClaim(store: Store, tenant: string, key: string): JsonObjec
     .prepare('SELECT state,result,created_at FROM idempotency WHERE tenant_id=? AND key=?')
     .get(tenant, key) as JsonObject | undefined;
 }
+/**
+ * The write claims of a workspace that are not settled (pending or uncertain), and those that completed since `since`
+ * (state, result, key, creation time), oldest first: what a prepare compares an identical create with (R2.5 M2, L5-06).
+ * The unsettled are few by nature; the completed are bounded to the newest 200.
+ */
+export function openWriteClaims(store: Store, tenant: string, since: number): JsonObject[] {
+  const unsettled = store
+    .sql()
+    .prepare(
+      "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state IN ('pending','uncertain') ORDER BY created_at",
+    )
+    .all(tenant) as JsonObject[];
+  const completed = store
+    .sql()
+    .prepare(
+      "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state='complete' AND created_at>? ORDER BY created_at DESC LIMIT 200",
+    )
+    .all(tenant, since) as JsonObject[];
+  return [...unsettled, ...completed.reverse()];
+}
 /** The write claim of an idempotency key with the fingerprint it was taken for (state, result, fingerprint). */
 export function writeClaimFingerprint(store: Store, tenant: string, key: string): JsonObject | undefined {
   return store

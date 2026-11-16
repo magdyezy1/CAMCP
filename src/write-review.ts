@@ -48,6 +48,7 @@ import {writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler} from './write-reconciliation.js';
 import {queueReconcile} from './write-reconcile-job.js';
+import {createsObjects, earlierCreates, refuseRepeatedCreate, repeatedCreateWarning} from './write-duplicates.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
@@ -897,6 +898,10 @@ export class WriteReviewService {
       input.supersedes_review_id !== undefined
         ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
         : undefined;
+    // A create identical to one that is uncertain or still being sent is not prepared again: it could make a second object.
+    // The review it replaces is the one exception, and one that completed in the last ten minutes only warns (R2.5 M2, L5-06).
+    const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, supersedes) : undefined;
+    if (earlier?.unresolved.length) refuseRepeatedCreate(earlier.unresolved);
     if (input.provider_check === true && !providerValidationRequest(plan))
       fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
         field: 'provider_check',
@@ -1040,6 +1045,7 @@ export class WriteReviewService {
       execute_requirements: requirements,
       ...(approval ? {approval} : {}),
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
       summary: reviewSummary(plan, state),
       effect: effectClass(plan, state),
       ...(effects ? {effects} : {}),
