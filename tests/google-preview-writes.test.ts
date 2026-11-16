@@ -562,11 +562,16 @@ test('rejected requests and malformed or expired receipts keep the original clai
         } else
           assert.equal(e.data.previews.results.filter((r: JsonObject) => r.status === 'generated').length, 0, mode);
         assert.ok(!JSON.stringify(e.data.previews).includes('127.0.0.1'));
-        // The next step follows the answer (r12-gpreview): one AMCP did not accept shows no link and says so, and one it did
-        // accept, whether some or all of its previews had expired, keeps the step it had.
+        // The next step follows the answer (r12-gpreview): one AMCP did not accept shows no link and says so; one it did accept
+        // with some previews expired keeps the step it had; one it did accept whose previews have all expired says the links
+        // expired and that a new generation needs a new review (found-not-fixed 2 of the first review, kept by the lead).
         assert.match(
           e.data.previews.next_action,
-          ['one_expired', 'expired'].includes(mode) ? /^Open a generated link/ : /^No link is shown/,
+          mode === 'one_expired'
+            ? /^Open a generated link/
+            : mode === 'expired'
+              ? /^The links of this generation have expired and none is shown\. A new generation needs a new review\./
+              : /^No link is shown/,
           mode,
         );
       }
@@ -1644,6 +1649,28 @@ test('the delivery of a stored refusal, and of a stored acceptance, follow one c
   assert.equal(open.previews.status, 'generated');
   assert.equal(open.previews.results.length, 1);
   assert.match(open.previews.next_action, /^Open a generated link/);
+  // Not refused, and every preview of the accepted answer has expired: no link is shown, and the step says why (found-not-fixed
+  // 2 of the first review), where "Open a generated link" named one that is not there.
+  const lapsed = documentedResponse([wantedUi]) as JsonObject;
+  previewsOf(lapsed)[0].expirationDateTime = new Date(Date.now() - 60000).toISOString();
+  const expired = googlePreviewDelivery(p, acceptedOutcome(), lapsed);
+  assert.equal(expired.previews.status, 'unavailable');
+  assert.deepEqual(
+    expired.previews.results.map((x: JsonObject) => x.status),
+    ['expired'],
+  );
+  assert.match(
+    expired.previews.next_action,
+    /^The links of this generation have expired and none is shown\. A new generation needs a new review\. Never repeat a successful or uncertain generation automatically\.$/,
+  );
+  assert.doesNotMatch(expired.previews.next_action, /Open a generated link/);
+  assert.ok(!JSON.stringify(expired).includes('documented/preview-'));
+  // Some previews still live: the step it had.
+  const half = documentedResponse([wantedUi, wantedSecond]) as JsonObject;
+  previewsOf(half)[1].expirationDateTime = new Date(Date.now() - 60000).toISOString();
+  const some = googlePreviewDelivery(compiled([ui, second]), acceptedOutcome(), half);
+  assert.equal(some.previews.status, 'partial');
+  assert.match(some.previews.next_action, /^Open a generated link/);
   // Not refused, and the answer is not accepted now (a later release tightened the guard): no link, no mismatch named in the
   // outcome, and a step that does not point to one.
   const tightened = googlePreviewDelivery(p, acceptedOutcome(), refusedRaw);

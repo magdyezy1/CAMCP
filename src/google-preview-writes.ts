@@ -558,7 +558,10 @@ export function googlePreviewDelivery(p: CompiledRequest, outcome: JsonObject, r
             ? 'No link is shown. This answer was not accepted when it arrived, and a refusal that was stored stays a refusal, though this release of AMCP accepts the answer now (data.response_mismatch says so). A fresh generation needs a new review. Never repeat a successful or uncertain generation automatically.'
             : 'No link is shown, because the provider’s answer did not match what AMCP reviewed. The answer stays encrypted for recovery; report the mismatch in data.response_mismatch to support. Never repeat a successful or uncertain generation automatically.'
           : rows
-            ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
+            ? rows.some(r => r.status === 'generated')
+              ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
+              : // An accepted answer whose previews have all expired shows no link, so none is to be opened.
+                'The links of this generation have expired and none is shown. A new generation needs a new review. Never repeat a successful or uncertain generation automatically.'
             : 'No link is shown, because this release of AMCP does not accept the answer kept for this generation. A new generation needs a new review. Never repeat a successful or uncertain generation automatically.',
     },
   };
