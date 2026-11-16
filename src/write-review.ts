@@ -27,6 +27,7 @@ import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
 import {materialFields, surfacedMaterial} from './review-diff.js';
+import {recurringStatePaths} from './review-friction.js';
 import {accountWriteGranted, assertAccountWrite} from './write-access.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
@@ -1295,10 +1296,13 @@ export class WriteReviewService {
       actualHash = reviewStateHash(current);
     const creativeImpact = writeImpact(plan, current, review.creative_edit_confirmed === true, review.connection_id);
     if (actualHash !== expectedHash) {
-      const changed = changedStateFields(expectedState, current);
-      // R25 M1 (L5-04, T2): the refusal says which of the changed fields matter (`material`) and hands back the call that
-      // prepares the same request again. The check is as strict as it was: every changed path still refuses, nothing is
-      // claimed or sent, and no flag or retry exists. Preparing again is a call for the agent and the user to make.
+      const changed = changedStateFields(expectedState, current),
+        // The paths that changed in this provider's recent refusals too: left out when the audit cannot be read.
+        recurring = recurringStatePaths(this.store, actor.tenantId, plan.gateway, changed, {review: input.review_id});
+      // R25 M1 (L5-04, T2): the refusal says which of the changed fields matter (`material`), which of them changed in
+      // the provider's recent refusals too (`recurring_paths`), and hands back the call that prepares the same request
+      // again. The check is as strict as it was: every changed path still refuses, nothing is claimed or sent, and no
+      // flag or retry exists. Preparing again is a call for the agent and the user to make.
       fail(
         'STATE_CHANGED',
         'The provider configuration changed after preparation. Prepare and review a fresh request.',
@@ -1306,7 +1310,10 @@ export class WriteReviewService {
           expected_state_hash: expectedHash,
           actual_state_hash: actualHash,
           changed_fields: changed,
+          // The provider, so that the audit of refusals can tell its refusals from another provider's.
+          gateway: plan.gateway,
           ...surfacedMaterial(materialFields(changed, review.reads, plan)),
+          ...(recurring ? {recurring_paths: recurring} : {}),
           ...expiredNext(review),
         },
       );

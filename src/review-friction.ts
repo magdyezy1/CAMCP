@@ -1,6 +1,6 @@
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
-import {writeAuditEvents} from './audit-repository.js';
+import {stateChangedRefusals, writeAuditEvents} from './audit-repository.js';
 
 /**
  * How much friction reviewed writes meet (WRT-05 Stage F), read from the audit the review service already writes:
@@ -24,6 +24,70 @@ const percentile = (sorted: number[], p: number) =>
   sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)]! : null;
 const rate = (n: number, prepares: number) => (prepares ? Math.round((n / prepares) * 10000) / 100 : null);
 const path = (v: unknown) => (typeof v === 'string' && v.length <= 300 && !/[\u0000-\u001f]/.test(v) ? v : undefined);
+
+/**
+ * Audit rows a refusal looks back over, newest first, and the refusals it reads from them: a bound, not a window. A refusal
+ * is rare and its read runs on the request path, so it is kept to a few thousand rows (a busy launch writes a few rows per
+ * write, so this is hours of one), and the paths that recur are the ones that change on every prepare, not once a month.
+ */
+export const recurringScanRows = 5000;
+const recurringRefusals = 200;
+/** How many recurring paths a refusal lists, the most often named first: the top ten of the owner's view. */
+export const recurringPathLimit = 10;
+
+/**
+ * The paths of a STATE_CHANGED refusal that the workspace's recent refusals of the same provider named too (R25 M1,
+ * L5-04): the answer of the friction data to "is this a one-off, or does it change on every prepare". The refusal lists
+ * them as `recurring_paths`, and its remedy asks the agent to report them: a field that changes by itself is probably being
+ * compared. Paths only, never values, read from the same audit as `state_changed_paths`. The refusal being raised is not
+ * in the audit yet, and the review it concerns (`options.review`) is left out, so one review refused twice is one prepare
+ * and does not recur. Refusals written before they carried the provider's name are not attributed to any provider.
+ *
+ * Undefined when the audit cannot be read: recurrence is then unknown, never an empty answer made up.
+ */
+export function recurringStatePaths(
+  store: Store,
+  tenant: string,
+  gateway: string,
+  paths: readonly string[],
+  options: {review?: string; now?: number; days?: number} = {},
+): string[] | undefined {
+  const wanted = new Set(paths);
+  if (!wanted.size) return [];
+  const now = options.now ?? Date.now();
+  let rows: {event: string}[];
+  try {
+    rows = stateChangedRefusals(
+      store,
+      tenant,
+      now - (options.days ?? 30) * 86400000,
+      now,
+      recurringScanRows,
+      recurringRefusals,
+    );
+  } catch {
+    return undefined;
+  }
+  const named = new Map<string, number>();
+  for (const row of rows) {
+    let event: JsonObject;
+    try {
+      event = JSON.parse(row.event);
+    } catch {
+      continue;
+    }
+    const error = event.outcome?.success === false ? event.outcome.error : undefined;
+    if (error?.code !== 'STATE_CHANGED' || error.details?.gateway !== gateway) continue;
+    if (options.review !== undefined && event.input?.review_id === options.review) continue;
+    const fields: unknown[] = Array.isArray(error.details.changed_fields) ? error.details.changed_fields : [];
+    for (const field of new Set(fields))
+      if (typeof field === 'string' && wanted.has(field)) named.set(field, (named.get(field) ?? 0) + 1);
+  }
+  return [...named]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .slice(0, recurringPathLimit)
+    .map(([field]) => field);
+}
 
 export function reviewFriction(store: Store, tenant: string, days = 30, now = Date.now()): JsonObject {
   const since = now - days * 86400000;
