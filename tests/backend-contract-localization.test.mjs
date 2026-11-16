@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -382,7 +382,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // reason of its own (it reads and classifies; it refuses nothing): 830.
   // Its item 3 adds src/write-duplicates.ts, the guard against creating twice (a prepare of a create identical to an uncertain one is
   // refused), whose refusal goes through the write stages' shared ail, so it owns no reason here: 831.
-  assert.equal(files.length, 831);
+  // Its rework (lead review S2-3) adds src/created-agreement.ts, the rule that a created lookup counts a match as this write's only when the
+  // fields the review froze agree, which refuses nothing and has no reason of its own: 832.
+  assert.equal(files.length, 832);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -585,7 +587,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m2-reconcile (item 1, L5-05): +3 entries, the website's words for the automatic check of an uncertain write
   // (web/operations-center.js: that AMCP made it, when it looks again, and that its attempts ran out; website messages, not
   // refusal reasons): 12,156 + 3 = 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
-  assert.equal(Object.keys(catalog).length, 12159);
+  // Its rework (lead review): +2 entries, the Arabic of the two refusals of the permanent supersede (S2-2: a replaced write is settled, and
+  // a check is dropped when the write settles while the provider is read), and +3, the Arabic of the remedies of the duplicate guard's two
+  // codes (S3-5: DUPLICATE_OF_UNCERTAIN_WRITE for a create AMCP can look up and for one it cannot, and DUPLICATE_OF_COMPLETED_WRITE):
+  // 12,159 + 5 = 12,164. Measured: node tools/check-locales.mjs, catalog_messages 12164.
+  assert.equal(Object.keys(catalog).length, 12164);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

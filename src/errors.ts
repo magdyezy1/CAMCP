@@ -820,6 +820,27 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'Nothing was applied and this key is never sent again. Correct what the provider error names and prepare a new review; in a campaign plan, recover_step amends the step.',
       mutation_retry_safe: false,
     };
+  // R2.5 M2 (lead review S3-5): the guard against creating twice (src/write-duplicates.ts). A create AMCP cannot look up by reading
+  // the provider is never settled by reconcile or a replacement, so its remedy is the person's check at the provider and a
+  // changed request, not the path of one it can look up.
+  if (e.code === 'DUPLICATE_OF_UNCERTAIN_WRITE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        e.details.earlier_checkable === false
+          ? 'Nothing was prepared or sent. An identical create is unresolved, and AMCP cannot check this kind of create by reading the provider, so it cannot say whether it was applied, and a new review cannot replace it. Check the provider for the object yourself (details.earlier_review_id names the earlier review when you may read it). If the object exists, use it and do not create it again. If it does not, change the request, its name for example: a changed request is a new create and is not held back.'
+          : 'Nothing was prepared or sent. An identical create is already uncertain or still being sent, so another could make a second object. Settle that review first (details.next_call): read amcp_write status, or run reconcile, which reads the provider. If reconcile finds it was not applied, prepare this request again with supersedes_review_id set to its review_id; if it was applied, the user accepts it (accept_applied). If the earlier review belongs to a colleague (details.readable is false), ask them or the workspace owner to settle it.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DUPLICATE_OF_COMPLETED_WRITE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was sent. An identical create completed after this review was prepared, so executing it would make a second object. Prepare the request again (details.next_call): the new review carries the warning, and it is executed only if the user wants two.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'REVIEW_HELD_ELSEWHERE')
     return {
       category: 'state',

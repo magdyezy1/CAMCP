@@ -60,6 +60,12 @@ export const createsObjects = (plan: CompiledRequest): boolean =>
 /** One earlier create of the same request: its state, and what the reader may be told of it. */
 export interface EarlierCreate {
   state: 'executing' | 'uncertain' | 'complete';
+  /**
+   * Whether AMCP can look that create up by reading the provider (a created lookup exists for it). Where it cannot (Snapchat, X,
+   * LinkedIn, Microsoft, Reddit, Smart+), reconcile only answers no_read_contract and a replacement needs a reconciliation that
+   * found the write not applied, so the earlier create can never be settled by AMCP: only the person, at the provider.
+   */
+  checkable: boolean;
   /** Set only for a reader who may read that review: its ID, when it was claimed and the call that settles it. */
   review_id?: string;
   claimed_at?: string;
@@ -75,7 +81,8 @@ function readable(store: Store, actor: Actor, id: string): Pick<EarlierCreate, '
 }
 /**
  * The earlier creates of the same request in the workspace: those unresolved (uncertain, or pending: still being sent) and
- * those that completed within ten minutes. A review that a replacement superseded holds nothing unresolved, and the reviews in`n * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one.
+ * those that completed within ten minutes. A review that a replacement superseded holds nothing unresolved, and the reviews in
+ * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one.
  */
 export function earlierCreates(
   store: Store,
@@ -111,6 +118,7 @@ export function earlierCreates(
       named = readable(store, actor, id);
     (state === 'complete' ? completed : unresolved).push({
       state,
+      checkable: findCreated(review.plan) !== undefined,
       ...(named
         ? {
             review_id: named.review_id,
@@ -128,13 +136,24 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObj
   fail(
     'DUPLICATE_OF_UNCERTAIN_WRITE',
     'An identical create is already uncertain or still being sent, so this one could make a second object. ' +
-      (named.review_id
-        ? 'Settle that review first (next_call): read its status, or reconcile it with read-only lookups. If it was not applied, prepare this request again with supersedes_review_id set to its review_id; if it was applied, accept that.'
-        : 'It belongs to a colleague: ask them, or the workspace owner, to settle it. Nothing was prepared or sent.'),
+      (!named.checkable
+        ? // Lead review S3-5: reconcile and a replacement cannot settle this kind of create, so the refusal does not ask for them.
+          'AMCP cannot check that kind of create by reading the provider, so it cannot say whether it was applied, and a new review cannot replace it. Check the provider for the object. If it exists, use it and do not create it again; if it does not, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'
+        : named.review_id
+          ? 'Settle that review first (next_call): read its status, or reconcile it with read-only lookups. If it was not applied, prepare this request again with supersedes_review_id set to its review_id; if it was applied, accept that.'
+          : 'It belongs to a colleague: ask them, or the workspace owner, to settle it. Nothing was prepared or sent.'),
     {
       earlier_state: named.state,
+      earlier_checkable: named.checkable,
       ...(named.review_id
-        ? {earlier_review_id: named.review_id, earlier_claimed_at: named.claimed_at, next_call: named.next_call}
+        ? {
+            earlier_review_id: named.review_id,
+            earlier_claimed_at: named.claimed_at,
+            // Reconcile cannot settle what AMCP cannot look up: the status call shows the review, the person checks the provider.
+            next_call: named.checkable
+              ? named.next_call
+              : {tool: 'amcp_write', arguments: {action: 'status', review_id: named.review_id}},
+          }
         : {readable: false}),
       unresolved: unresolved.length,
       ...extra,
@@ -157,7 +176,7 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
  * nothing and two executes cannot both pass. A review has a claim only from its execute on, so two identical creates prepared before
  * either was sent were invisible to the guard at prepare. A create is refused when an identical one is unresolved (the earlier review
  * is named, as at prepare), or completed in the last ten minutes when this review carried no warning for it: the person sees the
- * warning first, by preparing again (the refusal's own code, gain its call), and may still want two. The review that replaces an
+ * warning first, by preparing again (the refusal's own code, with its call), and may still want two. The review that replaces an
  * uncertain write is excused for that one, as at prepare.
  */
 export function assertCreateNotRepeated(

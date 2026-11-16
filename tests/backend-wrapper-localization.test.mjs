@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parsers} from 'prettier/plugins/babel';
 import {backendContractSourceFiles, inspectBackendWrapperFailures, localeProblems} from '../tools/check-locales.mjs';
@@ -338,7 +338,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // wrapper reason of its own: 830.
   // Its item 3 adds src/write-duplicates.ts, the guard against creating twice, whose refusal is raised through the write stages' shared
   // ail (imported, not a wrapper this module defines): 831.
-  assert.equal(files.length, 831);
+  // Its rework (lead review S2-3) adds src/created-agreement.ts, the rule that a created lookup counts a match as this write's only when the
+  // fields the review froze agree, with no wrapper reason of its own: 832.
+  assert.equal(files.length, 832);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -358,7 +360,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r12-fix (item 2, V2-RPT-07): the X population's parent refusal (src/x-overview-detail.ts refuse()) is now two
   // sentences, one for the campaign of line items and one for the line item of promoted tweets, each with its own Arabic; the
   // earlier sentence stays for a malformed objective (it was one sentence raised from two places): 2914 + 2.
-  assert.equal(owned.size, 2916);
+  // Its rework (lead review S2-2) adds two refusals of src/write-reconciliation.ts, raised through its own fail(): a write that a new review
+  // replaced is settled (never reconciled, accepted or replaced again), and a check dropped because the write settled while the provider
+  // was read: 2916 + 2.
+  assert.equal(owned.size, 2918);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -518,7 +523,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m2-reconcile (item 1, L5-05): +3 entries, the website's words for the automatic check of an uncertain write
   // (web/operations-center.js; website messages, not owned wrapper reasons: owned.size below does not move): 12,156 + 3 =
   // 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
-  assert.equal(Object.keys(catalog).length, 12159);
+  // Its rework (lead review): +2 entries, the Arabic of the two refusals of the permanent supersede (S2-2: a replaced write is settled, and
+  // a check is dropped when the write settles while the provider is read), and +3, the Arabic of the remedies of the duplicate guard's two
+  // codes (S3-5: DUPLICATE_OF_UNCERTAIN_WRITE for a create AMCP can look up and for one it cannot, and DUPLICATE_OF_COMPLETED_WRITE):
+  // 12,159 + 5 = 12,164. Measured: node tools/check-locales.mjs, catalog_messages 12164.
+  assert.equal(Object.keys(catalog).length, 12164);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
