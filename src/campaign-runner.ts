@@ -56,6 +56,7 @@ import {
   backgroundRunView,
   BACKGROUND_RUN_KIND,
   enqueueBackgroundRun,
+  heldByStateCheck,
   independentUploads,
   nextUpload,
   serverPushEnabled,
@@ -247,6 +248,19 @@ const alreadyCurrent = (step: JsonObject, error: JsonObject | undefined) =>
  */
 export const unsentStateChange = (error: JsonObject | undefined, claim: JsonObject | undefined) =>
   refusedByStateCheck(error) && !claim;
+/**
+ * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
+ * one reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
+ */
+const stateChangedReason = (stepId: unknown, prepared: boolean): string =>
+  'Step ' +
+  String(stepId) +
+  (prepared ? ' was refused earlier' : ' was refused') +
+  ' because the provider’s state changed after its review was prepared. ' +
+  (prepared
+    ? 'It is prepared again over the state as it is now, and nothing was sent: show the user this review, then execute_next with it. run stops here so that the new review is shown before anything is sent. '
+    : 'Nothing was sent. Show the user what changed (current.error.details.material, then changed_fields). prepare_next prepares the step again over the state as it is now, and so does run: either returns the new review before anything is sent, and execute_next with that review is the call that sends it. ') +
+  'No flag skips this check.';
 /**
  * A build its provider refused outright, which provably created nothing (its adapter's `campaign.refusedBuild`, ARC-01
  * phase B: Google's googleAds:mutate builds without partial failure refused with a definitive 4xx, the owner's decision
@@ -825,10 +839,21 @@ export class CampaignRunner {
     // In a plan of independent uploads (a creative push) one failed, uncertain or processing upload holds none of the
     // others: run moves every upload it can, then stops for the rest (MED-03 B). Other plans stop at the first one.
     const uploads = independentUploads(run);
+    // R25 M1 (L5-04): the last execute of this call that a refusal of the state check sent back to pending. In a push of
+    // independent uploads the other uploads move first, and the run stops with it once nothing else can.
+    let refusedHere: JsonObject | undefined;
     for (let i = 0; i < run.steps.length * 3 + 3; i++) {
       if (Date.now() - started > 25000)
         return stop(this.respond({}, this.owned(actor, run.id)), 'time', {
           next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+        });
+      // The steps a refusal of the state check sent back to pending, in this call or in an earlier one.
+      const current = this.owned(actor, run.id),
+        held = new Set<string>(current.steps.filter(heldByStateCheck).map((s: JsonObject) => s.id));
+      if (uploads && refusedHere && held.size && !nextUpload(current))
+        return stop(refusedHere, 'state_changed', {
+          reason: stateChangedReason([...held][0], false),
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });
       const ask: JsonObject = this.approved({action: 'prepare_next', id: run.id});
       if (uploads) this.pastStopped.add(ask);
@@ -854,6 +879,15 @@ export class CampaignRunner {
           continue;
         return stop(view, view.blocked ? 'needs_attention' : 'waiting');
       }
+      // Lead review S2-1: a step that a refusal of the state check sent back to pending, in an earlier call, is prepared
+      // again here over the state as it is now, and the run STOPS with the new review: the plan's approval is of the plan, not
+      // of a state that moved, so the new review is shown before anything is sent. Only an explicit call sends it
+      // (execute_next with this review); no flag skips the check, and nothing here retries it.
+      if (prepared.review && typeof prepared.step_id === 'string' && held.has(prepared.step_id))
+        return stop(prepared, 'state_changed', {
+          reason: stateChangedReason(prepared.step_id, true),
+          next_call: prepared.next_call,
+        });
       // A review still ready from an earlier call carries its requirements inside the review view.
       const needs = prepared.execute_requirements ?? prepared.review?.execute_requirements ?? {};
       const human = needs.cap_override_confirmed
@@ -891,19 +925,22 @@ export class CampaignRunner {
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
         return stop(out, 'needs_attention');
       // R25 M1 (L5-04): a step refused for a changed provider state went back to pending, unsent. The plan's approval is of
-      // the plan, not of a state that moved after the review, so run never prepares and executes that step again on its
-      // own: it stops, whether or not the plan is a push of independent uploads, and the agent and the user decide.
+      // the plan, not of a state that moved after the review, so run never prepares and executes that step again in this
+      // call. A plan stops at once. A push of independent uploads moves the other uploads first (lead review S3-1): it
+      // stops with this one when nothing else can move, and the agent and the user decide.
       if (
         step?.status === 'pending' &&
         (typeof step.error === 'string' ? step.error : step.error?.code) === 'STATE_CHANGED'
-      )
+      ) {
+        if (uploads) {
+          refusedHere = out;
+          continue;
+        }
         return stop(out, 'state_changed', {
-          reason:
-            'Step ' +
-            prepared.step_id +
-            ' was refused because the provider’s state changed after its review was prepared. Nothing was sent. Show the user what changed (current.error.details.material, then changed_fields); prepare_next prepares the step again over the state as it is now, and run continues after that. No flag skips this check.',
+          reason: stateChangedReason(prepared.step_id, false),
           next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });
+      }
       // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
       // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
       // The review stays ready; run continues once the person has acted. A compact row names only the error code.
@@ -1521,8 +1558,12 @@ export class CampaignRunner {
     let next = run.steps.find((s: JsonObject) => !settled(s));
     if (!next) return this.respond(input, {...run, state: 'complete'}, undefined, activationOffer(run));
     // In a plan of independent uploads run moves past an upload that needs a person: it prepares the next one, and
-    // executes the exact review it just prepared (MED-03 B).
-    if (this.pastStopped.has(input) && ['uncertain', 'failed', 'processing'].includes(next.status))
+    // executes the exact review it just prepared (MED-03 B). An upload a refusal of the state check sent back to pending
+    // waits for a person as well (lead review S3-1).
+    if (
+      this.pastStopped.has(input) &&
+      (['uncertain', 'failed', 'processing'].includes(next.status) || heldByStateCheck(next))
+    )
       next =
         (input.action === 'execute_next'
           ? run.steps.find(

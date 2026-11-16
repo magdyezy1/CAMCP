@@ -228,7 +228,7 @@ test('the old review of a refused step cannot be executed, whatever the step has
   }
 });
 
-test('run never prepares and executes a step again after its state changed: it stops, and the agent and user decide', async () => {
+test('run never prepares and executes a step again after its state changed: it stops, then shows the new review and stops again', async () => {
   const f = setup();
   try {
     const id = await approvedPlan(f);
@@ -243,12 +243,56 @@ test('run never prepares and executes a step again after its state changed: it s
     assert.equal(f.writes.length, 0, 'nothing was sent');
     // The run did not re-prepare on its own: the one review it prepared is the only one.
     assert.equal(f.reviews().length, 1, 'no second review was prepared');
-    // Called again, it is the user's decision: the step is prepared again over the state as it is, and the plan completes.
+    // Lead review S2-1: called again, it prepares the step over the state as it is now and STOPS with the new review: the
+    // plan approval never carries the write across a state that moved without the new review being shown first.
+    const shown = await f.call({action: 'run', id});
+    assert.equal(shown.success, true, JSON.stringify(shown).slice(0, 1200));
+    assert.equal(shown.data.run.stopped, 'state_changed', JSON.stringify(shown.data.run));
+    assert.deepEqual(shown.data.run.executed, [], 'nothing was executed in this call');
+    assert.equal(f.writes.length, 0, 'the second run sent nothing');
+    assert.equal(f.reviews().length, 2, 'the step was prepared again, once');
+    assert.equal(row(await f.call({action: 'get', id})).status, 'review_ready');
+    const review = shown.data.review;
+    assert.ok(review?.review_id, 'the new review is returned');
+    assert.equal(JSON.stringify(shown.data).includes('"EUR"'), true, 'reviewed on the new state');
+    const execute = {
+      tool: 'amcp_campaign',
+      arguments: {
+        action: 'execute_next',
+        id,
+        review_id: review.review_id,
+        idempotency_key: review.idempotency_key,
+        confirmed: true,
+      },
+    };
+    assert.deepEqual(shown.data.run.next_call, execute);
+    assert.deepEqual(shown.data.next_call, execute);
+    assert.match(shown.data.run.reason, /No flag skips this check/);
+    // Only an explicit execute_next with that review sends it, once.
+    const done = await f.call(execute.arguments);
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
+    assert.equal(f.writes.length, 1, 'exactly one write');
+    assert.equal(done.data.state, 'complete');
+    assert.equal(f.reviews().length, 2, 'the second review is the one it sent');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a step prepared again after a changed state and left ready is not refused for it again, and a later run sends only that review', async () => {
+  const f = setup();
+  try {
+    const id = await approvedPlan(f);
+    f.behaviour.changeOnExecute = 'EUR';
+    await f.call({action: 'run', id});
+    const shown = await f.call({action: 'run', id});
+    assert.equal(shown.data.run.stopped, 'state_changed');
+    // The review is the person's to execute. A run called after it sends the review that was shown, not another one.
     const done = await f.call({action: 'run', id});
     assert.equal(done.success, true, JSON.stringify(done).slice(0, 1200));
     assert.equal(done.data.run.stopped, 'complete', JSON.stringify(done.data.run));
     assert.equal(f.writes.length, 1, 'exactly one write');
-    assert.equal(f.reviews().length, 2, 'the second review is the one it sent');
+    assert.equal(f.reviews().length, 2, 'no third review was prepared');
   } finally {
     f.store.close();
   }
