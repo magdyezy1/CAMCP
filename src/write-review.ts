@@ -67,6 +67,7 @@ import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
+  providerCheckUnavailable,
   providerValidationRequest,
   providerValidationScope,
   runProviderValidation,
@@ -694,7 +695,14 @@ export class WriteReviewService {
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
     if (input.provider_check !== undefined && (typeof input.provider_check !== 'boolean' || input.action !== 'prepare'))
-      fail('INVALID_ARGUMENT', 'provider_check is a boolean that prepare takes.', {field: 'provider_check'});
+      fail(
+        'INVALID_ARGUMENT',
+        // T2 (R25 M1): at execute it is not a flag to pass. It asks the provider to validate, and never skips AMCP's check.
+        input.action === 'prepare'
+          ? 'provider_check is a boolean that prepare takes.'
+          : 'provider_check is an argument of prepare only: it asks the provider to validate a request without applying it. It does not skip AMCP’s state check, which no flag skips.',
+        {field: 'provider_check'},
+      );
     if (
       input.destructive_confirmed !== undefined &&
       (typeof input.destructive_confirmed !== 'boolean' || input.action !== 'execute')
@@ -826,6 +834,8 @@ export class WriteReviewService {
           live_permissions_verified: false,
           account_capability: accountCapability,
           provider_check_available: providerValidationRequest(plan) !== undefined,
+          // T2 (R25 M1): a request with no provider check says why, and that this is not AMCP's own state check.
+          ...(providerValidationRequest(plan) === undefined ? {provider_check_reason: providerCheckUnavailable} : {}),
           // The request's effect class (src/effect-class.ts, RPT-06).
           effect: effectClass(plan),
           requirements: {
