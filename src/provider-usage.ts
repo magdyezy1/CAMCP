@@ -15,8 +15,15 @@ export interface UsageObservation {
   readonly scope: string;
   /** How much of the limit is used, in percent: 0 or more, and over 100 where the provider says so. */
   readonly usage_pct?: number;
-  /** How long the provider says access stays blocked, set only for a bucket it says is blocked now. */
+  /** How long the provider says access stays blocked, set only for a bucket it says is blocked now and names a wait for. */
   readonly regain_ms?: number;
+  /** The provider says the bucket is blocked now and names no wait for it: a bucket with a `regain_ms` is blocked without this. */
+  readonly blocked?: true;
+  /**
+   * The bucket limits only the requests the provider's `UsageProfile.scopeOf` counts in `scope`, not every request of its level
+   * (a Meta business use case): its block refuses and counts those requests alone (S3-1 of the lead's review).
+   */
+  readonly requestScoped?: true;
 }
 
 /**
@@ -26,6 +33,10 @@ export interface UsageObservation {
 export interface UsageProfile {
   readonly exposed: boolean;
   read?(headers: Headers, plan: CompiledRequest): readonly UsageObservation[];
+  /** The request-scoped bucket a request is counted in, by the `scope` `read` files it under; undefined for a request none limits. */
+  scopeOf?(plan: CompiledRequest): string | undefined;
+  /** What `scopeOf` can name: a block of any other request-scoped bucket is shown in the view and never paces. */
+  readonly scopes?: readonly string[];
 }
 /** A provider that sends no usage header (Google's APIs: only a throttle carries a delay). */
 export const usageNotExposed: UsageProfile = Object.freeze({exposed: false});
@@ -77,16 +88,18 @@ export interface UsageKeys {
   login: string;
   account: string;
 }
-/** A bucket that is blocked, with the key of its level and for how long, in milliseconds from now. */
+/** A bucket that is blocked, with the key of its level and for how long, in milliseconds from now; `scope` for a request-scoped one. */
 export interface UsageBlock {
   key: string;
   ms: number;
+  scope?: string;
 }
 interface Entry {
   level: 'login' | 'account';
   rateKey: string;
   provider: string;
   scope: string;
+  requestScoped?: true;
   usage_pct?: number;
   regain_ms?: number;
   at: number;
@@ -102,8 +115,9 @@ export class ProviderUsage {
   }
   /**
    * Keeps what a response reported, one record per bucket (a newer one replaces it), and returns the buckets it says are blocked
-   * now: at or over 100 percent, or with a wait the provider names. A provider's own reader drops what is not a percentage or a
-   * wait; this keeps only what the type names.
+   * now: the ones a provider's reader marks blocked, or with a wait it names. What counts as blocked is the provider's
+   * (Meta throttles a bucket when a percentage passes 100, a business use case when it names a wait), never a percentage here. A
+   * provider's own reader drops what is not a percentage or a wait; this keeps only what the type names.
    */
   record(
     provider: string,
@@ -115,7 +129,7 @@ export class ProviderUsage {
     for (const o of observations) {
       const rateKey = o.level === 'login' ? keys.login : keys.account,
         key = o.level + '\0' + rateKey + '\0' + o.scope,
-        blocked = (o.regain_ms ?? 0) > 0 || (o.usage_pct ?? 0) >= 100,
+        blocked = o.blocked === true || (o.regain_ms ?? 0) > 0,
         ms = blocked ? Math.min(dayMs, Math.ceil(o.regain_ms ?? unnamedWaitMs)) : 0;
       this.entries.delete(key);
       if (this.entries.size >= maxEntries) this.evict(now);
@@ -124,12 +138,13 @@ export class ProviderUsage {
         rateKey,
         provider,
         scope: o.scope,
+        ...(o.requestScoped ? {requestScoped: true as const} : {}),
         ...(o.usage_pct !== undefined ? {usage_pct: o.usage_pct} : {}),
         ...(o.regain_ms !== undefined ? {regain_ms: o.regain_ms} : {}),
         at: now,
         ...(blocked ? {blockedUntil: now + ms} : {}),
       });
-      if (blocked) blocks.push({key: rateKey, ms});
+      if (blocked) blocks.push({key: rateKey, ms, ...(o.requestScoped ? {scope: o.scope} : {})});
     }
     return blocks;
   }
@@ -145,11 +160,29 @@ export class ProviderUsage {
       }))
       .sort((a, b) => (a.scope < b.scope ? -1 : a.scope > b.scope ? 1 : 0));
   }
-  /** When the latest block known for a login or an account ends (wall-clock milliseconds), or undefined when none is in force. */
+  /**
+   * When the latest block known for a login or an account ends (wall-clock milliseconds), or undefined when none is in force: any
+   * bucket's, which is what the view shows.
+   */
   blockedUntil(keys: UsageKeys, now: number = Date.now()): number | undefined {
+    return this.latest(keys, now, () => true);
+  }
+  /**
+   * When the latest block that applies to a request counted in `scope` ends: the blocks of its login and account, and of its own
+   * request-scoped bucket; a block of another bucket does not stop it.
+   */
+  blockedUntilFor(keys: UsageKeys, scope: string | undefined, now: number = Date.now()): number | undefined {
+    return this.latest(keys, now, e => !e.requestScoped || e.scope === scope);
+  }
+  private latest(keys: UsageKeys, now: number, applies: (e: Entry) => boolean): number | undefined {
     let until: number | undefined;
     for (const e of this.all(keys))
-      if (e.blockedUntil !== undefined && e.blockedUntil > now && (until === undefined || e.blockedUntil > until))
+      if (
+        e.blockedUntil !== undefined &&
+        e.blockedUntil > now &&
+        applies(e) &&
+        (until === undefined || e.blockedUntil > until)
+      )
         until = e.blockedUntil;
     return until;
   }

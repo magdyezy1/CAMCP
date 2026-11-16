@@ -64,7 +64,7 @@ test('Meta’s three usage headers are read in the shapes Meta documents, for th
     {level: 'account', scope: 'ad_account', usage_pct: 9.67},
   ]);
   assert.deepEqual(observe({'x-business-use-case-usage': businessUseCase([ads(95)])}), [
-    {level: 'account', scope: 'business_use_case:ads_management', usage_pct: 95},
+    {level: 'account', scope: 'business_use_case:ads_management', usage_pct: 95, requestScoped: true},
   ]);
   // The worst of a bucket's three percentages is its usage.
   assert.equal(observe({'x-app-usage': appUsage(10, 88.5, 40)})[0].usage_pct, 88.5);
@@ -73,15 +73,36 @@ test('Meta’s three usage headers are read in the shapes Meta documents, for th
       .usage_pct,
     61,
   );
-  // A bucket that is blocked says how long: a business use case in minutes, an ad account at its limit in seconds.
+  // A bucket that is blocked says so, and how long where Meta names it: a business use case that names minutes, an ad account over its
+  // limit that names seconds, the app over its limit that names none (S3-1 of the lead's review).
   assert.deepEqual(observe({'x-business-use-case-usage': businessUseCase([ads(100, 12)])}), [
-    {level: 'account', scope: 'business_use_case:ads_management', usage_pct: 100, regain_ms: 720000},
+    {
+      level: 'account',
+      scope: 'business_use_case:ads_management',
+      usage_pct: 100,
+      regain_ms: 720000,
+      requestScoped: true,
+    },
   ]);
+  assert.deepEqual(observe({'x-ad-account-usage': adAccountUsage(101, 45)}), [
+    {level: 'account', scope: 'ad_account', usage_pct: 101, regain_ms: 45000},
+  ]);
+  assert.deepEqual(observe({'x-ad-account-usage': JSON.stringify({acc_id_util_pct: 130})}), [
+    {level: 'account', scope: 'ad_account', usage_pct: 130, blocked: true},
+  ]);
+  assert.deepEqual(observe({'x-app-usage': appUsage(101, 20, 20)}), [
+    {level: 'login', scope: 'app', usage_pct: 101, blocked: true},
+  ]);
+  // Meta throttles a bucket when a percentage passes 100: at 100 it has not, whatever it reports besides, and the seconds an ad
+  // account gives below that are only the window's reset, which is no wait. A business use case is blocked only by a wait it names.
+  assert.deepEqual(observe({'x-app-usage': appUsage(100, 100, 100)}), [{level: 'login', scope: 'app', usage_pct: 100}]);
   assert.deepEqual(observe({'x-ad-account-usage': adAccountUsage(100, 45)}), [
-    {level: 'account', scope: 'ad_account', usage_pct: 100, regain_ms: 45000},
+    {level: 'account', scope: 'ad_account', usage_pct: 100},
   ]);
-  // An ad account below its limit only says when its window resets: that is no wait.
   assert.equal(observe({'x-ad-account-usage': adAccountUsage(40, 900)})[0].regain_ms, undefined);
+  assert.deepEqual(observe({'x-business-use-case-usage': businessUseCase([ads(130, 0)])}), [
+    {level: 'account', scope: 'business_use_case:ads_management', usage_pct: 130, requestScoped: true},
+  ]);
   // All three together, in the order the headers are listed here.
   const all = observe({
     'x-app-usage': appUsage(),
@@ -105,7 +126,9 @@ test('a business use case is attributed to the account the request names, never 
     ],
   });
   const own = metaUsageObservations(headersOf({'x-business-use-case-usage': header}), plan());
-  assert.deepEqual(own, [{level: 'account', scope: 'business_use_case:ads_management', usage_pct: 30}]);
+  assert.deepEqual(own, [
+    {level: 'account', scope: 'business_use_case:ads_management', usage_pct: 30, requestScoped: true},
+  ]);
   // A request that names no account keeps none of them: what is shown for an account is that account's.
   assert.deepEqual(
     metaUsageObservations(headersOf({'x-business-use-case-usage': header}), plan(meta, {accountId: undefined})),
@@ -141,10 +164,11 @@ test('a header that is not what Meta documents costs nothing and keeps nothing: 
     }),
   });
   assert.deepEqual(odd, [
-    {level: 'account', scope: 'business_use_case', usage_pct: 20},
-    {level: 'account', scope: 'business_use_case:ads_insights', usage_pct: 5},
+    {level: 'account', scope: 'business_use_case', usage_pct: 20, requestScoped: true},
+    {level: 'account', scope: 'business_use_case:ads_insights', usage_pct: 5, requestScoped: true},
   ]);
-  for (const observation of odd) assert.deepEqual(Object.keys(observation).sort(), ['level', 'scope', 'usage_pct']);
+  for (const observation of odd)
+    assert.deepEqual(Object.keys(observation).sort(), ['level', 'requestScoped', 'scope', 'usage_pct']);
 });
 
 test('the transport keeps what every Meta response says, a success included, and nothing of its payload', async () => {
@@ -227,9 +251,9 @@ test('the view: unknown before anything is seen, ok with the worst percentage af
   assert.equal(transport.rateLimit(c, '456').state, 'ok');
 });
 
-test('a bucket at its limit that names no wait cools for a minute, the wait the throttle path uses when Meta names none', async () => {
+test('a bucket over its limit that names no wait cools for a minute, the wait the throttle path uses when Meta names none; at its limit it does not cool', async () => {
   const transport = new NativeTransport(
-    async () => json({data: []}, 200, {'x-app-usage': appUsage(100, 20, 20)}),
+    async () => json({data: []}, 200, {'x-app-usage': appUsage(101, 20, 20)}),
     async () => {},
   );
   const c = connection();
@@ -240,6 +264,13 @@ test('a bucket at its limit that names no wait cools for a minute, the wait the 
   assert.ok(wait > 59000 && wait <= 60000, String(wait));
   // The login-level bucket cools every account of the login.
   assert.equal(transport.rateLimit(c, '456').state, 'cooling');
+  // At 100 Meta has not throttled the app: the view says how full it is and nothing is cooling (S3-1 of the lead's review).
+  const full = new NativeTransport(
+    async () => json({data: []}, 200, {'x-app-usage': appUsage(100, 20, 20)}),
+    async () => {},
+  );
+  await full.request(plan(), c, credentials);
+  assert.deepEqual(full.rateLimit(c, '123'), {state: 'ok', usage_pct: 100});
 });
 
 test('usage is a connection’s own: another login, another workspace and another provider never see it', async () => {

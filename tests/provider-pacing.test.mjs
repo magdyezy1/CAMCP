@@ -59,7 +59,8 @@ const blocked = (minutes = 12, account = '123') => ({
     ],
   }),
 });
-const appAtLimit = {'x-app-usage': JSON.stringify({call_count: 100, total_time: 20, total_cputime: 20})};
+// Meta throttles a bucket when a percentage passes 100 (S3-1 of the lead's review): at 100 it has not yet.
+const appOverLimit = {'x-app-usage': JSON.stringify({call_count: 101, total_time: 20, total_cputime: 20})};
 const calm = {'x-app-usage': JSON.stringify({call_count: 10, total_time: 5, total_cputime: 5})};
 
 /** A transport with a request budget no test of this size can exhaust, so that only the governor is under test. */
@@ -160,9 +161,9 @@ test('enforce mode refuses the next request before it is sent, with PLATFORM_RAT
   });
 });
 
-test('a bucket the login shares (the app’s) blocks every account of the login, and one that is not at its limit blocks none', async () => {
+test('a bucket the login shares (the app’s) blocks every account of the login, and one that is not over its limit blocks none', async () => {
   await mode('enforce', async () => {
-    const {transport, calls} = transportOver(n => json({data: []}, 200, n === 1 ? appAtLimit : calm));
+    const {transport, calls} = transportOver(n => json({data: []}, 200, n === 1 ? appOverLimit : calm));
     assert.equal(await attempt(transport, read()), undefined);
     assertRefused(await attempt(transport, read()), 'PLATFORM_RATE_LIMIT');
     assertRefused(await attempt(transport, read('/v26.0/act_456/campaigns', '456')), 'PLATFORM_RATE_LIMIT');
@@ -170,7 +171,7 @@ test('a bucket the login shares (the app’s) blocks every account of the login,
     // Without a named wait the block is the minute the throttle path assumes.
     const view = transport.rateLimit(connection, '456');
     assert.ok(Date.parse(view.until) - Date.now() > 59000);
-    // A bucket under its limit, however full, is never refused.
+    // A bucket that has not passed its limit, however full, is never refused.
     const busy = transportOver(() =>
       json({data: []}, 200, {'x-app-usage': JSON.stringify({call_count: 99.9, total_time: 99, total_cputime: 99})}),
     );
@@ -181,8 +182,8 @@ test('a bucket the login shares (the app’s) blocks every account of the login,
 
 test('the block ends when the wait Meta named is over, and requests are sent again', async () => {
   await mode('enforce', async () => {
-    // An ad account at its limit names seconds: one second here.
-    const header = {'x-ad-account-usage': JSON.stringify({acc_id_util_pct: 100, reset_time_duration: 1})};
+    // An ad account over its limit names seconds: one second here.
+    const header = {'x-ad-account-usage': JSON.stringify({acc_id_util_pct: 101, reset_time_duration: 1})};
     const {transport, calls} = transportOver(n => json({data: []}, 200, n === 1 ? header : calm));
     assert.equal(await attempt(transport, read()), undefined);
     assertRefused(await attempt(transport, read()), 'PLATFORM_RATE_LIMIT');
@@ -385,6 +386,125 @@ test('a block announced by a write that succeeded leaves that write complete, an
       assert.equal(f.writes(), 1);
     } finally {
       f.store.close();
+    }
+  });
+});
+
+/** One business use case of account 123 at `percent`, naming `minutes` to regain access (0 names none). */
+const bucket = (type, percent, minutes = 0) => ({
+  'x-business-use-case-usage': JSON.stringify({
+    123: [{type, call_count: percent, total_cputime: 5, total_time: 5, estimated_time_to_regain_access: minutes}],
+  }),
+});
+const insights = () => read('/v26.0/act_123/insights');
+const write = () => ({...read('/v26.0/act_123/campaigns'), method: 'POST', readOnly: false, body: {name: 'x'}});
+
+test('a business use case blocks only the requests it counts (S3-1): an insights block refuses insights reads and sends every other request of the account', async () => {
+  await mode('enforce', async () => {
+    const {transport, calls} = transportOver(n => json({data: []}, 200, n === 1 ? bucket('ads_insights', 100, 5) : {}));
+    assert.equal(await attempt(transport, insights()), undefined);
+    // The next insights read is refused, with the five minutes Meta named...
+    const refused = await attempt(transport, insights());
+    assertRefused(refused, 'PLATFORM_RATE_LIMIT');
+    assert.ok(refused.details.retry_after_ms > 4.9 * 60000 && refused.details.retry_after_ms <= 5 * 60000);
+    assert.equal(calls.length, 1);
+    // ...and a request of the account's other bucket, a read or a write, is sent: its own bucket is at 3 percent.
+    assert.equal(await attempt(transport, read()), undefined);
+    assert.equal(await attempt(transport, write()), undefined);
+    assert.equal(calls.length, 3);
+    // The account still shows a throttle, which is one bucket's.
+    assert.equal(transport.rateLimit(connection, '123').state, 'cooling');
+  });
+  // The other way round: a management block refuses management requests and sends an insights read.
+  await mode('enforce', async () => {
+    const {transport, calls} = transportOver(n =>
+      json({data: []}, 200, n === 1 ? bucket('ads_management', 100, 9) : {}),
+    );
+    assert.equal(await attempt(transport, read()), undefined);
+    assertRefused(await attempt(transport, read()), 'PLATFORM_RATE_LIMIT');
+    assertRefused(await attempt(transport, write()), 'PLATFORM_RATE_LIMIT');
+    assert.equal(await attempt(transport, insights()), undefined);
+    assert.equal(calls.length, 2);
+  });
+});
+
+test('observe mode counts only the requests of the blocked bucket as would-refuse, so the number an owner reads before enforcing is not inflated', async () => {
+  await mode(undefined, async () => {
+    const {transport, calls} = transportOver(n => json({data: []}, 200, n === 1 ? bucket('ads_insights', 100, 5) : {}));
+    assert.equal(await attempt(transport, insights()), undefined);
+    assert.equal(await attempt(transport, read()), undefined);
+    assert.equal(await attempt(transport, write()), undefined);
+    assert.equal(transport.metrics.pacingWouldRefuse, 0, 'requests of another bucket were not sent into this throttle');
+    assert.equal(await attempt(transport, insights()), undefined);
+    assert.equal(transport.metrics.pacingWouldRefuse, 1, 'an insights read was');
+    assert.equal(calls.length, 4, 'observe mode refuses nothing');
+  });
+});
+
+test('a business use case that names no wait is not blocked, even at 100 or beyond: only a wait Meta names is a block', async () => {
+  for (const value of ['enforce', undefined])
+    await mode(value, async () => {
+      for (const percent of [100, 130]) {
+        const {transport, calls} = transportOver(() => json({data: []}, 200, bucket('ads_management', percent, 0)));
+        for (let i = 0; i < 3; i++) assert.equal(await attempt(transport, read()), undefined);
+        assert.equal(calls.length, 3, String(value) + ' ' + percent);
+        assert.equal(transport.metrics.pacingWouldRefuse, 0);
+        assert.deepEqual(transport.rateLimit(connection, '123'), {state: 'ok', usage_pct: percent});
+      }
+    });
+});
+
+test('the app’s and the ad account’s usage block only above 100: at the limit Meta has not throttled yet, and one step above it has', async () => {
+  await mode('enforce', async () => {
+    for (const [header, over] of [
+      [{'x-app-usage': JSON.stringify({call_count: 100, total_time: 20, total_cputime: 20})}, false],
+      [{'x-app-usage': JSON.stringify({call_count: 100.5, total_time: 20, total_cputime: 20})}, true],
+      [{'x-ad-account-usage': JSON.stringify({acc_id_util_pct: 100, reset_time_duration: 45})}, false],
+      [{'x-ad-account-usage': JSON.stringify({acc_id_util_pct: 100.5, reset_time_duration: 45})}, true],
+    ]) {
+      const {transport, calls} = transportOver(n => json({data: []}, 200, n === 1 ? header : calm));
+      assert.equal(await attempt(transport, read()), undefined);
+      const next = await attempt(transport, read());
+      if (over) assertRefused(next, 'PLATFORM_RATE_LIMIT');
+      else assert.equal(next, undefined, JSON.stringify(header));
+      assert.equal(calls.length, over ? 1 : 2, JSON.stringify(header));
+    }
+  });
+});
+
+test('a business use case no request is counted in is shown and never paces: a custom audience block refuses nothing in either mode', async () => {
+  for (const value of ['enforce', undefined])
+    await mode(value, async () => {
+      const {transport, calls} = transportOver(n =>
+        json({data: []}, 200, n === 1 ? bucket('custom_audience', 100, 30) : {}),
+      );
+      assert.equal(await attempt(transport, read()), undefined);
+      assert.equal(await attempt(transport, read()), undefined);
+      assert.equal(await attempt(transport, insights()), undefined);
+      assert.equal(await attempt(transport, write()), undefined);
+      assert.equal(calls.length, 4, String(value));
+      assert.equal(transport.metrics.pacingWouldRefuse, 0);
+      assert.equal(transport.metrics.pacingEnforced, 0, 'nothing was opened');
+      // What Meta said is not hidden: the account shows a throttle, for the thirty minutes it named.
+      const view = transport.rateLimit(connection, '123');
+      assert.equal(view.state, 'cooling');
+      assert.ok(Date.parse(view.until) - Date.now() > 29 * 60000);
+    });
+});
+
+test('a bucket’s block is shared through the store with the same bucket alone: another process refuses an insights read and sends a management read', async () => {
+  await mode('enforce', async () => {
+    const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));
+    try {
+      const first = transportOver(() => json({data: []}, 200, bucket('ads_insights', 100, 5)), store);
+      assert.equal(await attempt(first.transport, insights()), undefined);
+      const second = transportOver(() => json({data: []}), store);
+      assert.equal(second.transport.rateLimit(connection, '123').state, 'cooling', 'the view reads the shared row');
+      assertRefused(await attempt(second.transport, insights()), 'PLATFORM_RATE_LIMIT');
+      assert.equal(await attempt(second.transport, read()), undefined);
+      assert.equal(second.calls.length, 1, 'only the management read was sent');
+    } finally {
+      store.close();
     }
   });
 });

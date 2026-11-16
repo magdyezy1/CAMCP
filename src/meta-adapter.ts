@@ -60,7 +60,7 @@ import type {Action} from './types.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {metaCatalogIngestion} from './meta-catalog-ingestion.js';
 import {metaAdPreviews} from './meta-ad-previews.js';
-import {metaUsageObservations} from './meta-usage.js';
+import {metaInsightsRead, metaUsage} from './meta-usage.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -408,9 +408,9 @@ export const metaHooks: ProviderHooks = Object.freeze({
   // classify credential, permission and throttle refusals.
   wire: Object.freeze({
     formBody: () => true,
-    reportData: (plan: CompiledRequest) => /\/insights$/.test(plan.path),
+    reportData: metaInsightsRead,
     // Its three usage headers, read on every response a success included (R2.5 M2, MT3): the rate governor keeps what they say.
-    usage: Object.freeze({exposed: true, read: metaUsageObservations}),
+    usage: metaUsage,
     errors: Object.freeze({
       bodyRequestId: (body: unknown) => providerReference(errorObject(errorObject(body).error).fbtrace_id),
       code: (body: unknown) => errorInteger(errorObject(errorObject(body).error).code),

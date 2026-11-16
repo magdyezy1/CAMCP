@@ -260,6 +260,10 @@ interface WireRoute {
   readonly circuitKey: string;
   readonly userRateKey: string;
   readonly accountRateKey: string;
+  /** The request-scoped bucket the provider counts this request in (a Meta business use case), when it names one. */
+  readonly usageScope: string | undefined;
+  /** The key of the cooldown a block of that bucket opens: a request of the bucket meets it, and no other does. */
+  readonly scopedRateKey: string | undefined;
   readonly maxAttempts: number;
   /** A bounded report read whose bytes are checked whole and whose numbers keep their source text (Adjust). */
   readonly adjustRead: boolean;
@@ -353,7 +357,11 @@ export class NativeTransport {
       monotonic = performance.now(),
       now = Date.now();
     let cooled = 0;
-    for (const key of new Set([keys.login, keys.account])) {
+    // The cooldowns of the request-scoped buckets of the account (a Meta business use case), which another process may have opened.
+    const buckets = accountId
+      ? (wire?.usage?.scopes ?? []).map(scope => scopeKey(keys.account, 'usage-scope', scope))
+      : [];
+    for (const key of new Set([keys.login, keys.account, ...buckets])) {
       const local = this.cooldowns.get(key) ?? 0;
       cooled = Math.max(cooled, local > monotonic ? now + (local - monotonic) : 0, this.coolingUntil.get(key) ?? 0);
       try {
@@ -368,9 +376,10 @@ export class NativeTransport {
    * Notes that a cooldown of `rateKey` was opened, or refused a request, for `ms` more: under the key the view reads for that
    * level of the request's login and account. Bounded and never throwing: it is bookkeeping for the view.
    */
-  private noteCooling({connection, plan, userRateKey, accountRateKey}: WireRoute, rateKey: string, ms: number) {
+  private noteCooling({connection, plan, userRateKey}: WireRoute, rateKey: string, ms: number) {
+    // The login's cooldown is the login's; every other (an account's, or a bucket of an account) is filed under the account.
     const view = this.usageKeys(connection, plan.accountId),
-      key = rateKey === accountRateKey && accountRateKey !== userRateKey ? view.account : view.login,
+      key = rateKey === userRateKey ? view.login : view.account,
       until = Date.now() + ms;
     if (until > (this.coolingUntil.get(key) ?? 0) && (this.coolingUntil.has(key) || this.coolingUntil.size < 4096))
       this.coolingUntil.set(key, until);
@@ -560,6 +569,9 @@ export class NativeTransport {
         : wire?.userRateKey
           ? scopeKey(userRateKey, plan.accountId)
           : scopeKey(key, 'account-rate', connection.id, plan.accountId);
+    // A bucket of the provider's limit that counts only some requests (a Meta business use case) has a cooldown of its own key.
+    const usageScope = wire?.usage?.scopeOf?.(plan),
+      scopedRateKey = usageScope ? scopeKey(accountRateKey, 'usage-scope', usageScope) : undefined;
     // A read is attempted three times unless its provider sends it once (Google's generation drafts, Microsoft's
     // report submission); a write is always sent once.
     const maxAttempts = plan.readOnly && wire?.singleAttempt?.(plan) !== true ? 3 : 1;
@@ -580,6 +592,8 @@ export class NativeTransport {
       circuitKey,
       userRateKey,
       accountRateKey,
+      usageScope,
+      scopedRateKey,
       maxAttempts,
       adjustRead,
       deadline,
@@ -723,9 +737,9 @@ export class NativeTransport {
    * attempt the circuit (an open one refuses; one past its cooldown lets this request probe it, returned to own).
    */
   private admitAttempt(route: WireRoute, attempt: number): {probing?: boolean} | undefined {
-    const {plan, connection, key, issuerPermit, circuitKey, userRateKey, accountRateKey} = route;
+    const {plan, connection, key, issuerPermit, circuitKey, userRateKey, accountRateKey, scopedRateKey} = route;
     let ownedProbe: {probing?: boolean} | undefined;
-    for (const rateKey of new Set([userRateKey, accountRateKey])) {
+    for (const rateKey of new Set([userRateKey, accountRateKey, ...(scopedRateKey ? [scopedRateKey] : [])])) {
       const until = this.cooldowns.get(rateKey) ?? 0;
       if (until > performance.now())
         throw new MirrorError(
@@ -844,11 +858,18 @@ export class NativeTransport {
     if (!observations.length) return;
     const blocks = this.usage.record(connection.gateway, {login: userRateKey, account: accountRateKey}, observations);
     if (!blocks.length || pacingMode() !== 'enforce') return;
-    for (const {key, ms} of blocks) {
-      this.cooldowns.set(key, Math.max(this.cooldowns.get(key) ?? 0, performance.now() + ms));
-      this.coordination?.providerCooldown(key, ms);
-      this.noteCooling(route, key, ms);
+    let opened = false;
+    for (const {key, ms, scope} of blocks) {
+      // A request-scoped bucket (a Meta business use case) opens a cooldown of its own key, which only a request counted in it
+      // meets; one that no request is counted in is shown and never paces (S3-1 of the lead's review).
+      if (scope !== undefined && !wire?.usage?.scopes?.includes(scope)) continue;
+      const cooled = scope === undefined ? key : scopeKey(key, 'usage-scope', scope);
+      this.cooldowns.set(cooled, Math.max(this.cooldowns.get(cooled) ?? 0, performance.now() + ms));
+      this.coordination?.providerCooldown(cooled, ms);
+      this.noteCooling(route, cooled, ms);
+      opened = true;
     }
+    if (!opened) return;
     this.metrics.pacingEnforced++;
     this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'pacing_enforced');
   }
@@ -858,9 +879,10 @@ export class NativeTransport {
    * enforcement is the cooldown observeUsage opens, which admitAttempt has already refused on.
    */
   private countPacedRequest(route: WireRoute) {
-    const {plan, connection, wire, userRateKey, accountRateKey} = route;
+    const {plan, connection, wire, userRateKey, accountRateKey, usageScope} = route;
     if (!wire?.usage?.read || pacingMode() === 'enforce') return;
-    if (this.usage.blockedUntil({login: userRateKey, account: accountRateKey}) === undefined) return;
+    // Only a block that applies to this request counts: its login's, its account's and its own bucket's, never another bucket's.
+    if (this.usage.blockedUntilFor({login: userRateKey, account: accountRateKey}, usageScope) === undefined) return;
     this.metrics.pacingWouldRefuse++;
     this.coordination?.providerMetric(connection.tenantId, plan.gateway, 'pacing_would_refuse');
   }
