@@ -1087,6 +1087,54 @@ const refusals: Refusal[] = [
       unexpected: ['sizes'],
     },
   ],
+  // Lead review S3-3: the leaf checks of one entry (each link and the expiry) are independent. The first failure is named as it
+  // always was and the others beside it (`also`), so one replay of the live review names every guard the answer fails, and not
+  // one more deploy for each. The acceptance is unchanged: each of these refuses.
+  [
+    'a link on a host that is not accepted and an expiry that is not a date: the link is named, the expiry beside it',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].uiPreviewResult.shareablePreviewUrl = 'https://127.0.0.1/preview';
+      previewsOf(a)[0].expirationDateTime = 'tomorrow';
+      return a;
+    },
+    {
+      check: 'link',
+      reason: 'host_not_accepted',
+      entry: 0,
+      field: 'shareablePreviewUrl',
+      also: [{check: 'expiration', reason: 'format', entry: 0}],
+    },
+  ],
+  [
+    'both links of an ad and its expiry fail: the first link is named, the TV link and the expiry beside it',
+    [wantedVideo],
+    a => {
+      previewsOf(a)[0].youtubeLivePreviewResult.youtubePreviewUrl = 'http://www.youtube.com/watch?v=synthetic';
+      previewsOf(a)[0].youtubeLivePreviewResult.youtubeTvPreviewUrl = 'https://example.org/tv';
+      previewsOf(a)[0].expirationDateTime = 1234;
+      return a;
+    },
+    {
+      check: 'link',
+      reason: 'not_https',
+      entry: 0,
+      field: 'youtubePreviewUrl',
+      also: [
+        {check: 'link', reason: 'host_not_accepted', entry: 0, field: 'youtubeTvPreviewUrl'},
+        {check: 'expiration', reason: 'not_text', entry: 0},
+      ],
+    },
+  ],
+  [
+    'only the second link of an ad fails: it is named alone, with nothing beside it',
+    [wantedVideo],
+    a => {
+      previewsOf(a)[0].youtubeLivePreviewResult.youtubeTvPreviewUrl = 'https://example.org/tv';
+      return a;
+    },
+    {check: 'link', reason: 'host_not_accepted', entry: 0, field: 'youtubeTvPreviewUrl'},
+  ],
 ];
 const withLink = (field: string, value: unknown) => (answer: any) => {
   const row = previewsOf(answer)[0];

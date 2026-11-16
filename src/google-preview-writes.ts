@@ -344,10 +344,11 @@ function linkProblem(v: unknown, type: Target['previewType']): string | undefine
 }
 /**
  * Where a response is not the pinned v25 shape, named as closed-set facts: the check that failed, why, the entry and the
- * documented field it concerns, and how many. Never a value: the links stay encrypted, and no text of the provider's
- * reaches an outcome, an audit row or an error through it. The one thing of the provider's it names is a field the pinned
- * schema does not list, as a plain identifier. Found live 2026-11-16: Google answered HTTP 200, the check refused the
- * answer, and nothing said which part of it did not match (r12-gpreview).
+ * documented field it concerns, and how many. When an entry fails more than one of its leaf checks (each link, the expiry),
+ * the first is the mismatch and the others are listed beside it as `also`, in the same closed set. Never a value: the links
+ * stay encrypted, and no text of the provider's reaches an outcome, an audit row or an error through it. The one thing of
+ * the provider's it names is a field the pinned schema does not list, as a plain identifier. Found live 2026-11-16: Google
+ * answered HTTP 200, the check refused the answer, and nothing said which part of it did not match (r12-gpreview).
  */
 type Checked = {rows: JsonObject[]} | {mismatch: JsonObject};
 const mismatch = (check: string, reason: string, more: JsonObject = {}): Checked => ({
@@ -364,6 +365,19 @@ const unlisted = (v: JsonObject, listed: readonly string[]): string[] =>
   ].slice(0, 8);
 const resultFields = ['assetGroup', 'adGroupAd', 'uiPreviewResult', 'youtubeLivePreviewResult', 'expirationDateTime'],
   youtubeLinks = ['youtubePreviewUrl', 'youtubeTvPreviewUrl'];
+/**
+ * Why a value is not an accepted expiry, as a closed-set reason, or undefined when it is one. The document says only
+ * "ISO-8601"; the guard accepts one profile of it (the T, seconds, at most nine fraction digits, then a Z or an offset with a
+ * colon), and a zone-less time names no instant. Unchanged (r12-gpreview only names the condition that failed).
+ */
+const expiryProblem = (v: unknown): string | undefined =>
+  typeof v !== 'string'
+    ? 'not_text'
+    : !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:\d\d)$/.test(v)
+      ? 'format'
+      : !Number.isFinite(Date.parse(v))
+        ? 'not_a_date'
+        : undefined;
 /**
  * The validated previews of a v25 result ({result: {previews: [...]}}), one per reviewed target, or the mismatch that
  * refused it. The shape is the pinned Discovery document's (.mirror/VENDOR/google-ads-v25.json, revision 20260923): one
@@ -401,7 +415,12 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
     if (!target) return mismatch('identifier', 'not_reviewed', {entry});
     if (seen.has(target.name)) return mismatch('identifier', 'repeated', {entry});
     seen.add(target.name);
-    const urls: JsonObject = {};
+    // The leaf checks of an entry, each link and then the expiry, are independent of one another: all are made, the first failure
+    // is the mismatch as it always was, and the others are named beside it (`also`), so that one replay of a refused answer names
+    // every guard it fails and not one more deploy for each (r12-gpreview, lead review S3-3). An entry with any failing leaf is
+    // refused, as before.
+    const faults: JsonObject[] = [],
+      urls: JsonObject = {};
     if (target.previewType === 'UI_PREVIEW') {
       const ui = row.uiPreviewResult;
       if (row.youtubeLivePreviewResult !== undefined)
@@ -415,8 +434,8 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
           unexpected: unlisted(ui, ['shareablePreviewUrl']),
         });
       const bad = linkProblem(ui.shareablePreviewUrl, target.previewType);
-      if (bad) return mismatch('link', bad, {entry, field: 'shareablePreviewUrl'});
-      urls.shareablePreviewUrl = ui.shareablePreviewUrl;
+      if (bad) faults.push({check: 'link', reason: bad, entry, field: 'shareablePreviewUrl'});
+      else urls.shareablePreviewUrl = ui.shareablePreviewUrl;
     } else {
       const youtube = row.youtubeLivePreviewResult;
       if (row.uiPreviewResult !== undefined)
@@ -435,16 +454,17 @@ function inspect(p: CompiledRequest, result: TransportResult): Checked {
         });
       for (const [field, v] of Object.entries(youtube)) {
         const bad = linkProblem(v, target.previewType);
-        if (bad) return mismatch('link', bad, {entry, field});
-        urls[field] = v;
+        if (bad) faults.push({check: 'link', reason: bad, entry, field});
+        else urls[field] = v;
       }
     }
-    const expiration = row.expirationDateTime;
-    if (expiration !== undefined) {
-      if (typeof expiration !== 'string') return mismatch('expiration', 'not_text', {entry});
-      if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:\d\d)$/.test(expiration))
-        return mismatch('expiration', 'format', {entry});
-      if (!Number.isFinite(Date.parse(expiration))) return mismatch('expiration', 'not_a_date', {entry});
+    const expiration = row.expirationDateTime,
+      late = expiration === undefined ? undefined : expiryProblem(expiration);
+    if (late) faults.push({check: 'expiration', reason: late, entry});
+    if (faults.length) {
+      const [first, ...others] = faults as [JsonObject, ...JsonObject[]];
+      // The same closed set as the first, at most eight (an entry has three leaf checks today).
+      return {mismatch: {...first, ...(others.length ? {also: others.slice(0, 8)} : {})}};
     }
     const expired = expiration !== undefined && Date.parse(expiration) <= Date.now();
     out.push({
