@@ -822,7 +822,8 @@ test('a read that names its IDs is answered only for them, completely, and a dar
     ['a promotion nobody named', {ignoreIds: true, promoted: [stranger]}, ['pt3']],
     ['a dark Tweet nobody named', {ignoreIds: true, dark: [darkTweet(91)]}, [tweet(90)]],
     ['a Tweet that is not nullcast', {dark: [{...darkTweet(90), nullcast: false}]}, [tweet(90)]],
-    ['a Tweet whose two IDs disagree', {dark: [{...darkTweet(90), tweet_id: tweet(91)}]}, [tweet(90)]],
+    // Both IDs are among those asked for, so only their disagreement refuses the row.
+    ['a Tweet whose two IDs disagree', {dark: [{...darkTweet(90), tweet_id: tweet(91)}]}, [tweet(90), tweet(91)]],
     ['a Tweet with no ID', {ignoreIds: true, dark: [{name: 'x', nullcast: true}]}, [tweet(90)]],
     ['a Tweet listed twice', {dark: [darkTweet(90), darkTweet(90)]}, [tweet(90), tweet(91)]],
     [
@@ -893,6 +894,26 @@ test('a list ends where X ends it, with a null cursor or the older zero or empty
     const f = fixture(t, world({forceNext}));
     assertRefused(await f.previews(), 'REPORT_SHAPE_CHANGED');
   }
+});
+
+test('a dark Tweet is identified by its id_str, or by a string tweet_id, and a number in another field of its row is not taken for an ID', async t => {
+  for (const [what, row] of [
+    ['a numeric tweet_id beside the id_str', {...darkTweet(90), tweet_id: 1900000000000000090}],
+    ['a numeric id beside the id_str', {...darkTweet(90), id: 1900000000000000090}],
+    ['no id_str and a string tweet_id', {name: 'Dark launch', nullcast: true, tweet_id: tweet(90)}],
+  ]) {
+    const f = fixture(t, world({dark: [row], ignoreIds: true, previewable: new Set([tweet(90)])})),
+      data = ok(await f.previews({ad_ids: [tweet(90)]}));
+    assert.deepEqual(
+      data.previews.map(p => [p.tweet_id, p.links.length]),
+      [[tweet(90), 1]],
+      what,
+    );
+  }
+  // A row whose only ID is a number names no Tweet: a number in a JSON answer may not be the ID it was written as.
+  const f = fixture(t, world({dark: [{name: 'x', nullcast: true, tweet_id: 1900000000000000090}], ignoreIds: true}));
+  assertRefused(await f.previews({ad_ids: [tweet(90)]}), 'REPORT_SHAPE_CHANGED');
+  assert.equal(f.reads('/tweet_previews').length, 0);
 });
 
 test('a DRAFT promotion is selected by "all" alone, and a promotion that names no line item only without a parent filter', async t => {

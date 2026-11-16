@@ -299,16 +299,21 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
       );
       if (listed.next !== null) invalidList();
       for (const raw of listed.rows) {
-        const ids = object(raw) ? [raw.id_str, raw.tweet_id].filter(value => value !== undefined) : [];
+        // A Tweet's ID is its string (`id_str`, or a string `tweet_id`): a number in a JSON answer may not be the ID it was
+        // written as, so it names nothing. The IDs a row gives must agree, and be among those asked for.
+        const ids = object(raw)
+            ? [raw.id_str, raw.tweet_id].filter((value): value is string => typeof value === 'string')
+            : [],
+          [first] = ids;
         if (
           !object(raw) ||
-          !ids.length ||
-          ids.some(id => id !== ids[0] || typeof id !== 'string' || !lookup.includes(id)) ||
-          dark.has(ids[0]) ||
+          first === undefined ||
+          ids.some(id => id !== first || !lookup.includes(id)) ||
+          dark.has(first) ||
           raw.nullcast === false
         )
           invalidList();
-        dark.set(ids[0], text(raw.name));
+        dark.set(first, text(raw.name));
       }
     }
     for (const id of wanted) {
