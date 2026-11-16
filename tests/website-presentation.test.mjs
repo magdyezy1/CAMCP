@@ -261,8 +261,8 @@ for (const locale of ['en', 'ar'])
       needs_destructive_confirmed: ['outcome-review-step'],
       needs_website_approval: ['outcome-review-step'],
       needs_owner_approval: ['outcome-review-step'],
-      // R25 M1 (L5-04): the provider's state changed after the step's review. Nothing was sent, and Continue would be the
-      // automatic retry that never exists: the person reviews the step again, on its current state.
+      // R25 M1 (L5-04): the provider's state changed after the step's review. Nothing was sent, and the outcome offers no
+      // Continue (an automatic retry): the person reviews the step again, on its current state.
       state_changed: ['outcome-review-step'],
     };
     const labels = p.run('runStopLabels');
