@@ -1,4 +1,4 @@
-﻿// Runs the QA-04 journey, task and evaluation-set suites and returns one metrics record. Shared by tools/mcp-eval.mjs
+// Runs the QA-04 journey, task and evaluation-set suites and returns one metrics record. Shared by tools/mcp-eval.mjs
 // (the local check and baseline writer) and tests/mcp-eval.test.mjs.
 import assert from 'node:assert/strict';
 import {evaluationFixture, transcriptMetrics, sanitizeTranscript} from './harness.mjs';

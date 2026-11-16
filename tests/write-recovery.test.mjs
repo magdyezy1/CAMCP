@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {gateway, account, budgetAction, budgetName, googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {MirrorError} from '../dist/src/errors.js';

@@ -1,4 +1,4 @@
-﻿// The ten user journeys of the QA-04 baseline (R27 journey map, J9 of V2-MCP-02 and J10 of R2.5 M2), each with success, failure, unavailable-account and
+// The ten user journeys of the QA-04 baseline (R27 journey map, J9 of V2-MCP-02 and J10 of R2.5 M2), each with success, failure, unavailable-account and
 // incomplete-evidence branches. A branch is a scripted person and client: it calls MCP tools and the website API the
 // way the journey's surfaces do, follows the next calls AMCP offers, and reports whether the journey's goal was
 // reached. The harness records every call; tools/mcp-eval.mjs turns the transcripts into metrics and compares them
