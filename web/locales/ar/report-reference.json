@@ -1,4 +1,5 @@
 {
+  "A quoted CSV value is not closed.": "إحدى قيم CSV المقتبسة غير مغلقة.",
   "Choose a reference CSV or TSV no larger than 64 KiB.": "اختر ملف CSV أو TSV مرجعيًا لا يتجاوز حجمه 64 KiB.",
   "Choose currency units, hundredths or micros for each money column.": "حدد وحدة العملة أو أجزاء المئة أو أجزاء المليون لكل عمود مالي.",
   "Choose the decimal separator. Grouping separators are not accepted.": "حدد الفاصل العشري. لا تُقبل فواصل تجميع الأرقام.",
@@ -20,6 +21,7 @@
   "Hundredths of currency": "أجزاء المئة من العملة",
   "I checked that the reference uses the same entities, filters and reporting grain as this report.": "تحققت من أن المرجع يستخدم الكيانات والفلاتر ومستوى التفصيل نفسها المستخدمة في هذا التقرير.",
   "Import reference totals": "استيراد الإجماليات المرجعية",
+  "Invalid CSV quoting.": "علامات الاقتباس في CSV غير صالحة.",
   "Map at least one additive metric to a distinct CSV column.": "اربط مقياسًا واحدًا قابلًا للجمع على الأقل بعمود CSV مستقل.",
   "Map reference metrics": "ربط المقاييس المرجعية",
   "Mapped values must be nonnegative decimals without grouping, percent signs or formulas. Blank values remain unknown.": "يجب أن تكون القيم المرتبطة أعدادًا عشرية غير سالبة، دون فواصل تجميع أو علامات نسبة مئوية أو صيغ. تبقى القيم الفارغة غير معروفة.",
@@ -47,6 +49,7 @@
   "The reference file changed while reading. Choose it again.": "تغيّر الملف المرجعي أثناء قراءته. اختره مرة أخرى.",
   "The reference file contains unsupported control characters.": "يحتوي الملف المرجعي على محارف تحكم غير مدعومة.",
   "The selected units exceed nine decimal places. No rounding was applied.": "تؤدي الوحدات المحددة إلى تجاوز تسع منازل عشرية. لم يُطبّق أي تقريب.",
+  "Unexpected text after a quoted CSV value.": "يوجد نص غير متوقع بعد قيمة CSV مقتبسة.",
   "Units": "الوحدات",
   "Use at most 64 reference columns.": "استخدم 64 عمودًا مرجعيًا كحد أقصى.",
   "Use one header row and one aggregate totals row with the same columns.": "استخدم صف عناوين واحدًا وصفًا واحدًا للإجماليات المجمعة، بالعدد نفسه من الأعمدة.",

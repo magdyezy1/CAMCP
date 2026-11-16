@@ -5,8 +5,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {createContext, Script} from 'node:vm';
-import {chunkLimit, localeChunkProblems, moduleChunk, planLocaleChunks} from '../tools/locale-chunks.mjs';
+import {
+  chunkLimit,
+  chunksWith,
+  loaderFiles,
+  localeChunkProblems,
+  moduleChunk,
+  planLocaleChunks,
+} from '../tools/locale-chunks.mjs';
 
 const plan = planLocaleChunks();
 
@@ -46,6 +55,202 @@ test('a chunk that drops a message a script requires, a stale chunk and an overs
   );
   const large = {...plan, chunks: {...plan.chunks, shell: {...plan.chunks.shell, Huge: 'ا'.repeat(chunkLimit)}}};
   assert.match(localeChunkProblems(process.cwd(), large).join('\n'), /shell\.json: \d+ bytes \(limit 1048576\)/);
+});
+
+// R25 ar-lazy (item 4): the chunk no page waits for is named once, in web/route-assets.js; the plan and the check read it.
+// Before, `providers` (4,710 messages, a third of an Arabic page) was assumed available to every page script, so a script
+// could write a message that only it carried without the check noticing.
+test('route-assets.js names the chunk no page waits for, and no page script can rely on it', () => {
+  const {lazy, dependencies, modules} = loaderFiles();
+  assert.deepEqual(lazy, ['providers']);
+  assert.deepEqual(plan.lazy, lazy);
+  for (const file of modules)
+    for (const name of lazy) assert.equal(chunksWith(file, dependencies).has(name), false, file + ' relies on ' + name);
+});
+
+test('providers carries refusal sentences only: what a provider contract refuses with and no page script or success answer shows', () => {
+  const refusals = plan.sources.get('server:backend-contracts'),
+    shown = [...plan.sources].filter(([name]) => name !== 'server:backend-contracts' && !name.startsWith('web/'));
+  assert.deepEqual(
+    Object.keys(plan.chunks.providers).filter(key => !refusals.has(key) || shown.some(([, set]) => set.has(key))),
+    [],
+  );
+  // Words a page script writes, which `providers` carried because some backend file writes them too ("Yes", "Status", a
+  // report preset's name, a coverage note shown from a success answer), load with every signed-in page.
+  for (const word of [
+    'Yes',
+    'No',
+    'Status',
+    'Daily',
+    'Weekly',
+    'Monthly',
+    'Entity ID',
+    'Google campaign performance',
+  ]) {
+    assert.equal(word in plan.chunks.providers, false, word + ' is not a refusal sentence');
+    assert.ok(word in plan.chunks.workspace || word in plan.chunks.shell, word + ' is there before a page renders');
+  }
+});
+
+test('a script that writes a sentence a provider contract also refuses with carries its own copy', () => {
+  const key = 'Invalid CSV quoting.';
+  // commerce.js and report-reference.js check a CSV before sending it, with the sentence the backend refuses with.
+  assert.ok(key in plan.chunks.providers, 'a refusal still reads it from providers');
+  assert.ok(key in plan.chunks.commerce, 'web/commerce.js');
+  assert.ok(key in plan.chunks['report-reference'], 'web/report-reference.js');
+  // The check refuses a script that would rely on the lazy chunk for it.
+  const clone = {...plan, chunks: {...plan.chunks, commerce: {...plan.chunks.commerce}}};
+  delete clone.chunks.commerce[key];
+  assert.ok(
+    localeChunkProblems(process.cwd(), clone).includes(
+      'web/commerce.js requires a message none of its chunks carries: ' + key,
+    ),
+  );
+});
+
+test('a sentence that is also data in the backend is never lazy (a success answer shows it)', () => {
+  // Found by reading the role of every occurrence in src and server (R25 ar-lazy): each is a refusal sentence that is also
+  // stored in a property, a variable or a return value, so a page may show it from an answer that refused nothing.
+  for (const start of [
+    'Not in this account', // not_found_reason of the ad previews answer (web/ad-previews.js shows it)
+    'Targeting, serving and shared-list changes require spend_change_confirmed=true.',
+    'Personal data: this read returns submitted leads',
+    'Snapchat did not return the selected ad account with its organization.',
+    'name must start with a letter, use only letters, numbers, spaces, underscores or hyphens',
+    'name must not be the name of a standard event.',
+  ]) {
+    const key = Object.keys(plan.catalog).find(message => message.startsWith(start));
+    assert.ok(key, start);
+    assert.equal(key in plan.chunks.providers, false, key + ' stays out of the lazy chunk');
+    assert.ok(key in plan.chunks.workspace, key + ' loads with every signed-in page');
+  }
+});
+
+/** A small tree with the files the plan reads, written under a temporary directory. */
+function syntheticPlan(files, locales) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-lazy-plan-'));
+  try {
+    for (const [file, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
+      fs.writeFileSync(path.join(root, file), text);
+    }
+    return planLocaleChunks(root, locales);
+  } finally {
+    fs.rmSync(root, {recursive: true, force: true});
+  }
+}
+
+test('the plan makes a sentence lazy only when every place that writes it hands it to a function that provably throws', () => {
+  const lazy = {
+      'Never helper': 'a function declared to return never',
+      'Sole throw helper': 'a function that is one throw',
+      'Delegating helper': 'a function that hands everything to one that throws',
+      'Factory helper': 'a constant built by a factory whose declared return type is a never function',
+      'Typed constant': 'a constant declared with an imported never function type',
+      'Constructed': 'a constructor imported from src/errors.ts',
+      'Imported helper': 'a never function imported from another module',
+    },
+    eager = {
+      'Returning helper': 'a function that can return, as well as one that throws',
+      'Review helper': 'an arrow that returns an object',
+      'Method call': 'a method call, as well as a throwing function',
+      'Property value': 'a property value',
+      'Template text': 'a template',
+      'Unresolved helper': 'a helper imported from a package',
+      'Other constructor': 'a constructor not imported from src/errors.ts',
+    },
+    pageOwned = ['Page word and refusal', 'Page word and data', 'Only the page'],
+    catalog = Object.fromEntries(
+      [...Object.keys(lazy), ...Object.keys(eager), ...pageOwned, 'Shell word', 'Written nowhere'].map(key => [
+        key,
+        'ar ' + key,
+      ]),
+    ),
+    built = syntheticPlan(
+      {
+        'web/routes.js': 'const routeRegistry = [];\n',
+        'web/route-assets.js':
+          "const pageAssetOrder = ['page.js'];\nconst pageAssetDependencies = {};\nconst answerLocaleChunks = ['providers'];\n",
+        'web/index.html': '<script src="/assets/app.js" defer></script>',
+        'web/app.js': "'use strict';\n",
+        'web/page.js':
+          "'use strict';\nuiText('Page word and refusal');\nuiText('Page word and data');\nuiText('Only the page');\n",
+        'server/website.ts': "export const words = ['Shell word'];\n",
+        'src/errors.ts': 'export class MirrorError extends Error {}\n',
+        'src/kit.ts': [
+          "import {MirrorError} from './errors.js';",
+          'export type Refusal = (message: string) => never;',
+          'export function fail(code: string, message: string): never { throw new MirrorError(code, message); }',
+          'export function makeRefusal(code: string): Refusal { return message => fail(code, message); }',
+          '',
+        ].join('\n'),
+        'src/refusals.ts': [
+          "import {MirrorError} from './errors.js';",
+          "import {fail, makeRefusal} from './kit.js';",
+          "import type {Refusal} from './kit.js';",
+          "import {packaged} from 'a-package';",
+          'declare function makeOne(code: string): Refusal;',
+          'class Other extends Error {}',
+          "function invalid(message: string): never { throw new MirrorError('X', message); }",
+          "const bad = (message: string) => { throw new MirrorError('X', message); };",
+          'const wrapped = (message: string) => invalid(message);',
+          "const built = makeRefusal('X');",
+          "const typed: Refusal = makeOne('Y');",
+          'function note(message: string) { return {note: message}; }',
+          'const review = (reason: string) => ({reason});',
+          "export function a() { invalid('Never helper'); }",
+          "export function b() { bad('Sole throw helper'); }",
+          "export function c() { wrapped('Delegating helper'); }",
+          "export function d() { built('Factory helper'); }",
+          "export function e() { typed('Typed constant'); }",
+          "export function f() { throw new MirrorError('X', 'Constructed'); }",
+          "export function g() { fail('X', 'Imported helper'); }",
+          "export function h() { note('Returning helper'); invalid('Returning helper'); }",
+          "export function i() { review('Review helper'); invalid('Review helper'); }",
+          "export function j(list: string[]) { list.push('Method call'); invalid('Method call'); }",
+          "export function k() { invalid('Property value'); return {text: 'Property value'}; }",
+          'export function l(x: number) { invalid(`Template text`); return `Template text ${x}`; }',
+          "export function m() { packaged('Unresolved helper'); invalid('Unresolved helper'); }",
+          "export function n() { throw new Other('Other constructor'); }",
+          "export function o() { invalid('Page word and refusal'); return {text: 'Page word and data'}; }",
+          '',
+        ].join('\n'),
+      },
+      {
+        catalog,
+        sources: new Map([
+          ['server:backend-contracts', new Set([...Object.keys(lazy), ...Object.keys(eager), 'Page word and refusal'])],
+          ['web/page.js', new Set(pageOwned)],
+        ]),
+        problems: [],
+      },
+    ),
+    where = key =>
+      Object.entries(built.chunks)
+        .filter(([, chunk]) => key in chunk)
+        .map(([name]) => name)
+        .sort();
+  assert.deepEqual(built.lazy, ['providers']);
+  for (const [key, why] of Object.entries(lazy)) assert.deepEqual(where(key), ['providers'], key + ': ' + why);
+  // Anything a page may show from an answer that refused nothing travels in the chunk every signed-in page has.
+  for (const [key, why] of Object.entries(eager)) assert.deepEqual(where(key), ['workspace'], key + ': ' + why);
+  // A script's own words are its own, even when a refusal needs the same sentence.
+  assert.deepEqual(where('Page word and refusal'), ['page', 'providers']);
+  // A word the backend also writes (a preset name, a coverage note) may reach any page in an answer: every page has it.
+  assert.deepEqual(where('Page word and data'), ['workspace']);
+  assert.deepEqual(where('Only the page'), ['page']);
+  assert.deepEqual(where('Shell word'), ['shell']);
+  assert.deepEqual(where('Written nowhere'), ['workspace']);
+});
+
+test('a sentence a helper that returns data also takes stays eager: report advice gives it as the reason of a recommendation', () => {
+  // `review` throws nowhere in src/report-advice-v4.ts: it returns the recommendation row with a `reason`. The same sentence
+  // is a refusal elsewhere, so the inspector files it with the refusals; the plan reads the module's own definition of
+  // `review` (not the name, which other modules use for a function that throws) and keeps it eager.
+  const key = 'A metric exceeds supported numeric precision. Use the retained native source.';
+  assert.ok(key in plan.catalog);
+  assert.equal(key in plan.chunks.providers, false);
+  assert.ok(key in plan.chunks.workspace);
 });
 
 /** localization.js, the registry and the loader in a page, with a recording fetch that serves the shipped chunks. */

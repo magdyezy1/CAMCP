@@ -5,6 +5,7 @@
   "Configuration statuses": "حالات الإعداد",
   "Declared conversion attribution": "إسناد التحويل حسب التصريح",
   "Detailed measurement settings": "إعدادات القياس التفصيلية",
+  "Detailed reporting uses the preset metrics. Clear additional native metrics before selecting this level.": "تستخدم التقارير التفصيلية مقاييس الإعداد المسبق. امسح المقاييس الأصلية الإضافية قبل اختيار هذا المستوى.",
   "Enter exact IDs separated by commas or spaces. Leave empty to include all.": "أدخل المعرّفات الدقيقة مفصولة بفواصل أو مسافات. اترك الحقل فارغًا لتضمين الكل.",
   "Exact Meta result action (optional)": "إجراء نتيجة Meta المحدد (اختياري)",
   "I have checked the reporting window is complete": "تحقّقت من اكتمال فترة التقرير",
@@ -18,5 +19,6 @@
   "Select All by itself, or choose one or more individual statuses.": "اختر «الكل» وحده، أو اختر حالة واحدة أو أكثر.",
   "Select one or more reporting levels.": "اختر مستوى تقارير واحدًا أو أكثر.",
   "Source filters": "عوامل تصفية المصدر",
+  "The parent campaign filter conflicts with the selected campaign IDs.": "يتعارض عامل تصفية الحملة الرئيسية مع معرّفات الحملات المحددة.",
   "Use explicit attribution windows for campaign rows": "استخدام نوافذ إسناد محددة لصفوف الحملات"
 }

@@ -12,10 +12,13 @@ import {backendContractSourceFiles, checkWebLocales} from './check-locales.mjs';
 //                server (server/*.ts) says on them; every page loads it first;
 //   workspace    what the workspace's services (src/*.ts) say: errors, explanations, recipes, report and measurement
 //                copy; every signed-in page loads it;
-//   providers    the provider contracts' refusals (the reviewed families' sources); every signed-in page loads it;
+//   providers    the provider contracts' refusal sentences and nothing else (R25 ar-lazy). No page waits for it: a refusal
+//                is shown only from an answer, so web/route-assets.js names it in `answerLocaleChunks`, and an answer that
+//                carries a sentence of it loads it first (`uiEnsureAnswerChunks`);
 //   <module>     what one lazily loaded page script writes and nothing above carries; loaded with that script.
-// A message goes to the first chunk whose sources write it, so a page always has it once its chunks are loaded. The
-// check below fails when a chunk is stale, too large or missing a message its scripts require.
+// A message goes to the first chunk whose sources write it, so a page always has it once its chunks are loaded; a script
+// also carries every message it writes that only a lazy chunk carries. The check below fails when a chunk is stale, too
+// large or missing a message its scripts require, and no script may rely on a lazy chunk.
 
 export const chunkDirectory = 'web/locales/ar';
 /** Bytes per chunk: the browser's download bound for one chunk (web/localization.js). */
@@ -23,20 +26,164 @@ export const chunkLimit = 1048576;
 export const chunkCountLimit = 64;
 const skipKeys = new Set(['loc', 'start', 'end', 'range', 'extra', 'comments', 'leadingComments', 'trailingComments']);
 
-/** Every string a source writes literally (string literals and the fixed parts of template literals). */
+/** A type as the proof below reads it: a function type that returns `never`, a reference to a named type, or neither. */
+const describeType = type =>
+  type?.type === 'TSFunctionType'
+    ? (type.returnType ?? type.typeAnnotation)?.typeAnnotation?.type === 'TSNeverKeyword'
+      ? {never: true}
+      : null
+    : type?.type === 'TSTypeReference' && type.typeName?.type === 'Identifier'
+      ? {ref: type.typeName.name}
+      : null;
+const isFunction = node =>
+  ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(node?.type);
+/** The call a one-statement function body is (`throw`, `return f(…)`, `f(…)`, or an arrow's expression), by callee name. */
+function soleStatement(fn) {
+  const body = fn.body.type === 'BlockStatement' ? (fn.body.body.length === 1 ? fn.body.body[0] : null) : fn.body;
+  if (!body) return {throws: false, delegate: null};
+  const expression =
+    body.type === 'ReturnStatement' ? body.argument : body.type === 'ExpressionStatement' ? body.expression : body;
+  return {
+    throws: body.type === 'ThrowStatement',
+    delegate:
+      expression?.type === 'CallExpression' && expression.callee?.type === 'Identifier' ? expression.callee.name : null,
+  };
+}
+/**
+ * Every string a source writes literally (string literals and the fixed parts of template literals), and what the backend
+ * needs to know about where each is written (R25 ar-lazy), so no occurrence is read twice:
+ *   loose   strings written anywhere but as a direct argument of a call to a plain function or of `new` (a property value, a
+ *           variable, a return value, a method call, a list element, a template): data a page may show from an answer that
+ *           refused nothing;
+ *   calls   the other strings, with the function each is handed to (`invalid('…')`, `new MirrorError(code, '…')`);
+ *   defs    each function or constant the source defines or imports by name, as far as the proof below needs it.
+ */
 function writtenStrings(source, file) {
   const strings = new Set(),
-    parser = file.endsWith('.ts') ? parsers['babel-ts'] : parsers.babel;
-  const visit = node => {
+    loose = new Set(),
+    calls = [],
+    defs = new Map(),
+    aliases = new Map(),
+    imports = new Map(),
+    typescript = file.endsWith('.ts'),
+    parser = typescript ? parsers['babel-ts'] : parsers.babel;
+  const define = (name, record) => defs.set(name, [...(defs.get(name) ?? []), record]);
+  const functionRecord = (fn, declared) => ({
+    never: fn.returnType?.typeAnnotation?.type === 'TSNeverKeyword',
+    typeOf: describeType(declared),
+    returns: describeType(fn.returnType?.typeAnnotation),
+    ...soleStatement(fn),
+  });
+  const visit = (node, parent) => {
     if (!node || typeof node !== 'object') return;
-    if (node.type === 'StringLiteral') strings.add(node.value);
+    if (node.type === 'StringLiteral') {
+      strings.add(node.value);
+      if (
+        (parent?.type === 'CallExpression' || parent?.type === 'NewExpression') &&
+        parent.callee?.type === 'Identifier' &&
+        parent.arguments.includes(node)
+      )
+        calls.push({text: node.value, name: parent.callee.name, isNew: parent.type === 'NewExpression'});
+      else loose.add(node.value);
+    }
     if (node.type === 'TemplateLiteral')
-      for (const quasi of node.quasis) strings.add(quasi.value.cooked ?? quasi.value.raw);
+      for (const quasi of node.quasis) {
+        const text = quasi.value.cooked ?? quasi.value.raw;
+        strings.add(text);
+        loose.add(text);
+      }
+    if (typescript) {
+      if (node.type === 'TSTypeAliasDeclaration') aliases.set(node.id.name, describeType(node.typeAnnotation));
+      else if (node.type === 'FunctionDeclaration' && node.id) define(node.id.name, functionRecord(node, null));
+      else if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier') {
+        const declared = node.id.typeAnnotation?.typeAnnotation;
+        if (isFunction(node.init)) define(node.id.name, functionRecord(node.init, declared));
+        else
+          define(node.id.name, {
+            typeOf: describeType(declared),
+            factory:
+              node.init?.type === 'CallExpression' && node.init.callee?.type === 'Identifier'
+                ? node.init.callee.name
+                : null,
+          });
+      } else if (node.type === 'ImportDeclaration' && node.source.value.startsWith('.'))
+        for (const specifier of node.specifiers)
+          if (specifier.type === 'ImportSpecifier')
+            imports.set(specifier.local.name, {
+              file: path.posix
+                .normalize(path.posix.join(path.posix.dirname(file), node.source.value))
+                .replace(/\.js$/, '.ts'),
+              name: specifier.imported.name ?? specifier.imported.value,
+            });
+    }
     for (const [key, value] of Object.entries(node))
-      if (!skipKeys.has(key)) for (const child of Array.isArray(value) ? value : [value]) visit(child);
+      if (!skipKeys.has(key)) for (const child of Array.isArray(value) ? value : [value]) visit(child, node);
   };
-  visit(parser.parse(source, {filepath: file}).program);
-  return strings;
+  visit(parser.parse(source, {filepath: file}).program, null);
+  return {strings, loose, calls, defs, aliases, imports};
+}
+/**
+ * Whether a call to `name` in `file` provably never returns, read from the sources alone: the function is declared to
+ * return `never`, is one `throw`, hands everything to a function that provably throws, or is a constant declared with (or
+ * built by a factory that returns) a function type returning `never`. A name that cannot be resolved, or that any
+ * same-named definition in the file does not satisfy, is not proven: the strings handed to it stay eager.
+ */
+function throwsWhenCalled(index, file, name, depth = 0) {
+  const here = index.get(file);
+  if (!here || depth > 6) return false;
+  /** Whether a described type is (an alias of, here or in an imported module) a function type that returns `never`. */
+  const neverType = (type, inFile, level = 0) => {
+    if (!type || level > 6) return false;
+    if (type.never) return true;
+    const owner = index.get(inFile),
+      imported = owner?.imports.get(type.ref);
+    if (owner?.aliases.has(type.ref)) return neverType(owner.aliases.get(type.ref), inFile, level + 1);
+    return imported ? neverType({ref: imported.name}, imported.file, level + 1) : false;
+  };
+  /** A constant built by `factory(…)` is a refusal when every definition of the factory returns such a function type. */
+  const factoryReturnsRefusal = factory => {
+    const imported = here.imports.get(factory),
+      local = here.defs.has(factory),
+      owner = local ? file : imported?.file,
+      made = index.get(owner)?.defs.get(local ? factory : imported?.name);
+    return Boolean(made?.length) && made.every(record => neverType(record.returns, owner));
+  };
+  const records = here.defs.get(name);
+  if (!records) {
+    const imported = here.imports.get(name);
+    return imported ? throwsWhenCalled(index, imported.file, imported.name, depth + 1) : false;
+  }
+  return records.every(
+    record =>
+      record.never ||
+      record.throws ||
+      neverType(record.typeOf, file) ||
+      (record.delegate && throwsWhenCalled(index, file, record.delegate, depth + 1)) ||
+      (record.factory && factoryReturnsRefusal(record.factory)),
+  );
+}
+/**
+ * The strings the backend writes anywhere but as the message of a refusal, in one occurrence at least: written as data (a
+ * property value, a variable, a template), handed to a method or to a function that can return, or to something that cannot
+ * be resolved. A string left out is only ever handed to a function that provably throws, or to a constructor imported from
+ * src/errors.ts.
+ */
+function dataStrings(index) {
+  const eager = new Set(),
+    proven = new Map();
+  for (const [file, here] of index) {
+    for (const text of here.loose) eager.add(text);
+    for (const call of here.calls) {
+      const key = file + '\0' + call.name + (call.isNew ? '\0new' : '');
+      if (!proven.has(key))
+        proven.set(
+          key,
+          call.isNew ? here.imports.get(call.name)?.file === 'src/errors.ts' : throwsWhenCalled(index, file, call.name),
+        );
+      if (!proven.get(key)) eager.add(call.text);
+    }
+  }
+  return eager;
 }
 function typescriptFiles(root, directory) {
   const out = [];
@@ -50,19 +197,23 @@ function typescriptFiles(root, directory) {
   visit(directory);
   return out.sort();
 }
-/** The loader's lazily loaded scripts in order, and each one's dependencies (web/route-assets.js). */
+/**
+ * The loader's lazily loaded scripts in order, each one's dependencies, and the Arabic chunks no page waits for
+ * (web/route-assets.js: `answerLocaleChunks`, none in a loader that names no such chunk).
+ */
 export function loaderFiles(root = process.cwd()) {
   const context = createContext({});
   new Script(fs.readFileSync(path.join(root, 'web/routes.js'), 'utf8')).runInContext(context);
   new Script(
     fs.readFileSync(path.join(root, 'web/route-assets.js'), 'utf8') +
-      '\n;globalThis.__plan = JSON.stringify({order: pageAssetOrder, dependencies: pageAssetDependencies});',
+      "\n;globalThis.__plan = JSON.stringify({order: pageAssetOrder, dependencies: pageAssetDependencies, lazy: typeof answerLocaleChunks === 'undefined' ? [] : answerLocaleChunks});",
   ).runInContext(context);
   const plan = JSON.parse(context.__plan);
   // A page's stylesheets (V2-WEB-02) are in the loader's list too; only scripts carry messages.
   return {
     modules: plan.order.filter(file => file.endsWith('.js') && !file.startsWith('vendor/')),
     dependencies: plan.dependencies,
+    lazy: plan.lazy,
   };
 }
 /** The chunk a lazily loaded script's own messages travel in. */
@@ -87,9 +238,15 @@ function documentScripts(root) {
 export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales(root)) {
   const {catalog, sources} = locales,
     keys = Object.keys(catalog),
-    {modules, dependencies} = loaderFiles(root),
+    {modules, dependencies, lazy} = loaderFiles(root),
     shellFiles = documentScripts(root).filter(file => !modules.includes(file)),
-    written = file => writtenStrings(fs.readFileSync(path.join(root, file), 'utf8'), file),
+    // Each source is parsed once: the strings it writes and the role of each occurrence.
+    analysed = new Map(),
+    analysis = file => {
+      if (!analysed.has(file)) analysed.set(file, writtenStrings(fs.readFileSync(path.join(root, file), 'utf8'), file));
+      return analysed.get(file);
+    },
+    written = file => analysis(file).strings,
     providerFiles = new Set(backendContractSourceFiles(root)),
     serverFiles = typescriptFiles(root, 'server'),
     srcFiles = typescriptFiles(root, 'src').filter(file => !providerFiles.has(file));
@@ -106,7 +263,15 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
     sources.get('server:platforms'),
     ...serverFiles.map(written),
   ]);
-  const providerSources = union([sources.get('server:backend-contracts'), ...[...providerFiles].map(written)]);
+  // R25 ar-lazy: what only a refusal asks for. The messages a provider contract's failures carry are inspected as
+  // 'server:backend-contracts'; any of them the backend also writes as data (a property value, a variable, a template) or
+  // hands to a function that can return (a method call, a helper that is not one `throw`) is left out, because a page may
+  // show it from an answer that refused nothing, as the ad previews page shows `not_found_reason`. Before this, every
+  // string any backend file wrote went to `providers` once no earlier chunk had it: 694 of its 4,710 messages were words
+  // the page scripts write and report text shown from success answers.
+  const refusals = sources.get('server:backend-contracts') ?? new Set(),
+    data = dataStrings(new Map([...providerFiles].map(file => [file, analysis(file)]))),
+    backendWritten = union([...providerFiles].map(written));
   const workspaceSources = union([
     ...[...sources]
       .filter(([name]) => name.startsWith('server:') && name !== 'server:backend-contracts')
@@ -124,16 +289,21 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
   for (const key of keys)
     if (shellSources.has(key)) put('shell', key);
     else if (workspaceSources.has(key)) put('workspace', key);
-    else if (providerSources.has(key)) put('providers', key);
+    else if (refusals.has(key) && !data.has(key)) put('providers', key);
+    // Anything else the backend writes may reach any signed-in page in a success answer (a report preset's name, a coverage
+    // note), whatever script writes it too, so it travels in the chunk every signed-in page has.
+    else if (refusals.has(key) || backendWritten.has(key)) put('workspace', key);
   const moduleStrings = new Map(
     modules.map(file => [file, union([sources.get('web/' + file), written('web/' + file)])]),
   );
   for (const key of keys) {
-    if (assigned.has(key)) continue;
-    const owners = modules.filter(file => moduleStrings.get(file).has(key));
+    const owners = modules.filter(file => moduleStrings.get(file).has(key)),
+      eager = [...(assigned.get(key) ?? [])].some(chunk => !lazy.includes(chunk));
     // A message no source writes (an older or dynamically named one) goes where every signed-in page has it.
-    if (!owners.length) put('workspace', key);
-    for (const file of owners) put(moduleChunk(file), key);
+    if (!assigned.has(key) && !owners.length) put('workspace', key);
+    // A script finds what it writes in its own chunk, unless a chunk every page loads carries it: a lazy chunk is not there
+    // before the page renders (R25 ar-lazy).
+    if (!eager) for (const file of owners) put(moduleChunk(file), key);
   }
   const sorted = Object.fromEntries(
     Object.entries(chunks).map(([name, chunk]) => [
@@ -145,12 +315,15 @@ export function planLocaleChunks(root = process.cwd(), locales = checkWebLocales
       ),
     ]),
   );
-  return {chunks: sorted, modules, dependencies, shellFiles, sources, catalog, problems: locales.problems};
+  return {chunks: sorted, modules, dependencies, lazy, shellFiles, sources, catalog, problems: locales.problems};
 }
 const serialize = chunk => JSON.stringify(chunk, null, 2) + '\n';
-/** The chunks a lazily loaded script can rely on once its page is ready: its own, its dependencies' and the shared. */
-export function chunksWith(file, dependencies) {
-  const out = new Set(['shell', 'workspace', 'providers']),
+/**
+ * The chunks a lazily loaded script can rely on once its page is ready: its own, its dependencies' and the shared ones. A
+ * lazy chunk (`answerLocaleChunks` in web/route-assets.js) is no page's before it renders, so no script can rely on it.
+ */
+export function chunksWith(file, dependencies, lazy = ['providers']) {
+  const out = new Set(['shell', 'workspace', 'providers'].filter(name => !lazy.includes(name))),
     visit = name => {
       // A page's stylesheets (V2-WEB-02) are dependencies too, and carry no messages: they have no chunk (package charts
       // makes the report builder depend on the V2 sheets, Merge C).
@@ -204,10 +377,22 @@ export function localeChunkProblems(root = process.cwd(), plan = planLocaleChunk
   missing('index.html and the public pages', plan.sources.get('html'), ['shell']);
   for (const source of ['server:website-failures', 'server:platforms'])
     missing(source, plan.sources.get(source), ['shell']);
+  // What the backend says reaches a page in an answer. A refusal sentence may travel in a lazy chunk, which the answer loads
+  // first; every other message of the backend is shown from answers that refused nothing, so it travels in a chunk every
+  // signed-in page has (R25 ar-lazy).
+  const refusalKey = 'server:backend-contracts';
   for (const [source, set] of plan.sources)
-    if (source.startsWith('server:')) missing(source, set, ['shell', 'workspace', 'providers']);
+    if (source.startsWith('server:'))
+      missing(source, set, source === refusalKey ? ['shell', 'workspace', 'providers'] : ['shell', 'workspace']);
+  for (const name of plan.lazy ?? [])
+    if (!names.includes(name)) problems.push('web/route-assets.js names a lazy chunk that does not exist: ' + name);
+  // A lazy chunk holds refusal sentences only: no page script and no other source may need a message that is in it.
+  for (const name of plan.lazy ?? [])
+    for (const key of Object.keys(plan.chunks[name] ?? {}))
+      if (!plan.sources.get(refusalKey)?.has(key))
+        problems.push(name + ' chunk carries a message no provider refusal writes: ' + key);
   for (const file of plan.modules)
-    missing('web/' + file, plan.sources.get('web/' + file), chunksWith(file, plan.dependencies));
+    missing('web/' + file, plan.sources.get('web/' + file), chunksWith(file, plan.dependencies, plan.lazy));
   return problems;
 }
 export function writeLocaleChunks(root = process.cwd()) {

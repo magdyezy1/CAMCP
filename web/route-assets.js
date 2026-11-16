@@ -138,6 +138,13 @@ function pageAssetsFor(pathname) {
   for (const file of Object.hasOwn(pageAssetRoutes, pathname) ? pageAssetRoutes[pathname] : []) include(file);
   return pageAssetOrder.filter(file => wanted.has(file));
 }
+/**
+ * The Arabic chunks no page waits for (R25 ar-lazy). `providers` holds the sentences of provider refusals, which are shown
+ * only from an answer, and a third of a page's bytes before this: an answer that carries one loads it first
+ * (uiEnsureAnswerChunks), and the browser fetches it when idle after a page has rendered. tools/locale-chunks.mjs reads
+ * this list: no page script may rely on these chunks, and no page's `pageLocaleChunks` names one (tests/web-route-bytes).
+ */
+const answerLocaleChunks = Object.freeze(['providers']);
 /** A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace, providers and its scripts'. */
 function pageLocaleChunks(pathname) {
   const entry = routeEntry(pathname);

@@ -14,10 +14,16 @@ const actor = {tenantId: 'synthetic-preview-localization', userId: 'owner', role
   login = 'aaaaaaaa-1111-4111-8111-000000000001';
 const key = Buffer.alloc(32, 91).toString('base64'),
   catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
-const chunks = chunksWith('ad-previews.js', loaderFiles().dependencies);
-const loaded = new Set(
-  [...chunks].flatMap(name => Object.keys(JSON.parse(readFileSync('web/locales/ar/' + name + '.json', 'utf8')))),
-);
+const {dependencies, lazy} = loaderFiles(),
+  chunks = chunksWith('ad-previews.js', dependencies);
+const sentencesIn = names =>
+  new Set(
+    [...names].flatMap(name => Object.keys(JSON.parse(readFileSync('web/locales/ar/' + name + '.json', 'utf8')))),
+  );
+// What the page has before it renders: an answer's notices must be in it. A refusal is shown from an answer that first loads
+// the chunks no page waits for (package r25-ar-lazy), so its sentence may be in one of those too.
+const loaded = sentencesIn(chunks),
+  loadedWithAnswer = sentencesIn([...chunks, ...lazy]);
 
 function storeFixture(t, gateway) {
   const store = new Store(':memory:', key);
@@ -94,7 +100,8 @@ function sentences(out) {
   for (const preview of out.previews ?? []) for (const key of ['expires', 'note']) add(preview[key]);
   return found;
 }
-const missing = texts => [...texts].filter(text => !Object.hasOwn(catalog, text) || !loaded.has(text)).sort();
+const missing = (texts, available = loaded) =>
+  [...texts].filter(text => !Object.hasOwn(catalog, text) || !available.has(text)).sort();
 
 test('every notice the tool answers with, on every platform, has Arabic in the chunks the page loads', async t => {
   const texts = new Set();
@@ -153,5 +160,5 @@ test('every refusal sentence of the tool has Arabic in the chunks the page loads
     assertRefused(error, code);
     texts.add(error.message);
   }
-  assert.deepEqual(missing(texts), []);
+  assert.deepEqual(missing(texts, loadedWithAnswer), []);
 });
