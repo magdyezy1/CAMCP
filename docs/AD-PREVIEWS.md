@@ -17,7 +17,8 @@ help contract. Ordinary preview calls retain the platform/account inputs below a
 
 Without `ad_ids`, `limit` defaults to 5 (maximum 10), and `statuses` to `["active"]`. Other choices are `paused`,
 `archived` and `all`; old ads, meaning archived or deleted ones, are in `archived` and `all`. Named IDs ignore
-statuses. Optional `campaign_ids` and `adset_ids` each accept 1–50 IDs; both filters must match, including for named
+statuses. For X, `active` is the promoted Tweet's own status, so it can include an active promoted Tweet under a
+paused line item or campaign. Optional `campaign_ids` and `adset_ids` each accept 1–50 IDs; both filters must match, including for named
 IDs. LinkedIn uses campaign groups and native campaigns respectively; Snapchat uses ad squads in `adset_ids`; X uses
 line items there. Parent filters are tool inputs.
 

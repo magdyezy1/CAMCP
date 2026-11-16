@@ -318,6 +318,33 @@ test('statuses select the promoted Tweet’s own status: paused, archived (delet
   );
 });
 
+// Decision 5 of the review: the status is the promoted Tweet's own, not the status the line item or campaign above it has, so "active"
+// can include an active promoted Tweet under a paused line item. The guide says it where it says what statuses are.
+test('"active" is the promoted Tweet’s own status, so it includes an active promoted Tweet under a paused line item, as the guide says', async t => {
+  const w = world({
+      lineItems: [{id: 'li1', campaign_id: 'cm1', entity_status: 'PAUSED', deleted: false}],
+      promoted: [promotion('pt1', tweet(1), 'li1')],
+    }),
+    f = fixture(t, w),
+    byDefault = ok(await f.previews({}));
+  assert.deepEqual(
+    byDefault.previews.map(p => [p.tweet_id, p.promoted_tweet_ids]),
+    [[tweet(1), ['pt1']]],
+  );
+  // With the campaign filter, which reads the line item that is paused, the same promoted Tweet is still active.
+  assert.deepEqual(
+    ok(await f.previews({campaign_ids: ['cm1']})).previews.map(p => p.promoted_tweet_ids),
+    [['pt1']],
+  );
+  const guide = fs.readFileSync('docs/AD-PREVIEWS.md', 'utf8').replace(/\s+/g, ' ');
+  assert.ok(
+    guide.includes(
+      "For X, `active` is the promoted Tweet's own status, so it can include an active promoted Tweet under a paused line item or campaign.",
+    ),
+    'docs/AD-PREVIEWS.md says what active is for X',
+  );
+});
+
 test('adset_ids are line item IDs: sent to X as line_item_ids and still applied to what X returns', async t => {
   const f = fixture(t),
     data = ok(await f.previews({adset_ids: ['li1'], statuses: ['all']}));
