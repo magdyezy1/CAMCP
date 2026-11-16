@@ -29,6 +29,7 @@ export default {
     },
   },
   seed: () => ({adgroups: {301: {adgroup_id: '301', adgroup_name: 'Spring video'}}, created: []}),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/dmp/custom_audience/rule/create/'),
   provider({method, url, path, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/adgroup/get/')) {

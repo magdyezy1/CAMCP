@@ -27,6 +27,7 @@ export default {
     campaigns: 0,
   }),
   unpaginated: 'GET /v1.3/advertiser/info/ returns the named advertisers in one list without page_info or a cursor',
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/smart_plus/campaign/create/'),
   provider({method, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/advertiser/info/')) return ok({list: [{...state.advertiser}]});

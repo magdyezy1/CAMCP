@@ -26,6 +26,7 @@ export default {
       ],
     },
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/custom_conversion/update/'),
   provider({method, url, path, body, state, mode}) {
     const q = k => url.searchParams.get(k),

@@ -17,6 +17,7 @@ export default {
   seed: () => ({
     comments: {5001: {comment_id: '5001', ad_id: '9001', advertiser_id: '123', status: 'PUBLIC', text: 'Synthetic'}},
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/comment/status/update/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/comment/list/')) {

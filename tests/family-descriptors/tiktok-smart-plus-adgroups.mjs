@@ -53,6 +53,7 @@ export default {
     },
     groups: 0,
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/smart_plus/adgroup/create/'),
   provider({method, url, path, body, state, mode}) {
     const q = k => url.searchParams.get(k);

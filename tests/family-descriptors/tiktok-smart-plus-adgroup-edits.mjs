@@ -31,6 +31,7 @@ export default {
   account: '123',
   request: {action: 'tiktok_smart_plus_adgroup_update', payload: {adgroup_id: '300', conversion_bid_price: 15}},
   seed: () => ({groups: {300: group('300'), 301: group('301', {adgroup_name: 'Sibling'})}}),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/smart_plus/adgroup/update/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/smart_plus/adgroup/get/')) {

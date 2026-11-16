@@ -20,6 +20,7 @@ export default {
     portfolios: 0,
   }),
   unpaginated: 'GET /v1.3/advertiser/info/ returns the named advertisers in one list without page_info or a cursor',
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/creative/portfolio/create/'),
   provider({method, path, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/advertiser/info/')) return ok({list: [{...state.advertiser}]});

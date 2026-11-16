@@ -29,6 +29,7 @@ export default {
   }),
   // A list longer than one review reads is refused as too large; TikTok pages it by page_info.total_page.
   paginatedCodes: ['STATE_TOO_LARGE', 'INCOMPLETE_STATE'],
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/search_ad/negative_keyword/add/'),
   provider({method, url, path, body, state, mode}) {
     const q = k => url.searchParams.get(k);

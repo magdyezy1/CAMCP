@@ -29,6 +29,7 @@ export default {
   }),
   // The family refuses an advertiser read that carries anything besides its one-row list, page information included.
   paginatedCodes: ['TIKTOK_REPORT_STATE_UNVERIFIED'],
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/report/task/create/'),
   provider({method, path, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/advertiser/info/'))

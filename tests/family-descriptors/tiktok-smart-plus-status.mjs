@@ -22,6 +22,7 @@ export default {
       },
     },
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && /\/smart_plus\/campaign\/status\/update\/$/.test(path),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/smart_plus/campaign/get/'))

@@ -17,6 +17,7 @@ export default {
       {pixel_id: '7002', pixel_name: 'Blog pixel', pixel_code: 'CABC2', asset_ownership: owned},
     ],
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/pixel/update/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/pixel/list/')) {

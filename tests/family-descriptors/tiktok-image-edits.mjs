@@ -22,6 +22,7 @@ export default {
   unpaginated:
     'GET /v1.3/file/image/ad/search/ is filtered to the one named image_id, so a second page cannot hold it ' +
     '(a row for any other image is refused as a target mismatch)',
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/creative/image/edit/'),
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && path.endsWith('/v1.3/file/image/ad/search/')) {

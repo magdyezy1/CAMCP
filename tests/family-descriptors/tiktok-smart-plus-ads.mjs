@@ -49,6 +49,7 @@ export default {
     },
     ads: {},
   }),
+  partialCodes: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
   isWrite: ({method, path}) => method === 'POST' && path.endsWith('/v1.3/smart_plus/ad/create/'),
   provider({method, url: u, path, body, state, mode}) {
     const q = k => u.searchParams.get(k);
