@@ -13,6 +13,8 @@ import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
+import {materialFields, surfacedMaterial} from './review-diff.js';
+import {recurringStatePaths} from './review-friction.js';
 import {downloadDriveFile, downloadPrivateDrive, driveAccess, driveGateway, listDriveFolder} from './private-drive.js';
 import {createMediaVariant, variantPresets, inspectMediaPlacement} from './media-variants.js';
 import {placementPreflight} from './media-specs.js';
@@ -1806,12 +1808,23 @@ export class MediaUploadService {
       current = await this.state(actor, p),
       actual = reviewStateHash(current),
       expected = reviewStateHash(expectedState);
-    if (actual !== expected)
+    if (actual !== expected) {
+      const changed = changedStateFields(expectedState, current),
+        gateway = p.platform + '_native_action',
+        // The paths that changed in this provider's recent refusals too, writes and uploads alike: left out when the audit
+        // cannot be read (R25 M1, L5-04).
+        recurring = recurringStatePaths(this.store, actor.tenantId, gateway, changed, {review: input.review_id});
+      // The same words as the refusal of a write (src/write-review.ts), except the call that prepares it again: a media
+      // review keeps no prepare input, and its source may be a link that carries a signature, which a refusal must not copy.
       fail('STATE_CHANGED', 'Provider configuration changed. Prepare a new media review.', {
         expected_state_hash: expected,
         actual_state_hash: actual,
-        changed_fields: changedStateFields(expectedState, current),
+        changed_fields: changed,
+        gateway,
+        ...surfacedMaterial(materialFields(changed, undefined)),
+        ...(recurring ? {recurring_paths: recurring} : {}),
       });
+    }
     if (confirmBy <= Date.now()) fail('REVIEW_EXPIRED', 'Media review expired during verification.');
     assertWritesNotPaused(this.store, actor.tenantId);
     // Before any claim or provider request: refuse a transfer that cannot finish before its deadline (MED-01 Stage C).

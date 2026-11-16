@@ -534,7 +534,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 2 (L5-04): +1 entry, the website's wording of the stop of a plan run at a step whose provider state changed after its
   // review (web/campaign-workflows.js runStopLabels.state_changed, also shown for the step execute_next sent back to pending):
   // measured (node tools/check-locales.mjs: catalog_messages 12140), 12,139 + 1 = 12,140.
-  assert.equal(Object.keys(catalog).length, 12140);
+  // Its item 5 (L6-11): +3 entries, the website's wording of the media block of the Review friction section of Settings (its heading,
+  // its table's name and the line that says how many media reviews were prepared and uploads sent: web/owner-operations.js
+  // ownerMediaFriction; every other label of the block was already translated): measured (node tools/check-locales.mjs:
+  // catalog_messages 12143), 12,140 + 3 = 12,143.
+  assert.equal(Object.keys(catalog).length, 12143);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

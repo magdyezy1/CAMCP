@@ -89,6 +89,15 @@ export function recurringStatePaths(
     .map(([field]) => field);
 }
 
+/** The paths named most often, the most first (ties by path), as the owner's view lists them: ten at most. */
+const topPaths = (named: ReadonlyMap<string, number>) =>
+  [...named]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .slice(0, 10)
+    .map(([field, count]) => ({path: field, count}));
+/** The refusals of a media review the report counts: an expired review and a changed state (L6-11, R25 M1). */
+const mediaCounted = ['REVIEW_EXPIRED', 'STATE_CHANGED'];
+
 export function reviewFriction(store: Store, tenant: string, days = 30, now = Date.now()): JsonObject {
   const since = now - days * 86400000;
   const rows = writeAuditEvents(store, tenant, since, now, frictionScanLimit + 1);
@@ -98,12 +107,19 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     codes: Record<string, number> = Object.fromEntries(counted.map(c => [c, 0])),
     notSent: Record<string, number> = {},
     changedPaths = new Map<string, number>(),
+    // L6-11: media reviews, counted apart. A media review executed through amcp_write (a campaign plan's step does) is
+    // told by its review id from the media reviews prepared, so it is a media refusal and not a write one.
+    mediaReviews = new Set<string>(),
+    mediaCodes: Record<string, number> = Object.fromEntries(mediaCounted.map(c => [c, 0])),
+    mediaPaths = new Map<string, number>(),
     // WRT-09: website approvals, the time from prepare to a person's approval, and the refusals that wait for one.
     groupPrepared = new Map<string, number>(),
     approvalLatencies: number[] = [],
     approvalRefusals: Record<string, number> = Object.fromEntries(approvalCodes.map(c => [c, 0]));
   let prepares = 0,
     executes = 0,
+    mediaPrepares = 0,
+    mediaExecutes = 0,
     notSentTotal = 0,
     approvals = 0,
     ownerApprovals = 0;
@@ -114,7 +130,30 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     } catch {
       continue;
     }
-    if (event.event === 'write_prepared') {
+    if (event.event === 'media_prepared' || event.event === 'media_library_prepared') {
+      mediaPrepares++;
+      mediaReviews.add(row.request_id);
+    } else if (event.event === 'media_uploaded' || event.event === 'media_upload_incomplete')
+      // An upload that reached the provider, completed or not: the media analogue of a write's execute.
+      mediaExecutes++;
+    else if (
+      event.outcome?.success === false &&
+      (event.tool === 'amcp_media' ||
+        (event.tool === 'amcp_write' &&
+          typeof event.input?.review_id === 'string' &&
+          mediaReviews.has(event.input.review_id)))
+    ) {
+      const code = event.outcome.error?.code;
+      if (typeof code !== 'string' || !mediaCounted.includes(code)) continue;
+      mediaCodes[code]!++;
+      if (code === 'STATE_CHANGED')
+        for (const field of Array.isArray(event.outcome.error.details?.changed_fields)
+          ? event.outcome.error.details.changed_fields
+          : []) {
+          const p = path(field);
+          if (p) mediaPaths.set(p, (mediaPaths.get(p) ?? 0) + 1);
+        }
+    } else if (event.event === 'write_prepared') {
       prepares++;
       prepared.set(row.request_id, row.created_at);
     } else if (event.event === 'write_group_prepared') groupPrepared.set(row.request_id, row.created_at);
@@ -185,11 +224,19 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       },
       refusals: approvalRefusals,
     },
-    state_changed_paths: [...changedPaths]
-      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-      .slice(0, 10)
-      .map(([field, count]) => ({path: field, count})),
+    state_changed_paths: topPaths(changedPaths),
+    // L6-11 (R25 M1): the media reviews of amcp_media, counted as the writes are. Unknown rates stay null, never zero.
+    media: {
+      prepares: mediaPrepares,
+      executes: mediaExecutes,
+      counts: mediaCodes,
+      per_100_prepares: {
+        review_expired: rate(mediaCodes.REVIEW_EXPIRED!, mediaPrepares),
+        state_changed: rate(mediaCodes.STATE_CHANGED!, mediaPrepares),
+      },
+      state_changed_paths: topPaths(mediaPaths),
+    },
     meaning:
-      'Counts from this workspace’s audit of amcp_write over the window: latency from prepare to the start of execute (nearest-rank percentiles), and refusals per 100 prepares. Field paths only, never values. A baseline for the five-minute review window, not a measure of any one review.',
+      'Counts from this workspace’s audit of amcp_write over the window: latency from prepare to the start of execute (nearest-rank percentiles), and refusals per 100 prepares. Media reviews (amcp_media, and a media review executed through amcp_write) are counted apart in media: the reviews prepared, the uploads that reached the provider, and the refusals for an expired review and a changed state. Field paths only, never values. A baseline for the five-minute review window, not a measure of any one review.',
   };
 }
