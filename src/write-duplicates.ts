@@ -75,22 +75,22 @@ function readable(store: Store, actor: Actor, id: string): Pick<EarlierCreate, '
 }
 /**
  * The earlier creates of the same request in the workspace: those unresolved (uncertain, or pending: still being sent) and
- * those that completed within ten minutes. A review that a replacement superseded holds nothing unresolved, and `replacing`
- * (the review a prepare says it replaces) is not an earlier create of the new one.
+ * those that completed within ten minutes. A review that a replacement superseded holds nothing unresolved, and the reviews in`n * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one.
  */
 export function earlierCreates(
   store: Store,
   actor: Actor,
   plan: CompiledRequest,
-  replacing?: string,
+  excluded: readonly (string | undefined)[] = [],
   now = Date.now(),
 ): {unresolved: EarlierCreate[]; completed: EarlierCreate[]} {
   const identity = requestIdentity(plan),
+    skip = new Set(excluded.filter((id): id is string => typeof id === 'string')),
     unresolved: EarlierCreate[] = [],
     completed: EarlierCreate[] = [];
   for (const claim of openWriteClaims(store, actor.tenantId, now - duplicateWarningMs)) {
     const id = String(claim.key),
-      review = id === replacing ? undefined : optional(store, actor.tenantId, 'write_review', id);
+      review = skip.has(id) ? undefined : optional(store, actor.tenantId, 'write_review', id);
     if (!review?.plan || requestIdentity(review.plan) !== identity) continue;
     if (optional(store, actor.tenantId, 'write_reconciliation', id)?.superseded_by) continue;
     const at = Number(claim.created_at);
@@ -123,7 +123,7 @@ export function earlierCreates(
   return {unresolved, completed};
 }
 /** The refusal of a prepare that would repeat an unresolved create: it names the earlier review it may, and what to do. */
-export function refuseRepeatedCreate(unresolved: EarlierCreate[]): never {
+export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObject = {}): never {
   const named = unresolved.find(u => u.review_id) ?? unresolved[0]!;
   fail(
     'DUPLICATE_OF_UNCERTAIN_WRITE',
@@ -137,6 +137,7 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[]): never {
         ? {earlier_review_id: named.review_id, earlier_claimed_at: named.claimed_at, next_call: named.next_call}
         : {readable: false}),
       unresolved: unresolved.length,
+      ...extra,
     },
     409,
   );
@@ -150,4 +151,31 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
     message:
       'An identical create completed in the last ten minutes. Executing this review makes a second object. Check with the user that two are wanted before it is executed.',
   };
+}
+/**
+ * The guard again at execute (R2.5 M2, lead review S2-1), inside the transaction that takes the claim, so a refusal claims and sends
+ * nothing and two executes cannot both pass. A review has a claim only from its execute on, so two identical creates prepared before
+ * either was sent were invisible to the guard at prepare. A create is refused when an identical one is unresolved (the earlier review
+ * is named, as at prepare), or completed in the last ten minutes when this review carried no warning for it: the person sees the
+ * warning first, by preparing again (the refusal's own code, gain its call), and may still want two. The review that replaces an
+ * uncertain write is excused for that one, as at prepare.
+ */
+export function assertCreateNotRepeated(
+  store: Store,
+  actor: Actor,
+  plan: CompiledRequest,
+  review: JsonObject,
+  reviewId: string,
+  again: JsonObject,
+): void {
+  if (!createsObjects(plan)) return;
+  const {unresolved, completed} = earlierCreates(store, actor, plan, [reviewId, review.supersedes_uncertain]);
+  if (unresolved.length) refuseRepeatedCreate(unresolved, {submission: 'not_sent'});
+  if (completed.length && !review.duplicate_warning)
+    fail(
+      'DUPLICATE_OF_COMPLETED_WRITE',
+      'An identical create completed after this review was prepared, so executing it would make a second object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning, and executing it makes the second object.',
+      {...repeatedCreateWarning(completed), submission: 'not_sent', ...again},
+      409,
+    );
 }

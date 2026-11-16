@@ -48,7 +48,13 @@ import {writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler} from './write-reconciliation.js';
 import {queueReconcile} from './write-reconcile-job.js';
-import {createsObjects, earlierCreates, refuseRepeatedCreate, repeatedCreateWarning} from './write-duplicates.js';
+import {
+  assertCreateNotRepeated,
+  createsObjects,
+  earlierCreates,
+  refuseRepeatedCreate,
+  repeatedCreateWarning,
+} from './write-duplicates.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
@@ -900,7 +906,7 @@ export class WriteReviewService {
         : undefined;
     // A create identical to one that is uncertain or still being sent is not prepared again: it could make a second object.
     // The review it replaces is the one exception, and one that completed in the last ten minutes only warns (R2.5 M2, L5-06).
-    const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, supersedes) : undefined;
+    const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, [supersedes]) : undefined;
     if (earlier?.unresolved.length) refuseRepeatedCreate(earlier.unresolved);
     if (input.provider_check === true && !providerValidationRequest(plan))
       fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
@@ -1006,6 +1012,9 @@ export class WriteReviewService {
       // What a person approving on the website is shown (WRT-09): the reasons and effects, never the request body.
       approval_context: {reasons: requirements.reasons, effects: effects ?? null},
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      // What the person was shown at prepare: execute refuses once, with this review's own code, an identical create that
+      // completed after it was prepared (src/write-duplicates.ts assertCreateNotRepeated).
+      ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
       ...override,
       ...(providerCheck ? {provider_check: providerCheck} : {}),
       prepare_input: {
@@ -1406,6 +1415,10 @@ export class WriteReviewService {
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
       if (claim.fresh) {
+        // R2.5 M2 (lead review S2-1): an identical create that is unresolved, or completed since this review was prepared, is
+        // refused here, in the transaction that took the claim: a refusal rolls the claim back, so nothing is claimed or sent,
+        // and two executes cannot both pass (the store's transactions begin immediate, so other processes wait too).
+        assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, expiredNext(review, true));
         family?.admit?.(plan, submission);
         if (job) {
           if (!family?.admit) admitProviderJob(this.store, plan.gateway, plan.accountId ?? '');

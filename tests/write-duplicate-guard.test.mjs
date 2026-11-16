@@ -158,12 +158,17 @@ test('supersedes_review_id replaces the one earlier create it names, records it,
 test('supersedes_review_id excuses the review it names and no other: a second unresolved identical create still refuses', async () => {
   const f = googleBudgetFixture();
   try {
-    // Both are prepared before either is sent, so neither is refused; both end uncertain.
+    // Both are prepared before either is sent, so neither is refused at prepare. Only the first is executed, and ends uncertain: the
+    // second is refused at execute (the execute-time guard, R2.5 M2 rework S2-1). A second unresolved identical create can then exist only
+    // as one claimed before that guard did: a legacy double, written here as the claim a pre-guard execute would have left.
     const first = (await f.creates(1, 5000000)).data.review_id,
       second = (await f.creates(1, 5000000)).data.review_id;
     f.hooks.respond = lost;
-    for (const id of [first, second]) assert.equal((await f.execute(id)).error?.code, 'WRITE_OUTCOME_UNCERTAIN');
+    assert.equal((await f.execute(first)).error?.code, 'WRITE_OUTCOME_UNCERTAIN');
     f.hooks.respond = undefined;
+    f.store.db
+      .prepare("INSERT INTO idempotency(tenant_id,key,fingerprint,state,created_at) VALUES(?,?,?,'uncertain',?)")
+      .run(f.actor.tenantId, second, 'legacy', Date.now());
     const found = await reconcile(f, first);
     assert.equal(found.data.classification, 'appears_not_applied', JSON.stringify(found.data));
     const refused = await f.write(found.data.next_call.arguments);
