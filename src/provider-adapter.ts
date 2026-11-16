@@ -1647,10 +1647,15 @@ export interface WriteReviewHooks {
   // The read-only reconciliation of an uncertain write (src/write-reconciliation.ts WriteReconciler).
   /**
    * The lookup that finds what a create made (Google Ads' named campaigns, budgets, ad groups and asset groups by their
-   * frozen names; Meta's campaign, ad set and ad creates by name and creation time), its reads built with `read` as
-   * the review builds every state read; undefined for a write it cannot look up.
+   * frozen names; Meta's campaign, ad set and ad creates by name and creation time; TikTok's campaign, ad group and ad by
+   * name, parent and creation window), its reads built with `read` as the review builds every state read; undefined for a
+   * write it cannot look up. `context` is what the review froze (its state) and when the write was claimed.
    */
-  createdLookup?(plan: CompiledRequest, read: StateReadBuilder): CreatedLookup | undefined;
+  createdLookup?(
+    plan: CompiledRequest,
+    read: StateReadBuilder,
+    context?: CreatedLookupContext,
+  ): CreatedLookup | undefined;
   /**
    * The receipt the provider would have returned for an update or removal whose targets the request names (Google
    * Ads' operations' resource names, a Meta node edit's ID), so the verification reads name what to read and expect;
@@ -1675,11 +1680,27 @@ export interface WriteReviewHooks {
    */
   moneyFields?(): {bid: string[]; unsupported: string[]};
 }
+/** What a review froze that a lookup may compare against: the state it kept at prepare, and when the write was claimed. */
+export interface CreatedLookupContext {
+  /** The review's state, the normalized snapshots of its reads in order (what existed under the parent at prepare). */
+  state: unknown[];
+  /** When the write was claimed (ms): a created resource carries a creation time after it. */
+  claimedAt: number;
+}
 /** What a provider's lookup of a create returns: the created resources it found, in the order of the request's records. */
 export interface CreatedLookup {
   reads: CompiledRequest[];
-  /** Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked. */
-  match(responses: TransportResult[], submittedAt: number): {found: JsonObject[]; expected: number; complete: boolean};
+  /**
+   * Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked.
+   * `found` are the resources of the frozen name and parent that the lookup can show were created by this write, each
+   * with the `index` of its record. `undated` (R2.5 M2) are resources of that name and parent that it cannot tell from
+   * older ones (no creation time, or one it cannot read against the window): they are never counted as created and never
+   * as proof of absence, so the answer stays indeterminate with their IDs shown.
+   */
+  match(
+    responses: TransportResult[],
+    submittedAt: number,
+  ): {found: JsonObject[]; expected: number; complete: boolean; undated?: JsonObject[]};
   /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
   receipt(found: JsonObject[]): JsonObject;
 }

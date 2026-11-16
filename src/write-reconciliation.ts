@@ -19,7 +19,7 @@ import {stateRead} from './write-snapshots.js';
 import {fingerprint, optional} from './workspace-core.js';
 // Each provider's created-resource lookups and named targets (ARC-01 phase B, wave 4c): its adapter's `writes` hooks.
 import {providerHooks} from './provider-hooks.js';
-import type {CreatedLookup, StateReadBuilder} from './provider-adapter.js';
+import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {ownsRecord} from './actor-identity.js';
 import {mayResolve, pendingUncertainMs, reconciliationFreshMs, retainedReview, writeStatus} from './write-records.js';
 import {object} from './write-common.js';
@@ -115,14 +115,18 @@ export function recordStoppedCheck(
 type Read = (request: CompiledRequest) => Promise<TransportResult>;
 // What a provider's lookup of a create returns is the provider contract's (src/provider-adapter.ts); this import path
 // keeps the type.
-export type {CreatedLookup};
+export type {CreatedLookup, CreatedLookupContext};
 /**
- * The created-resource lookups, by the write's provider (its adapter's `writes.createdLookup`: Google Ads and Meta),
- * whose reads are built as the review builds every state read.
+ * The created-resource lookups, by the write's provider (its adapter's `writes.createdLookup`: Google Ads, Meta and
+ * TikTok), whose reads are built as the review builds every state read. `context` is what the review froze and when the
+ * write was claimed; a caller with neither (a test of one lookup) gets none and the present time.
  */
-export function findCreated(plan: CompiledRequest): CreatedLookup | undefined {
+export function findCreated(
+  plan: CompiledRequest,
+  context: CreatedLookupContext = {state: [], claimedAt: Date.now()},
+): CreatedLookup | undefined {
   const read: StateReadBuilder = (path, query = {}, body, method = 'GET') => stateRead(plan, path, query, body, method);
-  return providerHooks(plan.gateway)?.writes?.createdLookup?.(plan, read);
+  return providerHooks(plan.gateway)?.writes?.createdLookup?.(plan, read, context);
 }
 /**
  * For an update or removal whose targets the request names, the receipt the provider would have returned, so the
@@ -217,20 +221,35 @@ export class WriteReconciler {
   }
   /** One round of observation: the targets' current values, the reviewed state, or the created resources. */
   private async observe(review: JsonObject, plan: CompiledRequest, read: Read, claimedAt: number): Promise<JsonObject> {
-    const lookup = findCreated(plan);
+    const lookup = findCreated(plan, {state: Array.isArray(review.state) ? review.state : [], claimedAt});
     if (lookup) {
       const responses: TransportResult[] = [];
       for (const request of lookup.reads) responses.push(await read(request));
-      const {found, expected, complete} = lookup.match(responses, claimedAt);
-      const all = found.length === expected && found.every((f, i) => f.index === i);
+      const {found, expected, complete, undated = []} = lookup.match(responses, claimedAt);
+      // Applied only when each record has its one dated match and nothing of that name is left that the lookup cannot tell
+      // from an older object; absent only when the list was complete and holds nothing of that name at all (R2.5 M2).
+      const all = found.length === expected && found.every((f, i) => f.index === i) && !undated.length;
       return {
         contract: 'create',
         found: found.map(f => ({id: f.id, ...(f.created_time ? {created_time: f.created_time} : {})})),
+        ...(undated.length ? {undated: undated.map(u => ({id: u.id}))} : {}),
         expected,
         complete,
-        classification: all ? 'appears_applied' : !found.length && complete ? 'appears_not_applied' : 'indeterminate',
+        classification: all
+          ? 'appears_applied'
+          : !found.length && !undated.length && complete
+            ? 'appears_not_applied'
+            : 'indeterminate',
         ...(all ? {observed_ids: found.map(f => f.id), receipt_data: lookup.receipt(found)} : {}),
-        reason: all ? 'created_found' : !found.length ? (complete ? 'not_found' : 'lookup_incomplete') : 'ambiguous',
+        reason: all
+          ? 'created_found'
+          : found.length
+            ? 'ambiguous'
+            : undated.length
+              ? 'undated_match'
+              : complete
+                ? 'not_found'
+                : 'lookup_incomplete',
       };
     }
     const family = familyOf(plan),
@@ -386,6 +405,7 @@ export class WriteReconciler {
       rounds: rounds.length,
       ...(last.targets ? {targets: last.targets} : {}),
       ...(last.found ? {found: last.found, expected: last.expected} : {}),
+      ...(last.undated ? {undated: last.undated} : {}),
       ...(last.state_unchanged_since_review !== undefined
         ? {state_unchanged_since_review: last.state_unchanged_since_review}
         : {}),

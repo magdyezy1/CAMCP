@@ -334,7 +334,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m2-reconcile (Round 2.5, M2: L5-05, L3-13) adds src/write-reconcile-job.ts, the worker job that checks an uncertain
   // write by reads alone, with no wrapper reason of its own: one more on the M1 head's 828, 829 on its own base. Whoever merges it
   // adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 829);
+  // Its item 2 adds src/tiktok-write-reconciliation.ts, TikTok's lookup of an uncertain campaign, ad group or ad create, with no
+  // wrapper reason of its own: 830.
+  assert.equal(files.length, 830);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

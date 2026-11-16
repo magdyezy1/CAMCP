@@ -378,7 +378,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r25-m2-reconcile (Round 2.5, M2: L5-05, L3-13) adds src/write-reconcile-job.ts, the worker job that checks an uncertain
   // write by reads alone, with no reason of its own (a refusal of the check is recorded, not raised): one more on the M1 head's
   // 828, 829 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 829);
+  // Its item 2 adds src/tiktok-write-reconciliation.ts, TikTok's lookup of an uncertain campaign, ad group or ad create, with no
+  // reason of its own (it reads and classifies; it refuses nothing): 830.
+  assert.equal(files.length, 830);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
