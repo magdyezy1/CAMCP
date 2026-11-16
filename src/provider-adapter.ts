@@ -1625,7 +1625,9 @@ export interface WriteReviewHooks {
    * The body of a create with the provider's own deduplication key set (TikTok's `request_id` of a campaign or ad group create,
    * R2.5 M2, L1-09), frozen into the request as its review is prepared: derived from `reviewId`, so each review has its own key,
    * covered by the review's fingerprint and sent exactly at execute. A new object, never the caller's payload; undefined where
-   * the route takes no key or the caller supplied one.
+   * the route takes no key or the caller supplied one. Two reviews of one request therefore differ in that field and in the
+   * fingerprint: a comparison of reviews (a guard against a second review of a create that is still uncertain) compares the
+   * request without it. TikTok's `request_id` is in its `review.volatile` table (src/tiktok-adapter.ts), which that comparison drops.
    */
   dedupeBody?(plan: CompiledRequest, reviewId: string): JsonObject | undefined;
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
