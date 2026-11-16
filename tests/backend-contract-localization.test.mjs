@@ -380,7 +380,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // The request_id of the same package (L1-09) adds src/tiktok-request-id.ts, the key a standard TikTok campaign or ad group create takes from its
   // review at prepare, with no reason of its own: 829 + 1 = 830 on its own base of 828 + 2.
-  assert.equal(files.length, 830);
+  // The rate governor of the same package (MT3) adds two modules, with no reason of their own: src/provider-usage.ts, what a provider's responses say of its
+  // rate limit and the governor's table, mode and view, and src/meta-usage.ts, Meta's three usage headers read into it: 830 + 2 = 832.
+  assert.equal(files.length, 832);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

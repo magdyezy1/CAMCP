@@ -876,6 +876,10 @@ export class WorkspaceService {
       live_read: checks.some(c => c.key === 'provider_read' && c.status === 'passed'),
       readiness: readinessContract(c.gateway) ? 'account_read' : 'not_applicable',
       ...(liveAccount ? {account: liveAccount} : {}),
+      // What the provider has said of its rate limit for this account, after the live read above, which carries its headers
+      // (R2.5 M2, MT3; src/provider-usage.ts): ok with the worst usage seen, cooling with when it ends, unknown before it has
+      // said any, and not exposed for a provider that sends none. It is local state: the check sends nothing for it.
+      rate_limit: this.transport.rateLimit(c, id),
       coverage: 'Exact requested prerequisites only; unknown checks are not passed.',
       shared_evidence: evidence
         ? 'The exact account read was saved for every member; role, grants and permissions are evaluated for each viewer.'

@@ -90,6 +90,7 @@ import {pinnedJson} from './pinned-json.js';
 // Wave 4c round 6 (w4c-arc6-catalog).
 import {normalizeAccount} from './account-id.js';
 import {googleAdPreviews} from './google-ad-previews.js';
+import {usageNotExposed} from './provider-usage.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -729,6 +730,8 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
     account: (data: JsonObject) => data.results?.[0]?.customer,
   }),
   wire: Object.freeze({
+    // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).
+    usage: usageNotExposed,
     // Every request is checked against its pinned Discovery schema, and the generation RPCs against their contract.
     validate: validateGoogleRequest,
     validateRoute: validateGoogleGeneration,

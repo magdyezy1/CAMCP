@@ -9,6 +9,7 @@ import type {VendorRoute} from './delegated-native.js';
 import {assertMeasurementScopes} from './measurement-writes.js';
 import {fail, object} from './write-common.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
+import {usageNotExposed} from './provider-usage.js';
 
 /**
  * The resource collections of the Tag Manager API v2 a POST creates a member of (R2.5 S2-2): its reference names each
@@ -61,6 +62,8 @@ export const gtmHooks: ProviderHooks = Object.freeze({
   }),
   // A delete answers 200 without a body.
   wire: Object.freeze({
+    // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).
+    usage: usageNotExposed,
     emptyWrite: (plan: CompiledRequest, response: Response) => response.status === 200 && plan.method === 'DELETE',
   }),
   // Workbook reporting (ARC-01, reporting; src/report-resource-scope.ts): a saved query names its Tag Manager account

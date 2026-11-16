@@ -336,7 +336,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // on its own base. Whoever merges it adds the files of every package it is merged with to this number.
   // The request_id of the same package (L1-09) adds src/tiktok-request-id.ts, the key a standard TikTok campaign or ad group create takes from its
   // review at prepare, with no reason of its own: 829 + 1 = 830 on its own base of 828 + 2.
-  assert.equal(files.length, 830);
+  // The rate governor of the same package (MT3) adds two modules, with no reason of their own: src/provider-usage.ts, what a provider's responses say of its
+  // rate limit and the governor's table, mode and view, and src/meta-usage.ts, Meta's three usage headers read into it: 830 + 2 = 832.
+  assert.equal(files.length, 832);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

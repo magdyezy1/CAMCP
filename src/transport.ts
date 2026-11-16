@@ -15,6 +15,14 @@ import {
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
+import {
+  noteUsageTouch,
+  pacingMode,
+  ProviderUsage,
+  type RateLimitView,
+  type UsageKeys,
+  type UsageRecord,
+} from './provider-usage.js';
 import {meterNativeRequest} from './native-request-meter.js';
 import {assertGatewayOffered} from './provider-offering.js';
 import {providerHooks} from './provider-hooks.js';
@@ -278,11 +286,17 @@ export class NativeTransport {
   >();
   private budgets = new Map<string, {tokens: number; at: number}>();
   private cooldowns = new Map<string, number>();
+  /** What the providers' responses said of their rate limits (the rate governor, R2.5 M2, MT3; src/provider-usage.ts). */
+  private readonly usage = new ProviderUsage();
   readonly metrics = {
     requests: 0,
     retries: 0,
     errors: 0,
     rateLimits: 0,
+    /** Requests sent while a throttle the provider's own usage headers had announced was in force (observe mode, R2.5 M2). */
+    pacingWouldRefuse: 0,
+    /** Cooldowns opened from a provider's usage headers, which refuse the next request before it is sent (enforce mode). */
+    pacingEnforced: 0,
     totalLatencyMs: 0,
     /** Violations of reviewed writes: the enforcement gate (docs/WRITE-OPERATIONS.md) counts these. */
     wireContractViolations: 0,
@@ -296,8 +310,40 @@ export class NativeTransport {
       ...this.metrics,
       budget_entries: this.budgets.size,
       circuit_entries: this.circuits.size,
+      usage_entries: this.usage.size,
       scope: 'Current process only; shared rate enforcement uses SQLite.',
     };
+  }
+  /**
+   * The rate keys of a login and an account, as a request's own (route()) for the providers that key their limits by the tenant's
+   * budget key (all but X, which keys its own and declares no usage). `accountId` is the account as a plan names it, which is the
+   * form a connection grants.
+   */
+  private usageKeys(
+    connection: Pick<Connection, 'id' | 'tenantId' | 'gateway'>,
+    accountId: string | undefined,
+  ): UsageKeys {
+    const key = scopeKey(connection.tenantId, connection.gateway);
+    return {login: key, account: accountId ? scopeKey(key, 'account-rate', connection.id, accountId) : key};
+  }
+  /**
+   * What the provider's responses have said of its rate limit for this login and account, as the governor keeps it: one record
+   * per bucket, with no payload. Empty for a provider that reports none.
+   */
+  usageRecords(connection: Pick<Connection, 'id' | 'tenantId' | 'gateway'>, accountId?: string): UsageRecord[] {
+    return this.usage.records(this.usageKeys(connection, accountId));
+  }
+  /**
+   * The view of the provider's limits for this login and account that the response `meta` and `check` show (R2.5 M2, MT3):
+   * `cooling` while a throttle is known, from a header or from a refusal, `ok` with the worst usage seen, `unknown` before any
+   * response has said, and `not_exposed` for a provider that declares it sends none.
+   */
+  rateLimit(connection: Pick<Connection, 'id' | 'tenantId' | 'gateway'>, accountId?: string): RateLimitView {
+    const keys = this.usageKeys(connection, accountId),
+      now = performance.now(),
+      cooled = Math.max(this.cooldowns.get(keys.login) ?? 0, this.cooldowns.get(keys.account) ?? 0),
+      wire = providerHooks(connection.gateway)?.wire;
+    return this.usage.view(keys, wire?.usage?.exposed, cooled > now ? Date.now() + (cooled - now) : undefined);
   }
   private prune() {
     const now = performance.now();
@@ -387,6 +433,13 @@ export class NativeTransport {
     const key = scopeKey(connection.tenantId, connection.gateway);
     await this.permit(key);
     const route = this.route(plan, connection, credentials, upload, wire, key);
+    // The running call shows the provider's limits for this login and account in its answer's meta (R2.5 M2, MT3).
+    noteUsageTouch({
+      tenantId: connection.tenantId,
+      gateway: connection.gateway,
+      connectionId: connection.id,
+      ...(plan.accountId ? {accountId: plan.accountId} : {}),
+    });
     let ownedProbe: {probing?: boolean} | undefined;
     try {
       for (let attempt = 0; attempt < route.maxAttempts; attempt++) {
@@ -652,6 +705,7 @@ export class NativeTransport {
         );
       this.coordination?.assertProviderCooldown(rateKey);
     }
+    this.countPacedRequest(route);
     this.coordination?.providerPermit(key, undefined, issuerPermit);
     if (attempt === 0) {
       const circuit = this.circuits.get(circuitKey),
@@ -719,6 +773,8 @@ export class NativeTransport {
     const {plan, maxAttempts} = route;
     const retryDelay = providerRetryDelay(response, plan.gateway);
     this.throttle(route, response, retryDelay);
+    // What the provider says of its rate limit rides on every response, the one that succeeded as much as the one it refused.
+    this.observeUsage(route, response);
     if ([502, 503, 504].includes(response.status) && retryDelay === undefined && attempt + 1 < maxAttempts) {
       await response.body?.cancel();
       this.metrics.retries++;
@@ -728,6 +784,45 @@ export class NativeTransport {
     const {data, bodyIntegrity, exactData} = await this.readResponse(route, response, clock);
     this.refuse(route, response, data, retryDelay);
     return this.succeeded(route, response, data, bodyIntegrity, exactData);
+  }
+  /**
+   * The rate governor (R2.5 M2, MT3; src/provider-usage.ts): keeps what a response's usage headers say, as one record per bucket
+   * with no payload. Under AMCP_PROVIDER_PACING_MODE=enforce a bucket the provider says is blocked also opens the cooldown the
+   * throttle path opens, for as long as the provider says (a minute where it names none), so that the next request of that login or
+   * account refuses before it is sent and nothing is claimed or dispatched (WRT-04); a refusal after dispatch is untouched. Reading
+   * a provider's headers never fails a response.
+   */
+  private observeUsage(route: WireRoute, response: Response) {
+    const {plan, connection, wire, userRateKey, accountRateKey} = route,
+      read = wire?.usage?.read;
+    if (!read) return;
+    let observations;
+    try {
+      observations = read(response.headers, plan);
+    } catch {
+      return;
+    }
+    if (!observations.length) return;
+    const blocks = this.usage.record(connection.gateway, {login: userRateKey, account: accountRateKey}, observations);
+    if (!blocks.length || pacingMode() !== 'enforce') return;
+    for (const {key, ms} of blocks) {
+      this.cooldowns.set(key, Math.max(this.cooldowns.get(key) ?? 0, performance.now() + ms));
+      this.coordination?.providerCooldown(key, ms);
+    }
+    this.metrics.pacingEnforced++;
+    this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'pacing_enforced');
+  }
+  /**
+   * Observe mode (the default): a request that is about to be sent while a throttle the provider's own headers announced is in
+   * force is counted (`pacing_would_refuse`), the baseline an owner reads before choosing to enforce. It decides nothing:
+   * enforcement is the cooldown observeUsage opens, which admitAttempt has already refused on.
+   */
+  private countPacedRequest(route: WireRoute) {
+    const {plan, connection, wire, userRateKey, accountRateKey} = route;
+    if (!wire?.usage?.read || pacingMode() === 'enforce') return;
+    if (this.usage.blockedUntil({login: userRateKey, account: accountRateKey}) === undefined) return;
+    this.metrics.pacingWouldRefuse++;
+    this.coordination?.providerMetric(connection.tenantId, plan.gateway, 'pacing_would_refuse');
   }
   /** A 429 counts as a rate limit; a 429 or 503 with a wait cools down its rate key (the account's when X names it). */
   private throttle(route: WireRoute, response: Response, retryDelay: number | undefined) {

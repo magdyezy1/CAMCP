@@ -29,6 +29,7 @@ import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
 import type {ReviewVolatile} from './review-state-core.js';
+import type {UsageProfile} from './provider-usage.js';
 // Writes and campaigns (wave 4c): what the review gives a provider's own state read.
 import type {Actor} from './types.js';
 import type {NativeTransport} from './transport.js';
@@ -360,6 +361,12 @@ export interface WireProfile {
   readonly referenceHeaders?: readonly string[];
   /** Upload session headers kept last (Google's resumable upload URL and chunk granularity). */
   sessionHeaders?(plan: CompiledRequest): readonly string[];
+  /**
+   * How the provider reports its rate limit usage (the rate governor, R2.5 M2, MT3; src/provider-usage.ts): Meta reads its three
+   * usage headers on every response, Google declares that its APIs send none. A provider that declares neither is shown as
+   * unknown until a header it can read is seen.
+   */
+  readonly usage?: UsageProfile;
   readonly errors?: ErrorEnvelope;
 }
 

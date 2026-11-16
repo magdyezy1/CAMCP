@@ -750,7 +750,11 @@ export class Store {
       | 'latency_ms'
       | 'wire_contract_violations'
       | 'wire_contract_read_violations'
-      | 'wire_contract_check_failures',
+      | 'wire_contract_check_failures'
+      // The rate governor (R2.5 M2, MT3; src/provider-usage.ts): requests sent into a throttle the provider's usage headers had
+      // announced (observe mode), and cooldowns opened from those headers (enforce mode).
+      | 'pacing_would_refuse'
+      | 'pacing_enforced',
     value = 1,
   ) {
     this.transaction(() => {

@@ -10,6 +10,7 @@ import {assertMeasurementScopes} from './measurement-writes.js';
 import {measurementVerificationPhase} from './measurement-writes.js';
 // Wave 4c round 6 (w4c-arc6-versions): the owner's realtime test properties (MSR-04).
 import {ga4TestProperties, saveGa4TestProperty} from './measurement-test-properties.js';
+import {usageNotExposed} from './provider-usage.js';
 
 /**
  * Wave 4c (transport and catalog): GA4's part of the delegated compiler (src/delegated-native.ts). Its body is the
@@ -110,6 +111,8 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
   }),
   // A measurement asset sync read carries the sync's deadline.
   wire: Object.freeze({
+    // Its APIs send no usage header: the rate governor’s view says "not exposed" (R2.5 M2, MT3; src/provider-usage.ts).
+    usage: usageNotExposed,
     deadline: (plan: CompiledRequest) =>
       plan.action === 'AMCP_MEASUREMENT_ASSET_SYNC' && plan.readOnly && plan.method === 'GET'
         ? plan.measurementSyncDeadline
