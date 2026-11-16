@@ -92,33 +92,36 @@ export function recordStoppedCheck(
   reason: string,
   code: string,
 ) {
-  const existing = optional(store, tenant, reconciliationKind, reviewId);
-  if (existing && (decisive(existing.classification) || existing.superseded_by)) return;
-  const at = Date.now(),
-    reconciliationId = randomUUID();
-  store.putDocument(tenant, reconciliationKind, reviewId, {
-    review_id: reviewId,
-    reconciliation_id: reconciliationId,
-    classification: 'indeterminate',
-    reason,
-    read_error: code,
-    contract: null,
-    rounds: 0,
-    automatic: true,
-    attempts: attempt,
-    checks_exhausted: true,
-    checked_at: at,
-    updated_at: at,
-    user_id: null,
-  });
-  store.appendAudit(tenant, reviewId, {
-    event: 'write_reconciliation_stopped',
-    review_id: reviewId,
-    reconciliation_id: reconciliationId,
-    reason,
-    code,
-    automatic: true,
-    attempts: attempt,
+  // Read and written in one transaction: a record that settled the write (decisive, replaced, accepted) is never written over.
+  store.transaction(() => {
+    const existing = optional(store, tenant, reconciliationKind, reviewId);
+    if (existing && (decisive(existing.classification) || existing.superseded_by || existing.accepted_at)) return;
+    const at = Date.now(),
+      reconciliationId = randomUUID();
+    store.putDocument(tenant, reconciliationKind, reviewId, {
+      review_id: reviewId,
+      reconciliation_id: reconciliationId,
+      classification: 'indeterminate',
+      reason,
+      read_error: code,
+      contract: null,
+      rounds: 0,
+      automatic: true,
+      attempts: attempt,
+      checks_exhausted: true,
+      checked_at: at,
+      updated_at: at,
+      user_id: null,
+    });
+    store.appendAudit(tenant, reviewId, {
+      event: 'write_reconciliation_stopped',
+      review_id: reviewId,
+      reconciliation_id: reconciliationId,
+      reason,
+      code,
+      automatic: true,
+      attempts: attempt,
+    });
   });
 }
 
@@ -179,6 +182,19 @@ export class WriteReconciler {
       fail('RECONCILIATION_UNAVAILABLE', 'Reconcile each part of a group by its own review_id; status lists them.', {
         next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: review.id}},
       });
+    // Replacing a write is permanent (R2.5 M2, lead review S2-2): a review that a new review replaced stays uncertain at its key,
+    // which is never reset, but it is settled. It is never reconciled, accepted or replaced again, so the replacement's object is
+    // never taken for its own and a second replacement is never prepared.
+    const replacedBy = optional(this.store, actor.tenantId, reconciliationKind, review.id)?.superseded_by;
+    if (typeof replacedBy === 'string' && replacedBy)
+      fail(
+        'RECONCILIATION_UNAVAILABLE',
+        'This write was already replaced by a new review (superseded_by), so it is settled: it is never reconciled, accepted or replaced again. Follow the replacement (next_call).',
+        {
+          superseded_by: replacedBy,
+          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: replacedBy}},
+        },
+      );
     const claim = writeClaim(this.store, actor.tenantId, review.id);
     const stalePending = claim?.state === 'pending' && Date.now() - Number(claim.created_at) >= pendingUncertainMs;
     if (claim?.state !== 'uncertain' && !stalePending)
@@ -337,8 +353,14 @@ export class WriteReconciler {
           next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}},
         },
       );
-    const {record, requests} = await this.check(actor, review, plan, claimedAt),
-      classification = record.classification as string,
+    const {record, requests, settled} = await this.check(actor, review, plan, claimedAt);
+    if (settled)
+      fail(
+        'RECONCILIATION_UNAVAILABLE',
+        'This write was settled while the provider was being read (replaced by a new review, or accepted), so this check was dropped and changed nothing. Read its status (next_call).',
+        {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}}},
+      );
+    const classification = record.classification as string,
       reconciliationId = record.reconciliation_id as string;
     const {receipt_data: _receipt, user_id: _user, updated_at: _updated, ...shown} = record;
     return {
@@ -386,7 +408,7 @@ export class WriteReconciler {
     plan: CompiledRequest,
     claimedAt: number,
     automatic?: {attempt: number},
-  ): Promise<{record: JsonObject; requests: number}> {
+  ): Promise<{record: JsonObject; requests: number; settled?: true}> {
     const id = review.id as string,
       {read, count} = this.reader(actor, review),
       rounds: JsonObject[] = [];
@@ -439,19 +461,41 @@ export class WriteReconciler {
       updated_at: checkedAt,
       user_id: actor.userId,
     };
-    this.store.putDocument(actor.tenantId, reconciliationKind, id, record);
-    this.store.appendAudit(actor.tenantId, id, {
-      event: 'write_reconciliation_inspected',
-      review_id: id,
-      reconciliation_id: reconciliationId,
-      classification,
-      reason,
-      ...(automatic ? {automatic: true, attempts: automatic.attempt} : {}),
-      gateway: plan.gateway,
-      account_id: plan.accountId ?? null,
-      connection_id: review.connection_id,
+    // Written by compare-and-set (lead review S2-2): the reads took seconds, and the person may have replaced or accepted the
+    // write meanwhile. The record that settled it stands, and this answer is dropped, never written over it.
+    const written = this.store.transaction(() => {
+      const now = optional(this.store, actor.tenantId, reconciliationKind, id),
+        claim = writeClaim(this.store, actor.tenantId, id),
+        open = claim?.state === 'uncertain' || claim?.state === 'pending';
+      if (now?.superseded_by || now?.accepted_at || !open) {
+        this.store.appendAudit(actor.tenantId, id, {
+          event: 'write_reconciliation_dropped',
+          review_id: id,
+          reason: now?.superseded_by
+            ? 'superseded'
+            : now?.accepted_at || claim?.state === 'complete'
+              ? 'accepted'
+              : 'not_uncertain',
+          classification,
+          ...(automatic ? {automatic: true, attempts: automatic.attempt} : {}),
+        });
+        return false;
+      }
+      this.store.putDocument(actor.tenantId, reconciliationKind, id, record);
+      this.store.appendAudit(actor.tenantId, id, {
+        event: 'write_reconciliation_inspected',
+        review_id: id,
+        reconciliation_id: reconciliationId,
+        classification,
+        reason,
+        ...(automatic ? {automatic: true, attempts: automatic.attempt} : {}),
+        gateway: plan.gateway,
+        account_id: plan.accountId ?? null,
+        connection_id: review.connection_id,
+      });
+      return true;
     });
-    return {record, requests: count()};
+    return {record, requests: count(), ...(written ? {} : {settled: true as const})};
   }
   /**
    * The worker's check of an uncertain write (R2.5 M2): the same reads as `reconcile`, with no waiting here (the job was
@@ -470,8 +514,10 @@ export class WriteReconciler {
         (decisive(existing.classification) && Date.now() - Number(existing.checked_at) <= reconciliationFreshMs))
     )
       return {review_id: reviewId, status: 'settled', attempts: attempt, classification: existing.classification};
-    const {record} = await this.check(actor, review, plan, claimedAt, {attempt}),
-      next = typeof record.next_check_at === 'number' ? record.next_check_at : undefined;
+    const {record, settled} = await this.check(actor, review, plan, claimedAt, {attempt});
+    // The write was replaced or accepted while this check read the provider: its answer was dropped, and nothing is left to do.
+    if (settled) return {review_id: reviewId, status: 'settled', attempts: attempt};
+    const next = typeof record.next_check_at === 'number' ? record.next_check_at : undefined;
     return {
       review_id: reviewId,
       status: decisive(record.classification) ? 'classified' : next !== undefined ? 'unsettled' : 'exhausted',

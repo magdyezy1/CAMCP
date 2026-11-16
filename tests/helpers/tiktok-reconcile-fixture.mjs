@@ -62,7 +62,7 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
   const requests = [],
     filters = [],
     sent = [],
-    state = {next: 400, applied: undefined, lose: false, throttle: undefined, now: () => Date.now()};
+    state = {next: 400, applied: undefined, lose: false, throttle: undefined, hold: undefined, now: () => Date.now()};
   const fetcher = async (raw, init = {}) => {
     const url = new URL(String(raw)),
       path = url.pathname.replace('/open_api', ''),
@@ -103,6 +103,12 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
     const filtering = JSON.parse(url.searchParams.get('filtering') ?? '{}'),
       fields = url.searchParams.get('fields') ? JSON.parse(url.searchParams.get('fields')) : undefined;
     filters.push({kind, filtering, fields});
+    // A test may hold the next list read open (once) and act while it is in flight, as a person does during the worker's check.
+    if (state.hold) {
+      const hold = state.hold;
+      state.hold = undefined;
+      await hold();
+    }
     const list = rows[kind]
       .filter(r => !filtering[kind + '_ids'] || filtering[kind + '_ids'].includes(r[idKey[kind]]))
       .filter(r => !filtering.campaign_ids || filtering.campaign_ids.includes(r.campaign_id) || kind === 'campaign')
