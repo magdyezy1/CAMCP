@@ -236,9 +236,27 @@ const googleMutateKinds: Record<string, string> = {
   sharedCriteria: 'shared criterion',
   campaignSharedSets: 'campaign shared set',
 };
-/** A Google Ads :mutate request's operations: each a create, a remove or an update, one entity kind per service. */
+/**
+ * A Google Ads request's operations: for a :mutate each a create, a remove or an update, one entity kind per service; for the
+ * generation of shareable previews, which is no :mutate and lists no operations, that it generates the previews its body
+ * lists (one for each, or one when it lists none). The review of a generation read "Change 1  in account …", an entity
+ * blank between two spaces, because the branch below knew only the :mutate (r12-gpreview, found live 2026-11-16).
+ */
 function googleMutateOperations(plan: CompiledRequest): {operation: string; entity: string; count: number} {
   const body = plan.body as unknown;
+  if (/\/customers\/\d+:generateShareablePreviews$/.test(plan.path)) {
+    // The request keeps the caller's spelling of its fields (camelCase or snake_case), and Google Ads takes both.
+    const operation = !!body && typeof body === 'object' ? (body as JsonObject).operation : undefined,
+      listed =
+        !!operation && typeof operation === 'object'
+          ? ((operation as JsonObject).shareablePreviews ?? (operation as JsonObject).shareable_previews)
+          : undefined;
+    return {
+      operation: 'generate',
+      entity: 'shareable preview',
+      count: Array.isArray(listed) && listed.length ? listed.length : 1,
+    };
+  }
   const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1] ?? '',
     operations =
       !!body && typeof body === 'object' && !Array.isArray(body) && Array.isArray((body as JsonObject).operations)

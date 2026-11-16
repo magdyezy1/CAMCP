@@ -129,6 +129,14 @@ test('the review summary names every operation as before: every ledger route, bo
     {operations: []},
     {operations: 'none'},
     {operations: [null, 1, {create: undefined, remove: 'x'}]},
+    // r12-gpreview: the previews a generation lists, in the spellings Google Ads takes (camelCase and snake_case).
+    {
+      operation: {
+        shareablePreviews: [{assetGroup: 'customers/1/assetGroups/2'}, {adGroupAd: 'customers/1/adGroupAds/3~4'}],
+      },
+    },
+    {operation: {shareable_previews: [{}, {}, {}]}},
+    {operation: {shareablePreviews: 'none'}},
     {campaigns: [{name: 'a'}, {name: 'b'}], adsquads: [{}]},
     [{op: 'replace', path: '/status', value: 'PAUSED'}],
     null,
@@ -149,7 +157,8 @@ test('the review summary names every operation as before: every ledger route, bo
   const summarized = new Set(),
     verbCreates = new Set(),
     accountCreates = new Set(),
-    declaredCreates = new Set();
+    declaredCreates = new Set(),
+    previewGenerations = new Set();
   // The family that reviews a write, then its provider (for a write the review accepts), asked what the write does (R2.5 S2):
   // a create it declares, or nothing.
   const declaredCreate = p => {
@@ -186,7 +195,27 @@ test('the review summary names every operation as before: every ledger route, bo
         account !== undefined &&
         p.path.slice(account.length).split('/').filter(Boolean).length === 1 &&
         /(?:^|_)(?:create|post)(?:_|$)/.test(p.action.toLowerCase());
-    if (endsInCreateVerb && expected.result?.operation === 'update') {
+    // The fourth change (r12-gpreview, found live 2026-11-16): a Google Ads generation of shareable previews is no :mutate and
+    // lists no operations, so its branch read it as "change" of an entity named "" (the review said "Change 1  in account …").
+    // It reads as what it does: it generates its previews, naming them, one for each the body lists (one when it lists none).
+    // This route alone: every other route, body and service reads as before.
+    const generatesPreviews = p.gateway === 'google_ads_native_action' && /:generateShareablePreviews$/.test(p.path);
+    if (generatesPreviews) {
+      const operation = object(p.body) ? p.body.operation : undefined,
+        listed = object(operation) ? (operation.shareablePreviews ?? operation.shareable_previews) : undefined;
+      assert.deepEqual(
+        got,
+        {
+          result: {
+            operation: 'generate',
+            entity: 'shareable preview',
+            count: Array.isArray(listed) && listed.length ? listed.length : 1,
+          },
+        },
+        label,
+      );
+      previewGenerations.add(Array.isArray(listed) ? listed.length : 0);
+    } else if (endsInCreateVerb && expected.result?.operation === 'update') {
       assert.equal(got.result?.operation, 'create', label);
       assert.equal(got.result.count, expected.result.count, label);
       // Its entity is what it did name, or, where it named the verb itself, a noun.
@@ -235,6 +264,8 @@ test('the review summary names every operation as before: every ledger route, bo
       gateway + ' ' + declaredCreates.size,
     );
   assert.ok(plans.length > 20000, String(plans.length));
+  // The fourth change was reached with no previews listed, with two, with three in snake_case and with a list that is none.
+  assert.deepEqual([...previewGenerations].sort(), [0, 2, 3]);
   // Google Ads' operations were reached in every form the branch gave.
   assert.deepEqual([...summarized].sort(), ['change', 'create', 'remove', 'update']);
 });

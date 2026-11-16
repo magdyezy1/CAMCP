@@ -1221,6 +1221,34 @@ test('a refused answer keeps its links out of the outcome, the audit and the ref
   }
 });
 
+// r12-gpreview item 2. Found live 2026-11-16: the review of a generation read "Change 1  in account …", an entity that was
+// blank between two spaces. Google's summarizer knew only its :mutate operations, and this route lists none.
+test('the review summary says what a generation does: it generates the previews it lists, and names them', async () => {
+  const f = fixture();
+  try {
+    for (const [previews, count, text] of [
+      [[ui], 1, 'Generate 1 shareable preview in account 123.'],
+      [[ui, second], 2, 'Generate 2 shareable previews in account 123.'],
+      [[ui, video], 2, 'Generate 2 shareable previews in account 123.'],
+    ] as const) {
+      for (const action of [rpc, 'GENERATE_SHAREABLE_PREVIEWS']) {
+        const r = await f.prepare([...previews], action);
+        assert.equal(r.success, true, JSON.stringify(r));
+        const s = r.data.summary;
+        assert.deepEqual([s.operation, s.entity, s.count], ['generate', 'shareable preview', count], action);
+        assert.equal(s.text, text, action);
+        assert.doesNotMatch(s.text, /\s\s/);
+        // The summary stays a summary of what the exact request below sends: no money and no status are made up for it.
+        assert.equal(s.money, undefined);
+        assert.equal(s.status, undefined);
+      }
+    }
+    assert.equal(f.writes(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('an outcome stored before the mismatch was named is explained from the retained answer when it is delivered again', () => {
   const p = compiled([ui]),
     raw = answerOf([wantedUi], withLink('shareablePreviewUrl', 'https://127.0.0.1/leak-marker-two')) as JsonObject,

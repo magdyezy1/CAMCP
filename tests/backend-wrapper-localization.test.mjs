@@ -508,7 +508,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
-  assert.equal(Object.keys(catalog).length, 12156);
+  // r12-gpreview item 2: one key, "Generate", the operation word that the review pages show for a Google shareable-preview
+  // generation (web/campaign-workflows.js and web/operations-center.js), which read "Change" before: 12,156 + 1 = 12,157.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12157, problems none.
+  assert.equal(Object.keys(catalog).length, 12157);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -137,6 +137,8 @@ const reviewOperationLabels = {
   delete: 'Delete',
   remove: 'Remove',
   publish: 'Publish',
+  // r12-gpreview: the summary of a Google shareable-preview generation, which generates links and changes no entity.
+  generate: 'Generate',
   change: 'Change',
 };
 function reviewSummaryLine(summary) {
