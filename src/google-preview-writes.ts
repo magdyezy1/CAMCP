@@ -314,92 +314,138 @@ export async function readGooglePreviewState(p: CompiledRequest, send: Send): Pr
     fail('Preview sources changed during discovery; review their current identities again.', true);
   return [first];
 }
-function link(v: unknown, type: Target['previewType']): string | undefined {
-  if (typeof v !== 'string' || !v || v.length > 8192 || /[\s\u0000-\u001f]/.test(v)) return;
+/** Why a value is not an accepted preview link, as a closed-set reason, or undefined when it is one. The guard is what it
+ * was: an https link with no credentials or port, on a host accepted for its kind of preview, whose query holds no
+ * credential (r12-gpreview only names the condition that failed). */
+function linkProblem(v: unknown, type: Target['previewType']): string | undefined {
+  if (typeof v !== 'string') return 'not_text';
+  if (!v) return 'empty';
+  if (v.length > 8192) return 'too_long';
+  if (/[\s\u0000-\u001f]/.test(v)) return 'whitespace_or_control';
+  let u: URL;
   try {
-    const u = new URL(v);
-    if (
-      u.protocol !== 'https:' ||
-      u.username ||
-      u.password ||
-      u.port ||
-      ![
-        'ads.google.com',
-        ...(type === 'YOUTUBE_LIVE_PREVIEW' ? ['youtube.com', 'www.youtube.com', 'tv.youtube.com'] : []),
-      ].includes(u.hostname) ||
-      [...u.searchParams.keys()].some(k => /^(?:access_token|refresh_token|client_secret|oauth_token)$/i.test(k))
-    )
-      return;
-    return v;
+    u = new URL(v);
   } catch {
-    return;
+    return 'not_a_url';
   }
-}
-/** The validated previews of a v25 result ({result: {previews: [...]}}), one per reviewed target, or undefined when the
- * response is not exactly that. Google answers the whole request or fails it: there are no per-preview errors. */
-function receipt(p: CompiledRequest, result: TransportResult): JsonObject[] | undefined {
-  const data = result.data;
+  if (u.protocol !== 'https:') return 'not_https';
+  if (u.username || u.password) return 'credentials';
+  if (u.port) return 'port';
   if (
-    result.status !== 200 ||
-    !object(data) ||
-    Object.keys(data).some(k => k !== 'result') ||
-    !object(data.result) ||
-    Object.keys(data.result).some(k => k !== 'previews') ||
-    !Array.isArray(data.result.previews)
+    ![
+      'ads.google.com',
+      ...(type === 'YOUTUBE_LIVE_PREVIEW' ? ['youtube.com', 'www.youtube.com', 'tv.youtube.com'] : []),
+    ].includes(u.hostname)
   )
-    return;
+    return 'host_not_accepted';
+  if ([...u.searchParams.keys()].some(k => /^(?:access_token|refresh_token|client_secret|oauth_token)$/i.test(k)))
+    return 'credential_parameter';
+  return undefined;
+}
+/**
+ * Where a response is not the pinned v25 shape, named as closed-set facts: the check that failed, why, the entry and the
+ * documented field it concerns, and how many. Never a value: the links stay encrypted, and no text of the provider's
+ * reaches an outcome, an audit row or an error through it. The one thing of the provider's it names is a field the pinned
+ * schema does not list, as a plain identifier. Found live 2026-11-16: Google answered HTTP 200, the check refused the
+ * answer, and nothing said which part of it did not match (r12-gpreview).
+ */
+type Checked = {rows: JsonObject[]} | {mismatch: JsonObject};
+const mismatch = (check: string, reason: string, more: JsonObject = {}): Checked => ({
+  mismatch: {check, reason, ...more},
+});
+/** The fields of `v` the pinned schema does not list: plain identifiers by name, anything else as one "(other name)". */
+const unlisted = (v: JsonObject, listed: readonly string[]): string[] =>
+  [
+    ...new Set(
+      Object.keys(v)
+        .filter(k => !listed.includes(k))
+        .map(k => (/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(k) ? k : '(other name)')),
+    ),
+  ].slice(0, 8);
+const resultFields = ['assetGroup', 'adGroupAd', 'uiPreviewResult', 'youtubeLivePreviewResult', 'expirationDateTime'],
+  youtubeLinks = ['youtubePreviewUrl', 'youtubeTvPreviewUrl'];
+/**
+ * The validated previews of a v25 result ({result: {previews: [...]}}), one per reviewed target, or the mismatch that
+ * refused it. The shape is the pinned Discovery document's (.mirror/VENDOR/google-ads-v25.json, revision 20260923): one
+ * ShareablePreviewResult per preview, naming its target and holding the result of its kind. Google answers the whole
+ * request or fails it: the document has no per-preview error, so an entry that carries one is a mismatch, as is the v23
+ * list of per-preview answers (`responses`). Every guard stays: the count, the match of each entry to one reviewed
+ * target, the closed field sets, the link and the expiry.
+ */
+function inspect(p: CompiledRequest, result: TransportResult): Checked {
+  const data = result.data;
+  if (result.status !== 200) return mismatch('status', 'not_200', {http_status: result.status});
+  if (!object(data)) return mismatch('body', 'not_an_object');
+  if (Object.keys(data).some(k => k !== 'result'))
+    return mismatch('body', 'unexpected_fields', {unexpected: unlisted(data, ['result'])});
+  if (data.result === undefined) return mismatch('result', 'missing');
+  if (!object(data.result)) return mismatch('result', 'not_an_object');
+  if (Object.keys(data.result).some(k => k !== 'previews'))
+    return mismatch('result', 'unexpected_fields', {unexpected: unlisted(data.result, ['previews'])});
+  if (data.result.previews === undefined) return mismatch('previews', 'missing');
+  if (!Array.isArray(data.result.previews)) return mismatch('previews', 'not_a_list');
   const expected = targets(p),
     rows = data.result.previews,
     seen = new Set<string>(),
     out: JsonObject[] = [];
-  if (rows.length !== expected.length) return;
-  for (const row of rows) {
-    if (
-      !object(row) ||
-      Object.keys(row).some(
-        k =>
-          !['assetGroup', 'adGroupAd', 'uiPreviewResult', 'youtubeLivePreviewResult', 'expirationDateTime'].includes(k),
-      ) ||
-      Number(row.assetGroup !== undefined) + Number(row.adGroupAd !== undefined) !== 1
-    )
-      return;
+  if (rows.length !== expected.length)
+    return mismatch('count', 'differs', {entries: rows.length, targets: expected.length});
+  for (const [entry, row] of rows.entries()) {
+    if (!object(row)) return mismatch('entry', 'not_an_object', {entry});
+    if (Object.keys(row).some(k => !resultFields.includes(k)))
+      return mismatch('entry', 'unexpected_fields', {entry, unexpected: unlisted(row, resultFields)});
+    const named = Number(row.assetGroup !== undefined) + Number(row.adGroupAd !== undefined);
+    if (named !== 1) return mismatch('identifier', named ? 'both' : 'none', {entry});
     const kind = row.assetGroup !== undefined ? 'asset_group' : 'ad_group_ad',
       target = expected.find(t => t.kind === kind && t.name === (row.assetGroup ?? row.adGroupAd));
-    if (!target || seen.has(target.name)) return;
+    if (!target) return mismatch('identifier', 'not_reviewed', {entry});
+    if (seen.has(target.name)) return mismatch('identifier', 'repeated', {entry});
     seen.add(target.name);
     const urls: JsonObject = {};
     if (target.previewType === 'UI_PREVIEW') {
       const ui = row.uiPreviewResult;
-      if (
-        row.youtubeLivePreviewResult !== undefined ||
-        !object(ui) ||
-        Object.keys(ui).some(k => k !== 'shareablePreviewUrl') ||
-        !link(ui.shareablePreviewUrl, target.previewType)
-      )
-        return;
+      if (row.youtubeLivePreviewResult !== undefined)
+        return mismatch('preview_result', 'wrong_type', {entry, field: 'youtubeLivePreviewResult'});
+      if (ui === undefined) return mismatch('preview_result', 'missing', {entry, field: 'uiPreviewResult'});
+      if (!object(ui)) return mismatch('preview_result', 'not_an_object', {entry, field: 'uiPreviewResult'});
+      if (Object.keys(ui).some(k => k !== 'shareablePreviewUrl'))
+        return mismatch('preview_result', 'unexpected_fields', {
+          entry,
+          field: 'uiPreviewResult',
+          unexpected: unlisted(ui, ['shareablePreviewUrl']),
+        });
+      const bad = linkProblem(ui.shareablePreviewUrl, target.previewType);
+      if (bad) return mismatch('link', bad, {entry, field: 'shareablePreviewUrl'});
       urls.shareablePreviewUrl = ui.shareablePreviewUrl;
     } else {
       const youtube = row.youtubeLivePreviewResult;
-      if (
-        row.uiPreviewResult !== undefined ||
-        !object(youtube) ||
-        !Object.keys(youtube).length ||
-        Object.keys(youtube).some(k => !['youtubePreviewUrl', 'youtubeTvPreviewUrl'].includes(k))
-      )
-        return;
-      for (const [k, v] of Object.entries(youtube)) {
-        if (!link(v, target.previewType)) return;
-        urls[k] = v;
+      if (row.uiPreviewResult !== undefined)
+        return mismatch('preview_result', 'wrong_type', {entry, field: 'uiPreviewResult'});
+      if (youtube === undefined)
+        return mismatch('preview_result', 'missing', {entry, field: 'youtubeLivePreviewResult'});
+      if (!object(youtube))
+        return mismatch('preview_result', 'not_an_object', {entry, field: 'youtubeLivePreviewResult'});
+      if (!Object.keys(youtube).length)
+        return mismatch('preview_result', 'empty', {entry, field: 'youtubeLivePreviewResult'});
+      if (Object.keys(youtube).some(k => !youtubeLinks.includes(k)))
+        return mismatch('preview_result', 'unexpected_fields', {
+          entry,
+          field: 'youtubeLivePreviewResult',
+          unexpected: unlisted(youtube, youtubeLinks),
+        });
+      for (const [field, v] of Object.entries(youtube)) {
+        const bad = linkProblem(v, target.previewType);
+        if (bad) return mismatch('link', bad, {entry, field});
+        urls[field] = v;
       }
     }
     const expiration = row.expirationDateTime;
-    if (
-      expiration !== undefined &&
-      (typeof expiration !== 'string' ||
-        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:\d\d)$/.test(expiration) ||
-        !Number.isFinite(Date.parse(expiration)))
-    )
-      return;
+    if (expiration !== undefined) {
+      if (typeof expiration !== 'string') return mismatch('expiration', 'not_text', {entry});
+      if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-]\d\d:\d\d)$/.test(expiration))
+        return mismatch('expiration', 'format', {entry});
+      if (!Number.isFinite(Date.parse(expiration))) return mismatch('expiration', 'not_a_date', {entry});
+    }
     const expired = expiration !== undefined && Date.parse(expiration) <= Date.now();
     out.push({
       target: target.name,
@@ -410,19 +456,28 @@ function receipt(p: CompiledRequest, result: TransportResult): JsonObject[] | un
       expiration_known: expiration !== undefined,
     });
   }
-  return expected.map(t => out.find(r => r.target === t.name)!);
+  return {rows: expected.map(t => out.find(r => r.target === t.name)!)};
 }
+const receipt = (p: CompiledRequest, result: TransportResult): JsonObject[] | undefined => {
+  const checked = inspect(p, result);
+  return 'rows' in checked ? checked.rows : undefined;
+};
 export function googlePreviewOutcome(p: CompiledRequest, result: TransportResult): boolean {
   const rows = receipt(p, result);
   return !!rows && rows.every(r => r.status === 'generated');
 }
 export function googlePreviewSafeOutcome(p: CompiledRequest, outcome: JsonObject): JsonObject {
-  const rows = receipt(p, {data: outcome.data, status: outcome.status, headers: {}});
+  const checked = inspect(p, {data: outcome.data, status: outcome.status, headers: {}});
   return {
     ...outcome,
-    data: rows
-      ? {preview_results: redact(rows)}
-      : {native_response_valid: false, response_hash: sha256(stable(outcome.data))},
+    data:
+      'rows' in checked
+        ? {preview_results: redact(checked.rows)}
+        : {
+            native_response_valid: false,
+            response_hash: sha256(stable(outcome.data)),
+            response_mismatch: checked.mismatch,
+          },
     ...(outcome.failures
       ? {
           failures: outcome.failures.map((f: JsonObject) => ({
@@ -438,9 +493,15 @@ export function googlePreviewSafeOutcome(p: CompiledRequest, outcome: JsonObject
  * responses are separately encrypted for recovery; normal receipts are redacted. */
 export function googlePreviewDelivery(p: CompiledRequest, outcome: JsonObject, raw?: JsonObject): JsonObject {
   const safe = redact(outcome),
-    rows = raw ? receipt(p, {data: raw, status: outcome.status, headers: {}}) : undefined;
+    checked = raw ? inspect(p, {data: raw, status: outcome.status, headers: {}}) : undefined,
+    rows = checked && 'rows' in checked ? checked.rows : undefined;
   return {
     ...safe,
+    // An outcome stored before the mismatch was named is explained from the retained answer, at delivery, with the same
+    // closed-set facts and no value (r12-gpreview): nothing is invented when the retained answer is gone.
+    ...(checked && 'mismatch' in checked && safe.data?.native_response_valid === false
+      ? {data: {...safe.data, response_mismatch: checked.mismatch}}
+      : {}),
     previews: {
       status: rows
         ? rows.every(r => r.status === 'generated')

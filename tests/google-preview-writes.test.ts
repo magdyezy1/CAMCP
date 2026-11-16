@@ -13,7 +13,13 @@ import {Compiler} from '../src/compiler.js';
 import {ScopeGuard} from '../src/scope.js';
 import {applyExecutionRisk} from '../src/execution-risk.js';
 import {actionContracts} from '../src/action-contracts.js';
-import {googlePreviewSnapshots, readGooglePreviewState} from '../src/google-preview-writes.js';
+import {
+  googlePreviewDelivery,
+  googlePreviewOutcome,
+  googlePreviewSafeOutcome,
+  googlePreviewSnapshots,
+  readGooglePreviewState,
+} from '../src/google-preview-writes.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
 import {assertRefused} from './helpers/assert-refused.js';
@@ -92,6 +98,8 @@ function fixture(path = ':memory:') {
   ];
   let mode = '',
     hook: ((kind: string) => void) | undefined,
+    // r12-gpreview: the exact body Google answers the generation with, for a test that builds its own.
+    reply: ((body: JsonObject) => unknown) | undefined,
     count = 0;
   const transport = new NativeTransport(
     async (url, init) => {
@@ -146,6 +154,7 @@ function fixture(path = ':memory:') {
       }
       assert.equal(urlPath, '/v25/customers/123:generateShareablePreviews');
       hook?.('submission');
+      if (reply) return Response.json(reply(b));
       if (mode === 'lost') throw Error('Lost response after acceptance');
       if (mode === '503') return Response.json({error: {code: 503, message: 'Unavailable'}}, {status: 503});
       if (mode === 'rejected')
@@ -241,6 +250,9 @@ function fixture(path = ':memory:') {
     },
     hook: (fn: (kind: string) => void) => {
       hook = fn;
+    },
+    reply: (fn: (body: JsonObject) => unknown) => {
+      reply = fn;
     },
   };
 }
@@ -743,4 +755,500 @@ test('source byte bounds and reauthorization between consistency reads stop prep
   } finally {
     f.store.close();
   }
+});
+
+// r12-gpreview. Found live 2026-11-16: Google answered a generation with HTTP 200 and AMCP refused the answer, naming nothing
+// but "does not match". The pinned Discovery document (.mirror/VENDOR/google-ads-v25.json, revision 20260923, which
+// generated/vendor-routes.json holds) says what the answer is: {result: {previews: [ShareablePreviewResult]}}, one result per
+// preview and no per-preview error. The fixtures below are built from that document, so the names and the nesting are
+// Google's and not this test's: a re-pinned document that moves them fails here first.
+const pinned: Record<string, any> = JSON.parse(readFileSync('generated/vendor-routes.json', 'utf8')).schemaComponents[
+  'google-ads-v25'
+].schemas;
+const responseRef = 'GoogleAdsGoogleadsV25Services__GenerateShareablePreviewsResponse';
+type Wanted = {kind: 'asset_group' | 'ad_group_ad'; name: string};
+const wantedUi: Wanted = {kind: 'asset_group', name: ui.assetGroup},
+  wantedSecond: Wanted = {kind: 'asset_group', name: second.assetGroup},
+  wantedVideo: Wanted = {kind: 'ad_group_ad', name: video.adGroupAd};
+const targetOf = (w: Wanted): JsonObject =>
+  w.kind === 'asset_group'
+    ? {assetGroup: w.name, previewType: 'UI_PREVIEW'}
+    : {adGroupAd: w.name, previewType: 'YOUTUBE_LIVE_PREVIEW'};
+const compiled = (previews: JsonObject[]) =>
+  new Compiler(new Registry()).compile(
+    gateway,
+    {action: rpc, account_id: '123', payload: {operation: {shareablePreviews: previews}}},
+    {mode: 'strict', flags: {}},
+  );
+/**
+ * The answer to the generation of `wanted`, one preview each, built property by property from the pinned document. The
+ * document does not say which of two oneofs a preview takes (the asset group or the ad, the UI or the YouTube result), so
+ * the target's kind does. `filled` collects the properties used, by message.
+ */
+function documentedResponse(wanted: Wanted[], filled: Map<string, Set<string>> = new Map()): JsonObject {
+  const taken = (target: Wanted | undefined, name: string) =>
+    !target ||
+    !(
+      (name === 'assetGroup' && target.kind !== 'asset_group') ||
+      (name === 'adGroupAd' && target.kind !== 'ad_group_ad') ||
+      (name === 'uiPreviewResult' && target.kind !== 'asset_group') ||
+      (name === 'youtubeLivePreviewResult' && target.kind !== 'ad_group_ad')
+    );
+  const text = (name: string, target: Wanted | undefined, i: number | undefined): string => {
+    if (name === 'assetGroup' || name === 'adGroupAd') return target!.name;
+    if (name === 'shareablePreviewUrl') return 'https://ads.google.com/documented/preview-' + i;
+    if (name === 'youtubePreviewUrl') return 'https://www.youtube.com/documented/preview-' + i;
+    if (name === 'youtubeTvPreviewUrl') return 'https://tv.youtube.com/documented/preview-' + i;
+    if (name === 'expirationDateTime') return new Date(Date.now() + 3600000).toISOString();
+    return assert.fail('The pinned document has a text field this test does not know: ' + name);
+  };
+  const build = (ref: string, i?: number): JsonObject => {
+    const schema = pinned[ref];
+    assert.ok(schema, 'The pinned document has no ' + ref);
+    const out: JsonObject = {};
+    for (const [name, property] of Object.entries<any>(schema.properties ?? {})) {
+      const target = i === undefined ? undefined : wanted[i];
+      if (!taken(target, name)) continue;
+      if (!filled.has(ref)) filled.set(ref, new Set());
+      filled.get(ref)!.add(name);
+      if (property.$ref) out[name] = build(property.$ref, i);
+      else if (property.type === 'array') out[name] = wanted.map((_, n) => build(property.items.$ref, n));
+      else if (property.type === 'string') out[name] = text(name, target, i);
+      else assert.fail('The pinned document has a field this test does not know: ' + ref + '.' + name);
+    }
+    return out;
+  };
+  return build(responseRef);
+}
+const previewsOf = (r: any): any[] => r.result.previews;
+const clearText = (f: ReturnType<typeof fixture>) =>
+  ['documents', 'idempotency', 'audit'].map(table =>
+    JSON.stringify(f.store.db.prepare('SELECT * FROM ' + table).all()),
+  );
+
+test('an answer built from the pinned v25 schema verifies, and returns each preview with its link and expiry', async () => {
+  const filled = new Map<string, Set<string>>();
+  documentedResponse([wantedUi, wantedVideo], filled);
+  // The fixture used every documented property of every message of the answer, and no other message.
+  assert.deepEqual([...filled.keys()].sort(), [
+    'GoogleAdsGoogleadsV25Actions__GenerateShareablePreviewsResult',
+    'GoogleAdsGoogleadsV25Actions__ShareablePreviewResult',
+    'GoogleAdsGoogleadsV25Actions__UiPreviewResult',
+    'GoogleAdsGoogleadsV25Actions__YouTubeLivePreviewResult',
+    responseRef,
+  ]);
+  for (const [ref, names] of filled)
+    assert.deepEqual([...names].sort(), Object.keys(pinned[ref].properties).sort(), ref);
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui, video]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    // Google's order is not the review's: the previews come back in the order the review froze.
+    f.reply(() => {
+      const answer = documentedResponse([wantedUi, wantedVideo]);
+      previewsOf(answer).reverse();
+      return answer;
+    });
+    const e = await f.execute(r);
+    assert.equal(e.success, true, JSON.stringify(e));
+    assert.equal(e.data.previews.status, 'generated');
+    const [first, other] = e.data.previews.results;
+    assert.deepEqual(
+      [first, other].map(x => [x.target, x.preview_type, x.status, x.expiration_known]),
+      [
+        [ui.assetGroup, 'UI_PREVIEW', 'generated', true],
+        [video.adGroupAd, 'YOUTUBE_LIVE_PREVIEW', 'generated', true],
+      ],
+    );
+    assert.equal(first.shareablePreviewUrl, 'https://ads.google.com/documented/preview-0');
+    assert.equal(other.youtubePreviewUrl, 'https://www.youtube.com/documented/preview-1');
+    assert.equal(other.youtubeTvPreviewUrl, 'https://tv.youtube.com/documented/preview-1');
+    for (const x of [first, other]) assert.ok(Date.parse(x.expiration_date_time) > Date.now(), x.target);
+    // The links are delivered once, from the encrypted receipt: never in the outcome, the audit or any ordinary record.
+    assert.ok(!JSON.stringify(e.data.data).includes('documented/preview-'));
+    for (const table of clearText(f)) assert.ok(!table.includes('documented/preview-'));
+    assert.equal((await f.verify(r)).data.status, 'verified');
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+type Refusal = [label: string, wanted: Wanted[], change: (answer: any) => unknown, mismatch: JsonObject];
+const refusals: Refusal[] = [
+  [
+    'a field the pinned schema does not list, beside the result',
+    [wantedUi],
+    a => ({...a, requestId: 'trace-1'}),
+    {check: 'body', reason: 'unexpected_fields', unexpected: ['requestId']},
+  ],
+  [
+    'the v23 list of per-preview answers',
+    [wantedUi],
+    a => ({responses: previewsOf(a).map(p => ({shareablePreviewResult: p.uiPreviewResult, assetGroup: p.assetGroup}))}),
+    {check: 'body', reason: 'unexpected_fields', unexpected: ['responses']},
+  ],
+  ['an empty answer', [wantedUi], () => ({}), {check: 'result', reason: 'missing'}],
+  ['a result that is a list', [wantedUi], () => ({result: []}), {check: 'result', reason: 'not_an_object'}],
+  [
+    'a field the pinned schema does not list, in the result',
+    [wantedUi],
+    a => ({result: {...a.result, nextPageToken: 'x'}}),
+    {check: 'result', reason: 'unexpected_fields', unexpected: ['nextPageToken']},
+  ],
+  ['a result with no previews', [wantedUi], () => ({result: {}}), {check: 'previews', reason: 'missing'}],
+  [
+    'previews that are not a list',
+    [wantedUi],
+    a => ({result: {...a.result, previews: {}}}),
+    {check: 'previews', reason: 'not_a_list'},
+  ],
+  [
+    'one preview too many: a target the review did not ask for',
+    [wantedUi],
+    a => {
+      previewsOf(a).push({...previewsOf(a)[0], assetGroup: second.assetGroup});
+      return a;
+    },
+    {check: 'count', reason: 'differs', entries: 2, targets: 1},
+  ],
+  [
+    'one preview too few: a target with no answer',
+    [wantedUi, wantedVideo],
+    a => {
+      previewsOf(a).pop();
+      return a;
+    },
+    {check: 'count', reason: 'differs', entries: 1, targets: 2},
+  ],
+  [
+    'an entry that is not an object',
+    [wantedUi],
+    a => ({result: {...a.result, previews: ['x']}}),
+    {check: 'entry', reason: 'not_an_object', entry: 0},
+  ],
+  [
+    'a field the pinned schema does not list, in an entry',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].previewType = 'UI_PREVIEW';
+      return a;
+    },
+    {check: 'entry', reason: 'unexpected_fields', entry: 0, unexpected: ['previewType']},
+  ],
+  [
+    'an entry that carries a partial-failure error and no result',
+    [wantedUi],
+    a => ({
+      result: {previews: [{assetGroup: previewsOf(a)[0].assetGroup, partialFailureError: {code: 3, message: 'x'}}]},
+    }),
+    {check: 'entry', reason: 'unexpected_fields', entry: 0, unexpected: ['partialFailureError']},
+  ],
+  [
+    'an entry that names no target',
+    [wantedUi],
+    a => {
+      delete previewsOf(a)[0].assetGroup;
+      return a;
+    },
+    {check: 'identifier', reason: 'none', entry: 0},
+  ],
+  [
+    'an entry that names two targets',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].adGroupAd = video.adGroupAd;
+      return a;
+    },
+    {check: 'identifier', reason: 'both', entry: 0},
+  ],
+  [
+    'an entry for a target the review did not freeze',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].assetGroup = rn('assetGroups', '999');
+      return a;
+    },
+    {check: 'identifier', reason: 'not_reviewed', entry: 0},
+  ],
+  [
+    'the same target answered twice',
+    [wantedUi, wantedSecond],
+    a => {
+      previewsOf(a)[1].assetGroup = ui.assetGroup;
+      return a;
+    },
+    {check: 'identifier', reason: 'repeated', entry: 1},
+  ],
+  [
+    'the ad kind of result for an asset group',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].youtubeLivePreviewResult = {youtubePreviewUrl: 'https://www.youtube.com/x'};
+      return a;
+    },
+    {check: 'preview_result', reason: 'wrong_type', entry: 0, field: 'youtubeLivePreviewResult'},
+  ],
+  [
+    'no result for an asset group',
+    [wantedUi],
+    a => {
+      delete previewsOf(a)[0].uiPreviewResult;
+      return a;
+    },
+    {check: 'preview_result', reason: 'missing', entry: 0, field: 'uiPreviewResult'},
+  ],
+  [
+    'a result for an asset group that is not an object',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].uiPreviewResult = 'x';
+      return a;
+    },
+    {check: 'preview_result', reason: 'not_an_object', entry: 0, field: 'uiPreviewResult'},
+  ],
+  [
+    'a field the pinned schema does not list, in the result of an asset group',
+    [wantedUi],
+    a => {
+      previewsOf(a)[0].uiPreviewResult.previewId = 'p';
+      return a;
+    },
+    {
+      check: 'preview_result',
+      reason: 'unexpected_fields',
+      entry: 0,
+      field: 'uiPreviewResult',
+      unexpected: ['previewId'],
+    },
+  ],
+  [
+    'the asset group kind of result for an ad',
+    [wantedVideo],
+    a => {
+      previewsOf(a)[0].uiPreviewResult = {shareablePreviewUrl: 'https://ads.google.com/x'};
+      return a;
+    },
+    {check: 'preview_result', reason: 'wrong_type', entry: 0, field: 'uiPreviewResult'},
+  ],
+  [
+    'no result for an ad',
+    [wantedVideo],
+    a => {
+      delete previewsOf(a)[0].youtubeLivePreviewResult;
+      return a;
+    },
+    {check: 'preview_result', reason: 'missing', entry: 0, field: 'youtubeLivePreviewResult'},
+  ],
+  [
+    'a result for an ad that is not an object',
+    [wantedVideo],
+    a => {
+      previewsOf(a)[0].youtubeLivePreviewResult = [];
+      return a;
+    },
+    {check: 'preview_result', reason: 'not_an_object', entry: 0, field: 'youtubeLivePreviewResult'},
+  ],
+  [
+    'a result for an ad with no link',
+    [wantedVideo],
+    a => {
+      previewsOf(a)[0].youtubeLivePreviewResult = {};
+      return a;
+    },
+    {check: 'preview_result', reason: 'empty', entry: 0, field: 'youtubeLivePreviewResult'},
+  ],
+  [
+    'a field the pinned schema does not list, in the result of an ad',
+    [wantedVideo],
+    a => {
+      previewsOf(a)[0].youtubeLivePreviewResult.sizes = [];
+      return a;
+    },
+    {
+      check: 'preview_result',
+      reason: 'unexpected_fields',
+      entry: 0,
+      field: 'youtubeLivePreviewResult',
+      unexpected: ['sizes'],
+    },
+  ],
+];
+const withLink = (field: string, value: unknown) => (answer: any) => {
+  const row = previewsOf(answer)[0];
+  (row.uiPreviewResult ?? row.youtubeLivePreviewResult)[field] = value;
+  return answer;
+};
+const linkRefusals: [string, Wanted, string, unknown, string][] = [
+  ['not text', wantedUi, 'shareablePreviewUrl', 5, 'not_text'],
+  ['empty', wantedUi, 'shareablePreviewUrl', '', 'empty'],
+  ['too long', wantedUi, 'shareablePreviewUrl', 'https://ads.google.com/' + 'x'.repeat(8200), 'too_long'],
+  ['with a space', wantedUi, 'shareablePreviewUrl', 'https://ads.google.com/a b', 'whitespace_or_control'],
+  ['not a URL', wantedUi, 'shareablePreviewUrl', 'ads.google.com/preview', 'not_a_url'],
+  ['not https', wantedUi, 'shareablePreviewUrl', 'http://ads.google.com/preview', 'not_https'],
+  ['with credentials', wantedUi, 'shareablePreviewUrl', 'https://user:secret@ads.google.com/p', 'credentials'],
+  ['with a port', wantedUi, 'shareablePreviewUrl', 'https://ads.google.com:8443/preview', 'port'],
+  ['to a host that is not accepted', wantedUi, 'shareablePreviewUrl', 'https://127.0.0.1/preview', 'host_not_accepted'],
+  ['to another Google host', wantedUi, 'shareablePreviewUrl', 'https://pmax.ads.google.com/p', 'host_not_accepted'],
+  [
+    'with a credential parameter',
+    wantedUi,
+    'shareablePreviewUrl',
+    'https://ads.google.com/preview?access_token=abc',
+    'credential_parameter',
+  ],
+  [
+    'of an ad, to a host that is not accepted',
+    wantedVideo,
+    'youtubePreviewUrl',
+    'https://example.org/v',
+    'host_not_accepted',
+  ],
+  ['of an ad for TV, not https', wantedVideo, 'youtubeTvPreviewUrl', 'http://tv.youtube.com/v', 'not_https'],
+];
+const expirationRefusals: [string, unknown, string][] = [
+  ['not text', 1234, 'not_text'],
+  ['a word', 'tomorrow', 'format'],
+  ['a date that is not one', '2026-13-45T25:61:61Z', 'not_a_date'],
+];
+const answerOf = (wanted: Wanted[], change: (answer: any) => unknown) => change(documentedResponse(wanted));
+
+test('every answer that is not the pinned v25 shape still refuses, and names the check it failed and where', () => {
+  const cases: Refusal[] = [
+    ...refusals,
+    ...linkRefusals.map(([label, wanted, field, value, reason]): Refusal => [
+      'a link ' + label,
+      [wanted],
+      withLink(field, value),
+      {check: 'link', reason, entry: 0, field},
+    ]),
+    ...expirationRefusals.map(([label, value, reason]): Refusal => [
+      'an expiry that is ' + label,
+      [wantedUi],
+      a => {
+        previewsOf(a)[0].expirationDateTime = value;
+        return a;
+      },
+      {check: 'expiration', reason, entry: 0},
+    ]),
+  ];
+  const wrong: string[] = [];
+  for (const [label, wanted, change, mismatch] of cases) {
+    const p = compiled(wanted.map(targetOf)),
+      data = answerOf(wanted, change);
+    // The acceptance is what it was: every one of them is refused.
+    if (googlePreviewOutcome(p, {status: 200, headers: {}, data}) !== false) wrong.push(label + ': accepted');
+    const safe = googlePreviewSafeOutcome(p, {status: 200, data}).data;
+    if (safe.native_response_valid !== false || safe.preview_results !== undefined) wrong.push(label + ': not refused');
+    if (!/^[a-f0-9]{64}$/.test(String(safe.response_hash))) wrong.push(label + ': no response hash');
+    try {
+      assert.deepEqual(safe.response_mismatch, mismatch);
+    } catch {
+      wrong.push(label + ': says ' + JSON.stringify(safe.response_mismatch) + ', not ' + JSON.stringify(mismatch));
+    }
+  }
+  assert.deepEqual(wrong, []);
+  assert.ok(cases.length >= 40, String(cases.length));
+});
+
+test('an answer with another status, or that is no object, names that', () => {
+  const p = compiled([ui]),
+    good = documentedResponse([wantedUi]);
+  assert.deepEqual(googlePreviewSafeOutcome(p, {status: 202, data: good}).data.response_mismatch, {
+    check: 'status',
+    reason: 'not_200',
+    http_status: 202,
+  });
+  for (const data of [null, 'x', 5, [good]]) {
+    assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: data as any}), false);
+    assert.deepEqual(googlePreviewSafeOutcome(p, {status: 200, data}).data.response_mismatch, {
+      check: 'body',
+      reason: 'not_an_object',
+    });
+  }
+  // The answer that matches is not described as a mismatch.
+  assert.equal(googlePreviewOutcome(p, {status: 200, headers: {}, data: good}), true);
+  const safe = googlePreviewSafeOutcome(p, {status: 200, data: good}).data;
+  assert.equal(safe.response_mismatch, undefined);
+  assert.equal(safe.native_response_valid, undefined);
+});
+
+test('the fields an answer adds are named only as plain identifiers, and at most eight', () => {
+  const p = compiled([ui]),
+    answer = documentedResponse([wantedUi]);
+  const named = (extra: JsonObject) =>
+    googlePreviewSafeOutcome(p, {status: 200, data: {...answer, ...extra}}).data.response_mismatch;
+  // A name that is not an identifier (a link, a long text) is never repeated: it is counted as one other name.
+  assert.deepEqual(
+    named({requestId: 'x', 'a-b': 1, ['x'.repeat(50)]: 2, 'https://example.org/p?token=1': 3}).unexpected,
+    ['requestId', '(other name)'],
+  );
+  const many = named(
+    Object.fromEntries(Array.from({length: 12}, (_, i): [string, number] => ['extra' + i, i])),
+  ).unexpected;
+  assert.deepEqual(
+    many,
+    Array.from({length: 8}, (_, i) => 'extra' + i),
+  );
+});
+
+test('a refused answer keeps its links out of the outcome, the audit and the refusal, and the replay names the same mismatch', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    f.reply(() => answerOf([wantedUi], withLink('shareablePreviewUrl', 'https://127.0.0.1/leak-marker-one')));
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    const mismatch = {check: 'link', reason: 'host_not_accepted', entry: 0, field: 'shareablePreviewUrl'};
+    assert.equal(e.data.data.native_response_valid, false);
+    assert.deepEqual(e.data.data.response_mismatch, mismatch);
+    // Nothing was generated for the caller: the answer is kept encrypted for recovery, never shown.
+    assert.equal(e.data.previews.status, 'unavailable');
+    assert.deepEqual(e.data.previews.results, []);
+    assert.equal(e.data.previews.links_retained, true);
+    assert.ok(!JSON.stringify(e).includes('leak-marker-one'));
+    for (const table of clearText(f)) assert.ok(!table.includes('leak-marker-one'));
+    assert.ok(f.store.document(actor.tenantId, 'preview_receipt', r.data.review_id).secret);
+    // The one claim stays: the replay sends nothing and says the same.
+    const again = await f.execute(r);
+    assert.equal(again.data.replayed, true);
+    assert.deepEqual(again.data.data.response_mismatch, mismatch);
+    assert.ok(!JSON.stringify(again).includes('leak-marker-one'));
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('an outcome stored before the mismatch was named is explained from the retained answer when it is delivered again', () => {
+  const p = compiled([ui]),
+    raw = answerOf([wantedUi], withLink('shareablePreviewUrl', 'https://127.0.0.1/leak-marker-two')) as JsonObject,
+    stored: JsonObject = {
+      success: false,
+      executed: true,
+      outcome: 'partial_or_failed',
+      status: 200,
+      data: {native_response_valid: false, response_hash: 'a'.repeat(64)},
+      failures: [{path: '$', message: 'The response does not match the reviewed previews.'}],
+    };
+  const delivered = googlePreviewDelivery(p, stored, raw);
+  assert.deepEqual(delivered.data.response_mismatch, {
+    check: 'link',
+    reason: 'host_not_accepted',
+    entry: 0,
+    field: 'shareablePreviewUrl',
+  });
+  assert.equal(delivered.data.native_response_valid, false);
+  assert.equal(delivered.previews.status, 'unavailable');
+  assert.deepEqual(delivered.previews.results, []);
+  assert.ok(!JSON.stringify(delivered).includes('leak-marker-two'));
+  // With the retained answer gone there is nothing to explain from, and nothing is invented.
+  assert.equal(googlePreviewDelivery(p, stored, undefined).data.response_mismatch, undefined);
+  // An answer that does match adds no mismatch to an outcome.
+  const good = documentedResponse([wantedUi]);
+  assert.equal(
+    googlePreviewDelivery(p, {...stored, success: true, data: {preview_results: []}}, good).data.response_mismatch,
+    undefined,
+  );
 });
