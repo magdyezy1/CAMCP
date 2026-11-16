@@ -98,9 +98,9 @@ test('a write that ends uncertain queues one reconcile job for its claim time pl
 
     // A write that completed, one the provider refused without applying it (rejected) and one refused before it was
     // sent each leave the queue as it was: only an uncertain claim is reconciled.
-    const done = (await f.creates(1, 60000000)).data.review_id;
+    const done = (await f.creates(1, 60000000, 'Done')).data.review_id;
     assert.equal((await f.execute(done)).success, true);
-    const refused = (await f.creates(1, 70000000)).data.review_id;
+    const refused = (await f.creates(1, 70000000, 'Refused')).data.review_id;
     f.hooks.respond = () =>
       Response.json(
         {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}},
@@ -108,7 +108,7 @@ test('a write that ends uncertain queues one reconcile job for its claim time pl
       );
     assert.equal((await f.execute(refused)).error.details.submission, 'rejected');
     f.hooks.respond = undefined;
-    const unsent = (await f.creates(1, 80000000)).data.review_id;
+    const unsent = (await f.creates(1, 80000000, 'Unsent')).data.review_id;
     f.store.db
       .prepare(
         "UPDATE documents SET data=json_set(data,'$.expires_at',?) WHERE tenant_id=? AND kind='write_review' AND id=?",

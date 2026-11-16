@@ -23,6 +23,11 @@ export function sameValue(a: unknown, b: unknown): boolean {
     return Number(a) === Number(b);
   return stable(a) === stable(b);
 }
+/**
+ * What a create looks for, as one key (R2.5 M2, lead re-review N2): the kind of object, the parent it is created under and its name as
+ * its lookup compares names. Two creates whose keys are equal could not be told apart by their lookups.
+ */
+export const lookupKey = (...parts: unknown[]): string => parts.map(part => String(part ?? '')).join('\u0000');
 /** A field of a request body, whichever way it is spelled (snake_case or camelCase, as Google takes both). */
 export const frozen = (request: JsonObject, field: string): unknown =>
   request[field] ?? request[camel(field)] ?? request[snake(field)];

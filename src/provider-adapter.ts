@@ -1697,6 +1697,13 @@ export interface CreatedLookup {
    */
   more?(responses: TransportResult[]): CompiledRequest[];
   /**
+   * What this create looks for, one key per record (R2.5 M2, lead re-review N2): the kind of object, the parent it is created under
+   * and its name as this lookup compares names (`lookupKey` in src/created-agreement.ts). Two creates whose keys meet could not be told
+   * apart by their lookups, so an unresolved one holds the other back (src/write-duplicates.ts) even when their requests differ in a
+   * field the provider does not echo. Undefined where the lookup compares by shape or by deterministic names.
+   */
+  keys?: string[];
+  /**
    * Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked.
    * `found` are the resources of the frozen name and parent that the lookup can show were created by this write, each
    * with the `index` of its record. `undated` (R2.5 M2) are resources of that name and parent that it cannot tell from

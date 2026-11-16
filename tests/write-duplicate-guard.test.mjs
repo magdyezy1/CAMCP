@@ -93,9 +93,13 @@ test('a create that differs in its request, and an identical update, are not dup
   const f = googleBudgetFixture();
   try {
     await uncertain(f);
-    // Another amount, another number of budgets: other creates.
-    assert.equal((await f.creates(1, 6000000)).success, true, 'another amount');
-    assert.equal((await f.creates(2, 5000000)).success, true, 'two budgets');
+    // Another name, another number of budgets: other creates. Another amount alone is not: the lookup finds a budget by its name, so
+    // it could not tell what each of the two made (R2.5 M2, lead re-review N2).
+    assert.equal((await f.creates(1, 6000000, 'Other')).success, true, 'another name and amount');
+    assert.equal((await f.creates(2, 5000000, 'Pair')).success, true, 'two budgets');
+    const sameObject = await f.creates(1, 6000000);
+    assert.equal(sameObject.error.code, 'DUPLICATE_OF_UNCERTAIN_WRITE', 'another amount of the same name');
+    assert.equal(sameObject.error.details.earlier_match, 'same_object');
     // An update that repeats itself is harmless: only a create can make a second object.
     const update = await f.update(100000000);
     f.hooks.respond = lost;

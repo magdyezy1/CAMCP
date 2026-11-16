@@ -65,7 +65,7 @@ test('the reads of the person’s reconcile are reserved; the prepare and the wr
     );
     // The class does not outlive the reconciliation: the next call is standard again.
     await f.call('amcp_write', {action: 'status', review_id: id});
-    const later = await f.creates(1, 70000000);
+    const later = await f.creates(1, 70000000, 'Later');
     assert.equal(later.success, true);
     assert.equal(
       seen.slice(before + reconciling.length).every(request => request.purpose === 'standard'),

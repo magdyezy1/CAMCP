@@ -140,7 +140,8 @@ export function googleBudgetFixture({tenant = 'google-budgets', role = 'admin', 
         },
       },
     });
-  const creates = (count, amount) =>
+  // The creates are named prefix and an index: two creates of one name and kind are the same object to a lookup (R2.5 M2, N2).
+  const creates = (count, amount, prefix = 'Synthetic') =>
     write({
       action: 'prepare',
       gateway,
@@ -150,7 +151,7 @@ export function googleBudgetFixture({tenant = 'google-budgets', role = 'admin', 
         account_id: account,
         payload: {
           operations: Array.from({length: count}, (_, i) => ({
-            create: {name: 'Synthetic ' + i, amountMicros: String(amount), deliveryMethod: 'STANDARD'},
+            create: {name: prefix + ' ' + i, amountMicros: String(amount), deliveryMethod: 'STANDARD'},
           })),
         },
       },

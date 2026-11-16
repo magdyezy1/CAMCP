@@ -120,12 +120,18 @@ test('a TikTok object of the same name, parent and window that differs in a froz
 test('probe C: a same-name create that differs in one field, made by another review, is not the lost create’s; the lost one appears not applied', async () => {
   const f = tiktokReconcileFixture();
   try {
-    const {id} = await f.lose('campaign', {applied: false});
-    // The identical prepare is refused, so the agent changes one field and creates that.
-    assert.equal((await f.prepare('campaign')).error?.code, 'DUPLICATE_OF_UNCERTAIN_WRITE');
+    // The other review's create, which differs in one field, completed first. While a lost create is unresolved, a create of the
+    // same object is held back (R2.5 M2, lead re-review N2), so the lost one is the later: it differs from the other in that field.
     const tweaked = await f.prepare('campaign', p => ({...p, objective_type: 'REACH'}));
     assert.equal(tweaked.success, true, JSON.stringify(tweaked).slice(0, 400));
     assert.equal((await f.execute(tweaked.data.review_id)).success, true);
+    const {id} = await f.lose('campaign', {applied: false});
+    // The identical prepare is refused beside the lost one, and so is a create of the same object that differs in a field.
+    assert.equal((await f.prepare('campaign')).error?.code, 'DUPLICATE_OF_UNCERTAIN_WRITE');
+    assert.equal(
+      (await f.prepare('campaign', p => ({...p, objective_type: 'CONVERSIONS'}))).error?.code,
+      'DUPLICATE_OF_UNCERTAIN_WRITE',
+    );
     const campaigns = f.rows.campaign.filter(r => r.campaign_name === 'Synthetic campaign');
     assert.equal(campaigns.length, 1, 'only the other review’s campaign exists');
     f.store.db.prepare("UPDATE jobs SET available_at=0 WHERE kind='write_reconcile' AND state='queued'").run();
@@ -138,12 +144,15 @@ test('probe C: a same-name create that differs in one field, made by another rev
     );
     assert.equal(status.data.reconciliation.observed_ids, undefined, 'nothing is offered for acceptance');
     assert.notEqual(status.data.next_call?.add_after_user_approval?.accept_applied, true);
-    assert.equal(f.sent.length, 2, 'the lost create and the other review’s, each sent once; the check sent nothing');
+    assert.equal(
+      f.sent.length,
+      2,
+      'the other review’s create and the lost one, each sent once; the check sent nothing',
+    );
   } finally {
     f.close();
   }
 });
-
 test('a same-name object that differs and that no review of AMCP made stays a doubt: the lost create is indeterminate, not absent and not applied', async () => {
   const f = tiktokReconcileFixture();
   try {

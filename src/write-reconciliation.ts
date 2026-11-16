@@ -251,6 +251,15 @@ export class WriteReconciler {
       );
     return {review, plan: review.plan as CompiledRequest, claimedAt: Number(claim!.created_at)};
   }
+  /** Whether this actor may read the retained review `id` (a colleague's is not named to them). */
+  private readableReview(actor: Actor, id: string): boolean {
+    try {
+      retainedReview(this.store, actor, id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   /** The uncertain review a check reads, or undefined once it is not uncertain any more (accepted, replaced) or is gone. */
   private stillUncertain(actor: Actor, reviewId: string) {
     try {
@@ -713,6 +722,30 @@ export class WriteReconciler {
         fail('RECONCILIATION_UNAVAILABLE', 'This write is no longer uncertain. Read its status.', {
           next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}},
         });
+      // An object that another create already holds is never accepted as a second create's (R2.5 M2, lead re-review N2): two
+      // creates that differ in a field the provider does not echo are looked up as the one object, and both could be accepted as it.
+      const observed = Array.isArray(record.observed_ids) ? record.observed_ids.map(String) : [],
+        lookup = observed.length
+          ? findCreated(plan, {
+              state: Array.isArray(review.state) ? review.state : [],
+              claimedAt: Number(claim?.created_at),
+            })
+          : undefined,
+        held = lookup ? this.heldByOthers(actor.tenantId, review, plan, lookup, observed.length, observed) : undefined;
+      if (held?.size)
+        fail(
+          'RECOVERY_NOT_SAFE',
+          'Another create of this workspace already holds ' +
+            (held.size > 1 ? 'objects' : 'the object') +
+            ' that this reconciliation found (observed_ids), so accepting it would give one object to two writes. Nothing was changed. Reconcile again (next_call): the check leaves the other create’s object out.',
+          {
+            observed_ids: [...held.keys()],
+            ...(this.readableReview(actor, [...held.values()][0]!)
+              ? {holder_review_id: [...held.values()][0]}
+              : {readable: false}),
+            next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}},
+          },
+        );
       new ScopeGuard(this.registry, this.store).observeCreated(plan, c, record.receipt_data);
       this.store.complete(actor.tenantId, id, outcome, {code: 'RECONCILED'});
       this.store.putDocument(actor.tenantId, reconciliationKind, id, {

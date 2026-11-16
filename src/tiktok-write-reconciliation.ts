@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {normalizeAccount} from './account-id.js';
 import {object} from './write-common.js';
-import {agrees, type Echo} from './created-agreement.js';
+import {agrees, lookupKey, type Echo} from './created-agreement.js';
 
 /**
  * TikTok's part of the read-only reconciliation of an uncertain write (R2.5 M2, L1-07 created-lookup part, L5-05): the
@@ -131,6 +131,7 @@ export function tiktokCreated(
   const dataOf = (response: {data?: unknown} | undefined) => object(object(response?.data).data);
   return {
     reads: [list],
+    keys: [lookupKey(spec.kind, spec.parent ? parent : '', name)],
     // The next page, while the answers follow each other: the one just read says it is the page asked for, and a later one
     // exists. An answer that repeats a page, or names none, ends the reading and leaves the list not whole.
     more(responses) {

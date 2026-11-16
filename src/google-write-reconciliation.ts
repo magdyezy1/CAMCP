@@ -5,7 +5,7 @@ import {googleAdsCustomers} from './google-version.js';
 import {normalize} from './verification-core.js';
 import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import {object} from './write-common.js';
-import {agrees, frozen, type Echo} from './created-agreement.js';
+import {agrees, frozen, lookupKey, type Echo} from './created-agreement.js';
 import {googleBuildLookup} from './google-atomic-builds.js';
 import {googleAssetLinkCreates} from './google-asset-links.js';
 import {googleListingGroupLookup, googleListingGroupTree} from './google-listing-groups.js';
@@ -113,6 +113,7 @@ export function googleCreated(
     searchLimit;
   return {
     reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
+    keys: names.map((name, i) => lookupKey(resource, bound ? parents[i] : '', name)),
     match(responses) {
       const rows = (normalize(object(responses[0]?.data).results ?? [], googleAdsReviewVolatile) as JsonObject[]).map(
           r => object(r[resource]),
@@ -197,6 +198,14 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
   });
   return {
     reads,
+    // A parent the build itself creates has no name yet: it is the same as any other, under no parent.
+    keys: build.anchors.map(a =>
+      lookupKey(
+        a.resource,
+        a.parent && !build.anchorTemps.includes(a.parent.ref) && !/\/-\d+$/.test(a.parent.ref) ? a.parent.ref : '',
+        a.name,
+      ),
+    ),
     match(responses) {
       const rows = new Map(resources.map((resource, i) => [resource, rowsOf(responses[i], resource)])),
         chosen = new Map<string, string>(),

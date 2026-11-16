@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {object} from './write-common.js';
-import {agrees, sameValue, type Echo} from './created-agreement.js';
+import {agrees, lookupKey, sameValue, type Echo} from './created-agreement.js';
 import {metaProductSetKind, metaProductSetListRead} from './meta-product-sets.js';
 import {metaProductFeedKind, metaProductFeedListRead} from './meta-product-feeds.js';
 import {metaProductCatalogKind, metaProductCatalogListRead} from './meta-product-catalogs.js';
@@ -127,6 +127,7 @@ function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: st
   });
   return {
     reads: [request],
+    keys: [lookupKey(edge[3], parent, name)],
     match(responses, submittedAt) {
       // Whole only when Meta answered a list and named no page after it: an answer that is no list proves nothing absent.
       const {rows, complete} = listed(responses),
@@ -159,9 +160,11 @@ function metaCatalogEdgeCreated(
   before: Set<string> | undefined,
   inCatalog: (r: JsonObject) => boolean,
   agree: (r: JsonObject) => boolean,
+  key: string,
 ): CreatedLookup {
   return {
     reads: [first],
+    keys: [key],
     more: responses => nextPage(first, responses),
     match(responses, submittedAt, checkedAt = Date.now()) {
       const {rows, complete} = listed(responses),
@@ -193,6 +196,7 @@ function metaAudienceCreated(
 ): CreatedLookup {
   return {
     reads: [first],
+    keys: [lookupKey('customaudiences', account(plan.accountId), trimmed(name))],
     more: responses => nextPage(first, responses),
     match(responses, submittedAt) {
       const {rows, complete} = listed(responses),
@@ -235,10 +239,12 @@ function metaUndatedCreated(
   first: CompiledRequest,
   name: string,
   live: (r: JsonObject) => boolean,
+  key: string,
   decorated = false,
 ): CreatedLookup {
   return {
     reads: [first],
+    keys: [key],
     more: responses => nextPage(first, responses),
     match(responses) {
       const {rows, complete} = listed(responses);
@@ -288,6 +294,7 @@ export function metaCreated(
         return catalog === undefined || String(catalog) === plan.path.split('/')[2];
       },
       r => setAgrees(object(plan.body), r),
+      lookupKey('product_set', plan.path.split('/')[2], folded(name)),
     );
   if (metaProductFeedKind(plan) === 'create')
     return metaCatalogEdgeCreated(
@@ -301,14 +308,26 @@ export function metaCreated(
           r,
           same('deletion_enabled', 'default_currency', 'feed_type', 'delimiter', 'encoding', 'quoted_fields_mode'),
         ),
+      lookupKey('product_feed', plan.path.split('/')[2], folded(name)),
     );
   if (metaProductCatalogKind(plan) === 'create')
-    return metaUndatedCreated(metaProductCatalogListRead(plan), name, () => true);
+    return metaUndatedCreated(
+      metaProductCatalogListRead(plan),
+      name,
+      () => true,
+      lookupKey('catalog', plan.path.split('/')[2], folded(name)),
+    );
   const edge = /^\/(v\d+\.\d+)\/(act_\d+)\/(campaigns|adsets|ads|adcreatives|customaudiences)$/.exec(plan.path);
   if (!edge) return undefined;
   const listing = (fields: string) => read('/' + edge[1] + '/' + edge[2] + '/' + edge[3], {fields, limit: 100});
   if (edge[3] === 'adcreatives')
-    return metaUndatedCreated(listing('id,name,status'), name, r => r.status !== 'DELETED', true);
+    return metaUndatedCreated(
+      listing('id,name,status'),
+      name,
+      r => r.status !== 'DELETED',
+      lookupKey('adcreative', account(plan.accountId), folded(name)),
+      true,
+    );
   if (edge[3] === 'customaudiences')
     return metaAudienceCreated(plan, listing('id,account_id,name,time_created,subtype'), name, object(plan.body));
   return name.length > 400 ? undefined : metaEdgeCreated(read, edge, name, object(plan.body));

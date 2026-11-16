@@ -165,7 +165,7 @@ test('a write that ends uncertain moves its watch up to claim + 60 seconds, and 
 
     // Refused after its claim and before it was sent (a provider cooldown met while it waited for admission): the claim is
     // released and the watch goes with it.
-    const unsent = (await f.creates(1, 80000000)).data.review_id;
+    const unsent = (await f.creates(1, 80000000, 'Unsent')).data.review_id;
     let watched;
     f.hooks.duringPermit = () => {
       watched = jobs(f).length;
@@ -178,7 +178,7 @@ test('a write that ends uncertain moves its watch up to claim + 60 seconds, and 
     assert.equal(jobs(f).length, 1, 'only the uncertain write has a job');
 
     // Refused by the provider without being applied: rejected, and the watch goes too.
-    const refused = (await f.creates(1, 70000000)).data.review_id;
+    const refused = (await f.creates(1, 70000000, 'Refused')).data.review_id;
     f.hooks.respond = () =>
       Response.json(
         {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}},

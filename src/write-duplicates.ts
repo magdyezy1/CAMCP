@@ -1,6 +1,7 @@
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {sha256, stable} from './security.js';
+import {lookupKey} from './created-agreement.js';
 import {normalizeAccount} from './scope.js';
 import {optional} from './workspace-core.js';
 import {openWriteClaims} from './job-repository.js';
@@ -59,6 +60,12 @@ export {createsObjects};
 export interface EarlierCreate {
   state: 'executing' | 'uncertain' | 'complete';
   /**
+   * How it is alike: the same request, or only the same object (the kind, the parent and the name as the lookup compares them,
+   * R2.5 M2 lead re-review N2). A create that differs in a field its provider does not echo makes the object the first one's lookup
+   * finds, so while the first is unresolved the lookups could not tell what each made.
+   */
+  match: 'identical' | 'same_object';
+  /**
    * Whether AMCP can look that create up by reading the provider (a created lookup exists for it). Where it cannot (Snapchat, X,
    * LinkedIn, Microsoft, Reddit, Smart+), reconcile only answers no_read_contract and a replacement needs a reconciliation that
    * found the write not applied, so the earlier create can never be settled by AMCP: only the person, at the provider.
@@ -78,8 +85,16 @@ function readable(store: Store, actor: Actor, id: string): Pick<EarlierCreate, '
   }
 }
 /**
+ * What a create looks for (the keys of its lookup, `lookupKey`), within its provider and account: two creates whose keys meet are
+ * looking for the same object. Empty where the create has no lookup, or one that compares by shape.
+ */
+function createdKeys(plan: CompiledRequest, context?: {state: unknown[]; claimedAt: number}): string[] {
+  const account = normalizeAccount(plan.gateway, plan.accountId ?? '');
+  return (findCreated(plan, context)?.keys ?? []).map(key => lookupKey(plan.gateway, account, key));
+}
+/**
  * The earlier creates of the same request in the workspace: those unresolved (uncertain, or pending: still being sent) and
- * those that completed within ten minutes. A review that a replacement superseded holds nothing unresolved, and the reviews in
+ * those that completed within ten minutes. An unresolved create that looks for the same object is one too, whatever its request. A review that a replacement superseded holds nothing unresolved, and the reviews in
  * `excluded` (the one a prepare says it replaces; at execute also the review itself) are not earlier creates of this one.
  */
 export function earlierCreates(
@@ -90,13 +105,26 @@ export function earlierCreates(
   now = Date.now(),
 ): {unresolved: EarlierCreate[]; completed: EarlierCreate[]} {
   const identity = requestIdentity(plan),
+    mine = new Set(createdKeys(plan)),
     skip = new Set(excluded.filter((id): id is string => typeof id === 'string')),
     unresolved: EarlierCreate[] = [],
     completed: EarlierCreate[] = [];
   for (const claim of openWriteClaims(store, actor.tenantId, now - duplicateWarningMs)) {
     const id = String(claim.key),
       review = skip.has(id) ? undefined : optional(store, actor.tenantId, 'write_review', id);
-    if (!review?.plan || requestIdentity(review.plan) !== identity) continue;
+    if (!review?.plan) continue;
+    const identical = requestIdentity(review.plan) === identity,
+      // Only an unresolved create holds another back by its key: a completed one made its object, which the lookups leave out.
+      alike =
+        !identical &&
+        claim.state !== 'complete' &&
+        mine.size > 0 &&
+        review.plan.gateway === plan.gateway &&
+        createdKeys(review.plan, {
+          state: Array.isArray(review.state) ? review.state : [],
+          claimedAt: Number(claim.created_at),
+        }).some(key => mine.has(key));
+    if (!identical && !alike) continue;
     if (optional(store, actor.tenantId, 'write_reconciliation', id)?.superseded_by) continue;
     const at = Number(claim.created_at);
     if (claim.state === 'complete') {
@@ -116,6 +144,7 @@ export function earlierCreates(
       named = readable(store, actor, id);
     (state === 'complete' ? completed : unresolved).push({
       state,
+      match: identical ? 'identical' : 'same_object',
       checkable: findCreated(review.plan) !== undefined,
       ...(named
         ? {
@@ -130,10 +159,14 @@ export function earlierCreates(
 }
 /** The refusal of a prepare that would repeat an unresolved create: it names the earlier review it may, and what to do. */
 export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObject = {}): never {
-  const named = unresolved.find(u => u.review_id) ?? unresolved[0]!;
+  const named = unresolved.find(u => u.review_id) ?? unresolved[0]!,
+    lead =
+      named.match === 'identical'
+        ? 'An identical create is already uncertain or still being sent, so this one could make a second object. '
+        : 'A create of the same object (the same name under the same parent) is already uncertain or still being sent, and AMCP could not tell the object each of them made from the other’s, so this one could make a second object. ';
   fail(
     'DUPLICATE_OF_UNCERTAIN_WRITE',
-    'An identical create is already uncertain or still being sent, so this one could make a second object. ' +
+    lead +
       (!named.checkable
         ? // Lead review S3-5: reconcile and a replacement cannot settle this kind of create, so the refusal does not ask for them.
           'AMCP cannot check that kind of create by reading the provider, so it cannot say whether it was applied, and a new review cannot replace it. Check the provider for the object. If it exists, use it and do not create it again; if it does not, change the request (its name, for example): a changed request is a new create and is not held back. Nothing was prepared or sent.'
@@ -142,6 +175,7 @@ export function refuseRepeatedCreate(unresolved: EarlierCreate[], extra: JsonObj
           : 'It belongs to a colleague: ask them, or the workspace owner, to settle it. Nothing was prepared or sent.'),
     {
       earlier_state: named.state,
+      earlier_match: named.match,
       earlier_checkable: named.checkable,
       ...(named.review_id
         ? {
