@@ -1,6 +1,6 @@
 import type {CatalogHooks, ProviderHooks, RefreshRequest, ScopeContext, WireHeaders} from './provider-adapter.js';
 import type {Catalog, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
-import type {ReviewVolatile} from './review-state-core.js';
+import {readRole, type ReviewVolatile} from './review-state-core.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
@@ -184,7 +184,7 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
     // The account a write is made in (`GetAccount`, the role `account`) is kept to its identity: its row carries a row
     // version, the user who last modified it and its financial status, which change without any edit (S3-3).
     identity: (read: CompiledRequest, d: JsonObject) =>
-      read.stateRole === 'account' && d.Account && typeof d.Account === 'object' && !Array.isArray(d.Account)
+      readRole(read) === 'account' && d.Account && typeof d.Account === 'object' && !Array.isArray(d.Account)
         ? {Account: microsoftAccountState(d.Account)}
         : undefined,
     observed: (plan: CompiledRequest, data: JsonObject) => data[microsoftContracts.get(plan.action)!.result]?.[0],

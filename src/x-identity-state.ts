@@ -11,7 +11,7 @@
  * Idempotent and monotone (src/review-state-core.ts pickIdentity: it only drops fields). X offers no way to ask for fewer
  * fields, so the projection is the narrowing.
  */
-import {pickIdentity} from './review-state-core.js';
+import {pickIdentity, readRole} from './review-state-core.js';
 import type {CompiledRequest} from './types.js';
 
 /** An ad account: its ID and name, whether it is approved, its time zone, its business, and a currency where the answer names one. */
@@ -33,5 +33,5 @@ export const xAccountState = (row: unknown): unknown => pickIdentity(row, accoun
  * campaign a promotion is the child of included: they are kept whole (minus the table's telemetry), as a target is.
  */
 export function xRoleRecord(read: CompiledRequest, data: unknown): unknown {
-  return read.stateRole === 'account' ? xAccountState(data) : undefined;
+  return readRole(read) === 'account' ? xAccountState(data) : undefined;
 }

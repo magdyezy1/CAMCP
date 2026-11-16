@@ -1,6 +1,6 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOfRead} from './reviewed-families.js';
-import {normalizeReviewState, noReviewVolatile, type ReviewVolatile} from './review-state-core.js';
+import {normalizeReviewState, noReviewVolatile, readRole, type ReviewVolatile} from './review-state-core.js';
 import {providerHooks} from './provider-hooks.js';
 
 // The pure projection helpers live in the leaf src/review-state-core.ts, which family modules import (ARC-04 stage B).
@@ -36,7 +36,8 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
   // (`review.identity`, R2.5 M1), whichever family built the read: a family that projects its own reads does not lead it back
   // to the whole row. A parent is not kept to its identity (its provider answers undefined): it falls through to the
   // projections below like any target. A saved review's read carries its role, so it is projected the same at execute.
-  const identity = read.stateRole ? providerHooks(read.gateway)?.review?.identity?.(read, d) : undefined;
+  // The role is `readRole`'s (src/review-state-core.ts), the lookup `material` asks too: a read with none is a target.
+  const identity = readRole(read) !== 'target' ? providerHooks(read.gateway)?.review?.identity?.(read, d) : undefined;
   if (identity !== undefined) return normalizeReviewState(identity, volatile);
   const family = familyOfRead(read);
   if (!family) return normalizeReviewState(gatewayStateValue(read, d), volatile);

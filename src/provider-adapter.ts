@@ -535,7 +535,7 @@ export interface ReviewProjections {
    */
   readonly volatile?: ReviewVolatile;
   /**
-   * What a review keeps of the read of an ACCOUNT (R2.5 M1, plan idea 1: `read.stateRole === 'account'`, the account a write
+   * What a review keeps of the read of an ACCOUNT (R2.5 M1, plan idea 1: `readRole(read) === 'account'`, the account a write
    * creates something in): its identity (who it is, its status, its currency and time zone), as the provider gave it, and
    * nothing that changes without an edit. Applied by the state stage to every read of this provider that carries a role,
    * before any family's own projection; undefined for a read it keeps no record for. A `parent` read is not the account's:

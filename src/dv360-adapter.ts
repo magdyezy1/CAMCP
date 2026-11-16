@@ -11,7 +11,7 @@ import type {
 import {sameNativeAccount} from './account-id.js';
 import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import {flatResourceTelemetry} from './review-flat-telemetry.js';
-import {pickIdentity} from './review-state-core.js';
+import {pickIdentity, readRole} from './review-state-core.js';
 import type {TransportResult} from './transport.js';
 import type {Registry} from './catalog.js';
 import {
@@ -143,7 +143,7 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     // The advertiser a create is made in is kept to its identity (R2.5 M1, the ACCOUNT role, L5-01); a read of what a write
     // changes is kept whole, minus the fields of the table above.
     identity: (read: CompiledRequest, d: JsonObject) =>
-      read.stateRole === 'account' ? pickIdentity(d, dv360AdvertiserFields) : undefined,
+      readRole(read) === 'account' ? pickIdentity(d, dv360AdvertiserFields) : undefined,
     // A created campaign, insertion order, line item or creative is read back by its returned ID, an update in place.
     verification(
       plan: CompiledRequest,

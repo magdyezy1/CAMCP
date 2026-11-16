@@ -1,87 +1,28 @@
-import type {CompiledRequest} from './types.js';
-// The provider's own account path (`writes.accountPath`): the one provider fact this module asks, through the registry.
-import {providerHooks} from './provider-hooks.js';
+import {readRole, type ReadRole} from './review-state-core.js';
 
 /**
  * Which of the fields a STATE_CHANGED names matter (Round 2.5, M1, package r25-m1-diff, L5-04; lead review S1-1), and never
  * fewer than do.
  *
  * A review reads several things before a write, and execute reads them again and refuses a review whose state differs from
- * the one it was prepared on. A read has one of four roles. The ACCOUNT container the write sits in (the advertiser, ad
- * account or customer); a PARENT it goes into (the campaign a new ad group is created in); the TARGET, the objects the write
- * changes; and a REFERENCE, a pixel, identity or catalog the write names.
+ * the one it was prepared on. A read has one of four roles, and `readRole` (src/review-state-core.ts) is the one place that
+ * says which, for the hash and for this module alike (merge r25-m1-merge): the ACCOUNT container the write sits in (the
+ * advertiser, ad account or customer); a PARENT it goes into (the campaign a new ad group is created in); a REFERENCE, a pixel,
+ * identity or catalog the write names; and the TARGET, the objects the write changes, which is every read that carries no role.
  *
  * `material` lists the target first, then the parent, then the references, then the account. Every changed field of a target,
  * a parent or a reference matters and is listed. Only the ACCOUNT container is thinned, and by a deny-list: a field of the
  * account that is known noise (a balance, a contact record, a signed link, a timestamp) is left out, so a field nobody listed
  * is material, never hidden. (An allow-list of identity words hid an account's `deleted` and `test` flags, and a Snapchat
  * ad squad's budget and end time.) It orders and names; it never narrows the check: the refusal and `changed_fields` stay as
- * they are, and every changed path of every read still refuses the write. A read whose role is not known is a target.
+ * they are, and every changed path of every read still refuses the write. A read whose role is not known is a target. A read
+ * is an account here exactly when the hash kept it as one: no role is inferred from its path, so nothing is thinned for a read
+ * the hash read whole (tests/review-read-role.test.mjs compares the two over every family descriptor).
  *
  * Roles are read off the list of reads only where the state has one entry per read; the caller says whether it has
  * (src/write-review.ts). A family that keeps its own state puts the account, the parent and the targets in one entry, where
  * the position of a path says nothing about which read it came from: there every path is a target.
  */
-export type ReadRole = 'account' | 'parent' | 'target' | 'reference';
-
-/**
- * The names a read may give its role. The pair label of an older review ("account or parent") is ambiguous, so it takes the
- * stricter of the two, the parent, whose every field is material.
- */
-const roleNames: ReadonlyMap<string, ReadRole> = new Map<string, ReadRole>([
-  ['account', 'account'],
-  ['parent', 'parent'],
-  ['account_parent', 'parent'],
-  ['account_or_parent', 'parent'],
-  ['target', 'target'],
-  ['reference', 'reference'],
-]);
-
-/**
- * The role a read declares on itself, the one place this module takes a role from a read's own tag: `stateRole`, the name the
- * hash package (r25-m1-hash) gives it on a `CompiledRequest`, or `role`, the name this package first read. `stateRole` wins;
- * a value that is no role is no tag. The case and separators of the name are free. A merge wires the roles of the hash
- * package here and nowhere else: replace this function's body, or make it return that package's role for the read.
- */
-export function declaredRole(read: unknown): ReadRole | undefined {
-  const tags = read as Record<string, unknown> | null | undefined;
-  for (const key of ['stateRole', 'role']) {
-    const tag = tags?.[key];
-    const role =
-      typeof tag === 'string'
-        ? roleNames.get(
-            tag
-              .trim()
-              .toLowerCase()
-              .replace(/[\s/-]+/g, '_'),
-          )
-        : undefined;
-    if (role) return role;
-  }
-  return undefined;
-}
-
-/** Whether `path` is exactly the account path its provider declares, where a path longer than it only starts like it. */
-function isAccountPath(gateway: unknown, path: unknown): boolean {
-  if (typeof path !== 'string') return false;
-  const account = providerHooks(gateway)?.writes?.accountPath?.exec(path)?.[0];
-  return account !== undefined && account.length === path.length;
-}
-
-/**
- * The role of one state read of a review (the contract the hash package's roles are wired to): 'account' | 'parent' |
- * 'target' | 'reference', total (it never throws) and failing safe (an unknown read is a target, whose every field is
- * material). A role the read declares on itself wins (`declaredRole`). Otherwise a read of exactly the provider's account
- * path is the account of a write under it, and the target of a write to the account itself (the account is what that
- * write changes). Everything else, and every read this cannot place, is a target.
- */
-export function readRoleOf(read: unknown, write?: CompiledRequest): ReadRole {
-  const declared = declaredRole(read);
-  if (declared) return declared;
-  const r = read as Partial<CompiledRequest> | null | undefined;
-  if (!r || !isAccountPath(r.gateway, r.path)) return 'target';
-  return write && isAccountPath(write.gateway, write.path) ? 'target' : 'account';
-}
 
 /** A subscript of a path as `changedStateFields` writes it: a position, or a JSON-encoded key. */
 const subscript = /\[(\d+|"(?:[^"\\]|\\.)*")\]/g;
@@ -138,18 +79,13 @@ const rank: Record<ReadRole, number> = {target: 0, parent: 1, reference: 2, acco
  * The changed paths that matter, from `changedStateFields` (a path begins with the position of its read in `reads`): the
  * paths of target reads first, then parent reads, then reference reads, then the account's changes that are not known
  * noise, each group in the order the diff found them. `reads` is the list of reads of a review whose state has one entry per
- * read; without it (a family that keeps its own state) every path is a target. `write` is the reviewed request, which decides
- * whether an account read is the account of the write or the account the write changes.
+ * read; without it (a family that keeps its own state) every path is a target. The role of a read is `readRole`'s.
  */
-export function materialFields(
-  changed: readonly string[],
-  reads: readonly unknown[] | undefined,
-  write?: CompiledRequest,
-): string[] {
+export function materialFields(changed: readonly string[], reads: readonly unknown[] | undefined): string[] {
   const roles = new Map<number, ReadRole>(),
     roleOf = (index: number | undefined): ReadRole => {
       if (index === undefined || !Array.isArray(reads) || index >= reads.length) return 'target';
-      if (!roles.has(index)) roles.set(index, readRoleOf(reads[index], write));
+      if (!roles.has(index)) roles.set(index, readRole(reads[index]));
       return roles.get(index)!;
     };
   return changed

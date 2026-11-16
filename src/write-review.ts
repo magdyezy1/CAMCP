@@ -1344,7 +1344,7 @@ export class WriteReviewService {
           submission: 'not_sent',
           // The provider, so that the audit of refusals can tell its refusals from another provider's.
           gateway: plan.gateway,
-          ...surfacedMaterial(materialFields(changed, readsOfState, plan)),
+          ...surfacedMaterial(materialFields(changed, readsOfState)),
           ...(recurring ? {recurring_paths: recurring} : {}),
           ...expiredNext(review, true),
         },

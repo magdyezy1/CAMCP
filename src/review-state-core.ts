@@ -1,4 +1,5 @@
 import {sha256, stable} from './security.js';
+import type {CompiledRequest} from './types.js';
 
 /**
  * The pure state-projection helpers of the review lifecycle (ARC-04 stage B): the configuration projection a review
@@ -153,6 +154,29 @@ const unorderedFields = new Set([
   'included_languages',
   'excluded_languages',
 ]);
+
+/**
+ * The role of a state read in a review, in the words of its two uses: the three a read is stamped with and the TARGET, which is
+ * every read that carries none (the objects a write changes).
+ */
+export type ReadRole = NonNullable<CompiledRequest['stateRole']> | 'target';
+/**
+ * The role of a state read (R2.5 M1, plan idea 1), decided here and nowhere else, for the hash and for `material` alike (merge
+ * r25-m1-merge, the review S3-6 of r25-m1-hash and r25-m1-diff): `account`, `parent` or `reference` as the read was stamped
+ * (`CompiledRequest.stateRole`, set where the read is built and never by a caller), and `target` for every read that carries
+ * none. What a review keeps of a read follows from it: only an ACCOUNT container is kept to its identity (its provider's
+ * `review.identity`, asked by src/review-state.ts), a REFERENCE keeps what the write uses of it, and a PARENT and a TARGET are
+ * hashed whole but for the provider's table. What a STATE_CHANGED lists as material follows from the same role
+ * (src/review-diff.ts): every changed field of a target, a parent or a reference, and the account's but known noise.
+ *
+ * A value that is none of the three (a saved review is JSON and may hold anything) or no read at all is a target: what is not
+ * placed gets the most protection, never a thinner one. Total, and the only reader of the stamp: tests/review-read-role.test.mjs
+ * scans src/ for a second one.
+ */
+export function readRole(read: unknown): ReadRole {
+  const role = (read as {stateRole?: unknown} | null | undefined)?.stateRole;
+  return role === 'account' || role === 'parent' || role === 'reference' ? role : 'target';
+}
 
 /**
  * What a review keeps of an account row (R2.5 M1, plan idea 1, the role ACCOUNT): the listed fields, as the provider gave

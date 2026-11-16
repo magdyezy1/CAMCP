@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readRoleOf, declaredRole, materialFields, surfacedMaterial, materialLimit} from '../dist/src/review-diff.js';
+import {materialFields, surfacedMaterial, materialLimit} from '../dist/src/review-diff.js';
 
 /**
  * Round 2.5, package r25-m1-diff (L5-04; lead review S1-1): which of the changed fields of a STATE_CHANGED matter, and
@@ -11,6 +11,12 @@ import {readRoleOf, declaredRole, materialFields, surfacedMaterial, materialLimi
  * noise (a balance, a contact record, a signed link, a timestamp), so a field nobody listed is material, never hidden. It
  * only orders and names: the refusal itself, and `changed_fields`, are never narrowed by it. A read whose role is not known
  * is a target, so nothing is ever left out for want of a label.
+ *
+ * Merge r25-m1-merge: the role of a read is `readRole`'s (src/review-state-core.ts), the one lookup the hash package's state
+ * stage asks too, so a read has exactly the role the hash gave it: the three it stamps (`stateRole`: account, parent,
+ * reference), and the target for every read with none. tests/review-read-role.test.mjs holds the lookup itself and compares the
+ * two over every family descriptor; the cases below are what `material` does with each role. A read is written here as the
+ * hash package stamps it, `{stateRole: 'account'}`, and a target as a read with none.
  */
 const at = (read, ...keys) =>
   '$[' + read + ']' + keys.map(k => (typeof k === 'number' ? '[' + k + ']' : '["' + k + '"]')).join('');
@@ -25,13 +31,13 @@ test('a change in a read of unknown role is material, in the order the diff foun
 });
 
 test('a target is listed first, then the changes of the account, and only known noise of the account is left out', () => {
-  const reads = [{role: 'account'}, {role: 'target'}],
+  const reads = [{stateRole: 'account'}, {}],
     changed = [row(0, 'currency'), row(0, 'balance'), row(1, 'budget'), row(0, 'license_url'), row(0, 'status')];
   assert.deepEqual(materialFields(changed, reads), [row(1, 'budget'), row(0, 'currency'), row(0, 'status')]);
 });
 
 test('a parent, a target and a reference are compared whole, in that order, before the account', () => {
-  const reads = [{role: 'account'}, {role: 'reference'}, {role: 'target'}, {role: 'parent'}],
+  const reads = [{stateRole: 'account'}, {stateRole: 'reference'}, {}, {stateRole: 'parent'}],
     changed = [row(0, 'name'), row(1, 'pixel_code'), row(2, 'budget'), row(3, 'placements'), row(3, 'balance')];
   assert.deepEqual(materialFields(changed, reads), [
     row(2, 'budget'),
@@ -42,40 +48,30 @@ test('a parent, a target and a reference are compared whole, in that order, befo
   ]);
 });
 
-test('the four roles, in any letter case, and the pair label (which is the stricter of the two, a parent)', () => {
+test('the roles are the three the hash package stamps, spelled as it stamps them; a read with none, or any other value, is a target', () => {
   const changed = [row(0, 'balance')];
-  assert.deepEqual(materialFields(changed, [{role: 'account'}]), [], 'account container: a balance is noise');
-  assert.deepEqual(materialFields(changed, [{role: 'ACCOUNT'}]), []);
-  for (const role of [
-    'parent',
-    'PARENT',
+  assert.deepEqual(materialFields(changed, [{stateRole: 'account'}]), [], 'account container: a balance is noise');
+  for (const read of [{stateRole: 'parent'}, {stateRole: 'reference'}, {}])
+    assert.deepEqual(materialFields(changed, [read]), changed, JSON.stringify(read) + ' is compared whole');
+  // A value the code does not stamp is no role, so the read is a target, which nothing thins: a spelling of the account that
+  // is not the stamp (the case, a pair label of an older review) keeps its balance as material, as does `target` itself.
+  for (const stateRole of [
+    'ACCOUNT',
+    'Account',
+    ' account',
     'ACCOUNT/PARENT',
     'Account_Parent',
     'account_or_parent',
     'target',
-    'reference',
+    'banana',
+    '',
+    7,
+    null,
+    {},
   ])
-    assert.deepEqual(materialFields(changed, [{role}]), changed, role + ' is compared whole');
-  // A label this code does not know is no label: the read is a target.
-  for (const role of ['banana', '', 7, null, {}])
-    assert.deepEqual(materialFields(changed, [{role}]), changed, String(role));
-});
-
-test('the role comes from one place, the read’s own tag: stateRole (the hash package’s name) or role, stateRole first', () => {
-  assert.equal(declaredRole({stateRole: 'account'}), 'account');
-  assert.equal(declaredRole({stateRole: 'parent'}), 'parent');
-  assert.equal(declaredRole({role: 'target'}), 'target');
-  assert.equal(declaredRole({stateRole: 'parent', role: 'account'}), 'parent', 'stateRole wins');
-  assert.equal(
-    declaredRole({stateRole: 'banana', role: 'reference'}),
-    'reference',
-    'an unknown stateRole falls through',
-  );
-  for (const read of [undefined, null, {}, {stateRole: 3}, {role: 'banana'}, 'account', 7])
-    assert.equal(declaredRole(read), undefined, JSON.stringify(read));
-  const changed = [row(0, 'balance'), row(1, 'placements')];
-  assert.deepEqual(materialFields(changed, [{stateRole: 'account'}, {stateRole: 'parent'}]), [row(1, 'placements')]);
-  assert.equal(readRoleOf({stateRole: 'parent'}, undefined), 'parent');
+    assert.deepEqual(materialFields(changed, [{stateRole}]), changed, String(stateRole));
+  // `role` is not the name of a read's role (nothing sets it): a read tagged that way is a target.
+  assert.deepEqual(materialFields(changed, [{role: 'account'}]), changed);
 });
 
 test('a TikTok parent ad group’s placements and an X account’s deleted flag are material when they change', () => {
@@ -86,12 +82,10 @@ test('a TikTok parent ad group’s placements and an X account’s deleted flag 
     {gateway: 'tiktok_native_action', path: '/open_api/v1.3/adgroup/get/', stateRole: 'parent'},
   ];
   assert.deepEqual(materialFields([row(1, 'placements'), row(0, 'balance')], reads), [row(1, 'placements')]);
-  const x = [{gateway: 'x_ads_native_action', path: '/12/accounts/abc'}],
-    create = {gateway: 'x_ads_native_action', path: '/12/accounts/abc/line_items', method: 'POST'};
-  assert.equal(readRoleOf(x[0], create), 'account');
-  assert.deepEqual(materialFields([row(0, 'deleted'), row(0, 'name')], x, create), [row(0, 'deleted'), row(0, 'name')]);
+  const x = [{gateway: 'x_ads_native_action', path: '/12/accounts/abc', stateRole: 'account'}];
+  assert.deepEqual(materialFields([row(0, 'deleted'), row(0, 'name')], x), [row(0, 'deleted'), row(0, 'name')]);
   for (const field of ['deleted', 'test', 'reference', 'objective', 'placements', 'spend_cap', 'some_future_field'])
-    assert.deepEqual(materialFields([row(0, field)], x, create), [row(0, field)], field);
+    assert.deepEqual(materialFields([row(0, field)], x), [row(0, field)], field);
 });
 
 test('an account container is thinned by name of the noise, in every spelling a provider uses', () => {
@@ -137,7 +131,7 @@ test('an account container is thinned by name of the noise, in every spelling a 
       'objective',
       'some_future_field',
     ],
-    reads = [{role: 'account'}];
+    reads = [{stateRole: 'account'}];
   assert.deepEqual(
     materialFields(
       noise.map(k => row(0, k)),
@@ -162,35 +156,26 @@ test('an account container is thinned by name of the noise, in every spelling a 
   assert.deepEqual(materialFields(rows, reads), [rows[0], rows[1], rows[3]]);
 });
 
-test('the account read of a create is found through its provider’s own account path, and the account written itself is a target', () => {
+test('a read at the provider’s account path is an account only when the code that built it stamped it one: no role is inferred from a path', () => {
+  // Before the merge `material` found the account of a create by its path, while the hash read the same read whole (no role
+  // stamped): the account was thinned of its noise for `material` and compared whole by the hash, 46 of 161 family descriptors
+  // (tests/review-read-role.test.mjs). A role the hash did not give a read is not one for `material` either.
   const account = {gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc', method: 'GET'},
     squads = {gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc/adsquads', method: 'GET'},
-    create = {gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc/campaigns', method: 'POST'},
-    renameAccount = {gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc', method: 'PUT'},
     changed = [row(0, 'currency'), row(0, 'balance'), row(1, 'name')];
-  assert.equal(readRoleOf(account, create), 'account');
-  assert.equal(readRoleOf(squads, create), 'target', 'a list under the account is not the account');
-  assert.equal(readRoleOf(account, renameAccount), 'target', 'the account a write changes is its target');
-  assert.equal(readRoleOf(account, undefined), 'account');
-  assert.deepEqual(materialFields(changed, [account, squads], create), [row(1, 'name'), row(0, 'currency')]);
-  assert.deepEqual(materialFields(changed, [account, squads], renameAccount), changed);
-  // A gateway that declares no account path, and a path that only starts like one, are targets.
-  assert.equal(readRoleOf({gateway: 'amcp_synthetic', path: '/v1/adaccounts/abc'}, undefined), 'target');
-  assert.equal(readRoleOf({gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc/x'}, create), 'target');
-  assert.equal(readRoleOf(undefined, create), 'target');
-});
-
-test('a tag on the read wins over the account path', () => {
-  const account = {gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc'},
-    create = {gateway: 'snapchat_native_action', path: '/v1/adaccounts/abc/campaigns', method: 'POST'};
-  assert.equal(readRoleOf({...account, role: 'target'}, create), 'target');
-  assert.equal(readRoleOf({...account, role: 'reference'}, create), 'reference');
-  assert.equal(readRoleOf({...account, role: 'parent'}, create), 'parent');
-  assert.equal(readRoleOf({...account, stateRole: 'parent'}, create), 'parent');
+  // No stamp: a target, so every change of it matters, its balance included, in the order the diff found them.
+  assert.deepEqual(materialFields(changed, [account, squads]), changed);
+  // Stamped an account by the code that built it: listed after the target, and thinned of known noise.
+  assert.deepEqual(materialFields(changed, [{...account, stateRole: 'account'}, squads]), [
+    row(1, 'name'),
+    row(0, 'currency'),
+  ]);
+  // The stamp decides, whatever the path: a parent read at the account path is a parent, compared whole.
+  assert.deepEqual(materialFields([row(0, 'balance')], [{...account, stateRole: 'parent'}]), [row(0, 'balance')]);
 });
 
 test('a path that names no read, or one outside the list of reads, is material', () => {
-  const reads = [{role: 'account'}],
+  const reads = [{stateRole: 'account'}],
     changed = ['$["x"]', '$', '$[5]["a"]', row(0, 'balance'), 'not a path'];
   assert.deepEqual(materialFields(changed, reads), ['$["x"]', '$', '$[5]["a"]', 'not a path']);
 });
@@ -205,14 +190,14 @@ test('what the refusal shows of the material fields is cut at a bound, with the 
 });
 
 test('a path is read as changedStateFields writes it: values never appear in it, and a key with a quote or bracket stays one key', () => {
-  const reads = [{role: 'account'}],
+  const reads = [{stateRole: 'account'}],
     odd = '$[0]["data"]["list"][0]["a\\"]b"]',
     named = '$[0]["data"]["list"][0]["currency\\"]"]';
   assert.deepEqual(materialFields([odd, named], reads), [odd, named]);
   const noisy = '$[0]["data"]["list"][0]["bal\\"]ance"]';
   assert.deepEqual(materialFields([noisy], reads), [noisy], 'a key that only looks like noise is not noise');
   // The role is the first subscript only: a number deeper in the path is not a read.
-  assert.deepEqual(materialFields(['$[1]["a"][0]["balance"]'], [{role: 'account'}, {role: 'target'}]), [
+  assert.deepEqual(materialFields(['$[1]["a"][0]["balance"]'], [{stateRole: 'account'}, {}]), [
     '$[1]["a"][0]["balance"]',
   ]);
 });

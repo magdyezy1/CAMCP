@@ -188,7 +188,8 @@ export interface CompiledRequest {
    * (lead review S2-1). The role is metadata for the review's ordering of what changed (R2.5 M1, `material`) and for the
    * rotation harness; it narrows nothing for a parent. A `reference` is an object a write only names (a funding instrument a
    * Reddit campaign is paid from): its provider keeps its existence and the fields the write uses of it (`review.identity`),
-   * not its meters and computed state (lead review S3-4).
+   * not its meters and computed state (lead review S3-4). The role of a read is `readRole`'s (src/review-state-core.ts), asked
+   * by the state stage and by `material` alike; nothing else reads this property.
    */
   stateRole?: 'account' | 'parent' | 'reference';
   scopeContext?: {

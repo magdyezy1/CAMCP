@@ -31,6 +31,13 @@ import smartPlusAdgroups from './family-descriptors/tiktok-smart-plus-adgroups.m
  * sent, and the gates that read a parent row still read it. Every value is synthetic.
  */
 const registry = new Registry();
+/**
+ * Merge r25-m1-merge (r25-m1-diff's `material` over this package's roles, through the real services): what a review refused
+ * is also what its refusal reports as material. A changed field of a parent, a target or a reference is always material, and
+ * so is an identity field of an account (only known noise of an account is left out, and none of these is noise).
+ */
+const assertMaterial = (done, message) =>
+  assert.deepEqual(done.error.details.material, done.error.details.changed_fields, message + ' is material');
 const read = (gateway, path, fields = {}) => ({
   gateway,
   action: 'AMCP_STATE_READ',
@@ -514,6 +521,7 @@ test('TikTok parents: the parent campaign changing status between review and exe
     const done = await f.execute(p.data);
     assertRefused(done, 'STATE_CHANGED', {writes: () => f.sent.length});
     assert.deepEqual(done.error.details.changed_fields, ['$[1]["data"]["list"][0]["operation_status"]']);
+    assertMaterial(done, 'the parent campaign status');
   } finally {
     f.close();
   }
@@ -538,6 +546,7 @@ test('TikTok parents: a budget, a bid or a budget optimisation switch of the par
       const done = await f.execute(p.data);
       assertRefused(done, 'STATE_CHANGED', {writes: () => f.sent.length});
       assert.deepEqual(done.error.details.changed_fields, ['$[1]["data"]["list"][0]["' + field + '"]'], field);
+      assertMaterial(done, field);
     } finally {
       f.close();
     }
@@ -576,6 +585,7 @@ test('TikTok parents: a budget, a bid, a flight or a targeting of the parent ad 
       const done = await f.execute(p.data);
       assertRefused(done, 'STATE_CHANGED', {writes: () => f.sent.length});
       assert.deepEqual(done.error.details.changed_fields, ['$[1]["data"]["list"][0]' + at], field);
+      assertMaterial(done, field);
     } finally {
       f.close();
     }
@@ -621,6 +631,7 @@ test('TikTok parents: a change of the placements the ad group delivers on is a c
     const done = await f.execute(p.data);
     assertRefused(done, 'STATE_CHANGED', {writes: () => f.sent.length});
     assert.deepEqual(done.error.details.changed_fields, ['$[1]["data"]["list"][0]["placements"][1]']);
+    assertMaterial(done, 'the placements of the parent ad group');
   } finally {
     f.close();
   }
@@ -729,6 +740,7 @@ for (const provider of ['x', 'linkedin', 'dv360']) {
       })();
       assertRefused(done, 'STATE_CHANGED', {writes});
       assert.deepEqual(done.error.details.changed_fields, [where(field)], provider + ' ' + field);
+      assertMaterial(done, provider + ' ' + field);
     }
   });
 }
@@ -817,6 +829,7 @@ test('microsoft write: a real change of the account’s identity is STATE_CHANGE
     const {done, writes} = await microsoftFlow(change);
     assertRefused(done, 'STATE_CHANGED', {writes});
     assert.deepEqual(done.error.details.changed_fields, ['$[0]["Account"]["' + field + '"]'], field);
+    assertMaterial(done, field);
   }
   // A different account ID is refused by the contract's own check of the answer, before any comparison.
   const {done, writes} = await microsoftFlow({Id: '124'});
@@ -840,6 +853,7 @@ test('reddit write: a real change of the ad account’s identity or state is STA
     const {done, writes} = await redditFlow(change);
     assertRefused(done, 'STATE_CHANGED', {writes});
     assert.deepEqual(done.error.details.changed_fields, ['$[0]["data"]["' + field + '"]'], field);
+    assertMaterial(done, field);
   }
 });
 
@@ -879,6 +893,7 @@ test('reddit write: a real change of the funding instrument a campaign names is 
     const {done, writes} = await fundingFlow(change);
     assertRefused(done, 'STATE_CHANGED', {writes});
     assert.deepEqual(done.error.details.changed_fields, ['$[2]["data"][0]["' + field + '"]'], field);
+    assertMaterial(done, field);
   }
   // A different instrument is refused by the family's own check of the answer, before any comparison.
   const {done, writes} = await fundingFlow({id: 'fi_2'});
@@ -983,6 +998,7 @@ test('X promotion: a budget, a bid, a flight or a placement of the line item or 
       (f, done) => {
         assertRefused(done, 'STATE_CHANGED', {writes: () => f.sent.length});
         assert.deepEqual(done.error.details.changed_fields, [path], what);
+        assertMaterial(done, what);
       },
       withSettings,
     );
@@ -999,6 +1015,10 @@ test('X promotion: the parent line item or campaign changing status or name is S
       assert.ok(
         done.error.details.changed_fields.includes(path),
         what + ': ' + JSON.stringify(done.error.details.changed_fields),
+      );
+      assert.ok(
+        done.error.details.material.includes(path),
+        what + ' is material: ' + JSON.stringify(done.error.details.material),
       );
     });
 });
@@ -1063,10 +1083,11 @@ test('lint: the Smart+ ad group an ad is created in, and the Smart+ campaign an 
 });
 
 test('a read declares its role under one name, `stateRole`, and the values are the vocabulary the diff package reads (S3-6)', () => {
-  // r25-m1-diff orders what a STATE_CHANGED names by the role of each read (its `declaredRole`: account, parent, target, reference),
-  // and reads `stateRole` first. This package stamps exactly `account`, `parent` and `reference`; the target is a read with none
-  // (the objects a write changes keep their whole protection). A fourth value, or a second name for the same thing, would leave a
-  // merged `material` placing a read wrongly without any test saying so.
+  // r25-m1-diff orders what a STATE_CHANGED names by the role of each read: account, parent, target, reference. After the merge
+  // (r25-m1-merge) it asks `readRole` (src/review-state-core.ts), the one lookup this package's state stage asks too, and
+  // tests/review-read-role.test.mjs holds that. This package stamps exactly `account`, `parent` and `reference`; the target is a
+  // read with none (the objects a write changes keep their whole protection). A fourth value, or a second name for the same
+  // thing, would leave `material` placing a read wrongly without any test saying so.
   const stamped = new Set(),
     names = new Set();
   for (const file of fs.readdirSync('src').filter(n => n.endsWith('.ts'))) {

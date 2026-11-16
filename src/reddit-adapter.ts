@@ -7,7 +7,7 @@ import type {
   ScopeContext,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
-import type {ReviewVolatile} from './review-state-core.js';
+import {readRole, type ReviewVolatile} from './review-state-core.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {createsOnPost} from './family-kit.js';
@@ -166,10 +166,10 @@ export const redditHooks: ProviderHooks = Object.freeze({
     // The funding instrument a campaign names (the role `reference`, S3-4) is kept to what the campaign depends on: its meter
     // and its computed servable state grow and flip as the account spends.
     identity(read: CompiledRequest, d: JsonObject) {
-      if (read.stateRole === 'account' && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
+      const role = readRole(read);
+      if (role === 'account' && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
         return {data: redditAccountState(d.data)};
-      if (read.stateRole === 'reference' && Array.isArray(d.data))
-        return {data: d.data.map(redditFundingInstrumentState)};
+      if (role === 'reference' && Array.isArray(d.data)) return {data: d.data.map(redditFundingInstrumentState)};
       return undefined;
     },
     volatile: redditReviewVolatile,
