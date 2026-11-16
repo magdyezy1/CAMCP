@@ -226,7 +226,8 @@ export function linkedinDSCReads(plan: CompiledRequest): CompiledRequest[] {
       clears: [],
     });
   return [
-    base('/rest/adAccounts/' + plan.accountId),
+    // The account the post is made under (R2.5 M1, the ACCOUNT role): a review keeps its identity.
+    {...base('/rest/adAccounts/' + plan.accountId), stateRole: 'account'},
     base('/rest/' + (media.startsWith('urn:li:video:') ? 'videos' : 'images') + '/' + encodeURIComponent(media)),
   ];
 }

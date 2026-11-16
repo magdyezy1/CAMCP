@@ -142,8 +142,8 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     volatile: flatResourceTelemetry,
     // The advertiser a create is made in is kept to its identity (R2.5 M1, the ACCOUNT role, L5-01); a read of what a write
     // changes is kept whole, minus the fields of the table above.
-    snapshot: (read: CompiledRequest, d: JsonObject) =>
-      read.stateRole === 'account' ? (pickIdentity(d, dv360AdvertiserFields) as JsonObject) : d,
+    identity: (read: CompiledRequest, d: JsonObject) =>
+      read.stateRole === 'account' ? pickIdentity(d, dv360AdvertiserFields) : undefined,
     // A created campaign, insertion order, line item or creative is read back by its returned ID, an update in place.
     verification(
       plan: CompiledRequest,

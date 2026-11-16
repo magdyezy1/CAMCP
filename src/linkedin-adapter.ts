@@ -11,7 +11,7 @@ import {
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, DeclaredOperation, JsonObject} from './types.js';
 import {linkedinReviewVolatile} from './linkedin-review-volatile.js';
-import {pickIdentity} from './review-state-core.js';
+import {linkedinAccountState} from './linkedin-account-state.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -241,22 +241,6 @@ const linkedinCompile: CompileHooks = Object.freeze({
   afterJob: (plan: CompiledRequest) => linkedinDomainPlan(linkedinMessagePlan(linkedinPlanningPlan(plan))),
 });
 
-/**
- * What a review keeps of the ad account a LinkedIn create is made in (R2.5 M1, L5-01): who it is, its status, its currency,
- * its type and the organization it belongs to (`reference`), and whether it is a test account. Its serving state, version tag,
- * audit stamps and notification settings change with edits that no create depends on. LinkedIn offers no way to ask for
- * fewer fields, so the projection is the narrowing.
- */
-const linkedinAccountFields: readonly string[] = Object.freeze([
-  'id',
-  'name',
-  'status',
-  'currency',
-  'type',
-  'reference',
-  'test',
-]);
-
 export const linkedinHooks: ProviderHooks = Object.freeze({
   gateway: 'linkedin_native_action',
   // Its creatives and their previews for amcp_ad_previews (src/ad-previews.ts).
@@ -307,8 +291,8 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
     volatile: linkedinReviewVolatile,
     // The ad account a create is made in is kept to its identity (R2.5 M1, the ACCOUNT role, L5-01); a read of what a write
     // changes is kept whole, minus the fields of the table above.
-    snapshot: (read: CompiledRequest, d: JsonObject) =>
-      read.stateRole === 'account' ? (pickIdentity(d, linkedinAccountFields) as JsonObject) : d,
+    identity: (read: CompiledRequest, d: JsonObject) =>
+      read.stateRole === 'account' ? linkedinAccountState(d) : undefined,
     // A verification read keeps the write's versioning headers: its API version and Rest.li protocol.
     verificationHeaders: (plan: CompiledRequest) =>
       Object.fromEntries(

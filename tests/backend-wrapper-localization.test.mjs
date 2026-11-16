@@ -316,7 +316,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // (src/{x,linkedin,snapchat,criteo,google}-review-volatile.ts): 816 + 6 = 822.
   // The roles of the same package add two more, with no wrapper reason of their own: the identity of a TikTok parent row and
   // of an X account and its parents (src/tiktok-parent-state.ts, src/x-identity-state.ts): 822 + 2 = 824.
-  assert.equal(files.length, 824);
+  // The rotation harness adds one more: the identity of a LinkedIn ad account, which the adapter and the families that read
+  // the account themselves share (src/linkedin-account-state.ts): 824 + 1 = 825.
+  assert.equal(files.length, 825);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

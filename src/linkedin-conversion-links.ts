@@ -1,6 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
+import {linkedinAccountState} from './linkedin-account-state.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -298,7 +299,8 @@ export async function readLinkedInConversions(
     status: 200,
     headers: {},
     data: {
-      account: selected,
+      // The account is kept to its identity (R2.5 M1, the ACCOUNT role): a balance or a version that moves is no change.
+      account: linkedinAccountState(selected),
       campaigns,
       conversions,
       memberships,

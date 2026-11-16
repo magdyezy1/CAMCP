@@ -5,6 +5,7 @@ import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
 import {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
 import {linkedinReviewVolatile} from './linkedin-review-volatile.js';
+import {linkedinAccountState} from './linkedin-account-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -440,7 +441,12 @@ async function snapshot(p: CompiledRequest, get: ReturnType<typeof reader>, pref
       fail('Matched segments require exact account ownership, compatible facet type and READY or ARCHIVED status.');
     segments[key] = configuration({...row, id: key});
   }
-  return {account: configuration({...selected, id: p.accountId}), templates, segments};
+  // The account is kept to its identity (R2.5 M1, the ACCOUNT role): a balance or a version that moves is no change.
+  return {
+    account: configuration(linkedinAccountState({...selected, id: p.accountId}) as JsonObject),
+    templates,
+    segments,
+  };
 }
 async function complete(
   p: CompiledRequest,

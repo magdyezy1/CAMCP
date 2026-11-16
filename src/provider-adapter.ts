@@ -531,6 +531,14 @@ export interface ReviewProjections {
    */
   readonly volatile?: ReviewVolatile;
   /**
+   * What a review keeps of a read with a role (R2.5 M1, plan idea 1: `read.stateRole`, the account a write creates something
+   * in or the parent a child is created under): its identity (who it is, its status, its currency and time zone), as the
+   * provider gave it, and nothing that changes without an edit. Applied by the state stage to every read of this provider
+   * that carries a role, before any family's own projection; undefined for a read it keeps no record for. Idempotent and
+   * monotone (it only drops), so a saved review's state is projected again at execute.
+   */
+  identity?(read: CompiledRequest, data: JsonObject): unknown;
+  /**
    * The write's headers its verification reads keep (LinkedIn's versioning headers); none by default. Its state reads
    * keep the same (src/write-snapshots.ts stateRead, wave 4c).
    */

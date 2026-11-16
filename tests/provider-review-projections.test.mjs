@@ -61,15 +61,16 @@ test('each provider declares its own projections, frozen', () => {
       google_business_native_action: ['volatile'],
       meta_native_action: ['verification', 'volatile'],
       // r25-m0-t1 (T1): TikTok also declares the advertiser read an amcp_media upload keeps the state of (accountState).
-      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState', 'volatile'],
+      // r25-m1-hash (L5-01): `identity` keeps a read with a role (an account or a parent) to its identity, whichever family
+      // built it: TikTok's parents, X's account and parents, LinkedIn's and DV360's account.
+      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState', 'volatile', 'identity'],
       snapchat_native_action: ['snapshot', 'verification', 'observed', 'volatile'],
-      // r25-m1-hash (L5-01): LinkedIn and DV360 keep the account a create is made in to its identity (a `snapshot`).
-      linkedin_native_action: ['volatile', 'snapshot', 'verificationHeaders', 'verification'],
-      x_ads_native_action: ['snapshot', 'volatile', 'verification', 'observed'],
+      linkedin_native_action: ['volatile', 'identity', 'verificationHeaders', 'verification'],
+      x_ads_native_action: ['snapshot', 'identity', 'volatile', 'verification', 'observed'],
       microsoft_ads_native_action: ['volatile', 'snapshot', 'observed'],
       apple_ads_native_action: ['volatile', 'snapshot', 'observed'],
       reddit_native_action: ['snapshot', 'volatile', 'verification', 'observed'],
-      dv360_native_action: ['volatile', 'snapshot', 'verification'],
+      dv360_native_action: ['volatile', 'identity', 'verification'],
       ga4_native_action: ['volatile'],
       gtm_native_action: ['snapshot', 'volatile'],
       google_search_console_native_action: ['volatile'],

@@ -3,6 +3,7 @@ import {defineFamily, familyErrors, type ReasonFirstRefusal} from './family-kit.
 import {xRead, xReader} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state-core.js';
 import {xReviewVolatile} from './x-review-volatile.js';
+import {xAccountState} from './x-identity-state.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -216,7 +217,8 @@ export async function readXDraftState(p: CompiledRequest, send: Read): Promise<u
     account = await read.single('', p.accountId!),
     draft = kind === 'create' ? undefined : view(await read.single('/draft_tweets/' + id(p), id(p)), id(p)),
     user = draft?.user_id ?? (p.body as JsonObject).as_user_id;
-  const state: JsonObject = {account: normalizeReviewState(account, xReviewVolatile), author: await author(read, user)};
+  // The account is kept to its identity (R2.5 M1, the ACCOUNT role).
+  const state: JsonObject = {account: xAccountState(account) as JsonObject, author: await author(read, user)};
   if (draft) state.draft = draft;
   if (kind === 'create') {
     state.existing_draft_ids = (await drafts(read, user)).map(r => r.id).sort();

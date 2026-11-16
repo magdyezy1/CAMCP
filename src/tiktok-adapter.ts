@@ -329,11 +329,6 @@ function tiktokSnapshot(read: CompiledRequest, d: JsonObject): unknown {
   const state =
     tiktokSmartPlusAdState(read, d) ?? tiktokSmartPlusAdgroupCampaignState(read, d) ?? tiktokInstantFormState(read, d);
   if (state) return state;
-  // The parent a child create is made under (R2.5 M1, the PARENT role): its identity, and what a gate of the child reads.
-  if (read.stateRole === 'parent') {
-    const parent = tiktokParentState(read, d);
-    if (parent) return parent;
-  }
   // The advertiser row, wherever it is read from (a create, the media upload) and whether the answer is fresh or a saved
   // review's: its identity fields only. The signed licence link and the balance change without any change by the
   // user, and the contact record is nothing a write depends on (T1, Q15, owner 2026-11-15).
@@ -465,6 +460,9 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     observed: tiktokObserved,
     accountState: tiktokAccountState,
     volatile: tiktokReviewVolatile,
+    // The parent a child create is made under (R2.5 M1, the PARENT role): its identity, and what a gate of the child reads.
+    identity: (read: CompiledRequest, d: JsonObject) =>
+      read.stateRole === 'parent' ? tiktokParentState(read, d) : undefined,
   }),
   scope: Object.freeze({
     authorizers: Object.freeze([

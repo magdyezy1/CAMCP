@@ -360,7 +360,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (src/{x,linkedin,snapchat,criteo,google}-review-volatile.ts): 816 + 6 = 822.
   // The roles of the same package add two more, with no reason of their own: the identity of a TikTok parent row and of an
   // X account and its parents (src/tiktok-parent-state.ts, src/x-identity-state.ts): 822 + 2 = 824.
-  assert.equal(files.length, 824);
+  // The rotation harness adds one more: the identity of a LinkedIn ad account, which the adapter and the families that read
+  // the account themselves share (src/linkedin-account-state.ts): 824 + 1 = 825.
+  assert.equal(files.length, 825);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.

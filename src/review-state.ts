@@ -30,6 +30,11 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
   const volatile = reviewVolatile(read.gateway);
   if (!data || Array.isArray(data) || typeof data !== 'object') return normalizeReviewState(data, volatile);
   const d = data as JsonObject;
+  // A read with a role (the account a create is made in, the parent a child is created under) is kept to its identity by its
+  // provider (`review.identity`, R2.5 M1), whichever family built the read: a family that projects its own reads does not
+  // lead a role read back to the whole row. A saved review's read carries its role, so it is projected the same at execute.
+  const identity = read.stateRole ? providerHooks(read.gateway)?.review?.identity?.(read, d) : undefined;
+  if (identity !== undefined) return normalizeReviewState(identity, volatile);
   const family = familyOfRead(read);
   if (!family) return normalizeReviewState(gatewayStateValue(read, d), volatile);
   return normalizeReviewState(
