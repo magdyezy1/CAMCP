@@ -122,6 +122,41 @@ test('the refusal lists the changed target before the changed account, by the ro
   }
 });
 
+test('the call that prepares again does not replay the creative-edit acknowledgement of the first prepare', async () => {
+  // Lead review S4-2. The acknowledgement was of the impact the first review showed; the provider's state changed since, so
+  // the impact may have, and the person acknowledges the new review's impact when they see it. No bypass either way: execute
+  // still demands the flag, but the call this refusal hands back must not pre-fill it.
+  const world = advertiserWorld(),
+    f = standardCreates(world, {tenant: 'diff-ack'});
+  try {
+    const body = standardBodies(world.id).campaign,
+      prepared = await f.prepare('campaign'),
+      saved = f.store.document(f.tenant, 'write_review', prepared.data.review_id);
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    // The standard create is no creative edit, so the first prepare could not carry the flag: the stored review does, as
+    // the review of an X creative edit or a TikTok Smart+ ad edit prepared with it would.
+    f.store.putDocument(f.tenant, 'write_review', prepared.data.review_id, {
+      ...saved,
+      prepare_input: {...saved.prepare_input, creative_edit_confirmed: true},
+    });
+    world.currency = 'EUR';
+    const refused = await f.execute(prepared.data);
+    assertRefused(refused, 'STATE_CHANGED', {writes: () => f.sent.length});
+    const again = refused.error.details.next_call;
+    assert.equal(again.arguments.action, 'prepare');
+    assert.equal(again.arguments.creative_edit_confirmed, undefined, 'the acknowledgement is not replayed');
+    // Everything else of the first prepare is: the call is still the one that prepares the same request again.
+    assert.deepEqual(again.arguments, {
+      action: 'prepare',
+      gateway,
+      connection_id: 'login',
+      arguments: {action: body.action, account_id: world.id, payload: body.payload},
+    });
+  } finally {
+    f.close();
+  }
+});
+
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 /** What the refusal of a changed state must tell a reader, in this order, whatever its wording. */
 const remedyMeaning = [

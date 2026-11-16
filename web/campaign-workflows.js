@@ -679,7 +679,7 @@ const runStopLabels = {
   // back to pending; a plan approval is of the plan, not of a state that moved, so the run stops instead of preparing the
   // step again on its own, and the outcome offers no Continue: the person reviews the step again on its current state.
   state_changed:
-    'The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
+    'The account changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
   // A plan its preflight blocked returns the blocked view, not a run (src/campaign-background.ts).
   blocked: 'A prerequisite blocks this plan. Correct the blocked step, then run the plan again.',
 };

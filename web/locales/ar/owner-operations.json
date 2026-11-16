@@ -62,7 +62,7 @@
   "Denied": "مرفوضة",
   "Distinct rate-limit keys in the last hour: {count}": "مفاتيح حدود الطلبات المختلفة خلال الساعة الأخيرة: {count}",
   "Download policy saved.": "حُفظت سياسة التنزيل.",
-  "Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: report it.": "تغيّر كل حقل من هذه الحقول في أكثر من {share} من كل 100 تجهيز لمنصته. الحقل الذي يتغيّر من تلقاء نفسه لا ينبغي مقارنته: أبلغ عنه.",
+  "Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: tell the AMCP team.": "تغيّر كل حقل من هذه الحقول في أكثر من {share} من كل 100 تجهيز لمنصته. الحقل الذي يتغيّر من تلقاء نفسه لا ينبغي مقارنته: أخبر فريق AMCP.",
   "Email delivery": "تسليم البريد",
   "Error responses": "استجابات الخطأ",
   "Every advertising write and media upload of this workspace is refused until you resume. Report and export jobs, reads, reviews and verification continue.": "يُرفض كل تغيير إعلاني وكل رفع للوسائط في مساحة العمل هذه حتى تستأنف. تستمر مهام التقارير والتصدير والقراءات والمراجعات والتحقق.",

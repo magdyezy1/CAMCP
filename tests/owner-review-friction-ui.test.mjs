@@ -190,7 +190,7 @@ for (const locale of ['en', 'ar'])
       assert.ok(
         section.includes(
           p.run(
-            `uiText('Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: report it.', {share: uiNumber(5)})`,
+            `uiText('Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: tell the AMCP team.', {share: uiNumber(5)})`,
           ),
         ),
       );
@@ -224,7 +224,7 @@ test('the media friction wording of the page is in the catalogue, in Arabic', ()
     'Media review friction',
     'In the last {days} days: {prepares} media reviews prepared, {executes} uploads sent.',
     'Fields that change on many prepares',
-    'Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: report it.',
+    'Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: tell the AMCP team.',
     '{count} of {prepares} prepares',
   ]) {
     assert.equal(typeof catalog[english], 'string', 'No Arabic for: ' + english);

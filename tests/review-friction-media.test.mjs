@@ -95,6 +95,9 @@ test('a workspace with no media review has unknown media rates, never zero, and 
       state_changed_paths: [],
     });
     assert.match(r.meaning, /media/i);
+    // Lead review S4-4: a media review refused through amcp_write with any other code (an acknowledgement, an uncertain
+    // outcome) is counted in neither the writes' nor the media counters, and the report says so.
+    assert.match(r.meaning, /any other refusal of a media review[^.]*counted in neither/);
   } finally {
     store.close();
   }

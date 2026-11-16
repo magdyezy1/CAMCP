@@ -110,7 +110,7 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
             uncertain:
               'The provider’s answer to this step was lost, so AMCP cannot confirm the change. It is never sent again: use Read back submitted step to check the account.',
             refused:
-              'The provider changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
+              'The account changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
           }[outcome],
         ),
       ),

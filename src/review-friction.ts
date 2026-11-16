@@ -300,6 +300,6 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       state_changed_paths: topPaths(mediaPaths),
     },
     meaning:
-      'Counts from this workspace’s audit of amcp_write over the window: latency from prepare to the start of execute (nearest-rank percentiles), and refusals per 100 prepares. Media reviews (amcp_media, and a media review executed through amcp_write) are counted apart in media: the reviews prepared, the uploads that reached the provider, and the refusals for an expired review and a changed state. Field paths only, never values. A baseline for the five-minute review window, not a measure of any one review.',
+      'Counts from this workspace’s audit of amcp_write over the window: latency from prepare to the start of execute (nearest-rank percentiles), and refusals per 100 prepares. Media reviews (amcp_media, and a media review executed through amcp_write) are counted apart in media: the reviews prepared, the uploads that reached the provider, and the refusals for an expired review and a changed state; any other refusal of a media review (an acknowledgement, an uncertain outcome) is counted in neither. Field paths only, never values. A baseline for the five-minute review window, not a measure of any one review.',
   };
 }

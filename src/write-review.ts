@@ -250,15 +250,18 @@ const sameLogin = (message: string) => ({
  * The call that prepares a review's original request again (reviews prepared before this field existed have none): for an
  * expired review, and for one whose state changed since it was prepared (STATE_CHANGED, R25 M1, L5-04).
  */
-const expiredNext = (review: JsonObject): JsonObject =>
-  review.prepare_input
-    ? {
-        next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}},
-        ...(review.plan?.personalData
-          ? {people: 'Add people to the call: the same people as before. AMCP kept only their count and digest.'}
-          : {}),
-      }
-    : {};
+const expiredNext = (review: JsonObject, stateChanged = false): JsonObject => {
+  if (!review.prepare_input) return {};
+  // The creative-edit acknowledgement was given for the impact the first review showed. After a state change the impact may
+  // have changed, so the call that prepares again does not pre-fill it (lead review S4-2): execute still demands it.
+  const {creative_edit_confirmed: _acknowledged, ...fresh} = review.prepare_input;
+  return {
+    next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...(stateChanged ? fresh : review.prepare_input)}},
+    ...(review.plan?.personalData
+      ? {people: 'Add people to the call: the same people as before. AMCP kept only their count and digest.'}
+      : {}),
+  };
+};
 /** A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). */
 function rejectedByProvider(review: JsonObject): void {
   if (review.provider_check?.status === 'provider_rejected')
@@ -1339,7 +1342,7 @@ export class WriteReviewService {
           gateway: plan.gateway,
           ...surfacedMaterial(materialFields(changed, readsOfState, plan)),
           ...(recurring ? {recurring_paths: recurring} : {}),
-          ...expiredNext(review),
+          ...expiredNext(review, true),
         },
       );
     }

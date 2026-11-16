@@ -798,7 +798,7 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
             : refusedByStateCheck(e)
               ? // R25 M1 (L5-04, T2; owner 2026-11-15): the state really changed since prepare, what to check, and that no
                 // flag skips this check (provider_check never did: it asks the provider to validate, not AMCP to compare).
-                'Nothing was sent. The provider’s configuration changed after this review was prepared, so execute refused it. Compare details.material (the changed fields that matter) with what the user approved, prepare the same request again (details.next_call when present), show the user the new before_state and execute only the new review. No flag skips this check. If the same paths change on every prepare (details.recurring_paths), a field that changes by itself is probably being compared: report those paths.'
+                'Nothing was sent. The provider’s configuration changed after this review was prepared. Compare details.material (the changed fields that matter) with what the user approved, prepare the same request again (details.next_call when present), show the user the new before_state and execute only the new review. No flag skips this check. If the same paths change on every prepare (details.recurring_paths), a field that changes by itself is probably being compared: report those paths.'
               : refusedAfterClaim(e)
                 ? // Lead review S2-2: the same check after a claim (a media resume). Something may have been sent, so
                   // "nothing was sent" is never said, and the request is never sent again on the strength of this refusal.
