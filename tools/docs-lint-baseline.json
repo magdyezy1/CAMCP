@@ -340,10 +340,16 @@
       "raised": [
         "reference_words 161986 → 162155"
       ]
+    },
+    {
+      "reason": "Package r12-xpreview (qualify X Tweet previews): +61 reference words (162155 to 162216): docs/AD-PREVIEWS.md says what X does now instead of the one sentence that said its preview parameters remained unqualified: the row (the account's promoted Tweets, or named IDs with a dark Tweet proven among the account's own, then one tweet_previews read giving one entry per Tweet, the pinned record, no expiry stated), that X's ad_ids are promoted-Tweet IDs or the ID of a dark Tweet and its adset_ids line items, and the rule for X's link (the iframe src, exactly ton.twimg.com/ads-manager/tweet-preview/index.html). It documents the capability the package adds, which no other maintained page states. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 162155 → 162216"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 162155
+    "reference_words": 162216
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
