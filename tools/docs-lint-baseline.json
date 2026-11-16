@@ -334,10 +334,16 @@
       "raised": [
         "reference_words 161702 → 161986"
       ]
+    },
+    {
+      "reason": "Package r25-m1-merge (Round 2.5 M1, merge): +169 reference words (161986 to 162155): docs/ADDING-A-REVIEWED-FAMILY.md says how a family declares the role of a read (stateRole with its three values, the target for a read with none, and readRole as the one lookup the state stage and material ask) and what the hashing helpers take (the provider's review.volatile table as the last argument, from the provider's own leaf, and changedComparableFields and comparableStateHash for a verification, which apply no URL rule). It documents the role join of this merge and r25-m1-hash's signature change, the sentence that package's report (decision 8) and the lead's review (D7) recommended, which the lead asked for at the merge on 2026-11-16. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 161986 → 162155"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161986
+    "reference_words": 162155
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
