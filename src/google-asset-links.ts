@@ -245,6 +245,25 @@ function identity(plan: CompiledRequest, op: JsonObject): {name: string; asset: 
     role: match![2]!,
   };
 }
+/**
+ * The links an all-create batch makes (R2.5 M2, L2-13): the entity they live in and the resource name each one has, in
+ * order. A link's name is deterministic (customers/x/assetGroupAssets/{group}~{asset}~{FIELD}), so each can be looked up
+ * by it. Undefined for a batch that updates or removes anything, and for a request that is no link batch.
+ */
+export function googleAssetLinkCreates(plan: CompiledRequest): {entity: string; names: string[]} | undefined {
+  const kind = googleAssetLinkKind(plan);
+  if (!kind) return undefined;
+  try {
+    const ops = googleJson(plan.body).operations as unknown[];
+    if (!Array.isArray(ops) || !ops.length || !ops.every(op => object(op) && !!op.create)) return undefined;
+    return {
+      entity: googleAssetLinkContracts[kind].resource,
+      names: (ops as JsonObject[]).map(op => identity(plan, op).name),
+    };
+  } catch {
+    return undefined;
+  }
+}
 export function assertGoogleAssetLinks(plan: CompiledRequest): void {
   const kind = googleAssetLinkKind(plan);
   if (!kind) return;
