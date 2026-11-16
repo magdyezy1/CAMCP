@@ -14,37 +14,72 @@ import {sha256, stable} from './security.js';
  * is not on. This replaces the one set every provider shared: a name that is telemetry in one provider's rows (X's
  * `servable`) is configuration, or nothing, in another's.
  *
+ * The same table names where its provider signs links (the value-shape rule below), in two more kinds of entry that are no
+ * field names: `signed-host:<host>`, the host of the provider's own asset, preview or licence links (`signed-host:ads.tiktok.com`;
+ * `signed-host:*.tiktokcdn.com` for every host below a domain, never the domain itself), and `signed-field:<name>`, a field as
+ * `fieldName` spells it that the provider fills with a link it generated. A table with none of them applies no URL rule.
+ *
  * Idempotent and monotone, like every rule here: it only drops fields, so a review saved before a table grew is projected
  * again at execute (src/write-review.ts) and what it keeps is exactly what the provider said.
  */
 export type ReviewVolatile = readonly string[];
 /** No table: nothing is excused by name. What a provider without one keeps is its whole answer. */
 export const noReviewVolatile: ReviewVolatile = Object.freeze([]);
-const matchers = new WeakMap<ReviewVolatile, (name: string) => boolean>();
-function volatileMatcher(table: ReviewVolatile | undefined): (name: string) => boolean {
-  if (!table?.length) return () => false;
-  let matcher = matchers.get(table);
-  if (!matcher) {
-    const exact = new Set(table.filter(name => !name.endsWith('*'))),
-      prefixes = table.filter(name => name.endsWith('*')).map(name => name.slice(0, -1));
-    matcher = name => exact.has(name) || prefixes.some(prefix => name.startsWith(prefix));
-    matchers.set(table, matcher);
+const hostEntry = 'signed-host:',
+  fieldEntry = 'signed-field:';
+/** What a table compiles to: the names it drops, and where its provider signs links. */
+interface Scope {
+  /** Whether the table drops this field (a name as `fieldName` spells it). */
+  readonly drops: (name: string) => boolean;
+  /** Whether the provider signs links at this host (lower case, without a port). */
+  readonly host: (host: string) => boolean;
+  /** Whether the provider fills this field (a name as `fieldName` spells it) with a link it generated. */
+  readonly field: (name: string) => boolean;
+  /** Whether the table declares any link: with none the URL rule is off, and every URL stays whole. */
+  readonly links: boolean;
+}
+const noScope: Scope = Object.freeze({drops: () => false, host: () => false, field: () => false, links: false});
+const scopes = new WeakMap<ReviewVolatile, Scope>();
+function scopeOf(table: ReviewVolatile | undefined): Scope {
+  if (!table?.length) return noScope;
+  let scope = scopes.get(table);
+  if (!scope) {
+    const hosts = table.filter(entry => entry.startsWith(hostEntry)).map(entry => entry.slice(hostEntry.length)),
+      fields = new Set(
+        table.filter(entry => entry.startsWith(fieldEntry)).map(entry => entry.slice(fieldEntry.length)),
+      ),
+      names = table.filter(entry => !entry.startsWith(hostEntry) && !entry.startsWith(fieldEntry)),
+      exact = new Set(names.filter(name => !name.endsWith('*'))),
+      prefixes = names.filter(name => name.endsWith('*')).map(name => name.slice(0, -1)),
+      exactHosts = new Set(hosts.filter(host => !host.startsWith('*.')).map(host => host.toLowerCase())),
+      // `*.example.com` is every host that ends in `.example.com`: a lookalike (`evilexample.com`) and the domain itself are not.
+      suffixes = hosts.filter(host => host.startsWith('*.')).map(host => host.slice(1).toLowerCase());
+    scope = Object.freeze({
+      drops: (name: string) => exact.has(name) || prefixes.some(prefix => name.startsWith(prefix)),
+      host: (host: string) => exactHosts.has(host) || suffixes.some(suffix => host.endsWith(suffix)),
+      field: (name: string) => fields.has(name),
+      links: hosts.length + fields.size > 0,
+    });
+    scopes.set(table, scope);
   }
-  return matcher;
+  return scope;
 }
 const fieldName = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 /** Whether a provider's table names this field (as the projection reads it: camelCase is snake_case). */
 export const isReviewVolatile = (volatile: ReviewVolatile, key: string): boolean =>
-  volatileMatcher(volatile)(fieldName(key));
+  scopeOf(volatile).drops(fieldName(key));
 const scalar = (value: unknown) => value === null || ['string', 'number', 'boolean'].includes(typeof value);
 
 /**
- * The value-shape rule of the review projection (R2.5 M1, plan idea 1: the safety net under the per-field rules). A
- * provider signs a link anew on every read: TikTok's licence link carries a `ticket`, an object store's image link its
- * `x-amz-*`, `x-goog-*` or `x-signature` and expiry. Such a value is a credential to a document, never a setting, so it is
- * the same state however often it is read. A string that is a whole http(s) URL therefore loses the query parameters that
- * sign or expire it, whatever key it stands under. A landing page's UTM parameters are configuration and stay, byte for
- * byte, and so does every other part of the URL.
+ * The value-shape rule of the review projection (R2.5 M1, plan idea 1: the safety net under the per-field rules; lead review
+ * S2-2). A provider signs its own links anew on every read: TikTok's licence link carries a `ticket`, an object store's image
+ * link its `x-amz-*`, `x-goog-*` or `x-signature` and expiry. Such a value is a credential to a document, never a setting, so
+ * it is the same state however often it is read. A string that is a whole http(s) URL on a host the provider's table declares
+ * (`signed-host:`), or under a field it declares (`signed-field:`), therefore loses the query parameters that sign or expire
+ * it. No other URL is read: a landing page, a tracking URL or any link an advertiser wrote is configuration, whatever its
+ * parameters are called (an affiliate `token`, an event `ticket`, a partner's `sig` or `expires`), so it stays in the hash and
+ * in the `before_state` the approver reads, and a change of it refuses. The UTM parameters, the path and the fragment of a
+ * provider link stay too, byte for byte.
  *
  * Idempotent (what is left holds no signing parameter, so it is left as it is) and monotone (it only deletes query pairs),
  * so a review saved before the rule existed is projected again at execute, and a real change of anything else still
@@ -74,12 +109,23 @@ function parameterName(raw: string): string {
   }
 }
 const wholeUrl = /^https?:\/\/[^\s]+$/i;
-function withoutSigningParameters(text: string): string {
-  if (!wholeUrl.test(text)) return text;
+/** The host of a URL as the WHATWG parser reads it (lower case, no port, userinfo apart), or '' for one it does not parse. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+/** `text` without the signing parameters of a link of the provider: one on a declared host, or under a declared field. */
+function withoutSigningParameters(text: string, scope: Scope, signedField: boolean): string {
+  if (!scope.links || !wholeUrl.test(text)) return text;
   const fragment = text.indexOf('#'),
     head = fragment < 0 ? text : text.slice(0, fragment),
     query = head.indexOf('?');
   if (query < 0) return text;
+  // Only the provider's own links are signed by it: a URL on any other host is the advertiser's, and stays whole.
+  if (!signedField && !scope.host(hostOf(head))) return text;
   const pairs = head.slice(query + 1).split('&'),
     kept = pairs.filter(pair => {
       const equals = pair.indexOf('=');
@@ -134,9 +180,13 @@ export function pickIdentity(row: unknown, paths: readonly string[]): unknown {
   return out;
 }
 
-function project(value: unknown, matches: (name: string) => boolean, urls: boolean, key: string): unknown {
+/**
+ * `signedField` is true under a field the provider's table declares as a link it generated (and inside its lists and records),
+ * `urls` whether the value-shape rule is read at all (a comparison of what a write sent with what is stored does not).
+ */
+function project(value: unknown, scope: Scope, urls: boolean, key: string, signedField: boolean): unknown {
   if (Array.isArray(value)) {
-    const values = value.map(item => project(item, matches, urls, ''));
+    const values = value.map(item => project(item, scope, urls, '', signedField));
     // Preserve duplicates and types. Arrays of objects may have meaningful order.
     return unorderedFields.has(fieldName(key)) && values.every(scalar)
       ? values.sort((a, b) => {
@@ -149,11 +199,11 @@ function project(value: unknown, matches: (name: string) => boolean, urls: boole
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([name]) => !matches(fieldName(name)))
+        .filter(([name]) => !scope.drops(fieldName(name)))
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([name, item]) => [name, project(item, matches, urls, name)]),
+        .map(([name, item]) => [name, project(item, scope, urls, name, signedField || scope.field(fieldName(name)))]),
     );
-  return urls && typeof value === 'string' ? withoutSigningParameters(value) : value;
+  return urls && typeof value === 'string' ? withoutSigningParameters(value, scope, signedField) : value;
 }
 
 /**
@@ -162,14 +212,14 @@ function project(value: unknown, matches: (name: string) => boolean, urls: boole
  * provider passes `noReviewVolatile`, and nothing is dropped by name.
  */
 export function normalizeReviewState(value: unknown, volatile: ReviewVolatile): unknown {
-  return project(value, volatileMatcher(volatile), true, '');
+  return project(value, scopeOf(volatile), true, '', false);
 }
 /**
  * The same names and order, without the value-shape rule of URLs: for a comparison of what a write sent with what the
  * provider stores (src/verification-core.ts), where a link is a value the provider must return as it was sent.
  */
 export function normalizeComparable(value: unknown, volatile: ReviewVolatile): unknown {
-  return project(value, volatileMatcher(volatile), false, '');
+  return project(value, scopeOf(volatile), false, '', false);
 }
 
 export const reviewStateHash = (value: unknown, volatile: ReviewVolatile) =>

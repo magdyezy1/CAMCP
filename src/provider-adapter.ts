@@ -527,7 +527,11 @@ export interface ReviewProjections {
    * and review telemetry, meters and last-modified times, as field names (`review_status*` names a family). A review
    * hashes the rest, so a field not listed is protected. Only names that no user edit changes: never a configuration
    * field. The table replaces the one set every provider shared; src/review-state-core.ts applies it, idempotently and
-   * without adding anything, to every state this provider's reviews keep, hash and compare.
+   * without adding anything, to every state this provider's reviews keep, hash and compare. It also declares where the
+   * provider itself signs links, which it signs anew at every read: `signed-host:<host>` (`*.` for the hosts below a domain)
+   * for its own asset, preview and licence hosts, and `signed-field:<name>` for a field it fills with a link it generated
+   * (lead review S2-2). A link there loses its signing and expiry parameters; a URL anywhere else (a landing page, a tracking
+   * URL) is the advertiser's, and a provider with no such entry keeps every URL whole.
    */
   readonly volatile?: ReviewVolatile;
   /**

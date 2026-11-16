@@ -120,6 +120,8 @@ const read = (gateway, path) => ({
 });
 const tables = Object.fromEntries(registeredProviderHooks.map(h => [h.gateway, h.review?.volatile]));
 const sorted = list => [...(list ?? [])].sort();
+// A table also declares where its provider signs links (`signed-host:` and `signed-field:` entries); the rest are field names.
+const fieldNames = list => (list ?? []).filter(name => !name.startsWith('signed-'));
 
 // What the whole repository shared before this package (src/review-state-core.ts, by key name, every provider, every
 // depth): the response metadata and telemetry names a flat resource carries beside its configuration.
@@ -223,16 +225,46 @@ test('each provider with reviewed writes declares a frozen table of names that c
     assert.ok(Array.isArray(table) && table.length > 0, gateway + ' declares review.volatile');
     assert.ok(Object.isFrozen(table), gateway + ' frozen');
     assert.equal(new Set(table).size, table.length, gateway + ' lists no name twice');
-    for (const name of table) assert.match(name, /^[a-z0-9_]+\*?$/, gateway + ': ' + name);
+    // A field name, or a link the provider signs itself: a host (exact, or every host below a domain) or a field.
+    for (const name of table)
+      assert.match(
+        name,
+        /^(?:[a-z0-9_]+\*?|signed-host:(?:\*\.)?[a-z0-9][a-z0-9.-]*\.[a-z]+|signed-field:[a-z0-9_]+)$/,
+        gateway + ': ' + name,
+      );
   }
 });
 
 test('no table adds a name the former set did not hold unless it is justified as changing by itself', () => {
   for (const [gateway, table] of Object.entries(tables)) {
     if (!table) continue;
-    const added = table.filter(name => !FORMER.includes(name)),
+    const added = fieldNames(table).filter(name => !FORMER.includes(name)),
       justified = Object.keys(ADDED[gateway] ?? {});
     assert.deepEqual(sorted(added), sorted(justified), gateway);
+  }
+});
+
+// The links a provider signs itself, declared in its table (lead review S2-2): the hosts of its own asset, preview and licence
+// links, and the fields it fills with a link it generated. A provider that is not listed declares none, so every URL of its
+// rows is configuration and stays whole: this package knows of no signed link in any other provider's reviewed state.
+const LINKS = {
+  tiktok_native_action: {
+    hosts: [
+      'ads.tiktok.com',
+      '*.tiktokcdn.com',
+      '*.tiktokcdn-us.com',
+      '*.ibyteimg.com',
+      '*.byteimg.com',
+      '*.tiktokv.com',
+    ],
+    fields: ['license_url', 'profile_image_url'],
+  },
+};
+test('a provider declares the links it signs itself in its table, and no other provider does', () => {
+  for (const [gateway, table] of Object.entries(tables)) {
+    const links = (prefix, list) => (list ?? []).filter(e => e.startsWith(prefix)).map(e => e.slice(prefix.length));
+    assert.deepEqual(sorted(links('signed-host:', table)), sorted(LINKS[gateway]?.hosts), gateway + ' hosts');
+    assert.deepEqual(sorted(links('signed-field:', table)), sorted(LINKS[gateway]?.fields), gateway + ' fields');
   }
 });
 

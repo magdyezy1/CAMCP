@@ -397,8 +397,25 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
  * the delivery state TikTok computes from its parents and budget (`secondary_status`; the status a user sets is
  * `operation_status`, which stays), and the request ID of an answer that is kept whole. Answers are projected to their
  * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name.
+ *
+ * It also declares where TikTok signs the links it hands out, which are signed anew at every read (lead review S2-2): the
+ * advertiser's licence document (`ads.tiktok.com`, the `ticket` of the White Friday report), its media CDNs (`x-expires`
+ * and `x-signature`), and the fields TikTok fills with such a link (`license_url`, an ad's `profile_image_url`). A link on
+ * any other host is the advertiser's own (a landing page, a tracking URL) and keeps every parameter in the review.
  */
-const tiktokReviewVolatile: ReviewVolatile = Object.freeze(['secondary_status', 'modify_time', 'request_id']);
+const tiktokReviewVolatile: ReviewVolatile = Object.freeze([
+  'secondary_status',
+  'modify_time',
+  'request_id',
+  'signed-host:ads.tiktok.com',
+  'signed-host:*.tiktokcdn.com',
+  'signed-host:*.tiktokcdn-us.com',
+  'signed-host:*.ibyteimg.com',
+  'signed-host:*.byteimg.com',
+  'signed-host:*.tiktokv.com',
+  'signed-field:license_url',
+  'signed-field:profile_image_url',
+]);
 /** The read an amcp_media upload keeps the advertiser's state from: its identity fields only, as a review keeps them (T1). */
 function tiktokAccountState(read: CompiledRequest, id: string): CompiledRequest {
   read.path = tiktokAdvertiserInfoPath;

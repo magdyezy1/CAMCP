@@ -78,11 +78,28 @@ const notYetRotationSafe = {
  * What changes at every read, by the role of the read: a signed URL and a bumped timestamp (under a name the provider's table
  * holds) for any, and a falling balance for the account only. A parent carries no balance: it is a campaign, an ad group or a
  * line item, and every field a parent has besides those two is a setting that only an edit changes (S2-1), so it stays still.
+ * The signed URL is a link of the provider's: on a host its table declares as its own (S2-2). A provider that declares none
+ * signs no link in a state a review keeps, and a link elsewhere is an advertiser's (a landing page), which is configuration.
  */
 const stamp = gateway => reviewVolatile(gateway).find(n => /(?:_at|_time)$/.test(n)) ?? 'updated_at';
+const linkHost = gateway => {
+  const entry = reviewVolatile(gateway).find(n => n.startsWith('signed-host:'));
+  return entry?.slice('signed-host:'.length).replace(/^\*\./, 'p16.');
+};
 const rotation = (gateway, n, role) => ({
-  license_url:
-    'https://ads.example.test/licence?ticket=t' + n + '&x-expires=' + (1700000000 + n) + '&x-signature=s' + n,
+  ...(linkHost(gateway)
+    ? {
+        license_url:
+          'https://' +
+          linkHost(gateway) +
+          '/licence?ticket=t' +
+          n +
+          '&x-expires=' +
+          (1700000000 + n) +
+          '&x-signature=s' +
+          n,
+      }
+    : {}),
   ...(role === 'account' ? {balance: 1000 - n * 3.25} : {}),
   [stamp(gateway)]: 1700000000 + n,
 });
