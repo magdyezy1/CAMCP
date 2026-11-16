@@ -374,11 +374,12 @@ test('the worker’s automatic check finds a lost TikTok create too', async () =
 });
 
 // L1-15 (R2.5 M2): TikTok's throttle codes (40100, 40132, 40133) on a write. A rate limit never proves by itself that nothing was
-// applied, so the write stays uncertain and is not sent again; what settles it is the reads that this package adds: the check finds
-// that TikTok created nothing, offers the replacement as a new review (the person's call), and the replacement is sent once.
+// applied, so the write stays uncertain and is not sent again; what classifies it is the reads that this package adds: the check finds
+// that TikTok created nothing, which does not settle the claim (it stays uncertain until the person replaces it or accepts it), offers
+// the replacement as a new review (the person's call), and the replacement is sent once.
 for (const code of [40100, 40132, 40133])
   test(
-    'a TikTok create throttled with code ' + code + ' stays uncertain and its check settles it as not applied',
+    'a TikTok create throttled with code ' + code + ' stays uncertain and its check classifies it as not applied',
     async () => {
       const f = tiktokReconcileFixture();
       try {
