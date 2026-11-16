@@ -47,12 +47,18 @@ test('F-L3-12: a platform outside the schema is refused first, with no read, wha
         JSON.stringify([platform, extra]),
       );
   assert.equal(reads.length, 0);
-  // The platforms of the schema still answer.
-  for (const platform of ['google_ads', 'x_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads']) {
+  // The platforms of the schema that read no preview still answer, with no connection. X is not one of them since package
+  // r12-xpreview: it reads its previews, so it needs one (tests/x-ad-previews.test.mjs).
+  for (const platform of ['google_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads']) {
     const out = await previews.handle({platform, account_id: '1'}, actor);
     assert.equal(out.platform, platform);
     assert.deepEqual(out.previews, []);
   }
+  // X is a platform of the schema that reads: without a connection of its own it is refused, and nothing is read.
+  await assert.rejects(previews.handle({platform: 'x_ads', account_id: '1'}, actor), error =>
+    assertRefused(error, 'CONNECTION_REQUIRED'),
+  );
+  assert.equal(reads.length, 0);
 });
 
 test('F-L3-12: a parameter named like a member of every object is an unknown parameter, not one of the schema’s', async t => {

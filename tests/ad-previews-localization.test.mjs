@@ -76,7 +76,34 @@ const answers = {
   reddit: () => ({
     data: [{id: 'a1', name: 'Ad', configured_status: 'ACTIVE', preview_url: 'https://www.reddit.com/p/1'}],
   }),
+  // Package r12-xpreview: X reads its previews. `xPreview` is what its preview read answers: a link, no entry for the Tweet, or a
+  // snippet that is no safe link (its three sentences: the expiry it does not state and the two reasons an entry has no link).
+  x_ads: input =>
+    input.action === 'x_accounts_account_id_promoted_tweets_get'
+      ? {
+          next_cursor: null,
+          data: [
+            {id: 'p1', tweet_id: '1900000000000000001', line_item_id: 'l1', entity_status: 'ACTIVE', deleted: false},
+          ].filter(
+            row => !input.query.promoted_tweet_ids || input.query.promoted_tweet_ids.split(',').includes(row.id),
+          ),
+        }
+      : {
+          data:
+            xPreview === 'silent'
+              ? []
+              : [
+                  {
+                    tweet_id: '1900000000000000001',
+                    preview:
+                      xPreview === 'hostile'
+                        ? "<iframe src='https://evil.example/'>"
+                        : "<iframe class='tweet-preview' src='https://ton.twimg.com/ads-manager/tweet-preview/index.html?data=x'>",
+                  },
+                ],
+        },
 };
+let xPreview = 'link';
 function run(t, platform, extra = {}) {
   const gateway = platform + '_native_action',
     store = storeFixture(t, gateway),
@@ -102,10 +129,25 @@ test('every notice the tool answers with, on every platform, has Arabic in the c
     for (const text of sentences(await run(t, platform))) texts.add(text);
   // A named Snapchat creative the account does not list, and an unknown Reddit preview expiry.
   for (const text of sentences(await run(t, 'snapchat', {ad_ids: ['unlisted']}))) texts.add(text);
-  // Platforms with no read: Google Ads names the reviewed write (with and without ad IDs), X says it is unqualified.
+  // X: a preview link (its expiry is not stated), no entry for the Tweet, a snippet that is no safe link, and a named ID of the
+  // account that holds none. Its sentences are collected from its answers like every platform's.
+  const xTexts = new Set();
+  for (xPreview of ['link', 'silent', 'hostile'])
+    for (const text of sentences(await run(t, 'x_ads', {ad_ids: ['p1']}))) xTexts.add(text);
+  for (const text of sentences(await run(t, 'x_ads', {ad_ids: ['unlisted']}))) xTexts.add(text);
+  for (const text of [
+    'X states no expiry for this preview link.',
+    'X returned no preview for this Tweet.',
+    'X returned a preview that AMCP does not accept as a safe link, so none is shown.',
+    'Not in this account',
+  ])
+    assert.ok(xTexts.has(text), 'the X answers carry: ' + text);
+  for (const text of xTexts) texts.add(text);
+  xPreview = 'link';
+  // Platforms with no read: Google Ads names the reviewed write (with and without ad IDs); X is no longer one of them.
   const store = new Store(':memory:', key);
   t.after(() => store.close());
-  for (const platform of ['google_ads', 'x_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads'])
+  for (const platform of ['google_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads'])
     for (const ad_ids of [undefined, ['987654321']]) {
       const previews = new AdPreviews(async () => assert.fail('no read is made'), store);
       for (const text of sentences(
@@ -145,6 +187,8 @@ test('every refusal sentence of the tool has Arabic in the chunks the page loads
     [{...base, platform: 'nowhere'}, 'INVALID_ARGUMENT'],
     [{...base, cursor: 'x'}, 'INVALID_CURSOR'],
     [{...base, platform: 'linkedin', campaign_ids: ['abc']}, 'INVALID_ARGUMENT'],
+    // Package r12-xpreview: X's own filters are X's IDs.
+    [{...base, platform: 'x_ads', campaign_ids: ['a:b']}, 'INVALID_ARGUMENT'],
   ]) {
     const error = await previews.handle(input, actor).then(
       () => assert.fail('refused: ' + JSON.stringify(input)),

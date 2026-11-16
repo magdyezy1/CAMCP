@@ -575,7 +575,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
-  assert.equal(Object.keys(catalog).length, 12156);
+  // Package r12-xpreview (item 2): +4 entries, the Arabic of the sentences X's previews answer with and refuse with now that
+  // amcp_ad_previews reads them (src/x-ad-previews.ts: the expiry X does not state, the two reasons an entry has no link, and
+  // the refusal of a filter that is not one of X's own IDs), and the sentence that said X's previews were not qualified leaves
+  // (-1): 12,156 + 4 - 1 = 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
+  assert.equal(Object.keys(catalog).length, 12159);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

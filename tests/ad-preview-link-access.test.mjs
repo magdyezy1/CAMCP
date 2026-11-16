@@ -105,11 +105,12 @@ test('every other platform’s notice no longer says its links open for anyone w
     assert.equal(out.meaning, generic, platform);
     assert.doesNotMatch(JSON.stringify(out), /open for anyone who has them/, platform);
   }
-  // Platforms whose previews AMCP cannot read answer with the same notice.
+  // Platforms whose previews AMCP cannot read answer with the same notice. X is not one of them since package r12-xpreview
+  // (it reads its previews, with a connection: tests/x-ad-previews.test.mjs holds that its answer carries the same notice).
   const store = new Store(':memory:', key);
   t.after(() => store.close());
   const none = new AdPreviews(async () => assert.fail('no read is made'), store);
-  for (const platform of ['google_ads', 'x_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads'])
+  for (const platform of ['google_ads', 'microsoft_ads', 'dv360', 'criteo', 'apple_ads'])
     assert.equal((await none.handle({platform, account_id: '1'}, actor)).meaning, generic, platform);
 });
 

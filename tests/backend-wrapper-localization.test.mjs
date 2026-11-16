@@ -335,7 +335,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
-  assert.equal(selected.filter(row => row.messages.size).length, 196);
+  // Package r12-xpreview: src/x-ad-previews.ts reads X's previews now and raises its refusals through the kit's fail(), so it
+  // owns reasons too (the one new sentence, and the two the other previews modules already own): 196 + 1 = 197.
+  assert.equal(selected.filter(row => row.messages.size).length, 197);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -351,7 +353,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r12-fix (item 2, V2-RPT-07): the X population's parent refusal (src/x-overview-detail.ts refuse()) is now two
   // sentences, one for the campaign of line items and one for the line item of promoted tweets, each with its own Arabic; the
   // earlier sentence stays for a malformed objective (it was one sentence raised from two places): 2914 + 2.
-  assert.equal(owned.size, 2916);
+  // Package r12-xpreview: X's previews refuse a filter that is not one of X's own IDs with a sentence of their own (the other
+  // two sentences of src/x-ad-previews.ts are owned already): 2916 + 1.
+  assert.equal(owned.size, 2917);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -508,7 +512,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
-  assert.equal(Object.keys(catalog).length, 12156);
+  // Package r12-xpreview (item 2): +4 entries and -1, as tests/backend-contract-localization.test.mjs counts them (the Arabic of
+  // X's previews' sentences; the sentence that said X's previews were not qualified leaves): 12,156 + 3 = 12,159.
+  assert.equal(Object.keys(catalog).length, 12159);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

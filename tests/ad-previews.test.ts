@@ -292,7 +292,7 @@ test('Reddit: the ad itself carries its preview link while preview_expiry is ahe
   }
 });
 
-test('Google Ads names the reviewed write that creates a shareable preview; X and platforms without a preview say so', async () => {
+test('Google Ads names the reviewed write that creates a shareable preview; platforms without a preview say so', async () => {
   const f = fixture('google_ads_native_action', '1234567890', () => undefined);
   try {
     const google = await f.previews({
@@ -310,7 +310,11 @@ test('Google Ads names the reviewed write that creates a shareable preview; X an
       },
     });
     assert.equal(google.data.next_call.tool, 'amcp_write');
-    assert.equal((await f.previews({platform: 'x_ads'})).data.preview_route, 'not_qualified');
+    // X is no longer "not qualified" (package r12-xpreview): it reads its previews, so it needs a connection of its own, and
+    // this fixture holds only Google Ads' (tests/x-ad-previews.test.mjs holds X's reads).
+    const x = await f.previews({platform: 'x_ads'});
+    assert.equal(x.success, false);
+    assert.equal(x.error.code, 'CONNECTION_REQUIRED');
     assert.equal((await f.previews({platform: 'dv360'})).data.preview_route, 'none');
     assert.equal(f.calls.length, 0);
     const bad = await f.previews({platform: 'meta', ad_format: 'BILLBOARD'});
