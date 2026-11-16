@@ -47,10 +47,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // the hotfix and errors; the merged count is measured by this test's own inspector, not either pin: 177 + 2 = 179.
   // Package r25-m1-diff (Round 2.5, M1: L5-04, T2) adds one in src/errors.ts: the remedy of the refusal of a review's state
   // check (STATE_CHANGED with the two hashes and the changed fields), whose next step is the same sentence, so it is one
-  // hint: 180 in all, on its own base (the pin of tests/shared-recovery-localization.test.mjs moved with it).
-  assert.equal(hints.size, 180);
+  // hint: 180 in all, on its own base (the pin of tests/shared-recovery-localization.test.mjs moved with it). Lead review S2-2
+  // adds one more: the remedy of the same check refused after a claim (a media resume), 181 in all.
+  assert.equal(hints.size, 181);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 179);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 180);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

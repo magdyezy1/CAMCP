@@ -295,19 +295,31 @@ test('a write the provider refuses after it was sent still stops the plan as an 
 test('a refusal with a claim for its review is never taken for one that sent nothing, whatever it says', () => {
   const error = {
     code: 'STATE_CHANGED',
-    details: {expected_state_hash: 'a', actual_state_hash: 'b', changed_fields: ['$[0]["x"]']},
+    details: {
+      expected_state_hash: 'a',
+      actual_state_hash: 'b',
+      changed_fields: ['$[0]["x"]'],
+      submission: 'not_sent',
+    },
   };
   assert.equal(unsentStateChange(error, undefined), true);
   for (const state of ['pending', 'uncertain', 'complete', 'rejected'])
     assert.equal(unsentStateChange(error, {state}), false, state + ' claim');
   assert.equal(unsentStateChange({code: 'STATE_CHANGED', details: {}}, undefined), false);
   assert.equal(unsentStateChange(undefined, undefined), false);
+  // The fields of the check without the mark of a refusal raised before the claim (a resume) are not one that sent nothing.
+  assert.equal(unsentStateChange({...error, details: {...error.details, submission: undefined}}, undefined), false);
 });
 
 test('a STATE_CHANGED that is not the refusal of the review check is not told apart as one that sent nothing', () => {
   const review = {
     code: 'STATE_CHANGED',
-    details: {expected_state_hash: 'a', actual_state_hash: 'b', changed_fields: ['$[0]["x"]']},
+    details: {
+      expected_state_hash: 'a',
+      actual_state_hash: 'b',
+      changed_fields: ['$[0]["x"]'],
+      submission: 'not_sent',
+    },
   };
   assert.equal(refusedByStateCheck(review), true);
   assert.equal(refusedByStateCheck(new MirrorError('STATE_CHANGED', 'x', review.details)), true);
@@ -318,6 +330,9 @@ test('a STATE_CHANGED that is not the refusal of the review check is not told ap
     {code: 'STATE_CHANGED', details: {expected_state_hash: 'a', actual_state_hash: 'b'}},
     {code: 'STATE_CHANGED', details: {...review.details, changed_fields: 'not a list'}},
     {code: 'REVIEW_EXPIRED', details: review.details},
+    // The two hashes and the fields of a resume refused after a claim: the mark of "not sent" is what is missing.
+    {code: 'STATE_CHANGED', details: {...review.details, submission: undefined}},
+    {code: 'STATE_CHANGED', details: {...review.details, submission: 'rejected'}},
     undefined,
   ])
     assert.equal(refusedByStateCheck(e), false, JSON.stringify(e));

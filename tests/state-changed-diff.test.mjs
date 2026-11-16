@@ -56,8 +56,9 @@ test('a changed advertiser currency is refused with the field that matters named
     assert.match(details.expected_state_hash, /^[0-9a-f]{64}$/);
     assert.match(details.actual_state_hash, /^[0-9a-f]{64}$/);
     assert.notEqual(details.expected_state_hash, details.actual_state_hash);
-    // What is new: the changed fields that matter.
+    // What is new: the changed fields that matter, and the mark that nothing was claimed or sent (lead review S2-2).
     assert.deepEqual(details.material, [currencyPath]);
+    assert.equal(details.submission, 'not_sent');
   });
 });
 
@@ -174,13 +175,25 @@ test('a STATE_CHANGED that is not the refusal of the review check keeps its gene
     for (const text of [error.remedy.action, error.next_action]) assert.doesNotMatch(text, /Nothing was sent/);
     assert.ok(error.next_action);
   }
-  // The review check is told apart by what it carries: the two hashes and the changed fields.
-  const review = new MirrorError('STATE_CHANGED', 'Changed.', {
-    expected_state_hash: 'a',
-    actual_state_hash: 'b',
-    changed_fields: ['$[0]["x"]'],
-  });
-  assert.match(errorResult(review, 'request', 1).error.remedy.action, /Nothing was sent/);
+  // The review check is told apart by what it carries: the two hashes, the changed fields and the mark of a refusal
+  // raised before anything was claimed (lead review S2-2). The mark is tested, not the shape alone.
+  const shape = {expected_state_hash: 'a', actual_state_hash: 'b', changed_fields: ['$[0]["x"]']},
+    review = new MirrorError('STATE_CHANGED', 'Changed.', {...shape, submission: 'not_sent'}),
+    asReview = errorResult(review, 'request', 1).error;
+  assert.match(asReview.remedy.action, /Nothing was sent/);
+  assert.match(asReview.next_action, /Nothing was sent/);
+  // The same fields without the mark (a resume refused after a claim) are not one that sent nothing: the agent is sent to
+  // the status and the receipt, and told never to send it again blindly. The general remedy is not used for it either.
+  const claimed = errorResult(new MirrorError('STATE_CHANGED', 'Changed.', shape), 'request', 1).error;
+  assert.equal(claimed.remedy.category, 'state');
+  assert.equal(claimed.remedy.mutation_retry_safe, false);
+  for (const text of [claimed.remedy.action, claimed.next_action]) {
+    assert.doesNotMatch(text, /Nothing was sent/i);
+    assert.match(text, /status or receipt/);
+    assert.match(text, /never send it again blindly/);
+    assert.match(text, /No flag skips this check/);
+  }
+  assert.notEqual(claimed.remedy.action, asReview.remedy.action);
 });
 
 test('no flag skips the state check: every acknowledgement together still leaves the changed review refused', async () => {

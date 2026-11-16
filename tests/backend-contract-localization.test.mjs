@@ -541,7 +541,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 4 (the alarm of the plan's idea 1): +3 entries, the website's wording of the fields that change on many prepares of
   // one provider, in the Review friction section (heading, the notice that states the rule, and the counts of each field:
   // web/owner-operations.js ownerReviewFriction): measured (node tools/check-locales.mjs: catalog_messages 12146), 12,143 + 3 = 12,146.
-  assert.equal(Object.keys(catalog).length, 12146);
+  // Lead review S2-2 (r25-m1-diff): +1 entry, the remedy of a STATE_CHANGED refused after a claim (a media resume, where part of
+  // the upload may already have been sent: src/errors.ts reviewRemedy): measured (catalog_messages 12147), 12,146 + 1 = 12,147.
+  assert.equal(Object.keys(catalog).length, 12147);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -1321,6 +1321,8 @@ export class WriteReviewService {
           expected_state_hash: expectedHash,
           actual_state_hash: actualHash,
           changed_fields: changed,
+          // Raised before anything is claimed or sent: the mark the remedy and the plan engine test (lead review S2-2).
+          submission: 'not_sent',
           // The provider, so that the audit of refusals can tell its refusals from another provider's.
           gateway: plan.gateway,
           ...surfacedMaterial(materialFields(changed, review.reads, plan)),
