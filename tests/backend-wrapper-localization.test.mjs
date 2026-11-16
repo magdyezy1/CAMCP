@@ -467,7 +467,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // its table's name and the line that says how many media reviews were prepared and uploads sent: web/owner-operations.js
   // ownerMediaFriction; every other label of the block was already translated): measured (node tools/check-locales.mjs:
   // catalog_messages 12143), 12,140 + 3 = 12,143.
-  assert.equal(Object.keys(catalog).length, 12143);
+  // Its item 4 (the alarm of the plan's idea 1): +3 entries, the website's wording of the fields that change on many prepares of
+  // one provider, in the Review friction section (heading, the notice that states the rule, and the counts of each field:
+  // web/owner-operations.js ownerReviewFriction): measured (node tools/check-locales.mjs: catalog_messages 12146), 12,143 + 3 = 12,146.
+  assert.equal(Object.keys(catalog).length, 12146);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

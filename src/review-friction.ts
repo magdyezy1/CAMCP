@@ -97,6 +97,22 @@ const topPaths = (named: ReadonlyMap<string, number>) =>
     .map(([field, count]) => ({path: field, count}));
 /** The refusals of a media review the report counts: an expired review and a changed state (L6-11, R25 M1). */
 const mediaCounted = ['REVIEW_EXPIRED', 'STATE_CHANGED'];
+/** The changed paths a refusal names, as the report keeps them: paths only, never values. */
+const changedPathsOf = (error: JsonObject): string[] =>
+  (Array.isArray(error.details?.changed_fields) ? error.details.changed_fields : [])
+    .map(path)
+    .filter((p: string | undefined): p is string => p !== undefined);
+/**
+ * When a path counts as one that changes on many prepares (R25 M1, design item 4 of the plan's idea 1): it explains more
+ * than 5 in 100 of a provider's prepares, with at least three refusals, on a provider with at least twenty prepares.
+ * The share is the owner's baseline read as a rate (7 STATE_CHANGED in 313 prepares was 2.2 in 100 over every provider and
+ * path, and every one a field that changes by itself); the two minimums keep one refusal of ten prepares from being an
+ * alarm. Shown beside the alarms, so a rate is read against its rule.
+ */
+export const volatilePathRule = Object.freeze({per_100_prepares: 5, minimum_refusals: 3, minimum_prepares: 20});
+/** The gateway a prepared review is of: its write's, or its upload's platform. */
+const gatewayOf = (value: unknown): string | undefined =>
+  typeof value === 'string' && /^[a-z0-9_]{1,80}$/.test(value) ? value : undefined;
 
 export function reviewFriction(store: Store, tenant: string, days = 30, now = Date.now()): JsonObject {
   const since = now - days * 86400000;
@@ -112,6 +128,20 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     mediaReviews = new Set<string>(),
     mediaCodes: Record<string, number> = Object.fromEntries(mediaCounted.map(c => [c, 0])),
     mediaPaths = new Map<string, number>(),
+    // The alarm: each provider's prepares (writes and uploads) and, for each, how often a refusal named a path.
+    providerPrepares = new Map<string, number>(),
+    providerPaths = new Map<string, Map<string, number>>(),
+    noteProviderPrepare = (gateway: unknown) => {
+      const g = gatewayOf(gateway);
+      if (g) providerPrepares.set(g, (providerPrepares.get(g) ?? 0) + 1);
+    },
+    noteProviderPaths = (error: JsonObject) => {
+      const g = gatewayOf(error.details?.gateway);
+      if (!g) return;
+      const named = providerPaths.get(g) ?? new Map<string, number>();
+      for (const p of new Set(changedPathsOf(error))) named.set(p, (named.get(p) ?? 0) + 1);
+      providerPaths.set(g, named);
+    },
     // WRT-09: website approvals, the time from prepare to a person's approval, and the refusals that wait for one.
     groupPrepared = new Map<string, number>(),
     approvalLatencies: number[] = [],
@@ -133,6 +163,8 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     if (event.event === 'media_prepared' || event.event === 'media_library_prepared') {
       mediaPrepares++;
       mediaReviews.add(row.request_id);
+      // An upload's platform is its provider's gateway without the suffix (`tiktok` for tiktok_native_action).
+      if (typeof event.plan?.platform === 'string') noteProviderPrepare(event.plan.platform + '_native_action');
     } else if (event.event === 'media_uploaded' || event.event === 'media_upload_incomplete')
       // An upload that reached the provider, completed or not: the media analogue of a write's execute.
       mediaExecutes++;
@@ -146,16 +178,14 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       const code = event.outcome.error?.code;
       if (typeof code !== 'string' || !mediaCounted.includes(code)) continue;
       mediaCodes[code]!++;
-      if (code === 'STATE_CHANGED')
-        for (const field of Array.isArray(event.outcome.error.details?.changed_fields)
-          ? event.outcome.error.details.changed_fields
-          : []) {
-          const p = path(field);
-          if (p) mediaPaths.set(p, (mediaPaths.get(p) ?? 0) + 1);
-        }
+      if (code === 'STATE_CHANGED') {
+        for (const p of changedPathsOf(event.outcome.error)) mediaPaths.set(p, (mediaPaths.get(p) ?? 0) + 1);
+        noteProviderPaths(event.outcome.error);
+      }
     } else if (event.event === 'write_prepared') {
       prepares++;
       prepared.set(row.request_id, row.created_at);
+      noteProviderPrepare(event.request?.gateway);
     } else if (event.event === 'write_group_prepared') groupPrepared.set(row.request_id, row.created_at);
     else if (event.event === 'write_approved') {
       approvals++;
@@ -175,18 +205,38 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       if (typeof code === 'string' && Object.hasOwn(approvalRefusals, code)) approvalRefusals[code]!++;
       if (typeof code !== 'string' || !Object.hasOwn(codes, code)) continue;
       codes[code]!++;
-      if (code === 'STATE_CHANGED')
-        for (const field of Array.isArray(event.outcome.error.details?.changed_fields)
-          ? event.outcome.error.details.changed_fields
-          : []) {
-          const p = path(field);
-          if (p) changedPaths.set(p, (changedPaths.get(p) ?? 0) + 1);
-        }
+      if (code === 'STATE_CHANGED') {
+        for (const p of changedPathsOf(event.outcome.error)) changedPaths.set(p, (changedPaths.get(p) ?? 0) + 1);
+        noteProviderPaths(event.outcome.error);
+      }
     }
   }
   latencies.sort((a, b) => a - b);
   approvalLatencies.sort((a, b) => a - b);
   const acknowledgements = acknowledgementCodes.reduce((n, c) => n + codes[c]!, 0);
+  // The alarm: a path that explains more than the rule's share of its provider's prepares, the worst first.
+  const alarms = [...providerPaths]
+    .flatMap(([gateway, named]) => {
+      const providerPrepared = providerPrepares.get(gateway) ?? 0;
+      if (providerPrepared < volatilePathRule.minimum_prepares) return [];
+      return [...named]
+        .filter(
+          ([, refusals]) =>
+            refusals >= volatilePathRule.minimum_refusals &&
+            refusals / providerPrepared > volatilePathRule.per_100_prepares / 100,
+        )
+        .map(([field, refusals]) => ({
+          gateway,
+          path: field,
+          refusals,
+          prepares: providerPrepared,
+          per_100_prepares: rate(refusals, providerPrepared),
+        }));
+    })
+    .sort(
+      (a, b) => b.refusals / b.prepares - a.refusals / a.prepares || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
+    )
+    .slice(0, 10);
   return {
     window_days: days,
     since,
@@ -225,6 +275,9 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       refusals: approvalRefusals,
     },
     state_changed_paths: topPaths(changedPaths),
+    // R25 M1: the paths that explain more than a share of a provider's prepares: probably a field that changes by itself.
+    volatile_path_alarms: alarms,
+    volatile_path_rule: volatilePathRule,
     // L6-11 (R25 M1): the media reviews of amcp_media, counted as the writes are. Unknown rates stay null, never zero.
     media: {
       prepares: mediaPrepares,

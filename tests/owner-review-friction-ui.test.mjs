@@ -15,6 +15,11 @@ const controller = readFileSync('web/owner-operations.js', 'utf8'),
   end = controller.indexOf('/**\n * The provider access panel');
 assert.ok(start > 0 && end > start, 'the friction section is in the page script');
 const source = controller.slice(start, end),
+  // The platform names the page script keeps above its sections: the alarm names the provider by them.
+  platformNames = controller.slice(
+    controller.indexOf('const platformName ='),
+    controller.indexOf('/** What the amounts of an account policy mean'),
+  ),
   catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 
 function page(locale) {
@@ -28,6 +33,7 @@ function page(locale) {
   const run = code => new Script(code).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
+  run(platformNames);
   run(source);
   return {
     run,
@@ -157,11 +163,69 @@ for (const locale of ['en', 'ar'])
     },
   );
 
+// The alarm (R25 M1, design item 4): the fields that change on many prepares of one provider, named for the owner.
+const alarm = {
+    gateway: 'tiktok_native_action',
+    path: '$[0]["data"]["list"][0]["license_url"]',
+    refusals: 4,
+    prepares: 30,
+    per_100_prepares: 13.33,
+  },
+  rule = {per_100_prepares: 5, minimum_refusals: 3, minimum_prepares: 20};
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': the review friction section names a field that changes on many prepares, with its platform and the rule',
+    () => {
+      const p = page(locale),
+        html = p.show({...writes, media, volatile_path_alarms: [alarm], volatile_path_rule: rule}),
+        heading = p.text('Fields that change on many prepares');
+      assert.ok(html.includes(heading), 'its heading');
+      const section = html.slice(html.indexOf(heading), html.indexOf(p.text('Media reviews')));
+      assert.ok(section.includes('TikTok'), 'the platform by its name, not its gateway');
+      assert.ok(!section.includes('tiktok_native_action'));
+      assert.ok(section.includes('license_url'), 'the path');
+      // The rule is stated as a number the owner reads the rate against, and the counts are the alarm's own.
+      assert.ok(
+        section.includes(
+          p.run(
+            `uiText('Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: report it.', {share: uiNumber(5)})`,
+          ),
+        ),
+      );
+      assert.ok(
+        section.includes(
+          p.run(`uiText('{count} of {prepares} prepares', {count: uiNumber(4), prepares: uiNumber(30)})`),
+        ),
+      );
+      // It is an alert the owner reads at once: a notice, not a row of a table.
+      assert.match(section, /class="notice" role="status"/);
+      // The writes and the media block are where they were.
+      assert.equal([...html.matchAll(/<table[ >]/g)].length, 2);
+    },
+  );
+
+for (const locale of ['en', 'ar'])
+  test(locale + ': with no alarm, or an older answer without the field, the section shows none', () => {
+    const p = page(locale),
+      heading = p.text('Fields that change on many prepares');
+    for (const answer of [
+      {...writes, media},
+      {...writes, media, volatile_path_alarms: [], volatile_path_rule: rule},
+      {...writes, media, volatile_path_alarms: null},
+    ])
+      assert.ok(!p.show(answer).includes(heading));
+  });
+
 test('the media friction wording of the page is in the catalogue, in Arabic', () => {
   for (const english of [
     'Media reviews',
     'Media review friction',
     'In the last {days} days: {prepares} media reviews prepared, {executes} uploads sent.',
+    'Fields that change on many prepares',
+    'Each of these fields changed in more than {share} of every 100 prepares of its platform. A field that changes by itself should not be compared: report it.',
+    '{count} of {prepares} prepares',
   ]) {
     assert.equal(typeof catalog[english], 'string', 'No Arabic for: ' + english);
     assert.match(catalog[english], /[؀-ۿ]/u, english);
