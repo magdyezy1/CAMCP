@@ -7,6 +7,8 @@ import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
 import {MirrorError, nestedError} from './errors.js';
 import {snapchatContinuation} from './snapchat-paging.js';
+import {snapchatUnconfirmedEmptyWarning} from './snapchat-report-finalization.js';
+import type {GuidedCollectionState} from './report-source.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -363,6 +365,13 @@ export async function collectSnapchatEvidence(
       incomplete('Snapchat has not finalized non-conversion metrics through the selected window.');
     if (!nativeLeads && notFinalized(stat.conversion_data_processed_end_time, 'conversion_data_processed_end_time'))
       incomplete('Snapchat has not finalized conversion-time data through the selected window.');
+    // An answer with no entities that does not state, by itself, the times that "no rows" needs (both, for the presets that read
+    // conversions) is marked: it is "no rows" only when a finalization time of the same read covers the end of its window (r12-fix,
+    // the lead's ruling on item 1, decision 2, 2026-11-16: unknown stays unknown, never zero). The read decides that, below.
+    const unstated =
+      none &&
+      (stat.finalized_data_end_time === undefined ||
+        (!nativeLeads && stat.conversion_data_processed_end_time === undefined));
     if (
       !obj(stat.breakdown_stats) ||
       Object.keys(stat.breakdown_stats).length !== 1 ||
@@ -428,6 +437,7 @@ export async function collectSnapchatEvidence(
       ...(stat.conversion_data_processed_end_time !== undefined
         ? {conversion_data_processed_end_time: stat.conversion_data_processed_end_time}
         : {}),
+      ...(unstated ? {finalization_stated: false} : {}),
     });
     after = snapchatNextCursor(data, path, args.query);
     if (after === undefined) break;
@@ -440,9 +450,21 @@ export async function collectSnapchatEvidence(
     await verifyAccount();
   }
   current();
+  // The all-campaign read of the Overview (a parent of its proven population) judges a marked page against the finalization times of
+  // the whole collection (src/snapchat-report-finalization.ts). Any other read is one answer, with no other to be judged by: the
+  // capture refuses it, and the Overview keeps it as a source that is partial, with the reason. Nothing is saved as zero.
+  const collection: GuidedCollectionState | undefined =
+    !proven && pages.some(page => page.finalization_stated === false)
+      ? {complete: false, declared: null, returned: rows.length, warnings: [snapchatUnconfirmedEmptyWarning]}
+      : undefined;
+  if (collection && !context.allowPartial)
+    incomplete(
+      'Snapchat returned no rows and did not say that its data is final through the end of the window, so AMCP cannot tell no delivery from data Snapchat has not processed yet. Capture it again once Snapchat has finalized the window, or choose an earlier window.',
+    );
   return {
     source: {success: true, data: {collection_kind: 'snapchat_daily_pages', data: {rows}, source_pages: pages}},
     sourcePages: pages,
+    ...(collection ? {collection} : {}),
     nativeAccountEvidence: {
       account_id: account,
       currency: sem.currency,

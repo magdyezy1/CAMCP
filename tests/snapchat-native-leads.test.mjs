@@ -129,22 +129,47 @@ for (const level of ['campaign', 'adsquad', 'ad'])
   });
 // r12-fix item 1 (O-4 of the live checks of 2026-11-16): the lead presets share the stats collector, so the same rule holds. An
 // answer with no rows may leave out finalized_data_end_time (the only time these presets need); an answer with rows may not.
+//
+// The lead's ruling on it (decision 2, recency, 2026-11-16): an answer with no rows that leaves its time out is "no rows" only when
+// a finalization time of the same read covers the end of the window, and one capture is one read of one answer, so these are
+// refused (they first said such a capture completes); an answer that states the time proves its own window and is a capture
+// with no rows.
+const noRowsUnconfirmed =
+  /^Snapchat returned no rows and did not say that its data is final through the end of the window, so AMCP cannot tell no delivery from data Snapchat has not processed yet\. Capture it again once Snapchat has finalized the window, or choose an earlier window\.$/;
 for (const level of ['campaign', 'adsquad', 'ad'])
   test(
     'native ' +
       level +
-      ' submissions of a window with no rows complete when the answer leaves out its finalization time',
+      ' submissions of a window with no rows are refused, and saved as no zero, when nothing says Snapchat finalized it',
     async t => {
       const f = fixture(t, level, '3', 0);
       f.edit((url, data) => {
         if (url.pathname.endsWith('/stats')) delete stat(data).finalized_data_end_time;
         return data;
       });
-      const out = ok(await f.call());
+      const out = await f.call();
+      assert.equal(out.success, false);
+      assert.equal(out.error.code, 'REPORT_INCOMPLETE');
+      assert.match(out.error.message, noRowsUnconfirmed);
+      unsaved(f);
+    },
+  );
+for (const level of ['campaign', 'adsquad', 'ad'])
+  test(
+    'native ' + level + ' submissions of a window with no rows complete when the answer states its finalization time',
+    async t => {
+      const f = fixture(t, level, '3', 0),
+        out = ok(await f.call());
       assert.equal(out.row_count, 0);
       assert.equal(out.source_pages.length, 1);
       assert.equal(out.source_pages[0].entity_count, 0);
-      assert.equal(out.source_pages[0].finalized_data_end_time, undefined);
+      assert.equal(out.source_pages[0].finalization_stated, undefined, 'a page that states its time is not marked');
+      assert.ok(out.source_pages[0].finalized_data_end_time);
+      assert.equal(
+        out.source_pages[0].conversion_data_processed_end_time,
+        undefined,
+        'these presets need no such time',
+      );
     },
   );
 test('native form counts preserve exact large integers and distinguish missing evidence from a zero', async t => {

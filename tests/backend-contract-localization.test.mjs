@@ -355,7 +355,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // reason of its own: one more on the integration's 813, 814.
   // Merge r25-m0-merge, with r25-m0-t1, r25-m0-review and r25-m0-errors (each 814 on the same base of 813, and each adds a
   // different file): the merged tree measures 813 + 1 + 1 + 1 = 816.
-  assert.equal(files.length, 816);
+  // Package r12-fix (the lead's ruling on item 1, decision 2, recency, 2026-11-16) adds src/snapchat-report-finalization.ts, the rule
+  // that tells an empty Snapchat answer that is "no rows" from one that is not yet known, and its reason, with no reason of its own
+  // (the sentence is a report warning, not a refusal): 817.
+  assert.equal(files.length, 817);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -531,7 +534,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Package r12-fix (item 3, V2-RPT-05): +5 entries, the Arabic of the five provider remedies it declares (Snapchat's four, one for
   // each timestamp of a stats answer that AMCP refused, and X's one for an entity whose parent is in neither list; remedies, not
   // refusal reasons): 12,140 + 5 = 12,145. Measured: node tools/check-locales.mjs, catalog_messages 12145.
-  assert.equal(Object.keys(catalog).length, 12145);
+  // Package r12-fix, the lead's ruling on item 1 (decision 2, recency, 2026-11-16): +2 entries for an empty Snapchat answer that
+  // nothing confirms as final: the refusal of a capture that is one such answer (src/snapchat-evidence.ts incomplete(), a reporting
+  // failure of that file) and the reason a source that is partial because of it shows (src/snapchat-report-finalization.ts, a report
+  // warning registered in web/report-quality.js): 12,145 + 2 = 12,147. Measured: node tools/check-locales.mjs, catalog_messages 12147.
+  assert.equal(Object.keys(catalog).length, 12147);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

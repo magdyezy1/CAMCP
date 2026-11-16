@@ -311,7 +311,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // wrapper reason: one more on the integration's 813, 814.
   // Merge r25-m0-merge, with r25-m0-t1, r25-m0-review and r25-m0-errors (each 814 on the same base of 813, and each adds a
   // different file): the merged tree measures 813 + 1 + 1 + 1 = 816.
-  assert.equal(files.length, 816);
+  // Package r12-fix (the lead's ruling on item 1, decision 2, recency, 2026-11-16) adds src/snapchat-report-finalization.ts, the rule
+  // that tells an empty Snapchat answer that is "no rows" from one that is not yet known, and its reason, with no wrapper reason
+  // (the sentence is a report warning, not a refusal): 817.
+  assert.equal(files.length, 817);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -463,7 +466,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r12-fix (item 3, V2-RPT-05): +5 entries, the Arabic of the five provider remedies it declares (Snapchat's four, one for
   // each timestamp of a stats answer that AMCP refused, and X's one for an entity whose parent is in neither list; remedies, not
   // refusal reasons): 12,140 + 5 = 12,145. Measured: node tools/check-locales.mjs, catalog_messages 12145.
-  assert.equal(Object.keys(catalog).length, 12145);
+  // Package r12-fix, the lead's ruling on item 1 (decision 2, recency, 2026-11-16): +2 entries for an empty Snapchat answer that
+  // nothing confirms as final: the refusal of a capture that is one such answer (src/snapchat-evidence.ts incomplete(), a reporting
+  // failure of that file, not an owned wrapper reason: owned.size below does not move) and the reason a source that is partial
+  // because of it shows (src/snapchat-report-finalization.ts, a report warning registered in web/report-quality.js): 12,145 + 2 =
+  // 12,147. Measured: node tools/check-locales.mjs, catalog_messages 12147.
+  assert.equal(Object.keys(catalog).length, 12147);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
