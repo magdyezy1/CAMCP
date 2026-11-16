@@ -74,38 +74,43 @@ const notYetRotationSafe = {
   reddit_creatives: 'the ad_accounts answer is kept whole in its state',
 };
 
-/** The signed URL, the balance and the timestamp of one read, the timestamp under a name the provider's table holds. */
+/**
+ * What changes at every read, by the role of the read: a signed URL and a bumped timestamp (under a name the provider's table
+ * holds) for any, and a falling balance for the account only. A parent carries no balance: it is a campaign, an ad group or a
+ * line item, and every field a parent has besides those two is a setting that only an edit changes (S2-1), so it stays still.
+ */
 const stamp = gateway => reviewVolatile(gateway).find(n => /(?:_at|_time)$/.test(n)) ?? 'updated_at';
-const rotation = (gateway, n) => ({
+const rotation = (gateway, n, role) => ({
   license_url:
     'https://ads.example.test/licence?ticket=t' + n + '&x-expires=' + (1700000000 + n) + '&x-signature=s' + n,
-  balance: 1000 - n * 3.25,
+  ...(role === 'account' ? {balance: 1000 - n * 3.25} : {}),
   [stamp(gateway)]: 1700000000 + n,
 });
 // The objects of an answer that describe the request or the page, not a record: a family refuses an envelope it does not know.
 const envelope = new Set(['request', 'paging', 'metadata', 'page_info', 'pagination', 'params', 'links', 'errors']);
-/** `json` with the rotation in every record of its first three levels (a record is a plain object; an envelope is not). */
-function rotate(json, gateway, n, depth = 0, key = '') {
-  if (Array.isArray(json)) return json.map(item => rotate(item, gateway, n, depth, key));
+/** `json` with the rotation of `role` in every record of its first three levels (a record is a plain object; an envelope is not). */
+function rotate(json, gateway, n, role, depth = 0, key = '') {
+  if (Array.isArray(json)) return json.map(item => rotate(item, gateway, n, role, depth, key));
   if (!json || typeof json !== 'object' || envelope.has(key)) return json;
   const out = Object.fromEntries(
-    Object.entries(json).map(([k, v]) => [k, depth < 3 ? rotate(v, gateway, n, depth + 1, k) : v]),
+    Object.entries(json).map(([k, v]) => [k, depth < 3 ? rotate(v, gateway, n, role, depth + 1, k) : v]),
   );
   // A wrapper holds only objects (X's {data, request}); the record inside it is what rotates.
   const wrapper = Object.values(json).every(v => v && typeof v === 'object');
-  return depth < 3 && !wrapper ? {...rotation(gateway, n), ...out} : out;
+  return depth < 3 && !wrapper ? {...rotation(gateway, n, role), ...out} : out;
 }
-const rotatingKeys = gateway => Object.keys(rotation(gateway, 0));
+const rotatingKeys = gateway => Object.keys(rotation(gateway, 0, 'account'));
 
-/** The descriptor with a provider whose answer to each read in `reads` ("METHOD path") rotates at every read. */
-function rotating(d, reads) {
+/** The descriptor with a provider whose answer to each read `roleOf` names ("METHOD path": its role) rotates at every read. */
+function rotating(d, roleOf) {
   let n = 0;
   return {
     ...d,
     provider: async request => {
-      const answer = await d.provider(request);
-      if (!answer || answer instanceof Response || !reads(request)) return answer;
-      return {...answer, json: rotate(answer.json, d.gateway, ++n)};
+      const answer = await d.provider(request),
+        role = roleOf(request);
+      if (!answer || answer instanceof Response || !role) return answer;
+      return {...answer, json: rotate(answer.json, d.gateway, ++n, role)};
     },
   };
 }
@@ -145,9 +150,10 @@ for (const d of descriptors) {
   test(name(d) + ': a rotating account or parent read is no change, and a real change still is', async t => {
     const reads = await classify(d),
       own = ownParentReads[d.family] ?? [];
+    // The role of the read a request makes: the stored review's, or the parent a family that keeps its own state names.
     const matches = request =>
-      reads.some(r => r.method === request.method && r.path === request.path) ||
-      (request.method === 'GET' && own.some(re => re.test(request.path)));
+      reads.find(r => r.method === request.method && r.path === request.path)?.role ??
+      (request.method === 'GET' && own.some(re => re.test(request.path)) ? 'parent' : undefined);
     const exempt = narrowedAtSource[d.gateway] !== undefined && reads.every(r => r.role === 'account');
     if (!reads.length && !own.length) {
       coverage.none.push(name(d));

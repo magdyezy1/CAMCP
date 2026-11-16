@@ -1,11 +1,12 @@
 /**
- * The rows of X Ads that a review keeps by role (R2.5 M1, plan idea 1: ACCOUNT and PARENT; L5-01 and L4-13).
+ * The row of X Ads that a review keeps to its identity (R2.5 M1, plan idea 1: the ACCOUNT role; L5-01).
  *
- * A create on an account reads the account; a promotion or a targeting criterion reads the line item (and the campaign) it
- * goes under. X returns those rows whole, with the computed and administrative fields of an account or an entity beside the
- * ones that say what it is. A review keeps the account and the parents to their identity: who and what they are, their
- * status, whether they are deleted, and for a line item the objective and product it was made for. The objects a write changes
- * are another role and keep every field but telemetry (src/x-review-volatile.ts), so an unknown field there stays protected.
+ * A create on an account reads the account. X returns it whole, with the computed and administrative fields of an account
+ * beside the ones that say what it is. A review keeps the account to its identity: who it is, whether it is approved and
+ * deleted, its time zone and business, and its currency where the answer names one. The line item and the campaign a
+ * promotion or a targeting criterion goes under are not kept to their identity: they hold the budget, the bid and the flight
+ * the child spends by, so they are read as the objects a write changes are, whole but for the fields X computes by itself
+ * (src/x-review-volatile.ts), and a budget that changes still refuses (L4-13).
  *
  * Idempotent and monotone (src/review-state-core.ts pickIdentity: it only drops fields). X offers no way to ask for fewer
  * fields, so the projection is the narrowing.
@@ -24,34 +25,13 @@ const accountFields: readonly string[] = Object.freeze([
   'business_name',
   'currency',
 ]);
-/** A line item as the parent of a promotion or a targeting criterion: who it is, its campaign, its status, its objective and product. */
-const lineItemFields: readonly string[] = Object.freeze([
-  'id',
-  'name',
-  'account_id',
-  'campaign_id',
-  'entity_status',
-  'deleted',
-  'objective',
-  'product_type',
-]);
-/** A campaign as the parent of a line item or a promotion. */
-const campaignFields: readonly string[] = Object.freeze(['id', 'name', 'account_id', 'entity_status', 'deleted']);
 
 export const xAccountState = (row: unknown): unknown => pickIdentity(row, accountFields);
-export const xLineItemState = (row: unknown): unknown => pickIdentity(row, lineItemFields);
-export const xCampaignState = (row: unknown): unknown => pickIdentity(row, campaignFields);
 
 /**
- * The record a review keeps of an X read by its role: the account's, or the line item's or campaign's it is the parent of.
- * Undefined when the read has no role (the objects a write changes) or a role this module keeps no record for.
+ * The record a review keeps of an X read by its role: the account's. Undefined for any other read, the line item or
+ * campaign a promotion is the child of included: they are kept whole (minus the table's telemetry), as a target is.
  */
 export function xRoleRecord(read: CompiledRequest, data: unknown): unknown {
-  if (read.stateRole === 'account') return xAccountState(data);
-  if (read.stateRole === 'parent') {
-    const kind = /\/(line_items|campaigns)\/[^/]+$/.exec(read.path)?.[1];
-    if (kind === 'line_items') return xLineItemState(data);
-    if (kind === 'campaigns') return xCampaignState(data);
-  }
-  return undefined;
+  return read.stateRole === 'account' ? xAccountState(data) : undefined;
 }

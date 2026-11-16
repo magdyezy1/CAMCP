@@ -109,8 +109,9 @@ const unorderedFields = new Set([
 ]);
 
 /**
- * What a review keeps of an account or a parent row (R2.5 M1, plan idea 1, the roles ACCOUNT and PARENT): the listed fields,
- * as the provider gave them, and nothing else. A dot reaches into a nested record (`generalConfig.currencyCode`). Idempotent
+ * What a review keeps of an account row (R2.5 M1, plan idea 1, the role ACCOUNT): the listed fields, as the provider gave
+ * them, and nothing else. A parent row is never kept to a list: its budget, bid and flight are what a child spends by (lead
+ * review S2-1). A dot reaches into a nested record (`generalConfig.currencyCode`). Idempotent
  * (a row it kept projects to itself) and monotone (it only drops), so a state saved before is projected again at execute. A
  * value that is no record is no row and is left as it is.
  */

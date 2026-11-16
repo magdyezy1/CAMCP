@@ -77,7 +77,6 @@ import {
   tiktokTrafficRecipe,
 } from './tiktok-launch-recipes.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
-import {tiktokParentState} from './tiktok-parent-state.js';
 import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
@@ -460,9 +459,6 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     observed: tiktokObserved,
     accountState: tiktokAccountState,
     volatile: tiktokReviewVolatile,
-    // The parent a child create is made under (R2.5 M1, the PARENT role): its identity, and what a gate of the child reads.
-    identity: (read: CompiledRequest, d: JsonObject) =>
-      read.stateRole === 'parent' ? tiktokParentState(read, d) : undefined,
   }),
   scope: Object.freeze({
     authorizers: Object.freeze([

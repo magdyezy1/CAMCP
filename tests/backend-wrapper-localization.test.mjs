@@ -314,11 +314,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m1-hash (Round 2.5, M1: L5-02) adds six leaves, with no wrapper reason of their own: the flat-resource names
   // of src/review-flat-telemetry.ts and each provider's review table that its adapter and family modules share
   // (src/{x,linkedin,snapchat,criteo,google}-review-volatile.ts): 816 + 6 = 822.
-  // The roles of the same package add two more, with no wrapper reason of their own: the identity of a TikTok parent row and
-  // of an X account and its parents (src/tiktok-parent-state.ts, src/x-identity-state.ts): 822 + 2 = 824.
+  // The roles of the same package add one more, with no wrapper reason of its own: the identity of an X account
+  // (src/x-identity-state.ts): 822 + 1 = 823. A parent is read whole, as a target is (lead review S2-1), so the module the
+  // roles first added for a TikTok parent row (src/tiktok-parent-state.ts) is gone.
   // The rotation harness adds one more: the identity of a LinkedIn ad account, which the adapter and the families that read
-  // the account themselves share (src/linkedin-account-state.ts): 824 + 1 = 825.
-  assert.equal(files.length, 825);
+  // the account themselves share (src/linkedin-account-state.ts): 823 + 1 = 824.
+  assert.equal(files.length, 824);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

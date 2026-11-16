@@ -531,11 +531,13 @@ export interface ReviewProjections {
    */
   readonly volatile?: ReviewVolatile;
   /**
-   * What a review keeps of a read with a role (R2.5 M1, plan idea 1: `read.stateRole`, the account a write creates something
-   * in or the parent a child is created under): its identity (who it is, its status, its currency and time zone), as the
-   * provider gave it, and nothing that changes without an edit. Applied by the state stage to every read of this provider
-   * that carries a role, before any family's own projection; undefined for a read it keeps no record for. Idempotent and
-   * monotone (it only drops), so a saved review's state is projected again at execute.
+   * What a review keeps of the read of an ACCOUNT (R2.5 M1, plan idea 1: `read.stateRole === 'account'`, the account a write
+   * creates something in): its identity (who it is, its status, its currency and time zone), as the provider gave it, and
+   * nothing that changes without an edit. Applied by the state stage to every read of this provider that carries a role,
+   * before any family's own projection; undefined for a read it keeps no record for. A `parent` read is not the account's:
+   * it is kept whole, as a target is (the budget, bid, flight and targeting of a parent decide what the child spends by), so
+   * a provider answers `undefined` for it. Idempotent and monotone (it only drops), so a saved review's state is projected
+   * again at execute.
    */
   identity?(read: CompiledRequest, data: JsonObject): unknown;
   /**

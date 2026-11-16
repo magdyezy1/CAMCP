@@ -46,7 +46,9 @@ export function tiktokStateReads(plan: CompiledRequest, base: StateReadBuilder):
         page_size: 100,
       });
       read.action = 'tiktok_' + parent + '_get';
-      // The parent a child is created under (R2.5 M1): a review keeps its identity (src/tiktok-parent-state.ts).
+      // The parent a child is created under (R2.5 M1). It is kept whole, minus what TikTok's table lists: its budget, bid,
+      // schedule and targeting are what the child is created under, and its placements are read by the gate of an ad create
+      // (src/tiktok-manual-ad-identities.ts). The role marks the read for the review's ordering and the rotation harness.
       read.stateRole = 'parent';
       reads.push(read);
     }

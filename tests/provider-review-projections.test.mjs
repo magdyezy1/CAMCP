@@ -61,9 +61,9 @@ test('each provider declares its own projections, frozen', () => {
       google_business_native_action: ['volatile'],
       meta_native_action: ['verification', 'volatile'],
       // r25-m0-t1 (T1): TikTok also declares the advertiser read an amcp_media upload keeps the state of (accountState).
-      // r25-m1-hash (L5-01): `identity` keeps a read with a role (an account or a parent) to its identity, whichever family
-      // built it: TikTok's parents, X's account and parents, LinkedIn's and DV360's account.
-      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState', 'volatile', 'identity'],
+      // r25-m1-hash (L5-01): `identity` keeps the read of an ACCOUNT to its identity, whichever family built it: X's,
+      // LinkedIn's and DV360's. A parent is a target (S2-1): TikTok declares no `identity`, X's answers for the account only.
+      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState', 'volatile'],
       snapchat_native_action: ['snapshot', 'verification', 'observed', 'volatile'],
       linkedin_native_action: ['volatile', 'identity', 'verificationHeaders', 'verification'],
       x_ads_native_action: ['snapshot', 'identity', 'volatile', 'verification', 'observed'],

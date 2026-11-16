@@ -99,7 +99,8 @@ export const xHooks: ProviderHooks = Object.freeze({
   // A response's records are under data, the rest is its envelope; a write is verified by each record it returned.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
-    // The account a create is made in, and the parent a promotion or a criterion goes under, are kept to their identity.
+    // The account a create is made in is kept to its identity; the line item or campaign a promotion or a criterion goes
+    // under is not (its budget, bid and flight are what the child spends by), so it is answered for the account alone.
     identity(read: CompiledRequest, d: JsonObject) {
       const role = Object.hasOwn(d, 'data') ? xRoleRecord(read, d.data) : undefined;
       return role === undefined ? undefined : {data: role};
