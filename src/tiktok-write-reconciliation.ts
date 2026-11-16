@@ -20,6 +20,11 @@ import {agrees, type Echo} from './created-agreement.js';
  * Two are shown and never chosen between. A row whose creation time is missing, unreadable, or close enough to the window
  * to be TikTok writing a time zone other than UTC in a response (which its documentation does not rule out) cannot be told
  * from an older object of the same name: it is `undated`, never created and never proof of absence.
+ *
+ * The filter's zone is as unconfirmed as that of `create_time` (lead review S3-1): were TikTok to apply it in the advertiser's
+ * zone, the created object would fall outside a UTC window and the list would be empty and whole. So TikTok is asked for the
+ * window widened by 14 hours on each side, and the split is made here: inside the claim window is found, in the margin is a
+ * doubt. The wider window holds more rows, so the list is followed page by page (`more`), whole only when every page was read.
  */
 interface Kind {
   kind: 'campaign' | 'adgroup' | 'ad';
@@ -110,23 +115,49 @@ export function tiktokCreated(
       ...spec.echoes.map(([, listed]) => listed),
       'create_time',
     ],
+    // The window asked of TikTok is wider than the one matched here, by the longest zone offset on each side (lead review S3-1):
+    // the documentation says UTC for the filter as well, and it is as unconfirmed as the zone of `create_time` in a response,
+    // so an empty answer to the claim window alone would prove nothing. The wide answer is split in `match`.
     filtering: {
       ...(spec.parent ? {[spec.parent.filter]: [parent]} : {}),
-      creation_filter_start_time: written(from),
-      creation_filter_end_time: written(to),
+      creation_filter_start_time: written(from - zoneMs),
+      creation_filter_end_time: written(to + zoneMs),
     },
     page_size: 100,
   });
   // The scope guard knows a TikTok read by the action it names (as the review's own reads of an edit's targets do).
   list.action = 'tiktok_' + spec.kind + '_get';
+  /** One answer's `data`: its rows and its page counts. */
+  const dataOf = (response: {data?: unknown} | undefined) => object(object(response?.data).data);
   return {
     reads: [list],
+    // The next page, while the answers follow each other: the one just read says it is the page asked for, and a later one
+    // exists. An answer that repeats a page, or names none, ends the reading and leaves the list not whole.
+    more(responses) {
+      const last = dataOf(responses.at(-1)),
+        counts = object(last.page_info);
+      return Array.isArray(last.list) &&
+        typeof counts.total_page === 'number' &&
+        counts.page === responses.length &&
+        responses.length < counts.total_page
+        ? [{...list, query: {...list.query, page: responses.length + 1}}]
+        : [];
+    },
     match(responses) {
-      const answer = object(object(responses[0]?.data).data),
-        rows = (Array.isArray(answer.list) ? answer.list : []).filter(
-          (r: unknown): r is JsonObject => !!r && typeof r === 'object' && !Array.isArray(r),
-        ),
-        pages = object(answer.page_info);
+      const answers = responses.map(dataOf),
+        // Every row of every page, once: a page that is read twice does not count its objects twice.
+        seen = new Set<string>(),
+        rows = answers
+          .flatMap(a => (Array.isArray(a.list) ? a.list : []))
+          .filter((r: unknown): r is JsonObject => !!r && typeof r === 'object' && !Array.isArray(r))
+          .filter(r => {
+            const key = r[spec.id] === undefined ? undefined : String(r[spec.id]);
+            if (key === undefined) return true;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }),
+        pages = object(answers.at(-1)?.page_info);
       const found: JsonObject[] = [],
         undated: JsonObject[] = [];
       for (const row of rows) {
@@ -148,11 +179,13 @@ export function tiktokCreated(
         found,
         undated,
         expected: 1,
-        // One page of the window holds everything it asked for; an answer that says nothing of its pages settles nothing.
+        // Whole when every page the last answer counts was read, each following the one before, and the rows hold the total it
+        // names; an answer that says nothing of its pages, or a list cut at the page cap, settles nothing.
         complete:
-          Array.isArray(answer.list) &&
+          answers.length > 0 &&
+          answers.every((a, i) => Array.isArray(a.list) && object(a.page_info).page === i + 1) &&
           typeof pages.total_page === 'number' &&
-          pages.total_page <= 1 &&
+          answers.length === Math.max(1, pages.total_page) &&
           (typeof pages.total_number !== 'number' || pages.total_number <= rows.length),
       };
     },

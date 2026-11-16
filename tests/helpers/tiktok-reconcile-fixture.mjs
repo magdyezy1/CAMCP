@@ -67,8 +67,23 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
   // Every request that reached the provider, as "METHOD /path", and the filtering of each list read.
   const requests = [],
     filters = [],
+    // The page number of each list read the server answered.
+    pages = [],
     sent = [],
-    state = {next: 400, applied: undefined, lose: false, throttle: undefined, hold: undefined, now: () => Date.now()};
+    // `filterZoneMs`: the offset from UTC of the zone in which the server applies the creation filter (the documentation says
+    // UTC; a test may make it the advertiser's own). `displayZoneMs`: the same for the creation time it shows in a row.
+    // `pageSize`: the page size the server really uses, whatever a read asks for.
+    state = {
+      next: 400,
+      applied: undefined,
+      lose: false,
+      throttle: undefined,
+      hold: undefined,
+      now: () => Date.now(),
+      filterZoneMs: 0,
+      displayZoneMs: 0,
+      pageSize: undefined,
+    };
   const fetcher = async (raw, init = {}) => {
     const url = new URL(String(raw)),
       path = url.pathname.replace('/open_api', ''),
@@ -100,7 +115,9 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
           ...Object.fromEntries(
             Object.entries(kind === 'ad' ? creative : body).filter(([k]) => echoed[kind].includes(k)),
           ),
-          create_time: stamp(state.now()),
+          create_time: stamp(state.now() + state.displayZoneMs),
+          // The instant it was made (never shown): the filter compares it in the zone the server applies it in.
+          _at: state.now(),
         };
       // The provider applied the create (unless a test says it did not) and the answer was lost.
       if (state.applied !== false) rows[kind].push(row);
@@ -119,24 +136,34 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
       state.hold = undefined;
       await hold();
     }
-    const list = rows[kind]
+    // The window is applied to TikTok's own record of the creation time (`_created` when the row's answer shows none), written
+    // in the zone the server applies the filter in.
+    const local = r =>
+      stamp((r._at ?? Date.parse(String(r.create_time ?? r._created).replace(' ', 'T') + 'Z')) + state.filterZoneMs);
+    const all = rows[kind]
       .filter(r => !filtering[kind + '_ids'] || filtering[kind + '_ids'].includes(r[idKey[kind]]))
       .filter(r => !filtering.campaign_ids || filtering.campaign_ids.includes(r.campaign_id) || kind === 'campaign')
       .filter(r => !filtering.adgroup_ids || filtering.adgroup_ids.includes(r.adgroup_id))
-      // The window is applied to TikTok's own record of the creation time (`_created` when the row's answer shows none).
-      .filter(
-        r =>
-          !filtering.creation_filter_start_time ||
-          (r.create_time ?? r._created) >= filtering.creation_filter_start_time,
-      )
-      .filter(
-        r => !filtering.creation_filter_end_time || (r.create_time ?? r._created) <= filtering.creation_filter_end_time,
-      )
-      .map(({_created, ...r}) =>
-        fields ? Object.fromEntries(Object.entries(r).filter(([k]) => fields.includes(k))) : r,
-      );
+      .filter(r => !filtering.creation_filter_start_time || local(r) >= filtering.creation_filter_start_time)
+      .filter(r => !filtering.creation_filter_end_time || local(r) <= filtering.creation_filter_end_time);
+    const size = state.pageSize ?? Number(url.searchParams.get('page_size') ?? 100),
+      page = Number(url.searchParams.get('page') ?? 1),
+      list = all
+        .slice((page - 1) * size, page * size)
+        .map(({_created, _at, ...r}) =>
+          fields ? Object.fromEntries(Object.entries(r).filter(([k]) => fields.includes(k))) : r,
+        );
+    pages.push(page);
     return Response.json(
-      answer({list, page_info: {page: 1, page_size: 100, total_number: list.length, total_page: 1}}),
+      answer({
+        list,
+        page_info: {
+          page,
+          page_size: size,
+          total_number: all.length,
+          total_page: Math.max(1, Math.ceil(all.length / size)),
+        },
+      }),
     );
   };
   const transport = new NativeTransport(fetcher),
@@ -169,6 +196,7 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
     rows,
     requests,
     filters,
+    pages,
     sent,
     state,
     service,

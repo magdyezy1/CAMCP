@@ -37,7 +37,8 @@ const create = (kind, edit = p => p) => {
 const claimed = Date.parse('2026-10-10T10:00:00Z');
 
 test('each standard TikTok create has a lookup that lists the advertiser by creation window and parent, with reads only', () => {
-  const window = {creation_filter_start_time: '2026-10-10 09:58:00', creation_filter_end_time: '2026-10-10 10:15:00'};
+  // The claim window (two minutes before to fifteen after) widened by the longest zone offset, 14 hours, on each side.
+  const window = {creation_filter_start_time: '2026-10-09 19:58:00', creation_filter_end_time: '2026-10-11 00:15:00'};
   const expected = {
     campaign: {
       path: '/v1.3/campaign/get/',
