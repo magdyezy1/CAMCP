@@ -128,6 +128,96 @@ test('accepting a fresh "appears applied" check needs the person to confirm and 
   assert.match(stale.root.innerHTML, /write-record-reconcile/);
 });
 
+test('a check AMCP made on its own says so, when it looks again, and when its attempts ran out (R2.5 M2)', async () => {
+  const check = {
+    reconciliation_id: 'r-auto',
+    classification: 'indeterminate',
+    reason: 'read_failed',
+    checked_at: new Date().toISOString(),
+    automatic: true,
+    attempts: 2,
+  };
+  const again = fixture(),
+    waiting = again.controller.load();
+  again.requests[0].resolve({
+    ...again.record,
+    reconciliation: {...check, next_check_at: '2026-10-10T10:10:00.000Z'},
+  });
+  await waiting;
+  assert.match(again.root.innerHTML, /Checked automatically by AMCP/);
+  assert.match(again.root.innerHTML, /AMCP checks again at 2026-10-10T10:10:00.000Z\./);
+  assert.doesNotMatch(again.root.innerHTML, /AMCP stopped checking automatically/);
+
+  const spent = fixture(),
+    stopped = spent.controller.load();
+  spent.requests[0].resolve({...spent.record, reconciliation: {...check, attempts: 6, checks_exhausted: true}});
+  await stopped;
+  assert.match(spent.root.innerHTML, /Checked automatically by AMCP/);
+  assert.match(spent.root.innerHTML, /AMCP stopped checking automatically\./);
+  assert.doesNotMatch(spent.root.innerHTML, /AMCP checks again at/);
+  assert.match(spent.root.innerHTML, /write-record-reconcile/, 'the person can still check the provider');
+
+  // A check the person asked for is not described as automatic.
+  const manual = fixture(),
+    own = manual.controller.load();
+  manual.requests[0].resolve({
+    ...manual.record,
+    reconciliation: {
+      reconciliation_id: 'r-own',
+      classification: 'appears_not_applied',
+      checked_at: new Date().toISOString(),
+    },
+  });
+  await own;
+  assert.doesNotMatch(manual.root.innerHTML, /Checked automatically|AMCP checks again|AMCP stopped checking/);
+
+  // An automatic "appears applied" is acceptable like any fresh one: the person still confirms it.
+  const found = fixture(),
+    shown = found.controller.load();
+  found.requests[0].resolve({
+    ...found.record,
+    reconciliation: {
+      reconciliation_id: 'r-found',
+      classification: 'appears_applied',
+      checked_at: new Date().toISOString(),
+      automatic: true,
+      attempts: 1,
+    },
+  });
+  await shown;
+  assert.match(found.root.innerHTML, /Checked automatically by AMCP/);
+  assert.match(found.root.innerHTML, /id="write-record-accept"/);
+  assert.equal(found.requests.length, 1, 'nothing was accepted or sent by showing it');
+});
+
+test('an operations card shows what the read-only check of an uncertain change found, and that AMCP made it (R2.5 M2)', () => {
+  const f = fixture();
+  const card = reconciliation =>
+    new Script(
+      'operationCard(' +
+        JSON.stringify({
+          kind: 'write',
+          id: 'review-1',
+          name: 'campaign_budget_create',
+          state: 'uncertain',
+          accounts: ['123'],
+          updated_at: 1,
+          website_path: '/operations?write_id=review-1',
+          next_safe_action: 'x',
+          ...(reconciliation ? {reconciliation} : {}),
+        }) +
+        ')',
+    ).runInContext(f.c);
+  const automatic = card({classification: 'appears_applied', automatic: true});
+  assert.match(automatic, /Read-only provider check/);
+  assert.match(automatic, /Appears applied/);
+  assert.match(automatic, /Checked automatically by AMCP/);
+  const own = card({classification: 'appears_not_applied', automatic: false});
+  assert.match(own, /Appears not applied/);
+  assert.doesNotMatch(own, /Checked automatically/);
+  assert.doesNotMatch(card(undefined), /Read-only provider check/, 'nothing is shown before the first check');
+});
+
 test('the change detail ignores stale loads and a departed route or identity', async () => {
   const f = fixture();
   const old = f.controller.load(),

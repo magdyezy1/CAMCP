@@ -23,6 +23,8 @@ export type WriteOrigin = 'standalone' | 'plan' | 'group_part';
  * leaves it pending forever. Longer than one transport timeout plus admission.
  */
 export const pendingUncertainMs = 10 * 60000;
+/** How long a reconciliation may be acted on (accepted, or replaced) before the provider must be read again. */
+export const reconciliationFreshMs = 15 * 60000;
 export const writeRecordPath = (id: string) => '/operations?write_id=' + encodeURIComponent(id);
 // The Operations projection of standalone reviews is in the store layer (src/write-record-repository.ts, ARC-02).
 export {writeFeedSQL} from './write-record-repository.js';
@@ -132,7 +134,14 @@ export function mayResolve(store: Store, actor: Actor, review: JsonObject): bool
  * is prepared again from its original arguments only for the credential that prepared it: anyone else gets the call's
  * scope without the request body (WRT-08 privacy: request bodies are not shown to other members).
  */
-function nextCall(id: string, review: JsonObject, state: string, actor: Actor): JsonObject | null {
+function nextCall(
+  id: string,
+  review: JsonObject,
+  state: string,
+  actor: Actor,
+  reconciliation?: JsonObject,
+  resolvable = false,
+): JsonObject | null {
   if (['unsubmitted', 'not_sent'].includes(state)) {
     const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
       (k: unknown) => typeof k === 'string' && k !== 'confirmed',
@@ -158,7 +167,35 @@ function nextCall(id: string, review: JsonObject, state: string, actor: Actor): 
       arguments_required: 'The original native arguments are shown only to the person who prepared this review.',
     };
   }
-  if (state === 'uncertain') return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
+  if (state === 'uncertain') {
+    // What the latest check found (the person's `reconcile`, or the worker's, R2.5 M2) decides which call is offered, and
+    // only while it is fresh enough to act on. Accepting and replacing stay the person's acts: the call is offered, never made.
+    const fresh =
+      reconciliation &&
+      !reconciliation.superseded_by &&
+      !reconciliation.accepted_at &&
+      Date.now() - Number(reconciliation.checked_at) <= reconciliationFreshMs;
+    if (fresh && reconciliation.classification === 'appears_applied' && resolvable)
+      return {
+        tool: 'amcp_write',
+        arguments: {action: 'reconcile', review_id: id, reconciliation_id: reconciliation.reconciliation_id},
+        add_after_user_approval: {accept_applied: true},
+      };
+    // The original request is shown only to the credential that prepared it, as for an expired review.
+    if (
+      fresh &&
+      reconciliation.classification === 'appears_not_applied' &&
+      review.prepare_input &&
+      review.user_id === actor.userId
+    )
+      return {
+        tool: 'amcp_write',
+        arguments: {action: 'prepare', ...review.prepare_input, supersedes_review_id: id},
+        meaning:
+          'A new review of the same request that replaces this one; it is reviewed and approved like any other. Nothing is prepared or sent for you.',
+      };
+    return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
+  }
   if (state === 'executing') return {tool: 'amcp_write', arguments: {action: 'status', review_id: id}};
   if (['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'].includes(state))
     return {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: id}};
@@ -188,6 +225,31 @@ const guidance: Record<string, string> = {
 };
 /** A stored millisecond time in the ISO form every other time in a status uses. */
 const iso = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? new Date(v).toISOString() : (v ?? null));
+/**
+ * What a status shows of a reconciliation (the person's, or the worker's automatic check, R2.5 M2): its id, what it found,
+ * why, when, and for the worker's, which attempt it was and when it looks again, or that its attempts ran out. Closed
+ * tokens, times and the observed IDs of an applied create only: never the provider's receipt or its text.
+ */
+function reconciliationView(r: JsonObject): JsonObject {
+  return {
+    reconciliation_id: r.reconciliation_id,
+    classification: r.classification,
+    ...(typeof r.reason === 'string' ? {reason: r.reason} : {}),
+    ...(typeof r.read_error === 'string' ? {read_error: r.read_error} : {}),
+    checked_at: iso(r.checked_at),
+    ...(r.automatic === true
+      ? {
+          automatic: true,
+          attempts: r.attempts,
+          ...(typeof r.next_check_at === 'number' ? {next_check_at: iso(r.next_check_at)} : {}),
+          ...(r.checks_exhausted === true ? {checks_exhausted: true} : {}),
+        }
+      : {}),
+    ...(r.classification === 'appears_applied' && Array.isArray(r.observed_ids) ? {observed_ids: r.observed_ids} : {}),
+    ...(r.accepted_at ? {accepted_at: iso(r.accepted_at)} : {}),
+    ...(r.superseded_by ? {superseded_by: r.superseded_by} : {}),
+  };
+}
 function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {
   const review = optional(store, tenant, 'write_review', id);
   if (!review) return {review_id: id, state: 'unknown'};
@@ -208,7 +270,8 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   const parts = group
     ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
     : undefined;
-  const call = nextCall(id, review, s.state, actor),
+  const resolvable = mayResolve(store, actor, review),
+    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined;
   store.assertActorActive(actor);
@@ -249,15 +312,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
         }
       : null,
     verification: s.verification ? {status: s.verification.status, checked_at: iso(s.verification.checked_at)} : null,
-    reconciliation: s.reconciliation
-      ? {
-          reconciliation_id: s.reconciliation.reconciliation_id,
-          classification: s.reconciliation.classification,
-          checked_at: iso(s.reconciliation.checked_at),
-          ...(s.reconciliation.accepted_at ? {accepted_at: iso(s.reconciliation.accepted_at)} : {}),
-          ...(s.reconciliation.superseded_by ? {superseded_by: s.reconciliation.superseded_by} : {}),
-        }
-      : null,
+    reconciliation: s.reconciliation ? reconciliationView(s.reconciliation) : null,
     ...(review.supersedes_uncertain ? {supersedes_uncertain: review.supersedes_uncertain} : {}),
     required_acknowledgements: review.required_acknowledgements ?? null,
     ...(approval ? {approval} : {}),
@@ -267,7 +322,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     })),
     next_safe_action: guidance[s.state] ?? 'Inspect the retained review before any action.',
     // Whether this reader may settle the outcome (accept_applied, or a replacement): the website shows the action then.
-    may_resolve: mayResolve(store, actor, review),
+    may_resolve: resolvable,
     next_call: call,
     website_path: writeRecordPath(id),
     network_requests: 0,

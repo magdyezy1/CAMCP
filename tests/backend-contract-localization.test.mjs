@@ -375,7 +375,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (the sentence is a report warning, not a refusal): 817.
   // Merge r25-m1-merge, merge 3: r12-fix (817 on its own base of 816) on the 827 above adds one different file and nothing else
   // moves the count, so the merged tree measures, with this test's own inspector, 827 + 1 = 828.
-  assert.equal(files.length, 828);
+  // Package r25-m2-reconcile (Round 2.5, M2: L5-05, L3-13) adds src/write-reconcile-job.ts, the worker job that checks an uncertain
+  // write by reads alone, with no reason of its own (a refusal of the check is recorded, not raised): one more on the M1 head's
+  // 828, 829 on its own base. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 829);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -575,7 +578,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
-  assert.equal(Object.keys(catalog).length, 12156);
+  // Package r25-m2-reconcile (item 1, L5-05): +3 entries, the website's words for the automatic check of an uncertain write
+  // (web/operations-center.js: that AMCP made it, when it looks again, and that its attempts ran out; website messages, not
+  // refusal reasons): 12,156 + 3 = 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
+  assert.equal(Object.keys(catalog).length, 12159);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -78,6 +78,8 @@ import {DecisionReporting, decisionTool} from './decision-reporting.js';
 import {ReportingOverview, overviewTool} from './reporting-overview.js';
 import {AdPreviews, previewTool} from './ad-previews.js';
 import {WriteVerifier} from './write-verification.js';
+import {WriteReconciler} from './write-reconciliation.js';
+import {reconcileJob} from './write-reconcile-job.js';
 import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService, mediaTool, readOnlyMediaTool} from './media-upload.js';
 import type {LinkRequest} from './media-link.js';
@@ -1002,6 +1004,19 @@ export class MirrorService {
           throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the verification job.', {}, 409);
       });
     return this.verifyWrite(actor, input.review_id);
+  }
+  /**
+   * The worker's automatic check of an uncertain write (R2.5 M2, src/write-reconcile-job.ts): today's read-only
+   * reconciliation, as the person who executed the write. It reads and records; it never sends anything.
+   */
+  async reconcileWriteJob(tenant: string, input: JsonObject, leaseCheck: () => void) {
+    return reconcileJob(this.store, tenant, input, leaseCheck, (actor, reviewId, attempt) =>
+      new WriteReconciler(this.store, this.registry, this.transport, this.credentials, this.policy).automatic(
+        actor,
+        reviewId,
+        attempt,
+      ),
+    );
   }
   /**
    * A native upload with dry_run:false: the import of a file through a native gateway's upload action or through

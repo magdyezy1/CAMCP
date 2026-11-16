@@ -47,6 +47,7 @@ import {
 import {writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler} from './write-reconciliation.js';
+import {queueReconcile} from './write-reconcile-job.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
@@ -1525,7 +1526,18 @@ export class WriteReviewService {
           connection_id: c.id,
           http_status: Number((e as MirrorError).details.http_status),
         });
-      if (!completed && !unsent && !rejected) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      if (!completed && !unsent && !rejected) {
+        this.store.uncertain(actor.tenantId, input.idempotency_key);
+        // R2.5 M2 (L5-05, L3-13; owner 2026-11-15: "reconcile them automatically"): the worker reads the provider for this
+        // write at its claim time plus 60 s (src/write-reconcile-job.ts). It reads only and never decides the outcome.
+        // The claim is already uncertain, so a failure to queue the check never changes what the caller is told: the
+        // person's own `reconcile` stays available.
+        try {
+          queueReconcile(this.store, actor.tenantId, input.review_id, actorBinding);
+        } catch {
+          // See above.
+        }
+      }
       // RPT-06: an unsent job leaves no receipt (the same review may run again); a sent one is rejected or uncertain.
       if (job && !completed) {
         if (unsent) this.store.deleteDocument(actor.tenantId, 'provider_job', input.review_id);
