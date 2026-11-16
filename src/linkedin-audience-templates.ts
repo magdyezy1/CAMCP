@@ -3,7 +3,7 @@ import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './fam
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
-import {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
+import {normalizeReviewState, comparableStateHash, changedComparableFields} from './review-state-core.js';
 import {linkedinReviewVolatile} from './linkedin-review-volatile.js';
 import {linkedinAccountState} from './linkedin-account-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -522,7 +522,8 @@ export async function verifyLinkedInTemplate(
     const key = targets(p)[0]!;
     expected.templates[key] = configuration({...expected.templates[key], ...desired(p)}, true);
   } else for (const key of targets(p)) delete expected.templates[key];
-  const fields = changedStateFields(expected, actual, linkedinReviewVolatile),
+  // A verification compares what the write sent with what is stored: no URL rule (changedComparableFields).
+  const fields = changedComparableFields(expected, actual, linkedinReviewVolatile),
     match = completeReceipt && fields.length === 0;
   return {
     status: match ? 'verified' : 'inconclusive',
@@ -530,8 +531,8 @@ export async function verifyLinkedInTemplate(
       {
         description: 'Complete account-scoped saved audiences and referenced segments match the reviewed change',
         matched: match,
-        expected_state_hash: reviewStateHash(expected, linkedinReviewVolatile),
-        actual_state_hash: reviewStateHash(actual, linkedinReviewVolatile),
+        expected_state_hash: comparableStateHash(expected, linkedinReviewVolatile),
+        actual_state_hash: comparableStateHash(actual, linkedinReviewVolatile),
         changed_fields: fields,
       },
     ],

@@ -224,9 +224,12 @@ export function normalizeComparable(value: unknown, volatile: ReviewVolatile): u
 
 export const reviewStateHash = (value: unknown, volatile: ReviewVolatile) =>
   sha256(stable(normalizeReviewState(value, volatile)));
+/** The hash of the comparable form (`normalizeComparable`): for a verification, which no URL rule may soften. */
+export const comparableStateHash = (value: unknown, volatile: ReviewVolatile) =>
+  sha256(stable(normalizeComparable(value, volatile)));
 
-/** JSON paths only: diagnostics must not disclose provider values or credentials. */
-export function changedStateFields(expected: unknown, actual: unknown, volatile: ReviewVolatile): string[] {
+/** The JSON paths at which two already normalized states differ. */
+function changedPaths(expected: unknown, actual: unknown): string[] {
   const paths: string[] = [];
   const walk = (a: unknown, b: unknown, path: string) => {
     if (stable(a) === stable(b)) return;
@@ -248,6 +251,24 @@ export function changedStateFields(expected: unknown, actual: unknown, volatile:
     }
     paths.push(path);
   };
-  walk(normalizeReviewState(expected, volatile), normalizeReviewState(actual, volatile), '$');
+  walk(expected, actual, '$');
   return paths;
+}
+
+/**
+ * The paths at which two states of the same record differ, as a review compares them (a read at prepare with the same read at
+ * execute): the table's names are left out and a link the provider signs itself is the same link however it was signed.
+ * JSON paths only: diagnostics must not disclose provider values or credentials.
+ */
+export function changedStateFields(expected: unknown, actual: unknown, volatile: ReviewVolatile): string[] {
+  return changedPaths(normalizeReviewState(expected, volatile), normalizeReviewState(actual, volatile));
+}
+/**
+ * The paths at which what a write SENT and what the provider STORED differ (lead review S3-1): the table's names are left
+ * out, and every URL stays whole, because a link a write sent must come back as it was sent. A family that verifies its own
+ * write compares with this, never with `changedStateFields`: with the review's rule a link written with one `token` and read
+ * back with another would verify as applied (src/verification-core.ts compares the same way).
+ */
+export function changedComparableFields(expected: unknown, actual: unknown, volatile: ReviewVolatile): string[] {
+  return changedPaths(normalizeComparable(expected, volatile), normalizeComparable(actual, volatile));
 }

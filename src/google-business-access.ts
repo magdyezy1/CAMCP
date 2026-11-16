@@ -2,7 +2,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
-import {changedStateFields} from './review-state-core.js';
+import {changedComparableFields} from './review-state-core.js';
 import {googleBusinessReviewVolatile} from './google-review-volatile.js';
 import {assertPlaceActionScope, placeActionSafeError, placeActionSafe} from './google-place-action-links.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
@@ -390,7 +390,7 @@ export async function verifyBusinessAccess(p: CompiledRequest, result: JsonObjec
     expected.admins[resource].pendingInvitation = false;
     expected.admins[resource].invitee_email = null;
   }
-  const changed = changedStateFields([expected], [actual], googleBusinessReviewVolatile),
+  const changed = changedComparableFields([expected], [actual], googleBusinessReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified',
     pending = kind === 'create' ? expected.admins[resource].pendingInvitation : false;
   return {

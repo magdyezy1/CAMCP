@@ -8,7 +8,9 @@ export {
   normalizeReviewState,
   normalizeComparable,
   reviewStateHash,
+  comparableStateHash,
   changedStateFields,
+  changedComparableFields,
   noReviewVolatile,
 } from './review-state-core.js';
 export type {ReviewVolatile} from './review-state-core.js';

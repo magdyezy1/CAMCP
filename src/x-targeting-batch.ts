@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
-import {changedStateFields, normalizeReviewState} from './review-state-core.js';
+import {changedComparableFields, normalizeReviewState} from './review-state-core.js';
 import {xReviewVolatile} from './x-review-volatile.js';
 import {xAccountState} from './x-identity-state.js';
 import {sha256, stable} from './security.js';
@@ -461,7 +461,7 @@ export async function verifyXTargetingBatch(p: CompiledRequest, result: JsonObje
     references: s.references,
   };
   const actual = {...a, criteria: actualRows},
-    changed = changedStateFields(expected, actual, xReviewVolatile),
+    changed = changedComparableFields(expected, actual, xReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,

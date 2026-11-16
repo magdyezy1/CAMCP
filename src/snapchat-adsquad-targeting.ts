@@ -1,5 +1,5 @@
 import {stable} from './security.js';
-import {changedStateFields} from './review-state-core.js';
+import {changedComparableFields} from './review-state-core.js';
 import {snapchatReviewVolatile} from './snapchat-review-volatile.js';
 import {normalGeos} from './snapchat-targeting-specs.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -622,7 +622,7 @@ export async function verifySnapTargeting(p: CompiledRequest, before: unknown[],
     keys = new Set([...Object.keys(expected), ...Object.keys(object(previous.targeting) ? previous.targeting : {})]),
     pick = (t: JsonObject) => Object.fromEntries(Object.entries(t).filter(([key]) => keys.has(key))),
     actual = squad.targeting as JsonObject,
-    changed = changedStateFields(pick(expected), pick(actual), snapchatReviewVolatile).map(
+    changed = changedComparableFields(pick(expected), pick(actual), snapchatReviewVolatile).map(
       path => '$["targeting"]' + path.slice(1),
     ),
     added = [

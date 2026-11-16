@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable} from './security.js';
-import {changedStateFields, isReviewVolatile} from './review-state-core.js';
+import {changedComparableFields, isReviewVolatile} from './review-state-core.js';
 import {snapchatReviewVolatile} from './snapchat-review-volatile.js';
 import {
   snapTargetingKind,
@@ -638,7 +638,7 @@ export function snapUpdateAmounts(
 export async function verifySnapUpdate(p: CompiledRequest, before: unknown[], send: Send) {
   const expected = [apply(p, before[0] as JsonObject, false)],
     actual = await readSnapUpdateState(p, send, false),
-    changed = changedStateFields(expected, actual, snapchatReviewVolatile),
+    changed = changedComparableFields(expected, actual, snapchatReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,
