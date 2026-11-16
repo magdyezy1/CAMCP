@@ -30,8 +30,10 @@ export function stable(value: unknown): string {
  * with the key names below (isSecretName). After `password` (a credential in a query, as it is under an object key)
  * come the signed-URL parameters of the object
  * stores and CDNs that providers link to (AWS, Google Cloud, TikTok's CDN and CloudFront), which carry the same secrets
- * as `signature`. `ticket` (R2.5 M1, L1-02) is the one of TikTok's advertiser licence link: a credential to that document.
- * It is a parameter name only, like `token` and `key`: an ordinary property called `ticket` is not a secret.
+ * as `signature`. `ticket` is not one of them (lead review S3-2): the one that hides a credential, TikTok's advertiser licence
+ * link (R2.5 M1, L1-02), is hidden under its own field (`license_url`, `keyReplacement`), because a `ticket` is also what an
+ * advertiser's landing page may carry (an event or a queue ticket), and a parameter by that name must reach a new ad as it
+ * was read, show to the approver as it is, and be saved in a reporting setting.
  */
 const secretParameters = new Set([
   'access_token',
@@ -54,7 +56,6 @@ const secretParameters = new Set([
   'x-goog-credential',
   'policy',
   'key-pair-id',
-  'ticket',
 ]);
 /**
  * The names whose values redact() hides under an object key, and so also inside JSON text: `{"api_key":"..."}` in a
@@ -295,21 +296,37 @@ export function redactUrlSecrets(
     }
     if (Array.isArray(v)) return v.map(item => walk(item, signed));
     if (v && typeof v === 'object')
-      return Object.fromEntries(Object.entries(v).map(([k, item]) => [k, walk(item, signedLinks.has(k))]));
+      return Object.fromEntries(
+        Object.entries(v).map(([k, item]) => {
+          // The licence link is hidden whole under its field: its `ticket` is no secret parameter by name (S3-2).
+          if (licenseKey.test(k) && typeof item === 'string' && item !== '[PRIVATE_LICENSE_URL]') {
+            redacted++;
+            return [k, '[PRIVATE_LICENSE_URL]'];
+          }
+          return [k, walk(item, signedLinks.has(k))];
+        }),
+      );
     return v;
   };
   const out = walk(value, false);
   return {value: out, redacted};
 }
+/**
+ * The field TikTok hands its advertiser licence link out under: the link is a credential to the document (its `ticket`), and
+ * only that field holds it, so the field is hidden and a `ticket` in any other URL is the advertiser's own.
+ */
+const licenseKey = /^license[-_]?url$/i;
 /** What a key hides its value as, or undefined when the key hides nothing: the same rules for every caller. */
 const keyReplacement = (k: string): string | undefined =>
   /^(?:shareable[-_]?preview[-_]?url|youtube[-_]?(?:tv[-_]?)?preview[-_]?url)$/i.test(k)
     ? '[PRIVATE_PREVIEW_URL]'
-    : /^image[-_]?data$/i.test(k)
-      ? '[BINARY_REDACTED]'
-      : secretKey.test(k)
-        ? '[REDACTED]'
-        : undefined;
+    : licenseKey.test(k)
+      ? '[PRIVATE_LICENSE_URL]'
+      : /^image[-_]?data$/i.test(k)
+        ? '[BINARY_REDACTED]'
+        : secretKey.test(k)
+          ? '[REDACTED]'
+          : undefined;
 /** A value that a display hid: where it stood and nothing of the value (Ruling 13: no hash of it either). */
 export interface HiddenValue {
   path: string;

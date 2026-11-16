@@ -36,6 +36,9 @@ const prose = [
   'Bearer of good news',
   'Secret: the launch is on Friday',
   'EAA is a prefix, and EAAshort is not a token',
+  // A landing page that carries a `ticket` (an event or a queue ticket) is the advertiser's own link, not a credential (S3-2).
+  'https://events.example/buy?ticket=vip&utm_source=amcp',
+  'Send people to https://events.example/buy?utm_source=amcp&ticket=early-bird for the sale',
 ];
 // Credential-shaped forms: a pair of the credential list, a URL secret, an Authorization scheme and token, a cookie pair,
 // a Bearer token, a JSON key of the list, a Meta token.
