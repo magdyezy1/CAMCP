@@ -1,4 +1,4 @@
-﻿import test, {before, after} from 'node:test';
+import test, {before, after} from 'node:test';
 import assert from 'node:assert/strict';
 import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {at, googleReconcileFixture} from './helpers/google-reconcile-fixture.mjs';
@@ -200,12 +200,13 @@ test('an identical create that completed in the last ten minutes is a warning, a
 
 // A create the provider refused (a 400, whose claim is retired) and one it answered without confirming it (a 200 whose
 // reply lacks the created resource, which AMCP records as complete with success false) both made nothing.
-for (const [label, answer] of [
+for (const [label, answer, code] of [
   [
     'refused with a 400',
     () => Response.json({error: {code: 400, status: 'INVALID_ARGUMENT', message: 'refused'}}, {status: 400}),
+    'UPSTREAM_ERROR',
   ],
-  ['answered without confirming it', () => Response.json({})],
+  ['answered without confirming it', () => Response.json({}), 'WRITE_PARTIAL_OR_FAILED'],
 ])
   test('a create the provider ' + label + ' is no earlier create to warn about', async () => {
     const f = googleBudgetFixture();
@@ -214,7 +215,7 @@ for (const [label, answer] of [
       f.hooks.respond = answer;
       const refused = await f.execute(first.data.review_id);
       f.hooks.respond = undefined;
-      assert.equal(refused.success, false, JSON.stringify(refused).slice(0, 400));
+      assert.equal(refused.error?.code, code, JSON.stringify(refused).slice(0, 400));
       const again = await f.creates(1, 5000000);
       assert.equal(again.success, true, JSON.stringify(again).slice(0, 500));
       assert.equal(again.data.duplicate_warning, undefined);

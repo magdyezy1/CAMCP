@@ -368,7 +368,7 @@ for (const code of [40100, 40132, 40133])
         const id = prepared.data.review_id,
           refused = await f.execute(id);
         f.state.throttle = undefined;
-        assert.equal(refused.success, false);
+        assert.equal(refused.error?.code, 'PLATFORM_RATE_LIMIT', JSON.stringify(refused).slice(0, 300));
         assert.equal(
           f.claim(id).state,
           'uncertain',
