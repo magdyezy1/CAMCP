@@ -148,6 +148,9 @@ test('a media upload refused before anything was claimed marks it as not sent, a
     const refused = await f.call(execution(p));
     assert.equal(refused.error.code, 'STATE_CHANGED', JSON.stringify(refused.error));
     assert.equal(refused.error.details.submission, 'not_sent');
+    // The provider the review friction view attributes the refusal to: the read's own gateway, the one the provider's table of
+    // what changes by itself is chosen by (merge r25-m1-merge; diff's review S4-3 had it built from the platform's name).
+    assert.equal(refused.error.details.gateway, 'linkedin_native_action');
     assert.match(refused.error.remedy.action, /^Nothing was sent\./);
     assert.deepEqual(f.counts(), {initialized: 0, parts: [], finalized: 0}, 'nothing reached the provider');
   } finally {
@@ -169,6 +172,7 @@ test('a resume refused as STATE_CHANGED after a claim never says nothing was sen
     assert.deepEqual(f.counts(), {initialized: 1, parts: [1], finalized: 0}, 'the refusal sent nothing more');
     // What it carries is what it always carried, and it is not marked as a refusal that sent nothing.
     assert.equal(refused.error.details.submission, undefined);
+    assert.equal(refused.error.details.gateway, 'linkedin_native_action');
     assert.ok(refused.error.details.changed_fields.length > 0);
     assert.ok(refused.error.details.material.length > 0);
     // The agent is sent to the upload's recovery record (its claim, journal and progress), which reads without writing.

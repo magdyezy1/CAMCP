@@ -16,8 +16,9 @@ import {readRole, type ReadRole} from './review-state-core.js';
  * is material, never hidden. (An allow-list of identity words hid an account's `deleted` and `test` flags, and a Snapchat
  * ad squad's budget and end time.) It orders and names; it never narrows the check: the refusal and `changed_fields` stay as
  * they are, and every changed path of every read still refuses the write. A read whose role is not known is a target. A read
- * is an account here exactly when the hash kept it as one: no role is inferred from its path, so nothing is thinned for a read
- * the hash read whole (tests/review-read-role.test.mjs compares the two over every family descriptor).
+ * is an account here exactly when the code that built it stamped it one, which is the role the hash gives it: none is inferred
+ * from its path, so nothing is thinned for a read the hash read whole as a target (tests/review-read-role.test.mjs compares
+ * the two over every family descriptor).
  *
  * Roles are read off the list of reads only where the state has one entry per read; the caller says whether it has
  * (src/write-review.ts). A family that keeps its own state puts the account, the parent and the targets in one entry, where
