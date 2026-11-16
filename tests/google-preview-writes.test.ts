@@ -562,6 +562,13 @@ test('rejected requests and malformed or expired receipts keep the original clai
         } else
           assert.equal(e.data.previews.results.filter((r: JsonObject) => r.status === 'generated').length, 0, mode);
         assert.ok(!JSON.stringify(e.data.previews).includes('127.0.0.1'));
+        // The next step follows the answer (r12-gpreview): one AMCP did not accept shows no link and says so, and one it did
+        // accept, whether some or all of its previews had expired, keeps the step it had.
+        assert.match(
+          e.data.previews.next_action,
+          ['one_expired', 'expired'].includes(mode) ? /^Open a generated link/ : /^No link is shown/,
+          mode,
+        );
       }
       const again = await f.execute(r);
       assert.ok(
@@ -622,6 +629,8 @@ test('completed URLs survive restart encrypted, never leak into normal SQL/audit
     f.store.putDocument(actor.tenantId, 'preview_receipt', r.data.review_id, {...saved, expires_at: Date.now() - 1});
     const expired = await f.execute(r);
     assert.equal(expired.data.previews.status, 'unavailable');
+    // The links are gone with their receipt, and that is what is said: not that an answer was refused.
+    assert.match(expired.data.previews.next_action, /^Private preview links expired locally or are unavailable\./);
     assert.ok(!JSON.stringify(expired).includes('private-preview'));
     assert.equal((await f.verify(r)).data.status, 'inconclusive');
     f.store.cleanupTransient();
@@ -852,6 +861,11 @@ test('an answer built from the pinned v25 schema verifies, and returns each prev
     const e = await f.execute(r);
     assert.equal(e.success, true, JSON.stringify(e));
     assert.equal(e.data.previews.status, 'generated');
+    // An answer that matches keeps its next step: the links are opened, and a generation is never repeated.
+    assert.equal(
+      e.data.previews.next_action,
+      'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.',
+    );
     const [first, other] = e.data.previews.results;
     assert.deepEqual(
       [first, other].map(x => [x.target, x.preview_type, x.status, x.expiration_known]),
@@ -1255,9 +1269,15 @@ test('the refusal of an answer that does not match says so, carries the facts an
       [e.error.category, e.error.remedy.owner, e.error.remedy.mutation_retry_safe],
       ['provider', 'amcp', false],
     );
+    // The family's own next step agrees with the refusal: no link is shown, so none is to be opened, and the mismatch is reported.
+    assert.match(e.data.previews.next_action, /^No link is shown, because the provider’s answer did not match/);
+    assert.match(e.data.previews.next_action, /report the mismatch in data\.response_mismatch to support/);
+    assert.match(e.data.previews.next_action, /Never repeat a successful or uncertain generation automatically\.$/);
+    assert.doesNotMatch(e.data.previews.next_action, /Open a generated link/);
     // The replay is the same refusal, and sends nothing.
     const again = await f.execute(r);
     assert.deepEqual(again.error, e.error);
+    assert.equal(again.data.previews.next_action, e.data.previews.next_action);
     assert.equal(f.writes(), 1);
   } finally {
     f.store.close();

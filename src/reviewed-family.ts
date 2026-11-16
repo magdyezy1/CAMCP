@@ -221,7 +221,12 @@ export interface ReviewedFamily {
   beforeSubmit?(plan: CompiledRequest, state: unknown[], auth: Credentials): void;
   /** Claims what the submission uses up (a provider quota), in the transaction that claims the review. */
   admit?(plan: CompiledRequest, submission: Submission): void;
-  /** The execution outcome as it may be returned and stored, without provider data the family must not disclose. */
+  /**
+   * The execution outcome as it may be returned and stored, without provider data the family must not disclose. A family
+   * whose provider answered with something it does not accept marks `data.native_response_valid: false`, and may name where
+   * in `data.response_mismatch` (closed-set facts, never a value): the refusal then says the answer was not accepted and
+   * its remedy is to report it, not to check access, scopes or tier (src/service.ts failedWrite, src/errors.ts; r12-gpreview).
+   */
   safeOutcome?(outcome: JsonObject, plan: CompiledRequest, result: TransportResult): JsonObject;
   /** Keeps what the provider's response gives the family (a job receipt, a created resource), with the outcome. */
   retain?(plan: CompiledRequest, response: TransportResult, result: JsonObject, submission: Submission): void;

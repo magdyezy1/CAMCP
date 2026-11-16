@@ -513,9 +513,13 @@ export function googlePreviewDelivery(p: CompiledRequest, outcome: JsonObject, r
       results: rows ?? [],
       links_retained: !!raw,
       automatic_regeneration: false,
-      next_action: raw
-        ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
-        : 'Private preview links expired locally or are unavailable. The original submission remains recorded; a fresh generation requires an explicit new review.',
+      // The next step follows the answer (r12-gpreview): one AMCP did not accept shows no link, so none is to be opened (the
+      // refusal beside it says to report the mismatch), while one it did accept keeps the step it had.
+      next_action: !raw
+        ? 'Private preview links expired locally or are unavailable. The original submission remains recorded; a fresh generation requires an explicit new review.'
+        : rows
+          ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
+          : 'No link is shown, because the provider’s answer did not match what AMCP reviewed. The answer stays encrypted for recovery; report the mismatch in data.response_mismatch to support. Never repeat a successful or uncertain generation automatically.',
     },
   };
 }
