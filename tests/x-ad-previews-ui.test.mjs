@@ -34,6 +34,10 @@ function fixture(locale = 'en') {
           this.listeners.set(name, fn);
         },
         setAttribute() {},
+        insertAdjacentHTML(position, markup) {
+          assert.equal(position, 'beforeend');
+          this._html += markup;
+        },
         focus() {},
         get innerHTML() {
           return this._html;
@@ -54,6 +58,10 @@ function fixture(locale = 'en') {
     ad_format: {value: 'MOBILE_FEED_STANDARD'},
   };
   let submit;
+  // A row's detail line is an element of the markup the page wrote, as it is in a browser: a lookup of one the markup does not hold
+  // finds nothing, so a write to a line the page never drew cannot pass for the update of a row.
+  const drawn = id =>
+    [node('#preview-results')._html, node('#preview-rows')._html].some(m => m.includes('id="' + id + '"'));
   const context = createContext({
     document: {addEventListener() {}},
     platforms: [
@@ -61,7 +69,7 @@ function fixture(locale = 'en') {
       {gateway: 'snapchat_native_action', connections: [{id: 'login-s', enabled: true, accounts: ['100']}]},
     ],
     accountLabel: (_platform, _connection, account) => 'Account ' + account,
-    $: node,
+    $: id => (id.startsWith('#preview-detail-') && !drawn(id.slice(1)) ? null : node(id)),
     esc: s =>
       String(s ?? '')
         .replaceAll('&', '&amp;')
@@ -93,9 +101,12 @@ function fixture(locale = 'en') {
     choose,
     results: node('#preview-results'),
     submit: () => submit(form),
+    loadMore: () =>
+      node('#preview-results').listeners.get('click')({target: {closest: wanted => wanted === '#preview-load-more'}}),
     panel: () => new Script('adPreviewsPanel()').runInContext(context),
   };
 }
+const tick = () => new Promise(resolve => setImmediate(resolve));
 const answer = {
   previews: [
     {
@@ -233,4 +244,60 @@ test('every sentence the page adds for X has Arabic in the chunks the page loads
   assert.ok(missing.includes(catalog['X returned no preview for this Tweet.']), missing);
   // Names and IDs stay as X gave them.
   assert.ok(dark.includes('Dark launch') && promoted.includes(tweet(1)));
+});
+
+// Review S4-1. A Tweet that is promoted twice can have its two promoted Tweets in two pages of the account's list, and an entry is
+// a Tweet, so "Load more" can bring an entry for a Tweet whose row is already on the page. The page used to drop that entry, and the
+// promoted Tweets it named with it. The row stands for the Tweet, so those promoted Tweets join it; only a Tweet not shown is a row.
+test('Load more merges the promoted Tweets of a later entry for a Tweet already shown into its row, and adds only the Tweets not shown', async () => {
+  const entry = (n, promoted) => ({
+      ad_id: tweet(n),
+      name: null,
+      tweet_id: tweet(n),
+      promoted_tweet_ids: promoted,
+      links: [link(n)],
+      expires,
+    }),
+    page = (previews, more) => ({
+      previews,
+      meaning: 'Synthetic notice.',
+      has_more: more,
+      next_cursor: more ? 'cursor' : null,
+    });
+  const f = fixture(),
+    first = f.submit();
+  // The first page holds one Tweet twice (the tool says each Tweet once in a call, but the page does not rely on it): the two
+  // entries are merged the same way.
+  f.calls[0].resolve(page([entry(1, ['pt1']), entry(2, ['pt2']), entry(2, ['pt5'])], true));
+  await first;
+  const [one, two, ...others] = rows(f.results.innerHTML);
+  assert.equal(others.length, 0);
+  assert.match(one, new RegExp('Tweet ' + tweet(1) + ' · Promoted Tweet pt1 · '));
+  assert.doesNotMatch(one, /Promoted Tweets/);
+  assert.match(two, new RegExp('Tweet ' + tweet(2) + ' · Promoted Tweets pt2, pt5 · '));
+  // The second page: the first Tweet again with a promoted Tweet the first page lacked (and one it had), and a Tweet not shown.
+  f.loadMore();
+  assert.equal(f.calls.length, 2);
+  f.calls[1].resolve(page([entry(1, ['pt3', 'pt1']), entry(4, ['pt4'])], true));
+  await tick();
+  // The row of the first Tweet now names both promoted Tweets, each once, in the order they were read.
+  assert.equal(
+    f.node('#preview-detail-0').textContent,
+    'Tweet ' + tweet(1) + ' · Promoted Tweets pt1, pt3 · X states no expiry for this preview link.',
+  );
+  // The other row is as it was written. The Tweet not shown is one new row after the two, and the first Tweet has no second row.
+  assert.equal(f.node('#preview-detail-1').textContent, '');
+  const added = rows(f.node('#preview-rows')._html);
+  assert.equal(added.length, 1);
+  assert.match(added[0], new RegExp('id="preview-row-2"[\\s\\S]*Tweet ' + tweet(4) + ' · Promoted Tweet pt4'));
+  assert.doesNotMatch(f.node('#preview-rows')._html, new RegExp(tweet(1)));
+  assert.equal(f.node('#preview-status').textContent, '1 more preview');
+  // A third page whose entry names only what its row already shows adds no row and leaves the row alone.
+  f.loadMore();
+  assert.equal(f.calls.length, 3);
+  f.calls[2].resolve(page([entry(2, ['pt5', 'pt2'])], false));
+  await tick();
+  assert.equal(f.node('#preview-detail-1').textContent, '');
+  assert.equal(rows(f.node('#preview-rows')._html).length, 1);
+  assert.equal(f.node('#preview-detail-0').textContent.includes('pt1, pt3'), true);
 });
