@@ -53,8 +53,12 @@ contracts` and the help of the action show it anchored and the advisory `read_un
   not sent. A read that names its IDs asks for a page of 200 (the most IDs X takes in a filter, R1 to R3), whatever number
   it names, so that an answer with every ID is complete: X can end a page that is exactly as large as its page size with a
   cursor, and one that still carries a cursor on a page of 200 is refused.
+- The status of a promoted Tweet is its own (`entity_status`; a deleted one is archived): a paused line item or campaign above
+  it is not considered.
 - The Tweets of one call (at most ten) are previewed by one read with `tweet_type: PUBLISHED` (TP2, TP3), in batches of at most
-  200. An entry is a Tweet, with the promoted-Tweet IDs of the call that share it.
+  200. An entry is a Tweet, with the promoted-Tweet IDs of the call that share it. `limit` counts promoted Tweets, so a call can
+  return fewer entries when some of them share a Tweet, and a Tweet promoted twice whose promotions fall in two calls has an
+  entry in each, naming the promoted Tweets that call selected.
 - Only the `src` of the `preview` iframe is read (TP4), and returned only when it is https on exactly `ton.twimg.com` at exactly
   `/ads-manager/tweet-preview/index.html`, with no user information, port or fragment. The host of TP6's older example is not
   accepted, and X's snippet is never returned.
