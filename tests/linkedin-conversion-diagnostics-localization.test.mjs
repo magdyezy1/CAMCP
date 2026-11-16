@@ -55,9 +55,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m1-merge, merge 3: r12-fix (184 on its own base of 179) on the diff package's 181. They add different hints, so no
   // package's own pin is the merged count; the merged count is measured by this test's own inspector, not either pin:
   // 179 + 2 (diff) + 5 (r12-fix) = 186, and 185 without the inventory hint.
-  assert.equal(hints.size, 186);
+  // Package r12-gpreview (item 3) adds one in src/errors.ts: the remedy of a write whose provider answer did not match what AMCP
+  // reviewed (WRITE_PARTIAL_OR_FAILED with native_response_valid false), as tests/shared-recovery-localization.test.mjs counts it:
+  // 187 in all, and 186 without the inventory hint.
+  assert.equal(hints.size, 187);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 185);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 186);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

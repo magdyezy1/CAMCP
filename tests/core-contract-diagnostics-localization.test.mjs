@@ -18,7 +18,9 @@ const counts = {
   // generation) with those steps to src/provider-workflows.ts, unchanged, which that inventory owns too.
   // Package mcp-surface (V2-MCP-06) adds the MEDIA_REVIEW_REQUIRED refusal of nativeUpload, which a native upload answers
   // under the v2 contract profile (its Arabic is in web/locales/ar.json): 14.
-  'src/service.ts': 14,
+  // Package r12-gpreview (item 3) adds the refusal of a write whose provider answer did not match what AMCP reviewed (failedWrite,
+  // the sentence beside the generic one it had; its Arabic is in web/locales/ar.json): 15.
+  'src/service.ts': 15,
   // ARC-02's reserved workspace ID refusal and reviewer connectors' administrator-access refusal.
   'src/store.ts': 90,
   // ARC-01 phase B's wire profile moves six refusals that name a provider's own headers to that provider's adapter
@@ -83,7 +85,8 @@ test('all six selected core sources require every authored reason with native fi
   // Merge r25-m0-merge, with r25-m0-errors (226 on its own base of 224) and r25-m0-live (226 on the same base): the two sets are
   // different files and different sentences, so the value line merged without a conflict and was wrong: 224 + 2 + 2 = 228, as
   // this test's own inspector measures it on the merged tree (the per-file table above carries each package's own file).
-  assert.equal(owned.size, 228);
+  // Package r12-gpreview (item 3) adds the sentence of src/service.ts's failedWrite, owned by no other source: 228 + 1.
+  assert.equal(owned.size, 229);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
