@@ -50,24 +50,40 @@ test('Meta’s table names every field of the lane’s list, and a state that ca
 // `{...}` counting as its own (`business{id}` is `business`).
 const fieldList = /^[a-z0-9_]+(?:\{[a-z0-9_,{}.]*\})?(?:,[a-z0-9_]+(?:\{[a-z0-9_,{}.]*\})?)+$/;
 const volatileName = name => lane.some(v => (v.endsWith('*') ? name.startsWith(v.slice(0, -1)) : name === v));
+/** The volatile names a source text asks Graph for in a field list. */
+function askedFor(text) {
+  const names = [],
+    namesOf = list => list.replace(/\{[^}]*\}/g, '').split(',');
+  // A quoted list of two or more names, wherever it stands.
+  for (const m of text.matchAll(/'([a-z0-9_{},.]+)'/g)) if (fieldList.test(m[1])) names.push(...namesOf(m[1]));
+  // And whatever is given as the value of `fields`, a single name or a template literal included.
+  for (const m of text.matchAll(/\bfields\b\s*[:=]\s*(['`])([a-z0-9_{},.]+)\1/g)) names.push(...namesOf(m[2]));
+  return [...new Set(names.filter(volatileName))];
+}
 function selections() {
   const found = [];
   for (const file of fs
     .readdirSync(new URL('../src/', import.meta.url))
     .filter(f => /^meta-.*\.ts$/.test(f))
     .sort()) {
-    const text = fs.readFileSync(new URL('../src/' + file, import.meta.url), 'utf8');
-    for (const m of text.matchAll(/'([a-z0-9_{},.]+)'/g)) {
-      if (!fieldList.test(m[1])) continue;
-      const names = m[1]
-        .replace(/\{[^}]*\}/g, '')
-        .split(',')
-        .filter(volatileName);
-      if (names.length) found.push('src/' + file + ': ' + [...new Set(names)].sort().join(', '));
-    }
+    const names = askedFor(fs.readFileSync(new URL('../src/' + file, import.meta.url), 'utf8'));
+    if (names.length) found.push('src/' + file + ': ' + [...new Set(names)].sort().join(', '));
   }
   return [...new Set(found)].sort();
 }
+
+test('lint: the scan sees a single field and a template literal, not only a quoted list with a comma (S4-3)', () => {
+  // The scan read only a single-quoted string of at least two names, so `fields: 'balance'` or a template literal escaped it.
+  assert.deepEqual(askedFor("const q = {fields: 'balance'};"), ['balance']);
+  assert.deepEqual(askedFor('const q = {fields: `spend`};'), ['spend']);
+  assert.deepEqual(askedFor("const fields = 'id,amount_spent';"), ['amount_spent']);
+  assert.deepEqual(askedFor('query.fields = `id,insights{impressions}`;'), ['insights']);
+  assert.deepEqual(askedFor("const list = ['id,spend,name'];"), ['spend']);
+  // A lone name that is no field list asks for nothing, and an ordinary list asks for nothing.
+  assert.deepEqual(askedFor("const label = 'balance';"), []);
+  assert.deepEqual(askedFor("const fields = 'id,name,status';"), []);
+  assert.deepEqual(askedFor("const fields = 'id';"), []);
+});
 
 test('lint (L3-14): no Meta field list asks for a meter or a counter, except the reads that decide something from it', () => {
   assert.deepEqual(selections(), [
