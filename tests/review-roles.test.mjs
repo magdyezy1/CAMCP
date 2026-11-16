@@ -11,6 +11,7 @@ import {familyFixture} from './helpers/family-conformance.mjs';
 import xCreatives from './family-descriptors/x-creatives.mjs';
 import microsoftSearch from './family-descriptors/microsoft-search.mjs';
 import redditClassic from './family-descriptors/reddit-classic.mjs';
+import redditFunding from './family-descriptors/variants/reddit-classic-funding-instrument.mjs';
 
 /**
  * R2.5 M1 (package r25-m1-hash, plan idea 1, the three read roles; L5-01, L4-13, M0's "Found, not fixed" 3 and 4).
@@ -161,6 +162,38 @@ const scenarios = [
     },
     rotating: n => ({modified_at: '2026-11-16T10:0' + n + ':00Z'}),
     where: field => '$["data"]["' + field + '"]',
+  },
+  {
+    // The `FundingInstrument` of the Reddit Ads API (.mirror/VENDOR/reddit-v3.json): its meter, `billable_amount`, is the
+    // outstanding debt and grows with every day the account spends, and `is_servable` and `reasons_not_servable` are what Reddit
+    // computes from it. A campaign that names the instrument depends on which one it is, its currency, its credit limit and the
+    // flight it allows: a REFERENCE, kept to those fields (S3-4).
+    name: 'Reddit funding instrument (reference)',
+    gateway: 'reddit_native_action',
+    path: '/api/v3/ad_accounts/a2_111/funding_instruments',
+    role: 'reference',
+    wrap: row => ({data: [row], request_id: 'synthetic-request'}),
+    state: row => ({data: [row]}),
+    identity: {
+      id: 'fi_1',
+      currency: 'USD',
+      credit_limit: 5000000000,
+      start_time: '2026-11-01T00:00:00Z',
+      end_time: null,
+    },
+    // What the instrument also carries, none of it what a campaign depends on.
+    nested: {
+      name: 'Synthetic card',
+      ad_account_id: 'a2_111',
+      authorize_status: 'AUTHORIZED',
+      invoice_group_status: null,
+    },
+    rotating: n => ({
+      billable_amount: 120000 + n * 1000,
+      is_servable: n % 2 === 0,
+      reasons_not_servable: n % 2 ? ['CREDIT_LIMIT_REACHED'] : [],
+    }),
+    where: field => '$["data"][0]["' + field + '"]',
   },
 ];
 const isRecord = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -700,16 +733,16 @@ for (const provider of ['x', 'linkedin', 'dv360']) {
 // --- Microsoft and Reddit: the account row, through the real lifecycle of their families (S3-3) -------------------------------
 
 /**
- * The descriptor's family prepared and executed with its provider's answer to the account read rewritten by `rewrite(json,
- * phase)`: at review (`prepare`) and at execute, so a field may differ between the two.
+ * The descriptor's family prepared and executed with its provider's answer to the read `isRead` names rewritten by
+ * `rewrite(json, phase)`: at review (`prepare`) and at execute, so a field may differ between the two.
  */
-async function accountFlow(descriptor, isAccountRead, rewrite) {
+async function rewrittenFlow(descriptor, isRead, rewrite) {
   let phase = 'prepare';
   const f = familyFixture({
     ...descriptor,
     provider: async request => {
       const answer = await descriptor.provider(request);
-      if (!answer || answer instanceof Response || !isAccountRead(request)) return answer;
+      if (!answer || answer instanceof Response || !isRead(request)) return answer;
       return {...answer, json: rewrite(structuredClone(answer.json), phase)};
     },
   });
@@ -739,7 +772,7 @@ const microsoftAccount = (phase, change = {}) => ({
   ...(phase === 'execute' ? change : {}),
 });
 const microsoftFlow = change =>
-  accountFlow(
+  rewrittenFlow(
     microsoftSearch,
     ({path}) => path.endsWith('/Account/Query'),
     (json, phase) => ({...json, Account: microsoftAccount(phase, change)}),
@@ -757,7 +790,7 @@ const redditAccount = (phase, change = {}) => ({
   ...(phase === 'execute' ? change : {}),
 });
 const redditFlow = change =>
-  accountFlow(
+  rewrittenFlow(
     redditClassic,
     ({method, path}) => method === 'GET' && path === '/api/v3/ad_accounts/a2_111',
     (json, phase) => ({...json, data: redditAccount(phase, change)}),
@@ -805,6 +838,48 @@ test('reddit write: a real change of the ad account’s identity or state is STA
     assertRefused(done, 'STATE_CHANGED', {writes});
     assert.deepEqual(done.error.details.changed_fields, ['$[0]["data"]["' + field + '"]'], field);
   }
+});
+
+const instrument = (phase, change = {}) => ({
+  id: 'fi_1',
+  ad_account_id: 'a2_111',
+  name: 'Synthetic card',
+  currency: 'USD',
+  credit_limit: 5000000000,
+  // The meter grows and Reddit recomputes the servable state: both move between review and execute.
+  billable_amount: phase === 'prepare' ? 120000 : 480000,
+  start_time: '2026-11-01T00:00:00Z',
+  end_time: null,
+  is_servable: phase === 'prepare',
+  reasons_not_servable: phase === 'prepare' ? [] : ['CREDIT_LIMIT_REACHED'],
+  ...(phase === 'execute' ? change : {}),
+});
+const fundingFlow = change =>
+  rewrittenFlow(
+    redditFunding,
+    ({method, path}) => method === 'GET' && path === '/api/v3/ad_accounts/a2_111/funding_instruments',
+    (json, phase) => ({...json, data: [instrument(phase, change)]}),
+  );
+test('reddit write: a funding instrument whose meter and servable state move between review and execute is the same instrument', async () => {
+  const {done, writes} = await fundingFlow({});
+  assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
+  assert.equal(writes(), 1);
+});
+test('reddit write: a real change of the funding instrument a campaign names is STATE_CHANGED naming that field, and nothing is sent', async () => {
+  for (const [field, change] of [
+    ['currency', {currency: 'EUR'}],
+    ['credit_limit', {credit_limit: 1000}],
+    ['start_time', {start_time: '2026-12-01T00:00:00Z'}],
+    ['end_time', {end_time: '2026-11-20T00:00:00Z'}],
+  ]) {
+    // The state is [the account, the campaign being changed, the funding instrument]: the third read.
+    const {done, writes} = await fundingFlow(change);
+    assertRefused(done, 'STATE_CHANGED', {writes});
+    assert.deepEqual(done.error.details.changed_fields, ['$[2]["data"][0]["' + field + '"]'], field);
+  }
+  // A different instrument is refused by the family's own check of the answer, before any comparison.
+  const {done, writes} = await fundingFlow({id: 'fi_2'});
+  assertRefused(done, 'STATE_TARGET_MISMATCH', {writes});
 });
 
 // --- X creatives: the account and the parents of a promotion --------------------------------------------------------------
@@ -943,6 +1018,21 @@ test('lint: a Microsoft or Reddit write reads its account as an ACCOUNT, and the
     } finally {
       f.close();
     }
+  }
+});
+test('lint: a Reddit campaign write reads the funding instrument it names as a REFERENCE, after the account and its own target (S3-4)', async () => {
+  const f = familyFixture(redditFunding);
+  try {
+    const p = await f.prepare();
+    assert.equal(p.success, true, JSON.stringify(p.error ?? p).slice(0, 600));
+    const stored = f.store.document('conformance-' + redditFunding.family, 'write_review', p.data.review_id);
+    assert.deepEqual(
+      stored.reads.map(r => r.stateRole ?? null),
+      ['account', null, 'reference'],
+    );
+    assert.match(stored.reads[2].path, /\/funding_instruments$/);
+  } finally {
+    f.close();
   }
 });
 

@@ -186,9 +186,11 @@ export interface CompiledRequest {
    * `parent` is read as a target is, whole but for the fields its provider's table says change by themselves
    * (`review.volatile`), because its budget, bid, flight, schedule, targeting and status are what the child is created under
    * (lead review S2-1). The role is metadata for the review's ordering of what changed (R2.5 M1, `material`) and for the
-   * rotation harness; it narrows nothing for a parent.
+   * rotation harness; it narrows nothing for a parent. A `reference` is an object a write only names (a funding instrument a
+   * Reddit campaign is paid from): its provider keeps its existence and the fields the write uses of it (`review.identity`),
+   * not its meters and computed state (lead review S3-4).
    */
-  stateRole?: 'account' | 'parent';
+  stateRole?: 'account' | 'parent' | 'reference';
   scopeContext?: {
     metaReportReviewId?: string;
     campaignId?: string;

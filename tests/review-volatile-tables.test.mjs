@@ -193,6 +193,14 @@ const ADDED = {
     targeting_reach_status: 'reach estimate',
     packaging_status: 'a creative’s media packaging completes after upload (src/snapchat-write-impact.ts)',
   },
+  // S3-4: a Reddit funding instrument's meter and the servable state Reddit computes from it; no other schema of Reddit
+  // (.mirror/VENDOR/reddit-v3.json) carries these three names.
+  reddit_native_action: {
+    billable_amount:
+      'the outstanding debt of the funding instrument, a meter that grows with every day the account spends',
+    is_servable: 'computed by Reddit from the funding instrument',
+    reasons_not_servable: 'computed by Reddit from the funding instrument',
+  },
   // The crawl observations of src/google-search-console-adapter.ts: a sitemap is downloaded and counted by Google.
   google_search_console_native_action: {
     last_downloaded: 'crawl',
