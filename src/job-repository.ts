@@ -146,6 +146,33 @@ export function openWriteClaims(store: Store, tenant: string, since: number): Js
     .all(tenant, since) as JsonObject[];
   return [...unsettled, ...completed.reverse()];
 }
+/**
+ * The completed write claims of a workspace, other than `exceptKey`, whose stored result mentions any of `needles` (R2.5 M2, lead
+ * re-review N1): their keys and results. Nothing is cut by count or by age. Only the claims that name one of the IDs under
+ * consideration are read, by a substring search of the stored text, so a workspace of any size costs one scan of its results.
+ */
+export function completedClaimsMentioning(
+  store: Store,
+  tenant: string,
+  exceptKey: string,
+  needles: string[],
+): JsonObject[] {
+  const rows = new Map<string, JsonObject>(),
+    wanted = needles.filter(needle => needle.length > 0);
+  for (let i = 0; i < wanted.length; i += 50) {
+    const chunk = wanted.slice(i, i + 50);
+    const found = store
+      .sql()
+      .prepare(
+        "SELECT key,result FROM idempotency WHERE tenant_id=? AND state='complete' AND key<>? AND result IS NOT NULL AND (" +
+          chunk.map(() => 'instr(result,?)>0').join(' OR ') +
+          ')',
+      )
+      .all(tenant, exceptKey, ...chunk) as JsonObject[];
+    for (const row of found) rows.set(String(row.key), row);
+  }
+  return [...rows.values()];
+}
 /** The write claim of an idempotency key with the fingerprint it was taken for (state, result, fingerprint). */
 export function writeClaimFingerprint(store: Store, tenant: string, key: string): JsonObject | undefined {
   return store

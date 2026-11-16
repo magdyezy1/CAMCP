@@ -4,8 +4,7 @@ import {sha256, stable} from './security.js';
 import {normalizeAccount} from './scope.js';
 import {optional} from './workspace-core.js';
 import {openWriteClaims} from './job-repository.js';
-import {operationOf} from './review-summary.js';
-import {findCreated} from './write-reconciliation.js';
+import {createsObjects, findCreated} from './write-reconciliation.js';
 import {pendingUncertainMs, writeStatus} from './write-records.js';
 import {fail} from './write-common.js';
 
@@ -53,9 +52,8 @@ export function requestIdentity(plan: CompiledRequest): string {
     }),
   );
 }
-/** Whether the request creates objects: what the review summary calls a create, or a request that a created lookup can find. */
-export const createsObjects = (plan: CompiledRequest): boolean =>
-  operationOf(plan).operation === 'create' || findCreated(plan) !== undefined;
+// What a create is (the summary calls it one, or a lookup can find it) is the reconciler's, which reads the other creates' answers with it.
+export {createsObjects};
 
 /** One earlier create of the same request: its state, and what the reader may be told of it. */
 export interface EarlierCreate {

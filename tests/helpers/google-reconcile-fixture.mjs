@@ -195,6 +195,12 @@ export function googleReconcileFixture({tenant = 'google-reconcile', role = 'ope
           }
           return {resourceName: op.remove};
         }
+        // An update changes the fields it names on the object the resource name gives; Google answers with that resource name.
+        if (op.update) {
+          const {resource_name: target, ...fields} = op.update;
+          if (state.applied !== false) Object.assign(db[table].find(r => r.resource_name === target) ?? {}, fields);
+          return {resourceName: target};
+        }
         return {resourceName: make(collection, table, op.create)};
       }),
     };

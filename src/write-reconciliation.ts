@@ -24,7 +24,8 @@ import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './prov
 import {ownsRecord} from './actor-identity.js';
 import {mayResolve, pendingUncertainMs, reconciliationFreshMs, retainedReview, writeStatus} from './write-records.js';
 import {object} from './write-common.js';
-import {openWriteClaims, writeClaim} from './job-repository.js';
+import {completedClaimsMentioning, writeClaim} from './job-repository.js';
+import {operationOf} from './review-summary.js';
 
 /**
  * Read-only reconciliation of an uncertain reviewed write (WRT-08 Stage B). A write whose response was lost may or
@@ -142,6 +143,47 @@ export function findCreated(
   const read: StateReadBuilder = (path, query = {}, body, method = 'GET') => stateRead(plan, path, query, body, method);
   return providerHooks(plan.gateway)?.writes?.createdLookup?.(plan, read, context);
 }
+/** Whether the request creates objects: what the review summary calls a create, or a request that a created lookup can find. */
+export const createsObjects = (plan: CompiledRequest): boolean =>
+  operationOf(plan).operation === 'create' || findCreated(plan) !== undefined;
+const idMarker = '\u0000lookup-id-';
+/**
+ * The paths, in the receipt of a lookup, at which it puts the ID of what it found (an array index is any index): found without
+ * naming a provider, by asking the lookup for the receipt of marked objects (R2.5 M2, lead re-review N1).
+ */
+function receiptPaths(lookup: CreatedLookup, expected: number): string[][] {
+  const objects = Array.from({length: Math.max(1, expected)}, (_, i) => ({
+    index: i,
+    id: idMarker + i,
+    name: idMarker + i,
+    created: [idMarker + i],
+  }));
+  let template: unknown;
+  try {
+    template = lookup.receipt(objects);
+  } catch {
+    return [];
+  }
+  const paths = new Map<string, string[]>(),
+    walk = (value: unknown, path: string[]): void => {
+      if (typeof value === 'string') {
+        if (value.startsWith(idMarker)) paths.set(JSON.stringify(path), path);
+      } else if (Array.isArray(value)) for (const item of value) walk(item, [...path, '*']);
+      else if (value && typeof value === 'object')
+        for (const [key, item] of Object.entries(value)) walk(item, [...path, key]);
+    };
+  walk(template, []);
+  return [...paths.values()];
+}
+/** The IDs a stored answer holds at path (* is any array index). */
+function valuesAt(value: unknown, path: string[]): string[] {
+  if (!path.length) return typeof value === 'string' || typeof value === 'number' ? [String(value)] : [];
+  const [head, ...rest] = path;
+  if (head === '*') return Array.isArray(value) ? value.flatMap(item => valuesAt(item, rest)) : [];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? valuesAt((value as JsonObject)[head!], rest)
+    : [];
+}
 /**
  * For an update or removal whose targets the request names, the receipt the provider would have returned, so the
  * verification read contract names what to read and what to expect: its provider's (`writes.namedTargets`: Google
@@ -251,27 +293,44 @@ export class WriteReconciler {
     return {read, count: () => count};
   }
   /**
-   * The IDs that the receipts of this workspace's other completed writes name, since since: objects another review made (or was
-   * accepted as having made), which are not this write's, whatever their name and parent (R2.5 M2, lead review S2-3).
+   * Which of ids another create of the same kind already holds, and which review (R2.5 M2, lead re-review N1): a completed claim,
+   * or an accepted reconciliation, of a review that creates objects of this gateway and path, whose answer names the ID at a path where
+   * this lookup's own receipt puts one. An update's answer, a parent that a child's answer echoes, and any other value of any other
+   * write are not objects that another create made. Nothing is cut by count or by age (only the claims that name one of the IDs are read).
    */
-  private othersObjects(tenant: string, reviewId: string, since: number): Set<string> {
-    const ids = new Set<string>(),
-      walk = (v: unknown): void => {
-        if (typeof v === 'string' || typeof v === 'number') ids.add(String(v));
-        else if (Array.isArray(v)) v.forEach(walk);
-        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
-      };
-    for (const claim of openWriteClaims(this.store, tenant, since)) {
-      if (claim.state !== 'complete' || claim.key === reviewId || typeof claim.result !== 'string') continue;
+  private heldByOthers(
+    tenant: string,
+    review: JsonObject,
+    plan: CompiledRequest,
+    lookup: CreatedLookup,
+    expected: number,
+    ids: string[],
+  ): Map<string, string> {
+    const held = new Map<string, string>(),
+      paths = ids.length ? receiptPaths(lookup, expected) : [];
+    if (!paths.length) return held;
+    for (const claim of completedClaimsMentioning(this.store, tenant, String(review.id), ids)) {
+      let result: JsonObject;
       try {
-        const result = JSON.parse(claim.result);
-        walk(result.data);
-        walk(result.observed_ids);
-      } catch {}
+        result = JSON.parse(String(claim.result));
+      } catch {
+        continue;
+      }
+      if (result.action !== plan.action) continue;
+      const other = optional(this.store, tenant, 'write_review', String(claim.key));
+      if (
+        !other?.plan ||
+        other.plan.gateway !== plan.gateway ||
+        other.plan.path !== plan.path ||
+        !createsObjects(other.plan)
+      )
+        continue;
+      for (const path of paths)
+        for (const value of valuesAt(result.data, path))
+          if (ids.includes(value) && !held.has(value)) held.set(value, String(claim.key));
     }
-    return ids;
-  }
-  /** One round of observation: the targets' current values, the reviewed state, or the created resources. */
+    return held;
+  } /** One round of observation: the targets' current values, the reviewed state, or the created resources. */
   private async observe(
     tenant: string,
     review: JsonObject,
@@ -290,10 +349,17 @@ export class WriteReconciler {
         next = lookup.more?.(responses) ?? [];
       }
       const matched = lookup.match(responses, claimedAt, Date.now()),
-        // An object that another review's receipt names is that review's, however alike: it is neither found nor a doubt.
-        others = this.othersObjects(tenant, String(review.id), claimedAt - 120000),
-        found = matched.found.filter(f => !others.has(String(f.id))),
-        undated = (matched.undated ?? []).filter(u => !others.has(String(u.id))),
+        // An object that another create's receipt names is that create's, however alike: it is neither found nor a doubt.
+        held = this.heldByOthers(
+          tenant,
+          review,
+          plan,
+          lookup,
+          matched.expected,
+          [...matched.found, ...(matched.undated ?? [])].map(o => String(o.id)),
+        ),
+        found = matched.found.filter(f => !held.has(String(f.id))),
+        undated = (matched.undated ?? []).filter(u => !held.has(String(u.id))),
         {expected, complete} = matched;
       // Applied only when each record has its one dated match and nothing of that name is left that the lookup cannot tell
       // from an older object; absent only when the list was complete and holds nothing of that name at all (R2.5 M2).

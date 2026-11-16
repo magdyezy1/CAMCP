@@ -83,6 +83,8 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
       filterZoneMs: 0,
       displayZoneMs: 0,
       pageSize: undefined,
+      // A create's answer also names its parent (an ad group's campaign, an ad's ad group), as an answer may echo it.
+      echoParent: false,
     };
   const fetcher = async (raw, init = {}) => {
     const url = new URL(String(raw)),
@@ -122,7 +124,13 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
       // The provider applied the create (unless a test says it did not) and the answer was lost.
       if (state.applied !== false) rows[kind].push(row);
       if (state.lose) throw new TypeError('synthetic lost response');
-      return Response.json(answer(kind === 'ad' ? {ad_ids: [id]} : {[idKey[kind]]: id}));
+      return Response.json(
+        answer({
+          ...(kind === 'ad' ? {ad_ids: [id]} : {[idKey[kind]]: id}),
+          ...(state.echoParent && kind === 'adgroup' ? {campaign_id: body.campaign_id} : {}),
+          ...(state.echoParent && kind === 'ad' ? {adgroup_id: body.adgroup_id} : {}),
+        }),
+      );
     }
     if (path === '/v1.3/advertiser/info/') return Response.json(answer({list: [advertiserAnswer(world, url)]}));
     const kind = /^\/v1\.3\/(campaign|adgroup|ad)\/get\/$/.exec(path)?.[1];
@@ -192,6 +200,7 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
   return {
     store,
     actor,
+    connection,
     world,
     rows,
     requests,
