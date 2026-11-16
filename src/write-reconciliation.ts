@@ -10,6 +10,7 @@ import {MirrorError, connectorReadOnly, readOnlyDeployment} from './errors.js';
 import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
+import {runWithQuotaPurpose} from './provider-quota.js';
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {verificationReads, normalize, differing, entity} from './verification-reads.js';
@@ -452,7 +453,12 @@ export class WriteReconciler {
     try {
       for (let round = 0; round < 2; round++) {
         if (round) await pause(roundPauseMs());
-        rounds.push(await this.observe(actor.tenantId, review, plan, read, claimedAt));
+        // The reads of a reconciliation, the person's and the worker's alike, are reserved work, as the read-backs of write
+        // verification are (OPS-08): a handful of reads that may use the reserved slice of a provider app's quota when a busy or
+        // throttled workspace has used its standard share (the lead's decision on the report's quota class).
+        rounds.push(
+          await runWithQuotaPurpose('reserved', () => this.observe(actor.tenantId, review, plan, read, claimedAt)),
+        );
       }
     } catch (e) {
       if (!providerFailure(e)) throw e;
