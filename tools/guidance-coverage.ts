@@ -157,6 +157,11 @@ const operational: [string, string[]][] = [
     ['POLICY_AMOUNT_INVALID', 'INCOMPLETE_STATE', 'MUTATION_PAGINATION_FORBIDDEN', 'LIBRARY_REVIEW_EXISTS'],
   ],
   [
+    // R2.5 M2 (lead review S3-5): the guard against creating twice (src/write-duplicates.ts), raised at prepare and at execute.
+    'The guard against creating twice: the refusal names the earlier review, the call that settles it and what to do, and its remedy says the same.',
+    ['DUPLICATE_OF_UNCERTAIN_WRITE', 'DUPLICATE_OF_COMPLETED_WRITE'],
+  ],
+  [
     // ARC-01 phase B (wave 4c): recipe_lookup's Google search is its adapter's hook (src/google-search-recipes.ts), so
     // the provider hooks registry puts it on this path although no reviewed write raises it.
     'A campaign recipe lookup (amcp_campaign recipe_lookup), not a reviewed write; the message says to narrow the search.',
