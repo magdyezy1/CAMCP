@@ -45,8 +45,18 @@ const rowsOf = (response: unknown, entity: string): JsonObject[] => {
   const results = object(object(response).data).results;
   return (Array.isArray(results) ? results : []).map(r => object(object(r)[camel(entity)]));
 };
-/** True unless a response leaves a page unread. */
-const wholeAnswer = (responses: {data?: unknown}[]) => responses.every(r => !object(r.data).nextPageToken);
+/** The most rows a lookup's search asks for (its LIMIT). */
+const searchLimit = 100;
+/**
+ * True unless a response leaves a page unread, or, for a search with a LIMIT, has as many rows as it: Google answers a search cut by
+ * its LIMIT with no page token, so the answer may be the first of more, and a lookup never calls such an answer whole (R2.5 M2, lead
+ * review S2-4).
+ */
+const wholeAnswer = (responses: {data?: unknown}[], limit?: number) =>
+  responses.every(r => {
+    const data = object(r.data);
+    return !data.nextPageToken && !(limit !== undefined && Array.isArray(data.results) && data.results.length >= limit);
+  });
 /**
  * Google Ads creates of named resources (campaigns, budgets, ad groups, asset groups): one bounded search by the frozen
  * names. Google refuses a duplicate name for these, so one match per name is the created resource. A build, an asset link
@@ -82,7 +92,8 @@ export function googleCreated(
     resource +
     '.name IN (' +
     names.map(n => "'" + n + "'").join(', ') +
-    ') LIMIT 100';
+    ') LIMIT ' +
+    searchLimit;
   return {
     reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
     match(responses) {
@@ -95,7 +106,7 @@ export function googleCreated(
         doubts = named.flatMap((list, i) => list.filter(r => !agrees(creates[i]!, r, echoes)));
       return {
         expected: names.length,
-        complete: !object(responses[0]?.data).nextPageToken,
+        complete: wholeAnswer(responses, searchLimit),
         found: found.every(list => list.length === 1)
           ? found.map((list, index) => ({index, id: list[0]!.resource_name, name: names[index]}))
           : found.flat().map(r => ({id: r.resource_name, name: r.name})),
@@ -120,8 +131,22 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
     parentField: Record<string, string> = {campaign: 'campaign_budget', ad_group: 'campaign', asset_group: 'campaign'},
     resources = [...new Set(build.anchors.map(a => a.resource))];
   const reads = resources.map(resource => {
-    const names = [...new Set(build.anchors.filter(a => a.resource === resource).map(a => a.name))],
-      fields = ['resource_name', 'name', ...(parentField[resource] ? [parentField[resource]!] : [])];
+    const anchors = build.anchors.filter(a => a.resource === resource),
+      names = [...new Set(anchors.map(a => a.name))],
+      fields = ['resource_name', 'name', ...(parentField[resource] ? [parentField[resource]!] : [])],
+      // The parent the build gave them, in the query, where every one of them is an existing resource (not one the build creates):
+      // ad group and asset group names repeat across campaigns, so a search by name alone may be cut by its LIMIT (S2-4).
+      parents =
+        parentField[resource] &&
+        anchors.every(
+          a =>
+            !!a.parent &&
+            !build.anchorTemps.includes(a.parent.ref) &&
+            !/\/-\d+$/.test(a.parent.ref) &&
+            gaqlText(a.parent.ref),
+        )
+          ? [...new Set(anchors.map(a => a.parent!.ref))]
+          : [];
     return read(
       googleAdsCustomers + id + '/googleAds:search',
       {},
@@ -137,7 +162,18 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
           names.map(n => "'" + n + "'").join(', ') +
           ') AND ' +
           resource +
-          ".status != 'REMOVED' LIMIT 100",
+          ".status != 'REMOVED'" +
+          (parents.length
+            ? ' AND ' +
+              resource +
+              '.' +
+              parentField[resource] +
+              ' IN (' +
+              parents.map(p => "'" + p + "'").join(', ') +
+              ')'
+            : '') +
+          ' LIMIT ' +
+          searchLimit,
       },
       'POST',
     );
@@ -178,7 +214,7 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
         : [...picked.map(({index: _index, ...rest}) => rest), ...others].filter(
             (f, i, all) => all.findIndex(g => g.id === f.id) === i,
           );
-      return {found, expected: build.anchors.length, complete: wholeAnswer(responses)};
+      return {found, expected: build.anchors.length, complete: wholeAnswer(responses, searchLimit)};
     },
     receipt: found => ({
       mutateOperationResponses: build.operations.map((op, i) => {
