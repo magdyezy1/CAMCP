@@ -582,7 +582,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 3: +4 entries, the website's wording of an X entry on the Preview your ads page (the Tweet, the promoted Tweet and the
   // promoted Tweets that share it: web/ad-previews.js previewIdentity) and of the hint beside the ad IDs, shown for X alone:
   // 12,159 + 4 = 12,163. Measured: node tools/check-locales.mjs, catalog_messages 12163.
-  assert.equal(Object.keys(catalog).length, 12163);
+  // Its review round (S4-5): +1 entry, the sentence of X's answer for a Tweet ID that is not among the account's dark Tweets
+  // (src/x-ad-previews.ts xDarkTweetNotFound, in web/locales/ar/providers.json), kept as short as its English allows: 12,163 + 1 =
+  // 12,164. Measured: node tools/check-locales.mjs, catalog_messages 12164.
+  assert.equal(Object.keys(catalog).length, 12164);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

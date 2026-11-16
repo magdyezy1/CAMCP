@@ -52,6 +52,13 @@ export const xPreviewReasons = Object.freeze({
   link_not_accepted: 'X returned a preview that AMCP does not accept as a safe link, so none is shown.',
 });
 type Reason = keyof typeof xPreviewReasons;
+/**
+ * Why Tweet IDs a caller named are not found, when every one of them was searched for among the account's dark Tweets (`GET tweets`,
+ * `timeline_type: NULLCAST`, the default user's) and none was there. The shared "Not in this account" is untrue of a Tweet that is the
+ * account's own and promoted rather than dark, so this says what was searched and what to name instead. A closed sentence, with
+ * Arabic, never any text of X's.
+ */
+export const xDarkTweetNotFound = 'Not among this account’s dark Tweets; use its promoted Tweet ID.';
 
 /** Where X's preview page is (TP4); the live answer of 2026-11-16 and the version 12 page agree, an older guide example does not. */
 const previewHost = 'ton.twimg.com',
@@ -152,6 +159,8 @@ function normalize(kind: 'ad' | 'campaign' | 'adset', values: string[]): string[
       fail(
         'INVALID_ARGUMENT',
         'X preview filters use X’s own IDs: campaign IDs in campaign_ids and line item IDs in adset_ids.',
+        // The filter the refusal is of, as the shared refusal of the filters names it.
+        {field: kind === 'campaign' ? 'campaign_ids' : 'adset_ids'},
       );
   return values;
 }
@@ -260,7 +269,9 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
   };
 
   let paging: JsonObject = {},
-    missing: string[] = [];
+    missing: string[] = [],
+    // Every ID not found is a Tweet ID that was searched for among the account's dark Tweets (see xDarkTweetNotFound).
+    darkOnly = false;
   if (wanted) {
     // Named IDs: a promoted-Tweet ID is read from the account's promoted Tweets (deleted ones listed, as named IDs ignore
     // statuses); a Tweet ID is proven among the account's own dark Tweets before anything is previewed, unless the Tweet is the
@@ -290,9 +301,10 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
     const chosen = new Map([...found].filter(([, row]) => matches(asRow(row), true))),
       covered = new Set([...chosen.values()].map(row => row.tweet)),
       lookup = tweetNamed.filter(id => !covered.has(id)),
-      dark = new Map<string, string | null>();
-    // A Tweet has no campaign or line item: with either filter it cannot match, so it is not even looked for.
-    if (lookup.length && !campaigns.length && !adsets.length) {
+      dark = new Map<string, string | null>(),
+      // A Tweet has no campaign or line item: with either filter it cannot match, so it is not even looked for.
+      searched = lookup.length > 0 && !campaigns.length && !adsets.length;
+    if (searched) {
       const listed = collection(
         await read({
           action: tweetsAction,
@@ -343,6 +355,7 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
       }
     }
     missing = wanted.filter(id => !resolved.has(id));
+    darkOnly = searched && missing.length > 0 && missing.every(id => lookup.includes(id));
   } else {
     // The account's promoted Tweets, a native page of 100 at a time on X's own cursor, filtered by status, campaign and line
     // item. A line item filter goes to X as well (it is documented, up to 200 IDs) and is applied again to what comes back.
@@ -410,7 +423,8 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
       if (link === null) return without('link_not_accepted');
       return {links: [link], expires: xNoExpiry};
     },
-    extra: {...paging, ...notListed(missing)},
+    // The reason is true of every ID of the list: the shared one, or, when each was searched for among the dark Tweets, that.
+    extra: {...paging, ...notListed(missing), ...(darkOnly ? {not_found_reason: xDarkTweetNotFound} : {})},
   };
 }
 

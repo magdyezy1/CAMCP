@@ -14,6 +14,7 @@ import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {
+  xDarkTweetNotFound,
   xNoExpiry,
   xPreviewBatches,
   xPreviewLink,
@@ -455,6 +456,20 @@ test('a named ID the account does not hold is reported not found and never reach
   const promotedOnly = ok(await f.previews({ad_ids: [tweet(3)]}));
   assert.deepEqual(promotedOnly.previews, []);
   assert.deepEqual(promotedOnly.not_found, [tweet(3)]);
+  // Review S4-5. "Not in this account" is untrue of that Tweet, which can be the account's own: what was searched is said, and what
+  // to name instead, in one closed sentence (it has Arabic: tests/ad-previews-localization.test.mjs). The same for a Tweet ID no list
+  // of the account holds, which the search cannot tell from it.
+  assert.equal(xDarkTweetNotFound, 'Not among this account’s dark Tweets; use its promoted Tweet ID.');
+  assert.equal(promotedOnly.not_found_reason, xDarkTweetNotFound);
+  const stranger = ok(await f.previews({ad_ids: [tweet(77)]}));
+  assert.deepEqual(stranger.not_found, [tweet(77)]);
+  assert.equal(stranger.not_found_reason, xDarkTweetNotFound);
+  // The sentence is for a list in which every ID was searched for among the dark Tweets. An ID that is a promoted-Tweet ID (or of
+  // no shape) in the list leaves the shared reason, which is true of every ID of the list.
+  const mixed = ok(await f.previews({ad_ids: [tweet(3), 'zz9']}));
+  assert.deepEqual(mixed.not_found, [tweet(3), 'zz9']);
+  assert.equal(mixed.not_found_reason, 'Not in this account');
+  assert.equal(ok(await f.previews({ad_ids: ['zz9']})).not_found_reason, 'Not in this account');
   // Named with its promotion, the Tweet is proven by the promotion: no search of the dark Tweets, one entry, nothing missing.
   const tweetReads = f.reads('/tweets').length,
     withPromotion = ok(await f.previews({ad_ids: [tweet(3), 'pt3']}));
@@ -501,6 +516,8 @@ test('named IDs ignore statuses, but the campaign and line item filters still ap
     dark = ok(await f.previews({ad_ids: [tweet(90)], campaign_ids: ['cm1']}));
   assert.deepEqual(dark.not_found, [tweet(90)]);
   assert.equal(f.reads('/tweets').length, before);
+  // It was not searched for, so the reason is the filters’, not the dark Tweets’ (the sentence of S4-5 would say what was not done).
+  assert.equal(dark.not_found_reason, 'No matching ad in this account for the selected campaign and ad set filters.');
 });
 
 test('named IDs are asked for once, and two IDs of one Tweet are one entry, in the order named', async t => {
@@ -985,12 +1002,15 @@ test('the gates of the tool stay: a connection and account of X are needed, X ta
   assertRefused(await f.previews({account_id: 'another'}), 'CONNECTION_REQUIRED');
   assertRefused(await f.previews({connection_id: 'bbbbbbbb-2222-4222-8222-000000000002'}), 'CONNECTION_REQUIRED');
   assertRefused(await f.previews({ad_format: 'MOBILE_FEED_STANDARD'}), 'INVALID_ARGUMENT');
-  assertRefused(await f.previews({campaign_ids: ['a:b']}), 'INVALID_ARGUMENT', {
-    message: /X preview filters use X’s own IDs/,
-  });
-  assertRefused(await f.previews({adset_ids: ['UPPER']}), 'INVALID_ARGUMENT', {
-    message: /X preview filters use X’s own IDs/,
-  });
+  // Review S4-5: the refusal names the filter it is of, as the shared refusal of the filters does (`details.field`).
+  for (const [input, field] of [
+    [{campaign_ids: ['a:b']}, 'campaign_ids'],
+    [{adset_ids: ['UPPER']}, 'adset_ids'],
+  ]) {
+    const refused = await f.previews(input);
+    assertRefused(refused, 'INVALID_ARGUMENT', {message: /X preview filters use X’s own IDs/});
+    assert.equal(refused.error.details?.field, field, field);
+  }
   assert.deepEqual(f.log, [], 'a refused request makes no read');
   // A connection of X cannot serve another platform’s previews.
   assertRefused(await f.previews({platform: 'meta'}), 'CONNECTION_REQUIRED');

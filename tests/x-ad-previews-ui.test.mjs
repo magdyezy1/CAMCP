@@ -131,8 +131,9 @@ const answer = {
   meaning: 'Synthetic notice.',
   has_more: false,
   next_cursor: null,
-  not_found: ['zz9'],
-  not_found_reason: 'Not in this account',
+  // A Tweet ID that is not among the account's dark Tweets, with the sentence the tool gives for it (review S4-5).
+  not_found: [tweet(77)],
+  not_found_reason: 'Not among this account’s dark Tweets; use its promoted Tweet ID.',
 };
 const rows = html => [...html.matchAll(/<div class="token-row"[\s\S]*?<\/div><\/div>/g)].map(m => m[0]);
 
@@ -195,7 +196,10 @@ test('an X entry shows its Tweet, the promoted Tweets that share it, the validat
   assert.doesNotMatch(missing, /Promoted Tweets|<a /);
   assert.match(missing, /X returned no preview for this Tweet\./);
   // The IDs not found, and the platform’s notice, follow the rows.
-  assert.match(f.results.innerHTML, /Not found: zz9\. Not in this account/);
+  assert.match(
+    f.results.innerHTML,
+    new RegExp('Not found: ' + tweet(77) + '\\. Not among this account’s dark Tweets; use its promoted Tweet ID\\.'),
+  );
   assert.match(f.results.innerHTML, /Synthetic notice\./);
   // The page opens https links only: a value that is not one never becomes a link.
   const hostile = f.submit();
@@ -229,6 +233,7 @@ test('every sentence the page adds for X has Arabic in the chunks the page loads
     expires,
     'X returned no preview for this Tweet.',
     'X returned a preview that AMCP does not accept as a safe link, so none is shown.',
+    'Not among this account’s dark Tweets; use its promoted Tweet ID.',
   ])
     assert.ok(Object.hasOwn(catalog, message) && catalog[message].match(arabic), message);
   const f = fixture('ar'),
@@ -242,6 +247,12 @@ test('every sentence the page adds for X has Arabic in the chunks the page loads
   assert.ok(dark.includes(catalog['Tweet {tweet}'].replace('{tweet}', tweet(90))), dark);
   assert.ok(missing.includes(catalog['Promoted Tweet {promoted}'].replace('{promoted}', 'pt3')), missing);
   assert.ok(missing.includes(catalog['X returned no preview for this Tweet.']), missing);
+  // The IDs not found keep their form, and the reason the tool gives for a Tweet ID is read in Arabic.
+  assert.ok(f.results.innerHTML.includes(catalog['Not found:'] + ' ' + tweet(77)), 'the Tweet ID not found');
+  assert.ok(
+    f.results.innerHTML.includes(catalog['Not among this account’s dark Tweets; use its promoted Tweet ID.']),
+    'the reason is in Arabic',
+  );
   // Names and IDs stay as X gave them.
   assert.ok(dark.includes('Dark launch') && promoted.includes(tweet(1)));
 });

@@ -514,8 +514,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
   // Package r12-xpreview (item 2): +4 entries and -1, as tests/backend-contract-localization.test.mjs counts them (the Arabic of
   // X's previews' sentences; the sentence that said X's previews were not qualified leaves): 12,156 + 3 = 12,159. Its item 3 adds
-  // the four website entries counted there: 12,159 + 4 = 12,163.
-  assert.equal(Object.keys(catalog).length, 12163);
+  // the four website entries counted there: 12,159 + 4 = 12,163. Its review round (S4-5) adds the one entry counted there, the
+  // sentence for a Tweet ID that is not among the account's dark Tweets: 12,163 + 1 = 12,164.
+  assert.equal(Object.keys(catalog).length, 12164);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

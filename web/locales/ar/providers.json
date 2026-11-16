@@ -1883,6 +1883,7 @@
   "No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.": "لم يُسجَّل أي إيصال نسخ احتياطي مُتحقَّق منه. استخدم أمر النسخ الاحتياطي المشفّر واختبر الاستعادة قبل الاعتماد عليها.",
   "No worker is registered for this job kind.": "لا يوجد عامل مسجل لهذا النوع من المهام.",
   "Normalize this media’s rotation before upload.": "سوِّ دوران هذه الوسائط قبل رفعها.",
+  "Not among this account’s dark Tweets; use its promoted Tweet ID.": "ليست ضمن التغريدات الإعلانية فقط في هذا الحساب؛ استخدم معرّف تغريدتها المروّجة.",
   "Not every requested Tweet could be read under the selected account.": "تعذرت قراءة جميع تغريدات Tweet المطلوبة ضمن الحساب المختار.",
   "Not in this account": "غير موجود في هذا الحساب",
   "Note": "ملاحظة",

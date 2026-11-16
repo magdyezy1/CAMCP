@@ -11749,6 +11749,7 @@
   "X returned no preview for this Tweet.": "لم تُرجع X معاينة لهذه التغريدة.",
   "X returned a preview that AMCP does not accept as a safe link, so none is shown.": "أعادت X معاينة لا تقبلها AMCP كرابط آمن، لذلك لا يُعرض أي رابط.",
   "X preview filters use X’s own IDs: campaign IDs in campaign_ids and line item IDs in adset_ids.": "تستخدم فلاتر معاينة X معرّفات X نفسها: معرّفات الحملات في campaign_ids ومعرّفات البنود الإعلانية في adset_ids.",
+  "Not among this account’s dark Tweets; use its promoted Tweet ID.": "ليست ضمن التغريدات الإعلانية فقط في هذا الحساب؛ استخدم معرّف تغريدتها المروّجة.",
   "Tweet {tweet}": "التغريدة {tweet}",
   "Promoted Tweet {promoted}": "التغريدة المروّجة {promoted}",
   "Promoted Tweets {promoted}": "التغريدات المروّجة {promoted}",

@@ -88,20 +88,23 @@ const answers = {
             row => !input.query.promoted_tweet_ids || input.query.promoted_tweet_ids.split(',').includes(row.id),
           ),
         }
-      : {
-          data:
-            xPreview === 'silent'
-              ? []
-              : [
-                  {
-                    tweet_id: '1900000000000000001',
-                    preview:
-                      xPreview === 'hostile'
-                        ? "<iframe src='https://evil.example/'>"
-                        : "<iframe class='tweet-preview' src='https://ton.twimg.com/ads-manager/tweet-preview/index.html?data=x'>",
-                  },
-                ],
-        },
+      : input.action === 'x_accounts_account_id_tweets_get'
+        ? // The account's dark Tweets: it has none, so a Tweet ID named is not among them.
+          {next_cursor: null, data: []}
+        : {
+            data:
+              xPreview === 'silent'
+                ? []
+                : [
+                    {
+                      tweet_id: '1900000000000000001',
+                      preview:
+                        xPreview === 'hostile'
+                          ? "<iframe src='https://evil.example/'>"
+                          : "<iframe class='tweet-preview' src='https://ton.twimg.com/ads-manager/tweet-preview/index.html?data=x'>",
+                    },
+                  ],
+          },
 };
 let xPreview = 'link';
 function run(t, platform, extra = {}) {
@@ -129,17 +132,20 @@ test('every notice the tool answers with, on every platform, has Arabic in the c
     for (const text of sentences(await run(t, platform))) texts.add(text);
   // A named Snapchat creative the account does not list, and an unknown Reddit preview expiry.
   for (const text of sentences(await run(t, 'snapchat', {ad_ids: ['unlisted']}))) texts.add(text);
-  // X: a preview link (its expiry is not stated), no entry for the Tweet, a snippet that is no safe link, and a named ID of the
-  // account that holds none. Its sentences are collected from its answers like every platform's.
+  // X: a preview link (its expiry is not stated), no entry for the Tweet, a snippet that is no safe link, a named ID of the
+  // account that holds none, and (review S4-5) a Tweet ID that is not among the account's dark Tweets. Its sentences are collected
+  // from its answers like every platform's.
   const xTexts = new Set();
   for (xPreview of ['link', 'silent', 'hostile'])
     for (const text of sentences(await run(t, 'x_ads', {ad_ids: ['p1']}))) xTexts.add(text);
   for (const text of sentences(await run(t, 'x_ads', {ad_ids: ['unlisted']}))) xTexts.add(text);
+  for (const text of sentences(await run(t, 'x_ads', {ad_ids: ['1900000000000000077']}))) xTexts.add(text);
   for (const text of [
     'X states no expiry for this preview link.',
     'X returned no preview for this Tweet.',
     'X returned a preview that AMCP does not accept as a safe link, so none is shown.',
     'Not in this account',
+    'Not among this account’s dark Tweets; use its promoted Tweet ID.',
   ])
     assert.ok(xTexts.has(text), 'the X answers carry: ' + text);
   for (const text of xTexts) texts.add(text);
