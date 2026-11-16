@@ -47,6 +47,14 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 Snapshots of a family's marked reads are normalized as its reader projected them (`normalizeSnapshot`); a stable
 projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
 
+A read that is not the object the write changes declares its role where the family builds it, with `stateRole`:
+`'account'` for the account a create is made in (the review keeps the identity fields its provider names, so a balance or
+a signed link that changes by itself never refuses a write), `'parent'` for the campaign or ad group a child goes under
+(kept whole, as a target is: a change of its budget, bid or schedule refuses), `'reference'` for an object the write only
+names (kept to the fields the write uses). A read with no role is the target. `readRole` (`src/review-state-core.ts`) is
+the one lookup of the role, asked by the state stage and by the `material` a `STATE_CHANGED` lists; no module reads
+`stateRole` itself (`tests/review-read-role.test.mjs`).
+
 ## The family kit
 
 `src/family-kit.ts` (ARC-04 stage C) holds what family modules used to copy:
@@ -132,7 +140,10 @@ A family module imports no lifecycle module (ARC-04): the registry imports every
 `scope.ts`, `review-state.ts`, `execution-risk.ts`, `write-shape.ts` or another module that reaches the registry joins
 a runtime import cycle with it. Pure helpers come from leaves instead: `normalizeAccount` from `src/account-id.ts`,
 `normalizeReviewState`, `reviewStateHash` and `changedStateFields` from `src/review-state-core.ts` (the old modules
-re-export them); the lifecycle stages a family applies to requests it builds arrive as hook arguments (`shape`,
+re-export them), each with the provider's `review.volatile` table as its last argument, which a family takes from the
+provider's own leaf (`src/snapchat-review-volatile.ts`); a verification compares what a write sent with what is stored
+through `changedComparableFields` and `comparableStateHash`, which apply no URL rule; the lifecycle stages a family
+applies to requests it builds arrive as hook arguments (`shape`,
 `classify`, the read builders). A value read while a module is evaluated (a top-level constant taken from another
 module) belongs in a leaf as well, such as `src/tiktok-paths.ts`. `npm run architecture:check` refuses a module that
 joins a cycle, and `tests/import-order.test.mjs` imports every module first and fails on a load-time `ReferenceError`.
