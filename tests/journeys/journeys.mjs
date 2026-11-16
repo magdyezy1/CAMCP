@@ -1,4 +1,4 @@
-// The ten user journeys of the QA-04 baseline (R27 journey map, J9 of V2-MCP-02 and J10 of R2.5 M2), each with success, failure, unavailable-account and
+// The ten user journeys of the QA-04 baseline (R27 journey map, J9 of V2-MCP-02 and J14 of R2.5 M2 (J10 to J13 are the plan's, M3's Google journeys)), each with success, failure, unavailable-account and
 // incomplete-evidence branches. A branch is a scripted person and client: it calls MCP tools and the website API the
 // way the journey's surfaces do, follows the next calls AMCP offers, and reports whether the journey's goal was
 // reached. The harness records every call; tools/mcp-eval.mjs turns the transcripts into metrics and compares them
@@ -270,19 +270,19 @@ async function quickly(body) {
 /** The worker's automatic check of every uncertain write, run at once (not a call of the client). */
 const automaticCheck = f => quickly(() => f.work());
 /**
- * The setup of J10, made directly (the client did not make it, so no call of it is counted): a plan whose paused campaign
+ * The setup of J14, made directly (the client did not make it, so no call of it is counted): a plan whose paused campaign
  * create is executed with its response lost. The provider applied it, or did not, as the branch says. Returns the review id.
  */
 async function lostPlanCreate(f, {applied}) {
   const direct = async (args, tool = 'amcp_campaign') => {
     const result = await f.service.call(tool, args, f.actor);
-    if (!result.success) throw Error('J10 setup failed: ' + tool + ' ' + args.action + ' ' + result.error?.code);
+    if (!result.success) throw Error('J14 setup failed: ' + tool + ' ' + args.action + ' ' + result.error?.code);
     return result;
   };
   const plan = (
     await direct({
       action: 'create',
-      name: 'Journey J10',
+      name: 'Journey J14',
       brief: 'A paused traffic campaign for the journey evaluation.',
       steps: [pausedCampaign()],
     })
@@ -826,7 +826,7 @@ export const journeys = Object.freeze([
     },
   },
   {
-    id: 'J10',
+    id: 'J14',
     title: 'uncertain write → automatic check → one status → one reconcile or replacement',
     surfaces: ['mcp'],
     note: 'G3 of the Round 2.5 plan (R2.5 M2, L5-05). The plan step whose create response is lost is set up directly, as the client did not make it; the worker runs the check it queued, as the worker process would, and every call after that is the client’s. An uncertain write is settled by reads alone: the client never sends the create again.',

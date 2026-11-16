@@ -288,9 +288,9 @@ export function syntheticProviders() {
     mutations: 0,
     egress_refused: 0,
     lost: false,
-    // A lost create the provider did not apply leaves no campaign (J10); the default is the one every journey had: it applied it.
+    // A lost create the provider did not apply leaves no campaign (J14); the default is the one every journey had: it applied it.
     lostApplied: true,
-    // Meta lists an account's campaigns, each with the creation time it stamped (J10, the reconciliation of a lost create).
+    // Meta lists an account's campaigns, each with the creation time it stamped (J14, the reconciliation of a lost create).
     campaignList: false,
     outage: false,
     accountStatus: 1,

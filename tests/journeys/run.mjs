@@ -7,7 +7,7 @@ import {taskSet, runTask} from './tasks.mjs';
 import {evaluationSet, runEvaluationSet} from './evaluation-set.mjs';
 
 /**
- * Every run identifier the suites know: J1/success … J10/incomplete_evidence, T1/reference … H2/guided, and the
+ * Every run identifier the suites know: J1/success … J9/incomplete_evidence, J14/success … J14/incomplete_evidence, T1/reference … H2/guided, and the
  * evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
  */
 export const runIds = Object.freeze({
