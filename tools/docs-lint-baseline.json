@@ -346,10 +346,16 @@
       "raised": [
         "reference_words 162155 → 162216"
       ]
+    },
+    {
+      "reason": "Package r12-xpreview, review round: +28 reference words (162216 to 162244): docs/AD-PREVIEWS.md says that the link of X is the iframe src with one data parameter (4 words) and that for X active is the promoted Tweet's own status, so it can include an active promoted Tweet under a paused line item or campaign (24 words). Both state what the package's review round fixed, which no other maintained page states. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 162216 → 162244"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 162216
+    "reference_words": 162244
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
