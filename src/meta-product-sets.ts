@@ -259,6 +259,12 @@ export function metaProductSetSnapshots(p: CompiledRequest): Read[] {
 export function isMetaProductSetRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).metaProductSetState;
 }
+/**
+ * The first page of the product sets of a create's catalog, tagged with the catalog as the family's own state read tags its
+ * pages, so that this family's authorizer claims it (R2.5 M2: the created lookup lists what the catalog holds now).
+ */
+export const metaProductSetListRead = (p: CompiledRequest): CompiledRequest =>
+  graph(p, idOf(p) + '/product_sets', {fields: setFields, limit: pageSize}, {catalog: idOf(p)});
 const filterValue = (v: unknown): unknown => {
   if (typeof v !== 'string') return object(v) ? v : v === undefined || v === null ? null : v;
   if (!v.trim()) return {};

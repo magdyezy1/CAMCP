@@ -23,7 +23,7 @@ import {defineFamily, fail, readOf} from './family-kit.js';
  */
 type Kind = 'create' | 'update' | 'delete';
 type State = {kind: Kind; catalog?: string; verify?: boolean};
-type Page = {catalog?: string};
+type Page = {catalog?: string; business?: string};
 type Read = CompiledRequest & {metaCatalogState?: State; metaCatalogPage?: Page};
 const gateway = 'meta_native_action',
   marker = 'AMCP_META_PRODUCT_CATALOG_READ',
@@ -141,6 +141,12 @@ export function metaProductCatalogSnapshots(p: CompiledRequest): Read[] {
 export function isMetaProductCatalogRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).metaCatalogState;
 }
+/**
+ * The first page of the catalogs a create's business owns, tagged with that business as the family's own reads are tagged
+ * with a catalog, so that this family's authorizer claims it (R2.5 M2: the created lookup lists what the business holds now).
+ */
+export const metaProductCatalogListRead = (p: CompiledRequest): CompiledRequest =>
+  graph(p, idOf(p) + '/owned_product_catalogs', {fields: 'id,name', limit: pageSize}, {business: idOf(p)});
 /** Writes after validation, and the family's reads: the account, and the tagged catalog with its sets and feeds. */
 export function authorizeMetaProductCatalog(p: CompiledRequest, c: Connection, selected: string): boolean {
   if (metaProductCatalogKind(p)) {
@@ -169,6 +175,9 @@ export function authorizeMetaProductCatalog(p: CompiledRequest, c: Connection, s
       String(p.query.limit) === String(pageSize) &&
       ['fields,limit', 'after,fields,limit'].includes(keys);
   if (p.path === metaPrefix + 'act_' + selected) return keys === 'fields' && p.query.fields === 'id,business{id}';
+  // The business a catalog create names: its catalogs, to find the one a lost create made (R2.5 M2).
+  if (page.business && numeric(page.business) && p.path === metaPrefix + page.business + '/owned_product_catalogs')
+    return paged;
   if (page.catalog && numeric(page.catalog)) {
     if (p.path === metaPrefix + page.catalog) return keys === 'fields' && p.query.fields === catalogFields;
     if (

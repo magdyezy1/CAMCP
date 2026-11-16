@@ -1691,6 +1691,12 @@ export interface CreatedLookupContext {
 export interface CreatedLookup {
   reads: CompiledRequest[];
   /**
+   * The reads that follow the responses so far, where a list is longer than its page (R2.5 M2: Meta's lists): the next page
+   * of each list whose last answer names one, and none once every list is whole. Asked after each batch of reads, for at most
+   * ten batches (src/write-reconciliation.ts); `match` then gets every response in the order they were read.
+   */
+  more?(responses: TransportResult[]): CompiledRequest[];
+  /**
    * Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked.
    * `found` are the resources of the frozen name and parent that the lookup can show were created by this write, each
    * with the `index` of its record. `undated` (R2.5 M2) are resources of that name and parent that it cannot tell from

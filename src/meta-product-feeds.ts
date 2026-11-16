@@ -200,6 +200,12 @@ export function metaProductFeedSnapshots(p: CompiledRequest): Read[] {
 export function isMetaProductFeedRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).metaFeedState;
 }
+/**
+ * The first page of the feeds of a create's catalog, tagged with the catalog as the family's own state read tags its pages,
+ * so that this family's authorizer claims it (R2.5 M2: the created lookup lists what the catalog holds now).
+ */
+export const metaProductFeedListRead = (p: CompiledRequest): CompiledRequest =>
+  graph(p, idOf(p) + '/product_feeds', {fields: feedFields, limit: pageSize}, {catalog: idOf(p)});
 /** Writes after validation, and the family's reads: the account, its business's catalogs and the tagged catalog or feed. */
 export function authorizeMetaProductFeed(p: CompiledRequest, c: Connection, selected: string): boolean {
   if (metaProductFeedKind(p)) {

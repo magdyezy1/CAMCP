@@ -65,6 +65,8 @@ const reconcileCooldownMinutes = [2, 5, 10, 20, 30];
 /** The pause after unsettled automatic check number `attempt` (1-based) before the next one. */
 export const reconcileCooldownMs = (attempt: number) =>
   reconcileCooldownMinutes[Math.min(Math.max(attempt, 1), reconcileCooldownMinutes.length) - 1]! * 60000;
+/** The most batches of reads one observation of a create makes: the first, and a page after it for each list that says more follows. */
+const createdLookupPages = 10;
 /** A classification that settles what a person is asked next: accept it as applied, or prepare a replacement. */
 const decisive = (classification: unknown) =>
   classification === 'appears_applied' || classification === 'appears_not_applied';
@@ -224,7 +226,13 @@ export class WriteReconciler {
     const lookup = findCreated(plan, {state: Array.isArray(review.state) ? review.state : [], claimedAt});
     if (lookup) {
       const responses: TransportResult[] = [];
-      for (const request of lookup.reads) responses.push(await read(request));
+      // A list longer than its page is followed, up to createdLookupPages batches in all: a longer one is not whole, which
+      // the lookup's `match` sees from the last answer, so it proves nothing absent.
+      let next = lookup.reads;
+      for (let batch = 0; next.length && batch < createdLookupPages; batch++) {
+        for (const request of next) responses.push(await read(request));
+        next = lookup.more?.(responses) ?? [];
+      }
       const {found, expected, complete, undated = []} = lookup.match(responses, claimedAt);
       // Applied only when each record has its one dated match and nothing of that name is left that the lookup cannot tell
       // from an older object; absent only when the list was complete and holds nothing of that name at all (R2.5 M2).
