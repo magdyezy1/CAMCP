@@ -10,7 +10,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {readRouteBytesBaseline, routeBytes, routeBytesOpen, routeBytesProblems} from '../tools/web-route-bytes.mjs';
+import {loaderFiles} from '../tools/locale-chunks.mjs';
+import {
+  readRouteBytesBaseline,
+  routeBytes,
+  routeBytesOpen,
+  routeBytesProblems,
+  routeLocaleChunks,
+} from '../tools/web-route-bytes.mjs';
 
 const current = routeBytes(),
   recorded = readRouteBytesBaseline(),
@@ -43,31 +50,30 @@ test('each account workflow page downloads well under what it did before (regres
 });
 
 test('every Arabic page downloads less than before, and the public pages a fraction (regression: one catalog)', () => {
-  // Package charts (V2-EXP-01): the report builder draws the charts of a report, so it carries their script and sheet and the
-  // V2 layer they draw with (about 32 KB of Brotli), which takes its Arabic page from 0.90 of its pre-WEB-07 value to 0.96. It
-  // stays under that value; the 5% margin the other pages keep is not asked of the one page that gained a feature.
-  // Merge C (D13), the lead's ruling: with web-shell (the shell's growth), meta-results and sec-hardening (web/components.js,
-  // which the report builder loads through the charts script) merged beside charts, the page is at 0.97679 of its pre-WEB-07
-  // value (587,510 of 601,471), so its margin is that ratio plus 0.005, rounded up to three decimals. Every other Arabic page
-  // keeps 0.95.
-  // Merge D (D13), the lead's ruling 15: with sec-followup (+157: web/workspace.js, and web/components.js through the charts script),
-  // mcp-surface (+154: the three Arabic messages of MEDIA_REVIEW_REQUIRED in the workspace chunk), website-get (+2,355: the compact rows
-  // table and the on-demand details in web/reporting-overview.js and web/report-quality.js, and their two Arabic sentences) and
-  // closing-small (+589: the shell's growth, the error toast and the connection result's lockup in web/app.js, app.css and identity.css,
-  // and the Arabic shell chunk) merged beside Merge C's, the page is at 0.98220 of its pre-WEB-07 value (590,765 of 601,471, 10,706
-  // bytes of room), so its margin is that ratio plus 0.005, rounded up to three decimals. Every other Arabic page keeps 0.95.
-  // Round 2.5 M0 (D13, r25-m0-merge, by the same rule): the page was at 0.98460 of that value at a5cc8e04 (592,210) and is at
-  // 0.98900 with r25-m0-t1 (0), r25-m0-review (+119: the two sentences create refuses a name or brief with), r25-m0-errors
-  // (+1,387: its 14 messages) and r25-m0-live (+1,141: its 9) merged: 594,857 of 601,471, 6,614 bytes under it. It is all Arabic
-  // catalogue (the providers chunk +1,144 and the workspace chunk +1,503, which the page loads; no script or sheet moved on
-  // this page), so the margin is 0.98900 plus 0.005, rounded up: 0.995. The next Arabic page is /reports at 0.933 of 0.95.
-  const margin = {'ar /reporting-overview': 0.995};
+  // R25 ar-lazy: every Arabic page keeps the default 0.95. The report builder's page had its own margin, raised three times
+  // (0.97679, then 0.98220, then 0.995) as each package added provider messages, which were a third of the page's bytes. Those
+  // sentences are no page's before it renders now (the next test), so a new one costs no page a byte.
   for (const key of Object.keys(current).filter(key => key.startsWith('ar ')))
-    assert.ok(ratio(key) < (margin[key] ?? 0.95), key + ': ' + ratio(key));
+    assert.ok(ratio(key) < 0.95, key + ': ' + ratio(key));
   for (const route of ['/', '/login', '/signup', '/forgot-password', '/about'])
     assert.ok(ratio('ar ' + route) < 0.5, 'ar ' + route + ': ' + ratio('ar ' + route));
 });
 
+test('no signed-in page waits for a chunk the plan names lazy: a refusal sentence costs a page no byte before it renders', () => {
+  // The chunk of provider refusal sentences (web/locales/ar/providers.json, 160 KB of Brotli) was in every signed-in Arabic page's
+  // set before rendering. The loader names it in `answerLocaleChunks`: an answer that carries one of its sentences loads it, and
+  // the browser fetches it when idle after a page has rendered (tests/web-locale-chunks.test.mjs, tests/web-answer-chunks.test.mjs).
+  const {lazy} = loaderFiles(),
+    chunks = routeLocaleChunks(),
+    signedIn = Object.entries(chunks).filter(([, names]) => names.length);
+  assert.deepEqual(lazy, ['providers']);
+  assert.ok(signedIn.length >= 25, 'the signed-in routes are read: ' + signedIn.length);
+  for (const [route, names] of signedIn)
+    for (const name of lazy) assert.equal(names.includes(name), false, route + ' waits for ' + name);
+  // Regression guard: a page that waited for the chunk again would be back at 0.99 of its pre-WEB-07 value. The report builder
+  // is at 0.73 (436,594 of 601,471 at r25-ar-lazy), which holds every message a page shows from an answer that refused nothing.
+  assert.ok(ratio('ar /reporting-overview') < 0.75, 'ar /reporting-overview: ' + ratio('ar /reporting-overview'));
+});
 test('the landing and sign-in pages no longer download the report builder (regression: part of the shell)', () => {
   for (const route of ['/', '/login', '/signup', '/connections'])
     assert.ok(ratio('en ' + route) < 0.95, 'en ' + route + ': ' + ratio('en ' + route));

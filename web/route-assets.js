@@ -139,16 +139,12 @@ function pageAssetsFor(pathname) {
   return pageAssetOrder.filter(file => wanted.has(file));
 }
 /**
- * The Arabic chunks no page waits for (R25 ar-lazy). `providers` holds the sentences of provider refusals, which are shown
- * only from an answer, and a third of a page's bytes before this: an answer that carries one loads it first
- * (uiEnsureAnswerChunks), and the browser fetches it when idle after a page has rendered. tools/locale-chunks.mjs reads
- * this list: no page script may rely on these chunks, and no page's `pageLocaleChunks` names one (tests/web-route-bytes).
+ * The Arabic chunks no page waits for (R25 ar-lazy): refusal sentences, shown only from an answer. An answer that carries
+ * one loads it (uiEnsureAnswerChunks); the browser fetches it when idle after a page renders. tools/locale-chunks.mjs reads
+ * this list: no page script may rely on these chunks.
  */
 const answerLocaleChunks = Object.freeze(['providers']);
-/**
- * A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace and its scripts'. Never a chunk in
- * `answerLocaleChunks`: no page waits for those (tests/web-route-bytes.test.mjs).
- */
+/** A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace and its scripts'; never `answerLocaleChunks`. */
 function pageLocaleChunks(pathname) {
   const entry = routeEntry(pathname);
   if (!entry || entry.public) return [];
@@ -275,10 +271,9 @@ function uiPrefetchChunks(chunks) {
   if (saved === 'ar') for (const chunk of chunks) uiCatalog('ar', chunk).catch(() => {});
 }
 /**
- * Calls `visit(object, sentences)` for each error-shaped object in an answer (a refusal, a diagnostic, a refused step), at any
- * depth, with the sentences it asks the page to translate: its message (or its template, when it has one), next step and
- * remedy. `uiText` finds a message by its exact English text, so these are what a page can look up in the catalog from an
- * answer. A provider's own message is shown as it is, so it is not read. Stops when `visit` returns true (R25 ar-lazy).
+ * Calls `visit(object, sentences)` for each error-shaped object in an answer (an error, a diagnostic, a refused step), at any
+ * depth, with the sentences a page looks up in the catalog from it: its message (its template, when it has one), next step
+ * and remedy. A provider's own message is shown as it is, so it is not read. Stops when `visit` returns true (R25 ar-lazy).
  */
 function uiEachAnswerMessage(data, visit) {
   const queue = data && typeof data === 'object' ? [data] : [];
@@ -322,7 +317,7 @@ function uiAnswerWithoutUnloaded(data) {
       delete object.suffix;
       return false;
     }
-    // A provider's own message is shown in place of `message`, so the sentence takes the explanation's place beside it.
+    // A provider's own message replaces `message` on screen, so the sentence goes beside it as the explanation.
     const hasMessage = typeof object.message === 'string';
     if (hasMessage) object.message = sentence;
     if (!hasMessage || typeof object.provider?.message === 'string') object.next_action = sentence;
@@ -335,11 +330,7 @@ function uiAnswerWithoutUnloaded(data) {
   });
 }
 let uiAnswerChunksIdle = false;
-/**
- * After a page has rendered, fetches the chunks no page waits for when the browser is idle, so a refusal that follows finds
- * them cached: Arabic and signed in only (a signed-out visitor, and English, never read a refusal's Arabic). One idle task at
- * a time; a failure is dropped without a message, and the next render tries again (R25 ar-lazy).
- */
+/** After a page renders, fetches the chunks no page waits for when the browser is idle: Arabic, signed in, one task at a time. */
 function uiPrefetchAnswerChunks() {
   if (
     uiLocale !== 'ar' ||
@@ -359,11 +350,10 @@ function uiPrefetchAnswerChunks() {
 }
 if (typeof AMCP === 'object') AMCP.hooks.afterRender(uiPrefetchAnswerChunks);
 /**
- * Before a page reads an answer in Arabic, loads the chunks no page waits for (`answerLocaleChunks`) when the answer carries a
- * sentence that is not in the catalog yet: a refusal's, in an error or in a 200 that holds diagnostics. The read is the
- * catalog's own (coalesced, bounded at 15 seconds). When it cannot load, the answer is kept whole with one fixed Arabic
- * sentence where the English message would have been; only a deploy (409), after which no chunk of this page can load, throws
- * for the page to offer a reload (R25 ar-lazy).
+ * Before a page reads an answer in Arabic, loads `answerLocaleChunks` when the answer carries a sentence not in the catalog
+ * yet: a refusal's, in an error or in a 200 with diagnostics (the catalog's own read: coalesced, 15 seconds). If it cannot
+ * load, the answer is kept whole with one fixed sentence in place of the English message; only a deploy (409) throws, for
+ * the page's reload (R25 ar-lazy).
  */
 async function uiEnsureAnswerChunks(data) {
   if (uiLocale !== 'ar' || uiChunksReady(answerLocaleChunks)) return;
