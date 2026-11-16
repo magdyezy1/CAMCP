@@ -104,11 +104,24 @@ const edgeEchoes: Record<string, readonly Echo[]> = {
   adsets: same('status', 'daily_budget', 'lifetime_budget', 'optimization_goal', 'billing_event'),
   ads: same('status'),
 };
-/** Meta campaign, ad set and ad creates: the account's edge filtered by the frozen name, created in the window of the claim. */
+/** The body field that names the parent an ad set (its campaign) or an ad (its ad set) is created under: the row echoes it too. */
+const edgeParent: Record<string, string> = {adsets: 'campaign_id', ads: 'adset_id'};
+/**
+ * Meta campaign, ad set and ad creates: the account's edge filtered by the frozen name, created in the window of the claim, under
+ * the parent the review froze (R2.5 M2, lead review S2-5): a multi-campaign launch repeats ad set and ad names under several parents.
+ */
 function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: string, body: JsonObject): CreatedLookup {
-  const echoes = edgeEchoes[edge[3]!] ?? [];
+  const echoes = edgeEchoes[edge[3]!] ?? [],
+    parentField = edgeParent[edge[3]!],
+    parent = parentField === undefined ? '' : String(body[parentField] ?? '');
   const request = read('/' + edge[1] + '/' + edge[2] + '/' + edge[3], {
-    fields: ['id', 'name', 'created_time', ...echoes.map(([, listed]) => listed)].join(','),
+    fields: [
+      'id',
+      'name',
+      'created_time',
+      ...(parentField ? [parentField] : []),
+      ...echoes.map(([, listed]) => listed),
+    ].join(','),
     filtering: JSON.stringify([{field: 'name', operator: 'EQUAL', value: name}]),
     limit: 25,
   });
@@ -117,13 +130,19 @@ function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: st
     match(responses, submittedAt) {
       // Whole only when Meta answered a list and named no page after it: an answer that is no list proves nothing absent.
       const {rows, complete} = listed(responses),
+        bound = parentField !== undefined && parent !== '',
+        // Another parent's object is plainly another's; a row that does not name its parent cannot be told, so it is a doubt.
+        named = rows.filter(
+          r => r.name === name && (!bound || r[parentField!] === undefined || String(r[parentField!]) === parent),
+        ),
         {found, undated} = byTime(
-          rows.filter(r => r.name === name),
+          named.filter(r => !bound || r[parentField!] !== undefined),
           submittedAt,
           isoTime,
           r => agrees(body, r, echoes),
-        );
-      return verdict(found, undated, complete);
+        ),
+        unknown = named.filter(r => bound && r[parentField!] === undefined).map(r => shown(r));
+      return verdict(found, [...undated, ...unknown], complete);
     },
     receipt,
   };

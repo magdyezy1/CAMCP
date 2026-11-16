@@ -641,7 +641,11 @@ test('a reconciliation asks the provider for its created-resource lookup and the
   assert.equal(lookup.reads[0].readOnly, true);
   assert.equal(lookup.reads[0].method, 'POST');
   assert.equal(lookup.reads[0].path, googleAdsCustomers + '123/googleAds:search');
-  assert.match(lookup.reads[0].body.query, /WHERE campaign\.name IN \('Spring', 'Summer'\) LIMIT 100$/);
+  // A removed object's name is free again (R2.5 M2, lead review S2-5): only live objects are this create's.
+  assert.match(
+    lookup.reads[0].body.query,
+    /WHERE campaign\.name IN \('Spring', 'Summer'\) AND campaign\.status != 'REMOVED' LIMIT 100$/,
+  );
   const rows = {
     results: [
       {campaign: {resourceName: 'customers/123/campaigns/1', name: 'Spring'}},

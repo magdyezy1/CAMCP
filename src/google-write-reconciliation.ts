@@ -5,7 +5,7 @@ import {googleAdsCustomers} from './google-version.js';
 import {normalize} from './verification-core.js';
 import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import {object} from './write-common.js';
-import {agrees, type Echo} from './created-agreement.js';
+import {agrees, frozen, type Echo} from './created-agreement.js';
 import {googleBuildLookup} from './google-atomic-builds.js';
 import {googleAssetLinkCreates} from './google-asset-links.js';
 import {googleListingGroupLookup, googleListingGroupTree} from './google-listing-groups.js';
@@ -40,6 +40,8 @@ const createdEchoes: Record<string, readonly Echo[]> = {
   ],
   asset_group: [['status', 'status']],
 };
+/** The field of each resource that names the parent a create gives it (a campaign's budget, an ad group's or asset group's campaign). */
+const parentOf: Record<string, string> = {campaign: 'campaign_budget', ad_group: 'campaign', asset_group: 'campaign'};
 const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 const rowsOf = (response: unknown, entity: string): JsonObject[] => {
   const results = object(object(response).data).results;
@@ -78,21 +80,36 @@ export function googleCreated(
     return undefined;
   const creates = operations.map(op => object(object(op).create)),
     names = creates.map(c => c.name),
-    echoes = createdEchoes[resource] ?? [];
+    echoes = createdEchoes[resource] ?? [],
+    // The parent each create gives its object, asked for in the search and matched (R2.5 M2, lead review S2-5): ad group and asset
+    // group names repeat across campaigns.
+    parentCol = parentOf[resource],
+    parents = parentCol ? creates.map(c => frozen(c, parentCol)) : [],
+    bound = parentCol !== undefined && parents.every(p => typeof p === 'string' && gaqlText(p));
   if (!names.every(gaqlText) || new Set(names).size !== names.length) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!);
   const query =
     'SELECT ' +
-    [resource + '.resource_name', resource + '.name', ...echoes.map(([, listed]) => resource + '.' + listed)].join(
-      ', ',
-    ) +
+    [
+      resource + '.resource_name',
+      resource + '.name',
+      ...(parentCol ? [resource + '.' + parentCol] : []),
+      ...echoes.map(([, listed]) => resource + '.' + listed),
+    ].join(', ') +
     ' FROM ' +
     resource +
     ' WHERE ' +
     resource +
     '.name IN (' +
     names.map(n => "'" + n + "'").join(', ') +
-    ') LIMIT ' +
+    // A removed object's name is free again: only live objects are this create's.
+    ') AND ' +
+    resource +
+    ".status != 'REMOVED'" +
+    (bound
+      ? ' AND ' + resource + '.' + parentCol + ' IN (' + [...new Set(parents)].map(p => "'" + p + "'").join(', ') + ')'
+      : '') +
+    ' LIMIT ' +
     searchLimit;
   return {
     reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
@@ -100,7 +117,7 @@ export function googleCreated(
       const rows = (normalize(object(responses[0]?.data).results ?? [], googleAdsReviewVolatile) as JsonObject[]).map(
           r => object(r[resource]),
         ),
-        named = names.map(name => rows.filter(r => r.name === name)),
+        named = names.map((name, i) => rows.filter(r => r.name === name && (!bound || r[parentCol!] === parents[i]))),
         // Another object of that name that differs in a field the review froze is a doubt, never this write's (R2.5 M2, S2-3).
         found = named.map((list, i) => list.filter(r => agrees(creates[i]!, r, echoes))),
         doubts = named.flatMap((list, i) => list.filter(r => !agrees(creates[i]!, r, echoes)));
@@ -128,7 +145,7 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
   const build = googleBuildLookup(plan);
   if (!build?.anchors.length || !build.anchors.every(a => gaqlText(a.name))) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!),
-    parentField: Record<string, string> = {campaign: 'campaign_budget', ad_group: 'campaign', asset_group: 'campaign'},
+    parentField = parentOf,
     resources = [...new Set(build.anchors.map(a => a.resource))];
   const reads = resources.map(resource => {
     const anchors = build.anchors.filter(a => a.resource === resource),
