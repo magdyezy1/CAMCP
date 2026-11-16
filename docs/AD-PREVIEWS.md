@@ -18,12 +18,13 @@ help contract. Ordinary preview calls retain the platform/account inputs below a
 Without `ad_ids`, `limit` defaults to 5 (maximum 10), and `statuses` to `["active"]`. Other choices are `paused`,
 `archived` and `all`; old ads, meaning archived or deleted ones, are in `archived` and `all`. Named IDs ignore
 statuses. Optional `campaign_ids` and `adset_ids` each accept 1–50 IDs; both filters must match, including for named
-IDs. LinkedIn uses campaign groups and native campaigns respectively; Snapchat uses ad squads in `adset_ids`. Parent
-filters are tool inputs.
+IDs. LinkedIn uses campaign groups and native campaigns respectively; Snapchat uses ad squads in `adset_ids`; X uses
+line items there. Parent filters are tool inputs.
 
 `ad_ids` name ads on Meta, TikTok and Reddit, creatives on Snapchat and LinkedIn. Bare LinkedIn numbers become
-creative URNs. Google accepts asset-group IDs/resources or video `adGroupAds` resources. Named reads search beyond
-the first list page. Missing IDs have `not_found` and `not_found_reason`.
+creative URNs. Google accepts asset-group IDs/resources or video `adGroupAds` resources. X accepts promoted-Tweet IDs
+or the ID of a dark Tweet. Named reads search beyond the first list page. Missing IDs have `not_found` and
+`not_found_reason`.
 
 Results include `previews`, `next_cursor`, `has_more` and `order`. Continue with `cursor: next_cursor` and the same
 selection. Five-minute signed cursors bind workspace, user, connection, account, permissions, filters, limit and
@@ -49,7 +50,7 @@ Listed items include `source_ad_id`, preserving separate ads that share a creati
 | LinkedIn | Account creatives `q=criteria` → `GET /rest/adPreviews?q=creative&creative=…&account=urn:li:sponsoredAccount:…`. [Documented](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10) iframe sources, placement/device metadata and expiry up to three hours. |
 | Reddit | Scoped `LIST_ADS`; `preview_url` works while `preview_expiry` is ahead. Pinned v3 OpenAPI. |
 | Google Ads | `generateShareablePreviews` is a reviewed write; result supplies the `amcp_write` preparation call. `src/google-preview-writes.ts`. |
-| X | Preview parameters remain unqualified; no automatic call. |
+| X | The account's promoted Tweets (`promoted_tweets`), or named: promoted Tweets by `promoted_tweet_ids`, a dark Tweet proven among the account's `NULLCAST` `tweets`. One `GET tweet_previews` (`PUBLISHED`) gives one entry per Tweet. [Pinned](records/X-TWEET-PREVIEWS-PIN-2026-11-16.md); X states no expiry. |
 | Microsoft, DV360, Criteo, Apple Ads | No readable preview route. |
 
 ## Access and safety
@@ -63,7 +64,8 @@ fields. TikTok and Reddit use account-scoped filters. Explicit foreign ownership
 is refused. LinkedIn finder ownership lasts five minutes.
 
 Only HTTPS platform-host links are returned; markup is withheld. A link that spells `&` or `;` before its query is
-refused, and the page opens https links only. LinkedIn accepts iframe sources only, reports
+refused, and the page opens https links only. X's link is the iframe's `src`, only when it is exactly
+`ton.twimg.com/ads-manager/tweet-preview/index.html`; otherwise the Tweet has a `reason`. LinkedIn accepts iframe sources only, reports
 rejected placements and retains `links` as URLs with additive `placements` metadata. Meta response fields remain
 unpinned. Links expire; share only with authorized viewers.
 

@@ -579,7 +579,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // amcp_ad_previews reads them (src/x-ad-previews.ts: the expiry X does not state, the two reasons an entry has no link, and
   // the refusal of a filter that is not one of X's own IDs), and the sentence that said X's previews were not qualified leaves
   // (-1): 12,156 + 4 - 1 = 12,159. Measured: node tools/check-locales.mjs, catalog_messages 12159.
-  assert.equal(Object.keys(catalog).length, 12159);
+  // Its item 3: +4 entries, the website's wording of an X entry on the Preview your ads page (the Tweet, the promoted Tweet and the
+  // promoted Tweets that share it: web/ad-previews.js previewIdentity) and of the hint beside the ad IDs, shown for X alone:
+  // 12,159 + 4 = 12,163. Measured: node tools/check-locales.mjs, catalog_messages 12163.
+  assert.equal(Object.keys(catalog).length, 12163);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

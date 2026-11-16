@@ -10,6 +10,8 @@ const previewGateways = {
   linkedin_native_action: 'linkedin',
   reddit_native_action: 'reddit',
   google_ads_native_action: 'google_ads',
+  // X's previews are of Tweets (r12-xpreview): its ads are the promoted Tweets, and a dark Tweet can be named by its own ID.
+  x_ads_native_action: 'x_ads',
 };
 const previewFormats = [
   ['MOBILE_FEED_STANDARD', 'Facebook mobile feed'],
@@ -73,6 +75,7 @@ function adPreviewsPanel() {
       : `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`)
   }</select></label>
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
+<p id="preview-x-note" class="form-note" hidden>${esc(uiText('For X, enter promoted Tweet IDs or the ID of a dark Tweet.'))}</p>
 <label>${esc(uiText('Status'))}<select name="statuses">${['active', 'paused', 'archived', 'all'].map((value, index) => `<option value="${esc(value)}">${esc(uiText(['Active', 'Paused', 'Archived', 'All'][index]))}</option>`).join('')}</select></label>
 <label id="preview-format" hidden>${esc(uiText('Placement'))}<select name="ad_format">${previewFormats
     .map(([v, l]) => `<option value="${esc(v)}">${esc(uiText(l))}</option>`)
@@ -109,7 +112,9 @@ function bindAdPreviews() {
     say('');
   };
   const syncFormat = () => {
-    $('#preview-format').hidden = chosen(form.elements.target.value)?.platform !== 'meta';
+    const platform = chosen(form.elements.target.value)?.platform;
+    $('#preview-format').hidden = platform !== 'meta';
+    $('#preview-x-note').hidden = platform !== 'x_ads';
     reset();
   };
   form.addEventListener('change', syncFormat);
@@ -221,6 +226,25 @@ function bindAdPreviews() {
  */
 const previewHref = url => (typeof url === 'string' && /^https:\/\/[^\s/?#@\\]+(?:[/?#]\S*)?$/i.test(url) ? url : null);
 
+/**
+ * What identifies a row besides its name. An X entry is a Tweet (r12-xpreview): its ID, and the promoted Tweets of the account
+ * that share it, which is how X's ads are named. A Snapchat row is a creative, with the ad behind it; any other is the ad's ID.
+ */
+function previewIdentity(p) {
+  if (Array.isArray(p.promoted_tweet_ids))
+    return [
+      uiText('Tweet {tweet}', {tweet: p.tweet_id ?? p.ad_id}),
+      p.promoted_tweet_ids.length
+        ? uiPlural(p.promoted_tweet_ids.length, 'Promoted Tweet {promoted}', 'Promoted Tweets {promoted}', {
+            promoted: p.promoted_tweet_ids.join(', '),
+          })
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  return p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id;
+}
+
 /** One ad's row: its name, which ad and creative it is, when its links expire, and the links (or why there are none). */
 function previewRow(p, index) {
   const hrefs = (p.links ?? []).map(previewHref).filter(Boolean),
@@ -229,7 +253,7 @@ function previewRow(p, index) {
       : p.expires
         ? ' · ' + uiText(p.expires)
         : '';
-  return html`<div class="token-row" id="preview-row-${index}" tabindex="-1"><div><strong>${p.name ?? uiText('Untitled')}</strong><small>${p.source_ad_id ? uiText('Ad {ad} · Creative {creative}', {ad: p.source_ad_id, creative: p.ad_id}) : p.ad_id}${when}</small></div><div class="preview-links">${
+  return html`<div class="token-row" id="preview-row-${index}" tabindex="-1"><div><strong>${p.name ?? uiText('Untitled')}</strong><small>${previewIdentity(p)}${when}</small></div><div class="preview-links">${
     hrefs.length
       ? hrefs.map(
           // WCAG 2.5.3: the name opens with the words the link shows ("Open preview", and its number when there are

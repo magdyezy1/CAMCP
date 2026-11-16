@@ -899,6 +899,26 @@ test('the gates of the tool stay: a connection and account of X are needed, X ta
   assertRefused(await f.previews({platform: 'meta'}), 'CONNECTION_REQUIRED');
 });
 
+test('the help of the tool says what X’s ad_ids and adset_ids are, keeps what it said of the others, and tools/list says nothing of X', async t => {
+  // The tool by its listed name: a literal call of a default-call tool with `action` is read by the scan of
+  // tests/first-party-contracts.test.mjs as a call of that default action, which has no `action` argument.
+  const f = fixture(t),
+    name = f.service.firstPartyTools().find(tool => tool.name === 'amcp_ad_previews').name,
+    help = ok(await f.service.call(name, {action: 'help'}, f.actor)),
+    notes = help.contract.arguments_schema.properties;
+  assert.match(notes.ad_ids.description, /X: promoted Tweet IDs or the ID of a dark Tweet/);
+  assert.match(notes.adset_ids.description, /X line item IDs/);
+  // What the notes said of the other platforms stays (tests/mcp-listing-budget.test.mjs pins the same sentences).
+  assert.match(notes.ad_ids.description, /Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs/);
+  assert.match(notes.ad_ids.description, /Named IDs ignore statuses/);
+  assert.match(notes.adset_ids.description, /Snapchat ad squad IDs; LinkedIn native campaign IDs/);
+  // The notes are not in tools/list, whose routing summary of the tool names no platform but Meta's placement
+  // (tests/tool-surface-golden.test.mjs pins it whole).
+  const listed = f.service.listTools().find(tool => tool.name === 'amcp_ad_previews');
+  assert.equal(listed.inputSchema.properties.ad_ids.description, undefined);
+  assert.doesNotMatch(listed.description, /\bX\b|Tweet/);
+});
+
 test('a preview call leaves no preview link in the audit trail', async t => {
   const f = fixture(t);
   ok(await f.previews({ad_ids: ['pt1', tweet(90)]}));

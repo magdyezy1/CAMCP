@@ -44,6 +44,21 @@ contracts` and the help of the action show it anchored and the advisory `read_un
 | R2 | `GET /12/accounts/:account_id/line_items` takes `campaign_ids` (up to 200), `line_item_ids` (up to 200), `count` (1 to 1000, default 200), `cursor`, `with_deleted` and `with_draft` (both default false); a line item has `id`, `campaign_id`, `entity_status` and `deleted`. A campaign has no objective and a promoted Tweet has no `campaign_id`.      | [campaign-management] |
 | R3 | `GET /12/accounts/:account_id/tweets` takes `tweet_type` (required), `tweet_ids` (up to 200, of that type), `timeline_type` (`ALL`, `NULLCAST` or `ORGANIC`; default `NULLCAST`), `user_id` (default: the account's `FULL` promotable user), `include_mentions_and_replies` (default false), `count` (1 to 1000, default 200), `cursor`, `trim_user`, `name`. | [creatives]           |
 
+## What AMCP does with them (`amcp_ad_previews`, platform `x_ads`: `src/x-ad-previews.ts`)
+
+- An ad is a promoted Tweet (R1): listed, or named by its ID, with its own status, its line item and, through R2, its
+  campaign. A Tweet named by its own ID is looked up among the account's dark Tweets (R3 with `timeline_type: NULLCAST`, for
+  the default user) before it is previewed, since TP1 says nothing of whose Tweets are previewed; a Tweet named with its
+  promoted Tweet is proven by that promotion. An ID that is neither an entity ID of X nor a Tweet ID (15 digits or more) is
+  not sent.
+- The Tweets of one call (at most ten) are previewed by one read with `tweet_type: PUBLISHED` (TP2, TP3), in batches of at most
+  200. An entry is a Tweet, with the promoted-Tweet IDs of the call that share it.
+- Only the `src` of the `preview` iframe is read (TP4), and returned only when it is https on exactly `ton.twimg.com` at exactly
+  `/ads-manager/tweet-preview/index.html`, with no user information, port or fragment. The host of TP6's older example is not
+  accepted, and X's snippet is never returned.
+- A Tweet that X has no entry for is reported `not_returned` (TP3), and one whose snippet fails the rule above, or has two
+  entries, `link_not_accepted`. The answer says that X states no expiry (TP5) and states none itself.
+
 ## Still unpinned
 
 - Whether a viewer without an X session can open the link, and how long X keeps it. The answer states no expiry, so AMCP states
