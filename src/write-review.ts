@@ -47,7 +47,7 @@ import {
 import {writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler} from './write-reconciliation.js';
-import {queueReconcile} from './write-reconcile-job.js';
+import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
 import {
   assertCreateNotRepeated,
   createsObjects,
@@ -1419,6 +1419,9 @@ export class WriteReviewService {
         // refused here, in the transaction that took the claim: a refusal rolls the claim back, so nothing is claimed or sent,
         // and two executes cannot both pass (the store's transactions begin immediate, so other processes wait too).
         assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, expiredNext(review, true));
+        // R2.5 M2 (lead review S3-4): the write is watched from its claim, so that a crash or a deploy that leaves the claim
+        // pending still gets its automatic check (due at claim + 10 minutes). It is dropped when the write settles.
+        watchWrite(this.store, actor.tenantId, input.review_id, actorBinding);
         family?.admit?.(plan, submission);
         if (job) {
           if (!family?.admit) admitProviderJob(this.store, plan.gateway, plan.accountId ?? '');
@@ -1502,6 +1505,7 @@ export class WriteReviewService {
           };
         }
         this.store.complete(actor.tenantId, input.idempotency_key, outcome);
+        unwatchWrite(this.store, actor.tenantId, input.review_id);
         this.store.appendAudit(actor.tenantId, input.review_id, {event: 'write_completed', outcome});
       });
       completed = true;
@@ -1522,13 +1526,18 @@ export class WriteReviewService {
         !completed &&
         !dispatched &&
         releaseUnsentClaims() &&
-        this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
-          code,
-          // Names the review, so an over-cap confirmation recorded before this refusal is not read as an execution.
-          review_id: input.review_id,
-          gateway: plan.gateway,
-          account_id: plan.accountId ?? null,
-          connection_id: c.id,
+        this.store.transaction(() => {
+          const released = this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
+            code,
+            // Names the review, so an over-cap confirmation recorded before this refusal is not read as an execution.
+            review_id: input.review_id,
+            gateway: plan.gateway,
+            account_id: plan.accountId ?? null,
+            connection_id: c.id,
+          });
+          // The claim is gone, and so is the watch it queued (R2.5 M2, lead review S3-4).
+          if (released) unwatchWrite(this.store, actor.tenantId, input.review_id);
+          return released;
         });
       // A definitive refusal the family proves applied nothing (CMP-04) is rejected, not uncertain: the key is retired
       // and the reservation released (D12). A lost response, timeout, rate limit or 5xx never qualifies.
@@ -1537,24 +1546,38 @@ export class WriteReviewService {
         !unsent &&
         dispatched &&
         nonAppliedRejection(plan, e, family) &&
-        this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
-          code,
-          review_id: input.review_id,
-          gateway: plan.gateway,
-          account_id: plan.accountId ?? null,
-          connection_id: c.id,
-          http_status: Number((e as MirrorError).details.http_status),
+        this.store.transaction(() => {
+          const retired = this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
+            code,
+            review_id: input.review_id,
+            gateway: plan.gateway,
+            account_id: plan.accountId ?? null,
+            connection_id: c.id,
+            http_status: Number((e as MirrorError).details.http_status),
+          });
+          if (retired) unwatchWrite(this.store, actor.tenantId, input.review_id);
+          return retired;
         });
       if (!completed && !unsent && !rejected) {
         this.store.uncertain(actor.tenantId, input.idempotency_key);
         // R2.5 M2 (L5-05, L3-13; owner 2026-11-15: "reconcile them automatically"): the worker reads the provider for this
-        // write at its claim time plus 60 s (src/write-reconcile-job.ts). It reads only and never decides the outcome.
-        // The claim is already uncertain, so a failure to queue the check never changes what the caller is told: the
-        // person's own `reconcile` stays available.
+        // write at its claim time plus 60 s (src/write-reconcile-job.ts): the watch its claim queued is moved up. It reads
+        // only and never decides the outcome. The claim is already uncertain, so a failure to queue the check never changes
+        // what the caller is told: the person's own `reconcile` stays available, and the audit says the check was not queued.
         try {
-          queueReconcile(this.store, actor.tenantId, input.review_id, actorBinding);
-        } catch {
-          // See above.
+          this.store.transaction(() => queueReconcile(this.store, actor.tenantId, input.review_id, actorBinding));
+        } catch (queueError) {
+          try {
+            this.store.appendAudit(actor.tenantId, input.review_id, {
+              event: 'write_reconcile_not_queued',
+              code: queueError instanceof MirrorError ? queueError.code : 'INTERNAL_ERROR',
+              gateway: plan.gateway,
+              account_id: plan.accountId ?? null,
+              connection_id: c.id,
+            });
+          } catch {
+            // The audit is the best the caller's answer can carry: it never changes what the caller is told.
+          }
         }
       }
       // RPT-06: an unsent job leaves no receipt (the same review may run again); a sent one is rejected or uncertain.

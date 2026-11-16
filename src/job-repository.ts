@@ -153,6 +153,32 @@ export function writeClaimFingerprint(store: Store, tenant: string, key: string)
     .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
     .get(tenant, key) as JsonObject | undefined;
 }
+/** Moves the queued jobs of `kind` that name `reviewId` to `availableAt`; returns whether there was one (R2.5 M2, S3-4). */
+export function rescheduleQueuedReviewJob(
+  store: Store,
+  tenant: string,
+  kind: string,
+  reviewId: string,
+  availableAt: number,
+): boolean {
+  return (
+    Number(
+      store
+        .sql()
+        .prepare(
+          "UPDATE jobs SET available_at=?,updated_at=? WHERE tenant_id=? AND kind=? AND state='queued' AND json_extract(input,'$.review_id')=?",
+        )
+        .run(availableAt, Date.now(), tenant, kind, reviewId).changes,
+    ) > 0
+  );
+}
+/** Deletes the queued jobs of `kind` that name `reviewId`; one that is running is left to finish (R2.5 M2, S3-4). */
+export function deleteQueuedReviewJobs(store: Store, tenant: string, kind: string, reviewId: string) {
+  store
+    .sql()
+    .prepare("DELETE FROM jobs WHERE tenant_id=? AND kind=? AND state='queued' AND json_extract(input,'$.review_id')=?")
+    .run(tenant, kind, reviewId);
+}
 /** Cancels a queued or running job, ending its lease (its update time is left as it was). */
 export function cancelJobLease(store: Store, tenant: string, id: string) {
   store
