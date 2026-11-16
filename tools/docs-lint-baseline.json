@@ -340,10 +340,16 @@
       "raised": [
         "reference_words 161986 → 162155"
       ]
+    },
+    {
+      "reason": "Package r25-m2-reconcile rework (Round 2.5, M2, lead review S4-6): +627 reference words (162155 to 162782): docs/WRITE-OPERATIONS.md describes the automatic check of an uncertain write (the worker job, its watch from the claim, its attempts and its reserved quota), how a lost create is found (the TikTok, Meta and Google Ads lookups, the agreement rule and when absence may be answered) and the guard against creating twice (prepare and execute, the override, and the creates AMCP cannot look up by reads), which the package report (section 5.7) and the lead review (S4-6) asked to be documented once the fixes were in. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 162155 → 162782"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 162155
+    "reference_words": 162782
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
