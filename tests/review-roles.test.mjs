@@ -12,6 +12,8 @@ import xCreatives from './family-descriptors/x-creatives.mjs';
 import microsoftSearch from './family-descriptors/microsoft-search.mjs';
 import redditClassic from './family-descriptors/reddit-classic.mjs';
 import redditFunding from './family-descriptors/variants/reddit-classic-funding-instrument.mjs';
+import smartPlusAds from './family-descriptors/tiktok-smart-plus-ads.mjs';
+import smartPlusAdgroups from './family-descriptors/tiktok-smart-plus-adgroups.mjs';
 
 /**
  * R2.5 M1 (package r25-m1-hash, plan idea 1, the three read roles; L5-01, L4-13, M0's "Found, not fixed" 3 and 4).
@@ -1033,6 +1035,29 @@ test('lint: a Reddit campaign write reads the funding instrument it names as a R
     assert.match(stored.reads[2].path, /\/funding_instruments$/);
   } finally {
     f.close();
+  }
+});
+
+test('lint: the Smart+ ad group an ad is created in, and the Smart+ campaign an ad group is created in, carry the role of a parent (S3-5)', async () => {
+  // Found by the rotation harness's own list of parent reads, not by the roles the code stamps: they were the first two it saw
+  // without one. A parent is read whole whatever its role; the role is metadata for the review's ordering.
+  for (const [descriptor, roles] of [
+    [smartPlusAds, ['parent', null, null, null, null]],
+    [smartPlusAdgroups, ['account', 'parent', null]],
+  ]) {
+    const f = familyFixture(descriptor);
+    try {
+      const p = await f.prepare();
+      assert.equal(p.success, true, descriptor.family + ' ' + JSON.stringify(p.error ?? p).slice(0, 600));
+      const stored = f.store.document('conformance-' + descriptor.family, 'write_review', p.data.review_id);
+      assert.deepEqual(
+        stored.reads.map(r => r.stateRole ?? null),
+        roles,
+        descriptor.family,
+      );
+    } finally {
+      f.close();
+    }
   }
 });
 
