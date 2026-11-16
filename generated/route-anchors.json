@@ -17,7 +17,7 @@
     "generated/registry.json": "cf5c03c51e57d9a80c18ac83ca0ead24f2fd4ddb674779d99869a33b31119e09",
     "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
     "tests/fixtures/meta-sdk-changes-v26.json": "2524545545ff2a93893d314162c349d44111036c4ba0a70975ff1e0b67abb922",
-    "tools/route-anchor-documents.json": "f690ab9a241eff29d9ca8653619d494d65203650c82fd00a9441225c224d83f8"
+    "tools/route-anchor-documents.json": "b27aad19698c694bf59c6bfc046cad9ca6ef2bd24470e9cd5ae0dd33840ebbc6"
   },
   "sources": {
     "apple-ads-platform-api-node@f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1": {
@@ -146,6 +146,10 @@
     "https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/": {
       "kind": "documented_url",
       "url": "https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/"
+    },
+    "https://docs.x.com/x-ads-api/creatives/reference.md": {
+      "kind": "documented_url",
+      "url": "https://docs.x.com/x-ads-api/creatives/reference.md"
     },
     "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/ad-preview?view=li-lms-2026-10": {
       "kind": "documented_url",
@@ -494,13 +498,15 @@
       "gateway": "x_ads_native_action",
       "routes": 186,
       "executable": 161,
-      "anchored_executable": 0,
-      "read_unanchored": 94,
+      "anchored_executable": 1,
+      "read_unanchored": 93,
       "by_anchor_status": {
-        "captured_only": 186
+        "captured_only": 185,
+        "documented_url": 1
       },
       "executable_by_anchor_status": {
-        "captured_only": 161
+        "captured_only": 160,
+        "documented_url": 1
       },
       "target": {
         "anchored_executable": 161,
@@ -3575,7 +3581,7 @@
     "x_ads_native_action//x_accounts_account_id_tracking_tags_tracking_tag_id_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_tracking_tags_tracking_tag_id_put": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_tweet_post": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0001.json","reason":"captured_catalog_only"}},
-    "x_ads_native_action//x_accounts_account_id_tweet_previews_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0001.json","reason":"captured_catalog_only"}},
+    "x_ads_native_action//x_accounts_account_id_tweet_previews_get": {"status":"native_read","anchor_status":"documented_url","anchor":{"source":"https://docs.x.com/x-ads-api/creatives/reference.md","checked_at":"2026-11-16"}},
     "x_ads_native_action//x_accounts_account_id_tweets_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_tweets_tweet_id_name_put": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0001.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_user_settings_user_id_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},

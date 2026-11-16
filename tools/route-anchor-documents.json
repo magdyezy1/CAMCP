@@ -28,6 +28,15 @@
       "url": "https://developers.facebook.com/docs/marketing-api/ad-rules/guides/api-calls/",
       "checked_at": "2026-09-30",
       "note": "Ad Rules Engine, API Calls: DELETE /{ad_rule_id} deletes a rule (src/meta-rule-routes.ts)."
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "action": "x_accounts_account_id_tweet_previews_get",
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tweet_previews",
+      "url": "https://docs.x.com/x-ads-api/creatives/reference.md",
+      "checked_at": "2026-11-16",
+      "note": "Creatives reference, Tweet Previews: tweet_ids (required, comma-separated, up to 200) and tweet_type (required: DRAFT, PUBLISHED, SCHEDULED); the answer is data, one {tweet_id, preview} per Tweet, the preview an iframe whose src is on ton.twimg.com (docs/records/X-TWEET-PREVIEWS-PIN-2026-11-16.md; src/x-ad-previews.ts)."
     }
   ]
 }
