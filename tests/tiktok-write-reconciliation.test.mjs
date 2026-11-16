@@ -352,3 +352,55 @@ test('the worker’s automatic check finds a lost TikTok create too', async () =
     f.close();
   }
 });
+
+// L1-15 (R2.5 M2): TikTok's throttle codes (40100, 40132, 40133) on a write. A rate limit never proves by itself that nothing was
+// applied, so the write stays uncertain and is not sent again; what settles it is the reads that this package adds: the check finds
+// that TikTok created nothing, offers the replacement as a new review (the person's call), and the replacement is sent once.
+for (const code of [40100, 40132, 40133])
+  test(
+    'a TikTok create throttled with code ' + code + ' stays uncertain and its check settles it as not applied',
+    async () => {
+      const f = tiktokReconcileFixture();
+      try {
+        f.state.throttle = code;
+        const prepared = await f.prepare('campaign');
+        assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
+        const id = prepared.data.review_id,
+          refused = await f.execute(id);
+        f.state.throttle = undefined;
+        assert.equal(refused.success, false);
+        assert.equal(
+          f.claim(id).state,
+          'uncertain',
+          'a rate limit is no proof of a refusal: never rejected, never retried',
+        );
+        assert.equal(f.sent.length, 1, 'the throttled request was sent once');
+        // The worker's check (the job of this package) reads the campaign list and finds nothing created.
+        f.store.db.prepare("UPDATE jobs SET available_at=0 WHERE kind='write_reconcile' AND state='queued'").run();
+        assert.equal(await f.worker.once(), true);
+        const s = await f.call('amcp_write', {action: 'status', review_id: id});
+        assert.equal(
+          s.data.reconciliation.classification,
+          'appears_not_applied',
+          JSON.stringify(s.data.reconciliation),
+        );
+        assert.equal(s.data.reconciliation.automatic, true);
+        assert.equal(s.data.next_call.arguments.supersedes_review_id, id, 'the replacement is offered, not made');
+        assert.equal(f.sent.length, 1, 'the check sent nothing');
+        // The person takes the offered call; the replacement goes through and is sent once.
+        const replacement = await f.call('amcp_write', s.data.next_call.arguments);
+        assert.equal(replacement.success, true, JSON.stringify(replacement).slice(0, 500));
+        const done = await f.execute(replacement.data.review_id);
+        assert.equal(done.success, true, JSON.stringify(done).slice(0, 500));
+        assert.equal(f.sent.length, 2, 'the throttled create and its replacement, each sent once');
+        assert.equal(
+          (await f.execute(id)).error?.code,
+          'WRITE_OUTCOME_UNCERTAIN',
+          'the throttled review is never sent again',
+        );
+        assert.equal(f.sent.length, 2);
+      } finally {
+        f.close();
+      }
+    },
+  );

@@ -62,7 +62,7 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
   const requests = [],
     filters = [],
     sent = [],
-    state = {next: 400, applied: undefined, lose: false, now: () => Date.now()};
+    state = {next: 400, applied: undefined, lose: false, throttle: undefined, now: () => Date.now()};
   const fetcher = async (raw, init = {}) => {
     const url = new URL(String(raw)),
       path = url.pathname.replace('/open_api', ''),
@@ -73,6 +73,14 @@ export function tiktokReconcileFixture({tenant = 'tiktok-reconcile'} = {}) {
         kind = /^\/v1\.3\/(campaign|adgroup|ad)\/create\/$/.exec(path)?.[1];
       if (!kind) throw new Error('Unexpected synthetic TikTok write ' + path);
       sent.push({path, body});
+      // TikTok's rate limiter answers in the body of an HTTP 200 and creates nothing (a code of its throttle set).
+      if (state.throttle)
+        return Response.json({
+          code: state.throttle,
+          message: 'Too many requests',
+          data: {},
+          request_id: 'synthetic-throttle',
+        });
       const id = String(state.next++),
         creative = body.creatives?.[0] ?? {},
         row = {
