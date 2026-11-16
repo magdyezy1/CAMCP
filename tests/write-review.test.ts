@@ -173,7 +173,12 @@ test('uncertain writes never retry; partial failures retain details and durable 
     assert.equal((await x.service.call('amcp_write', execution(r), actor)).error.code, 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(x.calls.filter(c => c.method === 'POST').length, 1);
     x.mode('partial');
-    const p = await prepare(x.service),
+    // Another campaign: an identical create is refused at prepare while the first is uncertain (R2.5 M2, L5-06), and this test is
+    // about what a partial failure retains, not about that refusal.
+    const p = await prepare(x.service, {
+        ...create,
+        arguments: {...create.arguments, payload: {...create.arguments.payload, name: 'Draft partial'}},
+      }),
       partial = await x.service.call('amcp_write', execution(p), actor);
     assert.equal(partial.success, false);
     assert.equal(partial.data.executed, true);
