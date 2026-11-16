@@ -328,7 +328,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // F-L3-10 (previews): the previews tool's own refusals (sixteen sentences) are now owned and translated: 2886 + 10 + 4 + 16.
   // Package engine-core deletes the unused overviewV4Sum and overviewV4Ratio (F-L5-28), whose two invalid() refusals
   // (a metric not declared additive, an unsupported ratio unit) go with them: 2916 - 2.
-  assert.equal(owned.size, 2914);
+  // Package r12-fix (item 2, V2-RPT-07): the X population's parent refusal (src/x-overview-detail.ts refuse()) is now two
+  // sentences, one for the campaign of line items and one for the line item of promoted tweets, each with its own Arabic; the
+  // earlier sentence stays for a malformed objective (it was one sentence raised from two places): 2914 + 2.
+  assert.equal(owned.size, 2916);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -454,7 +457,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // translated by both the hotfix (its wording) and live (the reworded one, which wins, the lead's decision of 2026-11-15), and
   // the code carries only live's, so the hotfix's entry is dropped and counted once. Measured on the merged catalogue (node
   // tools/check-locales.mjs: catalog_messages 12138, problems none; ar.json has 12,138 keys and no duplicate): 12,130 + 9 - 1.
-  assert.equal(Object.keys(catalog).length, 12138);
+  // Package r12-fix (item 2, V2-RPT-07): +2 entries, the Arabic of the two refusals of the X line item and promoted tweet levels
+  // that name the kind of parent they could not find and how many entities lack one (src/x-overview-detail.ts; the earlier
+  // sentence stays, for a malformed objective): 12,138 + 2 = 12,140. Measured: node tools/check-locales.mjs, catalog_messages 12140.
+  assert.equal(Object.keys(catalog).length, 12140);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

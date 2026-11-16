@@ -11842,6 +11842,8 @@
   "X listed {kind} over more than 100 pages, the most a report reads, so the list cannot be proven complete.": "سرد X {kind} على أكثر من 100 صفحة، وهو أقصى ما يقرؤه التقرير، فلا يمكن إثبات اكتمال القائمة.",
   "X native entity currency or deleted status does not match the selected account.": "لا تطابق عملة عنصر X الأصلي أو حالة حذفه بيانات الحساب المحدد.",
   "X detailed entities did not retain exact owned native parents.": "لم تحتفظ عناصر X التفصيلية بالعناصر الأم الأصلية المطابقة التابعة للحساب.",
+  "X did not list the campaign of {count} of this account’s line items among the account’s own campaigns, so their ownership could not be proven.": "لم يُدرج X الحملة التي يتبعها {count} من البنود الإعلانية لهذا الحساب ضمن حملات الحساب نفسه، فتعذّر إثبات ملكيتها.",
+  "X did not list the line item of {count} of this account’s promoted tweets among the account’s own line items, so their ownership could not be proven.": "لم يُدرج X البند الإعلاني الذي تتبعه {count} من التغريدات المروّجة لهذا الحساب ضمن البنود الإعلانية للحساب نفسه، فتعذّر إثبات ملكيتها.",
   "X returned an unsafe native tweet identity.": "أعاد X معرّف تغريدة أصليًا لا يمكن الاحتفاظ به بأمان.",
   "X analytics returned another account.": "أعادت تحليلات X بيانات حساب آخر.",
   "X refused the active-entities read; every scoped entity was requested instead (at most 100 analytics requests).": "رفض X قراءة العناصر النشطة؛ وطُلب كل عنصر ضمن النطاق بدلًا من ذلك (بحد أقصى 100 طلب تحليلات).",

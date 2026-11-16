@@ -11,8 +11,14 @@ import {nativeDecimal} from './overview-native-detail.js';
 
 const object = (value: unknown): value is JsonObject => !!value && typeof value === 'object' && !Array.isArray(value);
 const id = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9]{1,32}$/.test(value);
-function refuse(code: string, message: string, status = 502, values?: Record<string, string>): never {
-  throw new MirrorError(code, message, {}, status, false, values);
+function refuse(
+  code: string,
+  message: string,
+  status = 502,
+  values?: Record<string, string | number>,
+  details: JsonObject = {},
+): never {
+  throw new MirrorError(code, message, details, status, false, values);
 }
 /** The population bounds: rows of one kind, and pages of one list. */
 const populationRows = 10000,
@@ -61,6 +67,12 @@ export async function collectXOverviewDetail(c: ReportCollection) {
         c.plan('/12/accounts/' + c.account + '/' + kind, {
           count: 1000,
           with_deleted: true,
+          // X lists DRAFT campaigns and line items only when asked (`with_draft`, default false; pin X1), while the promoted
+          // tweet list holds the promotions on them and has no such parameter (pin X5). Without it a promoted tweet on a DRAFT
+          // line item had no parent in the population, and one such orphan refused the whole level (r12-fix item 2, V2-RPT-07;
+          // O-5 of the live checks of 2026-11-16). Pin X4 does not list the parameter for campaigns, but the same live read
+          // showed X honours it there, and it is what resolves the campaign of a deleted DRAFT line item.
+          ...(kind !== 'promoted_tweets' ? {with_draft: true} : {}),
           ...(cursor ? {cursor} : {}),
         }),
         false,
@@ -210,17 +222,37 @@ export async function collectXOverviewDetail(c: ReportCollection) {
   const campaigns = new Map(owned(state.campaigns).map(row => [row.id, row])),
     lines = new Map(owned(state.line_items).map(row => [row.id, row])),
     promoted = owned(state.promoted_tweets);
+  // Every entity must trace to the account through the parents the account itself lists: that is the ownership proof, so an
+  // entity whose parent is in neither list refuses the level (r12-fix item 2, V2-RPT-07; O-5 of the live checks of
+  // 2026-11-16). The refusal names the kind of parent that is missing (a closed set) and how many entities lack one, and no
+  // entity: no ID, no name. Line items are checked first: one without its campaign cannot be owned, whatever its promotions.
+  const lineItemsWithoutCampaign = [...lines.values()].filter(
+    line => !id(line.campaign_id) || !campaigns.has(line.campaign_id),
+  ).length;
+  if (lineItemsWithoutCampaign)
+    refuse(
+      'REPORT_ACCOUNT_MISMATCH',
+      'X did not list the campaign of {count} of this account’s line items among the account’s own campaigns, so their ownership could not be proven.',
+      502,
+      {count: lineItemsWithoutCampaign},
+      {parent_kind: 'campaign', entities_affected: lineItemsWithoutCampaign},
+    );
   for (const line of lines.values())
-    if (
-      !id(line.campaign_id) ||
-      !campaigns.has(line.campaign_id) ||
-      (line.objective != null && (typeof line.objective !== 'string' || !/^[A-Z][A-Z_]{0,63}$/.test(line.objective)))
-    )
+    if (line.objective != null && (typeof line.objective !== 'string' || !/^[A-Z][A-Z_]{0,63}$/.test(line.objective)))
       refuse('REPORT_ACCOUNT_MISMATCH', 'X detailed entities did not retain exact owned native parents.');
+  const promotedWithoutLineItem = promoted.filter(
+    tweet => !id(tweet.line_item_id) || !lines.has(tweet.line_item_id),
+  ).length;
+  if (promotedWithoutLineItem)
+    refuse(
+      'REPORT_ACCOUNT_MISMATCH',
+      'X did not list the line item of {count} of this account’s promoted tweets among the account’s own line items, so their ownership could not be proven.',
+      502,
+      {count: promotedWithoutLineItem},
+      {parent_kind: 'line item', entities_affected: promotedWithoutLineItem},
+    );
   for (const tweet of promoted)
-    if (!id(tweet.line_item_id) || !lines.has(tweet.line_item_id))
-      refuse('REPORT_ACCOUNT_MISMATCH', 'X detailed entities did not retain exact owned native parents.');
-    else if (
+    if (
       tweet.tweet_id !== undefined &&
       !(typeof tweet.tweet_id === 'string' && /^[1-9][0-9]{0,31}$/.test(tweet.tweet_id))
     )

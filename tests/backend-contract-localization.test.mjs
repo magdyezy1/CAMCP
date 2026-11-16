@@ -525,7 +525,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // translated by both the hotfix (its wording) and live (the reworded one, which wins, the lead's decision of 2026-11-15), and
   // the code carries only live's, so the hotfix's entry is dropped and counted once. Measured on the merged catalogue (node
   // tools/check-locales.mjs: catalog_messages 12138, problems none; ar.json has 12,138 keys and no duplicate): 12,130 + 9 - 1.
-  assert.equal(Object.keys(catalog).length, 12138);
+  // Package r12-fix (item 2, V2-RPT-07): +2 entries, the Arabic of the two refusals of the X line item and promoted tweet levels
+  // that name the kind of parent they could not find and how many entities lack one (src/x-overview-detail.ts; the earlier
+  // sentence stays, for a malformed objective): 12,138 + 2 = 12,140. Measured: node tools/check-locales.mjs, catalog_messages 12140.
+  assert.equal(Object.keys(catalog).length, 12140);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
