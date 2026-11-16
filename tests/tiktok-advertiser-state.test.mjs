@@ -247,18 +247,14 @@ const sources = () =>
       })),
   );
 
-test('lint: every object that names advertiser_ids also names fields, but the readiness read of the adapter', () => {
+test('lint: every object that names advertiser_ids also names fields', () => {
   const unnamed = [];
   for (const {file, code} of sources())
     for (const m of code.matchAll(/(?<![.\w'"`])advertiser_ids(?![\w'"`])\s*(?=[:,}])/g))
       if (!/\bfields\b/.test(enclosingObject(code, m.index))) unnamed.push(file + ':' + lineOf(code, m.index));
-  // The one exemption: the adapter's account read (readiness, plan preflight and report collection), which no review
-  // hashes; its request is pinned by tests/fixtures/report-collect-golden.json. Any other site is a regression.
-  assert.deepEqual(
-    unnamed.map(site => site.replace(/:\d+$/, '')),
-    ['src/tiktok-adapter.ts'],
-    'advertiser info reads without fields: ' + unnamed.join(', '),
-  );
+  // r25-m1-hash (M0's "Found, not fixed" 3): the adapter's own account read (readiness, plan preflight and report
+  // collection) no longer holds the one exemption this test named; it asks for the seven fields too. Every site is checked.
+  assert.deepEqual(unnamed, [], 'advertiser info reads without fields: ' + unnamed.join(', '));
 });
 
 test('lint: the advertiser info route is written only where it is built through the shared read or names its fields', () => {

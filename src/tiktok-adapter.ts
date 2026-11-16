@@ -557,11 +557,14 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.',
     }),
   }),
-  // The advertiser info read takes a list of one advertiser and returns it in data.list.
+  // The advertiser info read takes a list of one advertiser and returns it in data.list. It asks for the seven fields an
+  // advertiser is known by (Q15, owner 2026-11-15; R2.5 M1, L1-02): without `fields` TikTok's answer carries the advertiser's
+  // contact record, a signed licence link and its balance, which readiness, plan preflight and report collection kept as
+  // evidence. What they read of it (the name, the currency and the time zone) is among the seven.
   accountRead: Object.freeze({
     plan(read: CompiledRequest, id: string) {
-      read.path = '/v1.3/advertiser/info/';
-      read.query = {advertiser_ids: [id]};
+      read.path = tiktokAdvertiserInfoPath;
+      read.query = tiktokAdvertiserQuery(id);
       return read;
     },
     account: (data: JsonObject) => data.data?.list?.[0],
