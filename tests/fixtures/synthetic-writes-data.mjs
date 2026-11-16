@@ -1,4 +1,4 @@
-// Synthetic-writes fixtures for the rendered browser qualification (QA-03, owner decision D26: the browser fixture may
+﻿// Synthetic-writes fixtures for the rendered browser qualification (QA-03, owner decision D26: the browser fixture may
 // accept its own synthetic mutations). Each fake provider accepts only the mutation routes it declares, records them in
 // a separate synthetic-writes counter and forwards nothing: it runs inside the fixture process and answers itself. Any
 // other mutation increments the provider-write counter and is refused, so the runner's "zero provider writes" invariant
@@ -149,7 +149,9 @@ export function syntheticWriteJourneyFixture() {
               arguments: {
                 action: 'meta_campaign_create',
                 payload: {
-                  name: 'Synthetic campaign',
+                  // One campaign per outcome: an identical create is refused at prepare while an earlier one is uncertain
+                  // (R2.5 M2, L5-06), and the three journeys of a site run one after another.
+                  name: 'Synthetic ' + nextOutcome + ' campaign',
                   objective: 'OUTCOME_TRAFFIC',
                   status: 'PAUSED',
                   special_ad_categories: [],

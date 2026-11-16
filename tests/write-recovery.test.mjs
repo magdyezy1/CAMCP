@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {gateway, account, budgetAction, budgetName, googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {MirrorError} from '../dist/src/errors.js';
@@ -604,7 +604,9 @@ test('a create whose response was lost is found through the Google lookup; one t
     assert.deepEqual(found.data.observed_ids, [budgetName(101)]);
     assert.ok(f.reads.some(q => /campaign_budget\.name IN \('Synthetic 0'\)/.test(q)));
 
-    const missing = (await f.creates(1, 50000000)).data.review_id;
+    // The second create has the first one's name and another amount: an identical create is refused at prepare while the first is
+    // uncertain (R2.5 M2, L5-06), and this test is about the two lookups, which look by the frozen name.
+    const missing = (await f.creates(1, 60000000)).data.review_id;
     f.hooks.respond = lost;
     await f.execute(missing);
     f.hooks.respond = undefined;
