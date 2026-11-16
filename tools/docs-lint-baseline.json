@@ -328,10 +328,16 @@
       "raised": [
         "reference_words 161579 → 161702"
       ]
+    },
+    {
+      "reason": "Package r25-m1-diff (Round 2.5, M1: L5-04, T2, L6-11, design item 4): +284 reference words on its own base of 161702, three passages of docs/WRITE-OPERATIONS.md that say what the package does: provider_check_reason and that provider_check is not the state check; the details of a STATE_CHANGED (gateway, material, recurring_paths, next_call), that no flag skips the check, and that a plan step so refused goes back to pending and run stops at it; and the media block and the volatile path alarms of the owner's review friction view. The merged count is the measured one.",
+      "raised": [
+        "reference_words 161702 → 161986"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 161702
+    "reference_words": 161986
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {
