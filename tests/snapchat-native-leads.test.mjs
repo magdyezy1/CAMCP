@@ -127,6 +127,26 @@ for (const level of ['campaign', 'adsquad', 'ad'])
     const again = ok(await f.call());
     assert.equal(ok(await f.call({action: 'reconcile_report', id: out.id, reference_id: again.id})).matched, true);
   });
+// r12-fix item 1 (O-4 of the live checks of 2026-11-16): the lead presets share the stats collector, so the same rule holds. An
+// answer with no rows may leave out finalized_data_end_time (the only time these presets need); an answer with rows may not.
+for (const level of ['campaign', 'adsquad', 'ad'])
+  test(
+    'native ' +
+      level +
+      ' submissions of a window with no rows complete when the answer leaves out its finalization time',
+    async t => {
+      const f = fixture(t, level, '3', 0);
+      f.edit((url, data) => {
+        if (url.pathname.endsWith('/stats')) delete stat(data).finalized_data_end_time;
+        return data;
+      });
+      const out = ok(await f.call());
+      assert.equal(out.row_count, 0);
+      assert.equal(out.source_pages.length, 1);
+      assert.equal(out.source_pages[0].entity_count, 0);
+      assert.equal(out.source_pages[0].finalized_data_end_time, undefined);
+    },
+  );
 test('native form counts preserve exact large integers and distinguish missing evidence from a zero', async t => {
   const f = fixture(t);
   f.row.timeseries[0].stats.native_leads = '9007199254740993';

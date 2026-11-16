@@ -341,9 +341,19 @@ export async function collectSnapchatEvidence(
     for (const key of nativeLeads ? [] : ['action_report_time', 'conversion_source_types'])
       if (stat[key] !== undefined && stat[key] !== args.query[key])
         bad('Snapchat returned a different conversion definition.', 'REPORT_SEMANTICS_MISMATCH');
-    if (instant(stat.finalized_data_end_time) < through)
+    // An answer with no entities (a campaign that did not deliver in the window) has nothing to finalize, and Snapchat leaves
+    // both finalization times out of it (r12-fix item 1, V2-RPT-07; O-4 of the live checks of 2026-11-16). Such an answer may
+    // omit them, and counts as no rows for this campaign. Only an absent time is accepted, and only there: a time it does
+    // carry is checked as ever, and an answer with entities needs both, with an offset.
+    const none =
+      obj(stat.breakdown_stats) &&
+      Object.keys(stat.breakdown_stats).length === 1 &&
+      Array.isArray(stat.breakdown_stats[level]) &&
+      stat.breakdown_stats[level].length === 0;
+    const notFinalized = (time: unknown) => !(none && time === undefined) && instant(time) < through;
+    if (notFinalized(stat.finalized_data_end_time))
       incomplete('Snapchat has not finalized non-conversion metrics through the selected window.');
-    if (!nativeLeads && instant(stat.conversion_data_processed_end_time) < through)
+    if (!nativeLeads && notFinalized(stat.conversion_data_processed_end_time))
       incomplete('Snapchat has not finalized conversion-time data through the selected window.');
     if (
       !obj(stat.breakdown_stats) ||
@@ -403,7 +413,8 @@ export async function collectSnapchatEvidence(
       page,
       entity_count: entities.length,
       row_count: rows.length - before,
-      finalized_data_end_time: stat.finalized_data_end_time,
+      // The page keeps the times Snapchat gave; an answer with no entities may have given neither.
+      ...(stat.finalized_data_end_time !== undefined ? {finalized_data_end_time: stat.finalized_data_end_time} : {}),
       ...(stat.conversion_data_processed_end_time !== undefined
         ? {conversion_data_processed_end_time: stat.conversion_data_processed_end_time}
         : {}),
