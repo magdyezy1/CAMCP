@@ -433,6 +433,9 @@ test('draft telemetry changes pass while real text and unknown configuration edi
       const out = await f.execute(r);
       assert.equal(out.error.code, 'STATE_CHANGED');
       assert.match(JSON.stringify(out.error.details.changed_fields), unknown ? /futureSetting/ : /text/);
+      // R25 M1 (r25-m1-diff, lead review S1-1): the draft sits in the one entry of the family's own state, whose first read is
+      // the account: its changed text and settings are material, not classed as the account's.
+      assert.deepEqual(out.error.details.material, out.error.details.changed_fields);
       assert.equal(f.writes(), 1);
     } finally {
       f.store.close();

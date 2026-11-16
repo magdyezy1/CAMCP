@@ -104,12 +104,13 @@ test('the refusal lists the changed target before the changed account, by the ro
     assertRefused(unlabelled, 'STATE_CHANGED', {writes: () => f.sent.length});
     assert.deepEqual(unlabelled.error.details.changed_fields, [currencyPath, statusPath]);
     assert.deepEqual(unlabelled.error.details.material, [currencyPath, statusPath]);
-    // Once the account read is labelled as one, the target's change comes first: it is what the write changes.
+    // Once the reads are labelled (the hash package's `stateRole`: the advertiser the account, the campaign the parent), the
+    // parent's change comes first, and the account's identity change after it. Neither is left out.
     f.store.putDocument(f.tenant, 'write_review', prepared.data.review_id, {
       ...saved,
       reads: [
-        {...saved.reads[0], role: 'ACCOUNT/PARENT'},
-        {...saved.reads[1], role: 'target'},
+        {...saved.reads[0], stateRole: 'account'},
+        {...saved.reads[1], stateRole: 'parent'},
       ],
     });
     const labelled = await f.execute(prepared.data);

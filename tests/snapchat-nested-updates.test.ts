@@ -417,6 +417,38 @@ test('Snapchat exact account, parent and target checks reject stale ownership, p
   }
 });
 
+// R25 M1 (r25-m1-diff, lead review S1-1): the family keeps the account, the campaign, the parent and its targets in the one
+// entry of its own state, while its first read is the account's. A change to the target's budget, end time or status is
+// material, all three, not only the one whose name sounds like an identity.
+test('a changed budget, end time and status of the reviewed ad squad are all material', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare(f.args('snapchat_adsquad_patch'));
+    assert.equal(p.success, true, JSON.stringify(p));
+    const squad = f.rows['adsquads/squad1']!;
+    squad.daily_budget_micro = (squad.daily_budget_micro as number) + 1;
+    squad.end_time = '2028-01-01T00:00:00Z';
+    squad.status = 'ACTIVE';
+    const e = await f.execute(p);
+    assert.equal(e.error.code, 'STATE_CHANGED', JSON.stringify(e));
+    const {changed_fields: changed, material} = e.error.details as {changed_fields: string[]; material: string[]};
+    for (const field of ['daily_budget_micro', 'end_time', 'status']) {
+      assert.ok(
+        changed.some(s => s.endsWith('["' + field + '"]')),
+        'changed: ' + field,
+      );
+      assert.ok(
+        material.some(s => s.endsWith('["' + field + '"]')),
+        'material: ' + field + ' in ' + JSON.stringify(material),
+      );
+    }
+    assert.deepEqual(material, changed, 'nothing the diff found is left out');
+    assert.equal(f.stats.writes, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('Snapchat telemetry and set order are stable while budget, targeting, parent, currency and tracking changes conflict', async () => {
   for (const change of ['budget', 'targeting', 'parent', 'currency', 'tracking']) {
     const f = fixture();

@@ -1302,6 +1302,18 @@ export class WriteReviewService {
     const expectedState = familyOf(plan)?.stateAsRead
       ? review.state
       : review.state.map((value: unknown, i: number) => normalizeSnapshot(review.reads[i], value));
+    // The roles of the reads name which changed path belongs to which read only where the state has one entry per read
+    // (the generic state). A family that keeps its own state, a state kept as it was read, or an owned state read first and
+    // the provider's own second, puts several reads in one entry: the first subscript of a path then says nothing about its
+    // read, and every path is a target (lead review S1-1). Decided before the state is read again, which may add reads.
+    const readsOfState: unknown[] | undefined =
+      !familyOf(plan)?.state &&
+      !familyOf(plan)?.stateAsRead &&
+      !reviewHooks(plan.gateway)?.ownState?.claims(plan) &&
+      Array.isArray(review.reads) &&
+      review.state.length === review.reads.length
+        ? [...review.reads]
+        : undefined;
     const current = await this.state(actor, plan, review.connection_id, review.reads),
       expectedHash = reviewStateHash(expectedState),
       actualHash = reviewStateHash(current);
@@ -1325,7 +1337,7 @@ export class WriteReviewService {
           submission: 'not_sent',
           // The provider, so that the audit of refusals can tell its refusals from another provider's.
           gateway: plan.gateway,
-          ...surfacedMaterial(materialFields(changed, review.reads, plan)),
+          ...surfacedMaterial(materialFields(changed, readsOfState, plan)),
           ...(recurring ? {recurring_paths: recurring} : {}),
           ...expiredNext(review),
         },
