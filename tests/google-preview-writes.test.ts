@@ -1512,3 +1512,110 @@ test('an outcome stored before the mismatch was named is explained from the reta
     undefined,
   );
 });
+
+// r12-gpreview round 2, lead review S4-2. What a delivery shows, and says to do, follows one condition: whether the stored outcome
+// says it was refused (`native_response_valid: false`). A stored refusal stays a refusal when a later release's guard accepts the
+// answer it kept: the replay never delivers its links, says that the guard accepts it now, and that a fresh generation (a new
+// review) is what delivers links.
+const refusedOutcome = (): JsonObject => ({
+  success: false,
+  executed: true,
+  outcome: 'partial_or_failed',
+  status: 200,
+  data: {native_response_valid: false, response_hash: 'a'.repeat(64)},
+  failures: [{path: '$', message: 'The response does not match the reviewed previews.'}],
+});
+const acceptedOutcome = (): JsonObject => ({
+  success: true,
+  executed: true,
+  outcome: 'succeeded',
+  status: 200,
+  data: {preview_results: []},
+});
+const acceptedNow = {check: 'none', reason: 'accepted_now'};
+
+test('a stored refusal stays a refusal: when a later guard accepts the answer it kept, no link is delivered and a fresh generation is needed', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    f.reply(() => answerOf([wantedUi], withLink('shareablePreviewUrl', 'https://127.0.0.1/preview-before')));
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(e.data.data.response_mismatch.reason, 'host_not_accepted');
+    // A later release accepts that answer. The guard is code, so the test reaches the same state by keeping an answer the guard
+    // accepts under the outcome that was stored as refused.
+    f.store.savePreviewReceipt(actor.tenantId, r.data.review_id, documentedResponse([wantedUi]));
+    const sent = f.calls.length;
+    const again = await f.execute(r);
+    assert.equal(again.data.replayed, true);
+    assertRefused(again, 'WRITE_PARTIAL_OR_FAILED');
+    // The links the answer now holds are delivered to no one, and the delivery says why.
+    assert.ok(!JSON.stringify(again).includes('documented/preview-'));
+    assert.equal(again.data.previews.status, 'unavailable');
+    assert.deepEqual(again.data.previews.results, []);
+    assert.equal(again.data.previews.links_retained, true);
+    assert.deepEqual(again.data.data.response_mismatch, acceptedNow);
+    assert.deepEqual(again.error.details.response_mismatch, acceptedNow);
+    assert.match(again.data.previews.next_action, /^No link is shown\. This answer was not accepted when it arrived/);
+    assert.match(again.data.previews.next_action, /A fresh generation needs a new review\./);
+    assert.match(again.data.previews.next_action, /Never repeat a successful or uncertain generation automatically\.$/);
+    assert.doesNotMatch(again.data.previews.next_action, /Open a generated link|report the mismatch/);
+    assert.equal(f.calls.length, sent);
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the delivery of a stored refusal, and of a stored acceptance, follow one condition: what the stored outcome says', () => {
+  const p = compiled([ui]),
+    good = documentedResponse([wantedUi]) as JsonObject,
+    refusedRaw = answerOf(
+      [wantedUi],
+      withLink('shareablePreviewUrl', 'https://127.0.0.1/leak-marker-three'),
+    ) as JsonObject;
+  // Refused, and the answer is still refused: the mismatch and the step that reports it, no link.
+  const still = googlePreviewDelivery(p, refusedOutcome(), refusedRaw);
+  assert.deepEqual(still.data.response_mismatch, {
+    check: 'link',
+    reason: 'host_not_accepted',
+    entry: 0,
+    field: 'shareablePreviewUrl',
+  });
+  assert.match(still.previews.next_action, /^No link is shown, because the provider’s answer did not match/);
+  assert.match(still.previews.next_action, /report the mismatch in data\.response_mismatch/);
+  // Refused, and the guard accepts the answer now: said so, no link, and a fresh generation.
+  const now = googlePreviewDelivery(p, refusedOutcome(), good);
+  assert.deepEqual(now.data.response_mismatch, acceptedNow);
+  assert.equal(now.data.native_response_valid, false);
+  assert.equal(now.previews.status, 'unavailable');
+  assert.deepEqual(now.previews.results, []);
+  assert.match(now.previews.next_action, /A fresh generation needs a new review\./);
+  assert.ok(!JSON.stringify(now).includes('documented/preview-'));
+  // Not refused, and the answer is accepted: the links, with the step to open them, and no mismatch.
+  const open = googlePreviewDelivery(p, acceptedOutcome(), good);
+  assert.equal(open.data.response_mismatch, undefined);
+  assert.equal(open.previews.status, 'generated');
+  assert.equal(open.previews.results.length, 1);
+  assert.match(open.previews.next_action, /^Open a generated link/);
+  // Not refused, and the answer is not accepted now (a later release tightened the guard): no link, no mismatch named in the
+  // outcome, and a step that does not point to one.
+  const tightened = googlePreviewDelivery(p, acceptedOutcome(), refusedRaw);
+  assert.equal(tightened.data.response_mismatch, undefined);
+  assert.equal(tightened.previews.status, 'unavailable');
+  assert.deepEqual(tightened.previews.results, []);
+  assert.match(
+    tightened.previews.next_action,
+    /^No link is shown, because this release of AMCP does not accept the answer kept for this generation\. A new generation needs a new review\./,
+  );
+  assert.doesNotMatch(tightened.previews.next_action, /response_mismatch/);
+  assert.ok(!JSON.stringify(tightened).includes('leak-marker-three'));
+  // No receipt: nothing to show or to name, whatever the outcome says.
+  for (const outcome of [refusedOutcome(), acceptedOutcome()]) {
+    const gone = googlePreviewDelivery(p, outcome, undefined);
+    assert.equal(gone.data.response_mismatch, undefined);
+    assert.deepEqual(gone.previews.results, []);
+    assert.match(gone.previews.next_action, /^Private preview links expired locally/);
+  }
+});

@@ -509,18 +509,33 @@ export function googlePreviewSafeOutcome(p: CompiledRequest, outcome: JsonObject
       : {}),
   };
 }
-/** Deliver only validated URLs, never an unrecognized response's links. Raw
- * responses are separately encrypted for recovery; normal receipts are redacted. */
+/**
+ * Deliver only validated URLs, never an unrecognized response's links. Raw responses are separately encrypted for recovery;
+ * normal receipts are redacted.
+ *
+ * What a delivery shows, and says to do, follows one condition: whether the stored outcome says it was refused
+ * (`native_response_valid: false`). A stored refusal stays a refusal: its replay never delivers links, whatever the guard of
+ * the delivering release says of the answer it kept (lead review S4-2). An outcome stored before the mismatch was named is
+ * explained from the retained answer, at delivery, with the same closed-set facts and no value; if this release's guard accepts
+ * that answer now, the fact is `{check: 'none', reason: 'accepted_now'}` and the step is a fresh generation. Nothing is invented
+ * when the retained answer is gone (r12-gpreview).
+ */
 export function googlePreviewDelivery(p: CompiledRequest, outcome: JsonObject, raw?: JsonObject): JsonObject {
   const safe = redact(outcome),
+    refused = safe.data?.native_response_valid === false,
     checked = raw ? inspect(p, {data: raw, status: outcome.status, headers: {}}) : undefined,
-    rows = checked && 'rows' in checked ? checked.rows : undefined;
+    accepted = checked && 'rows' in checked ? checked.rows : undefined,
+    // Links go only to an outcome that was not refused.
+    rows = refused ? undefined : accepted;
   return {
     ...safe,
-    // An outcome stored before the mismatch was named is explained from the retained answer, at delivery, with the same
-    // closed-set facts and no value (r12-gpreview): nothing is invented when the retained answer is gone.
-    ...(checked && 'mismatch' in checked && safe.data?.native_response_valid === false
-      ? {data: {...safe.data, response_mismatch: checked.mismatch}}
+    ...(refused && checked
+      ? {
+          data: {
+            ...safe.data,
+            response_mismatch: 'mismatch' in checked ? checked.mismatch : {check: 'none', reason: 'accepted_now'},
+          },
+        }
       : {}),
     previews: {
       status: rows
@@ -533,13 +548,18 @@ export function googlePreviewDelivery(p: CompiledRequest, outcome: JsonObject, r
       results: rows ?? [],
       links_retained: !!raw,
       automatic_regeneration: false,
-      // The next step follows the answer (r12-gpreview): one AMCP did not accept shows no link, so none is to be opened (the
-      // refusal beside it says to report the mismatch), while one it did accept keeps the step it had.
+      // The next step follows the stored outcome (r12-gpreview): a refusal shows no link, so none is to be opened, and it says to
+      // report the mismatch the delivered outcome names, or that a fresh generation is needed when this release accepts the
+      // answer it kept; an acceptance keeps the step it had, unless this release no longer accepts the answer it kept.
       next_action: !raw
         ? 'Private preview links expired locally or are unavailable. The original submission remains recorded; a fresh generation requires an explicit new review.'
-        : rows
-          ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
-          : 'No link is shown, because the provider’s answer did not match what AMCP reviewed. The answer stays encrypted for recovery; report the mismatch in data.response_mismatch to support. Never repeat a successful or uncertain generation automatically.',
+        : refused
+          ? accepted
+            ? 'No link is shown. This answer was not accepted when it arrived, and a refusal that was stored stays a refusal, though this release of AMCP accepts the answer now (data.response_mismatch says so). A fresh generation needs a new review. Never repeat a successful or uncertain generation automatically.'
+            : 'No link is shown, because the provider’s answer did not match what AMCP reviewed. The answer stays encrypted for recovery; report the mismatch in data.response_mismatch to support. Never repeat a successful or uncertain generation automatically.'
+          : rows
+            ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
+            : 'No link is shown, because this release of AMCP does not accept the answer kept for this generation. A new generation needs a new review. Never repeat a successful or uncertain generation automatically.',
     },
   };
 }
