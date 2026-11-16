@@ -242,6 +242,12 @@ const executeFields = [
 const targetLockMs = 120000,
   targetBusy =
     'Another reviewed write to the same target is being executed. Nothing was submitted; execute this review again in a moment. Its state is read again first.';
+/**
+ * The codes of a refusal the transport raises before it sends anything (a provider cooldown, the tenant's request budget, an open
+ * circuit, a full coordination table): a state read refused with one of them sent no write and claimed nothing (S3-2 of the lead's
+ * review). The plan engine waits on the same four when a refusal says it was not sent (src/campaign-runner.ts).
+ */
+const refusedBeforeSending = ['TENANT_RATE_LIMIT', 'PLATFORM_RATE_LIMIT', 'CIRCUIT_OPEN', 'PROVIDER_COORDINATION_BUSY'];
 const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),
@@ -1296,6 +1302,25 @@ export class WriteReviewService {
       await pause(100);
     }
   }
+  /**
+   * The state of an execute, read again before anything is claimed. A read refused for a cooldown, an exhausted request budget or an
+   * open circuit (the transport refuses before it sends) sent no write and claimed nothing, so the refusal says so: the review
+   * stays valid, and the same one executes when the cause clears (S3-2 of the lead's review). A plan step waits on this mark instead
+   * of failing; under AMCP_PROVIDER_PACING_MODE=enforce it is the usual refusal, since a block announced after a review was prepared
+   * refuses the read of its execute. Any other refusal of the read keeps what it was.
+   */
+  private async currentState(
+    actor: Actor,
+    plan: CompiledRequest,
+    review: JsonObject,
+    reviewId: string,
+  ): Promise<unknown[]> {
+    try {
+      return await this.state(actor, plan, review.connection_id, review.reads);
+    } catch (e) {
+      throw e instanceof MirrorError && refusedBeforeSending.includes(e.code) ? notSent(e, reviewId) : e;
+    }
+  }
   private async submit(
     actor: Actor,
     input: JsonObject,
@@ -1328,7 +1353,7 @@ export class WriteReviewService {
         : undefined;
     // Both sides are hashed with the table of the provider whose reviewed state this is (R2.5 M1, review.volatile).
     const volatile = reviewVolatile(plan.gateway),
-      current = await this.state(actor, plan, review.connection_id, review.reads),
+      current = await this.currentState(actor, plan, review, input.review_id as string),
       expectedHash = reviewStateHash(expectedState, volatile),
       actualHash = reviewStateHash(current, volatile);
     const creativeImpact = writeImpact(plan, current, review.creative_edit_confirmed === true, review.connection_id);
