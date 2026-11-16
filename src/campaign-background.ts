@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {MirrorError} from './errors.js';
+import {MirrorError, refusedByStateCheck} from './errors.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {setJobInput} from './job-repository.js';
@@ -38,10 +38,20 @@ export function independentUploads(run: JsonObject): boolean {
     )
   );
 }
-/** The next upload of such a plan the run can move: one left executing (resumed first), then a ready review, then pending. */
+/**
+ * A step the refusal of its review's state check sent back to pending, unsent (R25 M1, L5-04): it waits to be prepared again
+ * over the state as it is now, which a person asks for (prepare_next) or a later run shows before it sends anything.
+ */
+export const heldByStateCheck = (step: JsonObject): boolean =>
+  step?.status === 'pending' && refusedByStateCheck(step.error);
+/**
+ * The next upload of such a plan the run can move: one left executing (resumed first), then a ready review, then pending. An
+ * upload held by a refusal of the state check is not one: it holds none of the others, and waits for a person (lead review
+ * S3-1).
+ */
 export function nextUpload(run: JsonObject): JsonObject | undefined {
   for (const status of runnable) {
-    const step = run.steps.find((s: JsonObject) => s.status === status);
+    const step = run.steps.find((s: JsonObject) => s.status === status && !heldByStateCheck(s));
     if (step) return step;
   }
   return undefined;

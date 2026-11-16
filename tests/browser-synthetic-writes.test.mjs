@@ -29,7 +29,9 @@ test('the write journey meets accepted, uncertain and refused outcomes with synt
   const expected = {
     accepted: {status: 'verified', synthetic: 1},
     uncertain: {status: 'uncertain', code: 'WRITE_OUTCOME_UNCERTAIN', synthetic: 2},
-    refused: {status: 'failed', code: 'STATE_CHANGED', synthetic: 2},
+    // R25 M1 (r25-m1-diff, L5-04): a step whose review the state check refused is sent back to pending, unsent, with the
+    // refusal on it (it ended failed before, which the website offered to "correct" as a broken step). Nothing else changed.
+    refused: {status: 'pending', code: 'STATE_CHANGED', synthetic: 2},
   };
   for (const [outcome, want] of Object.entries(expected)) {
     const id = await site.writeJourney.seed(outcome),

@@ -365,7 +365,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the account themselves share (src/linkedin-account-state.ts): 823 + 1 = 824.
   // The accounts of Microsoft and Reddit are kept to their identity too (lead review S3-3), each in a module of its own with no
   // reason of its own (src/microsoft-account-state.ts, src/reddit-account-state.ts): 824 + 2 = 826.
-  assert.equal(files.length, 826);
+  // Package r25-m1-diff (Round 2.5, M1: L5-04) adds src/review-diff.ts, which of the changed fields of a STATE_CHANGED
+  // matter, with no reason of its own: one more on the integration's 816, 817 on its own base. Whoever merges it adds the
+  // files of every package it is merged with to this number.
+  // Merge r25-m1-merge, with r25-m1-hash (826 on the base of 816) and r25-m1-diff (817 on the same base): each adds different
+  // files, so the merged tree measures, with this test's own inspector, 816 + 10 + 1 = 827.
+  assert.equal(files.length, 827);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -535,7 +540,22 @@ test('all actual directly owned backend reasons have Arabic with original native
   // translated by both the hotfix (its wording) and live (the reworded one, which wins, the lead's decision of 2026-11-15), and
   // the code carries only live's, so the hotfix's entry is dropped and counted once. Measured on the merged catalogue (node
   // tools/check-locales.mjs: catalog_messages 12138, problems none; ar.json has 12,138 keys and no duplicate): 12,130 + 9 - 1.
-  assert.equal(Object.keys(catalog).length, 12138);
+  // Package r25-m1-diff (Round 2.5, M1: L5-04, T2): +1 entry, the Arabic of the remedy of the refusal of a review's state check
+  // (src/errors.ts; its next step is the same sentence); measured on its own base (node tools/check-locales.mjs:
+  // catalog_messages 12139), 12,138 + 1 = 12,139.
+  // Its item 2 (L5-04): +1 entry, the website's wording of the stop of a plan run at a step whose provider state changed after its
+  // review (web/campaign-workflows.js runStopLabels.state_changed, also shown for the step execute_next sent back to pending):
+  // measured (node tools/check-locales.mjs: catalog_messages 12140), 12,139 + 1 = 12,140.
+  // Its item 5 (L6-11): +3 entries, the website's wording of the media block of the Review friction section of Settings (its heading,
+  // its table's name and the line that says how many media reviews were prepared and uploads sent: web/owner-operations.js
+  // ownerMediaFriction; every other label of the block was already translated): measured (node tools/check-locales.mjs:
+  // catalog_messages 12143), 12,140 + 3 = 12,143.
+  // Its item 4 (the alarm of the plan's idea 1): +3 entries, the website's wording of the fields that change on many prepares of
+  // one provider, in the Review friction section (heading, the notice that states the rule, and the counts of each field:
+  // web/owner-operations.js ownerReviewFriction): measured (node tools/check-locales.mjs: catalog_messages 12146), 12,143 + 3 = 12,146.
+  // Lead review S2-2 (r25-m1-diff): +1 entry, the remedy of a STATE_CHANGED refused after a claim (a media resume, where part of
+  // the upload may already have been sent: src/errors.ts reviewRemedy): measured (catalog_messages 12147), 12,146 + 1 = 12,147.
+  assert.equal(Object.keys(catalog).length, 12147);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

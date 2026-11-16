@@ -13,6 +13,8 @@ import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields, reviewVolatile} from './review-state.js';
+import {materialFields, surfacedMaterial} from './review-diff.js';
+import {recurringStatePaths} from './review-friction.js';
 import {downloadDriveFile, downloadPrivateDrive, driveAccess, driveGateway, listDriveFolder} from './private-drive.js';
 import {createMediaVariant, variantPresets, inspectMediaPlacement} from './media-variants.js';
 import {placementPreflight} from './media-specs.js';
@@ -1808,12 +1810,31 @@ export class MediaUploadService {
       current = await this.state(actor, p),
       actual = reviewStateHash(current, volatile),
       expected = reviewStateHash(expectedState, volatile);
-    if (actual !== expected)
+    if (actual !== expected) {
+      // The provider's table drops from the diff what it drops from the hash (R2.5 M1). The gateway is the read's, the one
+      // that table was chosen by: the same string as `platform + '_native_action'` for each media platform (`accountRead`).
+      const changed = changedStateFields(expectedState, current, volatile),
+        gateway = p.read.gateway,
+        // The paths that changed in this provider's recent refusals too, writes and uploads alike: left out when the audit
+        // cannot be read (R25 M1, L5-04).
+        recurring = recurringStatePaths(this.store, actor.tenantId, gateway, changed, {review: input.review_id});
+      // The same details as the refusal of a write (src/write-review.ts), except the call that prepares it again: a media
+      // review keeps no prepare input, and its source may be a link that carries a signature, which a refusal must not copy.
+      // A first execute is refused before anything is claimed, and says so (`submission`). A resume runs after a claim, with
+      // part of the upload already at the provider: it carries no such mark, so its remedy never says nothing was sent, and
+      // its next call is the read-only recovery record of the upload (its claim, journal and progress), never a send.
       fail('STATE_CHANGED', 'Provider configuration changed. Prepare a new media review.', {
         expected_state_hash: expected,
         actual_state_hash: actual,
-        changed_fields: changedStateFields(expectedState, current, volatile),
+        changed_fields: changed,
+        gateway,
+        ...surfacedMaterial(materialFields(changed, undefined)),
+        ...(recurring ? {recurring_paths: recurring} : {}),
+        ...(resuming
+          ? {next_call: {tool: 'amcp_media', arguments: {action: 'recovery', review_id: input.review_id}}}
+          : {submission: 'not_sent'}),
       });
+    }
     if (confirmBy <= Date.now()) fail('REVIEW_EXPIRED', 'Media review expired during verification.');
     assertWritesNotPaused(this.store, actor.tenantId);
     // Before any claim or provider request: refuse a transfer that cannot finish before its deadline (MED-01 Stage C).

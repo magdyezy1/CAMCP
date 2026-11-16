@@ -216,6 +216,7 @@
   "Summary limited to 160 fields. Inspect the complete request below before approving.": "يقتصر الملخص على 160 حقلًا. افحص الطلب الكامل أدناه قبل الاعتماد.",
   "Supported sources: Google Search, Snapchat, TikTok and LinkedIn campaign groups. The source is read into a draft; review the fields omitted from the clone before approval.": "المصادر المدعومة: Google Search وSnapchat وTikTok ومجموعات حملات LinkedIn. يُقرأ المصدر في مسودة؛ راجع الحقول المستبعدة من النسخة قبل الاعتماد.",
   "Target:": "الهدف:",
+  "The account changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.": "تغيّر الحساب بعد تحضير هذه الخطوة، ولذلك لم يُرسل أي شيء. راجع الخطوة مجددًا لترى حالتها الحالية. لا شيء يتجاوز هذا الفحص.",
   "The automatic review could not finish ({code}). You can review the outcome now.": "تعذّر إكمال المراجعة التلقائية ({code}). يمكنك مراجعة النتيجة الآن.",
   "The linked account is not available for cloning. Choose an account with write access.": "الحساب المرتبط غير متاح للنسخ. اختر حسابًا لديه صلاحية الكتابة.",
   "The next step waits for an earlier step to settle (a read-back or an upload still processing). Read it back, or continue in a moment.": "تنتظر الخطوة التالية استقرار خطوة سابقة (إعادة قراءة أو رفع لا يزال قيد المعالجة). أعد قراءتها، أو تابع بعد قليل.",

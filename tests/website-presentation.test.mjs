@@ -261,6 +261,9 @@ for (const locale of ['en', 'ar'])
       needs_destructive_confirmed: ['outcome-review-step'],
       needs_website_approval: ['outcome-review-step'],
       needs_owner_approval: ['outcome-review-step'],
+      // R25 M1 (L5-04): the provider's state changed after the step's review. Nothing was sent, and the outcome offers no
+      // Continue (an automatic retry): the person reviews the step again, on its current state.
+      state_changed: ['outcome-review-step'],
     };
     const labels = p.run('runStopLabels');
     for (const [stopped, controls] of Object.entries(expected)) {
@@ -982,6 +985,148 @@ for (const locale of ['en', 'ar'])
     assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'failed'}]}), 'amend');
     assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'verified'}]}), '');
   });
+
+// R25 M1 (L5-04): a plan step whose review was refused for a changed provider state goes back to pending, unsent. The
+// answer of execute_next is a saved plan with a pending step, which the page used to announce as "Saved.".
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a step sent back to pending for a changed provider state is not announced as saved, and offers its review again',
+    () => {
+      const p = campaignPage(locale),
+        plan = {id: 'plan-1', steps: [{id: 'campaign', review_id: 'review-1', status: 'pending'}]};
+      p.context.plan = plan;
+      const answer = error => ({
+        view: 'compact',
+        id: 'plan-1',
+        state: 'attention',
+        steps: [{id: 'campaign', status: 'pending', error}],
+        current: {step_id: 'campaign', status: 'pending', error: {code: error}},
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: 'plan-1'}},
+      });
+      p.context.out = answer('STATE_CHANGED');
+      const html = p.run('runOutcomeView(out, plan)'),
+        text = visible(html),
+        wording = p.run('runStopLabels').state_changed;
+      assert.ok(text.includes(t(locale, wording)), 'says the provider changed and nothing was sent');
+      assert.ok(!text.includes(t(locale, 'Saved.')), 'not "Saved."');
+      assert.doesNotMatch(text, agentTokens);
+      assert.deepEqual(
+        [...html.matchAll(/id="(outcome-[a-z-]+)"/g)].map(m => m[1]),
+        ['outcome-review-step'],
+        'one control: the step is reviewed again, never continued',
+      );
+      // Another pending step, an expired review prepared again, is as it was: saved, for the next review.
+      p.context.out = answer('REVIEW_EXPIRED');
+      const other = visible(p.run('runOutcomeView(out, plan)'));
+      assert.ok(other.includes(t(locale, 'Saved. Review the next step when you are ready.')));
+      assert.ok(!other.includes(t(locale, wording)));
+      // The plan's one emphasized action is that review: the step is not broken, so the correction is not the emphasized
+      // one (it is offered as a second control, below), and Run does not lead (a non-empty lead takes the emphasis off Run).
+      const refused = {steps: [{id: 'campaign', status: 'pending', error: {code: 'STATE_CHANGED'}}]};
+      assert.equal(p.run('campaignNextSafeAction')(refused), 'review');
+      assert.equal(p.run('campaignNeedsAmendment')(refused), true, 'an unsent step can be corrected in place');
+      assert.equal(
+        p.run('campaignNextSafeAction')({
+          steps: [{id: 'campaign', status: 'pending', error: {code: 'REVIEW_EXPIRED'}}],
+        }),
+        '',
+      );
+      assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'pending'}]}), '');
+      // The plan's row of buttons follows: "Review next step" is the emphasized one only for a refused review.
+      for (const [steps, classes] of [
+        [refused.steps, ['primary']],
+        [[{id: 'campaign', status: 'pending'}], []],
+      ]) {
+        const next = p.node('#next-campaign');
+        next.classList = {
+          names: [],
+          add(name) {
+            this.names.push(name);
+          },
+        };
+        p.context.plan = {id: 'plan-1', steps};
+        p.run('bindCampaignWorkflow(plan, async () => true, () => true)');
+        assert.deepEqual(next.classList.names, classes, JSON.stringify(steps));
+      }
+    },
+  );
+
+// R25 M1 (r25-m1-diff, lead review S3-2): a step the state check sent back to pending never reached the provider, so the page
+// offers its correction too, as a second control beside the review of the step and never the emphasized one. The correction
+// is the form of recover_step, which the server now accepts for such a step; opening it prepares nothing.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': a step refused for a changed provider state is corrected from the plan page and from its outcome',
+    async () => {
+      const p = campaignPage(locale),
+        step = {
+          id: 'campaign',
+          status: 'pending',
+          review_id: 'review-1',
+          arguments: {action: 'tiktok_campaign_create', payload: {campaign_name: 'Original', budget: 50}},
+          error: {code: 'STATE_CHANGED', details: {changed_fields: ['$[0]["x"]']}},
+        },
+        plan = {id: 'plan-1', revision: 4, steps: [step]},
+        failed = {id: 'b', status: 'failed'};
+      p.context.plan = plan;
+      // The plan page offers the correction, and the emphasis stays on the review; a failed step still leads with the correction.
+      assert.equal(p.run('campaignNeedsAmendment')(plan), true);
+      assert.equal(p.run('campaignNextSafeAction')(plan), 'review');
+      assert.equal(p.run('campaignNextSafeAction')({steps: [step, failed]}), 'amend');
+      assert.equal(p.run('campaignNeedsAmendment')({steps: [{...step, error: {code: 'REVIEW_EXPIRED'}}]}), false);
+      // The outcome of the refused execute: the review first and emphasized, the correction beside it.
+      p.context.out = {
+        view: 'compact',
+        id: 'plan-1',
+        state: 'attention',
+        steps: [{id: 'campaign', status: 'pending', error: 'STATE_CHANGED'}],
+        current: {step_id: 'campaign', status: 'pending', error: {code: 'STATE_CHANGED'}},
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: 'plan-1'}},
+      };
+      const html = p.run('runOutcomeView(out, plan)');
+      assert.deepEqual(
+        [...html.matchAll(/id="(outcome-[a-z-]+)"/g)].map(m => m[1]),
+        ['outcome-review-step', 'outcome-correct-step'],
+      );
+      assert.match(html, /id="outcome-review-step" type="button" class="button primary"/);
+      assert.match(html, /id="outcome-correct-step" type="button" class="button"/);
+      assert.ok(visible(html).includes(t(locale, 'Correct blocked step')));
+      // Both controls open the form of recover_step for this step without a call: nothing is prepared or sent by opening it.
+      p.context.after = {outcome: p.context.out};
+      p.node('#next-campaign').classList = {add() {}};
+      p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      for (const control of ['#outcome-correct-step', '#amend-campaign']) {
+        p.node('#campaign-review').innerHTML = '';
+        await p.bindings.get(control)();
+        assert.equal(p.calls.length, 0, control + ' prepares nothing');
+        const form = p.node('#campaign-review').innerHTML;
+        assert.match(form, /id="amend-step"/, control);
+        assert.match(form, /\/payload\/campaign_name/, control);
+        assert.match(form, /campaign<\/h2>/, control + ' names the step');
+      }
+      // The form sends recover_step for this step, with the person's confirmation and the plan's revision.
+      p.node('#amend-step').elements.confirmed.checked = true;
+      // The fields of the step's arguments, in their order: /action, /payload/campaign_name, /payload/budget.
+      p.node('#amend-step').elements.field.value = '1';
+      p.node('#amend-step').elements.value.value = 'Corrected name';
+      p.respond(async () => ({}));
+      await p.bindings.get('#amend-step')();
+      assert.deepEqual(
+        p.calls.map(c => c.args),
+        [
+          {
+            action: 'recover_step',
+            id: 'plan-1',
+            step_id: 'campaign',
+            expected_revision: 4,
+            confirmed: true,
+            patch: [{path: '/payload/campaign_name', value: 'Corrected name'}],
+          },
+        ],
+      );
+    },
+  );
 
 // Design review 2026-10 (WEB-03): an uncertain write told people not to "retry with a new key" and to avoid "a new
 // idempotency key"; the page now says what happened and the one safe thing to do, in its own words.

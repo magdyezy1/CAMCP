@@ -23,6 +23,14 @@ import type {TransportResult} from './transport.js';
  */
 export const providerValidationScope =
   'Google Ads mutate requests, and Meta campaign and ad set creates and edits (meta_campaign_create, meta_adset_create, meta_campaign_id_update, meta_ad_set_id_update)';
+/**
+ * Why provider_check is unavailable for a request (R25 M1, T2): no validate-only route of its provider is qualified for it.
+ * It names no provider, so it holds for every request that has none. provider_check is not AMCP's own check: execute reads
+ * the provider's state again and refuses a changed state (STATE_CHANGED), and no flag skips that, with provider_check or
+ * without it. The White Friday agent took the unavailable flag, next to a STATE_CHANGED, for a way past the check.
+ */
+export const providerCheckUnavailable =
+  'No validate-only route of the provider is qualified for this request, so provider_check cannot ask the provider to validate it. It is separate from AMCP’s state check, which every execute runs: a changed state is refused as STATE_CHANGED, and no flag skips that check.';
 /** The provider's own validation of `plan`, or undefined when the route has no qualified validation path. */
 export function providerValidationRequest(plan: CompiledRequest): CompiledRequest | undefined {
   return providerHooks(plan.gateway)?.validation?.request(plan);

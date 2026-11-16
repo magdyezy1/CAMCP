@@ -675,9 +675,16 @@ const runStopLabels = {
     'This step needs a person’s approval on the AMCP website before it runs. Nothing was sent, and its review stays ready. Open its approval page, then continue the run once the step is approved.',
   needs_owner_approval:
     'Only the workspace owner runs a change beyond a spending cap. Nothing was sent, and the step’s review stays ready. The owner continues the run, or approves the step on its approval page first.',
+  // R25 M1 (L5-04): the provider changed after the step's review was prepared. Nothing was claimed or sent, and the step went
+  // back to pending; a plan approval is of the plan, not of a state that moved, so the run stops instead of preparing the
+  // step again on its own, and the outcome offers no Continue: the person reviews the step again on its current state.
+  state_changed:
+    'The account changed after this step was prepared, so nothing was sent. Review the step again to see its current state. Nothing skips this check.',
   // A plan its preflight blocked returns the blocked view, not a run (src/campaign-background.ts).
   blocked: 'A prerequisite blocks this plan. Correct the blocked step, then run the plan again.',
 };
+/** execute_next's answer for a step its review's state check refused: pending again, nothing sent (src/campaign-runner.ts). */
+const campaignStateChanged = out => out?.current?.status === 'pending' && out.current.error?.code === 'STATE_CHANGED';
 // A stopped step's way forward, by the call the server names for it (src/campaign-runner.ts stopped()).
 const runRecoveryLabels = {
   recover_step:
@@ -701,11 +708,13 @@ const executedStepOutcomes = {
 };
 /**
  * The plan's one emphasized action once a step went wrong (design review 2026-10): a read-back for a step whose result
- * is not confirmed, otherwise the correction of a failed or blocked step; '' when neither applies.
+ * is not confirmed, otherwise the correction of a failed or blocked step, otherwise (R25 M1, L5-04) the review of a step
+ * whose review the state check refused, which is pending again and not broken; '' when none applies.
  */
 function campaignNextSafeAction(run) {
   if (run?.steps?.some(s => s.status === 'uncertain' && s.review_id)) return 'reconcile';
-  return run?.steps && campaignNeedsAmendment(run) ? 'amend' : '';
+  if (run?.steps && campaignBrokenStep(run)) return 'amend';
+  return campaignRefusedStep(run) ? 'review' : '';
 }
 function runRecoveryKind(out) {
   const call = out?.next_call,
@@ -754,6 +763,8 @@ function runOutcomeView(out, run) {
     lines.push(uiText('Prerequisites checked: nothing blocks this plan.'));
   else if (out?.background?.state) lines.push(campaignBackgroundLabel(out.background));
   else if (out?.approved) lines.push(uiText('Plan approved. Run it when you are ready; the approval lasts 24 hours.'));
+  // A step its review's state check refused, sent back to pending unsent (R25 M1, L5-04): never announced as saved.
+  else if (!recovery && campaignStateChanged(out)) lines.push(uiText(runStopLabels.state_changed));
   // The step a call executed and that did not complete (design review 2026-10): it was announced as "Saved.".
   else if (!recovery && Object.hasOwn(executedStepOutcomes, out?.current?.status ?? ''))
     lines.push(uiText(executedStepOutcomes[out.current.status]));
@@ -781,7 +792,13 @@ function runOutcomeView(out, run) {
         ? `<a class="button primary" href="${esc(path)}">${esc(uiText('Open the approval page'))}</a>`
         : button('outcome-review-step', uiText('Review the step'), true),
     );
-  } else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
+  } else if (stopped === 'state_changed' || (!stopped && !recovery && campaignStateChanged(out)))
+    controls.push(
+      button('outcome-review-step', uiText('Review the step'), true),
+      // The step the check sent back is unsent, so it can be corrected too: beside its review, never the emphasized one.
+      ...(campaignRefusedStep(run) ? [button('outcome-correct-step', uiText('Correct blocked step'))] : []),
+    );
+  else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
   else if (recovery === 'confirm_absent')
     controls.push(button('outcome-confirm-absent', uiText('Check the provider'), true));
   else if (recovery === 'reconcile_step') controls.push(button('outcome-read-back', uiText('Read back'), true));
@@ -857,11 +874,22 @@ function approvalView(summary) {
     truncated = summary.steps.some(s => s.truncated);
   return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${effectBadges(s.effects)}${s.truncated ? approvalAggregates(s) : reviewTable([...(s.spend ?? []), ...(s.status ?? []), ...(s.settings ?? [])], uiText('Budget, bid and status fields'))}${[...(s.spend ?? []), ...(s.settings ?? [])].map(f => (String(f.field).endsWith('/is_adset_budget_sharing_enabled') ? budgetSharingNote(f.value) : '')).join('')}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p>${truncated ? `<p class="form-note" id="approval-fields-note">${esc(uiText('Open every “Show all fields” list before approving.'))}</p>` : ''}<label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button"${truncated ? ' disabled aria-describedby="approval-fields-note"' : ''}>${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
 }
-// A plan offers "Correct blocked step" when a step failed before reaching the provider or preflight blocked one. The
-// stored preflight keeps only its status; `blocked` is a field of the preflight response alone (CMP-02 a).
-function campaignNeedsAmendment(run) {
+// A step that failed before reaching the provider, or that preflight blocked. The stored preflight keeps only its status;
+// `blocked` is a field of the preflight response alone (CMP-02 a).
+function campaignBrokenStep(run) {
   return run.steps.some(s => s.status === 'failed') || run.preflight?.status === 'blocked';
 }
+/** The step pending after the refusal of its review's state check: it never reached the provider (R25 M1, lead review S3-2). */
+const campaignRefusedStep = run => run?.steps?.find(s => s.status === 'pending' && s.error?.code === 'STATE_CHANGED');
+// A plan offers "Correct blocked step" for a broken step, and for a refused one, which recover_step amends in place too.
+function campaignNeedsAmendment(run) {
+  return campaignBrokenStep(run) || !!campaignRefusedStep(run);
+}
+/** The call whose form corrects the refused step: recover_step, which asks nothing of the server until it is saved. */
+const campaignRefusedCall = (run, id) => ({
+  next_call: {tool: 'amcp_campaign', arguments: {action: 'recover_step', id, step_id: campaignRefusedStep(run).id}},
+  ...(run.revision !== undefined ? {revision: run.revision} : {}),
+});
 /** A completed recipe launch that can draft its separate activation plan (CMP-03). */
 function campaignCanActivate(run) {
   return (
@@ -1031,6 +1059,8 @@ function bindCampaignWorkflow(run, open, current, after) {
     show = html => {
       if (current()) $('#campaign-review').innerHTML = html;
     };
+  // A step whose state check refused its review is reviewed again: that is the plan's emphasized action (R25 M1, L5-04).
+  if (campaignNextSafeAction(run) === 'review') $('#next-campaign')?.classList.add('primary');
   // DEC-02: an allocation plan shows its outcome review (a local read; capturing it is a separate choice).
   if (run.allocation) void mountAllocationOutcome(run, current);
   // The plan is read again, then the response's outcome is shown with its control (WEB-03) by the new view.
@@ -1104,6 +1134,7 @@ function bindCampaignWorkflow(run, open, current, after) {
     workspaceBind('#outcome-continue', () => runPlan('run'));
     workspaceBind('#outcome-review-step', reviewStep);
     workspaceBind('#outcome-amend', async () => amend(out));
+    workspaceBind('#outcome-correct-step', async () => amend(campaignRefusedCall(run, id)));
     workspaceBind('#outcome-confirm-absent', async () => confirmAbsent(out));
     workspaceBind('#outcome-preflight', async () => {
       const checked = await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'});
@@ -1326,6 +1357,8 @@ function bindCampaignWorkflow(run, open, current, after) {
     });
   };
   workspaceBind('#amend-campaign', async () => {
+    // A step only the state check sent back is pending: prepare_next would prepare it, not name its correction.
+    if (!campaignBrokenStep(run) && campaignRefusedStep(run)) return amend(campaignRefusedCall(run, id));
     const out = await workspaceCall('campaign', {action: 'prepare_next', id});
     if (!current()) return;
     if (out.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(out);

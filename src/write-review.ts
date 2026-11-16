@@ -26,6 +26,8 @@ import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonO
 import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields, reviewVolatile} from './review-state.js';
+import {materialFields, surfacedMaterial} from './review-diff.js';
+import {recurringStatePaths} from './review-friction.js';
 import {accountWriteGranted, assertAccountWrite} from './write-access.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
@@ -65,6 +67,7 @@ import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
+  providerCheckUnavailable,
   providerValidationRequest,
   providerValidationScope,
   runProviderValidation,
@@ -243,16 +246,22 @@ const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),
 });
-/** The call that prepares an expired review's original request again (reviews prepared before this field existed have none). */
-const expiredNext = (review: JsonObject): JsonObject =>
-  review.prepare_input
-    ? {
-        next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}},
-        ...(review.plan?.personalData
-          ? {people: 'Add people to the call: the same people as before. AMCP kept only their count and digest.'}
-          : {}),
-      }
-    : {};
+/**
+ * The call that prepares a review's original request again (reviews prepared before this field existed have none): for an
+ * expired review, and for one whose state changed since it was prepared (STATE_CHANGED, R25 M1, L5-04).
+ */
+const expiredNext = (review: JsonObject, stateChanged = false): JsonObject => {
+  if (!review.prepare_input) return {};
+  // The creative-edit acknowledgement was given for the impact the first review showed. After a state change the impact may
+  // have changed, so the call that prepares again does not pre-fill it (lead review S4-2): execute still demands it.
+  const {creative_edit_confirmed: _acknowledged, ...fresh} = review.prepare_input;
+  return {
+    next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...(stateChanged ? fresh : review.prepare_input)}},
+    ...(review.plan?.personalData
+      ? {people: 'Add people to the call: the same people as before. AMCP kept only their count and digest.'}
+      : {}),
+  };
+};
 /** A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). */
 function rejectedByProvider(review: JsonObject): void {
   if (review.provider_check?.status === 'provider_rejected')
@@ -689,7 +698,15 @@ export class WriteReviewService {
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
     if (input.provider_check !== undefined && (typeof input.provider_check !== 'boolean' || input.action !== 'prepare'))
-      fail('INVALID_ARGUMENT', 'provider_check is a boolean that prepare takes.', {field: 'provider_check'});
+      fail(
+        'INVALID_ARGUMENT',
+        // T2 (R25 M1): at execute it is not a flag to pass. It asks the provider to validate, and never skips AMCP's check.
+        // Every other refusal of it keeps the sentence it always had (inspect and the rest are no place to meet a state check).
+        input.action === 'execute'
+          ? 'provider_check is an argument of prepare only: it asks the provider to validate a request without applying it. It does not skip AMCP’s state check, which no flag skips.'
+          : 'provider_check is a boolean that prepare takes.',
+        {field: 'provider_check'},
+      );
     if (
       input.destructive_confirmed !== undefined &&
       (typeof input.destructive_confirmed !== 'boolean' || input.action !== 'execute')
@@ -821,6 +838,8 @@ export class WriteReviewService {
           live_permissions_verified: false,
           account_capability: accountCapability,
           provider_check_available: providerValidationRequest(plan) !== undefined,
+          // T2 (R25 M1): a request with no provider check says why, and that this is not AMCP's own state check.
+          ...(providerValidationRequest(plan) === undefined ? {provider_check_reason: providerCheckUnavailable} : {}),
           // The request's effect class (src/effect-class.ts, RPT-06).
           effect: effectClass(plan),
           requirements: {
@@ -1286,22 +1305,51 @@ export class WriteReviewService {
     const expectedState = familyOf(plan)?.stateAsRead
       ? review.state
       : review.state.map((value: unknown, i: number) => normalizeSnapshot(review.reads[i], value));
+    // The roles of the reads name which changed path belongs to which read only where the state has one entry per read
+    // (the generic state). A family that keeps its own state, a state kept as it was read, or an owned state read first and
+    // the provider's own second, puts several reads in one entry: the first subscript of a path then says nothing about its
+    // read, and every path is a target (lead review S1-1). Decided before the state is read again, which may add reads.
+    const readsOfState: unknown[] | undefined =
+      !familyOf(plan)?.state &&
+      !familyOf(plan)?.stateAsRead &&
+      !reviewHooks(plan.gateway)?.ownState?.claims(plan) &&
+      Array.isArray(review.reads) &&
+      review.state.length === review.reads.length
+        ? [...review.reads]
+        : undefined;
     // Both sides are hashed with the table of the provider whose reviewed state this is (R2.5 M1, review.volatile).
     const volatile = reviewVolatile(plan.gateway),
       current = await this.state(actor, plan, review.connection_id, review.reads),
       expectedHash = reviewStateHash(expectedState, volatile),
       actualHash = reviewStateHash(current, volatile);
     const creativeImpact = writeImpact(plan, current, review.creative_edit_confirmed === true, review.connection_id);
-    if (actualHash !== expectedHash)
+    if (actualHash !== expectedHash) {
+      // The provider's table drops from the diff what it drops from the hash (R2.5 M1), so `changed_fields` names exactly
+      // what made the hashes differ. It is computed once: `material` and `recurring_paths` are built from it.
+      const changed = changedStateFields(expectedState, current, volatile),
+        // The paths that changed in this provider's recent refusals too: left out when the audit cannot be read.
+        recurring = recurringStatePaths(this.store, actor.tenantId, plan.gateway, changed, {review: input.review_id});
+      // R25 M1 (L5-04, T2): the refusal says which of the changed fields matter (`material`), which of them changed in
+      // the provider's recent refusals too (`recurring_paths`), and hands back the call that prepares the same request
+      // again. The check is as strict as it was: every changed path still refuses, nothing is claimed or sent, and no
+      // flag or retry exists. Preparing again is a call for the agent and the user to make.
       fail(
         'STATE_CHANGED',
         'The provider configuration changed after preparation. Prepare and review a fresh request.',
         {
           expected_state_hash: expectedHash,
           actual_state_hash: actualHash,
-          changed_fields: changedStateFields(expectedState, current, volatile),
+          changed_fields: changed,
+          // Raised before anything is claimed or sent: the mark the remedy and the plan engine test (lead review S2-2).
+          submission: 'not_sent',
+          // The provider, so that the audit of refusals can tell its refusals from another provider's.
+          gateway: plan.gateway,
+          ...surfacedMaterial(materialFields(changed, readsOfState, plan)),
+          ...(recurring ? {recurring_paths: recurring} : {}),
+          ...expiredNext(review, true),
         },
       );
+    }
     familyOf(plan)?.stateChecks?.(plan, current, false);
     const c = this.access(actor, plan, review.connection_id),
       auth = await this.credentials.get(c);

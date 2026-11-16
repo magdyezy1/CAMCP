@@ -324,6 +324,9 @@ test('X targeting batch ignores response telemetry and set order, but protects r
       } else {
         assert.equal(out.error.code, 'STATE_CHANGED', JSON.stringify(out));
         assert.ok(out.error.details.changed_fields.length);
+        // R25 M1 (r25-m1-diff, lead review S1-1): the family keeps its whole state in one entry, so every changed field of
+        // the line items, criteria and campaigns is material, whichever read of the review its first subscript names.
+        assert.deepEqual(out.error.details.material, out.error.details.changed_fields, change);
         assert.equal(x.writes(), 0);
       }
     } finally {

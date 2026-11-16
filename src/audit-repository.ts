@@ -42,7 +42,11 @@ export function newestAuditSeq(store: Store, tenant: string): number {
     store.sql().prepare('SELECT coalesce(max(seq),0) AS seq FROM audit WHERE tenant_id=?').get(tenant) as JsonObject
   ).seq as number;
 }
-/** Up to `limit` reviewed-write audit events (request id, event, time) between `since` and `now`, oldest first. */
+/**
+ * Up to `limit` reviewed-write and media-review audit events (request id, event, time) between `since` and `now`, oldest
+ * first: the events of a write's review and of an amcp_write call, and those a media review leaves (the review prepared,
+ * the upload sent or left incomplete) and the refusals of an amcp_media call (L6-11, R25 M1).
+ */
 export function writeAuditEvents(
   store: Store,
   tenant: string,
@@ -54,9 +58,37 @@ export function writeAuditEvents(
     .sql()
     .prepare(
       `SELECT request_id, event, created_at FROM audit WHERE tenant_id=? AND created_at>=? AND created_at<=?
-        AND (instr(event,'"event":"write_')>0 OR instr(event,'"tool":"amcp_write"')>0) ORDER BY seq LIMIT ?`,
+        AND (instr(event,'"event":"write_')>0 OR instr(event,'"tool":"amcp_write"')>0
+          OR instr(event,'"event":"media_prepared"')>0 OR instr(event,'"event":"media_library_prepared"')>0
+          OR instr(event,'"event":"media_uploaded"')>0 OR instr(event,'"event":"media_upload_incomplete"')>0
+          OR instr(event,'"tool":"amcp_media"')>0) ORDER BY seq LIMIT ?`,
     )
     .all(tenant, since, now, limit) as {request_id: string; event: string; created_at: number}[];
+}
+/**
+ * The refusals of a changed state (STATE_CHANGED of amcp_write or amcp_media) among a workspace's newest `scan` audit
+ * rows between `since` and `now`: at most `limit` of them (request id, event, time), newest first. The scan is bounded by
+ * rows, not by the window alone, so a refusal never reads a busy workspace's whole audit (R25 M1, L5-04).
+ */
+export function stateChangedRefusals(
+  store: Store,
+  tenant: string,
+  since: number,
+  now: number,
+  scan: number,
+  limit: number,
+): {request_id: string; event: string; created_at: number}[] {
+  return store
+    .sql()
+    .prepare(
+      `SELECT request_id, event, created_at FROM (
+         SELECT seq, request_id, event, created_at FROM audit
+          WHERE tenant_id=? AND created_at>=? AND created_at<=? ORDER BY seq DESC LIMIT ?)
+        WHERE instr(event,'"code":"STATE_CHANGED"')>0
+          AND (instr(event,'"tool":"amcp_write"')>0 OR instr(event,'"tool":"amcp_media"')>0)
+        ORDER BY seq DESC LIMIT ?`,
+    )
+    .all(tenant, since, now, scan, limit) as {request_id: string; event: string; created_at: number}[];
 }
 // ARC-01 (wave 4c round 6, the shared tables): Google Ads' gateway, from the adapter registry, is bound to the query
 // below where the query named it.

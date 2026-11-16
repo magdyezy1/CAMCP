@@ -88,12 +88,18 @@ test('all 178 shared recovery hints have authored Arabic with exact native tool 
   // account-conflict remedy (+1, src/errors.ts): 169 + 1 (hotfix, upstream response) + 1 (the TikTok remedy, once) + 6 (errors)
   // + 2 (live) = 179 in all, and 142 + 1 + 6 + 1 = 150 in src/errors.ts, as this test's own inspectors measure them on the
   // merged tree. (Live's note for the hotfix alone, 173 and 144, is this plus the errors package's six.)
-  assert.equal(hints.size, 179);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 150);
+  // Package r25-m1-diff (Round 2.5, M1: L5-04, T2) adds the remedy of the refusal of a review's state check (STATE_CHANGED with
+  // the two hashes and the changed fields: nothing was sent, what to check, and that no flag skips the check) to src/errors.ts;
+  // its next step is the same sentence, so it is one hint: 151 in src/errors.ts, 180 in all, on its own base.
+  // Lead review S2-2 (r25-m1-diff) adds the remedy of the same check refused after a claim (a media resume: part of the upload
+  // may have been sent, so check its status or receipt and never send it again blindly), again one hint: 152 in src/errors.ts,
+  // 181 in all.
+  assert.equal(hints.size, 181);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 152);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 178);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 180);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

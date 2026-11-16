@@ -206,6 +206,40 @@ test('a group refused before its first part is sent leaves nothing behind', asyn
   }
 });
 
+// R25 M1 (L5-04): the refusal of a changed state names the call that prepares the request again. For a group that is the
+// group's own prepare call, whole: the first part's own call would prepare 25 of the 30 records as a review of their own.
+test('a group refused as STATE_CHANGED hands back the call that prepares the whole group again, not one part of it', async () => {
+  const x = setup();
+  try {
+    const prepared = await x.prepare(x.negatives(30));
+    assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    x.state.campaign = 'ENABLED';
+    const refused = await execute(x, prepared);
+    assert.equal(refused.error.code, 'STATE_CHANGED', JSON.stringify(refused.error));
+    assert.equal(x.writes.length, 0);
+    const details = refused.error.details;
+    assert.ok(details.changed_fields.length > 0 && details.material.length > 0, JSON.stringify(details));
+    const next = details.next_call;
+    assert.equal(next.tool, 'amcp_write');
+    assert.equal(next.arguments.action, 'prepare');
+    assert.equal(next.arguments.arguments.payload.operations.length, 30, 'the whole request, not the first part of it');
+    // That call prepares the group again over the state as it is now; its parts then execute in order, once each.
+    const again = await x.call(next.tool, next.arguments);
+    assert.equal(again.success, true, JSON.stringify(again.error));
+    assert.equal(again.data.group, true);
+    assert.equal(again.data.records, 30);
+    assert.notEqual(again.data.review_id, prepared.data.review_id);
+    const done = await execute(x, again);
+    assert.equal(done.success, true, JSON.stringify(done.error));
+    assert.deepEqual(
+      x.writes.map(w => w.operations.length),
+      [25, 5],
+    );
+  } finally {
+    x.store.close();
+  }
+});
+
 test('lists that cannot be split are refused as before, and the size limit is named', async () => {
   const x = setup();
   try {

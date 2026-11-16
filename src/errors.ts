@@ -640,6 +640,34 @@ function throttledWriteStatus(next: unknown): boolean {
   const call = next as {tool?: unknown; arguments?: {action?: unknown}} | undefined;
   return call?.tool === 'amcp_write' && call.arguments?.action === 'status';
 }
+/** The fields of a review's own state check: the two hashes and the changed fields (src/write-review.ts, src/media-upload.ts). */
+const stateCheckFields = (e: {code?: unknown; details?: unknown} | undefined): boolean => {
+  const details = (e?.details ?? {}) as Record<string, unknown>;
+  return (
+    e?.code === 'STATE_CHANGED' &&
+    typeof details.expected_state_hash === 'string' &&
+    typeof details.actual_state_hash === 'string' &&
+    Array.isArray(details.changed_fields)
+  );
+};
+/**
+ * Whether a STATE_CHANGED is the refusal of a review's own state check at execute, raised before anything was claimed or
+ * sent (R25 M1, L5-04): the two hashes, the changed fields, and the mark `submission: "not_sent"` that the raise sites set
+ * (src/write-review.ts, and src/media-upload.ts when it is not a resume). The mark is tested, not the shape alone: a media
+ * resume runs the same check after a claim, with part of the upload already at the provider (lead review S2-2). Every other
+ * STATE_CHANGED keeps the general remedy: the acceptance of a read-back that moved on (src/campaign-runner.ts) comes after
+ * the write was sent, and a state read that did not hold still has no review check behind it, so "nothing was sent" is
+ * true of neither. The plan engine uses it for the same reason: a step so refused was never claimed, and goes back to pending.
+ */
+export const refusedByStateCheck = (e: {code?: unknown; details?: unknown} | undefined): boolean =>
+  stateCheckFields(e) && ((e?.details ?? {}) as Record<string, unknown>).submission === 'not_sent';
+/**
+ * The same check refused after a claim (a media resume): the fields of the check without the mark that nothing was sent. Part
+ * of the request may already be at the provider, so its remedy sends the agent to the status and the receipt, and never says
+ * "nothing was sent".
+ */
+const refusedAfterClaim = (e: {code?: unknown; details?: unknown} | undefined): boolean =>
+  stateCheckFields(e) && !refusedByStateCheck(e);
 /**
  * Refusals of a reviewed write and of access to it: a group stopped at a part, provider replies, contracts, grants,
  * review state, rejections, state reads, the deployment’s and owner’s write switches, connections, roles and the
@@ -767,7 +795,15 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
           ? 'Nothing was submitted. Prepare the same request again (details.next_call when present) and execute the new review within five minutes.'
           : e.code === 'WRITE_OUTCOME_UNCERTAIN'
             ? 'Read the retained receipt and reconcile provider resources. Never retry under a new key merely because the response was lost.'
-            : 'Inspect state hashes and changed fields. Preserve previous outcomes and prepare a fresh review only for an unsubmitted or explicitly corrective request.',
+            : refusedByStateCheck(e)
+              ? // R25 M1 (L5-04, T2; owner 2026-11-15): the state really changed since prepare, what to check, and that no
+                // flag skips this check (provider_check never did: it asks the provider to validate, not AMCP to compare).
+                'Nothing was sent. The provider’s configuration changed after this review was prepared. Compare details.material (the changed fields that matter) with what the user approved, prepare the same request again (details.next_call when present), show the user the new before_state and execute only the new review. No flag skips this check. If the same paths change on every prepare (details.recurring_paths), a field that changes by itself is probably being compared: report those paths.'
+              : refusedAfterClaim(e)
+                ? // Lead review S2-2: the same check after a claim (a media resume). Something may have been sent, so
+                  // "nothing was sent" is never said, and the request is never sent again on the strength of this refusal.
+                  'The provider’s configuration changed after this review was prepared, and this request was already submitted, so part of it may have been sent. Check its status or receipt first (details.next_call when present), compare details.material (the changed fields that matter) with what the user approved, and never send it again blindly: do not prepare the same request again until that check shows nothing was applied. No flag skips this check.'
+                : 'Inspect state hashes and changed fields. Preserve previous outcomes and prepare a fresh review only for an unsubmitted or explicitly corrective request.',
       mutation_retry_safe: false,
     };
   // A provider refusal proven to have applied nothing (CMP-04): the old key is retired, so only a corrected new review helps.
@@ -1250,11 +1286,15 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       retryable: e.retryable,
       category: remedy.category,
       remedy,
-      // An ownership refusal names one read only when one read settles it (MCP-09); otherwise it lists candidates.
+      // An ownership refusal names one read only when one read settles it (MCP-09); otherwise it lists candidates. The
+      // refusal of a review's state check, before or after a claim, says what to do in the remedy's own words (R25 M1,
+      // L5-04; lead review S2-2).
       next_action:
         e.code === 'RESOURCE_SCOPE_REQUIRED' && !e.details.next_call && Array.isArray(e.details.ownership_reads)
           ? 'Run the read in details.ownership_reads that matches the object’s type (the account list of campaigns, ad sets, ads or creatives), then send the call again; a write is prepared again.'
-          : (remediation[e.code] ?? remedy.action),
+          : refusedByStateCheck(e) || refusedAfterClaim(e)
+            ? remedy.action
+            : (remediation[e.code] ?? remedy.action),
     },
     meta: {
       requestId,
