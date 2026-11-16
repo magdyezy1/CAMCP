@@ -47,6 +47,9 @@ export function mergeCaptures(captures: JsonObject[], range: {since: string; unt
           collection: {
             ...first.collection,
             complete: captures.every(capture => capture.collection?.complete !== false),
+            // The reasons of every span are the window's, once each: a later span that is not complete is the one that says why
+            // (r12-fix, the lead's ruling on item 1, decision 2, 2026-11-16).
+            warnings: [...new Set(captures.flatMap(capture => capture.collection?.warnings ?? []))],
           },
         }
       : {}),

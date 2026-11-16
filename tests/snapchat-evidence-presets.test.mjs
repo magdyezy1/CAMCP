@@ -5,6 +5,8 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {reportPreset} from '../dist/src/report-presets.js';
+import {providerDataAction} from '../dist/src/errors.js';
+import {providerRemedy} from '../dist/src/provider-remedies.js';
 import {
   snapchatEvidenceInput as input,
   snapchatEvidenceResponse,
@@ -277,6 +279,180 @@ test('Snapchat empty complete breakdown is qualified but absent metric values re
   assert.equal(r.totals.conversions, null);
   assert.equal(r.rows[1].spend, '9007199254.740993');
   assert.equal(r.totals.spend, '9007199264.864449');
+});
+// r12-fix item 1 (O-4 of the live checks of 2026-11-16). For a campaign (or an account) with no rows in the window Snapchat
+// answers without finalized_data_end_time and conversion_data_processed_end_time, and the capture refused it as an invalid
+// timestamp. The guided capture and the Overview's all-campaign read share one collector, so it is the same fix: an answer
+// with no rows may omit the two times; an answer with rows, or a time that is present but not valid, is refused as before
+// (the test above, and the ones below).
+//
+// The lead's ruling on it (decision 2, recency, 2026-11-16): unknown stays unknown, never zero. An answer with no rows that
+// leaves the times out is "no rows" only when a finalization time from the same read covers the window's end, and a guided
+// capture is one read of one answer, so nothing else in it can. These tests first said such a capture completes with no
+// rows; they now say it is refused, saves nothing and shows no zero (the capture that is for the Overview's all-campaign read
+// is judged against the whole collection: tests/snapchat-unconfirmed-empty.test.mjs).
+const leaveOutFinalization = f =>
+  f.edit((u, d) => {
+    if (u.pathname.endsWith('/stats')) {
+      delete native(d).finalized_data_end_time;
+      delete native(d).conversion_data_processed_end_time;
+    }
+    return d;
+  });
+const unconfirmed =
+  /^Snapchat returned no rows and did not say that its data is final through the end of the window, so AMCP cannot tell no delivery from data Snapchat has not processed yet\. Capture it again once Snapchat has finalized the window, or choose an earlier window\.$/;
+for (const level of ['adsquad', 'campaign', 'ad'])
+  test(
+    'Snapchat guided ' +
+      level +
+      ' evidence of a window with no rows is refused, and saves no zero, when nothing says Snapchat finalized it',
+    async t => {
+      const f = fixture(t, []);
+      leaveOutFinalization(f);
+      const r = await f.call({
+        ...input,
+        preset: 'snapchat_' + level,
+        ...(level === 'adsquad' ? {campaign_id: campaign} : {}),
+      });
+      assert.equal(r.success, false);
+      assert.equal(r.error.code, 'REPORT_INCOMPLETE');
+      assert.match(r.error.message, unconfirmed);
+      // The account (and for an ad squad the parent campaign) was still verified before and after the read: a refusal of
+      // the answer itself never hides a changed account or parent.
+      assert.equal(
+        f.requests.filter(request => request.url.pathname === '/v1/adaccounts/' + input.account_id).length,
+        2,
+      );
+      unsaved(f);
+    },
+  );
+test('Snapchat guided evidence of a window with no rows that states only one of its two finalization times is refused too', async t => {
+  const f = fixture(t, []);
+  f.edit((u, d) => {
+    if (u.pathname.endsWith('/stats')) delete native(d).conversion_data_processed_end_time;
+    return d;
+  });
+  const r = await f.call({...input, preset: 'snapchat_adsquad', campaign_id: campaign});
+  assert.equal(r.success, false);
+  assert.equal(r.error.code, 'REPORT_INCOMPLETE');
+  assert.match(r.error.message, unconfirmed);
+  unsaved(f);
+});
+test('Snapchat guided evidence of a window with no rows that states both finalization times is a capture with no rows', async t => {
+  // The answer proves its own window: both times cover the end of it, so "no rows" is evidenced, and totals are not unknown.
+  for (const level of ['adsquad', 'campaign', 'ad']) {
+    const f = fixture(t, []),
+      r = ok(
+        await f.call({...input, preset: 'snapchat_' + level, ...(level === 'adsquad' ? {campaign_id: campaign} : {})}),
+      );
+    assert.equal(r.row_count, 0, level);
+    assert.deepEqual(r.rows, [], level);
+    assert.equal(r.source_pages.length, 1);
+    assert.equal(r.source_pages[0].entity_count, 0);
+    assert.equal(r.source_pages[0].finalization_stated, undefined, 'a page that states its times is not marked');
+    assert.equal(r.source_pages[0].finalized_data_end_time, dates().at(-1).time);
+    assert.equal(r.source_pages[0].conversion_data_processed_end_time, dates().at(-1).time);
+    assert.equal(r.native_account_evidence.checks.length, 2);
+    assert.equal(f.store.documents(f.actor.tenantId, 'decision_report').length, 1);
+  }
+});
+for (const [label, mutate, code] of [
+  [
+    'a finalized_data_end_time without an offset',
+    d => (native(d).finalized_data_end_time = '2026-09-02T21:00:00'),
+    'REPORT_DATE_MISMATCH',
+  ],
+  ['a finalized_data_end_time that is null', d => (native(d).finalized_data_end_time = null), 'REPORT_DATE_MISMATCH'],
+  [
+    'a finalized_data_end_time before the end of the window',
+    d => (native(d).finalized_data_end_time = dates()[1].time),
+    'REPORT_INCOMPLETE',
+  ],
+  [
+    'a conversion_data_processed_end_time before the end of the window',
+    d => (native(d).conversion_data_processed_end_time = dates()[1].time),
+    'REPORT_INCOMPLETE',
+  ],
+])
+  test('Snapchat guided evidence with no rows is still refused when its answer carries ' + label, async t => {
+    const f = fixture(t, []);
+    f.edit((u, d) => {
+      if (u.pathname.endsWith('/stats')) {
+        delete native(d).finalized_data_end_time;
+        delete native(d).conversion_data_processed_end_time;
+        mutate(d);
+      }
+      return d;
+    });
+    const r = await f.call({...input, preset: 'snapchat_adsquad', campaign_id: campaign});
+    assert.equal(r.success, false);
+    assert.equal(r.error.code, code);
+    unsaved(f);
+  });
+// r12-fix item 3 (V2-RPT-05; error 1 of the live checks of 2026-11-16). A refused timestamp names which one failed (a closed set,
+// details.timestamp_field), so its remedy can say so and that a retry returns the same answer. Another refusal of the same code,
+// a valid timestamp of another window, names none and keeps the shared advice.
+for (const [label, mutate, field] of [
+  ['finalized_data_end_time is missing', d => delete native(d).finalized_data_end_time, 'finalized_data_end_time'],
+  [
+    'conversion_data_processed_end_time is missing',
+    d => delete native(d).conversion_data_processed_end_time,
+    'conversion_data_processed_end_time',
+  ],
+  ['the answer’s start_time has no offset', d => (native(d).start_time = '2026-09-01T00:00:00'), 'start_time'],
+  ['the answer’s end_time has no offset', d => (native(d).end_time = '2026-09-03T00:00:00'), 'end_time'],
+  [
+    'an entity’s start_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].start_time = '2026-09-01T00:00:00'),
+    'start_time',
+  ],
+  [
+    'an entity’s end_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].end_time = '2026-09-03T00:00:00'),
+    'end_time',
+  ],
+  [
+    'a day’s start_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].timeseries[0].start_time = '2026-09-01T00:00:00'),
+    'start_time',
+  ],
+  [
+    'a day’s end_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].timeseries[0].end_time = '2026-09-02T00:00:00'),
+    'end_time',
+  ],
+])
+  test('Snapchat guided evidence names the timestamp that failed when ' + label, async t => {
+    const f = fixture(t);
+    f.edit((u, d) => {
+      if (u.pathname.endsWith('/stats')) mutate(d);
+      return d;
+    });
+    const r = await f.call();
+    assert.equal(r.success, false);
+    assert.equal(r.error.code, 'REPORT_DATE_MISMATCH');
+    assert.equal(r.error.details.timestamp_field, field);
+    const remedy = providerRemedy('REPORT_DATE_MISMATCH', {timestamp_field: field});
+    assert.ok(remedy, 'a remedy for ' + field);
+    assert.equal(r.error.remedy.action, remedy.action);
+    assert.equal(r.error.next_action, remedy.action);
+    assert.equal(r.error.category, 'report');
+    assert.notEqual(r.error.remedy.action, providerDataAction);
+    unsaved(f);
+  });
+test('Snapchat guided evidence of another window is refused as a different window, which names no timestamp and keeps the shared advice', async t => {
+  const f = fixture(t);
+  f.edit((u, d) => {
+    if (u.pathname.endsWith('/stats')) native(d).start_time = dates()[1].time;
+    return d;
+  });
+  const r = await f.call();
+  assert.equal(r.success, false);
+  assert.equal(r.error.code, 'REPORT_DATE_MISMATCH');
+  assert.match(r.error.message, /different reporting window or grain/);
+  assert.equal(r.error.details?.timestamp_field, undefined);
+  assert.equal(r.error.remedy.action, providerDataAction);
+  unsaved(f);
 });
 test('Snapchat daily capture refuses missing finalization, failed envelopes and unrequested reporting dimensions', async t => {
   const mutations = [

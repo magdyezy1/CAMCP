@@ -111,8 +111,17 @@ test('every code a provider declares is raised by AMCP, and each prefix covers o
 });
 
 // Details that satisfy a rule narrowed by `when`: Meta's rule reads `fields`; TikTok's page-count rule (r25-hotfix) reads
-// `page_facts.rule`. A rule none of them satisfies fails the test below, so a new `when` names its sample here.
-const whenSamples = [{fields: ['is_adset_budget_sharing_enabled']}, {page_facts: {rule: 'page_not_echoed'}}];
+// `page_facts.rule`; Snapchat's four rules (r12-fix item 3) each read one timestamp of `timestamp_field`, and X's (r12-fix
+// item 3) reads `parent_kind`. A rule none of them satisfies fails the test below, so a new `when` names its sample here.
+const whenSamples = [
+  {fields: ['is_adset_budget_sharing_enabled']},
+  {page_facts: {rule: 'page_not_echoed'}},
+  {timestamp_field: 'finalized_data_end_time'},
+  {timestamp_field: 'conversion_data_processed_end_time'},
+  {timestamp_field: 'start_time'},
+  {timestamp_field: 'end_time'},
+  {parent_kind: 'campaign'},
+];
 
 test('errorRemedy answers a provider’s refusal with the remedy it declares, before any shared rule, as a copy', () => {
   for (const rule of providerRemedies)

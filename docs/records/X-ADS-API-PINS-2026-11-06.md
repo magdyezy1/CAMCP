@@ -41,3 +41,25 @@ pages where they state a shape, and the tests that cite one say so.
 - Whether `with_deleted` lists deleted promoted tweets on cursor pages, the values of `entity_status` and
   `effective_status` on each object (a line item's example shows no `effective_status`), and a full last page.
 - Whether PUBLISHER_NETWORK delivery shows on the placements AMCP does not request.
+
+## Addendum: DRAFT entities in the population read (package r12-fix, 2026-11-16)
+
+The population lists of the Overview's X detail levels (`src/x-overview-detail.ts`) read campaigns, line items and promoted
+tweets with `with_deleted`. A live read-only check of a test account on 2026-11-16 (V2-RPT-07, O-5) found that this left DRAFT
+line items out of the line item list while the promoted tweet list still held their promotions, so one promoted tweet on a
+DRAFT line item refused the whole level.
+
+- X1 stands: the line item list takes `with_draft` (default false), so a DRAFT line item is listed only when it is asked for.
+- X4 (read 2026-11-06) does not list `with_draft` for the campaign list. The same live check answered the campaign list read
+  with `with_draft` and `with_deleted` both true, and it returned DRAFT campaigns that the read without `with_draft` left out
+  (all of them deleted, and the parents of deleted DRAFT line items). `src/x-portfolio.ts` already sends `with_draft` on its
+  campaign and line item inventory reads. Without it on the campaign list, a deleted DRAFT line item has no listed campaign.
+  This is an observed answer, not a documented one: the public page was not read again.
+- X5 lists no `with_draft` for the promoted tweet list, which was listed whatever the status of the line item holding the
+  promotion. The population read sends none there.
+- The population read therefore sends `with_draft: true` and `with_deleted: true` on the campaign and line item lists only,
+  with the cursor handling unchanged (X2).
+
+Still unpinned: whether X's analytics read accepts a DRAFT line item or a promotion on one, and whether the active entities read
+names them. The population now holds them, but analytics are requested only for entities X reports active in the window (and for
+every scoped entity when X refuses that read or the read is not used), so a DRAFT entity is requested only on those paths.

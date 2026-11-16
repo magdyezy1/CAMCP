@@ -243,6 +243,8 @@ const reportSourceWarnings = new Set([
   'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.',
   // F-L5-16: collection state kept under an earlier platform contract is dropped and the source read again.
   'This source was collected again from its start, because the collection state kept for it belonged to an earlier platform contract.',
+  // r12-fix (the lead's ruling on item 1, decision 2): an empty Snapchat answer that nothing confirms as final is not "no rows".
+  'For part of this source, Snapchat returned no rows and did not say that its data is final through the end of the window, so AMCP cannot tell no delivery from data Snapchat has not processed yet. That part is left out and never counted as zero, so this source is partial. Run the report again once Snapchat has finalized the window, or choose an earlier window.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.

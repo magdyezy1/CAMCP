@@ -7,6 +7,8 @@ import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
 import {MirrorError, nestedError} from './errors.js';
 import {snapchatContinuation} from './snapchat-paging.js';
+import {snapchatUnconfirmedEmptyWarning} from './snapchat-report-finalization.js';
+import type {GuidedCollectionState} from './report-source.js';
 
 const gateway = 'snapchat_native_action';
 export const snapchatReportId = (v: unknown): v is string =>
@@ -14,14 +16,21 @@ export const snapchatReportId = (v: unknown): v is string =>
 const success = (v: unknown) => typeof v === 'string' && v.toUpperCase() === 'SUCCESS';
 const incomplete = (message: string): never => bad(message, 'REPORT_INCOMPLETE');
 const shape = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
-function instant(v: unknown): number {
+/**
+ * The timestamps of a stats answer that `instant` reads. A refusal names the one that failed, from this closed set and never
+ * from the answer, so its remedy can say which (r12-fix item 3, V2-RPT-05; error 1 of the live checks of 2026-11-16).
+ */
+type TimestampField = 'start_time' | 'end_time' | 'finalized_data_end_time' | 'conversion_data_processed_end_time';
+function instant(v: unknown, field: TimestampField): number {
   if (
     typeof v !== 'string' ||
     !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(v) ||
     !Number.isFinite(Date.parse(v)) ||
     new Date(v.slice(0, 10)).toISOString().slice(0, 10) !== v.slice(0, 10)
   )
-    return bad('Snapchat returned an invalid native report timestamp.', 'REPORT_DATE_MISMATCH');
+    return bad('Snapchat returned an invalid native report timestamp.', 'REPORT_DATE_MISMATCH', {
+      timestamp_field: field,
+    });
   return Date.parse(v);
 }
 export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
@@ -329,8 +338,8 @@ export async function collectSnapchatEvidence(
       bad('Snapchat returned another report account or parent.', 'REPORT_ACCOUNT_MISMATCH');
     if (
       (stat.granularity !== undefined && stat.granularity !== 'DAY') ||
-      instant(stat.start_time) !== from ||
-      instant(stat.end_time) !== through
+      instant(stat.start_time, 'start_time') !== from ||
+      instant(stat.end_time, 'end_time') !== through
     )
       bad('Snapchat returned a different reporting window or grain.', 'REPORT_DATE_MISMATCH');
     if (
@@ -341,10 +350,28 @@ export async function collectSnapchatEvidence(
     for (const key of nativeLeads ? [] : ['action_report_time', 'conversion_source_types'])
       if (stat[key] !== undefined && stat[key] !== args.query[key])
         bad('Snapchat returned a different conversion definition.', 'REPORT_SEMANTICS_MISMATCH');
-    if (instant(stat.finalized_data_end_time) < through)
+    // An answer with no entities (a campaign that did not deliver in the window) has nothing to finalize, and Snapchat leaves
+    // both finalization times out of it (r12-fix item 1, V2-RPT-07; O-4 of the live checks of 2026-11-16). Such an answer may
+    // omit them, and counts as no rows for this campaign. Only an absent time is accepted, and only there: a time it does
+    // carry is checked as ever, and an answer with entities needs both, with an offset.
+    const none =
+      obj(stat.breakdown_stats) &&
+      Object.keys(stat.breakdown_stats).length === 1 &&
+      Array.isArray(stat.breakdown_stats[level]) &&
+      stat.breakdown_stats[level].length === 0;
+    const notFinalized = (time: unknown, field: TimestampField) =>
+      !(none && time === undefined) && instant(time, field) < through;
+    if (notFinalized(stat.finalized_data_end_time, 'finalized_data_end_time'))
       incomplete('Snapchat has not finalized non-conversion metrics through the selected window.');
-    if (!nativeLeads && instant(stat.conversion_data_processed_end_time) < through)
+    if (!nativeLeads && notFinalized(stat.conversion_data_processed_end_time, 'conversion_data_processed_end_time'))
       incomplete('Snapchat has not finalized conversion-time data through the selected window.');
+    // An answer with no entities that does not state, by itself, the times that "no rows" needs (both, for the presets that read
+    // conversions) is marked: it is "no rows" only when a finalization time of the same read covers the end of its window (r12-fix,
+    // the lead's ruling on item 1, decision 2, 2026-11-16: unknown stays unknown, never zero). The read decides that, below.
+    const unstated =
+      none &&
+      (stat.finalized_data_end_time === undefined ||
+        (!nativeLeads && stat.conversion_data_processed_end_time === undefined));
     if (
       !obj(stat.breakdown_stats) ||
       Object.keys(stat.breakdown_stats).length !== 1 ||
@@ -366,8 +393,8 @@ export async function collectSnapchatEvidence(
       if (seenEntities.has(entity.id)) bad('Snapchat repeated an entity across report pages.', 'REPORT_DUPLICATE_ROWS');
       seenEntities.add(entity.id);
       if (
-        instant(entity.start_time) !== from ||
-        instant(entity.end_time) !== through ||
+        instant(entity.start_time, 'start_time') !== from ||
+        instant(entity.end_time, 'end_time') !== through ||
         !Array.isArray(entity.timeseries) ||
         entity.timeseries.length !== days.length
       )
@@ -377,7 +404,9 @@ export async function collectSnapchatEvidence(
         if (!obj(row) || !obj(row.stats)) shape('Snapchat returned a malformed daily metric row.');
         metadata(row);
         metadata(row.stats);
-        const day = days.find(d => d.start === instant(row.start_time) && d.end === instant(row.end_time));
+        const day = days.find(
+          d => d.start === instant(row.start_time, 'start_time') && d.end === instant(row.end_time, 'end_time'),
+        );
         if (!day) bad('Snapchat returned a different native day boundary.', 'REPORT_DATE_MISMATCH');
         if (seenDays.has(day.date)) bad('Snapchat repeated a native entity/day row.', 'REPORT_DUPLICATE_ROWS');
         seenDays.add(day.date);
@@ -403,10 +432,12 @@ export async function collectSnapchatEvidence(
       page,
       entity_count: entities.length,
       row_count: rows.length - before,
-      finalized_data_end_time: stat.finalized_data_end_time,
+      // The page keeps the times Snapchat gave; an answer with no entities may have given neither.
+      ...(stat.finalized_data_end_time !== undefined ? {finalized_data_end_time: stat.finalized_data_end_time} : {}),
       ...(stat.conversion_data_processed_end_time !== undefined
         ? {conversion_data_processed_end_time: stat.conversion_data_processed_end_time}
         : {}),
+      ...(unstated ? {finalization_stated: false} : {}),
     });
     after = snapchatNextCursor(data, path, args.query);
     if (after === undefined) break;
@@ -419,9 +450,21 @@ export async function collectSnapchatEvidence(
     await verifyAccount();
   }
   current();
+  // The all-campaign read of the Overview (a parent of its proven population) judges a marked page against the finalization times of
+  // the whole collection (src/snapchat-report-finalization.ts). Any other read is one answer, with no other to be judged by: the
+  // capture refuses it, and the Overview keeps it as a source that is partial, with the reason. Nothing is saved as zero.
+  const collection: GuidedCollectionState | undefined =
+    !proven && pages.some(page => page.finalization_stated === false)
+      ? {complete: false, declared: null, returned: rows.length, warnings: [snapchatUnconfirmedEmptyWarning]}
+      : undefined;
+  if (collection && !context.allowPartial)
+    incomplete(
+      'Snapchat returned no rows and did not say that its data is final through the end of the window, so AMCP cannot tell no delivery from data Snapchat has not processed yet. Capture it again once Snapchat has finalized the window, or choose an earlier window.',
+    );
   return {
     source: {success: true, data: {collection_kind: 'snapchat_daily_pages', data: {rows}, source_pages: pages}},
     sourcePages: pages,
+    ...(collection ? {collection} : {}),
     nativeAccountEvidence: {
       account_id: account,
       currency: sem.currency,

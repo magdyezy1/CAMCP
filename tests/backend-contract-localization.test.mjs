@@ -370,7 +370,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // files of every package it is merged with to this number.
   // Merge r25-m1-merge, with r25-m1-hash (826 on the base of 816) and r25-m1-diff (817 on the same base): each adds different
   // files, so the merged tree measures, with this test's own inspector, 816 + 10 + 1 = 827.
-  assert.equal(files.length, 827);
+  // Package r12-fix (the lead's ruling on item 1, decision 2, recency, 2026-11-16) adds src/snapchat-report-finalization.ts, the rule
+  // that tells an empty Snapchat answer that is "no rows" from one that is not yet known, and its reason, with no reason of its own
+  // (the sentence is a report warning, not a refusal): 817.
+  // Merge r25-m1-merge, merge 3: r12-fix (817 on its own base of 816) on the 827 above adds one different file and nothing else
+  // moves the count, so the merged tree measures, with this test's own inspector, 827 + 1 = 828.
+  assert.equal(files.length, 828);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -555,7 +560,22 @@ test('all actual directly owned backend reasons have Arabic with original native
   // web/owner-operations.js ownerReviewFriction): measured (node tools/check-locales.mjs: catalog_messages 12146), 12,143 + 3 = 12,146.
   // Lead review S2-2 (r25-m1-diff): +1 entry, the remedy of a STATE_CHANGED refused after a claim (a media resume, where part of
   // the upload may already have been sent: src/errors.ts reviewRemedy): measured (catalog_messages 12147), 12,146 + 1 = 12,147.
-  assert.equal(Object.keys(catalog).length, 12147);
+  // Package r12-fix (item 2, V2-RPT-07): +2 entries, the Arabic of the two refusals of the X line item and promoted tweet levels
+  // that name the kind of parent they could not find and how many entities lack one (src/x-overview-detail.ts; the earlier
+  // sentence stays, for a malformed objective): 12,138 + 2 = 12,140. Measured: node tools/check-locales.mjs, catalog_messages 12140.
+  // Package r12-fix (item 3, V2-RPT-05): +5 entries, the Arabic of the five provider remedies it declares (Snapchat's four, one for
+  // each timestamp of a stats answer that AMCP refused, and X's one for an entity whose parent is in neither list; remedies, not
+  // refusal reasons): 12,140 + 5 = 12,145. Measured: node tools/check-locales.mjs, catalog_messages 12145.
+  // Package r12-fix, the lead's ruling on item 1 (decision 2, recency, 2026-11-16): +2 entries for an empty Snapchat answer that
+  // nothing confirms as final: the refusal of a capture that is one such answer (src/snapchat-evidence.ts incomplete(), a reporting
+  // failure of that file) and the reason a source that is partial because of it shows (src/snapchat-report-finalization.ts, a report
+  // warning registered in web/report-quality.js): 12,145 + 2 = 12,147. Measured: node tools/check-locales.mjs, catalog_messages 12147.
+  // Merge r25-m1-merge, merge 3: r12-fix (12,147 on its own base of 12,138) on the diff package's 12,147 above. Both started from
+  // 12,138 and add nine keys each, none of them the same: a script over the three versions of web/locales/ar.json (base, ours,
+  // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
+  // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
+  // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
+  assert.equal(Object.keys(catalog).length, 12156);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

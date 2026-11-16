@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
-import {MirrorError} from '../dist/src/errors.js';
+import {MirrorError, providerDataAction} from '../dist/src/errors.js';
+import {providerRemedy} from '../dist/src/provider-remedies.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {normalizeOverviewV4Source} from '../dist/src/overview-v4.js';
 import {xReportSource} from '../dist/src/x-report-source.js';
@@ -24,6 +25,8 @@ function fixture(
     realTransport = false,
     timezone = 'UTC',
     activity = {start: '2026-09-01T00:00:00Z', end: '2026-09-09T00:00:00Z'},
+    // r12-fix item 2: an account that also holds DRAFT campaigns and line items, which X lists only when asked (below).
+    drafts = false,
   } = {},
 ) {
   const actor = {tenantId: 'x-native-detail', userId: 'owner', role: 'admin'},
@@ -46,6 +49,33 @@ function fixture(
       entity_status: line.entity_status,
       deleted: line.deleted,
     }));
+  if (drafts) {
+    // The shapes of the live check O-5 (rebuilt with synthetic IDs): DRAFT line items that hold live promoted tweets, one under
+    // a listed campaign and one, deleted, under a DRAFT campaign that is deleted too.
+    campaigns.push({id: 'cd', name: 'Campaign cd', entity_status: 'DRAFT', deleted: true});
+    lines.push(
+      {
+        id: 'd1',
+        name: 'Draft line d1',
+        campaign_id: 'c1',
+        objective: 'VIDEO_VIEWS',
+        entity_status: 'DRAFT',
+        deleted: false,
+      },
+      {
+        id: 'd2',
+        name: 'Draft line d2',
+        campaign_id: 'cd',
+        objective: 'VIDEO_VIEWS',
+        entity_status: 'DRAFT',
+        deleted: true,
+      },
+    );
+    promoted.push(
+      {id: 'pd1', line_item_id: 'd1', tweet_id: '9007199254740993', entity_status: 'ACTIVE', deleted: false},
+      {id: 'pd2', line_item_id: 'd2', tweet_id: '9007199254740993', entity_status: 'ACTIVE', deleted: true},
+    );
+  }
   store.putConnection(
     actor,
     {
@@ -72,7 +102,12 @@ function fixture(
       if (['campaigns', 'line_items', 'promoted_tweets'].includes(kind)) {
         assert.equal(options.aggregate_pages, false);
         assert.equal(plan.query.with_deleted, true);
-        const all = {campaigns, line_items: lines, promoted_tweets: promoted}[kind],
+        // X documents `with_draft` (default false) for the campaign and line item lists, and none for the promoted tweet list: a
+        // DRAFT campaign or line item is listed only when it is asked for, and a promoted tweet is listed whatever its line
+        // item's status (pins X1, X4 and X5; the live check O-5 saw exactly this).
+        const all = {campaigns, line_items: lines, promoted_tweets: promoted}[kind].filter(
+            row => kind === 'promoted_tweets' || row.entity_status !== 'DRAFT' || plan.query.with_draft === true,
+          ),
           second = plan.query.cursor === 'second';
         data = {
           data: all.slice(second ? 10 : 0, second ? all.length : 10),
@@ -80,7 +115,10 @@ function fixture(
           request: {params: {account_id: 'abc'}},
         };
       } else if (kind === 'active_entities') {
-        const entities = plan.query.entity === 'PROMOTED_TWEET' ? promoted : lines;
+        // A DRAFT line item has never run, so X reports no activity for it.
+        const entities = (plan.query.entity === 'PROMOTED_TWEET' ? promoted : lines).filter(
+          row => plan.query.entity === 'PROMOTED_TWEET' || row.entity_status !== 'DRAFT',
+        );
         data = {
           data: entities.map(row => ({
             entity_id: row.id,
@@ -148,7 +186,8 @@ function fixture(
             assert.match(headers.get('authorization'), /^OAuth /);
             wire.push({path: url.pathname, query: Object.fromEntries(url.searchParams), signed: true});
             const query = Object.fromEntries(url.searchParams);
-            if (query.with_deleted !== undefined) query.with_deleted = query.with_deleted === 'true';
+            for (const flag of ['with_deleted', 'with_draft'])
+              if (query[flag] !== undefined) query[flag] = query[flag] === 'true';
             if (query.count !== undefined) query.count = Number(query.count);
             const response = await recording.runPlan({path: url.pathname, query}, {aggregate_pages: false});
             return Response.json(response.data);
@@ -938,4 +977,305 @@ test('an X population read under another login is never reused', async t => {
   f.store.putConnection(f.actor, {...connection, scopes: ['changed']}, {accessToken: 'synthetic-rotated'});
   await f.collect('adset', {}, {}, lookup);
   assert.deepEqual(listings(f), [2, 4, 0], 'listed again under the new login');
+});
+
+// r12-fix item 2 (V2-RPT-07; O-5 of the live checks of 2026-11-16). The population lists read campaigns and line items with
+// `with_deleted` but not `with_draft` (X documents both, default false, on the line item list; pin X1), so DRAFT line items
+// were missing while the promoted tweet list still held their promotions, and one such orphan refused the whole promoted tweet
+// level. The lists now ask for DRAFT entities too, so each parent resolves; an entity whose parent is in neither list still
+// refuses, because that check proves ownership, and the refusal names the kind of parent and how many entities lack one.
+test('X promoted tweets on DRAFT line items resolve their native parents, because the population lists ask for drafts', async t => {
+  const f = fixture(t, {drafts: true}),
+    result = await f.collect('ad'),
+    byId = new Map(result.rows.map(row => [row.entity_id, row]));
+  assert.equal(result.complete, true);
+  // A live promotion on a DRAFT line item of a listed campaign, and a deleted one on a deleted DRAFT line item whose own
+  // campaign is a deleted DRAFT: both parents are read, so both rows carry them.
+  assert.deepEqual(
+    [byId.get('pd1').parent_ids.adset_id, byId.get('pd1').parent_ids.campaign_id, byId.get('pd1').objective],
+    ['d1', 'c1', 'VIDEO_VIEWS'],
+  );
+  assert.deepEqual([byId.get('pd2').parent_ids.adset_id, byId.get('pd2').parent_ids.campaign_id], ['d2', 'cd']);
+  const {campaigns, line_items, promoted_tweets} = result.native_population;
+  assert.deepEqual({campaigns, line_items, promoted_tweets}, {campaigns: 3, line_items: 23, promoted_tweets: 23});
+});
+
+test('X DRAFT line items belong to the proven population but are given no analytics and no row, as they never ran', async t => {
+  const f = fixture(t, {drafts: true}),
+    result = await f.collect('adset');
+  assert.equal(result.complete, true);
+  assert.deepEqual(
+    [result.native_population.campaigns, result.native_population.line_items, result.rows.length],
+    [3, 23, 21],
+  );
+  assert.equal(
+    result.rows.some(row => ['d1', 'd2'].includes(row.entity_id)),
+    false,
+  );
+  assert.ok(f.analytics().every(plan => !plan.query.entity_ids.split(',').some(entityId => /^d\d$/.test(entityId))));
+});
+
+test('every page of the campaign and line item population lists asks for DRAFT and deleted entities, and the promoted tweet list for deleted only', async t => {
+  const f = fixture(t, {drafts: true});
+  await f.collect('ad');
+  const lists = kind => f.requests.filter(plan => plan.path === '/12/accounts/abc/' + kind);
+  for (const kind of ['campaigns', 'line_items']) {
+    assert.ok(lists(kind).length >= 1, kind);
+    for (const plan of lists(kind)) {
+      assert.equal(plan.query.with_deleted, true, kind);
+      assert.equal(plan.query.with_draft, true, kind);
+      assert.equal(plan.query.count, 1000, kind);
+    }
+  }
+  // The cursor is followed, and the page that follows it asks the same.
+  assert.deepEqual(
+    lists('line_items').map(plan => plan.query.cursor),
+    [undefined, 'second'],
+  );
+  // X documents no `with_draft` on the promoted tweet list (pin X5), so none is sent there.
+  assert.equal(lists('promoted_tweets').length, 2);
+  for (const plan of lists('promoted_tweets')) {
+    assert.equal(plan.query.with_deleted, true);
+    assert.equal(Object.hasOwn(plan.query, 'with_draft'), false);
+  }
+});
+
+test('the signed wire requests of the population lists carry with_draft and with_deleted as X documents them', async t => {
+  const f = fixture(t, {realTransport: true, drafts: true});
+  await f.collect('ad');
+  const wire = kind => f.wire.filter(entry => entry.path === '/12/accounts/abc/' + kind);
+  for (const kind of ['campaigns', 'line_items']) {
+    assert.ok(wire(kind).length >= 1, kind);
+    for (const entry of wire(kind))
+      assert.deepEqual([entry.query.with_deleted, entry.query.with_draft], ['true', 'true']);
+  }
+  for (const entry of wire('promoted_tweets')) {
+    assert.equal(entry.query.with_deleted, 'true');
+    assert.equal(Object.hasOwn(entry.query, 'with_draft'), false);
+  }
+});
+
+// The ownership guard stays: a parent that is in neither list refuses the level, before any analytics. The refusal names the
+// parent kind (a closed set) and how many entities lack one, and names no entity: no ID, no name.
+const orphan = {
+  promoted: ids => (data, plan) => {
+    if (plan.path.endsWith('/promoted_tweets'))
+      for (const row of data.data) if (ids.includes(row.id)) row.line_item_id = 'gone';
+    return data;
+  },
+  lines: ids => (data, plan) => {
+    if (plan.path.endsWith('/line_items'))
+      for (const row of data.data) if (ids.includes(row.id)) row.campaign_id = 'gone';
+    return data;
+  },
+};
+for (const [label, level, options, mutate, parent, count] of [
+  ['one promoted tweet whose line item is in neither list', 'ad', {}, orphan.promoted(['p1']), 'line item', 1],
+  ['three promoted tweets over both pages', 'ad', {}, orphan.promoted(['p1', 'p12', 'p21']), 'line item', 3],
+  [
+    'a promoted tweet on a DRAFT line item that X does not list either',
+    'ad',
+    {drafts: true},
+    orphan.promoted(['pd1']),
+    'line item',
+    1,
+  ],
+  ['one line item whose campaign is in neither list', 'adset', {}, orphan.lines(['l1']), 'campaign', 1],
+  [
+    'two line items, one of them DRAFT, whose campaign is in neither list',
+    'adset',
+    {drafts: true},
+    orphan.lines(['l2', 'd1']),
+    'campaign',
+    2,
+  ],
+])
+  test('X ' + level + ' still refuses ' + label + ', naming the parent kind and the count', async t => {
+    const f = fixture(t, {...options, mutate});
+    let caught;
+    await assert.rejects(
+      () => f.collect(level),
+      error => {
+        caught = error;
+        return assertRefused(error, 'REPORT_ACCOUNT_MISMATCH');
+      },
+    );
+    assert.deepEqual(
+      [caught.details.parent_kind, caught.details.entities_affected],
+      [parent, count],
+      'the closed-set kind and the count',
+    );
+    assert.deepEqual(Object.keys(caught.details).sort(), ['entities_affected', 'parent_kind']);
+    assert.match(caught.message, new RegExp('^X did not list the ' + parent + ' of ' + count + ' of this account’s '));
+    assert.doesNotMatch(caught.message, /gone|Campaign|Line |\b[pcl]d?\d+\b/, 'no entity, ID or name');
+    assert.equal(f.analytics().length, 0, 'refused before any analytics');
+  });
+
+test('when both kinds of parent are missing, the campaign of the line items is named first', async t => {
+  const lines = orphan.lines(['l1']),
+    promoted = orphan.promoted(['p2']),
+    f = fixture(t, {mutate: (data, plan) => promoted(lines(data, plan), plan)});
+  await assert.rejects(
+    () => f.collect('ad'),
+    error => {
+      assertRefused(error, 'REPORT_ACCOUNT_MISMATCH');
+      assert.deepEqual([error.details.parent_kind, error.details.entities_affected], ['campaign', 1]);
+      return true;
+    },
+  );
+});
+
+// The other checks of the same loops keep their refusals and their own words: a malformed objective, an unsafe tweet identity,
+// and an entity of another account, DRAFT or not.
+test('a malformed line item objective is still refused with the earlier sentence, which names no parent kind', async t => {
+  const f = fixture(t, {
+    mutate(data, plan) {
+      if (plan.path.endsWith('/line_items') && !plan.query.cursor) data.data[0].objective = 'not an objective';
+      return data;
+    },
+  });
+  await assert.rejects(
+    () => f.collect('adset'),
+    error => {
+      assertRefused(error, 'REPORT_ACCOUNT_MISMATCH', {
+        message: /^X detailed entities did not retain exact owned native parents\.$/,
+      });
+      assert.equal(error.details.parent_kind, undefined);
+      return true;
+    },
+  );
+  assert.equal(f.analytics().length, 0);
+});
+
+test('an unsafe promoted tweet identity is still refused as a changed shape', async t => {
+  const f = fixture(t, {
+    mutate(data, plan) {
+      if (plan.path.endsWith('/promoted_tweets') && !plan.query.cursor) data.data[0].tweet_id = '0123';
+      return data;
+    },
+  });
+  await assert.rejects(
+    () => f.collect('ad'),
+    error => assertRefused(error, 'REPORT_SHAPE_CHANGED', {message: /unsafe native tweet identity/}),
+  );
+});
+
+for (const [kind, id] of [
+  ['campaigns', 'cd'],
+  ['line_items', 'd1'],
+])
+  test('a DRAFT ' + kind + ' entity of another account is refused like any other foreign entity', async t => {
+    const f = fixture(t, {
+      drafts: true,
+      mutate(data, plan) {
+        if (plan.path.endsWith('/' + kind)) for (const row of data.data) if (row.id === id) row.account_id = 'other';
+        return data;
+      },
+    });
+    await assert.rejects(
+      () => f.collect('adset'),
+      error =>
+        assertRefused(error, 'REPORT_ACCOUNT_MISMATCH', {message: /foreign, repeated or malformed native entity/}),
+    );
+    assert.equal(f.analytics().length, 0);
+  });
+
+// Package r12-fix, item 3 (V2-RPT-05; error 3 of the live checks of 2026-11-16): the source error that the Overview keeps for an
+// entity whose parent is in neither list names the kind of parent and the count, and its next action says the parent could not
+// be found, that the check protects ownership and that a retry will not help. The other refusals of the same code keep the shared
+// retry advice.
+test('the Overview’s error for orphan promoted tweets names the parent kind and the count, and says a retry will not help', async t => {
+  const f = fixture(t, {mutate: orphan.promoted(['p1', 'p12'])}),
+    overview = new ReportingOverview(f.service, async () => {
+      throw Error('Unexpected network request');
+    }),
+    worker = new ReportWorker(
+      f.store,
+      async () => ({}),
+      (tenant, kind, input) => overview.work(tenant, kind, input),
+    ),
+    queued = await overview.handle(
+      {
+        action: 'run',
+        confirmed: true,
+        config: {
+          contract_version: 'overview-config-v4',
+          name: 'X promotions with orphans',
+          date_range: range,
+          grain: 'total',
+          sources: [
+            {
+              platform: 'x',
+              account_id: 'abc',
+              connection_id: 'x',
+              levels: ['ad'],
+              delivered_only: false,
+              report_options: {complete_window: true, attribution: 'unknown'},
+            },
+          ],
+          metrics: ['spend', 'impressions', 'conversions'],
+        },
+      },
+      f.actor,
+    );
+  assert.equal(await worker.once(), true);
+  const report = await overview.handle({action: 'get', id: queued.id}, f.actor);
+  assert.equal(report.state, 'failed', JSON.stringify(report.sources));
+  const error = report.sources[0].error;
+  assert.equal(error.code, 'REPORT_ACCOUNT_MISMATCH');
+  assert.deepEqual([error.parent_kind, error.entities_affected], ['line item', 2]);
+  assert.match(error.message, /^X did not list the line item of 2 of this account’s promoted tweets/);
+  assert.equal(error.next_action, providerRemedy('REPORT_ACCOUNT_MISMATCH', {parent_kind: 'line item'}).action);
+  assert.match(error.next_action, /could not be found among the account’s own objects/);
+  assert.match(error.next_action, /This check protects ownership/);
+  assert.match(error.next_action, /Retrying will not help/);
+  assert.doesNotMatch(JSON.stringify(error), /\bp1\b|\bp12\b|"gone"/, 'no entity is named');
+});
+
+test('the Overview’s error for a foreign X entity keeps the shared retry advice, as it names no missing parent', async t => {
+  const f = fixture(t, {
+      mutate(data, plan) {
+        if (plan.path.endsWith('/line_items')) data.data[0].account_id = 'other';
+        return data;
+      },
+    }),
+    overview = new ReportingOverview(f.service, async () => {
+      throw Error('Unexpected network request');
+    }),
+    worker = new ReportWorker(
+      f.store,
+      async () => ({}),
+      (tenant, kind, input) => overview.work(tenant, kind, input),
+    ),
+    queued = await overview.handle(
+      {
+        action: 'run',
+        confirmed: true,
+        config: {
+          contract_version: 'overview-config-v4',
+          name: 'X line items with a foreign entity',
+          date_range: range,
+          grain: 'total',
+          sources: [
+            {
+              platform: 'x',
+              account_id: 'abc',
+              connection_id: 'x',
+              levels: ['adset'],
+              delivered_only: false,
+              report_options: {complete_window: true, attribution: 'unknown'},
+            },
+          ],
+          metrics: ['spend', 'impressions', 'conversions'],
+        },
+      },
+      f.actor,
+    );
+  assert.equal(await worker.once(), true);
+  const report = await overview.handle({action: 'get', id: queued.id}, f.actor),
+    error = report.sources[0].error;
+  assert.equal(report.state, 'failed', JSON.stringify(report.sources));
+  assert.equal(error.code, 'REPORT_ACCOUNT_MISMATCH');
+  assert.equal(error.parent_kind, undefined);
+  assert.equal(error.next_action, providerDataAction);
 });

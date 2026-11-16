@@ -8,6 +8,7 @@ import {
   snapchatReportId,
 } from './snapchat-evidence.js';
 import {mergeCaptures, windowSpans} from './overview-detail-spans.js';
+import {snapchatUnconfirmedEmptyWarning, unconfirmedEmptyCampaigns} from './snapchat-report-finalization.js';
 import {
   campaignAllowanceWarning,
   unmatchedScopeWarning,
@@ -337,6 +338,10 @@ export async function collectSnapchatOverviewDetail(c: ReportCollection, detail:
     verifiedAfter = false;
   }
   const results: JsonObject[] = parts.map(part => part.result),
+    // The campaigns whose empty answer left out its finalization times and that no finalization time of this collection covers
+    // (r12-fix, the lead's ruling on item 1, decision 2, 2026-11-16): not known to be "no delivery", so the source is partial and
+    // shows no zero for them. Judged here, over every campaign that was read, because evidence may come from a later campaign.
+    unconfirmed = unconfirmedEmptyCampaigns(results),
     warnings = [
       ...new Set([
         ...results.flatMap(result => result.warnings ?? []),
@@ -349,6 +354,7 @@ export async function collectSnapchatOverviewDetail(c: ReportCollection, detail:
           : []),
         ...(unmatched.length ? [unmatchedScopeWarning(unmatched.length)] : []),
         ...(stopped ? [snapchatAllowanceWarning(parts.length, selected.length)] : []),
+        ...(unconfirmed ? [snapchatUnconfirmedEmptyWarning] : []),
       ]),
     ],
     lineage = [
@@ -372,7 +378,7 @@ export async function collectSnapchatOverviewDetail(c: ReportCollection, detail:
       native_daily_rows: checkRows(),
       includes_deleted: true,
       complete: true,
-      collection_complete: !stopped,
+      collection_complete: !stopped && !unconfirmed,
       account_verified_after: verifiedAfter,
       observed_at: state.scanned_at,
       // The figure for this period once the population is known (the queue-time one is a lower bound without a scope).
@@ -380,6 +386,9 @@ export async function collectSnapchatOverviewDetail(c: ReportCollection, detail:
       spans: spans.length,
       unmatched: {campaign_ids: unmatched},
       unmatched_count: unmatched.length,
+      // The campaigns that answered with no rows and no finalization time that covers the window: counted, with the reason.
+      unconfirmed_empty_campaigns: unconfirmed,
+      ...(unconfirmed ? {unconfirmed_reason: snapchatUnconfirmedEmptyWarning} : {}),
       bounds: snapchatDetailBounds,
       ...(stopped
         ? {stopped: {campaigns_read: parts.length, campaigns_selected: selected.length, dimension: stopped.dimension}}
@@ -407,8 +416,8 @@ export async function collectSnapchatOverviewDetail(c: ReportCollection, detail:
       result_definition: 'conversion_purchases (total sources)',
     }),
     rows: results.flatMap(result => result.rows),
-    collection_complete: !stopped && results.every(result => result.collection_complete === true),
-    complete: declaration === true && !stopped && results.every(result => result.complete === true),
+    collection_complete: !stopped && !unconfirmed && results.every(result => result.collection_complete === true),
+    complete: declaration === true && !stopped && !unconfirmed && results.every(result => result.complete === true),
     quality: {
       ...(first?.quality ?? {
         version: 1,
