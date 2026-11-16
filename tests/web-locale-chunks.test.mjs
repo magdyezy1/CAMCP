@@ -303,15 +303,16 @@ test('About and the public pages load the shell chunk only; a signed-in page add
     assert.deepEqual(Array.from(p.run(`pageLocaleChunks(${JSON.stringify(route)})`)), []);
     assert.equal(p.run(`pageAssetsPending(${JSON.stringify(route)})`), false);
   }
-  // Connections has no feature script, yet as a signed-in page it needs the workspace's messages.
-  assert.deepEqual(Array.from(p.run("pageLocaleChunks('/connections')")), ['workspace', 'providers']);
+  // Connections has no feature script, yet as a signed-in page it needs the workspace's messages. providers (the sentences of
+  // provider refusals) is no page's before it renders (r25-ar-lazy): an answer that carries one loads it.
+  assert.deepEqual(Array.from(p.run("pageLocaleChunks('/connections')")), ['workspace']);
   assert.equal(p.run("pageAssetsPending('/connections')"), true);
   await p.run("ensurePageAssets('/connections')");
-  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
   assert.equal(p.run("pageAssetsPending('/connections')"), false);
   // Settings adds its two scripts' chunks, requested beside the scripts themselves; nothing is fetched twice.
   await p.run("ensurePageAssets('/settings')");
-  assert.deepEqual(p.chunks().slice(3).sort(), ['account-approvals.json', 'owner-operations.json']);
+  assert.deepEqual(p.chunks().slice(2).sort(), ['account-approvals.json', 'owner-operations.json']);
   assert.deepEqual(p.appended, ['/assets/owner-operations.js', '/assets/account-approvals.js']);
   // A message only owner-operations.js writes now reads in Arabic.
   const owned = Object.keys(plan.chunks['owner-operations']).find(key => !key.includes('{'));
@@ -453,6 +454,75 @@ test('the sentences of an answer are read where the page looks them up: the mess
   assert.equal(await fetchesFor({success: true, data: {name: lazy, notes: [lazy], rows: [{label: lazy}]}}), false);
   assert.equal(await fetchesFor(refusal(loaded, {provider: {code: 'X', message: lazy}})), false);
 });
+test('a signed-in Arabic page fetches providers when the browser is idle after it has rendered, and only then', async () => {
+  const settle = async () => {
+    for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  };
+  const idle = async (locale, signedIn, scheduler = 'requestIdleCallback') => {
+    const p = page({locale}),
+      queued = [];
+    await p.run('initializeUILocale()');
+    p.context.session = {authenticated: signedIn};
+    if (scheduler === 'requestIdleCallback')
+      p.context.requestIdleCallback = (fn, options) => queued.push({fn, options});
+    else
+      p.context.setTimeout = (fn, ms) => (ms === 15000 ? setTimeout(fn, ms) : (queued.push({fn, ms}), queued.length));
+    // A page has just rendered: the shell runs the after-render hooks.
+    await p.run('AMCP.hooks.runAfter()');
+    return {p, queued};
+  };
+  // Signed in, Arabic: one idle task, and nothing is fetched while the browser is busy; then the chunk arrives.
+  const {p, queued} = await idle('ar', true);
+  assert.equal(queued.length, 1);
+  assert.deepEqual(p.chunks(), ['shell.json'], 'nothing is fetched until the browser is idle');
+  assert.equal(queued[0].options.timeout, 5000, 'and not later than five seconds after the page rendered');
+  await p.run('AMCP.hooks.runAfter()');
+  assert.equal(queued.length, 1, 'a second render queues no second task');
+  queued[0].fn();
+  await settle();
+  assert.deepEqual(p.chunks(), ['shell.json', 'providers.json']);
+  assert.equal(p.run("uiLoadedChunks.has('ar:providers')"), true);
+  await p.run('AMCP.hooks.runAfter()');
+  assert.equal(queued.length, 1, 'once it is in, a render queues nothing');
+  // Where there is no requestIdleCallback (Safari), a short timeout stands in for it.
+  const timed = await idle('ar', true, 'setTimeout');
+  assert.equal(timed.queued.length, 1);
+  assert.ok(timed.queued[0].ms >= 1000 && timed.queued[0].ms <= 3000, 'a short timeout: ' + timed.queued[0].ms);
+  timed.queued[0].fn();
+  await settle();
+  assert.ok(timed.p.chunks().includes('providers.json'));
+  // Not for English, and not for a visitor who is signed out: they would never read a refusal's Arabic.
+  for (const [locale, signedIn] of [
+    ['en', true],
+    ['ar', false],
+  ]) {
+    const none = await idle(locale, signedIn);
+    assert.equal(none.queued.length, 0, locale + ' signedIn=' + signedIn);
+    assert.deepEqual(none.p.requests, locale === 'ar' ? none.p.requests.slice(0, 1) : []);
+  }
+  // A fetch that fails is dropped without a message, and the next render tries again.
+  let fail = true;
+  const flaky = page({
+    answer: url =>
+      fail && url.includes('providers')
+        ? new Response('', {status: 503})
+        : new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')),
+  });
+  await flaky.run('initializeUILocale()');
+  const tasks = [];
+  Object.assign(flaky.context, {session: {authenticated: true}, requestIdleCallback: fn => tasks.push(fn)});
+  await flaky.run('AMCP.hooks.runAfter()');
+  tasks[0]();
+  await settle();
+  assert.equal(flaky.run("uiLoadedChunks.has('ar:providers')"), false);
+  fail = false;
+  await flaky.run('AMCP.hooks.runAfter()');
+  assert.equal(tasks.length, 2);
+  tasks[1]();
+  await settle();
+  assert.equal(flaky.run("uiLoadedChunks.has('ar:providers')"), true);
+});
+
 test('an English page, and an answer after the chunk is in, never fetch a catalog chunk for an answer', async () => {
   const lazy = sentence('providers'),
     english = page({locale: 'en'});
@@ -493,7 +563,7 @@ function boot(pathname, answer, available = () => true) {
     location: {hash: '', pathname},
     pageAssetsFor: path => (path === '/settings' ? ['owner-operations.js', 'account-approvals.js'] : []),
     loadPageAsset: async file => events.push('script ' + file),
-    pageLocaleChunks: () => ['workspace', 'providers', 'owner-operations', 'account-approvals'],
+    pageLocaleChunks: () => ['workspace', 'owner-operations', 'account-approvals'],
     uiPrefetchChunks: chunks => events.push('chunks ' + chunks.join(' ')),
     routeAvailable: (path, who) => available(path, who),
     initializeUILocale: () => {
@@ -522,7 +592,7 @@ test('the workspace asks who is signed in while the shell chunk downloads (regre
       // The signed-in page's files start as soon as the session answers, before the shell chunk has arrived.
       'script owner-operations.js',
       'script account-approvals.js',
-      'chunks workspace providers owner-operations account-approvals',
+      'chunks workspace owner-operations account-approvals',
     ],
     'Everything the first page needs starts before the catalog arrives',
   );

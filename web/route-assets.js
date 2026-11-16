@@ -145,13 +145,15 @@ function pageAssetsFor(pathname) {
  * this list: no page script may rely on these chunks, and no page's `pageLocaleChunks` names one (tests/web-route-bytes).
  */
 const answerLocaleChunks = Object.freeze(['providers']);
-/** A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace, providers and its scripts'. */
+/**
+ * A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace and its scripts'. Never a chunk in
+ * `answerLocaleChunks`: no page waits for those (tests/web-route-bytes.test.mjs).
+ */
 function pageLocaleChunks(pathname) {
   const entry = routeEntry(pathname);
   if (!entry || entry.public) return [];
   return [
     'workspace',
-    'providers',
     ...pageAssetsFor(pathname)
       .filter(file => file.endsWith('.js') && !file.startsWith('vendor/'))
       .map(file => file.replace(/\.js$/, '')),
@@ -332,6 +334,30 @@ function uiAnswerWithoutUnloaded(data) {
     return false;
   });
 }
+let uiAnswerChunksIdle = false;
+/**
+ * After a page has rendered, fetches the chunks no page waits for when the browser is idle, so a refusal that follows finds
+ * them cached: Arabic and signed in only (a signed-out visitor, and English, never read a refusal's Arabic). One idle task at
+ * a time; a failure is dropped without a message, and the next render tries again (R25 ar-lazy).
+ */
+function uiPrefetchAnswerChunks() {
+  if (
+    uiLocale !== 'ar' ||
+    typeof session !== 'object' ||
+    !session?.authenticated ||
+    uiAnswerChunksIdle ||
+    uiChunksReady(answerLocaleChunks)
+  )
+    return;
+  uiAnswerChunksIdle = true;
+  const load = () =>
+    uiNeedChunks(answerLocaleChunks)
+      .catch(() => {})
+      .finally(() => (uiAnswerChunksIdle = false));
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(load, {timeout: 5000});
+  else setTimeout(load, 1500);
+}
+if (typeof AMCP === 'object') AMCP.hooks.afterRender(uiPrefetchAnswerChunks);
 /**
  * Before a page reads an answer in Arabic, loads the chunks no page waits for (`answerLocaleChunks`) when the answer carries a
  * sentence that is not in the catalog yet: a refusal's, in an error or in a 200 that holds diagnostics. The read is the
