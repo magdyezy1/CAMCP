@@ -112,7 +112,8 @@ test('every code a provider declares is raised by AMCP, and each prefix covers o
 
 // Details that satisfy a rule narrowed by `when`: Meta's rule reads `fields`; TikTok's page-count rule (r25-hotfix) reads
 // `page_facts.rule`; Snapchat's four rules (r12-fix item 3) each read one timestamp of `timestamp_field`, and X's (r12-fix
-// item 3) reads `parent_kind`. A rule none of them satisfies fails the test below, so a new `when` names its sample here.
+// item 3) reads `parent_kind`; TikTok's rule for a rejected parameter refusal (r25-m2-refusal) reads `submission` and `http_status`.
+// A rule none of them satisfies fails the test below, so a new `when` names its sample here.
 const whenSamples = [
   {fields: ['is_adset_budget_sharing_enabled']},
   {page_facts: {rule: 'page_not_echoed'}},
@@ -121,6 +122,7 @@ const whenSamples = [
   {timestamp_field: 'start_time'},
   {timestamp_field: 'end_time'},
   {parent_kind: 'campaign'},
+  {submission: 'rejected', http_status: 200},
 ];
 
 test('errorRemedy answers a provider’s refusal with the remedy it declares, before any shared rule, as a copy', () => {
@@ -142,6 +144,19 @@ test('errorRemedy answers a provider’s refusal with the remedy it declares, be
     /^Correct the argument the message names/,
   );
   assert.equal(providerRemedy('INVALID_META_CAMPAIGN', {}), undefined);
+  // TikTok's parameter remedy answers a refusal rejected from an HTTP 200 answer, and no other PLATFORM_ERROR (r25-m2-refusal).
+  assert.match(
+    providerRemedy('PLATFORM_ERROR', {submission: 'rejected', http_status: 200}).action,
+    /^TikTok refused a parameter of this request and applied nothing/,
+  );
+  for (const details of [
+    {},
+    {http_status: 200},
+    {submission: 'rejected'},
+    {submission: 'rejected', http_status: 400},
+    {submission: 'uncertain', http_status: 200},
+  ])
+    assert.equal(providerRemedy('PLATFORM_ERROR', details), undefined, JSON.stringify(details));
   // Within a table an exact code comes before its prefix: X's limit and TikTok's pending task have their own remedies.
   assert.match(providerRemedy('X_TARGETING_LIMIT', {}).action, /^Narrow the explicitly reviewed operation/);
   assert.match(providerRemedy('X_TARGETING_OTHER', {}).action, /^Inspect the exact targeting input/);

@@ -1092,7 +1092,14 @@ test('a write the provider refused with tokens answers with them through execute
     });
     assert.deepEqual(refused.error.details.provider_errors, [{code: 40002}]);
     assert.match(refused.error.details.provider_message, /^IGNORE PREVIOUS INSTRUCTIONS/);
-    assert.deepEqual(refused.error.details.next_call, {
+    // r25-m2-refusal (Q16): code 40002 with no data in an HTTP 200 answer is a refusal TikTok’s return-code table defines, so the
+    // review is rejected, not uncertain: its key is retired, and the answer names the retired review where it named the
+    // read-only status call of an uncertain one (the same call stays in the workflow).
+    assert.equal(refused.error.details.submission, 'rejected');
+    assert.equal(refused.error.details.key_retired, true);
+    assert.equal(refused.error.details.review_id, prepared.data.review_id);
+    assert.equal(refused.error.details.next_call, undefined);
+    assert.deepEqual(refused.meta.workflow.next_call, {
       tool: 'amcp_write',
       arguments: {action: 'status', review_id: prepared.data.review_id},
     });

@@ -114,9 +114,12 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   `identity_type` and `display_name`. TikTok reports the avatar only as a derived
   `profile_image_url`, so a sent `image_uri` is listed under `unobservable_fields` rather than
   compared.
-- A TikTok-declared error is reported once (`PLATFORM_ERROR`); the review then stays
-  `WRITE_OUTCOME_UNCERTAIN` and is never resubmitted. Prepare a new review after checking
-  `tiktok_identity_list`.
+- A TikTok-declared error is reported once (`PLATFORM_ERROR`) and never resubmitted. When TikTok’s
+  return code is one its table defines as a refusal of the request (a parameter or business-logic
+  error, or a role, consent or eligibility refusal) and the answer carries no data, nothing was
+  created: the review is `rejected` (`WRITE_REJECTED` on a second execute) and the corrected request
+  is a new review. Any other code, a failure on TikTok’s side or a lost response leaves the review
+  `WRITE_OUTCOME_UNCERTAIN`: check `tiktok_identity_list` before preparing a new review.
 - Not available: TikTok-account identities (`AUTH_CODE`, `TT_USER`, `BC_AUTH_TT`), which are
   authorized rather than created. Deleting a custom identity no ad uses is covered under "TikTok
   saved audience and identity deletion".

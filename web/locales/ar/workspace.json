@@ -1556,6 +1556,7 @@
   "TikTok media preparation and upload": "إعداد الوسائط ورفعها إلى TikTok",
   "TikTok portfolio pages contain 1–100 entities.": "تحتوي كل صفحة استعراض TikTok على 1–100 عنصر.",
   "TikTok reads ad group schedule times in UTC; the brief’s offsets were converted exactly.": "يقرأ تيك توك أوقات جدولة المجموعة الإعلانية بتوقيت UTC؛ وحُوّلت فروق التوقيت الواردة في الملخص بدقة.",
+  "TikTok refused a parameter of this request and applied nothing, so nothing was created or changed. The code and TikTok’s own message, which AMCP marks as untrusted, name which parameter. Correct the request and prepare it again as a new review; this review is never sent again.": "رفضت TikTok أحد معاملات هذا الطلب ولم تطبّق شيئًا، لذا لم يُنشأ أو يُغيَّر أي شيء. يحدّد رمز TikTok ورسالتها الخاصة، التي يعرضها AMCP على أنها نص غير موثوق، أيّ معامل هو. صحّح الطلب وجهّزه من جديد كمراجعة جديدة؛ ولن تُرسل هذه المراجعة مرة أخرى أبدًا.",
   "TikTok refused the deleted-objects filter, so campaigns deleted since this window may be missing.": "رفضت TikTok عامل تصفية العناصر المحذوفة، لذا قد لا تظهر الحملات التي حُذفت بعد هذه الفترة.",
   "TikTok report counts changed during collection. Capture again.": "تغيّرت أعداد تقرير TikTok أثناء الجمع. اجمع البيانات مجدداً.",
   "TikTok report row counts changed during collection. Capture again.": "تغيّرت أعداد صفوف تقرير TikTok أثناء جمع البيانات. احفظ التقرير مجددًا.",

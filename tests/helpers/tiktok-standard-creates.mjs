@@ -68,9 +68,14 @@ export const standardBodies = id => ({
  * campaign 300 and the ad group 200 the creates sit under, which a test may change at any time; a status set to
  * undefined leaves the field out of the row TikTok returns. `sent` lists every provider write. `parentExtra(kind, n)`
  * (r25-m1-hash) adds fields to the row of the `campaign` or `adgroup` parent on its n-th read, for noise that rotates or
- * for the configuration a parent carries; none by default.
+ * for the configuration a parent carries; none by default. `post(path, body, n)` (r25-m2-refusal) answers the n-th provider
+ * write: a Response replaces TikTok's success answer, a thrown error is a response that was lost, undefined keeps the
+ * success answer.
  */
-export function standardCreates(world, {tenant = 'standard-creates', parentExtra = () => ({})} = {}) {
+export function standardCreates(
+  world,
+  {tenant = 'standard-creates', parentExtra = () => ({}), post = () => undefined} = {},
+) {
   const actor = {tenantId: tenant, userId: 'operator', role: 'operator'},
     owner = {...actor, userId: 'owner', role: 'admin'},
     store = new Store(':memory:', key),
@@ -98,7 +103,10 @@ export function standardCreates(world, {tenant = 'standard-creates', parentExtra
       method = init.method ?? 'GET';
     requests.push(method + ' ' + path);
     if (method === 'POST') {
-      sent.push({path, body: JSON.parse(init.body)});
+      const body = JSON.parse(init.body);
+      sent.push({path, body});
+      const own = post(path, body, sent.length);
+      if (own !== undefined) return own;
       return Response.json(answer({campaign_id: '301', adgroup_id: '201', ad_ids: ['101']}));
     }
     if (path === '/v1.3/advertiser/info/') return Response.json(answer({list: [advertiserAnswer(world, url)]}));
@@ -169,6 +177,14 @@ export function standardCreates(world, {tenant = 'standard-creates', parentExtra
       }),
     /** Any amcp_write call, for a write that is no create (a status or budget update of an existing object). */
     write: input => call('amcp_write', {gateway, connection_id: connection.id, ...input}),
+    /** Any amcp_campaign call (r25-m2-refusal), for the steps of a plan over the same synthetic advertiser. */
+    plan: input => call('amcp_campaign', input),
+    /** amcp_write status of a review (r25-m2-refusal): a retained review is read back by AMCP alone. */
+    status: review => call('amcp_write', {action: 'status', review_id: review.review_id}),
+    /** The state of the idempotency claim of a review (pending, complete, uncertain, rejected), or undefined. */
+    claimState: review =>
+      store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, review.review_id)
+        ?.state,
     close: () => store.close(),
   };
 }

@@ -88,6 +88,7 @@ import {object} from './write-common.js';
 import type {CampaignPreflightContext, MutationResponse} from './provider-adapter.js';
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
+import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -653,6 +654,9 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // The creates the verb in a path does not show (a negative keyword's add), for the summary (R2.5 S2-2).
     operation: tiktokOperation,
     morePages: tiktokInstantFormFollowUps,
+    // A refusal TikTok declares in an HTTP 200 body, with a code its return-code table defines as a refusal of the request
+    // and no data, applied nothing: the review is rejected, not uncertain (Q16, owner 2026-11-15; R2.5 M2).
+    rejectionIsNonApplied: tiktokRejectionIsNonApplied,
     prerequisites(plan: CompiledRequest, values: unknown[]) {
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);

@@ -375,7 +375,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (the sentence is a report warning, not a refusal): 817.
   // Merge r25-m1-merge, merge 3: r12-fix (817 on its own base of 816) on the 827 above adds one different file and nothing else
   // moves the count, so the merged tree measures, with this test's own inspector, 827 + 1 = 828.
-  assert.equal(files.length, 828);
+  // Package r25-m2-refusal (Round 2.5, M2: L1-07) adds src/tiktok-write-rejection.ts, the closed set of TikTok return codes that declare
+  // a refusal of the request and its proof that such a refusal applied nothing, with no reason of its own: one more on the integration's 828, 829
+  // on its own base. Whoever merges it adds the files of every package it is merged with to this number.
+  assert.equal(files.length, 829);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -575,7 +578,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
-  assert.equal(Object.keys(catalog).length, 12156);
+  // Package r25-m2-refusal (Round 2.5, M2: L1-08) adds one key: the remedy of a rejected TikTok parameter refusal, in English and Arabic (12,157 on its
+  // own base of 12,156). Whoever merges it adds the keys of every package it is merged with to this number.
+  assert.equal(Object.keys(catalog).length, 12157);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

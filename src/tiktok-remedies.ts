@@ -29,6 +29,23 @@ const pageCountRefusal = (details: Record<string, unknown>): boolean => {
  * provider’s table (src/provider-remedies.ts) before its shared rules. A leaf: nothing is imported at load.
  */
 export const tiktokRemedies: readonly ProviderRemedy[] = [
+  // A parameter refusal TikTok declared in an HTTP 200 answer, which AMCP rejects (R2.5 M2, Q16; src/tiktok-write-rejection.ts:
+  // `submission: rejected`, and TikTok's own code in the answer). Before it, the live check of 2026-11-16 (LV-8) was told to look at
+  // access, scopes and the app tier. This says what happened in AMCP's words alone; TikTok's code and sentence, which name the
+  // parameter, are in the details, the sentence marked untrusted. It names no argument, field or path, so the website shows it to a
+  // person as written, in English and in Arabic (WEB-03; tests/website-provider-remedies.test.mjs). A refusal of the login's role,
+  // consent or eligibility is rejected too, and keeps the remedy of its own code.
+  {
+    codes: ['PLATFORM_ERROR'],
+    when: details => details.submission === 'rejected' && details.http_status === 200,
+    remedy: {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'TikTok refused a parameter of this request and applied nothing, so nothing was created or changed. The code and TikTok’s own message, which AMCP marks as untrusted, name which parameter. Correct the request and prepare it again as a new review; this review is never sent again.',
+      mutation_retry_safe: false,
+    },
+  },
   // A report whose page counts AMCP's check refused (live checks of 2026-11-15, error 7). It names what AMCP saw, that
   // the same request returns the same answer, and what to do, instead of the shared advice to retry the report. It names no
   // argument or path (details.page_facts.rule) in the text: the website shows it as written, on the Overview's source card

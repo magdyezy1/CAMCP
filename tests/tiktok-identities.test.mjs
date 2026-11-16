@@ -282,9 +282,11 @@ test('rejected, empty or lost identity receipts never submit a second identity',
     try {
       const p = await f.prepare({display_name: 'Brand'});
       assert.equal(p.success, true, mode);
-      // A TikTok-declared error is reported as such once; its outcome is then held as uncertain, never retried.
+      // A TikTok-declared error is reported as such once and never retried. r25-m2-refusal (Q16): code 40002 with no data in an
+      // HTTP 200 answer is a refusal TikTok’s return-code table defines, so the review is rejected and its key retired
+      // (WRITE_REJECTED), not uncertain. A lost response stays uncertain.
       const [first, again] = {
-        write_error: ['PLATFORM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
+        write_error: ['PLATFORM_ERROR', 'WRITE_REJECTED'],
         empty_receipt: ['WRITE_PARTIAL_OR_FAILED', 'WRITE_PARTIAL_OR_FAILED'],
         lost: ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_OUTCOME_UNCERTAIN'],
       }[mode];
