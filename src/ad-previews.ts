@@ -334,13 +334,22 @@ export class AdPreviews {
             ad_id: row.id,
             name: row.name,
             ...(row.key ? {source_ad_id: row.key} : {}),
+            ...row.fields,
             ...(await preview(row)),
           });
         } catch (e) {
           if (!(e instanceof MirrorError)) throw e;
-          // The full source diagnostic (V2-RPT-05); it still opens with `code` and `message`, so the change is additive.
+          // The full source diagnostic (V2-RPT-05); it still opens with `code` and `message`, so the change is additive. What the
+          // row says of itself (`fields`) stays, since a refused preview is the moment a caller needs to know which ad it was.
           const error = reportSourceError(e, {platform, account_id: account, connection_id: connection});
-          out.push({ad_id: row.id, name: row.name, ...(row.key ? {source_ad_id: row.key} : {}), links: [], error});
+          out.push({
+            ad_id: row.id,
+            name: row.name,
+            ...(row.key ? {source_ad_id: row.key} : {}),
+            ...row.fields,
+            links: [],
+            error,
+          });
         }
       return out;
     };

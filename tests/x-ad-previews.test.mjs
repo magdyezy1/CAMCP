@@ -768,16 +768,33 @@ test('Tweets are asked for in batches of at most the 200 X documents, in one rea
   );
 });
 
-test('X’s refusal of the preview read is each entry’s own diagnostic, and the call still answers', async t => {
+test('X’s refusal of the preview read is each entry’s own diagnostic, still naming its Tweet and promoted Tweets, and the call still answers', async t => {
+  // pt1 and pt2 promote one Tweet and a dark Tweet is named beside them: two entries. The IDs the caller named are the mapping it
+  // needs, and the failure of the preview read is the moment it needs it, so the identity must survive the refusal.
   const f = fixture(t, world({previewStatus: 400})),
-    out = ok(await f.previews({ad_ids: ['pt1', tweet(90)]}));
+    out = ok(await f.previews({ad_ids: ['pt1', 'pt2', tweet(90)]}));
   assert.equal(out.previews.length, 2);
+  assert.deepEqual(
+    out.previews.map(p => [p.ad_id, p.tweet_id, p.promoted_tweet_ids]),
+    [
+      [tweet(1), tweet(1), ['pt1', 'pt2']],
+      [tweet(90), tweet(90), []],
+    ],
+  );
+  assert.equal(out.previews[1].name, 'Dark launch', 'the name of a dark Tweet survives it too');
   for (const p of out.previews) {
     assert.deepEqual(p.links, []);
     assert.equal(typeof p.error?.code, 'string');
     assert.equal(typeof p.error?.message, 'string');
   }
+  assert.equal(out.not_found, undefined, 'nothing the caller named is missing');
   assert.equal(f.reads('/tweet_previews').length, 1, 'the refused batch is read once, not once per entry');
+  // The same without ad_ids: the listed promoted Tweets keep theirs.
+  const listed = ok(await fixture(t, world({previewStatus: 400})).previews());
+  assert.deepEqual(
+    listed.previews.map(p => [p.tweet_id, p.promoted_tweet_ids]),
+    [[tweet(1), ['pt1', 'pt2']]],
+  );
 });
 
 test('X’s preview answer is read as the documented one: its account and shape are checked, and an entry that names no asked-for Tweet answers none', async t => {
@@ -789,9 +806,10 @@ test('X’s preview answer is read as the documented one: its account and shape 
   ]) {
     const f = fixture(t, world(over)),
       out = ok(await f.previews({ad_ids: ['pt1']}));
+    // The entry's refusal is its own, and it still says which Tweet it is and which promoted Tweet was named.
     assert.deepEqual(
-      out.previews.map(p => [p.links, p.error?.code]),
-      [[[], code]],
+      out.previews.map(p => [p.links, p.error?.code, p.tweet_id, p.promoted_tweet_ids]),
+      [[[], code, tweet(1), ['pt1']]],
     );
   }
   // Entries with no usable Tweet ID, a number for one, or an ID that was not asked for answer no Tweet: the one asked for is missing.

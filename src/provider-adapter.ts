@@ -968,6 +968,12 @@ export interface AdPreviewRow {
   key?: string;
   /** The platform's own record, when its fields are the preview (Reddit). */
   native?: JsonObject;
+  /**
+   * What the platform's entry says of this row whether its preview was read or refused (X: the Tweet and the promoted Tweets that
+   * share it). The tool puts them in the entry before the preview's own fields, or before the diagnostic of a refused read, so
+   * an entry whose preview could not be read still says which ad it is. A platform that names none gets the entry it always got.
+   */
+  fields?: JsonObject;
 }
 
 /** One native page of a list: its rows, the token of the next page, and whether more follow. */

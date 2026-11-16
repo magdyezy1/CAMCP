@@ -384,21 +384,20 @@ async function select(request: AdPreviewRequest): Promise<AdPreviewSelection> {
       return previews;
     })());
   return {
-    rows: [...ads.values()].map(ad => ({id: ad.tweet, name: ad.name})),
+    // The Tweet and the promoted Tweets that share it are the row's own `fields`: the tool keeps them in the entry when the
+    // preview read is refused too, which is when a caller needs the mapping from the IDs it named (a 429 or a 5xx).
+    rows: [...ads.values()].map(ad => ({
+      id: ad.tweet,
+      name: ad.name,
+      fields: {tweet_id: ad.tweet, promoted_tweet_ids: [...ad.promoted]},
+    })),
     preview: async row => {
-      const ad = ads.get(row.id)!,
-        entries = (await answered()).get(row.id) ?? [],
+      const entries = (await answered()).get(row.id) ?? [],
         link = entries.length === 1 ? xPreviewLink(entries[0]) : null,
-        without = (reason: Reason) => ({
-          tweet_id: ad.tweet,
-          promoted_tweet_ids: ad.promoted,
-          links: [],
-          reason,
-          note: xPreviewReasons[reason],
-        });
+        without = (reason: Reason) => ({links: [], reason, note: xPreviewReasons[reason]});
       if (!entries.length) return without('not_returned');
       if (link === null) return without('link_not_accepted');
-      return {tweet_id: ad.tweet, promoted_tweet_ids: ad.promoted, links: [link], expires: xNoExpiry};
+      return {links: [link], expires: xNoExpiry};
     },
     extra: {...paging, ...notListed(missing)},
   };
