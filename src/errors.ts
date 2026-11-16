@@ -705,6 +705,20 @@ function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
         'The provider’s response did not match AMCP’s pinned contract for this route, and the details name the mismatch. A different request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
       mutation_retry_safe: false,
     };
+  // A write whose provider answer did not match what AMCP reviewed (src/service.ts: the family marks its outcome
+  // native_response_valid: false and keeps the answer encrypted): the answer is the cause, so nothing the caller sends is to
+  // change and the remedy names no access, scope, tier or payload (r12-gpreview, found live 2026-11-16: Google answered a
+  // shareable-preview generation with HTTP 200 and the refusal said to check access). The words follow the remedy above,
+  // and a group's part that stopped before it was sent keeps its own, which is raised first. Written for people as well
+  // (WEB-03): it names no tool, argument or path, so the website shows it as it is.
+  if (e.code === 'WRITE_PARTIAL_OR_FAILED' && e.details.native_response_valid === false)
+    return {
+      category: 'provider',
+      owner: 'amcp',
+      action:
+        'The provider’s response did not match AMCP’s contract for this route, and the details name the mismatch. A new request will not help. Report these details to support. If this was a write, it may have been applied, so inspect its receipt and do not send it again.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [

@@ -152,6 +152,45 @@ const mediaReviewRequired = (media: JsonObject) =>
   new MirrorError('MEDIA_REVIEW_REQUIRED', 'Use amcp_media prepare and execute for a reviewed upload.', {
     next_call: {tool: 'amcp_media', arguments: media},
   });
+/**
+ * The refusal of a write whose outcome says it did not succeed. When the family marks the outcome
+ * `native_response_valid: false`, the provider's own answer did not match what AMCP reviewed (it is kept encrypted, and the
+ * outcome's `response_mismatch` names where): the cause is the answer and no part of the request, so the refusal says that,
+ * carries the facts, and its remedy is not to check access, scopes or tier (r12-gpreview, found live 2026-11-16, when
+ * Google answered a shareable-preview generation with HTTP 200). Only fixed vocabulary goes into the error, which is AMCP's
+ * own text: the fields a provider's answer added stay in the outcome, under data. Any other failed outcome is a provider
+ * that reported an incomplete or failed mutation, as before.
+ */
+const failedWrite = (result: JsonObject): MirrorError => {
+  const data = result.data;
+  if (!data || typeof data !== 'object' || data.native_response_valid !== false)
+    return new MirrorError(
+      'WRITE_PARTIAL_OR_FAILED',
+      'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.',
+    );
+  const mismatch = data.response_mismatch,
+    facts =
+      mismatch && typeof mismatch === 'object'
+        ? Object.fromEntries(
+            Object.entries(mismatch).filter(
+              ([, v]) =>
+                (typeof v === 'number' && Number.isSafeInteger(v)) ||
+                (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(v)),
+            ),
+          )
+        : {};
+  return new MirrorError(
+    'WRITE_PARTIAL_OR_FAILED',
+    'The provider answered, but its answer does not match what AMCP reviewed for this request, so AMCP did not accept it.',
+    {
+      native_response_valid: false,
+      ...(typeof data.response_hash === 'string' && /^[a-f0-9]{64}$/.test(data.response_hash)
+        ? {response_hash: data.response_hash}
+        : {}),
+      ...(Object.keys(facts).length ? {response_mismatch: facts} : {}),
+    },
+  );
+};
 /** Content without a captured top-level success flag: the envelope carries success once (MCP-05). */
 function withoutSuccess(content: JsonObject): JsonObject {
   if (content?.success !== true) return content;
@@ -522,14 +561,7 @@ export class MirrorService {
           ...(result.success === false
             ? {
                 success: false,
-                error: errorResult(
-                  new MirrorError(
-                    'WRITE_PARTIAL_OR_FAILED',
-                    'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.',
-                  ),
-                  requestId,
-                  Date.now() - start,
-                ).error,
+                error: errorResult(failedWrite(result), requestId, Date.now() - start).error,
               }
             : {}),
         };

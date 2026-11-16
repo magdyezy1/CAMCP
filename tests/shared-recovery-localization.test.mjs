@@ -54,7 +54,7 @@ test('shared recovery ownership includes only literal hints in the exact authore
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 185 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 186 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
@@ -102,12 +102,16 @@ test('all 185 shared recovery hints have authored Arabic with exact native tool 
   // tables), so no package's own pin is the merged count. Measured on the merged tree (the inspectors this test uses:
   // sharedRecoveryHints and inspectSharedRecoveryHints over src/errors.ts): 179 + 2 (diff) + 5 (r12-fix) = 186 in all, and
   // 150 + 2 = 152 in src/errors.ts; 185 without the inventory hint, which is the number in the title above.
-  assert.equal(hints.size, 186);
-  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 152);
+  // Package r12-gpreview (item 3) adds the remedy of a write whose provider answer did not match what AMCP reviewed (WRITE_PARTIAL_OR_FAILED
+  // with native_response_valid false: the provider's response did not match AMCP's contract for the route, a new request will not
+  // help, report it) to src/errors.ts, next to the remedy of r25-hotfix item 2 that it follows: 153 in src/errors.ts, 187 in all, and
+  // 186 without the inventory hint, which is the number in the title above.
+  assert.equal(hints.size, 187);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 153);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 185);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 186);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

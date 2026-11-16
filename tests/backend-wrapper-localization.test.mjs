@@ -511,7 +511,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // r12-gpreview item 2: one key, "Generate", the operation word that the review pages show for a Google shareable-preview
   // generation (web/campaign-workflows.js and web/operations-center.js), which read "Change" before: 12,156 + 1 = 12,157.
   // Measured: node tools/check-locales.mjs, catalog_messages 12157, problems none.
-  assert.equal(Object.keys(catalog).length, 12157);
+  // r12-gpreview item 3: two keys, the message and the remedy of the refusal of a write whose provider answer did not match what
+  // AMCP reviewed (failedWrite in src/service.ts, reviewRemedy in src/errors.ts): 12,157 + 2 = 12,159. Measured:
+  // node tools/check-locales.mjs, catalog_messages 12159, required_messages 11023, problems none.
+  assert.equal(Object.keys(catalog).length, 12159);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

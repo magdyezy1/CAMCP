@@ -1221,6 +1221,73 @@ test('a refused answer keeps its links out of the outcome, the audit and the ref
   }
 });
 
+// r12-gpreview item 3. Found live 2026-11-16: the refusal of an answer that did not match told the caller to check access, scopes and
+// tier, though nothing in the request was theirs to change. It says the answer was not accepted, carries the facts, and its
+// remedy says a new request will not help and to report it. A failure the provider reports itself keeps what it said.
+const mismatchMessage =
+  'The provider answered, but its answer does not match what AMCP reviewed for this request, so AMCP did not accept it.';
+test('the refusal of an answer that does not match says so, carries the facts and no link, and says to report it', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    // An answer that is not the pinned shape: it adds a field, and carries a link that must never leave the encrypted receipt.
+    f.reply(() => ({...documentedResponse([wantedUi]), requestId: 'trace-1'}));
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    assert.equal(e.error.message, mismatchMessage);
+    assert.deepEqual(e.error.details, {
+      native_response_valid: false,
+      response_hash: e.data.data.response_hash,
+      response_mismatch: {check: 'body', reason: 'unexpected_fields'},
+    });
+    // The provider's own field name stays in the outcome, under data (which the response marks as untrusted), never in the error.
+    assert.deepEqual(e.data.data.response_mismatch.unexpected, ['requestId']);
+    assert.ok(e.meta.untrusted_paths.includes('data'));
+    assert.ok(!JSON.stringify(e.error).includes('requestId'));
+    assert.ok(!JSON.stringify(e).includes('documented/preview-0'));
+    // The remedy: what happened, that a new request will not help, and to report it; never to check access, scopes or tier.
+    assert.match(e.error.remedy.action, /response did not match AMCP’s contract for this route/);
+    assert.match(e.error.remedy.action, /A new request will not help\. Report these details to support\./);
+    assert.doesNotMatch(e.error.remedy.action, /account access|granted scopes|access tier|payload/i);
+    assert.equal(e.error.next_action, e.error.remedy.action);
+    assert.deepEqual(
+      [e.error.category, e.error.remedy.owner, e.error.remedy.mutation_retry_safe],
+      ['provider', 'amcp', false],
+    );
+    // The replay is the same refusal, and sends nothing.
+    const again = await f.execute(r);
+    assert.deepEqual(again.error, e.error);
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a failure the provider reports itself, a partial answer, keeps its message and its remedy', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui, video]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    f.mode('one_expired');
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    // The answer matched what was reviewed (one preview of two had expired): nothing says it did not.
+    assert.equal(e.data.data.native_response_valid, undefined);
+    assert.equal(
+      e.error.message,
+      'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.',
+    );
+    assert.equal(e.error.details, undefined);
+    assert.match(
+      e.error.next_action,
+      /Check account access, granted scopes, app access tier and payload against the named endpoint/,
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
 // r12-gpreview item 2. Found live 2026-11-16: the review of a generation read "Change 1  in account …", an entity that was
 // blank between two spaces. Google's summarizer knew only its :mutate operations, and this route lists none.
 test('the review summary says what a generation does: it generates the previews it lists, and names them', async () => {
