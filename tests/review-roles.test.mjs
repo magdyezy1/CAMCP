@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {Registry} from '../dist/src/catalog.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields, reviewVolatile} from '../dist/src/review-state.js';
 import {snapshotPlans} from '../dist/src/write-snapshots.js';
@@ -1059,6 +1060,23 @@ test('lint: the Smart+ ad group an ad is created in, and the Smart+ campaign an 
       f.close();
     }
   }
+});
+
+test('a read declares its role under one name, `stateRole`, and the values are the vocabulary the diff package reads (S3-6)', () => {
+  // r25-m1-diff orders what a STATE_CHANGED names by the role of each read (its `declaredRole`: account, parent, target, reference),
+  // and reads `stateRole` first. This package stamps exactly `account`, `parent` and `reference`; the target is a read with none
+  // (the objects a write changes keep their whole protection). A fourth value, or a second name for the same thing, would leave a
+  // merged `material` placing a read wrongly without any test saying so.
+  const stamped = new Set(),
+    names = new Set();
+  for (const file of fs.readdirSync('src').filter(n => n.endsWith('.ts'))) {
+    const text = fs.readFileSync('src/' + file, 'utf8');
+    for (const m of text.matchAll(/\bstateRole\s*[:=]\s*'([a-z_]+)'/g)) stamped.add(m[1]);
+    for (const m of text.matchAll(/\b(\w*[rR]ole)\??:\s*'account'/g)) names.add(m[1]);
+  }
+  assert.deepEqual([...stamped].sort(), ['account', 'parent', 'reference']);
+  assert.deepEqual([...names], ['stateRole'], 'the role of a read has one name');
+  assert.match(fs.readFileSync('src/types.ts', 'utf8'), /stateRole\?: 'account' \| 'parent' \| 'reference';/);
 });
 
 test('lint: the reads a create makes of its account and its parent carry their role, and no other read does', () => {
