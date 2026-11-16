@@ -1021,11 +1021,11 @@ for (const locale of ['en', 'ar'])
       const other = visible(p.run('runOutcomeView(out, plan)'));
       assert.ok(other.includes(t(locale, 'Saved. Review the next step when you are ready.')));
       assert.ok(!other.includes(t(locale, wording)));
-      // The plan's one emphasized action is that review: the step is not broken, so no correction is offered for it, and
-      // Run does not lead (a non-empty lead takes the emphasis off Run).
+      // The plan's one emphasized action is that review: the step is not broken, so the correction is not the emphasized
+      // one (it is offered as a second control, below), and Run does not lead (a non-empty lead takes the emphasis off Run).
       const refused = {steps: [{id: 'campaign', status: 'pending', error: {code: 'STATE_CHANGED'}}]};
       assert.equal(p.run('campaignNextSafeAction')(refused), 'review');
-      assert.equal(p.run('campaignNeedsAmendment')(refused), false);
+      assert.equal(p.run('campaignNeedsAmendment')(refused), true, 'an unsent step can be corrected in place');
       assert.equal(
         p.run('campaignNextSafeAction')({
           steps: [{id: 'campaign', status: 'pending', error: {code: 'REVIEW_EXPIRED'}}],
@@ -1049,6 +1049,82 @@ for (const locale of ['en', 'ar'])
         p.run('bindCampaignWorkflow(plan, async () => true, () => true)');
         assert.deepEqual(next.classList.names, classes, JSON.stringify(steps));
       }
+    },
+  );
+
+// R25 M1 (r25-m1-diff, lead review S3-2): a step the state check sent back to pending never reached the provider, so the page
+// offers its correction too, as a second control beside the review of the step and never the emphasized one. The correction
+// is the form of recover_step, which the server now accepts for such a step; opening it prepares nothing.
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': a step refused for a changed provider state is corrected from the plan page and from its outcome',
+    async () => {
+      const p = campaignPage(locale),
+        step = {
+          id: 'campaign',
+          status: 'pending',
+          review_id: 'review-1',
+          arguments: {action: 'tiktok_campaign_create', payload: {campaign_name: 'Original', budget: 50}},
+          error: {code: 'STATE_CHANGED', details: {changed_fields: ['$[0]["x"]']}},
+        },
+        plan = {id: 'plan-1', revision: 4, steps: [step]},
+        failed = {id: 'b', status: 'failed'};
+      p.context.plan = plan;
+      // The plan page offers the correction, and the emphasis stays on the review; a failed step still leads with the correction.
+      assert.equal(p.run('campaignNeedsAmendment')(plan), true);
+      assert.equal(p.run('campaignNextSafeAction')(plan), 'review');
+      assert.equal(p.run('campaignNextSafeAction')({steps: [step, failed]}), 'amend');
+      assert.equal(p.run('campaignNeedsAmendment')({steps: [{...step, error: {code: 'REVIEW_EXPIRED'}}]}), false);
+      // The outcome of the refused execute: the review first and emphasized, the correction beside it.
+      p.context.out = {
+        view: 'compact',
+        id: 'plan-1',
+        state: 'attention',
+        steps: [{id: 'campaign', status: 'pending', error: 'STATE_CHANGED'}],
+        current: {step_id: 'campaign', status: 'pending', error: {code: 'STATE_CHANGED'}},
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: 'plan-1'}},
+      };
+      const html = p.run('runOutcomeView(out, plan)');
+      assert.deepEqual(
+        [...html.matchAll(/id="(outcome-[a-z-]+)"/g)].map(m => m[1]),
+        ['outcome-review-step', 'outcome-correct-step'],
+      );
+      assert.match(html, /id="outcome-review-step" type="button" class="button primary"/);
+      assert.match(html, /id="outcome-correct-step" type="button" class="button"/);
+      assert.ok(visible(html).includes(t(locale, 'Correct blocked step')));
+      // Both controls open the form of recover_step for this step without a call: nothing is prepared or sent by opening it.
+      p.context.after = {outcome: p.context.out};
+      p.node('#next-campaign').classList = {add() {}};
+      p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      for (const control of ['#outcome-correct-step', '#amend-campaign']) {
+        p.node('#campaign-review').innerHTML = '';
+        await p.bindings.get(control)();
+        assert.equal(p.calls.length, 0, control + ' prepares nothing');
+        const form = p.node('#campaign-review').innerHTML;
+        assert.match(form, /id="amend-step"/, control);
+        assert.match(form, /\/payload\/campaign_name/, control);
+        assert.match(form, /campaign<\/h2>/, control + ' names the step');
+      }
+      // The form sends recover_step for this step, with the person's confirmation and the plan's revision.
+      p.node('#amend-step').elements.confirmed.checked = true;
+      // The fields of the step's arguments, in their order: /action, /payload/campaign_name, /payload/budget.
+      p.node('#amend-step').elements.field.value = '1';
+      p.node('#amend-step').elements.value.value = 'Corrected name';
+      p.respond(async () => ({}));
+      await p.bindings.get('#amend-step')();
+      assert.deepEqual(
+        p.calls.map(c => c.args),
+        [
+          {
+            action: 'recover_step',
+            id: 'plan-1',
+            step_id: 'campaign',
+            expected_revision: 4,
+            confirmed: true,
+            patch: [{path: '/payload/campaign_name', value: 'Corrected name'}],
+          },
+        ],
+      );
     },
   );
 

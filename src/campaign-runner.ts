@@ -2230,14 +2230,16 @@ export class CampaignRunner {
       step.status === 'pending'
         ? run.preflight?.checks?.find((c: JsonObject) => c.step === step.id && c.status === 'blocked')
         : undefined;
-    // Whether the step can be recovered comes first: asking to confirm a recovery that is refused anyway helps no one.
-    if (step.status !== 'failed' && !blockedCheck)
+    // Whether the step can be recovered comes first: asking to confirm a recovery that is refused anyway helps no one. A
+    // step pending after the refusal of its review's state check provably never reached the provider (nothing was claimed
+    // or sent), so it is amended like a failed step that did not (lead review S3-2).
+    if (step.status !== 'failed' && !blockedCheck && !heldByStateCheck(step))
       bad(
         'Step ' +
           step.id +
           ' is ' +
           step.status +
-          '. Only a step preflight blocked, or one that failed before reaching the provider, can be amended; unknown, verifying and mismatched outcomes need investigation.',
+          '. Only a step preflight blocked, one refused for a changed provider state, or one that failed before reaching the provider, can be amended; unknown, verifying and mismatched outcomes need investigation.',
         'RECOVERY_NOT_SAFE',
         {step_id: step.id, status: step.status},
       );

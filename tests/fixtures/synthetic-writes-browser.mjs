@@ -117,17 +117,19 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
       outcome + ': ' + said,
     );
     // The way on is the emphasized action of the plan: a read-back for an uncertain step, a new review for a refused one
-    // (it is pending again, not broken, so no "Correct blocked step" is offered, and Run is not the emphasized action).
+    // (it is pending again, not broken: its correction is offered beside the review but is not the emphasized action, and
+    // neither is Run).
     if (outcome === 'uncertain')
       assert.match(await page.locator('#reconcile-campaign').getAttribute('class'), /\bprimary\b/);
     if (outcome === 'refused') {
       assert.match(await page.locator('#outcome-review-step').getAttribute('class'), /\bprimary\b/);
       assert.match(await page.locator('#next-campaign').getAttribute('class'), /\bprimary\b/);
-      assert.equal(
-        await page.locator('#amend-campaign').count(),
-        0,
-        'A refused review is not a broken step to correct',
-      );
+      for (const correction of ['#outcome-correct-step', '#amend-campaign'])
+        assert.doesNotMatch(
+          (await page.locator(correction).getAttribute('class')) ?? '',
+          /\bprimary\b/,
+          correction + ' is offered, not emphasized',
+        );
       assert.equal(await page.locator('#run-campaign.primary').count(), 0, 'Run is not the emphasized action');
     }
     const after = site.counts();

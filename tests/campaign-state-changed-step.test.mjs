@@ -298,6 +298,57 @@ test('a step prepared again after a changed state and left ready is not refused 
   }
 });
 
+test('a step refused as STATE_CHANGED is amended in place with recover_step: it is unsent, like a failed step that never reached the provider', async () => {
+  // Lead review S3-2: after a material change (a new advertiser currency) the person may want to correct the step before it is
+  // prepared again. The step provably never reached the provider, so it accepts the amendment a failed step accepts, and
+  // the changed arguments still need a new approval of the plan.
+  const f = setup();
+  try {
+    const id = await approvedPlan(f);
+    await refusedStep(f, id);
+    const patch = [{path: '/payload/campaign_name', value: 'Corrected name'}],
+      amend = (extra = {}) => ({action: 'recover_step', id, step_id: 'campaign', patch, ...extra});
+    // The confirmation comes first, as for any amendment.
+    assertRefused(await f.call(amend()), 'INVALID_ARGUMENT', {writes: () => f.writes.length});
+    const before = (await f.call({action: 'get', id, detail: 'full'})).data;
+    const amended = await f.call(amend({confirmed: true}));
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 1200));
+    assert.deepEqual(amended.data.next_call, prepareNext(id));
+    const plan = (await f.call({action: 'get', id, detail: 'full'})).data,
+      step = plan.steps.find(s => s.id === 'campaign');
+    assert.equal(step.status, 'pending');
+    assert.equal(step.error, undefined, 'the refusal concerned the review being replaced');
+    assert.equal(step.review_id, undefined);
+    assert.equal(step.arguments.payload.campaign_name, 'Corrected name');
+    assert.equal(step.previous_attempts.at(-1).error.code, 'STATE_CHANGED', 'the refusal is kept among the attempts');
+    assert.notEqual(plan.plan_hash, before.plan_hash, 'changed arguments are a different plan');
+    assertRefused(await f.call({action: 'run', id}), 'APPROVAL_REQUIRED', {writes: () => f.writes.length});
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('recover_step still refuses a pending step that no refusal of the state check sent back', async () => {
+  const f = setup();
+  try {
+    const id = await approvedPlan(f);
+    assertRefused(
+      await f.call({
+        action: 'recover_step',
+        id,
+        step_id: 'campaign',
+        confirmed: true,
+        patch: [{path: '/payload/campaign_name', value: 'Corrected name'}],
+      }),
+      'RECOVERY_NOT_SAFE',
+      {writes: () => f.writes.length},
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a refusal that is not a changed state keeps the outcome it had: a paused workspace leaves the review ready', async () => {
   const f = setup();
   try {
