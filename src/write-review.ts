@@ -887,10 +887,11 @@ export class WriteReviewService {
         };
       }
     }
-    // R2.5 M2 (L1-09, Q16): a provider that deduplicates a create at its own end (TikTok's request_id) takes its key now, from the
-    // review's ID, which exists before anything is read. The key goes into a body of its own, so the caller's arguments (which
-    // prepare_input keeps, and a later prepare starts from) stay as sent; the shape and state stages and the summary see the
-    // request that will be sent, and the fingerprint below covers it: execute sends exactly this value.
+    // R2.5 M2 (L1-09, Q16): a provider that declares `dedupeBody` takes the deduplication key of its own now, from the review's ID,
+    // which exists before anything is read. No provider declares it (the lead's review S1-1: TikTok's was removed, because a key
+    // per review switches off TikTok's own same-name refusal), so every body is still the caller's. A key would go into a body of its
+    // own, so the caller's arguments (which prepare_input keeps, and a later prepare starts from) stay as sent; the shape and state
+    // stages and the summary see the request that will be sent, and the fingerprint below covers it.
     const reviewId = randomUUID(),
       deduped = reviewHooks(plan.gateway)?.dedupeBody?.(plan, reviewId);
     if (deduped) plan.body = deduped;

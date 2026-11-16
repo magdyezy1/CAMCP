@@ -107,8 +107,6 @@ test('each provider declares exactly the review hooks of the parts the review na
     ],
     tiktok_native_action: [
       'confirms',
-      // The review's preparation (r25-m2-refusal, L1-09): the deduplication key a standard campaign or ad group create takes.
-      'dedupeBody',
       'deletes',
       'morePages',
       'operation',

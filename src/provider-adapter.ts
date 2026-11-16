@@ -1622,12 +1622,15 @@ export interface WriteReviewHooks {
   outcomeData?(value: unknown): unknown;
   // The review's preparation and execution (prepareReview, submit).
   /**
-   * The body of a create with the provider's own deduplication key set (TikTok's `request_id` of a campaign or ad group create,
-   * R2.5 M2, L1-09), frozen into the request as its review is prepared: derived from `reviewId`, so each review has its own key,
-   * covered by the review's fingerprint and sent exactly at execute. A new object, never the caller's payload; undefined where
-   * the route takes no key or the caller supplied one. Two reviews of one request therefore differ in that field and in the
-   * fingerprint: a comparison of reviews (a guard against a second review of a create that is still uncertain) compares the
-   * request without it. TikTok's `request_id` is in its `review.volatile` table (src/tiktok-adapter.ts), which that comparison drops.
+   * The body of a create with a deduplication key of the provider's own set, frozen into the request as its review is prepared:
+   * covered by the review's fingerprint and sent exactly at execute. A new object, never the caller's payload; undefined where the
+   * route takes no key or the caller supplied one. **No provider declares it** (R2.5 M2, the lead's review S1-1). The first version
+   * of TikTok's derived a key from each review, and TikTok's create pages say that a different `request_id` is how a second object
+   * of the same name is created, and that a key de-duplicates only within 10 seconds, which a review sent once never uses: a key
+   * that is new for every review switches off the provider's own same-name refusal across reviews. The seam stays for a decision
+   * after the live check LV-10, which should derive any key from the identity of the object (advertiser, route, name, parent) and
+   * never from the review, so that every review of one object sends one key; until then a declaration fails
+   * tests/tiktok-request-id.test.mjs and the exact hook lists of tests/provider-review-hooks.test.mjs.
    */
   dedupeBody?(plan: CompiledRequest, reviewId: string): JsonObject | undefined;
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */

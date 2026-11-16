@@ -1,87 +1,99 @@
-// Package r25-m2-refusal, item 2 (Q16, owner 2026-11-15; L1-09; acceptance 6 of milestone M2): a TikTok create carries a
-// provider-side deduplication key, frozen when the review is prepared. TikTok's `request_id` is documented as the key that makes a
-// create idempotent at TikTok (the pinned catalog lists it for the standard campaign and ad group creates, and the Smart+ creates
-// require it); the standard creates sent none, so a create that was sent twice would have been two creates.
+// Package r25-m2-refusal, item 2 as the lead's review of 2026-11-16 left it (S1-1; Q16, owner 2026-11-15; L1-09): AMCP sends no
+// request_id of its own on a TikTok create.
 //
-// The review derives the value from its own ID when the request is prepared, in the form TikTok's Smart+ contract documents (a
-// positive 64-bit integer as a string), and keeps it in the frozen request: the fingerprint covers it, and execute sends exactly
-// that value, never a new one. The ad create takes no `request_id` (the pinned catalog does not list it for /ad/create/), and a
-// value the caller supplied is frozen as it is. The answers below are synthetic.
+// The first version of this item froze a key derived from each review when the review was prepared, so that TikTok would be a second
+// backstop against a double create. TikTok's create pages say two things against it (the lead's reading of 2026-11-16, kept in the
+// package REPORT for the live check LV-10): a different request_id is how a second object of the same name is created at all, so a key
+// that is new for every review switches off TikTok's own same-name refusal across reviews; and a key de-duplicates a repeat only
+// within 10 seconds, which AMCP never uses, because it never sends one review twice. Owner decision Q16 asks for the key after the
+// dedupe check (LV-10), and that check has not run. So a standard create is sent as the caller wrote it: the request the review
+// shows, the frozen plan and the body sent hold no request_id of AMCP's, nothing in the lifecycle can add one, and a key the caller
+// supplies is frozen and sent exactly as it is. The answers below are synthetic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {registeredProviderHooks, providerHooks} from '../dist/src/provider-hooks.js';
 import {advertiserWorld, answer} from './helpers/tiktok-advertiser-noise.mjs';
-import {standardCreates} from './helpers/tiktok-standard-creates.mjs';
+import {standardBodies, standardCreates} from './helpers/tiktok-standard-creates.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const world = () => advertiserWorld({rotating: false});
-/** A positive 64-bit integer written as a string, which is how TikTok's Smart+ contract documents `request_id`. */
-const requestIdShape = value =>
-  typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n;
+const hasKey = (body, name) => Object.hasOwn(body, name);
+/** Every value a key named `name` holds anywhere in `value`, whatever its depth. */
+const valuesNamed = (value, name, found = []) => {
+  if (Array.isArray(value)) for (const item of value) valuesNamed(item, name, found);
+  else if (value && typeof value === 'object')
+    for (const [key, inner] of Object.entries(value)) {
+      if (key === name) found.push(inner);
+      valuesNamed(inner, name, found);
+    }
+  return found;
+};
 
-test('a standard campaign create carries a request_id frozen at prepare, and execute sends exactly that value', async () => {
+test('a standard campaign create carries no request_id of AMCP’s: not in the request the review shows, not in the frozen plan, not in the body sent', async () => {
   const f = standardCreates(world(), {tenant: 'request-id-campaign'});
   try {
     const review = (await f.prepare('campaign')).data;
-    const frozen = review.request.body.request_id;
-    assert.ok(requestIdShape(frozen), 'a positive 64-bit integer string, got ' + JSON.stringify(frozen));
+    assert.equal(hasKey(review.request.body, 'request_id'), false, 'the request the review shows');
+    const stored = f.store.document(f.tenant, 'write_review', review.review_id);
+    assert.equal(hasKey(stored.plan.body, 'request_id'), false, 'the plan the review froze');
+    assert.deepEqual(review.request.body, standardBodies(f.world.id).campaign.payload);
     assert.equal((await f.execute(review)).success, true);
     assert.equal(f.sent.length, 1);
-    assert.equal(f.sent[0].body.request_id, frozen, 'execute sends the value the review froze');
-    // Nothing else about the request changed: the caller's own fields are sent as they were.
-    const {request_id: _frozen, ...sent} = f.sent[0].body;
-    assert.deepEqual(sent, {
-      advertiser_id: f.world.id,
-      campaign_name: 'Synthetic campaign',
-      objective_type: 'TRAFFIC',
-      budget_mode: 'BUDGET_MODE_INFINITE',
-      operation_status: 'DISABLE',
-    });
+    // Exactly the caller's own fields, nothing added.
+    assert.deepEqual(f.sent[0].body, standardBodies(f.world.id).campaign.payload);
+    assert.equal(hasKey(f.sent[0].body, 'request_id'), false);
   } finally {
     f.close();
   }
 });
 
-test('a standard ad group create carries one too', async () => {
+test('a standard ad group create carries none either', async () => {
   const f = standardCreates(world(), {tenant: 'request-id-adgroup'});
   try {
     const review = (await f.prepare('adgroup')).data;
-    assert.ok(requestIdShape(review.request.body.request_id));
+    assert.equal(hasKey(review.request.body, 'request_id'), false);
     assert.equal((await f.execute(review)).success, true);
-    assert.equal(f.sent[0].body.request_id, review.request.body.request_id);
+    assert.deepEqual(f.sent[0].body, standardBodies(f.world.id).adgroup.payload);
+    assert.equal(hasKey(f.sent[0].body, 'request_id'), false);
   } finally {
     f.close();
   }
 });
 
-test('each review has its own key: the same request prepared twice gets two request_ids, and a corrected request a third', async () => {
-  const f = standardCreates(world(), {tenant: 'request-id-distinct'});
+test('nothing in the request differs from one review to the next: the same request prepared twice has one body, and a corrected one differs only in what the caller changed', async () => {
+  const f = standardCreates(world(), {tenant: 'request-id-same'});
   try {
     const first = (await f.prepare('campaign')).data,
       again = (await f.prepare('campaign')).data,
       corrected = (await f.prepare('campaign', p => ({...p, campaign_name: 'Corrected'}))).data;
-    const ids = [first, again, corrected].map(r => r.request.body.request_id);
-    assert.equal(new Set(ids).size, 3, JSON.stringify(ids));
-    for (const id of ids) assert.ok(requestIdShape(id));
+    assert.notEqual(first.review_id, again.review_id);
+    assert.deepEqual(first.request.body, again.request.body);
+    assert.deepEqual(corrected.request.body, {...first.request.body, campaign_name: 'Corrected'});
   } finally {
     f.close();
   }
 });
 
-test('the value is derived from the review ID, so it is a function of the review and of nothing the caller sends', async () => {
-  const {tiktokRequestIdFor} = await import('../dist/src/tiktok-request-id.js');
-  const f = standardCreates(world(), {tenant: 'request-id-derived'});
+test('nothing in the code path can add one: no provider declares the review hook that sets a deduplication key, and the review shows no key named request_id', async () => {
+  // The hook of the first version (WriteReviewHooks.dedupeBody) stays a seam, with nothing behind it: a provider that declared it
+  // would send a key AMCP made, which Q16 holds back until LV-10 says how TikTok treats one. A declaration fails here, and in the
+  // exact hook lists of tests/provider-review-hooks.test.mjs, until that decision is made.
+  assert.deepEqual(
+    registeredProviderHooks.filter(h => h.writes && Object.hasOwn(h.writes, 'dedupeBody')).map(h => h.gateway),
+    [],
+  );
+  assert.equal(providerHooks('tiktok_native_action').writes.dedupeBody, undefined);
+  const f = standardCreates(world(), {tenant: 'request-id-nowhere'});
   try {
-    const review = (await f.prepare('campaign')).data;
-    assert.equal(review.request.body.request_id, tiktokRequestIdFor(review.review_id));
-    assert.equal(tiktokRequestIdFor(review.review_id), tiktokRequestIdFor(review.review_id));
-    assert.notEqual(tiktokRequestIdFor(review.review_id), tiktokRequestIdFor('another-review-id'));
-    // Always a positive 64-bit integer, whatever the ID.
-    for (const id of ['', '0', 'a', review.review_id, 'x'.repeat(500)])
-      assert.ok(requestIdShape(tiktokRequestIdFor(id)), id);
+    for (const kind of ['campaign', 'adgroup', 'ad']) {
+      const prepared = await f.prepare(kind);
+      assert.equal(prepared.success, true, kind + ' ' + JSON.stringify(prepared).slice(0, 400));
+      assert.deepEqual(valuesNamed(prepared.data, 'request_id'), [], kind);
+    }
   } finally {
     f.close();
   }
@@ -99,13 +111,13 @@ test('a request_id the caller supplies is frozen as it is, never replaced', asyn
   }
 });
 
-test('a request the pinned catalog lists no request_id for is left as it is: an ad create, a status update and a Smart+ create', async () => {
+test('an ad create takes no request_id and a Smart+ create takes the caller’s own, sent exactly; without one a Smart+ create is still refused', async () => {
   const f = standardCreates(world(), {tenant: 'request-id-none'});
   try {
     const ad = (await f.prepare('ad')).data;
-    assert.equal(Object.hasOwn(ad.request.body, 'request_id'), false, 'an ad create takes no request_id');
+    assert.equal(hasKey(ad.request.body, 'request_id'), false, 'an ad create takes no request_id');
     assert.equal((await f.execute(ad)).success, true);
-    assert.equal(Object.hasOwn(f.sent[0].body, 'request_id'), false);
+    assert.equal(hasKey(f.sent[0].body, 'request_id'), false);
     // A Smart+ create requires the caller's own value, which is frozen with the request and sent exactly.
     const smart = await f.write({
       action: 'prepare',
@@ -147,7 +159,7 @@ test('a request the pinned catalog lists no request_id for is left as it is: an 
   }
 });
 
-test('the frozen value is part of the review’s fingerprint: a review whose request_id was changed after prepare is refused and nothing is sent', async () => {
+test('a request_id added to the frozen request after prepare is refused and nothing is sent: execute cannot add or change one either', async () => {
   const f = standardCreates(world(), {tenant: 'request-id-integrity'});
   try {
     const review = (await f.prepare('campaign')).data;
@@ -162,25 +174,7 @@ test('the frozen value is part of the review’s fingerprint: a review whose req
   }
 });
 
-test('the request_id is AMCP’s own value, shown in the request the review sends and nowhere as TikTok’s: not in the provider state, not in the approval text, and no spend field', async () => {
-  const f = standardCreates(world(), {tenant: 'request-id-plain'});
-  try {
-    const prepared = await f.prepare('campaign');
-    assert.equal(prepared.success, true);
-    const value = prepared.data.request.body.request_id;
-    assert.ok(requestIdShape(value), 'a frozen value to look for: ' + JSON.stringify(value));
-    // The provider's state, the sentence a person approves and the evidence of the contract never carry it.
-    for (const part of ['before_state', 'summary', 'contract_evidence'])
-      assert.equal(JSON.stringify(prepared.data[part]).includes(value), false, part);
-    // A name that holds no money: a paused create still needs no spend flag, as before the key was added.
-    assert.equal(prepared.data.execute_requirements.spend_change_confirmed, false);
-    assert.equal((await f.execute(prepared.data)).success, true);
-  } finally {
-    f.close();
-  }
-});
-
-test('an expired review is prepared again from the caller’s own arguments, which never held the key: the new review gets its own', async () => {
+test('an expired review is prepared again from the caller’s own arguments, and the new review carries no key either', async () => {
   const f = standardCreates(world(), {tenant: 'request-id-expired'});
   try {
     const review = (await f.prepare('campaign')).data;
@@ -191,17 +185,16 @@ test('an expired review is prepared again from the caller’s own arguments, whi
     assert.equal(expired.data.state, 'expired');
     const again = expired.data.next_call.arguments;
     assert.equal(again.action, 'prepare');
-    assert.equal(Object.hasOwn(again.arguments.payload, 'request_id'), false, 'the arguments to prepare again');
+    assert.equal(hasKey(again.arguments.payload, 'request_id'), false, 'the arguments to prepare again');
     const renewed = await f.write(again);
     assert.equal(renewed.success, true, JSON.stringify(renewed).slice(0, 800));
-    assert.ok(requestIdShape(renewed.data.request.body.request_id));
-    assert.notEqual(renewed.data.request.body.request_id, review.request.body.request_id);
+    assert.equal(hasKey(renewed.data.request.body, 'request_id'), false);
   } finally {
     f.close();
   }
 });
 
-test('in a plan, each attempt of a step is its own review with its own request_id; the plan step’s arguments never hold one', async () => {
+test('in a plan, no attempt of a step sends a request_id: the refused attempt and the corrected one go as the step wrote them', async () => {
   let refuse = true;
   const f = standardCreates(world(), {
     tenant: 'request-id-plan',
@@ -213,7 +206,7 @@ test('in a plan, each attempt of a step is its own review with its own request_i
   try {
     const created = await f.plan({
       action: 'create',
-      name: 'Request ID per attempt',
+      name: 'No request_id per attempt',
       brief: 'Synthetic: a paused TikTok campaign refused once, then corrected.',
       steps: [
         {
@@ -256,11 +249,14 @@ test('in a plan, each attempt of a step is its own review with its own request_i
     refuse = false;
     assert.equal((await next()).success, true);
     assert.equal(f.sent.length, 2);
-    const [refused, corrected] = f.sent.map(s => s.body.request_id);
-    assert.ok(requestIdShape(refused) && requestIdShape(corrected));
-    assert.notEqual(refused, corrected, 'the corrected step is a new review under a new key');
+    for (const [index, sent] of f.sent.entries())
+      assert.equal(hasKey(sent.body, 'request_id'), false, 'attempt ' + (index + 1));
+    assert.deepEqual(
+      f.sent.map(s => s.body.budget),
+      [1, 50],
+    );
     const step = f.store.document(f.tenant, 'campaign_run', id).steps[0];
-    assert.equal(Object.hasOwn(step.arguments.payload, 'request_id'), false);
+    assert.equal(hasKey(step.arguments.payload, 'request_id'), false);
   } finally {
     f.close();
   }
@@ -329,7 +325,7 @@ function campaignFixture() {
   };
 }
 
-test('the read-back of a create that carried a request_id verifies: TikTok returns no request_id, and the review does not expect one', async () => {
+test('the read-back of a create that carried the caller’s request_id verifies: TikTok returns no request_id, and the review does not expect one', async () => {
   const f = campaignFixture();
   try {
     const prepared = await f.call('amcp_write', {
@@ -340,6 +336,7 @@ test('the read-back of a create that carried a request_id verifies: TikTok retur
         action: 'tiktok_campaign_create',
         account_id: f.advertiser,
         payload: {
+          request_id: '700100200300',
           campaign_name: 'Synthetic verified',
           objective_type: 'TRAFFIC',
           budget_mode: 'BUDGET_MODE_INFINITE',
@@ -348,7 +345,7 @@ test('the read-back of a create that carried a request_id verifies: TikTok retur
       },
     });
     assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 800));
-    assert.ok(requestIdShape(prepared.data.request.body.request_id));
+    assert.equal(prepared.data.request.body.request_id, '700100200300');
     const id = prepared.data.review_id,
       executed = await f.call('amcp_write', {
         action: 'execute',
@@ -358,7 +355,7 @@ test('the read-back of a create that carried a request_id verifies: TikTok retur
         spend_change_confirmed: true,
       });
     assert.equal(executed.success, true, JSON.stringify(executed).slice(0, 800));
-    assert.equal(f.sent[0].request_id, prepared.data.request.body.request_id);
+    assert.equal(f.sent[0].request_id, '700100200300');
     const verified = await f.call('amcp_campaign', {action: 'verify', review_id: id});
     assert.equal(verified.data.status, 'verified', JSON.stringify(verified).slice(0, 1200));
   } finally {

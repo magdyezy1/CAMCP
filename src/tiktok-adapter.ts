@@ -89,7 +89,6 @@ import type {CampaignPreflightContext, MutationResponse} from './provider-adapte
 import {tiktokReportRoute} from './tiktok-report-jobs.js';
 import {tiktokAdPreviews} from './tiktok-ad-previews.js';
 import {tiktokRejectionIsNonApplied} from './tiktok-write-rejection.js';
-import {tiktokDedupeBody} from './tiktok-request-id.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -363,8 +362,8 @@ function tiktokVerification(
   const kind = plan.path.split('/')[2]!,
     ids = d.data?.[kind + '_ids'] ?? [d.data?.[kind + '_id'] ?? b[kind + '_id']];
   if (ids.some((id: unknown) => typeof id !== 'string')) return [];
-  // `request_id` is the deduplication key of a create (R2.5 M2, src/tiktok-request-id.ts), not a field of the entity: TikTok does
-  // not return it, so the read-back does not expect it.
+  // `request_id` is the deduplication key of a create (the caller's own: a Smart+ create requires it and a standard create may
+  // carry it; R2.5 M2), not a field of the entity: TikTok does not return it, so the read-back does not expect it.
   const expected =
     kind === 'ad' && plan.path === '/v1.3/ad/create/'
       ? {...b.creatives[0], adgroup_id: b.adgroup_id}
@@ -662,9 +661,11 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     // A refusal TikTok declares in an HTTP 200 body, with a code its return-code table defines as a refusal of the request
     // and no data, applied nothing: the review is rejected, not uncertain (Q16, owner 2026-11-15; R2.5 M2).
     rejectionIsNonApplied: tiktokRejectionIsNonApplied,
-    // A standard campaign or ad group create takes TikTok's own deduplication key, frozen when its review is prepared
-    // (Q16, owner 2026-11-15; R2.5 M2, L1-09).
-    dedupeBody: tiktokDedupeBody,
+    // No `dedupeBody` (Q16, owner 2026-11-15; R2.5 M2, L1-09; the lead's review S1-1): AMCP sends no request_id of its own on a
+    // TikTok create. TikTok's create pages say a different request_id is how a second object of the same name is created, and that a
+    // key de-duplicates only within 10 seconds, so a key that is new for every review would switch off TikTok's own same-name
+    // refusal across reviews and add nothing within a review, which is sent once. A key the caller supplies is frozen and sent as it
+    // is. Whether AMCP sends one waits for the live check LV-10 (see WriteReviewHooks.dedupeBody).
     prerequisites(plan: CompiledRequest, values: unknown[]) {
       tiktokAdgroupConversionPrerequisites(plan, values);
       tiktokCtaPortfolioPrerequisites(plan, values);
