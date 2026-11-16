@@ -1,4 +1,4 @@
-// The nine user journeys of the QA-04 baseline (R27 journey map, and J9 of V2-MCP-02), each with success, failure, unavailable-account and
+﻿// The ten user journeys of the QA-04 baseline (R27 journey map, J9 of V2-MCP-02 and J10 of R2.5 M2), each with success, failure, unavailable-account and
 // incomplete-evidence branches. A branch is a scripted person and client: it calls MCP tools and the website API the
 // way the journey's surfaces do, follows the next calls AMCP offers, and reports whether the journey's goal was
 // reached. The harness records every call; tools/mcp-eval.mjs turns the transcripts into metrics and compares them
@@ -11,6 +11,7 @@ import {
   evaluationSheet,
   evaluationDestination,
   gtmConnection,
+  metaStamp,
   offeredNextCall,
 } from './harness.mjs';
 import {sheetsGateway} from '../../dist/src/google-sheets.js';
@@ -250,6 +251,54 @@ async function reviewAndExecute(f, id, {beforeExecute} = {}) {
 }
 const verified = (response, id) =>
   response?.success === true && response.data?.id === id && response.data.state === 'complete';
+
+/**
+ * Runs `body` with the reconciliation's waits off: the minimum time after the claim and the pause between its two rounds are
+ * real seconds a deterministic journey cannot spend (the worker's queued check is due a minute after the claim, and the
+ * evaluation runs it at once, as `f.work()` runs every queued job).
+ */
+async function quickly(body) {
+  const names = ['AMCP_WRITE_RECONCILE_DELAY_MS', 'AMCP_WRITE_RECONCILE_ROUND_MS'],
+    before = names.map(name => process.env[name]);
+  for (const name of names) process.env[name] = '0';
+  try {
+    return await body();
+  } finally {
+    names.forEach((name, i) => (before[i] === undefined ? delete process.env[name] : (process.env[name] = before[i])));
+  }
+}
+/** The worker's automatic check of every uncertain write, run at once (not a call of the client). */
+const automaticCheck = f => quickly(() => f.work());
+/**
+ * The setup of J10, made directly (the client did not make it, so no call of it is counted): a plan whose paused campaign
+ * create is executed with its response lost. The provider applied it, or did not, as the branch says. Returns the review id.
+ */
+async function lostPlanCreate(f, {applied}) {
+  const direct = async (args, tool = 'amcp_campaign') => {
+    const result = await f.service.call(tool, args, f.actor);
+    if (!result.success) throw Error('J10 setup failed: ' + tool + ' ' + args.action + ' ' + result.error?.code);
+    return result;
+  };
+  const plan = (
+    await direct({
+      action: 'create',
+      name: 'Journey J10',
+      brief: 'A paused traffic campaign for the journey evaluation.',
+      steps: [pausedCampaign()],
+    })
+  ).data.id;
+  const review = (await direct({action: 'prepare_next', id: plan})).data.review;
+  Object.assign(f.providers.state, {campaignList: true, lost: true, lostApplied: applied});
+  await direct({
+    action: 'execute_next',
+    id: plan,
+    review_id: review.review_id,
+    idempotency_key: review.idempotency_key,
+    confirmed: true,
+  });
+  Object.assign(f.providers.state, {lost: false, lostApplied: true});
+  return review.review_id;
+}
 
 export const journeys = Object.freeze([
   {
@@ -773,6 +822,78 @@ export const journeys = Object.freeze([
         if (!queued.success || !['complete', 'partial'].includes(got?.data?.state)) return {goal: false};
         const exported = await exportOf(f, queued.data.id);
         return {goal: exported.success === true};
+      },
+    },
+  },
+  {
+    id: 'J10',
+    title: 'uncertain write → automatic check → one status → one reconcile or replacement',
+    surfaces: ['mcp'],
+    note: 'G3 of the Round 2.5 plan (R2.5 M2, L5-05). The plan step whose create response is lost is set up directly, as the client did not make it; the worker runs the check it queued, as the worker process would, and every call after that is the client’s. An uncertain write is settled by reads alone: the client never sends the create again.',
+    branches: {
+      async success(f) {
+        const review = await lostPlanCreate(f, {applied: true});
+        await automaticCheck(f);
+        // One status call shows what the worker found, and the call that accepts it.
+        const status = await f.call('amcp_write', {action: 'status', review_id: review});
+        const next = offeredNextCall(status);
+        if (status.data?.reconciliation?.classification !== 'appears_applied' || !next) return {goal: false};
+        // One reconcile call, after the person approves, records the observed create as the receipt.
+        f.approve();
+        const accepted = await f.call(next.tool, {...next.arguments, accept_applied: true}, {followed: true});
+        return {goal: accepted.success === true && accepted.data?.state === 'reconciled'};
+      },
+      async failure(f) {
+        const review = await lostPlanCreate(f, {applied: false});
+        await automaticCheck(f);
+        const status = await f.call('amcp_write', {action: 'status', review_id: review});
+        const next = offeredNextCall(status);
+        if (status.data?.reconciliation?.classification !== 'appears_not_applied') return {goal: false};
+        if (next?.arguments?.supersedes_review_id !== review) return {goal: false};
+        // The worker found nothing created: a new review of the same request replaces the uncertain one, the person approves
+        // it, and it is sent once.
+        const replacement = await f.call(next.tool, next.arguments, {followed: true});
+        if (!replacement.success) return {goal: false};
+        f.approve();
+        const executed = await f.call('amcp_write', {
+          action: 'execute',
+          review_id: replacement.data.review_id,
+          confirmed: true,
+        });
+        return {goal: executed.success === true && executed.data?.executed === true};
+      },
+      async unavailable_account(f) {
+        const review = await lostPlanCreate(f, {applied: true});
+        await automaticCheck(f);
+        // The login no longer holds the account when the person comes back to the write.
+        f.store.putConnection(
+          f.admin,
+          {
+            id: metaConnection,
+            tenantId: f.actor.tenantId,
+            gateway: 'meta_native_action',
+            accounts: ['456'],
+            writeAccounts: [],
+            enabled: true,
+            label: 'Client A Meta',
+            scopes: ['ads_management', 'ads_read'],
+          },
+          {accessToken: 'synthetic-a'},
+        );
+        const status = await f.call('amcp_write', {action: 'status', review_id: review});
+        return {goal: status.success === true && status.data?.state === 'reconciled'};
+      },
+      async incomplete_evidence(f) {
+        const review = await lostPlanCreate(f, {applied: true});
+        // Another campaign of the same name was made in the same minutes: the lookup cannot tell which is this write's.
+        f.providers.state.records.set('999', {id: '999', name: 'Evaluation campaign', created_time: metaStamp()});
+        await automaticCheck(f);
+        const status = await f.call('amcp_write', {action: 'status', review_id: review});
+        const next = offeredNextCall(status);
+        if (status.data?.reconciliation?.classification !== 'indeterminate' || !next) return {goal: false};
+        // The offered reconcile reads again and still cannot decide: the person checks the provider.
+        const again = await quickly(() => f.call(next.tool, next.arguments, {followed: true}));
+        return {goal: again.data?.classification === 'appears_applied'};
       },
     },
   },

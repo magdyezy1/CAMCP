@@ -971,6 +971,98 @@
         "surfaces": [
           "mcp"
         ]
+      },
+      "J10/success": {
+        "tool_calls": 2,
+        "website_actions": 0,
+        "user_actions": 1,
+        "help_calls": 0,
+        "response_bytes": 5654,
+        "provider_requests": 6,
+        "refused_calls": 0,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 1,
+        "offered_next_calls": 2,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": null,
+        "user_approvals": 1,
+        "handoff_success": true,
+        "end_state": "success",
+        "provider_mutations": 1,
+        "surfaces": [
+          "mcp"
+        ]
+      },
+      "J10/failure": {
+        "tool_calls": 3,
+        "website_actions": 0,
+        "user_actions": 1,
+        "help_calls": 0,
+        "response_bytes": 8895,
+        "provider_requests": 9,
+        "refused_calls": 0,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 1,
+        "offered_next_calls": 3,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": null,
+        "user_approvals": 1,
+        "handoff_success": true,
+        "end_state": "success",
+        "provider_mutations": 2,
+        "surfaces": [
+          "mcp"
+        ]
+      },
+      "J10/unavailable_account": {
+        "tool_calls": 1,
+        "website_actions": 0,
+        "user_actions": 0,
+        "help_calls": 0,
+        "response_bytes": 820,
+        "provider_requests": 6,
+        "refused_calls": 1,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 0,
+        "offered_next_calls": 0,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": true,
+        "user_approvals": 0,
+        "handoff_success": false,
+        "end_state": "handled_failure",
+        "provider_mutations": 1,
+        "surfaces": [
+          "mcp"
+        ]
+      },
+      "J10/incomplete_evidence": {
+        "tool_calls": 2,
+        "website_actions": 0,
+        "user_actions": 0,
+        "help_calls": 0,
+        "response_bytes": 4395,
+        "provider_requests": 8,
+        "refused_calls": 0,
+        "repeated_refused_calls": 0,
+        "unnecessary_calls": 0,
+        "correct_tool_choice": null,
+        "followed_next_calls": 1,
+        "offered_next_calls": 2,
+        "wrong_next_calls": 0,
+        "next_step_at_stop": true,
+        "user_approvals": 0,
+        "handoff_success": false,
+        "end_state": "handled_failure",
+        "provider_mutations": 1,
+        "surfaces": [
+          "mcp"
+        ]
       }
     },
     "tasks": {

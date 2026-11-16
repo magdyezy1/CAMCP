@@ -1,4 +1,4 @@
-// Runs the QA-04 journey, task and evaluation-set suites and returns one metrics record. Shared by tools/mcp-eval.mjs
+﻿// Runs the QA-04 journey, task and evaluation-set suites and returns one metrics record. Shared by tools/mcp-eval.mjs
 // (the local check and baseline writer) and tests/mcp-eval.test.mjs.
 import assert from 'node:assert/strict';
 import {evaluationFixture, transcriptMetrics, sanitizeTranscript} from './harness.mjs';
@@ -7,7 +7,7 @@ import {taskSet, runTask} from './tasks.mjs';
 import {evaluationSet, runEvaluationSet} from './evaluation-set.mjs';
 
 /**
- * Every run identifier the suites know: J1/success … J9/incomplete_evidence, T1/reference … H2/guided, and the
+ * Every run identifier the suites know: J1/success … J10/incomplete_evidence, T1/reference … H2/guided, and the
  * evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
  */
 export const runIds = Object.freeze({
@@ -47,7 +47,7 @@ async function measured({fault, transcripts, profile}, body) {
   }
 }
 
-/** All nine journeys with their four branches each. */
+/** All ten journeys with their four branches each. */
 export async function runJourneys({fault, only, transcripts = false, profile} = {}) {
   const runs = {};
   for (const journey of journeys)
