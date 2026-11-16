@@ -339,6 +339,84 @@ test('monotonic deadline bounds immediate chunks when the event-loop timer has n
   assert.equal(f.signals[0].maximum, 1);
   assert.equal(f.signals[0].active, 0);
 });
+// R25 ar-lazy: an answer that carries a refusal sentence waits for the `providers` chunk (web/route-assets.js:
+// uiEnsureAnswerChunks) through the same bounded, coalesced read as every other chunk, and when it cannot load shows one
+// fixed Arabic sentence in place of the English message.
+const shellMessages = JSON.parse(fs.readFileSync('web/locales/ar/shell.json', 'utf8')),
+  fallbackKey = 'The details of this message could not be loaded. Try again.',
+  lazySentence = 'A refusal sentence only the providers chunk has.';
+function answerFixture(fetcher, deadlineMs) {
+  const f = fixture(fetcher, deadlineMs);
+  Object.assign(f.context, {
+    URL,
+    location: {href: 'https://amcp.invalid/', origin: 'https://amcp.invalid', pathname: '/'},
+    window: {addEventListener() {}, removeEventListener() {}},
+  });
+  for (const file of ['routes.js', 'route-assets.js'])
+    new Script(fs.readFileSync('web/' + file, 'utf8')).runInContext(f.context);
+  f.context.shell = new Map(Object.entries(shellMessages));
+  f.run("uiUseMessages('ar', shell, ['shell'])");
+  f.context.refused = () => ({success: false, error: {code: 'X', message: lazySentence, next_action: lazySentence}});
+  return f;
+}
+test('an answer waits for the providers chunk through the read a prefetch started, and the chunk is fetched once', async () => {
+  let respond;
+  const f = answerFixture(() => new Promise(resolve => (respond = resolve)));
+  f.context.answer = f.context.refused();
+  const prefetch = f.run("uiCatalog('ar', 'providers')"),
+    waiting = f.run('uiEnsureAnswerChunks(answer)');
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].url, '/assets/locales/ar/providers.json');
+  respond(new Response(JSON.stringify({[lazySentence]: 'جملة رفض'})));
+  await Promise.all([prefetch, waiting]);
+  assert.equal(f.requests.length, 1, 'the answer and the prefetch share one request');
+  assert.equal(f.run('uiText(answer.error.message)'), 'جملة رفض');
+  assert.equal(f.run("uiLoadedChunks.has('ar:providers')"), true);
+  assert.equal(f.run("uiCatalogChunks.has('providers')"), true, 'a later language change loads it too');
+  assert.equal(f.timers.size, 0);
+});
+test('when the providers chunk cannot load, the answer shows one Arabic sentence, never the English message, and a retry loads it', async () => {
+  const f = answerFixture(() => new Promise(() => {}), 20);
+  f.context.answer = f.context.refused();
+  f.context.fine = {
+    success: true,
+    data: {groups: [{diagnostics: [{code: 'X', message: lazySentence, provider: {message: 'Native'}}]}]},
+  };
+  const start = performance.now();
+  await f.run('uiEnsureAnswerChunks(answer)');
+  assert.ok(performance.now() - start < 1000, 'the 15 second bound, here shortened, ends the wait');
+  assert.deepEqual(f.delays, [15000], 'the read is bounded at 15 seconds like every chunk');
+  assert.equal(f.requests[0].args.signal.aborted, true);
+  assert.equal(f.timers.size, 0);
+  const sentence = shellMessages[fallbackKey];
+  assert.match(sentence, /[؀-ۿ]/u);
+  assert.equal(f.context.answer.error.message, sentence);
+  assert.equal(f.context.answer.error.next_action, undefined, 'the same sentence is not said twice');
+  assert.equal(f.run('uiText(answer.error.message)'), sentence);
+  // A 200 answer is not turned into an error: its data is kept and its diagnostic says the same sentence.
+  f.setFetcher(() => new Promise(() => {}));
+  await f.run('uiEnsureAnswerChunks(fine)');
+  const diagnostic = f.context.fine.data.groups[0].diagnostics[0];
+  assert.equal(diagnostic.message, sentence);
+  assert.equal(diagnostic.provider.message, 'Native', 'a provider’s own message stays as it was');
+  assert.equal(f.run('uiOwnedError(fine.data.groups[0].diagnostics[0]).message'), 'Native');
+  assert.equal(f.run('uiOwnedError(fine.data.groups[0].diagnostics[0]).nextAction'), sentence);
+  // The failed read is not cached: the next answer fetches the chunk again and shows its Arabic.
+  f.setFetcher(async () => new Response(JSON.stringify({[lazySentence]: 'جملة رفض'})));
+  f.context.later = f.context.refused();
+  await f.run('uiEnsureAnswerChunks(later)');
+  assert.equal(f.run('uiText(later.error.message)'), 'جملة رفض');
+});
+test('after a deploy the providers chunk answers 409 and only a reload can help', async () => {
+  const f = answerFixture(async () => new Response('ASSET_VERSION_CHANGED', {status: 409}));
+  f.context.answer = f.context.refused();
+  await assert.rejects(f.run('uiEnsureAnswerChunks(answer)'), error => error.code === 'PAGE_ASSET_RELOAD_REQUIRED');
+  assert.equal(
+    f.context.answer.error.message,
+    lazySentence,
+    'the answer is left as it was: the page offers the reload',
+  );
+});
 test('positive chunks reset the consecutive-empty bound without reducing the byte or time bound', async () => {
   const bytes = Buffer.from('{"Home":"الرئيسية"}');
   let offset = 0,

@@ -272,3 +272,82 @@ function uiPrefetchChunks(chunks) {
   }
   if (saved === 'ar') for (const chunk of chunks) uiCatalog('ar', chunk).catch(() => {});
 }
+/**
+ * Calls `visit(object, sentences)` for each error-shaped object in an answer (a refusal, a diagnostic, a refused step), at any
+ * depth, with the sentences it asks the page to translate: its message (or its template, when it has one), next step and
+ * remedy. `uiText` finds a message by its exact English text, so these are what a page can look up in the catalog from an
+ * answer. A provider's own message is shown as it is, so it is not read. Stops when `visit` returns true (R25 ar-lazy).
+ */
+function uiEachAnswerMessage(data, visit) {
+  const queue = data && typeof data === 'object' ? [data] : [];
+  for (let index = 0; index < queue.length && index < 200000; index++) {
+    const value = queue[index];
+    if (!Array.isArray(value)) {
+      const local =
+          value.message_localization && typeof value.message_localization === 'object'
+            ? value.message_localization
+            : null,
+        remedy = value.remedy && typeof value.remedy === 'object' ? value.remedy : null,
+        sentences = [],
+        say = text => typeof text === 'string' && text !== '' && sentences.push(text);
+      if (typeof local?.key === 'string') say(local.key);
+      else if (
+        typeof value.code === 'string' ||
+        typeof value.next_action === 'string' ||
+        remedy ||
+        (value.provider && typeof value.provider === 'object')
+      )
+        say(value.message);
+      say(value.next_action);
+      for (const field of ['action', 'message', 'next_action']) say(remedy?.[field]);
+      say(value.details?.next_action);
+      // The base of a split message (meta.message_parts).
+      if (typeof value.suffix === 'string') say(value.base);
+      if (sentences.length && visit(value, sentences) === true) return;
+    }
+    for (const [key, child] of Array.isArray(value) ? value.entries() : Object.entries(value))
+      if (child && typeof child === 'object' && !['provider', 'upstream', 'untrusted_provider_content'].includes(key))
+        queue.push(child);
+  }
+}
+/** Replaces the sentences of an answer that are not loaded by one fixed sentence in the interface language. */
+function uiAnswerWithoutUnloaded(data) {
+  const sentence = uiText('The details of this message could not be loaded. Try again.');
+  uiEachAnswerMessage(data, (object, sentences) => {
+    if (sentences.every(text => uiMessages.has(text))) return false;
+    if (typeof object.suffix === 'string') {
+      delete object.base;
+      delete object.suffix;
+      return false;
+    }
+    // A provider's own message is shown in place of `message`, so the sentence takes the explanation's place beside it.
+    const hasMessage = typeof object.message === 'string';
+    if (hasMessage) object.message = sentence;
+    if (!hasMessage || typeof object.provider?.message === 'string') object.next_action = sentence;
+    else delete object.next_action;
+    delete object.message_localization;
+    if (object.remedy && typeof object.remedy === 'object')
+      for (const field of ['action', 'message', 'next_action']) delete object.remedy[field];
+    if (object.details && typeof object.details === 'object') delete object.details.next_action;
+    return false;
+  });
+}
+/**
+ * Before a page reads an answer in Arabic, loads the chunks no page waits for (`answerLocaleChunks`) when the answer carries a
+ * sentence that is not in the catalog yet: a refusal's, in an error or in a 200 that holds diagnostics. The read is the
+ * catalog's own (coalesced, bounded at 15 seconds). When it cannot load, the answer is kept whole with one fixed Arabic
+ * sentence where the English message would have been; only a deploy (409), after which no chunk of this page can load, throws
+ * for the page to offer a reload (R25 ar-lazy).
+ */
+async function uiEnsureAnswerChunks(data) {
+  if (uiLocale !== 'ar' || uiChunksReady(answerLocaleChunks)) return;
+  let unloaded = false;
+  uiEachAnswerMessage(data, (object, sentences) => (unloaded = sentences.some(text => !uiMessages.has(text))));
+  if (!unloaded) return;
+  try {
+    await uiNeedChunks(answerLocaleChunks);
+  } catch (error) {
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') throw error;
+    uiAnswerWithoutUnloaded(data);
+  }
+}

@@ -64,6 +64,9 @@ function fixture(responses, sessionState = {}) {
     resetPrivateState() {},
     showLogin() {},
     identityKey: () => '',
+    // r25-ar-lazy: the request wrapper waits for catalog sentences an answer carries; these answers carry none
+    // (tests/web-answer-chunks.test.mjs covers the wait).
+    uiEnsureAnswerChunks: async () => {},
     sessionStorage: {setItem() {}},
     location: {pathname: '/connectors', search: '', assign() {}},
     fetch: async (url, init) => {

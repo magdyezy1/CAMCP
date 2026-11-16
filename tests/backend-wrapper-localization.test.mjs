@@ -508,7 +508,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // r12-fix) proves ar.json has 12,156 keys, no duplicate, every key of the base and of each side present with its own value, and
   // no key added by both. Measured on the merged catalogue (node tools/check-locales.mjs: catalog_messages 12156, problems none):
   // 12,138 + 9 (diff) + 9 (r12-fix) = 12,156.
-  assert.equal(Object.keys(catalog).length, 12156);
+  // Package r25-ar-lazy (item 3): +1 entry, the Arabic of the one sentence a page says in place of a refusal's message when the
+  // Arabic chunk that holds it cannot load (web/route-assets.js uiAnswerWithoutUnloaded; a website sentence, not an owned reason, so
+  // owned.size does not move): measured (node tools/check-locales.mjs: catalog_messages 12157, problems none), 12,156 + 1 = 12,157.
+  assert.equal(Object.keys(catalog).length, 12157);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

@@ -50,7 +50,10 @@ async function bindReportPresentation(pack, id) {
         if (!response.ok) {
           let message = uiText('Report download failed.');
           try {
-            message = errorMessage(requestError(await response.json(), message));
+            const refusal = await response.json();
+            // R25 ar-lazy: the refusal's sentences may be in a chunk this page has not loaded.
+            await uiEnsureAnswerChunks(refusal);
+            message = errorMessage(requestError(refusal, message));
           } catch {}
           throw Error(message);
         }

@@ -373,6 +373,114 @@ test('English pages fetch no catalog, versioned chunks may come from the cache, 
   );
 });
 
+// R25 ar-lazy (items 2 and 3): an answer that carries a sentence of the `providers` chunk loads it before the page reads the
+// answer, in an error and in a 200 that carries diagnostics; an answer whose sentences are loaded, and English, load nothing.
+const sentence = chunk => Object.keys(plan.chunks[chunk]).find(key => !key.includes('{') && key.length > 20);
+const refusal = (message, extra = {}) => ({
+  success: false,
+  error: {code: 'INVALID_ARGUMENT', message, retryable: false, category: 'request', ...extra},
+  meta: {requestId: 'synthetic-request'},
+});
+
+test('an Arabic answer that carries a refusal sentence only `providers` has loads it first, in an error and in a 200', async () => {
+  const lazy = sentence('providers'),
+    eager = sentence('workspace');
+  assert.ok(lazy && eager && !(lazy in plan.chunks.workspace));
+  const p = page();
+  await p.run('initializeUILocale()');
+  await p.run("uiNeedChunks(['workspace'])");
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+  Object.assign(p.context, {lazy, eager});
+  // The sentence is in no loaded chunk: it would be shown in English.
+  assert.equal(p.run('uiText(lazy)'), lazy);
+  // A refusal whose sentences are loaded asks for nothing more.
+  Object.assign(p.context, {loaded: refusal(eager)});
+  await p.run('uiEnsureAnswerChunks(loaded)');
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+  // A success answer without message-shaped objects, whatever text it holds, asks for nothing either.
+  Object.assign(p.context, {plain: {success: true, data: {name: lazy, note: lazy, rows: [{label: lazy}]}}});
+  await p.run('uiEnsureAnswerChunks(plain)');
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+  // A provider's own literal message is shown as it is, so it asks for nothing either.
+  Object.assign(p.context, {literal: {success: true, data: {diagnostics: [{provider: {code: 'X', message: lazy}}]}}});
+  await p.run('uiEnsureAnswerChunks(literal)');
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json']);
+  // A 200 that carries a diagnostic with a refusal sentence waits for the chunk, which then translates it.
+  Object.assign(p.context, {
+    success: {
+      success: true,
+      data: {groups: [{diagnostics: [{code: 'X', message: 'rendered ' + lazy, message_localization: {key: lazy}}]}]},
+    },
+  });
+  await p.run('uiEnsureAnswerChunks(success)');
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
+  assert.equal(p.run('uiText(lazy)'), plan.chunks.providers[lazy]);
+  // Once loaded, a later answer does not wait or fetch again.
+  Object.assign(p.context, {again: refusal(lazy)});
+  await p.run('uiEnsureAnswerChunks(again)');
+  assert.deepEqual(p.chunks(), ['shell.json', 'workspace.json', 'providers.json']);
+});
+
+test('the sentences of an answer are read where the page looks them up: the message, its template, the next step and the remedy', async () => {
+  const lazy = sentence('providers'),
+    loaded = sentence('workspace');
+  const fetchesFor = async answer => {
+    const q = page();
+    await q.run('initializeUILocale()');
+    await q.run("uiNeedChunks(['workspace'])");
+    q.context.answer = answer;
+    await q.run('uiEnsureAnswerChunks(answer)');
+    return q.chunks().includes('providers.json');
+  };
+  // Each position the page passes to uiText, one at a time, with every other sentence of the answer already loaded.
+  assert.equal(await fetchesFor(refusal(lazy)), true, 'error.message');
+  assert.equal(await fetchesFor(refusal(loaded)), false, 'a message that is loaded');
+  const template = {message_localization: {key: lazy, values: {}}};
+  assert.equal(await fetchesFor(refusal('Rendered with values 7', template)), true, 'the template of a message');
+  assert.equal(await fetchesFor(refusal('Rendered with values 7', {message_localization: {key: loaded}})), false);
+  assert.equal(await fetchesFor(refusal(loaded, {next_action: lazy})), true, 'next_action');
+  assert.equal(await fetchesFor(refusal(loaded, {next_action: loaded})), false);
+  assert.equal(await fetchesFor(refusal(loaded, {remedy: {category: 'request', action: lazy}})), true, 'remedy.action');
+  assert.equal(await fetchesFor(refusal(loaded, {details: {next_action: lazy}})), true, 'details.next_action');
+  assert.equal(
+    await fetchesFor({...refusal(loaded), meta: {message_parts: {base: lazy, suffix: 'a suffix'}}}),
+    true,
+    'the base of a split message',
+  );
+  // Nested at depth, as a refused step of a plan or a failed level of a report.
+  assert.equal(await fetchesFor({success: true, data: {steps: [{id: 'a', error: {code: 'X', message: lazy}}]}}), true);
+  // Not where a page looks a sentence up: a name, a note, a row's label, a provider's own message.
+  assert.equal(await fetchesFor({success: true, data: {name: lazy, notes: [lazy], rows: [{label: lazy}]}}), false);
+  assert.equal(await fetchesFor(refusal(loaded, {provider: {code: 'X', message: lazy}})), false);
+});
+test('an English page, and an answer after the chunk is in, never fetch a catalog chunk for an answer', async () => {
+  const lazy = sentence('providers'),
+    english = page({locale: 'en'});
+  await english.run('initializeUILocale()');
+  english.context.answer = refusal(lazy);
+  await english.run('uiEnsureAnswerChunks(answer)');
+  assert.deepEqual(english.requests, []);
+  assert.equal(
+    english.run('uiCatalogChunks.has("providers")'),
+    false,
+    'English adds nothing a language change would load',
+  );
+  // A report of 60,000 rows is read whole, in a few milliseconds, and its diagnostics after the rows are still found.
+  const arabic = page();
+  await arabic.run('initializeUILocale()');
+  arabic.context.big = {
+    success: true,
+    data: {
+      rows: Array.from({length: 60000}, (_, row) => ({row, a: 1, b: {c: 2}})),
+      diagnostics: [{code: 'X', message: lazy}],
+    },
+  };
+  const started = performance.now();
+  await arabic.run('uiEnsureAnswerChunks(big)');
+  assert.ok(arabic.chunks().includes('providers.json'), 'its diagnostics, after the rows, are found');
+  assert.ok(performance.now() - started < 3000, 'a large answer is read in bounded time');
+});
+
 /** The workspace's boot (web/app.js) at a page, answering /api/session with `answer`; the page's files are recorded. */
 function boot(pathname, answer, available = () => true) {
   const app = fs.readFileSync('web/app.js', 'utf8'),
