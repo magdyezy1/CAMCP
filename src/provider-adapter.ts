@@ -1614,6 +1614,13 @@ export interface WriteReviewHooks {
   /** What an outcome shows of the response data and its failures (Tag Manager's safe configuration). */
   outcomeData?(value: unknown): unknown;
   // The review's preparation and execution (prepareReview, submit).
+  /**
+   * The body of a create with the provider's own deduplication key set (TikTok's `request_id` of a campaign or ad group create,
+   * R2.5 M2, L1-09), frozen into the request as its review is prepared: derived from `reviewId`, so each review has its own key,
+   * covered by the review's fingerprint and sent exactly at execute. A new object, never the caller's payload; undefined where
+   * the route takes no key or the caller supplied one.
+   */
+  dedupeBody?(plan: CompiledRequest, reviewId: string): JsonObject | undefined;
   /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
   shownRequest?(plan: CompiledRequest): unknown;
   /** The concurrency token a route takes from the state, unless its family owns it (Tag Manager's fingerprint). */

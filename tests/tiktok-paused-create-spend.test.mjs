@@ -242,19 +242,21 @@ for (const honourFields of [true, false])
           const done = await f.execute(review, {});
           assert.equal(done.success, true, JSON.stringify(done.error ?? done).slice(0, 600));
           assert.ok(f.world.reads >= 2, 'the advertiser is read at prepare and again at execute');
-          assert.deepEqual(f.sent, [
-            {
-              path: '/v1.3/campaign/create/',
-              body: {
-                advertiser_id: f.world.id,
-                campaign_name: 'Synthetic_WhiteFriday_Search_Traffic',
-                objective_type: 'TRAFFIC',
-                is_search_campaign: true,
-                budget_mode: 'BUDGET_MODE_INFINITE',
-                operation_status: 'DISABLE',
-              },
-            },
-          ]);
+          // R2.5 M2 (L1-09): the request the review froze also holds TikTok's deduplication key, which AMCP derives from the
+          // review at prepare; execute sends exactly that request, and everything else in it is what the caller wrote.
+          assert.equal(f.sent.length, 1);
+          assert.equal(f.sent[0].path, '/v1.3/campaign/create/');
+          assert.deepEqual(f.sent[0].body, review.request.body);
+          const {request_id: requestId, ...fields} = f.sent[0].body;
+          assert.match(requestId, /^[1-9][0-9]{0,18}$/);
+          assert.deepEqual(fields, {
+            advertiser_id: f.world.id,
+            campaign_name: 'Synthetic_WhiteFriday_Search_Traffic',
+            objective_type: 'TRAFFIC',
+            is_search_campaign: true,
+            budget_mode: 'BUDGET_MODE_INFINITE',
+            operation_status: 'DISABLE',
+          });
         },
         {rotating: true, honourFields},
       );

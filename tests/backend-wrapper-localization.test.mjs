@@ -334,7 +334,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m2-refusal (Round 2.5, M2: L1-07) adds src/tiktok-write-rejection.ts, the closed set of TikTok return codes that declare
   // a refusal of the request and its proof that such a refusal applied nothing, with no reason of its own: one more on the integration's 828, 829
   // on its own base. Whoever merges it adds the files of every package it is merged with to this number.
-  assert.equal(files.length, 829);
+  // The request_id of the same package (L1-09) adds src/tiktok-request-id.ts, the key a standard TikTok campaign or ad group create takes from its
+  // review at prepare, with no reason of its own: 829 + 1 = 830 on its own base of 828 + 2.
+  assert.equal(files.length, 830);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

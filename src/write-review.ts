@@ -887,6 +887,13 @@ export class WriteReviewService {
         };
       }
     }
+    // R2.5 M2 (L1-09, Q16): a provider that deduplicates a create at its own end (TikTok's request_id) takes its key now, from the
+    // review's ID, which exists before anything is read. The key goes into a body of its own, so the caller's arguments (which
+    // prepare_input keeps, and a later prepare starts from) stay as sent; the shape and state stages and the summary see the
+    // request that will be sent, and the fingerprint below covers it: execute sends exactly this value.
+    const reviewId = randomUUID(),
+      deduped = reviewHooks(plan.gateway)?.dedupeBody?.(plan, reviewId);
+    if (deduped) plan.body = deduped;
     this.people(plan, input);
     assertWriteShape(plan);
     familyOf(plan)?.available?.(plan);
@@ -935,8 +942,9 @@ export class WriteReviewService {
       this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
     );
     const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
-    const reviewId = randomUUID(),
-      fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
+    const fingerprint = sha256(
+        stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override}),
+      ),
       expiresAt = Date.now() + 300000;
     // WRT-09 (P5's opt-in tier): a deletion on an account whose owner turned the destructive_confirmed tier on.
     const destructive = destructiveRequest(plan, state),
