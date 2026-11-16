@@ -698,9 +698,10 @@ export class WriteReviewService {
       fail(
         'INVALID_ARGUMENT',
         // T2 (R25 M1): at execute it is not a flag to pass. It asks the provider to validate, and never skips AMCP's check.
-        input.action === 'prepare'
-          ? 'provider_check is a boolean that prepare takes.'
-          : 'provider_check is an argument of prepare only: it asks the provider to validate a request without applying it. It does not skip AMCP’s state check, which no flag skips.',
+        // Every other refusal of it keeps the sentence it always had (inspect and the rest are no place to meet a state check).
+        input.action === 'execute'
+          ? 'provider_check is an argument of prepare only: it asks the provider to validate a request without applying it. It does not skip AMCP’s state check, which no flag skips.'
+          : 'provider_check is a boolean that prepare takes.',
         {field: 'provider_check'},
       );
     if (
