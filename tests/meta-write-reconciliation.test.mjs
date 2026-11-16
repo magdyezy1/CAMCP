@@ -145,10 +145,12 @@ const frozenSets = {
 };
 test('a product set is created when it is of that name in that catalog and the review did not see it', () => {
   const lookup = lookupOf('set', [frozenSets]);
+  // A set carries no creation time: it is this write's while the check runs within 15 minutes of the claim.
   const match = (...pages) =>
     lookup.match(
       pages.map(rows => list(rows)),
       claimed,
+      claimed + 60000,
     );
   let m = match([set('7001', 'Shoes'), set('7100')]);
   assert.deepEqual(
@@ -208,6 +210,7 @@ test('a product feed is created when it is of that name in that catalog and the 
     lookup.match(
       pages.map(rows => list(rows)),
       claimed,
+      claimed + 60000,
     );
   assert.deepEqual(ids(match([feed('6001', 'Existing feed'), feed('6002'), feed('6100')]).found), ['6100']);
   assert.deepEqual(lookup.receipt(match([feed('6100')]).found), {id: '6100'});

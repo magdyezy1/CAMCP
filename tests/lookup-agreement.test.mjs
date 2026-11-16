@@ -211,6 +211,8 @@ test('a Meta campaign of the same name, made in the window, that differs in a fr
 });
 test('a Meta product set, feed or audience that differs in a frozen field is a doubt, never this write’s', () => {
   const state = [{sets: [{id: '7001'}], feeds: [{id: '6001'}]}];
+  // A set and a feed carry no creation time: they are this write's only while the check is within 15 minutes of the claim.
+  const soon = claimed + 60000;
   const page = rows => [{status: 200, headers: {}, data: {data: rows}}];
   const set = findCreated(
     compile(metaGateway, metaCreates.set[0], metaAccount, metaCreates.set[1], {
@@ -227,16 +229,16 @@ test('a Meta product set, feed or audience that differs in a frozen field is a d
     product_catalog: {id: '555'},
   });
   assert.deepEqual(
-    ids(set.match(page([setRow('7100', {category: {i_contains: 'shoe'}})]), claimed).found),
+    ids(set.match(page([setRow('7100', {category: {i_contains: 'shoe'}})]), claimed, soon).found),
     ['7100'],
     'the filter as text or as an object',
   );
-  const differing = set.match(page([setRow('7100', {category: {i_contains: 'bag'}})]), claimed);
+  const differing = set.match(page([setRow('7100', {category: {i_contains: 'bag'}})]), claimed, soon);
   assert.deepEqual([ids(differing.found), ids(differing.undated)], [[], ['7100']], 'another filter');
   const feed = findCreated(meta('feed'), {state, claimedAt: claimed});
   const feedRow = (id, extra = {}) => ({id, name: 'Synthetic feed', deletion_enabled: false, ...extra});
-  assert.deepEqual(ids(feed.match(page([feedRow('6100')]), claimed).found), ['6100']);
-  const other = feed.match(page([feedRow('6100', {deletion_enabled: true})]), claimed);
+  assert.deepEqual(ids(feed.match(page([feedRow('6100')]), claimed, soon).found), ['6100']);
+  const other = feed.match(page([feedRow('6100', {deletion_enabled: true})]), claimed, soon);
   assert.deepEqual([ids(other.found), ids(other.undated)], [[], ['6100']], 'another deletion rule');
   const audience = findCreated(meta('audience'), {state: [], claimedAt: claimed});
   const seconds = Math.floor((claimed + 5000) / 1000);

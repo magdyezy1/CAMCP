@@ -284,7 +284,7 @@ export class WriteReconciler {
         for (const request of next) responses.push(await read(request));
         next = lookup.more?.(responses) ?? [];
       }
-      const matched = lookup.match(responses, claimedAt),
+      const matched = lookup.match(responses, claimedAt, Date.now()),
         // An object that another review's receipt names is that review's, however alike: it is neither found nor a doubt.
         others = this.othersObjects(tenant, String(review.id), claimedAt - 120000),
         found = matched.found.filter(f => !others.has(String(f.id))),

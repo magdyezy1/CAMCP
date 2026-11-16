@@ -147,7 +147,12 @@ function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: st
     receipt,
   };
 }
-/** A product set or feed: of the frozen name in the catalog, and one the review did not see in its catalog (it made it). */
+/**
+ * A product set or feed: of the frozen name in the catalog, and one the review did not see in its catalog (it made it), while
+ * the check runs within the window after the claim that dates the other kinds (R2.5 M2, lead review S3-2). Neither kind carries
+ * a creation time, so a new one of that name read later may be another's (made in Commerce Manager, by another tool, or by a
+ * replacement): it is shown, a doubt, and never called created.
+ */
 function metaCatalogEdgeCreated(
   first: CompiledRequest,
   name: string,
@@ -158,15 +163,16 @@ function metaCatalogEdgeCreated(
   return {
     reads: [first],
     more: responses => nextPage(first, responses),
-    match(responses) {
+    match(responses, submittedAt, checkedAt = Date.now()) {
       const {rows, complete} = listed(responses),
         named = rows.filter(r => folded(r.name) === folded(name) && inCatalog(r));
       // Without the review's list nothing of that name can be told from an older one.
-      const fresh = before ? named.filter(r => !before.has(String(r.id))) : [];
+      const fresh = before ? named.filter(r => !before.has(String(r.id))) : [],
+        recent = checkedAt <= submittedAt + afterMs;
       return before
         ? verdict(
-            fresh.filter(agree).map(r => shown(r)),
-            fresh.filter(r => !agree(r)).map(r => shown(r)),
+            recent ? fresh.filter(agree).map(r => shown(r)) : [],
+            (recent ? fresh.filter(r => !agree(r)) : fresh).map(r => shown(r)),
             complete,
           )
         : verdict(
@@ -206,8 +212,31 @@ function metaAudienceCreated(
     receipt,
   };
 }
-/** A catalog or a creative: nothing dates it, so one of the frozen name is shown and none is the proof the create is absent. */
-function metaUndatedCreated(first: CompiledRequest, name: string, live: (r: JsonObject) => boolean): CreatedLookup {
+/**
+ * Whether `candidate` is the frozen name with a separator, a date and, as a rule, a hash after it (`<name> 2026-10-10-ab12cd`):
+ * how Meta is reported to decorate a creative's name (the L3 M6 report, unconfirmed, lead review S3-3). It is the frozen name
+ * and not another creative's: only a name of that shape counts, and the exact name is matched separately.
+ */
+function decoratedName(frozen: string, candidate: unknown): boolean {
+  const head = folded(frozen),
+    c = folded(candidate);
+  return (
+    !!head &&
+    !!c &&
+    c.startsWith(head) &&
+    /^[^a-z0-9]*\d{4}-\d{2}-\d{2}(?:[^a-z0-9]?[0-9a-f]{4,})?$/.test(c.slice(head.length))
+  );
+}
+/**
+ * A catalog or a creative: nothing dates it, so one of the frozen name is shown and none is the proof the create is absent. A
+ * creative's name Meta may have decorated is matched as well (`decorated`), so a creative that was made never reads as absent.
+ */
+function metaUndatedCreated(
+  first: CompiledRequest,
+  name: string,
+  live: (r: JsonObject) => boolean,
+  decorated = false,
+): CreatedLookup {
   return {
     reads: [first],
     more: responses => nextPage(first, responses),
@@ -215,7 +244,9 @@ function metaUndatedCreated(first: CompiledRequest, name: string, live: (r: Json
       const {rows, complete} = listed(responses);
       return verdict(
         [],
-        rows.filter(r => folded(r.name) === folded(name) && live(r)).map(r => shown(r)),
+        rows
+          .filter(r => (folded(r.name) === folded(name) || (decorated && decoratedName(name, r.name))) && live(r))
+          .map(r => shown(r)),
         complete,
       );
     },
@@ -277,7 +308,7 @@ export function metaCreated(
   if (!edge) return undefined;
   const listing = (fields: string) => read('/' + edge[1] + '/' + edge[2] + '/' + edge[3], {fields, limit: 100});
   if (edge[3] === 'adcreatives')
-    return metaUndatedCreated(listing('id,name,status'), name, r => r.status !== 'DELETED');
+    return metaUndatedCreated(listing('id,name,status'), name, r => r.status !== 'DELETED', true);
   if (edge[3] === 'customaudiences')
     return metaAudienceCreated(plan, listing('id,account_id,name,time_created,subtype'), name, object(plan.body));
   return name.length > 400 ? undefined : metaEdgeCreated(read, edge, name, object(plan.body));

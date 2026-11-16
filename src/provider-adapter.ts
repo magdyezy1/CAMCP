@@ -1706,6 +1706,12 @@ export interface CreatedLookup {
   match(
     responses: TransportResult[],
     submittedAt: number,
+    /**
+     * When the responses were read (default now). A provider that cannot date an object (Meta's product sets and feeds, which
+     * carry no creation time) counts a new one of the name as this write's only while that is within the window after the claim
+     * (R2.5 M2, lead review S3-2); a later one is a doubt (`undated`).
+     */
+    checkedAt?: number,
   ): {found: JsonObject[]; expected: number; complete: boolean; undated?: JsonObject[]};
   /** The receipt a provider would have returned for these resources (what a plan's later steps reference). */
   receipt(found: JsonObject[]): JsonObject;
