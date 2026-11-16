@@ -460,7 +460,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r12-fix (item 2, V2-RPT-07): +2 entries, the Arabic of the two refusals of the X line item and promoted tweet levels
   // that name the kind of parent they could not find and how many entities lack one (src/x-overview-detail.ts; the earlier
   // sentence stays, for a malformed objective): 12,138 + 2 = 12,140. Measured: node tools/check-locales.mjs, catalog_messages 12140.
-  assert.equal(Object.keys(catalog).length, 12140);
+  // Package r12-fix (item 3, V2-RPT-05): +5 entries, the Arabic of the five provider remedies it declares (Snapchat's four, one for
+  // each timestamp of a stats answer that AMCP refused, and X's one for an entity whose parent is in neither list; remedies, not
+  // refusal reasons): 12,140 + 5 = 12,145. Measured: node tools/check-locales.mjs, catalog_messages 12145.
+  assert.equal(Object.keys(catalog).length, 12145);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

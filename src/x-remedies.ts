@@ -5,6 +5,22 @@ import type {ProviderRemedy} from './provider-remedies.js';
  * table (src/provider-remedies.ts) before its shared rules. A leaf: nothing is imported at load.
  */
 export const xRemedies: readonly ProviderRemedy[] = [
+  // An entity whose parent is in neither of the account's own lists (r12-fix item 3, V2-RPT-05; error 3 of the live checks of
+  // 2026-11-16). The check proves ownership and reads only what the lists say, so a retry returns the same answer; the shared
+  // advice asked for one. Narrowed by details.parent_kind, a closed set set by src/x-overview-detail.ts, so the other
+  // REPORT_ACCOUNT_MISMATCH refusals keep the shared advice. No MCP action or argument is named: the website shows this as
+  // written (WEB-03; tests/website-provider-remedies.test.mjs).
+  {
+    codes: ['REPORT_ACCOUNT_MISMATCH'],
+    when: details => details.parent_kind === 'campaign' || details.parent_kind === 'line item',
+    remedy: {
+      category: 'report',
+      owner: 'operator',
+      action:
+        'An entity’s parent (its line item or campaign) could not be found among the account’s own objects. This check protects ownership, so AMCP does not report an entity it cannot trace to the account. Retrying will not help. Check that the parent still exists in this account in X, or report these details to support.',
+      mutation_retry_safe: false,
+    },
+  },
   // Audience targeting (atomic batches and line-item edits): a pause first, then the audience change.
   {
     codes: ['TARGETING_PARENT_NOT_PAUSED'],

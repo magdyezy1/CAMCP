@@ -90,6 +90,11 @@ export function reportErrorCategory(
   if (Number.isInteger(details.http_status) || (typeof status === 'number' && status >= 500)) return 'provider';
   return 'internal';
 }
+/** The plain shapes of the facts that name what failed: lower-case words joined by underscores, or up to three words (r12-fix item 3). */
+const refusalFactShapes: Record<string, RegExp> = {
+  timestamp_field: /^[a-z]+(?:_[a-z]+){0,5}$/,
+  parent_kind: /^[a-z]+(?: [a-z]+){0,2}$/,
+};
 /** The page facts a provider-data refusal keeps (no metrics, no IDs): the listed keys, with plain values only. */
 const pageFactKeys = ['page', 'page_size', 'total_number', 'total_page', 'list_length', 'rule'];
 function pageFacts(value: unknown): JsonObject | undefined {
@@ -236,6 +241,15 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     diagnostic.login_customer_id = e.details.login_customer_id === null ? null : text(e.details.login_customer_id, 32);
   const facts = pageFacts(e.details.page_facts);
   if (facts) diagnostic.page_facts = facts;
+  // The facts of a refusal that names what failed (r12-fix item 3): a timestamp field, the kind of parent that was missing and
+  // how many entities lack one. Each is kept only in the plain shape its refusal gives it, so the card, which is saved with the
+  // report and shown to people, never carries text a provider or a person wrote.
+  for (const [key, plain] of Object.entries(refusalFactShapes)) {
+    const value = e.details[key];
+    if (typeof value === 'string' && value.length <= 60 && plain.test(value)) diagnostic[key] = value;
+  }
+  if (Number.isSafeInteger(e.details.entities_affected) && (e.details.entities_affected as number) > 0)
+    diagnostic.entities_affected = e.details.entities_affected;
   for (const key of ['declared_rows', 'returned_rows'])
     if (Number.isSafeInteger(e.details[key])) diagnostic[key] = e.details[key];
   const specific = String(providerCode ?? e.code);

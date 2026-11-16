@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
-import {MirrorError} from '../dist/src/errors.js';
+import {MirrorError, providerDataAction} from '../dist/src/errors.js';
+import {providerRemedy} from '../dist/src/provider-remedies.js';
 import {NativeCampaignReports} from '../dist/src/report-native.js';
 import {normalizeOverviewV4Source} from '../dist/src/overview-v4.js';
 import {xReportSource} from '../dist/src/x-report-source.js';
@@ -1178,3 +1179,103 @@ for (const [kind, id] of [
     );
     assert.equal(f.analytics().length, 0);
   });
+
+// Package r12-fix, item 3 (V2-RPT-05; error 3 of the live checks of 2026-11-16): the source error that the Overview keeps for an
+// entity whose parent is in neither list names the kind of parent and the count, and its next action says the parent could not
+// be found, that the check protects ownership and that a retry will not help. The other refusals of the same code keep the shared
+// retry advice.
+test('the Overview’s error for orphan promoted tweets names the parent kind and the count, and says a retry will not help', async t => {
+  const f = fixture(t, {mutate: orphan.promoted(['p1', 'p12'])}),
+    overview = new ReportingOverview(f.service, async () => {
+      throw Error('Unexpected network request');
+    }),
+    worker = new ReportWorker(
+      f.store,
+      async () => ({}),
+      (tenant, kind, input) => overview.work(tenant, kind, input),
+    ),
+    queued = await overview.handle(
+      {
+        action: 'run',
+        confirmed: true,
+        config: {
+          contract_version: 'overview-config-v4',
+          name: 'X promotions with orphans',
+          date_range: range,
+          grain: 'total',
+          sources: [
+            {
+              platform: 'x',
+              account_id: 'abc',
+              connection_id: 'x',
+              levels: ['ad'],
+              delivered_only: false,
+              report_options: {complete_window: true, attribution: 'unknown'},
+            },
+          ],
+          metrics: ['spend', 'impressions', 'conversions'],
+        },
+      },
+      f.actor,
+    );
+  assert.equal(await worker.once(), true);
+  const report = await overview.handle({action: 'get', id: queued.id}, f.actor);
+  assert.equal(report.state, 'failed', JSON.stringify(report.sources));
+  const error = report.sources[0].error;
+  assert.equal(error.code, 'REPORT_ACCOUNT_MISMATCH');
+  assert.deepEqual([error.parent_kind, error.entities_affected], ['line item', 2]);
+  assert.match(error.message, /^X did not list the line item of 2 of this account’s promoted tweets/);
+  assert.equal(error.next_action, providerRemedy('REPORT_ACCOUNT_MISMATCH', {parent_kind: 'line item'}).action);
+  assert.match(error.next_action, /could not be found among the account’s own objects/);
+  assert.match(error.next_action, /This check protects ownership/);
+  assert.match(error.next_action, /Retrying will not help/);
+  assert.doesNotMatch(JSON.stringify(error), /\bp1\b|\bp12\b|"gone"/, 'no entity is named');
+});
+
+test('the Overview’s error for a foreign X entity keeps the shared retry advice, as it names no missing parent', async t => {
+  const f = fixture(t, {
+      mutate(data, plan) {
+        if (plan.path.endsWith('/line_items')) data.data[0].account_id = 'other';
+        return data;
+      },
+    }),
+    overview = new ReportingOverview(f.service, async () => {
+      throw Error('Unexpected network request');
+    }),
+    worker = new ReportWorker(
+      f.store,
+      async () => ({}),
+      (tenant, kind, input) => overview.work(tenant, kind, input),
+    ),
+    queued = await overview.handle(
+      {
+        action: 'run',
+        confirmed: true,
+        config: {
+          contract_version: 'overview-config-v4',
+          name: 'X line items with a foreign entity',
+          date_range: range,
+          grain: 'total',
+          sources: [
+            {
+              platform: 'x',
+              account_id: 'abc',
+              connection_id: 'x',
+              levels: ['adset'],
+              delivered_only: false,
+              report_options: {complete_window: true, attribution: 'unknown'},
+            },
+          ],
+          metrics: ['spend', 'impressions', 'conversions'],
+        },
+      },
+      f.actor,
+    );
+  assert.equal(await worker.once(), true);
+  const report = await overview.handle({action: 'get', id: queued.id}, f.actor),
+    error = report.sources[0].error;
+  assert.equal(report.state, 'failed', JSON.stringify(report.sources));
+  assert.equal(error.code, 'REPORT_ACCOUNT_MISMATCH');
+  assert.equal(error.parent_kind, undefined);
+  assert.equal(error.next_action, providerDataAction);
+});

@@ -108,6 +108,41 @@ const cases = {
       /Report these details to support, or narrow the request/,
     ],
   },
+  // Package r12-fix, item 3: Snapchat's remedy for a stats answer whose timestamp AMCP refused, and X's for an entity whose parent
+  // is in neither list. Both are deterministic refusals, and both name what failed in words (no snake_case name, which the page's
+  // classifier takes for an MCP client's argument).
+  snapchat: {
+    source: {platform: 'snapchat', account_id: '1', connection_id: 'synthetic'},
+    error: () =>
+      new MirrorError(
+        'REPORT_DATE_MISMATCH',
+        'Snapchat returned an invalid native report timestamp.',
+        {timestamp_field: 'finalized_data_end_time'},
+        400,
+      ),
+    says: [
+      /missing or invalid finalization time for its non-conversion data/,
+      /Retrying the same report returns the same answer/,
+      /Report these details to support\./,
+    ],
+  },
+  x: {
+    source: {platform: 'x', account_id: '1', connection_id: 'synthetic'},
+    error: () =>
+      new MirrorError(
+        'REPORT_ACCOUNT_MISMATCH',
+        'X did not list the line item of {count} of this account’s promoted tweets among the account’s own line items, so their ownership could not be proven.',
+        {parent_kind: 'line item', entities_affected: 2},
+        502,
+        false,
+        {count: 2},
+      ),
+    says: [
+      /could not be found among the account’s own objects/,
+      /This check protects ownership/,
+      /Retrying will not help/,
+    ],
+  },
 };
 
 test('a provider remedy for a provider-data code, which the source card shows as written, is worded for people', () => {

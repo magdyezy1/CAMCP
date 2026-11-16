@@ -14,14 +14,21 @@ export const snapchatReportId = (v: unknown): v is string =>
 const success = (v: unknown) => typeof v === 'string' && v.toUpperCase() === 'SUCCESS';
 const incomplete = (message: string): never => bad(message, 'REPORT_INCOMPLETE');
 const shape = (message: string): never => bad(message, 'REPORT_SHAPE_CHANGED');
-function instant(v: unknown): number {
+/**
+ * The timestamps of a stats answer that `instant` reads. A refusal names the one that failed, from this closed set and never
+ * from the answer, so its remedy can say which (r12-fix item 3, V2-RPT-05; error 1 of the live checks of 2026-11-16).
+ */
+type TimestampField = 'start_time' | 'end_time' | 'finalized_data_end_time' | 'conversion_data_processed_end_time';
+function instant(v: unknown, field: TimestampField): number {
   if (
     typeof v !== 'string' ||
     !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(v) ||
     !Number.isFinite(Date.parse(v)) ||
     new Date(v.slice(0, 10)).toISOString().slice(0, 10) !== v.slice(0, 10)
   )
-    return bad('Snapchat returned an invalid native report timestamp.', 'REPORT_DATE_MISMATCH');
+    return bad('Snapchat returned an invalid native report timestamp.', 'REPORT_DATE_MISMATCH', {
+      timestamp_field: field,
+    });
   return Date.parse(v);
 }
 export function snapchatDailyRange(sem: JsonObject, allowUndeclared = false) {
@@ -329,8 +336,8 @@ export async function collectSnapchatEvidence(
       bad('Snapchat returned another report account or parent.', 'REPORT_ACCOUNT_MISMATCH');
     if (
       (stat.granularity !== undefined && stat.granularity !== 'DAY') ||
-      instant(stat.start_time) !== from ||
-      instant(stat.end_time) !== through
+      instant(stat.start_time, 'start_time') !== from ||
+      instant(stat.end_time, 'end_time') !== through
     )
       bad('Snapchat returned a different reporting window or grain.', 'REPORT_DATE_MISMATCH');
     if (
@@ -350,10 +357,11 @@ export async function collectSnapchatEvidence(
       Object.keys(stat.breakdown_stats).length === 1 &&
       Array.isArray(stat.breakdown_stats[level]) &&
       stat.breakdown_stats[level].length === 0;
-    const notFinalized = (time: unknown) => !(none && time === undefined) && instant(time) < through;
-    if (notFinalized(stat.finalized_data_end_time))
+    const notFinalized = (time: unknown, field: TimestampField) =>
+      !(none && time === undefined) && instant(time, field) < through;
+    if (notFinalized(stat.finalized_data_end_time, 'finalized_data_end_time'))
       incomplete('Snapchat has not finalized non-conversion metrics through the selected window.');
-    if (!nativeLeads && notFinalized(stat.conversion_data_processed_end_time))
+    if (!nativeLeads && notFinalized(stat.conversion_data_processed_end_time, 'conversion_data_processed_end_time'))
       incomplete('Snapchat has not finalized conversion-time data through the selected window.');
     if (
       !obj(stat.breakdown_stats) ||
@@ -376,8 +384,8 @@ export async function collectSnapchatEvidence(
       if (seenEntities.has(entity.id)) bad('Snapchat repeated an entity across report pages.', 'REPORT_DUPLICATE_ROWS');
       seenEntities.add(entity.id);
       if (
-        instant(entity.start_time) !== from ||
-        instant(entity.end_time) !== through ||
+        instant(entity.start_time, 'start_time') !== from ||
+        instant(entity.end_time, 'end_time') !== through ||
         !Array.isArray(entity.timeseries) ||
         entity.timeseries.length !== days.length
       )
@@ -387,7 +395,9 @@ export async function collectSnapchatEvidence(
         if (!obj(row) || !obj(row.stats)) shape('Snapchat returned a malformed daily metric row.');
         metadata(row);
         metadata(row.stats);
-        const day = days.find(d => d.start === instant(row.start_time) && d.end === instant(row.end_time));
+        const day = days.find(
+          d => d.start === instant(row.start_time, 'start_time') && d.end === instant(row.end_time, 'end_time'),
+        );
         if (!day) bad('Snapchat returned a different native day boundary.', 'REPORT_DATE_MISMATCH');
         if (seenDays.has(day.date)) bad('Snapchat repeated a native entity/day row.', 'REPORT_DUPLICATE_ROWS');
         seenDays.add(day.date);

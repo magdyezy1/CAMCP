@@ -5,6 +5,8 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {reportPreset} from '../dist/src/report-presets.js';
+import {providerDataAction} from '../dist/src/errors.js';
+import {providerRemedy} from '../dist/src/provider-remedies.js';
 import {
   snapchatEvidenceInput as input,
   snapchatEvidenceResponse,
@@ -349,6 +351,71 @@ for (const [label, mutate, code] of [
     assert.equal(r.error.code, code);
     unsaved(f);
   });
+// r12-fix item 3 (V2-RPT-05; error 1 of the live checks of 2026-11-16). A refused timestamp names which one failed (a closed set,
+// details.timestamp_field), so its remedy can say so and that a retry returns the same answer. Another refusal of the same code,
+// a valid timestamp of another window, names none and keeps the shared advice.
+for (const [label, mutate, field] of [
+  ['finalized_data_end_time is missing', d => delete native(d).finalized_data_end_time, 'finalized_data_end_time'],
+  [
+    'conversion_data_processed_end_time is missing',
+    d => delete native(d).conversion_data_processed_end_time,
+    'conversion_data_processed_end_time',
+  ],
+  ['the answer’s start_time has no offset', d => (native(d).start_time = '2026-09-01T00:00:00'), 'start_time'],
+  ['the answer’s end_time has no offset', d => (native(d).end_time = '2026-09-03T00:00:00'), 'end_time'],
+  [
+    'an entity’s start_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].start_time = '2026-09-01T00:00:00'),
+    'start_time',
+  ],
+  [
+    'an entity’s end_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].end_time = '2026-09-03T00:00:00'),
+    'end_time',
+  ],
+  [
+    'a day’s start_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].timeseries[0].start_time = '2026-09-01T00:00:00'),
+    'start_time',
+  ],
+  [
+    'a day’s end_time has no offset',
+    d => (native(d).breakdown_stats.campaign[0].timeseries[0].end_time = '2026-09-02T00:00:00'),
+    'end_time',
+  ],
+])
+  test('Snapchat guided evidence names the timestamp that failed when ' + label, async t => {
+    const f = fixture(t);
+    f.edit((u, d) => {
+      if (u.pathname.endsWith('/stats')) mutate(d);
+      return d;
+    });
+    const r = await f.call();
+    assert.equal(r.success, false);
+    assert.equal(r.error.code, 'REPORT_DATE_MISMATCH');
+    assert.equal(r.error.details.timestamp_field, field);
+    const remedy = providerRemedy('REPORT_DATE_MISMATCH', {timestamp_field: field});
+    assert.ok(remedy, 'a remedy for ' + field);
+    assert.equal(r.error.remedy.action, remedy.action);
+    assert.equal(r.error.next_action, remedy.action);
+    assert.equal(r.error.category, 'report');
+    assert.notEqual(r.error.remedy.action, providerDataAction);
+    unsaved(f);
+  });
+test('Snapchat guided evidence of another window is refused as a different window, which names no timestamp and keeps the shared advice', async t => {
+  const f = fixture(t);
+  f.edit((u, d) => {
+    if (u.pathname.endsWith('/stats')) native(d).start_time = dates()[1].time;
+    return d;
+  });
+  const r = await f.call();
+  assert.equal(r.success, false);
+  assert.equal(r.error.code, 'REPORT_DATE_MISMATCH');
+  assert.match(r.error.message, /different reporting window or grain/);
+  assert.equal(r.error.details?.timestamp_field, undefined);
+  assert.equal(r.error.remedy.action, providerDataAction);
+  unsaved(f);
+});
 test('Snapchat daily capture refuses missing finalization, failed envelopes and unrequested reporting dimensions', async t => {
   const mutations = [
     d => {

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {overviewGranularityFixture, granularSource, granularConfig} from './fixtures/overview-granularity-data.mjs';
 import {snapchatEvidenceAccount, snapchatEvidenceId as id} from './fixtures/snapchat-evidence-data.mjs';
+import {providerDataAction} from '../dist/src/errors.js';
+import {providerRemedy} from '../dist/src/provider-remedies.js';
 
 // Package r12-fix, item 1 (V2-RPT-07; O-4 of the live checks of 2026-11-16). The all-campaign ad squad read of an account
 // with a campaign that did not deliver in the window failed as a whole with REPORT_DATE_MISMATCH. For such a campaign
@@ -333,3 +335,70 @@ test('an empty Snapchat answer that continues on another page is not taken for a
   assert.match(error.message, /continuation is empty, repeats or exceeds/);
   f.readThrough(1);
 });
+
+// Package r12-fix, item 3 (V2-RPT-05; error 1 of the live checks of 2026-11-16): the source error the Overview keeps names the
+// timestamp that failed (a closed set), and its next action is that timestamp's remedy, which says a retry returns the same
+// answer. A refusal that names no timestamp keeps the shared retry advice.
+for (const [label, change, field] of [
+  ['finalized_data_end_time is missing', stat => delete stat.finalized_data_end_time, 'finalized_data_end_time'],
+  [
+    'conversion_data_processed_end_time is missing',
+    stat => delete stat.conversion_data_processed_end_time,
+    'conversion_data_processed_end_time',
+  ],
+  [
+    'an ad squad start_time has no offset',
+    stat => (stat.breakdown_stats.adsquad[0].start_time = '2023-03-13T00:00:00.000'),
+    'start_time',
+  ],
+  [
+    'a daily row end_time has no offset',
+    stat => (stat.breakdown_stats.adsquad[0].timeseries[3].end_time = '2023-03-17T00:00:00.000'),
+    'end_time',
+  ],
+])
+  test('the Overview names the timestamp that failed, and says what to do, when ' + label, async t => {
+    const f = fixture(t, {delivering: 2, answer: changed(2, change)}),
+      error = refusal(await f.run());
+    assert.equal(error.code, 'REPORT_DATE_MISMATCH');
+    assert.equal(error.timestamp_field, field);
+    const remedy = providerRemedy('REPORT_DATE_MISMATCH', {timestamp_field: field});
+    assert.ok(remedy, 'a remedy for ' + field);
+    assert.equal(error.next_action, remedy.action);
+    assert.notEqual(error.next_action, providerDataAction);
+    assert.match(error.next_action, /Retrying the same report returns the same answer/);
+  });
+
+test('an empty Snapchat answer whose finalization time is not valid is named by it, like an answer with rows', async t => {
+  const f = fixture(t, {
+      delivering: 2,
+      answer: changed(1, stat => Object.assign(stat, {finalized_data_end_time: '2026-11-15T23:00:00'})),
+    }),
+    error = refusal(await f.run());
+  assert.equal(error.code, 'REPORT_DATE_MISMATCH');
+  assert.equal(error.timestamp_field, 'finalized_data_end_time');
+  assert.equal(
+    error.next_action,
+    providerRemedy('REPORT_DATE_MISMATCH', {timestamp_field: 'finalized_data_end_time'}).action,
+  );
+});
+
+for (const [label, answer, code] of [
+  [
+    'a window that is not the requested one',
+    changed(0, stat => (stat.start_time = local('2023-03-14'))),
+    'REPORT_DATE_MISMATCH',
+  ],
+  [
+    'finalization before the end of the window',
+    changed(2, stat => (stat.finalized_data_end_time = '2023-04-01T00:00:00.000Z')),
+    'REPORT_INCOMPLETE',
+  ],
+])
+  test('the Overview names no timestamp for ' + label + ', and keeps the shared retry advice', async t => {
+    const f = fixture(t, {delivering: 2, answer}),
+      error = refusal(await f.run());
+    assert.equal(error.code, code);
+    assert.equal(error.timestamp_field, undefined);
+    assert.equal(error.next_action, providerDataAction);
+  });

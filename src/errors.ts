@@ -78,6 +78,11 @@ const nestedDetailKeys = [
   'layer',
   'report_request',
   'page_facts',
+  // r12-fix item 3: the closed-set facts a provider remedy is chosen by (a timestamp that failed, the kind of parent that was
+  // missing and how many entities lack one), so a refusal re-raised from an inner result keeps its own remedy.
+  'timestamp_field',
+  'parent_kind',
+  'entities_affected',
   'declared_rows',
   'returned_rows',
   'retry_after_ms',
