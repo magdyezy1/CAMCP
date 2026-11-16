@@ -98,13 +98,14 @@ function metaEdgeCreated(read: StateReadBuilder, edge: RegExpExecArray, name: st
   return {
     reads: [request],
     match(responses, submittedAt) {
-      const {rows} = listed(responses),
+      // Whole only when Meta answered a list and named no page after it: an answer that is no list proves nothing absent.
+      const {rows, complete} = listed(responses),
         {found, undated} = byTime(
           rows.filter(r => r.name === name),
           submittedAt,
           isoTime,
         );
-      return verdict(found, undated, !object(object(responses[0]?.data).paging).next);
+      return verdict(found, undated, complete);
     },
     receipt,
   };

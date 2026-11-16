@@ -328,6 +328,11 @@ test('a campaign of that name made long after the claim is not this write’s, a
     claimed,
   );
   assert.equal(cut.complete, false, 'Meta says more follows');
+  // An answer that is no list at all (an account, an error object) proves nothing absent: not found is not told from it.
+  for (const data of [{id: 'act_1', name: 'Synthetic account'}, {error: {message: 'not a list'}}, null]) {
+    const answer = lookup.match([{status: 200, headers: {}, data}], claimed);
+    assert.deepEqual([answer.found.length, answer.complete], [0, false], JSON.stringify(data));
+  }
 });
 
 // ----- the lifecycle: a lost response, reconciled by reads -----
