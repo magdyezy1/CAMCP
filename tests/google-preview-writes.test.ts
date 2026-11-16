@@ -1224,11 +1224,14 @@ test('a refused answer keeps its links out of the outcome, the audit and the ref
     assert.ok(!JSON.stringify(e).includes('leak-marker-one'));
     for (const table of clearText(f)) assert.ok(!table.includes('leak-marker-one'));
     assert.ok(f.store.document(actor.tenantId, 'preview_receipt', r.data.review_id).secret);
-    // The one claim stays: the replay sends nothing and says the same.
+    // The one claim stays: the replay sends nothing and says the same. Every request counts, the reads of the sources too:
+    // `writes()` would not show a replay that read them again (r12-gpreview, lead review S3-1).
+    const sent = f.calls.length;
     const again = await f.execute(r);
     assert.equal(again.data.replayed, true);
     assert.deepEqual(again.data.data.response_mismatch, mismatch);
     assert.ok(!JSON.stringify(again).includes('leak-marker-one'));
+    assert.equal(f.calls.length, sent);
     assert.equal(f.writes(), 1);
   } finally {
     f.store.close();
@@ -1274,11 +1277,67 @@ test('the refusal of an answer that does not match says so, carries the facts an
     assert.match(e.data.previews.next_action, /report the mismatch in data\.response_mismatch to support/);
     assert.match(e.data.previews.next_action, /Never repeat a successful or uncertain generation automatically\.$/);
     assert.doesNotMatch(e.data.previews.next_action, /Open a generated link/);
-    // The replay is the same refusal, and sends nothing.
+    // The replay is the same refusal, and sends nothing: not a generation, and not a read either (S3-1).
+    const sent = f.calls.length;
     const again = await f.execute(r);
     assert.deepEqual(again.error, e.error);
     assert.equal(again.data.previews.next_action, e.data.previews.next_action);
+    assert.equal(f.calls.length, sent);
     assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+// r12-gpreview, lead review S3-1: the exact path the lead will run on production. The live outcome was stored by the release
+// before this one, so its stored row names no mismatch; replayed through the service, the refusal names it from the retained
+// encrypted answer, and the replay sends no request at all. Once the receipt has gone (it lives 24 hours) the refusal holds only
+// what the stored outcome holds.
+test('the live path: an outcome stored without its mismatch is explained on replay from the retained answer, sends no request, and after the receipt expires names only what it holds', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare([ui]);
+    assert.equal(r.success, true, JSON.stringify(r));
+    // An answer whose only fault is a zone-less expiry (ISO-8601 as documented, outside the one profile accepted).
+    f.reply(() =>
+      answerOf([wantedUi], a => {
+        previewsOf(a)[0].expirationDateTime = '2026-12-01T10:15:30';
+        return a;
+      }),
+    );
+    const e = await f.execute(r);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
+    const named = {check: 'expiration', reason: 'format', entry: 0};
+    assert.deepEqual(e.data.data.response_mismatch, named);
+    // As production stored the live outcome: the stored row has no response_mismatch.
+    const row = f.store.db
+      .prepare('SELECT key,result FROM idempotency WHERE tenant_id=?')
+      .get(actor.tenantId) as JsonObject;
+    const stored = JSON.parse(row.result);
+    assert.deepEqual(stored.data.response_mismatch, named, 'this release stores it');
+    delete stored.data.response_mismatch;
+    f.store.db
+      .prepare('UPDATE idempotency SET result=? WHERE tenant_id=? AND key=?')
+      .run(JSON.stringify(stored), actor.tenantId, row.key);
+    // The replay names the mismatch from the retained answer, says the same, and sends nothing at all.
+    const sent = f.calls.length;
+    const again = await f.execute(r);
+    assert.equal(again.data.replayed, true);
+    assert.deepEqual(again.data.data.response_mismatch, named);
+    assert.deepEqual(again.error.details.response_mismatch, named);
+    assert.equal(again.error.message, e.error.message);
+    assert.equal(f.calls.length, sent);
+    // The receipt expires (the 24-hour retention): nothing left to name it from.
+    const saved = f.store.document(actor.tenantId, 'preview_receipt', r.data.review_id);
+    f.store.putDocument(actor.tenantId, 'preview_receipt', r.data.review_id, {...saved, expires_at: Date.now() - 1});
+    const late = await f.execute(r);
+    assert.equal(late.data.replayed, true);
+    assert.equal(late.error.message, e.error.message);
+    assert.deepEqual(late.error.details, {native_response_valid: false, response_hash: e.data.data.response_hash});
+    assert.equal(late.data.data.response_mismatch, undefined);
+    assert.equal(f.calls.length, sent);
+    // The link is in none of the answers.
+    for (const x of [e, again, late]) assert.ok(!JSON.stringify(x).includes('documented/preview-'));
   } finally {
     f.store.close();
   }
