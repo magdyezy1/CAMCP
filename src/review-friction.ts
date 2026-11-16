@@ -104,15 +104,22 @@ const changedPathsOf = (error: JsonObject): string[] =>
     .filter((p: string | undefined): p is string => p !== undefined);
 /**
  * When a path counts as one that changes on many prepares (R25 M1, design item 4 of the plan's idea 1): it explains more
- * than 5 in 100 of a provider's prepares, with at least three refusals, on a provider with at least twenty prepares.
- * The share is the owner's baseline read as a rate (7 STATE_CHANGED in 313 prepares was 2.2 in 100 over every provider and
- * path, and every one a field that changes by itself); the two minimums keep one refusal of ten prepares from being an
- * alarm. Shown beside the alarms, so a rate is read against its rule.
+ * than 5 in 100 of a provider's prepares, with at least three reviews refused for it, on a provider with at least twenty
+ * prepares. The share is the owner's baseline read as a rate (7 STATE_CHANGED in 313 prepares was 2.2 in 100 over every
+ * provider and path, and every one a field that changes by itself); the two minimums keep one refusal of ten prepares from
+ * being an alarm. Shown beside the alarms, so a rate is read against its rule.
+ *
+ * The three numbers are a provisional lead decision, taken on 2026-11-16 (the lead's review of this package, decision 4),
+ * and stay so until the owner's post-deploy friction baseline replaces them; they were the implementer's proposal until
+ * then, not the owner's.
  */
 export const volatilePathRule = Object.freeze({per_100_prepares: 5, minimum_refusals: 3, minimum_prepares: 20});
 /** The gateway a prepared review is of: its write's, or its upload's platform. */
 const gatewayOf = (value: unknown): string | undefined =>
   typeof value === 'string' && /^[a-z0-9_]{1,80}$/.test(value) ? value : undefined;
+/** The review a refusal row is of: the one its call named, or, for a row written without it, the row itself. */
+const reviewOf = (event: JsonObject, row: {request_id: string}): string =>
+  typeof event.input?.review_id === 'string' && event.input.review_id ? event.input.review_id : 'row:' + row.request_id;
 
 export function reviewFriction(store: Store, tenant: string, days = 30, now = Date.now()): JsonObject {
   const since = now - days * 86400000;
@@ -128,18 +135,20 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     mediaReviews = new Set<string>(),
     mediaCodes: Record<string, number> = Object.fromEntries(mediaCounted.map(c => [c, 0])),
     mediaPaths = new Map<string, number>(),
-    // The alarm: each provider's prepares (writes and uploads) and, for each, how often a refusal named a path.
+    // The alarm: each provider's prepares (writes and uploads) and, for each path, the reviews a refusal named it for: a
+    // review, not a refusal row, so one stale review executed again and again is one prepare refused, as `recurring_paths`
+    // counts it (lead review S3-4). A refusal row without its review is a review of its own.
     providerPrepares = new Map<string, number>(),
-    providerPaths = new Map<string, Map<string, number>>(),
+    providerPaths = new Map<string, Map<string, Set<string>>>(),
     noteProviderPrepare = (gateway: unknown) => {
       const g = gatewayOf(gateway);
       if (g) providerPrepares.set(g, (providerPrepares.get(g) ?? 0) + 1);
     },
-    noteProviderPaths = (error: JsonObject) => {
+    noteProviderPaths = (error: JsonObject, review: string) => {
       const g = gatewayOf(error.details?.gateway);
       if (!g) return;
-      const named = providerPaths.get(g) ?? new Map<string, number>();
-      for (const p of new Set(changedPathsOf(error))) named.set(p, (named.get(p) ?? 0) + 1);
+      const named = providerPaths.get(g) ?? new Map<string, Set<string>>();
+      for (const p of new Set(changedPathsOf(error))) named.set(p, (named.get(p) ?? new Set<string>()).add(review));
       providerPaths.set(g, named);
     },
     // WRT-09: website approvals, the time from prepare to a person's approval, and the refusals that wait for one.
@@ -180,7 +189,7 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       mediaCodes[code]!++;
       if (code === 'STATE_CHANGED') {
         for (const p of changedPathsOf(event.outcome.error)) mediaPaths.set(p, (mediaPaths.get(p) ?? 0) + 1);
-        noteProviderPaths(event.outcome.error);
+        noteProviderPaths(event.outcome.error, reviewOf(event, row));
       }
     } else if (event.event === 'write_prepared') {
       prepares++;
@@ -207,7 +216,7 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       codes[code]!++;
       if (code === 'STATE_CHANGED') {
         for (const p of changedPathsOf(event.outcome.error)) changedPaths.set(p, (changedPaths.get(p) ?? 0) + 1);
-        noteProviderPaths(event.outcome.error);
+        noteProviderPaths(event.outcome.error, reviewOf(event, row));
       }
     }
   }
@@ -220,6 +229,7 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       const providerPrepared = providerPrepares.get(gateway) ?? 0;
       if (providerPrepared < volatilePathRule.minimum_prepares) return [];
       return [...named]
+        .map(([field, reviews]) => [field, reviews.size] as const)
         .filter(
           ([, refusals]) =>
             refusals >= volatilePathRule.minimum_refusals &&

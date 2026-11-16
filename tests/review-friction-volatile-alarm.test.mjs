@@ -101,6 +101,42 @@ test('no alarm below the share, below three refusals, or on a provider with too 
   }
 });
 
+test('the alarm counts reviews refused, not refusal rows: one stale review executed again and again is one prepare refused', () => {
+  // Lead review S3-4. An agent that executes the same stale review five times makes five refusal rows of one prepare. On a
+  // provider with 20 prepares that was 25 in 100, an alarm; it is 1 refused review of 20, as `recurring_paths` already counts.
+  const store = new Store(':memory:', key),
+    path = '$[0]["data"]["list"][0]["license_url"]',
+    again = (review, request) =>
+      insert(store, 't', request, {
+        tool: 'amcp_write',
+        input: {action: 'execute', review_id: review},
+        outcome: {
+          success: false,
+          error: {code: 'STATE_CHANGED', message: 'Synthetic', details: {gateway: tiktok, changed_fields: [path]}},
+        },
+      });
+  try {
+    prepared(store, 't', tiktok, 20);
+    for (let i = 0; i < 5; i++) again('one-review', 'again-' + i);
+    assert.deepEqual(reviewFriction(store, 't', 30, now).volatile_path_alarms, [], 'five rows, one review: no alarm');
+    // The same path refused for two other reviews is three reviews of 20, 15 in 100: the alarm, counting reviews.
+    again('second-review', 'second-1');
+    again('second-review', 'second-2');
+    again('third-review', 'third-1');
+    assert.deepEqual(reviewFriction(store, 't', 30, now).volatile_path_alarms, [
+      {gateway: tiktok, path, refusals: 3, prepares: 20, per_100_prepares: 15},
+    ]);
+    // A refusal written without its review (an older row) is one review of its own: nothing counted is dropped.
+    insert(store, 't', 'legacy-1', {
+      tool: 'amcp_write',
+      outcome: {success: false, error: {code: 'STATE_CHANGED', details: {gateway: tiktok, changed_fields: [path]}}},
+    });
+    assert.equal(reviewFriction(store, 't', 30, now).volatile_path_alarms[0].refusals, 4);
+  } finally {
+    store.close();
+  }
+});
+
 test('a provider’s media reviews count as its prepares and its media refusals as its refusals, and each provider is its own', () => {
   const store = new Store(':memory:', key);
   try {
