@@ -10,6 +10,7 @@ import {
   type StateTarget,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, DeclaredOperation, JsonObject} from './types.js';
+import {linkedinReviewVolatile} from './linkedin-review-volatile.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -286,6 +287,7 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
     state: Object.freeze({target: linkedinStateTarget}),
   }),
   review: Object.freeze({
+    volatile: linkedinReviewVolatile,
     // A verification read keeps the write's versioning headers: its API version and Rest.li protocol.
     verificationHeaders: (plan: CompiledRequest) =>
       Object.fromEntries(

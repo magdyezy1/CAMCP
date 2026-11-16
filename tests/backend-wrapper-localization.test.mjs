@@ -311,7 +311,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // wrapper reason: one more on the integration's 813, 814.
   // Merge r25-m0-merge, with r25-m0-t1, r25-m0-review and r25-m0-errors (each 814 on the same base of 813, and each adds a
   // different file): the merged tree measures 813 + 1 + 1 + 1 = 816.
-  assert.equal(files.length, 816);
+  // Package r25-m1-hash (Round 2.5, M1: L5-02) adds six leaves, with no wrapper reason of their own: the flat-resource names
+  // of src/review-flat-telemetry.ts and each provider's review table that its adapter and family modules share
+  // (src/{x,linkedin,snapchat,criteo,google}-review-volatile.ts): 816 + 6 = 822.
+  assert.equal(files.length, 822);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).

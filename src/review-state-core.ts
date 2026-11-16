@@ -6,47 +6,36 @@ import {sha256, stable} from './security.js';
  * importing src/review-state.ts, which imports the family registry; src/review-state.ts re-exports them.
  */
 
-// Response envelopes are validated before projection. Within each resource keep
-// unknown fields: a new configuration field must remain protected by default.
-const volatile = new Set([
-  'delivery_status',
-  'effective_status',
-  'secondary_status',
-  'updated_at',
-  'updated_time',
-  'last_modified_time',
-  'last_modified_at',
-  'last_modified',
-  'update_time',
-  'modification_time',
-  'modify_time',
-  'modified_at',
-  'modified_time',
-  'last_updated_at',
-  'last_update_time',
-  'request_id',
-  'request_time',
-  'trace_id',
-  'sub_request_status',
-  'request_status',
-  'stats',
-  'statistics',
-  'metrics',
-  'insights',
-  'reporting',
-  'pacing_stats',
-  'pacing_metrics',
-  'total_stats',
-  'timeseries_stats',
-  'delivery_metrics',
-  'delivery_stats',
-  'delivery_pacing',
-  'spend_to_date',
-  'last_synced_at',
-  // A pixel's last event (Reddit last_fired_at, PRV-06 D) is telemetry; a review keeps whether and how recently it fired.
-  'last_fired_at',
-]);
+/**
+ * What changes by itself, one table per provider (R2.5 M1, plan idea 1: its `review.volatile`, in the provider's hooks).
+ * A name is a field as `fieldName` spells it (snake_case; `updatedTime` is `updated_time`), or a prefix ending in `*`
+ * (`review_status*`). A review hashes everything else: response envelopes are validated and projected before this, and
+ * within a resource an unknown field stays protected, so a new configuration field is never excused by a name list it
+ * is not on. This replaces the one set every provider shared: a name that is telemetry in one provider's rows (X's
+ * `servable`) is configuration, or nothing, in another's.
+ *
+ * Idempotent and monotone, like every rule here: it only drops fields, so a review saved before a table grew is projected
+ * again at execute (src/write-review.ts) and what it keeps is exactly what the provider said.
+ */
+export type ReviewVolatile = readonly string[];
+/** No table: nothing is excused by name. What a provider without one keeps is its whole answer. */
+export const noReviewVolatile: ReviewVolatile = Object.freeze([]);
+const matchers = new WeakMap<ReviewVolatile, (name: string) => boolean>();
+function volatileMatcher(table: ReviewVolatile | undefined): (name: string) => boolean {
+  if (!table?.length) return () => false;
+  let matcher = matchers.get(table);
+  if (!matcher) {
+    const exact = new Set(table.filter(name => !name.endsWith('*'))),
+      prefixes = table.filter(name => name.endsWith('*')).map(name => name.slice(0, -1));
+    matcher = name => exact.has(name) || prefixes.some(prefix => name.startsWith(prefix));
+    matchers.set(table, matcher);
+  }
+  return matcher;
+}
 const fieldName = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+/** Whether a provider's table names this field (as the projection reads it: camelCase is snake_case). */
+export const isReviewVolatile = (volatile: ReviewVolatile, key: string): boolean =>
+  volatileMatcher(volatile)(fieldName(key));
 const scalar = (value: unknown) => value === null || ['string', 'number', 'boolean'].includes(typeof value);
 
 /**
@@ -119,10 +108,9 @@ const unorderedFields = new Set([
   'excluded_languages',
 ]);
 
-/** Configuration projection only; never use this to canonicalize a mutation payload. */
-export function normalizeReviewState(value: unknown, key = ''): unknown {
+function project(value: unknown, matches: (name: string) => boolean, urls: boolean, key: string): unknown {
   if (Array.isArray(value)) {
-    const values = value.map(item => normalizeReviewState(item));
+    const values = value.map(item => project(item, matches, urls, ''));
     // Preserve duplicates and types. Arrays of objects may have meaningful order.
     return unorderedFields.has(fieldName(key)) && values.every(scalar)
       ? values.sort((a, b) => {
@@ -135,17 +123,34 @@ export function normalizeReviewState(value: unknown, key = ''): unknown {
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([key]) => !volatile.has(fieldName(key)))
+        .filter(([name]) => !matches(fieldName(name)))
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, item]) => [key, normalizeReviewState(item, key)]),
+        .map(([name, item]) => [name, project(item, matches, urls, name)]),
     );
-  return typeof value === 'string' ? withoutSigningParameters(value) : value;
+  return urls && typeof value === 'string' ? withoutSigningParameters(value) : value;
 }
 
-export const reviewStateHash = (value: unknown) => sha256(stable(normalizeReviewState(value)));
+/**
+ * Configuration projection only; never use this to canonicalize a mutation payload. `volatile` is the table of the
+ * provider whose answer this is (its `review.volatile`): what that provider says changes by itself. A caller with no
+ * provider passes `noReviewVolatile`, and nothing is dropped by name.
+ */
+export function normalizeReviewState(value: unknown, volatile: ReviewVolatile): unknown {
+  return project(value, volatileMatcher(volatile), true, '');
+}
+/**
+ * The same names and order, without the value-shape rule of URLs: for a comparison of what a write sent with what the
+ * provider stores (src/verification-core.ts), where a link is a value the provider must return as it was sent.
+ */
+export function normalizeComparable(value: unknown, volatile: ReviewVolatile): unknown {
+  return project(value, volatileMatcher(volatile), false, '');
+}
+
+export const reviewStateHash = (value: unknown, volatile: ReviewVolatile) =>
+  sha256(stable(normalizeReviewState(value, volatile)));
 
 /** JSON paths only: diagnostics must not disclose provider values or credentials. */
-export function changedStateFields(expected: unknown, actual: unknown): string[] {
+export function changedStateFields(expected: unknown, actual: unknown, volatile: ReviewVolatile): string[] {
   const paths: string[] = [];
   const walk = (a: unknown, b: unknown, path: string) => {
     if (stable(a) === stable(b)) return;
@@ -167,6 +172,6 @@ export function changedStateFields(expected: unknown, actual: unknown): string[]
     }
     paths.push(path);
   };
-  walk(normalizeReviewState(expected), normalizeReviewState(actual), '$');
+  walk(normalizeReviewState(expected, volatile), normalizeReviewState(actual, volatile), '$');
   return paths;
 }

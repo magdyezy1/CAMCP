@@ -3,6 +3,8 @@ import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {defineFamily, fail, stateReadOf} from './family-kit.js';
+import {isReviewVolatile} from './review-state-core.js';
+import {xReviewVolatile} from './x-review-volatile.js';
 
 /**
  * Batch writes of X campaigns and line items, per the X Ads API v12 Campaign Management reference (checked 2026-09-28).
@@ -152,8 +154,6 @@ const budgets = ['daily_budget_amount_local_micro', 'total_budget_amount_local_m
 const counts = ['duration_in_days', 'frequency_cap'],
   times = ['start_time', 'end_time'],
   lists = ['placements', 'categories'];
-// X states these per read; they change without an advertiser edit.
-const volatile = new Set(['servable', 'reasons_not_servable', 'effective_status', 'updated_at']);
 const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max: number): v is string =>
@@ -413,7 +413,9 @@ export function isXEntityBatchRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).xEntityBatchState;
 }
 const notFound = (e: unknown) => e instanceof MirrorError && e.code === 'UPSTREAM_ERROR' && e.status === 404;
-const view = (row: JsonObject): JsonObject => Object.fromEntries(Object.entries(row).filter(([k]) => !volatile.has(k)));
+// X states these per read; they change without an advertiser edit (X's review table).
+const view = (row: JsonObject): JsonObject =>
+  Object.fromEntries(Object.entries(row).filter(([k]) => !isReviewVolatile(xReviewVolatile, k)));
 export async function readXEntityBatches(
   p: CompiledRequest,
   send: (p: CompiledRequest) => Promise<TransportResult>,

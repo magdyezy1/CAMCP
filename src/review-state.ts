@@ -1,10 +1,25 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOfRead} from './reviewed-families.js';
-import {normalizeReviewState} from './review-state-core.js';
+import {normalizeReviewState, noReviewVolatile, type ReviewVolatile} from './review-state-core.js';
 import {providerHooks} from './provider-hooks.js';
 
 // The pure projection helpers live in the leaf src/review-state-core.ts, which family modules import (ARC-04 stage B).
-export {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
+export {
+  normalizeReviewState,
+  normalizeComparable,
+  reviewStateHash,
+  changedStateFields,
+  noReviewVolatile,
+} from './review-state-core.js';
+export type {ReviewVolatile} from './review-state-core.js';
+
+/**
+ * What a gateway's provider says changes by itself in its answers (R2.5 M1: its adapter's `review.volatile`); none for
+ * AMCP's own tools, an unknown name and a provider that declares none, so nothing is dropped by name for them. The state
+ * stage hashes and compares every state with the table of the gateway it read.
+ */
+export const reviewVolatile = (gateway: unknown): ReviewVolatile =>
+  providerHooks(gateway)?.review?.volatile ?? noReviewVolatile;
 
 /** Allowlist configuration-bearing response containers, not response metadata.
  * Only call after raw success, completeness and exact-target validation. Preserve
@@ -12,12 +27,14 @@ export {normalizeReviewState, reviewStateHash, changedStateFields} from './revie
  * Flat resource responses have no separate envelope: keep unknown configuration.
  * This is idempotent so saved, unsubmitted reviews can use the same projection. */
 export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown {
-  if (!data || Array.isArray(data) || typeof data !== 'object') return normalizeReviewState(data);
+  const volatile = reviewVolatile(read.gateway);
+  if (!data || Array.isArray(data) || typeof data !== 'object') return normalizeReviewState(data, volatile);
   const d = data as JsonObject;
   const family = familyOfRead(read);
-  if (!family) return normalizeReviewState(gatewayStateValue(read, d));
+  if (!family) return normalizeReviewState(gatewayStateValue(read, d), volatile);
   return normalizeReviewState(
     family.snapshotState ? family.snapshotState(read, d, () => gatewayStateValue(read, d)) : d,
+    volatile,
   );
 }
 /**

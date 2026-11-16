@@ -9,6 +9,7 @@ import type {
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
+import {xReviewVolatile} from './x-review-volatile.js';
 // Writes and campaigns (wave 4c).
 import {validateXTargetingState, xTargetingKind, xTargetingSnapshots} from './x-targeting-writes.js';
 import {authorizeXAudienceEstimate, xAudienceEstimatePlan, xAudienceEstimateRoute} from './x-audience-estimate.js';
@@ -97,6 +98,7 @@ export const xHooks: ProviderHooks = Object.freeze({
   // A response's records are under data, the rest is its envelope; a write is verified by each record it returned.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    volatile: xReviewVolatile,
     verification(
       plan: CompiledRequest,
       result: JsonObject,

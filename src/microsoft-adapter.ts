@@ -1,5 +1,6 @@
 import type {CatalogHooks, ProviderHooks, RefreshRequest, ScopeContext, WireHeaders} from './provider-adapter.js';
 import type {Catalog, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
@@ -173,6 +174,8 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
   }),
   // A contract's result field is its state and what its verification read shows; the rest is its envelope.
   review: Object.freeze({
+    // A campaign management entity's last modification (`LastModifiedTime`), beside the configuration of its records.
+    volatile: Object.freeze(['last_modified_time']) as ReviewVolatile,
     snapshot(read: CompiledRequest, d: JsonObject) {
       const field = microsoftContracts.get(read.action)?.result;
       return field && Object.hasOwn(d, field) ? {[field]: d[field]} : d;

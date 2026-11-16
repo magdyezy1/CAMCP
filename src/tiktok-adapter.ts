@@ -11,6 +11,7 @@ import {
   type StateTarget,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
@@ -391,6 +392,13 @@ function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
   if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
   return data.data?.list?.[0];
 }
+/**
+ * What changes by itself in a TikTok row (R2.5 M1, L5-02): a campaign, ad group or ad's last modification (`modify_time`),
+ * the delivery state TikTok computes from its parents and budget (`secondary_status`; the status a user sets is
+ * `operation_status`, which stays), and the request ID of an answer that is kept whole. Answers are projected to their
+ * `data` list, so these are all a row carries of it; nothing else TikTok returns is excused by name.
+ */
+const tiktokReviewVolatile: ReviewVolatile = Object.freeze(['secondary_status', 'modify_time', 'request_id']);
 /** The read an amcp_media upload keeps the advertiser's state from: its identity fields only, as a review keeps them (T1). */
 function tiktokAccountState(read: CompiledRequest, id: string): CompiledRequest {
   read.path = tiktokAdvertiserInfoPath;
@@ -450,6 +458,7 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     verification: tiktokVerification,
     observed: tiktokObserved,
     accountState: tiktokAccountState,
+    volatile: tiktokReviewVolatile,
   }),
   scope: Object.freeze({
     authorizers: Object.freeze([

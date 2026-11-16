@@ -10,6 +10,7 @@ import type {
   StateTarget,
 } from './provider-adapter.js';
 import type {Action, CompiledRequest, Connection, Credentials, DeclaredOperation, JsonObject} from './types.js';
+import {snapchatReviewVolatile} from './snapchat-review-volatile.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
@@ -396,6 +397,7 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
     snapshot: snapchatSnapshot,
     verification: snapchatVerification,
     observed: snapchatObserved,
+    volatile: snapchatReviewVolatile,
   }),
   scope: Object.freeze({
     authorizers: Object.freeze([

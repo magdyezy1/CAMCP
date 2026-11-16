@@ -4,6 +4,7 @@ import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
 import {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
+import {linkedinReviewVolatile} from './linkedin-review-volatile.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -330,7 +331,7 @@ function configuration(v: JsonObject, template = false): JsonObject {
   const {created, lastModified, approximateMemberCount, ...config} = v;
   if (template && Object.hasOwn(config, 'targetingCriteria'))
     config.targetingCriteria = criteriaProjection(config.targetingCriteria);
-  return normalizeReviewState(config) as JsonObject;
+  return normalizeReviewState(config, linkedinReviewVolatile) as JsonObject;
 }
 function reader(p: CompiledRequest, request: (p: CompiledRequest) => Promise<TransportResult>) {
   const deadline = performance.now() + 60000;
@@ -515,7 +516,7 @@ export async function verifyLinkedInTemplate(
     const key = targets(p)[0]!;
     expected.templates[key] = configuration({...expected.templates[key], ...desired(p)}, true);
   } else for (const key of targets(p)) delete expected.templates[key];
-  const fields = changedStateFields(expected, actual),
+  const fields = changedStateFields(expected, actual, linkedinReviewVolatile),
     match = completeReceipt && fields.length === 0;
   return {
     status: match ? 'verified' : 'inconclusive',
@@ -523,8 +524,8 @@ export async function verifyLinkedInTemplate(
       {
         description: 'Complete account-scoped saved audiences and referenced segments match the reviewed change',
         matched: match,
-        expected_state_hash: reviewStateHash(expected),
-        actual_state_hash: reviewStateHash(actual),
+        expected_state_hash: reviewStateHash(expected, linkedinReviewVolatile),
+        actual_state_hash: reviewStateHash(actual, linkedinReviewVolatile),
         changed_fields: fields,
       },
     ],

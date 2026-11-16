@@ -4,6 +4,7 @@ import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from 
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
+import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -372,7 +373,7 @@ export async function verifyGoogleAccess(p: CompiledRequest, result: JsonObject,
   else if (op.remove) delete expected[kind][resource];
   else expected.members[resource].accessRole = op.update.accessRole;
   const actual = await currentState(p, send),
-    changed = changedStateFields([expected], [actual]),
+    changed = changedStateFields([expected], [actual], googleAdsReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified',
     pending = actual.members[resource]?.pendingMultiPartyAuthReview ?? null;
   return {

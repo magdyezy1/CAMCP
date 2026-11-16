@@ -54,19 +54,25 @@ test('each provider declares its own projections, frozen', () => {
   assert.deepEqual(
     Object.fromEntries(registeredProviderHooks.filter(h => h.review).map(h => [h.gateway, declared(h)])),
     {
-      google_ads_native_action: ['snapshot', 'verification', 'observed', 'verificationVersion'],
-      meta_native_action: ['verification'],
+      // r25-m1-hash (L5-02): every provider that reviews writes declares `volatile`, its table of what changes by itself;
+      // Search Console's sitemap observations moved from its snapshot into that table, and GA4, Business Profile and
+      // Criteo gained a review declaration of the table alone.
+      google_ads_native_action: ['snapshot', 'verification', 'observed', 'verificationVersion', 'volatile'],
+      google_business_native_action: ['volatile'],
+      meta_native_action: ['verification', 'volatile'],
       // r25-m0-t1 (T1): TikTok also declares the advertiser read an amcp_media upload keeps the state of (accountState).
-      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState'],
-      snapchat_native_action: ['snapshot', 'verification', 'observed'],
-      linkedin_native_action: ['verificationHeaders', 'verification'],
-      x_ads_native_action: ['snapshot', 'verification', 'observed'],
-      microsoft_ads_native_action: ['snapshot', 'observed'],
-      apple_ads_native_action: ['snapshot', 'observed'],
-      reddit_native_action: ['snapshot', 'verification', 'observed'],
-      dv360_native_action: ['verification'],
-      gtm_native_action: ['snapshot'],
-      google_search_console_native_action: ['snapshot'],
+      tiktok_native_action: ['snapshot', 'verification', 'observed', 'accountState', 'volatile'],
+      snapchat_native_action: ['snapshot', 'verification', 'observed', 'volatile'],
+      linkedin_native_action: ['volatile', 'verificationHeaders', 'verification'],
+      x_ads_native_action: ['snapshot', 'volatile', 'verification', 'observed'],
+      microsoft_ads_native_action: ['volatile', 'snapshot', 'observed'],
+      apple_ads_native_action: ['volatile', 'snapshot', 'observed'],
+      reddit_native_action: ['snapshot', 'volatile', 'verification', 'observed'],
+      dv360_native_action: ['volatile', 'verification'],
+      ga4_native_action: ['volatile'],
+      gtm_native_action: ['snapshot', 'volatile'],
+      google_search_console_native_action: ['volatile'],
+      criteo_native_action: ['volatile'],
     },
   );
   for (const hooks of registeredProviderHooks)

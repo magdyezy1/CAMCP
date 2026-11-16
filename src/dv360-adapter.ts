@@ -10,6 +10,7 @@ import type {
 } from './provider-adapter.js';
 import {sameNativeAccount} from './account-id.js';
 import type {CompiledRequest, DeclaredOperation, JsonObject} from './types.js';
+import {flatResourceTelemetry} from './review-flat-telemetry.js';
 import type {TransportResult} from './transport.js';
 import type {Registry} from './catalog.js';
 import {
@@ -120,6 +121,8 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
     }),
   }),
   review: Object.freeze({
+    // Its resources are flat (a record's `updateTime` is `update_time`): the flat-resource names change by themselves.
+    volatile: flatResourceTelemetry,
     // A created campaign, insertion order, line item or creative is read back by its returned ID, an update in place.
     verification(
       plan: CompiledRequest,

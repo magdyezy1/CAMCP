@@ -7,6 +7,7 @@ import type {
   ScopeContext,
 } from './provider-adapter.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {createsOnPost} from './family-kit.js';
@@ -110,6 +111,19 @@ function observeReddit(plan: CompiledRequest, connection: Connection, id: string
         store.rememberResource(connection, id, collection + '/' + entity.id);
 }
 /**
+ * What changes by itself in a Reddit record (R2.5 M1, L5-02): Reddit computes `modified_at`, `updated_at`, `effective_status`
+ * and `delivery_status` (a write that sends one is refused as server-derived, src/reddit-writes.ts), and a pixel's
+ * `last_fired_at` is its last event (PRV-06 D: a review keeps whether and how recently it fired, not the time). The status a
+ * user sets is `configured_status`, which stays.
+ */
+const redditReviewVolatile: ReviewVolatile = Object.freeze([
+  'modified_at',
+  'updated_at',
+  'effective_status',
+  'delivery_status',
+  'last_fired_at',
+]);
+/**
  * Reddit's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: reports, plus
  * the PRV-07 planning and history reads (src/reddit-extensions.ts), are POST reads. Its scope: the planning reads'
  * authorizer, the reference reads, and ownership of the global IDs its account lists and creations show. A review keeps
@@ -141,6 +155,7 @@ export const redditHooks: ProviderHooks = Object.freeze({
   // A response's records are under data, the rest is its envelope.
   review: Object.freeze({
     snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    volatile: redditReviewVolatile,
     verification(
       plan: CompiledRequest,
       result: JsonObject,

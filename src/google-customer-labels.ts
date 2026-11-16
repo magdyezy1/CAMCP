@@ -4,6 +4,7 @@ import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from 
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
+import {googleAdsReviewVolatile} from './google-review-volatile.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -204,7 +205,7 @@ export function googleCustomerLabelOutcome(p: CompiledRequest, result: Transport
 export async function verifyGoogleCustomerLabels(p: CompiledRequest, send: Send) {
   const expected = {customer: account(p), labels: {}},
     actual = await currentState(p, send),
-    changed = changedStateFields([expected], [actual]),
+    changed = changedStateFields([expected], [actual], googleAdsReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,

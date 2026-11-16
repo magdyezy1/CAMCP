@@ -12,7 +12,7 @@ import {releaseUnsentClaims} from './write-common.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
-import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
+import {normalizeSnapshot, reviewStateHash, changedStateFields, reviewVolatile} from './review-state.js';
 import {downloadDriveFile, downloadPrivateDrive, driveAccess, driveGateway, listDriveFolder} from './private-drive.js';
 import {createMediaVariant, variantPresets, inspectMediaPlacement} from './media-variants.js';
 import {placementPreflight} from './media-specs.js';
@@ -1659,7 +1659,7 @@ export class MediaUploadService {
         return reused;
       }
       const state = await this.state(actor, p),
-        stateHash = reviewStateHash(state),
+        stateHash = reviewStateHash(state, reviewVolatile(p.read.gateway)),
         fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, plan: p}));
       this.access(actor, p.platform, account, c.id);
       this.store.stageMedia(actor.tenantId, reviewId, file.bytes);
@@ -1802,15 +1802,16 @@ export class MediaUploadService {
     const bytes = p.library_media ? Buffer.alloc(0) : this.store.stagedMedia(actor.tenantId, input.review_id);
     if (!p.library_media && (bytes.length !== p.size || sha256(bytes) !== p.sha256 || mediaType(bytes).mime !== p.mime))
       fail('REVIEW_CHANGED', 'The staged media failed its integrity check.');
-    const expectedState = normalizeSnapshot(p.read, review.state),
+    const volatile = reviewVolatile(p.read.gateway),
+      expectedState = normalizeSnapshot(p.read, review.state),
       current = await this.state(actor, p),
-      actual = reviewStateHash(current),
-      expected = reviewStateHash(expectedState);
+      actual = reviewStateHash(current, volatile),
+      expected = reviewStateHash(expectedState, volatile);
     if (actual !== expected)
       fail('STATE_CHANGED', 'Provider configuration changed. Prepare a new media review.', {
         expected_state_hash: expected,
         actual_state_hash: actual,
-        changed_fields: changedStateFields(expectedState, current),
+        changed_fields: changedStateFields(expectedState, current, volatile),
       });
     if (confirmBy <= Date.now()) fail('REVIEW_EXPIRED', 'Media review expired during verification.');
     assertWritesNotPaused(this.store, actor.tenantId);
@@ -2540,7 +2541,7 @@ export class MediaUploadService {
       user_id: actor.userId,
       plan,
       state,
-      state_hash: reviewStateHash(state),
+      state_hash: reviewStateHash(state, reviewVolatile(plan.read.gateway)),
       fingerprint: sha256(stable({tenant: actor.tenantId, user: actor.userId, plan})),
       expires_at: Date.now() + 300000,
     };

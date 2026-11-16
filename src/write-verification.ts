@@ -14,6 +14,7 @@ import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from '
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {normalize, differing, verificationReads, entity, verificationContractVersion} from './verification-reads.js';
+import {reviewVolatile} from './review-state.js';
 import {loginStamp} from './connection-authority.js';
 import {writeClaim} from './job-repository.js';
 // The provider's parts of a verification (ARC-01 phase B, wave 4c): the other accounts its write changes (Apple's
@@ -138,7 +139,9 @@ export class WriteVerifier {
           family?.bindVerificationRead?.(plan, item.read, reviewId);
           if (!obj(item.expected) || !Object.keys(item.expected).length || !independentlyReadOnly(item.read))
             bad('No complete configuration read contract exists for this write.', 'VERIFICATION_UNSUPPORTED');
-          const planned = normalize(item.expected),
+          // What changes by itself in this provider's lists is left out of each item on both sides, as it always was.
+          const volatile = reviewVolatile(plan.gateway),
+            planned = normalize(item.expected, volatile),
             optional = item.readOptional ?? [],
             // A read-optional field the read omits is compared with the write response instead.
             split = (actual: unknown) => {
@@ -189,7 +192,7 @@ export class WriteVerifier {
                 );
                 validateState(item.read, response);
                 checkSharedAccounts();
-                return normalize(entity(item.read, response.data as JsonObject));
+                return normalize(entity(item.read, response.data as JsonObject), volatile);
               },
               actual => differing(split(actual).exp, actual).length === 0,
             );
@@ -197,7 +200,7 @@ export class WriteVerifier {
             {exp: expected, ack: acknowledged} = split(actual),
             changed = differing(expected, actual),
             unacknowledged = Object.entries(acknowledged)
-              .filter(([, v]) => differing(normalize(v.sent), normalize(v.echoed)).length)
+              .filter(([, v]) => differing(normalize(v.sent, volatile), normalize(v.echoed, volatile)).length)
               .map(([k]) => '/' + k);
           // The provider's phase of what the write started (GA4's provider jobs); verified without one.
           const providerPhase = providerHooks(item.read.gateway)?.writes?.verificationPhase,

@@ -1,5 +1,7 @@
 import type {DelegatedHooks, DelegatedScopeContext, ProviderHooks, ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, DeclaredOperation, JsonObject} from './types.js';
+import type {ReviewVolatile} from './review-state-core.js';
+import {flatResourceTelemetry} from './review-flat-telemetry.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
@@ -36,8 +38,20 @@ function sitemapEnvelope(read: CompiledRequest, result: TransportResult, data: J
     fail('STATE_READ_FAILED', 'Search Console sitemap content-error counts must be nonnegative integers.');
   return sitemapCount ? {...result, data: {...data, errors: 0}} : result;
 }
-/** A sitemap's crawl and processing fields, which a review does not keep. */
-const sitemapProcessing = new Set(['lastDownloaded', 'isPending', 'warnings', 'errors', 'contents']);
+/**
+ * What changes by itself in a Search Console answer (R2.5 M1, L5-02). Its resources are flat, so the flat-resource names
+ * apply; beyond them a sitemap's crawl and processing observations (`lastDownloaded`, `isPending`, `warnings`, `errors`,
+ * `contents`: Google downloads and counts it on its own schedule), which are not a sitemap submission change. A submission's
+ * own fields (`path`, `lastSubmitted`, `type`, the index identity) and any field not listed stay protected.
+ */
+const searchConsoleReviewVolatile: ReviewVolatile = Object.freeze([
+  ...flatResourceTelemetry,
+  'last_downloaded',
+  'is_pending',
+  'warnings',
+  'errors',
+  'contents',
+]);
 
 /**
  * Search Console's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a site
@@ -62,14 +76,9 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
       target: (read: CompiledRequest, result: TransportResult) => validateMeasurementState(read, result),
     }),
   }),
-  review: Object.freeze({
-    // Crawl/processing observations are not a sitemap submission change. Keep
-    // lastSubmitted, type, path, index identity and unknown configuration fields.
-    snapshot: (read: CompiledRequest, d: JsonObject) =>
-      read.path.includes('/sitemaps/') && d.amcp_absent !== true
-        ? Object.fromEntries(Object.entries(d).filter(([key]) => !sitemapProcessing.has(key)))
-        : d,
-  }),
+  // Crawl/processing observations are not a sitemap submission change: they are in the table. lastSubmitted, type, path,
+  // index identity and unknown configuration fields stay in the state.
+  review: Object.freeze({volatile: searchConsoleReviewVolatile}),
   scope: Object.freeze({
     resource(plan: CompiledRequest, _c: Connection, _id: string, {compare}: ScopeContext) {
       const site = /\/sites\/([^/]+)/.exec(plan.path)?.[1];

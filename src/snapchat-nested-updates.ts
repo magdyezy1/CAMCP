@@ -3,7 +3,8 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable} from './security.js';
-import {changedStateFields} from './review-state-core.js';
+import {changedStateFields, isReviewVolatile} from './review-state-core.js';
+import {snapchatReviewVolatile} from './snapchat-review-volatile.js';
 import {
   snapTargetingKind,
   assertSnapTargeting,
@@ -125,8 +126,22 @@ const targetCostGoals = [
   'STORY_OPENS',
   'LANDING_PAGE_VIEW',
 ];
-const metadata =
-  /^(?:created_at|updated_at|delivery_status|effective_status|review_status(?:_.*)?|rejection(?:_.*)?|approval(?:_.*)?|deleted|request_id|sub_request_warnings|auto_bid|target_bid|targeting_reach_status|separated_types)$/;
+/**
+ * What Snapchat returns of a record that a complete PUT need not carry (R2.5 M1, L5-02): the telemetry in Snapchat's review
+ * table (`snapchatReviewVolatile`: delivery, review and update times, which change by themselves) and these six, which are
+ * not telemetry and so are not in that table: a creation time that never changes, a deletion flag, a warnings echo and the
+ * deprecated bid flags and separated types, which Snapchat returns but a PUT does not replace. They stay protected in a
+ * review's state; this set only says a PUT need not send them.
+ */
+const notReplacedByPut = new Set([
+  'created_at',
+  'deleted',
+  'sub_request_warnings',
+  'auto_bid',
+  'target_bid',
+  'separated_types',
+]);
+const metadata = (field: string) => notReplacedByPut.has(field) || isReviewVolatile(snapchatReviewVolatile, field);
 const fail: StateFlaggedRefusal = familyStateErrors('INVALID_SNAPCHAT_UPDATE', 'SNAPCHAT_UPDATE_STATE_UNVERIFIED');
 const fields = (k: Kind) =>
   k.collection === 'ads' ? [...adIdentity, ...adMutable] : [...squadIdentity, ...squadMutable];
@@ -550,7 +565,7 @@ export async function readSnapUpdateState(p: CompiledRequest, send: Send, valida
       )
         fail('Target identity, current parent or configuration is unverified.', true);
       validateCurrent(current, k.collection);
-      if (p.method === 'PUT' && Object.keys(current).some(f => !fields(k).includes(f) && !metadata.test(f)))
+      if (p.method === 'PUT' && Object.keys(current).some(f => !fields(k).includes(f) && !metadata(f)))
         fail(
           'The provider returned additional configuration not covered by complete PUT. Use a qualified PATCH instead.',
           true,
@@ -623,7 +638,7 @@ export function snapUpdateAmounts(
 export async function verifySnapUpdate(p: CompiledRequest, before: unknown[], send: Send) {
   const expected = [apply(p, before[0] as JsonObject, false)],
     actual = await readSnapUpdateState(p, send, false),
-    changed = changedStateFields(expected, actual),
+    changed = changedStateFields(expected, actual, snapchatReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   return {
     status,

@@ -1,6 +1,8 @@
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
+import {isReviewVolatile} from './review-state-core.js';
+import {snapchatReviewVolatile} from './snapchat-review-volatile.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
@@ -37,13 +39,9 @@ function assertSnapchatReplacement(plan: CompiledRequest, state: unknown[]) {
     const missing: string[] = [];
     const check = (old: JsonObject, next: JsonObject, path: string) => {
       for (const [key, value] of Object.entries(old)) {
-        if (
-          !path &&
-          /^(?:created_at|updated_at|packaging_status|review_status(?:_.*)?|rejection(?:_.*)?|approval(?:_.*)?)$/.test(
-            key,
-          )
-        )
-          continue;
+        // A creative's creation time never changes, and its update time, media packaging and review are Snapchat's own
+        // telemetry (its review table): a complete PUT need not carry them.
+        if (!path && (key === 'created_at' || isReviewVolatile(snapchatReviewVolatile, key))) continue;
         if (!Object.hasOwn(next, key)) {
           missing.push(path + '/' + key);
           continue;

@@ -5,6 +5,7 @@ import {MirrorError} from './errors.js';
 import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
+import {googleBusinessReviewVolatile} from './google-review-volatile.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -425,7 +426,7 @@ export async function verifyPlaceAction(p: CompiledRequest, result: JsonObject, 
     expected = desired(p, original, result.data),
     actual = await currentState(p, send);
   const comparison = {business: original.business, availableTypes: original.availableTypes, links: expected},
-    changed = changedStateFields([comparison], [actual]),
+    changed = changedStateFields([comparison], [actual], googleBusinessReviewVolatile),
     status = changed.length ? 'inconclusive' : 'verified';
   const id = placeActionKind(p) === 'create' ? result.data.name : p.path.slice(4);
   return {

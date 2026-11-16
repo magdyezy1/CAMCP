@@ -3,6 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {createsOnPost, defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {sha256, stable} from './security.js';
 import {normalizeReviewState} from './review-state-core.js';
+import {criteoReviewVolatile} from './criteo-review-volatile.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -481,7 +482,7 @@ export async function readCriteoCampaignState(p: CompiledRequest, send: Send, ta
     after = await snapshot(p, get, target);
   if (stable(before) !== stable(after))
     incomplete('Campaign configuration or dependencies changed during preparation.');
-  return [normalizeReviewState(before)];
+  return [normalizeReviewState(before, criteoReviewVolatile)];
 }
 export function criteoCampaignOutcome(p: CompiledRequest, r: TransportResult): boolean {
   try {

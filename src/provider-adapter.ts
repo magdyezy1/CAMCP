@@ -28,6 +28,7 @@ import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
+import type {ReviewVolatile} from './review-state-core.js';
 // Writes and campaigns (wave 4c): what the review gives a provider's own state read.
 import type {Actor} from './types.js';
 import type {NativeTransport} from './transport.js';
@@ -521,6 +522,14 @@ export interface ProviderVerificationRead extends VerificationRead {
 export interface ReviewProjections {
   /** The state a review keeps of a read, before normalization: its configuration, not its envelope; `data` by default. */
   snapshot?(read: CompiledRequest, data: JsonObject): unknown;
+  /**
+   * What this provider's answers carry that changes by itself (R2.5 M1, plan idea 1, L5-02): response metadata, delivery
+   * and review telemetry, meters and last-modified times, as field names (`review_status*` names a family). A review
+   * hashes the rest, so a field not listed is protected. Only names that no user edit changes: never a configuration
+   * field. The table replaces the one set every provider shared; src/review-state-core.ts applies it, idempotently and
+   * without adding anything, to every state this provider's reviews keep, hash and compare.
+   */
+  readonly volatile?: ReviewVolatile;
   /**
    * The write's headers its verification reads keep (LinkedIn's versioning headers); none by default. Its state reads
    * keep the same (src/write-snapshots.ts stateRead, wave 4c).
