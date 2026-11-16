@@ -203,6 +203,7 @@ export function metaReconcileFixture({tenant = 'meta-reconcile'} = {}) {
   return {
     store,
     actor,
+    connection,
     rows,
     requests,
     sent,

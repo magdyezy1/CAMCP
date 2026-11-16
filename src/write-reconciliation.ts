@@ -225,6 +225,10 @@ export class WriteReconciler {
       if (!independentlyReadOnly(request) || !request.readOnly)
         fail('RECONCILIATION_UNSUPPORTED', 'A reconciliation read must be independently read-only.', {}, 400);
       const access = (page: CompiledRequest) => {
+        // Every page, whoever built it (lead review S4-5): a family reader's page is checked as the lookup's own request is. A
+        // reconciliation only reads, and a page that is not independently read-only is refused before anything is sent.
+        if (!independentlyReadOnly(page) || !page.readOnly)
+          fail('RECONCILIATION_UNSUPPORTED', 'A reconciliation read must be independently read-only.', {}, 400);
         this.store.assertActorActive(actor);
         const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, review.connection_id);
         familyOf(plan)?.scope?.(current, false, plan);

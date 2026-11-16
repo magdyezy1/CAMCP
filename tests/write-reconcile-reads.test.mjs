@@ -97,11 +97,19 @@ test('a lookup the follow-up page of a list asks for is as much a read as its fi
   for (const [label, plan] of plans) {
     const lookup = findCreated(plan, {state: [{sets: [], feeds: []}], claimedAt: claimed});
     if (!lookup?.more) continue;
-    const answer = {
-      status: 200,
-      headers: {},
-      data: {data: [], paging: {cursors: {after: 'next'}, next: 'https://example.test/next'}},
-    };
+    // A list that names a next page, in the words of its provider: Meta's cursor, or TikTok's page counts (lead review S3-1).
+    const answer =
+      plan.gateway === 'tiktok_native_action'
+        ? {
+            status: 200,
+            headers: {},
+            data: {code: 0, data: {list: [], page_info: {page: 1, page_size: 100, total_number: 250, total_page: 3}}},
+          }
+        : {
+            status: 200,
+            headers: {},
+            data: {data: [], paging: {cursors: {after: 'next'}, next: 'https://example.test/next'}},
+          };
     const next = lookup.more(lookup.reads.map(() => answer));
     assert.ok(next.length > 0, label + ' follows a list that names a next page');
     for (const read of next) {
