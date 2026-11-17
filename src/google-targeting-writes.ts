@@ -7,17 +7,40 @@ import {defineFamily, readOf} from './family-kit.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function invalid(message: string): never {
-  throw new MirrorError('INVALID_TARGETING_MUTATION', message);
+/**
+ * A refusal of this module. Its details name where the agent has to look (R2.5 M3, L5-10 and L2-07): `operation`, the index
+ * of the refused operation in the request's list, and `field`, the request path of what to change, with `allowed` where the
+ * field takes a closed list. A refusal that has none of them cannot say which of 19 criteria it means.
+ */
+function invalid(message: string, details: Record<string, unknown> = {}): never {
+  throw new MirrorError('INVALID_TARGETING_MUTATION', message, details);
 }
-function normalized(value: unknown): any {
-  if (Array.isArray(value)) return value.map(normalized);
+/**
+ * A refusal of operation `index`: `field` is relative to that operation (`create.keyword.text`), its path in the request is
+ * built here. It is a forwarder of `invalid` that takes its message as a parameter, so the locale inventory
+ * (tools/check-locales.mjs) still finds every literal sentence passed to it, as it found those passed to `invalid`.
+ */
+function refuse(index: number, message: string, field: string, extra: Record<string, unknown> = {}): never {
+  return invalid(message, {
+    operation: index,
+    field: 'operations[' + index + ']' + (field ? '.' + field : ''),
+    ...extra,
+  });
+}
+function normalized(value: unknown, path = ''): any {
+  if (Array.isArray(value)) return value.map((v, i) => normalized(v, path + '[' + i + ']'));
   if (!object(value)) return value;
   const out: JsonObject = {};
   for (const [k, v] of Object.entries(value)) {
-    const key = snake(k);
-    if (Object.hasOwn(out, key)) invalid('Conflicting native field aliases: ' + key);
-    out[key] = normalized(v);
+    const key = snake(k),
+      at = path ? path + '.' + key : key,
+      operation = /^operations\[(\d+)\]/.exec(at)?.[1];
+    if (Object.hasOwn(out, key))
+      invalid('Conflicting native field aliases: ' + key, {
+        ...(operation !== undefined ? {operation: Number(operation)} : {}),
+        field: at,
+      });
+    out[key] = normalized(v, at);
   }
   return out;
 }
@@ -129,7 +152,7 @@ export function googleTargetingKind(plan: CompiledRequest) {
     ? (kind as keyof typeof config)
     : undefined;
 }
-function resource(value: unknown, account: string, kind: string) {
+function resource(value: unknown, account: string, kind: string, index: number, field: string) {
   const composite = ['campaignCriteria', 'adGroupCriteria', 'sharedCriteria', 'campaignSharedSets'].includes(kind);
   if (
     typeof value !== 'string' ||
@@ -137,60 +160,74 @@ function resource(value: unknown, account: string, kind: string) {
       value,
     )
   )
-    invalid('Expected an existing ' + kind + ' resource in the selected customer.');
+    refuse(index, 'Expected an existing ' + kind + ' resource in the selected customer.', field);
   return value;
 }
-function fieldSet(r: JsonObject, allowed: string[]) {
-  for (const k of Object.keys(r)) if (!allowed.includes(k)) invalid('Unqualified or immutable field: ' + k);
+/** `at` is the path of `r` within its operation: '' for the operation itself, 'create' or 'update' for its record. */
+function fieldSet(r: JsonObject, allowed: string[], index: number, at: string) {
+  for (const k of Object.keys(r))
+    if (!allowed.includes(k)) refuse(index, 'Unqualified or immutable field: ' + k, at ? at + '.' + k : k, {allowed});
 }
-function criterion(r: JsonObject, kinds: string[], campaign = false, shared = false) {
+const adScheduleDays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+const adScheduleMinutes = ['ZERO', 'FIFTEEN', 'THIRTY', 'FORTY_FIVE'];
+const keywordMatchTypes = ['EXACT', 'PHRASE', 'BROAD'];
+const sharedListTypes = ['NEGATIVE_KEYWORDS', 'NEGATIVE_PLACEMENTS'];
+function criterion(r: JsonObject, kinds: string[], index: number, campaign = false, shared = false) {
   const supplied = kinds.filter(k => r[k] !== undefined);
-  if (supplied.length !== 1) invalid('Supply exactly one qualified criterion type.');
+  if (supplied.length !== 1) refuse(index, 'Supply exactly one qualified criterion type.', 'create', {allowed: kinds});
   const type = supplied[0]!,
-    v = r[type];
-  if (!object(v)) invalid(type + ' must be a native object.');
-  fieldSet(v, criteria[type]!);
+    v = r[type],
+    at = 'create.' + type;
+  if (!object(v)) refuse(index, type + ' must be a native object.', at);
+  fieldSet(v, criteria[type]!, index, at);
   for (const field of criteria[type]!)
     if (type !== 'ad_schedule' && (typeof v[field] !== 'string' || !v[field].trim()))
-      invalid(type + '.' + field + ' is required as a native string.');
+      refuse(index, type + '.' + field + ' is required as a native string.', at + '.' + field);
   if (type === 'keyword') {
-    if (
-      typeof v.text !== 'string' ||
-      !v.text.trim() ||
-      Buffer.byteLength(v.text) > 1024 ||
-      !['EXACT', 'PHRASE', 'BROAD'].includes(v.match_type)
-    )
-      invalid('Keywords require text and EXACT, PHRASE or BROAD match_type.');
+    if (typeof v.text !== 'string' || !v.text.trim() || Buffer.byteLength(v.text) > 1024)
+      refuse(index, 'Keywords require text and EXACT, PHRASE or BROAD match_type.', at + '.text');
+    if (!keywordMatchTypes.includes(v.match_type))
+      refuse(index, 'Keywords require text and EXACT, PHRASE or BROAD match_type.', at + '.match_type', {
+        allowed: keywordMatchTypes,
+      });
     if (campaign && r.negative !== true)
-      invalid('Campaign-level keywords must be negative. Positive Search keywords belong to an ad group.');
+      refuse(
+        index,
+        'Campaign-level keywords must be negative. Positive Search keywords belong to an ad group.',
+        'create.negative',
+      );
   }
-  if (r.negative !== undefined && typeof r.negative !== 'boolean') invalid('negative must be a boolean.');
+  if (r.negative !== undefined && typeof r.negative !== 'boolean')
+    refuse(index, 'negative must be a boolean.', 'create.negative');
   if (
     ((campaign && ['age_range', 'gender', 'income_range', 'parental_status'].includes(type)) ||
       (type === 'placement' && !shared)) &&
     r.negative !== true
   )
-    invalid(type + ' is only qualified for exclusions in this contract.');
+    refuse(index, type + ' is only qualified for exclusions in this contract.', 'create.negative');
   if (campaign && ['language', 'device', 'ad_schedule'].includes(type) && r.negative === true)
-    invalid(type + ' does not support campaign exclusion through this contract.');
+    refuse(index, type + ' does not support campaign exclusion through this contract.', 'create.negative');
   if (type === 'ad_schedule') {
+    if (!adScheduleDays.includes(v.day_of_week))
+      refuse(index, 'Invalid ad schedule hours or day.', at + '.day_of_week', {allowed: adScheduleDays});
+    if (!Number.isInteger(v.start_hour) || v.start_hour < 0 || v.start_hour > 23)
+      refuse(index, 'Invalid ad schedule hours or day.', at + '.start_hour');
+    if (!Number.isInteger(v.end_hour) || v.end_hour < 0 || v.end_hour > 24)
+      refuse(index, 'Invalid ad schedule hours or day.', at + '.end_hour');
+    if (!adScheduleMinutes.includes(v.start_minute))
+      refuse(index, 'Ad schedules require an increasing same-day interval in quarter hours.', at + '.start_minute', {
+        allowed: adScheduleMinutes,
+      });
+    if (!adScheduleMinutes.includes(v.end_minute))
+      refuse(index, 'Ad schedules require an increasing same-day interval in quarter hours.', at + '.end_minute', {
+        allowed: adScheduleMinutes,
+      });
     if (
-      !['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].includes(v.day_of_week) ||
-      ![v.start_hour, v.end_hour].every(Number.isInteger) ||
-      v.start_hour < 0 ||
-      v.start_hour > 23 ||
-      v.end_hour < 0 ||
-      v.end_hour > 24
-    )
-      invalid('Invalid ad schedule hours or day.');
-    const minutes = ['ZERO', 'FIFTEEN', 'THIRTY', 'FORTY_FIVE'];
-    if (
-      !minutes.includes(v.start_minute) ||
-      !minutes.includes(v.end_minute) ||
       (v.end_hour === 24 && v.end_minute !== 'ZERO') ||
-      v.start_hour * 60 + minutes.indexOf(v.start_minute) * 15 >= v.end_hour * 60 + minutes.indexOf(v.end_minute) * 15
+      v.start_hour * 60 + adScheduleMinutes.indexOf(v.start_minute) * 15 >=
+        v.end_hour * 60 + adScheduleMinutes.indexOf(v.end_minute) * 15
     )
-      invalid('Ad schedules require an increasing same-day interval in quarter hours.');
+      refuse(index, 'Ad schedules require an increasing same-day interval in quarter hours.', at);
   }
   const constants: Record<string, [string, string]> = {
     location: ['geo_target_constant', 'geoTargetConstants'],
@@ -201,13 +238,13 @@ function criterion(r: JsonObject, kinds: string[], campaign = false, shared = fa
   if (constants[type]) {
     const [field, collection] = constants[type]!;
     if (typeof v[field] !== 'string' || !new RegExp('^' + collection + '/[1-9][0-9]*$').test(v[field]))
-      invalid('Use an existing ' + collection + ' constant.');
+      refuse(index, 'Use an existing ' + collection + ' constant.', at + '.' + field);
   }
   if (
     type === 'placement' &&
     (typeof v.url !== 'string' || !v.url.trim() || v.url.length > 250 || /[\r\n]/.test(v.url))
   )
-    invalid('Provide a native placement URL of at most 250 characters.');
+    refuse(index, 'Provide a native placement URL of at most 250 characters.', at + '.url');
   return type;
 }
 export function assertGoogleTargeting(plan: CompiledRequest) {
@@ -217,67 +254,91 @@ export function assertGoogleTargeting(plan: CompiledRequest) {
     account = plan.accountId!,
     body = normalized(plan.body),
     seen = new Set<string>();
-  for (const op of body.operations) {
-    fieldSet(op, ['create', 'update', 'remove', 'update_mask']);
-    const r = op.create ?? op.update;
-    if (r !== undefined && !object(r)) invalid('Mutation records must be native objects.');
+  for (const [index, op] of body.operations.entries()) {
+    fieldSet(op, ['create', 'update', 'remove', 'update_mask'], index, '');
+    const r = op.create ?? op.update,
+      side = op.create !== undefined ? 'create' : 'update';
+    if (r !== undefined && !object(r)) refuse(index, 'Mutation records must be native objects.', side);
     if (op.remove !== undefined) {
-      const id = resource(op.remove, account, kind);
-      if (seen.has(id)) invalid('A target cannot appear twice in a mutation.');
+      const id = resource(op.remove, account, kind, index, 'remove');
+      if (seen.has(id)) refuse(index, 'A target cannot appear twice in a mutation.', 'remove');
       seen.add(id);
       continue;
     }
     if (op.update) {
-      const name = resource(r.resource_name, account, kind);
-      if (seen.has(name)) invalid('A target cannot appear twice in a mutation.');
+      const name = resource(r.resource_name, account, kind, index, 'update.resource_name');
+      if (seen.has(name)) refuse(index, 'A target cannot appear twice in a mutation.', 'update.resource_name');
       seen.add(name);
-      if (typeof op.update_mask !== 'string' || !op.update_mask) invalid('Updates require update_mask.');
+      if (typeof op.update_mask !== 'string' || !op.update_mask)
+        refuse(index, 'Updates require update_mask.', 'update_mask');
       const mask = op.update_mask.split(',').map(snake);
       if (
         !cfg.mutable.length ||
         mask.some((f: string) => !(cfg.mutable as readonly string[]).includes(f)) ||
         new Set(mask).size !== mask.length
       )
-        invalid(
+        refuse(
+          index,
           'The mask contains an immutable or unqualified field. Remove and create a criterion to change its identity.',
+          'update_mask',
+          {allowed: cfg.mutable},
         );
-      fieldSet(r, ['resource_name', ...mask]);
+      fieldSet(r, ['resource_name', ...mask], index, 'update');
     } else {
-      if (op.update_mask !== undefined) invalid('Only updates accept update_mask.');
-      fieldSet(r, [
-        ...cfg.types,
-        ...cfg.mutable,
-        ...(cfg.parent ? [cfg.parent] : []),
-        ...(kind === 'campaignCriteria' || kind === 'adGroupCriteria' ? ['negative'] : []),
-        ...(kind === 'sharedSets' ? ['name', 'type'] : []),
-        ...(kind === 'campaignSharedSets' ? ['shared_set'] : []),
-      ]);
+      if (op.update_mask !== undefined) refuse(index, 'Only updates accept update_mask.', 'update_mask');
+      fieldSet(
+        r,
+        [
+          ...cfg.types,
+          ...cfg.mutable,
+          ...(cfg.parent ? [cfg.parent] : []),
+          ...(kind === 'campaignCriteria' || kind === 'adGroupCriteria' ? ['negative'] : []),
+          ...(kind === 'sharedSets' ? ['name', 'type'] : []),
+          ...(kind === 'campaignSharedSets' ? ['shared_set'] : []),
+        ],
+        index,
+        'create',
+      );
       if (kind === 'campaignCriteria' || kind === 'adGroupCriteria' || kind === 'sharedCriteria') {
-        const t = criterion(r, cfg.types, kind === 'campaignCriteria', kind === 'sharedCriteria');
-        if (t === 'user_list') resource(r.user_list.user_list, account, 'userLists');
-        if (t === 'audience') resource(r.audience.audience, account, 'audiences');
+        const t = criterion(r, cfg.types, index, kind === 'campaignCriteria', kind === 'sharedCriteria');
+        if (t === 'user_list')
+          resource(r.user_list.user_list, account, 'userLists', index, 'create.user_list.user_list');
+        if (t === 'audience') resource(r.audience.audience, account, 'audiences', index, 'create.audience.audience');
       }
-      if (
-        kind === 'sharedSets' &&
-        (!['NEGATIVE_KEYWORDS', 'NEGATIVE_PLACEMENTS'].includes(r.type) ||
-          typeof r.name !== 'string' ||
-          !r.name.trim() ||
-          Buffer.byteLength(r.name) > 255)
-      )
-        invalid('Shared lists require a name and NEGATIVE_KEYWORDS or NEGATIVE_PLACEMENTS type.');
+      if (kind === 'sharedSets') {
+        if (!sharedListTypes.includes(r.type))
+          refuse(
+            index,
+            'Shared lists require a name and NEGATIVE_KEYWORDS or NEGATIVE_PLACEMENTS type.',
+            'create.type',
+            {
+              allowed: sharedListTypes,
+            },
+          );
+        if (typeof r.name !== 'string' || !r.name.trim() || Buffer.byteLength(r.name) > 255)
+          refuse(
+            index,
+            'Shared lists require a name and NEGATIVE_KEYWORDS or NEGATIVE_PLACEMENTS type.',
+            'create.name',
+          );
+      }
       if (cfg.parent)
         resource(
           r[cfg.parent],
           account,
           cfg.parent === 'campaign' ? 'campaigns' : cfg.parent === 'ad_group' ? 'adGroups' : 'sharedSets',
+          index,
+          'create.' + cfg.parent,
         );
-      if (kind === 'campaignSharedSets') resource(r.shared_set, account, 'sharedSets');
+      if (kind === 'campaignSharedSets') resource(r.shared_set, account, 'sharedSets', index, 'create.shared_set');
     }
     if (r.status !== undefined && !['ENABLED', 'PAUSED'].includes(r.status))
-      invalid('Use ENABLED/PAUSED where supported, or a remove operation.');
+      refuse(index, 'Use ENABLED/PAUSED where supported, or a remove operation.', side + '.status', {
+        allowed: ['ENABLED', 'PAUSED'],
+      });
     for (const [k, v] of Object.entries(r))
       if (k.endsWith('_micros') && (typeof v !== 'string' || !/^\d+$/.test(v) || BigInt(v) > 9223372036854775807n))
-        invalid('Bid micros must be nonnegative signed 64-bit decimal strings.');
+        refuse(index, 'Bid micros must be nonnegative signed 64-bit decimal strings.', side + '.' + k);
     if (
       r.bid_modifier !== undefined &&
       (typeof r.bid_modifier !== 'number' ||
@@ -285,7 +346,11 @@ export function assertGoogleTargeting(plan: CompiledRequest) {
         r.bid_modifier < 0 ||
         r.bid_modifier > 10)
     )
-      invalid('bid_modifier must be between 0 and 10; the provider enforces type-specific limits.');
+      refuse(
+        index,
+        'bid_modifier must be between 0 and 10; the provider enforces type-specific limits.',
+        side + '.bid_modifier',
+      );
   }
 }
 export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest[] {
@@ -358,7 +423,7 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
 function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
   if (googleTargetingKind(plan) !== 'adGroupCriteria') return;
   const rows = states.flatMap(s => (s as JsonObject)?.results ?? []).map(r => normalized(r));
-  for (const op of normalized(plan.body).operations) {
+  for (const [index, op] of normalized(plan.body).operations.entries()) {
     const r = op.create;
     if (!r || r.negative === true || r.status === 'PAUSED') continue;
     const row = rows.find(x => x.ad_group?.resource_name === r.ad_group),
@@ -372,7 +437,13 @@ function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
           ', campaign ' +
           (campaign ?? 'unread') +
           '). Under a paused ad group or campaign it may start ENABLED.',
-        {field: 'status', ad_group: r.ad_group, ad_group_status: adGroup ?? null, campaign_status: campaign ?? null},
+        {
+          operation: index,
+          field: 'status',
+          ad_group: r.ad_group,
+          ad_group_status: adGroup ?? null,
+          campaign_status: campaign ?? null,
+        },
       );
   }
 }
@@ -384,7 +455,7 @@ export function validateGoogleTargetingState(plan: CompiledRequest, states: unkn
       .flatMap(s => (s as JsonObject)?.results ?? [])
       .map(r => normalized(r).shared_set)
       .filter(Boolean);
-  for (const op of body.operations) {
+  for (const [index, op] of body.operations.entries()) {
     if (!op.create) continue;
     const r = op.create,
       parent = sets.find(s => s.resource_name === r.shared_set),
@@ -393,7 +464,12 @@ export function validateGoogleTargetingState(plan: CompiledRequest, states: unkn
       throw new MirrorError(
         'INVALID_TARGETING_PARENT',
         'The shared list must be enabled and match the criterion type.',
-        {shared_set: r.shared_set, expected_type: expected},
+        {
+          operation: index,
+          field: 'operations[' + index + '].create.shared_set',
+          shared_set: r.shared_set,
+          expected_type: expected,
+        },
       );
   }
 }
