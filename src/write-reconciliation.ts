@@ -22,7 +22,15 @@ import {fingerprint, optional} from './workspace-core.js';
 import {providerHooks} from './provider-hooks.js';
 import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {ownsRecord} from './actor-identity.js';
-import {mayResolve, pendingUncertainMs, reconciliationFreshMs, retainedReview, writeStatus} from './write-records.js';
+import {
+  liftSupersede,
+  mayResolve,
+  pendingUncertainMs,
+  reconciliationFreshMs,
+  retainedReview,
+  supersedeEnded,
+  writeStatus,
+} from './write-records.js';
 import {object} from './write-common.js';
 import {completedClaimsMentioning, writeClaim} from './job-repository.js';
 import {operationOf} from './review-summary.js';
@@ -82,6 +90,21 @@ const decisive = (classification: unknown) =>
   classification === 'appears_applied' || classification === 'appears_not_applied';
 
 /**
+ * The replacement that seals the review `id` while it stands (R2.5 M2, lead re-review N4), or undefined. A seal whose replacement ended
+ * (rejected, or expired unsent) is lifted here, in the transaction of whoever found it so: the review is then reconcilable again. The
+ * check that finds it so is being made now, so no other is queued for it (a status queues one, and so does the transaction that rejects
+ * or releases the replacement: src/write-review.ts).
+ */
+function sealedBy(store: Store, tenant: string, id: string, record: JsonObject | undefined): string | undefined {
+  const by = record?.superseded_by;
+  if (typeof by !== 'string' || !by) return undefined;
+  const ended = supersedeEnded(store, tenant, by);
+  if (!ended) return by;
+  liftSupersede(store, tenant, id, by, ended);
+  return undefined;
+}
+
+/**
  * What the worker records when it cannot check an uncertain write as the person who executed it, because their access, the
  * account or the login is gone, or the check itself is refused: nothing was read, and the check is not tried again. The
  * person's own `reconcile`, or another administrator's, still works. A decided check, or a replacement, is left as it is.
@@ -97,7 +120,11 @@ export function recordStoppedCheck(
   // Read and written in one transaction: a record that settled the write (decisive, replaced, accepted) is never written over.
   store.transaction(() => {
     const existing = optional(store, tenant, reconciliationKind, reviewId);
-    if (existing && (decisive(existing.classification) || existing.superseded_by || existing.accepted_at)) return;
+    if (
+      existing &&
+      (decisive(existing.classification) || sealedBy(store, tenant, reviewId, existing) || existing.accepted_at)
+    )
+      return;
     const at = Date.now(),
       reconciliationId = randomUUID();
     store.putDocument(tenant, reconciliationKind, reviewId, {
@@ -230,17 +257,24 @@ export class WriteReconciler {
       fail('RECONCILIATION_UNAVAILABLE', 'Reconcile each part of a group by its own review_id; status lists them.', {
         next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: review.id}},
       });
-    // Replacing a write is permanent (R2.5 M2, lead review S2-2): a review that a new review replaced stays uncertain at its key,
-    // which is never reset, but it is settled. It is never reconciled, accepted or replaced again, so the replacement's object is
-    // never taken for its own and a second replacement is never prepared.
-    const replacedBy = optional(this.store, actor.tenantId, reconciliationKind, review.id)?.superseded_by;
-    if (typeof replacedBy === 'string' && replacedBy)
+    // Replacing a write is permanent while the replacement stands (R2.5 M2, lead review S2-2): a review that a new review replaced stays
+    // uncertain at its key, which is never reset, but it is settled. It is never reconciled, accepted or replaced again, so the
+    // replacement's object is never taken for its own and a second replacement is never prepared. It stands only while the replacement
+    // can still settle the matter: one that was rejected, or expired unsent, no longer seals the review, and the check that finds
+    // it so lifts it (lead re-review N4; the check being made now needs no queued one).
+    const sealed = sealedBy(
+      this.store,
+      actor.tenantId,
+      review.id as string,
+      optional(this.store, actor.tenantId, reconciliationKind, review.id),
+    );
+    if (sealed)
       fail(
         'RECONCILIATION_UNAVAILABLE',
         'This write was already replaced by a new review (superseded_by), so it is settled: it is never reconciled, accepted or replaced again. Follow the replacement (next_call).',
         {
-          superseded_by: replacedBy,
-          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: replacedBy}},
+          superseded_by: sealed,
+          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: sealed}},
         },
       );
     const claim = writeClaim(this.store, actor.tenantId, review.id);
@@ -592,12 +626,13 @@ export class WriteReconciler {
     const written = this.store.transaction(() => {
       const now = optional(this.store, actor.tenantId, reconciliationKind, id),
         claim = writeClaim(this.store, actor.tenantId, id),
-        open = claim?.state === 'uncertain' || claim?.state === 'pending';
-      if (now?.superseded_by || now?.accepted_at || !open) {
+        open = claim?.state === 'uncertain' || claim?.state === 'pending',
+        sealed = sealedBy(this.store, actor.tenantId, id, now);
+      if (sealed || now?.accepted_at || !open) {
         this.store.appendAudit(actor.tenantId, id, {
           event: 'write_reconciliation_dropped',
           review_id: id,
-          reason: now?.superseded_by
+          reason: sealed
             ? 'superseded'
             : now?.accepted_at || claim?.state === 'complete'
               ? 'accepted'
@@ -636,7 +671,7 @@ export class WriteReconciler {
       existing = optional(this.store, actor.tenantId, reconciliationKind, reviewId);
     if (
       existing &&
-      (existing.superseded_by ||
+      (sealedBy(this.store, actor.tenantId, reviewId, existing) ||
         (decisive(existing.classification) && Date.now() - Number(existing.checked_at) <= reconciliationFreshMs))
     )
       return {review_id: reviewId, status: 'settled', attempts: attempt, classification: existing.classification};
@@ -664,9 +699,10 @@ export class WriteReconciler {
         'A newer reconciliation of this write exists. Show the user its result and accept that one.',
         {reconciliation_id: record.reconciliation_id, ...again},
       );
-    if (record.superseded_by)
+    const sealed = sealedBy(this.store, actor.tenantId, id, record);
+    if (sealed)
       fail('RECONCILIATION_UNAVAILABLE', 'This write was already replaced by a new review (superseded_by).', {
-        superseded_by: record.superseded_by,
+        superseded_by: sealed,
       });
     if (record.classification !== classification)
       fail(

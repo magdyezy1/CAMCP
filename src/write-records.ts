@@ -98,13 +98,93 @@ export function retainedReview(store: Store, actor: Actor, reviewId: unknown): {
   store.resolveConnection(actor, gateway, account, review.connection_id);
   return {review, group: !!group};
 }
+/** A reconciliation record as it was before a supersede sealed it. */
+const unsealed = (record: JsonObject): JsonObject => {
+  const {superseded_by: _by, superseded_at: _at, ...kept} = record;
+  return kept;
+};
+/**
+ * Whether the supersede that names `replacementId` (R2.5 M2, lead re-review N4) is over: a review that replaces an uncertain write seals
+ * it only while the replacement can still settle the matter, that is while the replacement is unexpired and unclaimed, or holds a claim
+ * that is not rejected (pending, uncertain or complete: it may have made the object). It ended when the provider refused the
+ * replacement without applying it (`rejected`: its key is retired), or when it was never sent and its window passed, or it is gone
+ * (`expired`). Undefined while it is in force. A release of the replacement's claim is lifted where it happens (`liftSupersede`).
+ */
+export function supersedeEnded(
+  store: Store,
+  tenant: string,
+  replacementId: string,
+  now = Date.now(),
+): 'rejected' | 'expired' | undefined {
+  const claim = writeClaim(store, tenant, replacementId);
+  if (claim) return claim.state === 'rejected' ? 'rejected' : undefined;
+  const replacement = optional(store, tenant, 'write_review', replacementId);
+  return replacement && Number(replacement.expires_at) > now ? undefined : 'expired';
+}
+/** The replacement that sealed the review `oldId` and ended (why), or undefined while its supersede is in force, or when it has none. */
+export function endedSeal(
+  store: Store,
+  tenant: string,
+  oldId: string,
+  now = Date.now(),
+): {replacement: string; why: 'rejected' | 'expired'} | undefined {
+  const by = optional(store, tenant, 'write_reconciliation', oldId)?.superseded_by,
+    why = typeof by === 'string' && by ? supersedeEnded(store, tenant, by, now) : undefined;
+  return typeof by === 'string' && why ? {replacement: by, why} : undefined;
+}
+/** The replacement a reconciliation record's supersede names while it is in force; undefined once it ended, or when there is none. */
+export function supersededBy(
+  store: Store,
+  tenant: string,
+  record: JsonObject | undefined,
+  now = Date.now(),
+): string | undefined {
+  const by = record?.superseded_by;
+  return typeof by === 'string' && by && !supersedeEnded(store, tenant, by, now) ? by : undefined;
+}
+/**
+ * Lifts the supersede of the uncertain write `oldId` by `replacementId` (R2.5 M2, lead re-review N4), when the replacement was rejected,
+ * released before it was sent, or expired unsent: clears `superseded_by` from the old review's reconciliation, audits why, and
+ * queues the old review's check again through `queue` (which says whether it did). Runs in one transaction, so a caller that
+ * rejects or releases the replacement lifts it in the same one. Returns whether the record named that replacement.
+ */
+export function liftSupersede(
+  store: Store,
+  tenant: string,
+  oldId: string,
+  replacementId: string,
+  why: 'rejected' | 'released' | 'expired',
+  queue?: () => boolean,
+): boolean {
+  return store.transaction(() => {
+    const record = optional(store, tenant, 'write_reconciliation', oldId);
+    if (!record || record.superseded_by !== replacementId) return false;
+    const {id: _id, revision: _revision, ...rest} = unsealed(record),
+      old = optional(store, tenant, 'write_review', oldId),
+      open = ['uncertain', 'pending'].includes(String(writeClaim(store, tenant, oldId)?.state));
+    store.putDocument(tenant, 'write_reconciliation', oldId, {...rest, updated_at: Date.now()});
+    store.appendAudit(tenant, oldId, {
+      event: 'write_supersede_lifted',
+      review_id: oldId,
+      replacement_id: replacementId,
+      reason: why,
+      check_queued: open && queue ? queue() : false,
+      gateway: old?.plan?.gateway,
+      account_id: old?.plan?.accountId ?? null,
+      connection_id: old?.connection_id,
+    });
+    return true;
+  });
+}
 /** The state of one retained review, from the store alone. */
 function recordState(store: Store, tenant: string, id: string, review: JsonObject, now: number) {
   const claim = claimRow(store, tenant, id),
     result = claim?.state === 'complete' && typeof claim.result === 'string' ? JSON.parse(claim.result) : undefined,
     journal = optional(store, tenant, 'operation_journal', id),
     verification = optional(store, tenant, 'write_verification', id),
-    reconciliation = optional(store, tenant, 'write_reconciliation', id);
+    stored = optional(store, tenant, 'write_reconciliation', id),
+    // A supersede whose replacement ended is not shown (a status lifts it, src/write-review.ts): only one in force seals the review.
+    reconciliation = stored?.superseded_by && !supersededBy(store, tenant, stored, now) ? unsealed(stored) : stored;
   const state = writeRecordState(
     {
       claim_state: claim?.state,

@@ -44,7 +44,7 @@ import {
   targetWaitMs,
   uncertainNext,
 } from './write-common.js';
-import {writeStatus, type WriteOrigin} from './write-records.js';
+import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler, findCreated, providerFailure} from './write-reconciliation.js';
 import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
@@ -771,8 +771,46 @@ export class WriteReviewService {
     for (const key of Object.keys(input))
       if (!accepted.includes(key))
         fail('INVALID_ARGUMENT', input.action + ' takes ' + accepted.join(', ') + '.', {field: key, accepted});
-    if (input.action === 'status') return writeStatus(this.store, actor, input.review_id);
+    if (input.action === 'status') {
+      this.liftEndedSeal(actor, input.review_id);
+      return writeStatus(this.store, actor, input.review_id);
+    }
     return this.reconciler().call(input, actor);
+  }
+  /**
+   * The old review's automatic check is queued again once a supersede of it was lifted (R2.5 M2, lead re-review N4), as the person
+   * who lifts it (bindJobActor is sealed to the review the job is for). A reader cannot run a check, and a check that cannot be queued
+   * never changes what the caller is told: the audit row of the lift says whether one was.
+   */
+  private requeueCheck(actor: Actor, oldId: string): boolean {
+    if (actor.role === 'reader') return false;
+    try {
+      queueReconcile(this.store, actor.tenantId, oldId, this.store.bindJobActor(actor, oldId));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Lifts the seal a replacement review put on an uncertain write, in the transaction that rejects or releases that replacement
+   * (lead re-review N4): the old review is reconcilable and acceptable again, and its check is queued again.
+   */
+  private liftReplacedSeal(actor: Actor, review: JsonObject, replacementId: string, why: 'rejected' | 'released') {
+    const old = review.supersedes_uncertain;
+    if (typeof old === 'string' && old)
+      liftSupersede(this.store, actor.tenantId, old, replacementId, why, () => this.requeueCheck(actor, old));
+  }
+  /**
+   * A status finds a seal whose replacement expired without a claim (lead re-review N4) and lifts it, before the record is read: the
+   * review is uncertain again, and its check is queued again. Only a reader of that review lifts it (the access check is the status').
+   */
+  private liftEndedSeal(actor: Actor, reviewId: unknown) {
+    const {review, group} = retainedReview(this.store, actor, reviewId);
+    if (group) return;
+    const id = review.id as string,
+      ended = endedSeal(this.store, actor.tenantId, id);
+    if (ended)
+      liftSupersede(this.store, actor.tenantId, id, ended.replacement, ended.why, () => this.requeueCheck(actor, id));
   }
   /** prepare and inspect: the reviewed request, its current state and what executing it needs, frozen as a review. */
   private async prepareReview({input, actor, evidence, origin}: ReviewPreparation): Promise<unknown> {
@@ -1563,7 +1601,10 @@ export class WriteReviewService {
             connection_id: c.id,
           });
           // The claim is gone, and so is the watch it queued (R2.5 M2, lead review S3-4).
-          if (released) unwatchWrite(this.store, actor.tenantId, input.review_id);
+          if (released) {
+            unwatchWrite(this.store, actor.tenantId, input.review_id);
+            this.liftReplacedSeal(actor, review, input.review_id, 'released');
+          }
           return released;
         });
       // A definitive refusal the family proves applied nothing (CMP-04) is rejected, not uncertain: the key is retired
@@ -1582,7 +1623,10 @@ export class WriteReviewService {
             connection_id: c.id,
             http_status: Number((e as MirrorError).details.http_status),
           });
-          if (retired) unwatchWrite(this.store, actor.tenantId, input.review_id);
+          if (retired) {
+            unwatchWrite(this.store, actor.tenantId, input.review_id);
+            this.liftReplacedSeal(actor, review, input.review_id, 'rejected');
+          }
           return retired;
         });
       if (!completed && !unsent && !rejected) {

@@ -6,7 +6,7 @@ import {normalizeAccount} from './scope.js';
 import {optional} from './workspace-core.js';
 import {openWriteClaims} from './job-repository.js';
 import {createsObjects, findCreated} from './write-reconciliation.js';
-import {pendingUncertainMs, writeStatus} from './write-records.js';
+import {pendingUncertainMs, supersededBy, writeStatus} from './write-records.js';
 import {fail} from './write-common.js';
 
 /**
@@ -125,7 +125,9 @@ export function earlierCreates(
           claimedAt: Number(claim.created_at),
         }).some(key => mine.has(key));
     if (!identical && !alike) continue;
-    if (optional(store, actor.tenantId, 'write_reconciliation', id)?.superseded_by) continue;
+    // A review that a replacement seals holds nothing unresolved, while that replacement stands (lead re-review N4): once it was rejected
+    // or expired unsent, the old create may have made its object, and it counts again.
+    if (supersededBy(store, actor.tenantId, optional(store, actor.tenantId, 'write_reconciliation', id), now)) continue;
     const at = Number(claim.created_at);
     if (claim.state === 'complete') {
       // A create the provider reported as failed made nothing.
@@ -209,7 +211,8 @@ export function repeatedCreateWarning(completed: EarlierCreate[]): JsonObject {
  * either was sent were invisible to the guard at prepare. A create is refused when an identical one is unresolved (the earlier review
  * is named, as at prepare), or completed in the last ten minutes when this review carried no warning for it: the person sees the
  * warning first, by preparing again (the refusal's own code, with its call), and may still want two. The review that replaces an
- * uncertain write is excused for that one, as at prepare.
+ * uncertain write is excused for that one only while its seal stands (a sealed review holds nothing unresolved: `earlierCreates`); once
+ * the seal was lifted (the replacement was released and the old write counts again, lead re-review N4), it is not excused.
  */
 export function assertCreateNotRepeated(
   store: Store,
@@ -220,7 +223,7 @@ export function assertCreateNotRepeated(
   again: JsonObject,
 ): void {
   if (!createsObjects(plan)) return;
-  const {unresolved, completed} = earlierCreates(store, actor, plan, [reviewId, review.supersedes_uncertain]);
+  const {unresolved, completed} = earlierCreates(store, actor, plan, [reviewId]);
   if (unresolved.length) refuseRepeatedCreate(unresolved, {submission: 'not_sent'});
   if (completed.length && !review.duplicate_warning)
     fail(
