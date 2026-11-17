@@ -106,6 +106,44 @@ const shownRequest = (plan: CompiledRequest): unknown => {
   const shown = reviewHooks(plan.gateway)?.shownRequest;
   return shown ? shown(plan) : plan;
 };
+/** The most records the locator checks one by one (R2.5 M3, L5-10): one shape check each. */
+const locatorMaxRecords = 100;
+/**
+ * The generic locator (R2.5 M3, L5-10): a refusal of a request that lists several records and names none of them (no
+ * `details.operation`) is for one of them, and 19 records cost the agent a guess. When the provider's record list
+ * (`writes.batch`: Google Ads' operations, a Snapchat record list) holds 2 to 100 records, the shape check is run on each
+ * record alone, in order, and the first that is refused with the same code gives the refusal its `details.operation`. Nothing
+ * else of the refusal changes: not its code, its message or its status. Only the list is kept in a record's request, so a
+ * refusal of the request itself (a body field, the length of the list) is reproduced by no record and names none, as does a
+ * refusal that needs several records at once (a target named twice). A request that temporary names link, and a build, have
+ * no record list. Inspect and prepare only: an execute checks the stored request as a whole and never slices it.
+ */
+function locateRefusedRecord(plan: CompiledRequest, refusal: unknown): void {
+  if (!(refusal instanceof MirrorError) || refusal.details.operation !== undefined) return;
+  const body =
+      plan.body && typeof plan.body === 'object' && !Array.isArray(plan.body) ? (plan.body as JsonObject) : undefined,
+    batch = body ? reviewHooks(plan.gateway)?.batch?.(body) : undefined;
+  if (!batch || batch.items.length < 2 || batch.items.length > locatorMaxRecords) return;
+  for (const [index, record] of batch.items.entries()) {
+    try {
+      assertWriteShape({...plan, body: {[batch.key]: [record]}});
+    } catch (e) {
+      if (e instanceof MirrorError && e.code === refusal.code) {
+        refusal.details = {...refusal.details, operation: index};
+        return;
+      }
+    }
+  }
+}
+/** The shape check of inspect and prepare, which also names the record a refusal of a record list is for. */
+function assertLocatedShape(plan: CompiledRequest): void {
+  try {
+    assertWriteShape(plan);
+  } catch (e) {
+    locateRefusedRecord(plan, e);
+    throw e;
+  }
+}
 /**
  * The `request` of an inspect or prepare answer, for the AI client to show the person who approves it (P2A-02). The text
  * of an ad is whatever its preparer wrote, and the frozen plan sends all of it, so it is shown through the credential
@@ -915,7 +953,7 @@ export class WriteReviewService {
       }
       try {
         this.people(plan, input, true);
-        assertWriteShape(plan);
+        assertLocatedShape(plan);
         familyOf(plan)?.available?.(plan);
         const reads = snapshotPlans(plan, this.registry),
           // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed. A plan whose
@@ -996,7 +1034,7 @@ export class WriteReviewService {
       deduped = reviewHooks(plan.gateway)?.dedupeBody?.(plan, reviewId);
     if (deduped) plan.body = deduped;
     this.people(plan, input);
-    assertWriteShape(plan);
+    assertLocatedShape(plan);
     familyOf(plan)?.available?.(plan);
     const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
     // A replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).

@@ -37,6 +37,23 @@ export const needsGroup = (gateway: unknown, args: unknown) =>
  * records"), not of a family whose own limit differs (100 recommendations, 500 listing groups) or of a text length. */
 export const groupLimitRefusal = (e: unknown) =>
   e instanceof MirrorError && /\b1[–-]25\b(?!\s*(?:characters|UTF))/.test(e.message);
+/**
+ * A refusal of one part names its operation by the part's own index, and the group's caller counted the whole list: the 28th
+ * record is the third of its part (R2.5 M3, L5-10). The index, and the one a field path carries (`operations[2].create.x`),
+ * become the place in the whole list. Anything else of the refusal, and any refusal that names no operation, is as it was.
+ */
+function withGroupIndex(error: unknown, offset: number): unknown {
+  if (!(error instanceof MirrorError) || offset === 0 || !Number.isInteger(error.details.operation)) return error;
+  const {operation, field} = error.details as {operation: number; field?: unknown};
+  error.details = {
+    ...error.details,
+    operation: operation + offset,
+    ...(typeof field === 'string'
+      ? {field: field.replace(/^operations\[(\d+)\]/, (_, n: string) => 'operations[' + (Number(n) + offset) + ']')}
+      : {}),
+  };
+  return error;
+}
 /** The arguments of each part, in order; the arguments themselves when they are not split. */
 export function groupParts(gateway: unknown, args: JsonObject): JsonObject[] {
   const batch = needsGroup(gateway, args) ? splittableBatch(gateway, args)! : undefined;
@@ -117,7 +134,11 @@ export class WriteGroups {
       // Each part is an ordinary review. If one cannot be prepared, the group is refused: unexecuted part reviews
       // simply expire.
       const started = performance.now();
-      parts.push(await this.reviewed({...input, arguments: args}, actor));
+      try {
+        parts.push(await this.reviewed({...input, arguments: args}, actor));
+      } catch (e) {
+        throw withGroupIndex(e, i * groupPartSize);
+      }
       slowest = Math.max(slowest, performance.now() - started);
     }
     // The parts together are one change for the owner's spending caps (WRT-04): each part counts the earlier parts'
