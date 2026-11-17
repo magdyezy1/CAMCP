@@ -11,8 +11,9 @@ import type {JsonObject} from './types.js';
  *   (`brand_guidelines_enabled: false`), so the business name and logos link to the asset group and every minimum can
  *   be counted here. Brand-guideline campaigns (business name and logos as campaign assets) are not this contract.
  * - Each new asset group links its minimum assets in the same build: the pinned requirements below, sourced from
- *   Google's "Performance Max asset requirements" page as read in the engineering review (accessed 2026-10-08) and
- *   pinned in tests/fixtures/google-pmax-asset-requirements.json, including at least one short description (a
+ *   Google's "Performance Max asset requirements" page as read in the engineering review (accessed 2026-10-08), read
+ *   again in full on 2026-11-17 (R2.5 M3, Q6: two maxima differed and are re-pinned) and pinned in
+ *   tests/fixtures/google-pmax-asset-requirements.json, including at least one short description (a
  *   DESCRIPTION of at most 60 characters; the pinned v25 Discovery document lists SHORT_DESCRIPTION_REQUIRED, "At
  *   least one short description asset is required for a valid asset group"). A missing minimum is refused before any
  *   request; finer rules (image ratios and sizes, policy, duplicate text) stay with Google, whose refusal leaves nothing.
@@ -27,7 +28,7 @@ export const pmaxAssetRequirements: {
   short_description: {field_type: string; max_length: number; min: number};
 } = {
   source: 'https://developers.google.com/google-ads/api/performance-max/asset-requirements',
-  accessed: '2026-10-08',
+  accessed: '2026-11-17',
   fields: {
     HEADLINE: {min: 3, max: 15, max_length: 30, asset_type: 'TEXT'},
     LONG_HEADLINE: {min: 1, max: 5, max_length: 90, asset_type: 'TEXT'},
@@ -37,8 +38,10 @@ export const pmaxAssetRequirements: {
     SQUARE_MARKETING_IMAGE: {min: 1, max: 20, asset_type: 'IMAGE'},
     PORTRAIT_MARKETING_IMAGE: {min: 0, max: 20, asset_type: 'IMAGE'},
     LOGO: {min: 1, max: 5, asset_type: 'IMAGE'},
-    LANDSCAPE_LOGO: {min: 0, max: 5, asset_type: 'IMAGE'},
-    YOUTUBE_VIDEO: {min: 0, max: 5, asset_type: 'YOUTUBE_VIDEO'},
+    // Q6, owner decision 2026-11-17: the page read that day gives these two maxima as 20 and 15 (the 2026-10-08 transcription
+    // had 5 and 5). `combined` below is unchanged: the page states no combined cap, so its two caps stay UNVERIFIED.
+    LANDSCAPE_LOGO: {min: 0, max: 20, asset_type: 'IMAGE'},
+    YOUTUBE_VIDEO: {min: 0, max: 15, asset_type: 'YOUTUBE_VIDEO'},
     CALL_TO_ACTION_SELECTION: {min: 0, max: 1, asset_type: 'CALL_TO_ACTION'},
   },
   combined: [

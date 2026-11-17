@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
-import {pmaxAssetRequirements} from '../dist/src/google-pmax-build.js';
+import {assertPmaxBuild, pmaxAssetRequirements} from '../dist/src/google-pmax-build.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 import {google, pmaxAdmin as admin, pmaxCustomer as setup} from './fixtures/google-pmax-data.mjs';
 const text = (n, value) => ({
@@ -230,4 +230,39 @@ test('an owner policy that forbids activation refuses the enabled asset group; a
   assert.equal(x.mutates.length, 0);
   const paused = await x.prepare(pmax({group: {status: 'PAUSED'}}));
   assert.equal(paused.success, true, JSON.stringify(paused).slice(0, 800));
+});
+
+// R2.5 M3, Q6 (the lead's decision of 2026-11-17): the pinned maxima follow Google's asset-requirements page as read again on
+// 2026-11-17, in full and not through a summary. It allows up to 15 YOUTUBE_VIDEO per asset group; the 2026-10-08 transcription
+// said 5, so a build Google accepts was refused here before any request. These run the build's own stateless rules.
+const operationKinds = {
+  campaign_budget_operation: 'campaignBudgets',
+  campaign_operation: 'campaigns',
+  campaign_criterion_operation: 'campaignCriteria',
+  asset_operation: 'assets',
+  asset_group_operation: 'assetGroups',
+  asset_group_asset_operation: 'assetGroupAssets',
+  asset_group_signal_operation: 'assetGroupSignals',
+};
+/** The build's own view of its operations (src/google-atomic-builds.ts pmaxOps), for the stateless rules. */
+const buildOps = operations =>
+  operations.map((raw, index) => {
+    const key = Object.keys(raw)[0];
+    return {
+      index,
+      kind: operationKinds[key],
+      create: raw[key].create,
+      ...(raw[key].create.resource_name ? {temp: raw[key].create.resource_name} : {}),
+    };
+  });
+const videoLinks = n => Array.from({length: n}, (_, i) => link('customers/123/assets/' + (800 + i), 'YOUTUBE_VIDEO'));
+
+test('a build links up to 15 videos, the most Google documents per asset group, and refuses a 16th', () => {
+  assert.doesNotThrow(() => assertPmaxBuild(buildOps([...pmax(), ...videoLinks(15)])));
+  assert.throws(
+    () => assertPmaxBuild(buildOps([...pmax(), ...videoLinks(16)])),
+    e =>
+      assertRefused(e, 'PMAX_ASSET_MINIMUMS') &&
+      e.details.outside_range.some(r => r.field_type === 'YOUTUBE_VIDEO' && r.max === 15 && r.found === 16),
+  );
 });
