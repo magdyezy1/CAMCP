@@ -481,6 +481,61 @@ const responses = (result: JsonObject | TransportResult) => {
   const d = object(result.data) ? result.data : {};
   return Array.isArray(d.mutateOperationResponses) ? (d.mutateOperationResponses as unknown[]) : [];
 };
+/** A resource a build creates that Google keeps unique by name, and what it was created under. */
+export interface BuildAnchor {
+  /** The index of its operation. */
+  op: number;
+  /** The GAQL resource (campaign_budget, campaign, ad_group, asset_group) and its name in the request. */
+  resource: string;
+  name: string;
+  /** Its temporary name, when later operations name it. */
+  temp?: string;
+  /** What it was created under: the field that names the parent, and what the request put there. */
+  parent?: {field: string; ref: string};
+}
+/**
+ * What the lookup of an uncertain build needs of its request (R2.5 M2, L2-13): the field each operation's result answers
+ * in, and the resources the build creates that Google keeps unique by name. A campaign's name is unique among those not
+ * removed, an ad group's and an asset group's within their campaign, and a budget's when it is shared (the default; an
+ * unshared budget takes its name from its campaign, so its own proves nothing). A build is all or nothing, so finding the
+ * set it named, each under the parent it gave it, is finding the build. Undefined for a request that is no valid build.
+ */
+export function googleBuildLookup(
+  plan: CompiledRequest,
+): {operations: {result: string}[]; anchors: BuildAnchor[]; anchorTemps: string[]} | undefined {
+  let ops: Op[];
+  try {
+    ops = operations(plan);
+  } catch {
+    return undefined;
+  }
+  const parentOf: Record<string, string> = {
+      campaigns: 'campaign_budget',
+      adGroups: 'campaign',
+      assetGroups: 'campaign',
+    },
+    anchored = new Set(['campaignBudgets', 'campaigns', 'adGroups', 'assetGroups']),
+    anchors: BuildAnchor[] = [];
+  for (const op of ops) {
+    const name = op.create.name;
+    if (!anchored.has(op.type.kind) || typeof name !== 'string' || !name) continue;
+    if (op.type.kind === 'campaignBudgets' && op.create.explicitly_shared === false) continue;
+    const field = parentOf[op.type.kind],
+      ref = field ? op.create[field] : undefined;
+    anchors.push({
+      op: op.index,
+      resource: op.type.resource,
+      name,
+      ...(op.temp ? {temp: op.temp} : {}),
+      ...(field && typeof ref === 'string' ? {parent: {field, ref}} : {}),
+    });
+  }
+  return {
+    operations: ops.map(op => ({result: op.type.result})),
+    anchors,
+    anchorTemps: anchors.flatMap(a => (a.temp ? [a.temp] : [])),
+  };
+}
 /** Every operation has its result, in order, naming a resource of its type in this customer. */
 export function googleAtomicOutcome(plan: CompiledRequest, result: TransportResult): boolean {
   const ops = operations(plan),

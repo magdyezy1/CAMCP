@@ -49,4 +49,6 @@ export const RELEASABLE_JOB_KINDS: ReadonlySet<string> = new Set([
   'write_verification',
   // DEC-02 outcome review: a guided capture and a local comparison; a rerun captures again.
   'allocation_outcome',
+  // R2.5 M2: the automatic check of an uncertain write reads the provider and sends nothing, so a rerun reads again.
+  'write_reconcile',
 ]);

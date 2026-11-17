@@ -82,6 +82,7 @@ import {REPORT_JOB_ATTEMPT_LIMIT} from './job-leases.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqualWindow} from './report-compare.js';
 import {allocationOutcomeJob, allocationOutcomeKind} from './allocation-outcome.js';
+import {writeReconcileKind} from './write-reconcile-job.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
@@ -1898,6 +1899,8 @@ export class ReportingOverview {
         input,
         leaseCheck,
       );
+    // R2.5 M2: an uncertain write's automatic read-only check (src/write-reconcile-job.ts).
+    if (kind === writeReconcileKind) return this.service.reconcileWriteJob(tenant, input, leaseCheck);
     if (kind !== 'report_overview') return this.service.verificationJob(tenant, kind, input);
     try {
       return await this.snapshot(tenant, input, leaseCheck);

@@ -2008,11 +2008,17 @@ export class Store {
       )
       .run(key, until);
   }
-  retryJob(id: string, leaseToken: string, error: unknown, delayMs: number) {
+  /**
+   * Returns a running job to the queue after `delayMs` (one second to a day). Its turn counts as an attempt unless `countAttempt` is
+   * false: a turn that read nothing (every read was refused before it was sent, R2.5 M2 lead re-review N6) gives its attempt back.
+   */
+  retryJob(id: string, leaseToken: string, error: unknown, delayMs: number, countAttempt = true) {
     const now = Date.now(),
       r = this.db
         .prepare(
-          "UPDATE jobs SET state='queued',error=?,available_at=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?",
+          "UPDATE jobs SET state='queued',error=?,available_at=?," +
+            (countAttempt ? '' : 'attempts=max(0,attempts-1),') +
+            "lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?",
         )
         .run(
           JSON.stringify(redact(error)),

@@ -604,12 +604,13 @@ test('a create whose response was lost is found through the Google lookup; one t
     assert.deepEqual(found.data.observed_ids, [budgetName(101)]);
     assert.ok(f.reads.some(q => /campaign_budget\.name IN \('Synthetic 0'\)/.test(q)));
 
-    const missing = (await f.creates(1, 50000000)).data.review_id;
+    // The second create has another name: a create of the first one's name is held back at prepare while the first is uncertain
+    // (R2.5 M2, L5-06, N2), and this test is about the two lookups, which look by the frozen name. Only the first create exists, so the
+    // lookup of the second finds nothing.
+    const missing = (await f.creates(1, 60000000, 'Missing')).data.review_id;
     f.hooks.respond = lost;
     await f.execute(missing);
     f.hooks.respond = undefined;
-    // Only the first create exists; its budget is removed so this lookup by the same frozen name finds nothing.
-    f.names.delete(budgetName(101));
     const absent = await quick(() => f.write({action: 'reconcile', review_id: missing}));
     assert.equal(absent.data.classification, 'appears_not_applied', JSON.stringify(absent.data));
     assert.equal(f.writes.length, 2, 'each create was sent once');

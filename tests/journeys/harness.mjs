@@ -265,6 +265,8 @@ export const responseFaults = {
   },
 };
 
+/** A time as Meta writes `created_time` (ISO 8601 with a numeric offset). */
+export const metaStamp = (ms = Date.now()) => new Date(ms).toISOString().replace(/\.\d+Z$/, '+0000');
 const formValue = value => {
   try {
     return /^[[{]|^(?:true|false)$/.test(value) ? JSON.parse(value) : value;
@@ -286,6 +288,10 @@ export function syntheticProviders() {
     mutations: 0,
     egress_refused: 0,
     lost: false,
+    // A lost create the provider did not apply leaves no campaign (J14); the default is the one every journey had: it applied it.
+    lostApplied: true,
+    // Meta lists an account's campaigns, each with the creation time it stamped (J14, the reconciliation of a lost create).
+    campaignList: false,
     outage: false,
     accountStatus: 1,
     insightsPaging: false,
@@ -410,6 +416,12 @@ export function syntheticProviders() {
           : {}),
       });
     if (method === 'GET') {
+      if (state.campaignList && url.pathname.endsWith('/campaigns'))
+        return Response.json({
+          data: [...state.records.values()]
+            .filter(record => typeof record.name === 'string' && record.created_time)
+            .map(({id: campaign, name, created_time}) => ({id: campaign, name, created_time})),
+        });
       if (/^act_\d+$/.test(id))
         return Response.json({
           id,
@@ -426,8 +438,13 @@ export function syntheticProviders() {
         [...new URLSearchParams(String(init.body ?? ''))].map(([k, v]) => [k, formValue(v)]),
       ),
       created = String(state.next++);
-    state.records.set(created, {id: created, ...body});
-    // The provider applied the create; the lost response leaves its outcome unknown to AMCP.
+    // The provider applied the create (unless a journey says it did not); the lost response leaves its outcome unknown to AMCP.
+    if (!(state.lost && state.lostApplied === false))
+      state.records.set(created, {
+        id: created,
+        ...body,
+        ...(state.campaignList ? {created_time: metaStamp()} : {}),
+      });
     if (state.lost) throw new TypeError('fetch failed');
     return Response.json({id: created});
   };

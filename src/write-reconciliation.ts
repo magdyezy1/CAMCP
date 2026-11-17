@@ -10,6 +10,7 @@ import {MirrorError, connectorReadOnly, readOnlyDeployment} from './errors.js';
 import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
+import {runWithQuotaPurpose} from './provider-quota.js';
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {verificationReads, normalize, differing, entity} from './verification-reads.js';
@@ -19,11 +20,20 @@ import {stateRead} from './write-snapshots.js';
 import {fingerprint, optional} from './workspace-core.js';
 // Each provider's created-resource lookups and named targets (ARC-01 phase B, wave 4c): its adapter's `writes` hooks.
 import {providerHooks} from './provider-hooks.js';
-import type {CreatedLookup, StateReadBuilder} from './provider-adapter.js';
+import type {CreatedLookup, CreatedLookupContext, StateReadBuilder} from './provider-adapter.js';
 import {ownsRecord} from './actor-identity.js';
-import {mayResolve, pendingUncertainMs, retainedReview, writeStatus} from './write-records.js';
+import {
+  liftSupersede,
+  mayResolve,
+  pendingUncertainMs,
+  reconciliationFreshMs,
+  retainedReview,
+  supersedeEnded,
+  writeStatus,
+} from './write-records.js';
 import {object} from './write-common.js';
-import {writeClaim} from './job-repository.js';
+import {completedClaimsMentioning, writeClaim} from './job-repository.js';
+import {operationOf} from './review-summary.js';
 
 /**
  * Read-only reconciliation of an uncertain reviewed write (WRT-08 Stage B). A write whose response was lost may or
@@ -31,19 +41,28 @@ import {writeClaim} from './job-repository.js';
  * connection, guarded like every state read, in two rounds after a minimum delay, and classifies the write:
  *
  * - `appears_applied`: every target holds what was sent (an update or removal), or each created resource is found
- *   (a create, through its provider's created lookup, `findCreated`: Google Ads by name, Meta by name and creation
- *   time);
- * - `appears_not_applied`: no target holds it and the reviewed state is unchanged, or no created resource exists;
- * - `indeterminate`: anything else (the reads disagree, the state moved elsewhere, no read contract).
+ *   (a create, through its provider's created lookup, `findCreated`: Google Ads by name and parent, Meta by name and
+ *   creation time or by the sets and feeds the review saw, TikTok by name, parent and creation window; R2.5 M2);
+ * - `appears_not_applied`: no target holds it and the reviewed state is unchanged, or no created resource exists in a
+ *   whole list;
+ * - `indeterminate`: anything else (the reads disagree, the state moved elsewhere, no read contract, two matches, a match
+ *   nothing dates, a list that is not whole).
  *
  * The classification is advisory and timestamped: a provider may still apply a request after the reads. Nothing is
  * sent and the idempotency key stays uncertain unless the user accepts "applied", which records the observed result as
  * the review's receipt (so `amcp_campaign verify` and a plan's `reconcile_step` can continue). A review found not
  * applied may be replaced by a new review that records `supersedes_uncertain`; the old one is never sent.
+ *
+ * The check is also the worker's (R2.5 M2, owner 2026-11-15: "fail closed on uncertain writes, then reconcile them
+ * automatically"): every write that ends uncertain gets a job (src/write-reconcile-job.ts) that makes these same reads at its
+ * claim time plus a minute, again under a cooldown until the write is classified (`automatic`). It changes nothing but the
+ * stored classification, which `amcp_write status` and the operations page show. A prepare of a create identical to an
+ * uncertain one is refused (src/write-duplicates.ts).
  */
 const reconciliationKind = 'write_reconciliation';
-/** How long a reconciliation may be acted on (accepted, or replaced) before the provider must be read again. */
-export const reconciliationFreshMs = 15 * 60000;
+// How long a reconciliation may be acted on (accepted, or replaced) before the provider must be read again: defined with
+// the retained records (src/write-records.ts), whose status offers the call that acts on it.
+export {reconciliationFreshMs};
 const setting = (name: string, fallback: number, max: number) => {
   const raw = process.env[name],
     value = raw === undefined || raw === '' ? fallback : Number(raw);
@@ -53,18 +72,149 @@ const setting = (name: string, fallback: number, max: number) => {
 export const reconcileDelayMs = () => setting('AMCP_WRITE_RECONCILE_DELAY_MS', 60000, 3600000);
 /** The pause between the two rounds of reads (AMCP_WRITE_RECONCILE_ROUND_MS). */
 const roundPauseMs = () => setting('AMCP_WRITE_RECONCILE_ROUND_MS', 2000, 60000);
+/**
+ * The worker's own checks of an uncertain write (R2.5 M2, L5-05 and L3-13; owner 2026-11-15: "fail closed on uncertain
+ * writes, then reconcile them automatically"): at most this many, each after an unsettled one under a growing cooldown.
+ * The first runs at claim + AMCP_WRITE_RECONCILE_DELAY_MS; the last at about an hour and a quarter after it. A decided
+ * write (observed applied, or observed not applied) ends them; the person's `reconcile` stays available after the last.
+ */
+export const reconcileMaxAttempts = 6;
+const reconcileCooldownMinutes = [2, 5, 10, 20, 30];
+/** The pause after unsettled automatic check number `attempt` (1-based) before the next one. */
+export const reconcileCooldownMs = (attempt: number) =>
+  reconcileCooldownMinutes[Math.min(Math.max(attempt, 1), reconcileCooldownMinutes.length) - 1]! * 60000;
+/** The most batches of reads one observation of a create makes: the first, and a page after it for each list that says more follows. */
+const createdLookupPages = 10;
+/** A classification that settles what a person is asked next: accept it as applied, or prepare a replacement. */
+const decisive = (classification: unknown) =>
+  classification === 'appears_applied' || classification === 'appears_not_applied';
+
+/**
+ * The replacement that seals the review `id` while it stands (R2.5 M2, lead re-review N4), or undefined. A seal whose replacement ended
+ * (rejected, or expired unsent) is lifted here, in the transaction of whoever found it so: the review is then reconcilable again. The
+ * check that finds it so is being made now, so no other is queued for it (a status queues one, and so does the transaction that rejects
+ * or releases the replacement: src/write-review.ts).
+ */
+function sealedBy(store: Store, tenant: string, id: string, record: JsonObject | undefined): string | undefined {
+  const by = record?.superseded_by;
+  if (typeof by !== 'string' || !by) return undefined;
+  const ended = supersedeEnded(store, tenant, by);
+  if (!ended) return by;
+  liftSupersede(store, tenant, id, by, ended);
+  return undefined;
+}
+
+/**
+ * What the worker records when it cannot check an uncertain write as the person who executed it, because their access, the
+ * account or the login is gone, or the check itself is refused: nothing was read, and the check is not tried again. The
+ * person's own `reconcile`, or another administrator's, still works. A decided check, or a replacement, is left as it is.
+ */
+export function recordStoppedCheck(
+  store: Store,
+  tenant: string,
+  reviewId: string,
+  attempt: number,
+  reason: string,
+  code: string,
+) {
+  // Read and written in one transaction: a record that settled the write (decisive, replaced, accepted) is never written over.
+  store.transaction(() => {
+    const existing = optional(store, tenant, reconciliationKind, reviewId);
+    if (
+      existing &&
+      (decisive(existing.classification) || sealedBy(store, tenant, reviewId, existing) || existing.accepted_at)
+    )
+      return;
+    const at = Date.now(),
+      reconciliationId = randomUUID();
+    store.putDocument(tenant, reconciliationKind, reviewId, {
+      review_id: reviewId,
+      reconciliation_id: reconciliationId,
+      classification: 'indeterminate',
+      reason,
+      read_error: code,
+      contract: null,
+      rounds: 0,
+      automatic: true,
+      attempts: attempt,
+      checks_exhausted: true,
+      checked_at: at,
+      updated_at: at,
+      user_id: null,
+    });
+    store.appendAudit(tenant, reviewId, {
+      event: 'write_reconciliation_stopped',
+      review_id: reviewId,
+      reconciliation_id: reconciliationId,
+      reason,
+      code,
+      automatic: true,
+      attempts: attempt,
+    });
+  });
+}
 
 type Read = (request: CompiledRequest) => Promise<TransportResult>;
 // What a provider's lookup of a create returns is the provider contract's (src/provider-adapter.ts); this import path
 // keeps the type.
-export type {CreatedLookup};
+export type {CreatedLookup, CreatedLookupContext};
 /**
- * The created-resource lookups, by the write's provider (its adapter's `writes.createdLookup`: Google Ads and Meta),
- * whose reads are built as the review builds every state read.
+ * The created-resource lookups, by the write's provider (its adapter's `writes.createdLookup`: Google Ads, Meta and
+ * TikTok), whose reads are built as the review builds every state read. `context` is what the review froze and when the
+ * write was claimed; a caller with neither (a test of one lookup) gets none and the present time.
  */
-export function findCreated(plan: CompiledRequest): CreatedLookup | undefined {
+export function findCreated(
+  plan: CompiledRequest,
+  context: CreatedLookupContext = {state: [], claimedAt: Date.now()},
+): CreatedLookup | undefined {
   const read: StateReadBuilder = (path, query = {}, body, method = 'GET') => stateRead(plan, path, query, body, method);
-  return providerHooks(plan.gateway)?.writes?.createdLookup?.(plan, read);
+  return providerHooks(plan.gateway)?.writes?.createdLookup?.(plan, read, context);
+}
+/** Whether the request creates objects: what the review summary calls a create, or a request that a created lookup can find. */
+export const createsObjects = (plan: CompiledRequest): boolean =>
+  operationOf(plan).operation === 'create' || findCreated(plan) !== undefined;
+/** What a review froze at prepare of the objects its lookup counts (its existing), as a lookup's context takes it. */
+const frozenList = (review: JsonObject): {existing?: {ids: string[]; whole: boolean}} => {
+  const list = object(review.existing);
+  return Array.isArray(list.ids) ? {existing: {ids: list.ids.map(String), whole: list.whole === true}} : {};
+};
+const idMarker = '\u0000lookup-id-';
+/**
+ * The paths, in the receipt of a lookup, at which it puts the ID of what it found (an array index is any index): found without
+ * naming a provider, by asking the lookup for the receipt of marked objects (R2.5 M2, lead re-review N1).
+ */
+function receiptPaths(lookup: CreatedLookup, expected: number): string[][] {
+  const objects = Array.from({length: Math.max(1, expected)}, (_, i) => ({
+    index: i,
+    id: idMarker + i,
+    name: idMarker + i,
+    created: [idMarker + i],
+  }));
+  let template: unknown;
+  try {
+    template = lookup.receipt(objects);
+  } catch {
+    return [];
+  }
+  const paths = new Map<string, string[]>(),
+    walk = (value: unknown, path: string[]): void => {
+      if (typeof value === 'string') {
+        if (value.startsWith(idMarker)) paths.set(JSON.stringify(path), path);
+      } else if (Array.isArray(value)) for (const item of value) walk(item, [...path, '*']);
+      else if (value && typeof value === 'object')
+        for (const [key, item] of Object.entries(value)) walk(item, [...path, key]);
+    };
+  walk(template, []);
+  return [...paths.values()];
+}
+/** The IDs a stored answer holds at path (* is any array index). */
+function valuesAt(value: unknown, path: string[]): string[] {
+  if (!path.length) return typeof value === 'string' || typeof value === 'number' ? [String(value)] : [];
+  const [head, ...rest] = path;
+  if (head === '*') return Array.isArray(value) ? value.flatMap(item => valuesAt(item, rest)) : [];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? valuesAt((value as JsonObject)[head!], rest)
+    : [];
 }
 /**
  * For an update or removal whose targets the request names, the receipt the provider would have returned, so the
@@ -78,12 +228,22 @@ export function namedTargets(plan: CompiledRequest): JsonObject | undefined {
   return providerHooks(plan.gateway)?.writes?.namedTargets?.(plan);
 }
 /** A provider failure of a reconciliation read leaves the answer indeterminate; an authority failure is raised. */
-const providerFailure = (e: unknown) =>
+export const providerFailure = (e: unknown) =>
   e instanceof MirrorError &&
   (typeof e.details.http_status === 'number' ||
     /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|STATE_UNAVAILABLE$|STATE_INCOMPLETE$)/.test(
       e.code,
     ));
+/**
+ * The refusals the transport raises before it sends a request (R2.5 M2, lead re-review N6): a provider cooldown, an open circuit, the
+ * tenant's request budget, the coordination limit, a provider app's quota. A turn of the automatic check whose every read ended so
+ * read nothing, and is no attempt: it looks again when the refusal says it may (`retry_after_ms`). The same code after a send (a
+ * provider's own 429 is mapped to PLATFORM_RATE_LIMIT) is told apart by the transport's `onDispatch`, so it still counts.
+ */
+const refusedBeforeSending =
+  /^(?:TENANT_RATE_LIMIT|PLATFORM_RATE_LIMIT|CIRCUIT_OPEN|PROVIDER_COORDINATION_BUSY|PROVIDER_QUOTA_[A-Z_]+)$/;
+/** How long an uncounted turn waits when its refusal named no time. */
+const unsentFallbackMs = 60000;
 const fail: StatusRefusal = failWithStatus(409);
 export class WriteReconciler {
   constructor(
@@ -107,6 +267,26 @@ export class WriteReconciler {
       fail('RECONCILIATION_UNAVAILABLE', 'Reconcile each part of a group by its own review_id; status lists them.', {
         next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: review.id}},
       });
+    // Replacing a write is permanent while the replacement stands (R2.5 M2, lead review S2-2): a review that a new review replaced stays
+    // uncertain at its key, which is never reset, but it is settled. It is never reconciled, accepted or replaced again, so the
+    // replacement's object is never taken for its own and a second replacement is never prepared. It stands only while the replacement
+    // can still settle the matter: one that was rejected, or expired unsent, no longer seals the review, and the check that finds
+    // it so lifts it (lead re-review N4; the check being made now needs no queued one).
+    const sealed = sealedBy(
+      this.store,
+      actor.tenantId,
+      review.id as string,
+      optional(this.store, actor.tenantId, reconciliationKind, review.id),
+    );
+    if (sealed)
+      fail(
+        'RECONCILIATION_UNAVAILABLE',
+        'This write was already replaced by a new review (superseded_by), so it is settled: it is never reconciled, accepted or replaced again. Follow the replacement (next_call).',
+        {
+          superseded_by: sealed,
+          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: sealed}},
+        },
+      );
     const claim = writeClaim(this.store, actor.tenantId, review.id);
     const stalePending = claim?.state === 'pending' && Date.now() - Number(claim.created_at) >= pendingUncertainMs;
     if (claim?.state !== 'uncertain' && !stalePending)
@@ -120,14 +300,38 @@ export class WriteReconciler {
       );
     return {review, plan: review.plan as CompiledRequest, claimedAt: Number(claim!.created_at)};
   }
+  /** Whether this actor may read the retained review `id` (a colleague's is not named to them). */
+  private readableReview(actor: Actor, id: string): boolean {
+    try {
+      retainedReview(this.store, actor, id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /** The uncertain review a check reads, or undefined once it is not uncertain any more (accepted, replaced) or is gone. */
+  private stillUncertain(actor: Actor, reviewId: string) {
+    try {
+      return this.uncertain(actor, reviewId);
+    } catch (e) {
+      if (e instanceof MirrorError && ['RECONCILIATION_UNAVAILABLE', 'NOT_FOUND'].includes(e.code)) return undefined;
+      throw e;
+    }
+  }
   /** One read-only request through the review's own connection, checked before, during and after (as state reads are). */
-  private reader(actor: Actor, review: JsonObject): {read: Read; count: () => number} {
+  private reader(actor: Actor, review: JsonObject): {read: Read; count: () => number; dispatched: () => number} {
     const plan = review.plan as CompiledRequest;
-    let count = 0;
+    // `count`: the reads that reached the transport; `dispatched`: those it really sent (a refusal of its own gates sends nothing).
+    let count = 0,
+      dispatched = 0;
     const read: Read = async request => {
       if (!independentlyReadOnly(request) || !request.readOnly)
         fail('RECONCILIATION_UNSUPPORTED', 'A reconciliation read must be independently read-only.', {}, 400);
       const access = (page: CompiledRequest) => {
+        // Every page, whoever built it (lead review S4-5): a family reader's page is checked as the lookup's own request is. A
+        // reconciliation only reads, and a page that is not independently read-only is refused before anything is sent.
+        if (!independentlyReadOnly(page) || !page.readOnly)
+          fail('RECONCILIATION_UNSUPPORTED', 'A reconciliation read must be independently read-only.', {}, 400);
         this.store.assertActorActive(actor);
         const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, review.connection_id);
         familyOf(plan)?.scope?.(current, false, plan);
@@ -141,29 +345,119 @@ export class WriteReconciler {
         const current = access(page),
           authority = nativeAuthority(this.store, this.registry, actor, page, current, auth);
         count++;
-        const response = await this.transport.request(page, authority(), auth, undefined, {beforeAttempt: authority});
+        const response = await this.transport.request(page, authority(), auth, undefined, {
+          beforeAttempt: authority,
+          onDispatch: () => {
+            dispatched++;
+          },
+        });
         authority();
         return response;
       });
     };
-    return {read, count: () => count};
+    return {read, count: () => count, dispatched: () => dispatched};
   }
-  /** One round of observation: the targets' current values, the reviewed state, or the created resources. */
-  private async observe(review: JsonObject, plan: CompiledRequest, read: Read, claimedAt: number): Promise<JsonObject> {
-    const lookup = findCreated(plan);
+  /**
+   * Which of ids another create of the same kind already holds, and which review (R2.5 M2, lead re-review N1): a completed claim,
+   * or an accepted reconciliation, of a review that creates objects of this gateway and path, whose answer names the ID at a path where
+   * this lookup's own receipt puts one. An update's answer, a parent that a child's answer echoes, and any other value of any other
+   * write are not objects that another create made. Nothing is cut by count or by age (only the claims that name one of the IDs are read).
+   */
+  private heldByOthers(
+    tenant: string,
+    review: JsonObject,
+    plan: CompiledRequest,
+    lookup: CreatedLookup,
+    expected: number,
+    ids: string[],
+  ): Map<string, string> {
+    const held = new Map<string, string>(),
+      paths = ids.length ? receiptPaths(lookup, expected) : [];
+    if (!paths.length) return held;
+    for (const claim of completedClaimsMentioning(this.store, tenant, String(review.id), ids)) {
+      let result: JsonObject;
+      try {
+        result = JSON.parse(String(claim.result));
+      } catch {
+        continue;
+      }
+      if (result.action !== plan.action) continue;
+      const other = optional(this.store, tenant, 'write_review', String(claim.key));
+      if (
+        !other?.plan ||
+        other.plan.gateway !== plan.gateway ||
+        other.plan.path !== plan.path ||
+        !createsObjects(other.plan)
+      )
+        continue;
+      for (const path of paths)
+        for (const value of valuesAt(result.data, path))
+          if (ids.includes(value) && !held.has(value)) held.set(value, String(claim.key));
+    }
+    return held;
+  } /** One round of observation: the targets' current values, the reviewed state, or the created resources. */
+  private async observe(
+    tenant: string,
+    review: JsonObject,
+    plan: CompiledRequest,
+    read: Read,
+    claimedAt: number,
+  ): Promise<JsonObject> {
+    const lookup = findCreated(plan, {
+      state: Array.isArray(review.state) ? review.state : [],
+      claimedAt,
+      ...frozenList(review),
+    });
     if (lookup) {
       const responses: TransportResult[] = [];
-      for (const request of lookup.reads) responses.push(await read(request));
-      const {found, expected, complete} = lookup.match(responses, claimedAt);
-      const all = found.length === expected && found.every((f, i) => f.index === i);
+      // A list longer than its page is followed, up to createdLookupPages batches in all: a longer one is not whole, which
+      // the lookup's `match` sees from the last answer, so it proves nothing absent.
+      let next = lookup.reads;
+      for (let batch = 0; next.length && batch < createdLookupPages; batch++) {
+        for (const request of next) responses.push(await read(request));
+        next = lookup.more?.(responses) ?? [];
+      }
+      const matched = lookup.match(responses, claimedAt, Date.now()),
+        // An object that another create's receipt names is that create's, however alike: it is neither found nor a doubt.
+        held = this.heldByOthers(
+          tenant,
+          review,
+          plan,
+          lookup,
+          matched.expected,
+          [...matched.found, ...(matched.undated ?? [])].map(o => String(o.id)),
+        ),
+        found = matched.found.filter(f => !held.has(String(f.id))),
+        undated = (matched.undated ?? []).filter(u => !held.has(String(u.id))),
+        {expected, complete} = matched;
+      // Each record has its one dated match and nothing of that name is left that the lookup cannot tell from an older object
+      // (`everyFound`); the write is applied only when the list was whole as well, because a second match may follow on a page the
+      // check did not read (R2.5 M2, lead re-review N11). Absent only when the list was complete and holds nothing of that name at all.
+      const everyFound = found.length === expected && found.every((f, i) => f.index === i) && !undated.length,
+        all = everyFound && complete;
       return {
         contract: 'create',
         found: found.map(f => ({id: f.id, ...(f.created_time ? {created_time: f.created_time} : {})})),
+        ...(undated.length ? {undated: undated.map(u => ({id: u.id}))} : {}),
         expected,
         complete,
-        classification: all ? 'appears_applied' : !found.length && complete ? 'appears_not_applied' : 'indeterminate',
+        classification: all
+          ? 'appears_applied'
+          : !found.length && !undated.length && complete
+            ? 'appears_not_applied'
+            : 'indeterminate',
         ...(all ? {observed_ids: found.map(f => f.id), receipt_data: lookup.receipt(found)} : {}),
-        reason: all ? 'created_found' : !found.length ? (complete ? 'not_found' : 'lookup_incomplete') : 'ambiguous',
+        reason: all
+          ? 'created_found'
+          : everyFound
+            ? 'lookup_incomplete'
+            : found.length
+              ? 'ambiguous'
+              : undated.length
+                ? 'undated_match'
+                : complete
+                  ? 'not_found'
+                  : 'lookup_incomplete',
       };
     }
     const family = familyOf(plan),
@@ -235,62 +529,21 @@ export class WriteReconciler {
           next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}},
         },
       );
-    const {read, count} = this.reader(actor, review),
-      rounds: JsonObject[] = [];
-    let readError: string | undefined;
-    try {
-      for (let round = 0; round < 2; round++) {
-        if (round) await pause(roundPauseMs());
-        rounds.push(await this.observe(review, plan, read, claimedAt));
-      }
-    } catch (e) {
-      if (!providerFailure(e)) throw e;
-      readError = (e as MirrorError).code;
-    }
-    this.store.assertActorActive(actor);
-    const consistent = rounds.length === 2 && fingerprint(rounds[0]) === fingerprint(rounds[1]),
-      last = rounds.at(-1) ?? {},
-      classification = consistent ? (last.classification as string) : 'indeterminate',
-      reason = readError ? 'read_failed' : consistent ? last.reason : 'reads_disagree',
-      reconciliationId = randomUUID(),
-      checkedAt = Date.now();
-    const record = {
-      review_id: id,
-      reconciliation_id: reconciliationId,
-      classification,
-      reason,
-      ...(readError ? {read_error: readError} : {}),
-      contract: last.contract ?? null,
-      rounds: rounds.length,
-      ...(last.targets ? {targets: last.targets} : {}),
-      ...(last.found ? {found: last.found, expected: last.expected} : {}),
-      ...(last.state_unchanged_since_review !== undefined
-        ? {state_unchanged_since_review: last.state_unchanged_since_review}
-        : {}),
-      ...(classification === 'appears_applied'
-        ? {observed_ids: last.observed_ids, receipt_data: last.receipt_data}
-        : {}),
-      checked_at: checkedAt,
-      updated_at: checkedAt,
-      user_id: actor.userId,
-    };
-    this.store.putDocument(actor.tenantId, reconciliationKind, id, record);
-    this.store.appendAudit(actor.tenantId, id, {
-      event: 'write_reconciliation_inspected',
-      review_id: id,
-      reconciliation_id: reconciliationId,
-      classification,
-      reason,
-      gateway: plan.gateway,
-      account_id: plan.accountId ?? null,
-      connection_id: review.connection_id,
-    });
+    const {record, requests, settled} = await this.check(actor, review, plan, claimedAt);
+    if (settled)
+      fail(
+        'RECONCILIATION_UNAVAILABLE',
+        'This write was settled while the provider was being read (replaced by a new review, or accepted), so this check was dropped and changed nothing. Read its status (next_call).',
+        {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}}},
+      );
+    const classification = record.classification as string,
+      reconciliationId = record.reconciliation_id as string;
     const {receipt_data: _receipt, user_id: _user, updated_at: _updated, ...shown} = record;
     return {
       record_kind: 'write_reconciliation',
       ...shown,
-      checked_at: new Date(checkedAt).toISOString(),
-      network_requests: count(),
+      checked_at: new Date(Number(record.checked_at)).toISOString(),
+      network_requests: requests,
       mutation_requests: 0,
       suggested_reads: (Array.isArray(review.reads) ? review.reads : []).slice(0, 20).map((r: CompiledRequest) => ({
         method: r.method,
@@ -320,6 +573,171 @@ export class WriteReconciler {
       automatic_retry_of_mutation: false,
     };
   }
+  /**
+   * Two rounds of read-only observation of an uncertain write, stored as its latest reconciliation and audited; the person's
+   * `reconcile` and the worker's check (`automatic`) both make it. A check by the worker also records which attempt it
+   * was and, while it settled nothing, when the next one is due (or that the attempts ran out). Nothing is ever sent.
+   */
+  private async check(
+    actor: Actor,
+    review: JsonObject,
+    plan: CompiledRequest,
+    claimedAt: number,
+    automatic?: {attempt: number},
+  ): Promise<{record: JsonObject; requests: number; settled?: true; uncounted?: true}> {
+    const id = review.id as string,
+      {read, count, dispatched} = this.reader(actor, review),
+      // The record this check replaces, and so what a newer one is: a decisive record with another id was written while it read.
+      began = optional(this.store, actor.tenantId, reconciliationKind, id)?.reconciliation_id,
+      rounds: JsonObject[] = [];
+    let readError: string | undefined,
+      // Every read of the turn was refused before it was sent (lead re-review N6): the turn read nothing, so it is no attempt.
+      unsent = false,
+      pauseMs = 0;
+    try {
+      for (let round = 0; round < 2; round++) {
+        if (round) await pause(roundPauseMs());
+        // The reads of a reconciliation, the person's and the worker's alike, are reserved work, as the read-backs of write
+        // verification are (OPS-08): a handful of reads that may use the reserved slice of a provider app's quota when a busy or
+        // throttled workspace has used its standard share (the lead's decision on the report's quota class).
+        rounds.push(
+          await runWithQuotaPurpose('reserved', () => this.observe(actor.tenantId, review, plan, read, claimedAt)),
+        );
+      }
+    } catch (e) {
+      if (!providerFailure(e)) throw e;
+      readError = (e as MirrorError).code;
+      // Only the transport's own gates refuse before a send, and only a turn that sent nothing at all read nothing: a provider's own
+      // 429, or a turn that read before it was refused, reached the provider and counts as an attempt.
+      unsent = dispatched() === 0 && refusedBeforeSending.test(readError);
+      // A person's own check that read nothing stores nothing (lead re-review 2, F4): the refusal is raised with its retry_after_ms, so
+      // that a decisive record (the worker's, the one the person was offered an accept for) is never written over by `read_failed`. The
+      // worker's turn is rescheduled by its own rule, below.
+      if (unsent && !automatic) throw e;
+      const wait = Number((e as MirrorError).details.retry_after_ms);
+      pauseMs = Math.min(86400000, Math.max(1000, Number.isFinite(wait) && wait > 0 ? wait : unsentFallbackMs));
+    }
+    this.store.assertActorActive(actor);
+    const consistent = rounds.length === 2 && fingerprint(rounds[0]) === fingerprint(rounds[1]),
+      last = rounds.at(-1) ?? {},
+      classification = consistent ? (last.classification as string) : 'indeterminate',
+      reason = readError ? 'read_failed' : consistent ? last.reason : 'reads_disagree',
+      reconciliationId = randomUUID(),
+      checkedAt = Date.now(),
+      // An uncounted turn looks again when its refusal says it may; the others on the ladder, until the attempts run out.
+      attempts = automatic ? automatic.attempt - (unsent ? 1 : 0) : 0,
+      next =
+        automatic && !decisive(classification) && (unsent || automatic.attempt < reconcileMaxAttempts)
+          ? checkedAt + (unsent ? pauseMs : reconcileCooldownMs(automatic.attempt))
+          : undefined;
+    const record = {
+      review_id: id,
+      reconciliation_id: reconciliationId,
+      classification,
+      reason,
+      ...(readError ? {read_error: readError} : {}),
+      contract: last.contract ?? null,
+      rounds: rounds.length,
+      ...(last.targets ? {targets: last.targets} : {}),
+      ...(last.found ? {found: last.found, expected: last.expected} : {}),
+      ...(last.undated ? {undated: last.undated} : {}),
+      ...(last.state_unchanged_since_review !== undefined
+        ? {state_unchanged_since_review: last.state_unchanged_since_review}
+        : {}),
+      ...(classification === 'appears_applied'
+        ? {observed_ids: last.observed_ids, receipt_data: last.receipt_data}
+        : {}),
+      ...(automatic
+        ? {
+            automatic: true,
+            attempts,
+            ...(next !== undefined ? {next_check_at: next} : decisive(classification) ? {} : {checks_exhausted: true}),
+          }
+        : {}),
+      checked_at: checkedAt,
+      updated_at: checkedAt,
+      user_id: actor.userId,
+    };
+    // Written by compare-and-set (lead review S2-2): the reads took seconds, and the person may have replaced or accepted the
+    // write meanwhile. The record that settled it stands, and this answer is dropped, never written over it. So does a decisive
+    // record that was written meanwhile by another check (the person's reconcile, which the worker's must not replace: the person's
+    // accept names its reconciliation_id, lead re-review N6).
+    const written = this.store.transaction(() => {
+      const now = optional(this.store, actor.tenantId, reconciliationKind, id),
+        claim = writeClaim(this.store, actor.tenantId, id),
+        open = claim?.state === 'uncertain' || claim?.state === 'pending',
+        sealed = sealedBy(this.store, actor.tenantId, id, now),
+        newer = automatic !== undefined && decisive(now?.classification) && now?.reconciliation_id !== began;
+      if (sealed || now?.accepted_at || !open || newer) {
+        this.store.appendAudit(actor.tenantId, id, {
+          event: 'write_reconciliation_dropped',
+          review_id: id,
+          reason: sealed
+            ? 'superseded'
+            : now?.accepted_at || claim?.state === 'complete'
+              ? 'accepted'
+              : !open
+                ? 'not_uncertain'
+                : 'newer_check',
+          classification,
+          ...(automatic ? {automatic: true, attempts} : {}),
+        });
+        return false;
+      }
+      this.store.putDocument(actor.tenantId, reconciliationKind, id, record);
+      this.store.appendAudit(actor.tenantId, id, {
+        event: 'write_reconciliation_inspected',
+        review_id: id,
+        reconciliation_id: reconciliationId,
+        classification,
+        reason,
+        ...(automatic ? {automatic: true, attempts} : {}),
+        gateway: plan.gateway,
+        account_id: plan.accountId ?? null,
+        connection_id: review.connection_id,
+      });
+      return true;
+    });
+    return {
+      record,
+      requests: count(),
+      ...(written ? {} : {settled: true as const}),
+      ...(unsent ? {uncounted: true as const} : {}),
+    };
+  }
+  /**
+   * The worker's check of an uncertain write (R2.5 M2): the same reads as `reconcile`, with no waiting here (the job was
+   * queued for claim + AMCP_WRITE_RECONCILE_DELAY_MS) and no effect on the review. It records what it observed and, while
+   * that is not decisive, when it looks again. A write that is no longer uncertain (accepted, replaced, gone), or whose
+   * latest check is decisive and fresh, is left alone: nothing is read. Returns what the job needs to know.
+   */
+  async automatic(actor: Actor, reviewId: string, attempt: number): Promise<JsonObject> {
+    const uncertain = this.stillUncertain(actor, reviewId);
+    if (!uncertain) return {review_id: reviewId, status: 'settled', attempts: attempt};
+    const {review, plan, claimedAt} = uncertain,
+      existing = optional(this.store, actor.tenantId, reconciliationKind, reviewId);
+    if (
+      existing &&
+      (sealedBy(this.store, actor.tenantId, reviewId, existing) ||
+        (decisive(existing.classification) && Date.now() - Number(existing.checked_at) <= reconciliationFreshMs))
+    )
+      return {review_id: reviewId, status: 'settled', attempts: attempt, classification: existing.classification};
+    const {record, settled, uncounted} = await this.check(actor, review, plan, claimedAt, {attempt});
+    // The write was replaced or accepted while this check read the provider (or the person's own check settled it meanwhile): its
+    // answer was dropped, and nothing is left to do.
+    if (settled) return {review_id: reviewId, status: 'settled', attempts: attempt};
+    const next = typeof record.next_check_at === 'number' ? record.next_check_at : undefined;
+    return {
+      review_id: reviewId,
+      status: decisive(record.classification) ? 'classified' : next !== undefined ? 'unsettled' : 'exhausted',
+      classification: record.classification,
+      reason: record.reason,
+      attempts: uncounted ? attempt - 1 : attempt,
+      ...(next !== undefined ? {retry_after_ms: Math.max(1000, next - Date.now())} : {}),
+      // A turn that read nothing gives its attempt back (the worker's retry rule).
+      ...(uncounted ? {attempt_counted: false} : {}),
+    };
+  }
   /** The latest reconciliation of a review, fresh enough to act on, with the classification required. */
   private latest(actor: Actor, id: string, classification: string, reconciliationId?: unknown): JsonObject {
     const record = optional(this.store, actor.tenantId, reconciliationKind, id);
@@ -331,9 +749,10 @@ export class WriteReconciler {
         'A newer reconciliation of this write exists. Show the user its result and accept that one.',
         {reconciliation_id: record.reconciliation_id, ...again},
       );
-    if (record.superseded_by)
+    const sealed = sealedBy(this.store, actor.tenantId, id, record);
+    if (sealed)
       fail('RECONCILIATION_UNAVAILABLE', 'This write was already replaced by a new review (superseded_by).', {
-        superseded_by: record.superseded_by,
+        superseded_by: sealed,
       });
     if (record.classification !== classification)
       fail(
@@ -398,6 +817,30 @@ export class WriteReconciler {
         fail('RECONCILIATION_UNAVAILABLE', 'This write is no longer uncertain. Read its status.', {
           next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}},
         });
+      // An object that another create already holds is never accepted as a second create's (R2.5 M2, lead re-review N2): two
+      // creates that differ in a field the provider does not echo are looked up as the one object, and both could be accepted as it.
+      const observed = Array.isArray(record.observed_ids) ? record.observed_ids.map(String) : [],
+        lookup = observed.length
+          ? findCreated(plan, {
+              state: Array.isArray(review.state) ? review.state : [],
+              claimedAt: Number(claim?.created_at),
+            })
+          : undefined,
+        held = lookup ? this.heldByOthers(actor.tenantId, review, plan, lookup, observed.length, observed) : undefined;
+      if (held?.size)
+        fail(
+          'RECOVERY_NOT_SAFE',
+          'Another create of this workspace already holds ' +
+            (held.size > 1 ? 'objects' : 'the object') +
+            ' that this reconciliation found (observed_ids), so accepting it would give one object to two writes. Nothing was changed. Reconcile again (next_call): the check leaves the other create’s object out.',
+          {
+            observed_ids: [...held.keys()],
+            ...(this.readableReview(actor, [...held.values()][0]!)
+              ? {holder_review_id: [...held.values()][0]}
+              : {readable: false}),
+            next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}},
+          },
+        );
       new ScopeGuard(this.registry, this.store).observeCreated(plan, c, record.receipt_data);
       this.store.complete(actor.tenantId, id, outcome, {code: 'RECONCILED'});
       this.store.putDocument(actor.tenantId, reconciliationKind, id, {

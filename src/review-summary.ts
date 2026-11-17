@@ -158,8 +158,13 @@ function declaredOperation(plan: CompiledRequest): DeclaredOperation | undefined
     return undefined;
   }
 }
-/** What the request does: an operation and the entities it acts on. */
-function operationOf(plan: CompiledRequest): {operation: string; entity: string; count: number; plural?: string} {
+/** What the request does: an operation and the entities it acts on (also asked by the guard against a repeated create). */
+export function operationOf(plan: CompiledRequest): {
+  operation: string;
+  entity: string;
+  count: number;
+  plural?: string;
+} {
   const body = plan.body as unknown;
   // A provider whose writes name their operations themselves summarizes them (Google Ads' :mutate operations).
   const provided = providerOf(plan.gateway)?.reviewOperations;

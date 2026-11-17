@@ -23,6 +23,8 @@ export type WriteOrigin = 'standalone' | 'plan' | 'group_part';
  * leaves it pending forever. Longer than one transport timeout plus admission.
  */
 export const pendingUncertainMs = 10 * 60000;
+/** How long a reconciliation may be acted on (accepted, or replaced) before the provider must be read again. */
+export const reconciliationFreshMs = 15 * 60000;
 export const writeRecordPath = (id: string) => '/operations?write_id=' + encodeURIComponent(id);
 // The Operations projection of standalone reviews is in the store layer (src/write-record-repository.ts, ARC-02).
 export {writeFeedSQL} from './write-record-repository.js';
@@ -96,13 +98,104 @@ export function retainedReview(store: Store, actor: Actor, reviewId: unknown): {
   store.resolveConnection(actor, gateway, account, review.connection_id);
   return {review, group: !!group};
 }
+/** A reconciliation record as it was before a supersede sealed it. */
+const unsealed = (record: JsonObject): JsonObject => {
+  const {superseded_by: _by, superseded_at: _at, ...kept} = record;
+  return kept;
+};
+/**
+ * Whether the supersede that names `replacementId` (R2.5 M2, lead re-review N4) is over: a review that replaces an uncertain write seals
+ * it only while the replacement can still settle the matter, that is while the replacement is unexpired and unclaimed, or holds a claim
+ * that is not rejected (pending, uncertain or complete: it may have made the object). It ended when the provider refused the
+ * replacement without applying it (`rejected`: its key is retired), or when it has no claim and its window passed, or it is gone
+ * (`expired`). Undefined while it is in force. A release of the replacement's claim by a refusal before dispatch (a pause, a rate
+ * limit) does not end it: the replacement is unexpired, and executes again inside its window (lead decision, 2026-11-17).
+ */
+export function supersedeEnded(
+  store: Store,
+  tenant: string,
+  replacementId: string,
+  now = Date.now(),
+): 'rejected' | 'expired' | undefined {
+  const claim = writeClaim(store, tenant, replacementId);
+  if (claim) return claim.state === 'rejected' ? 'rejected' : undefined;
+  const replacement = optional(store, tenant, 'write_review', replacementId);
+  return replacement && Number(replacement.expires_at) > now ? undefined : 'expired';
+}
+/** The replacement that sealed the review `oldId` and ended (why), or undefined while its supersede is in force, or when it has none. */
+export function endedSeal(
+  store: Store,
+  tenant: string,
+  oldId: string,
+  now = Date.now(),
+): {replacement: string; why: 'rejected' | 'expired'} | undefined {
+  const by = optional(store, tenant, 'write_reconciliation', oldId)?.superseded_by,
+    why = typeof by === 'string' && by ? supersedeEnded(store, tenant, by, now) : undefined;
+  return typeof by === 'string' && why ? {replacement: by, why} : undefined;
+}
+/** The replacement a reconciliation record's supersede names while it is in force; undefined once it ended, or when there is none. */
+export function supersededBy(
+  store: Store,
+  tenant: string,
+  record: JsonObject | undefined,
+  now = Date.now(),
+): string | undefined {
+  const by = record?.superseded_by;
+  return typeof by === 'string' && by && !supersedeEnded(store, tenant, by, now) ? by : undefined;
+}
+/**
+ * Lifts the supersede of the uncertain write `oldId` by `replacementId` (R2.5 M2, lead re-review N4), when the replacement was rejected
+ * or expired with no claim: clears `superseded_by` from the old review's reconciliation, makes what it kept non-decisive
+ * (`indeterminate`, with the reason: lead re-review 2, F1), audits why, and queues the old review's check again through `queue` (which
+ * says whether it did). Runs in one transaction, so a caller that rejects the replacement lifts it in the same one. Returns whether
+ * the record named that replacement.
+ */
+export function liftSupersede(
+  store: Store,
+  tenant: string,
+  oldId: string,
+  replacementId: string,
+  why: 'rejected' | 'expired',
+  queue?: () => boolean,
+): boolean {
+  return store.transaction(() => {
+    const record = optional(store, tenant, 'write_reconciliation', oldId);
+    if (!record || record.superseded_by !== replacementId) return false;
+    const {id: _id, revision: _revision, ...rest} = unsealed(record),
+      old = optional(store, tenant, 'write_review', oldId),
+      open = ['uncertain', 'pending'].includes(String(writeClaim(store, tenant, oldId)?.state));
+    // The record that comes back is the not-applied answer the replacement was prepared on, minutes old, and it settles nothing now:
+    // the replacement was rejected (the provider's refusal is the strongest sign that the old write was applied) or never ran. It is
+    // kept for display (`found`, `undated`) but is no longer decisive, so the check this lift queues reads the provider, a status
+    // offers that check and not the replacement again, and a new replacement needs a fresh not-applied answer (lead re-review 2, F1).
+    store.putDocument(tenant, 'write_reconciliation', oldId, {
+      ...rest,
+      classification: 'indeterminate',
+      reason: why === 'rejected' ? 'replacement_rejected' : 'replacement_expired',
+      updated_at: Date.now(),
+    });
+    store.appendAudit(tenant, oldId, {
+      event: 'write_supersede_lifted',
+      review_id: oldId,
+      replacement_id: replacementId,
+      reason: why,
+      check_queued: open && queue ? queue() : false,
+      gateway: old?.plan?.gateway,
+      account_id: old?.plan?.accountId ?? null,
+      connection_id: old?.connection_id,
+    });
+    return true;
+  });
+}
 /** The state of one retained review, from the store alone. */
 function recordState(store: Store, tenant: string, id: string, review: JsonObject, now: number) {
   const claim = claimRow(store, tenant, id),
     result = claim?.state === 'complete' && typeof claim.result === 'string' ? JSON.parse(claim.result) : undefined,
     journal = optional(store, tenant, 'operation_journal', id),
     verification = optional(store, tenant, 'write_verification', id),
-    reconciliation = optional(store, tenant, 'write_reconciliation', id);
+    stored = optional(store, tenant, 'write_reconciliation', id),
+    // A supersede whose replacement ended is not shown (a status lifts it, src/write-review.ts): only one in force seals the review.
+    reconciliation = stored?.superseded_by && !supersededBy(store, tenant, stored, now) ? unsealed(stored) : stored;
   const state = writeRecordState(
     {
       claim_state: claim?.state,
@@ -132,7 +225,14 @@ export function mayResolve(store: Store, actor: Actor, review: JsonObject): bool
  * is prepared again from its original arguments only for the credential that prepared it: anyone else gets the call's
  * scope without the request body (WRT-08 privacy: request bodies are not shown to other members).
  */
-function nextCall(id: string, review: JsonObject, state: string, actor: Actor): JsonObject | null {
+function nextCall(
+  id: string,
+  review: JsonObject,
+  state: string,
+  actor: Actor,
+  reconciliation?: JsonObject,
+  resolvable = false,
+): JsonObject | null {
   if (['unsubmitted', 'not_sent'].includes(state)) {
     const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
       (k: unknown) => typeof k === 'string' && k !== 'confirmed',
@@ -158,7 +258,35 @@ function nextCall(id: string, review: JsonObject, state: string, actor: Actor): 
       arguments_required: 'The original native arguments are shown only to the person who prepared this review.',
     };
   }
-  if (state === 'uncertain') return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
+  if (state === 'uncertain') {
+    // What the latest check found (the person's `reconcile`, or the worker's, R2.5 M2) decides which call is offered, and
+    // only while it is fresh enough to act on. Accepting and replacing stay the person's acts: the call is offered, never made.
+    const fresh =
+      reconciliation &&
+      !reconciliation.superseded_by &&
+      !reconciliation.accepted_at &&
+      Date.now() - Number(reconciliation.checked_at) <= reconciliationFreshMs;
+    if (fresh && reconciliation.classification === 'appears_applied' && resolvable)
+      return {
+        tool: 'amcp_write',
+        arguments: {action: 'reconcile', review_id: id, reconciliation_id: reconciliation.reconciliation_id},
+        add_after_user_approval: {accept_applied: true},
+      };
+    // The original request is shown only to the credential that prepared it, as for an expired review.
+    if (
+      fresh &&
+      reconciliation.classification === 'appears_not_applied' &&
+      review.prepare_input &&
+      review.user_id === actor.userId
+    )
+      return {
+        tool: 'amcp_write',
+        arguments: {action: 'prepare', ...review.prepare_input, supersedes_review_id: id},
+        meaning:
+          'A new review of the same request that replaces this one; it is reviewed and approved like any other. Nothing is prepared or sent for you.',
+      };
+    return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
+  }
   if (state === 'executing') return {tool: 'amcp_write', arguments: {action: 'status', review_id: id}};
   if (['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'].includes(state))
     return {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: id}};
@@ -188,6 +316,31 @@ const guidance: Record<string, string> = {
 };
 /** A stored millisecond time in the ISO form every other time in a status uses. */
 const iso = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? new Date(v).toISOString() : (v ?? null));
+/**
+ * What a status shows of a reconciliation (the person's, or the worker's automatic check, R2.5 M2): its id, what it found,
+ * why, when, and for the worker's, which attempt it was and when it looks again, or that its attempts ran out. Closed
+ * tokens, times and the observed IDs of an applied create only: never the provider's receipt or its text.
+ */
+function reconciliationView(r: JsonObject): JsonObject {
+  return {
+    reconciliation_id: r.reconciliation_id,
+    classification: r.classification,
+    ...(typeof r.reason === 'string' ? {reason: r.reason} : {}),
+    ...(typeof r.read_error === 'string' ? {read_error: r.read_error} : {}),
+    checked_at: iso(r.checked_at),
+    ...(r.automatic === true
+      ? {
+          automatic: true,
+          attempts: r.attempts,
+          ...(typeof r.next_check_at === 'number' ? {next_check_at: iso(r.next_check_at)} : {}),
+          ...(r.checks_exhausted === true ? {checks_exhausted: true} : {}),
+        }
+      : {}),
+    ...(r.classification === 'appears_applied' && Array.isArray(r.observed_ids) ? {observed_ids: r.observed_ids} : {}),
+    ...(r.accepted_at ? {accepted_at: iso(r.accepted_at)} : {}),
+    ...(r.superseded_by ? {superseded_by: r.superseded_by} : {}),
+  };
+}
 function partSummary(store: Store, tenant: string, id: string, now: number): JsonObject {
   const review = optional(store, tenant, 'write_review', id);
   if (!review) return {review_id: id, state: 'unknown'};
@@ -208,7 +361,8 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   const parts = group
     ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
     : undefined;
-  const call = nextCall(id, review, s.state, actor),
+  const resolvable = mayResolve(store, actor, review),
+    call = nextCall(id, review, s.state, actor, s.reconciliation, resolvable),
     // WRT-09: whether a person has approved this review on the website, while it can still be executed.
     approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined;
   store.assertActorActive(actor);
@@ -249,15 +403,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
         }
       : null,
     verification: s.verification ? {status: s.verification.status, checked_at: iso(s.verification.checked_at)} : null,
-    reconciliation: s.reconciliation
-      ? {
-          reconciliation_id: s.reconciliation.reconciliation_id,
-          classification: s.reconciliation.classification,
-          checked_at: iso(s.reconciliation.checked_at),
-          ...(s.reconciliation.accepted_at ? {accepted_at: iso(s.reconciliation.accepted_at)} : {}),
-          ...(s.reconciliation.superseded_by ? {superseded_by: s.reconciliation.superseded_by} : {}),
-        }
-      : null,
+    reconciliation: s.reconciliation ? reconciliationView(s.reconciliation) : null,
     ...(review.supersedes_uncertain ? {supersedes_uncertain: review.supersedes_uncertain} : {}),
     required_acknowledgements: review.required_acknowledgements ?? null,
     ...(approval ? {approval} : {}),
@@ -267,7 +413,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
     })),
     next_safe_action: guidance[s.state] ?? 'Inspect the retained review before any action.',
     // Whether this reader may settle the outcome (accept_applied, or a replacement): the website shows the action then.
-    may_resolve: mayResolve(store, actor, review),
+    may_resolve: resolvable,
     next_call: call,
     website_path: writeRecordPath(id),
     network_requests: 0,

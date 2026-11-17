@@ -55,9 +55,12 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   // Merge r25-m1-merge, merge 3: r12-fix (184 on its own base of 179) on the diff package's 181. They add different hints, so no
   // package's own pin is the merged count; the merged count is measured by this test's own inspector, not either pin:
   // 179 + 2 (diff) + 5 (r12-fix) = 186, and 185 without the inventory hint.
-  assert.equal(hints.size, 186);
+  // Package r25-m2-reconcile's rework (lead review S3-5) adds three in src/errors.ts, none in a provider's table: the remedies of
+  // DUPLICATE_OF_UNCERTAIN_WRITE (one for a create AMCP can look up, one for a create it cannot) and of DUPLICATE_OF_COMPLETED_WRITE,
+  // three different sentences: 186 + 3 = 189 in all, 188 without the inventory hint.
+  assert.equal(hints.size, 189);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 185);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 188);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

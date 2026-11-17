@@ -149,7 +149,9 @@ export function syntheticWriteJourneyFixture() {
               arguments: {
                 action: 'meta_campaign_create',
                 payload: {
-                  name: 'Synthetic campaign',
+                  // One campaign per outcome: an identical create is refused at prepare while an earlier one is uncertain
+                  // (R2.5 M2, L5-06), and the three journeys of a site run one after another.
+                  name: 'Synthetic ' + nextOutcome + ' campaign',
                   objective: 'OUTCOME_TRAFFIC',
                   status: 'PAUSED',
                   special_ad_categories: [],

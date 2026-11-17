@@ -300,18 +300,7 @@ export function googleListingGroupState(read: CompiledRequest, data: JsonObject)
       },
     };
   }
-  const nodes = rows
-    .map(r => r.assetGroupListingGroupFilter as JsonObject)
-    .map(f => ({
-      resource_name: f.resourceName,
-      type: f.type,
-      listing_source: f.listingSource,
-      parent: f.parentListingGroupFilter ?? null,
-      case_value: f.caseValue ?? null,
-    }));
-  return {
-    nodes: nodes.sort((a, b) => (a.resource_name < b.resource_name ? -1 : a.resource_name > b.resource_name ? 1 : 0)),
-  };
+  return {nodes: treeNodes(rows)};
 }
 const stateNodes = (v: unknown): Node[] =>
   (obj(v) && Array.isArray(v.nodes) ? v.nodes : []).filter(obj).map((n: JsonObject) => ({
@@ -321,6 +310,19 @@ const stateNodes = (v: unknown): Node[] =>
     parent: n.parent ?? undefined,
     caseValue: n.case_value ?? undefined,
   }));
+/** The listing group nodes of a tree read as Google lists them, in the form the review keeps (sorted by name). */
+const treeNodes = (results: unknown): JsonObject[] =>
+  (Array.isArray(results) ? results : [])
+    .map(googleJson)
+    .map(r => (r as JsonObject).assetGroupListingGroupFilter as JsonObject)
+    .map(f => ({
+      resource_name: f.resourceName,
+      type: f.type,
+      listing_source: f.listingSource,
+      parent: f.parentListingGroupFilter ?? null,
+      case_value: f.caseValue ?? null,
+    }))
+    .sort((a, b) => (a.resource_name < b.resource_name ? -1 : a.resource_name > b.resource_name ? 1 : 0));
 /** Applies the operations in order, as Google does, refusing parents removed before their children and children created before their parents. */
 function finalTree(p: CompiledRequest, current: Node[]): Map<string, Node> {
   const tree = new Map(current.map(n => [n.name, n])),
@@ -463,6 +465,40 @@ export function googleListingGroupVerification(
 export function googleListingGroupObserved(read: CompiledRequest, data: JsonObject): JsonObject {
   const nodes = stateNodes(googleListingGroupState(read, data));
   return {tree: shape(new Map(nodes.map(n => [n.name, n])))};
+}
+/**
+ * What the lookup of an uncertain tree edit compares (R2.5 M2, L2-13), as the family's own read-back does: the query of the
+ * asset group's whole tree, the shape the reviewed request gives it (`after`), the shape the review read before it
+ * (`before`), and the names the tree had then. Undefined for a request that is no tree edit, or one it cannot work out.
+ */
+export function googleListingGroupLookup(
+  plan: CompiledRequest,
+  state: unknown[],
+): {group: string; query: string; before: string[]; after: string[]; existing: string[]} | undefined {
+  if (!googleListingGroupKind(plan)) return undefined;
+  try {
+    const {group} = operations(plan),
+      current = stateNodes(state[1]),
+      body = search(plan, 'tree', group).body;
+    return {
+      group: groupName(account(plan), group),
+      query: String(obj(body) ? body.query : ''),
+      before: shape(new Map(current.map(n => [n.name, n]))),
+      after: shape(finalTree(plan, current)),
+      existing: current.map(n => n.name),
+    };
+  } catch {
+    return undefined;
+  }
+}
+/** The shape and the node names of a tree as Google lists it (the rows of the tree read); undefined when it cannot be read. */
+export function googleListingGroupTree(results: unknown): {shape: string[]; names: string[]} | undefined {
+  try {
+    const nodes = stateNodes({nodes: treeNodes(results)});
+    return {shape: shape(new Map(nodes.map(n => [n.name, n]))), names: nodes.map(n => n.name)};
+  } catch {
+    return undefined;
+  }
 }
 export function googleListingGroupRemoves(p: CompiledRequest): boolean {
   return (

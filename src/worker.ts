@@ -15,6 +15,7 @@ import {
 } from './scheduled-work.js';
 import {RELEASABLE_JOB_KINDS, REPORT_JOB_ATTEMPT_LIMIT, WORKER_BOOT_ID} from './job-leases.js';
 import {backgroundRunContinuation} from './campaign-background.js';
+import {writeReconcileKind} from './write-reconcile-job.js';
 import {workerJobLease} from './job-repository.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
 export type WorkerDrain = {released: string[]; settling: string[]};
@@ -245,6 +246,23 @@ export class ReportWorker {
           });
           outcome = 'failed';
           code = 'VERIFICATION_FAILED';
+        } else if (job.kind === writeReconcileKind && Number((result as JsonObject)?.retry_after_ms) > 0) {
+          // R2.5 M2: an automatic check of an uncertain write that settled nothing looks again after its cooldown. The
+          // job's own turn decided how long (src/write-reconciliation.ts); it only reads, so retrying it sends nothing. A turn
+          // that read nothing, because every read was refused before it was sent, is no attempt (lead re-review N6).
+          this.store.retryJob(
+            job.id,
+            job.lease_token,
+            {
+              code: 'RECONCILE_UNSETTLED',
+              message: 'The uncertain write is not settled yet; AMCP reads the provider again after a pause.',
+              details: {review_id: job.input.review_id, automatic_retry_of_mutation: false},
+            },
+            Number((result as JsonObject).retry_after_ms),
+            (result as JsonObject).attempt_counted !== false,
+          );
+          outcome = 'retry_scheduled';
+          code = 'RECONCILE_UNSETTLED';
         } else this.store.finishJob(job.id, job.lease_token, result);
       } else outcome = 'lease_lost';
     } catch (e) {

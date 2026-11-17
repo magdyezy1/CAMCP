@@ -422,7 +422,7 @@ test('the B15 task set names the blueprint jobs, snapshot collection and hold-ou
   }
   assert.deepEqual(
     journeys.map(journey => journey.id),
-    ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9'],
+    ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'J14'],
   );
   for (const journey of journeys) assert.deepEqual(Object.keys(journey.branches), [...branchNames], journey.id);
 });
@@ -593,6 +593,7 @@ test('oracle run: inspecting a reviewed change through the SDK is one call, send
   );
   assert.equal(record.task_measures.T3.guided_reaches_goal, true);
   assert.ok(record.mcp_surface.tools > 0 && record.mcp_surface.tools_list_bytes > 0);
-  // J9 exists now (V2-MCP-02), so the unknown run this check names is the next one.
-  await assert.rejects(runEvaluation({only: ['J10']}), /MCP_EVAL_UNKNOWN_RUN J10/);
+  // J14 exists now (R2.5 M2, after J9 of V2-MCP-02; J10 to J13 are reserved for M3's Google journeys), so the unknown run this check
+  // names is the next one.
+  await assert.rejects(runEvaluation({only: ['J15']}), /MCP_EVAL_UNKNOWN_RUN J15/);
 });

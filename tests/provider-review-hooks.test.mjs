@@ -105,7 +105,16 @@ test('each provider declares exactly the review hooks of the parts the review na
       'parentChecks',
       'snapshots',
     ],
-    tiktok_native_action: ['confirms', 'deletes', 'morePages', 'operation', 'prerequisites', 'snapshots'],
+    // R2.5 M2 (L1-07): its created lookup, src/tiktok-write-reconciliation.ts.
+    tiktok_native_action: [
+      'confirms',
+      'createdLookup',
+      'deletes',
+      'morePages',
+      'operation',
+      'prerequisites',
+      'snapshots',
+    ],
     snapchat_native_action: [
       'accountPath',
       'accountSnapshots',
@@ -599,21 +608,27 @@ test('a reconciliation asks the provider for its created-resource lookup and the
   const {findCreated, namedTargets} = await import('../dist/src/write-reconciliation.js');
   const {googleCreated, googleNamedTargets} = await import('../dist/src/google-write-reconciliation.js');
   const {metaCreated, metaNamedTargets} = await import('../dist/src/meta-write-reconciliation.js');
+  const {tiktokCreated} = await import('../dist/src/tiktok-write-reconciliation.js');
   const {googleAdsCustomers} = await import('../dist/src/google-version.js');
   const {familyOf} = await import('../dist/src/reviewed-families.js');
   const verification = await import('../dist/src/verification-reads.js');
   const core = await import('../dist/src/verification-core.js');
-  // Only Google Ads and Meta declare them, their modules' functions; the read normalization keeps its import path.
-  for (const hook of ['createdLookup', 'namedTargets'])
+  // Only Google Ads and Meta declare the named targets, and Google Ads, Meta and TikTok (R2.5 M2, L1-07) the created lookup,
+  // their modules' functions; the read normalization keeps its import path.
+  for (const [hook, gateways] of [
+    ['createdLookup', ['google_ads_native_action', 'meta_native_action', 'tiktok_native_action']],
+    ['namedTargets', ['google_ads_native_action', 'meta_native_action']],
+  ])
     assert.deepEqual(
       registeredProviderHooks.filter(h => h.writes?.[hook]).map(h => h.gateway),
-      ['google_ads_native_action', 'meta_native_action'],
+      gateways,
       hook,
     );
   assert.equal(writes('google_ads_native_action').createdLookup, googleCreated);
   assert.equal(writes('google_ads_native_action').namedTargets, googleNamedTargets);
   assert.equal(writes('meta_native_action').createdLookup, metaCreated);
   assert.equal(writes('meta_native_action').namedTargets, metaNamedTargets);
+  assert.equal(writes('tiktok_native_action').createdLookup, tiktokCreated);
   assert.equal(verification.normalize, core.normalize);
   assert.equal(verification.snake, core.snake);
   // Google's named creates: one bounded search of the frozen names, a state read of the write's account.
@@ -626,7 +641,11 @@ test('a reconciliation asks the provider for its created-resource lookup and the
   assert.equal(lookup.reads[0].readOnly, true);
   assert.equal(lookup.reads[0].method, 'POST');
   assert.equal(lookup.reads[0].path, googleAdsCustomers + '123/googleAds:search');
-  assert.match(lookup.reads[0].body.query, /WHERE campaign\.name IN \('Spring', 'Summer'\) LIMIT 100$/);
+  // A removed object's name is free again (R2.5 M2, lead review S2-5): only live objects are this create's.
+  assert.match(
+    lookup.reads[0].body.query,
+    /WHERE campaign\.name IN \('Spring', 'Summer'\) AND campaign\.status != 'REMOVED' LIMIT 100$/,
+  );
   const rows = {
     results: [
       {campaign: {resourceName: 'customers/123/campaigns/1', name: 'Spring'}},
@@ -641,12 +660,15 @@ test('a reconciliation asks the provider for its created-resource lookup and the
       {index: 1, id: 'customers/123/campaigns/2', name: 'Summer'},
     ],
   });
-  // Meta's account-edge create; an update, another provider and an unnamed create have no lookup.
+  // Meta's account-edge create and TikTok's campaign create (R2.5 M2, L1-07: its list of the creation window); an update,
+  // a provider that declares none and an unnamed create have no lookup.
   const meta = plan('meta_native_action', 'POST', '/v26.0/act_123/adsets', {body: {name: 'Spring'}});
   assert.equal(findCreated(meta).reads[0].path, '/v26.0/act_123/adsets');
+  const tiktok = plan('tiktok_native_action', 'POST', '/v1.3/campaign/create/', {body: {campaign_name: 'Spring'}});
+  assert.equal(findCreated(tiktok).reads[0].path, '/v1.3/campaign/get/');
   for (const p of [
     {...meta, path: '/v26.0/42'},
-    plan('tiktok_native_action', 'POST', '/v1.3/campaign/create/', {body: {campaign_name: 'Spring'}}),
+    plan('snapchat_native_action', 'POST', '/v1/adaccounts/1/campaigns', {body: {name: 'Spring'}}),
     {...google, body: {operations: [{create: {}}]}},
   ])
     assert.equal(findCreated(p), undefined, p.gateway + ' ' + p.path);

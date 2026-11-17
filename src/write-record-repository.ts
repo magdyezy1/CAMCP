@@ -28,6 +28,8 @@ export const writeFeedSQL = `SELECT d.id, 'write_review' AS kind, d.revision,
     'journal_phase',json_extract(o.data,'$.phase'),
     'error_code',CASE WHEN json_extract(o.data,'$.phase')='not_sent' THEN substr(json_extract(o.data,'$.events[#-1].code'),1,101) END,
     'superseded_by',json_extract(r.data,'$.superseded_by'),
+    'reconciliation',json_extract(r.data,'$.classification'),
+    'reconciliation_automatic',json_extract(r.data,'$.automatic'),
     'group',CASE WHEN d.kind='write_review_group' THEN 1 ELSE 0 END
   ) AS metadata
   FROM documents d

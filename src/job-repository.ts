@@ -126,12 +126,85 @@ export function writeClaim(store: Store, tenant: string, key: string): JsonObjec
     .prepare('SELECT state,result,created_at FROM idempotency WHERE tenant_id=? AND key=?')
     .get(tenant, key) as JsonObject | undefined;
 }
+/**
+ * The write claims of a workspace that are not settled (pending or uncertain), and those that completed since `since`
+ * (state, result, key, creation time), oldest first: what a prepare compares an identical create with (R2.5 M2, L5-06).
+ * The unsettled are few by nature; the completed are bounded to the newest 200.
+ */
+export function openWriteClaims(store: Store, tenant: string, since: number): JsonObject[] {
+  const unsettled = store
+    .sql()
+    .prepare(
+      "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state IN ('pending','uncertain') ORDER BY created_at",
+    )
+    .all(tenant) as JsonObject[];
+  const completed = store
+    .sql()
+    .prepare(
+      "SELECT key,state,result,created_at FROM idempotency WHERE tenant_id=? AND state='complete' AND created_at>? ORDER BY created_at DESC LIMIT 200",
+    )
+    .all(tenant, since) as JsonObject[];
+  return [...unsettled, ...completed.reverse()];
+}
+/**
+ * The completed write claims of a workspace, other than `exceptKey`, whose stored result mentions any of `needles` (R2.5 M2, lead
+ * re-review N1): their keys and results. Nothing is cut by count or by age. Only the claims that name one of the IDs under
+ * consideration are read, by a substring search of the stored text, so a workspace of any size costs one scan of its results.
+ */
+export function completedClaimsMentioning(
+  store: Store,
+  tenant: string,
+  exceptKey: string,
+  needles: string[],
+): JsonObject[] {
+  const rows = new Map<string, JsonObject>(),
+    wanted = needles.filter(needle => needle.length > 0);
+  for (let i = 0; i < wanted.length; i += 50) {
+    const chunk = wanted.slice(i, i + 50);
+    const found = store
+      .sql()
+      .prepare(
+        "SELECT key,result FROM idempotency WHERE tenant_id=? AND state='complete' AND key<>? AND result IS NOT NULL AND (" +
+          chunk.map(() => 'instr(result,?)>0').join(' OR ') +
+          ')',
+      )
+      .all(tenant, exceptKey, ...chunk) as JsonObject[];
+    for (const row of found) rows.set(String(row.key), row);
+  }
+  return [...rows.values()];
+}
 /** The write claim of an idempotency key with the fingerprint it was taken for (state, result, fingerprint). */
 export function writeClaimFingerprint(store: Store, tenant: string, key: string): JsonObject | undefined {
   return store
     .sql()
     .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
     .get(tenant, key) as JsonObject | undefined;
+}
+/** Moves the queued jobs of `kind` that name `reviewId` to `availableAt`; returns whether there was one (R2.5 M2, S3-4). */
+export function rescheduleQueuedReviewJob(
+  store: Store,
+  tenant: string,
+  kind: string,
+  reviewId: string,
+  availableAt: number,
+): boolean {
+  return (
+    Number(
+      store
+        .sql()
+        .prepare(
+          "UPDATE jobs SET available_at=?,updated_at=? WHERE tenant_id=? AND kind=? AND state='queued' AND json_extract(input,'$.review_id')=?",
+        )
+        .run(availableAt, Date.now(), tenant, kind, reviewId).changes,
+    ) > 0
+  );
+}
+/** Deletes the queued jobs of `kind` that name `reviewId`; one that is running is left to finish (R2.5 M2, S3-4). */
+export function deleteQueuedReviewJobs(store: Store, tenant: string, kind: string, reviewId: string) {
+  store
+    .sql()
+    .prepare("DELETE FROM jobs WHERE tenant_id=? AND kind=? AND state='queued' AND json_extract(input,'$.review_id')=?")
+    .run(tenant, kind, reviewId);
 }
 /** Cancels a queued or running job, ending its lease (its update time is left as it was). */
 export function cancelJobLease(store: Store, tenant: string, id: string) {

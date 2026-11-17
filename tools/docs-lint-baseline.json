@@ -340,10 +340,22 @@
       "raised": [
         "reference_words 161986 → 162155"
       ]
+    },
+    {
+      "reason": "Package r25-m2-reconcile rework (Round 2.5, M2, lead review S4-6): +627 reference words (162155 to 162782): docs/WRITE-OPERATIONS.md describes the automatic check of an uncertain write (the worker job, its watch from the claim, its attempts and its reserved quota), how a lost create is found (the TikTok, Meta and Google Ads lookups, the agreement rule and when absence may be answered) and the guard against creating twice (prepare and execute, the override, and the creates AMCP cannot look up by reads), which the package report (section 5.7) and the lead review (S4-6) asked to be documented once the fixes were in. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 162155 → 162782"
+      ]
+    },
+    {
+      "reason": "Package r25-m2-reconcile round 3 (Round 2.5, M2, lead re-review N3, N4, N6, N7, N9, N10, N11): +347 reference words (162782 to 163129): docs/WRITE-OPERATIONS.md says what the fixes do that the first rework documented: the live objects of a Google create that the review freezes at prepare, that applied needs a whole list, that only another create of the same kind holds an object, the lookup key that holds identical-by-object creates back, that a warning covers the identical creates it named, that a refused turn of the automatic check is no attempt, that a replacement that was rejected, or expired with no claim, lifts its supersede while one only released by a refusal before it was sent lifts nothing, who can settle a colleague's create, and how a plan routes the guard's refusals at execute. Measured with node tools/docs-lint.mjs.",
+      "raised": [
+        "reference_words 162782 → 163129"
+      ]
     }
   ],
   "totals": {
-    "reference_words": 162155
+    "reference_words": 163126
   },
   "pages": {
     "docs/DEPLOY-RAILWAY.md": {

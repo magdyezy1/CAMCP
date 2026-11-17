@@ -280,6 +280,10 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       ...(typeof p.error_code === 'string' && /^[A-Z0-9_]{1,100}$/.test(p.error_code)
         ? {error_code: p.error_code}
         : {}),
+      // What the read-only check of an uncertain write found, the person's or the worker's (R2.5 M2): a closed token.
+      ...(k === 'write' && ['appears_applied', 'appears_not_applied', 'indeterminate'].includes(p.reconciliation)
+        ? {reconciliation: {classification: p.reconciliation, automatic: p.reconciliation_automatic === 1}}
+        : {}),
       ...(k === 'incident' && attentionState === 'snoozed' ? {snoozed_until: p.snoozed_until} : {}),
       ...(['schedule', 'workbook_schedule'].includes(k) && ['active', 'attention'].includes(p.state)
         ? {next_run_at: p.next_run_at}

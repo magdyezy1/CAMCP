@@ -44,9 +44,18 @@ import {
   targetWaitMs,
   uncertainNext,
 } from './write-common.js';
-import {writeStatus, type WriteOrigin} from './write-records.js';
+import {endedSeal, liftSupersede, retainedReview, writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
-import {WriteReconciler} from './write-reconciliation.js';
+import {WriteReconciler, findCreated} from './write-reconciliation.js';
+import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
+import {
+  assertCreateNotRepeated,
+  createsObjects,
+  earlierCreates,
+  refuseRepeatedCreate,
+  repeatedCreateWarning,
+  requestIdentity,
+} from './write-duplicates.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
@@ -590,6 +599,27 @@ export class WriteReviewService {
     return values;
   }
   /**
+   * What already exists of what a create would make (R2.5 M2, lead re-review N3). A provider whose objects carry no creation time and
+   * refuses a duplicate name (Google Ads) has its lookup read, at prepare, the live objects of the frozen names under the frozen
+   * parents, one search per kind, and the review keeps their IDs: only an object that is not among them can be this write's, because an
+   * older object of the name is exactly why such a create fails. A read that fails is raised as for any state read (lead re-review 2, F2):
+   * the prepare is refused with that read's own code, retryable when it is, and nothing is prepared or stored, because a review prepared
+   * without the list could never tell its own object from an older one of the name. A list that was read but is not whole (a page
+   * limit) is kept as such, and the lookup then calls none of its matches this write's. Undefined for any other write.
+   */
+  private async freezeExisting(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+  ): Promise<{ids: string[]; whole: boolean} | undefined> {
+    const lookup = findCreated(plan);
+    if (!lookup?.existing) return undefined;
+    const {read} = this.guardedReader(actor, plan, connectionId, 'The read of what already exists must be read-only.');
+    const responses: TransportResult[] = [];
+    for (const request of lookup.reads) responses.push(await read(request));
+    return lookup.existing(responses);
+  }
+  /**
    * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
    * connection, its authority checks and same-login binding, audited before it is sent. Never claims or reserves.
    */
@@ -739,8 +769,46 @@ export class WriteReviewService {
     for (const key of Object.keys(input))
       if (!accepted.includes(key))
         fail('INVALID_ARGUMENT', input.action + ' takes ' + accepted.join(', ') + '.', {field: key, accepted});
-    if (input.action === 'status') return writeStatus(this.store, actor, input.review_id);
+    if (input.action === 'status') {
+      this.liftEndedSeal(actor, input.review_id);
+      return writeStatus(this.store, actor, input.review_id);
+    }
     return this.reconciler().call(input, actor);
+  }
+  /**
+   * The old review's automatic check is queued again once a supersede of it was lifted (R2.5 M2, lead re-review N4), as the person
+   * who lifts it (bindJobActor is sealed to the review the job is for). A reader cannot run a check, and a check that cannot be queued
+   * never changes what the caller is told: the audit row of the lift says whether one was.
+   */
+  private requeueCheck(actor: Actor, oldId: string): boolean {
+    if (actor.role === 'reader') return false;
+    try {
+      queueReconcile(this.store, actor.tenantId, oldId, this.store.bindJobActor(actor, oldId));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Lifts the seal a replacement review put on an uncertain write, in the transaction that rejects that replacement (lead re-review N4):
+   * the old review is reconcilable and acceptable again, and its check is queued again. A release of the replacement's claim lifts nothing.
+   */
+  private liftRejectedSeal(actor: Actor, review: JsonObject, replacementId: string) {
+    const old = review.supersedes_uncertain;
+    if (typeof old === 'string' && old)
+      liftSupersede(this.store, actor.tenantId, old, replacementId, 'rejected', () => this.requeueCheck(actor, old));
+  }
+  /**
+   * A status finds a seal whose replacement expired without a claim (lead re-review N4) and lifts it, before the record is read: the
+   * review is uncertain again, and its check is queued again. Only a reader of that review lifts it (the access check is the status').
+   */
+  private liftEndedSeal(actor: Actor, reviewId: unknown) {
+    const {review, group} = retainedReview(this.store, actor, reviewId);
+    if (group) return;
+    const id = review.id as string,
+      ended = endedSeal(this.store, actor.tenantId, id);
+    if (ended)
+      liftSupersede(this.store, actor.tenantId, id, ended.replacement, ended.why, () => this.requeueCheck(actor, id));
   }
   /** prepare and inspect: the reviewed request, its current state and what executing it needs, frozen as a review. */
   private async prepareReview({input, actor, evidence, origin}: ReviewPreparation): Promise<unknown> {
@@ -887,6 +955,10 @@ export class WriteReviewService {
         };
       }
     }
+    // The caller's request, as sent, before anything could change its body (a provider's deduplication key, the refusal package's
+    // `dedupeBody`): the guard against creating twice compares the identity stored with each review, never the body of a stored plan
+    // (R2.5 M2, lead re-review 2, merge join 4).
+    const identity = requestIdentity(plan);
     this.people(plan, input);
     assertWriteShape(plan);
     familyOf(plan)?.available?.(plan);
@@ -896,6 +968,10 @@ export class WriteReviewService {
       input.supersedes_review_id !== undefined
         ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
         : undefined;
+    // A create identical to one that is uncertain or still being sent is not prepared again: it could make a second object.
+    // The review it replaces is the one exception, and one that completed in the last ten minutes only warns (R2.5 M2, L5-06).
+    const earlier = createsObjects(plan) ? earlierCreates(this.store, actor, plan, identity, [supersedes]) : undefined;
+    if (earlier?.unresolved.length) refuseRepeatedCreate(earlier.unresolved);
     if (input.provider_check === true && !providerValidationRequest(plan))
       fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
         field: 'provider_check',
@@ -935,6 +1011,8 @@ export class WriteReviewService {
       this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
     );
     const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
+    // What already exists of what a create would make, frozen with the review (R2.5 M2, lead re-review N3).
+    const existing = await this.freezeExisting(actor, plan, c.id);
     const reviewId = randomUUID(),
       fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
       expiresAt = Date.now() + 300000;
@@ -991,6 +1069,9 @@ export class WriteReviewService {
       created_at: Date.now(),
       connection_id: c.id,
       plan,
+      // The identity of the caller's request, taken before anything could change the plan's body: what the guard against creating
+      // twice compares, for this review and for the later ones (src/write-duplicates.ts `identityOf`; lead re-review 2, merge join 4).
+      request_identity: identity,
       reads,
       state,
       state_hash: stateHash,
@@ -1000,6 +1081,17 @@ export class WriteReviewService {
       // What a person approving on the website is shown (WRT-09): the reasons and effects, never the request body.
       approval_context: {reasons: requirements.reasons, effects: effects ?? null},
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      ...(existing ? {existing} : {}),
+      // What the person was shown at prepare: execute refuses once, with this review's own code, an identical create that
+      // completed after it was prepared (src/write-duplicates.ts assertCreateNotRepeated). The warning covers the identical creates it
+      // named: `duplicate_twins` keeps their review IDs (never shown: a colleague's review is not named), so that execute refuses one
+      // that completed since (lead re-review N9).
+      ...(earlier?.completed.length
+        ? {
+            duplicate_warning: repeatedCreateWarning(earlier.completed),
+            duplicate_twins: earlier.completed.map(twin => twin.id).sort(),
+          }
+        : {}),
       ...override,
       ...(providerCheck ? {provider_check: providerCheck} : {}),
       prepare_input: {
@@ -1039,6 +1131,7 @@ export class WriteReviewService {
       execute_requirements: requirements,
       ...(approval ? {approval} : {}),
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
       summary: reviewSummary(plan, state),
       effect: effectClass(plan, state),
       ...(effects ? {effects} : {}),
@@ -1399,6 +1492,13 @@ export class WriteReviewService {
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
       if (claim.fresh) {
+        // R2.5 M2 (lead review S2-1): an identical create that is unresolved, or completed since this review was prepared, is
+        // refused here, in the transaction that took the claim: a refusal rolls the claim back, so nothing is claimed or sent,
+        // and two executes cannot both pass (the store's transactions begin immediate, so other processes wait too).
+        assertCreateNotRepeated(this.store, actor, plan, review, input.review_id, expiredNext(review, true));
+        // R2.5 M2 (lead review S3-4): the write is watched from its claim, so that a crash or a deploy that leaves the claim
+        // pending still gets its automatic check (due at claim + 10 minutes). It is dropped when the write settles.
+        watchWrite(this.store, actor.tenantId, input.review_id, actorBinding);
         family?.admit?.(plan, submission);
         if (job) {
           if (!family?.admit) admitProviderJob(this.store, plan.gateway, plan.accountId ?? '');
@@ -1482,6 +1582,7 @@ export class WriteReviewService {
           };
         }
         this.store.complete(actor.tenantId, input.idempotency_key, outcome);
+        unwatchWrite(this.store, actor.tenantId, input.review_id);
         this.store.appendAudit(actor.tenantId, input.review_id, {event: 'write_completed', outcome});
       });
       completed = true;
@@ -1502,13 +1603,22 @@ export class WriteReviewService {
         !completed &&
         !dispatched &&
         releaseUnsentClaims() &&
-        this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
-          code,
-          // Names the review, so an over-cap confirmation recorded before this refusal is not read as an execution.
-          review_id: input.review_id,
-          gateway: plan.gateway,
-          account_id: plan.accountId ?? null,
-          connection_id: c.id,
+        this.store.transaction(() => {
+          const released = this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
+            code,
+            // Names the review, so an over-cap confirmation recorded before this refusal is not read as an execution.
+            review_id: input.review_id,
+            gateway: plan.gateway,
+            account_id: plan.accountId ?? null,
+            connection_id: c.id,
+          });
+          // The claim is gone, and so is the watch it queued (R2.5 M2, lead review S3-4). The seal a replacement put on the review it
+          // replaces is NOT lifted by this release (lead re-review N4, decided 2026-11-17): a pause or a rate limit refused the write before
+          // it was sent, the replacement is still alive, and the same review executes again after the cooldown without the old write
+          // being settled again. The seal ends when the replacement is rejected, or when it expires with no claim (found by a status or
+          // by the next check that reads the old review).
+          if (released) unwatchWrite(this.store, actor.tenantId, input.review_id);
+          return released;
         });
       // A definitive refusal the family proves applied nothing (CMP-04) is rejected, not uncertain: the key is retired
       // and the reservation released (D12). A lost response, timeout, rate limit or 5xx never qualifies.
@@ -1517,15 +1627,43 @@ export class WriteReviewService {
         !unsent &&
         dispatched &&
         nonAppliedRejection(plan, e, family) &&
-        this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
-          code,
-          review_id: input.review_id,
-          gateway: plan.gateway,
-          account_id: plan.accountId ?? null,
-          connection_id: c.id,
-          http_status: Number((e as MirrorError).details.http_status),
+        this.store.transaction(() => {
+          const retired = this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
+            code,
+            review_id: input.review_id,
+            gateway: plan.gateway,
+            account_id: plan.accountId ?? null,
+            connection_id: c.id,
+            http_status: Number((e as MirrorError).details.http_status),
+          });
+          if (retired) {
+            unwatchWrite(this.store, actor.tenantId, input.review_id);
+            this.liftRejectedSeal(actor, review, input.review_id);
+          }
+          return retired;
         });
-      if (!completed && !unsent && !rejected) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      if (!completed && !unsent && !rejected) {
+        this.store.uncertain(actor.tenantId, input.idempotency_key);
+        // R2.5 M2 (L5-05, L3-13; owner 2026-11-15: "reconcile them automatically"): the worker reads the provider for this
+        // write at its claim time plus 60 s (src/write-reconcile-job.ts): the watch its claim queued is moved up. It reads
+        // only and never decides the outcome. The claim is already uncertain, so a failure to queue the check never changes
+        // what the caller is told: the person's own `reconcile` stays available, and the audit says the check was not queued.
+        try {
+          this.store.transaction(() => queueReconcile(this.store, actor.tenantId, input.review_id, actorBinding));
+        } catch (queueError) {
+          try {
+            this.store.appendAudit(actor.tenantId, input.review_id, {
+              event: 'write_reconcile_not_queued',
+              code: queueError instanceof MirrorError ? queueError.code : 'INTERNAL_ERROR',
+              gateway: plan.gateway,
+              account_id: plan.accountId ?? null,
+              connection_id: c.id,
+            });
+          } catch {
+            // The audit is the best the caller's answer can carry: it never changes what the caller is told.
+          }
+        }
+      }
       // RPT-06: an unsent job leaves no receipt (the same review may run again); a sent one is rejected or uncertain.
       if (job && !completed) {
         if (unsent) this.store.deleteDocument(actor.tenantId, 'provider_job', input.review_id);
