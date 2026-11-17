@@ -197,6 +197,31 @@ test('another person’s link added between prepare and execute gives STATE_CHAN
   assertRefused(await x.execute(ok), 'STATE_CHANGED', {writes: x.log.mutates.length});
 });
 
+test('the minimums are judged again at execute, on the state read then, and nothing is sent', async t => {
+  const x = pmaxRetailWorld({campaign: nonRetail()});
+  t.after(() => x.close());
+  x.addGroup({
+    id: '102',
+    links: [
+      ['HEADLINE', 3001],
+      ['HEADLINE', 3002],
+      ['HEADLINE', 3003],
+      ...minimumLinks.filter((l: any) => l[0] !== 'HEADLINE'),
+    ],
+  });
+  // At prepare the group holds three headlines and this review adds a fourth: valid.
+  const ok = await x.prepareLinks([link(3009, 'HEADLINE')]);
+  assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
+  // Before it is executed, someone removes two headlines: the group the review would leave holds two, which Google refuses.
+  for (const asset of [3001, 3002])
+    x.db.asset_group_asset.splice(
+      x.db.asset_group_asset.findIndex((r: any) => r.resource_name === linkName(asset, 'HEADLINE')),
+      1,
+    );
+  const refused = await x.execute(ok);
+  assertRefused(refused, 'PMAX_ASSET_MINIMUMS', {writes: x.log.mutates.length});
+  assert.deepEqual(refused.error.details.outside_range, [{field_type: 'HEADLINE', min: 3, max: 15, found: 2}]);
+});
 test('the image a review links must have the shape of its field type, within a wide tolerance; tall portrait has no ratio check', async t => {
   const x = pmaxRetailWorld({campaign: nonRetail()});
   t.after(() => x.close());
