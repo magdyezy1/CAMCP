@@ -391,7 +391,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // Package r25-m3-trees (item 2): the Standard Shopping node adapter (src/google-shopping-tree.ts) owns three sentences, the ad group
   // already has a root, it would have no listing group tree, and a tree needs a unit; the two sentences src/google-tree.ts took from
   // src/google-listing-groups.ts (one root; an excluded root) are the same sentences, so the set grows by three: 2,919 + 3 = 2,922.
-  assert.equal(owned.size, 2922);
+  // Its item 4 (G4b): a review edits the trees of up to ten asset groups, so the fixed sentence "A review edits the tree of one asset group."
+  // leaves, and the refusal of an eleventh group is one sentence that names the limit and the group (not a fixed one, so no owned
+  // sentence takes its place): 2,922 - 1 = 2,921. Its Arabic entry stays in web/locales/ar.json (an entry no source raises is no problem
+  // for node tools/check-locales.mjs, and removing it would move the catalogue count of every package merged with this one).
+  assert.equal(owned.size, 2921);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.

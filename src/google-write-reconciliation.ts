@@ -329,41 +329,49 @@ function googleLinksCreated(
   };
 }
 /**
- * A listing group tree edit, compared by shape as the family's own read-back compares it: the whole tree of the asset group
- * is read; the shape the reviewed request gives it means applied (one result, naming the nodes that are new since the review
- * read the tree), the shape the review read before means not applied, and anything else (someone else changed it, half of it
- * exists, the tree cannot be read, or the edit changes nothing) settles nothing.
+ * A listing group tree edit, compared by shape as the family's own read-back compares it: the whole tree of each asset group
+ * the review edits is read (R2.5 M3, G4b: a review has up to ten); every tree at the shape the reviewed request gives it means
+ * applied (one result per group, naming the nodes that are new since the review read the tree), every tree at the shape the
+ * review read before means not applied, and anything else (someone else changed one, half of one exists, a tree cannot be
+ * read, or the edit changes nothing in any group) settles nothing.
  */
 function googleTreeCreated(
   plan: CompiledRequest,
   read: StateReadBuilder,
   context?: CreatedLookupContext,
 ): CreatedLookup | undefined {
-  const tree = googleListingGroupLookup(plan, context?.state ?? []);
-  if (!tree) return undefined;
+  const trees = googleListingGroupLookup(plan, context?.state ?? []);
+  if (!trees?.length) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!),
     same = (a: string[], b: string[]) => JSON.stringify(a) === JSON.stringify(b);
   return {
-    reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query: tree.query}, 'POST')],
+    reads: trees.map(tree => read(googleAdsCustomers + id + '/googleAds:search', {}, {query: tree.query}, 'POST')),
     match(responses) {
-      const data = object(responses[0]?.data),
-        now = googleListingGroupTree(data.results),
-        whole = wholeAnswer(responses) && now !== undefined;
-      if (!now || !whole || same(tree.before, tree.after)) return {found: [], expected: 1, complete: false};
-      if (same(now.shape, tree.after))
+      const nows = trees.map((_, i) => googleListingGroupTree(object(responses[i]?.data).results)),
+        whole = wholeAnswer(responses) && nows.every(now => now !== undefined);
+      // A group the edit leaves as it is proves nothing; a review that changes none of its groups settles nothing.
+      if (!whole || trees.every(tree => same(tree.before, tree.after)))
+        return {found: [], expected: trees.length, complete: false};
+      if (trees.every((tree, i) => same(nows[i]!.shape, tree.after)))
         return {
-          found: [
-            {index: 0, id: tree.group + ' listing groups', created: now.names.filter(n => !tree.existing.includes(n))},
-          ],
-          expected: 1,
+          found: trees.map((tree, index) => ({
+            index,
+            id: tree.group + ' listing groups',
+            created: nows[index]!.names.filter(n => !tree.existing.includes(n)),
+          })),
+          expected: trees.length,
           complete: true,
         };
-      return {found: [], expected: 1, complete: same(now.shape, tree.before)};
+      return {
+        found: [],
+        expected: trees.length,
+        complete: trees.every((tree, i) => same(nows[i]!.shape, tree.before)),
+      };
     },
     receipt: found => ({
-      results: (Array.isArray(found[0]?.created) ? (found[0]!.created as string[]) : []).map(resourceName => ({
-        resourceName,
-      })),
+      results: found
+        .flatMap(f => (Array.isArray(f.created) ? (f.created as string[]) : []))
+        .map(resourceName => ({resourceName})),
     }),
   };
 }

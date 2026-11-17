@@ -166,15 +166,32 @@ export function googleListingGroupKind(p: CompiledRequest): boolean {
     /^\/v\d+\/customers\/\d+\/assetGroupListingGroupFilters:mutate$/.test(p.path)
   );
 }
-type Operation = TreeOperation;
-function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
+/** An operation of the review and the asset group whose tree it edits. */
+type Operation = TreeOperation & {group: string};
+/**
+ * The most asset groups one tree review edits (R2.5 M3, G4b): two reads per group at prepare and at execute, within the
+ * five-minute window.
+ */
+const maxGroups = 10;
+/** The review's operations, in order, and the asset groups they edit, by ID (a retail launch has several groups: G4b). */
+function operations(p: CompiledRequest): {groups: string[]; ops: Operation[]} {
   const c = account(p),
     b = googleJson(p.body),
-    ops: Operation[] = [];
-  let group: string | undefined;
-  const same = (g: string) => {
-    if (group !== undefined && g !== group) invalid('A review edits the tree of one asset group.');
-    group = g;
+    ops: Operation[] = [],
+    groups = new Set<string>();
+  const joins = (g: string, field: string, i: number) => {
+    groups.add(g);
+    if (groups.size > maxGroups)
+      invalid(
+        'A review edits the trees of at most ' +
+          maxGroups +
+          ' asset groups; ' +
+          field +
+          ' is asset group number ' +
+          groups.size +
+          '.',
+        {operation: i, field, limit: maxGroups, groups: groups.size},
+      );
   };
   for (const [i, op] of (b.operations as JsonObject[]).entries()) {
     const at = 'operations[' + i + ']';
@@ -182,8 +199,8 @@ function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
       const n = parseNode(c, op.remove);
       if (!n || n.id.startsWith('-'))
         invalid(at + '.remove must be an existing listing group filter of the selected customer.');
-      same(n!.group);
-      ops.push({remove: op.remove, op: i, at: at + '.remove'});
+      joins(n!.group, at + '.remove', i);
+      ops.push({remove: op.remove, op: i, at: at + '.remove', group: n!.group});
       continue;
     }
     const r = op.create;
@@ -200,7 +217,8 @@ function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
       );
     const g = /^customers\/(\d+)\/assetGroups\/([1-9][0-9]*)$/.exec(String(r.assetGroup));
     if (!g || g[1] !== c) invalid(at + '.create.assetGroup must be an asset group of the selected customer.');
-    same(g![2]!);
+    const group = g![2]!;
+    joins(group, at + '.create.assetGroup', i);
     if (!types.has(r.type)) invalid(at + '.create.type must be SUBDIVISION, UNIT_INCLUDED or UNIT_EXCLUDED.');
     if (r.listingSource !== 'SHOPPING')
       invalid(at + '.create.listingSource must be SHOPPING; webpage listing groups are not reviewed here.');
@@ -232,9 +250,10 @@ function operations(p: CompiledRequest): {group: string; ops: Operation[]} {
         op: i,
         at: at + '.create',
       },
+      group,
     });
   }
-  return {group: group!, ops};
+  return {groups: [...groups].sort((a, b) => Number(a) - Number(b)), ops};
 }
 export function assertGoogleListingGroups(p: CompiledRequest): void {
   if (!googleListingGroupKind(p)) return;
@@ -296,10 +315,12 @@ function search(p: CompiledRequest, kind: 'group' | 'tree', group: string): Comp
     {googleListingGroupState: {kind, group}},
   );
 }
-/** The asset group with its campaign, then its complete listing group tree. */
+/**
+ * For each asset group the review edits, by ID: the asset group with its campaign, then its complete listing group tree. The state
+ * of the group at index i of `operations(p).groups` is `state[2 * i]` (the group) and `state[2 * i + 1]` (its tree).
+ */
 export function googleListingGroupSnapshots(p: CompiledRequest): CompiledRequest[] {
-  const {group} = operations(p);
-  return [search(p, 'group', group), search(p, 'tree', group)];
+  return operations(p).groups.flatMap(group => [search(p, 'group', group), search(p, 'tree', group)]);
 }
 export function isGoogleListingGroupRead(p: CompiledRequest): boolean {
   return p.gateway === 'google_ads_native_action' && !!p.googleListingGroupState;
@@ -393,40 +414,64 @@ const treeNodes = (results: unknown): JsonObject[] =>
       case_value: f.caseValue ?? null,
     }))
     .sort((a, b) => (a.resource_name < b.resource_name ? -1 : a.resource_name > b.resource_name ? 1 : 0));
-/** The tree the request leaves, applied in order as Google does (src/google-tree.ts finalTree). */
-const finalOf = (p: CompiledRequest, current: Node[]): Map<string, Node> =>
-  finalTree(pmaxTree, operations(p).ops, current);
+/** The tree one asset group is left with by the request, applied in order as Google does (src/google-tree.ts finalTree). */
+const finalOf = (p: CompiledRequest, group: string, current: Node[]): Map<string, Node> =>
+  finalTree(
+    pmaxTree,
+    operations(p).ops.filter(o => o.group === group),
+    current,
+  );
+/** What the review read of the asset group at index `i` of the review: its asset group and campaign, and its tree (G4b). */
+const readOfGroup = (state: unknown, i: number) => {
+  const list = Array.isArray(state) ? state : [];
+  return {parent: obj(list[2 * i]) ? list[2 * i] : ({} as JsonObject), tree: list[2 * i + 1]};
+};
 export function validateGoogleListingGroupPrerequisites(plan: CompiledRequest, state: unknown[]): void {
   if (!googleListingGroupKind(plan)) return;
-  const parent = obj(state[0]) ? state[0] : {},
-    group = obj(parent.asset_group) ? parent.asset_group : {},
-    campaign = obj(parent.campaign) ? parent.campaign : {};
-  if (campaign.advertising_channel_type !== 'PERFORMANCE_MAX' || !campaign.merchant_id)
-    invalid(
-      'Listing group filters partition the Merchant Center products of Performance Max retail campaigns; campaign ' +
-        campaign.resource_name +
-        ' is ' +
-        campaign.advertising_channel_type +
-        ' without a linked Merchant Center account.',
-    );
-  if (!['ENABLED', 'PAUSED'].includes(group.status))
-    invalid('Asset group ' + group.resource_name + ' is ' + group.status + '.');
-  assertTree(pmaxTree, finalOf(plan, stateNodes(state[1])));
+  operations(plan).groups.forEach((g, i) => {
+    const {parent, tree} = readOfGroup(state, i),
+      group = obj(parent.asset_group) ? parent.asset_group : {},
+      campaign = obj(parent.campaign) ? parent.campaign : {};
+    if (campaign.advertising_channel_type !== 'PERFORMANCE_MAX' || !campaign.merchant_id)
+      invalid(
+        'Listing group filters partition the Merchant Center products of Performance Max retail campaigns; campaign ' +
+          campaign.resource_name +
+          ' is ' +
+          campaign.advertising_channel_type +
+          ' without a linked Merchant Center account.',
+      );
+    if (!['ENABLED', 'PAUSED'].includes(group.status))
+      invalid('Asset group ' + group.resource_name + ' is ' + group.status + '.');
+    assertTree(pmaxTree, finalOf(plan, g, stateNodes(tree)));
+  });
 }
 export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
   if (!googleListingGroupKind(plan)) return;
-  const parent = obj(state[0]) ? state[0] : {},
-    group = parent.asset_group ?? {},
-    campaign = parent.campaign ?? {};
+  const each = operations(plan).groups.map((g, i) => {
+      const {parent, tree} = readOfGroup(state, i),
+        group = parent.asset_group ?? {},
+        campaign = parent.campaign ?? {};
+      return {
+        asset_group: group,
+        campaign,
+        may_affect_serving: group.status === 'ENABLED' && campaign.status === 'ENABLED',
+        final_tree: shape(pmaxTree, finalOf(plan, g, stateNodes(tree))),
+      };
+    }),
+    first = each[0]!;
+  // One group keeps the keys a review of one asset group always had; several add `groups`, and the keys of the first stay (G4b).
   return {
     provider: 'google',
     scope: 'pmax_listing_groups',
-    asset_group: group,
-    campaign,
-    may_affect_serving: group.status === 'ENABLED' && campaign.status === 'ENABLED',
+    asset_group: first.asset_group,
+    campaign: first.campaign,
+    may_affect_serving: each.some(e => e.may_affect_serving),
     effect:
-      'Changes which Merchant Center products this asset group can advertise. Included units serve their products; excluded units and removed branches stop them.',
-    final_tree: shape(pmaxTree, finalOf(plan, stateNodes(state[1]))),
+      each.length > 1
+        ? 'Changes which Merchant Center products these asset groups can advertise (asset_group, campaign and final_tree are the first group’s; groups lists each). Included units serve their products; excluded units and removed branches stop them.'
+        : 'Changes which Merchant Center products this asset group can advertise. Included units serve their products; excluded units and removed branches stop them.',
+    final_tree: first.final_tree,
+    ...(each.length > 1 ? {groups: each} : {}),
     verification:
       'Reads the complete tree again and compares its shape (dimension paths and node types) with the reviewed result; Google assigns new IDs to created nodes.',
     source: 'https://developers.google.com/google-ads/api/performance-max/listing-groups',
@@ -434,7 +479,7 @@ export function googleListingGroupImpact(plan: CompiledRequest, state: unknown[]
 }
 export function googleListingGroupOutcome(plan: CompiledRequest, result: TransportResult): boolean {
   const c = account(plan),
-    {group, ops} = operations(plan),
+    {ops} = operations(plan),
     rows = obj(result.data) ? result.data.results : undefined;
   return (
     [200, 201].includes(result.status) &&
@@ -443,48 +488,56 @@ export function googleListingGroupOutcome(plan: CompiledRequest, result: Transpo
     rows.every((r: JsonObject, i: number) => {
       const op = ops[i]!,
         n = parseNode(c, r?.resourceName);
-      return op.remove ? r.resourceName === op.remove : !!n && n.group === group && !n.id.startsWith('-');
+      // Each result answers its own operation, in the asset group that operation edits (G4b).
+      return op.remove ? r.resourceName === op.remove : !!n && n.group === op.group && !n.id.startsWith('-');
     })
   );
 }
+/** One tree read per asset group of the review, each compared by shape with the tree the request leaves that group. */
 export function googleListingGroupVerification(
   plan: CompiledRequest,
   before: unknown[],
 ): {read: CompiledRequest; expected: JsonObject; id: string}[] {
-  const {group} = operations(plan);
-  return [
-    {
-      read: search(plan, 'tree', group),
-      expected: {tree: shape(pmaxTree, finalOf(plan, stateNodes(before[1])))},
-      id: groupName(account(plan), group) + ' listing groups',
-    },
-  ];
+  return operations(plan).groups.map((g, i) => ({
+    read: search(plan, 'tree', g),
+    expected: {tree: shape(pmaxTree, finalOf(plan, g, stateNodes(readOfGroup(before, i).tree)))},
+    id: groupName(account(plan), g) + ' listing groups',
+  }));
 }
 export function googleListingGroupObserved(read: CompiledRequest, data: JsonObject): JsonObject {
   const nodes = stateNodes(googleListingGroupState(read, data));
   return {tree: shape(pmaxTree, new Map(nodes.map(n => [n.name, n])))};
 }
 /**
- * What the lookup of an uncertain tree edit compares (R2.5 M2, L2-13), as the family's own read-back does: the query of the
- * asset group's whole tree, the shape the reviewed request gives it (`after`), the shape the review read before it
- * (`before`), and the names the tree had then. Undefined for a request that is no tree edit, or one it cannot work out.
+ * What the lookup of an uncertain tree edit compares for one asset group (R2.5 M2, L2-13), as the family's own read-back does:
+ * the query of the asset group's whole tree, the shape the reviewed request gives it (`after`), the shape the review read before
+ * it (`before`), and the names the tree had then.
  */
-export function googleListingGroupLookup(
-  plan: CompiledRequest,
-  state: unknown[],
-): {group: string; query: string; before: string[]; after: string[]; existing: string[]} | undefined {
+export interface ListingGroupLookup {
+  group: string;
+  query: string;
+  before: string[];
+  after: string[];
+  existing: string[];
+}
+/**
+ * The lookup of each asset group the review edits, in the order of `operations(plan).groups` (R2.5 M3, G4b: the lookup of a review
+ * of several groups covers every one). Undefined for a request that is no tree edit, or one it cannot work out.
+ */
+export function googleListingGroupLookup(plan: CompiledRequest, state: unknown[]): ListingGroupLookup[] | undefined {
   if (!googleListingGroupKind(plan)) return undefined;
   try {
-    const {group} = operations(plan),
-      current = stateNodes(state[1]),
-      body = search(plan, 'tree', group).body;
-    return {
-      group: groupName(account(plan), group),
-      query: String(obj(body) ? body.query : ''),
-      before: shape(pmaxTree, new Map(current.map(n => [n.name, n]))),
-      after: shape(pmaxTree, finalOf(plan, current)),
-      existing: current.map(n => n.name),
-    };
+    return operations(plan).groups.map((g, i) => {
+      const current = stateNodes(readOfGroup(state, i).tree),
+        body = search(plan, 'tree', g).body;
+      return {
+        group: groupName(account(plan), g),
+        query: String(obj(body) ? body.query : ''),
+        before: shape(pmaxTree, new Map(current.map(n => [n.name, n]))),
+        after: shape(pmaxTree, finalOf(plan, g, current)),
+        existing: current.map(n => n.name),
+      };
+    });
   } catch {
     return undefined;
   }
@@ -503,11 +556,19 @@ export function googleListingGroupRemoves(p: CompiledRequest): boolean {
     googleListingGroupKind(p) && (googleJson(p.body).operations as JsonObject[]).some(op => op.remove !== undefined)
   );
 }
-/** An enabled asset group of an enabled campaign serves at once; unknown state counts as serving. */
+/** An enabled asset group of an enabled campaign serves at once; unknown state counts as serving, and one group that serves is enough (G4b). */
 export function googleListingGroupServing(p: CompiledRequest, before: unknown): boolean {
   if (!googleListingGroupKind(p)) return false;
-  const parent = Array.isArray(before) && obj(before[0]) ? before[0] : undefined;
-  return !parent || (parent.asset_group?.status === 'ENABLED' && parent.campaign?.status === 'ENABLED');
+  let groups: string[];
+  try {
+    groups = operations(p).groups;
+  } catch {
+    return true;
+  }
+  return groups.some((_, i) => {
+    const parent = Array.isArray(before) && obj(before[2 * i]) ? before[2 * i] : undefined;
+    return !parent || (parent.asset_group?.status === 'ENABLED' && parent.campaign?.status === 'ENABLED');
+  });
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
