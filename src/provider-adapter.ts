@@ -1686,6 +1686,8 @@ export interface CreatedLookupContext {
   state: unknown[];
   /** When the write was claimed (ms): a created resource carries a creation time after it. */
   claimedAt: number;
+  /** What the review saw of the lookup's objects before the write (`CreatedLookup.existing`), where its provider freezes it. */
+  existing?: {ids: string[]; whole: boolean};
 }
 /** What a provider's lookup of a create returns: the created resources it found, in the order of the request's records. */
 export interface CreatedLookup {
@@ -1703,6 +1705,13 @@ export interface CreatedLookup {
    * field the provider does not echo. Undefined where the lookup compares by shape or by deterministic names.
    */
   keys?: string[];
+  /**
+   * What the lookup's reads see before the write (R2.5 M2, lead re-review N3), read at prepare and frozen with the review: the IDs of the
+   * objects it would count as this write's, and whether the answer was whole. A provider whose objects carry no creation time and refuses a
+   * duplicate name (Google Ads) implements it, because an older object of the name is then exactly why such a create fails; `match` leaves
+   * those objects out, and shows every match as a doubt where the list was not whole. Undefined where the provider dates its objects.
+   */
+  existing?(responses: TransportResult[]): {ids: string[]; whole: boolean};
   /**
    * Matches the responses of `reads` to the request's records; `complete` when the lookup saw everything it asked.
    * `found` are the resources of the frozen name and parent that the lookup can show were created by this write, each

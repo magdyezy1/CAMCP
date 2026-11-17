@@ -60,6 +60,15 @@ const wholeAnswer = (responses: {data?: unknown}[], limit?: number) =>
     return !data.nextPageToken && !(limit !== undefined && Array.isArray(data.results) && data.results.length >= limit);
   });
 /**
+ * What the review froze of the objects a Google lookup counts (R2.5 M2, lead re-review N3): the IDs of those that existed when it was
+ * prepared, which are not this write's, and whether that list is unknown (it could not be read whole), so that no match can be told
+ * from an older object. A review prepared before the list existed has none, and is read as it was.
+ */
+function frozenObjects(context?: CreatedLookupContext): {older: Set<string>; blind: boolean} {
+  const before = context?.existing;
+  return {older: new Set(before?.whole ? before.ids : []), blind: before !== undefined && !before.whole};
+}
+/**
  * Google Ads creates of named resources (campaigns, budgets, ad groups, asset groups): one bounded search by the frozen
  * names. Google refuses a duplicate name for these, so one match per name is the created resource. A build, an asset link
  * batch and a listing group tree edit have lookups of their own (R2.5 M2, L2-13).
@@ -70,7 +79,7 @@ export function googleCreated(
   context?: CreatedLookupContext,
 ): CreatedLookup | undefined {
   const kind = /\/([A-Za-z]+):mutate$/.exec(plan.path)?.[1];
-  if (kind === 'googleAds') return googleBuildCreated(plan, read);
+  if (kind === 'googleAds') return googleBuildCreated(plan, read, context);
   if (kind === 'assetGroupListingGroupFilters') return googleTreeCreated(plan, read, context);
   const links = googleAssetLinkCreates(plan);
   if (links) return googleLinksCreated(plan, read, links);
@@ -111,17 +120,26 @@ export function googleCreated(
       : '') +
     ' LIMIT ' +
     searchLimit;
+  const {older, blind} = frozenObjects(context),
+    listed = (responses: {data?: unknown}[]) =>
+      (normalize(object(responses[0]?.data).results ?? [], googleAdsReviewVolatile) as JsonObject[]).map(r =>
+        object(r[resource]),
+      );
   return {
     reads: [read(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST')],
     keys: names.map((name, i) => lookupKey(resource, bound ? parents[i] : '', name)),
+    existing: responses => ({
+      ids: listed(responses).map(r => String(r.resource_name)),
+      whole: wholeAnswer(responses, searchLimit),
+    }),
     match(responses) {
-      const rows = (normalize(object(responses[0]?.data).results ?? [], googleAdsReviewVolatile) as JsonObject[]).map(
-          r => object(r[resource]),
-        ),
+      // An object of the name that existed when the review was prepared is not this write's (Google refuses a duplicate name, so an
+      // older object is exactly why such a create fails); where that list is unknown, no match can be told from an older object.
+      const rows = listed(responses).filter(r => !older.has(String(r.resource_name))),
         named = names.map((name, i) => rows.filter(r => r.name === name && (!bound || r[parentCol!] === parents[i]))),
         // Another object of that name that differs in a field the review froze is a doubt, never this write's (R2.5 M2, S2-3).
-        found = named.map((list, i) => list.filter(r => agrees(creates[i]!, r, echoes))),
-        doubts = named.flatMap((list, i) => list.filter(r => !agrees(creates[i]!, r, echoes)));
+        found = named.map((list, i) => (blind ? [] : list.filter(r => agrees(creates[i]!, r, echoes)))),
+        doubts = named.flatMap((list, i) => list.filter(r => blind || !agrees(creates[i]!, r, echoes)));
       return {
         expected: names.length,
         complete: wholeAnswer(responses, searchLimit),
@@ -142,7 +160,11 @@ export function googleCreated(
  * shown and never chosen between. The receipt names what was found at the operations that made it; the results of the
  * build's unnamed operations (keywords, ads, criteria) are not known to a lookup by name.
  */
-function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): CreatedLookup | undefined {
+function googleBuildCreated(
+  plan: CompiledRequest,
+  read: StateReadBuilder,
+  context?: CreatedLookupContext,
+): CreatedLookup | undefined {
   const build = googleBuildLookup(plan);
   if (!build?.anchors.length || !build.anchors.every(a => gaqlText(a.name))) return undefined;
   const id = normalizeAccount(plan.gateway, plan.accountId!),
@@ -206,8 +228,20 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
         a.name,
       ),
     ),
+    existing: responses => ({
+      ids: resources.flatMap((resource, i) => rowsOf(responses[i], resource).map(r => String(r.resourceName))),
+      whole: wholeAnswer(responses, searchLimit),
+    }),
     match(responses) {
-      const rows = new Map(resources.map((resource, i) => [resource, rowsOf(responses[i], resource)])),
+      // The objects that existed when the review was prepared are not this build's; where that list is unknown, no match can be told
+      // from an older object, so every match is a doubt.
+      const {older, blind} = frozenObjects(context),
+        rows = new Map(
+          resources.map((resource, i) => [
+            resource,
+            rowsOf(responses[i], resource).filter(r => !older.has(String(r.resourceName))),
+          ]),
+        ),
         chosen = new Map<string, string>(),
         picked: JsonObject[] = [],
         others: JsonObject[] = [];
@@ -226,7 +260,7 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
               r.name === a.name &&
               (!constrained || (field !== undefined && want !== undefined && r[camel(field)] === want)),
           );
-        if (candidates.length === 1) {
+        if (candidates.length === 1 && !blind) {
           const name = String(candidates[0]!.resourceName);
           if (a.temp) chosen.set(a.temp, name);
           picked.push({index, id: name, name: a.name});
@@ -240,7 +274,11 @@ function googleBuildCreated(plan: CompiledRequest, read: StateReadBuilder): Crea
         : [...picked.map(({index: _index, ...rest}) => rest), ...others].filter(
             (f, i, all) => all.findIndex(g => g.id === f.id) === i,
           );
-      return {found, expected: build.anchors.length, complete: wholeAnswer(responses, searchLimit)};
+      const complete = wholeAnswer(responses, searchLimit);
+      // Where the objects that existed before cannot be told from the build's, what was found is shown as a doubt.
+      return blind
+        ? {found: [], undated: found, expected: build.anchors.length, complete}
+        : {found, expected: build.anchors.length, complete};
     },
     receipt: found => ({
       mutateOperationResponses: build.operations.map((op, i) => {

@@ -146,6 +146,11 @@ export function findCreated(
 /** Whether the request creates objects: what the review summary calls a create, or a request that a created lookup can find. */
 export const createsObjects = (plan: CompiledRequest): boolean =>
   operationOf(plan).operation === 'create' || findCreated(plan) !== undefined;
+/** What a review froze at prepare of the objects its lookup counts (its existing), as a lookup's context takes it. */
+const frozenList = (review: JsonObject): {existing?: {ids: string[]; whole: boolean}} => {
+  const list = object(review.existing);
+  return Array.isArray(list.ids) ? {existing: {ids: list.ids.map(String), whole: list.whole === true}} : {};
+};
 const idMarker = '\u0000lookup-id-';
 /**
  * The paths, in the receipt of a lookup, at which it puts the ID of what it found (an array index is any index): found without
@@ -196,7 +201,7 @@ export function namedTargets(plan: CompiledRequest): JsonObject | undefined {
   return providerHooks(plan.gateway)?.writes?.namedTargets?.(plan);
 }
 /** A provider failure of a reconciliation read leaves the answer indeterminate; an authority failure is raised. */
-const providerFailure = (e: unknown) =>
+export const providerFailure = (e: unknown) =>
   e instanceof MirrorError &&
   (typeof e.details.http_status === 'number' ||
     /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|STATE_UNAVAILABLE$|STATE_INCOMPLETE$)/.test(
@@ -347,7 +352,11 @@ export class WriteReconciler {
     read: Read,
     claimedAt: number,
   ): Promise<JsonObject> {
-    const lookup = findCreated(plan, {state: Array.isArray(review.state) ? review.state : [], claimedAt});
+    const lookup = findCreated(plan, {
+      state: Array.isArray(review.state) ? review.state : [],
+      claimedAt,
+      ...frozenList(review),
+    });
     if (lookup) {
       const responses: TransportResult[] = [];
       // A list longer than its page is followed, up to createdLookupPages batches in all: a longer one is not whole, which

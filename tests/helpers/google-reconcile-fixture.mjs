@@ -83,7 +83,7 @@ export function googleReconcileFixture({tenant = 'google-reconcile', role = 'ope
   const requests = [],
     queries = [],
     writes = [],
-    state = {next: 500, applied: undefined, lose: false};
+    state = {next: 500, applied: undefined, lose: false, refuse: undefined};
   const row = (table, fields) => {
     const r = {resource_name: fields.resource_name, ...fields};
     db[table].push(r);
@@ -212,6 +212,12 @@ export function googleReconcileFixture({tenant = 'google-reconcile', role = 'ope
     requests.push(method + ' ' + path);
     if (path.endsWith('/googleAds:search')) {
       queries.push(String(body.query));
+      // A test may make the provider refuse the searches that match (a failure of the read of what already exists at prepare).
+      if (state.refuse?.test(String(body.query)))
+        return Response.json(
+          {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}},
+          {status: 400},
+        );
       return Response.json({results: search(String(body.query))});
     }
     if (/:mutate$/.test(path)) {

@@ -46,7 +46,7 @@ import {
 } from './write-common.js';
 import {writeStatus, type WriteOrigin} from './write-records.js';
 import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
-import {WriteReconciler} from './write-reconciliation.js';
+import {WriteReconciler, findCreated, providerFailure} from './write-reconciliation.js';
 import {queueReconcile, unwatchWrite, watchWrite} from './write-reconcile-job.js';
 import {
   assertCreateNotRepeated,
@@ -598,6 +598,30 @@ export class WriteReviewService {
     return values;
   }
   /**
+   * What already exists of what a create would make (R2.5 M2, lead re-review N3). A provider whose objects carry no creation time and
+   * refuses a duplicate name (Google Ads) has its lookup read, at prepare, the live objects of the frozen names under the frozen
+   * parents, one search per kind, and the review keeps their IDs: only an object that is not among them can be this write's, because an
+   * older object of the name is exactly why such a create fails. A provider that cannot answer leaves the list unknown (the lookup then
+   * calls none of its matches this write's); an authority failure is raised as for any state read. Undefined for any other write.
+   */
+  private async freezeExisting(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+  ): Promise<{ids: string[]; whole: boolean} | undefined> {
+    const lookup = findCreated(plan);
+    if (!lookup?.existing) return undefined;
+    const {read} = this.guardedReader(actor, plan, connectionId, 'The read of what already exists must be read-only.');
+    try {
+      const responses: TransportResult[] = [];
+      for (const request of lookup.reads) responses.push(await read(request));
+      return lookup.existing(responses);
+    } catch (e) {
+      if (providerFailure(e)) return {ids: [], whole: false};
+      throw e;
+    }
+  }
+  /**
    * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
    * connection, its authority checks and same-login binding, audited before it is sent. Never claims or reserves.
    */
@@ -947,6 +971,8 @@ export class WriteReviewService {
       this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
     );
     const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
+    // What already exists of what a create would make, frozen with the review (R2.5 M2, lead re-review N3).
+    const existing = await this.freezeExisting(actor, plan, c.id);
     const reviewId = randomUUID(),
       fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
       expiresAt = Date.now() + 300000;
@@ -1012,6 +1038,7 @@ export class WriteReviewService {
       // What a person approving on the website is shown (WRT-09): the reasons and effects, never the request body.
       approval_context: {reasons: requirements.reasons, effects: effects ?? null},
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      ...(existing ? {existing} : {}),
       // What the person was shown at prepare: execute refuses once, with this review's own code, an identical create that
       // completed after it was prepared (src/write-duplicates.ts assertCreateNotRepeated).
       ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
