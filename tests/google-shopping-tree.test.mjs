@@ -117,6 +117,28 @@ test('a five-node tree on an existing PAUSED ad group is one review, one mutate 
   assert.equal(x.mutates.length, 1);
 });
 
+test('a 120-operation tree named with ~-N stays one review and one mutate request: the chain is never cut into parts of 25 (R2.5 M3, G4c; Q28, owner 2026-11-15)', async t => {
+  const x = shoppingCustomer(existingAdGroup());
+  t.after(() => x.store.close());
+  const name = n => at('adGroupCriteria', '55~-' + n),
+    nodes = [{type: 'SUBDIVISION', name: name(1)}];
+  for (let i = 0; i < 118; i++)
+    nodes.push({type: 'UNIT', name: name(2 + i), parent: name(1), caseValue: brand('b' + i), bid: '100000'});
+  nodes.push({type: 'UNIT', name: name(500), parent: name(1), caseValue: brand(), bid: '100000'});
+  const edit = treeEdit({adGroup: '55', nodes});
+  assert.equal(edit.operations.length, 120);
+  const p = await x.prepareEdit(edit);
+  assert.equal(p.success, true, JSON.stringify(p).slice(0, 600));
+  assert.equal(p.data.group, undefined, 'one review, never a group of parts of 25');
+  assert.equal(x.mutates.length, 0);
+  const e = await x.execute(p);
+  assert.equal(e.success, true, JSON.stringify(e).slice(0, 600));
+  assert.equal(x.mutates.length, 1, 'one mutate request');
+  assert.equal(x.mutates[0].body.operations.length, 120);
+  assert.equal(x.nodes.size, 120);
+  assert.equal((await x.verify(p)).data.status, 'verified');
+});
+
 test('a branch is replaced in one review: leaves first on removal, and a removal before its children is refused', async t => {
   const x = shoppingCustomer(existingAdGroup({criteria: existingTree()}));
   t.after(() => x.store.close());
