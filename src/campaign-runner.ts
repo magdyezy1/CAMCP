@@ -20,7 +20,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
-import {MirrorError, errorRemedy, refusedByStateCheck} from './errors.js';
+import {MirrorError, errorRemedy, refusedByDuplicateGuard, refusedByStateCheck} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
 import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
 // A clone's all-or-nothing build is its provider's (ARC-01 phase B, wave 4c: Google's `campaign.clone.allOrNothing`),
@@ -248,6 +248,40 @@ const alreadyCurrent = (step: JsonObject, error: JsonObject | undefined) =>
  */
 export const unsentStateChange = (error: JsonObject | undefined, claim: JsonObject | undefined) =>
   refusedByStateCheck(error) && !claim;
+/**
+ * The refusal of a step's review by the guard against creating twice, with nothing sent (R2.5 M2, lead re-review N7): raised in the
+ * transaction that takes the claim, which it rolls back, so no idempotency claim exists for the review (the proof, as for a changed
+ * state). Such a step goes back to pending too: the standalone prepare the refusal names would prepare a review that no step holds.
+ */
+export const unsentDuplicate = (error: JsonObject | undefined, claim: JsonObject | undefined) =>
+  refusedByDuplicateGuard(error) && !claim;
+/**
+ * A duplicate of a create that is still being sent (the earlier claim is pending and young): it is not settled yet, and may never be an
+ * obstacle, so the step waits with its review ready, as it does for a busy target (STATE_BUSY), instead of going back to pending.
+ */
+const duplicateOfExecuting = (error: JsonObject | undefined) =>
+  error?.code === 'DUPLICATE_OF_UNCERTAIN_WRITE' && error.details?.earlier_state === 'executing';
+/**
+ * What a run tells an agent where it stops at a step that the guard against creating twice sent back to pending (R2.5 M2, N7): one
+ * reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
+ */
+const duplicateReason = (stepId: unknown, code: unknown, prepared: boolean): string =>
+  'Step ' +
+  String(stepId) +
+  (prepared ? ' was refused earlier' : ' was refused') +
+  ' (' +
+  String(code) +
+  ') because an identical create ' +
+  (code === 'DUPLICATE_OF_COMPLETED_WRITE'
+    ? 'completed after its review was prepared'
+    : 'is uncertain or still being sent') +
+  ', so executing it could make a second object. ' +
+  (prepared
+    ? 'It is prepared again, and the new review carries a warning that says so: show the user this review, and only if they want a second object, execute_next with it. run stops here so that the warning is shown before anything is sent. '
+    : code === 'DUPLICATE_OF_COMPLETED_WRITE'
+      ? 'Nothing was sent. prepare_next prepares the step again, and the new review carries a warning that says so: show the user that review, and only if they want a second object, execute_next with it. '
+      : 'Nothing was sent. Settle the earlier create first (current.error.details.earlier_next_call); prepare_next then prepares the step again. ') +
+  'run never sends it on its own.';
 /**
  * What a run tells an agent where it stops at a step that a refusal of the state check sent back to pending (R25 M1, L5-04):
  * one reason, for the run that met the refusal and for a later run that prepared the step again (`prepared`).
@@ -849,10 +883,12 @@ export class CampaignRunner {
         });
       // The steps a refusal of the state check sent back to pending, in this call or in an earlier one.
       const current = this.owned(actor, run.id),
-        held = new Set<string>(current.steps.filter(heldByStateCheck).map((s: JsonObject) => s.id));
+        held = new Map<string, JsonObject>(
+          current.steps.filter(heldByStateCheck).map((s: JsonObject) => [s.id, s.error] as [string, JsonObject]),
+        );
       if (uploads && refusedHere && held.size && !nextUpload(current))
         return stop(refusedHere, 'state_changed', {
-          reason: stateChangedReason([...held][0], false),
+          reason: stateChangedReason([...held.keys()][0], false),
           next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });
       const ask: JsonObject = this.approved({action: 'prepare_next', id: run.id});
@@ -883,11 +919,19 @@ export class CampaignRunner {
       // again here over the state as it is now, and the run STOPS with the new review: the plan's approval is of the plan, not
       // of a state that moved, so the new review is shown before anything is sent. Only an explicit call sends it
       // (execute_next with this review); no flag skips the check, and nothing here retries it.
-      if (prepared.review && typeof prepared.step_id === 'string' && held.has(prepared.step_id))
-        return stop(prepared, 'state_changed', {
-          reason: stateChangedReason(prepared.step_id, true),
-          next_call: prepared.next_call,
-        });
+      if (prepared.review && typeof prepared.step_id === 'string' && held.has(prepared.step_id)) {
+        // The same stop for a step the guard against creating twice sent back (R2.5 M2, N7): the new review carries the warning.
+        const refusal = held.get(prepared.step_id)!;
+        return refusedByDuplicateGuard(refusal)
+          ? stop(prepared, 'duplicate_create', {
+              reason: duplicateReason(prepared.step_id, refusal.code, true),
+              next_call: prepared.next_call,
+            })
+          : stop(prepared, 'state_changed', {
+              reason: stateChangedReason(prepared.step_id, true),
+              next_call: prepared.next_call,
+            });
+      }
       // A review still ready from an earlier call carries its requirements inside the review view.
       const needs = prepared.execute_requirements ?? prepared.review?.execute_requirements ?? {};
       const human = needs.cap_override_confirmed
@@ -928,10 +972,8 @@ export class CampaignRunner {
       // the plan, not of a state that moved after the review, so run never prepares and executes that step again in this
       // call. A plan stops at once. A push of independent uploads moves the other uploads first (lead review S3-1): it
       // stops with this one when nothing else can move, and the agent and the user decide.
-      if (
-        step?.status === 'pending' &&
-        (typeof step.error === 'string' ? step.error : step.error?.code) === 'STATE_CHANGED'
-      ) {
+      const refusal = typeof step?.error === 'string' ? step.error : step?.error?.code;
+      if (step?.status === 'pending' && refusal === 'STATE_CHANGED') {
         if (uploads) {
           refusedHere = out;
           continue;
@@ -941,6 +983,16 @@ export class CampaignRunner {
           next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
         });
       }
+      // R2.5 M2 (lead re-review N7): a step the guard against creating twice sent back to pending, unsent. The run never prepares and
+      // executes it again on its own: the person is shown the new review, with its warning, before a second object is made.
+      if (
+        step?.status === 'pending' &&
+        ['DUPLICATE_OF_COMPLETED_WRITE', 'DUPLICATE_OF_UNCERTAIN_WRITE'].includes(refusal)
+      )
+        return stop(out, 'duplicate_create', {
+          reason: duplicateReason(prepared.step_id, refusal, false),
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+        });
       // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
       // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
       // The review stays ready; run continues once the person has acted. A compact row names only the error code.
@@ -2535,7 +2587,7 @@ export class CampaignRunner {
     const review = prepared.data;
     delete next.busy;
     // The refusal that sent this step back to pending (L5-04) concerned the review being replaced; the audit keeps it.
-    if (refusedByStateCheck(next.error)) delete next.error;
+    if (refusedByStateCheck(next.error) || refusedByDuplicateGuard(next.error)) delete next.error;
     // An expired review prepared again for the same request over unchanged state says so (WRT-05).
     if (
       typeof next.review?.fingerprint === 'string' &&
@@ -2672,6 +2724,25 @@ export class CampaignRunner {
       run.state = 'attention';
       return this.respond(input, this.save(actor, run), step.id, {next_call: again});
     }
+    // R2.5 M2 (lead re-review N7): the guard against creating twice refused the review before anything was claimed. The step goes back
+    // to pending as for a changed state, with the plan's own prepare_next: the standalone prepare the refusal names would prepare a
+    // review that no step holds. The call that settles the earlier create stays in the refusal (`earlier_next_call`). A duplicate of a
+    // create that is still being sent waits instead (below), as a busy target does.
+    if (
+      !result.success &&
+      unsentDuplicate(result.error, this.claim(actor, step.review_id)) &&
+      !duplicateOfExecuting(result.error)
+    ) {
+      const again = {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+        earlier = result.error.details?.next_call;
+      step.error = {
+        ...result.error,
+        details: {...result.error.details, next_call: again, ...(earlier ? {earlier_next_call: earlier} : {})},
+      };
+      step.status = 'pending';
+      run.state = 'attention';
+      return this.respond(input, this.save(actor, run), step.id, {next_call: again});
+    }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
       // A refusal that sent nothing released its claim (WRT-04): a pause, rate limit, open circuit or busy target clears
@@ -2700,7 +2771,9 @@ export class CampaignRunner {
                 'PROVIDER_COORDINATION_BUSY',
                 'MEDIA_MEMORY_BUSY',
                 'MEDIA_UPLOAD_BUSY',
-              ].includes(result.error?.code))
+              ].includes(result.error?.code)) ||
+            // A create identical to this one is still being sent (R2.5 M2, lead re-review N7): the review waits for it.
+            (unsent && duplicateOfExecuting(result.error))
           ? 'review_ready'
           : result.error?.code === 'REVIEW_EXPIRED'
             ? 'pending'

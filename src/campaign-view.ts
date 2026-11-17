@@ -280,6 +280,8 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
       'contract_evidence',
       'confirmation_required',
       'reused',
+      // An identical create completed in the last ten minutes (R2.5 M2, L5-06): the agent shows it before a second object is made.
+      'duplicate_warning',
     ]),
     detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: runId, step_id: stepId}},
   };
