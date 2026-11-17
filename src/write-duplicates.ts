@@ -136,21 +136,23 @@ export function earlierCreates(
     if (!review?.plan) continue;
     const identical = identityOf(review) === identity,
       // Only an unresolved create holds another back by its key: a completed one made its object, which the lookups leave out.
-      alike =
-        !identical &&
-        claim.state !== 'complete' &&
-        mine.size > 0 &&
-        review.plan.gateway === plan.gateway &&
-        createdKeys(review.plan, {
-          state: Array.isArray(review.state) ? review.state : [],
-          claimedAt: Number(claim.created_at),
-        }).some(key => mine.has(key));
-    if (!identical && !alike) continue;
+      comparable = !identical && claim.state !== 'complete' && mine.size > 0 && review.plan.gateway === plan.gateway;
+    if (!identical && !comparable) continue;
     // A review that a replacement seals holds nothing unresolved, while that replacement stands (lead re-review N4): once it was rejected
     // or expired with no claim, the old create may have made its object, and it counts again. A replacement whose claim was only
-    // released by a refusal before dispatch still stands: it executes again, and the old review stays out of its way.
+    // released by a refusal before dispatch still stands: it executes again, and the old review stays out of its way. The seal is checked
+    // before the lookup keys of the review's plan are built (lead re-review 2, F6): a sealed review stays uncertain for ever, and the guard
+    // runs for every create, inside the write lock at execute.
     const checked = optional(store, actor.tenantId, 'write_reconciliation', id);
     if (supersededBy(store, actor.tenantId, checked, now)) continue;
+    if (
+      !identical &&
+      !createdKeys(review.plan, {
+        state: Array.isArray(review.state) ? review.state : [],
+        claimedAt: Number(claim.created_at),
+      }).some(key => mine.has(key))
+    )
+      continue;
     const at = Number(claim.created_at);
     if (claim.state === 'complete') {
       // A create the provider reported as failed made nothing.

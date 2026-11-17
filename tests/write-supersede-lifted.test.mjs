@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {budgetName, googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
 import {ReportWorker} from '../dist/src/worker.js';
+import {earlierCreates, requestIdentity} from '../dist/src/write-duplicates.js';
 
 /**
  * R2.5 M2, lead re-review N4: a replacement seals the old review only while it can still settle the matter. The seal (`superseded_by`)
@@ -431,6 +432,53 @@ test('an uncertain replacement keeps the old review sealed', async () => {
     assert.equal(shown.data.state, 'superseded');
     assert.equal(shown.data.reconciliation.superseded_by, replacement);
     assert.deepEqual(lifts(f), []);
+  } finally {
+    f.close();
+  }
+});
+
+// Lead re-review 2, F6 (the cost of the guard, which runs inside the write lock at execute): a review a replacement seals stays uncertain for
+// ever, and the guard used to build the lookup keys of its plan before it noticed the seal, once for every create it checks.
+test('the guard sets a sealed review aside before it builds its lookup keys: a superseded create costs it nothing', async () => {
+  const f = googleBudgetFixture();
+  try {
+    // Two budgets of one name and another amount: the same object to a lookup, but not one request. Both prepare while nothing is claimed.
+    const a = (await f.creates(1, 5000000)).data.review_id,
+      c = (await f.creates(1, 6000000)).data.review_id;
+    f.hooks.respond = lost;
+    assert.equal((await f.execute(a)).error?.code, 'WRITE_OUTCOME_UNCERTAIN');
+    f.hooks.respond = undefined;
+    const document = f.store.document.bind(f.store),
+      plan = document(f.actor.tenantId, 'write_review', c).plan;
+    // Counts how often the state a review kept is read: only building the lookup keys of its plan reads it.
+    let reads = 0;
+    f.store.document = (tenant, kind, id) => {
+      const doc = document(tenant, kind, id);
+      if (kind !== 'write_review' || id !== a) return doc;
+      const kept = doc.state;
+      return Object.defineProperty(doc, 'state', {
+        get() {
+          reads++;
+          return kept;
+        },
+        enumerable: true,
+        configurable: true,
+      });
+    };
+    const guard = () => earlierCreates(f.store, f.actor, plan, requestIdentity(plan), [c]);
+    // The instrument is live: the uncertain create that looks for the same object is held against this one, and its keys were built.
+    const held = guard();
+    assert.equal(held.unresolved.length, 1, JSON.stringify(held));
+    assert.equal(held.unresolved[0].match, 'same_object');
+    assert.ok(reads > 0, 'the keys of an unsealed review are built from its state');
+    // Reconciled as not applied and replaced, the old review is sealed: it holds nothing back, and its keys are never built.
+    const found = await reconcile(f, a);
+    assert.equal(found.data.classification, 'appears_not_applied', JSON.stringify(found.data).slice(0, 300));
+    assert.equal((await f.write(found.data.next_call.arguments)).success, true);
+    reads = 0;
+    const sealed = guard();
+    assert.deepEqual(sealed.unresolved, []);
+    assert.equal(reads, 0, 'the seal is checked before the lookup keys of the sealed review are built');
   } finally {
     f.close();
   }
