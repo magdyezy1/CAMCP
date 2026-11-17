@@ -1078,8 +1078,15 @@ export class WriteReviewService {
       ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
       ...(existing ? {existing} : {}),
       // What the person was shown at prepare: execute refuses once, with this review's own code, an identical create that
-      // completed after it was prepared (src/write-duplicates.ts assertCreateNotRepeated).
-      ...(earlier?.completed.length ? {duplicate_warning: repeatedCreateWarning(earlier.completed)} : {}),
+      // completed after it was prepared (src/write-duplicates.ts assertCreateNotRepeated). The warning covers the identical creates it
+      // named: `duplicate_twins` keeps their review IDs (never shown: a colleague's review is not named), so that execute refuses one
+      // that completed since (lead re-review N9).
+      ...(earlier?.completed.length
+        ? {
+            duplicate_warning: repeatedCreateWarning(earlier.completed),
+            duplicate_twins: earlier.completed.map(twin => twin.id).sort(),
+          }
+        : {}),
       ...override,
       ...(providerCheck ? {provider_check: providerCheck} : {}),
       prepare_input: {

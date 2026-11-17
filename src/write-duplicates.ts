@@ -58,6 +58,8 @@ export {createsObjects};
 
 /** One earlier create of the same request: its state, and what the reader may be told of it. */
 export interface EarlierCreate {
+  /** Its review ID, for the guard's own comparisons: never shown (a colleague's review is not named to the reader). */
+  id: string;
   state: 'executing' | 'uncertain' | 'complete';
   /**
    * How it is alike: the same request, or only the same object (the kind, the parent and the name as the lookup compares them,
@@ -145,6 +147,7 @@ export function earlierCreates(
             : 'uncertain',
       named = readable(store, actor, id);
     (state === 'complete' ? completed : unresolved).push({
+      id,
       state,
       match: identical ? 'identical' : 'same_object',
       checkable: findCreated(review.plan) !== undefined,
@@ -225,11 +228,28 @@ export function assertCreateNotRepeated(
   if (!createsObjects(plan)) return;
   const {unresolved, completed} = earlierCreates(store, actor, plan, [reviewId]);
   if (unresolved.length) refuseRepeatedCreate(unresolved, {submission: 'not_sent'});
-  if (completed.length && !review.duplicate_warning)
+  if (!completed.length) return;
+  if (!review.duplicate_warning)
     fail(
       'DUPLICATE_OF_COMPLETED_WRITE',
       'An identical create completed after this review was prepared, so executing it would make a second object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning, and executing it makes the second object.',
       {...repeatedCreateWarning(completed), submission: 'not_sent', ...again},
+      409,
+    );
+  // A warning covers the identical creates it named (lead re-review N9): one that completed since, which it did not name, makes another
+  // object the person has not been shown. A twin that left the ten-minute window since is no reason to refuse. A review prepared before the
+  // twins were recorded (`duplicate_twins`) covers the one its warning names, and nothing else.
+  const warned = new Set<string>(
+      Array.isArray(review.duplicate_twins)
+        ? review.duplicate_twins.map(String)
+        : [review.duplicate_warning.earlier_review_id].filter((id): id is string => typeof id === 'string'),
+    ),
+    unnamed = completed.filter(twin => !warned.has(twin.id));
+  if (unnamed.length)
+    fail(
+      'DUPLICATE_OF_COMPLETED_WRITE',
+      'Another identical create completed after this review was prepared, which its warning did not name, so executing it would make one more object, and the person has not been shown that. Nothing was sent: prepare the request again (next_call); the new review carries the warning for every such create, and executing it makes the extra object.',
+      {...repeatedCreateWarning(unnamed), submission: 'not_sent', ...again},
       409,
     );
 }
