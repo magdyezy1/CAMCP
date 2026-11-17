@@ -355,7 +355,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/google-tree.ts, the one validation of a listing group tree, and src/google-shopping-tree.ts, the Standard Shopping node adapter
   // (both raise their refusals through a sole-throw helper, so both are owners here): 838. Whoever merges it adds the files of every
   // package it is merged with to this number.
-  assert.equal(files.length, 838);
+  // Its item 5 adds src/google-build-trees.ts, a Performance Max tree inside a build, which raises two fixed refusals through a
+  // sole-throw helper: 839.
+  assert.equal(files.length, 839);
   // The previews modules of Meta, TikTok, Snapchat, LinkedIn and Reddit own the reasons they took from
   // src/ad-previews.ts (no new sentence), and src/ad-previews.ts itself is now owned: six modules here, one from the levels
   // package, on the base's 189 (189 + 1 + 6).
@@ -363,8 +365,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // owns reasons too (the one new sentence, and the two the other previews modules already own): 196 + 1 = 197.
   // Package r25-m3-trees (item 2): src/google-tree.ts, the one validation of a listing group tree (it owns the two sentences it took from
   // src/google-listing-groups.ts, whose other three stay there), and src/google-shopping-tree.ts, the Standard Shopping node adapter
-  // (three sentences, the Arabic of which is new): two more modules own reasons, 197 + 2 = 199.
-  assert.equal(selected.filter(row => row.messages.size).length, 199);
+  // (three sentences, the Arabic of which is new): two more modules own reasons, 197 + 2 = 199. Its item 5: src/google-build-trees.ts, a
+  // Performance Max tree inside a build (two fixed refusals): 199 + 1 = 200.
+  assert.equal(selected.filter(row => row.messages.size).length, 200);
   // Eight new v4 refusals; its attribution refusal already belongs to this inventory.
   // Source-owned status applicability adds one refusal.
   // The v4 boundary now rejects unsupported descendant ID scopes before egress.
@@ -395,7 +398,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // leaves, and the refusal of an eleventh group is one sentence that names the limit and the group (not a fixed one, so no owned
   // sentence takes its place): 2,922 - 1 = 2,921. Its Arabic entry stays in web/locales/ar.json (an entry no source raises is no problem
   // for node tools/check-locales.mjs, and removing it would move the catalogue count of every package merged with this one).
-  assert.equal(owned.size, 2921);
+  // Its item 5: the two fixed refusals of src/google-build-trees.ts (a tree of an asset group that exists belongs to the tree review; a
+  // tree under a new asset group while the temporary-parent switch is off): 2,921 + 2 = 2,923.
+  assert.equal(owned.size, 2923);
   // V2-RPT-01 adds request/window diagnostics and the updated evidence-page hint: six Arabic entries.
   // V2-RPT-01 totals add the match notice, gap templates and evidence refusal.
   // V2-RPT-02 adds nine objective-select and source labels; owned wrappers are unchanged.
@@ -592,7 +597,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // 12,177 + 3 = 12,180. Measured: node tools/check-locales.mjs, catalog_messages 12180.
   // Its item 2: +3 entries, as tests/backend-contract-localization.test.mjs counts them (the three fixed sentences of the Standard Shopping node
   // adapter, which this inventory owns: src/google-shopping-tree.ts raises them through a sole-throw helper): 12,180 + 3 = 12,183.
-  assert.equal(Object.keys(catalog).length, 12183);
+  // Its item 5: +2 entries, as tests/backend-contract-localization.test.mjs counts them (the two fixed refusals of src/google-build-trees.ts,
+  // which this inventory owns): 12,183 + 2 = 12,185.
+  assert.equal(Object.keys(catalog).length, 12185);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

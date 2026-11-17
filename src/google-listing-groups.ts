@@ -110,10 +110,17 @@ const account = (p: CompiledRequest) => {
   return id!;
 };
 const groupName = (c: string, group: string) => 'customers/' + c + '/assetGroups/' + group;
-function parseNode(c: string, name: unknown): {group: string; id: string} | undefined {
+/** A filter's name as its asset group and node: `temporary` is a build's, whose asset group is one the build creates (`-g~-n`). */
+function parseNode(c: string, name: unknown, temporary = false): {group: string; id: string} | undefined {
   const m =
     typeof name === 'string'
-      ? new RegExp('^customers/' + c + '/assetGroupListingGroupFilters/([1-9][0-9]*)~(-?[1-9][0-9]*)$').exec(name)
+      ? new RegExp(
+          '^customers/' +
+            c +
+            '/assetGroupListingGroupFilters/(' +
+            (temporary ? '-' : '') +
+            '[1-9][0-9]*)~(-?[1-9][0-9]*)$',
+        ).exec(name)
       : null;
   return m ? {group: m[1]!, id: m[2]!} : undefined;
 }
@@ -203,57 +210,74 @@ function operations(p: CompiledRequest): {groups: string[]; ops: Operation[]} {
       ops.push({remove: op.remove, op: i, at: at + '.remove', group: n!.group});
       continue;
     }
-    const r = op.create;
-    if (
-      !obj(r) ||
-      Object.keys(r).some(
-        k =>
-          !['resourceName', 'assetGroup', 'type', 'listingSource', 'caseValue', 'parentListingGroupFilter'].includes(k),
-      )
-    )
-      invalid(
-        at +
-          '.create accepts resourceName, assetGroup, type, listingSource, caseValue and parentListingGroupFilter only.',
-      );
-    const g = /^customers\/(\d+)\/assetGroups\/([1-9][0-9]*)$/.exec(String(r.assetGroup));
-    if (!g || g[1] !== c) invalid(at + '.create.assetGroup must be an asset group of the selected customer.');
-    const group = g![2]!;
+    const {group, node} = pmaxCreate(c, op.create, at, i);
     joins(group, at + '.create.assetGroup', i);
-    if (!types.has(r.type)) invalid(at + '.create.type must be SUBDIVISION, UNIT_INCLUDED or UNIT_EXCLUDED.');
-    if (r.listingSource !== 'SHOPPING')
-      invalid(at + '.create.listingSource must be SHOPPING; webpage listing groups are not reviewed here.');
-    const own = r.resourceName === undefined ? undefined : parseNode(c, r.resourceName);
-    if (r.resourceName !== undefined && (!own || !own.id.startsWith('-') || own.group !== group))
-      invalid(
-        at +
-          '.create.resourceName must be a temporary name customers/' +
-          c +
-          '/assetGroupListingGroupFilters/' +
-          group +
-          '~-N.',
-      );
-    if (r.type === 'SUBDIVISION' && !own)
-      invalid(at + ' creates a subdivision; give it a temporary resourceName so its children can name it.');
-    if (r.parentListingGroupFilter !== undefined) {
-      const parent = parseNode(c, r.parentListingGroupFilter);
-      if (!parent || parent.group !== group)
-        invalid(at + '.create.parentListingGroupFilter must be a listing group filter of the same asset group.');
-      dimension(pmaxTree, r.caseValue, at + '.create', {operation: i, field: at + '.create.caseValue'});
-    } else if (r.caseValue !== undefined) invalid(at + ' creates the root, which has no caseValue.');
-    ops.push({
-      create: {
-        name: own ? String(r.resourceName) : at,
-        type: r.type,
-        source: r.listingSource,
-        parent: r.parentListingGroupFilter,
-        caseValue: r.caseValue,
-        op: i,
-        at: at + '.create',
-      },
-      group,
-    });
+    ops.push({create: node, group});
   }
   return {groups: [...groups].sort((a, b) => Number(a) - Number(b)), ops};
+}
+/**
+ * One create of a tree, checked for what it is by itself: its keys, its asset group, type, listing source, name, parent and
+ * case value; the tree rules are the shared module's (src/google-tree.ts). `at` is where the operation is in the request and `i`
+ * its index. A build's tree operation meets the same checks (R2.5 M3, L2-09), `temporary` being its asset group, which the build
+ * creates and names `-g`, so that its filters are named `-g~-n`. Its keys are camelCase (the caller reads them with googleJson).
+ */
+export function pmaxCreate(
+  c: string,
+  r: unknown,
+  at: string,
+  i: number,
+  temporary = false,
+): {group: string; node: TreeNode} {
+  if (
+    !obj(r) ||
+    Object.keys(r).some(
+      k =>
+        !['resourceName', 'assetGroup', 'type', 'listingSource', 'caseValue', 'parentListingGroupFilter'].includes(k),
+    )
+  )
+    invalid(
+      at +
+        '.create accepts resourceName, assetGroup, type, listingSource, caseValue and parentListingGroupFilter only.',
+    );
+  const g = new RegExp('^customers/(\\d+)/assetGroups/(' + (temporary ? '-' : '') + '[1-9][0-9]*)$').exec(
+    String(r.assetGroup),
+  );
+  if (!g || g[1] !== c) invalid(at + '.create.assetGroup must be an asset group of the selected customer.');
+  const group = g![2]!;
+  if (!types.has(r.type)) invalid(at + '.create.type must be SUBDIVISION, UNIT_INCLUDED or UNIT_EXCLUDED.');
+  if (r.listingSource !== 'SHOPPING')
+    invalid(at + '.create.listingSource must be SHOPPING; webpage listing groups are not reviewed here.');
+  const own = r.resourceName === undefined ? undefined : parseNode(c, r.resourceName, temporary);
+  if (r.resourceName !== undefined && (!own || !own.id.startsWith('-') || own.group !== group))
+    invalid(
+      at +
+        '.create.resourceName must be a temporary name customers/' +
+        c +
+        '/assetGroupListingGroupFilters/' +
+        group +
+        '~-N.',
+    );
+  if (r.type === 'SUBDIVISION' && !own)
+    invalid(at + ' creates a subdivision; give it a temporary resourceName so its children can name it.');
+  if (r.parentListingGroupFilter !== undefined) {
+    const parent = parseNode(c, r.parentListingGroupFilter, temporary);
+    if (!parent || parent.group !== group)
+      invalid(at + '.create.parentListingGroupFilter must be a listing group filter of the same asset group.');
+    dimension(pmaxTree, r.caseValue, at + '.create', {operation: i, field: at + '.create.caseValue'});
+  } else if (r.caseValue !== undefined) invalid(at + ' creates the root, which has no caseValue.');
+  return {
+    group,
+    node: {
+      name: own ? String(r.resourceName) : at,
+      type: r.type,
+      source: r.listingSource,
+      parent: r.parentListingGroupFilter,
+      caseValue: r.caseValue,
+      op: i,
+      at: at + '.create',
+    },
+  };
 }
 export function assertGoogleListingGroups(p: CompiledRequest): void {
   if (!googleListingGroupKind(p)) return;
@@ -321,6 +345,14 @@ function search(p: CompiledRequest, kind: 'group' | 'tree', group: string): Comp
  */
 export function googleListingGroupSnapshots(p: CompiledRequest): CompiledRequest[] {
   return operations(p).groups.flatMap(group => [search(p, 'group', group), search(p, 'tree', group)]);
+}
+/**
+ * The read of the whole tree of one asset group, by the group's resource name, marked as this family's so that its answer is
+ * projected to the shape the family compares: a build's read-back of the tree it created, whose real asset group the
+ * mutate's result names (R2.5 M3, L2-09).
+ */
+export function googleListingGroupTreeRead(p: CompiledRequest, assetGroup: string): CompiledRequest {
+  return search(p, 'tree', assetGroup.split('/').at(-1)!);
 }
 export function isGoogleListingGroupRead(p: CompiledRequest): boolean {
   return p.gateway === 'google_ads_native_action' && !!p.googleListingGroupState;
@@ -426,20 +458,25 @@ const readOfGroup = (state: unknown, i: number) => {
   const list = Array.isArray(state) ? state : [];
   return {parent: obj(list[2 * i]) ? list[2 * i] : ({} as JsonObject), tree: list[2 * i + 1]};
 };
+/** A tree partitions the Merchant Center products of a Performance Max retail campaign: its channel and its Merchant Center account. */
+export function assertRetailCampaign(campaign: JsonObject, details: JsonObject = {}): void {
+  if (campaign.advertising_channel_type !== 'PERFORMANCE_MAX' || !campaign.merchant_id)
+    invalid(
+      'Listing group filters partition the Merchant Center products of Performance Max retail campaigns; campaign ' +
+        campaign.resource_name +
+        ' is ' +
+        campaign.advertising_channel_type +
+        ' without a linked Merchant Center account.',
+      details,
+    );
+}
 export function validateGoogleListingGroupPrerequisites(plan: CompiledRequest, state: unknown[]): void {
   if (!googleListingGroupKind(plan)) return;
   operations(plan).groups.forEach((g, i) => {
     const {parent, tree} = readOfGroup(state, i),
       group = obj(parent.asset_group) ? parent.asset_group : {},
       campaign = obj(parent.campaign) ? parent.campaign : {};
-    if (campaign.advertising_channel_type !== 'PERFORMANCE_MAX' || !campaign.merchant_id)
-      invalid(
-        'Listing group filters partition the Merchant Center products of Performance Max retail campaigns; campaign ' +
-          campaign.resource_name +
-          ' is ' +
-          campaign.advertising_channel_type +
-          ' without a linked Merchant Center account.',
-      );
+    assertRetailCampaign(campaign);
     if (!['ENABLED', 'PAUSED'].includes(group.status))
       invalid('Asset group ' + group.resource_name + ' is ' + group.status + '.');
     assertTree(pmaxTree, finalOf(plan, g, stateNodes(tree)));

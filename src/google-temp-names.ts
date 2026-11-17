@@ -102,6 +102,19 @@ export function fromStandIn(name: string): string {
   return 'customers/' + m[1] + '/' + m[2] + '/' + tail;
 }
 
+/**
+ * The switch of the two composite forms whose parent is a resource the same request creates, `{agTemp}~-{n}` and
+ * `{groupTemp}~-{n}` (Q7, the lead's decision of 2026-11-17: build both forms). Google documents `{ad_group_id}~{temporary_criterion_id}`
+ * with an existing ad group; a temporary parent inside the name is UNVERIFIED until the lead's live checks A1 and A2
+ * (validate-only, on the test account, before the M3 push). This is the one place that says whether a build accepts each form:
+ * set a member to false and the build refuses a tree under a new ad group or asset group, naming the two-phase route (the build,
+ * then the one-service tree review on the new ID). Nothing else changes: the forms with an existing parent are the documented one.
+ * A switch, not an environment flag: the merge changes the value.
+ */
+export const temporaryParentForms: {adGroupCriteria: boolean; assetGroupListingGroupFilters: boolean} = {
+  adGroupCriteria: true,
+  assetGroupListingGroupFilters: true,
+};
 /** The limits of the routes that take operations linked by temporary names (Q28, owner 2026-11-15: none of them is a raise of Google's 25 for independent operations). */
 export const chainLimits = Object.freeze({oneService: 25, tree: 500, build: 1000});
 /**

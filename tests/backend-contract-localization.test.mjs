@@ -400,7 +400,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (its refusals are one sentence each, two of them moved from src/google-listing-groups.ts with their Arabic), and
   // src/google-shopping-tree.ts, the Standard Shopping node adapter, with three owned sentences of its own: 838. Whoever merges it adds
   // the files of every package it is merged with to this number.
-  assert.equal(files.length, 838);
+  // Its item 5 adds src/google-build-trees.ts, a Performance Max tree inside a build (its two fixed refusals are owned by the wrapper
+  // inventory, none by this one): 839.
+  assert.equal(files.length, 839);
   // V2-RPT-02 validates fallbacks and overrides in report-objectives.ts: three owned refusals.
   // V2-RPT-04 adds direct creative metadata ownership in linkedin-detail-parents.ts.
   // V2-PRV-01 adds the minimal Meta ad identity observer's account refusal.
@@ -649,7 +651,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Its item 2: +3 entries, the Arabic of the three sentences of the Standard Shopping node adapter that are fixed (the ad group already has a
   // root; it would have no tree; a tree needs a unit; src/google-shopping-tree.ts): 12,180 + 3 = 12,183. Measured: node tools/check-locales.mjs,
   // catalog_messages 12183, required_messages 11041, problems none.
-  assert.equal(Object.keys(catalog).length, 12183);
+  // Its item 5: +2 entries, the Arabic of the two fixed refusals of a tree in a build (a tree of an asset group that exists belongs to the
+  // tree review; a tree under a new asset group while the temporary-parent switch is off; src/google-build-trees.ts): 12,183 + 2 = 12,185.
+  // Measured: node tools/check-locales.mjs, catalog_messages 12185, required_messages 11042, problems none.
+  assert.equal(Object.keys(catalog).length, 12185);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

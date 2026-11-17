@@ -71,6 +71,7 @@
   "A recent change or seasonal event may explain this result. Review the supplied context before changing budgets.": "قد يفسر تغيير حديث أو حدث موسمي هذه النتيجة. راجع السياق المدخل قبل تغيير الميزانيات.",
   "A replacement resets every field it omits. Read the object, send its complete intended configuration (every field kept, restated), or use the partial update route the message names.": "تؤدي عملية الاستبدال إلى إعادة ضبط كل حقل لا يتضمنه الطلب. اقرأ العنصر وأرسل الإعدادات الكاملة المقصودة، مع إعادة تحديد كل حقل تريد الاحتفاظ به، أو استخدم مسار التحديث الجزئي الذي تسمّيه الرسالة.",
   "A retained-original chunk exceeds its byte ceiling.": "يتجاوز أحد أجزاء النسخة الأصلية المحفوظة الحد الأعلى للحجم بالبايت.",
+  "A review edits the tree of one asset group.": "تعدل كل مراجعة شجرة مجموعة أصول واحدة.",
   "A sale start or end is an ISO 8601 date and time with an explicit offset, such as 2026-11-01T00:00:00+03:00.": "بداية التخفيض أو نهايته تاريخ ووقت بصيغة ISO 8601 مع فرق توقيت صريح، مثل 2026-11-01T00:00:00+03:00.",
   "A sale start or end needs a sale price.": "تتطلب بداية التخفيض أو نهايته سعر تخفيض.",
   "A selected conversion value setting is unqualified or malformed.": "أحد إعدادات قيم التحويل المختارة غير مؤهّل للتحقق أو غير صالح.",

@@ -30,6 +30,16 @@ import {
   standIn,
   type TempName,
 } from './google-temp-names.js';
+import {
+  assertBuildTrees,
+  assertTreeCampaigns,
+  buildTreeImpact,
+  buildTreeReads,
+  pmaxBuildNode,
+  pmaxTreeKey,
+  type BuildTreeOp,
+} from './google-build-trees.js';
+import type {TreeNode} from './google-tree.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -43,8 +53,9 @@ import {
  * with temporary names standing in as positive IDs for those checks only; the request Google receives is the one
  * reviewed. Existing parents are read at prepare and execute. A new campaign starts PAUSED; its children may start
  * ENABLED under it. Every created resource is read back and compared with what was sent, temporary names replaced by
- * the names Google returned. Only creates of ten resource types are accepted: the six of a Search build, and text assets,
- * asset groups, asset-group asset links and signals of a Performance Max build (google-pmax-build.ts, CMP-07).
+ * the names Google returned. Only creates of eleven resource types are accepted: the six of a Search build, and text assets,
+ * asset groups, asset-group asset links and signals of a Performance Max build (google-pmax-build.ts, CMP-07), and the nodes
+ * of a Performance Max retail tree (google-build-trees.ts, R2.5 M3, L2-09).
  */
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 interface OpType {
@@ -57,6 +68,11 @@ interface OpType {
   action: string;
   /** Whether a create may carry a temporary resource_name that later operations reference. */
   temp?: true;
+  /**
+   * Whether it is a node of a listing group tree (R2.5 M3, L2-09): its resource_name is a composite temporary name, `-g~-n`,
+   * naming the asset group the build creates, and it is checked with the other nodes of its tree, not as a one-service create.
+   */
+  tree?: true;
   /** Fields that reference a parent, and the parent's collection. */
   refs: Record<string, string>;
 }
@@ -138,6 +154,15 @@ const types: Record<string, OpType> = {
     action: 'asset_group_signal_mutate_asset_group_signals',
     refs: {asset_group: 'assetGroups'},
   },
+  // A Performance Max retail tree in the same build as its asset group (R2.5 M3, L2-09; src/google-build-trees.ts).
+  [pmaxTreeKey]: {
+    kind: 'assetGroupListingGroupFilters',
+    resource: 'asset_group_listing_group_filter',
+    result: 'assetGroupListingGroupFilterResult',
+    action: 'asset_group_listing_group_filter_mutate_asset_group_listing_group_filters',
+    tree: true,
+    refs: {asset_group: 'assetGroups'},
+  },
 };
 // A build is one chain linked by temporary names: AMCP bounds it at 1,000 operations (Q28, owner 2026-11-15: no raise of
 // Google's 25 for independent operations), and a longer one is refused as TEMP_ID_CHAIN_TOO_LONG, never split.
@@ -166,6 +191,8 @@ interface Op {
   create: JsonObject;
   /** Its temporary name, when later operations reference it. */
   temp?: string;
+  /** The node of a listing group tree that a tree operation creates (R2.5 M3, L2-09). */
+  node?: TreeNode;
 }
 /** The build's operations, checked for everything that does not depend on another service's rules. */
 function operations(plan: CompiledRequest): Op[] {
@@ -218,8 +245,21 @@ function operations(plan: CompiledRequest): Op[] {
       );
     const create = inner.create as JsonObject,
       name = create.resource_name;
-    let temp: string | undefined;
-    if (name !== undefined) {
+    let temp: string | undefined, node: TreeNode | undefined;
+    if (type.tree) {
+      // A node of a tree: named `-g~-n` after the asset group the build creates (checked with its parse), or unnamed.
+      node = pmaxBuildNode(account, index, create);
+      if (name !== undefined) {
+        const own = parseTempName(name)!;
+        if (numbers.has(own.number))
+          invalid(
+            'Each temporary name needs its own negative number; -' + own.number + ' is used twice.',
+            where + '.create.resource_name',
+          );
+        numbers.add(own.number);
+        temp = name as string;
+      }
+    } else if (name !== undefined) {
       const own = simpleTemp(name),
         m = own && own.customer === account && own.collection === type.kind ? own : undefined;
       if (!type.temp || !m)
@@ -273,24 +313,20 @@ function operations(plan: CompiledRequest): Op[] {
         );
     }
     // Any other resource name stays in this customer and is not temporary.
-    const rest = {
+    // A tree node also names its parent node, with a temporary name (the tree check reads it).
+    const exempt = [...Object.keys(type.refs), ...(type.tree ? ['parent_listing_group_filter'] : [])],
+      rest = {
         ...create,
         resource_name: undefined,
-        ...Object.fromEntries(Object.keys(type.refs).map(f => [f, undefined])),
+        ...Object.fromEntries(exempt.map(f => [f, undefined])),
       },
       text = JSON.stringify(rest);
     if (holdsTempName(rest))
-      invalid(
-        where +
-          ': temporary names are accepted only in ' +
-          (Object.keys(type.refs).join(', ') || 'resource_name') +
-          '.',
-        where,
-      );
+      invalid(where + ': temporary names are accepted only in ' + (exempt.join(', ') || 'resource_name') + '.', where);
     if ([...text.matchAll(/"customers\/([^"/]+)\//g)].some(m => m[1] !== account))
       invalid(where + ' names a resource of another customer.', where);
     if (temp) created.set(temp, type);
-    return {index, key, type, create, temp};
+    return {index, key, type, create, temp, ...(node ? {node} : {})};
   });
 }
 /** Temporary names stand in as positive IDs for the one-service checks, which accept existing resources only (google-temp-names.ts). */
@@ -314,11 +350,24 @@ function single(plan: CompiledRequest, op: Op): CompiledRequest {
 }
 const pmaxOps = (ops: Op[]): PmaxOp[] =>
   ops.map(o => ({index: o.index, kind: o.type.kind, create: o.create, ...(o.temp ? {temp: o.temp} : {})}));
+/** What the build's trees need of its operations (google-build-trees.ts). */
+const treeOps = (ops: Op[]): BuildTreeOp[] =>
+  ops.map(o => ({
+    index: o.index,
+    kind: o.type.kind,
+    create: o.create,
+    ...(o.temp ? {temp: o.temp} : {}),
+    ...(o.node ? {node: o.node} : {}),
+  }));
 export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => void, shape: WriteShape) {
   const ops = operations(plan);
   // Performance Max minimums and structure, before any request (CMP-07).
   assertPmaxBuild(pmaxOps(ops));
+  // Each tree of the build is complete, as the tree review requires of the tree it edits (R2.5 M3, L2-09). A tree operation is no
+  // one-operation request: a single node would fail the tree rules, so the tree is checked whole, and its node is not checked alone.
+  assertBuildTrees(treeOps(ops));
   for (const op of ops) {
+    if (op.type.tree) continue;
     try {
       shape(single(plan, op));
     } catch (e) {
@@ -344,8 +393,11 @@ const search = (classify: Classify, plan: CompiledRequest, query: string): Compi
   );
 const parentFields: Record<string, string> = {
   campaignBudgets: 'campaign_budget.resource_name, campaign_budget.amount_micros',
-  campaigns: 'campaign.resource_name, campaign.status, campaign.campaign_budget',
-  adGroups: 'ad_group.resource_name, ad_group.status, ad_group.campaign, campaign.status',
+  // R2.5 M3: the campaign's channel, brand-guideline mode and Merchant Center account (G1, G5, L2-09, G6), the ad group's type.
+  campaigns:
+    'campaign.resource_name, campaign.status, campaign.campaign_budget, campaign.advertising_channel_type, campaign.brand_guidelines_enabled, campaign.shopping_setting.merchant_id',
+  adGroups:
+    'ad_group.resource_name, ad_group.status, ad_group.campaign, ad_group.type, campaign.status, campaign.advertising_channel_type',
 };
 const resourceOf: Record<string, string> = {
   campaignBudgets: 'campaign_budget',
@@ -454,6 +506,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
   assertPmaxExistingAssets(pmaxOps(ops), rows);
   const states = [...state, {results: built}];
   for (const op of ops) {
+    if (op.type.tree) continue;
     const one = single(plan, op);
     try {
       validateGooglePausedParents(one, states);
@@ -467,6 +520,8 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
       throw e;
     }
   }
+  // The campaign of each tree's asset group is a retail Performance Max campaign (R2.5 M3, L2-09).
+  assertTreeCampaigns(treeOps(ops), rows);
 }
 export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
   const ops = operations(plan),
@@ -485,6 +540,7 @@ export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
         .map(o => ({name: o.create.name, status: o.create.status})),
       enabled: ops.filter(o => o.create.status === 'ENABLED').length,
       ...(ops.some(o => o.type.kind === 'assetGroups') ? {asset_groups: pmaxImpact(pmaxOps(ops))} : {}),
+      ...(ops.some(o => o.node) ? {trees: buildTreeImpact(treeOps(ops))} : {}),
     },
     meaning:
       'One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation.',
@@ -570,7 +626,10 @@ export function googleAtomicOutcome(plan: CompiledRequest, result: TransportResu
 // As the one-service read-back selects them (verification-reads.ts): nested fields by path, an empty message not at all.
 const leaves = (value: JsonObject, prefix = ''): string[] =>
   Object.entries(value).flatMap(([k, v]) => (object(v) ? leaves(v, prefix + k + '.') : [prefix + k]));
-/** One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned. */
+/**
+ * One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned; a tree's nodes
+ * are the exception: one read of each tree, by shape.
+ */
 export function googleAtomicVerification(
   plan: CompiledRequest,
   result: JsonObject,
@@ -593,7 +652,7 @@ export function googleAtomicVerification(
         : object(v)
           ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
           : v;
-  return ops.map((op, i) => {
+  const reads = ops.map((op, i) => {
     const r = list[i],
       id = String(object(r) && object(r[op.type.result]) ? r[op.type.result].resourceName : ''),
       {resource_name: _, ...sent} = real(op.create) as JsonObject,
@@ -623,6 +682,11 @@ export function googleAtomicVerification(
       id,
     };
   });
+  // A tree is read back whole, by shape, from the asset group Google created: its nodes have no read of their own (R2.5 M3, L2-09).
+  return [
+    ...reads.filter((_, i) => !ops[i]!.type.tree),
+    ...buildTreeReads(plan, treeOps(ops), name => real(name)).map(t => ({...t, read: classify(t.read)})),
+  ];
 }
 /** A build that starts anything ENABLED activates it, which an owner policy with allow_activation false forbids. */
 export function googleAtomicActivates(plan: CompiledRequest): boolean {
