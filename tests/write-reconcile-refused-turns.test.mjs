@@ -211,6 +211,69 @@ test('a check never replaces a decisive record that a person wrote while it was 
   }
 });
 
+/** Runs `body` with the person's reconcile allowed at once (the delay after the claim is zero). */
+async function withNoDelay(body) {
+  process.env.AMCP_WRITE_RECONCILE_DELAY_MS = '0';
+  try {
+    return await body();
+  } finally {
+    delete process.env.AMCP_WRITE_RECONCILE_DELAY_MS;
+  }
+}
+
+test('a person’s reconcile whose every read was refused before it was sent raises the refusal, and the decisive record stands', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const id = await lostCreate(f);
+    // The worker's check found the write applied, and status offers the accept.
+    assert.equal(await runDue(f, workerOf(f)), true);
+    const held = (await status(f, id)).data.reconciliation;
+    assert.equal(held.classification, 'appears_applied', JSON.stringify(held));
+    // The provider is then cooling down: the person's reconcile is refused before any read is sent (lead re-review 2, F4).
+    const refusing = refuseReads(f, {code: 'PLATFORM_RATE_LIMIT', retryAfterMs: 90000});
+    const refused = await withNoDelay(() => f.call('amcp_write', {action: 'reconcile', review_id: id}));
+    assert.equal(refused.error?.code, 'PLATFORM_RATE_LIMIT', JSON.stringify(refused).slice(0, 500));
+    assert.equal(refused.error.details.retry_after_ms, 90000);
+    assert.ok(refusing.refused > 0);
+    // Nothing was stored over the record the person was offered: its id, its answer and its accept are as they were.
+    const after = (await status(f, id)).data;
+    assert.equal(after.reconciliation.reconciliation_id, held.reconciliation_id);
+    assert.equal(after.reconciliation.classification, 'appears_applied');
+    refusing.on = false;
+    const accepted = await f.call('amcp_write', {
+      action: 'reconcile',
+      review_id: id,
+      accept_applied: true,
+      reconciliation_id: held.reconciliation_id,
+    });
+    assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 400));
+    assert.equal(f.claim(id).state, 'complete');
+    assert.equal(f.writes.length, 1, 'only the lost create was ever sent');
+  } finally {
+    f.close();
+  }
+});
+
+test('a person’s reconcile whose reads were refused after a send, or failed for another reason, still stores read_failed', async () => {
+  for (const options of [
+    {code: 'PLATFORM_RATE_LIMIT', retryAfterMs: 90000, dispatches: true},
+    {code: 'UPSTREAM_UNAVAILABLE'},
+  ]) {
+    const f = googleBudgetFixture();
+    try {
+      const id = await lostCreate(f);
+      refuseReads(f, options);
+      const r = await withNoDelay(() => f.call('amcp_write', {action: 'reconcile', review_id: id}));
+      assert.equal(r.data?.classification, 'indeterminate', JSON.stringify(r).slice(0, 400));
+      assert.equal(r.data.reason, 'read_failed');
+      assert.equal(r.data.read_error, options.code);
+      assert.equal((await status(f, id)).data.reconciliation.reason, 'read_failed');
+    } finally {
+      f.close();
+    }
+  }
+});
+
 test('a check still replaces an older record that was not decisive', async () => {
   const f = googleBudgetFixture();
   try {

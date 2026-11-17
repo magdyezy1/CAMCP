@@ -610,6 +610,10 @@ export class WriteReconciler {
       // Only the transport's own gates refuse before a send, and only a turn that sent nothing at all read nothing: a provider's own
       // 429, or a turn that read before it was refused, reached the provider and counts as an attempt.
       unsent = dispatched() === 0 && refusedBeforeSending.test(readError);
+      // A person's own check that read nothing stores nothing (lead re-review 2, F4): the refusal is raised with its retry_after_ms, so
+      // that a decisive record (the worker's, the one the person was offered an accept for) is never written over by `read_failed`. The
+      // worker's turn is rescheduled by its own rule, below.
+      if (unsent && !automatic) throw e;
       const wait = Number((e as MirrorError).details.retry_after_ms);
       pauseMs = Math.min(86400000, Math.max(1000, Number.isFinite(wait) && wait > 0 ? wait : unsentFallbackMs));
     }
