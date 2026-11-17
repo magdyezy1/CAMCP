@@ -72,6 +72,7 @@ test('no signed-in page waits for a chunk the plan names lazy: a refusal sentenc
     for (const name of lazy) assert.equal(names.includes(name), false, route + ' waits for ' + name);
   // Regression guard: a page that waited for the chunk again would be back at 0.99 of its pre-WEB-07 value. The report builder
   // is at 0.73 (436,594 of 601,471 at r25-ar-lazy), which holds every message a page shows from an answer that refused nothing.
+  // If ordinary growth of `workspace` nears 0.75, the remedy is Design B (the answers split of `workspace`), never a raise.
   assert.ok(ratio('ar /reporting-overview') < 0.75, 'ar /reporting-overview: ' + ratio('ar /reporting-overview'));
 });
 test('the landing and sign-in pages no longer download the report builder (regression: part of the shell)', () => {
