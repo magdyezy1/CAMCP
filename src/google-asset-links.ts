@@ -55,6 +55,8 @@ export const googleAssetLinkContracts = {
       'LANDSCAPE_LOGO',
       'YOUTUBE_VIDEO',
       'CALL_TO_ACTION_SELECTION',
+      // R2.5 M3, G2: a value of the pinned v25 AssetFieldType, linked to an image asset (src/google-pmax-build.ts).
+      'TALL_PORTRAIT_MARKETING_IMAGE',
     ],
   },
 } as const;
@@ -74,6 +76,7 @@ const assetTypes: Record<string, string> = {
   MARKETING_IMAGE: 'IMAGE',
   SQUARE_MARKETING_IMAGE: 'IMAGE',
   PORTRAIT_MARKETING_IMAGE: 'IMAGE',
+  TALL_PORTRAIT_MARKETING_IMAGE: 'IMAGE',
   LOGO: 'IMAGE',
   LANDSCAPE_LOGO: 'IMAGE',
   YOUTUBE_VIDEO: 'YOUTUBE_VIDEO',

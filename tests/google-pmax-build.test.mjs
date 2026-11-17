@@ -266,3 +266,40 @@ test('a build links up to 15 videos, the most Google documents per asset group, 
       e.details.outside_range.some(r => r.field_type === 'YOUTUBE_VIDEO' && r.max === 15 && r.found === 16),
   );
 });
+
+// R2.5 M3, G2 (the build side): TALL_PORTRAIT_MARKETING_IMAGE is a value of the pinned v25 AssetFieldType that a build refused as
+// "not a Performance Max asset field type". Google's asset-requirements page (read 2026-11-17) gives it no count and no ratio,
+// so a build accepts it as an image link that has no minimum and no place in the 20-image cap: counting too many would refuse
+// a build Google accepts, counting too few risks only Google's own all-or-nothing refusal. Its ratio is UNVERIFIED (LV-14).
+test('a build links tall portrait images: no minimum, outside the 20-image cap, and the asset must be an image', async t => {
+  const assets = (from, n) => Array.from({length: n}, (_, i) => 'customers/123/assets/' + (from + i)),
+    tall = n => assets(700, n).map(asset => link(asset, 'TALL_PORTRAIT_MARKETING_IMAGE')),
+    portrait = asset => link(asset, 'PORTRAIT_MARKETING_IMAGE');
+  // Twenty counted images (10 landscape, 9 square, 1 portrait) are at the cap; three tall portrait images do not count.
+  const atCap = [...pmax({images: assets(600, 10), squares: assets(650, 9)}), portrait('customers/123/assets/660')];
+  assert.doesNotThrow(() => assertPmaxBuild(buildOps(atCap)));
+  assert.doesNotThrow(() => assertPmaxBuild(buildOps([...atCap, ...tall(3)])));
+  // A 21st counted image is over the cap whatever tall portrait images the build has, and the count says 21, not 24.
+  assert.throws(
+    () => assertPmaxBuild(buildOps([...atCap, ...tall(3), portrait('customers/123/assets/661')])),
+    e =>
+      assertRefused(e, 'PMAX_ASSET_MINIMUMS') &&
+      e.details.combined_over.length === 1 &&
+      e.details.combined_over[0].found === 21 &&
+      e.details.counts.TALL_PORTRAIT_MARKETING_IMAGE === 3,
+  );
+  // Through the review: an image links as tall portrait, a text asset does not, and nothing is sent either way.
+  const x = setup();
+  t.after(() => x.store.close());
+  const ok = await x.prepare([...pmax(), link('customers/123/assets/501', 'TALL_PORTRAIT_MARKETING_IMAGE')]);
+  assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1200));
+  assert.match(JSON.stringify(ok.data), /"TALL_PORTRAIT_MARKETING_IMAGE":1/);
+  const wrong = await x.prepare([...pmax(), link('customers/123/assets/504', 'TALL_PORTRAIT_MARKETING_IMAGE')]);
+  assertRefused(wrong, 'PMAX_ASSET_TYPE_MISMATCH', {writes: x.mutates.length});
+  assert.deepEqual([wrong.error.details.expected_type, wrong.error.details.actual_type], ['IMAGE', 'TEXT']);
+  // Negative: another field type no asset group takes is still refused, naming the field types a build links.
+  assert.throws(
+    () => assertPmaxBuild(buildOps([...pmax(), link('customers/123/assets/501', 'AD_IMAGE')])),
+    e => assertRefused(e, 'INVALID_GOOGLE_BUILD') && e.details.allowed.includes('TALL_PORTRAIT_MARKETING_IMAGE'),
+  );
+});

@@ -261,12 +261,13 @@ PAUSED `PERFORMANCE_MAX` campaign with `brand_guidelines_enabled: false` (the bu
 asset group), its criteria, text assets with temporary names (`asset_operation` with `text_asset: {text}` only), one
 asset group with temporary name, `final_urls` of public HTTPS pages and status ENABLED or PAUSED under the paused
 campaign, `asset_group_asset_operation` links (field types HEADLINE, LONG_HEADLINE, DESCRIPTION, BUSINESS_NAME,
-MARKETING_IMAGE, SQUARE_MARKETING_IMAGE, PORTRAIT_MARKETING_IMAGE, LOGO, LANDSCAPE_LOGO, YOUTUBE_VIDEO,
-CALL_TO_ACTION_SELECTION) and optional `asset_group_signal_operation` signals. Images, logos and videos are existing
+MARKETING_IMAGE, SQUARE_MARKETING_IMAGE, PORTRAIT_MARKETING_IMAGE, TALL_PORTRAIT_MARKETING_IMAGE, LOGO, LANDSCAPE_LOGO,
+YOUTUBE_VIDEO, CALL_TO_ACTION_SELECTION) and optional `asset_group_signal_operation` signals. Images, logos and videos are existing
 assets of the account: upload them with `amcp_media` first and link their resource names. Before any request the build
 must link, per asset group, 3–15 headlines (30 characters), 1–5 long headlines (90), 2–5 descriptions (90, at least one
 of them a short description of at most 60), one business name (25), 1–20 landscape and 1–20 square marketing images (20
-images in all) and 1–5 logos (with landscape logos, 5 in all); `PMAX_ASSET_MINIMUMS` names each field type outside its
+images in all; a tall portrait image has no minimum and is not counted, because Google documents neither) and 1–5 logos
+(with landscape logos, 5 in all); `PMAX_ASSET_MINIMUMS` names each field type outside its
 range, the text that is too long, or an asset group without a short description. The review reads every linked existing
 asset; `PMAX_ASSET_TYPE_MISMATCH` means one is not the image, video or text its field type needs. An asset group under
 an existing campaign, a brand-guideline campaign, links to an existing asset group and image creation are refused with

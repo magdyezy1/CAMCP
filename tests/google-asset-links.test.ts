@@ -9,6 +9,7 @@ import {googleAssetLinkContracts, googleAssetContentFields} from '../src/google-
 import {saveSpendPolicy, checkSpendPolicy} from '../src/spend-policy.js';
 import {Compiler} from '../src/compiler.js';
 import type {JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const registry = new Registry(),
   gateway = 'google_ads_native_action',
@@ -454,6 +455,47 @@ test('Google POST removals enforce current deletion policy, including older froz
     assert.throws(() => checkSpendPolicy(x.store, actor, {...review.plan, destructive: false}, review.state), {
       code: 'POLICY_DELETION_FORBIDDEN',
     });
+  } finally {
+    x.store.close();
+  }
+});
+
+// R2.5 M3, G2 (package r25-m3-pmax): TALL_PORTRAIT_MARKETING_IMAGE is a value of the pinned v25 AssetFieldType, and the one a retail
+// launch links to its asset group. It was refused as "not supported at this association level". It links at the asset-group level
+// only (Google's asset-requirements page lists no other level for the portrait types), to an image asset.
+test('Google links a tall portrait marketing image at the asset-group level and verifies it, and refuses it at any other level', async () => {
+  const x = setup();
+  try {
+    const image = n('assets', '400');
+    x.records.set(image, {
+      resourceName: image,
+      type: 'IMAGE',
+      source: 'ADVERTISER',
+      imageAsset: {fileSize: '120000', fullSize: {widthPixels: 1080, heightPixels: 1920}, mimeType: 'IMAGE_PNG'},
+    });
+    const tall = (asset: string, parent: JsonObject = {assetGroup: n('assetGroups', '102')}) => ({
+      create: {...parent, asset, fieldType: 'TALL_PORTRAIT_MARKETING_IMAGE', status: 'PAUSED'},
+    });
+    const p = await x.prepare('assetGroupAssets', [tall(image)]);
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 1200));
+    const e = await x.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 1200));
+    assert.equal(e.data.data.results[0].resourceName, n('assetGroupAssets', '102~400~TALL_PORTRAIT_MARKETING_IMAGE'));
+    const verified = await x.service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, actor);
+    assert.equal(verified.data.status, 'verified', JSON.stringify(verified.data).slice(0, 1200));
+    // A text asset is not an image: the link is refused for its type, after the review reads it.
+    const text = await x.prepare('assetGroupAssets', [tall(n('assets', '300'))]);
+    assertRefused(text, 'ASSET_TYPE_MISMATCH', {writes: x.writes() - 1});
+    assert.equal(text.error.details.expected_type, 'IMAGE');
+    // Negative: tall portrait is no campaign or ad group role, so those levels still refuse it, before any read.
+    const reads = x.reads();
+    for (const [kind, parent] of [
+      ['campaignAssets', {campaign: n('campaigns', '100')}],
+      ['adGroupAssets', {adGroup: n('adGroups', '101')}],
+    ] as const)
+      assertRefused(await x.prepare(kind, [tall(image, parent)]), 'INVALID_ASSET_LINK', {writes: x.writes() - 1});
+    assert.equal(x.reads(), reads, 'refused before any read');
+    assert.equal(x.writes(), 1, 'one request in all, the first link');
   } finally {
     x.store.close();
   }

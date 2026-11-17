@@ -50,6 +50,17 @@ export const pmaxAssetRequirements: {
   ],
   short_description: {field_type: 'DESCRIPTION', max_length: 60, min: 1},
 };
+/**
+ * Field types a build links that carry no count: no minimum, no maximum and no place in a combined cap (R2.5 M3, G2).
+ * TALL_PORTRAIT_MARKETING_IMAGE is a value of the pinned v25 AssetFieldType (the enum lists it apart from
+ * PORTRAIT_MARKETING_IMAGE), and Google's AssetFieldType page, read 2026-11-17, says only that the asset is linked for use as
+ * a tall portrait marketing image. Its asset-requirements page gives it no count and no aspect ratio, so both are UNVERIFIED
+ * (live check LV-14). Counting too few risks only Google's own all-or-nothing refusal; counting too many would refuse a build
+ * Google accepts, so a build links it to an image asset and counts it nowhere.
+ */
+export const pmaxUncountedFieldTypes: Record<string, {asset_type: string; max_length?: number}> = {
+  TALL_PORTRAIT_MARKETING_IMAGE: {asset_type: 'IMAGE'},
+};
 /** The build's view of one operation (google-atomic-builds.ts). */
 export interface PmaxOp {
   index: number;
@@ -144,16 +155,16 @@ export function assertPmaxBuild(ops: PmaxOp[]) {
       );
   const textOf = new Map(assets.map(a => [a.temp!, a.create.text_asset.text as string]));
   for (const link of links) {
-    const rule = pmaxAssetRequirements.fields[link.create.field_type];
-    if (!rule)
+    const rule =
+      pmaxAssetRequirements.fields[link.create.field_type] ?? pmaxUncountedFieldTypes[link.create.field_type];
+    if (!rule) {
+      const allowed = [...Object.keys(pmaxAssetRequirements.fields), ...Object.keys(pmaxUncountedFieldTypes)];
       invalid(
-        where(link) +
-          ': a build links the Performance Max asset field types ' +
-          Object.keys(pmaxAssetRequirements.fields).join(', ') +
-          '.',
+        where(link) + ': a build links the Performance Max asset field types ' + allowed.join(', ') + '.',
         where(link) + '.asset_group_asset_operation.create.field_type',
-        {allowed: Object.keys(pmaxAssetRequirements.fields)},
+        {allowed},
       );
+    }
     const asset = link.create.asset;
     const text = textOf.get(asset);
     if (textOf.has(asset) && rule!.asset_type !== 'TEXT')
@@ -237,7 +248,7 @@ export function pmaxExistingAssets(ops: PmaxOp[]): Map<string, string> {
   const out = new Map<string, string>();
   for (const l of ops.filter(o => o.kind === 'assetGroupAssets')) {
     const asset = l.create.asset,
-      rule = pmaxAssetRequirements.fields[l.create.field_type];
+      rule = pmaxAssetRequirements.fields[l.create.field_type] ?? pmaxUncountedFieldTypes[l.create.field_type];
     if (typeof asset === 'string' && !/\/-\d+$/.test(asset) && rule) out.set(asset, rule.asset_type);
   }
   return out;
