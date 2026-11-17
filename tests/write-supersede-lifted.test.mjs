@@ -84,6 +84,19 @@ const expire = (f, id) => {
 };
 const status = (f, id) => f.write({action: 'status', review_id: id});
 const reconcile = (f, id) => f.write({action: 'reconcile', review_id: id});
+/** The worker the server runs, over the fixture's own service, and one turn of it with every waiting check made due. */
+const workerOf = f => {
+  const overview = new ReportingOverview(f.service);
+  return new ReportWorker(
+    f.store,
+    async () => ({}),
+    (tenant, kind, input) => overview.work(tenant, kind, input),
+  );
+};
+const runDue = (f, worker) => {
+  f.store.db.prepare("UPDATE jobs SET available_at=0 WHERE kind='write_reconcile' AND state='queued'").run();
+  return worker.once();
+};
 /** The person accepts what the latest reconciliation found. */
 const accept = (f, id, found) =>
   f.write({action: 'reconcile', review_id: id, accept_applied: true, reconciliation_id: found.data.reconciliation_id});
@@ -118,6 +131,98 @@ test('a replacement the provider refused leaves the old review reconcilable and 
     assert.equal(f.claim(old).state, 'complete');
     assert.equal((await status(f, old)).data.state, 'reconciled');
     assert.equal(f.writes.length, 2, 'the lost write and the refused replacement, each sent once');
+  } finally {
+    f.close();
+  }
+});
+
+test('after a rejected replacement the check the lift queues reads the provider, finds the late object and offers the accept', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const {old, replacement} = await replaced(f);
+    const made = appliedLate(f);
+    f.hooks.respond = nameTaken;
+    assert.equal((await f.execute(replacement)).error.details.submission, 'rejected');
+    f.hooks.respond = undefined;
+    assert.deepEqual(queuedChecks(f), [old], 'the lift queued the old review’s check');
+    // The record the lift restores is the not-applied answer the replacement was prepared on, minutes old: it must not settle
+    // anything, so the worker reads (lead re-review 2, F1).
+    const requests = f.requests.length;
+    assert.equal(await runDue(f, workerOf(f)), true, 'the worker leased the check');
+    assert.ok(f.requests.length > requests, 'the check read the provider');
+    const shown = await status(f, old);
+    assert.equal(shown.data.state, 'uncertain');
+    assert.equal(shown.data.reconciliation.automatic, true, 'the worker’s answer is the record now');
+    assert.equal(
+      shown.data.reconciliation.classification,
+      'appears_applied',
+      JSON.stringify(shown.data.reconciliation),
+    );
+    assert.deepEqual(shown.data.reconciliation.observed_ids, [made]);
+    assert.deepEqual(shown.data.next_call, {
+      tool: 'amcp_write',
+      arguments: {action: 'reconcile', review_id: old, reconciliation_id: shown.data.reconciliation.reconciliation_id},
+      add_after_user_approval: {accept_applied: true},
+    });
+    const accepted = await f.write({
+      action: 'reconcile',
+      review_id: old,
+      accept_applied: true,
+      reconciliation_id: shown.data.reconciliation.reconciliation_id,
+    });
+    assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 500));
+    assert.equal(f.claim(old).state, 'complete');
+    assert.equal(f.writes.length, 2, 'the lost write and the refused replacement, each sent once');
+  } finally {
+    f.close();
+  }
+});
+
+test('right after the lift the old review is not offered for a replacement: a new one needs a fresh check', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const {old, replacement, call} = await replaced(f);
+    // The replacement is refused for a reason that made nothing (the old write was not applied).
+    f.hooks.respond = nameTaken;
+    assert.equal((await f.execute(replacement)).error.details.submission, 'rejected');
+    f.hooks.respond = undefined;
+    const shown = await status(f, old);
+    assert.equal(shown.data.state, 'uncertain');
+    // What it kept (found, undated) is shown, but it is no longer an answer: not decisive, with the reason, and no replacement offered.
+    assert.equal(shown.data.reconciliation.classification, 'indeterminate', JSON.stringify(shown.data.reconciliation));
+    assert.equal(shown.data.reconciliation.reason, 'replacement_rejected');
+    assert.deepEqual(shown.data.next_call, {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: old}});
+    // The replacement offered before the lift is refused until a check has read the provider again.
+    const refused = await f.write(call);
+    assert.equal(refused.error?.code, 'RECOVERY_NOT_SAFE', JSON.stringify(refused).slice(0, 500));
+    assert.equal(refused.error.details.classification, 'indeterminate');
+    assert.equal(refused.error.details.required, 'appears_not_applied');
+    const fresh = await reconcile(f, old);
+    assert.equal(fresh.data.classification, 'appears_not_applied', JSON.stringify(fresh.data).slice(0, 500));
+    const second = await f.write(fresh.data.next_call.arguments);
+    assert.equal(second.success, true, JSON.stringify(second).slice(0, 500));
+    assert.equal(f.writes.length, 2, 'the lost write and the refused replacement: no new write was sent');
+  } finally {
+    f.close();
+  }
+});
+
+test('after the lift of an expired replacement the record says so, and a status offers the check, not a replacement', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const {old, replacement} = await replaced(f);
+    expire(f, replacement);
+    const shown = await status(f, old);
+    assert.equal(shown.data.reconciliation.classification, 'indeterminate');
+    assert.equal(shown.data.reconciliation.reason, 'replacement_expired');
+    assert.deepEqual(shown.data.next_call, {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: old}});
+    // The check that the status queued reads the provider, with no back-dating, and settles it again.
+    const requests = f.requests.length;
+    assert.equal(await runDue(f, workerOf(f)), true);
+    assert.ok(f.requests.length > requests, 'the check read the provider');
+    const again = (await status(f, old)).data;
+    assert.equal(again.reconciliation.classification, 'appears_not_applied');
+    assert.equal(again.reconciliation.automatic, true);
   } finally {
     f.close();
   }
@@ -274,21 +379,10 @@ test('the worker’s next check of the old review finds an expired replacement, 
     const {old, replacement} = await replaced(f, {keepJobs: true});
     assert.deepEqual(queuedChecks(f), [old]);
     expire(f, replacement);
-    // What the person last found is older than fifteen minutes, so the check reads the provider afresh.
-    const {id: _id, revision: _revision, ...record} = f.store.document(f.actor.tenantId, 'write_reconciliation', old);
-    f.store.putDocument(f.actor.tenantId, 'write_reconciliation', old, {
-      ...record,
-      checked_at: Date.now() - 20 * 60000,
-    });
-    const overview = new ReportingOverview(f.service),
-      worker = new ReportWorker(
-        f.store,
-        async () => ({}),
-        (tenant, kind, input) => overview.work(tenant, kind, input),
-      );
-    f.store.db.prepare("UPDATE jobs SET available_at=0 WHERE kind='write_reconcile' AND state='queued'").run();
+    // No back-dating (lead re-review 2, F1): the record the lift restores settles nothing, so the check reads the provider although
+    // what the person last found is only minutes old.
     const requests = f.requests.length;
-    assert.equal(await worker.once(), true, 'the worker leased the check');
+    assert.equal(await runDue(f, workerOf(f)), true, 'the worker leased the check');
     assert.deepEqual(
       lifts(f).map(e => [e.review_id, e.replacement_id, e.reason]),
       [[old, replacement, 'expired']],

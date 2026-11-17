@@ -145,9 +145,10 @@ export function supersededBy(
 }
 /**
  * Lifts the supersede of the uncertain write `oldId` by `replacementId` (R2.5 M2, lead re-review N4), when the replacement was rejected
- * or expired with no claim: clears `superseded_by` from the old review's reconciliation, audits why, and queues the old review's
- * check again through `queue` (which says whether it did). Runs in one transaction, so a caller that rejects the replacement lifts
- * it in the same one. Returns whether the record named that replacement.
+ * or expired with no claim: clears `superseded_by` from the old review's reconciliation, makes what it kept non-decisive
+ * (`indeterminate`, with the reason: lead re-review 2, F1), audits why, and queues the old review's check again through `queue` (which
+ * says whether it did). Runs in one transaction, so a caller that rejects the replacement lifts it in the same one. Returns whether
+ * the record named that replacement.
  */
 export function liftSupersede(
   store: Store,
@@ -163,7 +164,16 @@ export function liftSupersede(
     const {id: _id, revision: _revision, ...rest} = unsealed(record),
       old = optional(store, tenant, 'write_review', oldId),
       open = ['uncertain', 'pending'].includes(String(writeClaim(store, tenant, oldId)?.state));
-    store.putDocument(tenant, 'write_reconciliation', oldId, {...rest, updated_at: Date.now()});
+    // The record that comes back is the not-applied answer the replacement was prepared on, minutes old, and it settles nothing now:
+    // the replacement was rejected (the provider's refusal is the strongest sign that the old write was applied) or never ran. It is
+    // kept for display (`found`, `undated`) but is no longer decisive, so the check this lift queues reads the provider, a status
+    // offers that check and not the replacement again, and a new replacement needs a fresh not-applied answer (lead re-review 2, F1).
+    store.putDocument(tenant, 'write_reconciliation', oldId, {
+      ...rest,
+      classification: 'indeterminate',
+      reason: why === 'rejected' ? 'replacement_rejected' : 'replacement_expired',
+      updated_at: Date.now(),
+    });
     store.appendAudit(tenant, oldId, {
       event: 'write_supersede_lifted',
       review_id: oldId,
