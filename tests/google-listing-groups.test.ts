@@ -7,7 +7,10 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {reviewedWriteFamily} from '../src/reviewed-routes.js';
+import {googleAdsHooks} from '../src/google-ads-adapter.js';
+import type {CompileDraft} from '../src/provider-adapter.js';
 import type {CompiledRequest, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 /**
  * Performance Max retail listing group trees (Google Ads API v23 AssetGroupListingGroupFilterService and "Listing Groups
@@ -480,6 +483,163 @@ test('paged or foreign tree reads never become a complete tree, and a tree chang
   } finally {
     f.store.close();
   }
+});
+
+/** The create of `ops[i]` as the caller wrote it, with its listing source taken out (the caller omits the field). */
+const withoutSource = (ops: JsonObject[]): JsonObject[] =>
+  ops.map(op => {
+    if (!op.create) return op;
+    const {listingSource: _omitted, ...rest} = op.create as JsonObject;
+    return {create: rest};
+  });
+
+test('an omitted listingSource defaults to SHOPPING in the compiled request: the review shows it, the fingerprint covers it, Google receives it (R2.5 M3, G4a)', async () => {
+  const f = fixture(split());
+  try {
+    const written = withoutSource([create(undefined, 'UNIT_INCLUDED', 20, condition('USED'))]);
+    const before = JSON.stringify(written);
+    const p = await f.prepare(written);
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 600));
+    assert.equal(JSON.stringify(written), before, 'the caller’s own operations are not changed');
+    assert.equal(p.data.request.body.operations[0].create.listingSource, 'SHOPPING', 'the review shows what is sent');
+    // The default is part of the compiled request, so the request that says SHOPPING itself is the same request.
+    const explicit = await f.prepare([create(undefined, 'UNIT_INCLUDED', 20, condition('USED'))]);
+    assert.equal(explicit.success, true);
+    assert.equal(p.data.fingerprint, explicit.data.fingerprint, 'the fingerprint covers the default');
+    const e = await f.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 600));
+    const sent = f.calls.filter(c => String(c.path).endsWith(':mutate'));
+    assert.equal(sent.length, 1);
+    assert.equal(
+      (sent[0]!.body as any).operations[0].create.listingSource,
+      'SHOPPING',
+      'Google receives what was reviewed',
+    );
+    assert.equal((await f.verify(p)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a listingSource other than SHOPPING is still refused, and the legacy alias defaults the omitted field too (R2.5 M3, G4a)', async () => {
+  const f = fixture(split());
+  try {
+    const web = await f.prepare([
+      create(undefined, 'UNIT_INCLUDED', 20, condition('USED'), {listingSource: 'WEBPAGE'}),
+    ]);
+    assertRefused(web, 'INVALID_LISTING_GROUP', {writes: f.writes(), message: /listingSource must be SHOPPING/});
+    const add = await f.legacy('CREATE_ASSET_GROUP_LISTING_GROUP_FILTER', {
+      resource: {
+        asset_group: group,
+        type: 'UNIT_INCLUDED',
+        parent_listing_group_filter: node(20),
+        case_value: {product_condition: {condition: 'USED'}},
+      },
+    });
+    assert.equal(add.success, true, JSON.stringify(add).slice(0, 900));
+    const created = add.data.request.body.operations[0].create;
+    assert.equal(created.listingSource ?? created.listing_source, 'SHOPPING');
+    assert.equal((await f.execute(add)).success, true);
+    assert.equal((await f.verify(add)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a 120-operation tree named with ~-N stays one review and one mutate request: the chain is never cut into parts of 25 (R2.5 M3, G4c)', async () => {
+  const f = fixture();
+  try {
+    const operations = [
+      {remove: node(10)},
+      create(-1, 'SUBDIVISION'),
+      ...Array.from({length: 117}, (_, i) => create(-(i + 2), 'UNIT_INCLUDED', -1, brand('brand' + i))),
+      create(-119, 'UNIT_INCLUDED', -1, brand()),
+    ];
+    assert.equal(operations.length, 120);
+    const p = await f.prepare(operations);
+    assert.equal(p.success, true, JSON.stringify(p).slice(0, 600));
+    assert.equal(p.data.group, undefined, 'one review, not a group of parts');
+    assert.equal(p.data.parts, undefined);
+    assert.equal(f.writes(), 0);
+    const e = await f.execute(p);
+    assert.equal(e.success, true, JSON.stringify(e).slice(0, 600));
+    const sent = f.calls.filter(c => String(c.path).endsWith(':mutate'));
+    assert.equal(sent.length, 1, 'one mutate request');
+    assert.equal((sent[0]!.body as any).operations.length, 120);
+    assert.equal(f.nodes().size, 119);
+    assert.equal((await f.verify(p)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('the compile default reaches a tree operation of a build too, and leaves every other request and the caller’s own input alone (R2.5 M3, G4a)', () => {
+  const request = googleAdsHooks.compile!.request!;
+  const draft = (route: string, body: unknown) =>
+    ({
+      gateway,
+      action: {name: 'x'},
+      route,
+      method: 'POST',
+      query: {},
+      body,
+      headers: {},
+      readOnly: false,
+      accountId: '123',
+    }) as unknown as CompileDraft;
+  const buildRoute = '/v25/customers/{customer_id=*}/googleAds:mutate',
+    filterRoute = '/v25/customers/{customer_id=*}/assetGroupListingGroupFilters:mutate';
+  const treeOp = (extra: JsonObject = {}, key = 'asset_group_listing_group_filter_operation') => ({
+    [key]: {
+      create: {
+        resource_name: 'customers/123/assetGroupListingGroupFilters/-7~-8',
+        asset_group: 'customers/123/assetGroups/-7',
+        type: 'SUBDIVISION',
+        ...extra,
+      },
+    },
+  });
+  const body = {
+    mutate_operations: [
+      treeOp(),
+      treeOp({listing_source: 'SHOPPING'}),
+      {
+        assetGroupListingGroupFilterOperation: {
+          create: {
+            resourceName: 'customers/123/assetGroupListingGroupFilters/-7~-9',
+            assetGroup: 'customers/123/assetGroups/-7',
+            type: 'SUBDIVISION',
+          },
+        },
+      },
+      {campaign_operation: {create: {name: 'c'}}},
+    ],
+  };
+  const before = JSON.stringify(body);
+  const d = draft(buildRoute, body);
+  request(d, {}, registry);
+  const ops = (d.body as any).mutate_operations;
+  assert.equal(ops[0].asset_group_listing_group_filter_operation.create.listing_source, 'SHOPPING');
+  assert.equal(ops[1].asset_group_listing_group_filter_operation.create.listing_source, 'SHOPPING');
+  assert.equal(
+    ops[2].assetGroupListingGroupFilterOperation.create.listingSource,
+    'SHOPPING',
+    'the spelling of the create’s own keys',
+  );
+  assert.deepEqual(ops[3], {campaign_operation: {create: {name: 'c'}}}, 'another operation is untouched');
+  assert.equal(JSON.stringify(body), before, 'the caller’s own body is not changed');
+  // A value other than SHOPPING stays for the family to refuse; a removal and another route are left as they are.
+  const web = draft(filterRoute, {
+    operations: [{create: {assetGroup: group, type: 'UNIT_INCLUDED', listingSource: 'WEBPAGE'}}, {remove: node(10)}],
+  });
+  request(web, {}, registry);
+  assert.deepEqual((web.body as any).operations, [
+    {create: {assetGroup: group, type: 'UNIT_INCLUDED', listingSource: 'WEBPAGE'}},
+    {remove: node(10)},
+  ]);
+  const other = draft('/v25/customers/{customer_id=*}/campaigns:mutate', {operations: [{create: {name: 'c'}}]});
+  request(other, {}, registry);
+  assert.deepEqual(other.body, {operations: [{create: {name: 'c'}}]});
 });
 
 test('reads use only fields pinned from the v23 reference, and all three catalog actions are one reviewed family', async () => {

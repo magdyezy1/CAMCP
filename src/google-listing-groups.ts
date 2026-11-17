@@ -117,6 +117,46 @@ function parseNode(c: string, name: unknown): {group: string; id: string} | unde
       : null;
   return m ? {group: m[1]!, id: m[2]!} : undefined;
 }
+/**
+ * The compile default of a tree create (R2.5 M3, G4a). This family edits retail trees only, so SHOPPING is the one listing
+ * source it accepts (a webpage tree is refused below); a create that omits the field gets it here, in the compiled body, so the
+ * review's request shows it, the fingerprint covers it, and Google receives exactly what was reviewed. It covers a create on
+ * the one-service route and a tree operation of a build, in the spelling the request uses; a value the caller wrote, whatever it
+ * is, stays for the refusal; nothing else of the request changes, and the caller's own input is never mutated.
+ */
+export function withDefaultListingSource(route: string, body: unknown): unknown {
+  const build = /\/googleAds:mutate$/.test(route);
+  if ((!build && !/\/assetGroupListingGroupFilters:mutate$/.test(route)) || !obj(body)) return body;
+  const listKey = build ? ['mutate_operations', 'mutateOperations'].find(k => Array.isArray(body[k])) : 'operations';
+  if (!listKey || !Array.isArray(body[listKey])) return body;
+  const withSource = (create: unknown): unknown => {
+    if (!obj(create) || Object.hasOwn(create, 'listingSource') || Object.hasOwn(create, 'listing_source'))
+      return create;
+    return Object.keys(create).some(k => k.includes('_'))
+      ? {...create, listing_source: 'SHOPPING'}
+      : {...create, listingSource: 'SHOPPING'};
+  };
+  let changed = false;
+  const next = (body[listKey] as unknown[]).map(op => {
+    if (!obj(op)) return op;
+    if (!build) {
+      const create = withSource(op.create);
+      if (create === op.create) return op;
+      changed = true;
+      return {...op, create};
+    }
+    const key = ['asset_group_listing_group_filter_operation', 'assetGroupListingGroupFilterOperation'].find(k =>
+      obj(op[k]),
+    );
+    if (!key) return op;
+    const inner = op[key] as JsonObject,
+      create = withSource(inner.create);
+    if (create === inner.create) return op;
+    changed = true;
+    return {...op, [key]: {...inner, create}};
+  });
+  return changed ? {...body, [listKey]: next} : body;
+}
 export function googleListingGroupKind(p: CompiledRequest): boolean {
   return (
     p.gateway === 'google_ads_native_action' &&

@@ -85,6 +85,7 @@ import type {DependencyEvidenceContext, MutationResponse} from './provider-adapt
 import {googleRejectionIsNonApplied} from './google-write-rejection.js';
 import {googleCreated, googleNamedTargets} from './google-write-reconciliation.js';
 import {assertChainWithin, chainLimits, containsTempName} from './google-temp-names.js';
+import {withDefaultListingSource} from './google-listing-groups.js';
 // Writes and campaigns (wave 4c): the spending policy's Google Ads parts.
 import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {pinnedJson} from './pinned-json.js';
@@ -604,6 +605,8 @@ const googleAdsCompile: CompileHooks = Object.freeze({
     const desc = registry.data.descriptions[draft.gateway + '/' + draft.action.name];
     if (desc?.body_mapping && desc.body_mapping !== '*')
       draft.body = plain(draft.body)[desc.body_mapping] ?? draft.body;
+    // R2.5 M3, G4a: a tree create that omits its listing source is a retail one; the default is in the compiled body.
+    draft.body = withDefaultListingSource(draft.route, draft.body);
     return undefined;
   },
   beforeJob: (plan: CompiledRequest) => googleGenerationPlan(googleContractEvidence(plan)),
