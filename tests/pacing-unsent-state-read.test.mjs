@@ -1,4 +1,4 @@
-﻿// Package r25-m2-refusal, the lead's review S3-2 (MT3, L3-01 stage a; owner decision D12): under enforce the usual refusal is the one
+// Package r25-m2-refusal, the lead's review S3-2 (MT3, L3-01 stage a; owner decision D12): under enforce the usual refusal is the one
 // of the execute-time state read. A review is prepared, another request of the same login or account announces a block (a response
 // carrying Meta's usage headers, or a throttle), and the review is executed: the transport refuses its state read before anything is
 // claimed, with PLATFORM_RATE_LIMIT and the wait. That read runs before the claim and outside the part of execute that marks a refusal

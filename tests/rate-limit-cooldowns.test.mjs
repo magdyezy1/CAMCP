@@ -1,4 +1,4 @@
-﻿// Package r25-m2-refusal, the lead's review S2-1 (MT3, Round 2.5 M2): the rate_limit that a call and `amcp_workspace check` show must
+// Package r25-m2-refusal, the lead's review S2-1 (MT3, Round 2.5 M2): the rate_limit that a call and `amcp_workspace check` show must
 // read the cooldown AMCP itself refuses on. The transport refuses a request on its own process's cooldown map and on the shared
 // store's `provider_cooldowns`, which another process of the deployment, or this one before a restart, can set; and a provider with
 // rate keys of its own (X: per access token, origin and endpoint) cools those, which no connection and account can compute. The first
